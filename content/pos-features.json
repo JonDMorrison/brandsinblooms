@@ -159,7 +159,8 @@
       "fit": "Scanner compatibility and readable labels need a check with your equipment.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "icon": "ScanLine"
     },
     {
       "slug": "plant-search",
@@ -171,7 +172,15 @@
       "fit": "Search results depend on the names and aliases in your catalogue.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "screenshot": {
+        "src": "/pos/features-assets/search.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Product search at the register"
+      },
+      "icon": "Search"
     },
     {
       "slug": "missing-tag-lookup",
@@ -183,7 +192,15 @@
       "fit": "Photos help identify candidates; staff still confirm the actual product and price.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "screenshot": {
+        "src": "/pos/features-assets/search.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Product search at the register"
+      },
+      "icon": "ImageOff"
     },
     {
       "slug": "visual-product-browsing",
@@ -195,7 +212,8 @@
       "fit": "Products need suitable photos. Images are a reference, not a guarantee of the specimen's appearance.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "icon": "Images"
     },
     {
       "slug": "basket-editing",
@@ -207,7 +225,15 @@
       "fit": "Once payment is underway, follow the payment cancellation or recovery workflow before changing the basket.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "screenshot": {
+        "src": "/pos/features-assets/cart.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Basket quantities and sale totals"
+      },
+      "icon": "ShoppingBasket"
     },
     {
       "slug": "pack-and-flat-selling",
@@ -219,7 +245,8 @@
       "fit": "Configure pack ratios and prices correctly before use.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "icon": "Grid2X2"
     },
     {
       "slug": "measured-product-sales",
@@ -231,7 +258,8 @@
       "fit": "Supported units require configuration; connected scales and local measurement requirements need separate verification.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "icon": "Scale"
     },
     {
       "slug": "price-overrides",
@@ -243,7 +271,8 @@
       "fit": "Your store sets the approval policy. Staff access does not imply unrestricted discount authority.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "icon": "Tag"
     },
     {
       "slug": "cashier-handover",
@@ -255,7 +284,8 @@
       "fit": "New cashier sign-in needs connectivity; this is not an offline sign-in promise.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "icon": "ArrowLeftRight"
     },
     {
       "slug": "cashier-practice",
@@ -267,7 +297,8 @@
       "fit": "Practice uses demonstration data. Real staff acceptance and hardware rehearsal remain part of onboarding.",
       "category": "checkout",
       "availability": "software",
-      "source": "docs/spec/seasonal-cashier-tasks.md"
+      "source": "docs/spec/seasonal-cashier-tasks.md",
+      "icon": "GraduationCap"
     },
     {
       "slug": "cash-checkout",
@@ -279,7 +310,8 @@
       "fit": "Cash rounding follows the configured jurisdiction. Physical drawer compatibility needs verification.",
       "category": "payments",
       "availability": "software",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "Banknote"
     },
     {
       "slug": "integrated-card-payments",
@@ -291,7 +323,8 @@
       "fit": "Reader, merchant account, country and provider setup require verification. Hardware and live-store acceptance are separate from the software build.",
       "category": "payments",
       "availability": "setup",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "CreditCard"
     },
     {
       "slug": "split-payments",
@@ -303,7 +336,8 @@
       "fit": "Available combinations depend on configuration and online balance checks. Card processing requires verified setup.",
       "category": "payments",
       "availability": "setup",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "Split"
     },
     {
       "slug": "payment-recovery",
@@ -315,7 +349,8 @@
       "fit": "An uncertain payment needs reconciliation; never assume failure and charge again.",
       "category": "payments",
       "availability": "software",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "RotateCcw"
     },
     {
       "slug": "card-payment-cancellation",
@@ -327,7 +362,8 @@
       "fit": "Cancellation and reversal depend on the provider's actual payment state and configured integration.",
       "category": "payments",
       "availability": "setup",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "CircleX"
     },
     {
       "slug": "gift-card-balances",
@@ -339,7 +375,8 @@
       "fit": "Balance use requires the complete card code and authorized online checks. Issuance needs a valid funding workflow.",
       "category": "payments",
       "availability": "software",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "Gift"
     },
     {
       "slug": "store-credit",
@@ -351,7 +388,8 @@
       "fit": "Store credit and gift cards are separate liabilities. Your return policy controls eligibility.",
       "category": "payments",
       "availability": "setup",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "Wallet"
     },
     {
       "slug": "original-tender-returns",
@@ -363,7 +401,15 @@
       "fit": "Provider refunds and account permissions must be configured. Mixed tenders retain their original allocations.",
       "category": "payments",
       "availability": "setup",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "screenshot": {
+        "src": "/pos/features-assets/returns.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Original-sale return workflow"
+      },
+      "icon": "Undo2"
     },
     {
       "slug": "refund-progress",
@@ -375,7 +421,8 @@
       "fit": "A recorded request does not mean the bank has completed a refund; provider timing applies.",
       "category": "payments",
       "availability": "setup",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "Clock3"
     },
     {
       "slug": "payment-history",
@@ -387,7 +434,8 @@
       "fit": "Recorded evidence supports review. Reconcile provider settlements separately before treating them as deposited funds.",
       "category": "payments",
       "availability": "software",
-      "source": "docs/spec/payment-recovery.md"
+      "source": "docs/spec/payment-recovery.md",
+      "icon": "History"
     },
     {
       "slug": "common-and-botanical-names",
@@ -399,7 +447,8 @@
       "fit": "Accurate identity still needs catalogue review; names alone do not establish a verified plant match.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "icon": "Flower2"
     },
     {
       "slug": "product-variants",
@@ -411,7 +460,8 @@
       "fit": "Variants need their own accurate identifiers and selling configuration.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "icon": "Layers"
     },
     {
       "slug": "product-photographs",
@@ -423,7 +473,8 @@
       "fit": "Use images you have rights to publish. Catalogue pictures may differ from current living specimens.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "icon": "Camera"
     },
     {
       "slug": "alternate-barcodes",
@@ -435,7 +486,8 @@
       "fit": "Duplicate identifiers need review; the same code must not ambiguously identify two variants.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "icon": "Barcode"
     },
     {
       "slug": "supplier-product-codes",
@@ -447,7 +499,8 @@
       "fit": "Supplier mappings need verification, especially when pack sizes or item specifications change.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "icon": "Hash"
     },
     {
       "slug": "product-aliases",
@@ -459,7 +512,15 @@
       "fit": "Aliases improve lookup; staff still verify size and identity before selling.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "screenshot": {
+        "src": "/pos/features-assets/search.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Product search at the register"
+      },
+      "icon": "SearchCheck"
     },
     {
       "slug": "product-selling-units",
@@ -471,7 +532,8 @@
       "fit": "Unit configuration must match store practice; physical weighing devices require their own compatibility review.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "icon": "Ruler"
     },
     {
       "slug": "catalogue-price-editing",
@@ -483,7 +545,15 @@
       "fit": "Confirm tax treatment and selling units separately. A base-price edit does not automatically change every channel.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "screenshot": {
+        "src": "/pos/features-assets/seasonal-prices.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Price changes and label preparation"
+      },
+      "icon": "Pencil"
     },
     {
       "slug": "seasonal-pricing",
@@ -495,7 +565,15 @@
       "fit": "Review overlapping prices, dates and store policy before activation; no sales uplift is guaranteed.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "screenshot": {
+        "src": "/pos/features-assets/seasonal-prices.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Price changes and label preparation"
+      },
+      "icon": "CalendarDays"
     },
     {
       "slug": "product-setup-review",
@@ -507,7 +585,8 @@
       "fit": "Product setup is separate from opening stock, historical sales and customer balances.",
       "category": "catalogue",
       "availability": "software",
-      "source": "docs/features/c-01-product-catalogue.md"
+      "source": "docs/features/c-01-product-catalogue.md",
+      "icon": "ClipboardCheck"
     },
     {
       "slug": "recorded-stock-visibility",
@@ -519,7 +598,8 @@
       "fit": "Recorded stock is not a physical count or an unconditional promise of availability; freshness and reservations matter.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "icon": "PackageSearch"
     },
     {
       "slug": "stock-areas",
@@ -531,7 +611,8 @@
       "fit": "Area setup and accurate movement recording are needed; this is not automatic physical tracking.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "icon": "MapPin"
     },
     {
       "slug": "plant-loss-recording",
@@ -543,7 +624,8 @@
       "fit": "Known loss stays separate from unexplained count variance. Cost figures may be estimates.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "icon": "Sprout"
     },
     {
       "slug": "blind-inventory-counts",
@@ -555,7 +637,15 @@
       "fit": "Use the supported online workflow; disconnected handheld counting is not implied.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "screenshot": {
+        "src": "/pos/features-assets/stock-count.webp",
+        "width": 1180,
+        "height": 1088,
+        "cropped": false,
+        "label": "Blind count and variance review"
+      },
+      "icon": "ClipboardList"
     },
     {
       "slug": "variance-recounts",
@@ -567,7 +657,15 @@
       "fit": "Thresholds and approvals need configuration. A recount adds evidence rather than replacing the first count.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "screenshot": {
+        "src": "/pos/features-assets/stock-count.webp",
+        "width": 1180,
+        "height": 1088,
+        "cropped": false,
+        "label": "Blind count and variance review"
+      },
+      "icon": "ListChecks"
     },
     {
       "slug": "count-adjustments",
@@ -579,7 +677,15 @@
       "fit": "Count approval and posting are distinct steps. Review ongoing movements during trading.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "screenshot": {
+        "src": "/pos/features-assets/stock-count.webp",
+        "width": 1180,
+        "height": 1088,
+        "cropped": false,
+        "label": "Blind count and variance review"
+      },
+      "icon": "ClipboardCheck"
     },
     {
       "slug": "damaged-stock",
@@ -591,7 +697,8 @@
       "fit": "Physical separation remains a staff job. Moving stock back to sellable condition needs an authorized decision.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "icon": "PackageX"
     },
     {
       "slug": "stock-movement-history",
@@ -603,7 +710,8 @@
       "fit": "Movement history reflects recorded operations; missing physical handling must still be investigated.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "icon": "History"
     },
     {
       "slug": "inter-store-transfers",
@@ -615,7 +723,8 @@
       "fit": "Each store and register must be correctly configured. A transfer is not a retail sale.",
       "category": "inventory",
       "availability": "software",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "icon": "Truck"
     },
     {
       "slug": "in-transit-stock",
@@ -627,7 +736,8 @@
       "fit": "Transit status depends on staff posting shipment and receipt events accurately.",
       "category": "inventory",
       "availability": "setup",
-      "source": "docs/features/c-07-inventory-counts-shrink.md"
+      "source": "docs/features/c-07-inventory-counts-shrink.md",
+      "icon": "Route"
     },
     {
       "slug": "saved-suppliers",
@@ -639,7 +749,8 @@
       "fit": "Saved details need periodic review. The system does not invent missing supplier contacts.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "Building2"
     },
     {
       "slug": "purchase-orders",
@@ -651,7 +762,8 @@
       "fit": "An internal order record does not automatically email or place an order with a supplier.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "FilePlus2"
     },
     {
       "slug": "purchase-approvals",
@@ -663,7 +775,8 @@
       "fit": "Configure staff access and purchasing policy. Supplier acceptance remains a separate business step.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "BadgeCheck"
     },
     {
       "slug": "partial-receiving",
@@ -675,7 +788,8 @@
       "fit": "Only confirmed receipt quantities should affect stock. Review exceptions before posting.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "PackageOpen"
     },
     {
       "slug": "receiving-exceptions",
@@ -687,7 +801,8 @@
       "fit": "Staff must verify product identity, units and the commercial arrangement with the supplier.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "ClipboardList"
     },
     {
       "slug": "freight-and-landed-costs",
@@ -699,7 +814,8 @@
       "fit": "Recorded allocations depend on accurate inputs and are not a substitute for accounting advice or a verified inventory valuation.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "Calculator"
     },
     {
       "slug": "supplier-pack-conversions",
@@ -711,7 +827,8 @@
       "fit": "Review ratios when a supplier changes its pack size. Incorrect mappings cause incorrect quantities.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "Boxes"
     },
     {
       "slug": "low-stock-reorder-starting-points",
@@ -723,7 +840,8 @@
       "fit": "Email delivery must be configured. Suggestions are reviewed defaults, not automatic purchasing or demand forecasting.",
       "category": "purchasing",
       "availability": "setup",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "Bell"
     },
     {
       "slug": "previous-order-defaults",
@@ -735,19 +853,21 @@
       "fit": "Defaults apply only where the source and pack remain eligible. Historical costs are not current supplier quotes.",
       "category": "purchasing",
       "availability": "software",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "Copy"
     },
     {
       "slug": "photo-assisted-receiving",
       "title": "Photo-assisted receiving",
       "benefit": "Start the paperwork from the delivery document.",
       "problem": "Entering a packing slip manually can slow the receiving team.",
-      "workflow": "Upload a photo or document, review the assistant's suggestions and confirm product matches and quantities.",
+      "workflow": "Open an approved purchase order, upload the packing slip, then check suggested matches and quantities before confirming the receipt.",
       "example": "Staff photograph a packing slip, then compare the suggested lines with the actual trays on the truck.",
-      "fit": "Assistance needs configuration and can make mistakes. Stock changes only through the reviewed receiving workflow.",
+      "fit": "Requires an approved purchase order, manager access and configured document assistance. Suggestions can be wrong; staff review the goods before confirming any stock change.",
       "category": "purchasing",
       "availability": "setup",
-      "source": "docs/features/c-06-purchasing-receiving.md"
+      "source": "docs/features/c-06-purchasing-receiving.md",
+      "icon": "Camera"
     },
     {
       "slug": "customer-lookup",
@@ -759,7 +879,15 @@
       "fit": "Staff must check the match. Ordinary anonymous sales do not require a customer record.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "screenshot": {
+        "src": "/pos/features-assets/account-balance.webp",
+        "width": 1180,
+        "height": 863,
+        "cropped": false,
+        "label": "Customer directory and recorded balance"
+      },
+      "icon": "UsersRound"
     },
     {
       "slug": "customer-duplicate-review",
@@ -771,7 +899,15 @@
       "fit": "Conflicting identities or trade accounts can block a merge. Similar names alone are insufficient evidence.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "screenshot": {
+        "src": "/pos/features-assets/account-balance.webp",
+        "width": 1180,
+        "height": 863,
+        "cropped": false,
+        "label": "Customer directory and recorded balance"
+      },
+      "icon": "UserRoundCheck"
     },
     {
       "slug": "trade-account-terms",
@@ -783,7 +919,15 @@
       "fit": "Terms need owner approval. An account record alone does not grant every buyer charging authority.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "screenshot": {
+        "src": "/pos/features-assets/trade-credit.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Contractor account and credit review"
+      },
+      "icon": "Handshake"
     },
     {
       "slug": "authorized-trade-buyers",
@@ -795,7 +939,8 @@
       "fit": "Charging authority is scoped and time-bound. It does not provide account administration access.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "icon": "ContactRound"
     },
     {
       "slug": "customer-purchase-order-references",
@@ -807,7 +952,8 @@
       "fit": "PO requirements depend on account configuration. Staff must verify the customer's actual reference.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "icon": "FileText"
     },
     {
       "slug": "charge-accounts",
@@ -819,7 +965,15 @@
       "fit": "Online authorization, account status, credit policy and required PO details apply.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "screenshot": {
+        "src": "/pos/features-assets/trade-credit.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Contractor account and credit review"
+      },
+      "icon": "Receipt"
     },
     {
       "slug": "credit-limit-controls",
@@ -831,7 +985,15 @@
       "fit": "Do not treat an old cached balance as available credit. Overrides follow configured authority.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "screenshot": {
+        "src": "/pos/features-assets/trade-credit.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Contractor account and credit review"
+      },
+      "icon": "ShieldCheck"
     },
     {
       "slug": "account-statements",
@@ -843,7 +1005,15 @@
       "fit": "Confirm payment allocations and account details before sharing. A statement is not automatic collection activity.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "screenshot": {
+        "src": "/pos/features-assets/trade-credit.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Contractor account and credit review"
+      },
+      "icon": "Files"
     },
     {
       "slug": "receivable-payments",
@@ -855,7 +1025,15 @@
       "fit": "Use the supported account-payment process. Reconcile payment-provider settlements separately.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "screenshot": {
+        "src": "/pos/features-assets/trade-credit.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Contractor account and credit review"
+      },
+      "icon": "Wallet"
     },
     {
       "slug": "tax-exemption-evidence",
@@ -867,7 +1045,8 @@
       "fit": "The owner must confirm local tax policy and evidence. Software does not determine legal eligibility on its own.",
       "category": "customers",
       "availability": "software",
-      "source": "docs/features/c-04-customers-trade-tax-evidence.md"
+      "source": "docs/features/c-04-customers-trade-tax-evidence.md",
+      "icon": "FileCheck2"
     },
     {
       "slug": "special-orders",
@@ -879,7 +1058,8 @@
       "fit": "Availability, supplier commitment and final fulfilment need confirmation; a record does not guarantee supply.",
       "category": "orders",
       "availability": "software",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "icon": "NotebookPen"
     },
     {
       "slug": "customer-deposits",
@@ -891,7 +1071,8 @@
       "fit": "Cancellation, forfeiture and refund terms need store approval. Deposits remain separate from ordinary sale revenue until applied.",
       "category": "orders",
       "availability": "software",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "icon": "Coins"
     },
     {
       "slug": "partial-fulfilment",
@@ -903,7 +1084,8 @@
       "fit": "Review deposit application and remaining balances during each fulfilment.",
       "category": "orders",
       "availability": "software",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "icon": "PackageCheck"
     },
     {
       "slug": "layaway-records",
@@ -915,7 +1097,8 @@
       "fit": "Store policy determines whether layaway is offered. Confirm reservation and cancellation terms explicitly.",
       "category": "orders",
       "availability": "software",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "icon": "CalendarClock"
     },
     {
       "slug": "rain-checks",
@@ -927,7 +1110,8 @@
       "fit": "A rain check does not reserve stock or promise that the supplier will have the item.",
       "category": "orders",
       "availability": "software",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "icon": "CloudRain"
     },
     {
       "slug": "order-cancellations",
@@ -939,7 +1123,8 @@
       "fit": "Policy, authorization and provider outcomes govern refunds. A cancellation record alone does not prove money was returned.",
       "category": "orders",
       "availability": "setup",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "icon": "CircleX"
     },
     {
       "slug": "pickup-planning",
@@ -951,7 +1136,15 @@
       "fit": "Staff still prepare goods, confirm readiness and carry out the physical handover.",
       "category": "orders",
       "availability": "software",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "screenshot": {
+        "src": "/pos/features-assets/delivery.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Delivery planning and recorded arrangements"
+      },
+      "icon": "CalendarDays"
     },
     {
       "slug": "delivery-planning",
@@ -963,7 +1156,15 @@
       "fit": "This is planning support. Route optimization, carrier booking and automatic shipping are not implied.",
       "category": "orders",
       "availability": "software",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "screenshot": {
+        "src": "/pos/features-assets/delivery.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Delivery planning and recorded arrangements"
+      },
+      "icon": "Truck"
     },
     {
       "slug": "presale-campaigns",
@@ -975,7 +1176,15 @@
       "fit": "Connected channel setup and verified allocation rules are required before accepting live orders.",
       "category": "orders",
       "availability": "setup",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "screenshot": {
+        "src": "/pos/features-assets/fundraiser.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Fundraiser reconciliation snapshot"
+      },
+      "icon": "ShoppingBag"
     },
     {
       "slug": "fundraiser-reconciliation",
@@ -987,7 +1196,15 @@
       "fit": "Website connection and shared identity require setup. Provisional commission is subject to final reconciliation.",
       "category": "orders",
       "availability": "setup",
-      "source": "docs/features/c-09-deferred-orders.md"
+      "source": "docs/features/c-09-deferred-orders.md",
+      "screenshot": {
+        "src": "/pos/features-assets/fundraiser.webp",
+        "width": 1280,
+        "height": 720,
+        "cropped": false,
+        "label": "Fundraiser reconciliation snapshot"
+      },
+      "icon": "HeartHandshake"
     },
     {
       "slug": "staff-pin-sign-in",
@@ -999,7 +1216,8 @@
       "fit": "Device binding and permissions must be set up. PIN handling does not replace your staff access policy.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "KeyRound"
     },
     {
       "slug": "store-scoped-roles",
@@ -1011,7 +1229,8 @@
       "fit": "Owners must review grants and revoke access when responsibilities change.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "UsersRound"
     },
     {
       "slug": "manager-approvals",
@@ -1023,7 +1242,8 @@
       "fit": "Approval availability depends on policy and cached authorization where offline support applies.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "ShieldCheck"
     },
     {
       "slug": "action-audit-trail",
@@ -1035,7 +1255,8 @@
       "fit": "The audit reflects recorded actions and permissions; it does not monitor physical activity.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "History"
     },
     {
       "slug": "opening-floats",
@@ -1047,7 +1268,15 @@
       "fit": "A staff member must physically count cash. A software record does not verify the contents of a drawer.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "screenshot": {
+        "src": "/pos/features-assets/cash-movement.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Recorded cash movements"
+      },
+      "icon": "Banknote"
     },
     {
       "slug": "paid-in-and-paid-out",
@@ -1059,7 +1288,15 @@
       "fit": "Follow your store's cash-handling rules and approval thresholds.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "screenshot": {
+        "src": "/pos/features-assets/cash-movement.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Recorded cash movements"
+      },
+      "icon": "ArrowDownUp"
     },
     {
       "slug": "register-assignments",
@@ -1071,7 +1308,8 @@
       "fit": "Reassigning a register needs controlled setup and review of outstanding local work.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "Monitor"
     },
     {
       "slug": "multi-store-configuration",
@@ -1083,7 +1321,8 @@
       "fit": "Confirm entity, currency and tax configuration before trading. Consolidation does not imply currency conversion.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "Store"
     },
     {
       "slug": "tablet-friendly-workspaces",
@@ -1095,7 +1334,8 @@
       "fit": "Browser, network and peripherals need checks on the actual device. Responsive layout is not a hardware certification.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "Tablet"
     },
     {
       "slug": "guided-store-setup",
@@ -1107,7 +1347,8 @@
       "fit": "Go-live requires confirmed merchant, device, policy and staff acceptance; a completed form alone is insufficient.",
       "category": "team",
       "availability": "software",
-      "source": "docs/features/c-08-staff-roles-approvals.md"
+      "source": "docs/features/c-08-staff-roles-approvals.md",
+      "icon": "ListChecks"
     },
     {
       "slug": "sales-reporting",
@@ -1119,7 +1360,15 @@
       "fit": "Reports depend on synchronized and projected records. Incomplete data must not be interpreted as zero activity.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "screenshot": {
+        "src": "/pos/features-assets/close-review.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Daily-close reporting workspace"
+      },
+      "icon": "ChartNoAxesCombined"
     },
     {
       "slug": "cash-count-comparison",
@@ -1131,7 +1380,15 @@
       "fit": "The expected figure depends on recorded opening, sales, refunds and cash movements.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "screenshot": {
+        "src": "/pos/features-assets/close.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Cash count and register close"
+      },
+      "icon": "Calculator"
     },
     {
       "slug": "end-of-day-close",
@@ -1143,7 +1400,15 @@
       "fit": "Uncertain payments and incomplete records need resolution; physical count and owner policy still apply.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "screenshot": {
+        "src": "/pos/features-assets/close.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Cash count and register close"
+      },
+      "icon": "CircleCheck"
     },
     {
       "slug": "z-reports",
@@ -1155,7 +1420,15 @@
       "fit": "A close report summarizes recorded session activity. Bank settlement and accounting review remain separate.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "screenshot": {
+        "src": "/pos/features-assets/close.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Cash count and register close"
+      },
+      "icon": "ReceiptText"
     },
     {
       "slug": "refund-session-reporting",
@@ -1167,7 +1440,15 @@
       "fit": "Review original tender and provider refund state alongside session totals.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "screenshot": {
+        "src": "/pos/features-assets/close-review.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Daily-close reporting workspace"
+      },
+      "icon": "RotateCcw"
     },
     {
       "slug": "tender-reconciliation",
@@ -1179,7 +1460,15 @@
       "fit": "Provider fees, payout timing and external settlement require separate reconciliation.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "screenshot": {
+        "src": "/pos/features-assets/close-review.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Daily-close reporting workspace"
+      },
+      "icon": "ChartPie"
     },
     {
       "slug": "tax-reporting-context",
@@ -1191,7 +1480,8 @@
       "fit": "Jurisdiction setup and professional review are required. Reports do not constitute tax filing or legal advice.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "icon": "FileChartColumn"
     },
     {
       "slug": "owner-exception-review",
@@ -1203,7 +1493,15 @@
       "fit": "An exception is a review signal, not proof of a failed charge. Missing data is shown as unavailable.",
       "category": "reporting",
       "availability": "software",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "screenshot": {
+        "src": "/pos/features-assets/close-review.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Daily-close reporting workspace"
+      },
+      "icon": "CircleAlert"
     },
     {
       "slug": "business-data-exports",
@@ -1215,7 +1513,8 @@
       "fit": "Export scope, size and included records need review. An export is not a tested disaster-recovery restore.",
       "category": "reporting",
       "availability": "setup",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "icon": "Download"
     },
     {
       "slug": "quickbooks-close-preparation",
@@ -1227,7 +1526,8 @@
       "fit": "QuickBooks connection, approved company setup, accountant review and provider acceptance are required. Automatic live posting is not promised.",
       "category": "reporting",
       "availability": "setup",
-      "source": "docs/spec/26-owner-reporting.md"
+      "source": "docs/spec/26-owner-reporting.md",
+      "icon": "BookOpen"
     },
     {
       "slug": "plant-care-guidance",
@@ -1239,7 +1539,8 @@
       "fit": "Care coverage varies. Missing advice stays missing until reviewed; AI-generated care for every product is not included.",
       "category": "connected",
       "availability": "software",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "Leaf"
     },
     {
       "slug": "branded-email-receipts",
@@ -1251,7 +1552,8 @@
       "fit": "Delivery setup and actual provider acceptance are required. Requesting a receipt is separate from marketing consent.",
       "category": "connected",
       "availability": "setup",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "Mail"
     },
     {
       "slug": "hosted-receipt-viewing",
@@ -1263,7 +1565,8 @@
       "fit": "Access depends on a valid link and configured service. Keep receipt links private.",
       "category": "connected",
       "availability": "setup",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "ReceiptText"
     },
     {
       "slug": "receipt-care-notes",
@@ -1275,7 +1578,8 @@
       "fit": "Only available reviewed guidance is included. This does not guarantee care coverage or enable a reminder campaign.",
       "category": "connected",
       "availability": "setup",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "BookOpen"
     },
     {
       "slug": "separate-marketing-consent",
@@ -1287,7 +1591,8 @@
       "fit": "Configure the store's actual consent wording and withdrawal process. A purchase is not marketing permission.",
       "category": "connected",
       "availability": "software",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "UserRoundCheck"
     },
     {
       "slug": "bloom-pos-assistant",
@@ -1299,7 +1604,8 @@
       "fit": "Requires enabled AI configuration and authorized sources. It does not autonomously move money or make stock decisions.",
       "category": "connected",
       "availability": "setup",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "Sparkles"
     },
     {
       "slug": "searchable-pos-guidebook",
@@ -1311,7 +1617,8 @@
       "fit": "Guides explain supported workflows. Store-specific policy and hardware still need training and review.",
       "category": "connected",
       "availability": "software",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "BookOpen"
     },
     {
       "slug": "bloomsites-product-photo-sharing",
@@ -1323,7 +1630,8 @@
       "fit": "Requires a configured BloomSites connection and verified product match. This is not universal catalogue or stock sync.",
       "category": "connected",
       "availability": "setup",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "Images"
     },
     {
       "slug": "reviewed-migration",
@@ -1335,7 +1643,8 @@
       "fit": "Adapters and available record types vary. Real exports and signed control totals need review; full historical migration is not assumed.",
       "category": "connected",
       "availability": "setup",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "ArrowRightLeft"
     },
     {
       "slug": "hardware-compatibility-review",
@@ -1347,7 +1656,8 @@
       "fit": "Each model needs compatibility checks. Stripe readers require the correct account, region and integration; universal hardware support is not promised.",
       "category": "connected",
       "availability": "setup",
-      "source": "docs/spec/shared-product-care.md"
+      "source": "docs/spec/shared-product-care.md",
+      "icon": "MonitorSmartphone"
     },
     {
       "slug": "offline-cash-selling",
@@ -1359,7 +1669,8 @@
       "fit": "Offline operation depends on a previously prepared device, store policy, current cached rules and required local backup setup. Offline card acceptance is not included.",
       "source": "docs/spec/03-offline.md",
       "category": "resilience",
-      "availability": "setup"
+      "availability": "setup",
+      "icon": "WifiOff"
     },
     {
       "slug": "offline-catalogue-access",
@@ -1371,7 +1682,8 @@
       "fit": "Only previously downloaded records are available. Stock freshness, price rules, identity renewal and online-only payments have separate limits.",
       "source": "docs/spec/compact-register-catalogue.md",
       "category": "resilience",
-      "availability": "software"
+      "availability": "software",
+      "icon": "Database"
     },
     {
       "slug": "visible-synchronization-status",
@@ -1383,7 +1695,8 @@
       "fit": "Do not clear browser storage or replace a device with unsynchronized work. A visible queue is not proof of remote acknowledgement.",
       "source": "docs/spec/24-acknowledged-delivery.md",
       "category": "resilience",
-      "availability": "software"
+      "availability": "software",
+      "icon": "RefreshCw"
     },
     {
       "slug": "local-backup-hub-readiness",
@@ -1395,7 +1708,8 @@
       "fit": "Requires compatible local hardware, trusted connection setup and a physical recovery rehearsal. Unpaired stores cannot claim device-loss protection.",
       "source": "docs/spec/offline-second-copy.md",
       "category": "resilience",
-      "availability": "setup"
+      "availability": "setup",
+      "icon": "HardDrive"
     },
     {
       "slug": "plant-and-shelf-labels",
@@ -1407,7 +1721,15 @@
       "fit": "Zebra ZPL printing requires supported media and a configured private network bridge. A screen preview is not a successful physical barcode scan.",
       "source": "docs/setup/plant-label-printing.md",
       "category": "resilience",
-      "availability": "setup"
+      "availability": "setup",
+      "screenshot": {
+        "src": "/pos/features-assets/seasonal-prices.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Price changes and label preparation"
+      },
+      "icon": "Printer"
     },
     {
       "slug": "network-label-printing-from-ipad",
@@ -1419,7 +1741,15 @@
       "fit": "iPad browser, network trust, printer, label media and actual scans require verification. Arbitrary Bluetooth printers are not automatically supported.",
       "source": "docs/plan/roadmap.md",
       "category": "resilience",
-      "availability": "setup"
+      "availability": "setup",
+      "screenshot": {
+        "src": "/pos/features-assets/seasonal-prices.webp",
+        "width": 1180,
+        "height": 820,
+        "cropped": false,
+        "label": "Price changes and label preparation"
+      },
+      "icon": "Tablet"
     },
     {
       "slug": "plant-guarantee-claims",
@@ -1432,12 +1762,7 @@
       "source": "docs/spec/30-plant-guarantee-review.md",
       "category": "resilience",
       "availability": "software",
-      "screenshot": {
-        "src": "/pos/features-assets/guarantees.webp",
-        "label": "Plant guarantee review",
-        "width": 1280,
-        "height": 720
-      }
+      "icon": "Flower2"
     },
     {
       "slug": "loyalty-rewards",
@@ -1449,7 +1774,8 @@
       "fit": "Policy activation, enrollment, customer identity, currency and eligible payment combinations require setup. Unverified historical rewards are not spendable balances.",
       "source": "docs/spec/34-loyalty-owner-review.md",
       "category": "resilience",
-      "availability": "setup"
+      "availability": "setup",
+      "icon": "Award"
     },
     {
       "slug": "margin-and-seasonal-performance",
@@ -1461,7 +1787,8 @@
       "fit": "Missing cost or labour evidence stays unavailable. Recorded purchase cost is not automatically a verified cost-of-goods-sold figure or profit guarantee.",
       "source": "docs/spec/owner-financial-history.md",
       "category": "resilience",
-      "availability": "software"
+      "availability": "software",
+      "icon": "ChartNoAxesCombined"
     },
     {
       "slug": "supplier-shortages-and-backorders",
@@ -1473,7 +1800,8 @@
       "fit": "Supplier commitments and substitute products need confirmation. Cancelling a remainder must preserve previous receipts and their costs.",
       "source": "docs/spec/supplier-shortages.md",
       "category": "resilience",
-      "availability": "software"
+      "availability": "software",
+      "icon": "PackageMinus"
     }
   ]
 }

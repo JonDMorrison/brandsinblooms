@@ -1,0 +1,2312 @@
+{
+  "barcode-scanning": {
+    "explanation": [
+      "The useful part happens after the beep. Staff can check the matched product and selling option before adding it, rather than treating a successful scan as proof that every detail is right. That matters when neighbouring pot sizes look almost identical.",
+      "For the owner, scanning connects good catalogue work with everyday checkout. A readable label, an unambiguous barcode and an accurate variant work together. During setup, bring the labels your suppliers actually use so the demonstration reflects a real garden centre basket."
+    ],
+    "capabilities": [
+      {
+        "title": "Find recorded items",
+        "text": "Use a recorded barcode to reach its matching product without typing the full name. The cashier still checks the item and the size before proceeding."
+      },
+      {
+        "title": "Support clearer baskets",
+        "text": "Keep the product selected by the scan connected to the basket. This gives staff a concrete item to review when a customer questions a quantity or price."
+      },
+      {
+        "title": "Start with real labels",
+        "text": "Assess scanning against your own tags, counter layout and devices. A successful demonstration should include the awkward labels your team encounters, not just a pristine sample."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we use the scanners we already own?",
+        "a": "Possibly. Bring the model and a few actual labels to the compatibility review. Connection method, browser behaviour and barcode readability need checking before existing equipment is included in your checkout plan."
+      },
+      {
+        "q": "What happens when a tag will not scan?",
+        "a": "Staff can use the product lookup instead, then confirm the plant and selling option. Missing-tag lookup and visual browsing provide another route without assuming that an unreadable code identifies the correct item."
+      }
+    ],
+    "intro": "A cart full of plants should not mean a keyboard full of product names. Barcode scanning gives cashiers a direct route to the recorded item, leaving their attention on the customer and the basket in front of them.",
+    "related": [
+      "alternate-barcodes",
+      "plant-and-shelf-labels",
+      "missing-tag-lookup"
+    ],
+    "flow": [
+      "Scan the tag",
+      "Check the match",
+      "Add the item"
+    ],
+    "demoQuestion": "Can we scan our own plant tags and confirm the right pot sizes?"
+  },
+  "plant-search": {
+    "explanation": [
+      "A good result still needs a human check. Finding the plant identity is the beginning; staff must also choose the correct size or other selling option. That keeps a familiar name from becoming an accidental shortcut to the wrong item.",
+      "The owner can improve search by improving the catalogue behind it. Maintain the names your customers and growers use, then let seasonal staff rehearse a few realistic requests. The goal is a more dependable route from a spoken question to a reviewed basket line."
+    ],
+    "capabilities": [
+      {
+        "title": "Search familiar names",
+        "text": "Let staff begin with the words they know. Recorded common names provide a practical starting point for a customer conversation without demanding botanical expertise at the till."
+      },
+      {
+        "title": "Use botanical references",
+        "text": "Keep the grower's naming language available when a common name is ambiguous. Staff can compare the recorded identity before choosing the intended variant and quantity."
+      },
+      {
+        "title": "Connect search and setup",
+        "text": "Improve difficult lookups through reviewed names and aliases. This keeps catalogue maintenance focused on the searches your team actually struggles with during a working day."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will search automatically recognize every nickname a customer uses?",
+        "a": "No. Results depend on the information recorded in the catalogue. Useful aliases can improve lookup, but an unfamiliar request still needs staff judgment and confirmation of the actual plant."
+      },
+      {
+        "q": "Does finding a plant confirm that the size is available?",
+        "a": "No. Identity, selling option and recorded stock answer different questions. Staff should confirm the variant and review the available stock context before promising that a particular plant is ready to sell."
+      }
+    ],
+    "intro": "Customers describe plants in their own words. Your till should help staff make sense of that conversation. Plant search brings recorded common names, botanical names and useful aliases into the same everyday lookup task at the counter.",
+    "related": [
+      "common-and-botanical-names",
+      "product-aliases",
+      "recorded-stock-visibility"
+    ],
+    "flow": [
+      "Enter a known name",
+      "Compare plant identities",
+      "Choose the variant"
+    ],
+    "demoQuestion": "Can a seasonal cashier find the same plant using customer and grower names?"
+  },
+  "missing-tag-lookup": {
+    "explanation": [
+      "A picture, a name fragment or a known price can help begin the search. None of those clues should replace confirmation of the plant and its selling option. The workflow supports a considered choice instead of an improvised price for an unidentified item.",
+      "This is especially useful when experienced plant staff are helping elsewhere. A cashier can gather better information before asking for assistance, while the owner keeps product identity and pricing tied to a recorded item rather than an informal counter note."
+    ],
+    "capabilities": [
+      {
+        "title": "Use the clues available",
+        "text": "Begin with recognizable information rather than abandoning the lookup. A partial name, product image or price clue can help staff work toward the intended catalogue item."
+      },
+      {
+        "title": "Check the selling option",
+        "text": "Compare the physical item with its recorded size and other details. Two plants with similar foliage can still have different selling options and different prices."
+      },
+      {
+        "title": "Retain a proper product line",
+        "text": "Once confirmed, use the actual product in the basket. This preserves a clearer record than entering an assumed amount without resolving what the customer is buying."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can a photograph identify the plant for us?",
+        "a": "It can help staff compare candidates, but this workflow does not guarantee visual plant identification. A colleague may still need to verify the species, cultivar or pot size before the sale continues."
+      },
+      {
+        "q": "Should we simply choose another item with the same price?",
+        "a": "No. Matching price alone does not establish product identity. Confirm the intended item so the sale and related stock activity remain associated with the product the customer actually takes home."
+      }
+    ],
+    "intro": "The customer is ready to pay, but the tag has disappeared somewhere between the bench and the counter. Missing-tag lookup gives staff a practical way to narrow the possibilities using the product details they can still recognize.",
+    "related": [
+      "visual-product-browsing",
+      "plant-search",
+      "product-photographs"
+    ],
+    "flow": [
+      "Gather a useful clue",
+      "Narrow the candidates",
+      "Confirm the actual item"
+    ],
+    "demoQuestion": "Can we find an untagged plant without inventing a product or a price?"
+  },
+  "visual-product-browsing": {
+    "explanation": [
+      "The image works alongside the product details. Staff can move from a recognizable picture to the appropriate selling option, then verify the physical item. This is helpful across departments where the same team sells both familiar plants and less familiar pots or giftware.",
+      "The quality of the experience begins with the catalogue photographs you choose. Clear, representative images reduce ambiguity. Review them with the people who work the counter and ask which lookalike products would still require a closer check of the written details."
+    ],
+    "capabilities": [
+      {
+        "title": "Browse by recognition",
+        "text": "Give staff another way into the catalogue when a full product name is unfamiliar. A representative photograph can make a large list of names easier to approach."
+      },
+      {
+        "title": "Compare similar products",
+        "text": "Use images together with recorded descriptions and selling options. This helps staff notice a likely match while preserving the check that distinguishes neighbouring sizes or designs."
+      },
+      {
+        "title": "Improve counter references",
+        "text": "Treat product photographs as working tools for the team. Replace confusing or unsuitable images through the catalogue workflow, with attention to the differences cashiers need to recognize."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will the photograph show the exact plant a customer receives?",
+        "a": "Not necessarily. Living specimens vary with growth, season and condition. Catalogue photographs are a reference for recognition, while staff confirm the actual plant and its recorded selling details."
+      },
+      {
+        "q": "Can pictures replace staff training on product sizes?",
+        "a": "No. Pictures make lookup more approachable, but staff still need to understand the sizes and selling options used by the store. Rehearse those distinctions with demonstration baskets before busy trading."
+      }
+    ],
+    "intro": "A new cashier may recognize the hanging basket long before remembering its catalogue name. Visual product browsing gives that recognition a place in checkout, using recorded photographs to help staff find and compare the items in front of them.",
+    "related": [
+      "product-photographs",
+      "product-variants",
+      "cashier-practice"
+    ],
+    "flow": [
+      "Recognize the product",
+      "Review its details",
+      "Select the selling option"
+    ],
+    "demoQuestion": "Which products can our newest cashier recognize using the catalogue photographs?"
+  },
+  "basket-editing": {
+    "explanation": [
+      "The aim is a basket the customer and cashier both understand. Correct quantities and remove unwanted lines before moving to tender. This gives the team a natural moment to confirm the total rather than carrying a known mistake into the payment process.",
+      "There is an important boundary once payment has started. A changed basket can affect an amount already requested or collected. Resolve that payment through its cancellation or recovery path first, then return to the product decision with a clear financial state."
+    ],
+    "capabilities": [
+      {
+        "title": "Correct quantities early",
+        "text": "Adjust the quantity while reviewing the basket, before taking payment. This keeps an ordinary purchase change in the product workflow rather than turning it into a later refund task."
+      },
+      {
+        "title": "Remove unwanted items",
+        "text": "Clear a line the customer no longer wants and review what remains. The basket should describe the goods they intend to buy when the tender step begins."
+      },
+      {
+        "title": "Review the total together",
+        "text": "Use the updated basket as the shared point of confirmation. This is the moment to catch a misunderstood quantity or an extra item before money changes hands."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we change the basket during a card attempt?",
+        "a": "Resolve the payment attempt first using its supported cancellation or recovery workflow. Staff must know whether money was captured before changing the goods and starting any subsequent payment action."
+      },
+      {
+        "q": "Is removing a basket line the same as returning a sold item?",
+        "a": "No. An unpaid basket correction and a completed-sale return are different jobs. Once the sale is completed, use the original sale and supported return process to preserve its financial history."
+      }
+    ],
+    "intro": "Customers change their minds. They remember another bag of soil, decide against a planter or choose a different quantity. Basket editing keeps those ordinary adjustments close to checkout, while staff can still review the purchase before payment begins.",
+    "related": [
+      "card-payment-cancellation",
+      "payment-recovery",
+      "original-tender-returns"
+    ],
+    "flow": [
+      "Review the basket",
+      "Correct the product lines",
+      "Confirm before payment"
+    ],
+    "demoQuestion": "Can we correct a quantity and see the revised basket before taking money?"
+  },
+  "pack-and-flat-selling": {
+    "explanation": [
+      "The selling choice belongs at the counter; the conversion belongs in setup. When the correct relationship is recorded in advance, staff can select a pack or flat without reconstructing its contents during a busy sale. The store still needs to verify the configured quantity and price.",
+      "Keep this distinct from how a grower delivers the goods. A supplier tray and a customer flat may represent different arrangements. Review both sides of the business so receiving units, stock units and customer selling options do not become interchangeable assumptions."
+    ],
+    "capabilities": [
+      {
+        "title": "Offer meaningful selling choices",
+        "text": "Present the configured pack or flat as a selling option staff can recognize. The choice should match what the customer is taking away, not an informal description of packaging."
+      },
+      {
+        "title": "Preserve stock relationships",
+        "text": "Use the recorded conversion between the selling choice and the stock unit. This makes the quantity relationship explicit rather than depending on a cashier's mental calculation."
+      },
+      {
+        "title": "Prepare before the rush",
+        "text": "Check pack contents and prices during catalogue setup. Staff should be able to rehearse a mixed basket of eaches and packs without inventing conversion rules at checkout."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is a flat automatically the same quantity for every product?",
+        "a": "No. Configure the relationship for the relevant product and selling option. Similar packaging can contain different quantities, so the word flat alone is not enough to establish the conversion."
+      },
+      {
+        "q": "How does this differ from supplier pack conversions?",
+        "a": "This feature supports what the customer buys at checkout. Supplier pack conversions support what the store receives. They can be related, but each relationship needs its own verified setup."
+      }
+    ],
+    "intro": "Garden centre customers do not always buy plants one at a time. Pack and flat selling lets the cashier choose a configured selling option that matches the purchase, while preserving its relationship to the underlying stock quantity.",
+    "related": [
+      "product-selling-units",
+      "supplier-pack-conversions",
+      "product-variants"
+    ],
+    "flow": [
+      "Choose the configured pack",
+      "Confirm its quantity and price",
+      "Add the selling option"
+    ],
+    "demoQuestion": "Can we sell eaches and flats in one basket with the correct stock relationship?"
+  },
+  "measured-product-sales": {
+    "explanation": [
+      "The important decision is the unit relationship established before checkout. Staff need to know what the entered quantity means and which product it belongs to. A measured amount should be deliberate, with the customer and cashier clear about what is being purchased.",
+      "Specialized equipment deserves its own review. A supported measured quantity in the software does not mean any scale can connect to the till. Bring the device, the label format and your measuring process into the demonstration before deciding on the final setup."
+    ],
+    "capabilities": [
+      {
+        "title": "Represent measured quantities",
+        "text": "Record the supported measured amount for an eligible product. This gives bulk departments a quantity model that is more suitable than pretending every purchase is a whole piece."
+      },
+      {
+        "title": "Keep units explicit",
+        "text": "Use the unit configured for that product and check what the quantity represents. Weight, volume and item count should never be treated as interchangeable simply because their numbers look alike."
+      },
+      {
+        "title": "Review the full setup",
+        "text": "Assess the selling workflow alongside any measuring device and local requirements. Software configuration and physical equipment verification are related steps, with different checks required for each."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does this mean our existing scale will connect automatically?",
+        "a": "No. Device model, connection method, labels and the store's measurement process need individual verification. The software's supported units do not establish compatibility with an arbitrary scale or peripheral."
+      },
+      {
+        "q": "Can we use the same unit setup for every bulk product?",
+        "a": "Only where that relationship is appropriate and verified. Review each product's stock and selling units, especially when departments use different weights or volumes or when supplier packaging introduces another conversion."
+      }
+    ],
+    "intro": "Bulk materials and other measured goods do not fit neatly into a whole-item sale. Measured product sales let the team record a supported quantity in a configured unit, so the purchase reflects how that product is actually sold.",
+    "related": [
+      "product-selling-units",
+      "supplier-pack-conversions",
+      "hardware-compatibility-review"
+    ],
+    "flow": [
+      "Choose the measured product",
+      "Enter its supported quantity",
+      "Review the unit and total"
+    ],
+    "demoQuestion": "Can we demonstrate our actual bulk-selling units and the equipment they require?"
+  },
+  "price-overrides": {
+    "explanation": [
+      "An override handles the particular situation in front of the cashier. It should not quietly become the product's new regular price. Keeping those jobs separate helps managers resolve an exception without creating uncertainty about how the rest of the catalogue should sell.",
+      "The owner decides where discretion belongs. Configured approval policies make that decision more consistent across staff and shifts. The useful result is a price conversation that can be explained afterwards, rather than an unexplained reduction someone notices only at closing."
+    ],
+    "capabilities": [
+      {
+        "title": "Handle a specific exception",
+        "text": "Use the override workflow for the situation being reviewed. Confirm the intended change before proceeding so the customer and authorized staff member understand the agreed selling price."
+      },
+      {
+        "title": "Keep the reason visible",
+        "text": "Retain why the exception was made. A useful explanation helps a manager distinguish a customer-service decision from a catalogue error that needs a different correction."
+      },
+      {
+        "title": "Apply the approval policy",
+        "text": "Follow the authority configured by your store. Access to checkout does not mean every cashier can make every price decision without an additional approval step."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will an override update the product's normal price?",
+        "a": "An individual price exception is different from catalogue price maintenance. Use the product editing workflow when the regular selling price needs correction, rather than relying on repeated counter overrides."
+      },
+      {
+        "q": "Can seasonal staff make price exceptions on their own?",
+        "a": "That depends on the authority and policy your store configures. Review thresholds and the manager approval process during setup, then rehearse the decisions seasonal staff are likely to encounter."
+      }
+    ],
+    "intro": "Sometimes there is a sensible reason to change a price at the counter. A marked pot, a documented agreement or a customer-service decision needs a clear process, with the right person authorizing the exception and a reason retained with it.",
+    "related": [
+      "manager-approvals",
+      "catalogue-price-editing",
+      "action-audit-trail"
+    ],
+    "flow": [
+      "Review the exception",
+      "Record the reason",
+      "Follow the approval policy"
+    ],
+    "demoQuestion": "Can we rehearse an authorized damaged-item price exception and review its reason?"
+  },
+  "cashier-handover": {
+    "explanation": [
+      "The basket comes first. Finish or void it through the appropriate workflow before switching, so the next cashier does not inherit an unexplained purchase. Then the incoming staff member uses their own sign-in rather than continuing under a colleague's identity.",
+      "This makes the handover worth practising, especially with seasonal staff. Agree how the team handles breaks and unexpected cover, and verify connectivity for the new sign-in. A calm two-minute rehearsal is more useful than assuming everyone will interpret a shared till the same way."
+    ],
+    "capabilities": [
+      {
+        "title": "Clear the current basket",
+        "text": "Resolve the sale or void the basket before handing over. This creates an understandable boundary between one person's unfinished work and the next person's responsibility."
+      },
+      {
+        "title": "Identify the incoming cashier",
+        "text": "Use Switch cashier and the next staff member's own sign-in. The change should reflect who is actually operating the register for the following customer interaction."
+      },
+      {
+        "title": "Rehearse ordinary cover",
+        "text": "Include breaks, lunch relief and end-of-shift cover in training. These routine transitions deserve the same attention as the first sign-in at the start of the day."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can the next cashier sign in when the internet is down?",
+        "a": "New cashier sign-in requires connectivity. Plan the store's outage procedure around that boundary rather than assuming that an already prepared register can admit a different staff member offline."
+      },
+      {
+        "q": "Should the outgoing cashier leave an unpaid basket for the next person?",
+        "a": "Finish or void the basket before switching through the supported handover routine. If payment is uncertain, resolve that payment state first rather than treating a staff change as a way to clear it."
+      }
+    ],
+    "intro": "A shared register should not mean shared accountability. Cashier handover gives the team a deliberate point to finish the current work and identify the next person before another customer's sale begins, even when shifts overlap at a busy counter.",
+    "related": [
+      "staff-pin-sign-in",
+      "basket-editing",
+      "payment-recovery"
+    ],
+    "flow": [
+      "Resolve the current basket",
+      "Choose Switch cashier",
+      "Sign in the next person"
+    ],
+    "demoQuestion": "Can two staff members rehearse a break handover without sharing a cashier identity?"
+  },
+  "cashier-practice": {
+    "explanation": [
+      "Focus on the jobs staff will actually do. Finding an unfamiliar plant, correcting a basket and handling a changed mind reveal more than a tour of menus. Managers can watch where a person hesitates and decide what deserves another demonstration before live trading.",
+      "Practice also exposes setup questions. A store may have suitable software workflows but still need to verify its scanner, reader or drawer. Keep demonstration success separate from the final rehearsal with real equipment, store policy and the people who will use the system."
+    ],
+    "capabilities": [
+      {
+        "title": "Learn through actual tasks",
+        "text": "Build rehearsal around a complete purchase and the interruptions that commonly happen around it. Staff should practise making the decision, not simply watching someone point to a screen."
+      },
+      {
+        "title": "Use demonstration records",
+        "text": "Let people explore the supported routine with test information. This provides a clearer learning setting while preserving the distinction between a practice action and a live customer transaction."
+      },
+      {
+        "title": "Find training gaps early",
+        "text": "Watch for uncertain product choices, misunderstood payment states and awkward handovers. Those observations help owners plan useful coaching before seasonal pressure makes the same questions harder to address."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a successful demo mean staff are ready for a busy Saturday?",
+        "a": "Not by itself. Observe the actual team completing representative tasks, review any coaching required, and rehearse the physical equipment before deciding the store is ready for live trading."
+      },
+      {
+        "q": "Which jobs should a new cashier practise first?",
+        "a": "Start with product lookup, basket corrections, supported payments, returns and handover. Add your store's common exceptions so the practice reflects the situations that normally bring a manager to the counter."
+      }
+    ],
+    "intro": "The best place for a new cashier's first return is a practice session. Cashier rehearsal lets the team work through supported checkout jobs with demonstration data before a real customer is waiting for an answer at the counter.",
+    "related": [
+      "missing-tag-lookup",
+      "cashier-handover",
+      "original-tender-returns"
+    ],
+    "flow": [
+      "Choose a real counter task",
+      "Rehearse with demonstration data",
+      "Review uncertainty together"
+    ],
+    "demoQuestion": "Can our newest cashier complete a realistic sale and return while we observe?"
+  },
+  "cash-checkout": {
+    "explanation": [
+      "Entering what the customer hands over gives staff a clear reference for the next step. They can review the displayed change instead of relying only on mental arithmetic, then complete the sale using the store's normal cash-handling routine and receipt process.",
+      "The screen is one part of a physical job. The opening float, the notes in the drawer and any paid-out movements still need accurate handling. Owners get the most useful result when the software routine and the team's actual counting habits are reviewed together."
+    ],
+    "capabilities": [
+      {
+        "title": "Record the amount received",
+        "text": "Give the cash payment a clear starting amount. Staff should check the entered value against the notes and coins the customer has actually handed over at the counter."
+      },
+      {
+        "title": "Review the change due",
+        "text": "Use the displayed change as a practical reference before handing money back. The cashier remains responsible for counting the physical change and checking it with the customer."
+      },
+      {
+        "title": "Connect payment and closing",
+        "text": "Treat a finished cash sale as part of the session's recorded activity. Opening floats, refunds and separate cash movements still need their own accurate records for a meaningful close."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does the POS count the cash in the drawer?",
+        "a": "No. Staff physically count the drawer and record the result. The system can support the comparison, but its cash record cannot verify which notes and coins are actually present."
+      },
+      {
+        "q": "Will cash rounding work the same way in every store?",
+        "a": "Cash rounding follows the configured jurisdiction and store setup. Review that behaviour in a representative sale rather than assuming a rule from another country or a different payment method applies."
+      }
+    ],
+    "intro": "Cash sales should end with an amount the cashier can explain and change the customer can check. The cash checkout workflow keeps those decisions together, from the amount received to the recorded sale and the change due.",
+    "related": [
+      "opening-floats",
+      "cash-count-comparison",
+      "offline-cash-selling"
+    ],
+    "flow": [
+      "Enter the cash received",
+      "Check the change",
+      "Complete the cash sale"
+    ],
+    "demoQuestion": "Can we take a cash payment and follow its impact through to the drawer count?"
+  },
+  "integrated-card-payments": {
+    "explanation": [
+      "The benefit is practical: the cashier does not have to recreate the till total on a separate terminal. The integration sends the amount to the configured reader, then the team waits for a confirmed outcome before treating that payment as complete.",
+      "A good demonstration should include more than an approval. Review a customer changing their mind and an interrupted response, too. Those moments show how the store will handle uncertainty and avoid repeating a charge simply because the expected answer did not appear immediately."
+    ],
+    "capabilities": [
+      {
+        "title": "Carry the checkout amount",
+        "text": "Send the amount through the configured payment integration. This removes the additional manual amount-entry step that exists when staff use a standalone terminal beside the till."
+      },
+      {
+        "title": "Wait for a verified result",
+        "text": "Keep staff focused on the actual payment outcome. A reader interaction, a requested amount and a completed payment are different moments in the customer experience."
+      },
+      {
+        "title": "Review the full equipment fit",
+        "text": "Confirm reader model, merchant account, region and provider configuration together. The integration needs a supported operating setup, with hardware and live-store acceptance verified separately from the software."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is this the integrated pin pad feature owners ask about?",
+        "a": "Yes, it addresses the same operational goal: passing the sale amount to the configured payment device instead of manually rekeying it. The exact reader and payment setup still need confirmation for the store."
+      },
+      {
+        "q": "Does this mean card payments will work offline on our iPad?",
+        "a": "No offline-card promise is included here. Internet interruptions, supported device behaviour and uncertain payment recovery need their own review, even when ordinary integrated payments are configured and working."
+      }
+    ],
+    "intro": "Typing the same total into a second device creates another place for a mistake. Integrated card payments connect the configured reader to the checkout flow, so staff can follow the sale amount through a single reviewed payment process.",
+    "related": [
+      "payment-recovery",
+      "hardware-compatibility-review",
+      "split-payments"
+    ],
+    "flow": [
+      "Review the sale amount",
+      "Send it to the configured reader",
+      "Wait for confirmation"
+    ],
+    "demoQuestion": "Can we follow one amount from the basket to the reader and review an interrupted response?"
+  },
+  "split-payments": {
+    "explanation": [
+      "This is most useful when the payment conversation changes partway through checkout. A gift-card balance may cover only part of the basket, or a customer may have another supported combination in mind. Staff need to understand what has been collected before accepting the next portion.",
+      "The owner's priority is a coherent payment trail. Each tender remains part of the same sale, while balance checks and provider outcomes keep their own requirements. The exact combinations available must be confirmed for the store rather than assumed from a list of payment names."
+    ],
+    "capabilities": [
+      {
+        "title": "Keep one purchase together",
+        "text": "Use supported payment portions against the same sale instead of improvising separate product transactions. This gives staff a common reference for the goods and total being paid for."
+      },
+      {
+        "title": "See the remaining amount",
+        "text": "Review what is still outstanding as the supported tenders are recorded. The next payment decision should begin from that remaining amount, not from an assumption about what the previous step collected."
+      },
+      {
+        "title": "Respect balance requirements",
+        "text": "Gift value, store credit and card payments have different checks. Review the eligible combinations and online requirements before promising customers that any two methods can always be mixed."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can a customer use part of a gift card and pay the rest another way?",
+        "a": "That is a supported use case where the store's configured tender combination and online balance checks allow it. Verify the exact path with your merchant and currency setup during the demonstration."
+      },
+      {
+        "q": "What if the customer changes the basket after one portion is paid?",
+        "a": "Resolve the payment already taken through the supported cancellation or reversal routine first. Staff must know the collected amount and its outcome before changing the basket or taking another portion."
+      }
+    ],
+    "intro": "A customer wants to use the value they already have and pay the remainder another way. Split payments keep supported tenders connected to one purchase, with a clear view of how much of the sale still needs to be covered.",
+    "related": [
+      "gift-card-balances",
+      "store-credit",
+      "card-payment-cancellation"
+    ],
+    "flow": [
+      "Review eligible payment methods",
+      "Record each payment portion",
+      "Confirm the balance is covered"
+    ],
+    "demoQuestion": "Can we use an eligible gift balance and another tender while tracking the remainder?"
+  },
+  "payment-recovery": {
+    "explanation": [
+      "The important question is whether the original payment completed. A screen interruption alone cannot answer it. Reviewing the attempt and reconciling its provider status gives the team a more defensible next step than assuming that silence means failure and asking the customer to try again.",
+      "Owners should make this a training priority. A staff member who recognizes uncertainty can stop and seek the right review instead of improvising. Include a realistic interrupted-payment scenario in the demonstration, then agree how your team escalates any outcome it cannot confidently resolve."
+    ],
+    "capabilities": [
+      {
+        "title": "Retain the original attempt",
+        "text": "Keep the investigation tied to the payment that actually started. The original record is the point of reference when the cashier did not receive the expected response."
+      },
+      {
+        "title": "Review provider status",
+        "text": "Use the supported reconciliation path to establish what happened. A requested payment and a confirmed outcome must remain distinguishable before another financial action is considered."
+      },
+      {
+        "title": "Guide the next decision",
+        "text": "Give staff a reason to pause and review rather than automatically repeat the collection step. Recovery is about resolving uncertainty, with further action based on the verified state."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should the cashier retry when the screen looks stuck?",
+        "a": "Not simply because it looks stuck. Check the retained attempt and actual payment outcome through the recovery process first. A repeated charge can create a second problem while the original payment remains unresolved."
+      },
+      {
+        "q": "Can closing the register clear an uncertain payment?",
+        "a": "Closing is not a substitute for payment reconciliation. Unresolved payment work needs the appropriate review before the team can treat the session as settled and complete its normal close procedure."
+      }
+    ],
+    "intro": "An unclear payment result is a moment for a reliable process. Payment recovery helps staff investigate the retained attempt before deciding what happens next, so a lost response does not become a reason to start an unnecessary second charge.",
+    "related": [
+      "owner-exception-review",
+      "card-payment-cancellation",
+      "payment-history"
+    ],
+    "flow": [
+      "Find the original attempt",
+      "Reconcile its actual status",
+      "Choose the supported next step"
+    ],
+    "demoQuestion": "Can our team recognize an uncertain payment and resolve the original attempt before retrying?"
+  },
+  "card-payment-cancellation": {
+    "explanation": [
+      "The correct action depends on the payment state. An uncaptured attempt and money already captured are different situations. Staff use the supported cancellation or reversal route for the actual outcome rather than treating every changed mind as a simple basket edit.",
+      "That distinction becomes especially valuable in split payments, where one portion may already be collected. Agree how staff handle the conversation, what needs manager help and how they confirm the payment has been resolved before returning to the goods the customer now wants."
+    ],
+    "capabilities": [
+      {
+        "title": "Resolve the existing attempt",
+        "text": "Start with the payment already in progress. Establish its state before collecting against a replacement basket, so the old financial step is not left hanging behind a new sale."
+      },
+      {
+        "title": "Use the supported remedy",
+        "text": "Follow cancellation or reversal according to the provider's actual state and the configured integration. The names of the actions matter less than correctly resolving what already happened."
+      },
+      {
+        "title": "Return to a clear basket",
+        "text": "Once the payment position is understood, staff can revisit the customer's product choice. Basket changes should begin from a known collection state rather than an unresolved assumption."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is cancelling a card attempt the same as refunding a completed sale?",
+        "a": "No. The appropriate route depends on whether the payment was captured and whether the sale completed. Completed-sale returns use their own original-tender workflow and retained transaction history."
+      },
+      {
+        "q": "Can we immediately take the revised total on another attempt?",
+        "a": "First resolve the existing attempt and verify its outcome. Where a portion was already captured, follow the supported reversal or recovery path before deciding what remains to be collected."
+      }
+    ],
+    "intro": "A shopper can change their mind after payment has started. Card payment cancellation gives that moment a defined path, helping the team resolve the existing attempt before rebuilding the basket or asking the customer to pay a revised amount.",
+    "related": [
+      "basket-editing",
+      "payment-recovery",
+      "original-tender-returns"
+    ],
+    "flow": [
+      "Check the payment state",
+      "Cancel or reverse as supported",
+      "Return to the product decision"
+    ],
+    "demoQuestion": "Can we rehearse a customer changing their mind after a card attempt begins?"
+  },
+  "gift-card-balances": {
+    "explanation": [
+      "The ledger helps distinguish adding value from spending it. A customer's later purchase should draw on the eligible recorded balance, with the relevant redemption and reversal history retained. This keeps a gift-card conversation tied to evidence rather than memory of a previous visit.",
+      "For the owner, gift value also deserves separate financial treatment from an ordinary product sale. Review the supported funding and redemption workflow, balance access and currency setup before introducing the cards to customers. The physical card design is only one part of the programme."
+    ],
+    "capabilities": [
+      {
+        "title": "Review value movements",
+        "text": "Follow the recorded issuance, redemption and reversal activity behind a balance. This helps staff explain why the current value differs from the amount originally issued."
+      },
+      {
+        "title": "Support partial use",
+        "text": "Keep the remaining value connected to the gift-card record when eligible redemption uses only part of it. Review split-payment options for purchases larger than the available balance."
+      },
+      {
+        "title": "Protect redemption authority",
+        "text": "Use the complete card code and the supported online checks for balance use. A masked administrative reference should not be treated as a substitute for the required bearer information."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can staff redeem a gift card from a masked balance report?",
+        "a": "No. Balance use requires the complete card code and the authorized online workflow. A masked owner-facing record is useful for review but does not replace the information needed for redemption."
+      },
+      {
+        "q": "Is issuing a gift card the same as selling a plant?",
+        "a": "No. Gift value represents a separate obligation to the customer. A valid funding workflow is required, and later product purchases and redemptions need to remain understandable in the store's financial records."
+      }
+    ],
+    "intro": "A gift card is a promise your store will honour later. Its balance needs a history that makes sense across issuance, partial use and corrections, giving the team a more useful reference than a handwritten amount on a card sleeve.",
+    "related": [
+      "split-payments",
+      "tender-reconciliation",
+      "original-tender-returns"
+    ],
+    "flow": [
+      "Find the card securely",
+      "Review eligible available value",
+      "Record the supported redemption"
+    ],
+    "demoQuestion": "Can we follow an issued card through partial use and review its remaining value?"
+  },
+  "store-credit": {
+    "explanation": [
+      "Credit starts with an authorized decision. The related return or eligible remedy provides the context for why value was issued, while the credit record explains what remains available. Staff can review that relationship rather than trying to reconstruct it from paper notes.",
+      "Keep credit separate from gift cards and from an automatic cash refund. They may all help resolve a customer's situation, but they represent different agreements and records. During setup, walk through your actual return policy so the supported process reflects how the store intends to serve people."
+    ],
+    "capabilities": [
+      {
+        "title": "Retain the origin",
+        "text": "Connect issued credit with the authorized return or remedy that produced it. This makes the balance easier to explain when the customer or manager revisits the decision later."
+      },
+      {
+        "title": "Review remaining value",
+        "text": "Use the recorded balance and redemption history when eligible credit is presented. A remembered amount or a paper note should not replace the supported balance check."
+      },
+      {
+        "title": "Keep credit distinct",
+        "text": "Maintain the separate store-credit obligation rather than treating it as interchangeable with a gift card. Your policy and the supported currency and payment setup determine the available use."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does every return automatically qualify for store credit?",
+        "a": "No. Eligibility follows the store's return or guarantee policy and the required authorization. The software records the approved credit workflow; it does not make the customer-service decision for the owner."
+      },
+      {
+        "q": "Can customers spend credit without an online balance check?",
+        "a": "Do not assume that. Review the supported credit and currency path with your setup. A recorded historical value is not sufficient authority to promise an offline redemption."
+      }
+    ],
+    "intro": "When your return policy allows credit, the customer needs something the store can reliably honour. Store credit keeps the approved value connected to its origin and later use, giving staff a clear record for a conversation that can otherwise become confusing.",
+    "related": [
+      "original-tender-returns",
+      "plant-guarantee-claims",
+      "split-payments"
+    ],
+    "flow": [
+      "Confirm the authorized remedy",
+      "Issue the eligible credit",
+      "Review later redemption"
+    ],
+    "demoQuestion": "Can we trace a store-credit balance back to the return that created it?"
+  },
+  "original-tender-returns": {
+    "explanation": [
+      "Start from the original sale and the quantity being returned. That context matters when a purchase involved more than one payment method, or when gift value or account credit was part of the transaction. The refund route should follow the supported original allocation.",
+      "For owners, the result is a more understandable financial trail. Returning a product is not deleting the purchase or deciding that every remedy should be cash. Review permissions, stock disposition and provider behaviour together so the team can explain both the customer outcome and the retained record."
+    ],
+    "capabilities": [
+      {
+        "title": "Use the source purchase",
+        "text": "Find the actual sale before selecting the return quantity. The original transaction supplies the context that distinguishes a valid partial return from an unrelated amount entered at the counter."
+      },
+      {
+        "title": "Respect payment allocation",
+        "text": "Follow the supported path for the original tender or tender combination. This keeps returned value associated with how the purchase was funded rather than an improvised replacement method."
+      },
+      {
+        "title": "Preserve the correction trail",
+        "text": "Retain the sale and the related return as connected records. A manager should be able to understand the original purchase and its later correction without erasing either event."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we return just one item from a larger purchase?",
+        "a": "Use the original sale and select the eligible quantity through the supported return workflow. Confirm how the original payment allocation and stock disposition apply to that specific partial return."
+      },
+      {
+        "q": "Will a card refund appear in the customer's bank account immediately?",
+        "a": "A recorded refund and the bank's completed processing are different events. Provider timing applies, and unresolved or pending outcomes should be reviewed through the refund-progress workflow rather than promised as immediate funds."
+      }
+    ],
+    "intro": "A return should make sense against the way the customer originally paid. Original-tender returns keep the source purchase at the centre of the process, helping staff return eligible value without losing the connection between the goods, the payment and its correction.",
+    "related": [
+      "refund-progress",
+      "store-credit",
+      "refund-session-reporting"
+    ],
+    "flow": [
+      "Find the original sale",
+      "Select the eligible return",
+      "Follow its tender route"
+    ],
+    "demoQuestion": "Can we return one line from a mixed-payment purchase and explain the resulting records?"
+  },
+  "refund-progress": {
+    "explanation": [
+      "This matters when a provider takes time to respond or a refund does not complete as expected. Staff need a place to review the existing record before deciding on follow-up. Starting another refund without understanding the first one can create a new reconciliation problem.",
+      "Owners can use the retained state to guide customer communication and internal review. Explain what the store has confirmed and what still depends on the provider or bank. That is a more useful service than treating the click that requested a refund as proof the money has arrived."
+    ],
+    "capabilities": [
+      {
+        "title": "Distinguish refund states",
+        "text": "Review what the record actually confirms about the refund. A requested or pending state should remain distinguishable from a completed outcome when staff answer the customer's question."
+      },
+      {
+        "title": "Keep follow-up connected",
+        "text": "Investigate the existing refund rather than creating a separate unconnected promise. The original record provides the point of reference for the next supported action and any manager review."
+      },
+      {
+        "title": "Communicate with precision",
+        "text": "Use language that matches the evidence available. Staff can explain the stage being handled by the store while acknowledging that final bank timing is outside the counter workflow."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a recorded refund request prove the customer has received their money?",
+        "a": "No. The request, provider confirmation and bank processing can represent different stages. Review the recorded state and explain only what has been confirmed through the supported payment integration."
+      },
+      {
+        "q": "Should we create another refund if the first is still pending?",
+        "a": "Investigate the original refund before taking another financial action. Pending does not automatically mean failed, and repeating the request without reconciliation can make the customer's situation more difficult to resolve."
+      }
+    ],
+    "intro": "A customer has been told a refund is being handled. The next question is whether it is requested, pending or complete. Refund progress helps the team keep those states distinct, so the conversation is based on the recorded outcome rather than reassurance alone.",
+    "related": [
+      "payment-history",
+      "original-tender-returns",
+      "owner-exception-review"
+    ],
+    "flow": [
+      "Find the refund record",
+      "Review the confirmed state",
+      "Follow up on unresolved work"
+    ],
+    "demoQuestion": "Can we distinguish a requested refund from one confirmed complete by the provider?"
+  },
+  "payment-history": {
+    "explanation": [
+      "The purpose is investigation, not guesswork. Look at the original attempt and any related activity before deciding whether a collection or correction is missing. A customer's question may involve an interrupted response, a later refund or an amount that belongs to another step in the transaction.",
+      "Keep recorded checkout activity separate from bank settlement. The history can support a conversation about what the POS recorded, while provider deposits, fees and settlement timing still need reconciliation. Owners should be able to explain those different records without implying that one screen proves all of them."
+    ],
+    "capabilities": [
+      {
+        "title": "Review original attempts",
+        "text": "Begin with the payment associated with the purchase. Its recorded outcome provides a better reference than an isolated amount recalled from the counter or a later message."
+      },
+      {
+        "title": "Follow related corrections",
+        "text": "Look at the connection between the original payment and subsequent changes. A retained trail helps distinguish an approved correction from an assumption that the original collection never happened."
+      },
+      {
+        "title": "Support manager investigation",
+        "text": "Give the reviewer a concrete place to begin when a customer raises a payment question. Resolve gaps through the appropriate workflow rather than treating the history view as authority to move money."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does the payment history show that funds reached our bank account?",
+        "a": "Not by itself. Recorded payment activity and provider settlement answer different questions. Compare deposits, fees and timing through the relevant reconciliation process before treating an amount as settled bank funds."
+      },
+      {
+        "q": "Can this replace the payment-recovery workflow?",
+        "a": "No. History helps staff find and understand the evidence. An uncertain outcome still needs the supported recovery and reconciliation process before the team chooses another collection or refund action."
+      }
+    ],
+    "intro": "When someone asks what happened to a payment, a total alone rarely answers the question. Payment history keeps the recorded attempts, outcomes and corrections close to the sale, giving managers a starting point for a careful review.",
+    "related": [
+      "payment-recovery",
+      "refund-progress",
+      "tender-reconciliation"
+    ],
+    "flow": [
+      "Locate the original payment",
+      "Review outcomes and corrections",
+      "Reconcile the outstanding question"
+    ],
+    "demoQuestion": "Can we investigate a customer's payment question from the original attempt and its corrections?"
+  },
+  "common-and-botanical-names": {
+    "explanation": [
+      "This is a catalogue-quality job before it is a search feature. Accurate paired names help the manager maintain the plant record and give staff useful context when answering a question. They are especially valuable where a common name is shared or a familiar name is incomplete.",
+      "The owner should still review what those names refer to. Similar wording does not establish a verified match between products, suppliers or channels. Start with a reliable plant identity, then connect its sellable variants and search aliases without treating a name as proof of everything else."
+    ],
+    "capabilities": [
+      {
+        "title": "Retain both naming languages",
+        "text": "Keep the familiar customer name alongside the botanical reference on the plant identity. Staff can use the language that fits the conversation while checking the same recorded product."
+      },
+      {
+        "title": "Clarify ambiguous requests",
+        "text": "Use the additional naming context when a customer describes a plant loosely. The botanical reference can support a better question instead of encouraging staff to guess from a familiar word."
+      },
+      {
+        "title": "Support better catalogue maintenance",
+        "text": "Review names as part of maintaining the plant identity, separate from pot sizes and prices. Clear identity data makes later variant and search work easier to understand."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will a botanical name alone distinguish every product we sell?",
+        "a": "No. The plant identity and its sellable variants serve different purposes. Staff still need to confirm details such as the correct size, grade or other recorded selling option for the actual purchase."
+      },
+      {
+        "q": "Can matching names automatically connect our POS and website products?",
+        "a": "Names alone are not sufficient proof of a verified product match. Connected products require their supported setup and identity review so a similar label does not silently link the wrong records."
+      }
+    ],
+    "intro": "The label from the grower and the name used by a customer may sound like two different plants. Keeping common and botanical names together gives the catalogue a clearer identity, while supporting the language people actually use around the store.",
+    "related": [
+      "plant-search",
+      "product-variants",
+      "bloomsites-product-photo-sharing"
+    ],
+    "flow": [
+      "Confirm the plant identity",
+      "Record both names",
+      "Review its selling variants"
+    ],
+    "demoQuestion": "Can staff move between a customer's common name and the grower's botanical reference?"
+  },
+  "product-variants": {
+    "explanation": [
+      "The plant identity answers what it is; the variant answers which version is being sold. Keeping that distinction clear matters for pricing, identifiers and quantities. A beautiful catalogue image is helpful, but it cannot substitute for the recorded size on the customer's actual container.",
+      "Owners can use variant review to find ambiguity before checkout. Walk through a plant sold in several sizes and a non-plant product with multiple options. Each sellable choice should have clear information that staff can recognize and verify without reconstructing the catalogue at the counter."
+    ],
+    "capabilities": [
+      {
+        "title": "Separate sellable choices",
+        "text": "Give the different sizes or other supported options their own variant records. This allows the team to distinguish products that share a plant identity but should not share an ambiguous selling line."
+      },
+      {
+        "title": "Associate the right price",
+        "text": "Maintain pricing against the intended sellable variant. A staff member choosing another size should be making an explicit product decision, not simply adjusting a price to approximate the item."
+      },
+      {
+        "title": "Keep identifiers meaningful",
+        "text": "Review the codes and selling configuration for each variant. A barcode or supplier reference is useful only when it leads to the specific option the store intends to identify."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should every pot size be a separate plant identity?",
+        "a": "The plant identity and its variants are different parts of the catalogue. Use variants for the supported sellable differences, while maintaining an accurate common and botanical identity for the plant itself."
+      },
+      {
+        "q": "Why is the same barcode on two variants a problem?",
+        "a": "It creates an ambiguous lookup. Staff need a scan to identify the intended sellable option, so duplicate or conflicting identifiers require review before the catalogue can support a dependable checkout routine."
+      }
+    ],
+    "intro": "One plant can have several very different selling options. Product variants give each pot size, grade or colour a defined place in the catalogue, so staff can choose what the customer actually has rather than relying on the plant name alone.",
+    "related": [
+      "common-and-botanical-names",
+      "alternate-barcodes",
+      "catalogue-price-editing"
+    ],
+    "flow": [
+      "Identify the plant or product",
+      "Define its sellable choices",
+      "Review each variant's details"
+    ],
+    "demoQuestion": "Can we clearly distinguish the same shrub in two pot sizes at checkout?"
+  },
+  "product-photographs": {
+    "explanation": [
+      "Choose images for the decisions people need to make. A broad lifestyle photograph may be attractive, while a clear product reference may be more useful at the counter. The manager can review the main image and use the product-photo workflow when it needs replacing.",
+      "For living products, keep expectations grounded in what a reference image can show. Seasonal appearance and individual specimens vary. Combine the photograph with the plant identity and selling details, and review any website-sharing arrangement separately rather than assuming every image change appears in both places."
+    ],
+    "capabilities": [
+      {
+        "title": "Make recognition easier",
+        "text": "Use a representative main photograph to support product lookup. Staff can begin from what they recognize, then confirm the recorded identity and selling option before adding the item."
+      },
+      {
+        "title": "Replace confusing references",
+        "text": "Review an unsuitable or outdated main image through the catalogue workflow. The objective is an image that helps the team make a better selection, not simply another picture in storage."
+      },
+      {
+        "title": "Respect channel scope",
+        "text": "Know whether an image change is being used in the POS or through a configured sharing connection. A catalogue edit should not create an unsupported promise about website publication."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we use the same photograph for every size of a plant?",
+        "a": "A reference image may help identify the plant, but staff still need clear variant details. Review whether the photograph helps or obscures the size distinction your cashiers must make at checkout."
+      },
+      {
+        "q": "Will replacing a POS image automatically change the website?",
+        "a": "Only a supported configured connection and matched product can provide the relevant sharing workflow. Check its actual status rather than assuming a local photo replacement publishes across every channel."
+      }
+    ],
+    "intro": "A catalogue photograph can do real work for your team. It helps staff recognize an unfamiliar item, compare a likely match and ask a better question when the written name is not enough to make the choice clear.",
+    "related": [
+      "visual-product-browsing",
+      "product-variants",
+      "bloomsites-product-photo-sharing"
+    ],
+    "flow": [
+      "Review the current main image",
+      "Choose a suitable replacement",
+      "Check its publication scope"
+    ],
+    "demoQuestion": "Can we improve a confusing catalogue image and confirm where that change will appear?"
+  },
+  "alternate-barcodes": {
+    "explanation": [
+      "This is an identifier-maintenance job for the manager. The cashier benefits later, when a recorded code leads to a clear product match. Review the actual item and selling option before adding an alias so a convenient shortcut does not create an incorrect relationship.",
+      "The distinction matters when packaging changes. A new code might represent the same product, or it might indicate a different size or pack. Owners should bring both examples into setup and check which belong together instead of assuming that a similar name makes the codes equivalent."
+    ],
+    "capabilities": [
+      {
+        "title": "Recognize permitted code aliases",
+        "text": "Record additional barcode references against the correct variant where the product relationship has been verified. This supports more than one valid label without creating unnecessary duplicate product identities."
+      },
+      {
+        "title": "Protect lookup clarity",
+        "text": "Review conflicts before accepting an identifier. A code that could point to two different selling options weakens the value of scanning and needs a deliberate catalogue decision."
+      },
+      {
+        "title": "Accommodate supplier changes",
+        "text": "Check new shipment labels against the existing product and pack details. Retaining a valid alias can help the store handle a label change without overlooking a meaningful product difference."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should we add a new barcode as an alias whenever the plant name matches?",
+        "a": "No. Confirm the actual variant and packaging first. Similar names can hide differences in pot size, grade or pack quantity that make a separate selling record necessary."
+      },
+      {
+        "q": "Does an alternate barcode create another stock item?",
+        "a": "Its purpose is to identify the intended existing variant through an additional permitted code. It should not be confused with creating another plant identity or assuming two physically different items share one record."
+      }
+    ],
+    "intro": "A grower changes a label, but the store is still selling the same verified product. Alternate barcodes let the catalogue retain permitted code aliases against the intended variant, reducing the need to treat every new label as a completely different item.",
+    "related": [
+      "barcode-scanning",
+      "product-variants",
+      "supplier-product-codes"
+    ],
+    "flow": [
+      "Check the new label",
+      "Verify the intended variant",
+      "Record the permitted alias"
+    ],
+    "demoQuestion": "Can two verified supplier labels lead to the same intended product variant?"
+  },
+  "supplier-product-codes": {
+    "explanation": [
+      "A vendor SKU answers a different question from a customer-facing product name. It identifies the supplier's reference, which may also depend on a particular pack or specification. Staff can use the mapping as a bridge, provided the relationship has been checked and kept current.",
+      "For owners, this is useful groundwork for purchasing and receiving. A remembered description is rarely enough when a supplier changes a pot size or tray quantity. Reviewing the code alongside the mapped variant makes that conversation more precise before another order or receipt is confirmed."
+    ],
+    "capabilities": [
+      {
+        "title": "Retain vendor references",
+        "text": "Keep the supplier's product code near the corresponding variant. This gives staff a concrete reference when comparing the store catalogue with a supplier document or purchasing conversation."
+      },
+      {
+        "title": "Connect buying and selling",
+        "text": "Use the verified mapping to relate the supplier item to the store's sellable option. The supplier description and the retail name do not have to be identical to deserve review together."
+      },
+      {
+        "title": "Review specification changes",
+        "text": "Recheck the mapping when the supplier changes packaging or item details. A familiar vendor code should not hide a new quantity relationship or a different physical product."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is the supplier's product code always the barcode we scan at checkout?",
+        "a": "No. A vendor SKU and a barcode serve different identification purposes and may have different values. Record and review the intended reference rather than assuming one identifier can stand in for the other."
+      },
+      {
+        "q": "Can we reuse a supplier mapping after the tray size changes?",
+        "a": "Only after verifying the changed relationship. Product identity, pack quantity and cost defaults may need another review, even where the supplier continues to use familiar wording or a related code."
+      }
+    ],
+    "intro": "The supplier's code is often the quickest way to understand an invoice or repeat an order. Keeping vendor references with the product helps the buying team connect the grower's paperwork to the item the store actually stocks and sells.",
+    "related": [
+      "supplier-pack-conversions",
+      "purchase-orders",
+      "receiving-exceptions"
+    ],
+    "flow": [
+      "Find the supplier reference",
+      "Confirm the product relationship",
+      "Review its current packaging"
+    ],
+    "demoQuestion": "Can we connect a real vendor code to the correct retail variant and supplier pack?"
+  },
+  "product-aliases": {
+    "explanation": [
+      "Aliases improve the words available to search; they do not change what the product is. Keep the official identity understandable and use an alias where it helps an actual lookup. This is especially useful when seasonal staff use different language from experienced plant buyers.",
+      "Start with the questions you hear at the counter. If several people struggle to find the same item, review the phrase they tried and the correct record it should suggest. That is a practical maintenance task, with a clear connection to everyday staff experience."
+    ],
+    "capabilities": [
+      {
+        "title": "Capture useful search language",
+        "text": "Add the supported names or abbreviations that help the team locate a product. Choose phrases with a clear intended meaning rather than adding every loosely related word."
+      },
+      {
+        "title": "Preserve the real identity",
+        "text": "Keep aliases alongside the recorded plant identity instead of using them to disguise an uncertain match. Staff still need the common or botanical context and the correct selling variant."
+      },
+      {
+        "title": "Learn from difficult lookups",
+        "text": "Use repeated counter questions to improve the catalogue vocabulary. A targeted alias can address an actual search problem more usefully than a broad rename that makes the official record less clear."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does adding an alias rename the plant everywhere?",
+        "a": "An alias supports the lookup language associated with the recorded identity. Treat official names, sellable variants and channel publication as separate catalogue decisions rather than assuming an alias performs all those changes."
+      },
+      {
+        "q": "Could aliases make two different products harder to tell apart?",
+        "a": "Yes, if they are too broad or ambiguous. Review the intended product relationship and keep staff responsible for confirming the actual plant and variant rather than accepting a nickname as conclusive identification."
+      }
+    ],
+    "intro": "Your team has practical names for products that may never appear on the grower's label. Product aliases let managers record useful search language, so a familiar abbreviation or nickname can help staff reach the right catalogue identity.",
+    "related": [
+      "plant-search",
+      "common-and-botanical-names",
+      "missing-tag-lookup"
+    ],
+    "flow": [
+      "Identify a difficult search phrase",
+      "Confirm its intended product",
+      "Add a useful alias"
+    ],
+    "demoQuestion": "Can we make a common staff nickname lead to a clearly identified catalogue item?"
+  },
+  "product-selling-units": {
+    "explanation": [
+      "This is setup work with a direct effect on checkout. The stock unit and the supported selling units need to describe the same goods consistently, with reviewed conversion ratios. Staff should be selecting a prepared option instead of deciding how many stock units it represents during the sale.",
+      "Keep supplier purchasing separate from customer selling. A product may arrive in one package and leave the store in another. Reviewing both relationships avoids a familiar unit name becoming a misleading shortcut, particularly where weights, volumes and whole-item counts appear in different departments."
+    ],
+    "capabilities": [
+      {
+        "title": "Define the stock reference",
+        "text": "Establish the stock unit that the product's supported quantity relationships refer to. Clear setup gives later pack or measured selling choices a common quantity basis to work from."
+      },
+      {
+        "title": "Configure selling choices",
+        "text": "Record the supported units customers can purchase and their appropriate conversion ratios. The cashier's choice should match a reviewed relationship rather than an improvised interpretation of a label."
+      },
+      {
+        "title": "Separate physical measurement checks",
+        "text": "Review any scale or other measuring device independently of the catalogue configuration. A well-defined unit in the software does not establish that a particular peripheral will connect or comply with local requirements."
+      }
+    ],
+    "faq": [
+      {
+        "q": "How is this different from pack and flat selling?",
+        "a": "Selling-unit setup defines the relationships managers prepare. Pack and flat selling is the counter task that uses an eligible configured choice when the customer makes that particular purchase."
+      },
+      {
+        "q": "Can one unit name safely describe different quantities?",
+        "a": "Not without clear configuration for the intended product. A tray or pack can contain different amounts, so review the conversion relationship instead of relying on the familiar name alone."
+      }
+    ],
+    "intro": "Before a cashier can confidently sell a pack, a measured amount or an individual item, the catalogue needs to define what those quantities mean. Product selling units make that relationship explicit between the stocked product and the customer's purchase.",
+    "related": [
+      "pack-and-flat-selling",
+      "measured-product-sales",
+      "supplier-pack-conversions"
+    ],
+    "flow": [
+      "Define the stock unit",
+      "Configure supported selling units",
+      "Verify the conversion ratios"
+    ],
+    "demoQuestion": "Can we explain each selling option in terms of the product's stock unit?"
+  },
+  "catalogue-price-editing": {
+    "explanation": [
+      "Begin with the exact variant. A price that is right for one container size may be wrong for another, even where both share the same plant identity. Review the intended selling option before saving, and keep the product's tax treatment and unit setup in view as separate decisions.",
+      "There is also a difference between changing the usual price and handling a single exception or a dated promotion. Use the appropriate workflow for the job. That makes the owner's intent easier to understand and avoids treating every pricing question as the same kind of edit."
+    ],
+    "capabilities": [
+      {
+        "title": "Edit the intended variant",
+        "text": "Open the product option whose normal selling price needs review. The plant name alone may not identify the specific size or package affected by the correction."
+      },
+      {
+        "title": "Review before saving",
+        "text": "Confirm the new amount and the selling context together. Price entry is useful only when staff can explain which product option will carry the reviewed amount."
+      },
+      {
+        "title": "Choose the right pricing job",
+        "text": "Keep an everyday base-price edit distinct from a one-off override and a seasonal schedule. Each serves a different decision and should be reviewed through its supported workflow."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should staff keep overriding a price that is wrong in the catalogue?",
+        "a": "A recurring base-price issue belongs in catalogue review. An override handles a particular exception; repeated exceptions can make the underlying product problem harder to see and explain."
+      },
+      {
+        "q": "Will this change every online and in-store price automatically?",
+        "a": "Do not assume that. A base-price edit has its own scope, while connected channels and seasonal prices need their supported setup and review. Confirm the intended publication behaviour during the demonstration."
+      }
+    ],
+    "intro": "A regular price correction should become a deliberate catalogue decision. Catalogue price editing gives managers a defined place to review a product variant's selling price, so cashiers do not have to compensate for the same issue repeatedly at the counter.",
+    "related": [
+      "price-overrides",
+      "seasonal-pricing",
+      "product-variants"
+    ],
+    "flow": [
+      "Open the correct variant",
+      "Review its regular price",
+      "Save the intended change"
+    ],
+    "demoQuestion": "Can we correct one variant's normal price without confusing it with a counter exception?"
+  },
+  "seasonal-pricing": {
+    "explanation": [
+      "Start with the products and the dates that define the offer. Review which variants are affected and how the schedule relates to their existing prices. The store needs a clear answer about when the intended price applies, especially when several seasonal decisions are being prepared.",
+      "The value is consistency of intent, not a promise that every markdown improves sales. Owners still decide which goods belong in the offer and how it fits the season. Rehearse the relevant dates and overlapping-price situations before treating a schedule as ready for live trading."
+    ],
+    "capabilities": [
+      {
+        "title": "Prepare a defined price period",
+        "text": "Give a seasonal change an explicit set of dates and intended product scope. This makes the promotion a reviewable pricing decision rather than an informal instruction repeated to individual cashiers."
+      },
+      {
+        "title": "Review affected variants",
+        "text": "Confirm the actual selling options included in the schedule. A general plant name or department description should not replace a check of the products and prices being changed."
+      },
+      {
+        "title": "Consider overlapping decisions",
+        "text": "Review how the proposed period relates to other active pricing and store policy. A useful seasonal plan should resolve ambiguity before staff are asked to explain a price at checkout."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is seasonal pricing the same as editing the regular catalogue price?",
+        "a": "No. A normal price edit and a time-bound schedule express different intentions. Use the appropriate workflow and confirm the applicable product scope and dates for the change you want."
+      },
+      {
+        "q": "Can we assume a markdown will improve sell-through or margin?",
+        "a": "No. Pricing is a business decision, and results depend on the products and circumstances. Review recorded seasonal performance and suitable cost evidence when evaluating whether a promotion achieved what you intended."
+      }
+    ],
+    "intro": "A garden centre's selling season changes faster than a permanent price list. Seasonal pricing lets managers review time-bound price changes for the intended products, giving promotions and markdowns a clearer plan than a pile of notes left beside the till.",
+    "related": [
+      "catalogue-price-editing",
+      "margin-and-seasonal-performance",
+      "plant-and-shelf-labels"
+    ],
+    "flow": [
+      "Choose the affected variants",
+      "Review the price period",
+      "Check the schedule before activation"
+    ],
+    "demoQuestion": "Can we review a seasonal offer's products and dates before its price period begins?"
+  },
+  "product-setup-review": {
+    "explanation": [
+      "Names and selling prices are an accessible starting point, but the underlying product relationships matter too. A familiar name with the wrong variant or unit can still produce the wrong sale. Treat the preview as a decision stage rather than a confirmation screen to move past quickly.",
+      "This also gives a system switch a more manageable boundary. Reviewing products does not establish opening stock, customer balances or historical orders. Agree which records the setup process covers, then handle those other business records through their own reviewed migration or opening procedure."
+    ],
+    "capabilities": [
+      {
+        "title": "Inspect proposed records",
+        "text": "Look at the products the source would create or update before applying it. Review the details that cashiers and managers will depend on when the catalogue becomes part of live work."
+      },
+      {
+        "title": "Resolve validation issues",
+        "text": "Treat an identified exception as something to understand and correct. A preview is valuable because it exposes a question before the owner commits to using the resulting catalogue."
+      },
+      {
+        "title": "Define the setup scope",
+        "text": "Keep product setup distinct from stock and financial opening records. This gives the owner clearer control totals and a more honest picture of what a migration stage has established."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a successful product setup mean our opening inventory is ready?",
+        "a": "No. Catalogue information and opening quantities are different records. Review the stock source and its controls separately before staff rely on recorded availability during live trading."
+      },
+      {
+        "q": "Can we skip reviewing familiar-looking plant names?",
+        "a": "That can overlook a wrong variant, unit or price. A recognizable name is useful context, but the setup needs the selling relationships that will govern the actual products at your counter."
+      }
+    ],
+    "intro": "A new catalogue is worth checking before it becomes a busy counter's problem. Product setup review gives the owner a chance to inspect proposed product records, find validation issues and resolve uncertainty before applying the reviewed source.",
+    "related": [
+      "reviewed-migration",
+      "product-variants",
+      "recorded-stock-visibility"
+    ],
+    "flow": [
+      "Preview the proposed products",
+      "Resolve record exceptions",
+      "Apply the reviewed source"
+    ],
+    "demoQuestion": "Can we check a proposed catalogue and clearly separate it from opening stock and balances?"
+  },
+  "recorded-stock-visibility": {
+    "explanation": [
+      "The number needs context. Receipts, sales, reservations and recent work can affect what the team can confidently promise, while unsynchronized activity can limit freshness. Staff should know what the recorded figure represents before turning it into a firm commitment to the customer.",
+      "For owners, this creates a better conversation between the counter and the growing area. A cashier can ask a more focused question about the intended product and location. The final physical check remains important when condition, timing or a particular specimen determines whether the goods are ready."
+    ],
+    "capabilities": [
+      {
+        "title": "Start from recorded quantities",
+        "text": "Use the store's stock information as a reference when helping a customer. It narrows the question staff need to answer without pretending that the screen has physically counted every plant."
+      },
+      {
+        "title": "Check the intended product",
+        "text": "Confirm the variant and relevant store context before interpreting a number. A quantity attached to the wrong size or location can be technically recorded and still unhelpful for the customer's request."
+      },
+      {
+        "title": "Recognize freshness limits",
+        "text": "Consider whether recent activity has reached the records being reviewed. A useful stock conversation includes what the team knows about current work and what still needs confirmation on the floor."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can staff promise the displayed quantity is ready for immediate sale?",
+        "a": "Not unconditionally. Review freshness, reservations and the physical condition of the goods. Recorded stock supports the conversation but does not replace a current check where availability matters to the promise being made."
+      },
+      {
+        "q": "Does this replace a physical inventory count?",
+        "a": "No. A count establishes what staff actually observe at a particular point. Recorded stock and its movement history support daily work, while counts help investigate and correct differences through the reviewed adjustment process."
+      }
+    ],
+    "intro": "A customer asks whether there are enough plants for a project. Recorded stock visibility gives staff a useful starting point for that conversation, with the quantity understood as part of the store's records rather than a substitute for checking the actual goods.",
+    "related": [
+      "stock-areas",
+      "visible-synchronization-status",
+      "blind-inventory-counts"
+    ],
+    "flow": [
+      "Confirm product and store",
+      "Review the recorded stock context",
+      "Check before making a promise"
+    ],
+    "demoQuestion": "Can we explain what a stock number means before promising plants to a customer?"
+  },
+  "stock-areas": {
+    "explanation": [
+      "This gives staff a more useful starting point when the counter needs help finding goods. The location context can turn a broad request into a specific check, provided the team's stock handling is reflected accurately in the records. The software does not follow a trolley across the yard on its own.",
+      "Owners should choose areas that match how the store actually works. Too little distinction can leave the original question unanswered; an unnecessarily complicated setup can be difficult to maintain. Review the intended areas with receiving and sales staff before relying on the resulting location information."
+    ],
+    "capabilities": [
+      {
+        "title": "Organize meaningful locations",
+        "text": "Use configured areas that help the team answer a real working question. An area should describe a place staff understand, with a clear purpose in the store's stock routine."
+      },
+      {
+        "title": "Add context to quantities",
+        "text": "Review where the recorded stock belongs, not only how much is recorded. This supports a more focused check when goods in different parts of the operation serve different purposes."
+      },
+      {
+        "title": "Maintain the physical relationship",
+        "text": "Keep location-aware records consistent with staff handling. A well-named area is helpful only when the actual goods and recorded movements continue to reflect that arrangement over time."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will stock areas automatically track plants as we move them?",
+        "a": "No. Accurate records still depend on the supported movement workflow and staff handling. The system does not automatically detect that a plant has physically moved between the greenhouse and the sales area."
+      },
+      {
+        "q": "Is a stock area the same as a separate store?",
+        "a": "No. An area organizes stock within the configured operating context. Separate locations and inter-store transfers have their own store setup and transfer workflow, with different movement and receiving evidence."
+      }
+    ],
+    "intro": "Knowing that a plant is in the business is different from knowing where to look for it. Stock areas help organize the store's recorded quantities around places such as the greenhouse, retail space or another configured part of the operation.",
+    "related": [
+      "recorded-stock-visibility",
+      "stock-movement-history",
+      "inter-store-transfers"
+    ],
+    "flow": [
+      "Define useful store areas",
+      "Record location-aware handling",
+      "Review where stock belongs"
+    ],
+    "demoQuestion": "Can we distinguish greenhouse stock from stock recorded in another working area?"
+  },
+  "plant-loss-recording": {
+    "explanation": [
+      "The distinction is important. A known tray of damaged plants and a count that comes up short are not the same evidence. Recording a specific loss with its quantity and reason gives the business a more useful basis for review than treating every difference as a generic adjustment.",
+      "Use the record to support a practical conversation about handling and prevention. Any cost attached to the loss must be understood in context, particularly when it is estimated. The value comes from a clearer account of the event, not from pretending the cause or financial impact is more certain than it is."
+    ],
+    "capabilities": [
+      {
+        "title": "Document an observed loss",
+        "text": "Record the goods and quantity involved when the team knows what happened. This retains useful event context while the condition and handling details are still available to explain."
+      },
+      {
+        "title": "Use garden-specific reasons",
+        "text": "Choose a meaningful reason that reflects the observed event. More precise loss information can make an owner's later review more useful than a single undifferentiated shrink total."
+      },
+      {
+        "title": "Keep cost evidence honest",
+        "text": "Review any estimated cost alongside its basis. An operational loss figure can inform discussion without being presented as a fully verified accounting valuation of the event."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should an unexplained count difference be recorded as known plant loss?",
+        "a": "No. Known loss and count variance represent different evidence. Use the counting and review workflow when the team has observed a discrepancy but cannot establish the specific event that caused it."
+      },
+      {
+        "q": "Does recording the loss explain why the plants failed?",
+        "a": "Only to the extent supported by the recorded reason and evidence. Staff should document what they know and avoid turning an uncertain observation into a definitive diagnosis or an unsupported cost claim."
+      }
+    ],
+    "intro": "Living stock can be lost to damage, deterioration or another known cause. Plant-loss recording gives the team a way to document what happened, so the owner can review a reasoned event instead of finding an unexplained quantity difference later.",
+    "related": [
+      "damaged-stock",
+      "blind-inventory-counts",
+      "stock-movement-history"
+    ],
+    "flow": [
+      "Identify the observed loss",
+      "Record quantity and reason",
+      "Review its evidence and cost context"
+    ],
+    "demoQuestion": "Can we distinguish a documented plant loss from an unexplained inventory difference?"
+  },
+  "blind-inventory-counts": {
+    "explanation": [
+      "The point is not to make counting harder. It is to preserve the first observation as its own piece of information. When the recorded expectation is shown afterwards, the manager can discuss the difference without wondering whether the original count simply followed the number supplied.",
+      "This becomes more useful when the store treats counting as a complete process. Review the intended product and location, investigate meaningful differences and use the supported recount and approval steps before changing stock. A first count is evidence for that process, not an automatic correction by itself."
+    ],
+    "capabilities": [
+      {
+        "title": "Capture an independent first count",
+        "text": "Record the observed quantity before exposing the expected figure. This gives the owner an initial observation that can be compared with the records rather than copied from them."
+      },
+      {
+        "title": "Review the difference afterwards",
+        "text": "Use the submitted count as the basis for examining a variance. The next question is what explains the difference and whether more observation is needed before an adjustment is approved."
+      },
+      {
+        "title": "Connect counting to review",
+        "text": "Treat the count as part of the supported inventory-control sequence. Recounts, approvals and posting have their own roles, keeping a quick observation separate from a final stock correction."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can staff count without seeing the expected quantity first?",
+        "a": "Yes. That is the purpose of the blind first submission. The recorded expectation and difference are reviewed after that observation has been captured through the workflow."
+      },
+      {
+        "q": "Can we use this as an offline handheld counting promise?",
+        "a": "No. The supported counting workflow here is online. Review actual devices and connectivity with the team instead of assuming that prepared offline checkout also provides disconnected inventory-count capture."
+      }
+    ],
+    "intro": "A useful count starts with what the person can see. Blind inventory counts let staff submit their first observed quantity before reviewing the expected number, helping the store collect evidence that is less influenced by the figure already on screen.",
+    "related": [
+      "variance-recounts",
+      "count-adjustments",
+      "stock-areas"
+    ],
+    "flow": [
+      "Count what is physically present",
+      "Submit the blind observation",
+      "Review the resulting difference"
+    ],
+    "demoQuestion": "Can a staff member submit a count before seeing the system's expected quantity?"
+  },
+  "variance-recounts": {
+    "explanation": [
+      "A recount can reveal a simple counting mistake, a misunderstood area or a real stock issue. Its value comes from keeping those observations distinguishable. The manager should be able to understand why another count was required and what it added to the review.",
+      "Owners set the context through the supported thresholds and approval policy. Rehearse a meaningful discrepancy with the people who count stock, then review the retained evidence together. A second observation supports judgment; it does not turn every disagreement into automatic proof of a physical loss."
+    ],
+    "capabilities": [
+      {
+        "title": "Require another observation",
+        "text": "Use the configured variance threshold to identify differences needing a recount. This makes the response to a material mismatch more consistent than an informal decision made differently on each shift."
+      },
+      {
+        "title": "Retain the first count",
+        "text": "Preserve the original observation while adding the next one. Keeping both records helps a reviewer understand how the team moved from the initial difference toward its final decision."
+      },
+      {
+        "title": "Support an informed approval",
+        "text": "Bring the count evidence into the adjustment review. A manager can consider what the recount established before authorizing a change to the stock records."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does the recount overwrite the first number?",
+        "a": "No. It adds evidence while retaining the original observation. That distinction lets the reviewer see the progression rather than only the last quantity someone happened to enter."
+      },
+      {
+        "q": "Does every small difference require a second count?",
+        "a": "The configured quantity or cost threshold determines when a material variance requires more evidence. Review those settings against the store's actual products and approval policy during setup."
+      }
+    ],
+    "intro": "A surprising stock difference deserves another look before it becomes an adjustment. Variance recounts help the store retain the first observation and add a second count where the configured threshold calls for more evidence, rather than quietly replacing the original number.",
+    "related": [
+      "blind-inventory-counts",
+      "count-adjustments",
+      "manager-approvals"
+    ],
+    "flow": [
+      "Review the material variance",
+      "Add the required recount",
+      "Retain both observations for approval"
+    ],
+    "demoQuestion": "Can we follow a large count difference through a retained first count and recount?"
+  },
+  "count-adjustments": {
+    "explanation": [
+      "A count submission alone does not finish the job. The evidence needs review and approval before posting the supported adjustment. Keeping those stages separate makes it easier to distinguish a staff observation from the decision that actually changes the store's stock records.",
+      "Timing matters when the shop continues trading. Products may be moving while the count is being investigated, so the reviewer needs to consider the relevant activity rather than treating an earlier observation as a current physical total. The supported process preserves that review instead of encouraging an unexplained overwrite."
+    ],
+    "capabilities": [
+      {
+        "title": "Act on reviewed evidence",
+        "text": "Start from the supported count and variance review. The adjustment should express an authorized conclusion, not merely repeat the most recent number someone entered while investigating a mismatch."
+      },
+      {
+        "title": "Separate approval and posting",
+        "text": "Recognize the decision to approve and the action that changes recorded stock as distinct steps. This gives managers a clearer point of accountability for the correction."
+      },
+      {
+        "title": "Retain a linked change",
+        "text": "Keep the resulting stock movement connected to its reviewed variance. A later investigation should be able to explain the correction without losing the count evidence behind it."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we just replace the quantity with the number we counted?",
+        "a": "Use the supported count, review and posting process instead of an unexplained overwrite. The observed amount, timing, approval and resulting movement all contribute to an understandable correction."
+      },
+      {
+        "q": "What if sales continue while we review the count?",
+        "a": "Review the relevant stock activity and timing before posting. A count is an observation at a point in the workflow, so ongoing movements need consideration when the store decides how to correct its records."
+      }
+    ],
+    "intro": "When stock records need correcting, the reason should survive the correction. Count adjustments turn a reviewed inventory variance into a linked stock change, giving the owner a clearer account of how the new quantity was reached and authorized.",
+    "related": [
+      "blind-inventory-counts",
+      "variance-recounts",
+      "stock-movement-history"
+    ],
+    "flow": [
+      "Review the counted variance",
+      "Approve the evidence",
+      "Post the linked stock adjustment"
+    ],
+    "demoQuestion": "Can we explain a corrected stock figure from its count evidence and approval?"
+  },
+  "damaged-stock": {
+    "explanation": [
+      "This is particularly important during receiving, when questionable plants or damaged containers can otherwise disappear into the general stock conversation. Recording the appropriate condition keeps that uncertainty visible while staff investigate the delivery and decide what should happen to the goods.",
+      "The physical routine still matters. The team needs to separate and identify the actual items, not only choose a condition on screen. Returning goods to sellable status is another authorized decision, with a reason that reflects what staff have verified about their current condition."
+    ],
+    "capabilities": [
+      {
+        "title": "Record the condition distinction",
+        "text": "Use the supported damaged or quarantine category where the goods need review. Their physical presence should not automatically make them part of a confident ready-to-sell promise."
+      },
+      {
+        "title": "Support delivery review",
+        "text": "Keep questionable received quantities identifiable while the team checks the delivery. That makes it easier to discuss the actual condition with the supplier and the person reviewing the receipt."
+      },
+      {
+        "title": "Require a deliberate release",
+        "text": "Treat a later return to sellable condition as an authorized decision. The recorded category and the physical handling should change only when the team has reviewed what is appropriate."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does the software physically separate damaged plants for us?",
+        "a": "No. Staff still need to identify and separate the actual goods. The recorded condition supports that routine but cannot prevent a damaged item being placed on a selling bench without proper handling."
+      },
+      {
+        "q": "Should damaged goods always be recorded as a complete loss?",
+        "a": "Not automatically. Condition review and a documented known-loss event answer different questions. Follow the store's decision about the goods and use the workflow for the actual outcome."
+      }
+    ],
+    "intro": "A tray can be present in the building and still be unsuitable for sale. Damaged-stock handling gives the team a recorded distinction between goods being reviewed and goods considered ready, supporting a clearer decision about condition before customers are promised an item.",
+    "related": [
+      "receiving-exceptions",
+      "plant-loss-recording",
+      "recorded-stock-visibility"
+    ],
+    "flow": [
+      "Identify questionable goods",
+      "Record the appropriate condition",
+      "Review their authorized disposition"
+    ],
+    "demoQuestion": "Can we keep a questionable delivery quantity separate from stock we can promise to customers?"
+  },
+  "stock-movement-history": {
+    "explanation": [
+      "Receipts, losses, transfers and adjustments represent different kinds of work. Reviewing the relevant movements helps the team ask the next practical question: which event explains the change, and which physical activity may still need checking? The history is evidence of what was recorded, not proof of unrecorded handling.",
+      "This is useful when several people touch the same stock during a busy day. Rather than assuming the latest count reveals the cause of every difference, review the sequence and its sources. Keep the investigation separate from the authorized correction that may follow."
+    ],
+    "capabilities": [
+      {
+        "title": "Review the quantity trail",
+        "text": "Look beyond the current total to the recorded activity behind it. This gives a manager a more focused basis for discussing a difference with receiving, sales or stock-handling staff."
+      },
+      {
+        "title": "Distinguish movement reasons",
+        "text": "Keep different operations understandable in the review. A receipt, transfer or count correction should not all be interpreted as the same kind of stock change simply because the net amount is similar."
+      },
+      {
+        "title": "Find the next question",
+        "text": "Use retained movement context to guide investigation. Where actual handling was never recorded, the team still needs to establish what happened before choosing an appropriate correction."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will the history explain every physical discrepancy?",
+        "a": "Only recorded activity is represented. The history can narrow an investigation, but missing handling, an incorrect observation or goods moved without the supported record still require staff review."
+      },
+      {
+        "q": "Can we fix stock by changing an old movement?",
+        "a": "Use the appropriate supported correction workflow rather than erasing the explanation of earlier activity. Count adjustments and other authorized remedies should preserve a clear connection to the records being reviewed."
+      }
+    ],
+    "intro": "A stock number tells you where the records stand. Movement history helps explain how they got there. Owners can review recorded activity behind a product's quantity, giving a discrepancy investigation a more useful starting point than a total with no context.",
+    "related": [
+      "count-adjustments",
+      "plant-loss-recording",
+      "inter-store-transfers"
+    ],
+    "flow": [
+      "Select the product context",
+      "Review recorded movements",
+      "Investigate the remaining difference"
+    ],
+    "demoQuestion": "Can we trace a stock change through receipts, losses or a reviewed count correction?"
+  },
+  "inter-store-transfers": {
+    "explanation": [
+      "The value is in the handoffs. The source needs to know what was sent; the destination needs to confirm what actually arrived. Keeping those events distinct is especially important when a delivery is received in parts or a quantity remains between the two locations.",
+      "Owners should review this alongside store and register setup. Correct locations and staff authority give the transfer its intended context, while the physical team remains responsible for loading, checking and receiving the actual goods. A posted transfer is not a substitute for counting the delivery at the destination."
+    ],
+    "capabilities": [
+      {
+        "title": "Record both ends",
+        "text": "Keep the source and destination tied to the movement. This helps each store understand its role instead of relying on separate notes that may describe the same transfer differently."
+      },
+      {
+        "title": "Separate shipping and receiving",
+        "text": "Recognize dispatch and arrival as different events. Goods should not be treated as confirmed at the destination merely because the source recorded that they left."
+      },
+      {
+        "title": "Review partial arrivals",
+        "text": "Use the transfer evidence to understand quantities received and still outstanding. That gives the team a clearer way to investigate a delivery arriving in stages."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is transferring stock the same as making a retail sale?",
+        "a": "No. A transfer moves goods within the configured store operation and needs its own source, transit and destination records. It should not be interpreted as customer revenue simply because stock leaves one location."
+      },
+      {
+        "q": "Can the receiving store confirm only part of a transfer?",
+        "a": "The supported transfer process retains partial-receipt evidence. Staff should confirm what actually arrived and review the remaining in-transit quantity instead of marking the whole transfer received prematurely."
+      }
+    ],
+    "intro": "Moving plants between stores should leave a clear record at both ends. Inter-store transfers give the team a defined sequence for requesting, approving, shipping and receiving goods, so the journey can be reviewed without confusing it with a customer sale.",
+    "related": [
+      "in-transit-stock",
+      "multi-store-configuration",
+      "stock-movement-history"
+    ],
+    "flow": [
+      "Request and approve the move",
+      "Record the shipment",
+      "Confirm the destination receipt"
+    ],
+    "demoQuestion": "Can we transfer plants between two configured stores and record a partial arrival?"
+  },
+  "in-transit-stock": {
+    "explanation": [
+      "This is a status-review question within the transfer journey. Compare what was shipped with what the receiving team has confirmed, then investigate the remainder. That is more useful than assuming every dispatched plant is already available to the destination's customers.",
+      "The record depends on the physical handoffs being posted accurately. A forgotten shipment or receipt leaves the review incomplete. Agree who confirms each stage, especially when more than one person or vehicle is involved, so the retained transit information describes the actual movement as closely as possible."
+    ],
+    "capabilities": [
+      {
+        "title": "Distinguish goods on the way",
+        "text": "Keep shipped quantities separate from confirmed arrivals. This supports a more realistic availability conversation at the destination while the transfer remains physically in progress."
+      },
+      {
+        "title": "Review outstanding receipts",
+        "text": "Compare the transfer's recorded shipment and receiving events. The difference helps the manager focus on what still needs confirmation rather than treating the transfer as a single completed action."
+      },
+      {
+        "title": "Support handoff accountability",
+        "text": "Use the record to discuss which physical stage has been confirmed and which has not. Staff posting habits remain essential to making the transit view useful for the owner."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does shipped stock become available at the destination immediately?",
+        "a": "Do not assume that. The receiving team needs to confirm arrival through the supported transfer workflow, and the physical condition and quantity should be checked before promises are made to customers."
+      },
+      {
+        "q": "What if the goods have arrived but still appear in transit?",
+        "a": "Review whether the receiving event has been recorded correctly. The status reflects the retained shipment and receipt evidence; it does not automatically detect the physical truck's arrival at the store."
+      }
+    ],
+    "intro": "Goods on the truck occupy a different place in the business from goods ready on a selling bench. In-transit stock makes that distinction visible in the transfer record, helping owners understand what has left one store but is not yet confirmed at another.",
+    "related": [
+      "inter-store-transfers",
+      "recorded-stock-visibility",
+      "partial-receiving"
+    ],
+    "flow": [
+      "Review the shipped quantity",
+      "Check confirmed arrivals",
+      "Investigate what remains in transit"
+    ],
+    "demoQuestion": "Can we distinguish goods on the truck from goods confirmed at the receiving store?"
+  },
+  "saved-suppliers": {
+    "explanation": [
+      "A saved record is useful because it gives repeat buying a consistent starting point. Staff can choose the intended supplier and review its details before moving into the purchase order. That is particularly helpful when someone covers buying duties for a colleague who normally holds the information in their head.",
+      "Good supplier records still need attention. Contacts, pack arrangements and commercial details can change, and a blank field should remain an unanswered question. Review what is current before relying on it, rather than letting a familiar supplier name stand in for verified ordering information."
+    ],
+    "capabilities": [
+      {
+        "title": "Keep repeat details accessible",
+        "text": "Retain the supplier information already recorded by the store. Staff can begin a new purchasing task from that shared reference instead of hunting through previous emails for every basic detail."
+      },
+      {
+        "title": "Choose the intended relationship",
+        "text": "Select the correct supplier before preparing the order. Similar trading names or multiple contacts deserve a quick check so the buying conversation begins with the right organization."
+      },
+      {
+        "title": "Review what has changed",
+        "text": "Treat the saved record as maintained business information. Check that contact and purchasing details remain suitable when the supplier changes its arrangements or a new staff member takes over the task."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will the system find supplier contact details we have never entered?",
+        "a": "No. Saved suppliers make recorded information reusable; they do not invent missing addresses, phone numbers or commercial arrangements. Confirm those details through your normal supplier relationship before depending on them."
+      },
+      {
+        "q": "Does choosing a saved supplier place an order with them?",
+        "a": "No. Selecting the supplier starts the internal purchasing workflow. Preparing, approving and actually communicating an order remain distinct steps that the store needs to manage appropriately."
+      }
+    ],
+    "intro": "The next order should begin with what your store already knows about the supplier. Saved suppliers keep recorded contact and purchasing details available to the buying team, reducing the need to reconstruct the same relationship every time another order is prepared.",
+    "related": [
+      "purchase-orders",
+      "previous-order-defaults",
+      "purchase-approvals"
+    ],
+    "flow": [
+      "Choose the saved supplier",
+      "Review the current details",
+      "Prepare the next buying task"
+    ],
+    "demoQuestion": "Can another team member start a repeat order using our maintained supplier information?"
+  },
+  "purchase-orders": {
+    "explanation": [
+      "The record gives receiving something concrete to compare against later. Instead of asking whether a delivery looks roughly like the conversation with the grower, staff can review the intended goods and their recorded purchasing context. Confirm the units carefully, especially where supplier packaging differs from retail selling.",
+      "A completed internal order record does not mean the supplier has accepted it. Keep preparation, approval and supplier communication understandable as separate business steps. Owners can then use the purchase order to organize the decision without making an unsupported assumption about what has actually been ordered externally."
+    ],
+    "capabilities": [
+      {
+        "title": "Prepare a coherent buying record",
+        "text": "Bring the proposed supplier items, quantities and expected costs together. This gives the reviewer a clear description of the intended purchase before the business commits to the next step."
+      },
+      {
+        "title": "Review purchasing units",
+        "text": "Check what each supplier quantity represents. The meaning of a tray, pack or case needs to be understood before its expected goods can be compared with a later delivery."
+      },
+      {
+        "title": "Support later receiving",
+        "text": "Use the recorded order as a reference when goods arrive. The receiving decision should reflect the delivery actually checked, including differences that need their own explanation."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will creating the purchase order automatically email or place it with the supplier?",
+        "a": "No. This feature creates the internal order record. Follow your normal approved supplier communication process and confirm the commercial commitment rather than assuming the software has dispatched it automatically."
+      },
+      {
+        "q": "Does the expected cost prove what the final delivery will cost?",
+        "a": "No. It is the cost context prepared for the order. Actual delivered quantities, exceptions and recorded landed costs still need review before the store interprets the received goods' cost."
+      }
+    ],
+    "intro": "A buying decision is easier to manage when everyone can see what the store intends to order. Purchase orders bring supplier lines, quantities, units and expected costs into a clear internal record the team can prepare and review together.",
+    "related": [
+      "purchase-approvals",
+      "supplier-pack-conversions",
+      "partial-receiving"
+    ],
+    "flow": [
+      "Prepare supplier lines",
+      "Review quantities and expected costs",
+      "Submit the buying record"
+    ],
+    "demoQuestion": "Can we prepare an order that the owner and receiving team can both understand?"
+  },
+  "purchase-approvals": {
+    "explanation": [
+      "This allows the owner to delegate preparation without making authority ambiguous. A team member can gather the intended supplier lines and expected quantities, while the appropriate reviewer considers whether the order reflects the store's plans. The approval step is a deliberate decision, not an assumption attached to staff access.",
+      "The external supplier relationship still needs its own confirmation. An internal approval does not establish acceptance of terms or guarantee a delivery. Review staff permissions and the actual ordering routine together so the team understands what approval changes and which business steps must still happen afterwards."
+    ],
+    "capabilities": [
+      {
+        "title": "Separate preparation from authority",
+        "text": "Let the order's preparation and approval represent different responsibilities. This helps the owner decide where buying work can be shared without silently granting every participant purchasing authority."
+      },
+      {
+        "title": "Review the proposed commitment",
+        "text": "Consider the supplier lines and quantities before approving the internal order. The useful outcome is a documented buying decision that receiving and management can refer back to later."
+      },
+      {
+        "title": "Align access with store policy",
+        "text": "Configure the staff authority that supports the intended review process. The team should understand who can prepare, who can approve and when a question needs the owner's attention."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can a seasonal buyer prepare an order without approving it?",
+        "a": "That is the intended separation to review through your configured staff permissions. The store should confirm the actual roles and approval workflow before delegating live purchasing responsibility."
+      },
+      {
+        "q": "Does an approved order prove the supplier agreed to it?",
+        "a": "No. Internal approval and external supplier acceptance are different events. Confirm the order and any commercial terms through the store's normal supplier communication process before assuming the goods are committed."
+      }
+    ],
+    "intro": "The person preparing a grower order may not be the person authorized to approve the purchase. Purchase approvals give that distinction a place in the workflow, so proposed buying can be reviewed before it becomes an approved internal commitment.",
+    "related": [
+      "purchase-orders",
+      "store-scoped-roles",
+      "partial-receiving"
+    ],
+    "flow": [
+      "Prepare the proposed order",
+      "Submit it for authorized review",
+      "Approve the internal commitment"
+    ],
+    "demoQuestion": "Can one staff member prepare an order while the owner retains approval authority?"
+  },
+  "partial-receiving": {
+    "explanation": [
+      "The receiving decision begins at the truck or unloading area. Staff compare what is present with the intended order, then confirm the quantities they have checked. An expected future delivery should not be recorded as stock simply because it shares the same purchase order.",
+      "This creates a clearer conversation for the next shift and the next truck. The owner can distinguish a partly fulfilled order from a fully received one, while exceptions such as shortages or substitutions keep their own reasons. The record should explain the delivery, not smooth away its inconvenient details."
+    ],
+    "capabilities": [
+      {
+        "title": "Confirm the delivered portion",
+        "text": "Record the quantities staff actually received and checked. This keeps today's stock decision tied to today's physical delivery rather than to the supplier's original promise for the whole order."
+      },
+      {
+        "title": "Retain the order remainder",
+        "text": "Keep the undelivered quantity understandable after the first receipt. The team needs a clear reference for what is still expected when another delivery or supplier conversation follows."
+      },
+      {
+        "title": "Review differences separately",
+        "text": "Treat an actual shortage, substitution or extra item as an exception needing review. A staged delivery and an unexplained mismatch may look similar but require different business decisions."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should we mark the whole order received if the rest is coming tomorrow?",
+        "a": "No. Confirm the actual delivered portion and retain the remainder. Stock should not imply that undelivered goods are already present simply because another shipment is expected soon."
+      },
+      {
+        "q": "What if the supplier later says the remainder will never arrive?",
+        "a": "Review the outstanding quantity through the supported shortage or remainder-cancellation workflow. Preserve the receipts already recorded while resolving the part of the commitment that is still open."
+      }
+    ],
+    "intro": "A grower may fill one order over more than one delivery. Partial receiving lets the team record the goods that actually arrived while keeping the undelivered remainder visible, instead of forcing an all-or-nothing answer onto a staged shipment.",
+    "related": [
+      "receiving-exceptions",
+      "supplier-shortages-and-backorders",
+      "recorded-stock-visibility"
+    ],
+    "flow": [
+      "Check the actual delivery",
+      "Confirm the received quantities",
+      "Retain the outstanding remainder"
+    ],
+    "demoQuestion": "Can we receive one truckload while keeping the rest of the supplier order open?"
+  },
+  "receiving-exceptions": {
+    "explanation": [
+      "The first job is to establish what the goods are. A supplier substitution may be commercially acceptable but still represent a different product or quantity relationship. Confirm identity, units and condition before the delivery is treated as ordinary sellable stock in the receiving workflow.",
+      "A useful exception record also helps the owner continue the supplier conversation. Staff can explain the observed difference without relying on someone remembering what arrived last week. The recorded reason supports that discussion; it does not replace agreement with the supplier about the commercial outcome."
+    ],
+    "capabilities": [
+      {
+        "title": "Explain the mismatch",
+        "text": "Retain the reason for an overage, shortage or substitution. A clear exception helps later reviewers understand why the confirmed receipt differs from the original purchasing expectation."
+      },
+      {
+        "title": "Verify the actual goods",
+        "text": "Check the product, pack relationship and condition being received. Accepting a substitute should be a conscious review of the item rather than an assumed equivalence based on similar wording."
+      },
+      {
+        "title": "Keep supplier decisions separate",
+        "text": "Document the physical delivery while confirming commercial arrangements through the normal supplier relationship. Recording an exception does not, by itself, establish an agreed credit or revised purchase price."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we treat a larger pot size as the original item because the plant name matches?",
+        "a": "Not without reviewing the actual product and unit relationship. A substitution needs a retained reason and correct product identification before the receiving record can accurately describe the goods accepted."
+      },
+      {
+        "q": "Does recording a shortage automatically settle the supplier's invoice?",
+        "a": "No. It records the observed receiving difference. Invoice questions, credits and the commercial agreement still require the store's normal review with the supplier and the person responsible for accounts."
+      }
+    ],
+    "intro": "Extra trays, missing items and a substituted pot size all deserve an explanation at receiving. Receiving exceptions let the team retain those differences with a reason, so the store's record describes the delivery it actually handled rather than the order it hoped to receive.",
+    "related": [
+      "partial-receiving",
+      "damaged-stock",
+      "supplier-pack-conversions"
+    ],
+    "flow": [
+      "Identify the delivery difference",
+      "Verify product and units",
+      "Retain the exception reason"
+    ],
+    "demoQuestion": "Can we document a substituted item without pretending it is identical to the original order?"
+  },
+  "freight-and-landed-costs": {
+    "explanation": [
+      "Start with the cost evidence you actually have. The supported workflow allocates recorded components across received goods, rather than leaving the entire charge disconnected from the delivery. Staff still need to check the input amount and the goods included in the review before relying on the result.",
+      "This is operational cost context, with an important boundary. A recorded allocation is not automatically a verified inventory valuation or a complete cost-of-goods-sold figure. Keep the bookkeeper involved in how those numbers are interpreted, especially when they inform later margin or accounting decisions."
+    ],
+    "capabilities": [
+      {
+        "title": "Include recorded delivery costs",
+        "text": "Bring eligible freight or duty components into the supported receipt-cost review. This helps the owner see cost information that would otherwise remain separate from the goods received."
+      },
+      {
+        "title": "Review the allocation scope",
+        "text": "Check which received goods the component belongs to before using the allocation. A sound calculation still depends on an accurate amount and an appropriate set of products."
+      },
+      {
+        "title": "Keep financial meaning clear",
+        "text": "Distinguish operational landed-cost information from accountant-reviewed valuation and cost of goods sold. The resulting number is useful when staff understand what evidence it includes and what it does not establish."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does allocating freight automatically tell us the profit on every product?",
+        "a": "No. Profit analysis depends on the appropriate revenue and reviewed cost evidence. Receipt allocations provide context, but should not be substituted for a verified cost-of-goods-sold basis without the required accounting review."
+      },
+      {
+        "q": "What should we check before allocating a delivery charge?",
+        "a": "Confirm the actual component amount, the receiving records it relates to and the goods in scope. Review unusual charges with the person responsible for purchasing or accounts before relying on the result."
+      }
+    ],
+    "intro": "The grower's item price may be only part of what it costs to bring goods into the store. Freight and landed-cost allocation give recorded delivery-related components a place alongside the received products, supporting a fuller cost conversation for the owner.",
+    "related": [
+      "partial-receiving",
+      "margin-and-seasonal-performance",
+      "quickbooks-close-preparation"
+    ],
+    "flow": [
+      "Confirm the cost component",
+      "Review the received goods in scope",
+      "Inspect the resulting allocation"
+    ],
+    "demoQuestion": "Can we explain how a recorded freight charge is allocated across a reviewed receipt?"
+  },
+  "supplier-pack-conversions": {
+    "explanation": [
+      "The relationship belongs to the verified supplier item and product variant. A pack name is not enough: different growers or products can use familiar packaging words for different amounts. Review the actual contents and recorded ratio, especially when an existing supplier changes its specification.",
+      "Keep the retail side separate. What arrives in a supplier pack may later be sold individually or through another configured option. Owners need those buying and selling relationships to agree with the physical goods, without assuming that a supplier tray automatically defines the customer's purchase unit."
+    ],
+    "capabilities": [
+      {
+        "title": "Translate supplier quantities",
+        "text": "Use the recorded pack-to-product relationship when reviewing received goods. This makes the supplier's purchasing unit understandable in terms of the store's intended stock quantity."
+      },
+      {
+        "title": "Verify the mapped variant",
+        "text": "Confirm which product the supplier pack actually contains. The correct numerical ratio is not enough if the receiving relationship points to the wrong size or product option."
+      },
+      {
+        "title": "Recheck changed packaging",
+        "text": "Review conversions when suppliers alter tray contents or specifications. Keeping a familiar vendor reference should not silently preserve a quantity relationship that no longer matches the goods."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is the supplier's pack size automatically the same as our retail flat?",
+        "a": "No. Receiving and customer selling are different relationships. Review each configured conversion against the actual goods and the way your store purchases and sells that product."
+      },
+      {
+        "q": "What happens if a supplier changes the number of plants in a tray?",
+        "a": "Review the supplier mapping and conversion before confirming new receipts. A familiar product name or code does not prove that the previous quantity relationship remains correct for the new packaging."
+      }
+    ],
+    "intro": "Your supplier may count trays while your store counts plants. Supplier pack conversions define that relationship before receiving, so the quantity on the grower's paperwork can become an understandable stock quantity without a last-minute calculation at the unloading area.",
+    "related": [
+      "supplier-product-codes",
+      "product-selling-units",
+      "pack-and-flat-selling"
+    ],
+    "flow": [
+      "Verify the supplier pack",
+      "Confirm its product mapping",
+      "Review the stock conversion"
+    ],
+    "demoQuestion": "Can we receive a grower's trays into the correct number of stock units?"
+  },
+  "low-stock-reorder-starting-points": {
+    "explanation": [
+      "The aim is to reduce the blank-screen moment after someone notices a stock concern. Existing information can help the buyer get oriented, but the team still decides whether to order, from whom and in what quantity. The suggestion is a starting point for that decision.",
+      "Owners should review the whole path, including message delivery and the protected destination. A useful email link is not automatic purchasing or demand forecasting. Demonstrate how the buyer checks current supplier arrangements and availability before turning historical context into a proposed new commitment."
+    ],
+    "capabilities": [
+      {
+        "title": "Connect the alert to buying",
+        "text": "Use the eligible message's order destination to move into the supported purchasing workflow. This gives the person acting on the alert a clearer next step than starting from an unrelated screen."
+      },
+      {
+        "title": "Bring relevant history forward",
+        "text": "Review saved supplier and eligible receipt-based information as context. Prior purchasing activity can reduce repeated lookup work without becoming authority to repeat an old decision unchanged."
+      },
+      {
+        "title": "Keep the buyer in control",
+        "text": "Confirm present needs, quantities and supplier arrangements before preparing the order. The workflow supports judgment; it does not automatically place a purchase because a message identified low recorded stock."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a low-stock alert automatically order more plants?",
+        "a": "No. It leads into a reviewed new-order process. The buyer remains responsible for confirming need, supplier, quantities and the approval or communication steps that the store requires."
+      },
+      {
+        "q": "Will the email link work without setting up delivery?",
+        "a": "Message delivery and the relevant protected workflow need configuration and verification. Review the actual recipient and destination during setup rather than treating an available template as evidence that alerts are being delivered."
+      }
+    ],
+    "intro": "An alert becomes more useful when it leads to the next job. Low-stock reorder starting points connect an eligible message to the new-order workflow, where the buyer can review relevant supplier information and receipt-based suggestions before preparing another purchase.",
+    "related": [
+      "saved-suppliers",
+      "previous-order-defaults",
+      "purchase-approvals"
+    ],
+    "flow": [
+      "Open the eligible reorder link",
+      "Review supplier and receipt context",
+      "Prepare a considered order"
+    ],
+    "demoQuestion": "Can a low-stock message take our buyer to a useful order starting point?"
+  },
+  "previous-order-defaults": {
+    "explanation": [
+      "The benefit is reduced re-entry, not an assumption that yesterday's arrangement still applies. A prior receipt can show how the store bought the item before. The buyer then checks whether the supplier, packaging and cost remain suitable for the proposed purchase today.",
+      "That review is especially important during seasonal changes. A familiar product may arrive in a different pack or at a changed price. Owners can retain the convenience of historical defaults while keeping the current buying decision explicit, with ordinary approvals still governing what happens next."
+    ],
+    "capabilities": [
+      {
+        "title": "Reuse eligible context",
+        "text": "Begin from suitable historical supplier and receipt information where the supported defaults apply. This helps the buyer avoid repeatedly reconstructing details already recorded by the store."
+      },
+      {
+        "title": "Check the pack relationship",
+        "text": "Review whether the supplier item and packaging are unchanged. A prior quantity or cost makes sense only within the product and pack relationship that originally supported it."
+      },
+      {
+        "title": "Confirm current commercial details",
+        "text": "Treat the historical cost as a reference for review, not a current offer from the supplier. The new purchasing decision still needs today's confirmed arrangement and the store's normal approval process."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we treat the previous receipt cost as the supplier's current price?",
+        "a": "No. A historical amount shows the recorded earlier purchase context. Confirm the current commercial arrangement before relying on that value in a new order or presenting it as a live supplier quote."
+      },
+      {
+        "q": "Why might a familiar product not receive the same defaults?",
+        "a": "Defaults depend on eligible source and pack relationships. A changed supplier mapping or packaging can make previous details unsuitable, which is why the buyer should review the proposed starting information."
+      }
+    ],
+    "intro": "Repeat buying should not require rebuilding every detail from memory. Previous-order defaults give the buyer eligible historical supplier, pack and cost information to review, helping another order begin with useful context from the store's own recorded activity.",
+    "related": [
+      "saved-suppliers",
+      "supplier-pack-conversions",
+      "purchase-orders"
+    ],
+    "flow": [
+      "Review eligible prior details",
+      "Confirm the current pack and cost",
+      "Prepare the new order"
+    ],
+    "demoQuestion": "Can we start a repeat purchase from history while checking that its details still apply?"
+  },
+  "photo-assisted-receiving": {
+    "explanation": [
+      "The assistant prepares possibilities; the receiving team verifies them. Compare the suggested product matches and quantities with both the document and the actual goods. An attractive transcription is not enough where a tray is short, a pot size is substituted or the physical condition needs review.",
+      "This keeps automation in a helpful supporting role. The manager can review the proposed information before the normal receiving confirmation changes stock. Include an imperfect packing slip in the demonstration so your team sees how uncertain or incorrect suggestions are handled, not only how a clear document is read."
+    ],
+    "capabilities": [
+      {
+        "title": "Start with the approved order",
+        "text": "Choose an approved purchase order before uploading the delivery document. The assistant uses that order’s context to prepare suggestions for the receiving team to check against the goods."
+      },
+      {
+        "title": "Review suggested matches",
+        "text": "Check the proposed product identity and quantities against the goods received. Staff remain responsible for resolving ambiguous names, different pack sizes and other details the document alone cannot establish."
+      },
+      {
+        "title": "Confirm through receiving",
+        "text": "Use the reviewed receiving workflow for the stock decision. An uploaded image or assistant suggestion does not by itself authorize the store to treat goods as correctly received."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will uploading the packing slip automatically add everything to stock?",
+        "a": "No. Staff must review the suggestions and confirm the receipt through the workflow. The actual quantities, product matches and condition need human checking before the receiving decision is completed."
+      },
+      {
+        "q": "Can the assistant make mistakes with a supplier's document?",
+        "a": "Yes. Document quality, wording and product relationships can create uncertainty. Use the suggestions as preparation, then compare them with the actual goods and correct any issue before confirming the receipt."
+      }
+    ],
+    "intro": "Start with an approved purchase order, then upload the supplier’s packing slip. Photo-assisted receiving suggests draft details within that order’s context, so staff can focus on checking the actual delivery rather than beginning the review with a blank record.",
+    "related": [
+      "receiving-exceptions",
+      "partial-receiving",
+      "supplier-pack-conversions"
+    ],
+    "flow": [
+      "Open the approved purchase order",
+      "Upload and review the packing slip",
+      "Confirm the checked receipt"
+    ],
+    "demoQuestion": "Can we open an approved order, upload an imperfect packing slip and review the goods before stock changes?"
+  },
+  "customer-lookup": {
+    "explanation": [
+      "The confirmation is what makes the lookup useful. Similar names, shared contact information or an old detail can produce ambiguity. Staff should compare the available record with the customer's answer rather than selecting the first plausible result simply to move the line along.",
+      "At the same time, an ordinary anonymous sale can remain anonymous. Lookup supports the situations where identifying a customer is appropriate; it is not a reason to collect unnecessary details from everyone. Keep the receipt and any optional marketing preference as separate customer choices in their own supported workflows."
+    ],
+    "capabilities": [
+      {
+        "title": "Find an existing record",
+        "text": "Search the supported recorded name, phone or email when the customer provides it. This gives staff a practical route to a profile that may already belong to the person being served."
+      },
+      {
+        "title": "Confirm the intended person",
+        "text": "Check the result before using it for the sale or account conversation. A familiar name is a useful clue, but it should not substitute for a reasonable identity confirmation."
+      },
+      {
+        "title": "Avoid unnecessary new profiles",
+        "text": "Use the existing record where it has been confirmed. When no customer attachment is needed, ordinary anonymous checkout can continue without turning the purchase into a compulsory data-collection exercise."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does every shopper have to provide their name or email?",
+        "a": "No. Ordinary anonymous sales do not require a customer record. Use customer lookup where the task calls for it and keep receipt delivery and marketing permission distinct from identifying the sale's customer."
+      },
+      {
+        "q": "Should a cashier merge two similar profiles while checking out?",
+        "a": "A similar result is not enough to confirm a duplicate. The reviewed customer-merge workflow is a separate job, with checks that protect identity and retained history from an incorrect combination."
+      }
+    ],
+    "intro": "A regular customer should not need a new profile every time they return. Customer lookup helps staff find an existing record using the information the shopper provides, then confirm the intended person before attaching that identity to the purchase.",
+    "related": [
+      "customer-duplicate-review",
+      "separate-marketing-consent",
+      "branded-email-receipts"
+    ],
+    "flow": [
+      "Search the provided detail",
+      "Confirm the right customer",
+      "Use the appropriate existing record"
+    ],
+    "demoQuestion": "Can we find a repeat customer without creating another profile or requiring every shopper to register?"
+  },
+  "customer-duplicate-review": {
+    "explanation": [
+      "The work begins with evidence, not resemblance. Similar names or contact details can point toward a question without proving that two profiles belong to the same person. Review the candidates and any conflicting identities or trade-account relationships before deciding a merge is appropriate.",
+      "For the owner, this is a data-quality decision with service consequences. A cleaner customer record can make later lookup less confusing, but a mistaken merge can attach the wrong history or account context. Keep the review deliberate and separate from a cashier's immediate need to finish a sale."
+    ],
+    "capabilities": [
+      {
+        "title": "Review suspected duplicates",
+        "text": "Examine the candidate profiles before deciding they represent the same customer. The goal is to resolve a verified duplication, not simply reduce the number of records in a list."
+      },
+      {
+        "title": "Preserve customer history",
+        "text": "Use the supported merge workflow rather than deleting a profile to make it disappear. Retained history matters when the team later reviews purchases, account context or the reason records were combined."
+      },
+      {
+        "title": "Respect blocking conflicts",
+        "text": "Treat incompatible identities or trade-account relationships as issues requiring review. A convenient merge should not silently override evidence that the two records may need to remain distinct."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we merge profiles because they have the same surname?",
+        "a": "No. A shared surname is not sufficient evidence of one customer. Review the available identity information and account context before confirming that the records are eligible duplicates."
+      },
+      {
+        "q": "What if both records have a trade account or conflicting linked identity?",
+        "a": "Those relationships can block a merge. Resolve the actual conflict through the appropriate review rather than assuming that a similar name allows one profile's account or history to be absorbed into the other."
+      }
+    ],
+    "intro": "Duplicate customer profiles make a familiar person look like several unrelated records. Customer duplicate review gives managers a considered way to confirm an eligible match and bring those records together while retaining the history the business still needs to understand.",
+    "related": [
+      "customer-lookup",
+      "trade-account-terms",
+      "authorized-trade-buyers"
+    ],
+    "flow": [
+      "Review the candidate profiles",
+      "Confirm identity and account compatibility",
+      "Merge an eligible duplicate"
+    ],
+    "demoQuestion": "Can we resolve a verified duplicate while retaining its history and respecting account conflicts?"
+  },
+  "trade-account-terms": {
+    "explanation": [
+      "The terms can include the recorded price-tier reference and whether the customer must provide a purchase-order reference. Keeping those expectations together helps the counter ask the right questions before an invoice becomes someone else's problem. The owner still reviews and approves the actual arrangement.",
+      "Account terms and buyer authority answer different questions. A business having an account does not mean anyone naming that business may charge to it. Review the authorized people, account eligibility and required references alongside the terms so staff understand the whole decision before offering account tender."
+    ],
+    "capabilities": [
+      {
+        "title": "Record the account arrangement",
+        "text": "Retain the supported terms approved for the business customer. This gives staff a shared reference instead of depending on informal explanations that can change between shifts."
+      },
+      {
+        "title": "Keep required references clear",
+        "text": "Document the account's purchase-order requirements and relevant price-tier reference. These details help the team understand what needs checking before an eligible charge purchase is completed."
+      },
+      {
+        "title": "Separate agreement from authority",
+        "text": "Review who may use the account as a separate part of setup. A recorded customer arrangement should not silently grant every visitor permission to charge purchases to the business."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does creating a trade account automatically authorize all of the company's staff to charge it?",
+        "a": "No. Authorized buyers are recorded separately with their applicable authority and dates. Account terms describe the business arrangement; they do not establish that every person claiming the company may use it."
+      },
+      {
+        "q": "Does a price-tier reference mean every trade sale automatically receives a discount?",
+        "a": "Do not assume that. Confirm the supported pricing behaviour and the owner's approved arrangement during setup. A recorded account reference is not a promise of an unverified automatic pricing rule."
+      }
+    ],
+    "intro": "A landscaping company may buy under a different arrangement from a walk-in shopper. Trade-account terms give the owner a place to record that agreement's supported details, so staff can check the intended account context before completing an eligible trade purchase.",
+    "related": [
+      "authorized-trade-buyers",
+      "customer-purchase-order-references",
+      "charge-accounts"
+    ],
+    "flow": [
+      "Review the business agreement",
+      "Record the supported terms",
+      "Confirm buyer and reference requirements"
+    ],
+    "demoQuestion": "Can staff explain a contractor account's terms before offering an eligible charge purchase?"
+  },
+  "authorized-trade-buyers": {
+    "explanation": [
+      "The buyer's authority has a scope and applicable dates. That matters when crews change, an employee leaves or someone is permitted to make purchases only for a period. Staff need a current, relevant decision rather than a permanent assumption based on a familiar face.",
+      "Owners can keep customer service friendly without making account access informal. Review the approved buyer record alongside account status and any required purchase-order details before the charge workflow proceeds. Permission to buy is also distinct from permission to administer the account or change its terms."
+    ],
+    "capabilities": [
+      {
+        "title": "Identify approved people",
+        "text": "Record the individuals eligible to buy against the trade arrangement. This gives the counter a more useful check than accepting that anyone naming a landscaping business speaks for its account."
+      },
+      {
+        "title": "Keep dates meaningful",
+        "text": "Review when the recorded authority applies and whether it has expired. A person's previous eligibility should not automatically be treated as present permission for another charge purchase."
+      },
+      {
+        "title": "Separate buying from administration",
+        "text": "Keep purchasing authority distinct from account-management access. Someone allowed to collect materials for a crew does not thereby become authorized to change the business's credit terms or setup."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can an expired buyer still charge the account because we recognize them?",
+        "a": "Recognition does not replace current authority. Review the applicable buyer record and resolve any expired or uncertain permission through the approved account process before accepting an account charge."
+      },
+      {
+        "q": "Does authorizing a buyer give them access to change the account?",
+        "a": "No. Charging authority and account administration are different responsibilities. Configure the intended buyer permissions without assuming that a permitted purchase grants control over terms, limits or other management decisions."
+      }
+    ],
+    "intro": "A company name does not tell the cashier who is allowed to charge materials to its account. Authorized trade buyers give that decision a recorded basis, helping staff check the individual in front of them against the business's approved purchasing arrangement.",
+    "related": [
+      "trade-account-terms",
+      "charge-accounts",
+      "customer-purchase-order-references"
+    ],
+    "flow": [
+      "Find the intended account",
+      "Check the buyer's current authority",
+      "Review the eligible purchase context"
+    ],
+    "demoQuestion": "Can we distinguish an approved current buyer from someone merely naming the same company?"
+  },
+  "customer-purchase-order-references": {
+    "explanation": [
+      "This is the customer's reference, not a purchase order your store sends to a grower. Its purpose is to connect the trade purchase with the buyer's business context. The recorded account requirements tell staff when that information needs to be confirmed before the charge workflow continues.",
+      "Owners can use this to make trade paperwork less dependent on later phone calls. Staff retain the supplied reference with the relevant sale context, while the customer remains responsible for providing the correct value. A completed field is useful only when it represents the customer's actual purchasing instructions."
+    ],
+    "capabilities": [
+      {
+        "title": "Capture the customer's reference",
+        "text": "Retain the PO or job context supplied for the trade purchase. This helps the record carry information the buyer's accounts team may need when reviewing the resulting invoice."
+      },
+      {
+        "title": "Follow account requirements",
+        "text": "Check whether the trade arrangement requires a reference. Staff should understand that requirement before completing the eligible charge workflow rather than discovering a missing detail after the buyer has left."
+      },
+      {
+        "title": "Keep buying documents distinct",
+        "text": "Separate the customer's invoice reference from your own supplier purchasing records. Both may be called a PO in conversation, but they describe different commitments and need different context."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is this the same purchase order we use to buy plants from a supplier?",
+        "a": "No. This is a reference supplied by the business customer for its purchase from your store. Your supplier purchase order belongs to the separate purchasing and receiving workflow."
+      },
+      {
+        "q": "Does the software know whether the customer's reference is commercially correct?",
+        "a": "Staff must confirm the actual reference provided by the buyer. The account's requirement can guide collection of the information, but the customer's own instructions still determine which reference should be used."
+      }
+    ],
+    "intro": "A landscaper's accounts team may need a project or purchase-order reference before it can process an invoice. Capturing that information with the sale helps the store ask the question at the counter, where the buyer can still provide the answer.",
+    "related": [
+      "trade-account-terms",
+      "authorized-trade-buyers",
+      "account-statements"
+    ],
+    "flow": [
+      "Check the account requirement",
+      "Collect the buyer's reference",
+      "Retain it with the sale context"
+    ],
+    "demoQuestion": "Can we capture a contractor's required project reference before the buyer leaves the counter?"
+  }
+}

@@ -1,0 +1,477 @@
+[
+  {
+    "id": "clover",
+    "name": "Clover",
+    "product": "Clover Retail",
+    "summary": "Clover brings payments, checkout hardware and everyday retail tools into one product family. For a garden centre, the useful comparison is how the proposed Clover plan handles plants, suppliers and customer promises. Compare the complete configuration with BloomSuite POS using your own products, returns and receiving work.",
+    "fit": "Clover deserves a close look when the counter experience and a supplied hardware family are central to your decision. Its Canadian retail offering combines merchant and customer screens, handheld options, payment acceptance and retail management. A store already comfortable with Clover should first establish whether a plan change or carefully chosen app solves its remaining problems before committing to a migration.",
+    "decision": "Evaluate BloomSuite when you want to examine garden-specific workflows such as botanical identity, living-stock loss, receiving evidence, care guidance and plant guarantees together. Ask both teams to demonstrate those jobs with the same sample records. Stay with Clover if its configured plan meets your needs and the disruption of switching is not justified. BloomSuite’s merchant, hardware and connected-service setup still requires verification.",
+    "capabilities": [
+      {
+        "title": "Variants and stock",
+        "text": "Clover describes item variants, barcode-driven stock updates and inventory cost reporting. These are real retail capabilities; the question is how your supplier codes, pot sizes and plant names are configured.",
+        "sourceUrl": "https://www.clover.com/ca/pos-solutions/retail"
+      },
+      {
+        "title": "Payments and returns",
+        "text": "Clover supports credit, debit, gift-card and mobile payments and describes refunds for orders using multiple payments. Compare the original-tender return routine rather than treating integrated payment acceptance as unique to either system.",
+        "sourceUrl": "https://www.clover.com/ca/pos-solutions/retail"
+      },
+      {
+        "title": "Retail plan differences",
+        "text": "The Canadian comparison places variants, itemized exchanges, scale integration and item cost tracking in Retail Growth bundles. Essentials and Retail Growth should not be treated as interchangeable when reviewing a proposal.",
+        "sourceUrl": "https://www.clover.com/ca/pricing/retail"
+      },
+      {
+        "title": "Counter and mobile equipment",
+        "text": "Canadian bundles include Mini, Station Duo and Flex options. Station Duo combines merchant and customer displays, while Flex offers a handheld format. The quoted equipment determines the actual checkout arrangement.",
+        "sourceUrl": "https://www.clover.com/ca/pricing/retail"
+      },
+      {
+        "title": "Online selling connections",
+        "text": "Clover describes a native online storefront and synchronization through app partner SKU IQ. Ask which connection, subscription and source of product data are included in the setup being offered.",
+        "sourceUrl": "https://www.clover.com/ca/pos-solutions/retail"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Receive a grower delivery",
+        "text": "Bring an order containing trays, individual pots and a shortage. Ask the demonstrator to receive the actual quantities, retain the unresolved balance and explain how stock and cost records change."
+      },
+      {
+        "title": "Find the correct plant",
+        "text": "Use a shrub with three pot sizes and more than one supplier barcode. Have a seasonal cashier find it by the names your team uses and confirm the correct selling option."
+      },
+      {
+        "title": "Resolve a mixed-payment return",
+        "text": "Demonstrate a partial return from a sale paid with gift value and a card. Check the retained balance, refund outcome and information available to the person closing the register."
+      },
+      {
+        "title": "Inspect the whole proposal",
+        "text": "Request a written breakdown of hardware, software, payment processing and apps. Then demonstrate the proposed Canadian device during a connection interruption and explain its supported tenders, limits and reconciliation process."
+      }
+    ],
+    "migration": [
+      "Inventory the Clover hardware models and merchant agreement before assuming payment equipment can move to another platform.",
+      "Review available product exports, variants and barcode aliases, then reconcile a sample catalogue rather than matching only by product name.",
+      "Agree how gift-card balances, store credit, customer records and historical receipts will be retained or migrated before selecting a cutover date."
+    ],
+    "pricing": {
+      "text": "Clover’s Canadian retail comparison directs buyers to sales for the listed bundles. Review the exact software plan, hardware arrangement, processor agreement and paid apps together. A US online price or reseller promotion is not automatically the price or contract available to your Canadian store.",
+      "url": "https://www.clover.com/ca/pricing/retail"
+    },
+    "hardware": {
+      "text": "Start with the proposed Mini, Station Duo or Flex configuration and required peripherals. If you are considering BloomSuite, review each existing scanner, drawer, printer and payment device individually. A browser-based register does not make an arbitrary Clover payment device reusable.",
+      "url": "https://www.clover.com/ca/pricing/retail"
+    },
+    "sources": [
+      {
+        "label": "Clover Canada retail features",
+        "url": "https://www.clover.com/ca/pos-solutions/retail"
+      },
+      {
+        "label": "Clover Canada retail plans and hardware",
+        "url": "https://www.clover.com/ca/pricing/retail"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is an integrated card reader a reason by itself to leave Clover?",
+        "a": "No. Clover already combines checkout and payment acceptance. A stronger reason to evaluate a change would be a demonstrated improvement in daily work, operating controls or the broader customer journey that outweighs migration, training and equipment costs."
+      },
+      {
+        "q": "Does Clover support pot-size variants and weight-based selling?",
+        "a": "Its Canadian Retail Growth comparison includes item variants and scale integration. Confirm the required plan, supported scale and configuration in your proposal. Ask for a demonstration using your own plant sizes and measured products rather than assuming those capabilities are missing."
+      }
+    ],
+    "editionNote": "This comparison uses Clover’s Canadian retail pages. Plans, processing arrangements, devices and app integrations can differ by market and sales channel. Confirm the written proposal for your store."
+  },
+  {
+    "id": "square",
+    "name": "Square",
+    "product": "Square for Retail",
+    "summary": "Square for Retail combines payment acceptance with catalogue, inventory, online selling and reporting tools. A garden centre can begin with its free software tier and evaluate paid retail features as needs grow. The meaningful comparison with BloomSuite is the complete workflow and plan, not simply the presence of a card reader.",
+    "fit": "Square can make sense for a smaller retail operation that wants a free starting software tier, supported payment devices and a path to additional retail tools. Its published offering reaches beyond basic card processing. If your store already uses Square, check whether the required inventory and reporting functions are available through the appropriate retail plan before replacing a working counter setup.",
+    "decision": "Consider BloomSuite when you want to explore a different approach to garden-specific records, receiving decisions, guarantee claims, contractor controls and product care. Use a real spring delivery and a difficult return as evaluation material. Retain Square if its configured tools serve those jobs well and a switch offers little practical improvement. Verify BloomSuite’s payment, equipment and connection readiness for your store before deciding.",
+    "capabilities": [
+      {
+        "title": "Catalogue and online sales",
+        "text": "Square describes a customizable retail catalogue and POS grid connected with Square Online. Ask how your actual website, catalogue and store locations would share records in the proposed configuration.",
+        "sourceUrl": "https://squareup.com/ca/en/point-of-sale/retail/features"
+      },
+      {
+        "title": "Inventory across locations",
+        "text": "Square publishes cross-location stock synchronization and restocking tools. Evaluate how the system distinguishes your greenhouse, sales floor and separate stores using a representative stock movement rather than a general feature checkbox.",
+        "sourceUrl": "https://squareup.com/ca/en/point-of-sale/retail/features"
+      },
+      {
+        "title": "Retail counting and labels",
+        "text": "The feature page labels mobile inventory counting and barcode printing as Plus functionality. Confirm plan eligibility and supported printer and media before treating those tools as included in a free starting setup.",
+        "sourceUrl": "https://squareup.com/ca/en/point-of-sale/retail/features"
+      },
+      {
+        "title": "Cost and sell-through reports",
+        "text": "Square’s paid retail offering includes COGS, margin and sell-through reporting. Check the underlying cost inputs and effect of returns before comparing a report total with another system.",
+        "sourceUrl": "https://squareup.com/ca/en/point-of-sale/retail/features"
+      },
+      {
+        "title": "Countertop and mobile equipment",
+        "text": "Square’s Canadian hardware page includes Register, Handheld, Terminal, iPad-based Stand and Reader. These formats give buyers a choice of arrangements, subject to software and peripheral compatibility.",
+        "sourceUrl": "https://squareup.com/ca/en/hardware"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Price the required plan",
+        "text": "Make a checklist covering receiving, purchase orders, counts, labels and COGS reports. Ask which Square tier supplies each item and include all locations, services and processing costs in the comparison."
+      },
+      {
+        "title": "Count living inventory",
+        "text": "Demonstrate a blind count, a plant loss and a quantity correction using your store’s process. Check which records remain available to explain why stock changed and who approved the work."
+      },
+      {
+        "title": "Check garden label practicality",
+        "text": "Print the actual plant or shelf label you intend to use, with your barcode and price. Scan it at the proposed register and confirm a price change produces the expected replacement label."
+      },
+      {
+        "title": "Follow an order across channels",
+        "text": "Place a sample pickup order using the proposed website connection, then demonstrate its stock effect and a partial return. Identify any setup, app or plan dependency during the walkthrough."
+      }
+    ],
+    "migration": [
+      "Confirm which Square payment hardware, scanners and printers are reusable before planning any replacement equipment purchase.",
+      "Review exportable item options, SKUs, barcodes and quantities, keeping catalogue setup separate from verified opening stock.",
+      "Reconcile gift cards, customer balances and historical receipts, including what must remain accessible in the old system after the switch."
+    ],
+    "pricing": {
+      "text": "The Canadian retail pricing page separates Free, Plus and custom Premium offerings. Free software still carries processing costs; advanced inventory and reporting depend on plan scope. Compare the current plan table with a written store-specific estimate rather than comparing only headline subscription prices.",
+      "url": "https://squareup.com/ca/en/point-of-sale/retail/pricing"
+    },
+    "hardware": {
+      "text": "Choose the counter or handheld arrangement first, then review supported printers, scanners and drawers. Square’s Canadian equipment family includes Register, Handheld, Terminal, Stand and Reader. If evaluating BloomSuite, verify each existing model; payment devices are not interchangeable merely because both systems accept cards.",
+      "url": "https://squareup.com/ca/en/hardware"
+    },
+    "sources": [
+      {
+        "label": "Square Canada retail overview",
+        "url": "https://squareup.com/ca/en/point-of-sale/retail"
+      },
+      {
+        "label": "Square Canada retail features",
+        "url": "https://squareup.com/ca/en/point-of-sale/retail/features"
+      },
+      {
+        "label": "Square Canada retail pricing",
+        "url": "https://squareup.com/ca/en/point-of-sale/retail/pricing"
+      },
+      {
+        "label": "Square Canada hardware",
+        "url": "https://squareup.com/ca/en/hardware"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is Square only suitable for taking simple payments?",
+        "a": "No. Its retail offering includes catalogue management, purchasing and inventory tools, online selling and reporting. Some advanced functions require a paid tier. A fair comparison should use the plan your garden centre would actually need."
+      },
+      {
+        "q": "Should a garden centre automatically move away from Square as it grows?",
+        "a": "No. Growth is a reason to review workflows and complete costs, not proof that replacement is required. Compare both systems using real receiving, stock, customer and close routines, then weigh any improvement against migration and training effort."
+      }
+    ],
+    "editionNote": "Sources are Square’s Canadian retail pages. Some capabilities are labelled Plus or depend on plan, device and configuration. Regional pricing and processing terms should be checked directly."
+  },
+  {
+    "id": "shopify",
+    "name": "Shopify POS",
+    "product": "Shopify POS",
+    "summary": "Shopify POS connects in-person selling with the Shopify commerce platform. That makes it an important option for garden centres whose online shop is central to the business. Compare BloomSuite and Shopify using both the shop floor and website, with the required Shopify plan and POS Pro scope clearly identified.",
+    "fit": "Shopify POS is a strong candidate when you want online and physical retail operations to share a commerce platform. Its published features cover inventory, orders, customers and multiple locations. A store with an established Shopify website may gain continuity by keeping that investment. The decision should account for how much of your existing catalogue, fulfilment and app configuration is already working well.",
+    "decision": "Evaluate BloomSuite when the garden-centre operating model is your main reason to review the POS: living stock, receiving exceptions, plant guarantees, trade accounts and care guidance. Keep Shopify on the shortlist when ecommerce continuity is especially valuable. Compare demonstrations and implementation scope; do not assume BloomSuite connections are live simply because the products belong to one family, or that every Shopify feature is included without Pro.",
+    "capabilities": [
+      {
+        "title": "Shared commerce records",
+        "text": "Shopify describes POS synchronization with its online store and other sales channels for products, inventory, customers and orders. That connection matters when the online shop is an important part of the business.",
+        "sourceUrl": "https://www.shopify.com/ca/pos/features"
+      },
+      {
+        "title": "Variants with their own details",
+        "text": "Shopify supports variants carrying their own price, SKU, weight and inventory. Use your plant sizes, colours and supplier identifiers to test the catalogue arrangement your team would actually maintain.",
+        "sourceUrl": "https://www.shopify.com/ca/pos/features"
+      },
+      {
+        "title": "Transfers and purchasing",
+        "text": "Published features include multi-location stock, transfers and supplier purchase orders in Shopify admin. Ask staff to follow a receipt through to the location and selling option used at checkout.",
+        "sourceUrl": "https://www.shopify.com/ca/pos/features"
+      },
+      {
+        "title": "Pro store workflows",
+        "text": "Shopify marks advanced workflows such as specified pickup fulfilment, exchanges, staff roles and manager approvals as Pro. Entry-level POS and a configured Pro location are different comparison targets.",
+        "sourceUrl": "https://www.shopify.com/ca/pos/features"
+      },
+      {
+        "title": "Supported retail equipment",
+        "text": "Shopify documents compatible readers, printers, scanners and cash drawers. Device, region and connection requirements should be checked before deciding how much of an existing counter can remain.",
+        "sourceUrl": "https://help.shopify.com/en/manual/sell-in-person/hardware/supported-hardware"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Walk the online-to-store journey",
+        "text": "Create an online pickup order, prepare it in store and process a partial return. Check the plan required for each stage and which stock and customer records are shared."
+      },
+      {
+        "title": "Receive trays and sell eaches",
+        "text": "Use a delivery in trays with a mix of pot sizes, then sell an individual plant and a configured pack. Confirm the actual workflow rather than inferring unit conversion from a variants feature."
+      },
+      {
+        "title": "Handle a plant guarantee",
+        "text": "Find an original purchase, review the promise made at sale and demonstrate an approved replacement or credit. Identify which steps are native configuration, app-supported or additional work in each platform."
+      },
+      {
+        "title": "Quote the whole commerce stack",
+        "text": "Price the Shopify plan, Pro locations, hardware, payments and required apps together. Compare that with BloomSuite’s proposed implementation, including the website and customer tools your store intends to use."
+      }
+    ],
+    "migration": [
+      "Separate a POS change from a website rebuild; decide whether Shopify ecommerce will stay and establish supported connection scope first.",
+      "Review variant identities, barcodes, location stock and customers, then reconcile test exports without creating duplicate products from similar names.",
+      "Plan outstanding online orders, gift balances, returns and active apps so customers retain a clear route to service during cutover."
+    ],
+    "pricing": {
+      "text": "Shopify describes total POS cost as the Shopify plan, transaction fees and any POS Pro locations. Many advanced retail functions are identified as Pro. Use current Canadian pricing and necessary apps and locations instead of comparing a base subscription with a fully configured alternative.",
+      "url": "https://www.shopify.com/ca/pos/pricing"
+    },
+    "hardware": {
+      "text": "Review the supported-hardware list for your country and device setup. A compatible iPad does not establish compatibility for every reader, printer or scanner. When considering BloomSuite, check those same models individually and agree the tested payment arrangement before a cutover.",
+      "url": "https://www.shopify.com/ca/pos/hardware"
+    },
+    "sources": [
+      {
+        "label": "Shopify Canada POS overview",
+        "url": "https://www.shopify.com/ca/pos"
+      },
+      {
+        "label": "Shopify Canada POS features",
+        "url": "https://www.shopify.com/ca/pos/features"
+      },
+      {
+        "label": "Shopify Canada POS pricing",
+        "url": "https://www.shopify.com/ca/pos/pricing"
+      },
+      {
+        "label": "Shopify Canada POS hardware",
+        "url": "https://www.shopify.com/ca/pos/hardware"
+      },
+      {
+        "label": "Shopify supported hardware",
+        "url": "https://help.shopify.com/en/manual/sell-in-person/hardware/supported-hardware"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is Shopify POS mainly an online-store tool?",
+        "a": "It is a retail point-of-sale product connected to Shopify’s commerce platform, with published in-store inventory, staff, customer and checkout features. Its online connection is a strength, but the required plan and garden-centre workflows still deserve a practical demonstration."
+      },
+      {
+        "q": "Does every Shopify plan include the same store-management features?",
+        "a": "No. Shopify distinguishes included POS functionality from POS Pro, and its feature page labels many advanced store workflows accordingly. Compare the exact plan and location configuration you would purchase, together with required apps and equipment."
+      }
+    ],
+    "editionNote": "This page uses Shopify’s Canadian POS pages and supported-hardware documentation. Pro labels, available devices, payment options and fees depend on plan and region. Confirm the current proposal for your locations."
+  },
+  {
+    "id": "lightspeed",
+    "name": "Lightspeed",
+    "product": "Lightspeed Retail",
+    "summary": "Lightspeed already markets directly to garden centres and nurseries, with published inventory, purchasing, reporting, ecommerce and mobile-selling capabilities. BloomSuite’s comparison should focus on how each proposed setup handles your store’s details. Identify the Lightspeed edition and country first, then test the same garden-centre jobs in both systems.",
+    "fit": "Lightspeed warrants consideration for retailers that need substantial inventory, multiple stores and ecommerce in a retail-focused platform. Its garden-centre page explicitly discusses seasonal products, bulk quantities and nursery-floor selling. Published garden-centre customer examples provide relevant evaluation context. An existing user should establish whether configuration, an edition-specific feature or an integration resolves a problem before assuming a complete replacement is the best next step.",
+    "decision": "Explore BloomSuite if you want to compare its approach to living-stock evidence, guarantees, care guidance, contractor work and receiving decisions with your current Lightspeed process. Keep Lightspeed under consideration if its established store configuration and wider retail capabilities already serve the business well. Ask both teams to explain actual connection, equipment and deployment readiness rather than treating a published feature list as proof of your setup.",
+    "capabilities": [
+      {
+        "title": "Garden-centre positioning",
+        "text": "Lightspeed has an explicit garden-centre and nursery offering. It describes stock, purchasing and customer workflows for that market. It would be inaccurate to dismiss it as having no garden-retail focus.",
+        "sourceUrl": "https://www.lightspeedhq.com/pos/retail/garden-center-pos/"
+      },
+      {
+        "title": "Bulk and fractional selling",
+        "text": "Its garden-centre page discusses large catalogues, bulk sales and weight or fractional-unit selling. Demonstrate your particular bulk materials and plant packs to check how those capabilities are configured.",
+        "sourceUrl": "https://www.lightspeedhq.com/pos/retail/garden-center-pos/"
+      },
+      {
+        "title": "Purchasing and stock reports",
+        "text": "The garden page describes counts, purchase orders and reporting around seasonal stock and margins. Confirm edition, report inputs and purchasing steps rather than assuming all Lightspeed products behave identically.",
+        "sourceUrl": "https://www.lightspeedhq.com/pos/retail/garden-center-pos/"
+      },
+      {
+        "title": "Multiple stores and ecommerce",
+        "text": "Published capabilities include centralized multi-store oversight and ecommerce. Ask which channels, integrations and responsibilities for shared records are included in the proposed configuration for your business.",
+        "sourceUrl": "https://www.lightspeedhq.com/pos/retail/garden-center-pos/"
+      },
+      {
+        "title": "Mobile and outage workflows",
+        "text": "Lightspeed advertises nursery-floor mobile selling and offline mode. Verify devices, tenders, downloaded information and reconciliation limits on the actual edition and hardware quoted to the store.",
+        "sourceUrl": "https://www.lightspeedhq.com/pos/retail/garden-center-pos/"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Name the edition first",
+        "text": "Identify R-Series, X-Series or another product and the proposal’s country. Have the demonstrator point to the corresponding documentation before comparing features or promising integration compatibility."
+      },
+      {
+        "title": "Test a real nursery catalogue",
+        "text": "Use botanical and common names, multiple pot sizes, supplier codes and a measured material. Check search, selling units, labels and the work needed to keep those records accurate."
+      },
+      {
+        "title": "Trace a difficult stock change",
+        "text": "Receive a short delivery, record damaged plants and recount a discrepancy. Ask which evidence remains visible to the owner and how the change reaches the register and connected website."
+      },
+      {
+        "title": "Rehearse a busy-day interruption",
+        "text": "Demonstrate the proposed mobile or outdoor till during an internet interruption, including permitted tenders and recovery. Then complete a partial return and explain its effect on the day’s close."
+      }
+    ],
+    "migration": [
+      "Identify the actual Lightspeed edition and connected services; a product name alone does not establish export or integration compatibility.",
+      "Reconcile catalogue identifiers, variants, multi-location quantities and balances using reviewed sample exports before accepting a migration scope.",
+      "Plan open orders, returns, gift liabilities and website ownership so a replacement does not interrupt work the current configuration already handles."
+    ],
+    "pricing": {
+      "text": "Lightspeed’s retail pricing distinguishes plans, locations, registers and integrated payments. The cited general page displays US pricing, so it is not a Canadian quote. Obtain a country-specific proposal covering the actual edition, hardware, onboarding, integrations and ongoing services your store requires.",
+      "url": "https://www.lightspeedhq.com/pos/retail/pricing/"
+    },
+    "hardware": {
+      "text": "Start with the requirements for the named Lightspeed edition. Retail equipment includes counter and mobile arrangements, but compatibility is product-specific. If considering BloomSuite, audit the actual devices and peripherals rather than assuming a browser or tablet makes all connected equipment transferable.",
+      "url": "https://www.lightspeedhq.com/pos/retail/hardware/"
+    },
+    "sources": [
+      {
+        "label": "Lightspeed garden-centre POS",
+        "url": "https://www.lightspeedhq.com/pos/retail/garden-center-pos/"
+      },
+      {
+        "label": "Lightspeed retail pricing",
+        "url": "https://www.lightspeedhq.com/pos/retail/pricing/"
+      },
+      {
+        "label": "Lightspeed retail hardware",
+        "url": "https://www.lightspeedhq.com/pos/retail/hardware/"
+      },
+      {
+        "label": "Lightspeed product and edition selector",
+        "url": "https://www.lightspeedhq.com/login/"
+      },
+      {
+        "label": "Lightspeed published Dutch Growers customer story",
+        "url": "https://www.lightspeedhq.com/customers/dutch-growers/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does Lightspeed already support garden centres?",
+        "a": "Yes. It publishes a dedicated garden-centre offering and garden-retail customer examples. The useful question is whether the specific edition and configuration support your jobs well, and whether another approach offers enough improvement to justify switching."
+      },
+      {
+        "q": "Can I compare every Lightspeed feature using one product name?",
+        "a": "No. Lightspeed maintains separate product editions, and hardware, integration and workflow details can differ. Record the edition and country in your comparison, then request documentation and a demonstration for that exact proposal."
+      }
+    ],
+    "editionNote": "Lightspeed maintains R-Series, X-Series and other products. General garden and pricing pages do not establish feature parity across editions, contracts or countries. Confirm the named product before relying on a capability."
+  },
+  {
+    "id": "epos-now",
+    "name": "Epos Now",
+    "product": "Epos Now Retail",
+    "summary": "Epos Now publishes a dedicated garden-centre offering alongside its wider retail platform and supplied equipment bundles. Advertised capabilities include inventory, barcode printing, unit-based sales, purchasing and customer tools. Compare BloomSuite with the complete Epos Now configuration, distinguishing included software, payment services and third-party integrations from the promotional hardware headline.",
+    "fit": "Epos Now can be relevant to an owner looking for a supplied terminal and payment setup with garden-centre positioning and an integration ecosystem. Its material covers stock, customers and online connections. An existing user should examine the configuration and support arrangement already purchased before deciding whether a missing workflow requires another app, a service change or a replacement platform.",
+    "decision": "Consider BloomSuite when you want a close demonstration of garden-specific operating records, such as plant-loss evidence, guarantee review, source-backed care and contractor controls. Retain Epos Now if the configured system serves your team well and switching does not solve a meaningful problem. Compare demonstrations and written scopes; confirm BloomSuite’s own provider, device and live-connection requirements before making an operating-store commitment.",
+    "capabilities": [
+      {
+        "title": "Diverse garden inventory",
+        "text": "The dedicated garden-centre page describes tracking plants, soil, tools and other products. Use your real catalogue and departments to assess organisation rather than assuming the platform serves only a narrow product type.",
+        "sourceUrl": "https://www.eposnow.com/us/systems/retail-pos/garden-center/"
+      },
+      {
+        "title": "Different selling measures",
+        "text": "Epos Now advertises selling by weight, size, quantity and other units. Ask how the proposed setup handles your exact pack conversions, fractional quantities and supported measurement equipment.",
+        "sourceUrl": "https://www.eposnow.com/us/systems/retail-pos/garden-center/"
+      },
+      {
+        "title": "Purchasing and barcode labels",
+        "text": "The garden-centre page advertises automated purchase orders and custom barcode printing. Demonstrate those functions with your suppliers, order exceptions, label media and scanners rather than marking them as missing.",
+        "sourceUrl": "https://www.eposnow.com/us/systems/retail-pos/garden-center/"
+      },
+      {
+        "title": "Customer and marketing options",
+        "text": "Published garden features include profiles, loyalty and email marketing. Check which functions are included, which require integrations and how customer permission and identity are handled in the actual configuration.",
+        "sourceUrl": "https://www.eposnow.com/us/systems/retail-pos/garden-center/"
+      },
+      {
+        "title": "Website and app connections",
+        "text": "Epos Now describes Shopify and WooCommerce connections, pickup or delivery options and an app ecosystem. A named integration starts the review of supported records and cost; it does not prove every workflow is synchronized.",
+        "sourceUrl": "https://www.eposnow.com/us/systems/retail-pos/garden-center/"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Separate native and added tools",
+        "text": "Ask the demonstrator to identify the software or app responsible for purchasing, loyalty, marketing and ecommerce. Include each subscription and support responsibility in the written comparison."
+      },
+      {
+        "title": "Receive the imperfect delivery",
+        "text": "Bring a grower order with a shortage, damaged stock and a substituted pot size. Trace received quantities and costs, then explain how the remaining supplier commitment stays visible."
+      },
+      {
+        "title": "Print and scan garden labels",
+        "text": "Create the actual plant or shelf label you need. Test its media, printer, price information and scan result at the quoted checkout equipment before assuming a screen preview is sufficient."
+      },
+      {
+        "title": "Follow a pickup and return",
+        "text": "Use the proposed website integration for a pickup order and partial return. Confirm the effects on stock, customer records and refunds, and identify the party responsible for failed synchronization."
+      }
+    ],
+    "migration": [
+      "Review existing hardware and payment commitments together with software, care and support terms before planning a replacement date.",
+      "Obtain and reconcile catalogue, supplier, stock and customer samples, preserving variant and barcode identity rather than matching products by name.",
+      "Agree how open orders, deposits, gift value and old receipts will be handled, including records that remain in third-party apps."
+    ],
+    "pricing": {
+      "text": "Epos Now publishes promotional equipment and service combinations with regional terms. US garden-centre and equipment pages are not Canadian quotations. Compare upfront cost, ongoing software, payments, support, devices and paid integrations together, including what changes when a promotional period ends.",
+      "url": "https://www.eposnow.com/us/systems/retail-pos/garden-center/"
+    },
+    "hardware": {
+      "text": "The US retail bundle page describes a touchscreen terminal, POS software, payment device, printer and onboarding. Canadian terms are published separately. Review the exact bundle for your country; reuse should be established by model and test, not by the appearance of the equipment.",
+      "url": "https://www.eposnow.com/us/store/hardware/retail-pos-system/"
+    },
+    "sources": [
+      {
+        "label": "Epos Now US garden-centre POS",
+        "url": "https://www.eposnow.com/us/systems/retail-pos/garden-center/"
+      },
+      {
+        "label": "Epos Now US retail platform",
+        "url": "https://www.eposnow.com/us/systems/retail-pos/"
+      },
+      {
+        "label": "Epos Now US retail equipment bundle",
+        "url": "https://www.eposnow.com/us/store/hardware/retail-pos-system/"
+      },
+      {
+        "label": "Epos Now Canadian hardware and regional terms",
+        "url": "https://www.eposnow.com/ca/store/hardware/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does Epos Now offer garden-centre features?",
+        "a": "Yes. Its garden-centre page advertises unit-based selling, barcode printing, purchasing, customer tools and website connections. Test the configuration your store would buy and distinguish included functionality from optional integrations rather than comparing an assumed basic setup."
+      },
+      {
+        "q": "Is the advertised equipment price the full operating cost?",
+        "a": "Not necessarily. Review the promotion’s country and conditions, software subscription, payment arrangement, support and required apps. A complete written proposal gives you a more useful comparison than the initial hardware bundle price alone."
+      }
+    ],
+    "editionNote": "This page draws on Epos Now’s US garden-centre material and separate Canadian hardware terms. Promotional bundles, services, apps and support arrangements can differ by region and contract."
+  }
+]

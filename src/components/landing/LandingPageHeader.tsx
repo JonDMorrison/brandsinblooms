@@ -39,7 +39,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
 
   useEffect(() => { setMobileMenuOpen(false); document.querySelectorAll<HTMLDetailsElement>("details.suite-products-menu").forEach(menu => { menu.open = false; }); }, [location.pathname]);
 
-  const productsMenu = <details className="suite-products-menu" onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}><summary>Products <ChevronDown size={16} aria-hidden="true" /></summary><div className="suite-products-menu-panel">{SUITE_PRODUCTS.map(product => product.href.startsWith("https:") ? <a key={product.id} href={product.href}><strong>{product.name}</strong><span>{product.category}</span></a> : <Link key={product.id} to={product.href}><strong>{product.name}</strong><span>{product.category}</span></Link>)}</div></details>;
+  const productsMenu = <details className="suite-products-menu" onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}><summary>Products <ChevronDown size={16} aria-hidden="true" /></summary><div className="suite-products-menu-panel">{SUITE_PRODUCTS.map(product => product.href.startsWith("https:") ? <a key={product.id} href={product.href}><strong>{product.name}</strong><span>{product.category}</span></a> : <Link key={product.id} to={product.href} reloadDocument={product.id === "pos"}><strong>{product.name}</strong><span>{product.category}</span></Link>)}</div></details>;
 
   const isActiveRoute = (href: string) => {
     if (href === "/" && location.pathname === "/") return true;

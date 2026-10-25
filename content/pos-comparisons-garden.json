@@ -1,0 +1,647 @@
+[
+  {
+    "id": "windward",
+    "name": "Windward",
+    "product": "Windward System Five",
+    "summary": "Windward System Five brings garden centre checkout, inventory and accounting into a broad business-management system. Its garden industry material covers measured selling, multiple stores, customer records and purchasing. Compare the edition, deployment and support package you would actually buy, rather than treating every published capability as part of one standard plan.",
+    "fit": "Windward deserves consideration when your garden centre wants substantial operational depth, including accounting within the same business system. A retailer with landscape supplies, several locations or established back-office processes may value that breadth. If your team already uses it successfully, identify the specific work that needs improvement before assuming a complete POS replacement will be the best answer.",
+    "decision": "Evaluate BloomSuite alongside Windward when you want to compare the everyday register experience, plant catalogue work and how staff move between selling and managing the store. Bring your present accounting process and seasonal routines to both demonstrations. Staying with Windward may make sense when its existing setup meets those needs and a reviewed configuration change solves the actual problem.",
+    "capabilities": [
+      {
+        "title": "Accounting in the wider system",
+        "text": "Windward describes integrated general-ledger and financial reporting tools alongside its retail operations. Ask your bookkeeper to evaluate the accounting workflow and conversion requirements.",
+        "sourceUrl": "https://www.windwardsoftware.com/business-types/garden-center"
+      },
+      {
+        "title": "Measured and partial quantities",
+        "text": "Its garden centre material describes selling by weight, length and area, including decimal quantities. Test the exact units and rounding your bulk department uses.",
+        "sourceUrl": "https://www.windwardsoftware.com/business-types/garden-center"
+      },
+      {
+        "title": "Several stores",
+        "text": "Multi-store functionality is part of its published product range. Have the vendor demonstrate the transfers, permissions and consolidated reporting your locations need.",
+        "sourceUrl": "https://www.windwardsoftware.com/business-types/garden-center"
+      },
+      {
+        "title": "Customer and inventory records",
+        "text": "Windward publishes customer-management and inventory-control capabilities. Review how staff connect purchasing, stock movements and the information available at the counter.",
+        "sourceUrl": "https://www.windwardsoftware.com/business-types/garden-center"
+      },
+      {
+        "title": "Deployment choices",
+        "text": "The vendor describes installed and cloud deployment options. Ask which operating, network and support responsibilities belong to your business under the proposed configuration.",
+        "sourceUrl": "https://www.windwardsoftware.com/business-types/garden-center"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Sell a partial load of material",
+        "text": "Ask staff to sell a realistic decimal quantity, adjust it before payment and return part of the original purchase. Review the remaining stock and financial records."
+      },
+      {
+        "title": "Receive one order in two deliveries",
+        "text": "Use a grower order with a shortage, a different pot size and freight. Check what stays outstanding and how exceptions are approved."
+      },
+      {
+        "title": "Serve a landscaper on account",
+        "text": "Find the company, identify an authorized buyer and retain their job or purchase-order reference. Ask how account terms and overdue balances affect the sale."
+      },
+      {
+        "title": "Show an ordinary close",
+        "text": "Count the drawer, record a difference and trace a refund to its actual session. Include the work your bookkeeper does after the till closes."
+      }
+    ],
+    "migration": [
+      "Inventory the accounting modules and reports your team relies on before choosing a replacement scope. An opening balance is different from moving detailed history.",
+      "Reconcile product variants, measured units, gift liabilities and trade receivables separately using an actual export from the current installation.",
+      "Schedule a rehearsal with seasonal staff and verify devices at every location before agreeing the cutover date."
+    ],
+    "pricing": {
+      "text": "Request an itemized quote for the intended edition, modules and deployment. Compare implementation, data conversion, training, support, payment processing and equipment over the same period as your BloomSuite proposal.",
+      "url": "https://www.windwardsoftware.com/business-types/garden-center"
+    },
+    "hardware": {
+      "text": "Windward publishes separate hardware selections for cloud and on-premise configurations. Check your exact scanners, scales, printers and terminals against the supported setup; an existing connector or cable does not establish compatibility.",
+      "url": "https://www.windwardsoftware.com/resources/shop-pos-hardware"
+    },
+    "sources": [
+      {
+        "label": "Windward garden centre software",
+        "url": "https://www.windwardsoftware.com/business-types/garden-center"
+      },
+      {
+        "label": "Windward hardware options",
+        "url": "https://www.windwardsoftware.com/resources/shop-pos-hardware"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is Windward a garden-centre-specific option?",
+        "a": "Windward publishes a dedicated garden centre offering and describes nursery workflows such as measured selling, inventory and multi-store management. The useful comparison is how the proposed configuration handles your work, not whether the vendor has heard of garden retail."
+      },
+      {
+        "q": "Should we switch if we already use Windward?",
+        "a": "Start with the issue you want to solve and the functions you would need to retain. Compare a reviewed improvement to the current installation with a demonstrated BloomSuite setup. Include data conversion, staff practice and accounting disruption in the decision, rather than comparing subscription figures alone."
+      }
+    ],
+    "editionNote": "Windward describes multiple editions and deployment choices. Confirm included modules, regional payments and support terms in the written proposal; published product breadth is not a promise about every configuration."
+  },
+  {
+    "id": "rapid-garden-pos",
+    "name": "Rapid Garden POS",
+    "product": "Rapid Garden POS, built on NCR Voyix Counterpoint",
+    "summary": "Rapid Garden POS combines NCR Voyix Counterpoint with garden-industry workflows, implementation and support. Its published offering addresses retail and wholesale nurseries, landscape material yards and greenhouses. Compare Rapid as a complete proposed solution, including its extensions, mobile tools and connectors, rather than as a separate software platform unrelated to Counterpoint.",
+    "fit": "Rapid deserves a place on the shortlist when a garden retailer wants a specialist implementation around the Counterpoint platform. Its published material covers a broad mix of plants, bulk materials, landscape work and customer engagement. A business already using Counterpoint should examine whether the needed improvement is available through its existing partner or a different supported implementation.",
+    "decision": "Consider BloomSuite alongside Rapid when your priorities include a particular register experience, the clarity of everyday manager tasks and the fit of the wider BloomSuite family. Ask both teams to demonstrate the same real jobs. Staying with Rapid may be sensible when its configured tools and support already meet your requirements and the cost of changing outweighs a demonstrated improvement.",
+    "capabilities": [
+      {
+        "title": "Garden-focused Counterpoint implementation",
+        "text": "Rapid identifies Counterpoint as the underlying platform and positions its offering for garden centres, nurseries and landscape suppliers. Platform and implementation should be evaluated together.",
+        "sourceUrl": "https://rapidgardenpos.com/"
+      },
+      {
+        "title": "Labels and assembled products",
+        "text": "The vendor publishes plant-label printing and inventory kitting for planters and baskets. Ask which printers, stock rules and setup services are included.",
+        "sourceUrl": "https://rapidgardenpos.com/"
+      },
+      {
+        "title": "Mobile work",
+        "text": "Rapid describes CP Mobile and its RapidGO handheld solution. Have staff show the actual sales, receiving and inventory tasks available on the quoted devices.",
+        "sourceUrl": "https://rapidgardenpos.com/"
+      },
+      {
+        "title": "Customer and care connections",
+        "text": "Its integration catalogue includes marketing, loyalty and plant-care providers. Verify each selected connector, its data scope and who supports it before relying on a combined workflow.",
+        "sourceUrl": "https://rapidgardenpos.com/"
+      },
+      {
+        "title": "Materials and account operations",
+        "text": "Its garden offering addresses varied selling units and accounting connections for retail and landscape work. Demonstrate the specific order, quantity and account combinations your business uses.",
+        "sourceUrl": "https://rapidgardenpos.com/"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Build and sell a planted container",
+        "text": "Use several plants and a pot, then show how component quantities and the finished item are handled. Ask how later substitutions change the records."
+      },
+      {
+        "title": "Print the labels you use outside",
+        "text": "Bring a tree wrap, pot stake and shelf label. Confirm the printer, media, layout preparation and a successful scan at the register."
+      },
+      {
+        "title": "Move from a yard order to payment",
+        "text": "Create an order away from the counter, retain customer and delivery details, and finish it using the proposed payment device and network."
+      },
+      {
+        "title": "Follow a connection end to end",
+        "text": "Choose a website or care integration from the quote. Show what data moves, its direction, failed-update handling and the support route when something stops working."
+      }
+    ],
+    "migration": [
+      "List the existing Counterpoint version, partner extensions, custom reports and connected services. Identify what would stay, change or need replacement.",
+      "Use a representative export to reconcile plant variants, inventory quantities, customer accounts and outstanding stored value before applying any migration.",
+      "Separate the implementation timetable from payment onboarding, printer verification and staff acceptance so the opening date does not depend on unchecked assumptions."
+    ],
+    "pricing": {
+      "text": "Ask for a proposal that separates core software, Rapid extensions, connectors, hardware, conversion, training and support. Include payment terms and any ongoing provider charges so the comparison reflects the setup you would operate.",
+      "url": "https://rapidgardenpos.com/say-hello/"
+    },
+    "hardware": {
+      "text": "Rapid describes retail-hardened terminals, modular equipment, mobile devices and the possibility of customer-provided hardware. Obtain a model-by-model compatibility review, including the selected processor, outdoor network coverage and printer media.",
+      "url": "https://rapidgardenpos.com/"
+    },
+    "sources": [
+      {
+        "label": "Rapid Garden POS product and integrations",
+        "url": "https://rapidgardenpos.com/"
+      },
+      {
+        "label": "Request a Rapid demonstration",
+        "url": "https://rapidgardenpos.com/say-hello/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Are Rapid Garden POS and Counterpoint the same thing?",
+        "a": "Rapid states that its garden solution is built on NCR Voyix Counterpoint. Rapid supplies a garden-specialist implementation with its own services, tools and integration choices. Compare the partner proposal and configured workflows, rather than assuming every Counterpoint installation is identical."
+      },
+      {
+        "q": "Does Rapid already offer plant-care and loyalty options?",
+        "a": "Yes. Its published integration catalogue includes plant-care and loyalty providers. Ask which service, license and configuration your store would need. BloomSuite should be evaluated on the care and customer experience it can demonstrate, rather than on an assumption that Rapid lacks those categories."
+      }
+    ],
+    "editionNote": "Rapid is a Counterpoint-based solution with implementation-specific tools and integrations. Confirm what comes from the core platform, Rapid, or a third-party provider, and who owns support for the combined setup."
+  },
+  {
+    "id": "ncr-counterpoint",
+    "name": "NCR Counterpoint",
+    "product": "NCR Voyix Counterpoint",
+    "summary": "NCR Voyix Counterpoint is a retail-management platform delivered through a partner ecosystem. Its official documentation spans checkout, inventory, purchasing, customers and back-office operations. A useful garden centre comparison needs the actual version, modules and supporting partner, because the platform name alone does not describe the complete solution your staff would use.",
+    "fit": "Counterpoint merits consideration when a retailer needs an established platform and a partner who can configure it around the business. Garden-specific offerings such as Rapid Garden POS demonstrate that the same platform can be delivered with specialist tools. Existing users should evaluate their installed capabilities and support relationship before treating a website, training or reporting issue as a reason to replace everything.",
+    "decision": "Evaluate BloomSuite when you want a different approach to the daily selling and management experience, or a reviewed plan for the relationship between checkout and other Bloom products. Compare against your actual Counterpoint implementation. Keeping Counterpoint can be the better choice if its configured workflows work well and improving a connector, report or staff routine addresses the real concern.",
+    "capabilities": [
+      {
+        "title": "Inventory label printing",
+        "text": "The official item-label topic documents label preparation within Counterpoint’s inventory tools. Review the intended layouts, item selection and compatible printer setup with your implementation partner.",
+        "sourceUrl": "https://help.counterpoint.ncrvoyix.com/content/3_back_office/inventory/printing_item_labels.htm"
+      },
+      {
+        "title": "Purchase order preparation",
+        "text": "Counterpoint documents creating purchase orders and receiving them as separate purchasing jobs. Ask the partner to demonstrate your supplier packs, partial deliveries and outstanding quantities on the proposed edition.",
+        "sourceUrl": "https://help.counterpoint.ncrvoyix.com/content/3_back_office/purchasing/creating_a_purchase_order.htm"
+      },
+      {
+        "title": "Enterprise stored-value workflows",
+        "text": "Counterpoint Enterprise documentation covers stored-value issuance, redemption and recharge. Verify the edition and supported processor; the documented feature is not universal across configurations.",
+        "sourceUrl": "https://help.counterpoint.ncrvoyix.com/content/5_system_administration/stored_value_cards/stored_value_cards.htm"
+      },
+      {
+        "title": "Accounting interfaces",
+        "text": "The official Accounting Interface overview describes the accounting connection area. Have the partner and bookkeeper establish the exact records, interface and reconciliation process in the proposal.",
+        "sourceUrl": "https://help.counterpoint.ncrvoyix.com/content/5_system_administration/accounting_interface/accounting_interface__overview_.htm"
+      },
+      {
+        "title": "Multi-site migration setup",
+        "text": "Counterpoint’s third-party migration documentation includes a Multi-Site setup step. Review the intended location structure and migration plan rather than assuming every store and historical record moves automatically.",
+        "sourceUrl": "https://help.counterpoint.ncrvoyix.com/content/5_system_administration/data_migration/migrating_data_from_third-party_software__step_13.htm"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Identify the actual installation",
+        "text": "Ask the partner to name the version, licensed options, customizations and connected services being demonstrated. Keep this list with the quote."
+      },
+      {
+        "title": "Test a nursery basket",
+        "text": "Sell two pot sizes of one plant, a supplier-labelled item and a partial quantity of material. Review lookup, unit handling and the final receipt."
+      },
+      {
+        "title": "Reconcile a customer account",
+        "text": "Create an eligible account purchase, apply a later payment and prepare the customer record for review. Ask how old balances would be brought across."
+      },
+      {
+        "title": "Explain an outage and recovery",
+        "text": "Rehearse an interruption using the intended store configuration. Identify which tasks can continue, what remains saved, and how a manager confirms the final outcomes."
+      }
+    ],
+    "migration": [
+      "Document partner-specific customizations and third-party connections; do not assume an export of core records captures every operational dependency.",
+      "Agree separate control totals for products, opening quantities, stored value and account receivables, with unresolved differences recorded before cutover.",
+      "Define the period in which the old installation remains available for history and reconciliation, and confirm who can help with that access."
+    ],
+    "pricing": {
+      "text": "Obtain a written proposal from the assigned or prospective partner. Compare the version, modules, installation, customizations, training, support and provider costs, rather than treating a generic Counterpoint price as a complete deployment quote.",
+      "url": "https://www.ncrvoyix.com/company/support"
+    },
+    "hardware": {
+      "text": "Have the implementation partner verify each register, scanner, receipt printer, label printer and payment device against the intended installation. Include the mobile and network components needed for yard or greenhouse work.",
+      "url": "https://help.counterpoint.ncrvoyix.com/"
+    },
+    "sources": [
+      {
+        "label": "Inventory label printing — official Counterpoint documentation",
+        "url": "https://help.counterpoint.ncrvoyix.com/content/3_back_office/inventory/printing_item_labels.htm"
+      },
+      {
+        "label": "Purchase order preparation — official Counterpoint documentation",
+        "url": "https://help.counterpoint.ncrvoyix.com/content/3_back_office/purchasing/creating_a_purchase_order.htm"
+      },
+      {
+        "label": "Enterprise stored-value workflows — official Counterpoint documentation",
+        "url": "https://help.counterpoint.ncrvoyix.com/content/5_system_administration/stored_value_cards/stored_value_cards.htm"
+      },
+      {
+        "label": "Accounting interfaces — official Counterpoint documentation",
+        "url": "https://help.counterpoint.ncrvoyix.com/content/5_system_administration/accounting_interface/accounting_interface__overview_.htm"
+      },
+      {
+        "label": "Multi-site migration setup — official Counterpoint documentation",
+        "url": "https://help.counterpoint.ncrvoyix.com/content/5_system_administration/data_migration/migrating_data_from_third-party_software__step_13.htm"
+      },
+      {
+        "label": "Receiving a purchase order — official Counterpoint documentation",
+        "url": "https://help.counterpoint.ncrvoyix.com/content/3_back_office/purchasing/receiving_a_purchase_order.htm"
+      },
+      {
+        "label": "NCR Voyix support and assigned-partner guidance",
+        "url": "https://www.ncrvoyix.com/company/support"
+      },
+      {
+        "label": "Rapid Garden POS: a garden-specialist Counterpoint implementation",
+        "url": "https://rapidgardenpos.com/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Who supports a Counterpoint installation?",
+        "a": "NCR Voyix directs Counterpoint support inquiries to the assigned partner. That makes the partner relationship an important part of the buying decision. Ask who handles the platform, any custom extensions, connected services and after-hours incidents for your specific installation."
+      },
+      {
+        "q": "Why compare Counterpoint separately from Rapid Garden POS?",
+        "a": "Counterpoint is the underlying platform; Rapid is one garden-specialist solution built on it. The platform comparison helps you understand version, partner and module questions. The Rapid comparison can then examine its specific services, tools and integration choices without implying every installation is the same."
+      }
+    ],
+    "editionNote": "Counterpoint capabilities depend on version, licensed options, configuration and partner delivery. The official help confirms documented product areas; it is not a certification of any particular installation or current hardware bundle."
+  },
+  {
+    "id": "epicor-eagle",
+    "name": "Epicor Eagle",
+    "product": "Epicor Eagle Retail Management System",
+    "summary": "Epicor Eagle is a broad retail-management system that explicitly serves lawn and garden retailers alongside other independent retail sectors. Its published capabilities include POS, inventory, purchasing, customer engagement and back-office tools. Compare the proposed modules and implementation against your complete store operation, especially when garden retail shares systems with other departments.",
+    "fit": "Eagle could fit an independent retailer looking for extensive operational tools across a mixed business, such as garden, hardware, farm and home. Its published product range includes mobile selling, customer programmes, ecommerce and optional services beyond the counter. An existing Eagle user should first identify which licensed tools are already available and what configuration or training would improve the current operation.",
+    "decision": "BloomSuite is worth evaluating when the garden centre experience itself is your main priority and you want to examine how staff find plants, serve customers and complete everyday management work. Ask both vendors to handle the same departmental mix and accounting handoff. Staying with Eagle may be appropriate when its breadth supports established processes that a replacement would need to reproduce.",
+    "capabilities": [
+      {
+        "title": "Mobile and counter selling",
+        "text": "Epicor publishes mobile POS and integrated payment options alongside ordinary register work. Demonstrate the actual device, processor and store network in the proposed configuration.",
+        "sourceUrl": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/"
+      },
+      {
+        "title": "Inventory and purchasing",
+        "text": "Eagle describes purchasing tools and inventory visibility across locations. Use a real supplier delivery and transfer scenario to evaluate the detail your team requires.",
+        "sourceUrl": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/"
+      },
+      {
+        "title": "Customer programmes",
+        "text": "Its published customer tools include loyalty and personalized promotions. Ask how enrollment, returns and programme terms work with your customer records.",
+        "sourceUrl": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/"
+      },
+      {
+        "title": "Online selling options",
+        "text": "Epicor describes ecommerce connected with Eagle. Verify the selected storefront, product information, stock updates and who supports the connection.",
+        "sourceUrl": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/"
+      },
+      {
+        "title": "Reporting and back office",
+        "text": "Reporting, accounting interfaces and optional operational modules appear in the product range. Review what the quoted configuration supplies and what the bookkeeper still does separately.",
+        "sourceUrl": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Sell across departments",
+        "text": "Build one basket containing plants, hard goods and measured material where applicable. Confirm prices, taxes, receipts and the way each department appears in reports."
+      },
+      {
+        "title": "Work away from the main counter",
+        "text": "Use the quoted mobile device to find stock and serve a shopper in the yard. Include a realistic network interruption and recovery discussion."
+      },
+      {
+        "title": "Inspect the customer promise",
+        "text": "Show loyalty enrollment, an eligible reward transaction and a later return. Ask how the system preserves the terms and original purchase information."
+      },
+      {
+        "title": "Close and review the day",
+        "text": "Follow a sale and refund through the close, payment records and accounting handoff. Have the person responsible for the books identify any remaining manual work."
+      }
+    ],
+    "migration": [
+      "Identify the Eagle modules, custom reports, accounting interfaces and departmental processes that would need to remain available after a change.",
+      "Review export access and reconcile product variants, stock, customer accounts, stored value and open orders as distinct migration tasks.",
+      "Include staff rehearsal and a carefully planned opening date; a new interface must be tested by the people handling busy periods."
+    ],
+    "pricing": {
+      "text": "Ask Epicor for a current, itemized proposal covering the selected modules, implementation, training, support and equipment. Compare the full business setup, including payment processing and connected services, over a matching period.",
+      "url": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/"
+    },
+    "hardware": {
+      "text": "Epicor publishes mobile and tablet POS options as well as counter workflows. Confirm the precise supported devices and peripherals for your proposal, regional payment availability and the service arrangement for a failed terminal.",
+      "url": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/point-of-sale-pos/"
+    },
+    "sources": [
+      {
+        "label": "Epicor Eagle product overview",
+        "url": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/"
+      },
+      {
+        "label": "Epicor Eagle POS",
+        "url": "https://www.epicor.com/en-us/products/retail-management-systems-rms/eagle/point-of-sale-pos/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does Eagle already serve garden retailers?",
+        "a": "Yes. Epicor lists lawn and garden among the industries Eagle serves. Its published capabilities also include inventory, mobile selling, integrated payments and customer programmes. A balanced comparison should focus on the configuration and experience you can demonstrate, rather than dismissing Eagle as unfamiliar with the sector."
+      },
+      {
+        "q": "Is a smaller feature list automatically a better fit?",
+        "a": "No. The right scope depends on your operation. A mixed retailer may rely on functions outside garden checkout. List the jobs your team actually performs, demonstrate them in both products and compare the ongoing work, support and transition effort associated with each proposal."
+      }
+    ],
+    "editionNote": "Eagle is a modular retail-management offering. Confirm licensed functions, optional tools, regional payments and implementation responsibilities rather than assuming the full product catalogue is included in every quote."
+  },
+  {
+    "id": "retailedge",
+    "name": "RetailEdge",
+    "product": "RetailEdge by High Meadow Business Solutions",
+    "summary": "RetailEdge publishes specific capabilities for garden centres, nurseries and landscaping businesses, including specialist plant labels, dead-loss handling and contractor accounts. This comparison concerns RetailEdge from High Meadow Business Solutions at retailedge.com. Evaluate the software, support and equipment package your store would use, with particular attention to the nursery details that matter at the counter.",
+    "fit": "RetailEdge deserves consideration from a garden retailer looking for established retail functionality with practical nursery tools. Its garden page addresses labels, variable quantities, customer programmes and contractor work. A smaller independent should compare the proposed configuration and ongoing support with its actual needs, without assuming that a different product name or a larger advertised feature count necessarily creates a better daily experience.",
+    "decision": "Evaluate BloomSuite when you want to compare how seasonal staff recognize plants, how managers organize stock tasks and how your wider website and customer-marketing plans would fit. If RetailEdge already handles the nursery routines well, test whether adjusting labels, account settings or training solves the current frustration. A change should be justified by a demonstrated improvement and a manageable migration.",
+    "capabilities": [
+      {
+        "title": "Nursery label formats",
+        "text": "RetailEdge describes working with specialist printers for tree wraps and pot stakes. Test the actual printer, media and label layout you need in your outdoor environment.",
+        "sourceUrl": "https://retailedge.com/nursery-and-landscaping-garden-center-pos"
+      },
+      {
+        "title": "Living-stock loss",
+        "text": "Its garden material explicitly addresses inventory that grows, dies and expires. Ask staff to demonstrate the recording and later review of a documented plant loss.",
+        "sourceUrl": "https://retailedge.com/nursery-and-landscaping-garden-center-pos"
+      },
+      {
+        "title": "Contractor and account work",
+        "text": "House charges, open orders and discounts are published features for landscaping and in-house jobs. Evaluate the controls your business needs around authorized buyers and payment terms.",
+        "sourceUrl": "https://retailedge.com/nursery-and-landscaping-garden-center-pos"
+      },
+      {
+        "title": "Variable quantities and prices",
+        "text": "The vendor describes selling with variable quantities and prices. Bring representative bulk or partial-quantity sales rather than relying on a standard each-unit demonstration.",
+        "sourceUrl": "https://retailedge.com/nursery-and-landscaping-garden-center-pos"
+      },
+      {
+        "title": "Customer return visits",
+        "text": "The garden offering describes loyalty and gift cards. Have the vendor show enrollment, partial spending and the effect of a later return in the quoted setup.",
+        "sourceUrl": "https://retailedge.com/nursery-and-landscaping-garden-center-pos"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Make a label and scan it",
+        "text": "Print a tree wrap and pot stake using your intended media. Check readable plant identity, price and barcode at the register before accepting the hardware proposal."
+      },
+      {
+        "title": "Record a tray of damaged plants",
+        "text": "Have staff record an explained loss, then show how the manager finds the quantity and reason later. Ask how this differs from a count discrepancy."
+      },
+      {
+        "title": "Serve a contractor twice",
+        "text": "Create an eligible account order, retain the job reference and review a later payment. Ask which controls apply to the buyer and any price exception."
+      },
+      {
+        "title": "Use part of a stored balance",
+        "text": "Complete a partial gift-card purchase and inspect the remaining balance. Then process an eligible return and confirm how the original transaction is connected."
+      }
+    ],
+    "migration": [
+      "Verify that the proposed product is RetailEdge from High Meadow Business Solutions; similarly named websites should not be treated as the same software.",
+      "Review old product codes, barcode aliases, label layouts, open orders and contractor balances before agreeing what can transfer.",
+      "Have staff rehearse product lookup, label reprinting, loss recording and closing with representative records from the proposed migrated catalogue."
+    ],
+    "pricing": {
+      "text": "Request a current software and support proposal and identify any optional services or devices. Compare the initial purchase, ongoing support, updates, conversion, training and processing costs with the complete BloomSuite setup you are considering.",
+      "url": "https://shop.retailedge.com/"
+    },
+    "hardware": {
+      "text": "RetailEdge publishes supported equipment categories including receipt and barcode printers, scanners, drawers, displays and scales. Obtain confirmation for your specific models and media, rather than assuming every device in a category is compatible.",
+      "url": "https://shop.retailedge.com/pages/equipment"
+    },
+    "sources": [
+      {
+        "label": "RetailEdge garden centre and nursery capabilities",
+        "url": "https://retailedge.com/nursery-and-landscaping-garden-center-pos"
+      },
+      {
+        "label": "RetailEdge equipment",
+        "url": "https://shop.retailedge.com/pages/equipment"
+      },
+      {
+        "label": "RetailEdge official store",
+        "url": "https://shop.retailedge.com/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does RetailEdge include nursery-specific features?",
+        "a": "RetailEdge publishes nursery and landscaping capabilities including plant-label printing, dead-loss inventory handling, house charges and variable quantities. Ask for a demonstration of your actual workflow and proposed configuration. Do not treat the presence of a feature on a product page as proof that a particular printer or process is ready."
+      },
+      {
+        "q": "Which RetailEdge is this page comparing?",
+        "a": "This page covers RetailEdge from High Meadow Business Solutions, using official sources at retailedge.com and shop.retailedge.com. Confirm that name and vendor when collecting quotes or researching documentation; a similarly named service can describe a different product."
+      }
+    ],
+    "editionNote": "The comparison identifies the High Meadow Business Solutions product. License, support, optional services, device models and regional processing arrangements require confirmation for the proposed installation."
+  },
+  {
+    "id": "vmx",
+    "name": "VMX POS",
+    "product": "VMX POS for independent garden centres",
+    "summary": "VMX describes a cloud POS built specifically for independent garden centres. Its published product range spans inventory and vendors, customer records, account balances, reporting, scheduling and connected services. Evaluate the entire workflow your store would operate, including enabled integrations, support and the practical handling of interrupted connections, rather than comparing garden-industry positioning alone.",
+    "fit": "VMX could suit an independent garden centre seeking a garden-specific cloud system with operational and customer-management functions. Its published material goes beyond basic checkout to address care guides, wish lists, accounts receivable and delivery work. If you already use VMX, identify which capabilities are enabled for your store and whether a supported configuration or integration change would meet the current need.",
+    "decision": "Compare BloomSuite when you want to assess a different register experience, manager workflow or approach to the wider website and customer relationship. Give both teams the same realistic scenarios and ask them to show the outcome. Staying with VMX may make sense when its existing garden workflows and connected services meet your requirements and the transition would add more disruption than value.",
+    "capabilities": [
+      {
+        "title": "Inventory and supplier work",
+        "text": "VMX publishes inventory and vendor management together with electronic order submission. Ask how your suppliers, pack sizes and short deliveries are represented in the enabled workflow.",
+        "sourceUrl": "https://vmxllc.com/"
+      },
+      {
+        "title": "Customer and account records",
+        "text": "Its product material describes CRM, wish lists, rewards and accounts receivable. Review how staff select the correct person and how the account history is retained.",
+        "sourceUrl": "https://vmxllc.com/"
+      },
+      {
+        "title": "Planning and daily management",
+        "text": "Scheduling, time and attendance, delivery scheduling and reporting appear in its published offering. Demonstrate the particular planning tasks your team would rely on.",
+        "sourceUrl": "https://vmxllc.com/"
+      },
+      {
+        "title": "Receipts and plant care",
+        "text": "VMX lists emailed receipts, quotes and product-care guides. Compare the actual customer-facing guidance and coverage rather than assuming care instructions are exclusive to one vendor.",
+        "sourceUrl": "https://vmxllc.com/"
+      },
+      {
+        "title": "Connected tools",
+        "text": "The vendor publishes accounting, website, label-printing, payment and marketing integrations. Confirm the selected connection, data movement and support responsibility in the current proposal.",
+        "sourceUrl": "https://vmxllc.com/"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Follow a product across channels",
+        "text": "Choose a plant variant and show how its price and availability reach the intended website. Ask about update direction, failure visibility and which records remain authoritative."
+      },
+      {
+        "title": "Receive a short delivery",
+        "text": "Use a supplier pack with a shortage and a substitute size. Show the recorded receipt, open quantity and label preparation before stock is treated as ready."
+      },
+      {
+        "title": "Show the customer follow-up",
+        "text": "Complete a demonstration sale, inspect the receipt and any care guidance, and explain how an optional marketing preference remains distinct from the purchase."
+      },
+      {
+        "title": "Explain an interrupted sale",
+        "text": "Use the intended payment and network setup. Ask what a cashier sees after an interruption, which operations are retained and how a manager confirms the final payment result."
+      }
+    ],
+    "migration": [
+      "Map current VMX products, variants, supplier identifiers and active website connections before deciding whether the project is a connection change or a full POS switch.",
+      "Reconcile customer identities, account balances, gifts or rewards and open orders separately; a contact export alone does not establish spendable balances.",
+      "Agree export access, historical lookup, printer reconfiguration and a staff rehearsal period before ending access to the previous system."
+    ],
+    "pricing": {
+      "text": "Ask VMX for a current, itemized proposal covering the stores, enabled functions, connections, setup, training and support you need. Include payment-provider terms and any third-party services when comparing it with a BloomSuite proposal.",
+      "url": "https://vmxllc.com/"
+    },
+    "hardware": {
+      "text": "VMX publishes integrations including payment providers and label printing. Confirm your region, payment reader, receipt printer, label printer and any bridge configuration with the vendor, and test the exact register equipment before cutover.",
+      "url": "https://vmxllc.com/"
+    },
+    "sources": [
+      {
+        "label": "VMX product and integrations",
+        "url": "https://vmxllc.com/"
+      },
+      {
+        "label": "VMX official documentation",
+        "url": "https://vmxllc.com/docs/"
+      },
+      {
+        "label": "VMX Spring 2026 release notes",
+        "url": "https://vmxllc.com/docs/new-releases/spring-2026/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does VMX already provide care guides and website connections?",
+        "a": "VMX lists product-care guides, website product integration, emailed receipts and connected services in its published offering. The helpful comparison is the content available for your products and the actual data flow in your setup, rather than a claim that these categories are absent."
+      },
+      {
+        "q": "Can we improve marketing without replacing VMX?",
+        "a": "First identify the website or customer-marketing job you want to improve and the supported data path available from your installed setup. Ask for a verified scope and a demonstration. Do not assume that retaining the POS either guarantees or prevents a connection to another product."
+      }
+    ],
+    "editionNote": "VMX documentation notes that some functions are enabled per store. Confirm current integration availability, account configuration, payment region and support scope instead of treating all published connections as automatically active."
+  },
+  {
+    "id": "idealpos",
+    "name": "Idealpos",
+    "product": "Idealpos software, developed in Brisbane",
+    "summary": "This comparison covers the Idealpos software product described by its Brisbane-based manufacturer, including its landscape and nursery offering. The product is also described by Canadian reseller Ken-Rod. Confirm the manufacturer, version and regional reseller on any quote, because similarly named POS businesses can sell or support several different software products.",
+    "fit": "Idealpos could suit a nursery or landscape yard looking for customer accounts, pending orders and retail tools, particularly where the business also has another department with its own service requirements. Its nursery material addresses mobile order capture and pickup or delivery arrangements. Evaluate the currently supported configuration through the proposed regional supplier rather than relying on an older equipment description.",
+    "decision": "Evaluate BloomSuite alongside the identified Idealpos product when plant lookup, seasonal staff routines and the garden centre management experience are priorities. Ask each team to show the same account, order and receiving tasks on supported equipment. Staying with an existing Idealpos setup may be appropriate if it meets those needs and a reviewed adjustment resolves the issue without unnecessary migration.",
+    "capabilities": [
+      {
+        "title": "Customer account transactions",
+        "text": "The manufacturer describes customer accounts used for repeated business purchases and later invoicing. Ask how your account terms, buyers and statements would operate in the quoted regional version.",
+        "sourceUrl": "https://www.idealpos.com.au/industries/landscape-nursery"
+      },
+      {
+        "title": "Pending pickup and delivery orders",
+        "text": "Its nursery offering describes pending sales connected with customer orders. Demonstrate the preparation, collection and delivery arrangements your store actually uses.",
+        "sourceUrl": "https://www.idealpos.com.au/industries/landscape-nursery"
+      },
+      {
+        "title": "Stored value and promotions",
+        "text": "Gift vouchers, coupons and promotions are published capabilities. Verify current terms, partial redemption and regional configuration with the supplier before adopting a programme.",
+        "sourceUrl": "https://www.idealpos.com.au/industries/landscape-nursery"
+      },
+      {
+        "title": "Stock alerts and quantities",
+        "text": "The nursery material describes stock alert levels and measured landscaping quantities. Test the specific units, stock review and overselling policy required by your business.",
+        "sourceUrl": "https://www.idealpos.com.au/industries/landscape-nursery"
+      },
+      {
+        "title": "Canadian retail configuration",
+        "text": "Ken-Rod lists nursery and landscaping among the industries for its Idealpos offering, with stock-management, lay-by and refund tools. Confirm the modules included in your local proposal.",
+        "sourceUrl": "https://www.kenrod.ca/ideal-pos"
+      }
+    ],
+    "questions": [
+      {
+        "title": "Name the software and version",
+        "text": "Ask the supplier to identify the manufacturer, current release, licensed modules and local support arrangement. Keep that information with the hardware and processing quote."
+      },
+      {
+        "title": "Create an order while walking the yard",
+        "text": "Use a currently supported device to capture plants and measured supplies. Attach the correct customer and retain the agreed collection or delivery information."
+      },
+      {
+        "title": "Collect an order with a deposit",
+        "text": "Demonstrate the account or pending-sale process, then explain how deposits, balances and cancellation terms are recorded in the proposed setup."
+      },
+      {
+        "title": "Receive and count stock",
+        "text": "Ask staff to receive a supplier delivery, correct a counted quantity and locate the reason later. Verify the role of the quoted stock-management tools."
+      }
+    ],
+    "migration": [
+      "Identify the actual product and version first; do not infer export formats or migration scope from the name of a reseller or service company.",
+      "Review customer accounts, pending sales, gift vouchers, deposits and measured-item quantities as separate data and balance conversions.",
+      "Check regional device and payment support, then rehearse the nursery and any other departments together before choosing a cutover date."
+    ],
+    "pricing": {
+      "text": "Request a quote from the manufacturer or regional supplier for the identified software version and modules. Separate equipment, installation, conversion, training, support and payment-provider costs so similarly named offerings are not compared as if they were identical.",
+      "url": "https://www.kenrod.ca/ideal-pos"
+    },
+    "hardware": {
+      "text": "Ask the regional supplier for the current supported devices and payment equipment. The manufacturer nursery page includes older tablet references, so treat those as workflow context rather than a current hardware purchasing specification.",
+      "url": "https://www.idealpos.com.au/industries/landscape-nursery"
+    },
+    "sources": [
+      {
+        "label": "Idealpos manufacturer nursery and landscape offering",
+        "url": "https://www.idealpos.com.au/industries/landscape-nursery"
+      },
+      {
+        "label": "Ken-Rod Canadian Idealpos offering",
+        "url": "https://www.kenrod.ca/ideal-pos"
+      },
+      {
+        "label": "Separate multi-vendor provider: IdealPOS Ltd Manitoba",
+        "url": "https://www.idealpos.ca/"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is Idealpos software the same as every business called Ideal POS?",
+        "a": "No. The manufacturer at idealpos.com.au describes its software, while companies with similar names may provide several vendors’ systems and services. Confirm the manufacturer and version before using a feature list, requesting an export or comparing an implementation proposal."
+      },
+      {
+        "q": "Can the Australian nursery information confirm a Canadian installation?",
+        "a": "It helps identify the product and the workflows the manufacturer publishes, but it does not establish local payment, hardware or module availability. The Canadian supplier should confirm the current release and demonstrate the exact setup you would purchase for your store."
+      }
+    ],
+    "editionNote": "Scope is the Idealpos software manufacturer and an identified Canadian reseller offering. Manufacturer pages include older hardware references; current version, devices, payments and local modules need confirmation. IdealPOS Ltd Manitoba is a separate multi-vendor service business."
+  }
+]

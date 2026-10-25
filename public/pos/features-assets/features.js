@@ -54,3 +54,34 @@
   }
   document.querySelectorAll('.mobile-nav').forEach(menu => menu.addEventListener('keydown', event => { if(event.key==='Escape'){menu.open=false;menu.querySelector('summary').focus();} }));
 })();
+
+// Optional demo planning stays in the URL until the visitor chooses to submit.
+(() => {
+  const goals = [...document.querySelectorAll('[data-demo-goal]')];
+  const planLink = document.querySelector('[data-plan-link]');
+  const status = document.querySelector('[data-plan-status]');
+  const update = () => {
+    const selected = goals.filter(input => input.checked).map(input => input.value);
+    goals.forEach(input => { input.disabled = selected.length >= 4 && !input.checked; });
+    if (planLink) {
+      const destination = new URL('/contact?product=pos', window.location.origin);
+      if (selected.length) destination.searchParams.set('goals', selected.join(','));
+      planLink.href = destination.pathname + destination.search;
+    }
+    if (status) status.textContent = selected.length ? `${selected.length} ${selected.length===1?'priority':'priorities'} selected. You can edit the request before sending.` : "Choose the workflows you'd like to see.";
+  };
+  goals.forEach(input => input.addEventListener('change', update));
+  if (goals.length) update();
+  document.querySelectorAll('[data-print]').forEach(button => button.addEventListener('click', () => window.print()));
+  const search = document.getElementById('comparison-search');
+  const cards = [...document.querySelectorAll('[data-compare-card]')];
+  if (search) search.addEventListener('input', () => {
+    const terms = search.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    let visible = 0;
+    cards.forEach(card => { card.hidden = !terms.every(term => card.dataset.search.includes(term)); if (!card.hidden) visible++; });
+    const count = document.getElementById('comparison-count');
+    if (count) count.textContent = `${visible} ${visible===1?'comparison':'comparisons'}${terms.length?' found':''}`;
+    const empty = document.getElementById('comparison-empty');
+    if (empty) empty.hidden = visible > 0;
+  });
+})();

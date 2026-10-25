@@ -12,6 +12,7 @@ import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { posDemoMessage } from "@/components/suite/posDemoContext";
 import { Mail, CheckCircle } from "lucide-react";
 
 const contactFormSchema = z.object({
@@ -46,7 +47,7 @@ const ContactPage = () => {
       name: "",
       email: "",
       inquiryTypes: isPosDemo ? ["pos"] : isSuiteReview ? ["signup"] : [],
-      message: isPosDemo ? "I would like a BloomSuite POS demonstration for my garden centre." : suiteInquiry
+      message: isPosDemo ? posDemoMessage(searchParams) : suiteInquiry
     }
   });
 
@@ -105,7 +106,7 @@ const ContactPage = () => {
                 </div>
                 <h1 className="text-3xl font-bold text-accent mb-4">Message Sent!</h1>
                 <p className="text-lg text-muted-foreground mb-8">
-                  Thank you for reaching out. We'll get back to you within 24 hours.
+                  Thank you for reaching out. Our team will review your message and get back to you.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button onClick={() => setIsSubmitted(false)} variant="outline">
@@ -134,7 +135,7 @@ const ContactPage = () => {
             {isPosDemo ? "See BloomSuite POS in action" : isSuiteReview ? "Let’s review your BloomSuite setup" : "Contact Us"}
           </h1>
           <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-            {isPosDemo ? "Tell us about your store. We’ll tailor a demonstration to your checkout, catalogue, and team." : isSuiteReview ? "Your draft setup is included below. Add your details and send it when you’re ready. We’ll confirm fit, regional pricing and implementation costs." : "Have questions about BloomSuite? We’d love to help."}
+            {isPosDemo ? "Bring your current POS, a few everyday jobs and your equipment list. We'll tailor the demonstration to your store, explain setup requirements and help you evaluate the fit." : isSuiteReview ? "Your draft setup is included below. Add your details and send it when you’re ready. We’ll confirm fit, regional pricing and implementation costs." : "Have questions about BloomSuite? We’d love to help."}
           </p>
         </div>
       </section>
@@ -184,7 +185,7 @@ const ContactPage = () => {
                 <div className="space-y-4">
                   <Label>What can we help you with? *</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {inquiryOptions.map((option) => (
+                    {(isPosDemo ? inquiryOptions.filter(option => option.id === "pos") : inquiryOptions).map((option) => (
                       <div key={option.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={option.id}
@@ -224,7 +225,7 @@ const ContactPage = () => {
                   type="submit"
                   size="lg"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white"
+                  className={isPosDemo ? "w-full bg-[#182639] hover:bg-[#263b56] text-white" : "w-full bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white"}
                 >
                   {isSubmitting ? (
                     <>
@@ -234,7 +235,7 @@ const ContactPage = () => {
                   ) : (
                     <>
                       <Mail className="w-4 h-4 mr-2" />
-                      Send Message
+                      {isPosDemo ? "Request my POS demonstration" : "Send Message"}
                     </>
                   )}
                 </Button>
