@@ -10,7 +10,7 @@ import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 // Marketing destinations, ordered independently of the homepage product cards.
 const PRODUCT_NAV_ITEMS = [
   { name: "CRM", href: "/features", description: "Customer relationships & marketing" },
-  { name: "Website Builder", href: "https://bloomsites.app/", description: "Create and manage your website" },
+  { name: "Website Builder", href: "/website/features", description: "Create and manage your website" },
   { name: "POS", href: "/pos", description: "In-store checkout & operations" },
   { name: "E-commerce", href: "/ecomm", description: "Sell your products online" },
 ] as const;
@@ -46,7 +46,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
 
   useEffect(() => { setMobileMenuOpen(false); document.querySelectorAll<HTMLDetailsElement>("details.suite-products-menu").forEach(menu => { menu.open = false; }); }, [location.pathname]);
 
-  const productsMenu = <details className="suite-products-menu" onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}><summary>Products <ChevronDown size={16} aria-hidden="true" /></summary><div className="suite-products-menu-panel">{PRODUCT_NAV_ITEMS.map(product => product.href.startsWith("https:") ? <a key={product.name} href={product.href}><strong>{product.name}</strong><span>{product.description}</span></a> : <Link key={product.name} to={product.href} reloadDocument={product.href === "/pos"}><strong>{product.name}</strong><span>{product.description}</span></Link>)}</div></details>;
+  const productsMenu = <details className="suite-products-menu" onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}><summary>Products <ChevronDown size={16} aria-hidden="true" /></summary><div className="suite-products-menu-panel">{PRODUCT_NAV_ITEMS.map(product => product.href.startsWith("https:") ? <a key={product.name} href={product.href}><strong>{product.name}</strong><span>{product.description}</span></a> : <Link key={product.name} to={product.href} reloadDocument={product.href === "/pos" || product.href === "/website/features"}><strong>{product.name}</strong><span>{product.description}</span></Link>)}</div></details>;
 
   const isActiveRoute = (href: string) => {
     if (href === "/" && location.pathname === "/") return true;

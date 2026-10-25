@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import "@/components/suite/posDemo.css";
+import { productGuideContext } from "@/components/suite/productGuideContext";
 import { posDemoMessage } from "@/components/suite/posDemoContext";
 import { Mail, CheckCircle } from "lucide-react";
 
@@ -28,6 +29,7 @@ type ContactFormData = z.infer<typeof contactFormSchema>;
 const ContactPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const guideContext = productGuideContext(searchParams);
   const isPosDemo = searchParams.get("product") === "pos";
   const isSuiteReview = searchParams.get("product") === "suite";
   // An editable inquiry, never a trusted price, entitlement, or Checkout input.
@@ -47,8 +49,8 @@ const ContactPage = () => {
     defaultValues: {
       name: "",
       email: "",
-      inquiryTypes: isPosDemo ? ["pos"] : isSuiteReview ? ["signup"] : [],
-      message: isPosDemo ? posDemoMessage(searchParams) : suiteInquiry
+      inquiryTypes: isPosDemo ? ["pos"] : isSuiteReview || guideContext ? ["signup"] : [],
+      message: isPosDemo ? posDemoMessage(searchParams) : guideContext?.message || suiteInquiry
     }
   });
 

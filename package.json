@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/write-suite-shells.mjs && node scripts/write-pos-features.mjs",
+    "build": "vite build && node scripts/write-suite-shells.mjs && node scripts/write-pos-features.mjs && node scripts/write-product-guides.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "test": "vitest run",
@@ -16,7 +16,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:prebeta": "playwright test --project=prebeta-suite",
-    "test:lightspeed": "node --test tests/lightspeed/*.test.cjs"
+    "test:lightspeed": "node --test tests/lightspeed/*.test.cjs",
+    "test:product-guides": "node --test scripts/product-guides/*.test.mjs"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.10.2",
