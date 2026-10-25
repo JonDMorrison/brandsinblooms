@@ -19,6 +19,898 @@
   ],
   "rewrites": [
     {
+      "source": "/pos/features",
+      "destination": "/pos-feature-hub.html"
+    },
+    {
+      "source": "/pos/features/",
+      "destination": "/pos-feature-hub.html"
+    },
+    {
+      "source": "/pos/features/barcode-scanning",
+      "destination": "/pos-feature-pages/barcode-scanning.html"
+    },
+    {
+      "source": "/pos/features/barcode-scanning/",
+      "destination": "/pos-feature-pages/barcode-scanning.html"
+    },
+    {
+      "source": "/pos/features/plant-search",
+      "destination": "/pos-feature-pages/plant-search.html"
+    },
+    {
+      "source": "/pos/features/plant-search/",
+      "destination": "/pos-feature-pages/plant-search.html"
+    },
+    {
+      "source": "/pos/features/missing-tag-lookup",
+      "destination": "/pos-feature-pages/missing-tag-lookup.html"
+    },
+    {
+      "source": "/pos/features/missing-tag-lookup/",
+      "destination": "/pos-feature-pages/missing-tag-lookup.html"
+    },
+    {
+      "source": "/pos/features/visual-product-browsing",
+      "destination": "/pos-feature-pages/visual-product-browsing.html"
+    },
+    {
+      "source": "/pos/features/visual-product-browsing/",
+      "destination": "/pos-feature-pages/visual-product-browsing.html"
+    },
+    {
+      "source": "/pos/features/basket-editing",
+      "destination": "/pos-feature-pages/basket-editing.html"
+    },
+    {
+      "source": "/pos/features/basket-editing/",
+      "destination": "/pos-feature-pages/basket-editing.html"
+    },
+    {
+      "source": "/pos/features/pack-and-flat-selling",
+      "destination": "/pos-feature-pages/pack-and-flat-selling.html"
+    },
+    {
+      "source": "/pos/features/pack-and-flat-selling/",
+      "destination": "/pos-feature-pages/pack-and-flat-selling.html"
+    },
+    {
+      "source": "/pos/features/measured-product-sales",
+      "destination": "/pos-feature-pages/measured-product-sales.html"
+    },
+    {
+      "source": "/pos/features/measured-product-sales/",
+      "destination": "/pos-feature-pages/measured-product-sales.html"
+    },
+    {
+      "source": "/pos/features/price-overrides",
+      "destination": "/pos-feature-pages/price-overrides.html"
+    },
+    {
+      "source": "/pos/features/price-overrides/",
+      "destination": "/pos-feature-pages/price-overrides.html"
+    },
+    {
+      "source": "/pos/features/cashier-handover",
+      "destination": "/pos-feature-pages/cashier-handover.html"
+    },
+    {
+      "source": "/pos/features/cashier-handover/",
+      "destination": "/pos-feature-pages/cashier-handover.html"
+    },
+    {
+      "source": "/pos/features/cashier-practice",
+      "destination": "/pos-feature-pages/cashier-practice.html"
+    },
+    {
+      "source": "/pos/features/cashier-practice/",
+      "destination": "/pos-feature-pages/cashier-practice.html"
+    },
+    {
+      "source": "/pos/features/cash-checkout",
+      "destination": "/pos-feature-pages/cash-checkout.html"
+    },
+    {
+      "source": "/pos/features/cash-checkout/",
+      "destination": "/pos-feature-pages/cash-checkout.html"
+    },
+    {
+      "source": "/pos/features/integrated-card-payments",
+      "destination": "/pos-feature-pages/integrated-card-payments.html"
+    },
+    {
+      "source": "/pos/features/integrated-card-payments/",
+      "destination": "/pos-feature-pages/integrated-card-payments.html"
+    },
+    {
+      "source": "/pos/features/split-payments",
+      "destination": "/pos-feature-pages/split-payments.html"
+    },
+    {
+      "source": "/pos/features/split-payments/",
+      "destination": "/pos-feature-pages/split-payments.html"
+    },
+    {
+      "source": "/pos/features/payment-recovery",
+      "destination": "/pos-feature-pages/payment-recovery.html"
+    },
+    {
+      "source": "/pos/features/payment-recovery/",
+      "destination": "/pos-feature-pages/payment-recovery.html"
+    },
+    {
+      "source": "/pos/features/card-payment-cancellation",
+      "destination": "/pos-feature-pages/card-payment-cancellation.html"
+    },
+    {
+      "source": "/pos/features/card-payment-cancellation/",
+      "destination": "/pos-feature-pages/card-payment-cancellation.html"
+    },
+    {
+      "source": "/pos/features/gift-card-balances",
+      "destination": "/pos-feature-pages/gift-card-balances.html"
+    },
+    {
+      "source": "/pos/features/gift-card-balances/",
+      "destination": "/pos-feature-pages/gift-card-balances.html"
+    },
+    {
+      "source": "/pos/features/store-credit",
+      "destination": "/pos-feature-pages/store-credit.html"
+    },
+    {
+      "source": "/pos/features/store-credit/",
+      "destination": "/pos-feature-pages/store-credit.html"
+    },
+    {
+      "source": "/pos/features/original-tender-returns",
+      "destination": "/pos-feature-pages/original-tender-returns.html"
+    },
+    {
+      "source": "/pos/features/original-tender-returns/",
+      "destination": "/pos-feature-pages/original-tender-returns.html"
+    },
+    {
+      "source": "/pos/features/refund-progress",
+      "destination": "/pos-feature-pages/refund-progress.html"
+    },
+    {
+      "source": "/pos/features/refund-progress/",
+      "destination": "/pos-feature-pages/refund-progress.html"
+    },
+    {
+      "source": "/pos/features/payment-history",
+      "destination": "/pos-feature-pages/payment-history.html"
+    },
+    {
+      "source": "/pos/features/payment-history/",
+      "destination": "/pos-feature-pages/payment-history.html"
+    },
+    {
+      "source": "/pos/features/common-and-botanical-names",
+      "destination": "/pos-feature-pages/common-and-botanical-names.html"
+    },
+    {
+      "source": "/pos/features/common-and-botanical-names/",
+      "destination": "/pos-feature-pages/common-and-botanical-names.html"
+    },
+    {
+      "source": "/pos/features/product-variants",
+      "destination": "/pos-feature-pages/product-variants.html"
+    },
+    {
+      "source": "/pos/features/product-variants/",
+      "destination": "/pos-feature-pages/product-variants.html"
+    },
+    {
+      "source": "/pos/features/product-photographs",
+      "destination": "/pos-feature-pages/product-photographs.html"
+    },
+    {
+      "source": "/pos/features/product-photographs/",
+      "destination": "/pos-feature-pages/product-photographs.html"
+    },
+    {
+      "source": "/pos/features/alternate-barcodes",
+      "destination": "/pos-feature-pages/alternate-barcodes.html"
+    },
+    {
+      "source": "/pos/features/alternate-barcodes/",
+      "destination": "/pos-feature-pages/alternate-barcodes.html"
+    },
+    {
+      "source": "/pos/features/supplier-product-codes",
+      "destination": "/pos-feature-pages/supplier-product-codes.html"
+    },
+    {
+      "source": "/pos/features/supplier-product-codes/",
+      "destination": "/pos-feature-pages/supplier-product-codes.html"
+    },
+    {
+      "source": "/pos/features/product-aliases",
+      "destination": "/pos-feature-pages/product-aliases.html"
+    },
+    {
+      "source": "/pos/features/product-aliases/",
+      "destination": "/pos-feature-pages/product-aliases.html"
+    },
+    {
+      "source": "/pos/features/product-selling-units",
+      "destination": "/pos-feature-pages/product-selling-units.html"
+    },
+    {
+      "source": "/pos/features/product-selling-units/",
+      "destination": "/pos-feature-pages/product-selling-units.html"
+    },
+    {
+      "source": "/pos/features/catalogue-price-editing",
+      "destination": "/pos-feature-pages/catalogue-price-editing.html"
+    },
+    {
+      "source": "/pos/features/catalogue-price-editing/",
+      "destination": "/pos-feature-pages/catalogue-price-editing.html"
+    },
+    {
+      "source": "/pos/features/seasonal-pricing",
+      "destination": "/pos-feature-pages/seasonal-pricing.html"
+    },
+    {
+      "source": "/pos/features/seasonal-pricing/",
+      "destination": "/pos-feature-pages/seasonal-pricing.html"
+    },
+    {
+      "source": "/pos/features/product-setup-review",
+      "destination": "/pos-feature-pages/product-setup-review.html"
+    },
+    {
+      "source": "/pos/features/product-setup-review/",
+      "destination": "/pos-feature-pages/product-setup-review.html"
+    },
+    {
+      "source": "/pos/features/recorded-stock-visibility",
+      "destination": "/pos-feature-pages/recorded-stock-visibility.html"
+    },
+    {
+      "source": "/pos/features/recorded-stock-visibility/",
+      "destination": "/pos-feature-pages/recorded-stock-visibility.html"
+    },
+    {
+      "source": "/pos/features/stock-areas",
+      "destination": "/pos-feature-pages/stock-areas.html"
+    },
+    {
+      "source": "/pos/features/stock-areas/",
+      "destination": "/pos-feature-pages/stock-areas.html"
+    },
+    {
+      "source": "/pos/features/plant-loss-recording",
+      "destination": "/pos-feature-pages/plant-loss-recording.html"
+    },
+    {
+      "source": "/pos/features/plant-loss-recording/",
+      "destination": "/pos-feature-pages/plant-loss-recording.html"
+    },
+    {
+      "source": "/pos/features/blind-inventory-counts",
+      "destination": "/pos-feature-pages/blind-inventory-counts.html"
+    },
+    {
+      "source": "/pos/features/blind-inventory-counts/",
+      "destination": "/pos-feature-pages/blind-inventory-counts.html"
+    },
+    {
+      "source": "/pos/features/variance-recounts",
+      "destination": "/pos-feature-pages/variance-recounts.html"
+    },
+    {
+      "source": "/pos/features/variance-recounts/",
+      "destination": "/pos-feature-pages/variance-recounts.html"
+    },
+    {
+      "source": "/pos/features/count-adjustments",
+      "destination": "/pos-feature-pages/count-adjustments.html"
+    },
+    {
+      "source": "/pos/features/count-adjustments/",
+      "destination": "/pos-feature-pages/count-adjustments.html"
+    },
+    {
+      "source": "/pos/features/damaged-stock",
+      "destination": "/pos-feature-pages/damaged-stock.html"
+    },
+    {
+      "source": "/pos/features/damaged-stock/",
+      "destination": "/pos-feature-pages/damaged-stock.html"
+    },
+    {
+      "source": "/pos/features/stock-movement-history",
+      "destination": "/pos-feature-pages/stock-movement-history.html"
+    },
+    {
+      "source": "/pos/features/stock-movement-history/",
+      "destination": "/pos-feature-pages/stock-movement-history.html"
+    },
+    {
+      "source": "/pos/features/inter-store-transfers",
+      "destination": "/pos-feature-pages/inter-store-transfers.html"
+    },
+    {
+      "source": "/pos/features/inter-store-transfers/",
+      "destination": "/pos-feature-pages/inter-store-transfers.html"
+    },
+    {
+      "source": "/pos/features/in-transit-stock",
+      "destination": "/pos-feature-pages/in-transit-stock.html"
+    },
+    {
+      "source": "/pos/features/in-transit-stock/",
+      "destination": "/pos-feature-pages/in-transit-stock.html"
+    },
+    {
+      "source": "/pos/features/saved-suppliers",
+      "destination": "/pos-feature-pages/saved-suppliers.html"
+    },
+    {
+      "source": "/pos/features/saved-suppliers/",
+      "destination": "/pos-feature-pages/saved-suppliers.html"
+    },
+    {
+      "source": "/pos/features/purchase-orders",
+      "destination": "/pos-feature-pages/purchase-orders.html"
+    },
+    {
+      "source": "/pos/features/purchase-orders/",
+      "destination": "/pos-feature-pages/purchase-orders.html"
+    },
+    {
+      "source": "/pos/features/purchase-approvals",
+      "destination": "/pos-feature-pages/purchase-approvals.html"
+    },
+    {
+      "source": "/pos/features/purchase-approvals/",
+      "destination": "/pos-feature-pages/purchase-approvals.html"
+    },
+    {
+      "source": "/pos/features/partial-receiving",
+      "destination": "/pos-feature-pages/partial-receiving.html"
+    },
+    {
+      "source": "/pos/features/partial-receiving/",
+      "destination": "/pos-feature-pages/partial-receiving.html"
+    },
+    {
+      "source": "/pos/features/receiving-exceptions",
+      "destination": "/pos-feature-pages/receiving-exceptions.html"
+    },
+    {
+      "source": "/pos/features/receiving-exceptions/",
+      "destination": "/pos-feature-pages/receiving-exceptions.html"
+    },
+    {
+      "source": "/pos/features/freight-and-landed-costs",
+      "destination": "/pos-feature-pages/freight-and-landed-costs.html"
+    },
+    {
+      "source": "/pos/features/freight-and-landed-costs/",
+      "destination": "/pos-feature-pages/freight-and-landed-costs.html"
+    },
+    {
+      "source": "/pos/features/supplier-pack-conversions",
+      "destination": "/pos-feature-pages/supplier-pack-conversions.html"
+    },
+    {
+      "source": "/pos/features/supplier-pack-conversions/",
+      "destination": "/pos-feature-pages/supplier-pack-conversions.html"
+    },
+    {
+      "source": "/pos/features/low-stock-reorder-starting-points",
+      "destination": "/pos-feature-pages/low-stock-reorder-starting-points.html"
+    },
+    {
+      "source": "/pos/features/low-stock-reorder-starting-points/",
+      "destination": "/pos-feature-pages/low-stock-reorder-starting-points.html"
+    },
+    {
+      "source": "/pos/features/previous-order-defaults",
+      "destination": "/pos-feature-pages/previous-order-defaults.html"
+    },
+    {
+      "source": "/pos/features/previous-order-defaults/",
+      "destination": "/pos-feature-pages/previous-order-defaults.html"
+    },
+    {
+      "source": "/pos/features/photo-assisted-receiving",
+      "destination": "/pos-feature-pages/photo-assisted-receiving.html"
+    },
+    {
+      "source": "/pos/features/photo-assisted-receiving/",
+      "destination": "/pos-feature-pages/photo-assisted-receiving.html"
+    },
+    {
+      "source": "/pos/features/customer-lookup",
+      "destination": "/pos-feature-pages/customer-lookup.html"
+    },
+    {
+      "source": "/pos/features/customer-lookup/",
+      "destination": "/pos-feature-pages/customer-lookup.html"
+    },
+    {
+      "source": "/pos/features/customer-duplicate-review",
+      "destination": "/pos-feature-pages/customer-duplicate-review.html"
+    },
+    {
+      "source": "/pos/features/customer-duplicate-review/",
+      "destination": "/pos-feature-pages/customer-duplicate-review.html"
+    },
+    {
+      "source": "/pos/features/trade-account-terms",
+      "destination": "/pos-feature-pages/trade-account-terms.html"
+    },
+    {
+      "source": "/pos/features/trade-account-terms/",
+      "destination": "/pos-feature-pages/trade-account-terms.html"
+    },
+    {
+      "source": "/pos/features/authorized-trade-buyers",
+      "destination": "/pos-feature-pages/authorized-trade-buyers.html"
+    },
+    {
+      "source": "/pos/features/authorized-trade-buyers/",
+      "destination": "/pos-feature-pages/authorized-trade-buyers.html"
+    },
+    {
+      "source": "/pos/features/customer-purchase-order-references",
+      "destination": "/pos-feature-pages/customer-purchase-order-references.html"
+    },
+    {
+      "source": "/pos/features/customer-purchase-order-references/",
+      "destination": "/pos-feature-pages/customer-purchase-order-references.html"
+    },
+    {
+      "source": "/pos/features/charge-accounts",
+      "destination": "/pos-feature-pages/charge-accounts.html"
+    },
+    {
+      "source": "/pos/features/charge-accounts/",
+      "destination": "/pos-feature-pages/charge-accounts.html"
+    },
+    {
+      "source": "/pos/features/credit-limit-controls",
+      "destination": "/pos-feature-pages/credit-limit-controls.html"
+    },
+    {
+      "source": "/pos/features/credit-limit-controls/",
+      "destination": "/pos-feature-pages/credit-limit-controls.html"
+    },
+    {
+      "source": "/pos/features/account-statements",
+      "destination": "/pos-feature-pages/account-statements.html"
+    },
+    {
+      "source": "/pos/features/account-statements/",
+      "destination": "/pos-feature-pages/account-statements.html"
+    },
+    {
+      "source": "/pos/features/receivable-payments",
+      "destination": "/pos-feature-pages/receivable-payments.html"
+    },
+    {
+      "source": "/pos/features/receivable-payments/",
+      "destination": "/pos-feature-pages/receivable-payments.html"
+    },
+    {
+      "source": "/pos/features/tax-exemption-evidence",
+      "destination": "/pos-feature-pages/tax-exemption-evidence.html"
+    },
+    {
+      "source": "/pos/features/tax-exemption-evidence/",
+      "destination": "/pos-feature-pages/tax-exemption-evidence.html"
+    },
+    {
+      "source": "/pos/features/special-orders",
+      "destination": "/pos-feature-pages/special-orders.html"
+    },
+    {
+      "source": "/pos/features/special-orders/",
+      "destination": "/pos-feature-pages/special-orders.html"
+    },
+    {
+      "source": "/pos/features/customer-deposits",
+      "destination": "/pos-feature-pages/customer-deposits.html"
+    },
+    {
+      "source": "/pos/features/customer-deposits/",
+      "destination": "/pos-feature-pages/customer-deposits.html"
+    },
+    {
+      "source": "/pos/features/partial-fulfilment",
+      "destination": "/pos-feature-pages/partial-fulfilment.html"
+    },
+    {
+      "source": "/pos/features/partial-fulfilment/",
+      "destination": "/pos-feature-pages/partial-fulfilment.html"
+    },
+    {
+      "source": "/pos/features/layaway-records",
+      "destination": "/pos-feature-pages/layaway-records.html"
+    },
+    {
+      "source": "/pos/features/layaway-records/",
+      "destination": "/pos-feature-pages/layaway-records.html"
+    },
+    {
+      "source": "/pos/features/rain-checks",
+      "destination": "/pos-feature-pages/rain-checks.html"
+    },
+    {
+      "source": "/pos/features/rain-checks/",
+      "destination": "/pos-feature-pages/rain-checks.html"
+    },
+    {
+      "source": "/pos/features/order-cancellations",
+      "destination": "/pos-feature-pages/order-cancellations.html"
+    },
+    {
+      "source": "/pos/features/order-cancellations/",
+      "destination": "/pos-feature-pages/order-cancellations.html"
+    },
+    {
+      "source": "/pos/features/pickup-planning",
+      "destination": "/pos-feature-pages/pickup-planning.html"
+    },
+    {
+      "source": "/pos/features/pickup-planning/",
+      "destination": "/pos-feature-pages/pickup-planning.html"
+    },
+    {
+      "source": "/pos/features/delivery-planning",
+      "destination": "/pos-feature-pages/delivery-planning.html"
+    },
+    {
+      "source": "/pos/features/delivery-planning/",
+      "destination": "/pos-feature-pages/delivery-planning.html"
+    },
+    {
+      "source": "/pos/features/presale-campaigns",
+      "destination": "/pos-feature-pages/presale-campaigns.html"
+    },
+    {
+      "source": "/pos/features/presale-campaigns/",
+      "destination": "/pos-feature-pages/presale-campaigns.html"
+    },
+    {
+      "source": "/pos/features/fundraiser-reconciliation",
+      "destination": "/pos-feature-pages/fundraiser-reconciliation.html"
+    },
+    {
+      "source": "/pos/features/fundraiser-reconciliation/",
+      "destination": "/pos-feature-pages/fundraiser-reconciliation.html"
+    },
+    {
+      "source": "/pos/features/staff-pin-sign-in",
+      "destination": "/pos-feature-pages/staff-pin-sign-in.html"
+    },
+    {
+      "source": "/pos/features/staff-pin-sign-in/",
+      "destination": "/pos-feature-pages/staff-pin-sign-in.html"
+    },
+    {
+      "source": "/pos/features/store-scoped-roles",
+      "destination": "/pos-feature-pages/store-scoped-roles.html"
+    },
+    {
+      "source": "/pos/features/store-scoped-roles/",
+      "destination": "/pos-feature-pages/store-scoped-roles.html"
+    },
+    {
+      "source": "/pos/features/manager-approvals",
+      "destination": "/pos-feature-pages/manager-approvals.html"
+    },
+    {
+      "source": "/pos/features/manager-approvals/",
+      "destination": "/pos-feature-pages/manager-approvals.html"
+    },
+    {
+      "source": "/pos/features/action-audit-trail",
+      "destination": "/pos-feature-pages/action-audit-trail.html"
+    },
+    {
+      "source": "/pos/features/action-audit-trail/",
+      "destination": "/pos-feature-pages/action-audit-trail.html"
+    },
+    {
+      "source": "/pos/features/opening-floats",
+      "destination": "/pos-feature-pages/opening-floats.html"
+    },
+    {
+      "source": "/pos/features/opening-floats/",
+      "destination": "/pos-feature-pages/opening-floats.html"
+    },
+    {
+      "source": "/pos/features/paid-in-and-paid-out",
+      "destination": "/pos-feature-pages/paid-in-and-paid-out.html"
+    },
+    {
+      "source": "/pos/features/paid-in-and-paid-out/",
+      "destination": "/pos-feature-pages/paid-in-and-paid-out.html"
+    },
+    {
+      "source": "/pos/features/register-assignments",
+      "destination": "/pos-feature-pages/register-assignments.html"
+    },
+    {
+      "source": "/pos/features/register-assignments/",
+      "destination": "/pos-feature-pages/register-assignments.html"
+    },
+    {
+      "source": "/pos/features/multi-store-configuration",
+      "destination": "/pos-feature-pages/multi-store-configuration.html"
+    },
+    {
+      "source": "/pos/features/multi-store-configuration/",
+      "destination": "/pos-feature-pages/multi-store-configuration.html"
+    },
+    {
+      "source": "/pos/features/tablet-friendly-workspaces",
+      "destination": "/pos-feature-pages/tablet-friendly-workspaces.html"
+    },
+    {
+      "source": "/pos/features/tablet-friendly-workspaces/",
+      "destination": "/pos-feature-pages/tablet-friendly-workspaces.html"
+    },
+    {
+      "source": "/pos/features/guided-store-setup",
+      "destination": "/pos-feature-pages/guided-store-setup.html"
+    },
+    {
+      "source": "/pos/features/guided-store-setup/",
+      "destination": "/pos-feature-pages/guided-store-setup.html"
+    },
+    {
+      "source": "/pos/features/sales-reporting",
+      "destination": "/pos-feature-pages/sales-reporting.html"
+    },
+    {
+      "source": "/pos/features/sales-reporting/",
+      "destination": "/pos-feature-pages/sales-reporting.html"
+    },
+    {
+      "source": "/pos/features/cash-count-comparison",
+      "destination": "/pos-feature-pages/cash-count-comparison.html"
+    },
+    {
+      "source": "/pos/features/cash-count-comparison/",
+      "destination": "/pos-feature-pages/cash-count-comparison.html"
+    },
+    {
+      "source": "/pos/features/end-of-day-close",
+      "destination": "/pos-feature-pages/end-of-day-close.html"
+    },
+    {
+      "source": "/pos/features/end-of-day-close/",
+      "destination": "/pos-feature-pages/end-of-day-close.html"
+    },
+    {
+      "source": "/pos/features/z-reports",
+      "destination": "/pos-feature-pages/z-reports.html"
+    },
+    {
+      "source": "/pos/features/z-reports/",
+      "destination": "/pos-feature-pages/z-reports.html"
+    },
+    {
+      "source": "/pos/features/refund-session-reporting",
+      "destination": "/pos-feature-pages/refund-session-reporting.html"
+    },
+    {
+      "source": "/pos/features/refund-session-reporting/",
+      "destination": "/pos-feature-pages/refund-session-reporting.html"
+    },
+    {
+      "source": "/pos/features/tender-reconciliation",
+      "destination": "/pos-feature-pages/tender-reconciliation.html"
+    },
+    {
+      "source": "/pos/features/tender-reconciliation/",
+      "destination": "/pos-feature-pages/tender-reconciliation.html"
+    },
+    {
+      "source": "/pos/features/tax-reporting-context",
+      "destination": "/pos-feature-pages/tax-reporting-context.html"
+    },
+    {
+      "source": "/pos/features/tax-reporting-context/",
+      "destination": "/pos-feature-pages/tax-reporting-context.html"
+    },
+    {
+      "source": "/pos/features/owner-exception-review",
+      "destination": "/pos-feature-pages/owner-exception-review.html"
+    },
+    {
+      "source": "/pos/features/owner-exception-review/",
+      "destination": "/pos-feature-pages/owner-exception-review.html"
+    },
+    {
+      "source": "/pos/features/business-data-exports",
+      "destination": "/pos-feature-pages/business-data-exports.html"
+    },
+    {
+      "source": "/pos/features/business-data-exports/",
+      "destination": "/pos-feature-pages/business-data-exports.html"
+    },
+    {
+      "source": "/pos/features/quickbooks-close-preparation",
+      "destination": "/pos-feature-pages/quickbooks-close-preparation.html"
+    },
+    {
+      "source": "/pos/features/quickbooks-close-preparation/",
+      "destination": "/pos-feature-pages/quickbooks-close-preparation.html"
+    },
+    {
+      "source": "/pos/features/plant-care-guidance",
+      "destination": "/pos-feature-pages/plant-care-guidance.html"
+    },
+    {
+      "source": "/pos/features/plant-care-guidance/",
+      "destination": "/pos-feature-pages/plant-care-guidance.html"
+    },
+    {
+      "source": "/pos/features/branded-email-receipts",
+      "destination": "/pos-feature-pages/branded-email-receipts.html"
+    },
+    {
+      "source": "/pos/features/branded-email-receipts/",
+      "destination": "/pos-feature-pages/branded-email-receipts.html"
+    },
+    {
+      "source": "/pos/features/hosted-receipt-viewing",
+      "destination": "/pos-feature-pages/hosted-receipt-viewing.html"
+    },
+    {
+      "source": "/pos/features/hosted-receipt-viewing/",
+      "destination": "/pos-feature-pages/hosted-receipt-viewing.html"
+    },
+    {
+      "source": "/pos/features/receipt-care-notes",
+      "destination": "/pos-feature-pages/receipt-care-notes.html"
+    },
+    {
+      "source": "/pos/features/receipt-care-notes/",
+      "destination": "/pos-feature-pages/receipt-care-notes.html"
+    },
+    {
+      "source": "/pos/features/separate-marketing-consent",
+      "destination": "/pos-feature-pages/separate-marketing-consent.html"
+    },
+    {
+      "source": "/pos/features/separate-marketing-consent/",
+      "destination": "/pos-feature-pages/separate-marketing-consent.html"
+    },
+    {
+      "source": "/pos/features/bloom-pos-assistant",
+      "destination": "/pos-feature-pages/bloom-pos-assistant.html"
+    },
+    {
+      "source": "/pos/features/bloom-pos-assistant/",
+      "destination": "/pos-feature-pages/bloom-pos-assistant.html"
+    },
+    {
+      "source": "/pos/features/searchable-pos-guidebook",
+      "destination": "/pos-feature-pages/searchable-pos-guidebook.html"
+    },
+    {
+      "source": "/pos/features/searchable-pos-guidebook/",
+      "destination": "/pos-feature-pages/searchable-pos-guidebook.html"
+    },
+    {
+      "source": "/pos/features/bloomsites-product-photo-sharing",
+      "destination": "/pos-feature-pages/bloomsites-product-photo-sharing.html"
+    },
+    {
+      "source": "/pos/features/bloomsites-product-photo-sharing/",
+      "destination": "/pos-feature-pages/bloomsites-product-photo-sharing.html"
+    },
+    {
+      "source": "/pos/features/reviewed-migration",
+      "destination": "/pos-feature-pages/reviewed-migration.html"
+    },
+    {
+      "source": "/pos/features/reviewed-migration/",
+      "destination": "/pos-feature-pages/reviewed-migration.html"
+    },
+    {
+      "source": "/pos/features/hardware-compatibility-review",
+      "destination": "/pos-feature-pages/hardware-compatibility-review.html"
+    },
+    {
+      "source": "/pos/features/hardware-compatibility-review/",
+      "destination": "/pos-feature-pages/hardware-compatibility-review.html"
+    },
+    {
+      "source": "/pos/features/offline-cash-selling",
+      "destination": "/pos-feature-pages/offline-cash-selling.html"
+    },
+    {
+      "source": "/pos/features/offline-cash-selling/",
+      "destination": "/pos-feature-pages/offline-cash-selling.html"
+    },
+    {
+      "source": "/pos/features/offline-catalogue-access",
+      "destination": "/pos-feature-pages/offline-catalogue-access.html"
+    },
+    {
+      "source": "/pos/features/offline-catalogue-access/",
+      "destination": "/pos-feature-pages/offline-catalogue-access.html"
+    },
+    {
+      "source": "/pos/features/visible-synchronization-status",
+      "destination": "/pos-feature-pages/visible-synchronization-status.html"
+    },
+    {
+      "source": "/pos/features/visible-synchronization-status/",
+      "destination": "/pos-feature-pages/visible-synchronization-status.html"
+    },
+    {
+      "source": "/pos/features/local-backup-hub-readiness",
+      "destination": "/pos-feature-pages/local-backup-hub-readiness.html"
+    },
+    {
+      "source": "/pos/features/local-backup-hub-readiness/",
+      "destination": "/pos-feature-pages/local-backup-hub-readiness.html"
+    },
+    {
+      "source": "/pos/features/plant-and-shelf-labels",
+      "destination": "/pos-feature-pages/plant-and-shelf-labels.html"
+    },
+    {
+      "source": "/pos/features/plant-and-shelf-labels/",
+      "destination": "/pos-feature-pages/plant-and-shelf-labels.html"
+    },
+    {
+      "source": "/pos/features/network-label-printing-from-ipad",
+      "destination": "/pos-feature-pages/network-label-printing-from-ipad.html"
+    },
+    {
+      "source": "/pos/features/network-label-printing-from-ipad/",
+      "destination": "/pos-feature-pages/network-label-printing-from-ipad.html"
+    },
+    {
+      "source": "/pos/features/plant-guarantee-claims",
+      "destination": "/pos-feature-pages/plant-guarantee-claims.html"
+    },
+    {
+      "source": "/pos/features/plant-guarantee-claims/",
+      "destination": "/pos-feature-pages/plant-guarantee-claims.html"
+    },
+    {
+      "source": "/pos/features/loyalty-rewards",
+      "destination": "/pos-feature-pages/loyalty-rewards.html"
+    },
+    {
+      "source": "/pos/features/loyalty-rewards/",
+      "destination": "/pos-feature-pages/loyalty-rewards.html"
+    },
+    {
+      "source": "/pos/features/margin-and-seasonal-performance",
+      "destination": "/pos-feature-pages/margin-and-seasonal-performance.html"
+    },
+    {
+      "source": "/pos/features/margin-and-seasonal-performance/",
+      "destination": "/pos-feature-pages/margin-and-seasonal-performance.html"
+    },
+    {
+      "source": "/pos/features/supplier-shortages-and-backorders",
+      "destination": "/pos-feature-pages/supplier-shortages-and-backorders.html"
+    },
+    {
+      "source": "/pos/features/supplier-shortages-and-backorders/",
+      "destination": "/pos-feature-pages/supplier-shortages-and-backorders.html"
+    },
+    {
+      "source": "/pos/features/:path*",
+      "destination": "/api/pos-feature-not-found"
+    },
+    {
       "source": "/build-your-suite",
       "destination": "/suite-builder.html"
     },
