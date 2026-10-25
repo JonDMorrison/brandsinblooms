@@ -12,6 +12,7 @@ import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import "@/components/suite/posDemo.css";
 import { posDemoMessage } from "@/components/suite/posDemoContext";
 import { Mail, CheckCircle } from "lucide-react";
 
@@ -92,14 +93,16 @@ const ContactPage = () => {
     }
   };
 
+  const pageHeader = isPosDemo ? <header className="pos-demo-header"><a className="pos-demo-brand" href="/pos"><img src="/pos/features-assets/bloomsuite-logo.png" width="36" height="36" alt="" />BloomSuite<span>POS</span></a><a href="/pos">Back to POS</a></header> : <LandingPageHeader onLogin={() => navigate('/auth')} />;
+
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-        <LandingPageHeader onLogin={() => navigate('/auth')} />
+      <div className={isPosDemo ? "pos-demo-inquiry min-h-screen" : "min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30"}>
+        {pageHeader}
         
         <section className="py-16 px-6">
           <div className="max-w-2xl mx-auto">
-            <Card className="p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl">
+            <Card className={isPosDemo ? "pos-demo-card p-6 md:p-8" : "p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl"}>
               <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-6 bg-[#E1FFFE] rounded-full flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-[#3E7C77]" />
@@ -125,8 +128,8 @@ const ContactPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-      <LandingPageHeader onLogin={() => navigate('/auth')} />
+    <div className={isPosDemo ? "pos-demo-inquiry min-h-screen" : "min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30"}>
+      {pageHeader}
       
       {/* Hero Section */}
       <section className={isPosDemo ? "pt-12 pb-6 px-6 text-center" : "py-16 px-6 text-center"}>
@@ -143,15 +146,15 @@ const ContactPage = () => {
       {/* Contact Form */}
       <section className={isPosDemo ? "pb-16 px-6" : "py-16 px-6"}>
         <div className="max-w-2xl mx-auto">
-          <Card className="p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl">
-            <CardHeader className="text-center pb-8">
+          <Card className={isPosDemo ? "pos-demo-card p-6 md:p-8" : "p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl"}>
+            <CardHeader className={isPosDemo ? "text-left p-0 pb-6" : "text-center pb-8"}>
               <CardTitle className="text-2xl text-accent mb-2">{isPosDemo ? "Your POS demonstration" : "Get in Touch"}</CardTitle>
               <p className="text-muted-foreground">
                 {isPosDemo ? "Your selected topics are included below. Add your store details and edit the request before sending." : "Fill out the form below and we'll get back to you as soon as possible."}
               </p>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className={isPosDemo ? "p-0" : undefined}>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -235,7 +238,7 @@ const ContactPage = () => {
                   ) : (
                     <>
                       <Mail className="w-4 h-4 mr-2" />
-                      {isPosDemo ? "Request my POS demonstration" : "Send Message"}
+                      {isPosDemo ? "Request my demo" : "Send Message"}
                     </>
                   )}
                 </Button>
