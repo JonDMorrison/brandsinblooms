@@ -98,3 +98,12 @@ test('the final sitemap rebuild restores all libraries after POS-only regenerati
  execFileSync(process.execPath,['scripts/write-product-guides.mjs'],{stdio:'pipe'});
  assert.equal(read('dist/sitemap.xml'),first,'Sitemap assembly must be idempotent');
 });
+
+test('AI searches match the acronym rather than letters inside email or campaign',()=>{
+ for(const [product,expected] of [['crm',['Bloom AI assistant','AI campaign drafting']],['website',['AI page drafting']],['ecomm',[]]]){
+  const d=dom('/'+product+'/features');d.window.eval(script);const document=d.window.document;
+  const input=document.querySelector('#feature-search');input.value='AI';input.dispatchEvent(new d.window.Event('input'));
+  const titles=[...document.querySelectorAll('[data-feature]:not([hidden]) h3')].map(node=>node.textContent);
+  assert.deepEqual(titles,expected);
+ }
+});

@@ -57,3 +57,5 @@ The focused workflow runs these checks on relevant pull requests. A repository-w
 ## Expansion: AI, website growth and pre-sales
 
 The second pass adds 18 substantive guides: Bloom AI, campaign drafting, calendar planning, content reuse, CRM forms and email preferences; guided plant discovery, AI page drafting, migration/image review, Site Doctor and domain launch planning; and six pre-sales workflows. Pre-sales copy explicitly retains the documented store-level release and hosted acceptance prerequisites and the full-payment-now limit. No campaign, checkout, DNS, email or operational setting is changed by publishing these guides. Counts in browsing copy, entry links, social cards and tests now derive from the reviewed catalogue.
+
+Known acronyms (AI, SMS, POS, CSV, DNS and SKU) match complete indexed words. This prevents an AI search from matching the letters inside unrelated words such as email or campaign. Longer ordinary search terms retain substring matching. A regression checks the exact AI results across all three products.

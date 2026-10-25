@@ -15,6 +15,8 @@
     const topics = new Map(addButtons.map(button => [button.dataset.shortlist, button.dataset.title]));
     const knownCategories = new Set(filters.map(button => button.dataset.filter));
     const normalize = value => value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+    const acronyms = new Set(['ai', 'sms', 'pos', 'csv', 'dns', 'sku']);
+    const indexed = new Map(cards.map(card => { const text = normalize(card.dataset.search); return [card, { text, words: new Set(text.match(/[a-z0-9]+/g) || []) }]; }));
     let category = 'all';
     let selected = [];
     function saveUrl() {
@@ -61,7 +63,7 @@
       const tokens = normalize(search.value.trim()).split(/\s+/).filter(Boolean);
       let visible = 0;
       cards.forEach(card => {
-        const match = (category === 'all' || card.dataset.category === category) && tokens.every(token => card.dataset.search.includes(token));
+        const match = (category === 'all' || card.dataset.category === category) && tokens.every(token => acronyms.has(token) ? indexed.get(card).words.has(token) : indexed.get(card).text.includes(token));
         card.hidden = !match;
         if (match) visible++;
       });
