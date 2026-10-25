@@ -1,3 +1,4 @@
+import { renderBloomSystemEmail, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -59,11 +60,13 @@ async function sendEmailAlert(supabase: any, tenantId: string, subject: string, 
         from: 'alerts@yourdomain.com',
         to: users[0].email,
         subject,
-        html: `
-          <h2>${subject}</h2>
-          <p>${message}</p>
-          <p>View your dashboard for more details.</p>
-        `
+        html: renderBloomSystemEmail({
+          eyebrow: "ROI ALERT",
+          title: subject,
+          preheader: subject,
+          icon: "alert",
+          bodyHtml: `<p>${bloomEmailEscape(message)}</p><p>View your dashboard for more details.</p>`,
+        })
       })
     });
 
