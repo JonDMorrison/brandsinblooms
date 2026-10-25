@@ -56,6 +56,11 @@ function buildFeature(f) {
 }
 if(features.length<100||new Set(features.map(f=>f.slug)).size!==features.length)throw Error('Expected at least 100 unique feature slugs');
 for(const f of features){if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(f.slug)||!group(f)||!['software','setup'].includes(f.availability))throw Error(`Invalid feature ${f.slug}`);}
+const routes=JSON.parse(readFileSync('vercel.json','utf8')).rewrites;
+for(const f of features)for(const suffix of ['', '/']) {
+ const route=routes.find(r=>r.source===href(f)+suffix);
+ if(route?.destination!==`/pos-feature-pages/${f.slug}.html`)throw Error(`Missing explicit feature route: ${f.slug}${suffix}`);
+}
 mkdirSync(out,{recursive:true});
 buildHub();features.forEach(buildFeature);
 // Preserve the existing sitemap and add the complete collection once.
