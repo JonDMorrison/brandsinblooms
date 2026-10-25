@@ -19,6 +19,22 @@
   ],
   "rewrites": [
     {
+      "source": "/pos/features",
+      "destination": "/pos-feature-hub.html"
+    },
+    {
+      "source": "/pos/features/",
+      "destination": "/pos-feature-hub.html"
+    },
+    {
+      "source": "/pos/features/:slug",
+      "destination": "/pos-feature-pages/:slug.html"
+    },
+    {
+      "source": "/pos/features/:slug/",
+      "destination": "/pos-feature-pages/:slug.html"
+    },
+    {
       "source": "/build-your-suite",
       "destination": "/suite-builder.html"
     },
