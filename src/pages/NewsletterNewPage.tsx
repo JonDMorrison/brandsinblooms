@@ -83,7 +83,7 @@ function CreationPathCard({
       }}
     >
       <Stack spacing={2.5} sx={{ flex: 1 }}>
-        {/* 96px tinted icon circle — kept dark green per spec. */}
+        {/* Identical dark circular icon treatment for both creation paths. */}
         <Box
           sx={{
             width: 96,
@@ -91,15 +91,9 @@ function CreationPathCard({
             borderRadius: "50%",
             display: "grid",
             placeItems: "center",
-            bgcolor: isAi
-              ? "var(--hp-green-700, #1F4341)"
-              : "var(--hp-green-50, #E1FFFE)",
-            color: isAi
-              ? "var(--hp-text-light, #FAFAFA)"
-              : "var(--hp-green-700, #1F4341)",
-            boxShadow: isAi
-              ? "0 6px 22px rgba(31, 67, 65, 0.32)"
-              : "inset 0 0 0 1px rgba(62, 124, 119, 0.15)",
+            bgcolor: "var(--hp-green-700, #1F4341)",
+            color: "var(--hp-text-light, #FAFAFA)",
+            boxShadow: "0 6px 22px rgba(31, 67, 65, 0.32)",
           }}
         >
           <Icon size={44} strokeWidth={1.7} />
