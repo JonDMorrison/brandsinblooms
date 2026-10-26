@@ -15,6 +15,9 @@ import {
 } from "@/components/crm/studio/blockLibraryData";
 import { getStudioLibraryDragId } from "@/components/crm/studio/studioCanvasTypes";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const DEFAULT_OPEN_CATEGORIES = Object.fromEntries(
   BLOCK_CATEGORIES.map((category) => [category.id, true]),
@@ -185,17 +188,70 @@ export default function BlockLibrary({
   onInsertSavedBlock,
 }: BlockLibraryProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [savedTemplates, setSavedTemplates] = React.useState<Array<{ id: string; name: string; block: StudioBlock }>>(() => {
-    try { const parsed = JSON.parse(localStorage.getItem("bloomsuite-saved-block-templates") || "[]"); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
-  });
-  const persistTemplates = (next: typeof savedTemplates) => {
-    setSavedTemplates(next);
-    try { localStorage.setItem("bloomsuite-saved-block-templates", JSON.stringify(next)); } catch { /* storage disabled */ }
+  const { tenant } = useTenant();
+  const { user } = useAuth();
+  const [savedTemplates, setSavedTemplates] = React.useState<Array<{ id: string; name: string; block: StudioBlock }>>([]);
+  const [savedError, setSavedError] = React.useState("");
+  const [savedLoading, setSavedLoading] = React.useState(false);
+  const loadSaved = React.useCallback(async () => {
+    if (!tenant?.id || !user?.id) { setSavedTemplates([]); return; }
+    setSavedLoading(true);
+    const { data, error } = await supabase.from("crm_saved_blocks" as any)
+      .select("id,name,block_data").eq("tenant_id", tenant.id).order("created_at", { ascending: false });
+    setSavedLoading(false);
+    if (error) { setSavedError("Saved Blocks could not be loaded. Please retry."); return; }
+    setSavedError("");
+    setSavedTemplates(((data || []) as any[]).filter(item => item.block_data && typeof item.block_data.type === "string")
+      .map(item => ({ id: item.id, name: item.name, block: item.block_data as StudioBlock })));
+  }, [tenant?.id, user?.id]);
+  React.useEffect(() => { void loadSaved(); }, [loadSaved]);
+  const saveConfiguredBlock = async (block: StudioBlock) => {
+    if (block.type === "footer" || !tenant?.id || !user?.id) return;
+    setSavedError("");
+    const { error } = await supabase.from("crm_saved_blocks" as any).insert({
+      tenant_id: tenant.id, created_by: user.id,
+      name: (block.headline || block.label || "Saved Block").slice(0, 160),
+      block_data: { ...block },
+    } as any);
+    if (error) { setSavedError("Could not save this block to your account."); return; }
+    await loadSaved();
   };
-  const saveConfiguredBlock = (block: StudioBlock) => {
-    if (block.type === "footer") return;
-    persistTemplates([...savedTemplates, { id: crypto.randomUUID(), name: block.headline || block.label || "Saved Block", block: { ...block } }]);
+  const removeSaved = async (id: string) => {
+    if (!tenant?.id) return;
+    const { error } = await supabase.from("crm_saved_blocks" as any).delete().eq("id", id).eq("tenant_id", tenant.id);
+    if (error) { setSavedError("Could not remove this saved block."); return; }
+    await loadSaved();
   };
+  const migrationInFlight = React.useRef(false);
+  // One-way migration of old browser templates; never delete local copies until
+  // all insertions succeed. Deduplicate this browser's migrated IDs per tenant.
+  React.useEffect(() => {
+    if (!tenant?.id || !user?.id || savedLoading || migrationInFlight.current) return;
+    const migrationKey = `bloomsuite-saved-blocks-migrated:${tenant.id}`;
+    if (localStorage.getItem(migrationKey) === "done") return;
+    let legacy: Array<{ name: string; block: StudioBlock }> = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem("bloomsuite-saved-block-templates") || "[]");
+      if (Array.isArray(parsed)) legacy = parsed.filter(item => item?.block?.type && item.block.type !== "footer");
+    } catch { return; }
+    if (!legacy.length) { localStorage.setItem(migrationKey, "done"); return; }
+    let cancelled = false;
+    migrationInFlight.current = true;
+    (async () => {
+      const payload = legacy.map(item => ({
+        tenant_id: tenant.id, created_by: user.id,
+        name: String(item.name || item.block.label || "Saved Block").slice(0, 160),
+        block_data: item.block,
+      }));
+      const { error } = await supabase.from("crm_saved_blocks" as any).insert(payload as any);
+      if (!error && !cancelled) {
+        localStorage.setItem(migrationKey, "done");
+        await loadSaved();
+      }
+      migrationInFlight.current = false;
+    })();
+    return () => { cancelled = true; };
+  }, [tenant?.id, user?.id, loadSaved, savedLoading]);
   const [savedBlocks, setSavedBlocks] = React.useState<StudioBlockType[]>(() => { try { const value = JSON.parse(localStorage.getItem("bloomsuite-studio-saved-block-types") || "[]"); return Array.isArray(value) ? value.filter((type): type is StudioBlockType => BLOCK_CATEGORIES.some(c => c.blocks.some(b => b.type === type))) : []; } catch { return []; } });
   const toggleSavedBlock = React.useCallback((type: StudioBlockType) => { setSavedBlocks(current => { const next = current.includes(type) ? current.filter(item => item !== type) : [...current, type]; try { localStorage.setItem("bloomsuite-studio-saved-block-types", JSON.stringify(next)); } catch { /* private browsing */ } return next; }); }, []);
   const [openCategories, setOpenCategories] = React.useState(
@@ -292,19 +348,21 @@ export default function BlockLibrary({
       >
         <Box sx={{ mb: 2 }}>
           <Typography level="body-xs" sx={{ mb: 1, fontWeight: 700, textTransform: "uppercase" }}>Saved Blocks</Typography>
+          {savedLoading && <Typography level="body-xs">Loading saved blocks…</Typography>}
+          {savedError && <Typography level="body-xs" color="danger">{savedError}</Typography>}
           {savedTemplates.map(entry => (
             <Box key={entry.id} sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
               <Box role="button" tabIndex={0} onClick={() => onInsertSavedBlock(entry.block)} onKeyDown={event => { if (event.key === "Enter") onInsertSavedBlock(entry.block); }} sx={{ flex: 1, cursor: "pointer", bgcolor: "neutral.50", p: 1, borderRadius: "6px" }}>
                 <Typography level="body-sm">{entry.name}</Typography>
               </Box>
-              <IconButton size="sm" aria-label={`Remove ${entry.name} saved block`} onClick={() => persistTemplates(savedTemplates.filter(item => item.id !== entry.id))}><Heart size={16} fill="currentColor" /></IconButton>
+              <IconButton size="sm" aria-label={`Remove ${entry.name} saved block`} onClick={() => { void removeSaved(entry.id); }}><Heart size={16} fill="currentColor" /></IconButton>
             </Box>
           ))}
           <Typography level="body-xs" sx={{ mt: 1, color: "neutral.500" }}>Save a customized block from this newsletter:</Typography>
           {blocks.filter(block => block.type !== "footer").map(block => (
             <Box key={block.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
               <Typography level="body-xs" sx={{ maxWidth: 175, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{block.headline || block.label}</Typography>
-              <IconButton size="sm" aria-label={`Save ${block.headline || block.label} as Saved Block`} onClick={() => saveConfiguredBlock(block)}><Heart size={16} /></IconButton>
+              <IconButton size="sm" aria-label={`Save ${block.headline || block.label} as Saved Block`} onClick={() => { void saveConfiguredBlock(block); }}><Heart size={16} /></IconButton>
             </Box>
           ))}
         </Box>
