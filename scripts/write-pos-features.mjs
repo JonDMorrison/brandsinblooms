@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as Icons from 'lucide-react';
@@ -6,6 +7,13 @@ import * as Icons from 'lucide-react';
 const read = path => JSON.parse(readFileSync(path, 'utf8'));
 const { categories, features } = read('content/pos-features.json');
 const marketing = read('content/pos-marketing.json');
+const screenshotSources = read('content/pos-screenshots.json');
+for (const [src, source] of Object.entries(screenshotSources)) {
+  const bytes = readFileSync(`public${src}`);
+  if (createHash('sha256').update(bytes).digest('hex') !== source.sha256) {
+    throw Error(`Screenshot changed without refreshing its capture manifest: ${src}`);
+  }
+}
 const editorial = { ...read('content/pos-editorial-a.json'), ...read('content/pos-editorial-b.json') };
 const comparisons = [...read('content/pos-comparisons-mainstream.json'), ...read('content/pos-comparisons-garden.json')];
 const origin = 'https://bloomsuite.app';
@@ -41,7 +49,11 @@ function cta(feature, compare) {
   return `<section class="cta wrap"><div><p class="eyebrow">Make the demonstration about your store</p><h2>Bring a real working day.<br>See how it fits.</h2><p>Choose the jobs that matter, bring a few products and ask the awkward questions. We'll show the workflow and explain the setup it needs.</p></div><div>${button(feature ? `Ask about ${feature.title.toLowerCase()}` : compare ? `Discuss the ${compare.name} comparison` : 'Book my POS demonstration',demo(feature,compare))}${button('Plan a careful switch','/pos/switching',true)}<small>Your equipment, merchant setup and connected services are reviewed before live use.</small></div></section>`;
 }
 function screenshot(input, priority = false, caption) {
-  const shot = input.screenshot || { src:`/pos/${input.image || 'manager-workspace'}.webp`, label:input.image==='catalogue-workspace'?'Plant catalogue':'Manager workspace', width:1440, height:1000 };
+  const original = input.screenshot || { src:`/pos/${input.image || 'manager-workspace'}.webp`, label:input.image==='catalogue-workspace'?'Plant catalogue':'Manager workspace' };
+  const source = screenshotSources[original.src];
+  if (!source) throw Error(`Untraced marketing screenshot: ${original.src}`);
+  const shot = {...original, width:source.width, height:source.height};
+  caption ||= source.caption;
   const alt = shot.alt || `BloomSuite POS ${shot.label.toLowerCase()} with demonstration data`;
   return `<figure class="screenshot"><div class="windowbar"><span></span><span></span><span></span><p>BloomSuite POS · ${esc(shot.label)}</p></div><button type="button" class="image-zoom" data-zoom="${esc(shot.src)}" aria-label="Enlarge ${esc(shot.label)} screenshot"><img src="${esc(shot.src)}" width="${shot.width}" height="${shot.height}" alt="${esc(alt)}" ${priority?'fetchpriority="high"':'loading="lazy"'} decoding="async"><span>${icon('Expand',16)} View screenshot</span></button><figcaption>${esc(caption || `${shot.cropped?'Cropped real':'Real'} product screenshot with demonstration data. Shown as workflow context; configuration and screen details can vary.`)}</figcaption></figure>`;
 }

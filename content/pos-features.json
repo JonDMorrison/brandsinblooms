@@ -11,8 +11,8 @@
       "screenshot": {
         "src": "/pos/features-assets/register.webp",
         "label": "Register with plant photos",
-        "width": 1440,
-        "height": 1000
+        "width": 1920,
+        "height": 1154
       }
     },
     {
@@ -26,8 +26,8 @@
       "screenshot": {
         "src": "/pos/features-assets/payment.webp",
         "label": "Payment workflow",
-        "width": 1180,
-        "height": 820
+        "width": 1920,
+        "height": 1080
       }
     },
     {
@@ -175,8 +175,8 @@
       "source": "docs/spec/seasonal-cashier-tasks.md",
       "screenshot": {
         "src": "/pos/features-assets/search.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1154,
         "cropped": false,
         "label": "Product search at the register"
       },
@@ -195,8 +195,8 @@
       "source": "docs/spec/seasonal-cashier-tasks.md",
       "screenshot": {
         "src": "/pos/features-assets/search.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1154,
         "cropped": false,
         "label": "Product search at the register"
       },
@@ -228,8 +228,8 @@
       "source": "docs/spec/seasonal-cashier-tasks.md",
       "screenshot": {
         "src": "/pos/features-assets/cart.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1276,
         "cropped": false,
         "label": "Basket quantities and sale totals"
       },
@@ -404,8 +404,8 @@
       "source": "docs/spec/payment-recovery.md",
       "screenshot": {
         "src": "/pos/features-assets/returns.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1080,
         "cropped": false,
         "label": "Original-sale return workflow"
       },
@@ -515,8 +515,8 @@
       "source": "docs/features/c-01-product-catalogue.md",
       "screenshot": {
         "src": "/pos/features-assets/search.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1154,
         "cropped": false,
         "label": "Product search at the register"
       },
@@ -548,8 +548,8 @@
       "source": "docs/features/c-01-product-catalogue.md",
       "screenshot": {
         "src": "/pos/features-assets/seasonal-prices.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1440,
+        "height": 1000,
         "cropped": false,
         "label": "Price changes and label preparation"
       },
@@ -568,8 +568,8 @@
       "source": "docs/features/c-01-product-catalogue.md",
       "screenshot": {
         "src": "/pos/features-assets/seasonal-prices.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1440,
+        "height": 1000,
         "cropped": false,
         "label": "Price changes and label preparation"
       },
@@ -1383,8 +1383,8 @@
       "source": "docs/spec/26-owner-reporting.md",
       "screenshot": {
         "src": "/pos/features-assets/close.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1080,
         "cropped": false,
         "label": "Cash count and register close"
       },
@@ -1403,8 +1403,8 @@
       "source": "docs/spec/26-owner-reporting.md",
       "screenshot": {
         "src": "/pos/features-assets/close.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1080,
         "cropped": false,
         "label": "Cash count and register close"
       },
@@ -1423,8 +1423,8 @@
       "source": "docs/spec/26-owner-reporting.md",
       "screenshot": {
         "src": "/pos/features-assets/close.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1920,
+        "height": 1080,
         "cropped": false,
         "label": "Cash count and register close"
       },
@@ -1724,8 +1724,8 @@
       "availability": "setup",
       "screenshot": {
         "src": "/pos/features-assets/seasonal-prices.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1440,
+        "height": 1000,
         "cropped": false,
         "label": "Price changes and label preparation"
       },
@@ -1744,8 +1744,8 @@
       "availability": "setup",
       "screenshot": {
         "src": "/pos/features-assets/seasonal-prices.webp",
-        "width": 1180,
-        "height": 820,
+        "width": 1440,
+        "height": 1000,
         "cropped": false,
         "label": "Price changes and label preparation"
       },
