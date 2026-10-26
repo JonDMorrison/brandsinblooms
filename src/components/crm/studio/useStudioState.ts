@@ -400,6 +400,19 @@ export function useStudioState({
     [blocks, designSystem, pulseInsertedBlock],
   );
 
+  const insertSavedBlock = React.useCallback((saved: StudioBlock) => {
+    if (saved.type === "footer") return;
+    const instance = { ...saved, id: crypto.randomUUID(), order: 0, visible: true };
+    setBlocks(current => {
+      const footerIndex = current.findIndex(block => block.type === "footer");
+      const next = [...current];
+      next.splice(footerIndex < 0 ? next.length : footerIndex, 0, instance);
+      return normalizeBlocks(reindexBlocks(next), designSystem);
+    });
+    setSelectedBlockId(instance.id);
+    pulseInsertedBlock(instance.id);
+  }, [designSystem, pulseInsertedBlock]);
+
   const removeBlock = React.useCallback(
     (blockId: string) => {
       if (removalTimeoutsRef.current[blockId]) {
@@ -752,6 +765,7 @@ export function useStudioState({
     canUndo: blockHistory.past.length > 0,
     canRedo: blockHistory.future.length > 0,
     addBlock,
+    insertSavedBlock,
     removeBlock,
     duplicateBlock,
     updateBlockField,
