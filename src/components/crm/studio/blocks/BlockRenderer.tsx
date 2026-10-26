@@ -1,5 +1,6 @@
 import Box from "@mui/joy/Box";
 import Typography from "@mui/joy/Typography";
+import CouponRenderer from "@/components/crm/studio/blocks/CouponRenderer";
 import CTARenderer from "@/components/crm/studio/blocks/CTARenderer";
 import DividerRenderer from "@/components/crm/studio/blocks/DividerRenderer";
 import EmailSafeHeroRenderer from "@/components/crm/studio/blocks/EmailSafeHeroRenderer";
@@ -49,6 +50,8 @@ export default function BlockRenderer({
         return <PlainTextRenderer block={block} />;
       case "quote":
         return <QuoteRenderer block={block} />;
+      case "coupon":
+        return <CouponRenderer block={block} />;
       case "product-card":
         return <ProductCardRenderer block={block} />;
       case "call-to-action":
