@@ -29,8 +29,8 @@ type BlockLibraryProps = {
 type LibraryBlockCardProps = {
   block: StudioBlockDefinition;
   onAddBlock: (blockType: StudioBlockType) => void;
-  favourite: boolean;
-  onToggleFavourite: (blockType: StudioBlockType) => void;
+  savedBlock: boolean;
+  onToggleSaved Block: (blockType: StudioBlockType) => void;
   disabled?: boolean;
   disabledReason?: string;
   onDisabledClick?: () => void;
@@ -39,8 +39,8 @@ type LibraryBlockCardProps = {
 function LibraryBlockCard({
   block,
   onAddBlock,
-  favourite,
-  onToggleFavourite,
+  savedBlock,
+  onToggleSaved Block,
   disabled = false,
   disabledReason,
   onDisabledClick,
@@ -166,7 +166,7 @@ function LibraryBlockCard({
           </Typography>
         ) : null}
       </Stack>
-      <IconButton size="sm" variant="plain" aria-label={favourite ? `Remove ${block.name} from favourites` : `Add ${block.name} to favourites`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onToggleFavourite(block.type); }} sx={{ color: favourite ? "#334e49" : "neutral.400", minWidth: 28 }}><Heart size={17} fill={favourite ? "currentColor" : "none"} /></IconButton>
+      <IconButton size="sm" variant="plain" aria-label={savedBlock ? `Remove ${block.name} from savedBlocks` : `Add ${block.name} to savedBlocks`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onToggleSaved Block(block.type); }} sx={{ color: savedBlock ? "#334e49" : "neutral.400", minWidth: 28 }}><Heart size={17} fill={savedBlock ? "currentColor" : "none"} /></IconButton>
     </Sheet>
   );
 
@@ -183,8 +183,8 @@ export default function BlockLibrary({
   onSelectBlock,
 }: BlockLibraryProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [favourites, setFavourites] = React.useState<StudioBlockType[]>(() => { try { const value = JSON.parse(localStorage.getItem("bloomsuite-studio-favourite-block-types") || "[]"); return Array.isArray(value) ? value.filter((type): type is StudioBlockType => BLOCK_CATEGORIES.some(c => c.blocks.some(b => b.type === type))) : []; } catch { return []; } });
-  const toggleFavourite = React.useCallback((type: StudioBlockType) => { setFavourites(current => { const next = current.includes(type) ? current.filter(item => item !== type) : [...current, type]; try { localStorage.setItem("bloomsuite-studio-favourite-block-types", JSON.stringify(next)); } catch { /* private browsing */ } return next; }); }, []);
+  const [savedBlocks, setSaved Blocks] = React.useState<StudioBlockType[]>(() => { try { const value = JSON.parse(localStorage.getItem("bloomsuite-studio-savedBlock-block-types") || "[]"); return Array.isArray(value) ? value.filter((type): type is StudioBlockType => BLOCK_CATEGORIES.some(c => c.blocks.some(b => b.type === type))) : []; } catch { return []; } });
+  const toggleSaved Block = React.useCallback((type: StudioBlockType) => { setSaved Blocks(current => { const next = current.includes(type) ? current.filter(item => item !== type) : [...current, type]; try { localStorage.setItem("bloomsuite-studio-savedBlock-block-types", JSON.stringify(next)); } catch { /* private browsing */ } return next; }); }, []);
   const [openCategories, setOpenCategories] = React.useState(
     DEFAULT_OPEN_CATEGORIES,
   );
@@ -197,7 +197,7 @@ export default function BlockLibrary({
 
   const visibleCategories = React.useMemo(() => {
     const allBlocks = BLOCK_CATEGORIES.flatMap(category => category.blocks);
-    const groups = favourites.length ? [{ id: "favourites", label: "Favourites", blocks: allBlocks.filter(block => favourites.includes(block.type)) }, ...BLOCK_CATEGORIES] : BLOCK_CATEGORIES;
+    const groups = savedBlocks.length ? [{ id: "saved-blocks", label: "Saved Blocks", blocks: allBlocks.filter(block => savedBlocks.includes(block.type)) }, ...BLOCK_CATEGORIES] : BLOCK_CATEGORIES;
     return groups.map((category) => ({
       ...category,
       blocks: category.blocks.filter((block) => {
@@ -209,7 +209,7 @@ export default function BlockLibrary({
         return haystack.includes(normalizedQuery);
       }),
     })).filter((category) => category.blocks.length > 0);
-  }, [normalizedQuery, favourites]);
+  }, [normalizedQuery, savedBlocks]);
 
   const toggleCategory = React.useCallback((categoryId: string) => {
     setOpenCategories((current) => ({
@@ -346,8 +346,8 @@ export default function BlockLibrary({
                         key={block.type}
                         block={block}
                         onAddBlock={onAddBlock}
-                        favourite={favourites.includes(block.type)}
-                        onToggleFavourite={toggleFavourite}
+                        savedBlock={savedBlocks.includes(block.type)}
+                        onToggleSaved Block={toggleSaved Block}
                         disabled={
                           block.type === "footer" && Boolean(footerBlockId)
                         }
