@@ -1,0 +1,396 @@
+{
+  "/pos/features-assets/register.webp": {
+    "width": 1920,
+    "height": 1154,
+    "sha256": "e3d0bf62e8a0faf0f0950fd6f22ecb54b425453194f39ea1ee845d3318ad74cb",
+    "references": [
+      "checkout"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "apps/till/src/showcase/e2e/showcase.playwright.ts-snapshots/main-till-greenhouse-desktop.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/features-assets/payment.webp": {
+    "width": 1920,
+    "height": 1080,
+    "sha256": "187772ba5993b58192e294775ee288494e709d7801b6057316de14659e09141d",
+    "references": [
+      "payments"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "apps/till/src/showcase/e2e/showcase.playwright.ts-snapshots/split-tender-greenhouse-desktop.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/catalogue-workspace.webp": {
+    "width": 1440,
+    "height": 1000,
+    "sha256": "f804bc7e79b20d41239272c24271b4f3487694be72a0a49caea175afde0044f3",
+    "references": [
+      "catalogue",
+      "connected"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "docs/design/screenshots/marketing/manager-catalogue-1440.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/features-assets/inventory.webp": {
+    "width": 1280,
+    "height": 720,
+    "sha256": "59482c5288a763cb57ca4d9440cd50d03d8791148773684fb0fc04288aaaafb1",
+    "references": [
+      "inventory"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/inventory.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/receiving.webp": {
+    "width": 1440,
+    "height": 1000,
+    "sha256": "ece8b249331fb863b8cc2c646db0cccc4d3024422d262d946bf7cb05f9a8efa4",
+    "references": [
+      "purchasing"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/receiving.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/customers.webp": {
+    "width": 1440,
+    "height": 1446,
+    "sha256": "8934a40748c8fba030ef1460a19d434c394477d03a2066499d10f3a21925f902",
+    "references": [
+      "customers"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/customers.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/orders.webp": {
+    "width": 1440,
+    "height": 1312,
+    "sha256": "de5750364e2d7e48cab90ed2302f54c35d576da216f79c9ba5516eb39dba6fe4",
+    "references": [
+      "orders"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/orders.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/staff.webp": {
+    "width": 1440,
+    "height": 2254,
+    "sha256": "8d35de50c67e4762d9e862780c61b88826925479ecdbc1d68fa1ac7d6f486adf",
+    "references": [
+      "team"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/staff.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/reports.webp": {
+    "width": 1280,
+    "height": 720,
+    "sha256": "fe53dc6ec18465809c76306bec1e630a541837a0b6cdfdd54a9de37298a5d384",
+    "references": [
+      "reporting"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/reports.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/manager-workspace.webp": {
+    "width": 1440,
+    "height": 1000,
+    "sha256": "b468c7271586ff28ea25f769111d1c0d7306e40fc0822e893729024fccae0fa1",
+    "references": [
+      "resilience",
+      "barcode-scanning",
+      "visual-product-browsing",
+      "pack-and-flat-selling",
+      "measured-product-sales",
+      "price-overrides",
+      "cashier-handover",
+      "cashier-practice",
+      "cash-checkout",
+      "integrated-card-payments",
+      "split-payments",
+      "payment-recovery",
+      "card-payment-cancellation",
+      "gift-card-balances",
+      "store-credit",
+      "refund-progress",
+      "payment-history",
+      "common-and-botanical-names",
+      "product-variants",
+      "product-photographs",
+      "alternate-barcodes",
+      "supplier-product-codes",
+      "product-selling-units",
+      "product-setup-review",
+      "recorded-stock-visibility",
+      "stock-areas",
+      "plant-loss-recording",
+      "damaged-stock",
+      "stock-movement-history",
+      "inter-store-transfers",
+      "in-transit-stock",
+      "saved-suppliers",
+      "purchase-orders",
+      "purchase-approvals",
+      "partial-receiving",
+      "receiving-exceptions",
+      "freight-and-landed-costs",
+      "supplier-pack-conversions",
+      "low-stock-reorder-starting-points",
+      "previous-order-defaults",
+      "photo-assisted-receiving",
+      "authorized-trade-buyers",
+      "customer-purchase-order-references",
+      "tax-exemption-evidence",
+      "special-orders",
+      "customer-deposits",
+      "partial-fulfilment",
+      "layaway-records",
+      "rain-checks",
+      "order-cancellations",
+      "staff-pin-sign-in",
+      "store-scoped-roles",
+      "manager-approvals",
+      "action-audit-trail",
+      "register-assignments",
+      "multi-store-configuration",
+      "tablet-friendly-workspaces",
+      "guided-store-setup",
+      "tax-reporting-context",
+      "business-data-exports",
+      "quickbooks-close-preparation",
+      "plant-care-guidance",
+      "branded-email-receipts",
+      "hosted-receipt-viewing",
+      "receipt-care-notes",
+      "separate-marketing-consent",
+      "bloom-pos-assistant",
+      "searchable-pos-guidebook",
+      "bloomsites-product-photo-sharing",
+      "reviewed-migration",
+      "hardware-compatibility-review",
+      "offline-cash-selling",
+      "offline-catalogue-access",
+      "visible-synchronization-status",
+      "local-backup-hub-readiness",
+      "plant-guarantee-claims",
+      "loyalty-rewards",
+      "margin-and-seasonal-performance",
+      "supplier-shortages-and-backorders"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "docs/design/screenshots/marketing/manager-home-1440.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/features-assets/search.webp": {
+    "width": 1920,
+    "height": 1154,
+    "sha256": "466003726578f0d6a9a9bae534ebc777433292e6834102139a6ce9bb41cd6b5e",
+    "references": [
+      "plant-search",
+      "missing-tag-lookup",
+      "product-aliases"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "apps/till/src/showcase/e2e/showcase.playwright.ts-snapshots/plant-search-greenhouse-desktop.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/features-assets/cart.webp": {
+    "width": 1920,
+    "height": 1276,
+    "sha256": "a33442298c9719b8a5918224b965d705d1bc6679851567b241cd5667e6573f4d",
+    "references": [
+      "basket-editing"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "apps/till/src/showcase/e2e/showcase.playwright.ts-snapshots/mixed-cart-greenhouse-desktop.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/features-assets/returns.webp": {
+    "width": 1920,
+    "height": 1080,
+    "sha256": "735e33012ec486b449371d1ff9e94e6b78df77f009b10c9b7bb563af67772347",
+    "references": [
+      "original-tender-returns"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "apps/till/src/showcase/e2e/showcase.playwright.ts-snapshots/dead-plant-return-greenhouse-desktop.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/features-assets/seasonal-prices.webp": {
+    "width": 1440,
+    "height": 1000,
+    "sha256": "20bdee55bfa9a52d88b8077b5da89e9e84ace6e284347628f53b0e9b29fafde6",
+    "references": [
+      "catalogue-price-editing",
+      "seasonal-pricing",
+      "plant-and-shelf-labels",
+      "network-label-printing-from-ipad"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "docs/design/screenshots/marketing/manager-prices-1440.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  },
+  "/pos/features-assets/stock-count.webp": {
+    "width": 1180,
+    "height": 1088,
+    "sha256": "c9d7ee62f1aa4b8fb09b07d0c1ef3bdb2a212a6eff239d98cbf26bc55b23c3dd",
+    "references": [
+      "blind-inventory-counts",
+      "variance-recounts",
+      "count-adjustments"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/stock-count.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/account-balance.webp": {
+    "width": 1180,
+    "height": 863,
+    "sha256": "f43931aa21b91d281ae9760abf87da4aac148a645e508b68467fe993486d29dd",
+    "references": [
+      "customer-lookup",
+      "customer-duplicate-review"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/account-balance.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/trade-credit.webp": {
+    "width": 1280,
+    "height": 720,
+    "sha256": "2e04de4548c09885a62bfbf2d5d19359dc62a24d2e4178fdd5322b9b51a05028",
+    "references": [
+      "trade-account-terms",
+      "charge-accounts",
+      "credit-limit-controls",
+      "account-statements",
+      "receivable-payments"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/trade-credit.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/delivery.webp": {
+    "width": 1280,
+    "height": 720,
+    "sha256": "54ac8eeb38a7146e5b11f11e71cb77eefb01168616f05fb96bab48c3ed222e78",
+    "references": [
+      "pickup-planning",
+      "delivery-planning"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/delivery.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/fundraiser.webp": {
+    "width": 1280,
+    "height": 720,
+    "sha256": "b1d3229ddc884f7c91d63f649317e473a00fb72e5c1ce88ff2ecd123e1b4a19a",
+    "references": [
+      "presale-campaigns",
+      "fundraiser-reconciliation"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/fundraiser.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/cash-movement.webp": {
+    "width": 1180,
+    "height": 820,
+    "sha256": "154ecc8e22169e2566535030ad7763b0890b1c596673061bc0efb8080b62560b",
+    "references": [
+      "opening-floats",
+      "paid-in-and-paid-out"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/cash-movement.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/close-review.webp": {
+    "width": 1180,
+    "height": 820,
+    "sha256": "b4ef6bbc3e1db4b31a37654337c8fdc11308eab5b4763bd6f1d73389cceaeba0",
+    "references": [
+      "sales-reporting",
+      "refund-session-reporting",
+      "tender-reconciliation",
+      "owner-exception-review"
+    ],
+    "source": {
+      "repository": "JonDMorrison/brandsinblooms",
+      "path": "public/pos/features-assets/close-review.webp",
+      "status": "Existing screenshot; unchanged in photo refresh"
+    }
+  },
+  "/pos/features-assets/close.webp": {
+    "width": 1920,
+    "height": 1080,
+    "sha256": "8a2b3d92bd89b0ae930bc2b0e55cac08b67c96a3984eaa0d09766364f1146a3c",
+    "references": [
+      "cash-count-comparison",
+      "end-of-day-close",
+      "z-reports"
+    ],
+    "source": {
+      "repository": "Brands-In-Blooms/bloomtill",
+      "path": "apps/till/src/showcase/e2e/showcase.playwright.ts-snapshots/till-close-greenhouse-desktop.png",
+      "commit": "9ea6f14a30647cdc75ca63804ffec5fabc84c63b"
+    },
+    "caption": "Product demonstration with real Prides Corner plant photography and sample prices and stock. Store configuration and screen details can vary."
+  }
+}

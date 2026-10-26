@@ -8,6 +8,9 @@ on:
       - 'src/pages/PosMarketingPage.tsx'
       - 'src/pages/SuitePage.tsx'
       - 'src/pages/SuiteBuilderPage.tsx'
+      - 'content/pos-*.json'
+      - 'public/pos/**'
+      - 'scripts/write-pos-features.mjs'
       - '.github/workflows/pos-experience.yml'
   push:
     branches: [main]
@@ -15,6 +18,9 @@ on:
       - 'src/components/tour/**'
       - 'src/components/suite/**'
       - 'src/pages/PosMarketingPage.tsx'
+      - 'content/pos-*.json'
+      - 'public/pos/**'
+      - 'scripts/write-pos-features.mjs'
       - '.github/workflows/pos-experience.yml'
 permissions:
   contents: read
