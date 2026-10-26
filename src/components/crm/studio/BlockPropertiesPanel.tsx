@@ -4604,6 +4604,23 @@ function PanelContent({
           </Stack>
         </Stack>
       );
+    case "coupon":
+      return (
+        <Stack spacing={1.5} sx={{ width: "100%" }}>
+          <StudioToggleField label="Offer" options={[{ label: "BOGO", value: "bogo" }, { label: "25% off", value: "25" }, { label: "50% off", value: "50" }]} value={block.couponOffer ?? "25"} onChange={(value) => updateField("couponOffer", value as StudioBlock["couponOffer"])} />
+          <StudioTextField label="Title" value={block.headline ?? ""} onChange={(value) => updateField("headline", value)} placeholder="Your offer headline" />
+          <StudioTextField label="Description" multiline minRows={2} value={block.body ?? ""} onChange={(value) => updateField("body", value)} placeholder="What is included?" />
+          <StudioTextField label="Price (optional)" value={block.couponPrice ?? ""} onChange={(value) => updateField("couponPrice", value)} placeholder="e.g. $19.99" />
+          <StudioTextField label="Conditions" multiline minRows={2} value={block.couponConditions ?? ""} onChange={(value) => updateField("couponConditions", value)} placeholder="Expiry, exclusions and terms" />
+          <StudioImageUpload label="Coupon image" value={block.imageUrl ?? ""} onChange={(value) => updateField("imageUrl", value)} {...buildAIUploadProps({ aiAspectRatioHint: "square", blockContext: "Coupon product image", fieldKey: `${block.id}:imageUrl`, value: block.imageUrl ?? "" })} />
+          <StudioTextField label="Image alt text" value={block.imageAlt ?? ""} onChange={(value) => updateField("imageAlt", value)} />
+          <StudioToggleField label="Image placement" options={[{ label: "Left", value: "left" }, { label: "Right", value: "right" }]} value={block.couponImageSide ?? "left"} onChange={(value) => updateField("couponImageSide", value as StudioBlock["couponImageSide"])} />
+          <StudioSwitchField label="Coupon border" checked={block.couponBorder ?? true} onChange={(value) => updateField("couponBorder", value)} />
+          <StudioSwitchField label="Scissors / cut line" checked={block.couponScissors ?? true} onChange={(value) => updateField("couponScissors", value)} />
+          <StudioTextField label="Link text" value={block.buttonText ?? ""} onChange={(value) => updateField("buttonText", value)} />
+          <StudioTextField label="Website link" value={block.buttonUrl ?? ""} onChange={(value) => updateField("buttonUrl", value)} placeholder="https://..." />
+        </Stack>
+      );
     case "product-card":
       return (
         <Stack
