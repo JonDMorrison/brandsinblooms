@@ -7,6 +7,7 @@ export type BlockType =
   | "plain-text"
   | "quote"
   | "product-card"
+  | "coupon"
   | "image-gallery"
   | "product-gallery"
   | "call-to-action"
@@ -82,6 +83,12 @@ export interface StudioBlock {
   label: string;
   order: number;
   visible: boolean;
+  couponOffer?: "bogo" | "25" | "50";
+  couponPrice?: string;
+  couponConditions?: string;
+  couponImageSide?: "left" | "right";
+  couponBorder?: boolean;
+  couponScissors?: boolean;
   headline?: string;
   subheading?: string;
   body?: string;
