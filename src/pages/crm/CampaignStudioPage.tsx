@@ -2255,6 +2255,7 @@ function CampaignStudioPageContent() {
               <BlockLibrary
                 blocks={studio.blocks}
                 onAddBlock={studio.addBlock}
+                onInsertSavedBlock={studio.insertSavedBlock}
                 onSelectBlock={handleFocusBlock}
               />
             </Sheet>
