@@ -222,10 +222,11 @@ export default function BlockLibrary({
     if (error) { setSavedError("Could not remove this saved block."); return; }
     await loadSaved();
   };
+  const migrationInFlight = React.useRef(false);
   // One-way migration of old browser templates; never delete local copies until
   // all insertions succeed. Deduplicate this browser's migrated IDs per tenant.
   React.useEffect(() => {
-    if (!tenant?.id || !user?.id || savedLoading) return;
+    if (!tenant?.id || !user?.id || savedLoading || migrationInFlight.current) return;
     const migrationKey = `bloomsuite-saved-blocks-migrated:${tenant.id}`;
     if (localStorage.getItem(migrationKey) === "done") return;
     let legacy: Array<{ name: string; block: StudioBlock }> = [];
@@ -235,6 +236,7 @@ export default function BlockLibrary({
     } catch { return; }
     if (!legacy.length) { localStorage.setItem(migrationKey, "done"); return; }
     let cancelled = false;
+    migrationInFlight.current = true;
     (async () => {
       const payload = legacy.map(item => ({
         tenant_id: tenant.id, created_by: user.id,
@@ -246,6 +248,7 @@ export default function BlockLibrary({
         localStorage.setItem(migrationKey, "done");
         await loadSaved();
       }
+      migrationInFlight.current = false;
     })();
     return () => { cancelled = true; };
   }, [tenant?.id, user?.id, loadSaved, savedLoading]);
