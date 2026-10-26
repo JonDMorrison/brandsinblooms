@@ -531,6 +531,8 @@ function App() {
           <NavigationTracker />
           <Routes>
             {/* Public routes */}
+            <Route path="/signup" element={<Navigate to="/auth#signup" replace />} />
+            <Route path="/sign-up" element={<Navigate to="/auth#signup" replace />} />
             <Route element={<PublicLazyBoundary />}>
               <Route
                 path="/auth"
