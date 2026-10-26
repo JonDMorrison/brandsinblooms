@@ -113,8 +113,8 @@ export function createStudioBlock(
         subheading: "",
         body: "",
         tagLabel: "",
-        backgroundColor: "#1a1a2e",
-        textColor: "#ffffff",
+        backgroundColor: "#ffffff",
+        textColor: "#1a1a2e",
         textAlign: "center",
         heroStyle: "solid",
         overlayOpacity: 45,
@@ -127,7 +127,7 @@ export function createStudioBlock(
         buttonTextColor: (primaryColor && primaryContrastText) || "#1a1a2e",
         buttonSize: "md",
         buttonRounded: true,
-        layoutPreset: "hero-dark-center",
+        layoutPreset: "hero-light-center",
       };
     case "graphic-hero":
       return {

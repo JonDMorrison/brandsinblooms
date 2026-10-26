@@ -869,8 +869,8 @@ function renderHeroBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ) {
-  const backgroundColor = safeColor(block.backgroundColor, "#1a1a2e");
-  const textColor = safeColor(block.textColor, "#ffffff");
+  const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
+  const textColor = safeColor(block.textColor, "#1a1a2e");
   const align = getAlignment(block.textAlign, "center");
   const heroStyle = block.heroStyle || "solid";
   const imageUrl = safeUrl(block.imageUrl, { image: true });
