@@ -104,6 +104,8 @@ export function createStudioBlock(
   } satisfies Pick<StudioBlock, "id" | "type" | "label" | "order" | "visible">;
 
   switch (type) {
+    case "coupon":
+      return { ...base, headline: "", body: "", couponOffer: "25", couponPrice: "", couponConditions: "", couponImageSide: "left", couponBorder: true, couponScissors: true, imageUrl: "", imageAlt: "", buttonText: "Shop this offer", buttonUrl: "", backgroundColor: "#ffffff", textColor: "#172d2c" };
     case "email-safe-hero":
       return {
         ...base,

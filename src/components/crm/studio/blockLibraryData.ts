@@ -16,6 +16,7 @@ import {
   Quote,
   Share2,
   ShoppingBag,
+  TicketPercent,
 } from "lucide-react";
 
 export type StudioBlockType = BlockType;
@@ -86,6 +87,9 @@ export const BLOCK_CATEGORIES: BlockCategory[] = [
         name: "Quote",
         description: "Styled blockquote with author attribution",
         icon: Quote,
+      },
+      {
+        type: "coupon", name: "Coupon", description: "BOGO or percentage-off with photo and cut-line", icon: TicketPercent,
       },
       {
         type: "product-card",
