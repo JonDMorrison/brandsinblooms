@@ -30,7 +30,7 @@ type LibraryBlockCardProps = {
   block: StudioBlockDefinition;
   onAddBlock: (blockType: StudioBlockType) => void;
   savedBlock: boolean;
-  onToggleSaved Block: (blockType: StudioBlockType) => void;
+  onToggleSavedBlock: (blockType: StudioBlockType) => void;
   disabled?: boolean;
   disabledReason?: string;
   onDisabledClick?: () => void;
@@ -40,7 +40,7 @@ function LibraryBlockCard({
   block,
   onAddBlock,
   savedBlock,
-  onToggleSaved Block,
+  onToggleSavedBlock,
   disabled = false,
   disabledReason,
   onDisabledClick,
@@ -166,7 +166,7 @@ function LibraryBlockCard({
           </Typography>
         ) : null}
       </Stack>
-      <IconButton size="sm" variant="plain" aria-label={savedBlock ? `Remove ${block.name} from savedBlocks` : `Add ${block.name} to savedBlocks`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onToggleSaved Block(block.type); }} sx={{ color: savedBlock ? "#334e49" : "neutral.400", minWidth: 28 }}><Heart size={17} fill={savedBlock ? "currentColor" : "none"} /></IconButton>
+      <IconButton size="sm" variant="plain" aria-label={savedBlock ? `Remove ${block.name} from Saved Blocks` : `Add ${block.name} to Saved Blocks`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onToggleSavedBlock(block.type); }} sx={{ color: savedBlock ? "#334e49" : "neutral.400", minWidth: 28 }}><Heart size={17} fill={savedBlock ? "currentColor" : "none"} /></IconButton>
     </Sheet>
   );
 
@@ -183,8 +183,8 @@ export default function BlockLibrary({
   onSelectBlock,
 }: BlockLibraryProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [savedBlocks, setSaved Blocks] = React.useState<StudioBlockType[]>(() => { try { const value = JSON.parse(localStorage.getItem("bloomsuite-studio-savedBlock-block-types") || "[]"); return Array.isArray(value) ? value.filter((type): type is StudioBlockType => BLOCK_CATEGORIES.some(c => c.blocks.some(b => b.type === type))) : []; } catch { return []; } });
-  const toggleSaved Block = React.useCallback((type: StudioBlockType) => { setSaved Blocks(current => { const next = current.includes(type) ? current.filter(item => item !== type) : [...current, type]; try { localStorage.setItem("bloomsuite-studio-savedBlock-block-types", JSON.stringify(next)); } catch { /* private browsing */ } return next; }); }, []);
+  const [savedBlocks, setSavedBlocks] = React.useState<StudioBlockType[]>(() => { try { const value = JSON.parse(localStorage.getItem("bloomsuite-studio-saved-block-types") || "[]"); return Array.isArray(value) ? value.filter((type): type is StudioBlockType => BLOCK_CATEGORIES.some(c => c.blocks.some(b => b.type === type))) : []; } catch { return []; } });
+  const toggleSavedBlock = React.useCallback((type: StudioBlockType) => { setSavedBlocks(current => { const next = current.includes(type) ? current.filter(item => item !== type) : [...current, type]; try { localStorage.setItem("bloomsuite-studio-saved-block-types", JSON.stringify(next)); } catch { /* private browsing */ } return next; }); }, []);
   const [openCategories, setOpenCategories] = React.useState(
     DEFAULT_OPEN_CATEGORIES,
   );
@@ -347,7 +347,7 @@ export default function BlockLibrary({
                         block={block}
                         onAddBlock={onAddBlock}
                         savedBlock={savedBlocks.includes(block.type)}
-                        onToggleSaved Block={toggleSaved Block}
+                        onToggleSavedBlock={toggleSavedBlock}
                         disabled={
                           block.type === "footer" && Boolean(footerBlockId)
                         }
