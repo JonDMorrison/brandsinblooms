@@ -844,6 +844,27 @@ function renderButton(
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="border-collapse:separate;margin:${options.marginTop ?? 24}px ${align === "center" ? "auto" : align === "right" ? "0 0 0 auto" : "0"} 0;${block.fullWidthButton ? "width:100%;max-width:420px;" : ""}"><tr><td${cellBg} align="center" style="border-radius:${radius};"><a href="${escapeAttribute(href)}" target="_blank" style="${styleText}">${escapeHtml(label)}</a></td></tr></table>`;
 }
 
+function renderCouponBlock(block: StudioBlock, designSystem: StudioDesignSystem | null | undefined): string {
+  const offer = block.couponOffer === "bogo" ? "BUY ONE GET ONE" : block.couponOffer === "50" ? "50% OFF" : "25% OFF";
+  const bg = "#ffffff";
+  const ink = "#172d2c";
+  const heading = textBlock(block.headline);
+  const description = textBlock(block.body);
+  const price = textBlock(block.couponPrice);
+  const conditions = textBlock(block.couponConditions);
+  const imageUrl = safeUrl(block.imageUrl, { image: true });
+  const url = safeUrl(block.buttonUrl);
+  const button = url ? `<a href="${escapeAttribute(url)}" style="display:inline-block;background:#1f4341;color:#ffffff;text-decoration:none;border-radius:5px;padding:11px 18px;font-size:14px;font-weight:700;">${textBlock(block.buttonText || "Shop this offer")}</a>` : "";
+  const content = `<div style="color:${ink};font-family:${getFontStack(designSystem, "body")};"><div style="font-weight:800;font-size:24px;line-height:1.2;">${offer}</div>${heading ? `<div style="font-size:18px;font-weight:700;margin-top:8px;">${heading}</div>` : ""}${description ? `<div style="font-size:14px;line-height:1.5;margin-top:8px;">${description}</div>` : ""}${price ? `<div style="font-size:17px;font-weight:700;margin-top:8px;">${price}</div>` : ""}${conditions ? `<div style="font-size:11px;line-height:1.5;margin-top:12px;color:#46595a;">${conditions}</div>` : ""}${button ? `<div style="margin-top:16px;">${button}</div>` : ""}</div>`;
+  const photo = imageUrl ? `<img src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || "Coupon offer")}" width="220" style="width:100%;max-width:220px;height:auto;display:block;border:0;" />` : "";
+  const imageCell = photo ? `<td width="38%" valign="middle" style="padding:16px;">${photo}</td>` : "";
+  const contentCell = `<td valign="middle" style="padding:22px;">${content}</td>`;
+  const cells = block.couponImageSide === "right" ? contentCell + imageCell : imageCell + contentCell;
+  const border = block.couponBorder === false ? "none" : "2px dashed #71817d";
+  const cutLine = block.couponScissors === false ? "" : `<tr><td style="padding:6px 14px;color:#46595a;font-size:12px;font-family:Arial,sans-serif;border-bottom:1px dashed #a0aaa5;">&#9986; &nbsp; Cut or save this coupon</td></tr>`;
+  return renderSection(bg, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:${border};background:#ffffff;border-collapse:separate;"><tbody>${cutLine}<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table></td></tr></tbody></table>`);
+}
+
 function renderHeroBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
@@ -1975,6 +1996,8 @@ function renderBlock(
   if (block.visible === false) return "";
 
   switch (block.type as string) {
+    case "coupon":
+      return renderCouponBlock(block, designSystem);
     case "email-safe-hero":
     case "header":
       return renderHeroBlock(block, designSystem);
