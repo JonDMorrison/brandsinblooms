@@ -24,6 +24,7 @@ type BlockLibraryProps = {
   blocks: StudioBlock[];
   onAddBlock: (blockType: StudioBlockType) => void;
   onSelectBlock: (blockId: string) => void;
+  onInsertSavedBlock: (block: StudioBlock) => void;
 };
 
 type LibraryBlockCardProps = {
@@ -181,8 +182,20 @@ export default function BlockLibrary({
   blocks,
   onAddBlock,
   onSelectBlock,
+  onInsertSavedBlock,
 }: BlockLibraryProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [savedTemplates, setSavedTemplates] = React.useState<Array<{ id: string; name: string; block: StudioBlock }>>(() => {
+    try { const parsed = JSON.parse(localStorage.getItem("bloomsuite-saved-block-templates") || "[]"); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+  });
+  const persistTemplates = (next: typeof savedTemplates) => {
+    setSavedTemplates(next);
+    try { localStorage.setItem("bloomsuite-saved-block-templates", JSON.stringify(next)); } catch { /* storage disabled */ }
+  };
+  const saveConfiguredBlock = (block: StudioBlock) => {
+    if (block.type === "footer") return;
+    persistTemplates([...savedTemplates, { id: crypto.randomUUID(), name: block.headline || block.label || "Saved Block", block: { ...block } }]);
+  };
   const [savedBlocks, setSavedBlocks] = React.useState<StudioBlockType[]>(() => { try { const value = JSON.parse(localStorage.getItem("bloomsuite-studio-saved-block-types") || "[]"); return Array.isArray(value) ? value.filter((type): type is StudioBlockType => BLOCK_CATEGORIES.some(c => c.blocks.some(b => b.type === type))) : []; } catch { return []; } });
   const toggleSavedBlock = React.useCallback((type: StudioBlockType) => { setSavedBlocks(current => { const next = current.includes(type) ? current.filter(item => item !== type) : [...current, type]; try { localStorage.setItem("bloomsuite-studio-saved-block-types", JSON.stringify(next)); } catch { /* private browsing */ } return next; }); }, []);
   const [openCategories, setOpenCategories] = React.useState(
@@ -277,6 +290,24 @@ export default function BlockLibrary({
           "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
         }}
       >
+        <Box sx={{ mb: 2 }}>
+          <Typography level="body-xs" sx={{ mb: 1, fontWeight: 700, textTransform: "uppercase" }}>Saved Blocks</Typography>
+          {savedTemplates.map(entry => (
+            <Box key={entry.id} sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+              <Box role="button" tabIndex={0} onClick={() => onInsertSavedBlock(entry.block)} onKeyDown={event => { if (event.key === "Enter") onInsertSavedBlock(entry.block); }} sx={{ flex: 1, cursor: "pointer", bgcolor: "neutral.50", p: 1, borderRadius: "6px" }}>
+                <Typography level="body-sm">{entry.name}</Typography>
+              </Box>
+              <IconButton size="sm" aria-label={`Remove ${entry.name} saved block`} onClick={() => persistTemplates(savedTemplates.filter(item => item.id !== entry.id))}><Heart size={16} fill="currentColor" /></IconButton>
+            </Box>
+          ))}
+          <Typography level="body-xs" sx={{ mt: 1, color: "neutral.500" }}>Save a customized block from this newsletter:</Typography>
+          {blocks.filter(block => block.type !== "footer").map(block => (
+            <Box key={block.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+              <Typography level="body-xs" sx={{ maxWidth: 175, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{block.headline || block.label}</Typography>
+              <IconButton size="sm" aria-label={`Save ${block.headline || block.label} as Saved Block`} onClick={() => saveConfiguredBlock(block)}><Heart size={16} /></IconButton>
+            </Box>
+          ))}
+        </Box>
         {visibleCategories.length > 0 ? (
           visibleCategories.map((category, index) => {
             const isOpen = openCategories[category.id] ?? true;
