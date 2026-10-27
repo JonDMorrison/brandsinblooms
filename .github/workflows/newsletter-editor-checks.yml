@@ -12,6 +12,7 @@ on:
       - 'supabase/functions/_shared/emailRenderer.ts'
       - 'package.json'
       - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/newsletter-editor-checks.yml'
   workflow_dispatch:
 permissions:
@@ -27,6 +28,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify Vercel's frozen pnpm lockfile
+        run: npx --yes pnpm@10.34.5 install --lockfile-only --ignore-scripts --frozen-lockfile
       - name: Shared renderer and editor tests
         run: npx vitest run src/lib/studio src/components/crm/studio
       - name: Security gate
