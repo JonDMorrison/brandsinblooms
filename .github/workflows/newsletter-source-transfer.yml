@@ -1,0 +1,47 @@
+name: Transfer verified newsletter source
+on:
+  push:
+    branches: [feat/newsletter-mike-feedback-20261027]
+    paths: [.github/workflows/newsletter-source-transfer.yml]
+permissions:
+  contents: write
+jobs:
+  transfer:
+    if: github.repository == 'JonDMorrison/brandsinblooms' && github.ref == 'refs/heads/feat/newsletter-mike-feedback-20261027'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/newsletter-mike-feedback-20261027
+          fetch-depth: 2
+      - name: Fetch and verify the reviewed source patch
+        env:
+          TRANSFER_URL: https://sb-69gvu44k7h1s.vercel.run/changes.patch.gz
+          TRANSFER_TOKEN: nuFT8cNwTmGUR_kVz9MN-__2binGrMvMyAm4KIa72Oj3Jbgs9ZpmOw
+          EXPECTED_SHA256: d67a4fa75009d4c579e08d3cb1782fcb10d6934676db3f49d547351beafb3b3d
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 60 --max-filesize 150000 --header "Authorization: Bearer ${TRANSFER_TOKEN}" "${TRANSFER_URL}" --output /tmp/newsletter.patch.gz
+          echo "${EXPECTED_SHA256}  /tmp/newsletter.patch.gz" | sha256sum --check
+          python3 - <<'PY'
+          import gzip, pathlib, subprocess
+          data = gzip.decompress(pathlib.Path('/tmp/newsletter.patch.gz').read_bytes())
+          assert len(data) < 1000000, 'Oversized source patch'
+          pathlib.Path('/tmp/newsletter.patch').write_bytes(data)
+          paths = subprocess.check_output(['git','apply','--numstat','/tmp/newsletter.patch'],text=True).splitlines()
+          assert paths, 'Empty source patch'
+          for entry in paths:
+              path = entry.split('\t',2)[2]
+              assert path.startswith(('src/','supabase/','docs/')) or path in ('package.json','package-lock.json'), 'Unexpected patch path: '+path
+          PY
+          git apply --check /tmp/newsletter.patch
+          git apply --index /tmp/newsletter.patch
+          git diff --cached --check
+      - name: Commit only to the requested feature branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Expand newsletter editor with reusable designs, richer blocks and safe imports'
+          git push origin HEAD:refs/heads/feat/newsletter-mike-feedback-20261027
