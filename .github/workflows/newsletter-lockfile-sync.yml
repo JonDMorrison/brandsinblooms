@@ -1,0 +1,32 @@
+name: Sync newsletter pnpm lockfile
+on:
+  push:
+    branches: [feat/newsletter-mike-feedback-20261027]
+    paths: [.github/workflows/newsletter-lockfile-sync.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.repository == 'JonDMorrison/brandsinblooms' && github.ref == 'refs/heads/feat/newsletter-mike-feedback-20261027'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/newsletter-mike-feedback-20261027
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global --ignore-scripts --no-audit --no-fund pnpm@10.34.5
+      - name: Synchronize and verify the production package-manager lockfile
+        run: |
+          set -euo pipefail
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          pnpm install --lockfile-only --ignore-scripts --frozen-lockfile
+          test "$(git diff --name-only)" = 'pnpm-lock.yaml'
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pnpm-lock.yaml
+          git commit -m 'Update pnpm lockfile for newsletter image sanitizing and Excel imports'
+          git push origin HEAD:refs/heads/feat/newsletter-mike-feedback-20261027
