@@ -6,24 +6,53 @@ import type { StudioBlock } from "@/types/studioBlocks";
 
 vi.mock("@/contexts/DesignSystemContext", () => ({
   useOptionalDesignSystem: () => null,
-  useDesignSystem: () => ({ designSystem: buildStudioDesignSystem({} as never) }),
+  useDesignSystem: () => ({
+    designSystem: buildStudioDesignSystem({} as never),
+  }),
 }));
 vi.mock("./fields/StudioImageUpload", () => ({
   default: ({ label }: { label: string }) => <button>{label}</button>,
 }));
+vi.mock("./newsletter/AudienceControls", () => ({ default: () => null }));
 vi.mock("./fields/StudioTextField", () => ({
   default: ({ label }: { label: string }) => <label>{label}</label>,
 }));
 
 describe("hero photo discoverability", () => {
-  it.each([undefined, "solid", "gradient", "image-overlay", "image-bottom"] as const)(
-    "shows photo control before text fields for %s", (heroStyle) => {
-      const block = { id: "hero", type: "email-safe-hero", label: "Hero", order: 0, visible: true, heroStyle } as StudioBlock;
-      render(<BlockPropertiesPanel campaignImageGallery={[]} campaignName="Winter" campaignType="newsletter"
-        selectedBlockId="hero" blocks={[block]} open onClose={() => {}} onUpdateBlockField={() => {}} />);
-      const photo = screen.getByRole("button", { name: heroStyle === "image-overlay" ? "Background photo" : "Hero photo" });
-      const headline = screen.getByText("Headline");
-      expect(photo.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    },
-  );
+  it.each([
+    undefined,
+    "solid",
+    "gradient",
+    "image-overlay",
+    "image-bottom",
+  ] as const)("shows photo control before text fields for %s", (heroStyle) => {
+    const block = {
+      id: "hero",
+      type: "email-safe-hero",
+      label: "Hero",
+      order: 0,
+      visible: true,
+      heroStyle,
+    } as StudioBlock;
+    render(
+      <BlockPropertiesPanel
+        campaignImageGallery={[]}
+        campaignName="Winter"
+        campaignType="newsletter"
+        selectedBlockId="hero"
+        blocks={[block]}
+        open
+        onClose={() => {}}
+        onUpdateBlockField={() => {}}
+      />,
+    );
+    const photo = screen.getByRole("button", {
+      name: heroStyle === "image-overlay" ? "Background photo" : "Hero photo",
+    });
+    const headline = screen.getByText("Headline");
+    expect(
+      photo.compareDocumentPosition(headline) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

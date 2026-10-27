@@ -1,3 +1,24 @@
+import { normalizeStoreMergeFields } from "./newsletter/mergeFields.ts";
+import type { NewsletterSettings } from "../../types/newsletterDesign.ts";
+import {
+  applyBlockAppearance,
+  renderExtendedBlock,
+  renderNewsletterButton,
+} from "./newsletter/renderExtensions.ts";
+import {
+  blockMatchesAudience,
+  type RenderAudience,
+} from "./newsletter/audience.ts";
+import {
+  clampNumber,
+  edgeCss,
+  emailColor,
+  emailFont,
+  mergeAppearance,
+  normalizeNewsletterSettings,
+  safeEmailUrl,
+  textCss,
+} from "./newsletter/settings.ts";
 import type {
   GalleryImage,
   GalleryProduct,
@@ -46,6 +67,8 @@ export type StudioFooterProfile = {
 };
 
 export type GenerateEmailHtmlParams = {
+  newsletterSettings?: NewsletterSettings;
+  audience?: RenderAudience;
   blocks: StudioBlock[];
   subject: string;
   previewText: string;
@@ -380,17 +403,14 @@ function isDarkBackgroundColor(color: string): boolean {
 }
 
 function safeUrl(value: unknown, options: { image?: boolean } = {}) {
-  const url = stringValue(value);
-  if (!url) return "";
-  if (/^javascript:/i.test(url)) return "";
-  if (/^data:/i.test(url) && !options.image) return "";
-  return url;
+  if (typeof value === "string" && /^#[a-z0-9_-]+$/i.test(value)) return value;
+  return safeEmailUrl(value, Boolean(options.image));
 }
 
 function resolveMergeTags(html: string, mergeData?: Record<string, string>) {
   if (!mergeData) return html;
 
-  return html.replace(
+  return normalizeStoreMergeFields(html).replace(
     /\{\{\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:\|\s*default:\s*["']([^"']*)["'])?\s*\}\}/g,
     (_match, key: string, fallback?: string) =>
       escapeHtml(mergeData[key] ?? fallback ?? ""),
@@ -583,6 +603,10 @@ function getGraphicHeroOverlayStyle(block: StudioBlock) {
   const transparent = colorWithOpacity(overlayColor, 0);
 
   switch (block.overlayGradientDirection) {
+    case "left-to-right":
+      return `background:${solid};background:linear-gradient(to right, ${solid}, ${transparent});`;
+    case "right-to-left":
+      return `background:${solid};background:linear-gradient(to left, ${solid}, ${transparent});`;
     case "top-to-bottom":
       return `background:${solid};background:linear-gradient(to bottom, ${solid}, ${transparent});`;
     case "bottom-to-top":
@@ -682,6 +706,10 @@ function resolveImageTextLayout(block: StudioBlock) {
 
 function getImageTextSplit(columnSplit: StudioBlock["columnSplit"]) {
   switch (columnSplit) {
+    case "30/70":
+      return { image: 30, text: 70 };
+    case "70/30":
+      return { image: 70, text: 30 };
     case "40/60":
       return { image: 40, text: 60 };
     case "60/40":
@@ -786,25 +814,25 @@ function renderTextContent(
 
   if (stringValue(block.tagLabel)) {
     pieces.push(
-      `<div style="font-family:${bodyFont};font-size:12px;line-height:1.4;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${textColor};opacity:0.72;margin-bottom:8px;">${textBlock(block.tagLabel)}</div>`,
+      `<div data-newsletter-role="label" style="font-family:${bodyFont};font-size:12px;line-height:1.4;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${textColor};opacity:0.72;margin-bottom:8px;">${textBlock(block.tagLabel)}</div>`,
     );
   }
 
   if (headline) {
     pieces.push(
-      `<h1 style="font-family:${headlineFont};font-size:${options.compact ? 22 : 30}px;line-height:1.15;font-weight:700;color:${textColor};margin:0 0 12px;text-align:${align};">${textBlock(headline)}</h1>`,
+      `<h1 data-newsletter-role="heading" style="font-family:${headlineFont};font-size:${options.compact ? 22 : 30}px;line-height:1.15;font-weight:700;color:${textColor};margin:0 0 12px;text-align:${align};">${textBlock(headline)}</h1>`,
     );
   }
 
   if (subheading && subheading !== headline) {
     pieces.push(
-      `<div style="font-family:${subheadingFont};font-size:18px;line-height:1.45;color:${textColor};opacity:0.86;margin-bottom:12px;text-align:${align};">${textBlock(subheading)}</div>`,
+      `<div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:18px;line-height:1.45;color:${textColor};opacity:0.86;margin-bottom:12px;text-align:${align};">${textBlock(subheading)}</div>`,
     );
   }
 
   if (body) {
     pieces.push(
-      `<div style="font-family:${bodyFont};font-size:${options.compact ? 14 : 16}px;line-height:1.65;color:${textColor};text-align:${align};">${sanitizeRichHtml(body, designSystem)}</div>`,
+      `<div data-newsletter-role="body" style="font-family:${bodyFont};font-size:${options.compact ? 14 : 16}px;line-height:1.65;color:${textColor};text-align:${align};">${sanitizeRichHtml(body, designSystem)}</div>`,
     );
   }
 
@@ -816,6 +844,12 @@ function renderButton(
   designSystem: StudioDesignSystem | null | undefined,
   options: { marginTop?: number; align?: "left" | "center" | "right" } = {},
 ) {
+  if (block.appearance || block.fullWidthButton) {
+    const button = renderNewsletterButton(block);
+    return button
+      ? `<div style="margin-top:${options.marginTop ?? 24}px;text-align:${options.align || block.textAlign || "center"};">${button}</div>`
+      : "";
+  }
   const label = stringValue(block.buttonText);
   if (!label) return "";
 
@@ -844,8 +878,16 @@ function renderButton(
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="border-collapse:separate;margin:${options.marginTop ?? 24}px ${align === "center" ? "auto" : align === "right" ? "0 0 0 auto" : "0"} 0;${block.fullWidthButton ? "width:100%;max-width:420px;" : ""}"><tr><td${cellBg} align="center" style="border-radius:${radius};"><a href="${escapeAttribute(href)}" target="_blank" style="${styleText}">${escapeHtml(label)}</a></td></tr></table>`;
 }
 
-function renderCouponBlock(block: StudioBlock, designSystem: StudioDesignSystem | null | undefined): string {
-  const offer = block.couponOffer === "bogo" ? "BUY ONE GET ONE" : block.couponOffer === "50" ? "50% OFF" : "25% OFF";
+function renderCouponBlock(
+  block: StudioBlock,
+  designSystem: StudioDesignSystem | null | undefined,
+): string {
+  const offer =
+    block.couponOffer === "bogo"
+      ? "BUY ONE GET ONE"
+      : block.couponOffer === "50"
+        ? "50% OFF"
+        : "25% OFF";
   const bg = "#ffffff";
   const ink = "#172d2c";
   const heading = textBlock(block.headline);
@@ -854,15 +896,30 @@ function renderCouponBlock(block: StudioBlock, designSystem: StudioDesignSystem 
   const conditions = textBlock(block.couponConditions);
   const imageUrl = safeUrl(block.imageUrl, { image: true });
   const url = safeUrl(block.buttonUrl);
-  const button = url ? `<a href="${escapeAttribute(url)}" style="display:inline-block;background:#1f4341;color:#ffffff;text-decoration:none;border-radius:5px;padding:11px 18px;font-size:14px;font-weight:700;">${textBlock(block.buttonText || "Shop this offer")}</a>` : "";
+  const button = url
+    ? `<a href="${escapeAttribute(url)}" style="display:inline-block;background:#1f4341;color:#ffffff;text-decoration:none;border-radius:5px;padding:11px 18px;font-size:14px;font-weight:700;">${textBlock(block.buttonText || "Shop this offer")}</a>`
+    : "";
   const content = `<div style="color:${ink};font-family:${getFontStack(designSystem, "body")};"><div style="font-weight:800;font-size:24px;line-height:1.2;">${offer}</div>${heading ? `<div style="font-size:18px;font-weight:700;margin-top:8px;">${heading}</div>` : ""}${description ? `<div style="font-size:14px;line-height:1.5;margin-top:8px;">${description}</div>` : ""}${price ? `<div style="font-size:17px;font-weight:700;margin-top:8px;">${price}</div>` : ""}${conditions ? `<div style="font-size:11px;line-height:1.5;margin-top:12px;color:#46595a;">${conditions}</div>` : ""}${button ? `<div style="margin-top:16px;">${button}</div>` : ""}</div>`;
-  const photo = imageUrl ? `<img src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || "Coupon offer")}" width="220" style="width:100%;max-width:220px;height:auto;display:block;border:0;" />` : "";
-  const imageCell = photo ? `<td width="38%" valign="middle" style="padding:16px;">${photo}</td>` : "";
+  const photo = imageUrl
+    ? `<img src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || "Coupon offer")}" width="220" style="width:100%;max-width:220px;height:auto;display:block;border:0;" />`
+    : "";
+  const imageCell = photo
+    ? `<td width="38%" valign="middle" style="padding:16px;">${photo}</td>`
+    : "";
   const contentCell = `<td valign="middle" style="padding:22px;">${content}</td>`;
-  const cells = block.couponImageSide === "right" ? contentCell + imageCell : imageCell + contentCell;
+  const cells =
+    block.couponImageSide === "right"
+      ? contentCell + imageCell
+      : imageCell + contentCell;
   const border = block.couponBorder === false ? "none" : "2px dashed #71817d";
-  const cutLine = block.couponScissors === false ? "" : `<tr><td style="padding:6px 14px;color:#46595a;font-size:12px;font-family:Arial,sans-serif;border-bottom:1px dashed #a0aaa5;">&#9986; &nbsp; Cut or save this coupon</td></tr>`;
-  return renderSection(bg, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:${border};background:#ffffff;border-collapse:separate;"><tbody>${cutLine}<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table></td></tr></tbody></table>`);
+  const cutLine =
+    block.couponScissors === false
+      ? ""
+      : `<tr><td style="padding:6px 14px;color:#46595a;font-size:12px;font-family:Arial,sans-serif;border-bottom:1px dashed #a0aaa5;">&#9986; &nbsp; Cut or save this coupon</td></tr>`;
+  return renderSection(
+    bg,
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:${border};background:#ffffff;border-collapse:separate;"><tbody>${cutLine}<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table></td></tr></tbody></table>`,
+  );
 }
 
 function renderHeroBlock(
@@ -874,7 +931,7 @@ function renderHeroBlock(
   const align = getAlignment(block.textAlign, "center");
   const heroStyle = block.heroStyle || "solid";
   const imageUrl = safeUrl(block.imageUrl, { image: true });
-  const padding = "48px 32px";
+  const padding = block.appearance?.padding ? "0" : "48px 32px";
   const background =
     heroStyle === "gradient"
       ? `background:${safeColor(block.gradientFrom, "#ff6b6b")};background:linear-gradient(135deg, ${safeColor(block.gradientFrom, "#ff6b6b")}, ${safeColor(block.gradientTo, "#ffd93d")});`
@@ -1058,10 +1115,10 @@ function renderNewsletterHeaderBlock(
     getNewsletterHeaderDefaultPaddingY(layout),
   );
   const title = stringValue(block.headline);
-  const tagline = stringValue(block.tagline);
+  const tagline = stringValue(block.subheading || block.tagline);
   const dateLabel = stringValue(block.dateLabel);
   const hasTitle = Boolean(stringValue(block.headline));
-  const hasTagline = Boolean(stringValue(block.tagline));
+  const hasTagline = Boolean(stringValue(block.subheading || block.tagline));
   const hasDate = Boolean(stringValue(block.dateLabel));
   const showDivider = block.showDividerBelow ?? block.showDivider ?? true;
   const dividerColor = safeColor(
@@ -1095,22 +1152,22 @@ function renderNewsletterHeaderBlock(
   if (layout === "centered") {
     return renderSection(
       backgroundColor,
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" align="center" style="padding:${paddingY}px 24px;text-align:center;vertical-align:middle;">${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ""}<div style="font-family:${titleFont};font-size:22px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div style="font-family:${subheadingFont};font-size:13px;line-height:1.4;color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin-top:4px;">${textBlock(dateLabel)}</div></td></tr>${dividerRow}</table>`,
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" align="center" style="padding:${paddingY}px 24px;text-align:center;vertical-align:middle;">${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ""}<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:22px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.4;color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin-top:4px;">${textBlock(dateLabel)}</div></td></tr>${dividerRow}</table>`,
     );
   }
 
   if (layout === "minimal") {
     const minimalTagline = hasTagline
-      ? `<div style="font-family:${subheadingFont};font-size:13px;line-height:1.35;color:${colorWithOpacity(textColor, 0.64)};margin-top:4px;">${textBlock(stringValue(block.tagline))}</div>`
+      ? `<div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.35;color:${colorWithOpacity(textColor, 0.64)};margin-top:4px;">${textBlock(stringValue(block.subheading || block.tagline))}</div>`
       : "";
 
     return renderSection(
       backgroundColor,
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px 24px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;"><div style="font-family:${titleFont};font-size:18px;line-height:1.2;font-weight:600;color:${titleColor};margin:0;">${textBlock(title)}</div></td><td class="responsive-column" width="96" valign="middle" align="right" style="width:96px;vertical-align:middle;text-align:right;padding-left:16px;"><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin:0;white-space:nowrap;">${textBlock(dateLabel)}</div></td></tr></table>${minimalTagline}</td></tr>${dividerRow}</table>`,
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px 24px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;"><div data-newsletter-role="heading" style="font-family:${titleFont};font-size:18px;line-height:1.2;font-weight:600;color:${titleColor};margin:0;">${textBlock(title)}</div></td><td class="responsive-column" width="96" valign="middle" align="right" style="width:96px;vertical-align:middle;text-align:right;padding-left:16px;"><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin:0;white-space:nowrap;">${textBlock(dateLabel)}</div></td></tr></table>${minimalTagline}</td></tr>${dividerRow}</table>`,
     );
   }
 
-  const contentHtml = `<div style="font-family:${titleFont};font-size:${layout === "banner" ? 18 : 20}px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div style="font-family:${subheadingFont};font-size:${layout === "banner" ? 12 : 13}px;line-height:${layout === "banner" ? 1.35 : 1.3};color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div>`;
+  const contentHtml = `<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:${layout === "banner" ? 18 : 20}px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:${layout === "banner" ? 12 : 13}px;line-height:${layout === "banner" ? 1.35 : 1.3};color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div>`;
   const logoCellWidth = Math.max(
     48,
     (numberValue(block.logoSize, layout === "banner" ? 48 : 56) === 40
@@ -1154,7 +1211,7 @@ function renderPlainTextBlock(
     ? sanitizeRichHtml(block.body || "", designSystem, {
         bodyLineHeight: lineHeight,
       })
-    : `<p style="margin:0;color:${textColor};opacity:0.5;">Add text content...</p>`;
+    : "";
 
   return renderSection(
     backgroundColor,
@@ -1166,6 +1223,7 @@ function renderImageTextBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ) {
+  const vertical = block.appearance?.verticalAlign || "middle";
   const imageUrl = safeUrl(block.imageUrl, { image: true });
   const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
   const textColor = safeColor(block.textColor, "#111827");
@@ -1220,12 +1278,12 @@ function renderImageTextBlock(
     ? "responsive-image responsive-crop-image"
     : "responsive-image";
   const imageCell = `<td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-right:12px;">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
-  const textCell = `<td class="responsive-column image-text-content" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-left:12px;">${content}</td>`;
+  const textCell = `<td class="responsive-column image-text-content" width="${split.text}%" valign="${vertical}" style="width:${split.text}%;vertical-align:${vertical};padding-left:12px;">${content}</td>`;
   const reverse = layout === "image-right";
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" class="image-text-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${reverse ? `<td class="responsive-column image-text-content" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-right:12px;">${content}</td><td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-left:12px;">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>` : imageCell + textCell}</tr></table></div>`,
+    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" class="image-text-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${reverse ? `<td class="responsive-column image-text-content" width="${split.text}%" valign="${vertical}" style="width:${split.text}%;vertical-align:${vertical};padding-right:12px;">${content}</td><td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-left:12px;">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>` : imageCell + textCell}</tr></table></div>`,
   );
 }
 
@@ -1613,8 +1671,12 @@ function renderDividerBlock(
 ) {
   const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
   const lineColor = getDividerLineColor(block, designSystem);
-  const paddingTop = numberValue(block.paddingTop, 20);
-  const paddingBottom = numberValue(block.paddingBottom, 20);
+  const paddingTop = block.appearance?.padding
+    ? 0
+    : numberValue(block.paddingTop, 20);
+  const paddingBottom = block.appearance?.padding
+    ? 0
+    : numberValue(block.paddingBottom, 20);
   const lineWidth = Math.max(
     1,
     Math.min(100, numberValue(block.lineWidth, 100)),
@@ -1989,7 +2051,7 @@ export function createFooterBlockFromProfile(
   };
 }
 
-function renderBlock(
+function renderLegacyBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
 ): string {
@@ -2038,12 +2100,88 @@ function renderBlock(
   }
 }
 
+export function renderNewsletterBlock(
+  block: StudioBlock,
+  designSystem?: StudioDesignSystem | null,
+  settings?: NewsletterSettings,
+): string {
+  if (block.visible === false || block.type === "footer") return "";
+  const resolved = normalizeNewsletterSettings(settings);
+  const hasAppearance = Boolean(settings?.defaults || block.appearance);
+  const fontDefaults = settings?.fontFamily
+    ? {
+        text: Object.fromEntries(
+          [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "heading",
+            "subheading",
+            "body",
+            "button",
+            "label",
+            "price",
+            "smallPrint",
+          ].map((role) => [role, { fontFamily: settings.fontFamily }]),
+        ),
+      }
+    : undefined;
+  const appearance =
+    hasAppearance || fontDefaults
+      ? mergeAppearance(
+          mergeAppearance(fontDefaults, settings?.defaults),
+          block.appearance,
+        )
+      : undefined;
+  const prepared: StudioBlock = {
+    ...block,
+    appearance,
+    ...(appearance?.background
+      ? { backgroundColor: appearance.background }
+      : {}),
+    ...(appearance?.text?.body?.color
+      ? { textColor: appearance.text.body.color }
+      : {}),
+  };
+  let html =
+    renderExtendedBlock(prepared, resolved.width) ??
+    renderLegacyBlock(prepared, designSystem);
+  if (
+    prepared.type === "newsletter-header" &&
+    safeEmailUrl(prepared.headerBannerUrl, true)
+  )
+    html += `<img data-newsletter-image="headerBannerUrl" class="responsive-image" src="${escapeAttribute(safeEmailUrl(prepared.headerBannerUrl, true))}" alt="${escapeAttribute(prepared.imageAlt || "")}" width="${resolved.width}" style="display:block;width:100%;height:auto;border:0;" />`;
+  if (prepared.type === "image-text") {
+    html = html.replace(/<img\b[^>]*>/g, (image) => {
+      const spacing = `<div style="padding:${edgeCss(appearance?.imagePadding)};margin:${edgeCss(appearance?.imageMargin)};">${image}</div>`;
+      const href = safeEmailUrl(prepared.linkUrl);
+      return href
+        ? `<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">${spacing}</a>`
+        : spacing;
+    });
+  }
+  if (appearance?.padding)
+    html = html.replace(
+      /(<div class="mobile-padding" style=")([^"]*)"/g,
+      (_match, prefix, styles) =>
+        `${prefix}${styles.replace(/(?:^|;)padding(?:-(?:top|right|bottom|left))?:[^;]*;?/g, ";")};padding:0;"`,
+    );
+  // The old renderer has fixed widths for Outlook. Scale only generated pixel widths,
+  // never customer copy, to the selected 480–800px email width.
+  if (resolved.width !== 640)
+    html = html.replace(/(width[:=]\"?)(640)(px|\")/g, `$1${resolved.width}$3`);
+  return applyBlockAppearance(html, appearance);
+}
+
 function isSelfSpacingBlock(block: StudioBlock) {
   return block.type === "divider" || block.type === "spacer";
 }
 
-function renderPreviewBlockGap() {
-  return '<table role="presentation" class="email-block-gap" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td height="16" style="height:16px;line-height:16px;font-size:0;">&nbsp;</td></tr></table>';
+function renderPreviewBlockGap(size = 16) {
+  return `<table role="presentation" class="email-block-gap" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td height="${size}" style="height:${size}px;line-height:${size}px;font-size:0;">&nbsp;</td></tr></table>`;
 }
 
 function wrapPreviewBlock(block: StudioBlock, html: string) {
@@ -2053,10 +2191,18 @@ function wrapPreviewBlock(block: StudioBlock, html: string) {
 export function renderStudioBlocksToEmailHtml(
   blocks: StudioBlock[],
   designSystem?: StudioDesignSystem | null,
+  settings?: NewsletterSettings,
+  audience?: RenderAudience,
 ) {
   const renderableBlocks = blocks
-    .filter((block) => block.type !== "footer")
-    .map((block) => ({ block, html: renderBlock(block, designSystem) }))
+    .filter(
+      (block) =>
+        block.type !== "footer" && blockMatchesAudience(block, audience),
+    )
+    .map((block) => ({
+      block,
+      html: renderNewsletterBlock(block, designSystem, settings),
+    }))
     .filter(({ html }) => Boolean(html));
 
   return renderableBlocks
@@ -2069,7 +2215,9 @@ export function renderStudioBlocksToEmailHtml(
         !isSelfSpacingBlock(block) &&
         !isSelfSpacingBlock(nextBlock)
       ) {
-        fragments.push(renderPreviewBlockGap());
+        fragments.push(
+          renderPreviewBlockGap(normalizeNewsletterSettings(settings).blockGap),
+        );
       }
 
       return fragments;
@@ -2085,7 +2233,13 @@ export function generateEmailHtml({
   mergeData,
   footerLinks,
   designSystem,
+  newsletterSettings,
+  audience,
 }: GenerateEmailHtmlParams): string {
+  const settings = normalizeNewsletterSettings(
+    newsletterSettings ||
+      blocks.find((block) => block.newsletterSettings)?.newsletterSettings,
+  );
   const visibleBlocks = blocks.filter((block) => block.visible !== false);
   const footerBlock =
     footer ||
@@ -2095,6 +2249,8 @@ export function generateEmailHtml({
   const renderedBlocks = renderStudioBlocksToEmailHtml(
     bodyBlocks,
     designSystem,
+    settings,
+    audience,
   );
   const renderedFooter = renderFooterBlockToEmailHtml(
     footerBlock,
@@ -2102,7 +2258,11 @@ export function generateEmailHtml({
     designSystem,
   );
   const escapedSubject = escapeHtml(subject || "Campaign Preview");
-  const escapedPreviewText = escapeHtml(previewText || "");
+  const escapedPreviewText = escapeHtml(
+    previewText ||
+      blocks.find((block) => block.type === "preheader")?.body ||
+      "",
+  );
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2169,19 +2329,19 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
   </style>
   <!--<![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:${getFontStack(designSystem, "body")};">
+<body style="margin:0;padding:0;background-color:${settings.backgroundColor};font-family:${settings.fontFamily ? emailFont(settings.fontFamily) : getFontStack(designSystem, "body")};">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;opacity:0;color:transparent;line-height:1px;font-size:1px;">${escapedPreviewText}</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:#f5f5f5;border-collapse:collapse;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:${settings.backgroundColor};border-collapse:collapse;">
     <tr>
-      <td align="center" style="padding:24px 16px;background-color:#f5f5f5;">
-        <table role="presentation" width="${EMAIL_WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:${EMAIL_WIDTH}px;background-color:#ffffff;border-collapse:collapse;">
+      <td align="center" style="padding:24px 16px;background-color:${settings.backgroundColor};">
+        <table role="presentation" width="${settings.width}" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:${settings.width}px;background-color:${settings.contentBackgroundColor};border-collapse:collapse;">
           <tr>
-            <td style="padding:0;background-color:#ffffff;">
+            <td style="padding:0;background-color:${settings.contentBackgroundColor};">
               ${renderedBlocks}
             </td>
           </tr>
         </table>
-        <table role="presentation" width="${EMAIL_WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:${EMAIL_WIDTH}px;border-collapse:collapse;">
+        <table role="presentation" width="${settings.width}" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:${settings.width}px;border-collapse:collapse;">
           <tr>
             <td style="padding:0;">
               ${renderedFooter}

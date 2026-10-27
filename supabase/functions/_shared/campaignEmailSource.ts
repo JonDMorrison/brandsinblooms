@@ -1,3 +1,4 @@
+import type { RenderAudience } from "../../../src/lib/studio/newsletter/audience.ts";
 import {
   createFooterBlockFromProfile,
   generateEmailHtml,
@@ -44,6 +45,7 @@ type CampaignSourceClient = {
 };
 
 type RenderContentBlocksOptions = {
+  audience?: RenderAudience;
   subject?: string;
   previewText?: string;
   companyProfile?: (StudioFooterProfile & ServerCompanyProfileShape) | null;
@@ -198,6 +200,7 @@ export function renderContentBlocksToEmailHtml(
 
   return generateEmailHtml({
     blocks: normalizedBlocks,
+    audience: options.audience,
     subject: options.subject || "Campaign",
     previewText: options.previewText || "",
     footer: footerBlock,
@@ -228,7 +231,9 @@ async function loadCampaignBlockRows(
     return [];
   }
 
-  return result.data.filter((item) => getRecord(item)) as RenderableContentBlock[];
+  return result.data.filter((item) =>
+    getRecord(item),
+  ) as RenderableContentBlock[];
 }
 
 export async function resolveCampaignEmailSource(

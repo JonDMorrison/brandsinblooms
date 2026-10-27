@@ -1,3 +1,5 @@
+import { useNewsletterDesign } from "./newsletter/NewsletterDesignContext";
+import { normalizeNewsletterSettings } from "@/lib/studio/newsletter/settings";
 import * as React from "react";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
@@ -116,6 +118,7 @@ export default function StudioPreviewDialog({
   campaignId,
 }: StudioPreviewDialogProps) {
   const { designSystem } = useDesignSystem();
+  const { settings } = useNewsletterDesign();
   const [device, setDevice] = React.useState<PreviewDevice>("desktop");
   const [activeTab, setActiveTab] = React.useState<PreviewTab>("preview");
   const [testEmail, setTestEmail] = React.useState("");
@@ -136,6 +139,7 @@ export default function StudioPreviewDialog({
   const html = React.useMemo(
     () =>
       generateEmailHtml({
+        audience: { previewAll: true },
         blocks,
         subject: subjectLine || "Untitled Campaign",
         previewText,
@@ -419,7 +423,10 @@ export default function StudioPreviewDialog({
           >
             <Box
               sx={{
-                width: selectedDevice.width,
+                width:
+                  selectedDevice.value === "desktop"
+                    ? normalizeNewsletterSettings(settings).width
+                    : selectedDevice.width,
                 maxWidth: "100%",
                 minHeight: 520,
                 bgcolor: "#ffffff",

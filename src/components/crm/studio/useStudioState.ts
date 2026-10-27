@@ -1,3 +1,6 @@
+import { cloneSavedBlock } from "@/lib/studio/newsletter/savedBlocks";
+import type { NewsletterSettings } from "@/types/newsletterDesign";
+import { normalizeNewsletterSettings } from "@/lib/studio/newsletter/settings";
 import * as React from "react";
 import {
   type StudioBlockType,
@@ -153,8 +156,7 @@ export type StudioCampaignSnapshot = {
 export type CampaignImageGallerySource = "upload" | "ai-generated" | "library";
 
 export type CampaignImageIndicatorSource =
-  | CampaignImageGallerySource
-  | "reused";
+  CampaignImageGallerySource | "reused";
 
 export interface CampaignImageGalleryItem {
   url: string;
@@ -302,7 +304,28 @@ export function useStudioState({
     [blocks, selectedBlockId],
   );
 
-  const canvasWidth = DEVICE_WIDTHS[deviceMode];
+  const newsletterSettings = blocks.find(
+    (block) => block.type === "footer",
+  )?.newsletterSettings;
+  const canvasWidth =
+    deviceMode === "desktop"
+      ? normalizeNewsletterSettings(newsletterSettings).width!
+      : DEVICE_WIDTHS[deviceMode];
+  const setNewsletterSettings = React.useCallback(
+    (settings: NewsletterSettings) => {
+      setBlocks((current) =>
+        current.map((block) =>
+          block.type === "footer"
+            ? {
+                ...block,
+                newsletterSettings: normalizeNewsletterSettings(settings),
+              }
+            : block,
+        ),
+      );
+    },
+    [setBlocks],
+  );
   const isPropertiesPanelOpen = selectedBlockId !== null;
   const estimatedWordCount = React.useMemo(
     () => blocks.reduce((total, block) => total + countBlockWords(block), 0),
@@ -400,18 +423,47 @@ export function useStudioState({
     [blocks, designSystem, pulseInsertedBlock],
   );
 
-  const insertSavedBlock = React.useCallback((saved: StudioBlock) => {
-    if (saved.type === "footer") return;
-    const instance = { ...saved, id: crypto.randomUUID(), order: 0, visible: true };
-    setBlocks(current => {
-      const footerIndex = current.findIndex(block => block.type === "footer");
-      const next = [...current];
-      next.splice(footerIndex < 0 ? next.length : footerIndex, 0, instance);
-      return normalizeBlocks(reindexBlocks(next), designSystem);
-    });
-    setSelectedBlockId(instance.id);
-    pulseInsertedBlock(instance.id);
-  }, [designSystem, pulseInsertedBlock]);
+  const insertSavedBlock = React.useCallback(
+    (saved: StudioBlock) => {
+      if (saved.type === "footer") return;
+      const instance = {
+        ...cloneSavedBlock(saved),
+        id: crypto.randomUUID(),
+        order: 0,
+        visible: true,
+      };
+      setBlocks((current) => {
+        const footerIndex = current.findIndex(
+          (block) => block.type === "footer",
+        );
+        const next = [...current];
+        next.splice(footerIndex < 0 ? next.length : footerIndex, 0, instance);
+        return normalizeBlocks(reindexBlocks(next), designSystem);
+      });
+      setSelectedBlockId(instance.id);
+      pulseInsertedBlock(instance.id);
+    },
+    [designSystem, pulseInsertedBlock],
+  );
+
+  const insertImportedBlocks = React.useCallback(
+    (imported: StudioBlock[]) => {
+      const copies = imported
+        .slice(0, 100)
+        .filter((block) => block.type !== "footer")
+        .map(cloneSavedBlock);
+      if (!copies.length) return;
+      setBlocks((current) => {
+        const next = [...current];
+        const footerIndex = next.findIndex((block) => block.type === "footer");
+        next.splice(footerIndex < 0 ? next.length : footerIndex, 0, ...copies);
+        return normalizeBlocks(reindexBlocks(next), designSystem);
+      });
+      setSelectedBlockId(copies[0].id);
+      pulseInsertedBlock(copies[0].id);
+    },
+    [designSystem, pulseInsertedBlock, setBlocks],
+  );
 
   const removeBlock = React.useCallback(
     (blockId: string) => {
@@ -462,9 +514,9 @@ export function useStudioState({
         }
 
         const duplicateBlock = {
-          ...current[sourceIndex],
+          ...structuredClone(current[sourceIndex]),
           id: crypto.randomUUID(),
-          label: STUDIO_BLOCK_LOOKUP[current[sourceIndex].type].name,
+          label: current[sourceIndex].label,
         };
         duplicateId = duplicateBlock.id;
 
@@ -501,7 +553,10 @@ export function useStudioState({
                 value.trim() &&
                 block.heroStyle !== "image-overlay" &&
                 block.heroStyle !== "image-bottom"
-                  ? { heroStyle: "image-bottom" as const, layoutPreset: undefined }
+                  ? {
+                      heroStyle: "image-bottom" as const,
+                      layoutPreset: undefined,
+                    }
                   : {}),
               }
             : block,
@@ -743,6 +798,8 @@ export function useStudioState({
 
   return {
     blocks,
+    newsletterSettings,
+    setNewsletterSettings,
     selectedBlockId,
     selectedBlock,
     deviceMode,
@@ -766,6 +823,7 @@ export function useStudioState({
     canRedo: blockHistory.future.length > 0,
     addBlock,
     insertSavedBlock,
+    insertImportedBlocks,
     removeBlock,
     duplicateBlock,
     updateBlockField,

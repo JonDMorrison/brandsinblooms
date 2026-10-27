@@ -1,3 +1,4 @@
+import NewsletterSettingsButton from "./newsletter/NewsletterSettingsButton";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -185,7 +186,8 @@ export default function StudioTopBar({
     <Sheet
       sx={{
         height: 52,
-        bgcolor: "background.surface",
+        bgcolor: "#d9e0e2",
+        color: "#203137",
         boxShadow: "0 1px 0 0 rgba(0,0,0,0.06)",
         overflowX: "auto",
       }}
@@ -319,6 +321,7 @@ export default function StudioTopBar({
             <Settings size={16} />
           </IconButton>
 
+          <NewsletterSettingsButton />
           <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)}>
             <ModalDialog
               sx={{

@@ -1,0 +1,138 @@
+.nl-controls {
+  font-family: inherit;
+  color: #253539;
+  font-size: 13px;
+  line-height: 1.5;
+  min-width: 0;
+}
+.nl-controls details {
+  border-top: 1px solid #c7d0d2;
+  padding: 10px 0;
+}
+.nl-controls summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #263d42;
+  padding: 6px 0;
+  min-height: 32px;
+}
+.nl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 10px 0;
+  min-width: 0;
+  color: #344b50;
+  font-size: 12px;
+  font-weight: 600;
+}
+.nl-field input,
+.nl-field select,
+.nl-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #9aabad;
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: #fff;
+  color: #203137;
+  font: inherit;
+  font-size: 13px;
+  outline-offset: 2px;
+}
+.nl-field input::placeholder,
+.nl-field textarea::placeholder {
+  color: #62777d;
+  opacity: 1;
+}
+.nl-field input[type="color"] {
+  width: 40px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+.nl-field input:focus,
+.nl-field select:focus,
+.nl-field textarea:focus {
+  outline: 2px solid #1f5b63;
+}
+.nl-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.nl-inline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.nl-fieldset {
+  min-width: 0;
+  border: 1px solid #c7d0d2;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 12px 0;
+}
+.nl-fieldset legend {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 5px;
+}
+.nl-quiet {
+  border: 1px solid #b8c5c8;
+  border-radius: 6px;
+  color: #263d42;
+  background: #f1f4f4;
+  padding: 7px 10px;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nl-action {
+  border: 0;
+  border-radius: 6px;
+  background: #234b49;
+  color: #fff;
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nl-action:disabled,
+.nl-quiet:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.nl-note {
+  font-size: 12px;
+  color: #526b72;
+  margin: 8px 0;
+  line-height: 1.55;
+}
+.nl-error {
+  font-size: 12px;
+  color: #9b2335;
+  line-height: 1.5;
+}
+.nl-preview {
+  overflow-wrap: anywhere;
+  container-type: inline-size;
+}
+.nl-preview img[data-newsletter-image] {
+  cursor: pointer;
+}
+@container (max-width: 440px) {
+  .nl-preview .responsive-column {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 12px !important;
+  }
+  .nl-preview .responsive-image {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}

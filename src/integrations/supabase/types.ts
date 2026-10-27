@@ -14,6 +14,13 @@ export type Database = {
   };
   public: {
     Tables: {
+      crm_saved_blocks: {
+        Row: { id: string; tenant_id: string; created_by: string; name: string; block_data: Json; created_at: string; updated_at: string; save_schema_version: number };
+        Insert: { id?: string; tenant_id: string; created_by: string; name: string; block_data: Json; created_at?: string; updated_at?: string; save_schema_version: number };
+        Update: { name?: string; block_data?: Json; updated_at?: string };
+        Relationships: [];
+      };
+
       admin_audit_log: {
         deleted_at: string | null;
         Row: {
