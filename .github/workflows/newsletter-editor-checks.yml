@@ -1,0 +1,45 @@
+name: Newsletter editor checks
+on:
+  pull_request:
+    paths:
+      - 'src/components/crm/studio/**'
+      - 'src/lib/studio/**'
+      - 'src/types/studioBlocks.ts'
+      - 'src/types/newsletterDesign.ts'
+      - 'src/hooks/useSavedNewsletterBlocks.ts'
+      - 'supabase/functions/_shared/newsletterAudience*'
+      - 'supabase/functions/_shared/campaignEmailSource.ts'
+      - 'supabase/functions/_shared/emailRenderer.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/newsletter-editor-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  newsletter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify Vercel's frozen pnpm lockfile
+        run: npx --yes pnpm@10.34.5 install --lockfile-only --ignore-scripts --frozen-lockfile
+      - name: Shared renderer and editor tests
+        run: npx vitest run src/lib/studio src/components/crm/studio
+      - name: Security gate
+        run: npm run test:security
+      - name: Production build
+        run: npm run build
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.6
+      - name: Conditional recipient safety behavior
+        # The existing full Deno graph has unrelated footer/DOM type errors.
+        # These behavioral tests use mocked database responses and no network.
+        run: deno test --config supabase/functions/deno.json --no-check --no-lock --allow-env supabase/functions/_shared/newsletterAudience.test.ts

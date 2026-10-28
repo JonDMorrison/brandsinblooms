@@ -66,6 +66,20 @@ export const DEFAULT_QUICK_ACCESS_TAGS: string[] = [
  * All available merge tags
  */
 export const MERGE_TAG_DEFINITIONS: MergeTagDefinition[] = [
+  ...[
+    ['Name', 'Store name', 'Art’s Nursery'],
+    ['Phone', 'Store phone', '604-555-0123'],
+    ['Address', 'Store address', '123 Garden Road'],
+    ['Email', 'Store email', 'hello@example.com'],
+    ['Website', 'Store website', 'https://example.com'],
+  ].map(([field, label, example]) => ({
+    key: `Store.${field}`,
+    label,
+    description: `Your account’s ${label.toLowerCase()}`,
+    category: 'company' as const,
+    defaultFallback: '',
+    example,
+  })),
   // Contact Info
   {
     key: 'first_name',

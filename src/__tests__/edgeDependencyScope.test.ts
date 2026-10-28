@@ -30,9 +30,14 @@ describe("edge deployment dependency scope", () => {
         "evaluate-customer-segments",
         "evaluate-segments",
         "recompute-segment-memberships",
+        "process-email-send-queue",
+        "render-email-preview",
+        "send-test-email-v2",
       ]),
     );
-    expect(result.functions.length).toBe(4);
+    // Conditional newsletter rendering validates membership at delivery time.
+    // Its email-worker consumers must be included without deploying the fleet.
+    expect(result.functions.length).toBe(11);
   });
 
   it("follows nested suppression dependencies", () => {

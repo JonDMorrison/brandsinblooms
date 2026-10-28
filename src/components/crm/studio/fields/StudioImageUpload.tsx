@@ -1,3 +1,4 @@
+import ImageUrlField from "../newsletter/ImageUrlField";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -956,7 +957,9 @@ export default function StudioImageUpload({
                   position: "absolute",
                   inset: 0,
                   opacity: 0,
-                  transition: prefersReducedMotion ? "none" : "opacity 200ms ease",
+                  transition: prefersReducedMotion
+                    ? "none"
+                    : "opacity 200ms ease",
                   background:
                     "linear-gradient(0deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)",
                   pointerEvents: "none",
@@ -1128,7 +1131,9 @@ export default function StudioImageUpload({
                     color: isDragActive
                       ? "var(--joy-palette-primary-500)"
                       : "var(--joy-palette-text-tertiary)",
-                    transition: prefersReducedMotion ? "none" : "color 150ms ease",
+                    transition: prefersReducedMotion
+                      ? "none"
+                      : "color 150ms ease",
                   }}
                 />
                 <Typography
@@ -1336,7 +1341,12 @@ export default function StudioImageUpload({
               ) : null}
 
               {quickGenerateState.mode === "loading" ? (
-                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ p: 0.75 }}>
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  alignItems="center"
+                  sx={{ p: 0.75 }}
+                >
                   <CircularProgress size="sm" />
                   <Typography level="body-sm">Generating...</Typography>
                 </Stack>
@@ -1434,6 +1444,13 @@ export default function StudioImageUpload({
           ) : null}
         </Stack>
       ) : null}
+      <ImageUrlField
+        onApply={(url) => {
+          setResolvedUrl(url);
+          setErrorMessage(null);
+          onApplyImage?.(buildApplyEvent(url, "reused", "library"));
+        }}
+      />
     </Stack>
   );
 }

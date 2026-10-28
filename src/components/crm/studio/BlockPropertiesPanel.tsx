@@ -1,3 +1,9 @@
+import AudienceControls from "./newsletter/AudienceControls";
+import ExtendedBlockProperties, {
+  AdditionalBlockFields,
+} from "./newsletter/ExtendedBlockProperties";
+import AppearanceControls, { Field } from "./newsletter/AppearanceControls";
+import { useNewsletterDesign } from "./newsletter/NewsletterDesignContext";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -1910,6 +1916,8 @@ function PanelContent({
   const updateField = React.useCallback(
     (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => {
       onUpdateBlockField(block.id, field, value);
+      if (field === "logoSize")
+        onUpdateBlockField(block.id, "logoSizeExplicit", true);
     },
     [block.id, onUpdateBlockField],
   );
@@ -1960,6 +1968,28 @@ function PanelContent({
     (preset: LayoutPreset) => applyPreset(block, preset, onUpdateBlockField),
     [block, onUpdateBlockField],
   );
+
+  if (
+    [
+      "divider",
+      "preheader",
+      "headline",
+      "youtube",
+      "navigation",
+      "button-group",
+      "text-columns",
+      "data-table",
+      "chart",
+      "survey",
+      "event",
+      "blog",
+      "announcement",
+      "coupon",
+      "image-gallery",
+      "product-gallery",
+    ].includes(block.type)
+  )
+    return <ExtendedBlockProperties block={block} update={updateField} />;
 
   switch (block.type) {
     case "email-safe-hero":
@@ -4607,18 +4637,97 @@ function PanelContent({
     case "coupon":
       return (
         <Stack spacing={1.5} sx={{ width: "100%" }}>
-          <StudioToggleField label="Offer" options={[{ label: "BOGO", value: "bogo" }, { label: "25% off", value: "25" }, { label: "50% off", value: "50" }]} value={block.couponOffer ?? "25"} onChange={(value) => updateField("couponOffer", value as StudioBlock["couponOffer"])} />
-          <StudioTextField label="Title" value={block.headline ?? ""} onChange={(value) => updateField("headline", value)} placeholder="Your offer headline" />
-          <StudioTextField label="Description" multiline minRows={2} value={block.body ?? ""} onChange={(value) => updateField("body", value)} placeholder="What is included?" />
-          <StudioTextField label="Price (optional)" value={block.couponPrice ?? ""} onChange={(value) => updateField("couponPrice", value)} placeholder="e.g. $19.99" />
-          <StudioTextField label="Conditions" multiline minRows={2} value={block.couponConditions ?? ""} onChange={(value) => updateField("couponConditions", value)} placeholder="Expiry, exclusions and terms" />
-          <StudioImageUpload label="Coupon image" value={block.imageUrl ?? ""} onChange={(value) => updateField("imageUrl", value)} {...buildAIUploadProps({ aiAspectRatioHint: "square", blockContext: "Coupon product image", fieldKey: `${block.id}:imageUrl`, value: block.imageUrl ?? "" })} />
-          <StudioTextField label="Image alt text" value={block.imageAlt ?? ""} onChange={(value) => updateField("imageAlt", value)} />
-          <StudioToggleField label="Image placement" options={[{ label: "Left", value: "left" }, { label: "Right", value: "right" }]} value={block.couponImageSide ?? "left"} onChange={(value) => updateField("couponImageSide", value as StudioBlock["couponImageSide"])} />
-          <StudioSwitchField label="Coupon border" checked={block.couponBorder ?? true} onChange={(value) => updateField("couponBorder", value)} />
-          <StudioSwitchField label="Scissors / cut line" checked={block.couponScissors ?? true} onChange={(value) => updateField("couponScissors", value)} />
-          <StudioTextField label="Link text" value={block.buttonText ?? ""} onChange={(value) => updateField("buttonText", value)} />
-          <StudioTextField label="Website link" value={block.buttonUrl ?? ""} onChange={(value) => updateField("buttonUrl", value)} placeholder="https://..." />
+          <StudioToggleField
+            label="Offer"
+            options={[
+              { label: "BOGO", value: "bogo" },
+              { label: "25% off", value: "25" },
+              { label: "50% off", value: "50" },
+            ]}
+            value={block.couponOffer ?? "25"}
+            onChange={(value) =>
+              updateField("couponOffer", value as StudioBlock["couponOffer"])
+            }
+          />
+          <StudioTextField
+            label="Title"
+            value={block.headline ?? ""}
+            onChange={(value) => updateField("headline", value)}
+            placeholder="Your offer headline"
+          />
+          <StudioTextField
+            label="Description"
+            multiline
+            minRows={2}
+            value={block.body ?? ""}
+            onChange={(value) => updateField("body", value)}
+            placeholder="What is included?"
+          />
+          <StudioTextField
+            label="Price (optional)"
+            value={block.couponPrice ?? ""}
+            onChange={(value) => updateField("couponPrice", value)}
+            placeholder="e.g. $19.99"
+          />
+          <StudioTextField
+            label="Conditions"
+            multiline
+            minRows={2}
+            value={block.couponConditions ?? ""}
+            onChange={(value) => updateField("couponConditions", value)}
+            placeholder="Expiry, exclusions and terms"
+          />
+          <StudioImageUpload
+            label="Coupon image"
+            value={block.imageUrl ?? ""}
+            onChange={(value) => updateField("imageUrl", value)}
+            {...buildAIUploadProps({
+              aiAspectRatioHint: "square",
+              blockContext: "Coupon product image",
+              fieldKey: `${block.id}:imageUrl`,
+              value: block.imageUrl ?? "",
+            })}
+          />
+          <StudioTextField
+            label="Image alt text"
+            value={block.imageAlt ?? ""}
+            onChange={(value) => updateField("imageAlt", value)}
+          />
+          <StudioToggleField
+            label="Image placement"
+            options={[
+              { label: "Left", value: "left" },
+              { label: "Right", value: "right" },
+            ]}
+            value={block.couponImageSide ?? "left"}
+            onChange={(value) =>
+              updateField(
+                "couponImageSide",
+                value as StudioBlock["couponImageSide"],
+              )
+            }
+          />
+          <StudioSwitchField
+            label="Coupon border"
+            checked={block.couponBorder ?? true}
+            onChange={(value) => updateField("couponBorder", value)}
+          />
+          <StudioSwitchField
+            label="Scissors / cut line"
+            checked={block.couponScissors ?? true}
+            onChange={(value) => updateField("couponScissors", value)}
+          />
+          <StudioTextField
+            label="Link text"
+            value={block.buttonText ?? ""}
+            onChange={(value) => updateField("buttonText", value)}
+          />
+          <StudioTextField
+            label="Website link"
+            value={block.buttonUrl ?? ""}
+            onChange={(value) => updateField("buttonUrl", value)}
+            placeholder="https://..."
+          />
         </Stack>
       );
     case "product-card":
@@ -4991,6 +5100,7 @@ export default function BlockPropertiesPanel({
   restoreScrollPosition,
   suppressed = false,
 }: BlockPropertiesPanelProps) {
+  const { settings } = useNewsletterDesign();
   const block = React.useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
     [blocks, selectedBlockId],
@@ -5041,7 +5151,7 @@ export default function BlockPropertiesPanel({
         display: "grid",
         position: { xs: "fixed", md: "relative" },
         inset: { xs: 0, md: "auto" },
-        width: { xs: "100vw", md: 340 },
+        width: { xs: "100vw", md: 340, xl: 420 },
         maxWidth: "100%",
         boxSizing: "border-box",
         minHeight: 0,
@@ -5113,7 +5223,7 @@ export default function BlockPropertiesPanel({
               noWrap
               sx={{ fontSize: "15px", fontWeight: 600, color: "neutral.800" }}
             >
-              {blockDefinition?.name ?? "Block Properties"}
+              {`Properties · ${blockDefinition?.name ?? "Select a block"}`}
             </Typography>
           </Stack>
           <IconButton
@@ -5164,6 +5274,16 @@ export default function BlockPropertiesPanel({
           pointerEvents: panelVisible ? "auto" : "none",
         }}
       >
+        {block && (
+          <Box sx={{ px: 2.5, pt: 1 }}>
+            <Field
+              label="Block name"
+              value={block.label}
+              onChange={(value) => onUpdateBlockField(block.id, "label", value)}
+              placeholder="Name this block for your outline and saved library"
+            />
+          </Box>
+        )}
         {block ? (
           <PanelContent
             key={block.id}
@@ -5177,6 +5297,33 @@ export default function BlockPropertiesPanel({
             resolveCampaignImageFieldSource={resolveCampaignImageFieldSource}
           />
         ) : null}
+        {block && (
+          <AudienceControls
+            block={block}
+            onChange={(value) =>
+              onUpdateBlockField(block.id, "audience", value)
+            }
+          />
+        )}
+        {block && (
+          <AdditionalBlockFields
+            block={block}
+            update={(field, value) =>
+              onUpdateBlockField(block.id, field, value)
+            }
+          />
+        )}
+        {block && (
+          <Box sx={{ px: 2.5, pb: 3 }}>
+            <AppearanceControls
+              value={block.appearance}
+              onChange={(value) =>
+                onUpdateBlockField(block.id, "appearance", value)
+              }
+              allowedFonts={settings?.allowedFonts}
+            />
+          </Box>
+        )}
       </Box>
     </Sheet>
   );

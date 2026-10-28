@@ -104,8 +104,112 @@ export function createStudioBlock(
   } satisfies Pick<StudioBlock, "id" | "type" | "label" | "order" | "visible">;
 
   switch (type) {
+    case "preheader":
+      return {
+        ...base,
+        body: "",
+        appearance: {
+          text: { smallPrint: { size: 12, color: "#46595a" } },
+          padding: { top: 8, right: 24, bottom: 8, left: 24 },
+        },
+      };
+    case "headline":
+      return {
+        ...base,
+        headline: "",
+        headingLevel: "h2",
+        appearance: { padding: { top: 16, right: 24, bottom: 16, left: 24 } },
+      };
+    case "youtube":
+      return {
+        ...base,
+        videoUrl: "",
+        imageUrl: "",
+        headline: "",
+        body: "",
+        buttonText: "Watch video",
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "navigation":
+    case "button-group":
+      return {
+        ...base,
+        links: [{ id: crypto.randomUUID(), label: "", url: "" }],
+        buttonColor: primaryColor || "#1f4341",
+        buttonTextColor: "#ffffff",
+        appearance: { padding: { top: 12, right: 16, bottom: 12, left: 16 } },
+      };
+    case "text-columns":
+      return {
+        ...base,
+        textColumns: ["", ""],
+        appearance: { padding: { top: 24, right: 14, bottom: 24, left: 14 } },
+      };
+    case "data-table":
+      return {
+        ...base,
+        tableCaption: "",
+        tableHeaders: ["", ""],
+        tableRows: [["", ""]],
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "chart":
+      return {
+        ...base,
+        headline: "",
+        chartData: [],
+        chartUnit: "",
+        accentColor: primaryColor || "#1f4341",
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "survey":
+      return {
+        ...base,
+        headline: "",
+        body: "",
+        links: [],
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "event":
+    case "blog":
+    case "announcement":
+      return {
+        ...base,
+        headline: "",
+        subheading: "",
+        body: "",
+        imageUrl: "",
+        imagePosition: "top",
+        buttonText:
+          type === "event"
+            ? "Book your place"
+            : type === "blog"
+              ? "Read the article"
+              : "Learn more",
+        buttonUrl: "",
+        buttonColor: primaryColor || "#1f4341",
+        buttonTextColor: "#ffffff",
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+
     case "coupon":
-      return { ...base, headline: "", body: "", couponOffer: "25", couponPrice: "", couponConditions: "", couponImageSide: "left", couponBorder: true, couponScissors: true, imageUrl: "", imageAlt: "", buttonText: "Shop this offer", buttonUrl: "", backgroundColor: "#ffffff", textColor: "#172d2c" };
+      return {
+        ...base,
+        headline: "",
+        body: "",
+        couponOffer: "25",
+        couponPrice: "",
+        couponConditions: "",
+        couponImageSide: "left",
+        couponBorder: true,
+        couponScissors: true,
+        imageUrl: "",
+        imageAlt: "",
+        buttonText: "Shop this offer",
+        buttonUrl: "",
+        backgroundColor: "#ffffff",
+        textColor: "#172d2c",
+      };
     case "email-safe-hero":
       return {
         ...base,
@@ -316,8 +420,8 @@ export function createStudioBlock(
       return {
         ...base,
         galleryImages: [],
-        layout: "grid-3",
-        layoutPreset: "gallery-grid-3",
+        layout: "row-3",
+        layoutPreset: "gallery-row-3",
         gridColumns: 3,
         imageHeight: 180,
         gridGap: 8,
@@ -328,12 +432,12 @@ export function createStudioBlock(
     case "product-gallery":
       return {
         ...base,
-        galleryProducts: Array.from({ length: 4 }, () =>
+        galleryProducts: Array.from({ length: 3 }, () =>
           createEmptyGalleryProduct(),
         ),
-        layout: "standard-grid",
-        layoutPreset: "product-gallery-standard",
-        gridColumns: 2,
+        layout: "row-3",
+        layoutPreset: "product-gallery-row-3",
+        gridColumns: 3,
         imageHeight: 160,
         cardGap: 16,
         backgroundColor: "#ffffff",

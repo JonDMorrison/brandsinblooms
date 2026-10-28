@@ -1,3 +1,4 @@
+import { NewsletterDesignContext } from "@/components/crm/studio/newsletter/NewsletterDesignContext";
 import * as React from "react";
 import {
   DndContext,
@@ -2152,210 +2153,224 @@ function CampaignStudioPageContent() {
   }
 
   return (
-    <Sheet
-      component="main"
-      onKeyDownCapture={handleStudioTreeKeyDown}
-      sx={{
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden",
-        bgcolor: "background.surface",
-        display: "grid",
-        gridTemplateRows: "52px minmax(0, 1fr) 36px",
-        "& button, & [role='button'], & input, & textarea": {
-          transition: "all 120ms ease",
-        },
-        "& button:focus-visible, & [role='button']:focus-visible, & input:focus-visible, & textarea:focus-visible":
-          {
-            outline: "1.5px solid",
-            outlineColor: "primary.300",
-            outlineOffset: "2px",
-          },
+    <NewsletterDesignContext.Provider
+      value={{
+        settings: studio.newsletterSettings,
+        onChange: studio.setNewsletterSettings,
       }}
     >
-      <DndContext
-        sensors={sensors}
-        collisionDetection={collisionDetection}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
+      <Sheet
+        component="main"
+        onKeyDownCapture={handleStudioTreeKeyDown}
+        sx={{
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          bgcolor: "background.surface",
+          display: "grid",
+          gridTemplateRows: "52px minmax(0, 1fr) 36px",
+          "& button, & [role='button'], & input, & textarea": {
+            transition: "all 120ms ease",
+          },
+          "& button:focus-visible, & [role='button']:focus-visible, & input:focus-visible, & textarea:focus-visible":
+            {
+              outline: "1.5px solid",
+              outlineColor: "primary.300",
+              outlineOffset: "2px",
+            },
+        }}
       >
-        <Box
-          sx={{
-            position: "relative",
-            zIndex:
-              aiStudioOpen && !isMobileViewport
-                ? (theme) => (theme.vars.zIndex.modal ?? theme.zIndex.modal) + 2
-                : 1,
-          }}
-        >
-          <StudioTopBar
-            campaignId={campaignId}
-            campaignName={studio.campaignName}
-            onCampaignNameChange={studio.setCampaignName}
-            campaignStatus={studio.campaignStatus}
-            blockCount={studio.blocks.length}
-            blocks={studio.blocks}
-            deviceMode={studio.deviceMode}
-            onDeviceModeChange={studio.setDeviceMode}
-            subjectLine={studio.subjectLine}
-            onSubjectLineChange={studio.setSubjectLine}
-            previewText={studio.previewText}
-            onPreviewTextChange={studio.setPreviewText}
-            senderName={studio.senderName}
-            onSenderNameChange={studio.setSenderName}
-            senderEmail={studio.senderEmail}
-            onSenderEmailChange={studio.setSenderEmail}
-            saveStatus={saveStatus}
-            saveMessage={saveMessage}
-            hasUnsavedChanges={hasUnsavedChanges}
-            externalUpdateNotice={externalUpdateNotice}
-            onDismissExternalUpdate={() => setExternalUpdateNotice(null)}
-            onReloadCampaign={() => {
-              setExternalUpdateNotice(null);
-              setLoadRevision((revision) => revision + 1);
-            }}
-            onSave={handleSave}
-            onSaveAsTemplate={() => setSaveTemplateOpen(true)}
-            onExit={() => {
-              void handleExit();
-            }}
-            onUndo={studio.undo}
-            onRedo={studio.redo}
-            canUndo={studio.canUndo}
-            canRedo={studio.canRedo}
-            lastSavedAt={lastSavedAt}
-          />
-        </Box>
-
-        <SortableContext
-          items={studio.blocks.map((block) => block.id)}
-          strategy={verticalListSortingStrategy}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={collisionDetection}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
           <Box
             sx={{
-              minHeight: 0,
-              display: "grid",
-              transition:
-                "grid-template-columns 200ms cubic-bezier(0.4, 0, 0.2, 1)",
-              gridTemplateColumns: {
-                xs: "minmax(0, 1fr)",
-                md: `264px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 340 : 0}px`,
-              },
+              position: "relative",
+              zIndex:
+                aiStudioOpen && !isMobileViewport
+                  ? (theme) =>
+                      (theme.vars.zIndex.modal ?? theme.zIndex.modal) + 2
+                  : 1,
             }}
           >
-            <Sheet
-              sx={{
-                display: { xs: "none", md: "flex" },
-                minHeight: 0,
-                bgcolor: "background.surface",
-              }}
-            >
-              <BlockLibrary
-                blocks={studio.blocks}
-                onAddBlock={studio.addBlock}
-                onInsertSavedBlock={studio.insertSavedBlock}
-                onSelectBlock={handleFocusBlock}
-              />
-            </Sheet>
-
-            <Box
-              sx={{
-                minWidth: 0,
-                minHeight: 0,
-                pointerEvents: aiStudioOpen ? "none" : "auto",
-              }}
-            >
-              <StudioCanvas
-                blocks={studio.blocks}
-                selectedBlockId={studio.selectedBlockId}
-                canvasWidth={studio.canvasWidth}
-                activeDropIndex={studio.activeDropIndex}
-                isSidebarDragActive={Boolean(studio.activeSidebarDragBlock)}
-                isDraggingOverCanvas={studio.isDraggingOverCanvas}
-                recentlyAddedBlockId={studio.recentlyAddedBlockId}
-                removingBlockIds={studio.removingBlockIds}
-                onReorder={(blockId, instruction) => {
-                  if (instruction.kind === "direction") {
-                    studio.reorderBlock(blockId, instruction.direction);
-                  }
-                }}
-                onSelect={studio.selectBlock}
-                onDelete={studio.removeBlock}
-                onDuplicate={studio.duplicateBlock}
-                onInsertAt={(index, blockType) =>
-                  studio.addBlock(blockType, index)
-                }
-                onDoubleClickBlock={studio.logFocusFirstPropertyField}
-                onUpdateBlockField={studio.updateBlockField}
-              />
-            </Box>
-
-            <BlockPropertiesPanel
-              campaignImageGallery={studio.campaignImageGallery}
+            <StudioTopBar
+              campaignId={campaignId}
               campaignName={studio.campaignName}
-              campaignType={activeCampaignType}
-              selectedBlockId={studio.selectedBlockId}
+              onCampaignNameChange={studio.setCampaignName}
+              campaignStatus={studio.campaignStatus}
+              blockCount={studio.blocks.length}
               blocks={studio.blocks}
-              open={studio.isPropertiesPanelOpen}
-              onClose={() => studio.selectBlock(null)}
-              onRequestAIImage={handleRequestAIImage}
-              onTrackCampaignImageUsage={handleTrackCampaignImageUsage}
-              onRestoreComplete={handlePropertiesPanelRestoreComplete}
-              onScrollPositionChange={(scrollTop) => {
-                propertiesPanelScrollPositionRef.current = scrollTop;
+              deviceMode={studio.deviceMode}
+              onDeviceModeChange={studio.setDeviceMode}
+              subjectLine={studio.subjectLine}
+              onSubjectLineChange={studio.setSubjectLine}
+              previewText={studio.previewText}
+              onPreviewTextChange={studio.setPreviewText}
+              senderName={studio.senderName}
+              onSenderNameChange={studio.setSenderName}
+              senderEmail={studio.senderEmail}
+              onSenderEmailChange={studio.setSenderEmail}
+              saveStatus={saveStatus}
+              saveMessage={saveMessage}
+              hasUnsavedChanges={hasUnsavedChanges}
+              externalUpdateNotice={externalUpdateNotice}
+              onDismissExternalUpdate={() => setExternalUpdateNotice(null)}
+              onReloadCampaign={() => {
+                setExternalUpdateNotice(null);
+                setLoadRevision((revision) => revision + 1);
               }}
-              onUpdateBlockField={studio.updateBlockField}
-              resolveCampaignImageFieldSource={
-                studio.resolveCampaignImageFieldSource
-              }
-              restoreScrollPosition={preservedScrollPosition}
-              suppressed={propertiesPanelSuppressed}
+              onSave={handleSave}
+              onSaveAsTemplate={() => setSaveTemplateOpen(true)}
+              onExit={() => {
+                void handleExit();
+              }}
+              onUndo={studio.undo}
+              onRedo={studio.redo}
+              canUndo={studio.canUndo}
+              canRedo={studio.canRedo}
+              lastSavedAt={lastSavedAt}
             />
           </Box>
-        </SortableContext>
 
-        <StudioBottomBar
-          blockCount={studio.blocks.length}
-          wordCountEstimate={studio.estimatedWordCount}
-          canvasWidth={studio.canvasWidth}
-          dropLabel={
-            studio.isDraggingOverCanvas
-              ? (studio.activeSidebarDragBlock?.label ?? null)
-              : null
-          }
+          <SortableContext
+            items={studio.blocks.map((block) => block.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <Box
+              sx={{
+                minHeight: 0,
+                display: "grid",
+                transition:
+                  "grid-template-columns 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  md: `264px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 340 : 0}px`,
+                  xl: `288px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 420 : 0}px`,
+                },
+              }}
+            >
+              <Sheet
+                sx={{
+                  display: { xs: "none", md: "flex" },
+                  minHeight: 0,
+                  bgcolor: "background.surface",
+                }}
+              >
+                <BlockLibrary
+                  blocks={studio.blocks}
+                  onAddBlock={studio.addBlock}
+                  onInsertSavedBlock={studio.insertSavedBlock}
+                  onInsertImportedBlocks={studio.insertImportedBlocks}
+                  onDuplicateBlock={studio.duplicateBlock}
+                  onDeleteBlock={studio.removeBlock}
+                  onMoveBlock={studio.reorderBlock}
+                  selectedBlockId={studio.selectedBlockId}
+                  onSelectBlock={handleFocusBlock}
+                />
+              </Sheet>
+
+              <Box
+                sx={{
+                  minWidth: 0,
+                  minHeight: 0,
+                  pointerEvents: aiStudioOpen ? "none" : "auto",
+                }}
+              >
+                <StudioCanvas
+                  blocks={studio.blocks}
+                  selectedBlockId={studio.selectedBlockId}
+                  canvasWidth={studio.canvasWidth}
+                  activeDropIndex={studio.activeDropIndex}
+                  isSidebarDragActive={Boolean(studio.activeSidebarDragBlock)}
+                  isDraggingOverCanvas={studio.isDraggingOverCanvas}
+                  recentlyAddedBlockId={studio.recentlyAddedBlockId}
+                  removingBlockIds={studio.removingBlockIds}
+                  onReorder={(blockId, instruction) => {
+                    if (instruction.kind === "direction") {
+                      studio.reorderBlock(blockId, instruction.direction);
+                    }
+                  }}
+                  onSelect={studio.selectBlock}
+                  onDelete={studio.removeBlock}
+                  onDuplicate={studio.duplicateBlock}
+                  onInsertAt={(index, blockType) =>
+                    studio.addBlock(blockType, index)
+                  }
+                  onDoubleClickBlock={studio.logFocusFirstPropertyField}
+                  onUpdateBlockField={studio.updateBlockField}
+                />
+              </Box>
+
+              <BlockPropertiesPanel
+                campaignImageGallery={studio.campaignImageGallery}
+                campaignName={studio.campaignName}
+                campaignType={activeCampaignType}
+                selectedBlockId={studio.selectedBlockId}
+                blocks={studio.blocks}
+                open={studio.isPropertiesPanelOpen}
+                onClose={() => studio.selectBlock(null)}
+                onRequestAIImage={handleRequestAIImage}
+                onTrackCampaignImageUsage={handleTrackCampaignImageUsage}
+                onRestoreComplete={handlePropertiesPanelRestoreComplete}
+                onScrollPositionChange={(scrollTop) => {
+                  propertiesPanelScrollPositionRef.current = scrollTop;
+                }}
+                onUpdateBlockField={studio.updateBlockField}
+                resolveCampaignImageFieldSource={
+                  studio.resolveCampaignImageFieldSource
+                }
+                restoreScrollPosition={preservedScrollPosition}
+                suppressed={propertiesPanelSuppressed}
+              />
+            </Box>
+          </SortableContext>
+
+          <StudioBottomBar
+            blockCount={studio.blocks.length}
+            wordCountEstimate={studio.estimatedWordCount}
+            canvasWidth={studio.canvasWidth}
+            dropLabel={
+              studio.isDraggingOverCanvas
+                ? (studio.activeSidebarDragBlock?.label ?? null)
+                : null
+            }
+          />
+
+          <DragOverlay>
+            {studio.activeSidebarDragBlock ? (
+              <BlockDragOverlay
+                type={studio.activeSidebarDragBlock.type}
+                label={studio.activeSidebarDragBlock.label}
+              />
+            ) : activeCanvasDragBlock ? (
+              <BlockDragOverlay
+                type={activeCanvasDragBlock.type}
+                label={activeCanvasDragBlock.label}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+        <SaveAsTemplateModal
+          open={saveTemplateOpen}
+          onClose={() => setSaveTemplateOpen(false)}
+          saving={isSavingTemplate}
+          onSave={async ({ name, description }) => {
+            await saveTemplate({
+              name,
+              description: description || null,
+              contentBlocks: studio.blocks,
+            });
+            toast.success("Saved to My templates");
+            setSaveTemplateOpen(false);
+          }}
         />
-
-        <DragOverlay>
-          {studio.activeSidebarDragBlock ? (
-            <BlockDragOverlay
-              type={studio.activeSidebarDragBlock.type}
-              label={studio.activeSidebarDragBlock.label}
-            />
-          ) : activeCanvasDragBlock ? (
-            <BlockDragOverlay
-              type={activeCanvasDragBlock.type}
-              label={activeCanvasDragBlock.label}
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-      <SaveAsTemplateModal
-        open={saveTemplateOpen}
-        onClose={() => setSaveTemplateOpen(false)}
-        saving={isSavingTemplate}
-        onSave={async ({ name, description }) => {
-          await saveTemplate({
-            name,
-            description: description || null,
-            contentBlocks: studio.blocks,
-          });
-          toast.success("Saved to My templates");
-          setSaveTemplateOpen(false);
-        }}
-      />
-    </Sheet>
+      </Sheet>
+    </NewsletterDesignContext.Provider>
   );
 }
 

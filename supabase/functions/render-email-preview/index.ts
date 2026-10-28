@@ -1,3 +1,8 @@
+import {
+  assertNewsletterPreviewAccess,
+  NewsletterPreviewAccessError,
+} from "../_shared/newsletterPreviewAccess.ts";
+import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
 /**
  * Render Email Preview Edge Function
  *
@@ -107,7 +112,7 @@ async function buildTrackedLinkMap({
     }
   });
 
-  if (map.size > 0) {
+  if (map.size > 0 && requestedNewsletterSegments(contentBlocks).length === 0) {
     return map;
   }
 
@@ -118,9 +123,9 @@ async function buildTrackedLinkMap({
     previewText,
     html,
     contentBlocks,
-    customer,
+    customer: null,
     companyProfile,
-    mode: "send",
+    mode: "preview",
     includeFooter: true,
     enableLinkTracking: false,
   });
@@ -174,7 +179,9 @@ serve(async (req) => {
         headers: corsHeaders,
       });
     }
-    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    const trustedService =
+      Boolean(serviceRoleKey) && authHeader === `Bearer ${serviceRoleKey}`;
+    if (!trustedService) {
       const token = authHeader.replace("Bearer ", "");
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
@@ -226,6 +233,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
+    const accessClient = trustedService
+      ? supabase
+      : createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+          {
+            global: { headers: { Authorization: authHeader } },
+            auth: { persistSession: false },
+          },
+        );
     // Get tenant ID from auth or request
     let tenantId = body.tenantId;
 
@@ -252,6 +269,13 @@ serve(async (req) => {
       tenantId = "preview-tenant";
     }
 
+    await assertNewsletterPreviewAccess(accessClient, {
+      tenantId,
+      campaignId,
+      customerId,
+      trustedService,
+    });
+
     console.log(
       `📧 Render preview: tenantId=${tenantId}, customerId=${customerId || "sample"}, campaignId=${campaignId || "n/a"}`,
     );
@@ -262,11 +286,16 @@ serve(async (req) => {
 
     // Load real customer if ID provided
     if (customerId) {
-      const { data: customerData } = await supabase
+      const { data: customerData, error: customerError } = await accessClient
         .from("crm_customers")
         .select("*")
         .eq("id", customerId)
-        .single();
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (customerError || !customerData)
+        throw new NewsletterPreviewAccessError(
+          "This preview contact is not available in the selected account.",
+        );
 
       if (customerData) {
         customer = toCustomerShape(customerData as Record<string, any>);
@@ -364,7 +393,8 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : "Unknown error",
       }),
       {
-        status: 500,
+        status:
+          error instanceof NewsletterPreviewAccessError ? error.status : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
