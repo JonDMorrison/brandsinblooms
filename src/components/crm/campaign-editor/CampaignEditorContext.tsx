@@ -784,31 +784,13 @@ export function CampaignEditorProvider({
 
       setState((current) => ({ ...current, isAudienceLoading: true }));
       try {
-        let count: number;
-        const hasLegacyAllContactsFallback =
-          !state.includeAllCustomers &&
-          state.additionalCustomerIds.length === 0 &&
-          state.selectedSegments.length === 0 &&
-          state.selectedPersonas.length === 0;
-
-        if (hasLegacyAllContactsFallback) {
-          // "All Contacts" mode — count all emailable customers for this tenant
-          const { count: total } = await supabase
-            .from("crm_customers")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant.id)
-            .not("email", "is", null)
-            .not("email_opt_in", "is", false);
-          count = total ?? 0;
-        } else {
-          count = await computeAudienceRecipientCount({
-            tenantId: tenant.id,
-            includeAllCustomers: state.includeAllCustomers,
-            additionalCustomerIds: state.additionalCustomerIds,
-            segmentIds: state.selectedSegments.map((segment) => segment.id),
-            personaIds: state.selectedPersonas.map((persona) => persona.id),
-          });
-        }
+        const count = await computeAudienceRecipientCount({
+          tenantId: tenant.id,
+          includeAllCustomers: state.includeAllCustomers,
+          additionalCustomerIds: state.additionalCustomerIds,
+          segmentIds: state.selectedSegments.map((segment) => segment.id),
+          personaIds: state.selectedPersonas.map((persona) => persona.id),
+        });
 
         if (!cancelled) {
           setState((current) => ({
