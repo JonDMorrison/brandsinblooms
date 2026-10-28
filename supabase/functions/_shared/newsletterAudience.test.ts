@@ -25,6 +25,8 @@ async function withDatabase(
     customer?: unknown;
     segments?: unknown;
     membership?: unknown;
+    activity?: unknown;
+    targets?: unknown;
     error?: boolean;
   },
   run: (calls: URL[]) => Promise<void>,
@@ -62,6 +64,10 @@ async function withDatabase(
       ];
     else if (url.pathname.endsWith("/customer_segments"))
       payload = replies.membership || [];
+    else if (url.pathname.endsWith("/customer_location_activity"))
+      payload = replies.activity || [];
+    else if (url.pathname.endsWith("/segment_location_targets"))
+      payload = replies.targets || [];
     else throw new Error("Unexpected external request in audience test");
     return Promise.resolve(
       new Response(
@@ -204,4 +210,136 @@ Deno.test("database failures stop conditional send for retry", () =>
     }
     equal(rejected, true);
   }),
+);
+
+const locationA = "00000000-0000-4000-8000-000000000010";
+const locationB = "00000000-0000-4000-8000-000000000011";
+Deno.test(
+  "all-customers segments cannot bypass their store location scope",
+  () =>
+    withDatabase(
+      {
+        customer: {
+          id: customer,
+          tenant_id: tenant,
+          primary_location_id: locationB,
+        },
+        segments: [
+          {
+            id: segment,
+            status: "active",
+            include_all_customers: true,
+            location_scope: "one_location",
+            primary_location_id: locationA,
+          },
+        ],
+      },
+      async () => {
+        equal(
+          await resolveNewsletterAudience({
+            tenantId: tenant,
+            customerId: customer,
+            blocks,
+            preview: false,
+          }),
+          { segmentIds: [] },
+        );
+      },
+    ),
+);
+Deno.test(
+  "primary store association permits a store-scoped conditional block",
+  () =>
+    withDatabase(
+      {
+        customer: {
+          id: customer,
+          tenant_id: tenant,
+          primary_location_id: locationA,
+        },
+        segments: [
+          {
+            id: segment,
+            status: "active",
+            include_all_customers: true,
+            location_scope: "one_location",
+            primary_location_id: locationA,
+          },
+        ],
+      },
+      async () => {
+        equal(
+          await resolveNewsletterAudience({
+            tenantId: tenant,
+            customerId: customer,
+            blocks,
+            preview: false,
+          }),
+          { segmentIds: [segment] },
+        );
+      },
+    ),
+);
+Deno.test(
+  "selected store scopes use tenant-scoped activity evidence and explicit targets",
+  () =>
+    withDatabase(
+      {
+        activity: [{ location_id: locationB }],
+        targets: [{ segment_id: segment, location_id: locationB }],
+        segments: [
+          {
+            id: segment,
+            status: "active",
+            include_all_customers: true,
+            location_scope: "selected_locations",
+          },
+        ],
+      },
+      async (calls) => {
+        equal(
+          await resolveNewsletterAudience({
+            tenantId: tenant,
+            customerId: customer,
+            blocks,
+            preview: false,
+          }),
+          { segmentIds: [segment] },
+        );
+        for (const url of calls.filter(
+          (url) =>
+            url.pathname.endsWith("/customer_location_activity") ||
+            url.pathname.endsWith("/segment_location_targets"),
+        ))
+          equal(url.searchParams.get("tenant_id"), `eq.${tenant}`);
+      },
+    ),
+);
+Deno.test(
+  "a selected-store segment with no configured target fails closed",
+  () =>
+    withDatabase(
+      {
+        activity: [{ location_id: locationB }],
+        segments: [
+          {
+            id: segment,
+            status: "active",
+            include_all_customers: true,
+            location_scope: "selected_locations",
+          },
+        ],
+      },
+      async () => {
+        equal(
+          await resolveNewsletterAudience({
+            tenantId: tenant,
+            customerId: customer,
+            blocks,
+            preview: false,
+          }),
+          { segmentIds: [] },
+        );
+      },
+    ),
 );

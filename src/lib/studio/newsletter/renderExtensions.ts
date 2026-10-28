@@ -75,7 +75,7 @@ export function renderNewsletterButton(
   const padding = link
     ? "0"
     : `${clampNumber(block.appearance?.buttonPaddingY, defaultY, 0, 48)}px ${clampNumber(block.appearance?.buttonPaddingX, defaultX, 0, 96)}px`;
-  return `<a data-newsletter-role="button" href="${attr(href)}" target="_blank" rel="noopener noreferrer" style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? block.appearance?.linkDecoration || "underline" : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</a>`;
+  return `<a data-newsletter-role="button" href="${attr(href)}" target="_blank" rel="noopener noreferrer" style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</a>`;
 }
 function picture(block: StudioBlock, width = 220): string {
   const url = safeEmailUrl(block.imageUrl, true);
@@ -180,7 +180,7 @@ export function renderCoupon(block: StudioBlock, width: number): string {
   const barcodeUrl = safeEmailUrl(block.couponBarcodeImageUrl, true);
   const barcode =
     block.couponBarcode && validUpcA(block.couponBarcode) && barcodeUrl
-      ? `<div style="padding-top:16px;text-align:center;"><img src="${attr(barcodeUrl)}" width="250" alt="UPC ${attr(block.couponBarcode)}" style="max-width:100%;height:auto;" /><div style="font-family:monospace;font-size:13px;">${text(block.couponBarcode)}</div></div>`
+      ? `<div style="padding-top:16px;text-align:center;"><img data-newsletter-readonly="true" src="${attr(barcodeUrl)}" width="250" alt="UPC ${attr(block.couponBarcode)}" style="max-width:100%;height:auto;" /><div style="font-family:monospace;font-size:13px;">${text(block.couponBarcode)}</div></div>`
       : "";
   const content =
     badges(block) +
@@ -229,26 +229,32 @@ export function renderExtendedBlock(
     case "product-card": {
       const content =
         badges(block) +
-        heading(block, block.productName || block.headline) +
+        heading(block, block.productName ?? block.headline) +
         paragraph(
           block,
-          block.productSubtitle || block.subheading,
+          block.productSubtitle ?? block.subheading,
           "subheading",
           16,
         ) +
         (block.productPrice
           ? `<div data-newsletter-role="price" style="margin:8px 0;${role(block, "price", 22, 700)}">${text(block.productPrice)}${block.originalPrice ? ` <s style="font-size:14px;font-weight:400;">${text(block.originalPrice)}</s>` : ""}</div>`
           : "") +
-        paragraph(block, block.productDescription || block.body) +
+        paragraph(block, block.productDescription ?? block.body) +
         renderNewsletterButton(block);
       const side =
-        block.imagePosition === "top" || block.layout === "image-top"
-          ? "top"
-          : block.imagePosition === "right" || block.layout === "image-right"
-            ? "right"
-            : "left";
+        block.imagePosition === "left" ||
+        block.imagePosition === "right" ||
+        block.imagePosition === "top"
+          ? block.imagePosition
+          : block.layout === "image-top"
+            ? "top"
+            : block.layout === "image-right"
+              ? "right"
+              : "left";
       const border =
-        block.appearance?.border || block.showBorder === false
+        block.appearance?.border ||
+        block.showBorder === false ||
+        block.showCardBorder === false
           ? "none"
           : "1px solid #cbd5e1";
       return `<div style="padding:${block.appearance?.padding ? "0" : "24px"};border:${border};border-radius:${clampNumber(block.cardBorderRadius, 10, 0, 48)}px;background:${emailColor(block.backgroundColor, "#ffffff")};">${imageAndContent(block, content, side, width - 48)}</div>`;
@@ -293,13 +299,15 @@ export function renderExtendedBlock(
           paragraph(block, product.name, "heading", 17) +
           paragraph(block, product.altName, "subheading", 13) +
           (block.showPrices !== false && product.price
-            ? `<div data-newsletter-role="price" style="${role(block, "price", 16, 700)}">${text(product.price)}${product.originalPrice ? ` <s style="font-weight:400;font-size:13px;">${text(product.originalPrice)}</s>` : ""}</div>`
+            ? `<div data-newsletter-role="price" style="${role(block, "price", 16, 700)}">${text(product.price)}${block.showOriginalPrice !== false && product.originalPrice ? ` <s style="font-weight:400;font-size:13px;">${text(product.originalPrice)}</s>` : ""}</div>`
             : "") +
-          paragraph(block, product.description, "body", 13) +
+          (block.showDescription !== false
+            ? paragraph(block, product.description, "body", 13)
+            : "") +
           (block.showCtaButtons !== false
             ? renderNewsletterButton(productBlock)
             : "");
-        return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};"><tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr></table></td>`;
+        return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};"><tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr></table></td>`;
       });
       const rows: string[] = [];
       for (let i = 0; i < cells.length; i += columns)

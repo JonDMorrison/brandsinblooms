@@ -19,6 +19,8 @@ ALTER TABLE public.crm_saved_blocks DROP CONSTRAINT IF EXISTS crm_saved_blocks_v
 ALTER TABLE public.crm_saved_blocks ADD CONSTRAINT crm_saved_blocks_version_check CHECK (save_schema_version = 2);
 ALTER TABLE public.crm_saved_blocks DROP CONSTRAINT IF EXISTS crm_saved_blocks_payload_limit;
 ALTER TABLE public.crm_saved_blocks ADD CONSTRAINT crm_saved_blocks_payload_limit CHECK (octet_length(block_data::text) <= 262144 AND block_data ? 'type' AND jsonb_typeof(block_data->'type') = 'string' AND block_data->>'type' <> 'footer');
+ALTER TABLE public.crm_saved_blocks DROP CONSTRAINT IF EXISTS crm_saved_blocks_nonempty_name;
+ALTER TABLE public.crm_saved_blocks ADD CONSTRAINT crm_saved_blocks_nonempty_name CHECK (char_length(btrim(name)) BETWEEN 1 AND 160);
 ALTER TABLE public.crm_saved_blocks ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.crm_saved_blocks FROM anon;
 REVOKE ALL ON public.crm_saved_blocks FROM authenticated;

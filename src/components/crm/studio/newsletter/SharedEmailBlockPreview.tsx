@@ -28,7 +28,18 @@ export default function SharedEmailBlockPreview({
     field: string;
     index: number;
     blockId: string;
+    itemId?: string;
   } | null>(null);
+  const latest = React.useRef({ block, onUpdateBlockField });
+  latest.current = { block, onUpdateBlockField };
+  const mounted = React.useRef(true);
+  React.useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      target.current = null;
+    };
+  }, []);
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const html = React.useMemo(
@@ -54,9 +65,14 @@ export default function SharedEmailBlockPreview({
   const choose = (element: Element) => {
     if (!onUpdateBlockField || busy) return;
     const image = element.closest("img");
-    if (!image) return;
+    if (
+      !image ||
+      image.hasAttribute("data-newsletter-readonly") ||
+      block.type === "social-follow"
+    )
+      return;
     let field = image.getAttribute("data-newsletter-image") || "imageUrl";
-    let index = Number(image.getAttribute("data-newsletter-index") || 0);
+    const index = Number(image.getAttribute("data-newsletter-index") || 0);
     if (
       ![
         "imageUrl",
@@ -79,7 +95,14 @@ export default function SharedEmailBlockPreview({
       )
     )
       field = "authorImageUrl";
-    target.current = { field, index, blockId: block.id };
+    if (!Number.isInteger(index) || index < 0) return;
+    const itemId =
+      field === "galleryImages"
+        ? block.galleryImages?.[index]?.id
+        : field === "galleryProducts"
+          ? block.galleryProducts?.[index]?.id
+          : undefined;
+    target.current = { field, index, blockId: block.id, itemId };
     input.current?.click();
   };
   return (
@@ -115,14 +138,19 @@ export default function SharedEmailBlockPreview({
           }}
           ref={(node) => {
             if (node && onUpdateBlockField)
-              node.querySelectorAll("img").forEach((image) => {
-                image.tabIndex = 0;
-                image.setAttribute("role", "button");
-                image.setAttribute(
-                  "aria-label",
-                  `Change ${image.alt || "block image"}`,
-                );
-              });
+              node
+                .querySelectorAll<HTMLImageElement>(
+                  "img:not([data-newsletter-readonly])",
+                )
+                .forEach((image) => {
+                  if (block.type === "social-follow") return;
+                  image.tabIndex = 0;
+                  image.setAttribute("role", "button");
+                  image.setAttribute(
+                    "aria-label",
+                    `Change ${image.alt || "block image"}`,
+                  );
+                });
           }}
           dangerouslySetInnerHTML={{ __html: html }}
         />
@@ -161,35 +189,57 @@ export default function SharedEmailBlockPreview({
             setError("");
             try {
               const url = await uploadStudioImageFile(file);
+              const current = latest.current;
+              if (
+                !mounted.current ||
+                current.block.id !== selected.blockId ||
+                !current.onUpdateBlockField
+              )
+                return;
               if (selected.field === "galleryImages") {
-                const images = [...(block.galleryImages || [])];
-                if (images[selected.index]) {
-                  images[selected.index] = { ...images[selected.index], url };
-                  onUpdateBlockField(block.id, "galleryImages", images);
-                }
+                const images = [...(current.block.galleryImages || [])];
+                const index = images.findIndex(
+                  (image) => image.id === selected.itemId,
+                );
+                if (index < 0) return;
+                images[index] = { ...images[index], url };
+                current.onUpdateBlockField(
+                  current.block.id,
+                  "galleryImages",
+                  images,
+                );
               } else if (selected.field === "galleryProducts") {
-                const products = [...(block.galleryProducts || [])];
-                if (products[selected.index]) {
-                  products[selected.index] = {
-                    ...products[selected.index],
-                    imageUrl: url,
-                  };
-                  onUpdateBlockField(block.id, "galleryProducts", products);
-                }
-              } else
-                onUpdateBlockField(
-                  block.id,
+                const products = [...(current.block.galleryProducts || [])];
+                const index = products.findIndex(
+                  (product) => product.id === selected.itemId,
+                );
+                if (index < 0) return;
+                products[index] = { ...products[index], imageUrl: url };
+                current.onUpdateBlockField(
+                  current.block.id,
+                  "galleryProducts",
+                  products,
+                );
+              } else {
+                current.onUpdateBlockField(
+                  current.block.id,
                   selected.field as keyof StudioBlock,
                   url,
                 );
+              }
             } catch (err) {
+              if (
+                !mounted.current ||
+                latest.current.block.id !== selected.blockId
+              )
+                return;
               setError(
                 err instanceof Error
                   ? err.message
                   : "Image could not be uploaded.",
               );
             } finally {
-              setBusy(false);
+              if (mounted.current) setBusy(false);
             }
           }}
         />

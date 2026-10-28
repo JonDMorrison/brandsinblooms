@@ -170,7 +170,7 @@ export function publicFeedUrl(value: string): string {
   const safe = safeEmailUrl(value);
   if (!safe) throw new Error("Enter a public HTTPS feed URL.");
   const url = new URL(safe);
-  const host = url.hostname.toLowerCase();
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
   // A browser fetch uses CORS and no credentials, but must still never target a local device.
   if (
     url.protocol !== "https:" ||
@@ -256,6 +256,10 @@ export function importRowsToBlocks(
   };
   if (target === "data-table") {
     const headers = Object.keys(rows[0]);
+    if (headers.length > 12)
+      throw new Error(
+        "Data tables support up to 12 columns. Split this sheet into smaller tables before importing.",
+      );
     return [
       {
         ...createStudioBlock("data-table", designSystem),
@@ -330,6 +334,7 @@ export function importRowsToBlocks(
       buttonUrl: url,
       buttonText: get(row, "buttonText") || "View offer",
       originalPrice: get(row, "originalPrice"),
+      badgeText: get(row, "badge"),
       subheading: get(row, "subtitle"),
     });
     if (target === "product-card")
@@ -342,7 +347,16 @@ export function importRowsToBlocks(
       });
     else {
       const offer = get(row, "offer").toLowerCase();
-      const percent = offer.match(/^(\d+(?:\.\d+)?)\s*%/);
+      const percent = offer.match(/^(\d+(?:\.\d+)?)\s*%(?:\s*off)?$/);
+      if (
+        offer &&
+        !percent &&
+        !["price", "just price", "bogo", "buy one get one free"].includes(offer)
+      ) {
+        throw new Error(
+          `Unrecognized offer “${get(row, "offer")}” for “${title}”. Use a price, percentage (such as 25% off), or BOGO, then configure other offer types in the editor.`,
+        );
+      }
       Object.assign(block, {
         tagLabel: get(row, "introduction"),
         body: get(row, "description"),
@@ -350,7 +364,11 @@ export function importRowsToBlocks(
         couponConditions: get(row, "conditions"),
         couponExpiry: get(row, "expiry"),
         couponSizing: get(row, "sizing"),
-        couponOffer: percent ? "percent" : offer === "bogo" ? "bogo" : "price",
+        couponOffer: percent
+          ? "percent"
+          : ["bogo", "buy one get one free"].includes(offer)
+            ? "bogo"
+            : "price",
         couponPercent: percent ? Math.min(100, Number(percent[1])) : undefined,
       });
     }

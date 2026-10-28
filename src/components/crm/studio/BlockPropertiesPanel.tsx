@@ -1916,6 +1916,8 @@ function PanelContent({
   const updateField = React.useCallback(
     (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => {
       onUpdateBlockField(block.id, field, value);
+      if (field === "logoSize")
+        onUpdateBlockField(block.id, "logoSizeExplicit", true);
     },
     [block.id, onUpdateBlockField],
   );

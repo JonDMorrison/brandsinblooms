@@ -68,7 +68,7 @@ export async function resolveNewsletterAudience(params: {
     db
       .from("crm_segments")
       .select(
-        "id,conditions,auto_update,include_all_customers,status,deleted_at",
+        "id,conditions,auto_update,include_all_customers,status,deleted_at,location_scope,primary_location_id",
       )
       .eq("tenant_id", params.tenantId)
       .in("id", requested)
@@ -83,6 +83,43 @@ export async function resolveNewsletterAudience(params: {
     throw new Error(
       "Could not verify conditional newsletter segment membership.",
     );
+  const scopedSegments = (segmentsResult.data || []).filter(
+    (segment) =>
+      segment.location_scope && segment.location_scope !== "all_locations",
+  );
+  const customerLocations = new Set<string>();
+  if (typeof customerResult.data.primary_location_id === "string")
+    customerLocations.add(customerResult.data.primary_location_id);
+  const segmentLocations = new Map<string, Set<string>>();
+  if (scopedSegments.length) {
+    const selectedIds = scopedSegments
+      .filter((segment) => segment.location_scope === "selected_locations")
+      .map((segment) => segment.id);
+    const [activity, targets] = await Promise.all([
+      db
+        .from("customer_location_activity")
+        .select("location_id")
+        .eq("tenant_id", params.tenantId)
+        .eq("customer_id", params.customerId),
+      selectedIds.length
+        ? db
+            .from("segment_location_targets")
+            .select("segment_id,location_id")
+            .eq("tenant_id", params.tenantId)
+            .in("segment_id", selectedIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (activity.error || targets.error)
+      throw new Error("Could not verify conditional newsletter store scope.");
+    for (const row of activity.data || [])
+      customerLocations.add(row.location_id);
+    for (const row of targets.data || []) {
+      const locations =
+        segmentLocations.get(row.segment_id) || new Set<string>();
+      locations.add(row.location_id);
+      segmentLocations.set(row.segment_id, locations);
+    }
+  }
   const memberships = new Set(
     (membershipResult.data || []).map((row) => row.segment_id as string),
   );
@@ -92,6 +129,26 @@ export async function resolveNewsletterAudience(params: {
   const matches = (segmentsResult.data || [])
     .filter((segment) => {
       if (segment.status === "archived" || segment.status === "deleted")
+        return false;
+      // Store scope applies to every segment, including all-customer and dynamic rules.
+      if (
+        segment.location_scope === "one_location" &&
+        !customerLocations.has(segment.primary_location_id)
+      )
+        return false;
+      if (
+        segment.location_scope === "selected_locations" &&
+        ![...(segmentLocations.get(segment.id) || [])].some((id) =>
+          customerLocations.has(id),
+        )
+      )
+        return false;
+      if (
+        segment.location_scope &&
+        !["all_locations", "one_location", "selected_locations"].includes(
+          segment.location_scope,
+        )
+      )
         return false;
       if (segment.include_all_customers === true) return true;
       const rules = normalizeSegmentRuleGroup(segment.conditions);

@@ -556,6 +556,46 @@ function GalleryFields({
         max={48}
         onChange={(value) => update(product ? "cardGap" : "gridGap", value)}
       />
+      {product && (
+        <details className="nl-controls">
+          <summary>Product display options</summary>
+          <StudioSwitchField
+            label="Show prices"
+            checked={block.showPrices !== false}
+            onChange={(value) => update("showPrices", value)}
+          />
+          <StudioSwitchField
+            label="Show original prices"
+            checked={block.showOriginalPrice !== false}
+            onChange={(value) => update("showOriginalPrice", value)}
+          />
+          <StudioSwitchField
+            label="Show descriptions"
+            checked={block.showDescription !== false}
+            onChange={(value) => update("showDescription", value)}
+          />
+          <StudioSwitchField
+            label="Show badges"
+            checked={block.showBadges !== false}
+            onChange={(value) => update("showBadges", value)}
+          />
+          <StudioSwitchField
+            label="Show buttons"
+            checked={block.showCtaButtons !== false}
+            onChange={(value) => update("showCtaButtons", value)}
+          />
+          <StudioSwitchField
+            label="Show card borders"
+            checked={
+              block.showBorder !== false && block.showCardBorder !== false
+            }
+            onChange={(value) => {
+              update("showBorder", value);
+              update("showCardBorder", value);
+            }}
+          />
+        </details>
+      )}
       {Array.from(
         { length: Math.max(count, product ? products.length : images.length) },
         (_, index) => (
@@ -1055,7 +1095,10 @@ export function AdditionalBlockFields({
             min={24}
             max={320}
             value={block.logoSize}
-            onChange={(value) => update("logoSize", value)}
+            onChange={(value) => {
+              update("logoSize", value);
+              update("logoSizeExplicit", true);
+            }}
           />
           <StudioImageUpload
             label="Full-width header banner"

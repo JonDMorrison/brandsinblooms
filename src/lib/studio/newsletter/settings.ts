@@ -99,6 +99,11 @@ export function normalizeNewsletterSettings(
       : [],
   };
 }
+function definedProperties<T extends object>(value?: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(value ?? {}).filter(([, item]) => item !== undefined),
+  ) as Partial<T>;
+}
 export function mergeAppearance(
   defaults?: BlockAppearance,
   overrides?: BlockAppearance,
@@ -107,22 +112,33 @@ export function mergeAppearance(
   for (const role of new Set([
     ...Object.keys(defaults?.text ?? {}),
     ...Object.keys(overrides?.text ?? {}),
-  ]) as Set<TextRole>)
-    text[role] = { ...defaults?.text?.[role], ...overrides?.text?.[role] };
+  ]) as Set<TextRole>) {
+    text[role] = {
+      ...definedProperties(defaults?.text?.[role]),
+      ...definedProperties(overrides?.text?.[role]),
+    };
+  }
+  const edge = (key: "margin" | "padding" | "imagePadding" | "imageMargin") =>
+    defaults?.[key] || overrides?.[key]
+      ? {
+          ...definedProperties(defaults?.[key]),
+          ...definedProperties(overrides?.[key]),
+        }
+      : undefined;
   return {
-    ...defaults,
-    ...overrides,
-    margin: { ...defaults?.margin, ...overrides?.margin },
-    padding:
-      defaults?.padding || overrides?.padding
-        ? { ...defaults?.padding, ...overrides?.padding }
-        : undefined,
+    ...definedProperties(defaults),
+    ...definedProperties(overrides),
+    margin: edge("margin"),
+    padding: edge("padding"),
+    imagePadding: edge("imagePadding"),
+    imageMargin: edge("imageMargin"),
     border:
       defaults?.border || overrides?.border
-        ? { ...defaults?.border, ...overrides?.border }
+        ? {
+            ...definedProperties(defaults?.border),
+            ...definedProperties(overrides?.border),
+          }
         : undefined,
-    imagePadding: { ...defaults?.imagePadding, ...overrides?.imagePadding },
-    imageMargin: { ...defaults?.imageMargin, ...overrides?.imageMargin },
     text,
   };
 }
@@ -175,6 +191,7 @@ export function safeEmailUrl(value: unknown, image = false): string {
   return "";
 }
 export function resolveAssetUrl(value: string, base?: string): string {
+  if (!value.trim()) return "";
   if (safeEmailUrl(value, true)) return safeEmailUrl(value, true);
   let decoded = value;
   try {

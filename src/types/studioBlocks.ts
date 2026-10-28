@@ -199,6 +199,8 @@ export interface StudioBlock {
   logoUrl?: string;
   logoAlignment?: StudioLogoAlignment;
   logoSize?: number;
+  /** Set by the editor when a user chooses an exact size, including 40px. */
+  logoSizeExplicit?: boolean;
   logoShape?: StudioLogoShape;
   borderRadius?: number;
   cardBorderRadius?: number;

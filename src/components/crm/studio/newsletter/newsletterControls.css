@@ -122,7 +122,7 @@
 .nl-preview img[data-newsletter-image] {
   cursor: pointer;
 }
-@container (max-width: 440px) {
+@container (max-width: 599px) {
   .nl-preview .responsive-column {
     display: block !important;
     width: 100% !important;

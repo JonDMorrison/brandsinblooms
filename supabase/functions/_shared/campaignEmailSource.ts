@@ -148,23 +148,38 @@ function normalizeContentBlock(
     visible: record.visible !== false,
   };
 
-  if (!normalized.body && typeof record.content === "string") {
+  if (
+    typeof normalized.body !== "string" &&
+    typeof record.content === "string"
+  ) {
     normalized.body = record.content;
   }
 
-  if (!normalized.headline && typeof record.title === "string") {
+  if (
+    typeof normalized.headline !== "string" &&
+    typeof record.title === "string"
+  ) {
     normalized.headline = record.title;
   }
 
-  if (!normalized.imageUrl && typeof record.image_url === "string") {
+  if (
+    typeof normalized.imageUrl !== "string" &&
+    typeof record.image_url === "string"
+  ) {
     normalized.imageUrl = record.image_url;
   }
 
-  if (!normalized.buttonText && typeof record.cta_text === "string") {
+  if (
+    typeof normalized.buttonText !== "string" &&
+    typeof record.cta_text === "string"
+  ) {
     normalized.buttonText = record.cta_text;
   }
 
-  if (!normalized.buttonUrl && typeof record.cta_url === "string") {
+  if (
+    typeof normalized.buttonUrl !== "string" &&
+    typeof record.cta_url === "string"
+  ) {
     normalized.buttonUrl = record.cta_url;
   }
 

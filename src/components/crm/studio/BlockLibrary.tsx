@@ -154,6 +154,15 @@ export default function BlockLibrary({
     }
   });
   const [importing, setImporting] = React.useState(false);
+  const currentScope = React.useRef(saved.scopeKey);
+  currentScope.current = saved.scopeKey;
+  React.useEffect(() => {
+    setDialog(null);
+    setName("");
+    setMessage("");
+    setError("");
+    setImportOpen(false);
+  }, [saved.scopeKey]);
   const query = search.trim().toLowerCase();
   const footer = blocks.find((block) => block.type === "footer");
   const editable = blocks.filter((block) => block.type !== "footer");
@@ -551,10 +560,21 @@ export default function BlockLibrary({
                       return;
                     setImporting(true);
                     setError("");
+                    const confirmedScope = saved.scopeKey;
+                    const confirmedTenant = saved.accountId;
                     let remaining = [...legacy];
                     try {
                       for (const entry of legacy) {
-                        await saved.create(entry);
+                        if (currentScope.current !== confirmedScope)
+                          throw new Error(
+                            "Account changed. Remaining browser blocks were kept and must be reviewed again.",
+                          );
+                        await saved.create({
+                          ...entry,
+                          ...(confirmedTenant
+                            ? { expectedTenantId: confirmedTenant }
+                            : {}),
+                        });
                         remaining = remaining.slice(1);
                         setLegacy(remaining);
                         try {
@@ -566,7 +586,10 @@ export default function BlockLibrary({
                           /* successful account records remain authoritative */
                         }
                       }
-                      setMessage("Browser blocks imported into this account.");
+                      if (currentScope.current === confirmedScope)
+                        setMessage(
+                          "Browser blocks imported into this account.",
+                        );
                     } catch (err) {
                       setError(
                         err instanceof Error
@@ -657,10 +680,18 @@ export default function BlockLibrary({
               disabled={saved.busy || !name.trim() || !saved.ready}
               onClick={async () => {
                 if (!dialog) return;
+                const confirmedScope = saved.scopeKey;
                 try {
                   if (dialog.kind === "create")
-                    await saved.create({ name, block: dialog.block });
+                    await saved.create({
+                      name,
+                      block: dialog.block,
+                      ...(saved.accountId
+                        ? { expectedTenantId: saved.accountId }
+                        : {}),
+                    });
                   else await saved.rename({ id: dialog.id, name });
+                  if (currentScope.current !== confirmedScope) return;
                   setDialog(null);
                   setTab("saved");
                   setMessage("Saved to your account.");

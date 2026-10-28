@@ -1,3 +1,4 @@
+import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
@@ -1901,16 +1902,13 @@ serve((req: Request) => {
                     }
                   });
 
-                  if (map.size === 0) {
-                    const representativeCustomer =
-                      Array.from(customersById.values())[0] ||
-                      (sendable[0]
-                        ? {
-                            id: sendable[0].customer_id,
-                            email: sendable[0].email,
-                          }
-                        : null);
-
+                  if (
+                    map.size === 0 ||
+                    requestedNewsletterSegments(campaignSource.contentBlocks)
+                      .length > 0
+                  ) {
+                    // Collect every conditional variant for link tracking only. Actual
+                    // delivery below still resolves each recipient's segment membership.
                     const preflightRender = await renderEmailForRecipient({
                       tenantId: campaign.tenant_id,
                       campaignId,
@@ -1921,11 +1919,9 @@ serve((req: Request) => {
                         campaign.preheader_text || campaign.preheader || "",
                       html: campaignSource.html,
                       contentBlocks: campaignSource.contentBlocks,
-                      customer: representativeCustomer
-                        ? toCustomerShape(representativeCustomer)
-                        : null,
+                      customer: null,
                       companyProfile: companyProfile as CompanyProfileShape,
-                      mode: "send",
+                      mode: "preview",
                       includeFooter: true,
                       enableLinkTracking: false,
                     });

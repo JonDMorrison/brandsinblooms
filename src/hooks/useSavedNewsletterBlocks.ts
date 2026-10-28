@@ -63,11 +63,17 @@ export function useSavedNewsletterBlocks() {
     mutationFn: async ({
       name,
       block,
+      expectedTenantId,
     }: {
       name: string;
       block: StudioBlock;
+      expectedTenantId?: string;
     }) => {
       const ctx = context();
+      if (expectedTenantId && expectedTenantId !== ctx.tenantId)
+        throw new Error(
+          "The selected account changed. Review the block and save again.",
+        );
       const clean = readSavedBlock(block);
       if (!clean) throw new Error("This block cannot be saved.");
       const { data, error } = await supabase
@@ -147,6 +153,8 @@ export function useSavedNewsletterBlocks() {
     remove: remove.mutateAsync,
     busy: create.isPending || rename.isPending || remove.isPending,
     accountName: tenant?.name || "this account",
+    accountId: tenantId || null,
+    scopeKey: `${user?.id || ""}:${tenantId || ""}`,
     ready: Boolean(tenantId && user?.id),
   };
 }

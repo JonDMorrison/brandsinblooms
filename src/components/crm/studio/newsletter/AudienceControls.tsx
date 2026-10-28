@@ -20,6 +20,7 @@ export default function AudienceControls({
         .select("id,name")
         .eq("tenant_id", tenant!.id)
         .is("deleted_at", null)
+        .eq("status", "active")
         .order("name")
         .limit(500);
       if (error) throw new Error("Could not load account segments.");

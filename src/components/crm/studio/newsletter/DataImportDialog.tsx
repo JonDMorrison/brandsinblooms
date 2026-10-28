@@ -38,23 +38,49 @@ export default function DataImportDialog({
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const abort = React.useRef<AbortController | null>(null);
+  const generation = React.useRef(0);
+  const isOpen = React.useRef(open);
+  isOpen.current = open;
   React.useEffect(() => {
-    if (!open) abort.current?.abort();
-    return () => abort.current?.abort();
+    if (!open) {
+      setRows([]);
+      setMapping({});
+      setPaste("");
+      setUrl("");
+      setError("");
+      setBusy(false);
+    }
+    return () => {
+      generation.current++;
+      abort.current?.abort();
+    };
   }, [open]);
+  const current = (request: number) =>
+    isOpen.current && generation.current === request;
+  const beginRead = () => {
+    abort.current?.abort();
+    setRows([]);
+    setMapping({});
+    setError("");
+    setBusy(true);
+    return ++generation.current;
+  };
+  const close = () => {
+    generation.current++;
+    abort.current?.abort();
+    setRows([]);
+    setMapping({});
+    setError("");
+    setBusy(false);
+    onClose();
+  };
   const apply = (next: ImportRow[]) => {
     setRows(next);
     setMapping(inferImportMapping(Object.keys(next[0] || {})));
     setError("");
   };
   return (
-    <Modal
-      open={open}
-      onClose={() => {
-        abort.current?.abort();
-        onClose();
-      }}
-    >
+    <Modal open={open} onClose={close}>
       <ModalDialog
         sx={{
           width: 820,
@@ -80,34 +106,35 @@ export default function DataImportDialog({
               const file = event.target.files?.[0];
               event.target.value = "";
               if (!file) return;
-              setBusy(true);
-              setError("");
+              const request = beginRead();
               try {
                 if (file.size > IMPORT_MAX_BYTES)
                   throw new Error("Keep files below 2 MB.");
                 if (/\.xlsx$/i.test(file.name)) {
                   const { readSheet } = await import("read-excel-file/browser");
                   const matrix = await readSheet(file);
-                  apply(rowsFromMatrix(matrix));
+                  if (current(request)) apply(rowsFromMatrix(matrix));
                 } else {
                   const text = await file.text();
-                  apply(
-                    /\.json$/i.test(file.name)
-                      ? parseJsonFeed(text)
-                      : parseDelimited(
-                          text,
-                          /\.tsv$/i.test(file.name) ? "\t" : undefined,
-                        ),
-                  );
+                  if (current(request))
+                    apply(
+                      /\.json$/i.test(file.name)
+                        ? parseJsonFeed(text)
+                        : parseDelimited(
+                            text,
+                            /\.tsv$/i.test(file.name) ? "\t" : undefined,
+                          ),
+                    );
                 }
               } catch (err) {
+                if (!current(request)) return;
                 setError(
                   err instanceof Error
                     ? err.message
                     : "Could not read this file.",
                 );
               } finally {
-                setBusy(false);
+                if (current(request)) setBusy(false);
               }
             }}
           />
@@ -124,6 +151,7 @@ export default function DataImportDialog({
               className="nl-quiet"
               disabled={busy}
               onClick={() => {
+                beginRead();
                 try {
                   apply(parseDelimited(paste));
                 } catch (err) {
@@ -132,6 +160,8 @@ export default function DataImportDialog({
                       ? err.message
                       : "Could not parse the data.",
                   );
+                } finally {
+                  setBusy(false);
                 }
               }}
             >
@@ -151,15 +181,15 @@ export default function DataImportDialog({
               className="nl-quiet"
               disabled={busy || !url.trim()}
               onClick={async () => {
-                setBusy(true);
-                setError("");
-                abort.current?.abort();
+                const request = beginRead();
                 const controller = new AbortController();
                 abort.current = controller;
                 const timeout = setTimeout(() => controller.abort(), 15000);
                 try {
-                  apply(await loadPublicFeed(url, controller.signal));
+                  const result = await loadPublicFeed(url, controller.signal);
+                  if (current(request)) apply(result);
                 } catch (err) {
+                  if (!current(request)) return;
                   setError(
                     err instanceof Error && err.name === "AbortError"
                       ? "The feed request timed out or was cancelled."
@@ -169,7 +199,7 @@ export default function DataImportDialog({
                   );
                 } finally {
                   clearTimeout(timeout);
-                  setBusy(false);
+                  if (current(request)) setBusy(false);
                 }
               }}
             >
@@ -301,7 +331,7 @@ export default function DataImportDialog({
             className="nl-inline"
             style={{ marginTop: 20, justifyContent: "flex-end" }}
           >
-            <button type="button" className="nl-quiet" onClick={onClose}>
+            <button type="button" className="nl-quiet" onClick={close}>
               Cancel
             </button>
             <button
@@ -320,7 +350,7 @@ export default function DataImportDialog({
                   onInsert(blocks);
                   setRows([]);
                   setPaste("");
-                  onClose();
+                  close();
                 } catch (err) {
                   setError(
                     err instanceof Error
