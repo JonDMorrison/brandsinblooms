@@ -232,6 +232,10 @@ function getSystemPauseCopy(snapshot: CampaignStateSnapshot) {
     `${snapshot.sendBlockedReason || ""} ${snapshot.sendError || ""}`.toLowerCase();
   if (!raw.trim() || raw.includes("paused_by_user")) return null;
 
+  if (raw.includes("audience_not_configured")) {
+    return "Choose an audience, then schedule the campaign again.";
+  }
+
   if (
     raw.includes("intervention") ||
     raw.includes("admin") ||
@@ -808,14 +812,16 @@ export function CampaignLockedView({
 
   const renderPausedView = () => {
     const systemPauseCopy = getSystemPauseCopy(snapshot);
+    const needsAudience = snapshot.sendBlockedReason === "audience_not_configured";
     return (
       <StateShell
         icon={<Pause size={48} color="var(--joy-palette-neutral-500)" />}
       >
         <Typography level="h3">Campaign Paused</Typography>
         <Typography level="body-md" sx={{ color: "neutral.600" }}>
-          Paused after sending to {snapshot.messagesSent.toLocaleString()} of{" "}
-          {totalRecipients.toLocaleString()} recipients
+          {needsAudience
+            ? "This campaign needs an audience before it can send."
+            : `Paused after sending to ${snapshot.messagesSent.toLocaleString()} of ${totalRecipients.toLocaleString()} recipients`}
         </Typography>
         {snapshot.messagesFailed > 0 ? (
           <Typography level="body-sm" sx={{ color: "warning.700" }}>
@@ -857,14 +863,20 @@ export function CampaignLockedView({
           justifyContent="center"
           sx={{ width: "100%" }}
         >
-          <JoyButton
-            variant="solid"
-            color="primary"
-            startDecorator={<Play size={16} />}
-            onClick={() => setDialogKind("resume")}
-          >
-            Resume Sending
-          </JoyButton>
+          {needsAudience ? (
+            <JoyButton variant="solid" color="primary" onClick={() => setDialogKind("edit")}>
+              Choose Audience
+            </JoyButton>
+          ) : (
+            <JoyButton
+              variant="solid"
+              color="primary"
+              startDecorator={<Play size={16} />}
+              onClick={() => setDialogKind("resume")}
+            >
+              Resume Sending
+            </JoyButton>
+          )}
           <JoyButton
             variant="outlined"
             color="neutral"
@@ -881,7 +893,15 @@ export function CampaignLockedView({
     );
   };
 
-  const renderFailedView = () => (
+  const renderFailedView = () => snapshot.sendBlockedReason === "audience_not_configured" && snapshot.messagesSent === 0 ? (
+    <StateShell icon={<AlertTriangle size={48} color="var(--joy-palette-warning-600)" />}>
+      <Typography level="h3">Choose an audience</Typography>
+      <Typography level="body-md">This campaign did not send because no audience was selected. Choose an audience, then schedule it again.</Typography>
+      <JoyButton variant="solid" color="primary" onClick={() => setDialogKind("edit")}>
+        Choose Audience
+      </JoyButton>
+    </StateShell>
+  ) : (
     <StateShell
       icon={<AlertTriangle size={48} color="var(--joy-palette-danger-600)" />}
     >
