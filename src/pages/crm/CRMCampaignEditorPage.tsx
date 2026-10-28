@@ -958,14 +958,24 @@ function CampaignEditorScreen() {
       return;
     }
 
+    // Studio needs a campaign ID to autosave edits. Create the draft for the
+    // customer on entry, even when its name, subject and preview are blank.
+    // The subject belongs to Review & Send validation, not design entry.
     let nextCampaignId = campaignId;
-
     if (!nextCampaignId) {
       nextCampaignId = await saveDraft({ silent: true });
+      // A concurrent autosave can briefly fail or race the first attempt.
+      // Retry once with the queued save rather than instructing the user
+      // to manually save a newsletter they have not started composing.
+      if (!nextCampaignId) {
+        nextCampaignId = await saveDraft({ silent: true });
+      }
     }
 
     if (!nextCampaignId) {
-      toast.error("Save the draft before opening Campaign Studio.");
+      toast.error(
+        "Could not create your newsletter draft. Check your connection and try Design Studio again. Your content has not been discarded.",
+      );
       return;
     }
 
