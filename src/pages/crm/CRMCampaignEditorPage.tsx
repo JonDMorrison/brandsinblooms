@@ -1024,7 +1024,10 @@ function CampaignEditorScreen() {
       blockers.push("Sender email is required.");
     }
 
-    if ((audienceCount ?? 0) <= 0) {
+    if (!includeAllCustomers && selectedSegments.length === 0 &&
+        selectedPersonas.length === 0 && additionalCustomerIds.length === 0) {
+      blockers.push("Choose an audience before sending.");
+    } else if ((audienceCount ?? 0) <= 0) {
       blockers.push("At least one eligible recipient is required.");
     }
 
@@ -1043,6 +1046,10 @@ function CampaignEditorScreen() {
     return blockers;
   }, [
     audienceCount,
+    additionalCustomerIds,
+    includeAllCustomers,
+    selectedSegments,
+    selectedPersonas,
     autoSaveStatus,
     campaignType,
     hasComplianceFooter,
