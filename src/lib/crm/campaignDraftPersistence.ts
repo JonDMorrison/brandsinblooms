@@ -883,7 +883,11 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     campaignRow = insertedRow as CampaignRow;
   }
 
-  await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
+  try {
+    await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
+  } catch (backupError) {
+    console.error('Campaign block backup synchronization failed', backupError);
+  }
 
   return {
     campaign: campaignRow,
