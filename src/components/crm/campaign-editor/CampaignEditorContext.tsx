@@ -1113,6 +1113,7 @@ export function CampaignEditorProvider({
 
       try {
         await writeCampaignDraftSnapshot({
+          tenantId: tenant?.id ?? null,
           campaignId: savedCampaignId,
           campaignType: state.campaignType,
           trigger,
@@ -1131,6 +1132,7 @@ export function CampaignEditorProvider({
     },
     [
       saveDraft,
+      tenant?.id,
       state.additionalCustomerIds,
       state.campaignType,
       state.contentBlocks,

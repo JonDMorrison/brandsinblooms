@@ -466,7 +466,7 @@ export function renderDraftPreviewHtml(
   });
 }
 
-async function getAuthenticatedWriterContext(requestedTenantId?: string | null) {
+export async function getAuthenticatedWriterContext(requestedTenantId?: string | null) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -898,6 +898,7 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
 }
 
 export async function writeCampaignDraftSnapshot(params: {
+  tenantId?: string | null;
   campaignId: string;
   campaignType: "email" | "sms";
   trigger: DraftSnapshotTrigger;
@@ -911,7 +912,7 @@ export async function writeCampaignDraftSnapshot(params: {
   segmentIds: string[];
   personaIds: string[];
 }) {
-  const { tenantId, userId } = await getAuthenticatedWriterContext();
+  const { tenantId, userId } = await getAuthenticatedWriterContext(params.tenantId);
   const recipientIds = await resolveAudienceRecipientIds({
     tenantId,
     includeAllCustomers: params.includeAllCustomers,
