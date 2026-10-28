@@ -8,8 +8,8 @@
 export const dashboardCardSpacing = {
   action: {
     px: { xs: 2.5, sm: 3 },
-    py: { xs: 2.5, sm: 3 },
-    minHeight: { xs: 112, sm: 124 },
+    py: 2,
+    minHeight: 96,
     iconSize: 48,
     iconRadius: "12px",
     iconGap: 2,
@@ -18,12 +18,12 @@ export const dashboardCardSpacing = {
   },
   metric: {
     px: { xs: 2.5, sm: 3 },
-    py: { xs: 2.5, sm: 3 },
-    minHeight: { xs: 154, sm: 164 },
+    py: 2,
+    minHeight: 0,
     iconSize: 36,
     iconRadius: "10px",
     iconGap: 1.25,
-    contentGap: 1.5,
+    contentGap: 1,
   },
   banner: {
     px: { xs: 2.5, sm: 3 },
@@ -40,7 +40,7 @@ export const dashboardCardSpacing = {
     iconSize: 44,
     iconRadius: "12px",
     iconGap: 2,
-    minHeight: 132,
+    minHeight: 0,
     minButtonHeight: 44,
   },
 } as const;

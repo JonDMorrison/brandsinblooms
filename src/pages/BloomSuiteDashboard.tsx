@@ -46,6 +46,7 @@ function HomeMetric({
   loading,
   onClick,
   activating,
+  empty,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -54,6 +55,7 @@ function HomeMetric({
   loading: boolean;
   onClick: () => void;
   activating: boolean;
+  empty?: boolean;
 }) {
   return (
     <Sheet
@@ -126,9 +128,10 @@ function HomeMetric({
           <Skeleton sx={{ width: 110, height: 38, borderRadius: "sm" }} />
         ) : (
           <Typography
-            level="h2"
+            level={empty ? "title-md" : "h2"}
             sx={{
               fontWeight: 700,
+              fontSize: empty ? "1rem" : "2rem",
               color: "neutral.900",
               letterSpacing: "-0.035em",
               lineHeight: 1.15,
@@ -143,7 +146,6 @@ function HomeMetric({
             color: "neutral.600",
             fontSize: "0.8125rem",
             lineHeight: 1.5,
-            mt: "auto",
           }}
         >
           {activating ? "Opening…" : description}
@@ -268,11 +270,12 @@ export const BloomSuiteDashboard = () => {
             label: "Reachable customers",
             value:
               audience.isError || !audience.data
-                ? "—"
+                ? "Unavailable"
                 : audience.data.eligible.toLocaleString(),
             description: "Confirmed and not suppressed for email",
             loading: audience.isLoading,
             destination: "/crm/customers",
+            empty: audience.isError || !audience.data,
           },
         ]
       : []),
@@ -285,8 +288,9 @@ export const BloomSuiteDashboard = () => {
             value:
               !performance.error && hasEmailData
                 ? formatPercent(performance.summary.avgClickRate)
-                : "—",
-            description: "Last 30 days · up to 10 recent sends",
+                : performance.error ? "Results unavailable" : "No recent results",
+            description: performance.error ? "Please try again later." : hasEmailData ? "Last 30 days · up to 10 recent sends" : "Campaign results will appear after a send.",
+            empty: !hasEmailData || Boolean(performance.error),
             loading: performance.loading,
             destination: "/analytics",
           },
@@ -297,8 +301,9 @@ export const BloomSuiteDashboard = () => {
             value:
               !performance.error && hasEmailData
                 ? formatPercent(performance.summary.avgOpenRate)
-                : "—",
-            description: "Opens are estimates due to email privacy",
+                : performance.error ? "Results unavailable" : "No recent results",
+            description: performance.error ? "Please try again later." : hasEmailData ? "Opens are estimates due to email privacy" : "Campaign results will appear after a send.",
+            empty: !hasEmailData || Boolean(performance.error),
             loading: performance.loading,
             destination: "/analytics",
           },
@@ -318,7 +323,7 @@ export const BloomSuiteDashboard = () => {
   }
 
   return (
-    <PageContainer>
+    <PageContainer sx={{ maxWidth: "80rem" }}>
       <Stack spacing={3} sx={{ pb: 4 }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -692,6 +697,7 @@ export const BloomSuiteDashboard = () => {
                   value={item.value}
                   description={item.description}
                   loading={item.loading}
+                  empty={item.empty}
                   activating={activeAction === "metric-" + item.key}
                   onClick={() =>
                     openAnimatedRoute("metric-" + item.key, item.destination)
@@ -767,7 +773,7 @@ export const BloomSuiteDashboard = () => {
                     <Typography level="body-sm" sx={{ color: "neutral.600", lineHeight: 1.5 }}>
                       {performance.error
                         ? "Campaign results aren't available right now."
-                        : "Your first campaign results will appear here."}
+                        : "No campaigns sent in the last 30 days. Results will appear here after your next send."}
                     </Typography>
                   )}
                 </Stack>
@@ -775,7 +781,7 @@ export const BloomSuiteDashboard = () => {
               <JoyButton
                 size="md"
                 color="neutral"
-                variant="outlined"
+                variant={!performance.loading && !performance.error && !latestCampaign && canSend ? "plain" : "outlined"}
                 data-activating={
                   activeAction === "latest-campaign" ? "true" : undefined
                 }
@@ -789,7 +795,9 @@ export const BloomSuiteDashboard = () => {
                 onClick={() =>
                   openAnimatedRoute(
                     "latest-campaign",
-                    latestCampaign
+                    !performance.loading && !performance.error && !latestCampaign && canSend
+                      ? "/newsletters/new"
+                      : latestCampaign
                       ? "/crm/campaigns/" +
                           latestCampaign.campaignId +
                           "/report"
@@ -801,7 +809,9 @@ export const BloomSuiteDashboard = () => {
                   ? "Opening…"
                   : latestCampaign
                     ? "View campaign report"
-                    : "View campaigns"}
+                    : !performance.loading && !performance.error && canSend
+                      ? "Create a campaign"
+                      : "View campaigns"}
                 <ArrowRight size={17} aria-hidden="true" />
               </JoyButton>
             </Stack>

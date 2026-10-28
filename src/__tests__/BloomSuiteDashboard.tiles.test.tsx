@@ -20,7 +20,10 @@ const dashboardAccess = vi.hoisted(() => ({
   selectTenant: vi.fn(async (_id: string) => undefined),
   refreshTenants: vi.fn(async () => undefined),
 }));
+const dashboardResults = vi.hoisted(() => ({ empty: false, error: false }));
 beforeEach(() => {
+  dashboardResults.empty = false;
+  dashboardResults.error = false;
   dashboardAccess.permissions = new Set([
     "customers.read",
     "reports.read",
@@ -184,8 +187,8 @@ vi.mock("@/hooks/useTenantAudienceHealth", () => ({
 
 vi.mock("@/hooks/analytics/useCampaignDeliveryMetrics", () => ({
   useCampaignDeliveryMetrics: () => ({
-    summary: { totalDelivered: 2000, avgClickRate: 3.2, avgOpenRate: 20.5 },
-    campaigns: [
+    summary: { totalDelivered: dashboardResults.empty ? 0 : 2000, avgClickRate: 3.2, avgOpenRate: 20.5 },
+    campaigns: dashboardResults.empty ? [] : [
       {
         campaignId: "campaign-1",
         campaignName: "Autumn garden newsletter",
@@ -194,7 +197,7 @@ vi.mock("@/hooks/analytics/useCampaignDeliveryMetrics", () => ({
       },
     ],
     loading: false,
-    error: null,
+    error: dashboardResults.error ? "Unavailable" : null,
   }),
 }));
 
@@ -219,6 +222,22 @@ function renderDashboard() {
 }
 
 describe("BloomSuite task-first dashboard", () => {
+  it("explains missing recent results and offers campaign creation", () => {
+    dashboardResults.empty = true;
+    renderDashboard();
+    expect(screen.getAllByText("No recent results")).toHaveLength(2);
+    expect(screen.getByText(/No campaigns sent in the last 30 days/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Create a campaign/ })).toBeInTheDocument();
+  });
+
+  it("does not mistake an analytics error for an empty campaign history", () => {
+    dashboardResults.empty = true;
+    dashboardResults.error = true;
+    renderDashboard();
+    expect(screen.getAllByText("Results unavailable")).toHaveLength(2);
+    expect(screen.getByText("Campaign results aren't available right now.")).toBeInTheDocument();
+    expect(screen.queryByText(/No campaigns sent in the last 30 days/)).not.toBeInTheDocument();
+  });
   it("shows reachable customers and campaign engagement without a sales total", async () => {
     renderDashboard();
     expect(await screen.findByText("1,250")).toBeInTheDocument();
