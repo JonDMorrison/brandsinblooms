@@ -1,0 +1,30 @@
+name: Apply reviewed newsletter patch
+on:
+  push:
+    branches: [feat/newsletter-mike-feedback-20261027]
+    paths: [docs/newsletter/verified-audit.patch]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.repository == 'JonDMorrison/brandsinblooms' && github.ref == 'refs/heads/feat/newsletter-mike-feedback-20261027'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/newsletter-mike-feedback-20261027
+          fetch-depth: 3
+      - name: Apply the checksum-verified repository-local patch
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 165829dbb55a2425d5df4d4f93df80902b0ce252 HEAD
+          echo '92efd1013b59848174b27937cec78f989dd34c728da46a49e73601ae1b4e579d  docs/newsletter/verified-audit.patch' | sha256sum --check
+          git apply --check docs/newsletter/verified-audit.patch
+          git apply docs/newsletter/verified-audit.patch
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src supabase docs/newsletter/BUG-AUDIT-20261027.md
+          git commit -m 'Fix newsletter audit regressions in rendering, imports, uploads and audience isolation'
+          git push origin HEAD:feat/newsletter-mike-feedback-20261027
