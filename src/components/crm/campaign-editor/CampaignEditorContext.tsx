@@ -850,6 +850,7 @@ export function CampaignEditorProvider({
   const draftPayload = React.useMemo(
     () => ({
       campaignId: state.campaignId,
+      tenantId: tenant?.id ?? null,
       campaignType: state.campaignType,
       status: state.status,
       name: state.name,
@@ -874,6 +875,7 @@ export function CampaignEditorProvider({
     }),
     [
       senderConfig?.fromEmailDomainId,
+      tenant?.id,
       state.additionalCustomerIds,
       state.campaignId,
       state.campaignType,
@@ -987,6 +989,7 @@ export function CampaignEditorProvider({
       try {
         const saved = await persistCampaignDraft({
           ...payload,
+          campaignId: campaignIdRef.current ?? payload.campaignId,
           expectedUpdatedAt: lastUpdatedAtRef.current,
           status: requestedStatus,
         });
@@ -1110,6 +1113,7 @@ export function CampaignEditorProvider({
 
       try {
         await writeCampaignDraftSnapshot({
+          tenantId: tenant?.id ?? null,
           campaignId: savedCampaignId,
           campaignType: state.campaignType,
           trigger,
@@ -1128,6 +1132,7 @@ export function CampaignEditorProvider({
     },
     [
       saveDraft,
+      tenant?.id,
       state.additionalCustomerIds,
       state.campaignType,
       state.contentBlocks,
