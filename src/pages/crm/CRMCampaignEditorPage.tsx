@@ -1,3 +1,4 @@
+import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
 import AspectRatio from "@mui/joy/AspectRatio";
 import Box from "@mui/joy/Box";
@@ -958,14 +959,17 @@ function CampaignEditorScreen() {
       return;
     }
 
-    let nextCampaignId = campaignId;
+    // Drafts can be created with no subject or preview. Those fields are
+    // checked only when the customer reviews or sends the newsletter.
+    const nextCampaignId = await resolveStudioDraftId(
+      campaignId,
+      () => saveDraft({ silent: true }),
+    );
 
     if (!nextCampaignId) {
-      nextCampaignId = await saveDraft({ silent: true });
-    }
-
-    if (!nextCampaignId) {
-      toast.error("Save the draft before opening Campaign Studio.");
+      toast.error(
+        "Could not create your newsletter draft. Check your connection and try Design Studio again. Your content has not been discarded.",
+      );
       return;
     }
 
