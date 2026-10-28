@@ -965,13 +965,25 @@ serve(async (req: Request) => {
     const additionalCustomerIds = Array.from(
       new Set(audienceExpansion.additionalCustomerIds),
     );
-    const usesLegacyAllCustomersFallback =
-      !includeAllCustomers &&
-      segmentIds.length === 0 &&
-      personaIdList.length === 0 &&
-      additionalCustomerIds.length === 0;
-    const resolveAllCustomersAudience =
-      includeAllCustomers || usesLegacyAllCustomersFallback;
+    const hasExplicitAudience =
+      includeAllCustomers ||
+      segmentIds.length > 0 ||
+      personaIdList.length > 0 ||
+      additionalCustomerIds.length > 0;
+    if (!hasExplicitAudience) {
+      const message = "Choose an audience before sending this campaign.";
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: "audience_not_configured",
+        errorMessage: message,
+      });
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const resolveAllCustomersAudience = includeAllCustomers;
+    const usesLegacyAllCustomersFallback = false;
 
     const audienceMetadata = toRecord(campaign.metadata);
     const rawIncludeAllCustomers =
