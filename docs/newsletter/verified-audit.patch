@@ -1,0 +1,2481 @@
+diff --git a/docs/newsletter/BUG-AUDIT-20261027.md b/docs/newsletter/BUG-AUDIT-20261027.md
+new file mode 100644
+index 0000000..4841209
+--- /dev/null
++++ b/docs/newsletter/BUG-AUDIT-20261027.md
+@@ -0,0 +1,47 @@
++# Newsletter bug audit and release checks
++
++User request: audit all of Mike's newsletter feedback, fix bugs, and merge the work.
++This audit follows the original implementation in PR #246.
++
++## Bugs corrected
++
++- Hidden and segment-restricted Preview Text could leak into the inbox preheader. The fallback now applies the same visibility and audience filter as the delivered body.
++- Server normalization treated deliberately empty modern fields as missing and resurrected old titles, body text or links. Only absent modern fields use legacy fallbacks.
++- Empty headers could send the editor's Logo placeholder. Placeholder logos are no longer delivered. Explicit logo sizing is distinct from legacy 40px defaults.
++- Zero block gaps and mobile padding overrides could be overridden by fixed CSS. Shared spacing now respects the configured values.
++- New block types did not inherit the account's role-specific fonts. Branding fallback now matches the existing blocks without resetting layout-specific typography.
++- Product gallery description, original-price and border switches were ignored or missing from the simplified controls. Rendering and controls now preserve those choices.
++- Explicit product image placement could lose to an old layout preset. The explicit selection now wins.
++- Button-link decoration accepted an unvalidated string into generated attributes. It now accepts only the supported decoration choices.
++- Coupon imports dropped badges; unsupported offer names silently became prices. Badges are preserved and unsupported offers require a correction before insertion.
++- Wide data tables accepted columns that the renderer would silently drop. Imports above 12 columns now explain how to split the table.
++- Invalid replacement imports could leave old rows enabled for insertion. Closed/reopened dialogs could accept late file/feed results. Reads now invalidate earlier results and clear stale rows.
++- A slow image upload could overwrite newer captions/reordering, restore deleted slots or update an unmounted block. Upload completion now resolves the latest block and stable gallery item ID.
++- Generated coupon barcodes and social icons were exposed as ordinary photo-upload targets. They are now read-only in the canvas.
++- Browser-library imports could continue after an account change. Each write is bound to the explicitly confirmed account, remaining records are retained on interruption, and pending save dialogs close on account changes.
++- Saved JSON could contain malformed gallery values that crashed rendering. Nested values and UTF-8 payload size are validated before reuse.
++- Clearing an individual appearance control behaved differently before and after saving. Undefined overrides now inherit the master value consistently.
++- Conditional segments that included all customers or evaluated rules did not consistently enforce store location scopes. Primary-location/activity evidence and selected-location targets now constrain every match.
++- The preview endpoint authenticated the caller but did not authorize a requested tenant/campaign/recipient before privileged data reads. Campaign permissions and JWT-scoped, tenant-bound lookups now run first.
++- Tracking URL discovery could omit URLs in conditional variants not visible to a representative recipient. Discovery includes all variants; actual sends still resolve each recipient's allowed blocks.
++
++## Validation evidence
++
++- Full application suite: **2,090 passed, four skipped** (295 passing files, one skipped).
++- Focused newsletter/editor suite: **138 passed**.
++- Deno recipient/tenant/location behavioral tests: **10 passed**. These tests mock database responses and do not send email.
++- Six Chromium rendering cases: 640px and 700px designs at 375px, 480px and 900px viewports. No script errors or horizontal document overflow.
++- Production build completed. Existing repository-wide type issues are evaluated separately from newly introduced diagnostics.
++- Regression tests cover cleared content, preheader isolation, import replacement/cancellation, upload races, account changes, malformed saved data, preview authorization and location-specific audiences.
++
++## Production database preparation
++
++The guarded Saved Blocks migration was applied to `udldmkqwnxhdeztyqcau` before releasing the new editor. Nine database assertions passed under an authenticated tenant-owner role: own-account read/rename/create, foreign-account read/delete/insert rejection, immutable tenant identity, required v2 insert marker, nonempty names and no anonymous access. All test records were rolled back.
++
++The migration receipt is aligned with `20261027221828`. The earlier `20261026193000` Saved Blocks migration is recorded as superseded by the guarded final schema so a later migration replay cannot reinstate older permissions. No other migrations were marked or changed.
++
++## Release boundary
++
++The database is prepared. Merge and deployment receipts must be verified separately on GitHub and Vercel. Keep the existing production frontend serving until affected email-worker deployments succeed, then promote the matching production build. Do not infer production success from a green preview alone.
++
++No customer campaign was sent as part of this audit. Real Outlook/Gmail/iOS inbox rendering and physical POS barcode scanning are not certified by browser or unit tests.
+diff --git a/src/components/crm/studio/BlockLibrary.tsx b/src/components/crm/studio/BlockLibrary.tsx
+index 144bfb3..4716c80 100644
+--- a/src/components/crm/studio/BlockLibrary.tsx
++++ b/src/components/crm/studio/BlockLibrary.tsx
+@@ -154,6 +154,15 @@ export default function BlockLibrary({
+     }
+   });
+   const [importing, setImporting] = React.useState(false);
++  const currentScope = React.useRef(saved.scopeKey);
++  currentScope.current = saved.scopeKey;
++  React.useEffect(() => {
++    setDialog(null);
++    setName("");
++    setMessage("");
++    setError("");
++    setImportOpen(false);
++  }, [saved.scopeKey]);
+   const query = search.trim().toLowerCase();
+   const footer = blocks.find((block) => block.type === "footer");
+   const editable = blocks.filter((block) => block.type !== "footer");
+@@ -551,10 +560,21 @@ export default function BlockLibrary({
+                       return;
+                     setImporting(true);
+                     setError("");
++                    const confirmedScope = saved.scopeKey;
++                    const confirmedTenant = saved.accountId;
+                     let remaining = [...legacy];
+                     try {
+                       for (const entry of legacy) {
+-                        await saved.create(entry);
++                        if (currentScope.current !== confirmedScope)
++                          throw new Error(
++                            "Account changed. Remaining browser blocks were kept and must be reviewed again.",
++                          );
++                        await saved.create({
++                          ...entry,
++                          ...(confirmedTenant
++                            ? { expectedTenantId: confirmedTenant }
++                            : {}),
++                        });
+                         remaining = remaining.slice(1);
+                         setLegacy(remaining);
+                         try {
+@@ -566,7 +586,10 @@ export default function BlockLibrary({
+                           /* successful account records remain authoritative */
+                         }
+                       }
+-                      setMessage("Browser blocks imported into this account.");
++                      if (currentScope.current === confirmedScope)
++                        setMessage(
++                          "Browser blocks imported into this account.",
++                        );
+                     } catch (err) {
+                       setError(
+                         err instanceof Error
+@@ -657,10 +680,18 @@ export default function BlockLibrary({
+               disabled={saved.busy || !name.trim() || !saved.ready}
+               onClick={async () => {
+                 if (!dialog) return;
++                const confirmedScope = saved.scopeKey;
+                 try {
+                   if (dialog.kind === "create")
+-                    await saved.create({ name, block: dialog.block });
++                    await saved.create({
++                      name,
++                      block: dialog.block,
++                      ...(saved.accountId
++                        ? { expectedTenantId: saved.accountId }
++                        : {}),
++                    });
+                   else await saved.rename({ id: dialog.id, name });
++                  if (currentScope.current !== confirmedScope) return;
+                   setDialog(null);
+                   setTab("saved");
+                   setMessage("Saved to your account.");
+diff --git a/src/components/crm/studio/BlockPropertiesPanel.tsx b/src/components/crm/studio/BlockPropertiesPanel.tsx
+index 1878f4c..adbee0d 100644
+--- a/src/components/crm/studio/BlockPropertiesPanel.tsx
++++ b/src/components/crm/studio/BlockPropertiesPanel.tsx
+@@ -1916,6 +1916,8 @@ function PanelContent({
+   const updateField = React.useCallback(
+     (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => {
+       onUpdateBlockField(block.id, field, value);
++      if (field === "logoSize")
++        onUpdateBlockField(block.id, "logoSizeExplicit", true);
+     },
+     [block.id, onUpdateBlockField],
+   );
+diff --git a/src/components/crm/studio/newsletter/AudienceControls.tsx b/src/components/crm/studio/newsletter/AudienceControls.tsx
+index da01a7b..f0a1f79 100644
+--- a/src/components/crm/studio/newsletter/AudienceControls.tsx
++++ b/src/components/crm/studio/newsletter/AudienceControls.tsx
+@@ -20,6 +20,7 @@ export default function AudienceControls({
+         .select("id,name")
+         .eq("tenant_id", tenant!.id)
+         .is("deleted_at", null)
++        .eq("status", "active")
+         .order("name")
+         .limit(500);
+       if (error) throw new Error("Could not load account segments.");
+diff --git a/src/components/crm/studio/newsletter/DataImportDialog.tsx b/src/components/crm/studio/newsletter/DataImportDialog.tsx
+index 65eb3c2..f55aae1 100644
+--- a/src/components/crm/studio/newsletter/DataImportDialog.tsx
++++ b/src/components/crm/studio/newsletter/DataImportDialog.tsx
+@@ -38,23 +38,49 @@ export default function DataImportDialog({
+   const [error, setError] = React.useState("");
+   const [busy, setBusy] = React.useState(false);
+   const abort = React.useRef<AbortController | null>(null);
++  const generation = React.useRef(0);
++  const isOpen = React.useRef(open);
++  isOpen.current = open;
+   React.useEffect(() => {
+-    if (!open) abort.current?.abort();
+-    return () => abort.current?.abort();
++    if (!open) {
++      setRows([]);
++      setMapping({});
++      setPaste("");
++      setUrl("");
++      setError("");
++      setBusy(false);
++    }
++    return () => {
++      generation.current++;
++      abort.current?.abort();
++    };
+   }, [open]);
++  const current = (request: number) =>
++    isOpen.current && generation.current === request;
++  const beginRead = () => {
++    abort.current?.abort();
++    setRows([]);
++    setMapping({});
++    setError("");
++    setBusy(true);
++    return ++generation.current;
++  };
++  const close = () => {
++    generation.current++;
++    abort.current?.abort();
++    setRows([]);
++    setMapping({});
++    setError("");
++    setBusy(false);
++    onClose();
++  };
+   const apply = (next: ImportRow[]) => {
+     setRows(next);
+     setMapping(inferImportMapping(Object.keys(next[0] || {})));
+     setError("");
+   };
+   return (
+-    <Modal
+-      open={open}
+-      onClose={() => {
+-        abort.current?.abort();
+-        onClose();
+-      }}
+-    >
++    <Modal open={open} onClose={close}>
+       <ModalDialog
+         sx={{
+           width: 820,
+@@ -80,34 +106,35 @@ export default function DataImportDialog({
+               const file = event.target.files?.[0];
+               event.target.value = "";
+               if (!file) return;
+-              setBusy(true);
+-              setError("");
++              const request = beginRead();
+               try {
+                 if (file.size > IMPORT_MAX_BYTES)
+                   throw new Error("Keep files below 2 MB.");
+                 if (/\.xlsx$/i.test(file.name)) {
+                   const { readSheet } = await import("read-excel-file/browser");
+                   const matrix = await readSheet(file);
+-                  apply(rowsFromMatrix(matrix));
++                  if (current(request)) apply(rowsFromMatrix(matrix));
+                 } else {
+                   const text = await file.text();
+-                  apply(
+-                    /\.json$/i.test(file.name)
+-                      ? parseJsonFeed(text)
+-                      : parseDelimited(
+-                          text,
+-                          /\.tsv$/i.test(file.name) ? "\t" : undefined,
+-                        ),
+-                  );
++                  if (current(request))
++                    apply(
++                      /\.json$/i.test(file.name)
++                        ? parseJsonFeed(text)
++                        : parseDelimited(
++                            text,
++                            /\.tsv$/i.test(file.name) ? "\t" : undefined,
++                          ),
++                    );
+                 }
+               } catch (err) {
++                if (!current(request)) return;
+                 setError(
+                   err instanceof Error
+                     ? err.message
+                     : "Could not read this file.",
+                 );
+               } finally {
+-                setBusy(false);
++                if (current(request)) setBusy(false);
+               }
+             }}
+           />
+@@ -124,6 +151,7 @@ export default function DataImportDialog({
+               className="nl-quiet"
+               disabled={busy}
+               onClick={() => {
++                beginRead();
+                 try {
+                   apply(parseDelimited(paste));
+                 } catch (err) {
+@@ -132,6 +160,8 @@ export default function DataImportDialog({
+                       ? err.message
+                       : "Could not parse the data.",
+                   );
++                } finally {
++                  setBusy(false);
+                 }
+               }}
+             >
+@@ -151,15 +181,15 @@ export default function DataImportDialog({
+               className="nl-quiet"
+               disabled={busy || !url.trim()}
+               onClick={async () => {
+-                setBusy(true);
+-                setError("");
+-                abort.current?.abort();
++                const request = beginRead();
+                 const controller = new AbortController();
+                 abort.current = controller;
+                 const timeout = setTimeout(() => controller.abort(), 15000);
+                 try {
+-                  apply(await loadPublicFeed(url, controller.signal));
++                  const result = await loadPublicFeed(url, controller.signal);
++                  if (current(request)) apply(result);
+                 } catch (err) {
++                  if (!current(request)) return;
+                   setError(
+                     err instanceof Error && err.name === "AbortError"
+                       ? "The feed request timed out or was cancelled."
+@@ -169,7 +199,7 @@ export default function DataImportDialog({
+                   );
+                 } finally {
+                   clearTimeout(timeout);
+-                  setBusy(false);
++                  if (current(request)) setBusy(false);
+                 }
+               }}
+             >
+@@ -301,7 +331,7 @@ export default function DataImportDialog({
+             className="nl-inline"
+             style={{ marginTop: 20, justifyContent: "flex-end" }}
+           >
+-            <button type="button" className="nl-quiet" onClick={onClose}>
++            <button type="button" className="nl-quiet" onClick={close}>
+               Cancel
+             </button>
+             <button
+@@ -320,7 +350,7 @@ export default function DataImportDialog({
+                   onInsert(blocks);
+                   setRows([]);
+                   setPaste("");
+-                  onClose();
++                  close();
+                 } catch (err) {
+                   setError(
+                     err instanceof Error
+diff --git a/src/components/crm/studio/newsletter/ExtendedBlockProperties.tsx b/src/components/crm/studio/newsletter/ExtendedBlockProperties.tsx
+index 7c60047..495013f 100644
+--- a/src/components/crm/studio/newsletter/ExtendedBlockProperties.tsx
++++ b/src/components/crm/studio/newsletter/ExtendedBlockProperties.tsx
+@@ -556,6 +556,46 @@ function GalleryFields({
+         max={48}
+         onChange={(value) => update(product ? "cardGap" : "gridGap", value)}
+       />
++      {product && (
++        <details className="nl-controls">
++          <summary>Product display options</summary>
++          <StudioSwitchField
++            label="Show prices"
++            checked={block.showPrices !== false}
++            onChange={(value) => update("showPrices", value)}
++          />
++          <StudioSwitchField
++            label="Show original prices"
++            checked={block.showOriginalPrice !== false}
++            onChange={(value) => update("showOriginalPrice", value)}
++          />
++          <StudioSwitchField
++            label="Show descriptions"
++            checked={block.showDescription !== false}
++            onChange={(value) => update("showDescription", value)}
++          />
++          <StudioSwitchField
++            label="Show badges"
++            checked={block.showBadges !== false}
++            onChange={(value) => update("showBadges", value)}
++          />
++          <StudioSwitchField
++            label="Show buttons"
++            checked={block.showCtaButtons !== false}
++            onChange={(value) => update("showCtaButtons", value)}
++          />
++          <StudioSwitchField
++            label="Show card borders"
++            checked={
++              block.showBorder !== false && block.showCardBorder !== false
++            }
++            onChange={(value) => {
++              update("showBorder", value);
++              update("showCardBorder", value);
++            }}
++          />
++        </details>
++      )}
+       {Array.from(
+         { length: Math.max(count, product ? products.length : images.length) },
+         (_, index) => (
+@@ -1055,7 +1095,10 @@ export function AdditionalBlockFields({
+             min={24}
+             max={320}
+             value={block.logoSize}
+-            onChange={(value) => update("logoSize", value)}
++            onChange={(value) => {
++              update("logoSize", value);
++              update("logoSizeExplicit", true);
++            }}
+           />
+           <StudioImageUpload
+             label="Full-width header banner"
+diff --git a/src/components/crm/studio/newsletter/NewsletterAccountAudit.test.tsx b/src/components/crm/studio/newsletter/NewsletterAccountAudit.test.tsx
+new file mode 100644
+index 0000000..6a8c356
+--- /dev/null
++++ b/src/components/crm/studio/newsletter/NewsletterAccountAudit.test.tsx
+@@ -0,0 +1,103 @@
++import "@testing-library/jest-dom/vitest";
++import * as React from "react";
++import {
++  render,
++  screen,
++  fireEvent,
++  act,
++  waitFor,
++} from "@testing-library/react";
++import { DndContext } from "@dnd-kit/core";
++import { describe, it, expect, vi, beforeEach } from "vitest";
++import BlockLibrary from "../BlockLibrary";
++import { createStudioBlock } from "@/lib/studio/blockFactory";
++const account = vi.hoisted(() => ({
++  scopeKey: "user:account-a",
++  accountId: "account-a",
++  create: vi.fn(),
++  rename: vi.fn(),
++  remove: vi.fn(),
++}));
++vi.mock("@/hooks/useSavedNewsletterBlocks", () => ({
++  useSavedNewsletterBlocks: () => ({
++    ...account,
++    blocks: [],
++    loading: false,
++    error: "",
++    busy: false,
++    ready: true,
++    accountName: account.accountId,
++    reload: vi.fn(),
++  }),
++}));
++vi.mock("@/contexts/DesignSystemContext", () => ({
++  useDesignSystem: () => ({ designSystem: null }),
++}));
++function Wrapper() {
++  const [blocks] = React.useState(() => [createStudioBlock("coupon")]);
++  return (
++    <DndContext>
++      <BlockLibrary
++        blocks={blocks}
++        selectedBlockId={blocks[0].id}
++        onAddBlock={() => {}}
++        onSelectBlock={() => {}}
++        onInsertSavedBlock={() => {}}
++      />
++    </DndContext>
++  );
++}
++beforeEach(() => {
++  vi.clearAllMocks();
++  localStorage.clear();
++  account.scopeKey = "user:account-a";
++  account.accountId = "account-a";
++});
++describe("newsletter account switching safety", () => {
++  it("closes a pending save dialog when the destination account changes", () => {
++    const view = render(<Wrapper />);
++    fireEvent.click(screen.getByRole("tab", { name: "Saved" }));
++    fireEvent.click(
++      screen.getByRole("button", { name: "Save selected block" }),
++    );
++    expect(screen.getByLabelText("Block name")).toBeInTheDocument();
++    account.scopeKey = "user:account-b";
++    account.accountId = "account-b";
++    view.rerender(<Wrapper />);
++    expect(screen.queryByLabelText("Block name")).not.toBeInTheDocument();
++    expect(account.create).not.toHaveBeenCalled();
++  });
++  it("stops a confirmed browser-library import when the account changes mid-batch", async () => {
++    localStorage.setItem(
++      "bloomsuite-saved-block-templates",
++      JSON.stringify([
++        { name: "One", block: createStudioBlock("coupon") },
++        { name: "Two", block: createStudioBlock("coupon") },
++      ]),
++    );
++    let resolve!: (value: unknown) => void;
++    account.create.mockReturnValue(
++      new Promise((r) => {
++        resolve = r;
++      }),
++    );
++    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
++    const view = render(<Wrapper />);
++    fireEvent.click(screen.getByRole("tab", { name: "Saved" }));
++    fireEvent.click(screen.getByRole("button", { name: "Import 2 blocks" }));
++    expect(account.create).toHaveBeenCalledTimes(1);
++    expect(account.create.mock.calls[0][0].expectedTenantId).toBe("account-a");
++    account.scopeKey = "user:account-b";
++    account.accountId = "account-b";
++    view.rerender(<Wrapper />);
++    await act(async () => resolve({ id: "one" }));
++    await waitFor(() =>
++      expect(screen.getByRole("alert")).toHaveTextContent("Account changed"),
++    );
++    expect(account.create).toHaveBeenCalledTimes(1);
++    expect(
++      JSON.parse(localStorage.getItem("bloomsuite-saved-block-templates")!),
++    ).toHaveLength(1);
++    confirm.mockRestore();
++  });
++});
+diff --git a/src/components/crm/studio/newsletter/NewsletterAsyncAudit.test.tsx b/src/components/crm/studio/newsletter/NewsletterAsyncAudit.test.tsx
+new file mode 100644
+index 0000000..65ce2c7
+--- /dev/null
++++ b/src/components/crm/studio/newsletter/NewsletterAsyncAudit.test.tsx
+@@ -0,0 +1,167 @@
++import "@testing-library/jest-dom/vitest";
++import * as React from "react";
++import {
++  render,
++  screen,
++  fireEvent,
++  act,
++  waitFor,
++} from "@testing-library/react";
++import { describe, it, expect, vi, beforeEach } from "vitest";
++import SharedEmailBlockPreview from "./SharedEmailBlockPreview";
++import DataImportDialog from "./DataImportDialog";
++import { createStudioBlock } from "@/lib/studio/blockFactory";
++import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
++const mocks = vi.hoisted(() => ({ upload: vi.fn() }));
++vi.mock("../fields/StudioImageUpload", () => ({
++  uploadStudioImageFile: mocks.upload,
++}));
++vi.mock("@/contexts/DesignSystemContext", () => ({
++  useDesignSystem: () => ({
++    designSystem: buildStudioDesignSystem({} as never),
++  }),
++}));
++function deferred<T>() {
++  let resolve!: (v: T) => void;
++  const promise = new Promise<T>((r) => {
++    resolve = r;
++  });
++  return { promise, resolve };
++}
++beforeEach(() => vi.clearAllMocks());
++describe("newsletter asynchronous edit safety", () => {
++  it("applies an image upload by stable ID without erasing newer edits or reordering", async () => {
++    const pending = deferred<string>();
++    mocks.upload.mockReturnValue(pending.promise);
++    const update = vi.fn();
++    const block = {
++      ...createStudioBlock("image-gallery"),
++      galleryImages: [
++        { id: "a", url: "https://example.com/a.png", alt: "A", caption: "Old" },
++        { id: "b", url: "https://example.com/b.png", alt: "B" },
++      ],
++    };
++    const view = render(
++      <SharedEmailBlockPreview block={block} onUpdateBlockField={update} />,
++    );
++    fireEvent.click(screen.getByRole("button", { name: "Change A" }));
++    fireEvent.change(view.container.querySelector('input[type="file"]')!, {
++      target: { files: [new File(["photo"], "a.png", { type: "image/png" })] },
++    });
++    const latest = {
++      ...block,
++      galleryImages: [
++        block.galleryImages[1],
++        {
++          ...block.galleryImages[0],
++          caption: "New caption",
++          linkUrl: "https://example.com/new",
++        },
++      ],
++    };
++    view.rerender(
++      <SharedEmailBlockPreview block={latest} onUpdateBlockField={update} />,
++    );
++    await act(async () => pending.resolve("https://example.com/uploaded.png"));
++    expect(update).toHaveBeenCalledWith(block.id, "galleryImages", [
++      latest.galleryImages[0],
++      { ...latest.galleryImages[1], url: "https://example.com/uploaded.png" },
++    ]);
++  });
++  it("does not resurrect a gallery slot removed during an upload", async () => {
++    const pending = deferred<string>();
++    mocks.upload.mockReturnValue(pending.promise);
++    const update = vi.fn();
++    const block = {
++      ...createStudioBlock("image-gallery"),
++      galleryImages: [{ id: "a", url: "https://example.com/a.png", alt: "A" }],
++    };
++    const view = render(
++      <SharedEmailBlockPreview block={block} onUpdateBlockField={update} />,
++    );
++    fireEvent.click(screen.getByRole("button", { name: "Change A" }));
++    fireEvent.change(view.container.querySelector("input")!, {
++      target: { files: [new File(["photo"], "a.png")] },
++    });
++    view.rerender(
++      <SharedEmailBlockPreview
++        block={{ ...block, galleryImages: [] }}
++        onUpdateBlockField={update}
++      />,
++    );
++    await act(async () => pending.resolve("https://example.com/new.png"));
++    expect(update).not.toHaveBeenCalled();
++  });
++  it("ignores uploads after the block is unmounted", async () => {
++    const pending = deferred<string>();
++    mocks.upload.mockReturnValue(pending.promise);
++    const update = vi.fn();
++    const view = render(
++      <SharedEmailBlockPreview
++        block={{
++          ...createStudioBlock("full-width-image"),
++          imageUrl: "https://example.com/a.png",
++          imageAlt: "A",
++        }}
++        onUpdateBlockField={update}
++      />,
++    );
++    fireEvent.click(screen.getByRole("button", { name: "Change A" }));
++    fireEvent.change(view.container.querySelector("input")!, {
++      target: { files: [new File(["photo"], "a.png")] },
++    });
++    view.unmount();
++    await act(async () => pending.resolve("https://example.com/new.png"));
++    expect(update).not.toHaveBeenCalled();
++  });
++  it("does not treat a generated coupon barcode as the product image upload control", () => {
++    const view = render(
++      <SharedEmailBlockPreview
++        block={{
++          ...createStudioBlock("coupon"),
++          couponBarcode: "036000291452",
++          couponBarcodeImageUrl: "https://example.com/upc.png",
++        }}
++        onUpdateBlockField={vi.fn()}
++      />,
++    );
++    const image = view.container.querySelector('img[alt^="UPC"]')!;
++    expect(image.getAttribute("role")).not.toBe("button");
++  });
++  it("discards previous import rows after an invalid replacement", () => {
++    render(<DataImportDialog open onClose={() => {}} onInsert={vi.fn()} />);
++    const input = screen.getByLabelText(
++      "Tab-separated rows with column headings",
++    );
++    fireEvent.change(input, { target: { value: "title,price\nFern,$12" } });
++    fireEvent.click(screen.getByRole("button", { name: "Read pasted rows" }));
++    expect(
++      screen.getByRole("button", { name: "Add to newsletter" }),
++    ).not.toBeDisabled();
++    fireEvent.change(input, { target: { value: 'title,price\n"unfinished' } });
++    fireEvent.click(screen.getByRole("button", { name: "Read pasted rows" }));
++    expect(screen.getByRole("alert")).toBeInTheDocument();
++    expect(
++      screen.getByRole("button", { name: "Add to newsletter" }),
++    ).toBeDisabled();
++  });
++  it("ignores a file read completed after closing and reopening the import dialog", async () => {
++    const pending = deferred<string>();
++    const file = new File(["a"], "old.csv", { type: "text/csv" });
++    Object.defineProperty(file, "text", { value: () => pending.promise });
++    const props = { onClose: () => {}, onInsert: vi.fn() };
++    const view = render(<DataImportDialog open {...props} />);
++    fireEvent.change(screen.getByLabelText("Upload newsletter data"), {
++      target: { files: [file] },
++    });
++    view.rerender(<DataImportDialog open={false} {...props} />);
++    view.rerender(<DataImportDialog open {...props} />);
++    await act(async () => pending.resolve("title,price\nOld Fern,$12"));
++    await waitFor(() =>
++      expect(
++        screen.getByRole("button", { name: "Add to newsletter" }),
++      ).toBeDisabled(),
++    );
++    expect(screen.queryByText("Old Fern")).not.toBeInTheDocument();
++  });
++});
+diff --git a/src/components/crm/studio/newsletter/SharedEmailBlockPreview.tsx b/src/components/crm/studio/newsletter/SharedEmailBlockPreview.tsx
+index be3a6e3..71895fa 100644
+--- a/src/components/crm/studio/newsletter/SharedEmailBlockPreview.tsx
++++ b/src/components/crm/studio/newsletter/SharedEmailBlockPreview.tsx
+@@ -28,7 +28,18 @@ export default function SharedEmailBlockPreview({
+     field: string;
+     index: number;
+     blockId: string;
++    itemId?: string;
+   } | null>(null);
++  const latest = React.useRef({ block, onUpdateBlockField });
++  latest.current = { block, onUpdateBlockField };
++  const mounted = React.useRef(true);
++  React.useEffect(() => {
++    mounted.current = true;
++    return () => {
++      mounted.current = false;
++      target.current = null;
++    };
++  }, []);
+   const [error, setError] = React.useState("");
+   const [busy, setBusy] = React.useState(false);
+   const html = React.useMemo(
+@@ -54,9 +65,14 @@ export default function SharedEmailBlockPreview({
+   const choose = (element: Element) => {
+     if (!onUpdateBlockField || busy) return;
+     const image = element.closest("img");
+-    if (!image) return;
++    if (
++      !image ||
++      image.hasAttribute("data-newsletter-readonly") ||
++      block.type === "social-follow"
++    )
++      return;
+     let field = image.getAttribute("data-newsletter-image") || "imageUrl";
+-    let index = Number(image.getAttribute("data-newsletter-index") || 0);
++    const index = Number(image.getAttribute("data-newsletter-index") || 0);
+     if (
+       ![
+         "imageUrl",
+@@ -79,7 +95,14 @@ export default function SharedEmailBlockPreview({
+       )
+     )
+       field = "authorImageUrl";
+-    target.current = { field, index, blockId: block.id };
++    if (!Number.isInteger(index) || index < 0) return;
++    const itemId =
++      field === "galleryImages"
++        ? block.galleryImages?.[index]?.id
++        : field === "galleryProducts"
++          ? block.galleryProducts?.[index]?.id
++          : undefined;
++    target.current = { field, index, blockId: block.id, itemId };
+     input.current?.click();
+   };
+   return (
+@@ -115,14 +138,19 @@ export default function SharedEmailBlockPreview({
+           }}
+           ref={(node) => {
+             if (node && onUpdateBlockField)
+-              node.querySelectorAll("img").forEach((image) => {
+-                image.tabIndex = 0;
+-                image.setAttribute("role", "button");
+-                image.setAttribute(
+-                  "aria-label",
+-                  `Change ${image.alt || "block image"}`,
+-                );
+-              });
++              node
++                .querySelectorAll<HTMLImageElement>(
++                  "img:not([data-newsletter-readonly])",
++                )
++                .forEach((image) => {
++                  if (block.type === "social-follow") return;
++                  image.tabIndex = 0;
++                  image.setAttribute("role", "button");
++                  image.setAttribute(
++                    "aria-label",
++                    `Change ${image.alt || "block image"}`,
++                  );
++                });
+           }}
+           dangerouslySetInnerHTML={{ __html: html }}
+         />
+@@ -161,35 +189,57 @@ export default function SharedEmailBlockPreview({
+             setError("");
+             try {
+               const url = await uploadStudioImageFile(file);
++              const current = latest.current;
++              if (
++                !mounted.current ||
++                current.block.id !== selected.blockId ||
++                !current.onUpdateBlockField
++              )
++                return;
+               if (selected.field === "galleryImages") {
+-                const images = [...(block.galleryImages || [])];
+-                if (images[selected.index]) {
+-                  images[selected.index] = { ...images[selected.index], url };
+-                  onUpdateBlockField(block.id, "galleryImages", images);
+-                }
++                const images = [...(current.block.galleryImages || [])];
++                const index = images.findIndex(
++                  (image) => image.id === selected.itemId,
++                );
++                if (index < 0) return;
++                images[index] = { ...images[index], url };
++                current.onUpdateBlockField(
++                  current.block.id,
++                  "galleryImages",
++                  images,
++                );
+               } else if (selected.field === "galleryProducts") {
+-                const products = [...(block.galleryProducts || [])];
+-                if (products[selected.index]) {
+-                  products[selected.index] = {
+-                    ...products[selected.index],
+-                    imageUrl: url,
+-                  };
+-                  onUpdateBlockField(block.id, "galleryProducts", products);
+-                }
+-              } else
+-                onUpdateBlockField(
+-                  block.id,
++                const products = [...(current.block.galleryProducts || [])];
++                const index = products.findIndex(
++                  (product) => product.id === selected.itemId,
++                );
++                if (index < 0) return;
++                products[index] = { ...products[index], imageUrl: url };
++                current.onUpdateBlockField(
++                  current.block.id,
++                  "galleryProducts",
++                  products,
++                );
++              } else {
++                current.onUpdateBlockField(
++                  current.block.id,
+                   selected.field as keyof StudioBlock,
+                   url,
+                 );
++              }
+             } catch (err) {
++              if (
++                !mounted.current ||
++                latest.current.block.id !== selected.blockId
++              )
++                return;
+               setError(
+                 err instanceof Error
+                   ? err.message
+                   : "Image could not be uploaded.",
+               );
+             } finally {
+-              setBusy(false);
++              if (mounted.current) setBusy(false);
+             }
+           }}
+         />
+diff --git a/src/components/crm/studio/newsletter/newsletterControls.css b/src/components/crm/studio/newsletter/newsletterControls.css
+index 2948ca1..6ab21d0 100644
+--- a/src/components/crm/studio/newsletter/newsletterControls.css
++++ b/src/components/crm/studio/newsletter/newsletterControls.css
+@@ -122,7 +122,7 @@
+ .nl-preview img[data-newsletter-image] {
+   cursor: pointer;
+ }
+-@container (max-width: 440px) {
++@container (max-width: 599px) {
+   .nl-preview .responsive-column {
+     display: block !important;
+     width: 100% !important;
+diff --git a/src/hooks/useSavedNewsletterBlocks.ts b/src/hooks/useSavedNewsletterBlocks.ts
+index f35de23..cf19e93 100644
+--- a/src/hooks/useSavedNewsletterBlocks.ts
++++ b/src/hooks/useSavedNewsletterBlocks.ts
+@@ -63,11 +63,17 @@ export function useSavedNewsletterBlocks() {
+     mutationFn: async ({
+       name,
+       block,
++      expectedTenantId,
+     }: {
+       name: string;
+       block: StudioBlock;
++      expectedTenantId?: string;
+     }) => {
+       const ctx = context();
++      if (expectedTenantId && expectedTenantId !== ctx.tenantId)
++        throw new Error(
++          "The selected account changed. Review the block and save again.",
++        );
+       const clean = readSavedBlock(block);
+       if (!clean) throw new Error("This block cannot be saved.");
+       const { data, error } = await supabase
+@@ -147,6 +153,8 @@ export function useSavedNewsletterBlocks() {
+     remove: remove.mutateAsync,
+     busy: create.isPending || rename.isPending || remove.isPending,
+     accountName: tenant?.name || "this account",
++    accountId: tenantId || null,
++    scopeKey: `${user?.id || ""}:${tenantId || ""}`,
+     ready: Boolean(tenantId && user?.id),
+   };
+ }
+diff --git a/src/lib/studio/emailHtmlGenerator.ts b/src/lib/studio/emailHtmlGenerator.ts
+index 9c85f2a..7cf861f 100644
+--- a/src/lib/studio/emailHtmlGenerator.ts
++++ b/src/lib/studio/emailHtmlGenerator.ts
+@@ -1078,7 +1078,14 @@ function renderNewsletterHeaderLogoHtml(
+   const showPlaceholder = options.showPlaceholder ?? true;
+   const defaultSize = options.size ?? 56;
+   const requestedSize = numberValue(block.logoSize, defaultSize);
+-  const size = Math.max(24, requestedSize === 40 ? defaultSize : requestedSize);
++  const size = clampNumber(
++    requestedSize === 40 && !block.logoSizeExplicit
++      ? defaultSize
++      : requestedSize,
++    defaultSize,
++    24,
++    320,
++  );
+   const logoUrl = safeUrl(block.logoUrl, { image: true });
+   const isCircle = block.logoShape === "circle";
+   const placeholderWidth = isCircle ? size : Math.max(size, 52);
+@@ -1110,15 +1117,18 @@ function renderNewsletterHeaderBlock(
+     block.textColor,
+     layout === "banner" ? "#ffffff" : "#1a1a2e",
+   );
+-  const paddingY = numberValue(
+-    block.verticalPadding,
+-    getNewsletterHeaderDefaultPaddingY(layout),
+-  );
++  const paddingY = block.appearance?.padding
++    ? 0
++    : numberValue(
++        block.verticalPadding,
++        getNewsletterHeaderDefaultPaddingY(layout),
++      );
++  const paddingX = block.appearance?.padding ? 0 : 24;
+   const title = stringValue(block.headline);
+-  const tagline = stringValue(block.subheading || block.tagline);
++  const tagline = stringValue(block.subheading ?? block.tagline);
+   const dateLabel = stringValue(block.dateLabel);
+   const hasTitle = Boolean(stringValue(block.headline));
+-  const hasTagline = Boolean(stringValue(block.subheading || block.tagline));
++  const hasTagline = Boolean(stringValue(block.subheading ?? block.tagline));
+   const hasDate = Boolean(stringValue(block.dateLabel));
+   const showDivider = block.showDividerBelow ?? block.showDivider ?? true;
+   const dividerColor = safeColor(
+@@ -1141,7 +1151,7 @@ function renderNewsletterHeaderBlock(
+     textColor,
+     designSystem,
+     {
+-      showPlaceholder: layout !== "banner",
++      showPlaceholder: false,
+       size: layout === "banner" ? 48 : 56,
+     },
+   );
+@@ -1152,25 +1162,26 @@ function renderNewsletterHeaderBlock(
+   if (layout === "centered") {
+     return renderSection(
+       backgroundColor,
+-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" align="center" style="padding:${paddingY}px 24px;text-align:center;vertical-align:middle;">${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ""}<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:22px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.4;color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin-top:4px;">${textBlock(dateLabel)}</div></td></tr>${dividerRow}</table>`,
++      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" align="center" style="padding:${paddingY}px ${paddingX}px;text-align:center;vertical-align:middle;">${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ""}<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:22px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.4;color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin-top:4px;">${textBlock(dateLabel)}</div></td></tr>${dividerRow}</table>`,
+     );
+   }
+ 
+   if (layout === "minimal") {
+     const minimalTagline = hasTagline
+-      ? `<div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.35;color:${colorWithOpacity(textColor, 0.64)};margin-top:4px;">${textBlock(stringValue(block.subheading || block.tagline))}</div>`
++      ? `<div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.35;color:${colorWithOpacity(textColor, 0.64)};margin-top:4px;">${textBlock(stringValue(block.subheading ?? block.tagline))}</div>`
+       : "";
+ 
+     return renderSection(
+       backgroundColor,
+-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px 24px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;"><div data-newsletter-role="heading" style="font-family:${titleFont};font-size:18px;line-height:1.2;font-weight:600;color:${titleColor};margin:0;">${textBlock(title)}</div></td><td class="responsive-column" width="96" valign="middle" align="right" style="width:96px;vertical-align:middle;text-align:right;padding-left:16px;"><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin:0;white-space:nowrap;">${textBlock(dateLabel)}</div></td></tr></table>${minimalTagline}</td></tr>${dividerRow}</table>`,
++      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px ${paddingX}px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;"><div data-newsletter-role="heading" style="font-family:${titleFont};font-size:18px;line-height:1.2;font-weight:600;color:${titleColor};margin:0;">${textBlock(title)}</div></td><td class="responsive-column" width="96" valign="middle" align="right" style="width:96px;vertical-align:middle;text-align:right;padding-left:16px;"><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin:0;white-space:nowrap;">${textBlock(dateLabel)}</div></td></tr></table>${minimalTagline}</td></tr>${dividerRow}</table>`,
+     );
+   }
+ 
+   const contentHtml = `<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:${layout === "banner" ? 18 : 20}px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:${layout === "banner" ? 12 : 13}px;line-height:${layout === "banner" ? 1.35 : 1.3};color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div>`;
+   const logoCellWidth = Math.max(
+     48,
+-    (numberValue(block.logoSize, layout === "banner" ? 48 : 56) === 40
++    (numberValue(block.logoSize, layout === "banner" ? 48 : 56) === 40 &&
++    !block.logoSizeExplicit
+       ? layout === "banner"
+         ? 48
+         : 56
+@@ -1185,7 +1196,7 @@ function renderNewsletterHeaderBlock(
+ 
+   return renderSection(
+     backgroundColor,
+-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px 24px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;">${leadingContent}</td><td class="responsive-column" width="${layout === "banner" ? 92 : 110}" valign="middle" align="right" style="width:${layout === "banner" ? 92 : 110}px;vertical-align:middle;text-align:right;padding-left:16px;">${dateHtml}</td></tr></table></td></tr>${dividerRow}</table>`,
++    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px ${paddingX}px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;">${leadingContent}</td><td class="responsive-column" width="${layout === "banner" ? 92 : 110}" valign="middle" align="right" style="width:${layout === "banner" ? 92 : 110}px;vertical-align:middle;text-align:right;padding-left:16px;">${dateHtml}</td></tr></table></td></tr>${dividerRow}</table>`,
+   );
+ }
+ 
+@@ -2146,8 +2157,50 @@ export function renderNewsletterBlock(
+       ? { textColor: appearance.text.body.color }
+       : {}),
+   };
++  // New blocks inherit the account's role-specific fonts, just like legacy blocks.
++  // Keep that fallback out of the legacy appearance path to preserve old layout presets.
++  const brandFonts = designSystem
++    ? {
++        text: Object.fromEntries(
++          [
++            "h1",
++            "h2",
++            "h3",
++            "h4",
++            "h5",
++            "h6",
++            "heading",
++            "subheading",
++            "body",
++            "button",
++            "label",
++            "price",
++            "smallPrint",
++          ].map((role) => [
++            role,
++            {
++              fontFamily: emailFont(
++                getFontStack(
++                  designSystem,
++                  /^h[1-6]$/.test(role) || role === "heading"
++                    ? "headline"
++                    : role === "subheading"
++                      ? "subheading"
++                      : role === "button"
++                        ? "button"
++                        : "body",
++                ),
++              ),
++            },
++          ]),
++        ),
++      }
++    : undefined;
++  const extendedBlock = brandFonts
++    ? { ...prepared, appearance: mergeAppearance(brandFonts, appearance) }
++    : prepared;
+   let html =
+-    renderExtendedBlock(prepared, resolved.width) ??
++    renderExtendedBlock(extendedBlock, resolved.width) ??
+     renderLegacyBlock(prepared, designSystem);
+   if (
+     prepared.type === "newsletter-header" &&
+@@ -2167,7 +2220,7 @@ export function renderNewsletterBlock(
+     html = html.replace(
+       /(<div class="mobile-padding" style=")([^"]*)"/g,
+       (_match, prefix, styles) =>
+-        `${prefix}${styles.replace(/(?:^|;)padding(?:-(?:top|right|bottom|left))?:[^;]*;?/g, ";")};padding:0;"`,
++        `${prefix.replace('class="mobile-padding"', 'class="mobile-padding newsletter-padding-override"')}${styles.replace(/(?:^|;)padding(?:-(?:top|right|bottom|left))?:[^;]*;?/g, ";")};padding:0;"`,
+     );
+   // The old renderer has fixed widths for Outlook. Scale only generated pixel widths,
+   // never customer copy, to the selected 480–800px email width.
+@@ -2260,7 +2313,10 @@ export function generateEmailHtml({
+   const escapedSubject = escapeHtml(subject || "Campaign Preview");
+   const escapedPreviewText = escapeHtml(
+     previewText ||
+-      blocks.find((block) => block.type === "preheader")?.body ||
++      blocks.find(
++        (block) =>
++          block.type === "preheader" && blockMatchesAudience(block, audience),
++      )?.body ||
+       "",
+   );
+   const html = `<!DOCTYPE html>
+@@ -2281,13 +2337,13 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
+     body { margin:0 !important; padding:0 !important; width:100% !important; }
+     .email-block { margin:0 !important; }
+     .email-block-divider, .email-block-spacer { margin:0 !important; }
+-    .email-block-gap { height:16px; line-height:16px; font-size:0; }
++    .email-block-gap { height:${settings.blockGap}px; line-height:${settings.blockGap}px; font-size:0; }
+     @media only screen and (max-width: 599px) {
+       .responsive-column { display:block !important; width:100% !important; max-width:100% !important; box-sizing:border-box !important; padding-left:0 !important; padding-right:0 !important; }
+       .responsive-column + .responsive-column { padding-top:16px !important; }
+       .responsive-image { width:100% !important; max-width:100% !important; height:auto !important; }
+       .responsive-crop-image { height:240px !important; }
+-      .mobile-padding { padding:16px !important; }
++      .mobile-padding:not(.newsletter-padding-override) { padding:16px !important; }
+       .gallery-grid,
+       .product-grid,
+       .feature-grid-container,
+diff --git a/src/lib/studio/newsletter/dataImport.ts b/src/lib/studio/newsletter/dataImport.ts
+index 3c9fda7..a66a7ae 100644
+--- a/src/lib/studio/newsletter/dataImport.ts
++++ b/src/lib/studio/newsletter/dataImport.ts
+@@ -170,7 +170,7 @@ export function publicFeedUrl(value: string): string {
+   const safe = safeEmailUrl(value);
+   if (!safe) throw new Error("Enter a public HTTPS feed URL.");
+   const url = new URL(safe);
+-  const host = url.hostname.toLowerCase();
++  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+   // A browser fetch uses CORS and no credentials, but must still never target a local device.
+   if (
+     url.protocol !== "https:" ||
+@@ -256,6 +256,10 @@ export function importRowsToBlocks(
+   };
+   if (target === "data-table") {
+     const headers = Object.keys(rows[0]);
++    if (headers.length > 12)
++      throw new Error(
++        "Data tables support up to 12 columns. Split this sheet into smaller tables before importing.",
++      );
+     return [
+       {
+         ...createStudioBlock("data-table", designSystem),
+@@ -330,6 +334,7 @@ export function importRowsToBlocks(
+       buttonUrl: url,
+       buttonText: get(row, "buttonText") || "View offer",
+       originalPrice: get(row, "originalPrice"),
++      badgeText: get(row, "badge"),
+       subheading: get(row, "subtitle"),
+     });
+     if (target === "product-card")
+@@ -342,7 +347,16 @@ export function importRowsToBlocks(
+       });
+     else {
+       const offer = get(row, "offer").toLowerCase();
+-      const percent = offer.match(/^(\d+(?:\.\d+)?)\s*%/);
++      const percent = offer.match(/^(\d+(?:\.\d+)?)\s*%(?:\s*off)?$/);
++      if (
++        offer &&
++        !percent &&
++        !["price", "just price", "bogo", "buy one get one free"].includes(offer)
++      ) {
++        throw new Error(
++          `Unrecognized offer “${get(row, "offer")}” for “${title}”. Use a price, percentage (such as 25% off), or BOGO, then configure other offer types in the editor.`,
++        );
++      }
+       Object.assign(block, {
+         tagLabel: get(row, "introduction"),
+         body: get(row, "description"),
+@@ -350,7 +364,11 @@ export function importRowsToBlocks(
+         couponConditions: get(row, "conditions"),
+         couponExpiry: get(row, "expiry"),
+         couponSizing: get(row, "sizing"),
+-        couponOffer: percent ? "percent" : offer === "bogo" ? "bogo" : "price",
++        couponOffer: percent
++          ? "percent"
++          : ["bogo", "buy one get one free"].includes(offer)
++            ? "bogo"
++            : "price",
+         couponPercent: percent ? Math.min(100, Number(percent[1])) : undefined,
+       });
+     }
+diff --git a/src/lib/studio/newsletter/newsletterAudit.test.ts b/src/lib/studio/newsletter/newsletterAudit.test.ts
+new file mode 100644
+index 0000000..2e6009b
+--- /dev/null
++++ b/src/lib/studio/newsletter/newsletterAudit.test.ts
+@@ -0,0 +1,270 @@
++import { describe, it, expect } from "vitest";
++import { createStudioBlock } from "../blockFactory";
++import {
++  generateEmailHtml,
++  renderNewsletterBlock,
++} from "../emailHtmlGenerator";
++import { buildStudioDesignSystem } from "../designSystem";
++import { normalizeContentBlocks } from "../../../../supabase/functions/_shared/campaignEmailSource";
++import {
++  importRowsToBlocks,
++  inferImportMapping,
++  rowsFromMatrix,
++} from "./dataImport";
++import { readSavedBlock } from "./savedBlocks";
++import { mergeAppearance } from "./settings";
++import type { StudioBlock } from "@/types/studioBlocks";
++const b = (
++  type: StudioBlock["type"],
++  patch: Partial<StudioBlock> = {},
++): StudioBlock => ({ ...createStudioBlock(type), ...patch });
++const email = (
++  blocks: StudioBlock[],
++  extra: Partial<Parameters<typeof generateEmailHtml>[0]> = {},
++) =>
++  generateEmailHtml({
++    blocks,
++    subject: "Audit",
++    previewText: "",
++    footer: null,
++    ...extra,
++  });
++const doc = (html: string) =>
++  new DOMParser().parseFromString(html, "text/html");
++describe("newsletter bug audit", () => {
++  it("does not leak hidden preview text into the inbox preheader", () =>
++    expect(
++      email([b("preheader", { body: "HIDDEN-PREVIEW", visible: false })]),
++    ).not.toContain("HIDDEN-PREVIEW"));
++  it("does not leak segment-only preview text to nonmembers", () =>
++    expect(
++      email(
++        [
++          b("preheader", {
++            body: "MEMBER-ONLY-OFFER",
++            audience: { mode: "segments", segmentIds: ["vip"] },
++          }),
++        ],
++        { audience: { segmentIds: [] } },
++      ),
++    ).not.toContain("MEMBER-ONLY-OFFER"));
++  it("still includes a permitted recipient preheader", () =>
++    expect(
++      email(
++        [
++          b("preheader", {
++            body: "VIP-preview",
++            audience: { mode: "segments", segmentIds: ["vip"] },
++          }),
++        ],
++        { audience: { segmentIds: ["vip"] } },
++      ),
++    ).toContain("VIP-preview"));
++  it("preserves deliberately cleared content through server normalization", () => {
++    const [block] = normalizeContentBlocks([
++      {
++        ...b("email-safe-hero"),
++        headline: "",
++        body: "",
++        title: "Hero placeholder",
++        content: "Old body",
++      },
++    ]);
++    expect(block.headline).toBe("");
++    expect(block.body).toBe("");
++  });
++  it("still upgrades legacy title/body fields when modern fields are absent", () => {
++    const [block] = normalizeContentBlocks([
++      { id: "legacy", type: "text", title: "Old heading", content: "Old body" },
++    ]);
++    expect(block.headline).toBe("Old heading");
++    expect(block.body).toBe("Old body");
++  });
++  it("does not send a Logo placeholder when no logo is selected", () =>
++    expect(
++      doc(
++        renderNewsletterBlock(
++          b("newsletter-header", { headline: "Garden news", logoUrl: "" }),
++        ),
++      ).body.textContent,
++    ).not.toContain("Logo"));
++  it("honours a zero block gap without a CSS minimum of 16px", () => {
++    const output = email(
++      [
++        b("headline", { headline: "First" }),
++        b("headline", { headline: "Second" }),
++      ],
++      { newsletterSettings: { version: 1, blockGap: 0 } },
++    );
++    expect(output).not.toMatch(/\.email-block-gap\s*\{[^}]*height:16px/);
++  });
++  it("uses account headline branding in new blocks", () => {
++    const brand = buildStudioDesignSystem({} as never);
++    brand.typography.headline = {
++      ...brand.typography.headline,
++      fontFamilyCss: "Georgia, Times, serif",
++    };
++    const node = doc(
++      renderNewsletterBlock(
++        b("headline", { headline: "Brand heading" }),
++        brand,
++      ),
++    ).querySelector<HTMLHeadingElement>("h2")!;
++    expect(node.style.fontFamily).toBe("Georgia, Times, serif");
++  });
++  it("keeps gallery description and original-price visibility switches", () => {
++    const output = renderNewsletterBlock(
++      b("product-gallery", {
++        showDescription: false,
++        showOriginalPrice: false,
++        galleryProducts: [
++          {
++            id: "p",
++            name: "Fern",
++            imageUrl: "",
++            price: "$12",
++            originalPrice: "$25",
++            description: "SHOULD-BE-HIDDEN",
++          },
++        ],
++      }),
++    );
++    expect(output).not.toContain("SHOULD-BE-HIDDEN");
++    expect(output).not.toContain("$25");
++  });
++  it("does not serialize unvalidated button link decoration as HTML attributes", () => {
++    const output = renderNewsletterBlock(
++      b("button-group", {
++        buttonStyle: "link",
++        links: [{ id: "a", label: "Visit", url: "https://example.com" }],
++        appearance: {
++          linkDecoration: 'none;" onpointerover="alert(1)' as never,
++        },
++      }),
++    );
++    expect(doc(output).querySelector("[onpointerover]")).toBeNull();
++  });
++  it("rejects data-table imports above the renderer column limit instead of silently losing columns", () => {
++    const headers = Array.from({ length: 13 }, (_, i) => `Column${i}`);
++    const rows = rowsFromMatrix([headers, headers.map(() => "value")]);
++    expect(() => importRowsToBlocks(rows, "data-table", {})).toThrow(
++      /12 columns/i,
++    );
++  });
++  it("preserves imported coupon badges", () => {
++    const rows = [{ title: "Fern", price: "$12", badge: "Rare" }];
++    const [block] = importRowsToBlocks(
++      rows,
++      "coupon",
++      inferImportMapping(Object.keys(rows[0])),
++    );
++    expect(renderNewsletterBlock(block)).toContain("Rare");
++  });
++  it("refuses unrecognized coupon offers instead of silently converting the price meaning", () => {
++    const rows = [{ title: "Fern", price: "$12", offer: "mystery discount" }];
++    expect(() =>
++      importRowsToBlocks(
++        rows,
++        "coupon",
++        inferImportMapping(Object.keys(rows[0])),
++      ),
++    ).toThrow(/offer/i);
++  });
++  it("rejects malformed saved gallery text rather than crashing when it is rendered", () => {
++    expect(
++      readSavedBlock(
++        b("image-gallery", {
++          galleryImages: [
++            {
++              id: "x",
++              url: "https://example.com/a.png",
++              alt: { bad: true } as never,
++            },
++          ],
++        }),
++      ),
++    ).toBeNull();
++  });
++  it("enforces saved block limits in UTF-8 bytes", () =>
++    expect(
++      readSavedBlock(b("plain-text", { body: "🌱".repeat(65000) })),
++    ).toBeNull());
++});
++
++describe("newsletter appearance compatibility", () => {
++  it("changing only a heading colour does not reset its size or weight", () => {
++    const output = renderNewsletterBlock(
++      b("headline", {
++        headline: "Only colour",
++        appearance: { text: { heading: { color: "#123456" } } },
++      }),
++    );
++    const heading = doc(output).querySelector<HTMLHeadingElement>("h2")!;
++    expect(heading.style.fontSize).toBe("26px");
++    expect(heading.style.fontWeight).toBe("700");
++    expect(heading.style.color).toBe("rgb(18, 52, 86)");
++  });
++  it("choosing a master font preserves block-specific heading sizes", () => {
++    const output = renderNewsletterBlock(
++      b("headline", { headline: "New font" }),
++      null,
++      { version: 1, fontFamily: "Georgia, Times, serif" },
++    );
++    expect(
++      doc(output).querySelector<HTMLHeadingElement>("h2")!.style.fontSize,
++    ).toBe("26px");
++  });
++  it("cleared individual controls inherit master values before and after persistence", () => {
++    const defaults = {
++      padding: { top: 20 },
++      text: { body: { size: 19, color: "#123456" } },
++    };
++    const individual = {
++      padding: { top: undefined },
++      text: { body: { size: undefined } },
++    };
++    expect(mergeAppearance(defaults, individual)).toEqual(
++      mergeAppearance(defaults, JSON.parse(JSON.stringify(individual))),
++    );
++    expect(mergeAppearance(defaults, individual).text?.body?.size).toBe(19);
++  });
++  it("honours an explicitly selected 40px logo while keeping old legacy defaults", () => {
++    const output = renderNewsletterBlock(
++      b("newsletter-header", {
++        logoSize: 40,
++        logoSizeExplicit: true,
++        logoUrl: "https://example.com/logo.png",
++      }),
++    );
++    expect(
++      doc(output).querySelector<HTMLImageElement>("img")!.style.height,
++    ).toBe("40px");
++  });
++  it("explicit left image placement overrides an old top-image preset", () => {
++    const output = renderNewsletterBlock(
++      b("product-card", {
++        imageUrl: "https://example.com/a.png",
++        productName: "Fern",
++        layout: "image-top",
++        imagePosition: "left",
++      }),
++    );
++    expect(output).toContain('width="38%"');
++  });
++  it("keeps conditional URLs discoverable for tracking without including them in recipient delivery", () => {
++    const blocks = [
++      b("button-group", {
++        audience: { mode: "segments", segmentIds: ["vip"] },
++        links: [
++          { id: "v", label: "Member offer", url: "https://example.com/vip" },
++        ],
++      }),
++    ];
++    expect(email(blocks, { audience: { previewAll: true } })).toContain(
++      "https://example.com/vip",
++    );
++    expect(email(blocks, { audience: { segmentIds: [] } })).not.toContain(
++      "https://example.com/vip",
++    );
++  });
++});
+diff --git a/src/lib/studio/newsletter/newsletterPreviewAccess.test.ts b/src/lib/studio/newsletter/newsletterPreviewAccess.test.ts
+new file mode 100644
+index 0000000..d7697c5
+--- /dev/null
++++ b/src/lib/studio/newsletter/newsletterPreviewAccess.test.ts
+@@ -0,0 +1,80 @@
++import { describe, it, expect, vi } from "vitest";
++import {
++  assertNewsletterPreviewAccess,
++  type NewsletterPreviewAccessClient,
++} from "../../../../supabase/functions/_shared/newsletterPreviewAccess";
++const tenant = "00000000-0000-4000-8000-000000000001",
++  campaign = "00000000-0000-4000-8000-000000000002";
++function client(
++  allowed: unknown = true,
++  row: { id?: string } | null = { id: campaign },
++) {
++  const eq = vi.fn();
++  const maybeSingle = vi.fn(async () => ({ data: row, error: null }));
++  const query = { eq, maybeSingle };
++  eq.mockReturnValue(query);
++  const from = vi.fn(() => ({ select: vi.fn(() => query) }));
++  const rpc = vi.fn(async () => ({ data: allowed, error: null }));
++  return { rpc, from, eq, maybeSingle };
++}
++describe("newsletter preview authorization", () => {
++  it("rejects a foreign tenant before reading any campaign or contact", async () => {
++    const db = client(false);
++    await expect(
++      assertNewsletterPreviewAccess(db, {
++        tenantId: tenant,
++        campaignId: campaign,
++        trustedService: false,
++      }),
++    ).rejects.toThrow(/access/);
++    expect(db.from).not.toHaveBeenCalled();
++  });
++  it("requires campaign read permission and an accessible tenant-scoped campaign", async () => {
++    const db = client();
++    await assertNewsletterPreviewAccess(db, {
++      tenantId: tenant,
++      campaignId: campaign,
++      trustedService: false,
++    });
++    expect(db.rpc).toHaveBeenCalledWith("has_tenant_permission", {
++      p_tenant_id: tenant,
++      p_permission: "campaign.read",
++      p_location_id: null,
++    });
++    expect(db.eq).toHaveBeenCalledWith("tenant_id", tenant);
++  });
++  it("rejects an inaccessible campaign even for an otherwise permitted tenant", async () => {
++    await expect(
++      assertNewsletterPreviewAccess(client(true, null), {
++        tenantId: tenant,
++        campaignId: campaign,
++        trustedService: false,
++      }),
++    ).rejects.toThrow(/campaign/);
++  });
++  it("does not turn a missing permission result into approval", async () => {
++    await expect(
++      assertNewsletterPreviewAccess(client(null), {
++        tenantId: tenant,
++        trustedService: false,
++      }),
++    ).rejects.toThrow(/access/);
++  });
++  it("allows an authenticated generic preview without private identifiers", async () => {
++    const db = client(false);
++    await assertNewsletterPreviewAccess(db, {
++      tenantId: "preview-tenant",
++      trustedService: false,
++    });
++    expect(db.rpc).not.toHaveBeenCalled();
++  });
++  it("rejects a real contact under the generic preview tenant", async () => {
++    await expect(
++      assertNewsletterPreviewAccess(client(), {
++        tenantId: "preview-tenant",
++        customerId: campaign,
++        trustedService: false,
++      }),
++    ).rejects.toThrow(/valid account/);
++  });
++});
+diff --git a/src/lib/studio/newsletter/renderExtensions.ts b/src/lib/studio/newsletter/renderExtensions.ts
+index 24325a7..0f5bcf5 100644
+--- a/src/lib/studio/newsletter/renderExtensions.ts
++++ b/src/lib/studio/newsletter/renderExtensions.ts
+@@ -75,7 +75,7 @@ export function renderNewsletterButton(
+   const padding = link
+     ? "0"
+     : `${clampNumber(block.appearance?.buttonPaddingY, defaultY, 0, 48)}px ${clampNumber(block.appearance?.buttonPaddingX, defaultX, 0, 96)}px`;
+-  return `<a data-newsletter-role="button" href="${attr(href)}" target="_blank" rel="noopener noreferrer" style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? block.appearance?.linkDecoration || "underline" : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</a>`;
++  return `<a data-newsletter-role="button" href="${attr(href)}" target="_blank" rel="noopener noreferrer" style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</a>`;
+ }
+ function picture(block: StudioBlock, width = 220): string {
+   const url = safeEmailUrl(block.imageUrl, true);
+@@ -180,7 +180,7 @@ export function renderCoupon(block: StudioBlock, width: number): string {
+   const barcodeUrl = safeEmailUrl(block.couponBarcodeImageUrl, true);
+   const barcode =
+     block.couponBarcode && validUpcA(block.couponBarcode) && barcodeUrl
+-      ? `<div style="padding-top:16px;text-align:center;"><img src="${attr(barcodeUrl)}" width="250" alt="UPC ${attr(block.couponBarcode)}" style="max-width:100%;height:auto;" /><div style="font-family:monospace;font-size:13px;">${text(block.couponBarcode)}</div></div>`
++      ? `<div style="padding-top:16px;text-align:center;"><img data-newsletter-readonly="true" src="${attr(barcodeUrl)}" width="250" alt="UPC ${attr(block.couponBarcode)}" style="max-width:100%;height:auto;" /><div style="font-family:monospace;font-size:13px;">${text(block.couponBarcode)}</div></div>`
+       : "";
+   const content =
+     badges(block) +
+@@ -229,26 +229,32 @@ export function renderExtendedBlock(
+     case "product-card": {
+       const content =
+         badges(block) +
+-        heading(block, block.productName || block.headline) +
++        heading(block, block.productName ?? block.headline) +
+         paragraph(
+           block,
+-          block.productSubtitle || block.subheading,
++          block.productSubtitle ?? block.subheading,
+           "subheading",
+           16,
+         ) +
+         (block.productPrice
+           ? `<div data-newsletter-role="price" style="margin:8px 0;${role(block, "price", 22, 700)}">${text(block.productPrice)}${block.originalPrice ? ` <s style="font-size:14px;font-weight:400;">${text(block.originalPrice)}</s>` : ""}</div>`
+           : "") +
+-        paragraph(block, block.productDescription || block.body) +
++        paragraph(block, block.productDescription ?? block.body) +
+         renderNewsletterButton(block);
+       const side =
+-        block.imagePosition === "top" || block.layout === "image-top"
+-          ? "top"
+-          : block.imagePosition === "right" || block.layout === "image-right"
+-            ? "right"
+-            : "left";
++        block.imagePosition === "left" ||
++        block.imagePosition === "right" ||
++        block.imagePosition === "top"
++          ? block.imagePosition
++          : block.layout === "image-top"
++            ? "top"
++            : block.layout === "image-right"
++              ? "right"
++              : "left";
+       const border =
+-        block.appearance?.border || block.showBorder === false
++        block.appearance?.border ||
++        block.showBorder === false ||
++        block.showCardBorder === false
+           ? "none"
+           : "1px solid #cbd5e1";
+       return `<div style="padding:${block.appearance?.padding ? "0" : "24px"};border:${border};border-radius:${clampNumber(block.cardBorderRadius, 10, 0, 48)}px;background:${emailColor(block.backgroundColor, "#ffffff")};">${imageAndContent(block, content, side, width - 48)}</div>`;
+@@ -293,13 +299,15 @@ export function renderExtendedBlock(
+           paragraph(block, product.name, "heading", 17) +
+           paragraph(block, product.altName, "subheading", 13) +
+           (block.showPrices !== false && product.price
+-            ? `<div data-newsletter-role="price" style="${role(block, "price", 16, 700)}">${text(product.price)}${product.originalPrice ? ` <s style="font-weight:400;font-size:13px;">${text(product.originalPrice)}</s>` : ""}</div>`
++            ? `<div data-newsletter-role="price" style="${role(block, "price", 16, 700)}">${text(product.price)}${block.showOriginalPrice !== false && product.originalPrice ? ` <s style="font-weight:400;font-size:13px;">${text(product.originalPrice)}</s>` : ""}</div>`
++            : "") +
++          (block.showDescription !== false
++            ? paragraph(block, product.description, "body", 13)
+             : "") +
+-          paragraph(block, product.description, "body", 13) +
+           (block.showCtaButtons !== false
+             ? renderNewsletterButton(productBlock)
+             : "");
+-        return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};"><tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr></table></td>`;
++        return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};"><tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr></table></td>`;
+       });
+       const rows: string[] = [];
+       for (let i = 0; i < cells.length; i += columns)
+diff --git a/src/lib/studio/newsletter/savedBlocks.ts b/src/lib/studio/newsletter/savedBlocks.ts
+index 073e7ea..b8c9008 100644
+--- a/src/lib/studio/newsletter/savedBlocks.ts
++++ b/src/lib/studio/newsletter/savedBlocks.ts
+@@ -18,6 +18,201 @@ export function readSavedBlock(value: unknown): StudioBlock | null {
+     return null;
+   if (typeof record.id !== "string" || typeof record.label !== "string")
+     return null;
++  // Saved designs are untrusted JSON (including manually imported browser records).
++  // Validate nested values before renderer helpers receive them.
++  const scalars: Array<[readonly string[], string]> = [
++    [
++      [
++        "headingLevel",
++        "couponAmount",
++        "couponBundlePrice",
++        "couponRegularPrice",
++        "couponSizing",
++        "couponExpiry",
++        "couponBarcode",
++        "couponBarcodeImageUrl",
++        "productSubtitle",
++        "tableCaption",
++        "chartUnit",
++        "videoUrl",
++        "eventDate",
++        "eventLocation",
++        "headerBannerUrl",
++        "id",
++        "type",
++        "label",
++        "couponOffer",
++        "couponPrice",
++        "couponConditions",
++        "couponImageSide",
++        "headline",
++        "subheading",
++        "body",
++        "tagLabel",
++        "tagline",
++        "dateLabel",
++        "imageUrl",
++        "imageAlt",
++        "linkUrl",
++        "caption",
++        "captionAlignment",
++        "captionColor",
++        "businessName",
++        "address",
++        "copyright",
++        "copyrightText",
++        "complianceText",
++        "websiteUrl",
++        "linkColor",
++        "buttonText",
++        "buttonUrl",
++        "buttonColor",
++        "buttonTextColor",
++        "buttonSize",
++        "buttonStyle",
++        "secondaryLinkText",
++        "secondaryLinkUrl",
++        "backgroundColor",
++        "textColor",
++        "textAlign",
++        "accentColor",
++        "overlayColor",
++        "overlayGradientDirection",
++        "heroStyle",
++        "gradientFrom",
++        "gradientTo",
++        "layout",
++        "layoutPreset",
++        "logoUrl",
++        "logoAlignment",
++        "logoShape",
++        "imageFit",
++        "imagePosition",
++        "imageRatio",
++        "columnSplit",
++        "cardBackgroundColor",
++        "lineColor",
++        "dividerBelowColor",
++        "lineStyle",
++        "lineType",
++        "ornamentSymbol",
++        "ornamentColor",
++        "textPosition",
++        "captionBarColor",
++        "fontSize",
++        "fontSizePreset",
++        "fontStyle",
++        "fontWeightPreset",
++        "quoteText",
++        "authorName",
++        "authorTitle",
++        "authorImageUrl",
++        "authorAvatarUrl",
++        "productName",
++        "productPrice",
++        "originalPrice",
++        "productDescription",
++        "badgeText",
++        "badgeColor",
++        "badgeTextColor",
++        "badgePosition",
++        "socialLabel",
++        "iconStyle",
++        "footerIconStyle",
++        "iconSize",
++        "iconColorMode",
++        "footerIconColor",
++        "socialIconStyle",
++        "socialIconSize",
++        "socialColorMode",
++        "customIconColor",
++      ],
++      "string",
++    ],
++    [
++      [
++        "couponPercent",
++        "couponBuyQuantity",
++        "couponBundleQuantity",
++        "couponMinimumQuantity",
++        "order",
++        "accentThickness",
++        "overlayOpacity",
++        "logoSize",
++        "borderRadius",
++        "cardBorderRadius",
++        "boxBorderRadius",
++        "contentPadding",
++        "verticalPadding",
++        "imageFocalX",
++        "imageFocalY",
++        "imageHeight",
++        "maxHeight",
++        "gridColumns",
++        "gridGap",
++        "cardGap",
++        "lineThickness",
++        "lineWidth",
++        "paddingTop",
++        "paddingBottom",
++        "ornamentSize",
++        "spacerHeight",
++        "lineHeight",
++        "lineHeightValue",
++        "authorAvatarSize",
++        "quoteMarkSize",
++        "iconSpacing",
++      ],
++      "number",
++    ],
++    [
++      [
++        "visible",
++        "couponBorder",
++        "couponScissors",
++        "showCaption",
++        "showUnsubscribe",
++        "showManagePreferences",
++        "showWebsiteLink",
++        "buttonRounded",
++        "fullWidthButton",
++        "showSecondaryLink",
++        "showAccent",
++        "showOverlay",
++        "imagePadding",
++        "insetPadding",
++        "showOrnament",
++        "showDottedOutline",
++        "showDivider",
++        "showDividerBelow",
++        "showBorder",
++        "showCardBorder",
++        "showShadow",
++        "showBadges",
++        "showPrices",
++        "showOriginalPrice",
++        "showCtaButtons",
++        "showDescription",
++        "showTextOverlay",
++        "textShadow",
++        "showButton",
++        "showCaptionBar",
++        "showAuthorImage",
++        "showSocialInFooter",
++      ],
++      "boolean",
++    ],
++  ];
++  for (const [keys, kind] of scalars)
++    for (const key of keys) {
++      const item = record[key];
++      if (
++        item !== undefined &&
++        item !== null &&
++        (typeof item !== kind || (kind === "number" && !Number.isFinite(item)))
++      )
++        return null;
++    }
+   for (const key of [
+     "galleryImages",
+     "galleryProducts",
+@@ -36,6 +231,33 @@ export function readSavedBlock(value: unknown): StudioBlock | null {
+     )
+       return null;
+   }
++  for (const key of [
++    "galleryImages",
++    "galleryProducts",
++    "links",
++    "badges",
++    "chartData",
++    "socialLinks",
++    "footerSocialLinks",
++  ]) {
++    const items = record[key];
++    if (items === undefined) continue;
++    if (!Array.isArray(items) || items.length > 500) return null;
++    for (const item of items) {
++      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
++      for (const [field, cell] of Object.entries(item)) {
++        if (cell === undefined || cell === null) continue;
++        if (key === "chartData" && field === "value") {
++          if (typeof cell !== "number" || !Number.isFinite(cell)) return null;
++        } else if (
++          ["socialLinks", "footerSocialLinks"].includes(key) &&
++          field === "enabled"
++        ) {
++          if (typeof cell !== "boolean") return null;
++        } else if (typeof cell !== "string") return null;
++      }
++    }
++  }
+   for (const key of ["textColumns", "tableHeaders"]) {
+     const items = record[key];
+     if (
+@@ -62,11 +284,55 @@ export function readSavedBlock(value: unknown): StudioBlock | null {
+     )
+       return null;
+   }
++  const audience = record.audience as Record<string, unknown> | undefined;
++  if (
++    audience &&
++    ((audience.mode !== "all" && audience.mode !== "segments") ||
++      (audience.segmentIds !== undefined &&
++        (!Array.isArray(audience.segmentIds) ||
++          audience.segmentIds.some((id) => typeof id !== "string"))))
++  )
++    return null;
++  const appearance = record.appearance as Record<string, unknown> | undefined;
++  if (appearance) {
++    for (const key of [
++      "margin",
++      "padding",
++      "imageMargin",
++      "imagePadding",
++      "border",
++      "text",
++    ]) {
++      const object = appearance[key];
++      if (
++        object !== undefined &&
++        (!object || typeof object !== "object" || Array.isArray(object))
++      )
++        return null;
++    }
++    if (
++      appearance.text &&
++      Object.values(appearance.text).some(
++        (item) => !item || typeof item !== "object" || Array.isArray(item),
++      )
++    )
++      return null;
++    if (
++      appearance.linkDecoration !== undefined &&
++      !["none", "underline"].includes(String(appearance.linkDecoration))
++    )
++      return null;
++  }
+   try {
+     const encoded = JSON.stringify(value);
+-    if (encoded.length > MAX_BLOCK_BYTES) return null;
++    if (new TextEncoder().encode(encoded).byteLength > MAX_BLOCK_BYTES)
++      return null;
+     const clone = JSON.parse(encoded) as StudioBlock;
+     delete clone.newsletterSettings;
++    for (const [keys] of scalars)
++      for (const key of keys)
++        if ((clone as unknown as Record<string, unknown>)[key] === null)
++          delete (clone as unknown as Record<string, unknown>)[key];
+     clone.order = 0;
+     clone.visible = true;
+     return clone;
+diff --git a/src/lib/studio/newsletter/settings.ts b/src/lib/studio/newsletter/settings.ts
+index 4e0cba2..984a2bb 100644
+--- a/src/lib/studio/newsletter/settings.ts
++++ b/src/lib/studio/newsletter/settings.ts
+@@ -99,6 +99,11 @@ export function normalizeNewsletterSettings(
+       : [],
+   };
+ }
++function definedProperties<T extends object>(value?: T): Partial<T> {
++  return Object.fromEntries(
++    Object.entries(value ?? {}).filter(([, item]) => item !== undefined),
++  ) as Partial<T>;
++}
+ export function mergeAppearance(
+   defaults?: BlockAppearance,
+   overrides?: BlockAppearance,
+@@ -107,22 +112,33 @@ export function mergeAppearance(
+   for (const role of new Set([
+     ...Object.keys(defaults?.text ?? {}),
+     ...Object.keys(overrides?.text ?? {}),
+-  ]) as Set<TextRole>)
+-    text[role] = { ...defaults?.text?.[role], ...overrides?.text?.[role] };
++  ]) as Set<TextRole>) {
++    text[role] = {
++      ...definedProperties(defaults?.text?.[role]),
++      ...definedProperties(overrides?.text?.[role]),
++    };
++  }
++  const edge = (key: "margin" | "padding" | "imagePadding" | "imageMargin") =>
++    defaults?.[key] || overrides?.[key]
++      ? {
++          ...definedProperties(defaults?.[key]),
++          ...definedProperties(overrides?.[key]),
++        }
++      : undefined;
+   return {
+-    ...defaults,
+-    ...overrides,
+-    margin: { ...defaults?.margin, ...overrides?.margin },
+-    padding:
+-      defaults?.padding || overrides?.padding
+-        ? { ...defaults?.padding, ...overrides?.padding }
+-        : undefined,
++    ...definedProperties(defaults),
++    ...definedProperties(overrides),
++    margin: edge("margin"),
++    padding: edge("padding"),
++    imagePadding: edge("imagePadding"),
++    imageMargin: edge("imageMargin"),
+     border:
+       defaults?.border || overrides?.border
+-        ? { ...defaults?.border, ...overrides?.border }
++        ? {
++            ...definedProperties(defaults?.border),
++            ...definedProperties(overrides?.border),
++          }
+         : undefined,
+-    imagePadding: { ...defaults?.imagePadding, ...overrides?.imagePadding },
+-    imageMargin: { ...defaults?.imageMargin, ...overrides?.imageMargin },
+     text,
+   };
+ }
+@@ -175,6 +191,7 @@ export function safeEmailUrl(value: unknown, image = false): string {
+   return "";
+ }
+ export function resolveAssetUrl(value: string, base?: string): string {
++  if (!value.trim()) return "";
+   if (safeEmailUrl(value, true)) return safeEmailUrl(value, true);
+   let decoded = value;
+   try {
+diff --git a/src/types/studioBlocks.ts b/src/types/studioBlocks.ts
+index 78630c9..679b59c 100644
+--- a/src/types/studioBlocks.ts
++++ b/src/types/studioBlocks.ts
+@@ -199,6 +199,8 @@ export interface StudioBlock {
+   logoUrl?: string;
+   logoAlignment?: StudioLogoAlignment;
+   logoSize?: number;
++  /** Set by the editor when a user chooses an exact size, including 40px. */
++  logoSizeExplicit?: boolean;
+   logoShape?: StudioLogoShape;
+   borderRadius?: number;
+   cardBorderRadius?: number;
+diff --git a/supabase/functions/_shared/campaignEmailSource.ts b/supabase/functions/_shared/campaignEmailSource.ts
+index e80ad9f..a1cbf6b 100644
+--- a/supabase/functions/_shared/campaignEmailSource.ts
++++ b/supabase/functions/_shared/campaignEmailSource.ts
+@@ -148,23 +148,38 @@ function normalizeContentBlock(
+     visible: record.visible !== false,
+   };
+ 
+-  if (!normalized.body && typeof record.content === "string") {
++  if (
++    typeof normalized.body !== "string" &&
++    typeof record.content === "string"
++  ) {
+     normalized.body = record.content;
+   }
+ 
+-  if (!normalized.headline && typeof record.title === "string") {
++  if (
++    typeof normalized.headline !== "string" &&
++    typeof record.title === "string"
++  ) {
+     normalized.headline = record.title;
+   }
+ 
+-  if (!normalized.imageUrl && typeof record.image_url === "string") {
++  if (
++    typeof normalized.imageUrl !== "string" &&
++    typeof record.image_url === "string"
++  ) {
+     normalized.imageUrl = record.image_url;
+   }
+ 
+-  if (!normalized.buttonText && typeof record.cta_text === "string") {
++  if (
++    typeof normalized.buttonText !== "string" &&
++    typeof record.cta_text === "string"
++  ) {
+     normalized.buttonText = record.cta_text;
+   }
+ 
+-  if (!normalized.buttonUrl && typeof record.cta_url === "string") {
++  if (
++    typeof normalized.buttonUrl !== "string" &&
++    typeof record.cta_url === "string"
++  ) {
+     normalized.buttonUrl = record.cta_url;
+   }
+ 
+diff --git a/supabase/functions/_shared/newsletterAudience.test.ts b/supabase/functions/_shared/newsletterAudience.test.ts
+index 2867197..14dbfe3 100644
+--- a/supabase/functions/_shared/newsletterAudience.test.ts
++++ b/supabase/functions/_shared/newsletterAudience.test.ts
+@@ -25,6 +25,8 @@ async function withDatabase(
+     customer?: unknown;
+     segments?: unknown;
+     membership?: unknown;
++    activity?: unknown;
++    targets?: unknown;
+     error?: boolean;
+   },
+   run: (calls: URL[]) => Promise<void>,
+@@ -62,6 +64,10 @@ async function withDatabase(
+       ];
+     else if (url.pathname.endsWith("/customer_segments"))
+       payload = replies.membership || [];
++    else if (url.pathname.endsWith("/customer_location_activity"))
++      payload = replies.activity || [];
++    else if (url.pathname.endsWith("/segment_location_targets"))
++      payload = replies.targets || [];
+     else throw new Error("Unexpected external request in audience test");
+     return Promise.resolve(
+       new Response(
+@@ -205,3 +211,135 @@ Deno.test("database failures stop conditional send for retry", () =>
+     equal(rejected, true);
+   }),
+ );
++
++const locationA = "00000000-0000-4000-8000-000000000010";
++const locationB = "00000000-0000-4000-8000-000000000011";
++Deno.test(
++  "all-customers segments cannot bypass their store location scope",
++  () =>
++    withDatabase(
++      {
++        customer: {
++          id: customer,
++          tenant_id: tenant,
++          primary_location_id: locationB,
++        },
++        segments: [
++          {
++            id: segment,
++            status: "active",
++            include_all_customers: true,
++            location_scope: "one_location",
++            primary_location_id: locationA,
++          },
++        ],
++      },
++      async () => {
++        equal(
++          await resolveNewsletterAudience({
++            tenantId: tenant,
++            customerId: customer,
++            blocks,
++            preview: false,
++          }),
++          { segmentIds: [] },
++        );
++      },
++    ),
++);
++Deno.test(
++  "primary store association permits a store-scoped conditional block",
++  () =>
++    withDatabase(
++      {
++        customer: {
++          id: customer,
++          tenant_id: tenant,
++          primary_location_id: locationA,
++        },
++        segments: [
++          {
++            id: segment,
++            status: "active",
++            include_all_customers: true,
++            location_scope: "one_location",
++            primary_location_id: locationA,
++          },
++        ],
++      },
++      async () => {
++        equal(
++          await resolveNewsletterAudience({
++            tenantId: tenant,
++            customerId: customer,
++            blocks,
++            preview: false,
++          }),
++          { segmentIds: [segment] },
++        );
++      },
++    ),
++);
++Deno.test(
++  "selected store scopes use tenant-scoped activity evidence and explicit targets",
++  () =>
++    withDatabase(
++      {
++        activity: [{ location_id: locationB }],
++        targets: [{ segment_id: segment, location_id: locationB }],
++        segments: [
++          {
++            id: segment,
++            status: "active",
++            include_all_customers: true,
++            location_scope: "selected_locations",
++          },
++        ],
++      },
++      async (calls) => {
++        equal(
++          await resolveNewsletterAudience({
++            tenantId: tenant,
++            customerId: customer,
++            blocks,
++            preview: false,
++          }),
++          { segmentIds: [segment] },
++        );
++        for (const url of calls.filter(
++          (url) =>
++            url.pathname.endsWith("/customer_location_activity") ||
++            url.pathname.endsWith("/segment_location_targets"),
++        ))
++          equal(url.searchParams.get("tenant_id"), `eq.${tenant}`);
++      },
++    ),
++);
++Deno.test(
++  "a selected-store segment with no configured target fails closed",
++  () =>
++    withDatabase(
++      {
++        activity: [{ location_id: locationB }],
++        segments: [
++          {
++            id: segment,
++            status: "active",
++            include_all_customers: true,
++            location_scope: "selected_locations",
++          },
++        ],
++      },
++      async () => {
++        equal(
++          await resolveNewsletterAudience({
++            tenantId: tenant,
++            customerId: customer,
++            blocks,
++            preview: false,
++          }),
++          { segmentIds: [] },
++        );
++      },
++    ),
++);
+diff --git a/supabase/functions/_shared/newsletterAudience.ts b/supabase/functions/_shared/newsletterAudience.ts
+index 8a2e794..516619d 100644
+--- a/supabase/functions/_shared/newsletterAudience.ts
++++ b/supabase/functions/_shared/newsletterAudience.ts
+@@ -68,7 +68,7 @@ export async function resolveNewsletterAudience(params: {
+     db
+       .from("crm_segments")
+       .select(
+-        "id,conditions,auto_update,include_all_customers,status,deleted_at",
++        "id,conditions,auto_update,include_all_customers,status,deleted_at,location_scope,primary_location_id",
+       )
+       .eq("tenant_id", params.tenantId)
+       .in("id", requested)
+@@ -83,6 +83,43 @@ export async function resolveNewsletterAudience(params: {
+     throw new Error(
+       "Could not verify conditional newsletter segment membership.",
+     );
++  const scopedSegments = (segmentsResult.data || []).filter(
++    (segment) =>
++      segment.location_scope && segment.location_scope !== "all_locations",
++  );
++  const customerLocations = new Set<string>();
++  if (typeof customerResult.data.primary_location_id === "string")
++    customerLocations.add(customerResult.data.primary_location_id);
++  const segmentLocations = new Map<string, Set<string>>();
++  if (scopedSegments.length) {
++    const selectedIds = scopedSegments
++      .filter((segment) => segment.location_scope === "selected_locations")
++      .map((segment) => segment.id);
++    const [activity, targets] = await Promise.all([
++      db
++        .from("customer_location_activity")
++        .select("location_id")
++        .eq("tenant_id", params.tenantId)
++        .eq("customer_id", params.customerId),
++      selectedIds.length
++        ? db
++            .from("segment_location_targets")
++            .select("segment_id,location_id")
++            .eq("tenant_id", params.tenantId)
++            .in("segment_id", selectedIds)
++        : Promise.resolve({ data: [], error: null }),
++    ]);
++    if (activity.error || targets.error)
++      throw new Error("Could not verify conditional newsletter store scope.");
++    for (const row of activity.data || [])
++      customerLocations.add(row.location_id);
++    for (const row of targets.data || []) {
++      const locations =
++        segmentLocations.get(row.segment_id) || new Set<string>();
++      locations.add(row.location_id);
++      segmentLocations.set(row.segment_id, locations);
++    }
++  }
+   const memberships = new Set(
+     (membershipResult.data || []).map((row) => row.segment_id as string),
+   );
+@@ -93,6 +130,26 @@ export async function resolveNewsletterAudience(params: {
+     .filter((segment) => {
+       if (segment.status === "archived" || segment.status === "deleted")
+         return false;
++      // Store scope applies to every segment, including all-customer and dynamic rules.
++      if (
++        segment.location_scope === "one_location" &&
++        !customerLocations.has(segment.primary_location_id)
++      )
++        return false;
++      if (
++        segment.location_scope === "selected_locations" &&
++        ![...(segmentLocations.get(segment.id) || [])].some((id) =>
++          customerLocations.has(id),
++        )
++      )
++        return false;
++      if (
++        segment.location_scope &&
++        !["all_locations", "one_location", "selected_locations"].includes(
++          segment.location_scope,
++        )
++      )
++        return false;
+       if (segment.include_all_customers === true) return true;
+       const rules = normalizeSegmentRuleGroup(segment.conditions);
+       if (segment.auto_update === true && rules.children.length)
+diff --git a/supabase/functions/_shared/newsletterPreviewAccess.ts b/supabase/functions/_shared/newsletterPreviewAccess.ts
+new file mode 100644
+index 0000000..f7839e8
+--- /dev/null
++++ b/supabase/functions/_shared/newsletterPreviewAccess.ts
+@@ -0,0 +1,71 @@
++/** Authorization must run before loading recipient/profile data with a service client. */
++export class NewsletterPreviewAccessError extends Error {
++  constructor(
++    message: string,
++    readonly status = 403,
++  ) {
++    super(message);
++  }
++}
++interface FilterQuery {
++  eq(column: string, value: string): FilterQuery;
++  maybeSingle(): PromiseLike<{ data: { id?: string } | null; error: unknown }>;
++}
++export interface NewsletterPreviewAccessClient {
++  rpc(
++    name: string,
++    args: Record<string, unknown>,
++  ): PromiseLike<{ data: unknown; error: unknown }>;
++  from(table: string): { select(columns: string): FilterQuery };
++}
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++export async function assertNewsletterPreviewAccess(
++  client: NewsletterPreviewAccessClient,
++  input: {
++    tenantId: string;
++    campaignId?: string;
++    customerId?: string;
++    trustedService: boolean;
++  },
++): Promise<void> {
++  if (
++    input.tenantId === "preview-tenant" &&
++    !input.campaignId &&
++    !input.customerId
++  )
++    return;
++  if (
++    !UUID.test(input.tenantId) ||
++    (input.campaignId && !UUID.test(input.campaignId)) ||
++    (input.customerId && !UUID.test(input.customerId))
++  ) {
++    throw new NewsletterPreviewAccessError(
++      "Select a valid account, campaign and preview contact.",
++      400,
++    );
++  }
++  if (!input.trustedService) {
++    const permission = await client.rpc("has_tenant_permission", {
++      p_tenant_id: input.tenantId,
++      p_permission: "campaign.read",
++      p_location_id: null,
++    });
++    if (permission.error || permission.data !== true)
++      throw new NewsletterPreviewAccessError(
++        "You do not have access to preview newsletters for this account.",
++      );
++  }
++  // The JWT-scoped client enforces location RLS as well as explicit tenant matching.
++  if (input.campaignId) {
++    const campaign = await client
++      .from("crm_campaigns")
++      .select("id")
++      .eq("id", input.campaignId)
++      .eq("tenant_id", input.tenantId)
++      .maybeSingle();
++    if (campaign.error || !campaign.data?.id)
++      throw new NewsletterPreviewAccessError(
++        "The campaign is not available in this account.",
++      );
++  }
++}
+diff --git a/supabase/functions/process-email-send-queue/index.ts b/supabase/functions/process-email-send-queue/index.ts
+index 5a7249c..fb6bb99 100644
+--- a/supabase/functions/process-email-send-queue/index.ts
++++ b/supabase/functions/process-email-send-queue/index.ts
+@@ -1,3 +1,4 @@
++import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
+ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+ import { createClient } from "jsr:@supabase/supabase-js@2";
+ import {
+@@ -1901,16 +1902,13 @@ serve((req: Request) => {
+                     }
+                   });
+ 
+-                  if (map.size === 0) {
+-                    const representativeCustomer =
+-                      Array.from(customersById.values())[0] ||
+-                      (sendable[0]
+-                        ? {
+-                            id: sendable[0].customer_id,
+-                            email: sendable[0].email,
+-                          }
+-                        : null);
+-
++                  if (
++                    map.size === 0 ||
++                    requestedNewsletterSegments(campaignSource.contentBlocks)
++                      .length > 0
++                  ) {
++                    // Collect every conditional variant for link tracking only. Actual
++                    // delivery below still resolves each recipient's segment membership.
+                     const preflightRender = await renderEmailForRecipient({
+                       tenantId: campaign.tenant_id,
+                       campaignId,
+@@ -1921,11 +1919,9 @@ serve((req: Request) => {
+                         campaign.preheader_text || campaign.preheader || "",
+                       html: campaignSource.html,
+                       contentBlocks: campaignSource.contentBlocks,
+-                      customer: representativeCustomer
+-                        ? toCustomerShape(representativeCustomer)
+-                        : null,
++                      customer: null,
+                       companyProfile: companyProfile as CompanyProfileShape,
+-                      mode: "send",
++                      mode: "preview",
+                       includeFooter: true,
+                       enableLinkTracking: false,
+                     });
+diff --git a/supabase/functions/render-email-preview/index.ts b/supabase/functions/render-email-preview/index.ts
+index caca343..0f19692 100644
+--- a/supabase/functions/render-email-preview/index.ts
++++ b/supabase/functions/render-email-preview/index.ts
+@@ -1,3 +1,8 @@
++import {
++  assertNewsletterPreviewAccess,
++  NewsletterPreviewAccessError,
++} from "../_shared/newsletterPreviewAccess.ts";
++import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
+ /**
+  * Render Email Preview Edge Function
+  *
+@@ -107,7 +112,7 @@ async function buildTrackedLinkMap({
+     }
+   });
+ 
+-  if (map.size > 0) {
++  if (map.size > 0 && requestedNewsletterSegments(contentBlocks).length === 0) {
+     return map;
+   }
+ 
+@@ -118,9 +123,9 @@ async function buildTrackedLinkMap({
+     previewText,
+     html,
+     contentBlocks,
+-    customer,
++    customer: null,
+     companyProfile,
+-    mode: "send",
++    mode: "preview",
+     includeFooter: true,
+     enableLinkTracking: false,
+   });
+@@ -174,7 +179,9 @@ serve(async (req) => {
+         headers: corsHeaders,
+       });
+     }
+-    if (authHeader !== `Bearer ${serviceRoleKey}`) {
++    const trustedService =
++      Boolean(serviceRoleKey) && authHeader === `Bearer ${serviceRoleKey}`;
++    if (!trustedService) {
+       const token = authHeader.replace("Bearer ", "");
+       const supabase = createClient(
+         Deno.env.get("SUPABASE_URL") ?? "",
+@@ -226,6 +233,16 @@ serve(async (req) => {
+       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+     );
+ 
++    const accessClient = trustedService
++      ? supabase
++      : createClient(
++          Deno.env.get("SUPABASE_URL") ?? "",
++          Deno.env.get("SUPABASE_ANON_KEY") ?? "",
++          {
++            global: { headers: { Authorization: authHeader } },
++            auth: { persistSession: false },
++          },
++        );
+     // Get tenant ID from auth or request
+     let tenantId = body.tenantId;
+ 
+@@ -252,6 +269,13 @@ serve(async (req) => {
+       tenantId = "preview-tenant";
+     }
+ 
++    await assertNewsletterPreviewAccess(accessClient, {
++      tenantId,
++      campaignId,
++      customerId,
++      trustedService,
++    });
++
+     console.log(
+       `📧 Render preview: tenantId=${tenantId}, customerId=${customerId || "sample"}, campaignId=${campaignId || "n/a"}`,
+     );
+@@ -262,11 +286,16 @@ serve(async (req) => {
+ 
+     // Load real customer if ID provided
+     if (customerId) {
+-      const { data: customerData } = await supabase
++      const { data: customerData, error: customerError } = await accessClient
+         .from("crm_customers")
+         .select("*")
+         .eq("id", customerId)
+-        .single();
++        .eq("tenant_id", tenantId)
++        .maybeSingle();
++      if (customerError || !customerData)
++        throw new NewsletterPreviewAccessError(
++          "This preview contact is not available in the selected account.",
++        );
+ 
+       if (customerData) {
+         customer = toCustomerShape(customerData as Record<string, any>);
+@@ -364,7 +393,8 @@ serve(async (req) => {
+         error: error instanceof Error ? error.message : "Unknown error",
+       }),
+       {
+-        status: 500,
++        status:
++          error instanceof NewsletterPreviewAccessError ? error.status : 500,
+         headers: { ...corsHeaders, "Content-Type": "application/json" },
+       },
+     );
+diff --git a/supabase/migrations/20261027221828_newsletter_saved_blocks_release_guard.sql b/supabase/migrations/20261027221828_newsletter_saved_blocks_release_guard.sql
+index 72ddbcf..86c0094 100644
+--- a/supabase/migrations/20261027221828_newsletter_saved_blocks_release_guard.sql
++++ b/supabase/migrations/20261027221828_newsletter_saved_blocks_release_guard.sql
+@@ -19,6 +19,8 @@ ALTER TABLE public.crm_saved_blocks DROP CONSTRAINT IF EXISTS crm_saved_blocks_v
+ ALTER TABLE public.crm_saved_blocks ADD CONSTRAINT crm_saved_blocks_version_check CHECK (save_schema_version = 2);
+ ALTER TABLE public.crm_saved_blocks DROP CONSTRAINT IF EXISTS crm_saved_blocks_payload_limit;
+ ALTER TABLE public.crm_saved_blocks ADD CONSTRAINT crm_saved_blocks_payload_limit CHECK (octet_length(block_data::text) <= 262144 AND block_data ? 'type' AND jsonb_typeof(block_data->'type') = 'string' AND block_data->>'type' <> 'footer');
++ALTER TABLE public.crm_saved_blocks DROP CONSTRAINT IF EXISTS crm_saved_blocks_nonempty_name;
++ALTER TABLE public.crm_saved_blocks ADD CONSTRAINT crm_saved_blocks_nonempty_name CHECK (char_length(btrim(name)) BETWEEN 1 AND 160);
+ ALTER TABLE public.crm_saved_blocks ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON public.crm_saved_blocks FROM anon;
+ REVOKE ALL ON public.crm_saved_blocks FROM authenticated;
