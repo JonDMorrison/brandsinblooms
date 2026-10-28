@@ -152,9 +152,9 @@ export function hydrateFooterBlockWithDesignSystem(
     return block;
   }
 
-  const businessName = designSystem.company.name || block.businessName;
-  const address = designSystem.company.addressLines || block.address;
-  const websiteUrl = designSystem.company.websiteUrl || block.websiteUrl;
+  const businessName = block.businessName || designSystem.company.name;
+  const address = block.address || designSystem.company.addressLines;
+  const websiteUrl = block.websiteUrl || designSystem.company.websiteUrl;
 
   const nextBlock = {
     ...block,
@@ -171,12 +171,12 @@ export function hydrateFooterBlockWithDesignSystem(
         businessName || "Your Business",
       ) || `© ${new Date().getFullYear()} ${businessName || "Your Business"}`,
     complianceText:
-      designSystem.company.footerLegalText ||
       block.complianceText ||
+      designSystem.company.footerLegalText ||
       DEFAULT_COMPLIANCE_TEXT,
     logoUrl: block.logoUrl || designSystem.company.logoUrl,
     websiteUrl,
-    showWebsiteLink: Boolean(websiteUrl),
+    showWebsiteLink: block.showWebsiteLink ?? Boolean(websiteUrl),
     backgroundColor: valueMatchesDefault(block.backgroundColor, [
       DEFAULT_FOOTER_BACKGROUND,
     ])
