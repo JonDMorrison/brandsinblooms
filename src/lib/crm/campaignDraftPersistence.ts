@@ -478,7 +478,19 @@ export async function getAuthenticatedWriterContext(requestedTenantId?: string |
   if (requestedTenantId) {
     // The selected CRM account is authoritative. Only a server-side permission
     // check can approve it, so changing the client value cannot cross tenants.
-    const { data: allowed, error: permissionError } = await supabase.rpc(
+    // The permission RPC exists in production but is not yet listed in the
+    // older generated Supabase type snapshot. Keep this call explicitly typed.
+    const permissionClient = supabase as unknown as {
+      rpc: (
+        name: "has_tenant_permission",
+        args: {
+          p_tenant_id: string;
+          p_permission: string;
+          p_location_id: string | null;
+        },
+      ) => PromiseLike<{ data: boolean | null; error: { message: string } | null }>;
+    };
+    const { data: allowed, error: permissionError } = await permissionClient.rpc(
       "has_tenant_permission",
       {
         p_tenant_id: requestedTenantId,
