@@ -1,3 +1,4 @@
+import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
 import AspectRatio from "@mui/joy/AspectRatio";
 import Box from "@mui/joy/Box";
@@ -958,19 +959,12 @@ function CampaignEditorScreen() {
       return;
     }
 
-    // Studio needs a campaign ID to autosave edits. Create the draft for the
-    // customer on entry, even when its name, subject and preview are blank.
-    // The subject belongs to Review & Send validation, not design entry.
-    let nextCampaignId = campaignId;
-    if (!nextCampaignId) {
-      nextCampaignId = await saveDraft({ silent: true });
-      // A concurrent autosave can briefly fail or race the first attempt.
-      // Retry once with the queued save rather than instructing the user
-      // to manually save a newsletter they have not started composing.
-      if (!nextCampaignId) {
-        nextCampaignId = await saveDraft({ silent: true });
-      }
-    }
+    // Drafts can be created with no subject or preview. Those fields are
+    // checked only when the customer reviews or sends the newsletter.
+    const nextCampaignId = await resolveStudioDraftId(
+      campaignId,
+      () => saveDraft({ silent: true }),
+    );
 
     if (!nextCampaignId) {
       toast.error(
