@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
+import { normalizeEmailCampaignReportingSnapshot } from "./useCampaignDerivedMetrics";
 
 export interface DeliveryMetrics {
   campaignId: string;
@@ -103,43 +104,17 @@ export const useCampaignDeliveryMetrics = (
 
       const campaignIds = campaignsData.map((c) => c.id);
 
-      // Authoritative message counts (source-of-truth ledger)
-      // Note: This RPC may not exist in all environments - silently skip if unavailable
-      let messageCountsData: any[] | null = null;
-      try {
-        const { data, error: messageCountsError } = await supabase.rpc(
-          "get_campaign_email_message_counts" as any,
-          { p_campaign_ids: campaignIds },
+      // Use the exact same recipient/engagement source as the campaign report.
+      // Reporting errors must surface instead of turning successful sends into zero.
+      const snapshots = new Map(await Promise.all(campaignIds.map(async (campaignId) => {
+        const { data, error: snapshotError } = await supabase.rpc(
+          "get_email_campaign_reporting_snapshot", { p_campaign_id: campaignId },
         );
-        if (messageCountsError) {
-        } else {
-          messageCountsData = data as any[];
-        }
-      } catch (err) {}
-
-      const messageCounts: Record<
-        string,
-        {
-          total: number;
-          queued: number;
-          sending: number;
-          sent: number;
-          failed: number;
-          skipped: number;
-        }
-      > = {};
-      if (messageCountsData && Array.isArray(messageCountsData)) {
-        messageCountsData.forEach((row: any) => {
-          messageCounts[row.campaign_id] = {
-            total: row.total || 0,
-            queued: row.queued || 0,
-            sending: row.sending || 0,
-            sent: row.sent || 0,
-            failed: row.failed || 0,
-            skipped: row.skipped || 0,
-          };
-        });
-      }
+        if (snapshotError) throw snapshotError;
+        const snapshot = normalizeEmailCampaignReportingSnapshot(data);
+        if (!snapshot) throw new Error("Campaign reporting snapshot is invalid");
+        return [campaignId, snapshot.metrics] as const;
+      })));
 
       // Fetch send job aggregates for all campaigns
       const { data: jobsData } = await supabase
@@ -210,11 +185,10 @@ export const useCampaignDeliveryMetrics = (
           failed: 0,
           batches: 0,
         };
-        const counts = messageCounts[c.id];
-
-        const computedEnqueued = counts ? counts.total : jobs.enqueued;
-        const computedSent = counts ? counts.sent : jobs.sent;
-        const computedFailed = counts ? counts.failed : jobs.failed;
+        const report = snapshots.get(c.id)!;
+        const computedEnqueued = report.totals.recipients;
+        const computedSent = report.totals.sent;
+        const computedFailed = report.totals.failed;
         const skips = skipsAgg[c.id] || {
           opt_out: 0,
           suppressed: 0,
@@ -238,21 +212,21 @@ export const useCampaignDeliveryMetrics = (
           cachedTotalSent: cachedSent,
           cachedOpenRate: c.open_rate || 0,
           cachedClickRate: c.click_rate || 0,
-          computedDelivered: computedSent,
+          computedDelivered: report.totals.delivered,
           computedFailed: computedFailed,
           computedEnqueued: computedEnqueued,
           batchCount: jobs.batches,
-          skipsTotal: skips.total,
+          skipsTotal: report.totals.skipped,
           skipsByReason: {
-            opt_out: skips.opt_out,
-            suppressed: skips.suppressed,
-            invalid_email: skips.invalid_email,
-            other: skips.other,
+            opt_out: report.totals.skipped > 0 ? skips.opt_out : 0,
+            suppressed: report.totals.skipped > 0 ? skips.suppressed : 0,
+            invalid_email: report.totals.skipped > 0 ? skips.invalid_email : 0,
+            other: report.totals.skipped > 0 ? skips.other : 0,
           },
-          totalOpens: c.total_opens || 0,
-          totalClicks: c.total_clicks || 0,
-          openRate: c.open_rate || 0,
-          clickRate: c.click_rate || 0,
+          totalOpens: report.totals.opens,
+          totalClicks: report.totals.clicks,
+          openRate: report.rates.open_reported,
+          clickRate: report.rates.click,
           isStale: discrepancy > 5, // More than 5% difference
           metricsDiscrepancy: discrepancy,
         };
