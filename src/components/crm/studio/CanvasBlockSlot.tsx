@@ -58,7 +58,7 @@ function getPlaceholderMinHeight(blockType: StudioBlock["type"]) {
     case "footer":
       return 100;
     default:
-      return 120;
+      return 0;
   }
 }
 
