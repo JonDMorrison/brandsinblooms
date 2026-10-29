@@ -77,6 +77,12 @@ describe("newsletter design and safety", () => {
     expect(output).toContain("max-width:700px");
     expect(output).toContain("background-color:#eeeeee");
   });
+  it("omits the inter-block spacer when the gap is set to zero", () => {
+    const output = html([block("newsletter-header", { headline: "Header" }), block("plain-text", { body: "Text" })], {
+      newsletterSettings: { version: 1, blockGap: 0 },
+    });
+    expect(output).not.toContain('class="email-block-gap"');
+  });
   it("round-trips master settings in the persisted footer", () => {
     const footer = block("footer", {
       newsletterSettings: {
