@@ -251,10 +251,17 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         if (sendError) {
           console.error("❌ Edge function error:", sendError);
 
-          const contextBody = (sendError as any)?.context?.body;
+          const response = (sendError as any)?.context;
+          const contextBody = response?.body;
           let parsedBody: any = undefined;
 
-          if (typeof contextBody === "string" && contextBody.length > 0) {
+          if (typeof response?.clone === "function") {
+            try {
+              parsedBody = await response.clone().json();
+            } catch {
+              // Some gateway errors do not contain JSON.
+            }
+          } else if (typeof contextBody === "string" && contextBody.length > 0) {
             try {
               parsedBody = JSON.parse(contextBody);
             } catch {
