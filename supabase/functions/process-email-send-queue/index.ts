@@ -1,4 +1,5 @@
 import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
+import { isolateBatchValidation, type BatchSendResult } from "../_shared/isolateBatchValidation.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
@@ -611,7 +612,7 @@ async function sha256Base64Url(input: string): Promise<string> {
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-async function resendSendBatch(
+async function resendSendBatchRequest(
   apiKey: string,
   payloads: any[],
   batchIdempotencyKeySeed: string,
@@ -697,6 +698,16 @@ async function resendSendBatch(
       error: truncateError(e?.message || "Network error calling Resend"),
     };
   }
+}
+
+async function resendSendBatch(
+  apiKey: string,
+  payloads: any[],
+  seed: string,
+  limiter?: { acquire: () => Promise<void> },
+): Promise<BatchSendResult> {
+  return isolateBatchValidation(payloads, seed, (items, key) =>
+    resendSendBatchRequest(apiKey, items, key, limiter));
 }
 
 serve((req: Request) => {
@@ -2191,7 +2202,16 @@ serve((req: Request) => {
                     batchResp.ids &&
                     batchResp.ids.length === payloads.length
                   ) {
-                    maybeRaiseDynamicResendBatchSize();
+                    // A validation split can accept one sibling while another
+                    // is rate limited. Persist the successes and defer only
+                    // the remaining messages using the normal cooldown path.
+                    if (batchResp.ids.some((item) => item.status === 429)) {
+                      lowerDynamicResendBatchSize();
+                      batchWasRateLimited = true;
+                      retryAfterSeconds = 30;
+                    } else {
+                      maybeRaiseDynamicResendBatchSize();
+                    }
                     for (let k = 0; k < batchResp.ids.length; k++) {
                       const msgId = msgIds[k];
                       const resendId = batchResp.ids[k]?.id;
@@ -2201,8 +2221,8 @@ serve((req: Request) => {
                         resendId,
                         error: resendId
                           ? undefined
-                          : "Resend batch returned missing id",
-                        status: batchResp.status,
+                          : batchResp.ids[k]?.error || "Resend batch returned missing id",
+                        status: batchResp.ids[k]?.status ?? batchResp.status,
                       });
                     }
                   } else {
@@ -2464,6 +2484,25 @@ serve((req: Request) => {
         ) {
           if (Date.now() - startTime > 50000) {
             console.log("⏱️ Approaching timeout, stopping processing");
+            // These jobs were claimed up front but have never been started.
+            // Release them now so the next tick need not wait for stale recovery.
+            const unstartedIds = jobs.slice(jobIndex).map((job: any) => job.id);
+            const { error: releaseError } = await supabase
+              .from("email_send_jobs")
+              .update({
+                status: "pending",
+                claim_token: null,
+                claimed_at: null,
+                claimed_by: null,
+                available_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .in("id", unstartedIds)
+              .eq("claim_token", claimToken)
+              .eq("status", "in_progress");
+            if (releaseError) {
+              console.error("Failed to release unstarted jobs", releaseError.message);
+            }
             break;
           }
 
