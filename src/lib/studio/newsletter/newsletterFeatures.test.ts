@@ -83,6 +83,12 @@ describe("newsletter design and safety", () => {
     });
     expect(output).not.toContain('class="email-block-gap"');
   });
+  it("renders an optional text-block button with its label and destination", () => {
+    const output = html([block("plain-text", { body: "Hello", buttonText: "Learn more", buttonUrl: "https://example.com/learn" })]);
+    expect(output).toContain('href="https://example.com/learn"');
+    expect(output).toContain('Learn more');
+    expect(renderNewsletterBlock(block("plain-text", { body: "Hello" }))).not.toContain('<a ');
+  });
   it("round-trips master settings in the persisted footer", () => {
     const footer = block("footer", {
       newsletterSettings: {
