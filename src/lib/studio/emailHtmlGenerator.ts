@@ -1226,7 +1226,7 @@ function renderPlainTextBlock(
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};"><div style="${boxed}${accent}font-family:${getFontStack(designSystem, "body")};font-size:${fontSize}px;line-height:${lineHeight};color:${textColor};text-align:${align};">${body}</div></div>`,
+    `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};"><div style="${boxed}${accent}font-family:${getFontStack(designSystem, "body")};font-size:${fontSize}px;line-height:${lineHeight};color:${textColor};text-align:${align};">${body}${renderButton(block, designSystem, { align })}</div></div>`,
   );
 }
 

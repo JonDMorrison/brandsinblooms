@@ -2610,6 +2610,18 @@ function PanelContent({
                 ),
               },
               {
+                id: "button",
+                title: "Button (optional)",
+                content: (
+                  <>
+                    <StudioTextField label="Button Text" placeholder="Learn more" value={block.buttonText ?? ""} onChange={(value) => updateField("buttonText", value)} />
+                    <StudioTextField label="Button URL" placeholder="https://..." type="url" value={block.buttonUrl ?? ""} onChange={(value) => updateField("buttonUrl", value)} />
+                    <StudioColorPicker label="Button Color" value={block.buttonColor ?? "#111827"} onChange={(value) => updateField("buttonColor", value)} />
+                    <StudioColorPicker label="Button Text Color" value={block.buttonTextColor ?? "#ffffff"} onChange={(value) => updateField("buttonTextColor", value)} />
+                  </>
+                ),
+              },
+              {
                 id: "typography",
                 title: "Typography",
                 content: (
