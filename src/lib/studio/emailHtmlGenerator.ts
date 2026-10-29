@@ -2265,6 +2265,7 @@ export function renderStudioBlocksToEmailHtml(
 
       if (
         nextBlock &&
+        normalizeNewsletterSettings(settings).blockGap > 0 &&
         !isSelfSpacingBlock(block) &&
         !isSelfSpacingBlock(nextBlock)
       ) {

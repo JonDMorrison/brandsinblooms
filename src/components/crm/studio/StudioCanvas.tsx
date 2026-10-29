@@ -79,8 +79,9 @@ function CanvasInsertionPoint({
         ref={setNodeRef}
         sx={{
           position: "relative",
-          height: isActiveDropTarget ? 32 : 16,
-          my: 0,
+          height: isActiveDropTarget ? 32 : 8,
+          my: isActiveDropTarget ? 0 : "-4px",
+          zIndex: 4,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -95,9 +96,7 @@ function CanvasInsertionPoint({
             transform: "translate(-50%, -50%) scale(0.88)",
             transition: "all 120ms ease",
           },
-          "&:hover": {
-            height: 32,
-          },
+
           "&:hover .studio-insert-line, &:focus-within .studio-insert-line": {
             opacity: 1,
           },
