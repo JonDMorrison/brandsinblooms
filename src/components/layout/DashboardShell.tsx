@@ -158,6 +158,9 @@ export function DashboardShell({
     [mode, pathname],
   );
   const isBloomRoute = pathname.startsWith("/bloom");
+  const showBotanicalCanvas = mode !== "admin" &&
+    /^\/(dashboard|analytics|crm)(\/|$)/.test(pathname) &&
+    !/studio|email-builder/.test(pathname);
   const resolvedContentWidth = useMemo(
     () => contentWidth ?? resolveDashboardContentWidth(pathname, mode),
     [contentWidth, mode, pathname],
@@ -369,6 +372,12 @@ export function DashboardShell({
             scrollBehavior: "smooth",
             overscrollBehavior: "contain",
             backgroundColor: "var(--joy-palette-neutral-50)",
+            backgroundImage: showBotanicalCanvas
+              ? 'url("/images/dashboard/botanical-corner.svg"), url("/images/dashboard/botanical-corner.svg")'
+              : "none",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: { xs: "180px, 160px", md: "360px, 300px" },
+            backgroundPosition: "right top, left bottom",
             scrollbarWidth: "thin",
             scrollbarColor: "var(--joy-palette-neutral-300) transparent",
             "&::-webkit-scrollbar": {
@@ -402,8 +411,8 @@ export function DashboardShell({
               width: "100%",
               height: "100%",
               minHeight: "100%",
-              px: isBloomRoute ? 0 : { xs: 4, md: 6 },
-              py: isBloomRoute ? 0 : 8,
+              px: isBloomRoute ? 0 : showBotanicalCanvas ? { xs: 2, md: 4 } : { xs: 4, md: 6 },
+              py: isBloomRoute ? 0 : showBotanicalCanvas ? { xs: 3, md: 4 } : 8,
               mx: isBloomRoute ? 0 : "auto",
               maxWidth:
                 isBloomRoute || resolvedContentWidth === "full"
