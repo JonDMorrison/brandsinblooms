@@ -93,6 +93,7 @@ interface CampaignSummary {
 }
 
 interface CampaignProgressRow {
+  name?: string | null;
   id: string;
   tenant_id: string | null;
   status: string | null;
@@ -436,7 +437,7 @@ export default function CRMCampaignRecipientsPage() {
       const { data, error } = await supabase
         .from("crm_campaigns")
         .select(
-          "id, tenant_id, status, total_recipients, messages_sent, messages_failed, messages_skipped, queue_started_at, queue_completed_at, send_started_at, send_completed_at, worker_heartbeat_at, estimated_completion_at, stall_count, metrics",
+          "id, name, tenant_id, status, total_recipients, messages_sent, messages_failed, messages_skipped, queue_started_at, queue_completed_at, send_started_at, send_completed_at, worker_heartbeat_at, estimated_completion_at, stall_count, metrics",
         )
         .eq("id", campaignId)
         .maybeSingle();
@@ -456,7 +457,7 @@ export default function CRMCampaignRecipientsPage() {
   const campaign = recipientsQuery.data?.campaign ?? null;
   const progress = campaignProgressQuery.data ?? null;
   const campaignStatus = progress?.status ?? campaign?.status ?? null;
-  const campaignName = normalizeCampaignNameForDisplay(campaign?.name);
+  const campaignName = normalizeCampaignNameForDisplay(campaign?.name || progress?.name);
 
   const rows = React.useMemo(() => {
     const baseIds = new Set(baseRows.map((row) => row.recipient_id));
@@ -991,7 +992,7 @@ export default function CRMCampaignRecipientsPage() {
                       <Stack spacing={1} alignItems="center">
                         <Typography level="title-sm">Could not load recipients</Typography>
                         <Typography level="body-sm" color="neutral">
-                          {getErrorMessage(recipientsQuery.error)}
+                          The recipient list could not be loaded just now. Your campaign and send results are saved. Please try again.
                         </Typography>
                         <JoyButton size="sm" bloomVariant="secondary" onClick={() => void recipientsQuery.refetch()}>
                           Retry
