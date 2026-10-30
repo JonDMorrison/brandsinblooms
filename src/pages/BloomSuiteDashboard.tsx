@@ -116,7 +116,7 @@ function HomeMetric({
             sx={{
               color: "neutral.700",
               fontWeight: 600,
-              fontSize: "0.875rem",
+              fontSize: "1rem",
               lineHeight: 1.45,
               minWidth: 0,
             }}
@@ -131,7 +131,7 @@ function HomeMetric({
             level={empty ? "title-md" : "h2"}
             sx={{
               fontWeight: 700,
-              fontSize: empty ? "1rem" : "2rem",
+              fontSize: empty ? "1.125rem" : { xs: "2.5rem", md: "3.25rem" },
               color: "neutral.900",
               letterSpacing: "-0.035em",
               lineHeight: 1.15,
@@ -144,7 +144,7 @@ function HomeMetric({
           level="body-sm"
           sx={{
             color: "neutral.600",
-            fontSize: "0.8125rem",
+            fontSize: "0.9375rem",
             lineHeight: 1.5,
           }}
         >
@@ -323,7 +323,10 @@ export const BloomSuiteDashboard = () => {
   }
 
   return (
-    <PageContainer sx={{ maxWidth: "80rem" }}>
+    <PageContainer sx={{
+      maxWidth: "80rem",
+      "& .MuiButton-root": { minHeight: 44, fontSize: "0.9375rem", fontWeight: 600 },
+    }}>
       <Stack spacing={3} sx={{ pb: 4 }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -333,12 +336,12 @@ export const BloomSuiteDashboard = () => {
         >
           <Stack spacing={0.5}>
             <Typography
-              level="h3"
-              sx={{ fontWeight: 700, color: "neutral.900" }}
+              level="h1"
+              sx={{ fontSize: { xs: "1.875rem", md: "2.25rem" }, fontWeight: 700, letterSpacing: "-0.035em", color: "neutral.900" }}
             >
               Welcome back, {displayName}
             </Typography>
-            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            <Typography level="body-md" sx={{ color: "neutral.600" }}>
               Your customers, campaigns, and next steps in one place.
             </Typography>
           </Stack>
@@ -386,7 +389,7 @@ export const BloomSuiteDashboard = () => {
         <Stack spacing={1.5} sx={{ minWidth: 0 }}>
           <Typography
             level="title-lg"
-            sx={{ fontWeight: 700, color: "neutral.900" }}
+            sx={{ fontSize: "1.5rem", fontWeight: 700, color: "neutral.900" }}
           >
             What would you like to do?
           </Typography>
@@ -601,7 +604,7 @@ export const BloomSuiteDashboard = () => {
                     >
                       <Typography
                         sx={{
-                          fontSize: "1.0625rem",
+                          fontSize: "1.25rem",
                           fontWeight: 700,
                           color: "inherit",
                           lineHeight: 1.35,
@@ -612,7 +615,7 @@ export const BloomSuiteDashboard = () => {
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "0.875rem",
+                          fontSize: "1rem",
                           color: "inherit",
                           opacity: 0.85,
                           fontWeight: 400,
@@ -654,14 +657,14 @@ export const BloomSuiteDashboard = () => {
               justifyContent="space-between"
               alignItems="center"
             >
-              <Typography level="title-md" sx={{ fontWeight: 600 }}>
+              <Typography level="h2" sx={{ fontSize: "1.5rem", fontWeight: 700 }}>
                 Recent performance
               </Typography>
               {canSeeReports ? (
                 <JoyButton
                   size="sm"
-                  variant="plain"
-                  color="primary"
+                  variant="outlined"
+                  color="neutral"
                   data-activating={
                     activeAction === "analytics-header" ? "true" : undefined
                   }
@@ -757,7 +760,7 @@ export const BloomSuiteDashboard = () => {
                 <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
                     level="title-md"
-                    sx={{ fontWeight: 600, color: "neutral.900", lineHeight: 1.4 }}
+                    sx={{ fontSize: "1.25rem", fontWeight: 600, color: "neutral.900", lineHeight: 1.4 }}
                   >
                     Your latest email campaign
                   </Typography>
@@ -765,10 +768,10 @@ export const BloomSuiteDashboard = () => {
                     <Skeleton sx={{ width: 230, maxWidth: "100%", height: 24 }} />
                   ) : latestCampaign ? (
                     <>
-                      <Typography level="body-sm" sx={{ color: "neutral.800", lineHeight: 1.5 }}>
+                      <Typography level="body-md" sx={{ color: "neutral.800", lineHeight: 1.5 }}>
                         {latestCampaign.campaignName}
                       </Typography>
-                      <Typography level="body-xs" sx={{ color: "neutral.600", lineHeight: 1.5 }}>
+                      <Typography level="body-sm" sx={{ color: "neutral.600", lineHeight: 1.5 }}>
                         {latestCampaign.computedDelivered > 0
                           ? `${latestCampaign.computedDelivered.toLocaleString()} delivered · Click-through ${formatPercent(latestCampaign.clickRate)}`
                           : "Delivery totals are not available yet"}
