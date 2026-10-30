@@ -4,16 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   tenant: { id: "tenant-test" },
   rpc: vi.fn(),
+  extraCampaign: false,
 }));
 vi.mock("@/hooks/useTenant", () => ({ useTenant: () => ({ tenant: state.tenant }) }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     rpc: state.rpc,
     from: (table: string) => {
-      const data = table === "crm_campaigns" ? [{
+      const campaign = {
         id: "campaign-test", name: "Newsletter", sent_at: "2026-10-29T14:00:00Z",
         total_sent: 9555, total_opens: 0, total_clicks: 0, open_rate: 0, click_rate: 0,
-      }] : [];
+      };
+      const data = table === "crm_campaigns" ? [campaign, ...(state.extraCampaign ? [{ ...campaign, id: "older-campaign" }] : [])] : [];
       const query: Record<string, any> = {
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({ data, error: null }).then(resolve),
@@ -29,6 +31,7 @@ import { useCampaignDeliveryMetrics } from "./useCampaignDeliveryMetrics";
 
 afterEach(cleanup);
 beforeEach(() => {
+  state.extraCampaign = false;
   state.rpc.mockReset();
   state.rpc.mockResolvedValue({
     data: {
@@ -43,6 +46,18 @@ beforeEach(() => {
 });
 
 describe("dashboard campaign reporting parity", () => {
+  it("keeps available results when one older campaign times out and marks the totals partial", async () => {
+    state.extraCampaign = true;
+    const success = await state.rpc();
+    state.rpc.mockImplementation(async (_name, args) => args.p_campaign_id === "older-campaign"
+      ? {data:null,error:{message:"statement timeout"}} : success);
+    const { result } = renderHook(() => useCampaignDeliveryMetrics());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBeNull();
+    expect(result.current.unavailableCampaignCount).toBe(1);
+    expect(result.current.campaigns.map(c => c.campaignId)).toEqual(["campaign-test"]);
+    expect(result.current.summary.totalDelivered).toBe(8726);
+  });
   it("shows delivery and engagement from the live report even when caches are empty", async () => {
     const { result } = renderHook(() => useCampaignDeliveryMetrics());
     await waitFor(() => expect(result.current.loading).toBe(false));

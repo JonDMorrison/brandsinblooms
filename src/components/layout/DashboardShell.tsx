@@ -375,6 +375,15 @@ export function DashboardShell({
             backgroundImage: showBotanicalCanvas
               ? 'url("/images/dashboard/botanical-corner.svg"), url("/images/dashboard/botanical-corner.svg")'
               : "none",
+            // Outlined/plain controls must remain opaque over the botanical canvas.
+            ...(showBotanicalCanvas ? {
+              "& :is(.MuiButton-variantOutlined, .MuiButton-variantPlain, .MuiIconButton-variantOutlined, .MuiIconButton-variantPlain)": {
+                backgroundColor: "var(--joy-palette-background-surface) !important",
+                "&:hover": { backgroundColor: "var(--joy-palette-neutral-100) !important" },
+                "&:active": { backgroundColor: "var(--joy-palette-neutral-200) !important" },
+                "&.Mui-disabled": { backgroundColor: "var(--joy-palette-background-surface) !important", opacity: 1 },
+              },
+            } : {}),
             backgroundRepeat: "no-repeat",
             backgroundSize: { xs: "180px, 160px", md: "360px, 300px" },
             backgroundPosition: "right top, left bottom",

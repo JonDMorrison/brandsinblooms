@@ -678,6 +678,11 @@ export const BloomSuiteDashboard = () => {
                 </JoyButton>
               ) : null}
             </Stack>
+            {performance.unavailableCampaignCount > 0 ? (
+              <Typography level="body-xs" textColor="text.secondary">
+                Showing {performance.campaigns.length} available campaign reports. {performance.unavailableCampaignCount} could not load; these averages exclude them.
+              </Typography>
+            ) : null}
             <Box
               sx={{
                 display: "grid",

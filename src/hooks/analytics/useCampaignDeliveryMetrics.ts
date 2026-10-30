@@ -41,6 +41,7 @@ export interface DeliveryMetrics {
 }
 
 interface UseCampaignDeliveryMetricsResult {
+  unavailableCampaignCount: number;
   campaigns: DeliveryMetrics[];
   loading: boolean;
   error: string | null;
@@ -65,10 +66,12 @@ export const useCampaignDeliveryMetrics = (
   const [campaigns, setCampaigns] = useState<DeliveryMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unavailableCampaignCount, setUnavailableCampaignCount] = useState(0);
 
   const fetchMetrics = useCallback(async () => {
     if (!tenant?.id || options?.enabled === false) {
       setCampaigns([]);
+      setUnavailableCampaignCount(0);
       setLoading(false);
       return;
     }
@@ -76,6 +79,7 @@ export const useCampaignDeliveryMetrics = (
     try {
       setLoading(true);
       setError(null);
+      setUnavailableCampaignCount(0);
 
       // Use the effective tenant, including a master admin's selected business.
       const tenantId = tenant.id;
@@ -106,7 +110,7 @@ export const useCampaignDeliveryMetrics = (
 
       // Use the exact same recipient/engagement source as the campaign report.
       // Reporting errors must surface instead of turning successful sends into zero.
-      const snapshots = new Map(await Promise.all(campaignIds.map(async (campaignId) => {
+      const snapshotResults = await Promise.allSettled(campaignIds.map(async (campaignId) => {
         const { data, error: snapshotError } = await supabase.rpc(
           "get_email_campaign_reporting_snapshot", { p_campaign_id: campaignId },
         );
@@ -114,7 +118,15 @@ export const useCampaignDeliveryMetrics = (
         const snapshot = normalizeEmailCampaignReportingSnapshot(data);
         if (!snapshot) throw new Error("Campaign reporting snapshot is invalid");
         return [campaignId, snapshot.metrics] as const;
-      })));
+      }));
+      const availableSnapshots = snapshotResults.flatMap(result =>
+        result.status === "fulfilled" ? [result.value] : []);
+      const snapshots = new Map(availableSnapshots);
+      setUnavailableCampaignCount(snapshotResults.length - snapshots.size);
+      if (snapshots.size === 0) {
+        const failure = snapshotResults.find(result => result.status === "rejected");
+        throw failure?.status === "rejected" ? failure.reason : new Error("Reporting unavailable");
+      }
 
       // Fetch send job aggregates for all campaigns
       const { data: jobsData } = await supabase
@@ -178,7 +190,7 @@ export const useCampaignDeliveryMetrics = (
       });
 
       // Build metrics for each campaign
-      const metrics: DeliveryMetrics[] = campaignsData.map((c) => {
+      const metrics: DeliveryMetrics[] = campaignsData.filter(c => snapshots.has(c.id)).map((c) => {
         const jobs = jobsAgg[c.id] || {
           enqueued: 0,
           sent: 0,
@@ -235,6 +247,7 @@ export const useCampaignDeliveryMetrics = (
       setCampaigns(metrics);
     } catch (err: any) {
       console.error("Error fetching campaign delivery metrics:", err);
+      setCampaigns([]);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -321,6 +334,7 @@ export const useCampaignDeliveryMetrics = (
 
   return {
     campaigns,
+    unavailableCampaignCount,
     loading,
     error,
     summary,
