@@ -1662,14 +1662,14 @@ export function CampaignSendConfirmation({
               {!overrideActive ? (
                 <Sheet
                   variant="soft"
-                  color="primary"
+                  color="neutral"
                   sx={{ borderRadius: "md", p: 2 }}
                 >
                   <Stack spacing={0.5}>
                     <Typography
                       level="title-sm"
                       fontWeight="lg"
-                      sx={{ color: "primary.700" }}
+                      sx={{ color: "neutral.800" }}
                     >
                       Recommended: send to approved recipients only.
                     </Typography>
