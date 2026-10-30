@@ -103,7 +103,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
 
   if (loading) {
     return (
-      <JoyCard variant="outlined">
+      <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
         <JoyCardHeader
           title={<Skeleton variant="text" sx={{ width: 220 }} />}
         />
@@ -133,7 +133,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
 
   if (error) {
     return (
-      <JoyCard variant="outlined">
+      <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
         <JoyCardHeader title="Email Campaign Performance" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack spacing={1.5}>
@@ -157,7 +157,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
 
   if (!campaigns.length) {
     return (
-      <JoyCard variant="outlined">
+      <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
         <JoyCardHeader title="Email Campaign Performance" />
         <JoyCardContent sx={{ pt: 3 }}>
           <JoyEmptyState
@@ -182,12 +182,12 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
       id: "clicks",
       label: "Click-through rate",
       value: hasDeliveryData ? formatPercent(summary.avgClickRate) : "—",
-      helper: "Delivered-weighted average across recent campaigns",
+      helper: "Average across recent delivered emails",
       icon: MousePointerClick,
     },
     {
       id: "opens",
-      label: "Open rate",
+      label: "Reported open rate",
       value: hasDeliveryData ? formatPercent(summary.avgOpenRate) : "—",
       helper: "Approximate; privacy features can inflate opens",
       icon: Eye,
@@ -214,7 +214,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
   ];
 
   return (
-    <JoyCard variant="outlined">
+    <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
       <JoyCardHeader
         title="Email Campaign Performance"
         description="A clear view of clicks, opens, and delivery for up to 10 recent sent campaigns"
@@ -231,12 +231,12 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
               </JoyChip>
             ) : null}
             <JoyButton
-              size="sm"
-              variant="plain"
-              color="primary"
+              size="md"
+              variant="outlined"
+              color="neutral"
               onClick={() => navigate("/crm/campaigns")}
             >
-              View All →
+              View campaigns →
             </JoyButton>
           </Stack>
         }
@@ -264,23 +264,23 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
                     borderColor: "neutral.200",
                     borderRadius: "lg",
                     backgroundColor: "neutral.50",
-                    p: 2,
+                    p: { xs: 2.25, md: 3 },
                     minWidth: 0,
                   }}
                 >
                   <Stack direction="row" alignItems="center" spacing={0.75}>
-                    <Icon size={16} aria-hidden="true" />
+                    <Icon size={21} aria-hidden="true" />
                     <Typography level="body-sm" sx={{ color: "neutral.700", fontWeight: 600 }}>
                       {metric.label}
                     </Typography>
                   </Stack>
                   <Typography
                     level="h2"
-                    sx={{ fontWeight: 700, color: "neutral.900", letterSpacing: "-0.02em" }}
+                    sx={{ fontSize: { xs: "2.5rem", md: "3.25rem" }, lineHeight: 1.15, py: 1, fontWeight: 700, color: "neutral.900", letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums" }}
                   >
                     {metric.value}
                   </Typography>
-                  <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
                     {metric.helper}
                   </Typography>
                 </Stack>

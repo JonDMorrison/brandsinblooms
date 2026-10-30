@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
+import Sheet from "@mui/joy/Sheet";
 import Typography from "@mui/joy/Typography";
 import {
   BarChart3,
@@ -170,23 +171,31 @@ const AnalyticsPage = () => {
   const hasPeriodSelector = activeView === "overview" || activeView === "sales";
 
   return (
-    <PageContainer fullWidth>
+    <PageContainer fullWidth sx={{
+      maxWidth: 1280,
+      "& .MuiButton-root": { minHeight: 44, fontSize: ".9375rem", fontWeight: 600 },
+    }}>
       <Stack spacing={3} sx={{ pb: 4 }}>
-        <Stack spacing={0.5}>
-          <Typography level="h3" sx={{ fontWeight: 700 }}>Analytics</Typography>
-          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-            Understand what is working, without hunting through reports.
-          </Typography>
-        </Stack>
+        <Sheet variant="outlined" sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: "xl", bgcolor: "background.surface", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
+          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} gap={2}>
+            <Stack spacing={1}>
+              <Typography level="h1" sx={{ fontSize: { xs: "1.9rem", md: "2.25rem" }, fontWeight: 700, letterSpacing: "-.035em" }}>Analytics</Typography>
+              <Typography level="body-md" sx={{ color: "neutral.600", maxWidth: 650 }}>
+                See what’s connecting with your customers.
+              </Typography>
+            </Stack>
+            <JoyButton size="lg" variant="solid" onClick={() => selectView("campaigns")} startDecorator={<BarChart3 size={20} />}>Campaign reports</JoyButton>
+          </Stack>
+        </Sheet>
 
-        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap"
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap"
           role="group" aria-label="Analytics sections">
           {views.map((view) => (
             <JoyButton
               key={view.id}
               color={activeView === view.id ? "primary" : "neutral"}
-              variant={activeView === view.id ? "solid" : "soft"}
-              size="sm"
+              variant={activeView === view.id ? "solid" : "outlined"}
+              size="lg"
               aria-pressed={activeView === view.id}
               startDecorator={view.icon}
               onClick={() => selectView(view.id)}
@@ -196,22 +205,19 @@ const AnalyticsPage = () => {
           ))}
         </Stack>
 
-        {hasPermission("reports.read")&&<Stack spacing={0.5}>
-          <Typography level="body-sm">IdealPOS report totals are available separately from connected POS orders. An empty order chart does not mean imported sales are missing.</Typography>
-          <JoyButton variant="outlined" onClick={()=>navigate("/crm/intelligence?view=growth")}>View imported report spending</JoyButton>
-        </Stack>}
+
 
         {hasPeriodSelector ? (
           <Stack direction={{ xs: "column", sm: "row" }}
             alignItems={{ xs: "stretch", sm: "center" }} spacing={1.5}>
-            <Typography level="body-xs" sx={{ color: "neutral.600", fontWeight: 600 }}>
+            <Typography level="body-sm" sx={{ color: "neutral.700", fontWeight: 600 }}>
               Reporting period
             </Typography>
             <Stack direction="row" spacing={0.75}
               sx={{ display: { xs: "none", sm: "flex" } }}>
               {ANALYTICS_PERIOD_OPTIONS.map((option) => (
                 <JoyButton
-                  key={option.value} size="sm"
+                  key={option.value} size="md"
                   color={selectedPeriod === option.value ? "primary" : "neutral"}
                   variant={selectedPeriod === option.value ? "solid" : "soft"}
                   onClick={() => setSelectedPeriod(option.value)}
@@ -235,14 +241,13 @@ const AnalyticsPage = () => {
         {activeView === "overview" ? (
           <Stack spacing={2}>
             <Stack spacing={0.5}>
-              <Typography level="title-lg">Email engagement</Typography>
+              <Typography level="h2" sx={{ fontSize: "1.5rem", fontWeight: 700 }}>Email engagement</Typography>
               <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                Recent campaign results, with clicks first and reported opens
-                clearly distinguished from privacy-adjusted opens.
+                Your recent results at a glance. Start with clicks, then explore each campaign.
               </Typography>
             </Stack>
             <EmailCampaignSection dateRange={selectedPeriod} />
-            <JoyButton size="sm" variant="outlined" color="neutral"
+            <JoyButton size="md" variant="outlined" color="neutral" sx={{ alignSelf: "flex-start", px: 3 }}
               onClick={() => selectView("campaigns")}>
               Explore all campaign reports
             </JoyButton>
@@ -264,6 +269,18 @@ const AnalyticsPage = () => {
         ) : null}
         {activeView === "customers" ? <CustomerAnalytics /> : null}
         {activeView === "sales" ? <SalesAnalytics period={selectedPeriod} /> : null}
+        {hasPermission("reports.read") ? (
+          <Sheet variant="outlined" sx={{ p: 2.5, borderRadius: "lg", bgcolor: "background.surface" }}>
+            <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} gap={2}>
+              <Stack spacing={.5} sx={{ maxWidth: 740 }}>
+                <Typography level="title-md">Imported sales reports</Typography>
+                <Typography level="body-sm" textColor="text.secondary">IdealPOS report totals are separate from connected POS orders. An empty order chart does not mean imported sales are missing.</Typography>
+              </Stack>
+              <JoyButton variant="outlined" color="neutral" onClick={() => navigate("/crm/intelligence?view=growth")} sx={{ flexShrink: 0 }}>View imported report spending</JoyButton>
+            </Stack>
+          </Sheet>
+        ) : null}
+
       </Stack>
     </PageContainer>
   );
