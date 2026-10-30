@@ -36,6 +36,7 @@ vi.mock("@/components/crm/campaign-editor/CampaignSendConfirmation", async () =>
 
 import {
   LowCountConfirmDialog,
+  ReviewExcludedDialog,
   // re-export the dialog for direct testing
 } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
 
@@ -146,5 +147,52 @@ describe("LowCountConfirmDialog", () => {
       />,
     );
     expect(screen.queryByText(/Send to only/i)).not.toBeInTheDocument();
+  });
+});
+
+
+describe("ReviewExcludedDialog", () => {
+  afterEach(cleanup);
+
+  function ReviewHarness({ onContinue }: { onContinue: () => void }) {
+    const [consent, setConsent] = React.useState(false);
+    const [retry, setRetry] = React.useState(false);
+    return (
+      <ReviewExcludedDialog
+        open
+        onClose={vi.fn()}
+        consentExcludedCount={110}
+        softSuppressionRestorableCount={249}
+        hardSuppressionExcludedCount={152}
+        includeMissingConsent={consent}
+        includeSoftSuppressions={retry}
+        onChangeIncludeMissingConsent={setConsent}
+        onChangeIncludeSoftSuppressions={setRetry}
+        onContinue={onContinue}
+      />
+    );
+  }
+
+  it("lets the sender keep the approved audience without selecting exclusions", () => {
+    const onContinue = vi.fn();
+    renderInJoy(<ReviewHarness onContinue={onContinue} />);
+    const button = screen.getByRole("button", { name: "Keep current audience" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(onContinue).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+    expect(screen.getByText(/Can't be sent to/)).toHaveTextContent("152");
+  });
+
+  it("offers an explicit opt-in attestation independently of delivery retries", () => {
+    const onContinue = vi.fn();
+    renderInJoy(<ReviewHarness onContinue={onContinue} />);
+    const consent = screen.getByRole("checkbox", { name: /I confirm these contacts have opted in/ });
+    expect(consent).not.toBeChecked();
+    fireEvent.click(consent);
+    expect(consent).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Retry temporary delivery problems/ })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Include selected contacts" }));
+    expect(onContinue).toHaveBeenCalledTimes(1);
   });
 });
