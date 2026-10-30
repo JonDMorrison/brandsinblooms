@@ -137,6 +137,8 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
   const sendCampaign = useCallback(
     async (params: {
       campaignId?: string; // Optional - if provided, will UPDATE instead of creating duplicate
+      // The editor has already saved the full draft, including its audience.
+      draftAlreadySaved?: boolean;
       campaignName: string;
       subjectLine: string;
       preheaderText: string;
@@ -151,6 +153,7 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
     }): Promise<CampaignSendResult> => {
       const {
         campaignId: existingCampaignId,
+        draftAlreadySaved = false,
         campaignName,
         subjectLine,
         preheaderText,
@@ -204,7 +207,11 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
           content_blocks: blocks,
         };
 
-        campaign = await saveCampaignAsDraft(campaignData);
+        // Do not run a legacy partial save over the editor's canonical draft.
+        // That save defaults All Contacts and direct recipients to empty.
+        campaign = draftAlreadySaved && existingCampaignId
+          ? { id: existingCampaignId }
+          : await saveCampaignAsDraft(campaignData);
 
         if (!campaign?.id) {
           throw new Error("Campaign save returned no ID");

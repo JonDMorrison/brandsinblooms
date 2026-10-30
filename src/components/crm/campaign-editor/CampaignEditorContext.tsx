@@ -1494,6 +1494,7 @@ export function CampaignEditorProvider({
 
         return await sending.sendCampaign({
           campaignId: savedCampaignId,
+          draftAlreadySaved: true,
           campaignName: state.name,
           subjectLine: state.subjectLine,
           preheaderText: state.preheaderText,

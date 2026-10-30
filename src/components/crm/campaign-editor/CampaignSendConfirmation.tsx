@@ -1720,12 +1720,12 @@ export function CampaignSendConfirmation({
               {hasBuilderBlockers ? (
                 <Sheet
                   variant="soft"
-                  color="danger"
+                  color="neutral"
                   sx={{ borderRadius: "md", p: 1.5 }}
                 >
                   <Stack spacing={0.75}>
                     <Typography level="body-sm" fontWeight="lg">
-                      Fix these blockers before sending
+                      Review before sending
                     </Typography>
                     {builderBlockers.map((blocker) => (
                       <Typography key={blocker} level="body-xs">
@@ -1817,7 +1817,7 @@ export function CampaignSendConfirmation({
               {inlineError ? (
                 <Sheet
                   variant="soft"
-                  color="danger"
+                  color="neutral"
                   sx={{ borderRadius: "md", p: 1.5 }}
                 >
                   <Stack direction="row" spacing={1} alignItems="flex-start">
