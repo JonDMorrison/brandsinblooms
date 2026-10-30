@@ -787,10 +787,13 @@ export function CampaignActiveSendView({
 
   return (
     <>
-      <Stack
-        spacing={3}
-        sx={{ maxWidth: 920, mx: "auto", py: { xs: 2, md: 4 } }}
-      >
+      <Box sx={{
+        width: "100%", maxWidth: 1280, mx: "auto", py: 0,
+        display: "grid", gap: 2,
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.55fr) minmax(0, 1fr)" },
+        alignItems: "start",
+        "& > *": { minWidth: 0 },
+      }}>
         <Sheet
           className="bg-card"
           variant="outlined"
@@ -798,6 +801,15 @@ export function CampaignActiveSendView({
             borderRadius: "lg",
             p: { xs: 2, md: 3 },
             backgroundColor: "background.surface",
+            gridColumn: { lg: "1" }, gridRow: { lg: "1" },
+            position: "relative", overflow: "hidden",
+            "&::before": {
+              content: '""', position: "absolute", right: -24, top: -30,
+              width: 260, height: 280,
+              background: 'url("/images/dashboard/botanical-corner.svg") center / contain no-repeat',
+              pointerEvents: "none",
+            },
+            "& > *": { position: "relative" },
           }}
         >
           <Stack spacing={2.5}>
@@ -910,7 +922,7 @@ export function CampaignActiveSendView({
               }}
             />
 
-            <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+            <Stack direction={{ xs: "column", xl: "row" }} spacing={1.5}>
               <PhaseStep
                 label="Ready to go"
                 detail="Your campaign is safely queued"
@@ -958,7 +970,9 @@ export function CampaignActiveSendView({
           </Stack>
         </Sheet>
 
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+        <Stack direction="row" spacing={1.5} sx={{
+          gridColumn: { lg: "1" }, gridRow: { lg: "2" }, flexWrap: "wrap",
+        }}>
           <Box sx={{ flex: 1 }}>
             <MetricTile
               label="Emails sent"
@@ -983,14 +997,16 @@ export function CampaignActiveSendView({
 
         <Sheet
           variant="outlined"
-          sx={{ borderRadius: "lg", p: { xs: 2, md: 2.5 } }}
+          sx={{
+            borderRadius: "lg", p: { xs: 2, md: 2.5 },
+            gridColumn: { lg: "2" }, gridRow: { lg: "1 / span 2" },
+          }}
         >
           <Stack spacing={2}>
             <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", md: "center" }}
+              direction="column"
+              spacing={1}
+              alignItems="flex-start"
             >
               <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                 <Typography level="title-md" fontWeight="lg">
@@ -1127,7 +1143,7 @@ export function CampaignActiveSendView({
           justifyContent="space-between"
           alignItems={{ xs: "stretch", sm: "center" }}
         >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ gridColumn: "1 / -1" }}>
             {canPause ? (
               <JoyButton
                 variant="outlined"
@@ -1170,7 +1186,7 @@ export function CampaignActiveSendView({
             </Box>
           ) : null}
         </Stack>
-      </Stack>
+      </Box>
 
       <Modal open={pauseOpen} onClose={() => !isPausing && setPauseOpen(false)}>
         <ModalDialog variant="outlined" size="sm">
