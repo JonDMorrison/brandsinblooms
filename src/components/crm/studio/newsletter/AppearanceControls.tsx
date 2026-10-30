@@ -205,7 +205,7 @@ export default function AppearanceControls({
   return (
     <div className="nl-controls">
       <details>
-        <summary>Spacing</summary>
+        <summary>Spacing: padding & margins</summary>
         <Edges
           title="Margin"
           value={value.margin}

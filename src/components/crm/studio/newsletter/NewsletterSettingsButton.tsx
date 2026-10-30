@@ -29,7 +29,7 @@ export default function NewsletterSettingsButton() {
         startDecorator={<SlidersHorizontal size={15} />}
         onClick={() => setOpen(true)}
       >
-        Newsletter design
+        Design & spacing
       </Button>
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog
@@ -45,7 +45,7 @@ export default function NewsletterSettingsButton() {
             className="nl-inline"
             style={{ justifyContent: "space-between" }}
           >
-            <Typography level="h4">Newsletter design</Typography>
+            <Typography level="h4">Design & spacing</Typography>
             <button
               type="button"
               className="nl-quiet"
@@ -61,6 +61,8 @@ export default function NewsletterSettingsButton() {
             template.
           </p>
           <div className="nl-controls">
+            <Typography level="title-sm">Space between blocks</Typography>
+            <p className="nl-note">Add more space between sections here. For space inside a block, select it and open Spacing in its properties.</p>
             <div className="nl-grid-2">
               <NumericField
                 label="Email width (px)"

@@ -980,7 +980,8 @@ function renderGraphicImageBlock(
       block.imageFocalX,
       block.imageFocalY,
     );
-    const image = `<img class="responsive-image responsive-crop-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${EMAIL_WIDTH - padding * 2}" height="${maxHeight}" style="display:block;width:100%;max-width:${EMAIL_WIDTH - padding * 2}px;height:${maxHeight}px;object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />`;
+    const contain = block.imageFit === "contain";
+    const image = `<img class="responsive-image${contain ? "" : " responsive-crop-image"}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${EMAIL_WIDTH - padding * 2}"${contain ? "" : ` height="${maxHeight}"`} style="display:block;width:100%;max-width:${EMAIL_WIDTH - padding * 2}px;${contain ? "height:auto;" : `height:${maxHeight}px;object-fit:cover;`}object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />`;
     const linked = safeUrl(block.linkUrl)
       ? `<a href="${escapeAttribute(safeUrl(block.linkUrl))}" target="_blank" style="text-decoration:none;">${image}</a>`
       : image;
