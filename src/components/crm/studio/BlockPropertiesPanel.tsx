@@ -3397,15 +3397,11 @@ function PanelContent({
                       block={block}
                       updateField={updateField}
                     />
-                    <StudioSliderField
-                      label="Max Height"
-                      min={150}
-                      max={600}
-                      step={10}
-                      defaultValue={400}
-                      value={block.maxHeight ?? 400}
-                      onChange={(value) => updateField("maxHeight", value)}
-                    />
+                    {block.imageFit === "contain" ? (
+                      <Typography level="body-xs">Shows the full image at its natural proportions. Choose Cover to crop to a fixed height.</Typography>
+                    ) : (
+                      <StudioSliderField label="Image height" min={150} max={600} step={10} defaultValue={400} value={block.maxHeight ?? 400} onChange={(value) => updateField("maxHeight", value)} />
+                    )}
                   </>
                 ),
               },

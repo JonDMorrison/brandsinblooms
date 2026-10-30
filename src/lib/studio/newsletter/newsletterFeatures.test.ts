@@ -63,6 +63,20 @@ describe("newsletter design and safety", () => {
       expect(() => renderNewsletterBlock(b)).not.toThrow();
     }
   });
+  it("uses tighter defaults for new blocks and retains legacy gaps", () => {
+    expect(createStudioBlock("plain-text").contentPadding).toBe(16);
+    expect(createStudioBlock("image-text").contentPadding).toBe(16);
+    expect(createStudioBlock("divider").paddingTop).toBe(8);
+    expect(normalizeNewsletterSettings(null).blockGap).toBe(16);
+  });
+  it("renders contained banners at natural height", () => {
+    const output = renderNewsletterBlock(block("full-width-image", { imageUrl: "https://example.com/banner.png", imageFit: "contain", maxHeight: 210 }));
+    expect(output).toContain("height:auto;");
+    expect(output).not.toContain("responsive-crop-image");
+    const cropped = renderNewsletterBlock(block("full-width-image", { imageUrl: "https://example.com/banner.png", imageFit: "cover", maxHeight: 210 }));
+    expect(cropped).toContain("responsive-crop-image");
+    expect(cropped).toContain('height="210"');
+  });
   it("keeps legacy defaults and accepts 700px designs", () => {
     expect(normalizeNewsletterSettings(null).width).toBe(640);
     const output = html([block("headline", { headline: "Wide email" })], {
