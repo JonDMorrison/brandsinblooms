@@ -571,7 +571,7 @@ type ReviewExcludedDialogProps = {
   onContinue: () => void;
 };
 
-function ReviewExcludedDialog({
+export function ReviewExcludedDialog({
   open,
   onClose,
   consentExcludedCount,
@@ -595,11 +595,11 @@ function ReviewExcludedDialog({
         <ModalClose />
         <Box sx={{ px: 3, pt: 3, pb: 2 }}>
           <DialogTitle sx={{ p: 0, mb: 0.5 }}>
-            Review excluded contacts
+            Choose additional recipients
           </DialogTitle>
           <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-            Some contacts were excluded to protect consent, deliverability, or
-            account health.
+            You can send to your approved audience now. If these additional
+            contacts have opted in, confirm their permission below.
           </Typography>
         </Box>
 
@@ -622,7 +622,7 @@ function ReviewExcludedDialog({
                   }
                   label={
                     <Typography level="title-sm" fontWeight="lg">
-                      Waiting for permission ·{" "}
+                      I confirm these contacts have opted in ·{" "}
                       {consentExcludedCount.toLocaleString()} contacts
                     </Typography>
                   }
@@ -631,9 +631,9 @@ function ReviewExcludedDialog({
                   level="body-xs"
                   sx={{ color: "neutral.600", pl: 4 }}
                 >
-                  These contacts haven't given permission to receive email
-                  from you yet. We recommend keeping them out unless you're
-                  sure they should receive this message.
+                  BloomSuite does not have their permission recorded. Select this
+                  option to confirm you have their permission and include them
+                  in this campaign.
                 </Typography>
               </Stack>
             </Sheet>
@@ -659,7 +659,7 @@ function ReviewExcludedDialog({
                   }
                   label={
                     <Typography level="title-sm" fontWeight="lg">
-                      Temporary delivery problem ·{" "}
+                      Retry temporary delivery problems ·{" "}
                       {softSuppressionRestorableCount.toLocaleString()} contacts
                     </Typography>
                   }
@@ -721,10 +721,9 @@ function ReviewExcludedDialog({
             <JoyButton
               variant="solid"
               color="primary"
-              disabled={!hasSelection}
               onClick={onContinue}
             >
-              Continue
+              {hasSelection ? "Include selected contacts" : "Keep current audience"}
             </JoyButton>
           </Box>
         </DialogActions>
@@ -1154,8 +1153,15 @@ export function CampaignSendConfirmation({
 
   const handleReviewContinue = React.useCallback(() => {
     setReviewOpen(false);
-    setConfirmOverrideOpen(true);
-  }, []);
+    // The permission checkbox is the explicit attestation. Only delivery
+    // retries need the additional confirmation about retrying failed mail.
+    if (pendingIncludeSoftSuppressions) {
+      setConfirmOverrideOpen(true);
+      return;
+    }
+    setIncludeMissingConsent(pendingIncludeMissingConsent);
+    setIncludeSoftSuppressions(false);
+  }, [pendingIncludeMissingConsent, pendingIncludeSoftSuppressions]);
 
   const handleOverrideConfirm = React.useCallback(() => {
     setIncludeMissingConsent(pendingIncludeMissingConsent);
@@ -1277,7 +1283,7 @@ export function CampaignSendConfirmation({
         label: "Override: missing consent",
         detail: `${consentGap.toLocaleString()} contacts without recorded consent`,
         warning:
-          "User reviewed excluded contacts and chose to include missing-consent recipients for this send only.",
+          "User confirmed these contacts have opted in and chose to include them for this send only.",
       });
     }
     if (includeSoftSuppressions) {
@@ -1858,7 +1864,7 @@ export function CampaignSendConfirmation({
                     onClick={openReviewDialog}
                     disabled={isBusy}
                   >
-                    Review excluded contacts
+                    Confirm permission / review contacts
                   </JoyButton>
                 ) : null}
                 <JoyButton
