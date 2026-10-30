@@ -29,6 +29,8 @@ import { useGASettings } from "@/hooks/useGASettings";
 import { useAnalyticsOverview } from "@/hooks/useAnalyticsOverview";
 import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
 import { useTenant } from "@/hooks/useTenant";
+import { useAdmin } from "@/contexts/AdminContext";
+import { showIdealReportNotice } from "@/lib/idealNoticeScope";
 import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -156,6 +158,9 @@ function SalesAnalytics({ period }: { period: AnalyticsPeriod }) {
 
 const AnalyticsPage = () => {
   const navigate=useNavigate();
+  const { tenant, loading: tenantLoading } = useTenant();
+  const { isMasterAdmin, activeTenantId, hasHydratedTenantContext } = useAdmin();
+  const showIdealNotice = showIdealReportNotice(tenant?.id, tenantLoading, isMasterAdmin, activeTenantId, hasHydratedTenantContext);
   const {hasPermission}=useUserRole();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get("view");
@@ -269,7 +274,7 @@ const AnalyticsPage = () => {
         ) : null}
         {activeView === "customers" ? <CustomerAnalytics /> : null}
         {activeView === "sales" ? <SalesAnalytics period={selectedPeriod} /> : null}
-        {hasPermission("reports.read") ? (
+        {showIdealNotice && hasPermission("reports.read") ? (
           <Sheet variant="outlined" sx={{ p: 2.5, borderRadius: "lg", bgcolor: "background.surface" }}>
             <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} gap={2}>
               <Stack spacing={.5} sx={{ maxWidth: 740 }}>
