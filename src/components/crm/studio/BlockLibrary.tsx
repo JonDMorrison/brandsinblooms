@@ -207,7 +207,7 @@ export default function BlockLibrary({
         <Box
           role="tablist"
           aria-label="Newsletter navigation"
-          sx={{ display: "flex", gap: 0.5, mb: 1.5 }}
+          sx={{ display: "flex", gap: 0.5, mb: 1.5, "& button": { transition: "transform 120ms ease, background-color 160ms ease" }, "& button:active": { transform: "scale(0.97)" }, "@media (prefers-reduced-motion: reduce)": { "& button": { transition: "none" }, "& button:active": { transform: "none" } } }}
         >
           {(["blocks", "outline", "saved"] as const).map((value) => (
             <button
