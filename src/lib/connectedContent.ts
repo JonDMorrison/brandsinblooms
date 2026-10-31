@@ -19,6 +19,8 @@ export interface ConnectedContentItem {
   endAt?:string|null;
   timezone?:string|null;
   location?:string|null;
+  eventStatus?:"cancelled"|"sold_out"|"available";
+  upcomingDateCount?:number;
 }
 export interface ConnectedWebsite {
   id:string;
@@ -74,7 +76,8 @@ export function buildConnectedContentBlock(
   const link=safeUrl(item.publicUrl);
   if(!link)throw new Error("This website content has no secure public link.");
   const block=createStudioBlock("image-text",designSystem);
-  const date=campaignDate(item);
+  const formattedDate=campaignDate(item);
+  const date=item.type==="event" && (item.upcomingDateCount??0)>1 && formattedDate ? `Multiple dates from ${formattedDate}` : formattedDate;
   const description=item.description?.trim().slice(0,440)??"";
   return {
     ...block,
