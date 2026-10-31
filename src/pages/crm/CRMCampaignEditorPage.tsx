@@ -19,6 +19,7 @@ import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
+  Info,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -49,6 +50,7 @@ import {
   scanSubjectForUnrenderedTokens,
 } from "@/lib/crm/placeholderScan";
 import { CollapsibleSection } from "@/components/crm/campaign-editor/CollapsibleSection";
+import { NewsletterInboxReview } from "@/components/crm/campaign-editor/NewsletterInboxReview";
 import { IntentPicker } from "@/components/crm/campaign-editor/IntentPicker";
 import { ManageTemplatesModal } from "@/components/crm/campaign-editor/ManageTemplatesModal";
 import { SaveAsTemplateModal } from "@/components/crm/campaign-editor/SaveAsTemplateModal";
@@ -944,7 +946,7 @@ function CampaignEditorScreen() {
   }, []);
 
   const focusSubjectInput = React.useCallback(() => {
-    const section = document.getElementById("campaign-editor-content");
+    const section = document.getElementById("campaign-editor-inbox");
     section?.scrollIntoView({ behavior: "smooth", block: "start" });
     const input = document.getElementById(
       "campaign-editor-subject",
@@ -1702,18 +1704,12 @@ function CampaignEditorScreen() {
         }
         defaultExpanded={audienceInitiallyExpanded}
         badge={
-          <Chip
-            variant="soft"
-            color={
-              !isAudienceLoading && (audienceCount ?? 0) <= 1
-                ? "warning"
-                : "neutral"
-            }
-            size="sm"
-          >
+          <Chip variant="soft" color="neutral" size="sm">
             {isAudienceLoading
               ? "Calculating audience"
-              : asCountLabel(audienceCount)}
+              : (audienceCount ?? 0) === 0
+                ? "Choose audience"
+                : asCountLabel(audienceCount)}
           </Chip>
         }
       >
@@ -1725,30 +1721,30 @@ function CampaignEditorScreen() {
           additionalCustomerIds.length === 0 ? (
             <Sheet
               variant="soft"
-              color="warning"
+              color="neutral"
               data-testid="campaign-audience-empty-warning"
               sx={{ borderRadius: "md", p: 1.5 }}
             >
               <Stack direction="row" spacing={1} alignItems="flex-start">
-                <AlertCircle
+                <Info
                   size={17}
                   style={{
                     flexShrink: 0,
                     marginTop: 2,
-                    color: "var(--joy-palette-warning-700)",
+                    color: "var(--joy-palette-neutral-600)",
                   }}
                 />
                 <Stack spacing={0.25}>
                   <Typography
                     level="body-sm"
                     fontWeight="lg"
-                    sx={{ color: "warning.700" }}
+                    sx={{ color: "neutral.800" }}
                   >
-                    This campaign currently has no audience configured.
+                    Choose who will receive this newsletter.
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.700" }}>
-                    Pick &ldquo;All Contacts&rdquo; or a segment below before
-                    sending — otherwise this campaign will not reach anyone.
+                    Select All Contacts or a segment below. You can change your
+                    audience before sending.
                   </Typography>
                 </Stack>
               </Stack>
@@ -2111,44 +2107,6 @@ function CampaignEditorScreen() {
       >
         {campaignType === "email" ? (
           <Stack spacing={3}>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 2,
-              }}
-            >
-              <JoyInput
-                id="campaign-editor-subject"
-                label="Subject line"
-                value={subjectLine}
-                disabled={isLocked}
-                onValueChange={(value) => updateSetup({ subjectLine: value })}
-              />
-              <JoyInput
-                label="Preview text"
-                value={preheaderText}
-                disabled={isLocked}
-                placeholder="Shows next to the subject in their inbox"
-                onValueChange={(value) => updateSetup({ preheaderText: value })}
-                helperText={
-                  <Box
-                    component="span"
-                    sx={{
-                      color:
-                        preheaderText.length > PREVIEW_TEXT_SOFT_LIMIT
-                          ? "var(--joy-palette-warning-600)"
-                          : "var(--joy-palette-neutral-500)",
-                    }}
-                  >
-                    {`${preheaderText.length} / ${PREVIEW_TEXT_SOFT_LIMIT}`}
-                  </Box>
-                }
-              />
-            </Box>
-
-            <Divider />
-
             <IntentPicker
               savedTemplates={savedTemplates}
               selectedIntent={selectedIntent}
@@ -2262,108 +2220,39 @@ function CampaignEditorScreen() {
 
       {campaignType === "email" ? (
         <CollapsibleSection
+          id="campaign-editor-inbox"
+          title="Subject & preview"
+          summary={
+            subjectLine || "Suggested after you add your newsletter content"
+          }
+          defaultExpanded
+        >
+          <NewsletterInboxReview
+            blocks={contentBlocks}
+            subject={subjectLine}
+            preview={preheaderText}
+            onChange={updateSetup}
+            disabled={isLocked}
+          />
+        </CollapsibleSection>
+      ) : null}
+
+      {campaignType === "email" ? (
+        <CollapsibleSection
           id="campaign-editor-preview"
           title="Preview"
           summary={previewSummary}
           expanded={previewExpanded}
           onExpandedChange={handlePreviewExpandedChange}
         >
-          <Box
-            role="button"
-            tabIndex={0}
-            aria-label={
-              isLocked
-                ? "Open the Design Studio to view this email"
-                : "Open the Design Studio to edit this email"
-            }
-            onClick={handleOpenStudio}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                handleOpenStudio();
-              }
-            }}
-            sx={{
-              position: "relative",
-              borderRadius: "var(--joy-radius-lg)",
-              overflow: "hidden",
-              cursor: "pointer",
-              "&:focus-visible": {
-                outline: "2px solid var(--joy-palette-primary-400)",
-                outlineOffset: "2px",
-              },
-              "& [data-preview-overlay]": {
-                opacity: 0,
-                pointerEvents: "none",
-                transition: "opacity 150ms ease",
-              },
-              "@media (hover: hover)": {
-                "&:hover [data-preview-overlay], &:focus-visible [data-preview-overlay]":
-                  {
-                    opacity: 1,
-                  },
-              },
-              "& [data-preview-touch-pill]": {
-                display: "none",
-              },
-              "@media (hover: none)": {
-                "& [data-preview-touch-pill]": {
-                  display: "inline-flex",
-                },
-              },
-            }}
-          >
-            <ContentPreviewCard
-              blocks={contentBlocks}
-              subjectLine={subjectLine}
-              previewText={preheaderText}
-              designSystem={designSystem}
-              loading={isDesignSystemLoading}
-              onOpenStudio={handleOpenStudio}
-            />
-            <Box
-              data-preview-overlay
-              aria-hidden
-              sx={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 1,
-                color: "#ffffff",
-                backgroundColor: "rgba(20, 20, 20, 0.72)",
-                fontSize: "15px",
-                fontWeight: 500,
-                zIndex: 2,
-              }}
-            >
-              <Pencil size={18} />
-              {isLocked ? "View in Studio" : "Click to edit in Studio"}
-            </Box>
-            <Box
-              data-preview-touch-pill
-              aria-hidden
-              sx={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                alignItems: "center",
-                gap: 0.5,
-                px: 1.25,
-                py: 0.5,
-                borderRadius: "999px",
-                backgroundColor: "rgba(20, 20, 20, 0.78)",
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 500,
-                zIndex: 2,
-              }}
-            >
-              <Pencil size={12} />
-              {isLocked ? "View in Studio" : "Edit in Studio"}
-            </Box>
-          </Box>
+          <ContentPreviewCard
+            blocks={contentBlocks}
+            subjectLine={subjectLine}
+            previewText={preheaderText}
+            designSystem={designSystem}
+            loading={isDesignSystemLoading}
+            onOpenStudio={handleOpenStudio}
+          />
         </CollapsibleSection>
       ) : null}
 

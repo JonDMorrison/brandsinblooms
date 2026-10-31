@@ -3,31 +3,14 @@ import AspectRatio from "@mui/joy/AspectRatio";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Card from "@mui/joy/Card";
-import Chip from "@mui/joy/Chip";
-import IconButton from "@mui/joy/IconButton";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
-import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
-import {
-  ArrowUpRight,
-  ChevronDown,
-  ChevronUp,
-  Palette,
-  Sparkles,
-} from "lucide-react";
+import { ArrowUpRight, Palette } from "lucide-react";
 import type { StudioDesignSystem } from "@/lib/studio/designSystem";
 import { generateEmailHtml } from "@/lib/studio/emailHtmlGenerator";
 import type { StudioBlock } from "@/types/studioBlocks";
 
-const PREVIEW_EMAIL_WIDTH = 640;
-const PREVIEW_EMAIL_HEIGHT = 1120;
-const EMPTY_PREVIEW_HEIGHT = 260;
-const COLLAPSED_PREVIEW_HEIGHT = 300;
-const EXPANDED_PREVIEW_MAX_HEIGHT = "80vh";
-const PREVIEW_HEIGHT_TRANSITION =
-  "max-height 400ms cubic-bezier(0.4, 0, 0.2, 1)";
-const PREVIEW_ARROW_SIZE = 32;
 const SAMPLE_CUSTOMER = {
   first_name: "Mira",
   last_name: "Hart",
@@ -127,327 +110,173 @@ export function ContentPreviewCard({
   loading?: boolean;
   onOpenStudio: () => void;
 }) {
-  const headerRef = React.useRef<HTMLDivElement | null>(null);
-  const viewportRef = React.useRef<HTMLDivElement | null>(null);
-  const previewScrollRef = React.useRef<HTMLDivElement | null>(null);
-  const collapseScrollTimeoutRef = React.useRef<number | null>(null);
-  const [viewportWidth, setViewportWidth] = React.useState(0);
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  const mergeData = React.useMemo(
-    () => buildPreviewMergeData(designSystem),
-    [designSystem],
-  );
-  const hasMeaningfulBlocks = React.useMemo(
-    () =>
-      blocks.some(
-        (block) => block.type !== "footer" && block.visible !== false,
-      ),
-    [blocks],
-  );
-  const footerBlock = React.useMemo(
-    () => blocks.find((block) => block.type === "footer") ?? null,
-    [blocks],
+  const [device, setDevice] = React.useState<"desktop" | "mobile">("desktop");
+  const [frameHeight, setFrameHeight] = React.useState(600);
+  const observerRef = React.useRef<ResizeObserver | null>(null);
+  const hasContent = blocks.some(
+    (block) => block.type !== "footer" && block.visible !== false,
   );
   const html = React.useMemo(
     () =>
-      generateEmailHtml({
-        blocks,
-        subject: subjectLine || "Untitled Campaign",
-        previewText,
-        footer: footerBlock,
-        mergeData,
-        designSystem,
-      }),
-    [blocks, designSystem, footerBlock, mergeData, previewText, subjectLine],
+      stripScriptTags(
+        generateEmailHtml({
+          blocks,
+          subject: subjectLine || "Newsletter preview",
+          previewText,
+          footer: blocks.find((block) => block.type === "footer") ?? null,
+          mergeData: buildPreviewMergeData(designSystem),
+          designSystem,
+        }),
+      ),
+    [blocks, designSystem, previewText, subjectLine],
   );
-  const sanitizedHtml = React.useMemo(() => stripScriptTags(html), [html]);
-
-  React.useEffect(() => {
-    if (!hasMeaningfulBlocks) {
-      setIsExpanded(false);
+  React.useEffect(() => () => observerRef.current?.disconnect(), []);
+  const handleFrameLoad = (event: React.SyntheticEvent<HTMLIFrameElement>) => {
+    observerRef.current?.disconnect();
+    const doc = event.currentTarget.contentDocument;
+    if (!doc?.body) return;
+    const measure = () =>
+      setFrameHeight(Math.max(320, doc.body.scrollHeight + 24));
+    measure();
+    doc.addEventListener("click", (event) => event.preventDefault());
+    if (typeof ResizeObserver !== "undefined") {
+      observerRef.current = new ResizeObserver(measure);
+      observerRef.current.observe(doc.body);
     }
-  }, [hasMeaningfulBlocks]);
-
-  React.useEffect(() => {
-    return () => {
-      if (collapseScrollTimeoutRef.current !== null) {
-        window.clearTimeout(collapseScrollTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleExpandPreview = React.useCallback(() => {
-    setIsExpanded(true);
-  }, []);
-
-  const handleCollapsePreview = React.useCallback(() => {
-    if (previewScrollRef.current) {
-      previewScrollRef.current.scrollTop = 0;
-    }
-
-    setIsExpanded(false);
-
-    if (collapseScrollTimeoutRef.current !== null) {
-      window.clearTimeout(collapseScrollTimeoutRef.current);
-    }
-
-    collapseScrollTimeoutRef.current = window.setTimeout(() => {
-      headerRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-      collapseScrollTimeoutRef.current = null;
-    }, 50);
-  }, []);
-
-  React.useEffect(() => {
-    const element = viewportRef.current;
-    if (!element) {
-      return;
-    }
-
-    const updateWidth = () => {
-      setViewportWidth(element.getBoundingClientRect().width);
-    };
-
-    updateWidth();
-
-    if (typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", updateWidth);
-      return () => window.removeEventListener("resize", updateWidth);
-    }
-
-    const observer = new ResizeObserver(() => updateWidth());
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, []);
-
-  if (loading) {
-    return <PreviewSkeleton />;
-  }
-
-  if (!hasMeaningfulBlocks) {
-    return (
-      <Card variant="outlined" sx={{ borderRadius: "xl", p: 2.5, gap: 2 }}>
-        <Stack spacing={0.75}>
-          <Typography level="title-md">Live preview</Typography>
-          <Typography
-            level="body-sm"
-            sx={{ color: "neutral.600", maxWidth: 560 }}
-          >
-            Apply a seasonal template or open Campaign Studio to start shaping
-            the email. This surface reuses the same HTML generator as your send
-            and test-email flows.
-          </Typography>
-        </Stack>
-        <Box
-          sx={{
-            minHeight: EMPTY_PREVIEW_HEIGHT,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: "xl",
-            border: "1px dashed",
-            borderColor: "neutral.300",
-            bgcolor: "background.level1",
-          }}
-        >
-          <Stack
-            spacing={1}
-            alignItems="center"
-            justifyContent="center"
-            sx={{ width: "100%", px: 3, textAlign: "center" }}
-          >
-            <Sparkles size={18} />
-            <Typography level="title-sm" sx={{ fontWeight: 600 }}>
-              Preview the finished email here
-            </Typography>
-            <Typography
-              level="body-xs"
-              sx={{ color: "neutral.600", maxWidth: 360 }}
-            >
-              Real Studio blocks, real merge-tag sampling, and the same email
-              HTML pipeline used everywhere else.
-            </Typography>
-            <Button
-              variant="solid"
-              color="neutral"
-              startDecorator={<Palette size={16} />}
-              onClick={onOpenStudio}
-            >
-              Open Campaign Studio
-            </Button>
-          </Stack>
-        </Box>
-      </Card>
-    );
-  }
-
-  const previewScale = viewportWidth
-    ? Math.min(1, Math.max(0.38, (viewportWidth - 24) / PREVIEW_EMAIL_WIDTH))
-    : 0.72;
-  const viewportHeight = PREVIEW_EMAIL_HEIGHT * previewScale;
-  const canExpandPreview = viewportHeight > COLLAPSED_PREVIEW_HEIGHT;
-  const meaningfulBlockCount = blocks.filter(
-    (block) => block.type !== "footer" && block.visible !== false,
-  ).length;
-
+  };
+  if (loading) return <PreviewSkeleton />;
   return (
     <Card
       variant="outlined"
-      sx={{ borderRadius: "xl", p: 0, overflow: "hidden" }}
+      sx={{
+        width: "100%",
+        p: 0,
+        borderRadius: "xl",
+        overflow: "hidden",
+        bgcolor: "background.surface",
+      }}
     >
       <Stack
-        ref={headerRef}
         direction={{ xs: "column", md: "row" }}
-        spacing={1.5}
         justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "neutral.200" }}
+        alignItems={{ xs: "stretch", md: "center" }}
+        spacing={2}
+        sx={{
+          p: { xs: 2.5, md: 3 },
+          borderBottom: "1px solid",
+          borderColor: "neutral.200",
+        }}
       >
-        <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-          <Typography level="title-md">Live preview</Typography>
-          <Typography
-            level="body-sm"
-            sx={{ color: "neutral.600", maxWidth: 620 }}
-          >
-            {subjectLine || "Untitled Campaign"}
+        <Stack spacing={0.75}>
+          <Typography level="h3" sx={{ fontSize: 22, fontWeight: 700 }}>
+            Your newsletter
           </Typography>
-          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-            <Chip size="sm" variant="soft" color="neutral">
-              {meaningfulBlockCount} block
-              {meaningfulBlockCount === 1 ? "" : "s"}
-            </Chip>
-            <Chip size="sm" variant="soft" color="neutral">
-              Preheader {previewText.trim() ? "ready" : "empty"}
-            </Chip>
-            <Chip size="sm" variant="soft" color="neutral">
-              HTML parity preview
-            </Chip>
-          </Stack>
+          <Typography level="body-sm" textColor="text.secondary">
+            Check your design here. Change text, images, colours, and layout in
+            Design Studio.
+          </Typography>
         </Stack>
-
         <Button
           variant="solid"
-          color="neutral"
-          endDecorator={<ArrowUpRight size={16} />}
+          endDecorator={<ArrowUpRight size={18} />}
           onClick={onOpenStudio}
-        >
-          Open Campaign Studio
-        </Button>
-      </Stack>
-
-      <Box sx={{ px: 2, pt: 2, pb: 4, bgcolor: "background.level1" }}>
-        <Box
           sx={{
-            position: "relative",
-            borderRadius: "xl",
-            border: "1px dashed",
-            borderColor: "neutral.300",
-            bgcolor: "background.level1",
-            p: 1.5,
-            overflow: "visible",
+            minHeight: 44,
+            flexShrink: 0,
+            px: 2.5,
+            bgcolor: "#244d46",
+            "&:hover": { bgcolor: "#183c35" },
           }}
         >
+          Edit in Design Studio
+        </Button>
+      </Stack>
+      {hasContent ? (
+        <>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+            spacing={1.5}
+            sx={{ px: 3, py: 2, bgcolor: "neutral.50" }}
+          >
+            <Typography level="body-sm" textColor="text.secondary">
+              Personalisation uses a sample customer. Scroll the page to see the
+              full email.
+            </Typography>
+            <Stack direction="row" spacing={0.75}>
+              <Button
+                variant={device === "desktop" ? "solid" : "outlined"}
+                color="neutral"
+                aria-pressed={device === "desktop"}
+                onClick={() => setDevice("desktop")}
+                sx={{ minHeight: 40 }}
+              >
+                Desktop
+              </Button>
+              <Button
+                variant={device === "mobile" ? "solid" : "outlined"}
+                color="neutral"
+                aria-pressed={device === "mobile"}
+                onClick={() => setDevice("mobile")}
+                sx={{ minHeight: 40 }}
+              >
+                Mobile
+              </Button>
+            </Stack>
+          </Stack>
           <Box
-            ref={previewScrollRef}
             sx={{
-              maxHeight: isExpanded
-                ? EXPANDED_PREVIEW_MAX_HEIGHT
-                : COLLAPSED_PREVIEW_HEIGHT,
-              overflowY: isExpanded ? "auto" : "hidden",
-              overflowX: "hidden",
-              transition: PREVIEW_HEIGHT_TRANSITION,
+              width: "100%",
+              px: { xs: 1, md: 3 },
+              py: 3,
+              bgcolor: "#f0f3f2",
             }}
           >
             <Box
-              ref={viewportRef}
-              sx={{ position: "relative", minHeight: viewportHeight }}
-            >
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: "50%",
-                  width: PREVIEW_EMAIL_WIDTH,
-                  height: PREVIEW_EMAIL_HEIGHT,
-                  transform: `translateX(-50%) scale(${previewScale})`,
-                  transformOrigin: "top center",
-                  borderRadius: "20px",
-                  overflow: "hidden",
-                  boxShadow: "0 24px 48px rgba(15, 23, 42, 0.12)",
-                  bgcolor: "background.surface",
-                }}
-              >
-                <iframe
-                  title="Campaign live preview"
-                  srcDoc={sanitizedHtml}
-                  style={{ width: "100%", height: "100%", border: "none" }}
-                />
-              </Box>
-
-              {!isExpanded && canExpandPreview ? (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    insetInline: 0,
-                    bottom: 0,
-                    height: 60,
-                    background:
-                      "linear-gradient(180deg, transparent 0%, var(--joy-palette-background-level1) 100%)",
-                    pointerEvents: "none",
-                  }}
-                />
-              ) : null}
-            </Box>
-          </Box>
-
-          <Tooltip
-            title={isExpanded ? "Collapse preview" : "Show full preview"}
-            placement="top"
-            size="sm"
-          >
-            <IconButton
-              variant="soft"
-              color="neutral"
-              size="sm"
-              onClick={isExpanded ? handleCollapsePreview : handleExpandPreview}
-              aria-label={isExpanded ? "Collapse preview" : "Show full preview"}
               sx={{
-                position: "absolute",
-                bottom: -16,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: PREVIEW_ARROW_SIZE,
-                height: PREVIEW_ARROW_SIZE,
-                minWidth: PREVIEW_ARROW_SIZE,
-                minHeight: PREVIEW_ARROW_SIZE,
-                borderRadius: "50%",
-                bgcolor: "background.surface",
+                width: "100%",
+                maxWidth: device === "mobile" ? 390 : "100%",
+                mx: "auto",
+                bgcolor: "#fff",
                 border: "1px solid",
-                borderColor: "divider",
-                boxShadow: "sm",
-                zIndex: 1,
-                transition: "transform 300ms ease, box-shadow 150ms ease",
-                "&:hover": {
-                  bgcolor: "background.level1",
-                  boxShadow: "md",
-                  transform: "translateX(-50%) translateY(-1px)",
-                },
+                borderColor: "neutral.200",
+                borderRadius: "md",
+                overflow: "hidden",
+                boxShadow: "0 4px 18px rgba(24,45,38,.06)",
               }}
             >
-              <ChevronDown
-                size={16}
+              <iframe
+                title="Campaign live preview"
+                sandbox="allow-same-origin"
+                srcDoc={html}
+                scrolling="no"
+                onLoad={handleFrameLoad}
                 style={{
-                  transition: "transform 300ms ease",
-                  transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                  display: "block",
+                  width: "100%",
+                  height: frameHeight,
+                  border: 0,
                 }}
               />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
+            </Box>
+          </Box>
+        </>
+      ) : (
+        <Stack
+          alignItems="center"
+          spacing={1.5}
+          sx={{ py: 6, px: 3, textAlign: "center", bgcolor: "neutral.50" }}
+        >
+          <Palette size={32} />
+          <Typography level="title-lg">
+            A blank canvas, ready for your ideas
+          </Typography>
+          <Typography level="body-md" textColor="text.secondary">
+            Open Design Studio to add your first text, image, or product block.
+          </Typography>
+        </Stack>
+      )}
     </Card>
   );
 }
