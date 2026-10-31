@@ -150,7 +150,10 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
   const checksPending = facts.checks.some((c) => c.status !== "completed");
   if (issue.status === "approved") {
     // A person approved; still require green checks and no open threads.
-    const hardBlocks = eligibility.reasons.filter((r) => /check|unresolved|requested changes|not mergeable/.test(r));
+    // Jon's approval replaces the policy's area/size/review limits, never CI: every existing check
+    // must be complete and green, no review may request changes, and no thread may be open.
+    const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|a check failed|unresolved|requested changes|not mergeable|empty change/.test(r));
+    if (checksPending) hardBlocks.push("checks still running");
     if (hardBlocks.length) return { next: { step: "evaluate", delaySeconds: 600 }, note: `approved, waiting: ${hardBlocks.join("; ")}` };
     await update(release, issue, "merging", { eligibility, head_sha: pr.head.sha });
     return await merge(release, issueId, pr.head.sha);

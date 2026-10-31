@@ -691,7 +691,7 @@ RETURNS text LANGUAGE sql IMMUTABLE AS $$
     WHEN p_to IN ('failed','escalated') AND p_from NOT IN ('verified','closed') THEN 'engineering.investigate|engineering.release'
     WHEN p_to IN ('investigating','reproduced','not_reproduced','fixing','in_review')
          AND p_from NOT IN ('verified','closed') THEN 'engineering.investigate'
-    WHEN p_to = 'awaiting_approval' AND p_from IN ('in_review','failed') THEN 'engineering.investigate'
+    WHEN p_to = 'awaiting_approval' AND p_from IN ('in_review','failed') THEN 'engineering.investigate|engineering.release'
     WHEN p_to = 'approved' AND p_from IN ('awaiting_approval','in_review','escalated') THEN 'engineering.approve'
     WHEN p_to IN ('merging','merged','deploying','deployed','verifying','verified','rolled_back') THEN 'engineering.release'
     WHEN p_to = 'closed' THEN 'engineering.approve'
