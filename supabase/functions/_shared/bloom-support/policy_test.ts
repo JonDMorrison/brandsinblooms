@@ -12,7 +12,7 @@ Deno.test("sanitizeContext keeps allow-listed fields and strips secrets", () => 
     app_version: "abc123",
     record_refs: { order_id: "o1", card_number: "4242 4242 4242 4242", session_token: "x" },
     random_field: "drop me",
-    error_message: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U failed",
+    error_message: `Bearer ${"eyJ" + "hbGciOiJIUzI1NiJ9"}.${"eyJ" + "zdWIiOiIxMjM0NTY3ODkwIn0"}.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U failed`,
   });
   assertEquals(Object.keys(out).sort(), ["app_version", "error_message", "page_url", "record_refs"]);
   assert(String(out.page_url).includes("token=%5Bredacted%5D"));

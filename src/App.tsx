@@ -56,6 +56,17 @@ const AdminAuditLogsPage = lazyRetry(
 const ReportedProblemsPage = lazyRetry(
   () => import("@/pages/admin/ReportedProblemsPage"),
 );
+const BloomSupportPage = lazyRetry(
+  () => import("@/pages/admin/BloomSupportPage"),
+);
+const PublicSupportContact = lazyNamed(
+  () => import("@/pages/PublicSupportPage"),
+  "PublicSupportContact",
+);
+const PublicSupportTrack = lazyNamed(
+  () => import("@/pages/PublicSupportPage"),
+  "PublicSupportTrack",
+);
 const ReportedProblemDetailPage = lazyRetry(
   () => import("@/pages/admin/ReportedProblemDetailPage"),
 );
@@ -593,6 +604,8 @@ function App() {
               {/* Public compliance pages */}
               <Route path="/sms-program" element={<SmsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/support/contact" element={<PublicSupportContact />} />
+              <Route path="/support/track/:token" element={<PublicSupportTrack />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route
                 path="/platform-agreement"
@@ -1340,6 +1353,7 @@ function App() {
                 <Route path="reports" element={<AdminReportsPage />} />
                 <Route path="costs" element={<AdminCostsPage />} />
                 <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+                <Route path="bloom-support" element={<BloomSupportPage />} />
                 <Route
                   path="reported-problems"
                   element={<ReportedProblemsPage />}
