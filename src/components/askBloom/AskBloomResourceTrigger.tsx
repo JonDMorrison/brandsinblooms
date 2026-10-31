@@ -10,33 +10,21 @@ interface AskBloomResourceTriggerProps {
   buildContext: () => ResourceFocus;
 }
 
-const truncateLabel = (value: string, maxLength = 20) => {
-  const normalized = value.trim();
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
-};
-
 export function AskBloomResourceTrigger({
   resourceType,
   resourceId,
-  resourceLabel,
   buildContext,
 }: AskBloomResourceTriggerProps) {
   const askBloom = useAskBloom();
   const isFocusedHere =
     askBloom.state.isOpen && askBloom.isResourceMatch(resourceType, resourceId);
 
-  const buttonLabel = isFocusedHere
-    ? "Bloom is focused here"
-    : `Ask Bloom about ${truncateLabel(resourceLabel || "this record")}`;
+  const buttonLabel = isFocusedHere ? "Bloom is focused here" : "Ask Bloom";
 
   return (
     <Button
-      variant={isFocusedHere ? "solid" : "soft"}
-      color="primary"
+      variant={isFocusedHere ? "solid" : "outlined"}
+      color="neutral"
       size="sm"
       startDecorator={<Sparkles size={16} />}
       onClick={() => {
@@ -49,6 +37,8 @@ export function AskBloomResourceTrigger({
       }}
       sx={{
         borderRadius: "8px",
+        backgroundColor: isFocusedHere ? "neutral.800" : "#fff",
+        minHeight: 44,
         fontWeight: 500,
         fontSize: "13px",
       }}
