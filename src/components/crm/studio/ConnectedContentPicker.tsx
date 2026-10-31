@@ -22,6 +22,12 @@ const categories=[
   {value:"fundraisers",label:"Fundraisers"},
 ] as const;
 
+function eventDateLabel(item: ConnectedContentItem): string {
+  if (!item.startAt || Number.isNaN(Date.parse(item.startAt))) return "";
+  try { return new Date(item.startAt).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric", timeZone:item.timezone || "UTC" }); }
+  catch { return new Date(item.startAt).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric", timeZone:"UTC" }); }
+}
+
 interface Props {
   open:boolean;
   onClose:()=>void;
@@ -158,7 +164,7 @@ export function ConnectedContentPicker({
                   </Box>
                   <Stack spacing={0.4} sx={{minWidth:0,flex:1}}>
                     <Typography level="title-sm">{item.title}</Typography>
-                    {item.type==="event" && item.startAt ? <Typography level="body-xs">{(item.upcomingDateCount??0)>1 ? "Multiple dates · " : ""}{new Date(item.startAt).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric", timeZone: item.timezone || "UTC" })}</Typography> : null}
+                    {item.type==="event" && item.startAt ? <Typography level="body-xs">{(item.upcomingDateCount??0)>1 ? "Multiple dates · " : ""}{eventDateLabel(item)}</Typography> : null}
                     {item.eventStatus==="cancelled" || item.eventStatus==="sold_out" ? <Typography color="danger" level="body-xs">{item.eventStatus==="cancelled" ? "Cancelled" : "Sold out"}</Typography> : null}
                     {item.description?<Typography level="body-xs" color="neutral"
                       sx={{overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
