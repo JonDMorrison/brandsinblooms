@@ -166,6 +166,7 @@ export function ConnectedContentPicker({
                     <Typography level="title-sm">{item.title}</Typography>
                     {item.type==="event" && item.startAt ? <Typography level="body-xs">{(item.upcomingDateCount??0)>1 ? "Multiple dates · " : ""}{eventDateLabel(item)}</Typography> : null}
                     {item.eventStatus==="cancelled" || item.eventStatus==="sold_out" ? <Typography color="danger" level="body-xs">{item.eventStatus==="cancelled" ? "Cancelled" : "Sold out"}</Typography> : null}
+                    {item.capacityCheckRequired && item.eventStatus==="available" ? <Typography level="body-xs">Check ticket availability on the website</Typography> : null}
                     {item.description?<Typography level="body-xs" color="neutral"
                       sx={{overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
                       {item.description}
