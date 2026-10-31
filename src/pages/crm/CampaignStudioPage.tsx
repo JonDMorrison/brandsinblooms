@@ -32,6 +32,8 @@ import type {
 } from "@/components/crm/ai-image-studio/types";
 import BlockDragOverlay from "@/components/crm/studio/BlockDragOverlay";
 import BlockLibrary from "@/components/crm/studio/BlockLibrary";
+import { ConnectedContentPicker } from "@/components/crm/studio/ConnectedContentPicker";
+import { buildConnectedContentBlock, type ConnectedContentItem } from "@/lib/connectedContent";
 import BlockPropertiesPanel from "@/components/crm/studio/BlockPropertiesPanel";
 import { buildStudioCampaignContext } from "@/components/crm/studio/studioAIContext";
 import type {
@@ -649,6 +651,14 @@ function CampaignStudioPageContent() {
   useGoogleFontsLoader(designSystem.fontUrls);
 
   const studio = useStudioState({ initialCampaignName, designSystem });
+  const [websitePickerOpen, setWebsitePickerOpen] = React.useState(false);
+  const promoteSite = reviewParams.get("promoteSite") ?? "";
+  const promoteId = reviewParams.get("promoteId") ?? "";
+  const importConnectedContent = React.useCallback((items: ConnectedContentItem[]) => {
+    const blocks = items.map(item => buildConnectedContentBlock(item, designSystem));
+    studio.insertConnectedContentBlocks(blocks);
+    toast.success(`${blocks.length} website item${blocks.length === 1 ? "" : "s"} added to your newsletter.`);
+  }, [designSystem, studio.insertConnectedContentBlocks]);
   const { saveTemplate, isSaving: isSavingTemplate } = useSavedTemplates();
   React.useEffect(() => {
     if (
@@ -2280,6 +2290,7 @@ function CampaignStudioPageContent() {
                 }}
               >
                 <BlockLibrary
+                  onInsertWebsiteContent={() => setWebsitePickerOpen(true)}
                   blocks={studio.blocks}
                   onAddBlock={studio.addBlock}
                   onInsertSavedBlock={studio.insertSavedBlock}
@@ -2349,6 +2360,7 @@ function CampaignStudioPageContent() {
           </SortableContext>
 
           <StudioBottomBar
+            onInsertWebsiteContent={() => setWebsitePickerOpen(true)}
             blockCount={studio.blocks.length}
             wordCountEstimate={studio.estimatedWordCount}
             canvasWidth={studio.canvasWidth}
@@ -2388,6 +2400,7 @@ function CampaignStudioPageContent() {
           }}
         />
       </Sheet>
+      <ConnectedContentPicker open={websitePickerOpen} onClose={() => setWebsitePickerOpen(false)} onInsert={importConnectedContent} initialSiteId={promoteSite || undefined} initialItemId={promoteId || undefined} />
     </NewsletterDesignContext.Provider>
   );
 }

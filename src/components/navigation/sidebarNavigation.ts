@@ -12,6 +12,7 @@ import {
   FlaskConical,
   HeartPulse,
   Home,
+  Globe,
   Layers,
   LayoutDashboard,
   LifeBuoy,
@@ -101,6 +102,7 @@ const TENANT_ITEM_PERMISSIONS: Partial<Record<string, CrmPermission>> = {
   products: "reports.read",
   "manage-domains": "integrations.manage",
   integrations: "integrations.manage",
+  "connected-content": "campaigns.write",
   settings: "access.manage",
 };
 
@@ -242,6 +244,12 @@ const legacyIntegrationsItem = createLegacyItem(
   "/integrations",
   Layers,
   [{ path: "/integrations", end: false }],
+);
+const legacyConnectedContentItem = createLegacyItem(
+  "Connected websites",
+  "/crm/connected-content",
+  Globe,
+  [{ path: "/crm/connected-content", end: false }],
 );
 const legacyProfileItem = createLegacyItem("Profile", "/profile", User, [
   { path: "/profile", end: false },
@@ -532,6 +540,9 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
           createDashboardLinkItem("integrations", legacyIntegrationsItem, {
             contentWidth: "full",
           }),
+          createDashboardLinkItem("connected-content", legacyConnectedContentItem, {
+            contentWidth: "full",
+          }),
         ],
       },
     ],
@@ -610,6 +621,7 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   createRouteDescriptor("SMS Campaigns", legacySmsItem.patterns, "full"),
   createRouteDescriptor("Products", legacyProductsItem.patterns, "full"),
   createRouteDescriptor("Domains", legacyDomainsItem.patterns, "full"),
+  createRouteDescriptor("Connected websites", legacyConnectedContentItem.patterns, "full"),
   createRouteDescriptor(
     "Integrations",
     [...legacyIntegrationsItem.patterns, { path: "/crm/pos", end: false }],

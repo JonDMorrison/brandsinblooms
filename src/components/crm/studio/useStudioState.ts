@@ -464,6 +464,20 @@ export function useStudioState({
     },
     [designSystem, pulseInsertedBlock, setBlocks],
   );
+  /** Append preconfigured connected-site blocks before the compliance footer. */
+  const insertConnectedContentBlocks = React.useCallback((items: StudioBlock[]) => {
+    const valid=items.filter(block => block.type !== "footer" && Boolean(block.buttonUrl));
+    if(valid.length===0)return;
+    setBlocks(current=>{
+      const footer=current.findIndex(block=>block.type==="footer");
+      const index=footer<0?current.length:footer;
+      const next=[...current];
+      next.splice(index,0,...valid);
+      return normalizeBlocks(reindexBlocks(next),designSystem);
+    });
+    setSelectedBlockId(valid[valid.length-1].id);
+    pulseInsertedBlock(valid[valid.length-1].id);
+  },[designSystem,pulseInsertedBlock,setBlocks]);
 
   const removeBlock = React.useCallback(
     (blockId: string) => {
@@ -824,6 +838,7 @@ export function useStudioState({
     addBlock,
     insertSavedBlock,
     insertImportedBlocks,
+    insertConnectedContentBlocks,
     removeBlock,
     duplicateBlock,
     updateBlockField,
