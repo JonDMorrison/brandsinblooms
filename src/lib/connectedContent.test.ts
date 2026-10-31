@@ -30,6 +30,7 @@ describe("Connected Content newsletter blocks",()=>{
     expect(block.connectedContent).toEqual({
       siteId:item.siteId,itemId:item.id,type:"event",
       publicUrl:item.publicUrl,updatedAt:item.updatedAt,startAt:item.startAt,
+      sourceTitle:item.title,sourceDescription:item.description,sourceImageUrl:item.imageUrl,upcomingDateCount:undefined,
     });
     expect(block.subheading).toContain("Nov");
   });
@@ -45,6 +46,7 @@ describe("Connected Content newsletter blocks",()=>{
         [{...item,eventStatus:"cancelled"},"cancelled"],
         [{...item,eventStatus:"sold_out"},"sold out"],
         [{...item,eventStatus:"available",startAt:"2026-11-20T18:00:00Z"},"changed"],
+        [{...item,eventStatus:"available",imageUrl:"https://images.example.org/new.jpg"},"changed"],
         [null,"no longer available"],
       ] as const) {
         invoke.mockResolvedValueOnce(response(event));
