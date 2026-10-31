@@ -88,7 +88,7 @@ function ContentWorkspace() {
     finally{setBusy(false);}
   };
   const promote=async(item:ConnectedContentItem)=>{
-    if(!canPromote)return;
+    if(!canPromote || item.eventStatus==="cancelled" || item.eventStatus==="sold_out")return;
     setBusy(true);setError("");
     try {
       const content=buildConnectedContentBlock(item,designSystem);
@@ -224,6 +224,7 @@ function ContentWorkspace() {
                 </Box>
                 <Stack spacing={0.5}>
                   <Typography level="title-md">{item.title}</Typography>
+                  {item.eventStatus==="cancelled" || item.eventStatus==="sold_out" ? <Typography color="danger" level="body-sm">{item.eventStatus==="cancelled" ? "Cancelled" : "Sold out"}</Typography> : null}
                   <Typography level="body-sm" color="neutral" sx={{minHeight:30}}>
                     {item.description?.slice(0,125)||"Published on your website"}
                   </Typography>
@@ -231,7 +232,7 @@ function ContentWorkspace() {
                 </Stack>
                 <Stack direction="row" spacing={1}>
                   {canPromote?<JoyButton
-                    color="primary" disabled={busy}
+                    color="primary" disabled={busy || item.eventStatus==="cancelled" || item.eventStatus==="sold_out"}
                     startDecorator={<Megaphone size={15}/>}
                     onClick={()=>void promote(item)} sx={{flex:1}}>
                     Promote
