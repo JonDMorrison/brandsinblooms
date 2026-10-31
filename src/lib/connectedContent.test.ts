@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
 import { buildConnectedContentBlock, reviewConnectedEvents } from "@/lib/connectedContent";
-import { supabase } from "@/integrations/supabase/client";
+const mockInvoke = vi.hoisted(() => vi.fn());
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke: mockInvoke } } }));
 import type { ConnectedContentItem } from "@/lib/connectedContent";
 
 const design=buildStudioDesignSystem({} as never);
@@ -39,7 +40,8 @@ describe("Connected Content newsletter blocks",()=>{
   });
   it("flags cancelled, sold-out, changed and unavailable linked events",async()=>{
     const block=buildConnectedContentBlock(item,design);
-    const invoke=vi.spyOn(supabase.functions,"invoke");
+    const invoke=mockInvoke;
+    invoke.mockReset();
     const response=(event: unknown)=>({data:{connections:[],sources:[],errors:[],items:event?[event]:[]},error:null} as never);
     try {
       for (const [event,warning] of [
@@ -56,7 +58,7 @@ describe("Connected Content newsletter blocks",()=>{
       expect(await reviewConnectedEvents([block])).toEqual([]);
       invoke.mockRejectedValueOnce(new Error("offline"));
       expect((await reviewConnectedEvents([block])).join(" ")).toContain("could not be checked");
-    } finally { invoke.mockRestore(); }
+    } finally { invoke.mockReset(); }
   });
   it("rejects javascript and other non-public CTA URLs",()=>{
     expect(()=>buildConnectedContentBlock({
