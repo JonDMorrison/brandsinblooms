@@ -143,6 +143,7 @@ export interface StudioBlock {
     type: "event"|"page"|"product"|"blog"|"fundraiser";
     updatedAt: string;
     publicUrl: string;
+    startAt?: string | null;
   };
   id: string;
   type: BlockType;
