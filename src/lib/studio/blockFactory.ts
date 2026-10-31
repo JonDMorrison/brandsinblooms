@@ -188,7 +188,8 @@ export function createStudioBlock(
               : "Learn more",
         buttonUrl: "",
         buttonColor: primaryColor || "#1f4341",
-        buttonTextColor: "#ffffff",
+        buttonTextColor: primaryContrastText || "#ffffff",
+        useBrandButtonColor: true,
         appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
       };
 

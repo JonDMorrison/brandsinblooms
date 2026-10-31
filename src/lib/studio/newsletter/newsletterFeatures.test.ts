@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createStudioBlock } from "../blockFactory";
+import { buildStudioDesignSystem } from "../designSystem";
 import {
   generateEmailHtml,
   renderNewsletterBlock,
@@ -102,6 +103,62 @@ describe("newsletter design and safety", () => {
     expect(output).toContain('href="https://example.com/learn"');
     expect(output).toContain('Learn more');
     expect(renderNewsletterBlock(block("plain-text", { body: "Hello" }))).not.toContain('<a ');
+  });
+  it("uses the account primary colour for standard newsletter CTAs", () => {
+    const output = renderNewsletterBlock(
+      block("event", {
+        headline: "Christmas workshop",
+        buttonText: "Reserve a spot",
+        buttonUrl: "https://example.com/event",
+        buttonColor: "#545f34",
+      }),
+      buildStudioDesignSystem({
+        brandPrimaryColorRaw: "#263d2d",
+      } as never),
+    );
+    expect(output).toContain("background-color:#263d2d");
+    expect(output).not.toContain("background-color:#545f34");
+  });
+  it("renders event blocks as a consistent rounded editorial card", () => {
+    const output = renderNewsletterBlock(
+      block("event", {
+        headline: "Jingle and Mingle",
+        eventDate: "Thursday, November 12",
+        eventLocation: "Lacoste Garden Centre · Winnipeg",
+        imageUrl: "https://example.com/christmas.jpg",
+        buttonText: "View details",
+        buttonUrl: "https://example.com/event",
+      }),
+    );
+    expect(output).toContain("border-radius:14px");
+    expect(output).toContain('height="252"');
+    expect(output).toContain("text-transform:uppercase");
+  });
+  it("keeps right-aligned event images before their copy in source order", () => {
+    const output = renderNewsletterBlock(
+      block("event", {
+        headline: "Holiday Planter Parties",
+        imageUrl: "https://example.com/planter.jpg",
+        imagePosition: "right",
+      }),
+    );
+    expect(output).toContain('<tr dir="rtl">');
+    expect(output.indexOf('data-newsletter-image="imageUrl"')).toBeLessThan(
+      output.indexOf("Holiday Planter Parties"),
+    );
+  });
+  it("keeps image-right image/text blocks image-first for mobile clients", () => {
+    const output = html([
+      block("image-text", {
+        headline: "Snowy favourites",
+        imageUrl: "https://example.com/tree.jpg",
+        layout: "image-right",
+      }),
+    ]);
+    expect(output).toContain('<tr dir="rtl">');
+    expect(output.indexOf('alt="Snowy favourites"')).toBeLessThan(
+      output.indexOf("Snowy favourites</h1>"),
+    );
   });
   it("round-trips master settings in the persisted footer", () => {
     const footer = block("footer", {

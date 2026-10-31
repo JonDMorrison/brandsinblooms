@@ -125,11 +125,44 @@ function imageAndContent(
   )
     ? block.appearance?.verticalAlign
     : "middle";
-  const imageCell = `<td class="responsive-column" width="38%" valign="top" style="width:38%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
-  const contentCell = `<td class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
+  // Keep image-first source order for reliable mobile stacking. Direction only
+  // changes the desktop presentation when the image is configured on the right.
+  const imageCell = `<td dir="ltr" class="responsive-column" width="38%" valign="top" style="width:38%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
+  const contentCell = `<td dir="ltr" class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
   return table(
-    `<tr>${side === "right" ? contentCell + imageCell : imageCell + contentCell}</tr>`,
+    `<tr${side === "right" ? ' dir="rtl"' : ""}>${imageCell + contentCell}</tr>`,
   );
+}
+
+function renderEventCard(block: StudioBlock, width: number): string {
+  const imageUrl = safeEmailUrl(block.imageUrl, true);
+  const imageSide = block.imagePosition === "right" ? "right" : "left";
+  const imageWidth = Math.floor(width * 0.42);
+  const image = imageUrl
+    ? `<img data-newsletter-image="imageUrl" class="responsive-image responsive-crop-image" src="${attr(imageUrl)}" alt="${attr(block.imageAlt || block.headline || "Event photo")}" width="${imageWidth}" height="252" style="display:block;width:100%;max-width:${imageWidth}px;height:252px;object-fit:cover;object-position:50% 50%;border:0;outline:none;text-decoration:none;border-radius:12px;" />`
+    : "";
+  const date = present(block.eventDate)
+    ? `<div data-newsletter-role="label" style="margin:0 0 5px;letter-spacing:0.06em;text-transform:uppercase;${role(block, "label", 12, 700)}">${text(block.eventDate)}</div>`
+    : "";
+  const location = present(block.eventLocation)
+    ? `<div data-newsletter-role="label" style="margin:0 0 14px;opacity:0.68;${role(block, "label", 13, 400)}">${text(block.eventLocation)}</div>`
+    : "";
+  const content =
+    paragraph(block, block.tagLabel, "label", 12) +
+    heading(block) +
+    paragraph(block, block.subheading, "subheading", 16) +
+    date +
+    location +
+    paragraph(block, block.body) +
+    renderNewsletterButton(block);
+
+  if (!image) {
+    return `<div class="mobile-padding" style="padding:28px 30px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${content}</div>`;
+  }
+
+  const imageCell = `<td dir="ltr" class="responsive-column product-card-image" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
+  const contentCell = `<td dir="ltr" class="responsive-column product-card-details" width="58%" valign="middle" style="width:58%;vertical-align:middle;padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
+  return `<table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};"><tr${imageSide === "right" ? ' dir="rtl"' : ""}>${imageCell + contentCell}</tr></table>`;
 }
 export function couponOfferLabel(block: StudioBlock): string {
   switch (block.couponOffer) {
@@ -470,6 +503,7 @@ export function renderExtendedBlock(
       );
     }
     case "event":
+      return renderEventCard(block, width);
     case "blog":
     case "announcement":
       return imageAndContent(
