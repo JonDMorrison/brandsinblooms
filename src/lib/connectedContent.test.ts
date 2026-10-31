@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
-import { buildConnectedContentBlock } from "@/lib/connectedContent";
+import { buildConnectedContentBlock, reviewConnectedEvents } from "@/lib/connectedContent";
+import { supabase } from "@/integrations/supabase/client";
 import type { ConnectedContentItem } from "@/lib/connectedContent";
 
 const design=buildStudioDesignSystem({} as never);
@@ -28,9 +29,32 @@ describe("Connected Content newsletter blocks",()=>{
     expect(block.buttonUrl).toBe(item.publicUrl);
     expect(block.connectedContent).toEqual({
       siteId:item.siteId,itemId:item.id,type:"event",
-      publicUrl:item.publicUrl,updatedAt:item.updatedAt,
+      publicUrl:item.publicUrl,updatedAt:item.updatedAt,startAt:item.startAt,
     });
     expect(block.subheading).toContain("Nov");
+  });
+  it("labels events with multiple future dates",()=>{
+    expect(buildConnectedContentBlock({...item,upcomingDateCount:2},design).subheading).toContain("Multiple dates from");
+  });
+  it("flags cancelled, sold-out, changed and unavailable linked events",async()=>{
+    const block=buildConnectedContentBlock(item,design);
+    const invoke=vi.spyOn(supabase.functions,"invoke");
+    const response=(event: unknown)=>({data:{connections:[],sources:[],errors:[],items:event?[event]:[]},error:null} as never);
+    try {
+      for (const [event,warning] of [
+        [{...item,eventStatus:"cancelled"},"cancelled"],
+        [{...item,eventStatus:"sold_out"},"sold out"],
+        [{...item,eventStatus:"available",startAt:"2026-11-20T18:00:00Z"},"changed"],
+        [null,"no longer available"],
+      ] as const) {
+        invoke.mockResolvedValueOnce(response(event));
+        expect((await reviewConnectedEvents([block])).join(" ")).toContain(warning);
+      }
+      invoke.mockResolvedValueOnce(response({...item,eventStatus:"available"}));
+      expect(await reviewConnectedEvents([block])).toEqual([]);
+      invoke.mockRejectedValueOnce(new Error("offline"));
+      expect((await reviewConnectedEvents([block])).join(" ")).toContain("could not be checked");
+    } finally { invoke.mockRestore(); }
   });
   it("rejects javascript and other non-public CTA URLs",()=>{
     expect(()=>buildConnectedContentBlock({
