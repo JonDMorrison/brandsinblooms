@@ -827,7 +827,9 @@ function CampaignEditorScreen() {
 
   const buildCampaignResourceFocus = React.useCallback(() => {
     if (!campaignId) {
-      throw new Error("Campaign focus is unavailable until the draft is saved.");
+      throw new Error(
+        "Campaign focus is unavailable until the draft is saved.",
+      );
     }
 
     return buildCampaignFocus(
@@ -961,9 +963,8 @@ function CampaignEditorScreen() {
 
     // Drafts can be created with no subject or preview. Those fields are
     // checked only when the customer reviews or sends the newsletter.
-    const nextCampaignId = await resolveStudioDraftId(
-      campaignId,
-      () => saveDraft({ silent: true }),
+    const nextCampaignId = await resolveStudioDraftId(campaignId, () =>
+      saveDraft({ silent: true }),
     );
 
     if (!nextCampaignId) {
@@ -1024,8 +1025,12 @@ function CampaignEditorScreen() {
       blockers.push("Sender email is required.");
     }
 
-    if (!includeAllCustomers && selectedSegments.length === 0 &&
-        selectedPersonas.length === 0 && additionalCustomerIds.length === 0) {
+    if (
+      !includeAllCustomers &&
+      selectedSegments.length === 0 &&
+      selectedPersonas.length === 0 &&
+      additionalCustomerIds.length === 0
+    ) {
       blockers.push("Choose an audience before sending.");
     } else if ((audienceCount ?? 0) <= 0) {
       blockers.push("At least one eligible recipient is required.");
@@ -1530,7 +1535,12 @@ function CampaignEditorScreen() {
           justifyContent="space-between"
           alignItems={{ xs: "stretch", sm: "center" }}
         >
-          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            alignItems="center"
+            sx={{ minWidth: 0, flex: 1 }}
+          >
             <Box
               sx={{
                 width: 38,
@@ -1546,13 +1556,17 @@ function CampaignEditorScreen() {
               <Send size={18} strokeWidth={1.9} aria-hidden="true" />
             </Box>
             <Stack spacing={0.3} sx={{ minWidth: 0 }}>
-              <Typography level="title-sm" sx={{ fontWeight: 700, color: "neutral.900" }}>
+              <Typography
+                level="title-sm"
+                sx={{ fontWeight: 700, color: "neutral.900" }}
+              >
                 Send or schedule
               </Typography>
               <Typography
                 level="body-xs"
                 sx={{
-                  color: sendBlockerLines.length > 0 ? "neutral.700" : "neutral.600",
+                  color:
+                    sendBlockerLines.length > 0 ? "neutral.700" : "neutral.600",
                   lineHeight: 1.4,
                 }}
               >
@@ -1749,8 +1763,7 @@ function CampaignEditorScreen() {
             onChange={(next) => updateAudience(next)}
           />
 
-          {audienceHealthQuery.data &&
-          audienceHealthQuery.data.total > 0 ? (
+          {audienceHealthQuery.data && audienceHealthQuery.data.total > 0 ? (
             <Sheet
               variant="outlined"
               data-testid="audience-consent-breakdown"
@@ -1870,12 +1883,9 @@ function CampaignEditorScreen() {
                           color: "var(--joy-palette-warning-700)",
                         }}
                       />
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "neutral.700" }}
-                      >
-                        {audienceHealthQuery.data.pending.toLocaleString()}{" "}
-                        of your contacts are waiting for permission to receive
+                      <Typography level="body-xs" sx={{ color: "neutral.700" }}>
+                        {audienceHealthQuery.data.pending.toLocaleString()} of
+                        your contacts are waiting for permission to receive
                         email — they won't get this campaign. If you already
                         have permission records for them, contact support and
                         we'll help you restore them.
@@ -2161,7 +2171,14 @@ function CampaignEditorScreen() {
                     ? "Pick a template first to start designing"
                     : undefined
               }
-              title={isLocked ? "View in Studio" : undefined}
+              title={isLocked ? "View in Studio" : "Continue to Design Studio"}
+              subtitle={
+                selectedSavedTemplateId
+                  ? `Selected: ${savedTemplates.find((template) => template.id === selectedSavedTemplateId)?.name ?? "Saved template"}`
+                  : selectedIntent
+                    ? `Selected: ${{ newsletter: "Newsletter", sale: "Sale or promotion", "new-arrivals": "New arrivals", event: "Event invite", "thank-you": "Thank you", blank: "Blank canvas" }[selectedIntent]}`
+                    : "Choose a layout above to get started"
+              }
             />
 
             <Box
@@ -2748,4 +2765,3 @@ export default function CRMCampaignEditorPage() {
     </DesignSystemProvider>
   );
 }
-

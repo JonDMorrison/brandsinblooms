@@ -47,14 +47,18 @@ export function StudioCtaCard({
         display: "flex",
         alignItems: "center",
         gap: 2,
-        width: "100%",
-        px: 2.75,
-        py: 2.5,
+        width: { xs: "100%", sm: "auto" },
+        alignSelf: "flex-end",
+        minHeight: 52,
+        px: 2.5,
+        py: 1.5,
         borderRadius: "var(--joy-radius-lg)",
-        backgroundColor: "var(--joy-palette-primary-500)",
-        color: "var(--joy-palette-common-white, #ffffff)",
+        backgroundColor: disabled
+          ? "var(--joy-palette-neutral-100)"
+          : "#244d46",
+        color: disabled ? "var(--joy-palette-neutral-600)" : "#ffffff",
         cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
+        opacity: 1,
         transition:
           "transform 150ms ease, filter 150ms ease, box-shadow 150ms ease",
         boxShadow: disabled ? "none" : "var(--joy-shadow-sm)",
@@ -65,6 +69,11 @@ export function StudioCtaCard({
               filter: "brightness(1.04)",
               boxShadow: "var(--joy-shadow-md)",
             },
+        "@media (prefers-reduced-motion: reduce)": {
+          transition: "none",
+          "&:hover": { transform: "none" },
+          "& [data-cta-arrow]": { transition: "none", transform: "none" },
+        },
         "&:focus-visible": {
           outline: "2px solid var(--joy-palette-primary-200)",
           outlineOffset: "2px",
@@ -79,8 +88,8 @@ export function StudioCtaCard({
       <Box
         aria-hidden
         sx={{
-          width: 48,
-          height: 48,
+          width: 32,
+          height: 32,
           flexShrink: 0,
           borderRadius: "var(--joy-radius-md)",
           backgroundColor: "var(--joy-palette-common-white, #ffffff)",
@@ -96,7 +105,7 @@ export function StudioCtaCard({
         <Typography
           component="span"
           sx={{
-            fontSize: "17px",
+            fontSize: "16px",
             fontWeight: 500,
             lineHeight: 1.2,
             color: "inherit",
@@ -109,7 +118,8 @@ export function StudioCtaCard({
           sx={{
             fontSize: "13px",
             lineHeight: 1.4,
-            color: "rgba(255, 255, 255, 0.78)",
+            color: "inherit",
+            opacity: 0.85,
           }}
         >
           {subtitle}
