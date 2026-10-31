@@ -1,3 +1,4 @@
+import { buildConnectedContentBlock, connectedContentRequest, type ConnectedContentItem, type ConnectedContentResponse } from "@/lib/connectedContent";
 import AudienceControls from "./newsletter/AudienceControls";
 import ExtendedBlockProperties, {
   AdditionalBlockFields,
@@ -101,6 +102,7 @@ type BlockPropertiesPanelProps = {
   onRestoreComplete?: () => void;
   onScrollPositionChange?: (scrollTop: number) => void;
   onUpdateBlockField: OnUpdateBlockField;
+  onUpdateBlockFields?: (blockId: string, fields: Partial<StudioBlock>) => void;
   resolveCampaignImageFieldSource?: ResolveCampaignImageFieldSource;
   restoreScrollPosition?: number | null;
   suppressed?: boolean;
@@ -119,6 +121,52 @@ type CollapsibleSectionProps = {
   warningText?: string;
   description?: string;
 };
+
+function ConnectedEventRefresh({ block, onUpdate }: { block: StudioBlock; onUpdate: (blockId: string, fields: Partial<StudioBlock>) => void }) {
+  const { designSystem } = useDesignSystem();
+  const [item, setItem] = React.useState<ConnectedContentItem | null>(null);
+  const [message, setMessage] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const source = block.connectedContent;
+  async function check() {
+    if (!source || busy) return;
+    setBusy(true); setItem(null); setMessage("");
+    try {
+      const result = await connectedContentRequest<ConnectedContentResponse>({ action: "catalog", type: "events", siteId: source.siteId, itemId: source.itemId, limit: 1 });
+      const found = result.items.find(entry => entry.siteId === source.siteId && entry.id === source.itemId);
+      if (result.sources.some(entry => entry.error)) throw new Error("Website could not be reached.");
+      if (!found) { setMessage("This event is no longer available on your website."); return; }
+      setItem(found);
+      if (found.eventStatus === "cancelled") setMessage("This event is cancelled on your website.");
+      else if (found.eventStatus === "sold_out") setMessage("This event is marked sold out on your website.");
+      else setMessage(found.capacityCheckRequired ? "Check ticket availability on your website." : "Review the latest website details below.");
+    } catch { setMessage("Could not check the website. Please try again."); }
+    finally { setBusy(false); }
+  }
+  function apply() {
+    if (!item || item.eventStatus !== "available") return;
+    const fresh = buildConnectedContentBlock(item, designSystem);
+    onUpdate(block.id, {
+      headline: fresh.headline, subheading: fresh.subheading, body: fresh.body,
+      imageUrl: fresh.imageUrl, imageAlt: fresh.imageAlt, buttonText: fresh.buttonText,
+      buttonUrl: fresh.buttonUrl, connectedContent: fresh.connectedContent,
+    });
+    setItem(null); setMessage("Event details updated. You can undo this change.");
+  }
+  return <Box sx={{ mx: 2.5, my: 1, p: 1.5, border: "1px solid", borderColor: "neutral.200", borderRadius: "md" }}>
+    <Typography level="title-sm">Website event</Typography>
+    <Typography level="body-xs">Check for changes, then choose whether to update this block.</Typography>
+    <Button size="sm" variant="outlined" color="neutral" loading={busy} onClick={() => void check()} sx={{ mt: 1 }}>Check website</Button>
+    {message && <Typography role="status" level="body-xs" sx={{ mt: 1 }}>{message}</Typography>}
+    {item && <Box sx={{ mt: 1 }}>
+      <Typography level="title-sm">{item.title}</Typography>
+      <Typography level="body-xs">{item.description}</Typography>
+      {item.imageUrl && <Box component="img" src={item.imageUrl} alt="" sx={{ width: 96, maxHeight: 72, objectFit: "cover", borderRadius: "sm", mt: 1 }} />}
+      {item.eventStatus === "available" && <Button size="sm" color="primary" onClick={apply} sx={{ mt: 1 }}>Use latest website details</Button>}
+      <Typography level="body-xs">Using these details replaces this block’s text, image, and link. Its layout and appearance stay the same.</Typography>
+    </Box>}
+  </Box>;
+}
 
 function PanelSection({ title, children }: PanelSectionProps) {
   return (
@@ -5104,6 +5152,7 @@ export default function BlockPropertiesPanel({
   onRestoreComplete,
   onScrollPositionChange,
   onUpdateBlockField,
+  onUpdateBlockFields,
   resolveCampaignImageFieldSource,
   restoreScrollPosition,
   suppressed = false,
@@ -5292,6 +5341,7 @@ export default function BlockPropertiesPanel({
             />
           </Box>
         )}
+        {block?.connectedContent?.type === "event" && onUpdateBlockFields ? <ConnectedEventRefresh key={block.id} block={block} onUpdate={onUpdateBlockFields} /> : null}
         {block ? (
           <PanelContent
             key={block.id}

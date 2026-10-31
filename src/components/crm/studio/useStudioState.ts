@@ -547,6 +547,10 @@ export function useStudioState({
     [designSystem, pulseInsertedBlock],
   );
 
+  const updateBlockFields = React.useCallback((blockId: string, fields: Partial<StudioBlock>) => {
+    setBlocks(current => current.map(block => block.id === blockId ? { ...block, ...fields, id: block.id, type: block.type } : block));
+  }, [setBlocks]);
+
   const updateBlockField = React.useCallback(
     (
       blockId: string,
@@ -842,6 +846,7 @@ export function useStudioState({
     removeBlock,
     duplicateBlock,
     updateBlockField,
+    updateBlockFields,
     registerCampaignImage,
     reorderBlock,
     resolveCampaignImageFieldSource,

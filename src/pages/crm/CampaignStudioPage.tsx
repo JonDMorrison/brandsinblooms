@@ -2350,6 +2350,7 @@ function CampaignStudioPageContent() {
                   propertiesPanelScrollPositionRef.current = scrollTop;
                 }}
                 onUpdateBlockField={studio.updateBlockField}
+                onUpdateBlockFields={studio.updateBlockFields}
                 resolveCampaignImageFieldSource={
                   studio.resolveCampaignImageFieldSource
                 }
