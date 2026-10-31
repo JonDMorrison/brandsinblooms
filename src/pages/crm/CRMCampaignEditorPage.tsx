@@ -1112,9 +1112,11 @@ function CampaignEditorScreen() {
     [contentBlocks],
   );
   const [connectedEventWarnings, setConnectedEventWarnings] = React.useState<string[]>([]);
+  const [connectedEventChecking, setConnectedEventChecking] = React.useState(false);
   React.useEffect(() => {
     if (!sendConfirmOpen || campaignType !== "email") {
       setConnectedEventWarnings([]);
+      setConnectedEventChecking(false);
       return;
     }
     if (!contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event")) {
@@ -1122,11 +1124,12 @@ function CampaignEditorScreen() {
       return;
     }
     let active = true;
-    setConnectedEventWarnings(["Checking linked website events. Please wait before sending."]);
+    setConnectedEventWarnings([]);
+    setConnectedEventChecking(true);
     void reviewConnectedEvents(contentBlocks).then(warnings => {
-      if (active) setConnectedEventWarnings(warnings);
+      if (active) { setConnectedEventWarnings(warnings); setConnectedEventChecking(false); }
     }).catch(() => {
-      if (active) setConnectedEventWarnings(["Linked website events could not be checked. Review them before sending."]);
+      if (active) { setConnectedEventWarnings(["Linked website events could not be checked. Review them before sending."]); setConnectedEventChecking(false); }
     });
     return () => { active = false; };
   }, [sendConfirmOpen, campaignType, contentBlocks]);
@@ -2663,7 +2666,7 @@ function CampaignEditorScreen() {
         open={sendConfirmOpen}
         onClose={() => setSendConfirmOpen(false)}
         builderWarnings={sendWarningLines}
-        builderBlockers={sendBlockerLines}
+        builderBlockers={connectedEventChecking ? [...sendBlockerLines, "Checking linked website events. Please wait."] : sendBlockerLines}
         placeholderWarnings={placeholderWarningLines}
         onEditContent={() => {
           setSendConfirmOpen(false);
