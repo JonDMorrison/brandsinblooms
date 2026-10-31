@@ -96,6 +96,10 @@ export function buildConnectedContentBlock(
       updatedAt:item.updatedAt,
       publicUrl:link,
       startAt:item.startAt??null,
+      sourceTitle:item.title,
+      sourceDescription:item.description,
+      sourceImageUrl:item.imageUrl,
+      upcomingDateCount:item.upcomingDateCount,
     },
   };
 }
@@ -115,7 +119,7 @@ export async function reviewConnectedEvents(blocks: StudioBlock[]): Promise<stri
       if (item.eventStatus === "cancelled") return `${name}: this event is cancelled on your website.`;
       if (item.eventStatus === "sold_out") return `${name}: this event is marked sold out on your website.`;
       if (!item.eventStatus) return `${name}: booking status could not be checked. Review the event before sending.`;
-      if (item.updatedAt !== source.updatedAt || item.publicUrl !== source.publicUrl || (source.startAt != null && item.startAt !== source.startAt)) return `${name}: event details changed on your website. Review the newsletter before sending.`;
+      if (item.updatedAt !== source.updatedAt || item.publicUrl !== source.publicUrl || (source.startAt != null && item.startAt !== source.startAt) || (source.sourceTitle !== undefined && item.title !== source.sourceTitle) || (source.sourceDescription !== undefined && item.description !== source.sourceDescription) || (source.sourceImageUrl !== undefined && item.imageUrl !== source.sourceImageUrl) || (source.upcomingDateCount !== undefined && item.upcomingDateCount !== source.upcomingDateCount)) return `${name}: event details changed on your website. Review the newsletter before sending.`;
       if (source.startAt === undefined) return `${name}: check the date on your website before sending.`;
       return null;
     } catch { return `${name}: website could not be checked. Review this event before sending.`; }
