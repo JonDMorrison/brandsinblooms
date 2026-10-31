@@ -95,6 +95,30 @@ export function buildConnectedContentBlock(
       type:item.type,
       updatedAt:item.updatedAt,
       publicUrl:link,
+      startAt:item.startAt??null,
     },
   };
+}
+
+/** Check source events on opening send review. Draft content is never overwritten. */
+export async function reviewConnectedEvents(blocks: StudioBlock[]): Promise<string[]> {
+  const events = blocks.filter(block => block.visible !== false && block.connectedContent?.type === "event");
+  if (events.length > 50) return ["Too many linked events to check automatically. Review your website event details before sending."];
+  const results = await Promise.all(events.map(async block => {
+    const source = block.connectedContent!;
+    const name = block.headline?.trim() || "Linked event";
+    try {
+      const response = await connectedContentRequest<ConnectedContentResponse>({ action:"catalog", type:"events", siteId:source.siteId, itemId:source.itemId, limit:1 });
+      if (response.sources?.some(entry => entry.error)) return `${name}: website could not be checked. Review this event before sending.`;
+      const item = response.items?.find(entry => entry.id === source.itemId && entry.siteId === source.siteId);
+      if (!item) return `${name}: this event is no longer available on your website. Review it before sending.`;
+      if (item.eventStatus === "cancelled") return `${name}: this event is cancelled on your website.`;
+      if (item.eventStatus === "sold_out") return `${name}: this event is marked sold out on your website.`;
+      if (!item.eventStatus) return `${name}: booking status could not be checked. Review the event before sending.`;
+      if (item.updatedAt !== source.updatedAt || item.publicUrl !== source.publicUrl || (source.startAt != null && item.startAt !== source.startAt)) return `${name}: event details changed on your website. Review the newsletter before sending.`;
+      if (source.startAt === undefined) return `${name}: check the date on your website before sending.`;
+      return null;
+    } catch { return `${name}: website could not be checked. Review this event before sending.`; }
+  }));
+  return results.filter((line): line is string => line !== null);
 }
