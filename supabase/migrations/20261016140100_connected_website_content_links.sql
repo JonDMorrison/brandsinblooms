@@ -24,8 +24,9 @@ CREATE INDEX IF NOT EXISTS crm_connected_websites_tenant_idx
   ON public.crm_connected_websites (tenant_id,status);
 
 ALTER TABLE public.crm_connected_websites ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.crm_connected_websites FROM PUBLIC,anon;
+REVOKE ALL ON public.crm_connected_websites FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON public.crm_connected_websites TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.crm_connected_websites TO service_role;
 -- Explicit tenant and permission gates on read. No INSERT, UPDATE or DELETE
 -- authenticated RLS policies are granted; the trusted Edge Function writes.
 CREATE POLICY crm_connected_websites_read ON public.crm_connected_websites
