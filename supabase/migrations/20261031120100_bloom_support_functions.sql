@@ -1137,6 +1137,11 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'not_found: key' USING ERRCODE = 'P0002'; END IF;
   IF k.principal_id <> p_actor THEN PERFORM bloom_support.require_permission(p_actor, 'admin.roles'); END IF;
   UPDATE bloom_support.api_keys SET revoked_at = now() WHERE id = p_key;
+  -- Revoking an OAuth access key ends that person's assistant connections (no silent refresh).
+  IF k.label LIKE 'OAuth:%' AND to_regclass('bloom_support.oauth_refresh_tokens') IS NOT NULL THEN
+    EXECUTE 'UPDATE bloom_support.oauth_refresh_tokens SET revoked_at = now() WHERE principal_id = $1 AND revoked_at IS NULL' USING k.principal_id;
+    UPDATE bloom_support.api_keys SET revoked_at = now() WHERE principal_id = k.principal_id AND label LIKE 'OAuth:%' AND revoked_at IS NULL;
+  END IF;
   PERFORM bloom_support.log(NULL, NULL, p_actor, 'api_key.revoked', jsonb_build_object('key_id', p_key));
 END $$;
 
