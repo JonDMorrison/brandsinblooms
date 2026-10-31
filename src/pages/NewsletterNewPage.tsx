@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { NewsletterLayoutPicker } from "@/components/NewsletterLayoutPicker";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { NewsletterPicker } from "@/components/newsletter/NewsletterPicker";
+import { dashboardPressSx } from "@/components/dashboard/dashboardPressMotion";
 import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
 import {
@@ -57,8 +58,18 @@ function CreationPathCard({
 
   return (
     <Card
+      component="button"
+      type="button"
+      onClick={onClick}
+      aria-label={buttonLabel}
       variant="outlined"
       sx={{
+        ...dashboardPressSx,
+        width: "100%",
+        textAlign: "left",
+        cursor: "pointer",
+        font: "inherit",
+        "&:focus-visible": { outline: "2px solid var(--joy-palette-primary-500)", outlineOffset: 4 },
         position: "relative",
         p: { xs: 3, md: 4 },
         height: "100%",
@@ -75,11 +86,11 @@ function CreationPathCard({
         // Slight scale lift kept so the ideas card still reads as
         // primary; teal glow shadow removed to match the neutral
         // background.
-        transform: { xs: "none", md: isAi ? "scale(1.02)" : "none" },
+
         boxShadow: "none",
         display: "flex",
         flexDirection: "column",
-        transition: "transform 200ms ease, box-shadow 200ms ease",
+
       }}
     >
       <Stack spacing={2.5} sx={{ flex: 1 }}>
@@ -114,26 +125,18 @@ function CreationPathCard({
       </Stack>
 
       <Box sx={{ mt: "auto", pt: 2.5 }}>
-        <Button
-          size="md"
-          variant={isAi ? "solid" : "outlined"}
-          color={isAi ? "primary" : "neutral"}
-          endDecorator={<ArrowRight size={16} />}
-          onClick={onClick}
+        <Box
+          component="span"
           sx={{
-            width: "100%",
-            ...(isAi
-              ? {
-                  bgcolor: "var(--hp-green-700, #1F4341)",
-                  "&:hover": {
-                    bgcolor: "var(--hp-green-900, #11302E)",
-                  },
-                }
-              : {}),
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 1,
+            minHeight: 44, px: 2, borderRadius: "sm", fontWeight: 600,
+            border: "1px solid", borderColor: isAi ? "transparent" : "neutral.300",
+            bgcolor: isAi ? "var(--hp-green-700, #1F4341)" : "background.surface",
+            color: isAi ? "#fff" : "text.primary",
           }}
         >
-          {buttonLabel}
-        </Button>
+          {buttonLabel} <ArrowRight size={18} aria-hidden="true" />
+        </Box>
       </Box>
     </Card>
   );
@@ -229,8 +232,18 @@ function IdeaQuickAccessCard({
 
   return (
     <Card
+      component="button"
+      type="button"
+      onClick={() => onUseIdea(idea)}
+      aria-label={`Use idea: ${idea.title}`}
       variant="outlined"
       sx={{
+        ...dashboardPressSx,
+        width: "100%",
+        textAlign: "left",
+        cursor: "pointer",
+        font: "inherit",
+        "&:focus-visible": { outline: "2px solid var(--joy-palette-primary-500)", outlineOffset: 4 },
         position: "relative",
         p: 3,
         pl: 3.5, // extra left padding so content doesn't sit directly on the stripe
@@ -358,16 +371,9 @@ function IdeaQuickAccessCard({
         </Stack>
 
         <Box sx={{ pt: 1 }}>
-          <Button
-            size="sm"
-            variant="plain"
-            color="primary"
-            endDecorator={<ArrowRight size={14} />}
-            onClick={() => onUseIdea(idea)}
-            sx={{ px: 0 }}
-          >
-            Use this idea
-          </Button>
+          <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1, minHeight: 44, color: "primary.600", fontWeight: 600 }}>
+            Use this idea <ArrowRight size={18} aria-hidden="true" />
+          </Box>
         </Box>
       </Stack>
     </Card>
