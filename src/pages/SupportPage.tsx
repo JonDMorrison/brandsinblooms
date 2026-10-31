@@ -1,230 +1,83 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Textarea } from '@/components/ui-legacy/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui-legacy/dialog';
-import { BookOpen, ExternalLink, Loader2, Mail } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import Button from "@mui/joy/Button";
+import Sheet from "@mui/joy/Sheet";
+import Box from "@mui/joy/Box";
+import Alert from "@mui/joy/Alert";
+import Skeleton from "@mui/joy/Skeleton";
+import Link from "@mui/joy/Link";
+import { BookOpen, ExternalLink, LifeBuoy } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
+import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
+import { StatusChip } from "@/components/bloomSupport/chips";
+import { bloomSupport } from "@/lib/bloomSupport/api";
 
-const KNOWLEDGE_BASE_URL = 'https://bloomsuite.notion.site/bloomsuite-help';
+const KNOWLEDGE_BASE_URL = "https://bloomsuite.notion.site/bloomsuite-help";
 
+/**
+ * Help & Support for BloomSuite users. Requests go to Bloom Support (the shared
+ * support system for BloomSites, CRM and POS); people see and reply to their
+ * own requests here.
+ */
 const SupportPage = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-
-  const [ticketOpen, setTicketOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  // Pre-fill from the signed-in user whenever the dialog opens
-  useEffect(() => {
-    if (ticketOpen) {
-      const metaName =
-        (user?.user_metadata?.full_name as string | undefined) ??
-        (user?.user_metadata?.name as string | undefined) ??
-        '';
-      setName(metaName);
-      setEmail(user?.email ?? '');
-      setSubject('');
-      setMessage('');
-    }
-  }, [ticketOpen, user]);
-
-  const canSubmit =
-    name.trim().length > 0 &&
-    email.trim().length > 0 &&
-    subject.trim().length > 0 &&
-    message.trim().length > 0 &&
-    !submitting;
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!canSubmit) return;
-
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-support-ticket', {
-        body: {
-          name: name.trim(),
-          email: email.trim(),
-          subject: subject.trim(),
-          message: message.trim(),
-        },
-      });
-
-      if (error) throw error;
-      if ((data as { error?: string })?.error) {
-        throw new Error((data as { error: string }).error);
-      }
-
-      toast({
-        title: 'Message sent',
-        description: "Your message has been sent. We'll get back to you within 1 business day.",
-      });
-      setTicketOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Could not send message',
-        description: err instanceof Error ? err.message : 'Please try again in a moment.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
+  const mine = useQuery({ queryKey: ["bloom-support", "tickets", "mine-client"], queryFn: () => bloomSupport.listTickets({ limit: "50" }), enabled: !!me.data, refetchInterval: 30_000 });
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Support & Help</h1>
-        <p className="text-muted-foreground">
-          Get help and support for your BloomSuite account
-        </p>
-      </div>
+    <PageContainer>
+      <Stack spacing={3}>
+        <div>
+          <Typography level="h2">Help &amp; Support</Typography>
+          <Typography level="body-md" textColor="text.secondary">Report a problem, ask a question, or request a change. Bloom replies by email and here.</Typography>
+        </div>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+          <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", flex: 1 }}>
+            <Stack direction="row" spacing={1} alignItems="center"><LifeBuoy size={18} aria-hidden /><Typography level="title-md">Get help</Typography></Stack>
+            <Typography level="body-sm" sx={{ my: 1 }}>Describe what's happening. No need to choose a category — we'll route it.</Typography>
+            <Button onClick={() => setOpen(true)}>Start a request</Button>
+          </Sheet>
+          <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", flex: 1 }}>
+            <Stack direction="row" spacing={1} alignItems="center"><BookOpen size={18} aria-hidden /><Typography level="title-md">Help centre</Typography></Stack>
+            <Typography level="body-sm" sx={{ my: 1 }}>Guides and answers to common questions.</Typography>
+            <Button variant="outlined" component="a" href={KNOWLEDGE_BASE_URL} target="_blank" rel="noopener noreferrer" endDecorator={<ExternalLink size={14} />}>Open help centre</Button>
+          </Sheet>
+        </Stack>
 
-      <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Contact Support
-            </CardTitle>
-            <CardDescription>
-              Send us a message and we'll reply within 1 business day
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full" onClick={() => setTicketOpen(true)}>
-              Create a ticket
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              Knowledge Base
-            </CardTitle>
-            <CardDescription>
-              Browse guides, how-tos, and best practices
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="w-full"
-              asChild
-            >
-              <a
-                href={KNOWLEDGE_BASE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Visit Knowledge Base
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </a>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Dialog open={ticketOpen} onOpenChange={setTicketOpen}>
-        <DialogContent className="max-w-lg">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Contact Support</DialogTitle>
-              <DialogDescription>
-                Send us a message. We'll reply within 1 business day.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-name">Name</Label>
-              <Input
-                id="support-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-email">Email</Label>
-              <Input
-                id="support-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-subject">Subject</Label>
-              <Input
-                id="support-subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="What's this about?"
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-message">Message</Label>
-              <Textarea
-                id="support-message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Describe what you need help with..."
-                rows={6}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setTicketOpen(false)}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!canSubmit}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  'Send Message'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+        <div>
+          <Typography level="title-lg" sx={{ mb: 1 }}>Your requests</Typography>
+          {me.error && <Alert color="danger">{(me.error as Error).message}</Alert>}
+          {mine.isLoading && <Skeleton variant="rectangular" height={120} />}
+          {mine.data?.length === 0 && <Typography level="body-sm" textColor="text.tertiary">You haven't sent any requests yet.</Typography>}
+          {mine.data && mine.data.length > 0 && (
+            <Sheet variant="outlined" sx={{ borderRadius: "lg", display: "grid", gridTemplateColumns: { xs: "1fr", md: selected ? "320px minmax(0,1fr)" : "1fr" }, minHeight: 240, overflow: "hidden" }}>
+              <Box role="list" sx={{ borderRight: { md: selected ? "1px solid" : "none" }, borderColor: "divider", display: { xs: selected ? "none" : "block", md: "block" } }}>
+                {mine.data.map((t) => (
+                  <Box key={t.id} role="listitem" tabIndex={0} onClick={() => setSelected(t.id)} onKeyDown={(e) => e.key === "Enter" && setSelected(t.id)}
+                    sx={{ p: 1.5, cursor: "pointer", borderBottom: "1px solid", borderColor: "divider", bgcolor: selected === t.id ? "primary.softBg" : undefined }}>
+                    <Stack direction="row" spacing={1} alignItems="center"><Typography level="body-xs">#{t.number}</Typography><StatusChip status={t.status} /></Stack>
+                    <Typography level="title-sm" noWrap>{t.subject}</Typography>
+                    <Typography level="body-xs" textColor="text.tertiary">Updated {formatDistanceToNow(new Date(t.updated_at), { addSuffix: true })}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              {selected && me.data && (
+                <Box sx={{ minHeight: 360 }}>
+                  <Link component="button" level="body-sm" sx={{ m: 1, display: { md: "none" } }} onClick={() => setSelected(null)}>← All requests</Link>
+                  <TicketDetailPane key={selected} ticketId={selected} me={me.data} onOpenTicket={setSelected} />
+                </Box>
+              )}
+            </Sheet>
+          )}
+        </div>
+      </Stack>
+      <ReportProblemDialog open={open} onClose={() => { setOpen(false); mine.refetch(); }} />
+    </PageContainer>
   );
 };
 
