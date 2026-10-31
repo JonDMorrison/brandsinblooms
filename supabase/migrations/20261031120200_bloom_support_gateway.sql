@@ -141,3 +141,21 @@ DO $$ DECLARE has_key boolean := false; BEGIN
     $cron$)$sched$;
   END IF;
 END $$;
+
+-- Bootstrap: a CRM master admin (app_admin_emails allowlist / user_roles) becomes
+-- a Bloom platform administrator on first sign-in. Re-checked here; the caller's
+-- claim is never trusted. Later role changes go through set_principal_role.
+CREATE OR REPLACE FUNCTION public.bloom_support_bootstrap_admin(p_principal uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE v_auth uuid; ok boolean := false;
+BEGIN
+  SELECT auth_user_id INTO v_auth FROM bloom_support.principals WHERE id = p_principal AND kind = 'user' AND role = 'client';
+  IF v_auth IS NULL OR to_regprocedure('public.is_master_admin(uuid)') IS NULL THEN RETURN false; END IF;
+  EXECUTE 'SELECT coalesce(public.is_master_admin($1), false)' INTO ok USING v_auth;
+  IF NOT ok THEN RETURN false; END IF;
+  UPDATE bloom_support.principals SET role = 'platform_admin', updated_at = now() WHERE id = p_principal;
+  PERFORM bloom_support.log(NULL, NULL, p_principal, 'principal.bootstrapped_admin', jsonb_build_object('auth_user_id', v_auth));
+  RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION public.bloom_support_bootstrap_admin(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bloom_support_bootstrap_admin(uuid) TO service_role;
