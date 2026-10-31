@@ -587,6 +587,8 @@ function CampaignEditorScreen() {
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
+  const [connectedEventWarnings, setConnectedEventWarnings] = React.useState<string[]>([]);
+  const [connectedEventChecking, setConnectedEventChecking] = React.useState(false);
   const [verificationOpen, setVerificationOpen] = React.useState(false);
   const [senderConfigOpen, setSenderConfigOpen] = React.useState(false);
   const [previewUnavailableOpen, setPreviewUnavailableOpen] =
@@ -998,8 +1000,9 @@ function CampaignEditorScreen() {
       return;
     }
 
+    setConnectedEventChecking(campaignType === "email" && contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event"));
     setSendConfirmOpen(true);
-  }, [isLocked, pendingTemplateSave]);
+  }, [isLocked, pendingTemplateSave, campaignType, contentBlocks]);
 
   const sendBlockerLines = React.useMemo(() => {
     const blockers: string[] = [];
@@ -1111,8 +1114,6 @@ function CampaignEditorScreen() {
     () => reviewCampaignContent(contentBlocks),
     [contentBlocks],
   );
-  const [connectedEventWarnings, setConnectedEventWarnings] = React.useState<string[]>([]);
-  const [connectedEventChecking, setConnectedEventChecking] = React.useState(false);
   React.useEffect(() => {
     if (!sendConfirmOpen || campaignType !== "email") {
       setConnectedEventWarnings([]);
@@ -1121,6 +1122,7 @@ function CampaignEditorScreen() {
     }
     if (!contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event")) {
       setConnectedEventWarnings([]);
+      setConnectedEventChecking(false);
       return;
     }
     let active = true;
