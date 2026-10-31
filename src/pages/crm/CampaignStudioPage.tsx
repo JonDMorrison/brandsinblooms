@@ -933,7 +933,7 @@ function CampaignStudioPageContent() {
       const savedId = await saveDraft({ silent: false });
       if (!savedId) return;
     }
-    navigate(editorPath);
+    navigate(`${editorPath}?step=review`);
   }, [editorPath, navigate, saveDraft]);
 
   const finalizeAIChoreography = React.useCallback(() => {
