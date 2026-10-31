@@ -47,6 +47,7 @@ describe("Connected Content newsletter blocks",()=>{
       for (const [event,warning] of [
         [{...item,eventStatus:"cancelled"},"cancelled"],
         [{...item,eventStatus:"sold_out"},"sold out"],
+        [{...item,eventStatus:"available",capacityCheckRequired:true},"confirm ticket availability"],
         [{...item,eventStatus:"available",startAt:"2026-11-20T18:00:00Z"},"changed"],
         [{...item,eventStatus:"available",imageUrl:"https://images.example.org/new.jpg"},"changed"],
         [null,"no longer available"],
