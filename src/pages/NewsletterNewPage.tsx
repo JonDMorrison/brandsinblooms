@@ -74,51 +74,39 @@ function CreationPathCard({
         p: { xs: 3, md: 4 },
         height: "100%",
         borderRadius: "lg",
-        // Both creation paths now sit on a neutral surface. The
-        // ideas card uses a slightly cooler grey so it reads as
-        // the recommended path without leaning teal/mint.
-        bgcolor: isAi
-          ? "var(--joy-palette-neutral-50, #f5f5f4)"
-          : "rgba(225, 255, 254, 0.18)",
-        borderColor: isAi
-          ? "var(--joy-palette-neutral-200, #e7e5e4)"
-          : "rgba(48, 80, 110, 0.14)",
-        // Slight scale lift kept so the ideas card still reads as
-        // primary; teal glow shadow removed to match the neutral
-        // background.
-
+        bgcolor: "background.surface",
+        borderColor: "neutral.200",
         boxShadow: "none",
         display: "flex",
         flexDirection: "column",
 
       }}
     >
-      <Stack spacing={2.5} sx={{ flex: 1 }}>
-        {/* Identical dark circular icon treatment for both creation paths. */}
+      <Stack direction="row" spacing={{ xs: 2, md: 2.5 }} alignItems="flex-start" sx={{ flex: 1 }}>
         <Box
           sx={{
-            width: 96,
-            height: 96,
-            borderRadius: "50%",
+            width: 52,
+            height: 52,
+            flexShrink: 0,
+            borderRadius: "12px",
             display: "grid",
             placeItems: "center",
-            bgcolor: "var(--hp-green-700, #1F4341)",
-            color: "var(--hp-text-light, #FAFAFA)",
-            boxShadow: "0 6px 22px rgba(31, 67, 65, 0.32)",
+            bgcolor: "neutral.100",
+            color: "var(--hp-green-700, #1F4341)",
           }}
         >
-          <Icon size={44} strokeWidth={1.7} />
+          <Icon size={26} strokeWidth={1.8} aria-hidden="true" />
         </Box>
 
-        <Stack spacing={1.25} sx={{ flex: 1 }}>
+        <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             level="title-md"
-            sx={{ fontWeight: 700, color: "var(--hp-green-900, #11302E)" }}
+            sx={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--hp-green-900, #11302E)" }}
           >
             {title}
           </Typography>
 
-          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          <Typography level="body-md" sx={{ color: "text.secondary", lineHeight: 1.6 }}>
             {description}
           </Typography>
         </Stack>
@@ -130,9 +118,9 @@ function CreationPathCard({
           sx={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 1,
             minHeight: 44, px: 2, borderRadius: "sm", fontWeight: 600,
-            border: "1px solid", borderColor: isAi ? "transparent" : "neutral.300",
-            bgcolor: isAi ? "var(--hp-green-700, #1F4341)" : "background.surface",
-            color: isAi ? "#fff" : "text.primary",
+            border: "1px solid", borderColor: !isAi ? "transparent" : "neutral.300",
+            bgcolor: !isAi ? "var(--hp-green-700, #1F4341)" : "background.surface",
+            color: !isAi ? "#fff" : "text.primary",
           }}
         >
           {buttonLabel} <ArrowRight size={18} aria-hidden="true" />
@@ -197,27 +185,6 @@ function IdeaQuickAccessCardSkeleton() {
   );
 }
 
-// (4) Seasonal accent stripe colors — NOT brand tokens, decorative
-// only. Each weekly idea card gets a 4px left-edge stripe colored
-// by the season of its weekNumber. Mapping uses ISO weeks 1-52
-// with a roughly Northern-hemisphere calendar.
-function getSeasonalAccentColor(weekNumber: number): string {
-  if (weekNumber >= 10 && weekNumber <= 22) {
-    // seasonal accent stripe — not a brand token, decorative only
-    return "var(--hp-green-500, #3E7C77)"; // spring → brand teal
-  }
-  if (weekNumber >= 23 && weekNumber <= 35) {
-    // seasonal accent stripe — not a brand token, decorative only
-    return "#D4A437"; // summer → warm gold
-  }
-  if (weekNumber >= 36 && weekNumber <= 48) {
-    // seasonal accent stripe — not a brand token, decorative only
-    return "#B86B3F"; // fall → copper
-  }
-  // seasonal accent stripe — not a brand token, decorative only
-  return "#5A7A8C"; // winter → cool gray-blue
-}
-
 function IdeaQuickAccessCard({
   isCurrentWeek,
   idea,
@@ -228,7 +195,6 @@ function IdeaQuickAccessCard({
   onUseIdea: (idea: NewsletterIdea) => void;
 }) {
   const weekNumber = idea.weekNumber ?? 0;
-  const accentColor = getSeasonalAccentColor(weekNumber);
 
   return (
     <Card
@@ -246,7 +212,6 @@ function IdeaQuickAccessCard({
         "&:focus-visible": { outline: "2px solid var(--joy-palette-primary-500)", outlineOffset: 4 },
         position: "relative",
         p: 3,
-        pl: 3.5, // extra left padding so content doesn't sit directly on the stripe
         height: "100%",
         borderRadius: "lg",
         bgcolor: "background.surface",
@@ -255,19 +220,6 @@ function IdeaQuickAccessCard({
         overflow: "hidden",
       }}
     >
-      {/* (4) 4px seasonal accent stripe on the left edge. */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          width: 4,
-          bgcolor: accentColor,
-        }}
-        aria-hidden="true"
-      />
-
       <Stack spacing={1.5} sx={{ height: "100%" }}>
         <Stack
           direction="row"
@@ -351,7 +303,7 @@ function IdeaQuickAccessCard({
         </Stack>
 
         <Stack spacing={1} sx={{ flex: 1 }}>
-          <Typography level="title-md" sx={{ fontWeight: 600, mt: 0.5 }}>
+          <Typography level="title-md" sx={{ fontSize: "1.25rem", fontWeight: 700, mt: 0.5 }}>
             {idea.title}
           </Typography>
 
@@ -507,25 +459,21 @@ export const NewsletterNewPage = () => {
 
         <PageContainer
           sx={{
+            maxWidth: "80rem",
             position: "relative",
             zIndex: 1,
             px: { xs: 2, md: 3 },
             py: { xs: 3, md: 4 },
           }}
         >
-          {/*
-            (6) Bigger gap between the "Create a Newsletter" section
-            and "Ideas for You" so they read as distinct chapters
-            rather than one flat list. Mobile: 48-64px (xs:6); desktop:
-            80-96px (md:11). Joy spacing units are 8px each, so
-            md:11 = 88px, xs:6 = 48px.
-          */}
-          <Stack spacing={{ xs: 6, md: 11 }}>
+          <Stack spacing={{ xs: 5, md: 6 }}>
             <Stack spacing={{ xs: 4, md: 5 }}>
               <Stack spacing={1.25}>
                 <Typography
-                  level="h3"
+                  level="h1"
                   sx={{
+                    fontSize: { xs: "1.875rem", md: "2.25rem" },
+                    letterSpacing: "-0.035em",
                     fontWeight: 700,
                     color: "var(--hp-green-900, #11302E)",
                   }}
