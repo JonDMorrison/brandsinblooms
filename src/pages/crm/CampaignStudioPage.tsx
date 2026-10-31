@@ -2252,8 +2252,8 @@ function CampaignStudioPageContent() {
                   "grid-template-columns 200ms cubic-bezier(0.4, 0, 0.2, 1)",
                 gridTemplateColumns: {
                   xs: "minmax(0, 1fr)",
-                  md: `264px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 340 : 0}px`,
-                  xl: `288px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 420 : 0}px`,
+                  md: `288px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 340 : 0}px`,
+                  xl: `320px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 420 : 0}px`,
                 },
               }}
             >
