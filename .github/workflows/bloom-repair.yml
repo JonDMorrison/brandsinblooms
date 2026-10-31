@@ -1,0 +1,121 @@
+name: Bloom repair
+# Dispatched by Bloom Support (repair identity) for one engineering issue.
+# Runs a coding agent on an isolated branch and opens a pull request.
+# This workflow can NOT merge: it has no release credential, and the repository's
+# branch protection (required checks + independent review) gates every merge.
+# Bloom's separate release identity evaluates the PR against a deterministic
+# policy and merges only eligible fixes.
+on:
+  workflow_dispatch:
+    inputs:
+      github_issue: { description: "GitHub issue number with sanitized evidence", required: true }
+      engineering_issue_id: { description: "Bloom engineering issue id", required: true }
+      branch: { description: "Fix branch (bloom/fix-…)", required: true }
+      base: { description: "Base branch", required: true }
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: bloom-repair-${{ inputs.engineering_issue_id }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ inputs.branch }}
+      BASE: ${{ inputs.base }}
+    steps:
+      - name: Validate inputs
+        run: |
+          [[ "$BRANCH" =~ ^bloom/fix-[0-9a-f]{8}$ ]] || { echo "invalid branch"; exit 1; }
+          [[ "${{ inputs.engineering_issue_id }}" =~ ^[0-9a-f-]{36}$ ]] || { echo "invalid id"; exit 1; }
+          [[ "${{ inputs.github_issue }}" =~ ^[0-9]+$ ]] || { echo "invalid issue"; exit 1; }
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.base }}", fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Install dependencies
+        run: |
+          corepack enable || true
+          if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else npm ci; fi
+      - name: Prepare branch and evidence
+        run: |
+          git switch -c "$BRANCH"
+          mkdir -p .bloom
+          gh issue view "${{ inputs.github_issue }}" --json title,body --jq '"# " + .title + "\n\n" + .body' > .bloom/issue.md
+      - name: Run coding agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.BLOOM_REPAIR_OPENAI_API_KEY }}
+        run: |
+          [ -n "$OPENAI_API_KEY" ] || { echo "::error::BLOOM_REPAIR_OPENAI_API_KEY secret is not set"; exit 1; }
+          npm install -g @openai/codex@${CODEX_VERSION:-latest}
+          codex exec --full-auto "$(cat <<'PROMPT'
+          You are fixing one reported bug in this repository. Read .bloom/issue.md (sanitized client reports).
+          Follow the repository's CLAUDE.md / AGENTS.md instructions.
+          1. Reproduce first: add ONE new focused regression test file that fails before your fix.
+          2. Fix the root cause with the smallest change. Do not change intended product behaviour.
+          3. NEVER modify or delete existing tests, CI workflows (.github/), migrations, auth, permissions,
+             payment, tax, payout or checkout code, secrets, env files, lockfiles, package.json, or any release policy.
+             If the fix needs any of those, stop, make no code changes, and say so in the report.
+          4. Write .bloom/report.json:
+             {"reproduced": bool, "failing_test": "path or null", "intended_behaviour_established": bool,
+              "intended_behaviour_source": "existing test | documentation | prior behaviour | none",
+              "root_cause": "…", "verification": [{"url": "https://…", "expect_status": 200, "contains": "…"}],
+              "needs_human": bool, "reason": "…"}
+             verification lists production URLs whose response proves the fix (public pages only, no auth).
+          PROMPT
+          )"
+      - name: Guard changed files
+        run: |
+          git add -A ':!.bloom'
+          CHANGED=$(git diff --cached --name-status)
+          echo "$CHANGED"
+          [ -n "$CHANGED" ] || { echo "no_changes=true" >> "$GITHUB_ENV"; exit 0; }
+          if echo "$CHANGED" | awk '{print $NF}' | grep -E '^\.github/|migrations/|\.sql$|(^|/)\.env|package(-lock)?\.json$|pnpm-lock\.yaml$|bun\.lock|(^|/)(auth|payments?|checkout|stripe|billing|tax|payout)s?/|release-policy|bloom-support/policy\.ts$|CODEOWNERS'; then
+            echo "::error::Repair touched a review-only path; aborting"; exit 1
+          fi
+          if echo "$CHANGED" | grep -E '^(M|D|R[0-9]*)\s' | awk '{print $NF}' | grep -E '(__tests__|/tests?/|e2e/|\.(test|spec)\.[cm]?[jt]sx?$)'; then
+            echo "::error::Repair modified or deleted an existing test; aborting"; exit 1
+          fi
+      - name: Repository checks (pre-flight; CI runs the required checks on the PR)
+        if: env.no_changes != 'true'
+        run: |
+          if grep -q '"verify:types"' package.json; then pnpm verify:types && pnpm verify:lint && pnpm verify:test; \
+          elif [ -f pnpm-workspace.yaml ]; then pnpm -r --if-present test; \
+          else npx vitest run --changed "origin/$BASE"; fi
+      - name: Open pull request
+        if: env.no_changes != 'true'
+        run: |
+          git config user.name "bloom-repair[bot]"
+          git config user.email "bloom-repair@users.noreply.github.com"
+          git commit -m "fix: Bloom repair for #${{ inputs.github_issue }}" -m "Bloom-Engineering-Issue: ${{ inputs.engineering_issue_id }}"
+          git push -u origin "$BRANCH"
+          {
+            echo "Automated fix proposed by Bloom for #${{ inputs.github_issue }}."
+            echo
+            echo "Bloom-Engineering-Issue: \`${{ inputs.engineering_issue_id }}\`"
+            echo
+            echo '```json'; cat .bloom/report.json 2>/dev/null || echo '{}'; echo '```'
+            echo
+            echo "This PR needs passing required checks and an independent review. Bloom merges only fixes its release policy marks eligible; everything else waits for Jon."
+          } > .bloom/pr.md
+          gh pr create --base "$BASE" --head "$BRANCH" --title "fix: $(gh issue view ${{ inputs.github_issue }} --json title --jq .title | sed 's/^\[Bloom\] //' | cut -c1-200)" --body-file .bloom/pr.md --label bloom-repair || \
+          gh pr create --base "$BASE" --head "$BRANCH" --title "fix: Bloom repair for #${{ inputs.github_issue }}" --body-file .bloom/pr.md
+      - name: Report to Bloom
+        if: always()
+        env:
+          BLOOM_API: ${{ vars.BLOOM_SUPPORT_API_URL }}
+          BLOOM_KEY: ${{ secrets.BLOOM_REPAIR_REPORT_KEY }}
+        run: |
+          [ -n "$BLOOM_API" ] && [ -n "$BLOOM_KEY" ] || { echo "Bloom reporting not configured"; exit 0; }
+          REPORT=$(cat .bloom/report.json 2>/dev/null || echo '{}')
+          STATUS=$(echo "$REPORT" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const r=JSON.parse(s);console.log(r.needs_human?"escalated":r.reproduced?"reproduced":"not_reproduced")}catch{console.log("not_reproduced")}})')
+          [ "${{ job.status }}" = "success" ] || STATUS=failed
+          node -e 'const [status,report]=process.argv.slice(1);let r={};try{r=JSON.parse(report)}catch{};process.stdout.write(JSON.stringify({status,patch:{reproduction:r},note:r.reason||r.root_cause||"repair workflow finished"}))' "$STATUS" "$REPORT" > .bloom/update.json
+          curl -fsS -X PATCH "$BLOOM_API/engineering/${{ inputs.engineering_issue_id }}" -H "Authorization: Bearer $BLOOM_KEY" -H "Content-Type: application/json" --data @.bloom/update.json || echo "Bloom report failed"
