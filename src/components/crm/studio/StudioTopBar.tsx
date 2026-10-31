@@ -167,20 +167,17 @@ export default function StudioTopBar({
           ? "success.600"
           : "neutral.500";
   const statusLabel =
-    saveMessage ||
-    (saveStatus === "saving"
-      ? "Saving changes..."
-      : saveStatus === "saved"
-        ? "Saved"
-        : saveStatus === "conflict"
-          ? "Save conflict"
-          : saveStatus === "error" || saveStatus === "failed"
-            ? "Save failed"
-            : hasUnsavedChanges
-              ? "Unsaved changes"
-              : lastSavedAt
-                ? "Saved"
-                : "Ready");
+    saveStatus === "saving"
+      ? "Saving…"
+      : saveStatus === "conflict"
+        ? "Save conflict. Review before saving."
+        : saveStatus === "error" || saveStatus === "failed"
+          ? "Couldn’t save. Your edits are still here."
+          : hasUnsavedChanges
+            ? "Unsaved changes"
+            : saveStatus === "saved" || lastSavedAt
+              ? "All changes saved"
+              : saveMessage || "Ready";
 
   return (
     <Sheet
@@ -714,7 +711,9 @@ export default function StudioTopBar({
               fontSize: "13px",
             }}
           >
-            Save
+            {saveStatus === "failed" || saveStatus === "error"
+              ? "Retry save"
+              : "Save"}
           </Button>
 
           <Typography
