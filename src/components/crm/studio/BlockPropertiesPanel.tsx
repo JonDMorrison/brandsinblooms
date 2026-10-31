@@ -2361,7 +2361,7 @@ function PanelContent({
               },
               {
                 id: "content",
-                title: "Content",
+                title: "Text & button",
                 content: (
                   <>
                     <StudioTextField
@@ -2384,6 +2384,16 @@ function PanelContent({
                       value={block.body ?? ""}
                       onChange={(value) => updateField("body", value)}
                       placeholder="Write the main message..."
+                    />
+                    <StudioColorPicker
+                      label="Text Color"
+                      value={block.textColor ?? "#111827"}
+                      onChange={(value) => updateField("textColor", value)}
+                    />
+                    <StudioAlignmentToggle
+                      label="Text Alignment"
+                      value={block.textAlign ?? "left"}
+                      onChange={(value) => updateField("textAlign", value)}
                     />
                     <StudioTextField
                       label="Button Text"
@@ -2529,7 +2539,7 @@ function PanelContent({
                 : []),
               {
                 id: "style",
-                title: "Style",
+                title: "Whole block",
                 content: (
                   <>
                     <StudioColorPicker
@@ -2538,16 +2548,6 @@ function PanelContent({
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
-                    />
-                    <StudioColorPicker
-                      label="Text Color"
-                      value={block.textColor ?? "#111827"}
-                      onChange={(value) => updateField("textColor", value)}
-                    />
-                    <StudioAlignmentToggle
-                      label="Text Alignment"
-                      value={block.textAlign ?? "left"}
-                      onChange={(value) => updateField("textAlign", value)}
                     />
                     <StudioSliderField
                       label="Content Padding"

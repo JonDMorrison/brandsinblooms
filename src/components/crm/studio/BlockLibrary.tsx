@@ -77,45 +77,51 @@ function LibraryCard({
       sx={{
         display: "flex",
         alignItems: "center",
-        gap: 1,
-        p: 1.25,
+        gap: 1.5,
+        p: 1.5,
+        minHeight: 64,
         border: 0,
         width: "100%",
         textAlign: "left",
-        borderRadius: 6,
+        borderRadius: 10,
         cursor: disabled ? "pointer" : "grab",
         bgcolor: "transparent",
         opacity: isDragging ? 0.5 : 1,
         touchAction: disabled ? "auto" : "none",
-        "&:hover": { bgcolor: "#e8eeee" },
+        transition: "background-color 160ms ease, transform 120ms ease",
+        "&:active": { transform: "scale(0.985)" },
+        "@media (prefers-reduced-motion: reduce)": { transition: "none", "&:active": { transform: "none" } },
+        "&:hover": { bgcolor: "#e8f0eb" },
+        "&:focus-visible .library-add, &:hover .library-add": { opacity: 1 },
         "&:focus-visible": { outline: "2px solid #234b49" },
       }}
     >
       <Box
         sx={{
-          p: 0.75,
-          borderRadius: 5,
+          p: 1.1,
+          borderRadius: 8,
           bgcolor: "#e0e7e7",
           color: "#34554f",
           display: "flex",
         }}
       >
-        <Icon size={17} />
+        <Icon size={20} />
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <Typography
           level="body-sm"
-          sx={{ fontWeight: 600, color: "#263d42", fontSize: 13 }}
+          sx={{ fontWeight: 600, color: "#263d42", fontSize: 14 }}
         >
           {definition.name}
         </Typography>
         <Typography
           level="body-xs"
-          sx={{ color: "#526b72", fontSize: 11.5, lineHeight: 1.4 }}
+          sx={{ color: "#526b72", fontSize: 13, lineHeight: 1.45 }}
         >
           {disabled ? "Already added. Select footer." : definition.description}
         </Typography>
       </Box>
+      {!disabled && <Typography className="library-add" aria-hidden="true" level="body-xs" sx={{ ml: "auto", color: "#315f53", fontWeight: 700, opacity: 0, transition: "opacity 150ms" }}>Add</Typography>}
     </Sheet>
   );
 }
@@ -185,23 +191,23 @@ export default function BlockLibrary({
   return (
     <Sheet
       sx={{
-        width: { md: 264, xl: 288 },
+        width: { md: 288, xl: 320 },
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid #b8c5c8",
-        bgcolor: "#f6f8f8",
+        borderRight: "1px solid #d6dfd9",
+        bgcolor: "#f7f9f6",
         minHeight: 0,
       }}
     >
-      <Box sx={{ p: 1.5, borderBottom: "1px solid #c7d0d2" }}>
-        <Typography level="title-sm" sx={{ color: "#243c41", mb: 1 }}>
+      <Box sx={{ p: 2, borderBottom: "1px solid #d6dfd9" }}>
+        <Typography level="title-md" sx={{ color: "#243c41", mb: 1.5 }}>
           Newsletter builder
         </Typography>
         <Box
           role="tablist"
           aria-label="Newsletter navigation"
-          sx={{ display: "flex", gap: 0.5, mb: 1.5 }}
+          sx={{ display: "flex", gap: 0.5, mb: 1.5, "& button": { transition: "transform 120ms ease, background-color 160ms ease" }, "& button:active": { transform: "scale(0.97)" }, "@media (prefers-reduced-motion: reduce)": { "& button": { transition: "none" }, "& button:active": { transform: "none" } } }}
         >
           {(["blocks", "outline", "saved"] as const).map((value) => (
             <button
@@ -212,7 +218,10 @@ export default function BlockLibrary({
               className="nl-quiet"
               style={{
                 flex: 1,
-                padding: "7px 4px",
+                padding: "10px 4px",
+                minHeight: 44,
+                borderRadius: 8,
+                fontSize: 14,
                 background: tab === value ? "#254b49" : undefined,
                 color: tab === value ? "#fff" : undefined,
               }}
@@ -239,14 +248,16 @@ export default function BlockLibrary({
           }
           startDecorator={<Search size={16} />}
           sx={{
+            minHeight: 44,
             bgcolor: "#fff",
-            borderColor: "#9aabad",
+            borderRadius: 8,
+            borderColor: "#b9c9c0",
             color: "#203137",
             "& input::placeholder": { color: "#62777d", opacity: 1 },
           }}
         />
       </Box>
-      <Box sx={{ overflowY: "auto", minHeight: 0, p: 1.5, flex: 1 }}>
+      <Box sx={{ overflowY: "auto", minHeight: 0, p: 2, flex: 1 }}>
         {tab === "blocks" && (
           <>
             <Typography
@@ -259,17 +270,17 @@ export default function BlockLibrary({
               <details key={category.id} open style={{ marginBottom: 14 }}>
                 <summary
                   style={{
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 750,
                     color: "#203b40",
-                    padding: "8px 0",
+                    padding: "12px 0",
                     borderBottom: "1px solid #b8c5c8",
                     cursor: "pointer",
                   }}
                 >
                   {category.label}
                 </summary>
-                <Stack spacing={0.25} sx={{ mt: 0.5 }}>
+                <Stack spacing={0.5} sx={{ mt: 1 }}>
                   {category.blocks.map((definition) => (
                     <LibraryCard
                       key={definition.type}
