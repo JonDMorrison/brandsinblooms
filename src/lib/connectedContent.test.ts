@@ -87,6 +87,8 @@ describe("Connected Content newsletter blocks",()=>{
     const migration=readFileSync("supabase/migrations/20261016140100_connected_website_content_links.sql","utf8");
     expect(migration).toContain("ENABLE ROW LEVEL SECURITY");
     expect(migration).toContain("get_current_crm_access()");
+    expect(migration).toContain("FROM PUBLIC, anon, authenticated, service_role");
+    expect(migration).toContain("GRANT SELECT, INSERT, UPDATE ON public.crm_connected_websites TO service_role");
     const config=readFileSync("supabase/config.toml","utf8");
     expect(config).toMatch(/\[functions\.connected-content\]\s*verify_jwt = true/);
   });
