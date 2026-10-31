@@ -144,6 +144,10 @@ export interface StudioBlock {
     updatedAt: string;
     publicUrl: string;
     startAt?: string | null;
+    sourceTitle?: string;
+    sourceDescription?: string;
+    sourceImageUrl?: string | null;
+    upcomingDateCount?: number;
   };
   id: string;
   type: BlockType;
