@@ -47,11 +47,11 @@ export function StudioCtaCard({
         display: "flex",
         alignItems: "center",
         gap: 2,
-        width: { xs: "100%", sm: "auto" },
+        width: "100%",
         alignSelf: "flex-end",
-        minHeight: 52,
+        minHeight: 88,
         px: 2.5,
-        py: 1.5,
+        py: 2.5,
         borderRadius: "var(--joy-radius-lg)",
         backgroundColor: disabled
           ? "var(--joy-palette-neutral-100)"
@@ -105,7 +105,7 @@ export function StudioCtaCard({
         <Typography
           component="span"
           sx={{
-            fontSize: "16px",
+            fontSize: "18px",
             fontWeight: 500,
             lineHeight: 1.2,
             color: "inherit",
@@ -116,7 +116,7 @@ export function StudioCtaCard({
         <Typography
           component="span"
           sx={{
-            fontSize: "13px",
+            fontSize: "14px",
             lineHeight: 1.4,
             color: "inherit",
             opacity: 0.85,

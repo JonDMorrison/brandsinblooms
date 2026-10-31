@@ -14,10 +14,10 @@ import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Eye,
   Info,
-  LogOut,
   Monitor,
   Redo2,
   RefreshCw,
@@ -194,11 +194,15 @@ export default function StudioTopBar({
     >
       <Box
         sx={{
-          height: 52,
+          minHeight: 64,
+          py: 1.25,
           px: 2,
-          minWidth: { xs: 980, md: 0 },
+          minWidth: 0,
           display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
+          gridTemplateColumns: {
+            xs: "1fr",
+            lg: "minmax(160px, 1fr) auto minmax(0, 2fr)",
+          },
           alignItems: "center",
           gap: 2,
         }}
@@ -540,6 +544,8 @@ export default function StudioTopBar({
           alignItems="center"
           spacing={1}
           justifyContent="flex-end"
+          useFlexGap
+          flexWrap="wrap"
         >
           {externalUpdateNotice
             ? (() => {
@@ -738,21 +744,40 @@ export default function StudioTopBar({
             {statusLabel}
           </Typography>
 
-          <Button
-            variant="plain"
-            color="neutral"
-            size="sm"
-            startDecorator={<LogOut size={16} />}
-            onClick={onExit}
-            sx={{
-              fontSize: "13px",
-              fontWeight: 500,
-              borderRadius: "8px",
-              "&:hover": { bgcolor: "neutral.100" },
-            }}
-          >
-            Exit
-          </Button>
+          {campaignStatus === "Draft" ? (
+            <Tooltip title="Your design is saved before you review recipients and send. This does not send your email.">
+              <Button
+                variant="solid"
+                size="md"
+                aria-label="Review & Send"
+                onClick={onExit}
+                loading={saveStatus === "saving"}
+                endDecorator={<ArrowRight size={18} aria-hidden="true" />}
+                sx={{
+                  minHeight: 44,
+                  px: 2.5,
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: 15,
+                  bgcolor: "#244d46",
+                  "&:hover": { bgcolor: "#183c35" },
+                }}
+              >
+                Review &amp; Send
+              </Button>
+            </Tooltip>
+          ) : null}
+          <Tooltip title="Save your changes and return to the campaign">
+            <IconButton
+              variant="plain"
+              color="neutral"
+              aria-label="Save and close Design Studio"
+              onClick={onExit}
+              sx={{ minWidth: 44, minHeight: 44 }}
+            >
+              <X size={18} />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </Box>
 
