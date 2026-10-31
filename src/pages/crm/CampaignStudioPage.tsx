@@ -923,16 +923,18 @@ function CampaignStudioPageContent() {
   }, [saveDraft]);
 
   const completeExit = React.useCallback(async () => {
-    if (hasUnsavedChanges || saveStatus === "saving") {
+    // Flush the latest snapshot, including edits made during an in-flight autosave.
+    while (
+      savePromiseRef.current ||
+      (currentSnapshotRef.current &&
+        buildStudioFingerprint(currentSnapshotRef.current) !==
+          savedFingerprintRef.current)
+    ) {
       const savedId = await saveDraft({ silent: false });
-
-      if (!savedId) {
-        return;
-      }
+      if (!savedId) return;
     }
-
     navigate(editorPath);
-  }, [editorPath, hasUnsavedChanges, navigate, saveDraft, saveStatus]);
+  }, [editorPath, navigate, saveDraft]);
 
   const finalizeAIChoreography = React.useCallback(() => {
     clearAIChoreographyTimers();

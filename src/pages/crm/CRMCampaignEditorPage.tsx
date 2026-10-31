@@ -963,9 +963,10 @@ function CampaignEditorScreen() {
 
     // Drafts can be created with no subject or preview. Those fields are
     // checked only when the customer reviews or sends the newsletter.
-    const nextCampaignId = await resolveStudioDraftId(campaignId, () =>
-      saveDraft({ silent: true }),
-    );
+    const nextCampaignId =
+      isLocked && campaignId
+        ? campaignId
+        : await resolveStudioDraftId(null, () => saveDraft({ silent: true }));
 
     if (!nextCampaignId) {
       toast.error(
@@ -975,7 +976,7 @@ function CampaignEditorScreen() {
     }
 
     navigate(`/crm/campaigns/${nextCampaignId}/studio`);
-  }, [campaignId, campaignType, navigate, saveDraft]);
+  }, [campaignId, campaignType, isLocked, navigate, saveDraft]);
 
   const handleScheduleForLater = React.useCallback(() => {
     setScheduleOpen(true);
@@ -2163,22 +2164,16 @@ function CampaignEditorScreen() {
 
             <StudioCtaCard
               onOpen={handleOpenStudio}
-              disabled={isLocked || !hasMeaningfulEmailContent}
+              disabled={isLocked || Boolean(pendingTemplateSave)}
               disabledReason={
                 isLocked
                   ? "This campaign has already been sent"
-                  : !hasMeaningfulEmailContent
-                    ? "Pick a template first to start designing"
+                  : pendingTemplateSave
+                    ? "Your template is being saved"
                     : undefined
               }
-              title={isLocked ? "View in Studio" : "Continue to Design Studio"}
-              subtitle={
-                selectedSavedTemplateId
-                  ? `Selected: ${savedTemplates.find((template) => template.id === selectedSavedTemplateId)?.name ?? "Saved template"}`
-                  : selectedIntent
-                    ? `Selected: ${{ newsletter: "Newsletter", sale: "Sale or promotion", "new-arrivals": "New arrivals", event: "Event invite", "thank-you": "Thank you", blank: "Blank canvas" }[selectedIntent]}`
-                    : "Choose a layout above to get started"
-              }
+              title={isLocked ? "View in Studio" : "Customize in Design Studio"}
+              subtitle="Make it yours. Edit text, add images, change colours, and arrange every block. Start with a layout or a blank canvas."
             />
 
             <Box
