@@ -93,7 +93,7 @@ export function SegmentsAudienceSelect({
       options={options}
       value={value}
       placeholder={
-        includeAllCustomers ? "All contacts selected" : "All contacts"
+        includeAllCustomers ? "All contacts selected" : "Choose an audience"
       }
       getOptionLabel={(option) => option.name}
       isOptionEqualToValue={(option, candidate) => option.id === candidate.id}
@@ -105,9 +105,10 @@ export function SegmentsAudienceSelect({
         return [ALL_CONTACTS_SEGMENT_OPTION, ...filtered];
       }}
       renderOption={(optionProps, option) => {
-        const { key, ...liProps } = optionProps as React.HTMLAttributes<
-          HTMLLIElement
-        > & { key?: React.Key };
+        const { key, ...liProps } =
+          optionProps as React.HTMLAttributes<HTMLLIElement> & {
+            key?: React.Key;
+          };
         if (isAllContactsSegmentOption(option)) {
           return (
             <AutocompleteOption
@@ -189,7 +190,9 @@ export function SegmentsAudienceSelect({
                 </ChipDelete>
               }
             >
-              {isAllContactsSegmentOption(option) ? "All Contacts" : option.name}
+              {isAllContactsSegmentOption(option)
+                ? "All Contacts"
+                : option.name}
             </Chip>
           );
         })
