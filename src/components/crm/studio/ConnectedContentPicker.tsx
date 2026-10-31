@@ -53,7 +53,7 @@ export function ConnectedContentPicker({
       }).then(data=>{
         if(!active)return;
         setResult(data);
-        if(initialItemId && data.items.some(item=>item.id===initialItemId)){
+        if(initialItemId && data.items.some(item=>item.id===initialItemId && item.eventStatus!=="cancelled" && item.eventStatus!=="sold_out")){
           setSelected([initialItemId]);
         }
       }).catch(e=>{
@@ -62,7 +62,7 @@ export function ConnectedContentPicker({
     },search?280:0);
     return()=>{active=false;window.clearTimeout(task);};
   },[open,category,search,initialSiteId,initialItemId]);
-  const selectedItems=(result?.items??[]).filter(item=>selected.includes(item.id));
+  const selectedItems=(result?.items??[]).filter(item=>selected.includes(item.id) && item.eventStatus!=="cancelled" && item.eventStatus!=="sold_out");
   const hasSites=Boolean(result?.connections?.length);
   const toggle=(id:string)=>setSelected(old=>
     old.includes(id)?old.filter(x=>x!==id):[...old,id]);
@@ -137,6 +137,7 @@ export function ConnectedContentPicker({
                 type="button"
                 variant="outlined"
                 aria-pressed={selected.includes(item.id)}
+                disabled={item.eventStatus==="cancelled" || item.eventStatus==="sold_out"}
                 onClick={()=>toggle(item.id)}
                 sx={{
                   width:"100%",textAlign:"left",p:1.5,borderRadius:"lg",
@@ -157,6 +158,8 @@ export function ConnectedContentPicker({
                   </Box>
                   <Stack spacing={0.4} sx={{minWidth:0,flex:1}}>
                     <Typography level="title-sm">{item.title}</Typography>
+                    {item.type==="event" && item.startAt ? <Typography level="body-xs">{(item.upcomingDateCount??0)>1 ? "Multiple dates · " : ""}{new Date(item.startAt).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric", timeZone: item.timezone || "UTC" })}</Typography> : null}
+                    {item.eventStatus==="cancelled" || item.eventStatus==="sold_out" ? <Typography color="danger" level="body-xs">{item.eventStatus==="cancelled" ? "Cancelled" : "Sold out"}</Typography> : null}
                     {item.description?<Typography level="body-xs" color="neutral"
                       sx={{overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
                       {item.description}
@@ -182,7 +185,7 @@ export function ConnectedContentPicker({
       </JoyDialogContent>
       <JoyDialogActions>
         <JoyButton color="neutral" variant="plain" onClick={onClose}>Cancel</JoyButton>
-        <JoyButton disabled={selectedItems.length===0} onClick={requestInsert}>
+        <JoyButton disabled={loading || selectedItems.length===0} onClick={requestInsert}>
           Insert {selectedItems.length>0?selectedItems.length:""} into newsletter
         </JoyButton>
       </JoyDialogActions>
