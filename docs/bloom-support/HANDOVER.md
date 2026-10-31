@@ -9,7 +9,7 @@ POS Brands-In-Blooms/bloomtill#628 (→ main).
 | Level | Meaning | Where Bloom is |
 | --- | --- | --- |
 | Implemented | Code exists on the branch | Everything in §3, except the gaps in §9 |
-| Tested | Automated tests pass (locally and in CI on the PR) | SQL contract, 12 unit tests, 13-step end-to-end run against both the source and the exact deploy bundles |
+| Tested | Automated tests pass (locally and in CI on the PR) | SQL contract (17 sections), 12 unit tests, 14-step end-to-end run against both the source and the exact deploy bundles |
 | Deployed | Running in production | **Nothing yet.** Production deploys from `main`. The CRM PR is waiting for Jon's merge |
 | Configured | Secrets and settings present | Partly automatic on merge (§5). The rest are listed by name in §6 |
 | Enabled | Switches on | Automation on by default. Client email off. Automatic release off |
@@ -81,7 +81,7 @@ Before connecting:
 - Jon sets both notification addresses (Settings → Jon/Jeff notification addresses). These drive escalation
   ownership and alerts.
 
-Tools (33):
+Tools (40):
 - Status and setup: readiness, health, whoami, queue_summary
 - Tickets: list_tickets, get_ticket, create_ticket, reply_to_ticket, update_ticket, take_over_ticket,
   link_tickets, related_tickets
@@ -92,6 +92,8 @@ Tools (33):
 - Product operations: product_operations, read_product, preview_change, execute_change, undo_change,
   verify_outcome
 - Automation: automation_switch, list_jobs, retry_or_cancel_job
+- Desk: merge_tickets, list_problems, create_problem, link_problem, decide_reply_after_resolution,
+  support_metrics, ticket_timers. `list_tickets` takes queue views and returns a page with a next cursor.
 
 The REST API at `…/bloom-support-api` has the same capabilities, for Custom GPT Actions (Bearer key).
 
@@ -109,6 +111,180 @@ The REST API at `…/bloom-support-api` has the same capabilities, for Custom GP
 | Approved knowledge vs internal | Knowledge articles are `client` or `internal`. Only **approved client** articles are used for answers, and only Jon/Jeff can approve. Without a model, Bloom suggests the article to staff and sends nothing. Internal notes are never shown to clients, sent, or used for answers |
 | Clear campaign actions | The preview states the client (account and CRM tenant), audience (segments, all-customers flag, extra customers, projected recipients), content (channel, subject, preheader, sender, excerpt) and timing (UTC, local time and timezone). Execution refuses if audience or content changed since the preview (fingerprint check in SQL), if there is no audience, subject or content, or if the time is under 1 minute away. Only a person can execute a schedule; Bloom only prepares the preview |
 | Honest readiness | `GET /readiness`, the MCP `readiness` tool, and the dashboard Readiness tab: implemented / configured (missing items named) / tested (which test) / enabled / live (last real success) per capability, plus worker heartbeats and recent alerts |
+
+## 3a. The support desk (works with or without AI)
+
+People and Bloom use the same tickets. Every rule below lives in the database, so the desk keeps working if
+Bloom is paused or no model is configured. With automation off, intake, email, deadlines, notifications and
+reporting all continue.
+
+**Data model.** Everything lives in `bloom_support`.
+
+| Area | What is stored |
+| --- | --- |
+| Accounts | Accounts and product links |
+| Contacts | Contacts (`principals`, `account_members`) |
+| Tickets | Ticket fields listed below |
+| Conversations | Several requests can share one conversation, as linked tickets |
+| Messages | Public messages and internal notes, with `meaningful` and `purpose` |
+| Attachments | Private bucket |
+| History | Status, owner, executor, priority, merge, spam and redaction events (`ticket_events`, append-only) |
+| Relationships | Related, duplicate and follow-up links (`ticket_links`); merges (`merged_into`) |
+| Shared problems and incidents | `problems`, linked to tickets and to the engineering issue |
+| Engineering | Engineering issues with PR, deployment and verification |
+| Other | Feature requests, jobs, resolution evidence, notifications (deduplicated) and the delivery ledger, an append-only audit log (`activity`), saved views |
+
+Each ticket carries:
+- a stable id and number; title and description; client and requester
+- product and environment; source channel and source reference
+- type: question, bug, change, incident, feature, other
+- status, priority and impact
+- an **accountable owner (always a person)** separate from the **executor** (Bloom or a person). An
+  unassigned ticket is still accountable to the default owner (`settings.support.default_owner_email`, else
+  Jon).
+- next action and its deadline
+- timestamps: first meaningful response, latest customer and team messages, waiting reason and since,
+  first and latest resolution, closed
+- resolution summary and evidence
+- links to problem, engineering and feature request
+
+**Statuses and rules** (defined in `valid_transition`; enforced in SQL):
+- New, Working, Waiting, Needs Jon/Jeff, Resolved. Resolved can only go back to Working (reopen).
+- Waiting always has a reason: customer, internal, third party, deployment or scheduled.
+- Needs Jon/Jeff creates an escalation with the decision needed, the accountable person, a recommendation,
+  evidence and a deadline.
+- Optimistic `version` checks stop conflicting updates.
+
+**Resolution evidence by type:**
+- Question: an answer message is required.
+- Content/configuration change: the successful operation with its verification, or the person's
+  verification note.
+- Bug or incident: a passing affected-flow check, plus a successful production deployment when a fix
+  shipped. A person may record a non-deploy reason instead.
+- Feature request: routed to Jon's decision queue, recorded as "not delivered".
+
+**Closure.** Nothing is auto-resolved for silence. `settings.closure` can close resolved tickets after N
+days and closes on client confirmation.
+
+**Replies after resolution** are never reopened blindly. They are marked "Client replied" and routed:
+- "still broken" → reopen
+- thanks only → dismissed
+- a different request → a new linked ticket in the same conversation
+- unclear → a person decides from the ticket banner
+
+The model helps only if it is configured.
+
+**Time.** `ticket_timers` reconstructs the following from the event history:
+- age
+- our clock, in wall time and business time
+- waits on the customer and on third parties, and scheduled time
+- time per status
+- first response, first resolution and latest resolution
+
+Waits on the customer, a third party or scheduled work pause our clock. Internal and deployment waits do
+not. First-response targets use business hours (`settings.business_hours`, holidays included) and are
+**internal targets** unless `settings.sla.contractual` is true. Acknowledgements and Bloom progress notes are
+not meaningful responses and do not stop the clock.
+
+Due soon, overdue and stalled are shown on every ticket and queue.
+
+**Intake.** All intake writes to Postgres before any AI runs:
+- the CRM, BloomSites and POS buttons (POS has an offline queue)
+- the public form
+- the support inbox and authorized forwards (a staff forwarder with DKIM and SPF passing)
+- manual staff entry ("New ticket")
+- ChatGPT/MCP
+
+Source event ids and idempotency keys stop duplicates. Merging is only allowed within one client:
+- messages, attachments and source references are kept
+- the old ticket points to the new one, and email replies follow the merge
+- merged tickets and spam are excluded from metrics
+
+Different clients link to a **shared problem** instead: one investigation, private conversations.
+Attachment failures during intake are reported in the response and logged.
+
+**Email.**
+- Threading uses Message-ID, In-Reply-To, References and the `[Bloom #N]` subject tag.
+- Attachments are kept.
+- CC is kept only for **verified contacts of the same client**. Nobody is added because an email asked.
+- Delivered, bounced and complained events come from the same Resend webhook.
+- Out-of-office, mailing-list and loop guards apply; provider spam verdicts are ignored rather than filed.
+- Quoted history is stripped; HTML is converted to text.
+- Ambiguous sends are retried with the same provider idempotency key and Message-ID. Resend deduplicates
+  for 24 hours; exactly-once is not promised beyond that.
+- When a person takes over, the client asks for a person, or the client writes again, Bloom's queued
+  replies and actions are invalidated before they can send.
+
+**Permissions.** Unchanged roles. Revocation takes effect on the next call: deactivated people lose access,
+and queued operations re-check the confirming person's permission. Clients see only their own or their
+verified account's tickets, with plain-language progress. They never see internal notes, raw context or
+engineering detail. A ticket number alone grants nothing.
+
+**Staff interface** (`/admin/bloom-support`):
+- Queue views: Needs attention, Assigned to me, All open, Unassigned, Urgent, Due soon, Overdue, Waiting on
+  customer, Needs Jon/Jeff, Recently resolved.
+- Search by number, client, requester or text.
+- Filters: product, priority, type, owner, age. Sorting. Saved views. Keyset pagination ("Load more").
+- Keyboard ↑/↓ moves between tickets.
+- Bulk assign, tag and status. Resolve, Needs Jon/Jeff, or more than 20 tickets asks you to type the count.
+- Ticket detail shows:
+  - client, product, type, environment, source; accountable owner vs executor; deadlines; flags
+  - the conversation; a public/internal composer with an unmistakable switch; attachments
+  - related tickets, shared problem and engineering
+  - Bloom's jobs, status and assignment history, timers, resolution evidence; merge and spam
+- Also: Problems, Reports, Readiness and Settings tabs. Support configuration covers targets, business hours,
+  clock pausing, notifications, digests, closure, retention, automation scopes, limits, model and default
+  owner.
+
+**Client experience:**
+- CRM users: `/support` lists their requests. They can reply, attach files, see plain-language progress,
+  confirm "Yes, it's fixed", say "It's still happening", or ask to "Talk to a person".
+- BloomSites and POS users: they submit in their product and follow progress through the tracking link in
+  every email, and by replying to email. An in-product ticket list exists only in the CRM; see §9.
+
+**Notifications and escalation** (sweeps every minute in the worker and every 5 minutes in the watchdog):
+- What triggers one:
+  - new urgent tickets
+  - unassigned tickets past a threshold
+  - response targets approaching or missed
+  - overdue next actions
+  - stalled work
+  - bounces
+  - failed automation
+  - failed deployment or verification
+  - decisions needed
+- Every notification is deduplicated with a cooldown key.
+- Several clients reporting the same category within 2 hours become **one incident** with one alert.
+- Escalations have an owner, reason, evidence, recommendation, deadline and fallback.
+- Daily and weekly summaries (`settings.digest`) go to **staff recipients only**.
+- Staff notification emails are off by default (`settings.notifications.email_staff`).
+
+**Reporting** (`GET /reports/metrics`, MCP `support_metrics`, Reports tab). Every metric carries its
+definition and denominator. Spam and merged tickets are excluded.
+- Open tickets by status, priority, product, client and owner.
+- Daily incoming, resolved and **backlog reconstructed from event history**.
+- Age distribution.
+- Median and p90 for first response (business and wall time), first resolution and final resolution.
+- Overdue now.
+- Reopen rate (reopened ÷ first resolved).
+- Person vs Bloom resolutions.
+- **Verified autonomous** resolutions: Bloom-resolved, verified, no person's public reply, not reopened.
+- Dead jobs, model calls and tokens.
+
+**Bloom execution controls:**
+- the global pause
+- per-scope pauses (`settings.automation_scopes`: triage, answer, email, operations, engineering)
+- per-client pause
+- per-client lanes
+- one engineering job per repository at a time
+- at most 2 repair attempts and 2 concurrent repairs
+- 20 triage passes per ticket per day
+- model budgets
+- invalidation of stale plans
+
+**Retention.** `redact_ticket`, available to an administrator with a reason, removes the content and
+attachments but keeps the ticket row, its event history and the audit log. Automatic redaction
+(`settings.retention`) is off by default and its sweep is not implemented yet (see §9).
 
 ## 4. Architecture (unchanged in shape)
 
@@ -132,7 +308,7 @@ The REST API at `…/bloom-support-api` has the same capabilities, for Custom GP
    authenticates its own callers).
 3. `bloom-support-release.yml` applies, in order and once each:
    `20261031120000_bloom_support_core`, `…120100_functions`, `…120200_gateway`, `…120300_campaign_ops`,
-   `…140000_operations_hardening`.
+   `…140000_operations_hardening`, `…150000_desk`.
    It records them under their file versions in migration history, creates the Vault worker token, schedules
    `bloom-support-worker` (every minute) and `bloom-support-watchdog` (every 5 minutes), and waits for a
    worker heartbeat. If any of that fails it opens an issue.
@@ -230,6 +406,18 @@ existing domains). Forward the current support mailbox to it, and add the `email
 - **Audit:** `bloom_support.activity` is append-only and shown on every ticket. `bloom_support.alerts` lists
   watchdog findings.
 
+
+### Backups, migrations and pausing safely
+- **Backups:** Bloom Support data lives in the CRM Postgres database, so it is covered by the project's
+  Supabase backups (daily / PITR as configured on the plan). Attachments live in Storage bucket
+  `bloom-support`. Restore follows the normal Supabase restore. `ticket_events` and `activity` are
+  append-only, so they are a reliable audit trail after a restore.
+- **Migrations:** only through `bloom-support-release.yml` on `main` (or by hand, in order, once each). Never
+  edit an applied migration; add a new one.
+- **Pause automation, keep intake:** turn off "Bloom automation", or turn off a single scope in Support
+  configuration → Automation scopes. Intake, email receipt, deadlines, notifications and the dashboard keep
+  working.
+
 ## 9. Gaps (honest list)
 
 - Production deployment waits on the merge. Nothing is live today.
@@ -250,6 +438,16 @@ existing domains). Forward the current support mailbox to it, and add the `email
 - The repair agent self-reports reproduction and verification URLs; the independent review is the check on
   that.
 - No browser walk was run.
+- An in-product ticket list exists only in the CRM. BloomSites and POS clients track tickets with the emailed
+  tracking link and by replying to email.
+- Automatic retention redaction is configurable but not scheduled. `redact_ticket` is manual (administrator,
+  with a reason).
+- Conflicting fix PRs are caught only by GitHub's own mergeability and the one-job-per-repository rule.
+  Superseded deployments are not detected separately.
+- The public form uses rate limits and a honeypot. There is no CAPTCHA or email confirmation step; the
+  requester sees the ticket only through the emailed tracking link.
+- Staff dashboard prompts use simple browser dialogs for some actions (waiting reason, merge target,
+  evidence notes). They work, but a richer form is future polish.
 - BloomSites: one pre-existing type error on an unchanged line (`DashboardTopBar.tsx:183`).
 - CRM: one pre-existing vitest failure (`campaignSendingDesignRefresh`).
 
@@ -261,7 +459,13 @@ then `BLOOM_E2E_BUNDLE_DIR=… deno test -A …/e2e_test.ts`.
 
 Results 2026-10-31 (local, Postgres 16, Deno 2):
 
-- SQL contract: passed. On top of the earlier coverage, it adds:
+- SQL contract: passed, including 12 new desk sections: transitions and waiting reasons; Needs Jon/Jeff
+  escalations; resolution evidence per type; meaningful responses vs acknowledgements; timers and business
+  hours (holidays, Friday → Monday); same-client merges and cross-client refusal with email redirect;
+  post-resolution routing; client actions; stale-plan invalidation; revocation of a queued confirmation;
+  confirmed bulk actions; shared problems (one investigation, private conversations); spam exclusion; scoped
+  and per-client pauses; bounces; keyset pagination; event-based metrics; digests; redaction keeping the
+  audit; deduplicated notifications. Before those, it already covered:
   - evidence-required resolution
   - campaign fingerprint, no-audience refusal, preview contents
   - service identities
@@ -272,8 +476,15 @@ Results 2026-10-31 (local, Postgres 16, Deno 2):
   - OAuth staff-only, single-use codes, rotating refresh
   - readiness facts
 - Unit: 12/12.
-- End-to-end: 13/13 steps against source **and** against the deploy bundles. On top of the earlier flows, it
+- End-to-end: 14/14 steps against source **and** against the deploy bundles. On top of the earlier flows, it
   adds:
+  - support desk: queue views and saved views; attachment authorization across clients
+  - client "talk to a person" invalidating a planned Bloom reply
+  - same-client CC kept and a stranger dropped; bounce webhook
+  - an ambiguous send retried with the same idempotency key and Message-ID
+  - an authorized staff forward
+  - thanks-after-resolution dismissed and client confirmation closing the ticket
+  - reporting definitions and access
   - the campaign preview showing client/audience/content/timing, and a stale preview refused
   - worker heartbeat; wrong or no worker token refused
   - readiness honesty
