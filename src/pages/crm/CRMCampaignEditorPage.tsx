@@ -1,3 +1,4 @@
+import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
 import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
 import AspectRatio from "@mui/joy/AspectRatio";
@@ -23,7 +24,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  Calendar,
   Check,
   CheckCircle2,
   Pencil,
@@ -564,6 +564,7 @@ function CampaignEditorScreen() {
     isLoading,
     isLocked,
     isSaving,
+    isDirty,
     lastSavedAt,
     autoSaveStatus,
     autoSaveMessage,
@@ -1105,6 +1106,10 @@ function CampaignEditorScreen() {
   // blocks so the send confirmation can require an explicit acknowledgment
   // before emailing likely-unfinished content to real customers. Soft
   // warning, never a hard block — false positives are possible.
+  const contentReviewIssues = React.useMemo(
+    () => reviewCampaignContent(contentBlocks),
+    [contentBlocks],
+  );
   const placeholderWarningLines = React.useMemo(
     () =>
       campaignType === "email"
@@ -1117,9 +1122,10 @@ function CampaignEditorScreen() {
             // literally. Well-formed tokens render per-recipient and are
             // not flagged.
             ...scanSubjectForUnrenderedTokens(subjectLine),
+            ...contentReviewIssues.map((issue) => issue.message),
           ]
         : [],
-    [campaignType, contentBlocks, subjectLine],
+    [campaignType, contentBlocks, subjectLine, contentReviewIssues],
   );
 
   const sendButtonDisabled =
@@ -1495,14 +1501,31 @@ function CampaignEditorScreen() {
                   {formatStatusLabel(sendBlockedReason)}
                 </Chip>
               ) : null}
-              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                {isSaving
-                  ? "Saving draft…"
-                  : lastSavedAt
-                    ? `Last saved ${lastSavedAt.toLocaleTimeString()}`
-                    : campaignId
-                      ? "Saved"
-                      : "New draft"}
+              {autoSaveStatus === "failed" || autoSaveStatus === "error" ? (
+                <JoyButton
+                  variant="outlined"
+                  color="neutral"
+                  onClick={() => void saveDraft({ silent: false })}
+                >
+                  Couldn’t save · Retry
+                </JoyButton>
+              ) : null}
+              <Typography
+                role="status"
+                level="body-xs"
+                sx={{ color: "neutral.500" }}
+              >
+                {autoSaveStatus === "failed" || autoSaveStatus === "error"
+                  ? "Your latest changes have not been saved"
+                  : isSaving
+                    ? "Saving…"
+                    : isDirty
+                      ? "Unsaved changes"
+                      : lastSavedAt
+                        ? "All changes saved"
+                        : campaignId
+                          ? "Saved"
+                          : "New draft"}
               </Typography>
             </Stack>
           </Stack>
@@ -1569,7 +1592,7 @@ function CampaignEditorScreen() {
                 level="title-sm"
                 sx={{ fontWeight: 700, color: "neutral.900" }}
               >
-                Send or schedule
+                {campaignType === "email" && !reviewingNewsletter ? "Design your newsletter" : "Review your campaign"}
               </Typography>
               <Typography
                 level="body-xs"
@@ -1579,11 +1602,13 @@ function CampaignEditorScreen() {
                   lineHeight: 1.4,
                 }}
               >
-                {sendBlockerLines.length > 0
+                {campaignType === "email" && !reviewingNewsletter
+                  ? "Start with your content. Review the subject and audience next."
+                  : sendBlockerLines.length > 0
                   ? sendBlockerLines[0]
                   : isAudienceLoading
                     ? "Checking your audience…"
-                    : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving draft…" : "Ready for final review"}`}
+                    : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving…" : "Ready for final review"}`}
               </Typography>
               {blockerSignals.senderUnverified ? (
                 <JoyButton
@@ -1607,27 +1632,25 @@ function CampaignEditorScreen() {
           >
             <JoyButton
               size="md"
-              variant="outlined"
-              color="neutral"
-              disabled={sendButtonDisabled}
-              startDecorator={<Calendar size={16} aria-hidden="true" />}
-              onClick={handleScheduleForLater}
-              sx={{ minHeight: 44, flex: { xs: 1, sm: "none" } }}
-              data-testid="campaign-editor-schedule-cta"
-            >
-              Schedule
-            </JoyButton>
-            <JoyButton
-              size="md"
               variant="solid"
               color="primary"
-              disabled={sendButtonDisabled}
+              disabled={
+                reviewingNewsletter || campaignType !== "email"
+                  ? sendButtonDisabled
+                  : isLocked || Boolean(pendingTemplateSave)
+              }
               startDecorator={<Send size={16} aria-hidden="true" />}
-              onClick={openSendConfirmation}
+              onClick={
+                campaignType === "email" && !reviewingNewsletter
+                  ? handleOpenStudio
+                  : openSendConfirmation
+              }
               sx={{ minHeight: 44, flex: { xs: 1, sm: "none" } }}
               data-testid="campaign-editor-review-send-cta"
             >
-              Review & send
+              {campaignType === "email" && !reviewingNewsletter
+                ? "Open Design Studio"
+                : "Review & send"}
             </JoyButton>
           </Stack>
         </Stack>
@@ -1807,6 +1830,7 @@ function CampaignEditorScreen() {
         >
           {reviewingNewsletter || isLocked ? (
             <NewsletterInboxReview
+              campaignId={campaignId}
               blocks={contentBlocks}
               subject={subjectLine}
               preview={preheaderText}
@@ -2620,6 +2644,93 @@ function CampaignEditorScreen() {
         builderWarnings={sendWarningLines}
         builderBlockers={sendBlockerLines}
         placeholderWarnings={placeholderWarningLines}
+        onEditContent={() => {
+          setSendConfirmOpen(false);
+          void handleOpenStudio();
+        }}
+        onSchedule={() => {
+          setSendConfirmOpen(false);
+          handleScheduleForLater();
+        }}
+        reviewContent={
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+              {[
+                ["Sender", "campaign-editor-setup"],
+                ["Subject", "campaign-editor-inbox"],
+                ["Audience", "campaign-editor-audience"],
+              ].map(([label, section]) => (
+                <JoyButton
+                  key={label}
+                  variant="outlined"
+                  color="neutral"
+                  onClick={() => {
+                    setSendConfirmOpen(false);
+                    if (section === "campaign-editor-inbox")
+                      setProcessParams({ step: "review" });
+                    requestAnimationFrame(() => {
+                      const target = document.getElementById(section);
+                      target
+                        ?.querySelector<HTMLElement>(
+                          '[role="button"][aria-expanded="false"]',
+                        )
+                        ?.click();
+                      target?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    });
+                  }}
+                >
+                  Edit {label.toLowerCase()}
+                </JoyButton>
+              ))}
+            </Stack>
+            {campaignType === "email" ? (
+              <details>
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    padding: "12px 0",
+                    fontWeight: 600,
+                  }}
+                >
+                  Review newsletter preview
+                </summary>
+                <ContentPreviewCard
+                  blocks={contentBlocks}
+                  subjectLine={subjectLine}
+                  previewText={preheaderText}
+                  designSystem={designSystem}
+                  loading={isDesignSystemLoading}
+                  onOpenStudio={() => {
+                    setSendConfirmOpen(false);
+                    void handleOpenStudio();
+                  }}
+                />
+              </details>
+            ) : (
+              <Typography>{smsMessage}</Typography>
+            )}
+            {contentReviewIssues.map((issue) => (
+              <JoyButton
+                key={`${issue.blockId}-${issue.message}`}
+                variant="outlined"
+                color="neutral"
+                onClick={async () => {
+                  setSendConfirmOpen(false);
+                  const savedId = await saveDraft({ silent: true });
+                  if (savedId)
+                    navigate(
+                      `/crm/campaigns/${savedId}/studio?block=${encodeURIComponent(issue.blockId)}`,
+                    );
+                }}
+              >
+                {issue.message} Fix in Studio
+              </JoyButton>
+            ))}
+          </Stack>
+        }
       />
       <SenderVerificationDialog
         open={verificationOpen}
