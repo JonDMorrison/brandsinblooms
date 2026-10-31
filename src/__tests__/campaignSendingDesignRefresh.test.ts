@@ -15,11 +15,12 @@ describe("campaign sending design and palette invariants", () => {
     expect(sendPosition).toBeLessThan(contentPosition);
     expect(editor).toContain('position: "sticky"');
     expect(editor).toContain('data-testid="campaign-editor-review-send-cta"');
-    expect(editor).toContain('data-testid="campaign-editor-schedule-cta"');
+    expect(editor).toContain("<CampaignScheduleDrawer");
+    expect(editor).toContain("onSchedule={() => {");
     expect(editor).toContain('data-testid="campaign-editor-fix-sender"');
     expect(editor).toContain("disabled={sendButtonDisabled}");
     expect(editor).toContain("onClick={openSendConfirmation}");
-    expect(editor).toContain("onClick={handleScheduleForLater}");
+    expect(editor).toContain("handleScheduleForLater();");
     expect(editor).not.toContain("scheduleInitiallyExpanded");
     expect(editor).not.toContain("previewManuallyToggledRef");
     expect((editor.match(/<CampaignBlockerRow/g) ?? []).length).toBe(1);
