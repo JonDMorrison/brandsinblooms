@@ -549,6 +549,11 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(attempts.length, 2, "one failed attempt, one retry");
     assertEquals(attempts[0].idem, attempts[1].idem, "same provider idempotency key");
     assertEquals(attempts[0].headers["Message-ID"], attempts[1].headers["Message-ID"], "same Message-ID");
+    // The retry resends the recorded payload byte for byte (a rebuilt email would carry a new tracking
+    // link under the same idempotency key, which the provider rejects as a different payload).
+    assertEquals(attempts[0].text, attempts[1].text, "same body on retry");
+    assertEquals(attempts[0].subject, attempts[1].subject, "same subject on retry");
+    assertEquals(JSON.stringify(attempts[0].cc ?? null), JSON.stringify(attempts[1].cc ?? null), "same cc on retry");
 
     // Authorized forward: staff forwarder with passing DKIM/SPF; the client is the requester.
     const fwd = await inbound("msg_fwd", { email_id: "efwd", from: "Jeff <jeff@bloom.test>", subject: "Fwd: website down?", message_id: "<fwd1@bloom.test>",

@@ -62,10 +62,14 @@ export interface SendResult {
 export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   const cfg = emailConfig();
   const rfcId = newMessageId(cfg.replyDomain);
-  const queued = await rpc<{ id: string; status: string; duplicate: boolean; rfc_message_id: string; provider_id: string | null }>("queue_outbound_email", {
+  const queued = await rpc<{
+    id: string; status: string; duplicate: boolean; rfc_message_id: string; provider_id: string | null;
+    to_email: string; subject: string; body: string; in_reply_to: string | null; cc: string[] | null;
+  }>("queue_outbound_email", {
     email: {
       ticket_id: req.ticketId, message_id: req.messageId ?? null, purpose: req.purpose, to: req.to, subject: req.subject, body: req.text,
       rfc_message_id: rfcId, in_reply_to: req.inReplyTo ?? null, idempotency_key: req.idempotencyKey, bloom_initiated: req.bloomInitiated,
+      cc: req.cc ?? [],
     },
   });
   // A previous attempt the provider never accepted (unknown outcome, rejected, or not yet configured)
@@ -74,6 +78,12 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   const retry = queued.duplicate && ["uncertain", "queued", "failed", "not_configured"].includes(queued.status) && !queued.provider_id;
   if (queued.duplicate && !retry) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true };
   if (queued.status === "suppressed") return { id: queued.id, status: "suppressed", duplicate: false, reason: "ticket under human control" };
+  // A retry sends exactly what the first attempt recorded. Rebuilding the email (for example with a
+  // fresh tracking link) would change the payload under the same idempotency key, which the provider
+  // rejects, so the stored ledger copy is authoritative.
+  if (retry) {
+    req = { ...req, to: queued.to_email, subject: queued.subject, text: queued.body, inReplyTo: queued.in_reply_to, cc: queued.cc ?? [] };
+  }
 
   if (req.toClient) {
     const enabled = await rpc<boolean>("setting", { key: "client_email_enabled" });

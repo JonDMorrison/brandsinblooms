@@ -1437,8 +1437,9 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE o bloom_support.outbound_emails; t bloom_support.tickets;
 BEGIN
   IF p->>'ticket_id' IS NOT NULL THEN SELECT * INTO t FROM bloom_support.tickets WHERE id = (p->>'ticket_id')::uuid; END IF;
-  INSERT INTO bloom_support.outbound_emails(ticket_id, message_id, purpose, to_email, subject, body, rfc_message_id, in_reply_to, idempotency_key, status)
+  INSERT INTO bloom_support.outbound_emails(ticket_id, message_id, purpose, to_email, subject, body, rfc_message_id, in_reply_to, idempotency_key, cc, status)
   VALUES ((p->>'ticket_id')::uuid, (p->>'message_id')::uuid, p->>'purpose', lower(p->>'to'), p->>'subject', p->>'body', p->>'rfc_message_id', p->>'in_reply_to', p->>'idempotency_key',
+    coalesce(ARRAY(SELECT lower(x) FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(p->'cc') = 'array' THEN p->'cc' ELSE '[]'::jsonb END) x), '{}'),
     CASE WHEN coalesce((p->>'bloom_initiated')::boolean, false) AND t.automation <> 'auto' THEN 'suppressed' ELSE 'queued' END)
   ON CONFLICT (idempotency_key) DO NOTHING RETURNING * INTO o;
   IF o.id IS NULL THEN
