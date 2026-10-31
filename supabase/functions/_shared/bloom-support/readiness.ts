@@ -14,6 +14,7 @@ interface Facts {
   cron: { worker: boolean; watchdog: boolean };
   vault: { worker_token: boolean; alert_resend_key: boolean };
   worker: { last_started_at: string | null; last_finished_at: string | null; runs_24h: number; processed_24h: number };
+  queue: { queued: number; running: number; oldest_ready_queued_at: string | null; dead_24h: number; failed_retrying: number };
   last_seen: Record<string, string | null>;
   staff: Array<{ name: string | null; email: string | null; role: string }>;
   open_alerts: unknown[];
@@ -51,6 +52,15 @@ export async function readiness(caller: Caller) {
     { key: "watchdog", label: "Independent failure alerts (pg_cron, no Edge Function)", implemented: true, configured: f.cron.watchdog,
       missing: [...(f.cron.watchdog ? [] : ["cron job bloom-support-watchdog"]), ...(f.vault.alert_resend_key ? [] : ["vault secret bloom_support_alert_resend_key (email delivery of alerts)"]), ...((owners.jon?.length || owners.jeff?.length) ? [] : ["settings.owners emails"])],
       tested: "SQL: watchdog, fallback alerts", enabled: true, live: null, note: f.vault.alert_resend_key ? undefined : "Alerts are recorded and shown in-app only until the Resend key is in Vault" },
+    { key: "queue", label: "Job queue health", implemented: true, configured: true, missing: [],
+      tested: "e2e: crash recovery, retries, scoped pauses", enabled: automation,
+      live: f.queue.oldest_ready_queued_at && Date.now() - Date.parse(f.queue.oldest_ready_queued_at) > 15 * 60_000 ? null : workerLive,
+      note: `${f.queue.queued} queued, ${f.queue.running} running, ${f.queue.failed_retrying} retrying, ${f.queue.dead_24h} failed in 24h` +
+        (f.queue.oldest_ready_queued_at ? `; oldest ready job waiting since ${f.queue.oldest_ready_queued_at}` : "") },
+    { key: "desk", label: "Support desk (works without AI)", implemented: true, configured: true, missing: [],
+      tested: "SQL: transitions, timers, merge, notifications, metrics; e2e: views, client actions, CC, bounces",
+      enabled: true, live: recent(f.last_seen.intake_crm ?? f.last_seen.intake_email, 30),
+      note: `Targets: ${JSON.stringify((s.sla as Record<string, unknown> | undefined)?.first_response_business_hours ?? {})} business hours (${(s.sla as Record<string, unknown> | undefined)?.contractual ? "contractual" : "internal"}); paused scopes: ${Object.entries((s.automation_scopes ?? {}) as Record<string, boolean>).filter(([, v]) => v === false).map(([k]) => k).join(", ") || "none"}` },
     { key: "intake_crm", label: "CRM Get help / Support page", implemented: true, configured: true, missing: [], tested: "e2e: CRM intake + duplicate delivery", enabled: true,
       live: recent(f.last_seen.intake_crm, 30), note: "Needs the CRM frontend deployed from the merged PR" },
     { key: "intake_cms", label: "BloomSites Get help", implemented: true, configured: !!env("BLOOM_INTAKE_SECRET_CMS"), missing: need("BLOOM_INTAKE_SECRET_CMS"),

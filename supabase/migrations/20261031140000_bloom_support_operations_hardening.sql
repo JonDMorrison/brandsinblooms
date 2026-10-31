@@ -342,7 +342,12 @@ BEGIN
     EXECUTE 'SELECT EXISTS (SELECT 1 FROM vault.decrypted_secrets WHERE name = ''bloom_support_worker_token''), EXISTS (SELECT 1 FROM vault.decrypted_secrets WHERE name = ''bloom_support_alert_resend_key'')' INTO vault_token, vault_alert;
   END IF;
   RETURN jsonb_build_object(
-    'settings', (SELECT jsonb_object_agg(key, value) FROM bloom_support.settings WHERE key IN ('automation_enabled','client_email_enabled','auto_release_enabled','ai','owners','limits')),
+    'settings', (SELECT jsonb_object_agg(key, value) FROM bloom_support.settings WHERE key IN ('automation_enabled','client_email_enabled','auto_release_enabled','ai','owners','limits',
+                 'automation_scopes','notifications','sla','business_hours','digest','closure','retention')),
+    'queue', (SELECT jsonb_build_object('queued', count(*) FILTER (WHERE status = 'queued'), 'running', count(*) FILTER (WHERE status = 'running'),
+                 'oldest_ready_queued_at', min(run_after) FILTER (WHERE status = 'queued' AND run_after <= now()),
+                 'dead_24h', count(*) FILTER (WHERE status = 'dead' AND updated_at > now() - interval '1 day'),
+                 'failed_retrying', count(*) FILTER (WHERE status = 'queued' AND attempts > 0)) FROM bloom_support.jobs),
     'release_policy_set', (SELECT value <> '{}'::jsonb FROM bloom_support.settings WHERE key = 'release_policy'),
     'cron', jsonb_build_object('worker', cron_worker, 'watchdog', cron_watchdog),
     'vault', jsonb_build_object('worker_token', vault_token, 'alert_resend_key', vault_alert),

@@ -14,10 +14,24 @@ import Switch from "@mui/joy/Switch";
 import Alert from "@mui/joy/Alert";
 import Link from "@mui/joy/Link";
 import Skeleton from "@mui/joy/Skeleton";
+import Box from "@mui/joy/Box";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { Inbox } from "lucide-react";
+
+type Dur = { n: number; median_seconds?: number | null; p90_seconds?: number | null; median_business_seconds?: number | null; p90_business_seconds?: number | null };
+interface Metrics {
+  definitions: Record<string, string>;
+  daily: Array<{ day: string; incoming: number; resolved: number; backlog: number }>;
+  first_response: Dur; first_resolution: Dur; final_resolution: Dur;
+  reopen_rate: { rate: number | null; reopened: number; denominator: number };
+  overdue_now: number;
+  handling: { by_person: number; by_bloom: number; verified_autonomous: number };
+  automation: { dead_jobs: number; model_calls: number; model_tokens: number };
+  open_by: { status: Record<string, number>; priority: Record<string, number>; product: Record<string, number> };
+  age_distribution: Record<string, number>;
+}
 
 function useAction() {
   const qc = useQueryClient();
@@ -275,6 +289,8 @@ export function SettingsPanel({ me }: { me: Whoami }) {
           <Typography level="body-xs" sx={{ mt: 1 }}>{JSON.stringify(s.owners ?? {})}</Typography>
         </Sheet>
       )}
+      <Typography level="title-md">Support configuration</Typography>
+      <SupportConfigPanel me={me} />
       <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
         <Typography level="title-sm">People and roles</Typography>
         <Table size="sm">
@@ -387,6 +403,162 @@ export function ReadinessPanel() {
           {r.summary.open_alerts.map((a, i) => <Typography key={i} level="body-xs">{String(a.condition)} · {ago(a.created_at)} · {String(a.delivered)}</Typography>)}
         </Sheet>
       )}
+    </Stack>
+  );
+}
+
+export function ProblemsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => void }) {
+  const q = useQuery({ queryKey: ["bloom-support", "problems"], queryFn: () => bloomSupport.problems() });
+  const { run, error } = useAction();
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
+  return (
+    <Stack spacing={1}>
+      {error && <Alert color="danger">{error}</Alert>}
+      <Stack direction="row"><Button size="sm" onClick={() => { const title = window.prompt("Problem or incident title"); if (title) run(() => bloomSupport.createProblem({ title })); }}>New shared problem</Button></Stack>
+      {!q.data?.length && <Empty title="No shared problems" description="When several clients hit the same issue, link their tickets to one problem: one investigation, separate private conversations." />}
+      {(q.data ?? []).map((p) => {
+        const tickets = (p.tickets as Array<{ id: string; number: number; status: string; account: string | null }>) ?? [];
+        const eng = p.engineering as { status: string; pr_url: string | null } | null;
+        return (
+          <Sheet key={String(p.id)} variant="outlined" sx={{ p: 1.5, borderRadius: "md" }}>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Chip size="sm" color={p.kind === "incident" ? "danger" : "neutral"}>{String(p.kind)}</Chip>
+              <Typography level="title-sm">{String(p.title)}</Typography>
+              <Chip size="sm" variant="outlined">{String(p.status)}</Chip>
+              <Typography level="body-xs">{tickets.length} tickets · {new Set(tickets.map((t) => t.account)).size} clients</Typography>
+              {eng && <Typography level="body-xs">Engineering: {eng.status}{eng.pr_url ? <> · <Link href={eng.pr_url} target="_blank" rel="noopener">PR</Link></> : null}</Typography>}
+            </Stack>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+              {tickets.map((t) => <Link key={t.id} level="body-xs" component="button" onClick={() => onOpenTicket(t.id)}>#{t.number} {t.account ?? ""} ({t.status})</Link>)}
+            </Stack>
+            <Typography level="body-xs" textColor="text.tertiary" sx={{ mt: 0.5 }}>Closing a problem never resolves its tickets; each is verified for its own client.</Typography>
+          </Sheet>
+        );
+      })}
+    </Stack>
+  );
+}
+
+const fmtDur = (s: unknown) => {
+  const n = Number(s);
+  if (!Number.isFinite(n) || s === null) return "—";
+  if (n < 3600) return `${Math.round(n / 60)}m`;
+  if (n < 86400) return `${(n / 3600).toFixed(1)}h`;
+  return `${(n / 86400).toFixed(1)}d`;
+};
+
+export function ReportsPanel() {
+  const [days, setDays] = useState("30");
+  const q = useQuery({ queryKey: ["bloom-support", "metrics", days], queryFn: () => bloomSupport.metrics(new Date(Date.now() - Number(days) * 86400e3).toISOString()) });
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
+  const m = q.data as unknown as Metrics;
+  const defs = m.definitions;
+  const daily = m.daily ?? [];
+  const max = Math.max(1, ...daily.map((d) => Math.max(d.incoming, d.resolved, d.backlog)));
+  const stat = (label: string, value: string, def?: string) => (
+    <Sheet variant="outlined" sx={{ p: 1.25, borderRadius: "md", minWidth: 150 }}>
+      <Typography level="body-xs" textColor="text.tertiary">{label}</Typography>
+      <Typography level="title-lg">{value}</Typography>
+      {def && <Typography level="body-xs" textColor="text.tertiary">{def}</Typography>}
+    </Sheet>
+  );
+  return (
+    <Stack spacing={1.5}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Typography level="title-sm">Range</Typography>
+        <Select size="sm" value={days} onChange={(_, v) => v && setDays(v)}>{["7", "30", "90"].map((d) => <Option key={d} value={d}>Last {d} days</Option>)}</Select>
+        <Typography level="body-xs" textColor="text.tertiary">{defs.targets}</Typography>
+      </Stack>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        {stat("First response (median / p90, business)", `${fmtDur(m.first_response.median_business_seconds)} / ${fmtDur(m.first_response.p90_business_seconds)}`, `n=${m.first_response.n}`)}
+        {stat("First resolution (median / p90)", `${fmtDur(m.first_resolution.median_seconds)} / ${fmtDur(m.first_resolution.p90_seconds)}`, `n=${m.first_resolution.n}`)}
+        {stat("Final resolution (median / p90)", `${fmtDur(m.final_resolution.median_seconds)} / ${fmtDur(m.final_resolution.p90_seconds)}`, `n=${m.final_resolution.n}`)}
+        {stat("Reopen rate", m.reopen_rate.rate === null ? "—" : `${Math.round(m.reopen_rate.rate * 100)}%`, `${m.reopen_rate.reopened} of ${m.reopen_rate.denominator} first resolved`)}
+        {stat("Overdue now", String(m.overdue_now))}
+        {stat("Resolved: person / Bloom", `${m.handling.by_person} / ${m.handling.by_bloom}`, `${m.handling.verified_autonomous} verified autonomous`)}
+        {stat("Automation", `${m.automation.dead_jobs} failed jobs`, `${m.automation.model_calls} model calls · ${m.automation.model_tokens} tokens`)}
+      </Stack>
+      <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md", overflowX: "auto" }}>
+        <Typography level="title-sm">Incoming, resolved and backlog per day</Typography>
+        <Table size="sm" aria-label="Daily volume">
+          <thead><tr><th>Day</th><th>Incoming</th><th>Resolved</th><th>Backlog (end of day)</th></tr></thead>
+          <tbody>
+            {daily.slice(-31).map((d) => (
+              <tr key={d.day}>
+                <td>{d.day}</td>
+                <td><Box sx={{ display: "flex", alignItems: "center", gap: 1 }}><Box sx={{ height: 8, width: `${(d.incoming / max) * 120}px`, bgcolor: "primary.400", borderRadius: 2 }} />{d.incoming}</Box></td>
+                <td><Box sx={{ display: "flex", alignItems: "center", gap: 1 }}><Box sx={{ height: 8, width: `${(d.resolved / max) * 120}px`, bgcolor: "success.400", borderRadius: 2 }} />{d.resolved}</Box></td>
+                <td>{d.backlog}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </Sheet>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+        {(["status", "priority", "product"] as const).map((k) => (
+          <Sheet key={k} variant="outlined" sx={{ p: 1.5, borderRadius: "md", flex: 1 }}>
+            <Typography level="title-sm">Open by {k}</Typography>
+            {Object.entries(m.open_by[k]).map(([a, n]) => <Typography key={a} level="body-sm">{a}: {n}</Typography>)}
+          </Sheet>
+        ))}
+        <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", flex: 1 }}>
+          <Typography level="title-sm">Open by age</Typography>
+          {Object.entries(m.age_distribution).map(([a, n]) => <Typography key={a} level="body-sm">{a.replace("_", " ")}: {n}</Typography>)}
+        </Sheet>
+      </Stack>
+      <Sheet variant="soft" sx={{ p: 1.5, borderRadius: "md" }}>
+        <Typography level="title-sm">Definitions</Typography>
+        {Object.entries(defs).map(([k, v]) => <Typography key={k} level="body-xs"><strong>{k}</strong>: {v}</Typography>)}
+      </Sheet>
+    </Stack>
+  );
+}
+
+const CONFIG_KEYS: Array<{ key: string; label: string; help: string }> = [
+  { key: "sla", label: "Response targets", help: "Internal targets (first_response_business_hours per priority, due_soon_minutes, stale_hours). Set contractual=true only for an agreed SLA." },
+  { key: "business_hours", label: "Business hours & holidays", help: "timezone, days (1=Mon…7), start, end, holidays [\"YYYY-MM-DD\"]." },
+  { key: "timers", label: "Clock pausing", help: "Waiting reasons that pause our clock. Internal and deployment waits should keep it running." },
+  { key: "notifications", label: "Notifications", help: "urgent_new, unassigned_minutes, response_warning_minutes, next_action_overdue, stalled, email_staff." },
+  { key: "digest", label: "Daily / weekly summary", help: "Staff recipients only. hour is local business-hours time." },
+  { key: "closure", label: "Closure policy", help: "Only resolved tickets are closed automatically. Waiting tickets are never auto-resolved." },
+  { key: "retention", label: "Retention", help: "redact_resolved_after_days (null = keep). Redaction keeps events and audit." },
+  { key: "automation_scopes", label: "Automation scopes", help: "Pause triage, answer, email, operations or engineering separately. Intake always continues." },
+  { key: "limits", label: "Usage limits", help: "Model calls, tickets per client, repair attempts and concurrency." },
+  { key: "ai", label: "Model", help: "OpenAI API model id and per-client budget (billed to the API account)." },
+  { key: "support", label: "Accountability", help: "default_owner_email: who is accountable for unassigned tickets (defaults to Jon)." },
+];
+
+export function SupportConfigPanel({ me }: { me: Whoami }) {
+  const settings = useQuery({ queryKey: ["bloom-support", "settings"], queryFn: () => bloomSupport.settings() });
+  const [editing, setEditing] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const { run, error, pending } = useAction();
+  const canEdit = me.permissions.includes("admin.policy");
+  if (settings.isLoading) return <Loading />;
+  return (
+    <Stack spacing={1}>
+      {error && <Alert color="danger">{error}</Alert>}
+      {CONFIG_KEYS.map((c) => (
+        <Sheet key={c.key} variant="outlined" sx={{ p: 1.5, borderRadius: "md" }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <div><Typography level="title-sm">{c.label}</Typography><Typography level="body-xs">{c.help}</Typography></div>
+            {canEdit && editing !== c.key && <Button size="sm" variant="outlined" onClick={() => { setEditing(c.key); setText(JSON.stringify(settings.data?.[c.key] ?? {}, null, 2)); }}>Edit</Button>}
+          </Stack>
+          {editing === c.key ? (
+            <Stack spacing={1} sx={{ mt: 1 }}>
+              <Textarea minRows={4} value={text} onChange={(e) => setText(e.target.value)} sx={{ fontFamily: "monospace", fontSize: 12 }} />
+              <Stack direction="row" spacing={1}>
+                <Button size="sm" loading={pending} onClick={() => run(async () => { await bloomSupport.setSetting(c.key, JSON.parse(text)); setEditing(null); })}>Save</Button>
+                <Button size="sm" variant="plain" onClick={() => setEditing(null)}>Cancel</Button>
+              </Stack>
+            </Stack>
+          ) : (
+            <Box component="pre" sx={{ fontSize: 11, m: 0, mt: 0.5, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{JSON.stringify(settings.data?.[c.key] ?? null)}</Box>
+          )}
+        </Sheet>
+      ))}
     </Stack>
   );
 }

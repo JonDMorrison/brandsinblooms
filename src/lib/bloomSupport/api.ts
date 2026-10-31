@@ -49,7 +49,50 @@ export interface TicketSummary {
   reopen_count?: number;
   duplicate_of?: string | null;
   resolution_verified?: boolean;
+  waiting_reason?: WaitingReason | null;
+  merged_into?: string | null;
+  merged_into_number?: number | null;
+  progress?: string;
+  executor?: "bloom" | "person";
+  executor_person?: { id: string; name: string | null } | null;
+  next_action_due_at?: string | null;
+  due_at?: string | null;
+  tags?: string[];
+  spam?: boolean;
+  pending_review?: string | null;
+  problem_id?: string | null;
+  environment?: string;
+  source_ref?: string | null;
+  first_response_at?: string | null;
+  last_customer_message_at?: string | null;
+  last_team_message_at?: string | null;
+  flags?: { overdue: boolean; due_soon: boolean; stalled: boolean; unassigned: boolean; clock_paused: boolean; response_due_at: string | null; next_due_at: string | null; targets_are_internal: boolean };
 }
+
+export type WaitingReason = "customer" | "internal" | "third_party" | "deployment" | "scheduled";
+export const WAITING_LABEL: Record<WaitingReason, string> = {
+  customer: "Waiting on customer",
+  internal: "Waiting on internal team",
+  third_party: "Waiting on third party",
+  deployment: "Waiting on deployment",
+  scheduled: "Scheduled work",
+};
+export const KIND_LABEL: Record<string, string> = {
+  question: "Question", bug: "Bug", change: "Content/config change", incident: "Incident", feature: "Feature request", other: "Other", unknown: "Unclassified",
+};
+export const QUEUE_VIEWS: Array<{ key: string; label: string }> = [
+  { key: "needs_attention", label: "Needs attention" },
+  { key: "mine", label: "Assigned to me" },
+  { key: "open", label: "All open" },
+  { key: "unassigned", label: "Unassigned" },
+  { key: "urgent", label: "Urgent" },
+  { key: "due_soon", label: "Due soon" },
+  { key: "overdue", label: "Overdue" },
+  { key: "waiting_customer", label: "Waiting on customer" },
+  { key: "needs_owner", label: "Needs Jon/Jeff" },
+  { key: "recently_resolved", label: "Recently resolved" },
+];
+export interface TicketPage { items: TicketSummary[]; total: number; next_cursor: string | null }
 
 export interface TicketMessage {
   id: string;
@@ -76,7 +119,12 @@ export interface TicketDetail extends TicketSummary {
   engineering?: Record<string, unknown> | null;
   feature_request?: Record<string, unknown> | null;
   escalations?: Array<Record<string, unknown>>;
-  emails?: Array<{ purpose: string; to: string; status: string; created_at: string; error: string | null }>;
+  emails?: Array<{ purpose: string; to: string; cc?: string[]; status: string; created_at: string; error: string | null }>;
+  timers?: Record<string, unknown>;
+  history?: Array<{ kind: string; from: string | null; to: string | null; at: string; actor: string | null }>;
+  problem?: { id: string; title: string; kind: string; status: string; tickets: number; accounts: number } | null;
+  merged_tickets?: Array<{ id: string; number: number; subject: string }>;
+  resolution_evidence?: Record<string, unknown> | null;
   account_history?: Array<{ id: string; number: number; subject: string; status: SupportStatus; created_at: string }>;
 }
 
@@ -122,6 +170,22 @@ export const bloomSupport = {
     return api<TicketSummary[]>(`/tickets${qs ? `?${qs}` : ""}`);
   },
   getTicket: (id: string) => api<TicketDetail>(`/tickets/${id}`),
+  pageTickets: (filters: Record<string, string | undefined>) => {
+    const qs = new URLSearchParams(Object.entries({ ...filters, envelope: "true" }).filter(([, v]) => v) as Array<[string, string]>).toString();
+    return api<TicketPage>(`/tickets?${qs}`);
+  },
+  bulk: (ticketIds: string[], bulk: Record<string, unknown>) => send<{ updated: string[]; failed: Array<{ id: string; error: string }> }>("POST", "/tickets/bulk", { ticket_ids: ticketIds, bulk }),
+  merge: (id: string, targetId: string, reason?: string) => send("POST", `/tickets/${id}/merge`, { target_id: targetId, reason }),
+  spam: (id: string, spam: boolean) => send("POST", `/tickets/${id}/spam`, { spam }),
+  clientAction: (id: string, action: "confirm_resolved" | "still_broken" | "request_person", message?: string) => send("POST", `/tickets/${id}/client-action`, { action, message }),
+  postReply: (id: string, decision: "reopen" | "new_ticket" | "dismiss" | "review", messageId?: string) => send("POST", `/tickets/${id}/post-reply`, { decision, message_id: messageId }),
+  problems: () => api<Array<Record<string, unknown>>>("/problems"),
+  createProblem: (input: Record<string, unknown>) => send<Record<string, unknown>>("POST", "/problems", input),
+  linkProblem: (id: string, problemId: string) => send("POST", `/tickets/${id}/problem`, { problem_id: problemId }),
+  views: () => api<Array<{ id: string; name: string; filters: Record<string, string>; shared: boolean }>>("/views"),
+  saveView: (name: string, filters: Record<string, unknown>, shared = false) => send("POST", "/views", { name, filters, shared }),
+  deleteView: (id: string) => send("DELETE", `/views/${id}`),
+  metrics: (from?: string, to?: string) => api<Record<string, unknown>>(`/reports/metrics${from || to ? `?${new URLSearchParams(Object.entries({ from, to }).filter(([, v]) => v) as Array<[string, string]>)}` : ""}`),
   createTicket: (input: Record<string, unknown>) => send<{ ticket_id: string; number: number }>("POST", "/tickets", input),
   addMessage: (id: string, input: { body: string; visibility: "public" | "internal"; idempotency_key?: string }) => send("POST", `/tickets/${id}/messages`, input),
   updateTicket: (id: string, patch: Record<string, unknown>) => send<TicketSummary>("PATCH", `/tickets/${id}`, patch),

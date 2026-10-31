@@ -18,7 +18,7 @@ import Link from "@mui/joy/Link";
 import { Bot, Lock, Paperclip, User, Wrench } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
-  bloomSupport, PRODUCT_LABEL, STATUS_LABEL, type SupportStatus, type TicketDetail, type TicketMessage, type Whoami,
+  bloomSupport, KIND_LABEL, PRODUCT_LABEL, STATUS_LABEL, WAITING_LABEL, type SupportStatus, type TicketDetail, type TicketMessage, type WaitingReason, type Whoami,
 } from "@/lib/bloomSupport/api";
 import { StatusChip, PriorityChip, AutomationChip } from "./chips";
 
@@ -43,6 +43,47 @@ function Bubble({ m }: { m: TicketMessage }) {
       <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</Typography>
     </Sheet>
   );
+}
+
+const dur = (v: unknown) => {
+  const n = Number(v);
+  if (v === null || v === undefined || !Number.isFinite(n)) return "—";
+  if (n < 3600) return `${Math.round(n / 60)}m`;
+  if (n < 86400) return `${(n / 3600).toFixed(1)}h`;
+  return `${(n / 86400).toFixed(1)}d`;
+};
+
+/** Collects what each status needs; returns null if the person cancels. */
+function statusPatch(t: TicketDetail, v: SupportStatus): Record<string, unknown> | null {
+  if (v === "waiting") {
+    const r = window.prompt("Waiting on: customer, internal, third_party, deployment or scheduled", "customer") as WaitingReason | null;
+    return r ? { status: "waiting", waiting_reason: r } : null;
+  }
+  if (v === "needs_owner") {
+    const decision = window.prompt("What decision is needed from Jon/Jeff?");
+    if (!decision) return null;
+    const who = window.prompt("Who decides: jon, jeff or both?", "both") ?? "both";
+    const rec = window.prompt("Your recommended next step (optional)") ?? undefined;
+    return { status: "needs_owner", decision_needed: decision, accountable: who, recommendation: rec };
+  }
+  if (v === "resolved") {
+    const summary = window.prompt(t.kind === "feature" ? "Summary for the client (it was routed for a product decision — not delivered)" : "What resolved it? (sent to the client)");
+    if (!summary) return null;
+    const evidence: Record<string, unknown> = {};
+    if (t.kind === "change") {
+      const note = window.prompt("How did you verify the saved change? (e.g. checked the live page)");
+      if (!note) return null;
+      evidence.verified_note = note;
+    }
+    if (t.kind === "bug" || t.kind === "incident") {
+      const note = window.prompt("How did you verify the affected flow works now?");
+      if (!note) return null;
+      evidence.verification = { passed: true, note };
+      if (!t.engineering_issue_id) evidence.no_deploy_reason = window.prompt("No code deployment linked — why? (e.g. configuration fix)") ?? "";
+    }
+    return { status: "resolved", resolution_summary: summary, resolution_evidence: evidence };
+  }
+  return { status: v };
 }
 
 export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: string; me: Whoami; onOpenTicket: (id: string) => void }) {
@@ -72,6 +113,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
   });
 
   const t = q.data;
+  const lastClientId = t ? [...t.messages].reverse().find((m) => m.author_kind === "client")?.id : undefined;
   const conversationNumbers = useMemo(() => new Map((t?.conversation_tickets ?? []).map((c) => [c.id, c.number])), [t]);
   if (q.isLoading) return <Stack spacing={1} sx={{ p: 2 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={240} /></Stack>;
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
@@ -95,20 +137,38 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           <Chip size="sm" variant="outlined">{PRODUCT_LABEL[t.product] ?? t.product}</Chip>
           {t.kind !== "unknown" && <Chip size="sm" variant="plain">{t.kind}</Chip>}
           {staff && t.automation && <AutomationChip mode={t.automation} />}
+          {t.waiting_reason && <Chip size="sm" variant="soft" color="warning">{WAITING_LABEL[t.waiting_reason]}</Chip>}
+          {staff && t.flags?.overdue && <Chip size="sm" color="danger" variant="solid">Overdue</Chip>}
+          {staff && !t.flags?.overdue && t.flags?.due_soon && <Chip size="sm" color="warning">Due soon</Chip>}
+          {staff && t.flags?.stalled && <Chip size="sm" color="warning" variant="outlined">Stalled</Chip>}
+          {staff && t.spam && <Chip size="sm" color="neutral" variant="solid">Spam</Chip>}
+          {staff && (t.tags ?? []).map((g) => <Chip key={g} size="sm" variant="outlined">#{g}</Chip>)}
         </Stack>
+        {t.merged_into && <Alert size="sm" color="neutral" sx={{ mt: 1 }}>Merged into <Link component="button" onClick={() => onOpenTicket(t.merged_into!)}>#{t.merged_into_number}</Link>. Continue there.</Alert>}
+        {!staff && t.progress && <Typography level="body-sm" sx={{ mt: 0.5 }}>{t.progress}</Typography>}
         <Typography level="title-lg" sx={{ mt: 0.5 }}>{t.subject}</Typography>
         <Typography level="body-sm">
           {t.account ? <strong>{t.account.name}</strong> : <em>No client account linked</em>}
           {t.requester?.email && <> · {t.requester.name ? `${t.requester.name} ` : ""}&lt;{t.requester.email}&gt;</>}
           {" · "}opened {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}
+          {staff && <> · {KIND_LABEL[t.kind] ?? t.kind} · {t.environment ?? "production"} · via {t.channel}{t.source_ref ? ` (${t.source_ref})` : ""}</>}
         </Typography>
+        {staff && (
+          <Typography level="body-xs" textColor="text.secondary">
+            Accountable: <strong>{t.owner?.name ?? "Unassigned (default owner accountable)"}</strong> · Doing the work: <strong>{t.executor === "bloom" ? "Bloom" : t.executor_person?.name ?? "a person"}</strong>
+            {t.flags?.response_due_at ? ` · First response due ${formatDistanceToNow(new Date(t.flags.response_due_at), { addSuffix: true })}` : ""}
+            {t.next_action_due_at ? ` · Next action due ${formatDistanceToNow(new Date(t.next_action_due_at), { addSuffix: true })}` : ""}
+            {t.flags?.targets_are_internal ? " (internal targets)" : ""}
+          </Typography>
+        )}
         {staff && (
           <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mt: 1.5 }} alignItems={{ md: "center" }}>
             <Select size="sm" value={t.status} aria-label="Status" sx={{ minWidth: 150 }}
-              onChange={(_, v) => v && v !== t.status && run.mutate(() => bloomSupport.updateTicket(t.id, {
-                version: t.version, status: v,
-                ...(v === "resolved" ? { resolution_summary: window.prompt("What resolved it? (sent to the client)") ?? "" } : {}),
-              }))}>
+              onChange={(_, v) => {
+                if (!v || v === t.status) return;
+                const patch = statusPatch(t, v as SupportStatus);
+                if (patch) run.mutate(() => bloomSupport.updateTicket(t.id, { version: t.version, ...patch }));
+              }}>
               {(Object.keys(STATUS_LABEL) as SupportStatus[]).map((s) => <Option key={s} value={s}>{STATUS_LABEL[s]}</Option>)}
             </Select>
             <Select size="sm" value={t.priority} aria-label="Priority" sx={{ minWidth: 110 }}
@@ -126,10 +186,34 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
         {staff && (
           <Stack direction="row" spacing={1} sx={{ mt: 1 }} alignItems="center">
             <Typography level="body-xs" fontWeight="lg" sx={{ whiteSpace: "nowrap" }}>Next action</Typography>
+            <Input size="sm" type="datetime-local" sx={{ width: 210 }} aria-label="Next action due"
+              defaultValue={t.next_action_due_at ? t.next_action_due_at.slice(0, 16) : ""}
+              onBlur={(e) => { const v = e.target.value; if (v !== (t.next_action_due_at ?? "").slice(0, 16)) run.mutate(() => bloomSupport.updateTicket(t.id, { version: t.version, next_action_due_at: v ? new Date(v).toISOString() : null })); }} />
             <Input size="sm" sx={{ flex: 1 }} value={nextAction ?? t.next_action ?? ""} placeholder="Who does what next"
               onChange={(e) => setNextAction(e.target.value)}
               onBlur={() => nextAction !== null && nextAction !== (t.next_action ?? "") && run.mutate(async () => { await bloomSupport.updateTicket(t.id, { version: t.version, next_action: nextAction }); setNextAction(null); })} />
           </Stack>
+        )}
+        {staff && t.pending_review === "reply_after_resolution" && (
+          <Alert color="primary" variant="soft" sx={{ mt: 1 }}>
+            <Stack spacing={1}>
+              <Typography level="body-sm">The client replied after this was resolved. Decide what it is:</Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Button size="sm" onClick={() => run.mutate(() => bloomSupport.postReply(t.id, "reopen", lastClientId))}>Still the same issue — reopen</Button>
+                <Button size="sm" variant="outlined" onClick={() => run.mutate(() => bloomSupport.postReply(t.id, "new_ticket", lastClientId))}>New request — linked ticket</Button>
+                <Button size="sm" variant="plain" onClick={() => run.mutate(() => bloomSupport.postReply(t.id, "dismiss", lastClientId))}>Just thanks — keep resolved</Button>
+              </Stack>
+            </Stack>
+          </Alert>
+        )}
+        {!staff && t.status === "resolved" && !t.merged_into && (
+          <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
+            <Button size="sm" color="success" onClick={() => run.mutate(() => bloomSupport.clientAction(t.id, "confirm_resolved"))}>Yes, it's fixed</Button>
+            <Button size="sm" variant="outlined" color="warning" onClick={() => { const m = window.prompt("What is still happening?"); if (m) run.mutate(() => bloomSupport.clientAction(t.id, "still_broken", m)); }}>It's still happening</Button>
+          </Stack>
+        )}
+        {!staff && t.status !== "resolved" && !t.merged_into && (
+          <Button size="sm" variant="plain" sx={{ mt: 1 }} onClick={() => run.mutate(() => bloomSupport.clientAction(t.id, "request_person"))}>Talk to a person</Button>
         )}
         {error && <Alert color="danger" variant="soft" sx={{ mt: 1 }}>{error}</Alert>}
       </Box>
@@ -159,7 +243,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
             </Stack>
           )}
           {/* Composer */}
-          {t.status !== "resolved" || staff ? (
+          {!t.merged_into && (t.status !== "resolved" || staff) ? (
             <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", mt: 1, borderColor: visibility === "internal" ? "warning.outlinedBorder" : "primary.outlinedBorder" }}>
               {staff && (
                 <ToggleButtonGroup size="sm" value={visibility} onChange={(_, v) => v && setVisibility(v)} sx={{ mb: 1 }} aria-label="Reply visibility">
@@ -173,6 +257,13 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
                 <Typography level="body-xs" textColor="text.tertiary">
                   {staff && visibility === "public" && t.automation === "auto" ? "Replying publicly takes this ticket over from Bloom." : ""}
                 </Typography>
+                <Button size="sm" variant="plain" component="label" startDecorator={<Paperclip size={14} />}>
+                  Attach
+                  <input hidden type="file" multiple accept="image/*,application/pdf,video/mp4,video/webm,text/plain,text/csv" onChange={async (e) => {
+                    const files = Array.from(e.target.files ?? []).slice(0, 5);
+                    run.mutate(async () => { for (const f of files) await bloomSupport.uploadAttachment(t.id, f, staff && visibility === "internal" ? "internal" : "public"); });
+                  }} />
+                </Button>
                 <Button size="sm" disabled={!draft.trim()} loading={run.isPending} color={visibility === "internal" && staff ? "warning" : "primary"} onClick={send}>
                   {visibility === "internal" && staff ? "Add note" : "Send reply"}
                 </Button>
@@ -190,6 +281,31 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
               <Button size="sm" variant="outlined" onClick={() => run.mutate(() => bloomSupport.routeFeature(t.id))}>Feature → Jon</Button>
               <Button size="sm" variant="outlined" color="warning" onClick={() => { const reason = window.prompt("Why does this need Jon/Jeff?"); if (reason) run.mutate(() => bloomSupport.escalate(t.id, "both", reason)); }}>Escalate</Button>
             </Stack>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button size="sm" variant="plain" onClick={async () => {
+                const n = window.prompt("Merge this ticket into which ticket number (same client)?");
+                if (!n) return;
+                const found = await bloomSupport.pageTickets({ q: `#${n.replace("#", "")}`, limit: "1" });
+                const target = found.items.find((x) => String(x.number) === n.replace("#", ""));
+                if (!target) { setError(`Ticket #${n} not found`); return; }
+                run.mutate(() => bloomSupport.merge(t.id, target.id, "duplicate"));
+              }}>Merge into…</Button>
+              <Button size="sm" variant="plain" onClick={async () => {
+                const id = window.prompt("Shared problem id (from the Problems tab), or leave blank to create one from this ticket");
+                if (id === null) return;
+                run.mutate(async () => {
+                  const problemId = id || String((await bloomSupport.createProblem({ title: t.subject, product: t.product })).id);
+                  await bloomSupport.linkProblem(t.id, problemId);
+                });
+              }}>Link to shared problem</Button>
+              <Button size="sm" variant="plain" color="neutral" onClick={() => run.mutate(() => bloomSupport.spam(t.id, !t.spam))}>{t.spam ? "Not spam" : "Mark spam"}</Button>
+            </Stack>
+            {t.problem && (
+              <Sheet variant="soft" sx={{ p: 1, borderRadius: "sm" }}>
+                <Typography level="body-xs" fontWeight="lg">{t.problem.kind === "incident" ? "Incident" : "Shared problem"}: {t.problem.title}</Typography>
+                <Typography level="body-xs">{t.problem.tickets} tickets from {t.problem.accounts} clients · {t.problem.status}</Typography>
+              </Sheet>
+            )}
             {t.engineering && (
               <Sheet variant="soft" sx={{ p: 1, borderRadius: "sm" }}>
                 <Typography level="body-xs" fontWeight="lg">Engineering: {String(t.engineering.status)}</Typography>
@@ -232,6 +348,31 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
                 <Divider />
                 <Typography level="title-sm">Email</Typography>
                 {t.emails.slice(0, 5).map((e, i) => <Typography key={i} level="body-xs">{e.purpose} → {e.to}: {e.status}{e.error ? ` (${e.error.slice(0, 60)})` : ""}</Typography>)}
+              </>
+            )}
+            {t.timers && (
+              <>
+                <Divider />
+                <Typography level="title-sm">Time</Typography>
+                <Typography level="body-xs">Age {dur(t.timers.age_seconds)} · our clock {dur(t.timers.our_clock_seconds)} ({dur(t.timers.our_clock_business_seconds)} business)</Typography>
+                <Typography level="body-xs">Waiting on customer {dur(t.timers.waiting_customer_seconds)} · third party {dur(t.timers.waiting_third_party_seconds)} · scheduled {dur(t.timers.scheduled_seconds)}</Typography>
+                <Typography level="body-xs">First response {dur(t.timers.first_response_seconds)} · first resolution {dur(t.timers.first_resolution_seconds)}{t.timers.reopened ? ` · latest resolution ${dur(t.timers.latest_resolution_seconds)}` : ""}</Typography>
+              </>
+            )}
+            {t.resolution_evidence && (
+              <>
+                <Divider />
+                <Typography level="title-sm">Resolution evidence</Typography>
+                <Box component="pre" sx={{ fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0 }}>{JSON.stringify(t.resolution_evidence, null, 2)}</Box>
+              </>
+            )}
+            {t.history && t.history.length > 0 && (
+              <>
+                <Divider />
+                <Typography level="title-sm">Status and assignment history</Typography>
+                {t.history.slice(-12).reverse().map((h, i) => (
+                  <Typography key={i} level="body-xs" textColor="text.secondary">{h.kind}: {h.from ?? "—"} → {h.to ?? "—"} · {h.actor ?? "Bloom/system"} · {formatDistanceToNow(new Date(h.at), { addSuffix: true })}</Typography>
+                ))}
               </>
             )}
             {t.context && Object.keys(t.context).length > 0 && (
