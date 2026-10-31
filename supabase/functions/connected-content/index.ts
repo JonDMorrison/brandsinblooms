@@ -141,7 +141,7 @@ serve(async (req: Request) => {
     const connectionList=(links??[]) as WebsiteLink[];
     const requested = new URL(req.url);
     if (req.method === "POST") {
-      for (const key of ["type","q","siteId","limit"]) {
+      for (const key of ["type","q","siteId","limit","itemId"]) {
         const value=input?.[key];
         if (typeof value === "string" || typeof value === "number") {
           requested.searchParams.set(key,String(value));
@@ -156,6 +156,8 @@ serve(async (req: Request) => {
     if (!allowedKinds.has(kind)) return ok({error:"invalid_content_type"},400);
     const query = (requested.searchParams.get("q")??"").trim().slice(0,100);
     const siteId=requested.searchParams.get("siteId")??"";
+    const itemId=requested.searchParams.get("itemId")??"";
+    if (itemId && (!uuid.test(itemId) || kind !== "events" || !siteId)) return ok({error:"invalid_item"},400);
     if (siteId && !uuid.test(siteId)) return ok({error:"invalid_site"},400);
     const permittedLinks = siteId ? connectionList.filter(x=>x.cms_site_id===siteId):connectionList;
     if (siteId && permittedLinks.length===0) return ok({error:"site_not_connected"},404);
@@ -164,6 +166,7 @@ serve(async (req: Request) => {
       const upstream=new URL(`${BLOOMSITES_API_ORIGIN}/api/connected-content/catalog`);
       upstream.searchParams.set("siteId",link.cms_site_id);
       upstream.searchParams.set("type",kind);
+      if (itemId) upstream.searchParams.set("itemId",itemId);
       upstream.searchParams.set("limit",String(limit));
       if (query)upstream.searchParams.set("q",query);
       try {
