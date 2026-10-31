@@ -327,14 +327,14 @@ export const BloomSuiteDashboard = () => {
       maxWidth: "80rem",
       "& .MuiButton-root": { minHeight: 44, fontSize: "0.9375rem", fontWeight: 600 },
     }}>
-      <Stack spacing={3} sx={{ pb: 4 }}>
+      <Stack spacing={{ xs: 4, md: 5 }} sx={{ pt: { xs: 1, md: 2 }, pb: 4 }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
           alignItems={{ xs: "flex-start", sm: "center" }}
           justifyContent="space-between"
           spacing={1.5}
         >
-          <Stack spacing={0.5}>
+          <Stack spacing={1.25}>
             <Typography
               level="h1"
               sx={{ fontSize: { xs: "1.875rem", md: "2.25rem" }, fontWeight: 700, letterSpacing: "-0.035em", color: "neutral.900" }}
@@ -386,7 +386,7 @@ export const BloomSuiteDashboard = () => {
           </JoyButton>
         ) : null}
 
-        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+        <Stack spacing={2.5} sx={{ minWidth: 0 }}>
           <Typography
             level="title-lg"
             sx={{ fontSize: "1.5rem", fontWeight: 700, color: "neutral.900" }}
@@ -411,7 +411,7 @@ export const BloomSuiteDashboard = () => {
                     color="var(--joy-palette-neutral-600)"
                     aria-hidden="true"
                   />
-                  <Stack spacing={0.5}>
+                  <Stack spacing={1.25}>
                     <Typography level="title-lg">
                       Choose a company to get started
                     </Typography>
@@ -472,7 +472,7 @@ export const BloomSuiteDashboard = () => {
                 <Box
                   sx={{
                     display: "grid",
-                    gap: 1.25,
+                    gap: { xs: 2, md: 2.5 },
                     gridTemplateColumns: {
                       xs: "minmax(0, 1fr)",
                       sm: "repeat(2, minmax(0, 1fr))",
@@ -503,7 +503,7 @@ export const BloomSuiteDashboard = () => {
               }}
             >
               <Stack spacing={1.5} sx={{ minWidth: 0, width: "100%" }}>
-                <Stack spacing={0.5}>
+                <Stack spacing={1.25}>
                   <Typography level="title-md">
                     {accessError
                       ? "We couldn't load your dashboard access"
@@ -546,7 +546,7 @@ export const BloomSuiteDashboard = () => {
                   sm: "repeat(2, minmax(0, 1fr))",
                   lg: "repeat(3, minmax(0, 1fr))",
                 },
-                gap: 1.25,
+                gap: { xs: 2, md: 2.5 },
               }}
             >
               {quickActions.map((action) => {
@@ -651,36 +651,10 @@ export const BloomSuiteDashboard = () => {
         </Stack>
 
         {showDashboardTasks && metrics.length > 0 ? (
-          <Stack spacing={1.25}>
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              <Typography level="h2" sx={{ fontSize: "1.5rem", fontWeight: 700 }}>
-                Recent performance
-              </Typography>
-              {canSeeReports ? (
-                <JoyButton
-                  size="sm"
-                  variant="outlined"
-                  color="neutral"
-                  data-activating={
-                    activeAction === "analytics-header" ? "true" : undefined
-                  }
-                  aria-busy={activeAction === "analytics-header"}
-                  sx={dashboardPressSx}
-                  onClick={() =>
-                    openAnimatedRoute("analytics-header", "/analytics")
-                  }
-                >
-                  {activeAction === "analytics-header"
-                    ? "Opening…"
-                    : "Explore analytics"}{" "}
-                  <ArrowRight size={15} aria-hidden="true" />
-                </JoyButton>
-              ) : null}
-            </Stack>
+          <Stack spacing={2.5}>
+            <Typography level="h2" sx={{ fontSize: "1.5rem", fontWeight: 700 }}>
+              Recent performance
+            </Typography>
             {performance.unavailableCampaignCount > 0 ? (
               <Typography level="body-xs" textColor="text.secondary">
                 Showing {performance.campaigns.length} available campaign reports. {performance.unavailableCampaignCount} could not load; these averages exclude them.
