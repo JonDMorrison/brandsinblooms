@@ -1289,13 +1289,15 @@ function renderImageTextBlock(
   const imageClass = imageHeight
     ? "responsive-image responsive-crop-image"
     : "responsive-image";
-  const imageCell = `<td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-right:12px;">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
-  const textCell = `<td class="responsive-column image-text-content" width="${split.text}%" valign="${vertical}" style="width:${split.text}%;vertical-align:${vertical};padding-left:12px;">${content}</td>`;
   const reverse = layout === "image-right";
+  // Image-first source order prevents alternating desktop layouts from becoming
+  // text/image on mobile. RTL changes only the desktop visual order.
+  const imageCell = `<td dir="ltr" class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding:${reverse ? "0 0 0 12px" : "0 12px 0 0"};">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
+  const textCell = `<td dir="ltr" class="responsive-column image-text-content" width="${split.text}%" valign="${vertical}" style="width:${split.text}%;vertical-align:${vertical};padding:${reverse ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" class="image-text-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${reverse ? `<td class="responsive-column image-text-content" width="${split.text}%" valign="${vertical}" style="width:${split.text}%;vertical-align:${vertical};padding-right:12px;">${content}</td><td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-left:12px;">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>` : imageCell + textCell}</tr></table></div>`,
+    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" class="image-text-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr${reverse ? ' dir="rtl"' : ""}>${imageCell + textCell}</tr></table></div>`,
   );
 }
 

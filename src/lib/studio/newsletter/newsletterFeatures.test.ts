@@ -134,6 +134,32 @@ describe("newsletter design and safety", () => {
     expect(output).toContain('height="252"');
     expect(output).toContain("text-transform:uppercase");
   });
+  it("keeps right-aligned event images before their copy in source order", () => {
+    const output = renderNewsletterBlock(
+      block("event", {
+        headline: "Holiday Planter Parties",
+        imageUrl: "https://example.com/planter.jpg",
+        imagePosition: "right",
+      }),
+    );
+    expect(output).toContain('<tr dir="rtl">');
+    expect(output.indexOf('data-newsletter-image="imageUrl"')).toBeLessThan(
+      output.indexOf("Holiday Planter Parties"),
+    );
+  });
+  it("keeps image-right image/text blocks image-first for mobile clients", () => {
+    const output = html([
+      block("image-text", {
+        headline: "Snowy favourites",
+        imageUrl: "https://example.com/tree.jpg",
+        layout: "image-right",
+      }),
+    ]);
+    expect(output).toContain('<tr dir="rtl">');
+    expect(output.indexOf('alt="Snowy favourites"')).toBeLessThan(
+      output.indexOf("Snowy favourites</h1>"),
+    );
+  });
   it("round-trips master settings in the persisted footer", () => {
     const footer = block("footer", {
       newsletterSettings: {

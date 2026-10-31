@@ -125,10 +125,12 @@ function imageAndContent(
   )
     ? block.appearance?.verticalAlign
     : "middle";
-  const imageCell = `<td class="responsive-column" width="38%" valign="top" style="width:38%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
-  const contentCell = `<td class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
+  // Keep image-first source order for reliable mobile stacking. Direction only
+  // changes the desktop presentation when the image is configured on the right.
+  const imageCell = `<td dir="ltr" class="responsive-column" width="38%" valign="top" style="width:38%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
+  const contentCell = `<td dir="ltr" class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
   return table(
-    `<tr>${side === "right" ? contentCell + imageCell : imageCell + contentCell}</tr>`,
+    `<tr${side === "right" ? ' dir="rtl"' : ""}>${imageCell + contentCell}</tr>`,
   );
 }
 
@@ -158,9 +160,9 @@ function renderEventCard(block: StudioBlock, width: number): string {
     return `<div class="mobile-padding" style="padding:28px 30px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${content}</div>`;
   }
 
-  const imageCell = `<td class="responsive-column product-card-image" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
-  const contentCell = `<td class="responsive-column product-card-details" width="58%" valign="middle" style="width:58%;vertical-align:middle;padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
-  return `<table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};"><tr>${imageSide === "right" ? contentCell + imageCell : imageCell + contentCell}</tr></table>`;
+  const imageCell = `<td dir="ltr" class="responsive-column product-card-image" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
+  const contentCell = `<td dir="ltr" class="responsive-column product-card-details" width="58%" valign="middle" style="width:58%;vertical-align:middle;padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
+  return `<table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};"><tr${imageSide === "right" ? ' dir="rtl"' : ""}>${imageCell + contentCell}</tr></table>`;
 }
 export function couponOfferLabel(block: StudioBlock): string {
   switch (block.couponOffer) {
