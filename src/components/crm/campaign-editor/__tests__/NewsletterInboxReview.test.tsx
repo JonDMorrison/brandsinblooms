@@ -64,4 +64,53 @@ describe("NewsletterInboxReview", () => {
       preheaderText: "Join us November 14.",
     });
   });
+  it("offers refreshed suggestions after content changes without replacing authored text", async () => {
+    invoke.mockResolvedValue({
+      data: {
+        suggestions: [
+          { subject: "Winter", preview: "November 14", reason: "Date" },
+        ],
+      },
+    });
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <NewsletterInboxReview
+        blocks={blocks}
+        subject="My words"
+        preview="My preview"
+        onChange={onChange}
+      />,
+    );
+    await screen.findByText("Winter");
+    rerender(
+      <NewsletterInboxReview
+        blocks={[{ ...blocks[0], headline: "Christmas trees arrive tomorrow" }]}
+        subject="My words"
+        preview="My preview"
+        onChange={onChange}
+      />,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Refresh suggestions from updated content",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Winter")).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+  it("remembers a content scan across returning from Studio and preserves manual copy", async () => {
+    sessionStorage.clear();
+    invoke.mockResolvedValue({ data: { suggestions: [{ subject: "Wreaths", preview: "November", reason: "Seasonal" }] } });
+    const onChange = vi.fn();
+    const first = render(<NewsletterInboxReview campaignId="review-test" blocks={blocks} subject="My subject" preview="My preview" onChange={onChange} />);
+    await screen.findByText("Wreaths");
+    first.unmount();
+    invoke.mockClear();
+    render(<NewsletterInboxReview campaignId="review-test" blocks={[{ ...blocks[0], headline: "A completely different sale" }]} subject="My subject" preview="My preview" onChange={onChange} />);
+    expect(screen.getByRole("button", { name: "Refresh suggestions from updated content" })).toBeInTheDocument();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+    sessionStorage.clear();
+  });
+
 });
