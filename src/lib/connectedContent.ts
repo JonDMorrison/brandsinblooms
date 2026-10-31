@@ -21,6 +21,7 @@ export interface ConnectedContentItem {
   location?:string|null;
   eventStatus?:"cancelled"|"sold_out"|"available";
   upcomingDateCount?:number;
+  capacityCheckRequired?:boolean;
 }
 export interface ConnectedWebsite {
   id:string;
@@ -121,6 +122,7 @@ export async function reviewConnectedEvents(blocks: StudioBlock[]): Promise<stri
       if (!item.eventStatus) return `${name}: booking status could not be checked. Review the event before sending.`;
       if (item.updatedAt !== source.updatedAt || item.publicUrl !== source.publicUrl || (source.startAt != null && item.startAt !== source.startAt) || (source.sourceTitle !== undefined && item.title !== source.sourceTitle) || (source.sourceDescription !== undefined && item.description !== source.sourceDescription) || (source.sourceImageUrl !== undefined && item.imageUrl !== source.sourceImageUrl) || (source.upcomingDateCount !== undefined && item.upcomingDateCount !== source.upcomingDateCount)) return `${name}: event details changed on your website. Review the newsletter before sending.`;
       if (source.startAt === undefined) return `${name}: check the date on your website before sending.`;
+      if (item.capacityCheckRequired) return `${name}: confirm ticket availability on the website before sending.`;
       return null;
     } catch { return `${name}: website could not be checked. Review this event before sending.`; }
   }));
