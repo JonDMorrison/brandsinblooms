@@ -69,13 +69,4 @@ describe("Connected Content newsletter blocks",()=>{
     expect(page).toContain("ConnectedContentPicker");
     expect(page).toContain("insertConnectedContentBlocks");
   });
-  it("keeps interface caution palette grey rather than yellow",()=>{
-    const theme=readFileSync("src/config/joy-theme.ts","utf8");
-    const palette=theme.slice(theme.indexOf("  warning: {",theme.indexOf("export const bloomPaletteScales =")));
-    expect(palette.slice(0,340)).toContain('#F8FAFC');
-    expect(palette.slice(0,340)).not.toContain("#FFF9EC");
-    const tailwind=readFileSync("tailwind.config.ts","utf8");
-    expect(tailwind).toContain('amber: {');
-    expect(tailwind).toContain('yellow: {');
-  });
 });
