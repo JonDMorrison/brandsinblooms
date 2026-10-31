@@ -174,6 +174,8 @@ export interface StudioBlock {
   buttonUrl?: string;
   buttonColor?: string;
   buttonTextColor?: string;
+  /** Keep CTA colours synced with the account brand unless explicitly disabled. */
+  useBrandButtonColor?: boolean;
   buttonSize?: StudioButtonSize;
   buttonStyle?: StudioButtonStyle;
   buttonRounded?: boolean;
