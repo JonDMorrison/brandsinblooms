@@ -140,7 +140,9 @@ type Handler = (req: Request) => Promise<Response>;
 const H: Record<string, Handler> = {};
 async function load(name: string) {
   Object.defineProperty(Deno, "serve", { value: (h: Handler) => { H[name] = h; return {}; }, configurable: true, writable: true });
-  await import(`../../${name}/index.ts`);
+  // BLOOM_E2E_BUNDLE_DIR runs the suite against the single-file deploy artefacts instead of source.
+  const bundles = Deno.env.get("BLOOM_E2E_BUNDLE_DIR");
+  await import(bundles ? `file://${bundles}/${name}.js` : `../../${name}/index.ts`);
 }
 
 async function call(fn: string, method: string, path: string, opts: { token?: string; body?: unknown; headers?: Record<string, string>; raw?: string } = {}) {
