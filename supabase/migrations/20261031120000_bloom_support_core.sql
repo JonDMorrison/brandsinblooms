@@ -48,6 +48,7 @@ CREATE TABLE bloom_support.accounts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL CHECK (length(btrim(name)) BETWEEN 1 AND 200),
   crm_tenant_id uuid UNIQUE,
+  automation_paused boolean NOT NULL DEFAULT false,
   primary_email text,
   email_domains text[] NOT NULL DEFAULT '{}',
   notes text,
@@ -183,6 +184,8 @@ CREATE TABLE bloom_support.conversations (
   -- Root RFC 5322 Message-ID used to thread replies.
   email_thread_root text UNIQUE,
   reply_to_email text,
+  -- Verified contacts of the same account who were on the client's own email; nobody is added because an email said so.
+  cc_emails text[] NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -198,7 +201,27 @@ CREATE TABLE bloom_support.tickets (
   requester_id uuid REFERENCES bloom_support.principals(id),
   product text NOT NULL CHECK (product IN ('cms','crm','pos','platform','unknown')),
   channel text NOT NULL CHECK (channel IN ('cms','crm','pos','email','public','chatgpt','staff')),
-  kind text NOT NULL DEFAULT 'unknown' CHECK (kind IN ('unknown','bug','question','request','feature','operation','account')),
+  -- Ticket type: question, bug, change (content/configuration), incident, feature, other.
+  kind text NOT NULL DEFAULT 'unknown' CHECK (kind IN ('unknown','question','bug','change','incident','feature','other')),
+  environment text NOT NULL DEFAULT 'production' CHECK (environment IN ('production','staging','unknown')),
+  source_ref text,
+  team text NOT NULL DEFAULT 'support',
+  -- Who is executing right now (a person or Bloom); owner_id stays the accountable human.
+  executor text NOT NULL DEFAULT 'bloom' CHECK (executor IN ('bloom','person')),
+  executor_id uuid REFERENCES bloom_support.principals(id),
+  next_action_due_at timestamptz,
+  first_response_at timestamptz,
+  last_customer_message_at timestamptz,
+  last_team_message_at timestamptz,
+  waiting_reason text CHECK (waiting_reason IN ('customer','internal','third_party','deployment','scheduled')),
+  waiting_since timestamptz,
+  first_resolved_at timestamptz,
+  closed_at timestamptz,
+  merged_into uuid REFERENCES bloom_support.tickets(id),
+  spam boolean NOT NULL DEFAULT false,
+  tags text[] NOT NULL DEFAULT '{}',
+  pending_review text,
+  redacted_at timestamptz,
   category text,
   priority text NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high','urgent')),
   impact text NOT NULL DEFAULT 'unknown' CHECK (impact IN ('unknown','single_user','account','multi_account','platform')),
@@ -231,7 +254,9 @@ CREATE TABLE bloom_support.tickets (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (duplicate_of IS NULL OR duplicate_of <> id),
-  CHECK (status <> 'resolved' OR resolved_at IS NOT NULL)
+  CHECK (status <> 'resolved' OR resolved_at IS NOT NULL),
+  CHECK ((status = 'waiting') = (waiting_reason IS NOT NULL)),
+  CHECK (merged_into IS NULL OR merged_into <> id)
 );
 CREATE INDEX tickets_queue ON bloom_support.tickets(status, priority, updated_at DESC);
 CREATE INDEX tickets_account ON bloom_support.tickets(account_id, created_at DESC);
@@ -251,7 +276,11 @@ CREATE TABLE bloom_support.messages (
   email_message_id text UNIQUE,
   in_reply_to text,
   idempotency_key text UNIQUE,
-  delivery text NOT NULL DEFAULT 'none' CHECK (delivery IN ('none','queued','sent','failed','suppressed')),
+  delivery text NOT NULL DEFAULT 'none' CHECK (delivery IN ('none','queued','sent','failed','suppressed','delivered','bounced','uncertain')),
+  -- A meaningful response answers the client or asks a necessary question; acknowledgements and progress notes are not.
+  meaningful boolean NOT NULL DEFAULT false,
+  purpose text,
+  cc text[] NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK (visibility = 'public' OR direction = 'internal')
 );
@@ -417,7 +446,9 @@ CREATE TABLE bloom_support.outbound_emails (
   rfc_message_id text NOT NULL UNIQUE,
   in_reply_to text,
   idempotency_key text NOT NULL UNIQUE,
-  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','sent','failed','suppressed','not_configured')),
+  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','sent','failed','suppressed','not_configured','uncertain','delivered','bounced','complained')),
+  cc text[] NOT NULL DEFAULT '{}',
+  provider_events jsonb NOT NULL DEFAULT '[]'::jsonb,
   provider_id text,
   error text,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -490,7 +521,11 @@ CREATE INDEX notifications_unread ON bloom_support.notifications(principal_id, r
 
 CREATE TABLE bloom_support.jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  kind text NOT NULL CHECK (kind IN ('triage','answer','operate','investigate','engineering_step','send_email','verify_resolution','escalate','notify')),
+  kind text NOT NULL CHECK (kind IN ('triage','answer','operate','investigate','engineering_step','send_email','verify_resolution','escalate','notify','post_resolution_reply','digest')),
+  -- Scope used by scoped pause controls.
+  scope text GENERATED ALWAYS AS (CASE kind WHEN 'triage' THEN 'triage' WHEN 'answer' THEN 'answer' WHEN 'post_resolution_reply' THEN 'triage'
+    WHEN 'send_email' THEN 'email' WHEN 'escalate' THEN 'email' WHEN 'notify' THEN 'email' WHEN 'digest' THEN 'email' WHEN 'operate' THEN 'operations'
+    WHEN 'verify_resolution' THEN 'triage' ELSE 'engineering' END) STORED,
   ticket_id uuid REFERENCES bloom_support.tickets(id),
   engineering_issue_id uuid REFERENCES bloom_support.engineering_issues(id),
   -- Isolation lane: one running job per account lane at a time.

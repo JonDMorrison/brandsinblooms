@@ -2,7 +2,7 @@
 // (via API keys / Actions) and any other authenticated operator tooling.
 // Every route authenticates the caller and every action is re-authorized in
 // the database for that caller's principal.
-import { authenticate, BloomError, cors, errorResponse, json, readJson, str } from "../_shared/bloom-support/runtime.ts";
+import { authenticate, BloomError, cors, db, errorResponse, json, readJson, rpc, str } from "../_shared/bloom-support/runtime.ts";
 import { actions } from "../_shared/bloom-support/service.ts";
 import { attachmentUrl, decodeBase64File, storeAttachment } from "../_shared/bloom-support/attachments.ts";
 import { readiness } from "../_shared/bloom-support/readiness.ts";
@@ -31,8 +31,48 @@ on("GET", "/notifications", async (req, _p, url) => actions.notifications(await 
 
 on("GET", "/tickets", async (req, _p, url) => {
   const f: Record<string, unknown> = {};
-  for (const k of ["status", "product", "kind", "account_id", "owner", "q", "automation", "limit", "before"]) if (url.searchParams.has(k)) f[k] = url.searchParams.get(k);
+  for (const k of ["view", "status", "product", "kind", "priority", "account_id", "owner", "q", "automation", "tag", "age_days_min", "age_days_max", "sort", "cursor", "limit", "envelope", "include_spam"]) {
+    if (url.searchParams.has(k)) f[k] = url.searchParams.get(k);
+  }
   return actions.listTickets(await caller(req), f);
+});
+on("POST", "/tickets/bulk", async (req) => {
+  const b = await readJson(req);
+  return actions.bulkUpdate(await caller(req), b.ticket_ids, (b.bulk ?? {}) as Record<string, unknown>);
+});
+on("POST", "/tickets/:id/merge", async (req, [id]) => {
+  const b = await readJson(req);
+  return actions.mergeTickets(await caller(req), id, String(b.target_id), str(b.reason, 500));
+});
+on("POST", "/tickets/:id/spam", async (req, [id]) => actions.setSpam(await caller(req), id, (await readJson(req)).spam !== false));
+on("POST", "/tickets/:id/client-action", async (req, [id]) => {
+  const b = await readJson(req);
+  return actions.clientAction(await caller(req), id, String(b.action), str(b.message, 20000));
+});
+on("POST", "/tickets/:id/post-reply", async (req, [id]) => {
+  const b = await readJson(req);
+  return actions.decidePostReply(await caller(req), id, String(b.decision), str(b.message_id, 40), str(b.note, 500));
+});
+on("GET", "/tickets/:id/timers", async (req, [id]) => actions.timers(await caller(req), id));
+on("POST", "/tickets/:id/problem", async (req, [id]) => actions.linkProblem(await caller(req), id, String((await readJson(req)).problem_id)));
+on("GET", "/problems", async (req, _p, url) => actions.listProblems(await caller(req), q(url, "status")));
+on("POST", "/problems", async (req) => actions.createProblem(await caller(req), await readJson(req)));
+on("PATCH", "/problems/:id", async (req, [id]) => actions.updateProblem(await caller(req), id, await readJson(req)));
+on("GET", "/views", async (req) => actions.listViews(await caller(req)));
+on("POST", "/views", async (req) => {
+  const b = await readJson(req);
+  return actions.saveView(await caller(req), String(b.name ?? ""), (b.filters ?? {}) as Record<string, unknown>, b.shared === true);
+});
+on("DELETE", "/views/:id", async (req, [id]) => actions.deleteView(await caller(req), id));
+on("GET", "/reports/metrics", async (req, _p, url) => actions.metrics(await caller(req), q(url, "from"), q(url, "to")));
+on("GET", "/reports/summary", async (req, _p, url) => actions.summary_report(await caller(req), q(url, "period") ?? "daily"));
+on("POST", "/accounts/:id/automation", async (req, [id]) => actions.setAccountAutomation(await caller(req), id, (await readJson(req)).paused !== false));
+on("POST", "/tickets/:id/redact", async (req, [id]) => {
+  const c = await caller(req);
+  const out = await rpc<{ storage_objects: Array<{ bucket: string; path: string }> }>("redact_ticket", { actor: c.principalId, ticket_id: id, reason: str((await readJson(req)).reason, 500) });
+  // Attachment objects are removed from private storage; the ticket, events and audit log remain.
+  for (const o of out.storage_objects ?? []) await db().storage.from(o.bucket).remove([o.path]).catch(() => undefined);
+  return out;
 });
 on("POST", "/tickets", async (req) => actions.createTicket(await caller(req), await readJson(req)));
 on("GET", "/tickets/:id", async (req, [id]) => actions.getTicket(await caller(req), id));

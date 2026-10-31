@@ -44,6 +44,8 @@ export interface SendRequest {
   inReplyTo?: string | null;
   references?: string[];
   idempotencyKey: string;
+  /** Verified contacts of the same account who were on the client's own email. */
+  cc?: string[];
   /** True when Bloom (not a person) decided to send; suppressed after human takeover. */
   bloomInitiated: boolean;
   /** Client-bound (vs. staff notification). Client mail obeys the client_email_enabled switch. */
@@ -52,7 +54,7 @@ export interface SendRequest {
 
 export interface SendResult {
   id: string;
-  status: "sent" | "failed" | "suppressed" | "not_configured" | "queued";
+  status: "sent" | "failed" | "suppressed" | "not_configured" | "queued" | "uncertain";
   duplicate: boolean;
   reason?: string;
 }
@@ -60,13 +62,17 @@ export interface SendResult {
 export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   const cfg = emailConfig();
   const rfcId = newMessageId(cfg.replyDomain);
-  const queued = await rpc<{ id: string; status: string; duplicate: boolean; rfc_message_id: string }>("queue_outbound_email", {
+  const queued = await rpc<{ id: string; status: string; duplicate: boolean; rfc_message_id: string; provider_id: string | null }>("queue_outbound_email", {
     email: {
       ticket_id: req.ticketId, message_id: req.messageId ?? null, purpose: req.purpose, to: req.to, subject: req.subject, body: req.text,
       rfc_message_id: rfcId, in_reply_to: req.inReplyTo ?? null, idempotency_key: req.idempotencyKey, bloom_initiated: req.bloomInitiated,
     },
   });
-  if (queued.duplicate) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true };
+  // A previous attempt with an unknown outcome is retried with the SAME provider idempotency key and
+  // Message-ID: Resend deduplicates within 24 hours, so the client does not get two copies. Beyond
+  // that window the send is not retried automatically (exactly-once cannot be guaranteed).
+  const retryUncertain = queued.duplicate && ["uncertain", "queued"].includes(queued.status) && !queued.provider_id;
+  if (queued.duplicate && !retryUncertain) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true };
   if (queued.status === "suppressed") return { id: queued.id, status: "suppressed", duplicate: false, reason: "ticket under human control" };
 
   if (req.toClient) {
@@ -85,7 +91,8 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
     return { id: queued.id, status: "not_configured", duplicate: false, reason: `missing ${cfg.missing.join(", ")}` };
   }
 
-  const headers: Record<string, string> = { "Message-ID": rfcId, "X-Bloom-Support": "1", "Auto-Submitted": "auto-replied" };
+  const messageId = queued.rfc_message_id ?? rfcId;
+  const headers: Record<string, string> = { "Message-ID": messageId, "X-Bloom-Support": "1", "Auto-Submitted": "auto-replied" };
   if (req.inReplyTo) {
     headers["In-Reply-To"] = req.inReplyTo;
     headers["References"] = [...new Set([...(req.references ?? []), req.inReplyTo])].join(" ");
@@ -97,6 +104,7 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
       body: JSON.stringify({
         from: cfg.from,
         to: [req.to],
+        cc: req.cc?.length ? [...new Set(req.cc.map((c) => c.toLowerCase()))].filter((c) => c !== req.to.toLowerCase()).slice(0, 10) : undefined,
         reply_to: cfg.supportAddress ?? undefined,
         subject: req.subject,
         text: req.text,
@@ -112,8 +120,9 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
     await rpc("mark_outbound_email", { id: queued.id, status: "sent", provider_id: body?.id ?? null });
     return { id: queued.id, status: "sent", duplicate: false };
   } catch (e) {
-    await rpc("mark_outbound_email", { id: queued.id, status: "failed", error: String(e).slice(0, 300) });
-    return { id: queued.id, status: "failed", duplicate: false, reason: String(e) };
+    // Timeout or connection loss: the provider may or may not have accepted it.
+    await rpc("mark_outbound_email", { id: queued.id, status: "uncertain", error: `outcome unknown: ${String(e).slice(0, 250)}` });
+    return { id: queued.id, status: "uncertain", duplicate: false, reason: "provider outcome unknown; will retry with the same idempotency key" };
   }
 }
 

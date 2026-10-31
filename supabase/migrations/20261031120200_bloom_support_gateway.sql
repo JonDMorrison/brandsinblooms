@@ -8,6 +8,8 @@ CREATE OR REPLACE FUNCTION public.bloom_support_rpc(p_fn text, p jsonb DEFAULT '
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE a uuid := nullif(p->>'actor','')::uuid; r jsonb;
 BEGIN
+  -- Attribution for event-history triggers.
+  PERFORM set_config('bloom.actor', coalesce(a::text, ''), true);
   CASE p_fn
     WHEN 'resolve_crm_user' THEN r := to_jsonb(bloom_support.resolve_crm_user((p->>'auth_user_id')::uuid, p->>'email', p->>'name', (p->>'tenant_id')::uuid, p->>'tenant_name'));
     WHEN 'resolve_product_user' THEN r := bloom_support.resolve_product_user(p->>'product', p->>'external_user_id', p->>'email', p->>'name', p->>'external_account_id', p->>'account_name');
@@ -103,6 +105,7 @@ BEGIN
              'related', bloom_support.related_tickets(a, (p->>'ticket_id')::uuid),
              'links', (SELECT coalesce(jsonb_agg(jsonb_build_object('product', l.product, 'external_id', l.external_id)), '[]')
                        FROM bloom_support.account_links l JOIN bloom_support.tickets t ON t.account_id = l.account_id WHERE t.id = (p->>'ticket_id')::uuid),
+             'cc', (SELECT to_jsonb(c.cc_emails) FROM bloom_support.tickets t JOIN bloom_support.conversations c ON c.id = t.conversation_id WHERE t.id = (p->>'ticket_id')::uuid),
              'requester_email', (SELECT coalesce(c.reply_to_email, pr.email) FROM bloom_support.tickets t JOIN bloom_support.conversations c ON c.id = t.conversation_id
                        LEFT JOIN bloom_support.principals pr ON pr.id = t.requester_id WHERE t.id = (p->>'ticket_id')::uuid),
              'thread', (SELECT jsonb_build_object('root', c.email_thread_root,
@@ -124,6 +127,37 @@ BEGIN
     WHEN 'oauth_consume_code' THEN r := bloom_support.oauth_consume_code(p->>'code_hash', p->>'client_id', p->>'redirect_uri');
     WHEN 'oauth_issue_tokens' THEN r := bloom_support.oauth_issue_tokens((p->>'principal_id')::uuid, p->>'client_id', p->>'scope', p->>'access_hash', p->>'access_prefix', p->>'refresh_hash', p->>'old_refresh_hash');
     WHEN 'oauth_refresh_lookup' THEN r := bloom_support.oauth_refresh_lookup(p->>'refresh_hash');
+    WHEN 'sweep_operational' THEN r := bloom_support.sweep_operational();
+    WHEN 'is_staff_email' THEN
+      r := to_jsonb(EXISTS (SELECT 1 FROM bloom_support.principals pr WHERE pr.kind = 'user' AND pr.active AND pr.role IN ('platform_admin','platform_operator','support') AND lower(pr.email) = lower(p->>'email')));
+    WHEN 'merge_tickets' THEN r := bloom_support.merge_tickets(a, (p->>'source_id')::uuid, (p->>'target_id')::uuid, p->>'reason');
+    WHEN 'set_spam' THEN r := bloom_support.set_spam(a, (p->>'ticket_id')::uuid, coalesce((p->>'spam')::boolean, true));
+    WHEN 'bulk_update' THEN r := bloom_support.bulk_update(a, ARRAY(SELECT (jsonb_array_elements_text(coalesce(p->'ticket_ids','[]'::jsonb)))::uuid), p->'bulk');
+    WHEN 'client_action' THEN r := bloom_support.client_action(a, (p->>'ticket_id')::uuid, p->>'action', p->>'message');
+    WHEN 'resolve_post_reply' THEN r := bloom_support.resolve_post_reply(a, (p->>'ticket_id')::uuid, p->>'decision', (p->>'message_id')::uuid, p->>'note');
+    WHEN 'create_problem' THEN r := bloom_support.create_problem(a, coalesce(p->'problem','{}'::jsonb));
+    WHEN 'link_problem' THEN r := bloom_support.link_problem(a, (p->>'ticket_id')::uuid, (p->>'problem_id')::uuid);
+    WHEN 'list_problems' THEN r := bloom_support.list_problems(a, p->>'status');
+    WHEN 'update_problem' THEN r := bloom_support.update_problem(a, (p->>'problem_id')::uuid, coalesce(p->'patch','{}'::jsonb));
+    WHEN 'save_view' THEN r := bloom_support.save_view(a, p->>'name', p->'filters', coalesce((p->>'shared')::boolean, false));
+    WHEN 'list_views' THEN r := bloom_support.list_views(a);
+    WHEN 'delete_view' THEN PERFORM bloom_support.delete_view(a, (p->>'view_id')::uuid); r := '{"ok":true}';
+    WHEN 'summary_report' THEN
+      IF a IS NOT NULL THEN PERFORM bloom_support.require_permission(a, 'tickets.read_all'); END IF;
+      r := bloom_support.summary_report(coalesce(p->>'period', 'daily'));
+    WHEN 'report_metrics' THEN r := bloom_support.report_metrics(a, (p->>'from')::timestamptz, (p->>'to')::timestamptz);
+    WHEN 'record_delivery_event' THEN r := bloom_support.record_delivery_event(p->>'provider_id', p->>'type', coalesce(p->'detail','{}'::jsonb));
+    WHEN 'redact_ticket' THEN r := bloom_support.redact_ticket(a, (p->>'ticket_id')::uuid, p->>'reason');
+    WHEN 'ticket_timers' THEN PERFORM bloom_support.require_ticket(a, (p->>'ticket_id')::uuid); r := bloom_support.ticket_timers((p->>'ticket_id')::uuid);
+    WHEN 'set_account_automation' THEN r := bloom_support.set_account_automation(a, (p->>'account_id')::uuid, coalesce((p->>'paused')::boolean, true));
+    WHEN 'conversation_cc' THEN
+      -- Record CC'd addresses that are verified contacts of the ticket's account (server code only).
+      UPDATE bloom_support.conversations c SET cc_emails = ARRAY(SELECT DISTINCT x FROM unnest(c.cc_emails || ARRAY(
+          SELECT lower(e) FROM jsonb_array_elements_text(coalesce(p->'emails','[]'::jsonb)) e
+          WHERE EXISTS (SELECT 1 FROM bloom_support.account_members m JOIN bloom_support.principals pr ON pr.id = m.principal_id
+                        WHERE m.account_id = c.account_id AND m.verified AND lower(pr.email) = lower(e)))) x)
+      WHERE c.id = (SELECT conversation_id FROM bloom_support.tickets WHERE id = (p->>'ticket_id')::uuid)
+      RETURNING to_jsonb(c.cc_emails) INTO r;
     ELSE RAISE EXCEPTION 'unknown bloom_support function %', p_fn USING ERRCODE = '42883';
   END CASE;
   RETURN r;

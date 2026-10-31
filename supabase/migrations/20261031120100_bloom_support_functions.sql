@@ -228,7 +228,7 @@ BEGIN
   staff := bloom_support.has_permission(p_actor, 'tickets.read_all');
   IF length(v_body) < 3 THEN RAISE EXCEPTION 'invalid: describe the request' USING ERRCODE = '22023'; END IF;
   IF v_subject = '' THEN v_subject := left(regexp_replace(v_body, '\s+', ' ', 'g'), 120); END IF;
-  IF v_kind NOT IN ('unknown','bug','question','request','feature','operation','account') THEN v_kind := 'unknown'; END IF;
+  IF v_kind NOT IN ('unknown','question','bug','change','incident','feature','other') THEN v_kind := 'unknown'; END IF;
   IF v_priority NOT IN ('low','normal','high','urgent') THEN v_priority := 'normal'; END IF;
   -- Clients cannot self-assign urgency beyond high; urgency affects priority only.
   IF NOT staff AND v_priority = 'urgent' THEN v_priority := 'high'; END IF;
@@ -305,39 +305,57 @@ END $$;
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION bloom_support.ticket_json(p_actor uuid, t bloom_support.tickets, p_full boolean)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
-DECLARE staff boolean := bloom_support.has_permission(p_actor, 'tickets.read_all'); base jsonb;
+DECLARE staff boolean := bloom_support.has_permission(p_actor, 'tickets.read_all'); base jsonb; merged uuid[];
 BEGIN
   base := jsonb_build_object(
     'id', t.id, 'number', t.number, 'subject', t.subject, 'status', t.status, 'product', t.product, 'kind', t.kind,
     'priority', t.priority, 'created_at', t.created_at, 'updated_at', t.updated_at, 'resolved_at', t.resolved_at,
+    'waiting_reason', t.waiting_reason, 'merged_into', t.merged_into,
+    'merged_into_number', (SELECT o.number FROM bloom_support.tickets o WHERE o.id = t.merged_into),
     'conversation_id', t.conversation_id, 'account', (SELECT jsonb_build_object('id', a.id, 'name', a.name) FROM bloom_support.accounts a WHERE a.id = t.account_id),
     'requester', (SELECT jsonb_build_object('id', pr.id, 'name', pr.display_name, 'email', pr.email) FROM bloom_support.principals pr WHERE pr.id = t.requester_id),
-    'resolution_summary', t.resolution_summary);
+    'resolution_summary', t.resolution_summary,
+    'progress', bloom_support.client_progress(t));
   IF staff THEN
     base := base || jsonb_build_object('stage', t.stage, 'category', t.category, 'impact', t.impact, 'automation', t.automation,
-      'next_action', t.next_action, 'version', t.version, 'channel', t.channel, 'duplicate_of', t.duplicate_of,
-      'engineering_issue_id', t.engineering_issue_id, 'feature_request_id', t.feature_request_id, 'reopen_count', t.reopen_count,
-      'resolution_verified', t.resolution_verified,
+      'next_action', t.next_action, 'next_action_due_at', t.next_action_due_at, 'version', t.version, 'channel', t.channel, 'source_ref', t.source_ref,
+      'environment', t.environment, 'team', t.team, 'tags', to_jsonb(t.tags), 'spam', t.spam, 'pending_review', t.pending_review,
+      'executor', t.executor, 'executor_person', (SELECT jsonb_build_object('id', pr.id, 'name', pr.display_name) FROM bloom_support.principals pr WHERE pr.id = t.executor_id),
+      'duplicate_of', t.duplicate_of, 'problem_id', t.problem_id, 'engineering_issue_id', t.engineering_issue_id, 'feature_request_id', t.feature_request_id,
+      'reopen_count', t.reopen_count, 'resolution_verified', t.resolution_verified, 'due_at', t.due_at, 'waiting_since', t.waiting_since,
+      'first_response_at', t.first_response_at, 'last_customer_message_at', t.last_customer_message_at, 'last_team_message_at', t.last_team_message_at,
+      'first_resolved_at', t.first_resolved_at, 'closed_at', t.closed_at, 'flags', bloom_support.ticket_flags(t),
       'owner', (SELECT jsonb_build_object('id', pr.id, 'name', pr.display_name, 'role', pr.role) FROM bloom_support.principals pr WHERE pr.id = t.owner_id),
       'taken_over_by', (SELECT jsonb_build_object('id', pr.id, 'name', pr.display_name) FROM bloom_support.principals pr WHERE pr.id = t.taken_over_by));
   END IF;
   IF NOT p_full THEN RETURN base; END IF;
+  merged := ARRAY(SELECT id FROM bloom_support.tickets WHERE merged_into = t.id);
   base := base || jsonb_build_object(
     'summary', t.summary,
     'messages', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'ticket_id', m.ticket_id, 'author_kind', m.author_kind, 'visibility', m.visibility,
                    'direction', m.direction, 'body', m.body, 'created_at', m.created_at, 'delivery', CASE WHEN staff THEN m.delivery END,
-                   'author', (SELECT jsonb_build_object('name', pr.display_name, 'role', CASE WHEN staff THEN pr.role END) FROM bloom_support.principals pr WHERE pr.id = m.author_id))
+                   'purpose', CASE WHEN staff THEN m.purpose END, 'meaningful', CASE WHEN staff THEN m.meaningful END,
+                   'author', (SELECT jsonb_build_object('name', CASE WHEN m.author_kind = 'bloom' THEN 'Bloom' ELSE pr.display_name END, 'role', CASE WHEN staff THEN pr.role END) FROM bloom_support.principals pr WHERE pr.id = m.author_id))
                    ORDER BY m.created_at), '[]')
-                 FROM bloom_support.messages m
-                 WHERE m.conversation_id = t.conversation_id AND (m.ticket_id IS NULL OR m.ticket_id = t.id OR staff)
-                   AND (staff OR m.visibility = 'public')),
+                 FROM (SELECT * FROM bloom_support.messages m
+                       WHERE (m.conversation_id = t.conversation_id OR m.ticket_id = ANY(merged))
+                         AND (m.ticket_id IS NULL OR m.ticket_id = t.id OR m.ticket_id = ANY(merged) OR staff)
+                         AND (staff OR m.visibility = 'public')
+                       ORDER BY m.created_at DESC LIMIT 300) m),
     'attachments', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'file_name', x.file_name, 'content_type', x.content_type, 'size_bytes', x.size_bytes, 'visibility', x.visibility, 'created_at', x.created_at)), '[]')
                     FROM bloom_support.attachments x WHERE x.ticket_id = t.id AND (staff OR x.visibility = 'public')),
     'conversation_tickets', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'number', o.number, 'subject', o.subject, 'status', o.status) ORDER BY o.number), '[]')
-                    FROM bloom_support.tickets o WHERE o.conversation_id = t.conversation_id AND o.id <> t.id AND (staff OR bloom_support.can_read_ticket(p_actor, o.id))));
+                    FROM bloom_support.tickets o WHERE o.conversation_id = t.conversation_id AND o.id <> t.id AND o.merged_into IS NULL AND (staff OR bloom_support.can_read_ticket(p_actor, o.id))));
   IF staff THEN
     base := base || jsonb_build_object(
-      'context', t.context,
+      'context', t.context, 'resolution_evidence', t.resolution_evidence, 'timers', bloom_support.ticket_timers(t.id),
+      'merged_tickets', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'number', o.number, 'subject', o.subject)), '[]') FROM bloom_support.tickets o WHERE o.merged_into = t.id),
+      'history', (SELECT coalesce(jsonb_agg(jsonb_build_object('kind', e.kind, 'from', e.from_value, 'to', e.to_value, 'at', e.at,
+                    'actor', (SELECT pr.display_name FROM bloom_support.principals pr WHERE pr.id = e.actor_id)) ORDER BY e.id), '[]')
+                  FROM (SELECT * FROM bloom_support.ticket_events WHERE ticket_id = t.id ORDER BY id DESC LIMIT 200) e),
+      'problem', (SELECT jsonb_build_object('id', pb.id, 'title', pb.title, 'kind', pb.kind, 'status', pb.status,
+                    'tickets', (SELECT count(*) FROM bloom_support.tickets x WHERE x.problem_id = pb.id), 'accounts', (SELECT count(DISTINCT account_id) FROM bloom_support.tickets x WHERE x.problem_id = pb.id))
+                  FROM bloom_support.problems pb WHERE pb.id = t.problem_id),
       'links', (SELECT coalesce(jsonb_agg(jsonb_build_object('ticket_id', CASE WHEN l.from_ticket = t.id THEN l.to_ticket ELSE l.from_ticket END, 'kind', l.kind,
                  'number', o.number, 'subject', o.subject, 'status', o.status)), '[]')
                 FROM bloom_support.ticket_links l JOIN bloom_support.tickets o ON o.id = CASE WHEN l.from_ticket = t.id THEN l.to_ticket ELSE l.from_ticket END
@@ -351,7 +369,7 @@ BEGIN
       'engineering', (SELECT to_jsonb(e) FROM bloom_support.engineering_issues e WHERE e.id = t.engineering_issue_id),
       'feature_request', (SELECT to_jsonb(f) FROM bloom_support.feature_requests f WHERE f.id = t.feature_request_id),
       'escalations', (SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at DESC), '[]') FROM bloom_support.escalations x WHERE x.ticket_id = t.id),
-      'emails', (SELECT coalesce(jsonb_agg(jsonb_build_object('purpose', o.purpose, 'to', o.to_email, 'status', o.status, 'created_at', o.created_at, 'error', o.error) ORDER BY o.created_at DESC), '[]')
+      'emails', (SELECT coalesce(jsonb_agg(jsonb_build_object('purpose', o.purpose, 'to', o.to_email, 'cc', o.cc, 'status', o.status, 'created_at', o.created_at, 'error', o.error) ORDER BY o.created_at DESC), '[]')
                  FROM bloom_support.outbound_emails o WHERE o.ticket_id = t.id),
       'account_history', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'number', o.number, 'subject', o.subject, 'status', o.status, 'created_at', o.created_at) ORDER BY o.created_at DESC), '[]')
                  FROM (SELECT * FROM bloom_support.tickets WHERE account_id = t.account_id AND id <> t.id ORDER BY created_at DESC LIMIT 15) o));
@@ -368,27 +386,70 @@ BEGIN
 END $$;
 
 -- f: {status, product, account_id, owner ('me'|'none'|uuid), q, kind, automation, needs_owner, limit, before}
+-- f: {view, status, product, kind, priority, account_id, owner ('me'|'none'|uuid), q, automation, tag, age_days_min, age_days_max,
+--     sort ('priority'|'updated'|'created'|'due'), cursor (opaque), limit}
+-- Views: needs_attention, mine, open, unassigned, urgent, due_soon, overdue, waiting_customer, needs_owner, recently_resolved.
+-- Keyset pagination; never returns more than 200 rows.
 CREATE OR REPLACE FUNCTION bloom_support.list_tickets(p_actor uuid, f jsonb)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
-DECLARE staff boolean := bloom_support.has_permission(p_actor, 'tickets.read_all'); lim int := least(coalesce((f->>'limit')::int, 50), 200);
+DECLARE staff boolean := bloom_support.has_permission(p_actor, 'tickets.read_all'); lim int := least(greatest(coalesce((f->>'limit')::int, 50), 1), 200);
+  v text := f->>'view'; s text := coalesce(f->>'sort', 'priority'); c_rank int; cur_ts timestamptz; cur_id uuid; result jsonb;
+  soon interval := make_interval(mins => coalesce((bloom_support.setting('sla')->>'due_soon_minutes')::int, 120));
 BEGIN
   IF NOT staff AND NOT bloom_support.has_permission(p_actor, 'tickets.read_own') THEN RAISE EXCEPTION 'forbidden: tickets' USING ERRCODE = '42501'; END IF;
-  RETURN (SELECT coalesce(jsonb_agg(bloom_support.ticket_json(p_actor, t, false) ORDER BY
-            CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, t.updated_at DESC), '[]')
-    FROM (
-      SELECT * FROM bloom_support.tickets t
-      WHERE (staff OR bloom_support.can_read_ticket(p_actor, t.id))
-        AND (f->>'status' IS NULL OR t.status = ANY(string_to_array(f->>'status', ',')))
-        AND (f->>'product' IS NULL OR t.product = f->>'product')
-        AND (f->>'kind' IS NULL OR t.kind = f->>'kind')
-        AND (f->>'account_id' IS NULL OR t.account_id = (f->>'account_id')::uuid)
-        AND (f->>'automation' IS NULL OR t.automation = f->>'automation')
-        AND (f->>'owner' IS NULL OR (f->>'owner' = 'me' AND t.owner_id = p_actor) OR (f->>'owner' = 'none' AND t.owner_id IS NULL)
-             OR (f->>'owner' NOT IN ('me','none') AND t.owner_id::text = f->>'owner'))
-        AND (f->>'q' IS NULL OR t.search @@ plainto_tsquery('simple', f->>'q') OR t.number::text = ltrim(f->>'q', '#')
-             OR EXISTS (SELECT 1 FROM bloom_support.accounts a WHERE a.id = t.account_id AND a.name ILIKE '%' || (f->>'q') || '%'))
-        AND (f->>'before' IS NULL OR t.updated_at < (f->>'before')::timestamptz)
-      ORDER BY t.updated_at DESC LIMIT lim) t);
+  IF f->>'cursor' IS NOT NULL THEN
+    c_rank := split_part(f->>'cursor', '|', 1)::int; cur_ts := split_part(f->>'cursor', '|', 2)::timestamptz; cur_id := split_part(f->>'cursor', '|', 3)::uuid;
+  END IF;
+  WITH base AS (
+    SELECT t.id,
+      CASE s WHEN 'created' THEN t.created_at WHEN 'due' THEN coalesce(least(t.due_at, t.next_action_due_at), 'infinity'::timestamptz) ELSE t.updated_at END AS sort_ts,
+      CASE WHEN s = 'priority' THEN CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END ELSE 0 END AS rnk
+    FROM bloom_support.tickets t
+    WHERE (staff OR bloom_support.can_read_ticket(p_actor, t.id))
+      AND t.merged_into IS NULL AND t.redacted_at IS NULL
+      AND (f->>'include_spam' = 'true' OR NOT t.spam)
+      AND (v IS NULL OR CASE v
+        WHEN 'open' THEN t.status <> 'resolved'
+        WHEN 'mine' THEN t.status <> 'resolved' AND (t.owner_id = p_actor OR t.executor_id = p_actor)
+        WHEN 'unassigned' THEN t.status <> 'resolved' AND t.owner_id IS NULL
+        WHEN 'urgent' THEN t.status <> 'resolved' AND t.priority = 'urgent'
+        WHEN 'due_soon' THEN t.status NOT IN ('resolved','waiting') AND least(t.due_at, t.next_action_due_at) BETWEEN now() AND now() + soon
+        WHEN 'overdue' THEN t.status <> 'resolved' AND least(t.due_at, t.next_action_due_at) < now() AND coalesce(t.waiting_reason, '') NOT IN ('customer','third_party','scheduled')
+        WHEN 'waiting_customer' THEN t.status = 'waiting' AND t.waiting_reason = 'customer'
+        WHEN 'needs_owner' THEN t.status = 'needs_owner'
+        WHEN 'recently_resolved' THEN t.status = 'resolved' AND t.resolved_at > now() - interval '7 days'
+        WHEN 'needs_attention' THEN t.pending_review IS NOT NULL OR (t.status <> 'resolved' AND (t.priority = 'urgent' OR t.status IN ('new','needs_owner') OR t.owner_id IS NULL
+              OR (least(t.due_at, t.next_action_due_at) < now() + soon AND coalesce(t.waiting_reason, '') NOT IN ('customer','third_party','scheduled'))
+              OR EXISTS (SELECT 1 FROM bloom_support.jobs j WHERE j.ticket_id = t.id AND j.status = 'dead')))
+        ELSE true END)
+      AND (f->>'status' IS NULL OR t.status = ANY(string_to_array(f->>'status', ',')))
+      AND (f->>'product' IS NULL OR t.product = ANY(string_to_array(f->>'product', ',')))
+      AND (f->>'kind' IS NULL OR t.kind = ANY(string_to_array(f->>'kind', ',')))
+      AND (f->>'priority' IS NULL OR t.priority = ANY(string_to_array(f->>'priority', ',')))
+      AND (f->>'account_id' IS NULL OR t.account_id = (f->>'account_id')::uuid)
+      AND (f->>'automation' IS NULL OR t.automation = f->>'automation')
+      AND (f->>'tag' IS NULL OR f->>'tag' = ANY(t.tags))
+      AND (f->>'age_days_min' IS NULL OR t.created_at <= now() - make_interval(days => (f->>'age_days_min')::int))
+      AND (f->>'age_days_max' IS NULL OR t.created_at >= now() - make_interval(days => (f->>'age_days_max')::int))
+      AND (f->>'owner' IS NULL OR (f->>'owner' = 'me' AND t.owner_id = p_actor) OR (f->>'owner' = 'none' AND t.owner_id IS NULL)
+           OR (f->>'owner' NOT IN ('me','none') AND t.owner_id::text = f->>'owner'))
+      AND (f->>'q' IS NULL OR t.search @@ plainto_tsquery('simple', f->>'q') OR t.number::text = ltrim(f->>'q', '#')
+           OR EXISTS (SELECT 1 FROM bloom_support.accounts a WHERE a.id = t.account_id AND a.name ILIKE '%' || (f->>'q') || '%')
+           OR (staff AND EXISTS (SELECT 1 FROM bloom_support.principals pr WHERE pr.id = t.requester_id AND (pr.email ILIKE '%' || (f->>'q') || '%' OR pr.display_name ILIKE '%' || (f->>'q') || '%'))))
+  ), page AS (
+    SELECT * FROM base b
+    WHERE c_rank IS NULL OR b.rnk > c_rank OR (b.rnk = c_rank AND (b.sort_ts, b.id) < (cur_ts, cur_id))
+    ORDER BY b.rnk, b.sort_ts DESC, b.id DESC LIMIT lim
+  )
+  SELECT jsonb_build_object(
+    'items', coalesce((SELECT jsonb_agg(bloom_support.ticket_json(p_actor, t, false) ORDER BY pg.rnk, pg.sort_ts DESC, pg.id DESC)
+                       FROM page pg JOIN bloom_support.tickets t ON t.id = pg.id), '[]'),
+    'total', (SELECT count(*) FROM base),
+    'next_cursor', CASE WHEN (SELECT count(*) FROM page) = lim THEN
+       (SELECT pg.rnk::text || '|' || pg.sort_ts::text || '|' || pg.id::text FROM page pg ORDER BY pg.rnk DESC, pg.sort_ts, pg.id LIMIT 1) END)
+  INTO result;
+  IF f->>'envelope' = 'true' THEN RETURN result; END IF;
+  RETURN result->'items';
 END $$;
 
 CREATE OR REPLACE FUNCTION bloom_support.queue_summary(p_actor uuid)
@@ -461,17 +522,23 @@ END $$;
 -- Messages, updates, takeover, reopen
 -- ---------------------------------------------------------------------------
 -- p: {body, visibility, idempotency_key, as_bloom (bool), notify_client (bool)}
+-- p: {body, visibility, idempotency_key, purpose, notify_client}
+-- purpose (staff/Bloom public): reply | clarification | resolution | acknowledgement | progress.
+-- Only reply/clarification/resolution count as meaningful responses.
 CREATE OR REPLACE FUNCTION bloom_support.add_message(p_actor uuid, p_ticket uuid, p jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
-  t bloom_support.tickets; staff boolean; svc boolean; v_vis text := coalesce(p->>'visibility','public'); v_body text := btrim(coalesce(p->>'body',''));
-  m bloom_support.messages; v_kind text; prior bloom_support.messages;
+  t bloom_support.tickets; svc boolean; v_vis text := coalesce(p->>'visibility','public'); v_body text := btrim(coalesce(p->>'body',''));
+  m bloom_support.messages; v_kind text; prior bloom_support.messages; v_purpose text := coalesce(p->>'purpose', 'reply');
 BEGIN
   t := bloom_support.require_ticket(p_actor, p_ticket);
-  staff := bloom_support.has_permission(p_actor, 'tickets.write');
+  IF t.merged_into IS NOT NULL THEN
+    RAISE EXCEPTION 'invalid: this ticket was merged into another ticket (%)', t.merged_into USING ERRCODE = '22023';
+  END IF;
   svc := bloom_support.principal_role(p_actor) = 'service';
   IF length(v_body) = 0 THEN RAISE EXCEPTION 'invalid: empty message' USING ERRCODE = '22023'; END IF;
   IF v_vis NOT IN ('public','internal') THEN RAISE EXCEPTION 'invalid visibility' USING ERRCODE = '22023'; END IF;
+  IF v_purpose NOT IN ('reply','clarification','resolution','acknowledgement','progress','notification') THEN v_purpose := 'reply'; END IF;
   IF v_vis = 'internal' THEN PERFORM bloom_support.require_permission(p_actor, 'tickets.internal'); END IF;
 
   IF p->>'idempotency_key' IS NOT NULL THEN
@@ -483,37 +550,51 @@ BEGIN
   END IF;
 
   v_kind := CASE WHEN svc THEN 'bloom' WHEN bloom_support.is_staff(p_actor) THEN 'staff' ELSE 'client' END;
-  -- Bloom never speaks to the client once a human has taken over or automation is paused.
-  IF v_kind = 'bloom' AND v_vis = 'public' AND t.automation <> 'auto' THEN
+  -- Bloom never speaks to the client once a person is executing or automation is paused/human.
+  IF v_kind = 'bloom' AND v_vis = 'public' AND (t.automation <> 'auto' OR t.executor = 'person') THEN
     RAISE EXCEPTION 'blocked: ticket is under human control' USING ERRCODE = '42501';
   END IF;
+  IF bloom_support.has_permission(p_actor, 'tickets.read_all') = false AND v_kind = 'client' AND t.spam THEN
+    RAISE EXCEPTION 'invalid: ticket closed' USING ERRCODE = '22023';
+  END IF;
 
-  INSERT INTO bloom_support.messages(conversation_id, ticket_id, author_id, author_kind, visibility, direction, body, idempotency_key, delivery)
+  INSERT INTO bloom_support.messages(conversation_id, ticket_id, author_id, author_kind, visibility, direction, body, idempotency_key, delivery, purpose, meaningful)
   VALUES (t.conversation_id, t.id, p_actor, v_kind, v_vis, CASE WHEN v_vis = 'internal' THEN 'internal' WHEN v_kind = 'client' THEN 'inbound' ELSE 'outbound' END,
-          v_body, p->>'idempotency_key', CASE WHEN v_vis = 'public' AND v_kind <> 'client' THEN 'queued' ELSE 'none' END)
+          v_body, p->>'idempotency_key', CASE WHEN v_vis = 'public' AND v_kind <> 'client' THEN 'queued' ELSE 'none' END,
+          CASE WHEN v_kind = 'client' THEN NULL ELSE v_purpose END,
+          v_vis = 'public' AND v_kind IN ('staff','bloom') AND v_purpose IN ('reply','clarification','resolution'))
   RETURNING * INTO m;
 
-  IF v_kind = 'staff' AND v_vis = 'public' AND t.automation = 'auto' THEN
-    -- A person replying publicly takes the conversation over from Bloom.
-    UPDATE bloom_support.tickets SET automation = 'human', taken_over_by = p_actor, taken_over_at = now(), version = version + 1, updated_at = now() WHERE id = t.id;
-    PERFORM bloom_support.log(t.id, t.account_id, p_actor, 'automation.taken_over', '{"via":"public_reply"}');
+  IF v_kind = 'staff' AND v_vis = 'public' THEN
+    -- A person replying publicly takes the conversation over: Bloom's planned replies are invalidated before they can send.
+    IF t.automation = 'auto' OR t.executor = 'bloom' THEN
+      UPDATE bloom_support.tickets SET automation = 'human', executor = 'person', executor_id = p_actor, taken_over_by = p_actor, taken_over_at = now(),
+        owner_id = coalesce(owner_id, p_actor), version = version + 1, updated_at = now() WHERE id = t.id;
+      PERFORM bloom_support.log(t.id, t.account_id, p_actor, 'automation.taken_over', '{"via":"public_reply"}');
+    END IF;
+    PERFORM bloom_support.invalidate_planned(t.id, 'human reply');
   END IF;
 
   IF v_kind = 'client' THEN
-    -- A client reply on a waiting or resolved ticket wakes it up.
+    -- New customer input invalidates Bloom's stale planned replies and actions.
+    PERFORM bloom_support.invalidate_planned(t.id, 'new customer message');
     IF t.status = 'resolved' THEN
-      UPDATE bloom_support.tickets SET status = 'working', stage = 'triage', reopen_count = reopen_count + 1, resolution_verified = false,
-        resolved_at = NULL, version = version + 1, updated_at = now() WHERE id = t.id;
-      PERFORM bloom_support.log(t.id, t.account_id, p_actor, 'ticket.reopened', '{"via":"client_reply"}');
-      PERFORM bloom_support.notify_staff(t.id, 'ticket.reopened', 'Reopened #' || t.number || ': ' || left(t.subject, 80), 'both');
-    ELSIF t.status = 'waiting' THEN
-      UPDATE bloom_support.tickets SET status = 'working', stage = 'triage', version = version + 1, updated_at = now() WHERE id = t.id;
+      -- Not reopened blindly: persisting issue → reopen; distinct request → linked ticket; unclear → review.
+      UPDATE bloom_support.tickets SET pending_review = 'reply_after_resolution', updated_at = now() WHERE id = t.id;
+      PERFORM bloom_support.log(t.id, t.account_id, p_actor, 'ticket.reply_after_resolution', jsonb_build_object('message_id', m.id));
+      PERFORM bloom_support.enqueue_job('post_resolution_reply', t.id, NULL, 'account:' || coalesce(t.account_id::text, 'none:' || t.id::text),
+        jsonb_build_object('message_id', m.id), 'post_reply:' || m.id::text);
+      PERFORM bloom_support.notify_staff(t.id, 'ticket.reply_after_resolution', 'Reply on resolved #' || t.number || ': ' || left(t.subject, 70), 'both');
     ELSE
-      UPDATE bloom_support.tickets SET updated_at = now() WHERE id = t.id;
-    END IF;
-    IF t.automation = 'auto' THEN
-      PERFORM bloom_support.enqueue_job('triage', t.id, NULL, 'account:' || coalesce(t.account_id::text, 'none:' || t.id::text),
-        jsonb_build_object('reason','client_reply','message_id', m.id), 'triage:' || m.id::text);
+      IF t.status = 'waiting' AND t.waiting_reason = 'customer' THEN
+        UPDATE bloom_support.tickets SET status = 'working', stage = 'triage', version = version + 1, updated_at = now() WHERE id = t.id;
+      ELSE
+        UPDATE bloom_support.tickets SET updated_at = now() WHERE id = t.id;
+      END IF;
+      IF t.automation = 'auto' AND t.executor = 'bloom' THEN
+        PERFORM bloom_support.enqueue_job('triage', t.id, NULL, 'account:' || coalesce(t.account_id::text, 'none:' || t.id::text),
+          jsonb_build_object('reason','client_reply','message_id', m.id), 'triage:' || m.id::text);
+      END IF;
     END IF;
   ELSE
     UPDATE bloom_support.tickets SET updated_at = now(),
@@ -522,18 +603,23 @@ BEGIN
     WHERE id = t.id;
   END IF;
 
-  PERFORM bloom_support.log(t.id, t.account_id, p_actor, 'message.' || v_vis, jsonb_build_object('message_id', m.id, 'author_kind', v_kind));
+  PERFORM bloom_support.log(t.id, t.account_id, p_actor, 'message.' || v_vis, jsonb_build_object('message_id', m.id, 'author_kind', v_kind, 'purpose', m.purpose));
   IF v_vis = 'public' AND v_kind <> 'client' AND coalesce((p->>'notify_client')::boolean, true) THEN
     PERFORM bloom_support.enqueue_job('send_email', t.id, NULL, 'email:' || t.id::text,
-      jsonb_build_object('purpose', CASE WHEN p->>'purpose' IS NOT NULL THEN p->>'purpose' ELSE 'reply' END, 'message_id', m.id), 'email:message:' || m.id::text);
+      jsonb_build_object('purpose', v_purpose, 'message_id', m.id), 'email:message:' || m.id::text);
   END IF;
   RETURN jsonb_build_object('message_id', m.id, 'duplicate', false);
 END $$;
 
 -- p: {version, status, stage, priority, kind, category, impact, owner_id, next_action, resolution_summary, resolution_verified, reason}
+-- p: {version, status, waiting_reason, stage, priority, kind, category, impact, environment, tags,
+--     owner_id, executor ('bloom'|'person'), executor_id, next_action, next_action_due_at,
+--     resolution_summary, resolution_verified, resolution_evidence,
+--     decision_needed, accountable ('jon'|'jeff'|'both'), decision_due_at, recommendation, reason, internal_only}
 CREATE OR REPLACE FUNCTION bloom_support.update_ticket(p_actor uuid, p_ticket uuid, p jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE t bloom_support.tickets; n bloom_support.tickets; svc boolean; v_stage text; v_status text;
+DECLARE t bloom_support.tickets; n bloom_support.tickets; svc boolean; v_stage text; v_status text; v_wait text; ev jsonb := coalesce(p->'resolution_evidence', '{}'::jsonb);
+  answer_id uuid; op record; v_owner uuid;
 BEGIN
   PERFORM bloom_support.require_permission(p_actor, 'tickets.write');
   t := bloom_support.require_ticket(p_actor, p_ticket);
@@ -542,68 +628,130 @@ BEGIN
   IF p ? 'version' AND (p->>'version')::int <> t.version THEN
     RAISE EXCEPTION 'conflict: ticket changed (version %)', t.version USING ERRCODE = '40001';
   END IF;
-  IF svc AND t.automation <> 'auto' AND NOT coalesce((p->>'internal_only')::boolean, false) THEN
+  IF t.merged_into IS NOT NULL THEN RAISE EXCEPTION 'invalid: ticket was merged; update the target ticket' USING ERRCODE = '22023'; END IF;
+  IF svc AND (t.automation <> 'auto' OR t.executor = 'person') AND NOT coalesce((p->>'internal_only')::boolean, false) THEN
     RAISE EXCEPTION 'blocked: ticket is under human control' USING ERRCODE = '42501';
   END IF;
 
   v_stage := coalesce(p->>'stage', t.stage);
-  v_status := coalesce(p->>'status', CASE WHEN p ? 'stage' THEN bloom_support.status_for_stage(v_stage) ELSE t.status END);
+  v_status := p->>'status';
+  IF v_status IS NULL THEN
+    -- A stage change implies a status only when that is a valid move (e.g. re-triage keeps Working, never back to New).
+    v_status := CASE WHEN p ? 'stage' AND bloom_support.valid_transition(t.status, bloom_support.status_for_stage(v_stage)) AND t.status <> 'resolved'
+                     THEN bloom_support.status_for_stage(v_stage) ELSE t.status END;
+  END IF;
   IF v_status = 'resolved' AND p ? 'status' AND NOT p ? 'stage' THEN v_stage := 'resolved'; END IF;
   IF v_status <> 'resolved' AND v_stage IN ('resolved','closed') THEN v_stage := 'triage'; END IF;
+  IF v_status <> t.status AND NOT bloom_support.valid_transition(t.status, v_status) THEN
+    RAISE EXCEPTION 'invalid transition % -> %', t.status, v_status USING ERRCODE = '22023';
+  END IF;
+  -- Waiting always carries a reason.
+  v_wait := CASE WHEN v_status = 'waiting' THEN coalesce(p->>'waiting_reason', CASE WHEN t.status = 'waiting' THEN t.waiting_reason END,
+                   CASE WHEN v_stage IN ('needs_info','awaiting_client') THEN 'customer' END) END;
+  IF v_status = 'waiting' AND (v_wait IS NULL OR v_wait NOT IN ('customer','internal','third_party','deployment','scheduled')) THEN
+    RAISE EXCEPTION 'invalid: waiting requires a reason (customer, internal, third_party, deployment, scheduled)' USING ERRCODE = '22023';
+  END IF;
+  -- Needs Jon/Jeff is an escalation: decision, accountable person and due time.
+  IF v_status = 'needs_owner' AND t.status <> 'needs_owner' AND NOT coalesce((p->>'escalated')::boolean, false) THEN
+    IF coalesce(btrim(p->>'decision_needed'), '') = '' THEN
+      RAISE EXCEPTION 'invalid: Needs Jon/Jeff requires decision_needed' USING ERRCODE = '22023';
+    END IF;
+    INSERT INTO bloom_support.escalations(ticket_id, engineering_issue_id, audience, reason, detail, recommendation, evidence, due_at, dedupe_key)
+    VALUES (t.id, t.engineering_issue_id, coalesce(p->>'accountable', 'both'), 'decision_needed', p->>'decision_needed', p->>'recommendation',
+            coalesce(p->'evidence', '{}'::jsonb), (p->>'decision_due_at')::timestamptz, 'decision:' || t.id::text || ':' || t.version);
+  END IF;
 
-  -- Resolution rule: automation may only resolve with verified evidence.
+  -- Resolution needs a summary and evidence appropriate to the request type.
   IF v_status = 'resolved' AND t.status <> 'resolved' THEN
     IF svc AND NOT coalesce((p->>'resolution_verified')::boolean, false) THEN
       RAISE EXCEPTION 'blocked: Bloom may only resolve after verifying the outcome' USING ERRCODE = '42501';
+    END IF;
+    IF coalesce(btrim(coalesce(p->>'resolution_summary', t.resolution_summary)), '') = '' THEN
+      RAISE EXCEPTION 'invalid: resolution summary required' USING ERRCODE = '22023';
     END IF;
     IF t.engineering_issue_id IS NOT NULL AND svc AND NOT EXISTS (
       SELECT 1 FROM bloom_support.engineering_issues e WHERE e.id = t.engineering_issue_id AND e.status IN ('verified','closed')) THEN
       RAISE EXCEPTION 'blocked: linked fix is not verified in production' USING ERRCODE = '42501';
     END IF;
-    IF coalesce(btrim(coalesce(p->>'resolution_summary', t.resolution_summary)), '') = '' THEN
-      RAISE EXCEPTION 'invalid: resolution summary required' USING ERRCODE = '22023';
-    END IF;
-    -- Evidence: Bloom must attach what it checked. A linked fix needs both the
-    -- production deployment and a passing user-flow verification.
     IF svc AND jsonb_typeof(p->'resolution_evidence') IS DISTINCT FROM 'object' THEN
       RAISE EXCEPTION 'blocked: resolution evidence required' USING ERRCODE = '22023';
     END IF;
-    IF svc AND t.engineering_issue_id IS NOT NULL AND (
-         p->'resolution_evidence'->'deployment'->>'state' IS DISTINCT FROM 'success'
-         OR coalesce((p->'resolution_evidence'->'verification'->>'passed')::boolean, false) = false) THEN
-      RAISE EXCEPTION 'blocked: resolution evidence must include a successful production deployment and a passing user-flow check' USING ERRCODE = '22023';
-    END IF;
+    CASE
+      WHEN t.kind = 'question' THEN
+        answer_id := coalesce((ev->>'answer_message_id')::uuid,
+          (SELECT m.id FROM bloom_support.messages m WHERE m.ticket_id = t.id AND m.meaningful ORDER BY m.created_at DESC LIMIT 1));
+        IF answer_id IS NULL THEN RAISE EXCEPTION 'invalid: answer the question before resolving it' USING ERRCODE = '22023'; END IF;
+        ev := ev || jsonb_build_object('answer_message_id', answer_id);
+      WHEN t.kind = 'change' THEN
+        IF ev ? 'operation_id' THEN
+          SELECT * INTO op FROM bloom_support.operations WHERE id = (ev->>'operation_id')::uuid AND ticket_id = t.id;
+          IF op.id IS NULL OR op.status <> 'succeeded' OR coalesce((op.verification->>'passed')::boolean, false) = false THEN
+            RAISE EXCEPTION 'invalid: the change operation has not succeeded with a passing verification' USING ERRCODE = '22023';
+          END IF;
+          ev := ev || jsonb_build_object('saved_result', op.result, 'verification', op.verification);
+        ELSIF svc OR coalesce(btrim(ev->>'verified_note'), '') = '' THEN
+          RAISE EXCEPTION 'invalid: a content/configuration change needs the saved result and its verification (operation_id or verified_note)' USING ERRCODE = '22023';
+        END IF;
+      WHEN t.kind IN ('bug','incident') THEN
+        IF coalesce((ev->'verification'->>'passed')::boolean, false) = false THEN
+          RAISE EXCEPTION 'invalid: a bug needs a passing affected-flow verification' USING ERRCODE = '22023';
+        END IF;
+        IF (svc OR t.engineering_issue_id IS NOT NULL) AND ev->'deployment'->>'state' IS DISTINCT FROM 'success'
+           AND coalesce(btrim(ev->>'no_deploy_reason'), '') = '' THEN
+          RAISE EXCEPTION 'invalid: resolution evidence must include a successful production deployment and a passing user-flow check' USING ERRCODE = '22023';
+        END IF;
+      WHEN t.kind = 'feature' THEN
+        IF t.feature_request_id IS NULL THEN RAISE EXCEPTION 'invalid: route the feature request to the product decision queue first' USING ERRCODE = '22023'; END IF;
+        ev := ev || jsonb_build_object('routed_feature_request_id', t.feature_request_id, 'delivered', false);
+      ELSE NULL;
+    END CASE;
   END IF;
 
+  IF p ? 'owner_id' AND p->>'owner_id' IS NOT NULL THEN
+    v_owner := (p->>'owner_id')::uuid;
+    IF NOT bloom_support.is_staff(v_owner) THEN RAISE EXCEPTION 'invalid: the accountable owner must be a person on the support team' USING ERRCODE = '22023'; END IF;
+  END IF;
+  IF p->>'executor' IS NOT NULL AND p->>'executor' NOT IN ('bloom','person') THEN RAISE EXCEPTION 'invalid executor' USING ERRCODE = '22023'; END IF;
+  IF svc AND p->>'executor' = 'bloom' AND t.executor = 'person' THEN RAISE EXCEPTION 'forbidden: Bloom cannot reclaim a ticket' USING ERRCODE = '42501'; END IF;
+
   UPDATE bloom_support.tickets SET
-    status = v_status, stage = v_stage,
+    status = v_status, stage = v_stage, waiting_reason = v_wait,
     priority = coalesce(p->>'priority', priority), kind = coalesce(p->>'kind', kind), category = coalesce(p->>'category', category),
-    impact = coalesce(p->>'impact', impact),
-    owner_id = CASE WHEN p ? 'owner_id' THEN (p->>'owner_id')::uuid ELSE owner_id END,
+    impact = coalesce(p->>'impact', impact), environment = coalesce(p->>'environment', environment),
+    tags = CASE WHEN p ? 'tags' THEN ARRAY(SELECT DISTINCT lower(x) FROM jsonb_array_elements_text(p->'tags') x) ELSE tags END,
+    owner_id = CASE WHEN p ? 'owner_id' THEN v_owner ELSE owner_id END,
+    executor = coalesce(p->>'executor', executor),
+    executor_id = CASE WHEN p->>'executor' = 'person' THEN coalesce((p->>'executor_id')::uuid, CASE WHEN svc THEN NULL ELSE p_actor END, executor_id)
+                       WHEN p->>'executor' = 'bloom' THEN NULL ELSE executor_id END,
+    automation = CASE WHEN p->>'executor' = 'person' AND automation = 'auto' THEN 'human' WHEN p->>'executor' = 'bloom' THEN 'auto' ELSE automation END,
     next_action = CASE WHEN p ? 'next_action' THEN p->>'next_action' ELSE next_action END,
+    next_action_due_at = CASE WHEN p ? 'next_action_due_at' THEN (p->>'next_action_due_at')::timestamptz ELSE next_action_due_at END,
     resolution_summary = coalesce(p->>'resolution_summary', resolution_summary),
     resolution_verified = CASE WHEN v_status = 'resolved' THEN coalesce((p->>'resolution_verified')::boolean, resolution_verified) ELSE false END,
     resolved_at = CASE WHEN v_status = 'resolved' THEN coalesce(resolved_at, now()) ELSE NULL END,
     resolution_evidence = CASE WHEN v_status = 'resolved' AND t.status <> 'resolved'
-      THEN coalesce(p->'resolution_evidence', '{}'::jsonb) || jsonb_build_object('resolved_by', CASE WHEN svc THEN 'bloom' ELSE 'person' END, 'actor', p_actor, 'at', now())
+      THEN ev || jsonb_build_object('resolved_by', CASE WHEN svc THEN 'bloom' ELSE 'person' END, 'actor', p_actor, 'type', t.kind, 'at', now())
       WHEN v_status <> 'resolved' THEN NULL ELSE resolution_evidence END,
     reopen_count = reopen_count + CASE WHEN t.status = 'resolved' AND v_status <> 'resolved' THEN 1 ELSE 0 END,
+    pending_review = CASE WHEN t.status = 'resolved' AND v_status <> 'resolved' THEN NULL ELSE pending_review END,
     version = version + 1, updated_at = now()
   WHERE id = p_ticket RETURNING * INTO n;
 
+  IF n.executor = 'person' AND t.executor = 'bloom' THEN PERFORM bloom_support.invalidate_planned(n.id, 'person assigned as executor'); END IF;
   PERFORM bloom_support.log(n.id, n.account_id, p_actor, 'ticket.updated', jsonb_strip_nulls(jsonb_build_object(
     'status', CASE WHEN n.status <> t.status THEN jsonb_build_array(t.status, n.status) END,
-    'stage', CASE WHEN n.stage <> t.stage THEN jsonb_build_array(t.stage, n.stage) END,
+    'waiting_reason', CASE WHEN n.waiting_reason IS DISTINCT FROM t.waiting_reason THEN n.waiting_reason END,
     'priority', CASE WHEN n.priority <> t.priority THEN jsonb_build_array(t.priority, n.priority) END,
     'owner', CASE WHEN n.owner_id IS DISTINCT FROM t.owner_id THEN n.owner_id END,
+    'executor', CASE WHEN n.executor <> t.executor THEN n.executor END,
     'next_action', CASE WHEN n.next_action IS DISTINCT FROM t.next_action THEN n.next_action END,
     'reason', p->>'reason')));
-  IF n.status = 'resolved' AND t.status <> 'resolved' THEN
+  IF n.status = 'resolved' AND t.status <> 'resolved' AND NOT n.spam THEN
     PERFORM bloom_support.enqueue_job('send_email', n.id, NULL, 'email:' || n.id::text,
       jsonb_build_object('purpose','resolution'), 'email:resolution:' || n.id::text || ':' || n.reopen_count);
   END IF;
   IF n.status = 'needs_owner' AND t.status <> 'needs_owner' THEN
-    PERFORM bloom_support.notify_staff(n.id, 'ticket.needs_owner', 'Needs Jon/Jeff #' || n.number || ': ' || left(n.subject, 80), 'both');
+    PERFORM bloom_support.notify_staff(n.id, 'ticket.needs_owner', 'Needs Jon/Jeff #' || n.number || ': ' || left(n.subject, 80), coalesce(p->>'accountable', 'both'));
   END IF;
   RETURN bloom_support.ticket_json(p_actor, n, false);
 END $$;
@@ -618,6 +766,8 @@ BEGIN
   IF p_mode NOT IN ('human','auto','paused') THEN RAISE EXCEPTION 'invalid mode' USING ERRCODE = '22023'; END IF;
   t := bloom_support.require_ticket(p_actor, p_ticket);
   UPDATE bloom_support.tickets SET automation = p_mode,
+    executor = CASE WHEN p_mode = 'auto' THEN 'bloom' ELSE 'person' END,
+    executor_id = CASE WHEN p_mode = 'human' AND bloom_support.is_staff(p_actor) THEN p_actor ELSE NULL END,
     taken_over_by = CASE WHEN p_mode = 'human' THEN p_actor ELSE NULL END,
     taken_over_at = CASE WHEN p_mode = 'human' THEN now() ELSE NULL END,
     owner_id = CASE WHEN p_mode = 'human' THEN coalesce(owner_id, p_actor) ELSE owner_id END,
@@ -626,7 +776,9 @@ BEGIN
   IF p_mode <> 'auto' THEN
     -- Stop queued client-facing work immediately.
     UPDATE bloom_support.jobs SET status = 'cancelled', last_error = 'cancelled: automation ' || p_mode, updated_at = now()
-    WHERE ticket_id = p_ticket AND status = 'queued' AND kind IN ('triage','answer','operate','send_email','verify_resolution');
+    WHERE ticket_id = p_ticket AND status = 'queued' AND kind IN ('triage','answer','operate','verify_resolution','post_resolution_reply');
+    -- Queued Bloom replies are invalidated before they can send; staff replies still go out.
+    PERFORM bloom_support.invalidate_planned(p_ticket, 'automation ' || p_mode);
   ELSE
     PERFORM bloom_support.enqueue_job('triage', t.id, NULL, 'account:' || coalesce(t.account_id::text, 'none:' || t.id::text),
       jsonb_build_object('reason','handed_back'), 'triage:handback:' || t.id::text || ':' || t.version);
@@ -646,6 +798,7 @@ BEGIN
   IF p_kind = 'duplicate' THEN
     UPDATE bloom_support.tickets SET duplicate_of = p_to,
       engineering_issue_id = coalesce(engineering_issue_id, b.engineering_issue_id),
+      problem_id = coalesce(problem_id, b.problem_id),
       feature_request_id = coalesce(feature_request_id, b.feature_request_id),
       next_action = 'Follows #' || b.number, version = version + 1, updated_at = now()
     WHERE id = p_from;
@@ -684,12 +837,23 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM bloom_support.engineering_issues WHERE id = e) THEN RAISE EXCEPTION 'not_found: engineering issue' USING ERRCODE = 'P0002'; END IF;
   ELSIF t.engineering_issue_id IS NOT NULL THEN
     e := t.engineering_issue_id;
+  ELSIF t.problem_id IS NOT NULL AND (SELECT engineering_issue_id FROM bloom_support.problems WHERE id = t.problem_id) IS NOT NULL THEN
+    -- One investigation per underlying bug: join the shared problem's engineering issue.
+    e := (SELECT engineering_issue_id FROM bloom_support.problems WHERE id = t.problem_id);
   ELSE
     INSERT INTO bloom_support.engineering_issues(title, product, repository, evidence, created_by)
     VALUES (coalesce(p->>'title', t.subject), t.product, p->>'repository', coalesce(p->'evidence','{}'::jsonb), p_actor) RETURNING id INTO e;
     PERFORM bloom_support.enqueue_job('investigate', t.id, e, 'engineering:' || e::text, jsonb_build_object('step','investigate'), 'investigate:' || e::text, now(), 3, 900);
+    IF t.problem_id IS NULL THEN
+      INSERT INTO bloom_support.problems(title, kind, product, engineering_issue_id, created_by) VALUES (t.subject, CASE WHEN t.kind = 'incident' THEN 'incident' ELSE 'problem' END, t.product, e, p_actor)
+      RETURNING id INTO t.problem_id;
+    ELSE
+      UPDATE bloom_support.problems SET engineering_issue_id = e, updated_at = now() WHERE id = t.problem_id;
+    END IF;
+    UPDATE bloom_support.engineering_issues SET problem_id = t.problem_id WHERE id = e;
   END IF;
-  UPDATE bloom_support.tickets SET engineering_issue_id = e, kind = CASE WHEN kind = 'unknown' THEN 'bug' ELSE kind END,
+  UPDATE bloom_support.tickets SET engineering_issue_id = e, problem_id = coalesce(t.problem_id, (SELECT problem_id FROM bloom_support.engineering_issues WHERE id = e)),
+    kind = CASE WHEN kind IN ('unknown','other','question') THEN 'bug' ELSE kind END,
     stage = CASE WHEN status = 'resolved' THEN stage ELSE 'investigating' END,
     status = CASE WHEN status = 'resolved' THEN status ELSE 'working' END, version = version + 1, updated_at = now()
   WHERE id = t.id;
@@ -1231,11 +1395,11 @@ $$;
 -- Find the ticket a reply belongs to: by any referenced Message-ID we sent or received, or by [#number] token.
 CREATE OR REPLACE FUNCTION bloom_support.match_email_thread(p_refs text[], p_number bigint)
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT coalesce(
+  SELECT (SELECT coalesce(t.merged_into, t.id) FROM bloom_support.tickets t WHERE t.id = coalesce(
     (SELECT o.ticket_id FROM bloom_support.outbound_emails o WHERE o.rfc_message_id = ANY(p_refs) AND o.ticket_id IS NOT NULL ORDER BY o.created_at DESC LIMIT 1),
     (SELECT m.ticket_id FROM bloom_support.messages m WHERE m.email_message_id = ANY(p_refs) AND m.ticket_id IS NOT NULL ORDER BY m.created_at DESC LIMIT 1),
     (SELECT t.id FROM bloom_support.conversations c JOIN bloom_support.tickets t ON t.conversation_id = c.id WHERE c.email_thread_root = ANY(p_refs) ORDER BY t.created_at DESC LIMIT 1),
-    (SELECT t.id FROM bloom_support.tickets t WHERE t.number = p_number))
+    (SELECT t.id FROM bloom_support.tickets t WHERE t.number = p_number)))
 $$;
 
 -- Records an inbound email as a message on an existing ticket (reply path).

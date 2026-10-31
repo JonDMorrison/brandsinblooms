@@ -72,7 +72,8 @@ async function tableSelect(table: string, url: URL, accept: string) {
 // ---------------------------------------------------------------------------
 // External stubs
 // ---------------------------------------------------------------------------
-const resendSent: Array<{ to: string[]; subject: string; text: string; headers: Record<string, string> }> = [];
+const resendSent: Array<{ to: string[]; cc?: string[]; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
+let resendFailNext = 0;
 const githubCalls: Array<{ method: string; path: string; body: unknown }> = [];
 const prs: Record<string, Any> = {};
 let deploymentState: "success" | "failure" = "success";
@@ -124,11 +125,16 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
   }
   if (url.hostname === "api.resend.com" && url.pathname === "/emails") {
     const b = JSON.parse(bodyText);
-    resendSent.push({ to: b.to, subject: b.subject, text: b.text, headers: b.headers });
+    if (resendFailNext > 0) {
+      resendFailNext--;
+      resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
+      throw new Error("connection reset after request was sent");
+    }
+    resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
     return new Response(JSON.stringify({ id: `re_${resendSent.length}` }), { status: 200 });
   }
   if (url.hostname === "api.github.com") return githubStub(req.method, url.pathname + url.search, bodyText ? JSON.parse(bodyText) : null);
-  if (url.hostname === "verify.test") return new Response("<h1>Campaign preview works</h1>", { status: 200 });
+  if (url.hostname === "verify.test" || (url.hostname === "bloomsuite.app" && url.pathname === "/campaigns/preview")) return new Response("<h1>Campaign preview works</h1>", { status: 200 });
   if (url.hostname === "api.openai.com") throw new Error("OpenAI must not be called in the harness (no key configured)");
   return realFetch(input as Request, init);
 }) as typeof fetch;
@@ -354,7 +360,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     await api("PUT", "/settings/auto_release_enabled", tok(U.jon), { value: true });
     const eng = (await ticketRow(crmTicket)).engineering_issue_id;
     // The repair workflow reports with the investigation identity.
-    const rep = await api("PATCH", `/engineering/${eng}`, keys.investigation, { status: "reproduced", patch: { reproduction: { reproduced: true, failing_test: "src/components/crm/PreviewButton.regression.test.tsx", intended_behaviour_established: true, verification: [{ url: "https://verify.test/campaigns/preview", expect_status: 200, contains: "preview works" }] } } });
+    const rep = await api("PATCH", `/engineering/${eng}`, keys.investigation, { status: "reproduced", patch: { reproduction: { reproduced: true, failing_test: "src/components/crm/PreviewButton.regression.test.tsx", intended_behaviour_established: true, verification: [{ url: "https://bloomsuite.app/campaigns/preview", expect_status: 200, contains: "preview works" }] } } });
     assertEquals(rep.status, 200, JSON.stringify(rep.json));
     const selfCert = await api("PATCH", `/engineering/${eng}`, keys.investigation, { patch: { eligibility: { eligible: true } } });
     assertEquals(selfCert.status, 403, "repair identity cannot certify eligibility");
@@ -380,9 +386,12 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const tk = await ticketRow(crmTicket);
     const lastOut = (await sql!`SELECT rfc_message_id FROM bloom_support.outbound_emails WHERE ticket_id = ${crmTicket} AND purpose = 'resolution'`)[0].rfc_message_id;
     const r = await inbound("msg_5", { email_id: "e5", from: "gail@greenleaf.test", subject: `Re: [Bloom #${tk.number}] Campaign preview button broken`, text: "It's still broken on Safari.", message_id: "<g2@greenleaf.test>", headers: { "In-Reply-To": lastOut } });
-    assertEquals(r.json.outcome, "reply:reopen-signal");
+    assertEquals(r.json.outcome, "reply:reopen-signal", JSON.stringify(r.json));
+    const mid = await ticketRow(crmTicket);
+    assertEquals(mid.pending_review, "reply_after_resolution", `routed, not blindly reopened: ${mid.status}/${mid.pending_review}`);
+    await runWorkerUntilIdle();
     const after = await ticketRow(crmTicket);
-    assertEquals(after.status, "working");
+    assert(after.status !== "resolved", `reopened (now ${after.status}: Bloom may ask for details)`);
     assertEquals(after.reopen_count, 1);
     assert(!after.resolution_verified);
   });
@@ -472,6 +481,97 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(ref.json.access_token && ref.json.refresh_token !== tokRes.json.refresh_token, "refresh rotates");
     const reuse = await call("bloom-support-api", "POST", "/oauth/token", { raw: form({ grant_type: "refresh_token", refresh_token: tokRes.json.refresh_token, client_id: clientId }), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
     assertEquals(reuse.json.error, "invalid_grant", "old refresh token revoked");
+  });
+
+  await t.step("support desk: views, client actions, attachments, CC, bounces, ambiguous sends, forwards, human/AI race, metrics", async () => {
+    // Saved views and paginated queues.
+    const na = await api("GET", "/tickets?view=needs_attention&envelope=true&limit=5", tok(U.jeff));
+    assert(Array.isArray(na.json.items) && typeof na.json.total === "number", JSON.stringify(na.json).slice(0, 200));
+    assertEquals((await api("POST", "/views", tok(U.jeff), { name: "My urgent", filters: { view: "urgent" } })).status, 200);
+    assert((await api("GET", "/views", tok(U.jeff))).json.some((v: Any) => v.name === "My urgent"));
+
+    // Attachment authorization: another client cannot download it, even knowing the id.
+    await sql!`INSERT INTO bloom_support.attachments(id, ticket_id, account_id, storage_path, file_name, content_type, size_bytes) SELECT 'e0000000-0000-4000-8000-000000000001', id, account_id, 'x/shot.png', 'shot.png', 'image/png', 10 FROM bloom_support.tickets WHERE id = ${crmTicket}`;
+    assertEquals((await api("GET", "/attachments/e0000000-0000-4000-8000-000000000001", tok(U.rosa))).status, 403);
+    assertEquals((await api("GET", "/attachments/e0000000-0000-4000-8000-000000000001", tok(U.gail))).status, 200);
+
+    // Client asks for a person: Bloom stops; Bloom's planned replies are invalidated.
+    const q = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: { body: "How do I change the colour of my newsletter buttons?", idempotency_key: "k-q-desk" } });
+    const qid = q.json.ticket_id;
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE ticket_id = ${qid}`;
+    const planned = await api("POST", `/tickets/${qid}/messages`, keys.automation, { body: "Planned Bloom answer", visibility: "public", purpose: "reply" });
+    assertEquals(planned.status, 200, JSON.stringify(planned.json));
+    const ask = await api("POST", `/tickets/${qid}/client-action`, tok(U.gail), { action: "request_person", message: "I'd like a person please" });
+    assertEquals(ask.status, 200, JSON.stringify(ask.json));
+    const before = resendSent.length;
+    await runWorkerUntilIdle();
+    assert(!resendSent.slice(before).some((m) => m.text.includes("Planned Bloom answer")), "invalidated Bloom reply never sent");
+    assertEquals((await ticketRow(qid)).executor, "person");
+
+    // CC: a verified contact of the same client stays on the thread; an unknown address is not added.
+    await sql!`INSERT INTO auth.users(id, email) VALUES ('a0000000-0000-4000-8000-000000000009', 'buyer@greenleaf.test')`;
+    await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES ('a0000000-0000-4000-8000-000000000009', ${T.greenleaf}, 'Buyer', 'member')`;
+    await api("GET", "/me", tok("a0000000-0000-4000-8000-000000000009"));
+    const tq = await ticketRow(qid);
+    await inbound("msg_cc", { email_id: "ecc", from: "gail@greenleaf.test", to: ["support@bloom.test"], subject: `Re: [Bloom #${tq.number}] x`, text: "Adding our buyer. Also cc my friend.", message_id: "<cc1@greenleaf.test>",
+      headers: { Cc: "Buyer <buyer@greenleaf.test>, stranger@evil.example" } });
+    const cc = (await sql!`SELECT c.cc_emails FROM bloom_support.conversations c JOIN bloom_support.tickets t ON t.conversation_id = c.id WHERE t.id = ${qid}`)[0].cc_emails;
+    assertEquals(cc, ["buyer@greenleaf.test"], "only verified same-client contacts are kept on CC");
+    const jr = await api("POST", `/tickets/${qid}/messages`, tok(U.jeff), { body: "Here is how to change the button colour.", visibility: "public" });
+    assertEquals(jr.status, 200);
+    await runWorkerUntilIdle();
+    const jeffMail = resendSent.filter((m) => m.text.includes("button colour")).at(-1)!;
+    assertEquals(jeffMail.cc, ["buyer@greenleaf.test"]);
+
+    // Bounce webhook updates delivery state.
+    const outRows = await sql!`SELECT provider_id, status FROM bloom_support.outbound_emails WHERE body LIKE '%button colour%' ORDER BY created_at DESC`;
+    const outRow = outRows.find((r: Any) => r.provider_id);
+    assertExists(outRow, `staff reply was sent: ${JSON.stringify(outRows)}`);
+    const bounceRaw = JSON.stringify({ type: "email.bounced", data: { email_id: outRow.provider_id } });
+    const ts = String(Math.floor(Date.now() / 1000));
+    const sig = btoa(String.fromCharCode(...await hmacSha256(WHSEC_BYTES, `msg_bounce.${ts}.${bounceRaw}`)));
+    await call("bloom-support-email", "POST", "", { raw: bounceRaw, headers: { "svix-id": "msg_bounce", "svix-timestamp": ts, "svix-signature": `v1,${sig}` } });
+    assertEquals((await sql!`SELECT status FROM bloom_support.outbound_emails WHERE provider_id = ${outRow.provider_id}`)[0].status, "bounced");
+
+    // Ambiguous send: the provider call dies after sending; the retry reuses the same idempotency key and Message-ID.
+    resendFailNext = 1;
+    const before2 = resendSent.length;
+    await api("POST", `/tickets/${qid}/messages`, tok(U.jeff), { body: "Following up on the button colour.", visibility: "public" });
+    await runWorkerUntilIdle();
+    const attempts = resendSent.slice(before2).filter((m) => m.text.includes("Following up on the button colour"));
+    assertEquals(attempts.length, 2, "one failed attempt, one retry");
+    assertEquals(attempts[0].idem, attempts[1].idem, "same provider idempotency key");
+    assertEquals(attempts[0].headers["Message-ID"], attempts[1].headers["Message-ID"], "same Message-ID");
+
+    // Authorized forward: staff forwarder with passing DKIM/SPF; the client is the requester.
+    const fwd = await inbound("msg_fwd", { email_id: "efwd", from: "Jeff <jeff@bloom.test>", subject: "Fwd: website down?", message_id: "<fwd1@bloom.test>",
+      text: "FYI\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nOur website shows an error page.",
+      headers: { "Authentication-Results": "mx.resend.com; dkim=pass header.d=bloom.test; spf=pass smtp.mailfrom=bloom.test" } });
+    assertExists(fwd.json.ticket_id, `forward filed: ${JSON.stringify(fwd.json)}`);
+    const fr = await ticketRow(fwd.json.ticket_id);
+    assertEquals(fr.context.forward_authorized, true);
+    const req = (await sql!`SELECT email FROM bloom_support.principals WHERE id = ${fr.requester_id}`)[0];
+    assertEquals(req.email, "gail@greenleaf.test");
+
+    // A thanks-only reply after resolution is dismissed, not reopened.
+    const qq = await call("bloom-support-intake", "POST", "/report", { token: tok(U.rosa), body: { body: "Where do I see yesterday's sales?", idempotency_key: "k-thanks" } });
+    await api("POST", `/tickets/${qq.json.ticket_id}/messages`, tok(U.jeff), { body: "Reports → Sales → pick the date.", visibility: "public" });
+    const res = await api("PATCH", `/tickets/${qq.json.ticket_id}`, tok(U.jeff), { status: "resolved", resolution_summary: "Explained the sales report" });
+    assertEquals(res.status, 200, JSON.stringify(res.json));
+    await api("POST", `/tickets/${qq.json.ticket_id}/messages`, tok(U.rosa), { body: "Thanks!" });
+    await runWorkerUntilIdle();
+    const th = await ticketRow(qq.json.ticket_id);
+    assert(th.status === "resolved" && th.pending_review === null && th.reopen_count === 0, "thanks dismissed");
+    const conf = await api("POST", `/tickets/${qq.json.ticket_id}/client-action`, tok(U.rosa), { action: "confirm_resolved" });
+    assertEquals(conf.status, 200);
+    assertExists((await ticketRow(qq.json.ticket_id)).closed_at);
+
+    // Reporting: definitions, event-based daily series, Bloom vs person handling.
+    const m = await api("GET", "/reports/metrics", tok(U.jeff));
+    assertEquals(m.status, 200, JSON.stringify(m.json).slice(0, 300));
+    assert(m.json.definitions.verified_autonomous && m.json.daily.length >= 1);
+    assert(m.json.handling.by_person >= 1, "person resolutions counted");
+    assertEquals((await api("GET", "/reports/metrics", tok(U.gail))).status, 403, "clients cannot see reporting");
   });
 
   await t.step("kill switch and health", async () => {

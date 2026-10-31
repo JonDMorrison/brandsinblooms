@@ -32,7 +32,7 @@ Deno.test("classify routes without requiring the user to choose", () => {
   assertEquals(classify("Checkout broken", "Customers cannot take payments, checkout is broken.", "cms").priority, "urgent");
   assertEquals(classify("Idea", "It would be great if we could add gift cards", "pos").kind, "feature");
   assertEquals(classify("Question", "How do I add a new staff member?", "pos").kind, "question");
-  assertEquals(classify("Update", "Please update our holiday hours on the website", "cms").kind, "request");
+  assertEquals(classify("Update", "Please update our holiday hours on the website", "cms").kind, "change");
   const bug = classify("Broken", "It's broken", "unknown");
   assert(bug.missing.length >= 2);
 });
@@ -47,9 +47,10 @@ Deno.test("automated mail and loops are detected", () => {
   assertEquals(isAutomatedEmail("a@b.com", "Out of Office: back Monday", {}, []), "autoreply-subject");
   assertEquals(isAutomatedEmail("a@b.com", "Hi", { "Auto-Submitted": "auto-replied" }, []), "auto-submitted");
   assertEquals(isAutomatedEmail("mailer-daemon@b.com", "x", {}, []), "system-sender");
-  assertEquals(isAutomatedEmail("support@bloomsuite.app", "Re: x", {}, ["bloomsuite.app"]), "own-domain");
+  assertEquals(isAutomatedEmail("support@bloomsuite.app", "Re: x", {}, ["support@bloomsuite.app"]), "own-address");
+  assertEquals(isAutomatedEmail("jon@bloomsuite.app", "Fwd: x", {}, ["support@bloomsuite.app"]), null, "staff on the same domain are not Bloom");
   assertEquals(isAutomatedEmail("news@b.com", "Weekly", { "List-Id": "<x>" }, []), "mailing-list");
-  assertEquals(isAutomatedEmail("gail@greenleaf.ca", "Re: [Bloom #1203] Campaign", {}, ["bloomsuite.app"]), null);
+  assertEquals(isAutomatedEmail("gail@greenleaf.ca", "Re: [Bloom #1203] Campaign", {}, ["support@bloomsuite.app"]), null);
 });
 
 Deno.test("reply parsing threads and strips quotes", () => {

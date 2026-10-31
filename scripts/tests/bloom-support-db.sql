@@ -21,6 +21,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \ir ../../supabase/migrations/20261031120200_bloom_support_gateway.sql
 \ir ../../supabase/migrations/20261031120300_bloom_support_campaign_ops.sql
 \ir ../../supabase/migrations/20261031140000_bloom_support_operations_hardening.sql
+\ir ../../supabase/migrations/20261031150000_bloom_support_desk.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -177,7 +178,7 @@ SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rel
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='verify_resolution' AND ticket_id = :'t2id'), 'verified fix queues resolution verification');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed"}}'::jsonb)$q$, :'bot', :'t2id'), 'after verifying');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true}}'::jsonb)$q$, :'bot', :'t2id'), 'evidence required');
-SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success"},"verification":{"passed":false}}}}'::jsonb)$q$, :'bot', :'t2id'), 'user-flow check');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success"},"verification":{"passed":false}}}}'::jsonb)$q$, :'bot', :'t2id'), 'affected-flow verification');
 SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'bot', 'ticket_id', :'t2id', 'patch', '{"status":"resolved","resolution_summary":"Checkout fixed and verified on production","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success","sha":"def"},"verification":{"passed":true,"checks":[{"url":"https://x/checkout","pass":true}]}}}'::jsonb));
 SELECT pg_temp.assert((SELECT resolution_evidence->>'resolved_by' = 'bloom' AND resolution_evidence->'deployment'->>'state' = 'success' FROM bloom_support.tickets WHERE id = :'t2id'), 'evidence stored with resolution');
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='send_email' AND idempotency_key = 'email:resolution:' || :'t2id' || ':0'), 'resolution email queued');
@@ -197,7 +198,10 @@ SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rel
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND audience='both' AND reason='engineering_rolled_back'), 'deployment failure escalated');
 
 -- 9. Reopening: client reply on resolved ticket reopens it.
-SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'will', 'ticket_id', :'t2id', 'message', '{"body":"Still broken on my iPhone"}'::jsonb));
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'will', 'ticket_id', :'t2id', 'message', '{"body":"Still broken on my iPhone"}'::jsonb))->>'message_id' AS rm1 \gset
+SELECT pg_temp.assert((SELECT status = 'resolved' AND pending_review = 'reply_after_resolution' FROM bloom_support.tickets WHERE id = :'t2id'), 'reply routed for a decision');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind = 'post_resolution_reply' AND ticket_id = :'t2id'), 'decision job queued');
+SELECT pg_temp.rpc('resolve_post_reply', jsonb_build_object('actor', :'bot', 'ticket_id', :'t2id', 'decision', 'reopen', 'message_id', :'rm1'));
 SELECT pg_temp.assert((SELECT status = 'working' AND reopen_count = 1 AND NOT resolution_verified FROM bloom_support.tickets WHERE id = :'t2id'), 'client reopened resolved ticket');
 
 -- 10. Feature requests go to Jon with evidence; only Jon decides.
@@ -309,5 +313,143 @@ SELECT pg_temp.assert((pg_temp.rpc('readiness_facts', jsonb_build_object('actor'
 SELECT id AS oauthkey FROM bloom_support.api_keys WHERE key_hash = 'a2' \gset
 SELECT pg_temp.rpc('revoke_api_key', jsonb_build_object('actor', :'jeff', 'key_id', :'oauthkey'));
 SELECT pg_temp.assert(pg_temp.rpc('oauth_refresh_lookup', '{"refresh_hash":"r2"}'::jsonb) IS NULL, 'revoking the OAuth key revokes the refresh token');
+
+-- 18. Status rules: valid transitions, waiting reasons, Needs Jon/Jeff as an escalation, history.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'sam', 'ticket', jsonb_build_object('product','crm','channel','staff','subject','How do I export customers?','body','Client asked by phone how to export customers to CSV.','account_id', :'greenleaf','kind_hint','question'))) ->>'ticket_id' AS q1 \gset
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"waiting","waiting_reason":"lunch"}}'::jsonb)$q$, :'sam', :'q1'), 'waiting requires a reason');
+SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"waiting","waiting_reason":"third_party"}'::jsonb));
+SELECT pg_temp.assert((SELECT waiting_reason = 'third_party' AND waiting_since IS NOT NULL FROM bloom_support.tickets WHERE id = :'q1'), 'waiting reason and since recorded');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"needs_owner"}}'::jsonb)$q$, :'sam', :'q1'), 'decision_needed');
+SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"needs_owner","decision_needed":"Can we give this client a custom export?","accountable":"jeff","recommendation":"Offer the standard CSV export","decision_due_at":"2099-01-01T00:00:00Z"}'::jsonb));
+SELECT pg_temp.assert((SELECT owner_id = :'jeff' AND recommendation IS NOT NULL AND due_at = '2099-01-01T00:00:00Z' FROM bloom_support.escalations WHERE ticket_id = :'q1' AND reason = 'decision_needed'), 'Needs Jon/Jeff records decision, accountable person, recommendation, due');
+SELECT pg_temp.assert((SELECT waiting_reason IS NULL FROM bloom_support.tickets WHERE id = :'q1'), 'no contradictory waiting reason outside Waiting');
+
+-- 19. Resolution evidence per type; meaningful responses vs acknowledgements.
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"done"}}'::jsonb)$q$, :'sam', :'q1'), 'answer the question');
+SELECT pg_temp.assert((SELECT first_response_at IS NULL FROM bloom_support.tickets WHERE id = :'q1'), 'no meaningful response yet');
+SELECT (SELECT due_at FROM bloom_support.tickets WHERE id = :'q1') AS due_before \gset
+SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"working"}'::jsonb));
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'message', '{"body":"Thanks, we got it.","purpose":"acknowledgement"}'::jsonb));
+SELECT pg_temp.assert((SELECT first_response_at IS NULL FROM bloom_support.tickets WHERE id = :'q1'), 'acknowledgement is not a meaningful response');
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'message', '{"body":"Go to Customers → Export → CSV."}'::jsonb));
+SELECT pg_temp.assert((SELECT first_response_at IS NOT NULL AND last_team_message_at IS NOT NULL FROM bloom_support.tickets WHERE id = :'q1'), 'answer sets first response');
+SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"resolved","resolution_summary":"Explained the CSV export"}'::jsonb));
+SELECT pg_temp.assert((SELECT resolution_evidence ? 'answer_message_id' AND resolution_evidence->>'type' = 'question' FROM bloom_support.tickets WHERE id = :'q1'), 'question resolution cites the answer');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.ticket_events WHERE ticket_id = :'q1' AND kind = 'status') >= 5, 'status history persisted');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"waiting","waiting_reason":"customer"}}'::jsonb)$q$, :'sam', :'q1'), 'invalid transition');
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'sam', 'ticket', jsonb_build_object('product','crm','body','Please add dark mode to the CRM','account_id', :'greenleaf','kind_hint','feature'))) ->>'ticket_id' AS fq \gset
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"ok"}}'::jsonb)$q$, :'sam', :'fq'), 'product decision queue');
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'sam', 'ticket', jsonb_build_object('product','cms','body','Change our store hours on the website','account_id', :'greenleaf','kind_hint','change'))) ->>'ticket_id' AS cq \gset
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"ok"}}'::jsonb)$q$, :'sam', :'cq'), 'saved result and its verification');
+SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'cq', 'patch', '{"status":"resolved","resolution_summary":"Hours updated","resolution_evidence":{"verified_note":"Checked the live footer shows 9-5"}}'::jsonb));
+
+-- 20. Timers: our clock pauses for customer waits but not internal waits.
+UPDATE bloom_support.settings SET value = value || '{"enabled":false}' WHERE key = 'business_hours';
+INSERT INTO bloom_support.tickets(conversation_id, account_id, product, channel, subject, summary, created_at)
+SELECT conversation_id, account_id, 'crm', 'staff', 'Timer test', 'x', now() - interval '10 hours' FROM bloom_support.tickets WHERE id = :'q1' RETURNING id AS tt \gset
+INSERT INTO bloom_support.ticket_events(ticket_id, kind, to_value, at) VALUES
+  (:'tt', 'status', 'waiting:customer', now() - interval '8 hours'), (:'tt', 'status', 'working', now() - interval '5 hours'), (:'tt', 'status', 'waiting:internal', now() - interval '2 hours');
+SELECT bloom_support.ticket_timers(:'tt') AS tm \gset
+SELECT pg_temp.assert(abs(((:'tm'::jsonb)->>'our_clock_seconds')::int - 7*3600) < 120 AND abs(((:'tm'::jsonb)->>'waiting_customer_seconds')::int - 3*3600) < 120, 'our clock 7h, customer 3h: ' || :'tm');
+-- Business hours: Mon 2026-11-02 08:00–18:00 UTC = 8 business hours; Friday 16:00 + 2h = Monday 10:00.
+UPDATE bloom_support.settings SET value = '{"enabled":true,"timezone":"UTC","days":[1,2,3,4,5],"start":"09:00","end":"17:00","holidays":["2026-11-03"]}' WHERE key = 'business_hours';
+SELECT pg_temp.assert(bloom_support.business_seconds('2026-11-02 08:00Z', '2026-11-02 18:00Z') = 8*3600, 'business seconds in one day');
+SELECT pg_temp.assert(bloom_support.business_seconds('2026-11-02 08:00Z', '2026-11-04 18:00Z') = 16*3600, 'holiday excluded');
+SELECT pg_temp.assert(bloom_support.add_business_seconds('2026-11-06 16:00Z', 7200) = '2026-11-09 10:00Z', 'Friday 16:00 + 2 business hours = Monday 10:00');
+UPDATE bloom_support.settings SET value = value || '{"enabled":false}' WHERE key = 'business_hours';
+
+-- 21. Merge within one client; refuse across clients; email replies follow the merge.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'gail', 'ticket', jsonb_build_object('product','crm','body','Campaign preview still broken (second report)','account_id', :'greenleaf','email', '{"message_id":"<dup1@x>","thread_root":"<dup1@x>"}'::jsonb)))->>'ticket_id' AS dupt \gset
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('merge_tickets', '{"actor":"%s","source_id":"%s","target_id":"%s"}'::jsonb)$q$, :'sam', :'dupt', :'t3id'), 'different clients');
+SELECT pg_temp.rpc('merge_tickets', jsonb_build_object('actor', :'sam', 'source_id', :'dupt', 'target_id', :'t1id', 'reason', 'same report'));
+SELECT pg_temp.assert((SELECT merged_into = :'t1id' AND status = 'resolved' FROM bloom_support.tickets WHERE id = :'dupt'), 'source points at target');
+SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'gail', 'ticket_id', :'t1id'))::text LIKE '%second report%', 'target shows merged messages');
+SELECT pg_temp.assert(pg_temp.rpc('match_email_thread', '{"refs":["<dup1@x>"]}'::jsonb)#>>'{}' = :'t1id', 'email reply to merged ticket goes to the target');
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'sam'))) x WHERE x->>'id' = :'dupt'), 'merged ticket not listed');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"hi"}}'::jsonb)$q$, :'gail', :'dupt'), 'merged into another ticket');
+
+-- 22. Replies after resolution: not reopened blindly.
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_id', :'cq', 'message', '{"body":"Thanks! Also, can you add a holiday banner?"}'::jsonb)) ->>'message_id' AS pm \gset
+SELECT pg_temp.assert((SELECT status = 'resolved' AND pending_review = 'reply_after_resolution' FROM bloom_support.tickets WHERE id = :'cq'), 'reply on resolved is routed for review, not reopened');
+SELECT pg_temp.rpc('resolve_post_reply', jsonb_build_object('actor', :'sam', 'ticket_id', :'cq', 'decision', 'new_ticket', 'message_id', :'pm'));
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.ticket_links l JOIN bloom_support.tickets n ON n.id = l.from_ticket WHERE l.to_ticket = :'cq' AND l.kind = 'follow_up' AND n.conversation_id = (SELECT conversation_id FROM bloom_support.tickets WHERE id = :'cq')) = 1, 'distinct request becomes a linked ticket in the same conversation');
+SELECT pg_temp.assert((SELECT status = 'resolved' AND pending_review IS NULL FROM bloom_support.tickets WHERE id = :'cq'), 'original stays resolved');
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_id', :'q1', 'message', '{"body":"The export button is still greyed out"}'::jsonb)) ->>'message_id' AS pm2 \gset
+SELECT pg_temp.rpc('resolve_post_reply', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'decision', 'reopen', 'message_id', :'pm2'));
+SELECT pg_temp.assert((SELECT status = 'working' AND reopen_count = 1 FROM bloom_support.tickets WHERE id = :'q1'), 'persisting issue reopens');
+
+-- 23. Client actions; Bloom stays out once a person is requested.
+SELECT pg_temp.rpc('client_action', jsonb_build_object('actor', :'gail', 'ticket_id', :'q1', 'action', 'request_person', 'message', 'Can someone call me?'));
+SELECT pg_temp.assert((SELECT executor = 'person' AND automation = 'human' FROM bloom_support.tickets WHERE id = :'q1'), 'client can ask for a person');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Bloom here","visibility":"public"}}'::jsonb)$q$, :'bot', :'q1'), 'human control');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('client_action', '{"actor":"%s","ticket_id":"%s","action":"request_person"}'::jsonb)$q$, :'rosa', :'q1'), 'forbidden: ticket');
+
+-- 24. Stale plans are invalidated by new customer input.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'gail', 'ticket', jsonb_build_object('product','crm','body','How do I change my logo in emails?','account_id', :'greenleaf')))->>'ticket_id' AS sp \gset
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'bot', 'ticket_id', :'sp', 'message', '{"body":"Planned answer","purpose":"reply","idempotency_key":"planned-1"}'::jsonb));
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_id', :'sp', 'message', '{"body":"Actually I meant the website logo"}'::jsonb));
+SELECT pg_temp.assert((SELECT delivery = 'suppressed' FROM bloom_support.messages WHERE idempotency_key = 'planned-1'), 'stale Bloom reply suppressed');
+SELECT pg_temp.assert((SELECT status = 'cancelled' FROM bloom_support.jobs j WHERE j.kind = 'send_email' AND j.payload->>'message_id' = (SELECT id::text FROM bloom_support.messages WHERE idempotency_key = 'planned-1')), 'its send job cancelled');
+
+-- 25. Revocation: a deactivated person loses access immediately, including queued actions they confirmed.
+SELECT pg_temp.rpc('record_operation_preview', jsonb_build_object('actor', :'sam', 'operation', jsonb_build_object('account_id', :'greenleaf','kind','campaign.update_draft','permission','ops.campaign.edit','inputs','{}'::jsonb,'idempotency_key','op-revoke'))) ->>'id' AS rop \gset
+UPDATE bloom_support.principals SET active = false WHERE id = :'sam';
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('claim_operation', '{"actor":"%s","operation_id":"%s"}'::jsonb)$q$, :'sam', :'rop'), 'ops.campaign.edit');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('get_ticket', '{"actor":"%s","ticket_id":"%s"}'::jsonb)$q$, :'sam', :'t3id'), 'forbidden');
+UPDATE bloom_support.principals SET active = true WHERE id = :'sam';
+
+-- 26. Bulk changes need confirmation when consequential.
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('bulk_update', '{"actor":"%s","ticket_ids":["%s"],"bulk":{"patch":{"status":"resolved","resolution_summary":"x"}}}'::jsonb)$q$, :'jeff', :'sp'), 'type 1 to confirm');
+SELECT pg_temp.rpc('bulk_update', jsonb_build_object('actor', :'jeff', 'ticket_ids', jsonb_build_array(:'sp', :'t3id'), 'bulk', '{"add_tags":["vip"]}'::jsonb)) AS bulk \gset
+SELECT pg_temp.assert(jsonb_array_length((:'bulk'::jsonb)->'updated') = 2 AND (SELECT 'vip' = ANY(tags) FROM bloom_support.tickets WHERE id = :'sp'), 'bulk tagging');
+
+-- 27. Shared problem: two clients, one investigation, private conversations.
+SELECT pg_temp.rpc('create_problem', '{"problem":{"title":"Receipts not printing","product":"pos"}}'::jsonb || jsonb_build_object('actor', :'jeff'))->>'id' AS pbm \gset
+SELECT pg_temp.rpc('link_problem', jsonb_build_object('actor', :'jeff', 'ticket_id', :'t3id', 'problem_id', :'pbm'));
+SELECT pg_temp.rpc('link_problem', jsonb_build_object('actor', :'jeff', 'ticket_id', :'sp', 'problem_id', :'pbm'));
+SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'jeff', 'ticket_id', :'t3id', 'issue', '{}'::jsonb))->>'engineering_issue_id' AS pe \gset
+SELECT pg_temp.assert(pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'jeff', 'ticket_id', :'sp', 'issue', '{}'::jsonb))->>'engineering_issue_id' = :'pe', 'second client joins the same investigation');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('get_ticket', '{"actor":"%s","ticket_id":"%s"}'::jsonb)$q$, :'rosa', :'sp'), 'forbidden: ticket');
+SELECT pg_temp.rpc('update_problem', jsonb_build_object('actor', :'jeff', 'problem_id', :'pbm', 'patch', '{"status":"resolved"}'::jsonb));
+SELECT pg_temp.assert((SELECT status <> 'resolved' FROM bloom_support.tickets WHERE id = :'sp'), 'closing the problem does not resolve linked tickets');
+
+-- 28. Spam is excluded; scoped and per-client pauses.
+SELECT pg_temp.rpc('set_spam', jsonb_build_object('actor', :'sam', 'ticket_id', :'fq', 'spam', true));
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'sam'))) x WHERE x->>'id' = :'fq'), 'spam hidden from queues');
+UPDATE bloom_support.jobs SET status = 'cancelled' WHERE status IN ('queued','running');
+SELECT pg_temp.rpc('enqueue_job', jsonb_build_object('actor', :'bot', 'kind', 'send_email', 'ticket_id', :'t3id', 'lane', 'scope-test-email', 'payload', '{}'::jsonb, 'idempotency_key', 'scope-e'));
+SELECT pg_temp.rpc('enqueue_job', jsonb_build_object('actor', :'bot', 'kind', 'triage', 'ticket_id', :'t3id', 'lane', 'scope-test-triage', 'payload', '{}'::jsonb, 'idempotency_key', 'scope-t'));
+UPDATE bloom_support.settings SET value = '{"triage":true,"answer":true,"email":false,"operations":true,"engineering":true}' WHERE key = 'automation_scopes';
+SELECT pg_temp.assert((SELECT array_agg(kind) FROM bloom_support.claim_jobs('scope-worker', 10)) = ARRAY['triage'], 'email scope paused, triage still runs');
+UPDATE bloom_support.settings SET value = '{"triage":true,"answer":true,"email":true,"operations":true,"engineering":true}' WHERE key = 'automation_scopes';
+UPDATE bloom_support.jobs SET status = 'cancelled' WHERE status IN ('queued','running');
+UPDATE bloom_support.accounts SET automation_paused = true WHERE id = :'rose';
+SELECT pg_temp.rpc('enqueue_job', jsonb_build_object('actor', :'bot', 'kind', 'triage', 'ticket_id', :'t3id', 'lane', 'acct-pause', 'payload', '{}'::jsonb, 'idempotency_key', 'acct-p'));
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.claim_jobs('scope-worker', 10)) = 0, 'paused client gets no automation; intake unaffected');
+UPDATE bloom_support.accounts SET automation_paused = false WHERE id = :'rose';
+
+-- 29. Delivery events, pagination, reporting, redaction.
+INSERT INTO bloom_support.outbound_emails(ticket_id, purpose, to_email, subject, body, rfc_message_id, idempotency_key, status, provider_id)
+VALUES (:'t3id', 'reply', 'till@rosehill.test', 's', 'b', '<o1@x>', 'deliv-1', 'sent', 're_99');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"re_99","type":"email.bounced"}'::jsonb);
+SELECT pg_temp.assert((SELECT status = 'bounced' FROM bloom_support.outbound_emails WHERE provider_id = 're_99'), 'bounce recorded');
+SELECT pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'jeff', 'filters', jsonb_build_object('envelope', 'true', 'limit', 3, 'sort', 'updated'))) AS pg1 \gset
+SELECT pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'jeff', 'filters', jsonb_build_object('envelope', 'true', 'limit', 3, 'sort', 'updated', 'cursor', (:'pg1'::jsonb)->>'next_cursor'))) AS pg2 \gset
+SELECT pg_temp.assert(jsonb_array_length((:'pg1'::jsonb)->'items') = 3 AND NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements((:'pg1'::jsonb)->'items') a JOIN jsonb_array_elements((:'pg2'::jsonb)->'items') b ON a->>'id' = b->>'id'), 'keyset pages do not overlap');
+SELECT pg_temp.assert(((:'pg1'::jsonb)->>'total')::int = (SELECT count(*) FROM bloom_support.tickets WHERE merged_into IS NULL AND NOT spam AND redacted_at IS NULL), 'total excludes spam and merged');
+SELECT pg_temp.rpc('report_metrics', jsonb_build_object('actor', :'jeff')) AS rm \gset
+SELECT pg_temp.assert((SELECT (x->>'incoming')::int FROM jsonb_array_elements((:'rm'::jsonb)->'daily') x ORDER BY x->>'day' DESC LIMIT 1)
+  = (SELECT count(*) FROM bloom_support.tickets WHERE created_at >= date_trunc('day', now()) AND NOT spam AND merged_into IS NULL), 'incoming matches tickets created today');
+SELECT pg_temp.assert(((:'rm'::jsonb)->'handling'->>'verified_autonomous')::int <= ((:'rm'::jsonb)->'handling'->>'by_bloom')::int, 'verified autonomous is a subset of Bloom resolutions');
+SELECT pg_temp.assert((:'rm'::jsonb)->'definitions' ? 'verified_autonomous', 'metrics carry definitions');
+SELECT pg_temp.assert((pg_temp.rpc('summary_report', '{"period":"daily"}'::jsonb)) ? 'oldest', 'digest summary');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('redact_ticket', '{"actor":"%s","ticket_id":"%s","reason":"x"}'::jsonb)$q$, :'jeff', :'cq'), 'admin.policy');
+SELECT pg_temp.rpc('redact_ticket', jsonb_build_object('actor', :'jon', 'ticket_id', :'cq', 'reason', 'client deletion request'));
+SELECT pg_temp.assert((SELECT subject = '[redacted]' FROM bloom_support.tickets WHERE id = :'cq') AND EXISTS (SELECT 1 FROM bloom_support.ticket_events WHERE ticket_id = :'cq' AND kind = 'redacted')
+  AND EXISTS (SELECT 1 FROM bloom_support.activity WHERE ticket_id = :'cq' AND action = 'ticket.redacted'), 'redaction keeps history and audit');
+SELECT bloom_support.sweep_operational() AS so \gset
+SELECT pg_temp.assert((:'so'::jsonb) ? 'notifications', 'notification sweep runs');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.notifications WHERE dedupe_key LIKE 'unassigned:%') = (SELECT count(DISTINCT dedupe_key) FROM bloom_support.notifications WHERE dedupe_key LIKE 'unassigned:%'), 'notifications deduplicated');
 
 \echo 'bloom-support-db: all assertions passed'

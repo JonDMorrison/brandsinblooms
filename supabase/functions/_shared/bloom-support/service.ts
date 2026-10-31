@@ -17,6 +17,51 @@ export const actions = {
   me: (c: Caller) => rpc("whoami", A(c)),
   summary: (c: Caller) => rpc("queue_summary", A(c)),
   listTickets: (c: Caller, filters: Record<string, unknown>) => rpc("list_tickets", { ...A(c), filters }),
+  mergeTickets(c: Caller, source: string, target: string, reason?: string) {
+    requireWriteScope(c);
+    return rpc("merge_tickets", { ...A(c), source_id: uuid(source, "source_id"), target_id: uuid(target, "target_id"), reason: reason ?? null });
+  },
+  setSpam(c: Caller, id: string, spam: boolean) {
+    requireWriteScope(c);
+    return rpc("set_spam", { ...A(c), ticket_id: uuid(id, "ticket_id"), spam });
+  },
+  bulkUpdate(c: Caller, ids: unknown, bulk: Record<string, unknown>) {
+    requireWriteScope(c);
+    const list = Array.isArray(ids) ? ids.map((x) => uuid(x, "ticket_ids[]")) : [];
+    return rpc("bulk_update", { ...A(c), ticket_ids: list, bulk });
+  },
+  clientAction(c: Caller, id: string, action: string, message?: string) {
+    return rpc("client_action", { ...A(c), ticket_id: uuid(id, "ticket_id"), action, message: message ?? null });
+  },
+  decidePostReply(c: Caller, id: string, decision: string, messageId?: string, note?: string) {
+    requireWriteScope(c);
+    return rpc("resolve_post_reply", { ...A(c), ticket_id: uuid(id, "ticket_id"), decision, message_id: messageId ?? null, note: note ?? null });
+  },
+  timers: (c: Caller, id: string) => rpc("ticket_timers", { ...A(c), ticket_id: uuid(id, "ticket_id") }),
+  listProblems: (c: Caller, status?: string) => rpc("list_problems", { ...A(c), status: status ?? null }),
+  createProblem(c: Caller, problem: Record<string, unknown>) {
+    requireWriteScope(c);
+    return rpc("create_problem", { ...A(c), problem });
+  },
+  linkProblem(c: Caller, ticket: string, problem: string) {
+    requireWriteScope(c);
+    return rpc("link_problem", { ...A(c), ticket_id: uuid(ticket, "ticket_id"), problem_id: uuid(problem, "problem_id") });
+  },
+  updateProblem(c: Caller, id: string, patch: Record<string, unknown>) {
+    requireWriteScope(c);
+    return rpc("update_problem", { ...A(c), problem_id: uuid(id, "problem_id"), patch });
+  },
+  listViews: (c: Caller) => rpc("list_views", A(c)),
+  saveView(c: Caller, name: string, filters: Record<string, unknown>, shared: boolean) {
+    return rpc("save_view", { ...A(c), name, filters, shared });
+  },
+  deleteView: (c: Caller, id: string) => rpc("delete_view", { ...A(c), view_id: uuid(id, "view_id") }),
+  metrics: (c: Caller, from?: string, to?: string) => rpc("report_metrics", { ...A(c), from: from ?? null, to: to ?? null }),
+  summary_report: (c: Caller, period: string) => rpc("summary_report", { ...A(c), period }),
+  setAccountAutomation(c: Caller, id: string, paused: boolean) {
+    requireWriteScope(c);
+    return rpc("set_account_automation", { ...A(c), account_id: uuid(id, "account_id"), paused });
+  },
   getTicket: (c: Caller, id: string) => rpc("get_ticket", { ...A(c), ticket_id: uuid(id, "ticket_id") }),
 
   async createTicket(c: Caller, input: Record<string, unknown>, channel = "staff") {

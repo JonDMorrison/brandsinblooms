@@ -81,7 +81,7 @@ export const CLASSIFY_SCHEMA = {
   additionalProperties: false,
   required: ["kind", "priority", "impact", "category", "missing", "confidence", "summary"],
   properties: {
-    kind: { type: "string", enum: ["unknown", "bug", "question", "request", "feature", "operation", "account"] },
+    kind: { type: "string", enum: ["unknown", "question", "bug", "change", "incident", "feature", "other"] },
     priority: { type: "string", enum: ["low", "normal", "high", "urgent"] },
     impact: { type: "string", enum: ["unknown", "single_user", "account", "multi_account", "platform"] },
     category: { type: "string" },

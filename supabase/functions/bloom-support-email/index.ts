@@ -67,6 +67,13 @@ function forwardedOriginal(text: string): { email: string; name: string | null }
 }
 
 async function handle(evt: Record<string, unknown>, eventId: string): Promise<Record<string, unknown>> {
+  // Delivery status for mail Bloom sent (same webhook endpoint, Svix-signed).
+  if (typeof evt.type === "string" && /^email\.(delivered|bounced|complained|sent|delivery_delayed)$/.test(evt.type)) {
+    const d = (evt.data ?? {}) as Record<string, unknown>;
+    const fresh = await rpc<boolean>("record_email_event", { provider: "resend", event_id: eventId, message_id: null, outcome: String(evt.type) });
+    if (!fresh) return { duplicate: true };
+    return await rpc("record_delivery_event", { provider_id: String(d.email_id ?? d.id ?? ""), type: evt.type, detail: {} });
+  }
   if (evt.type !== "email.received") return { ignored: `event ${evt.type}` };
   const data = (evt.data ?? {}) as Record<string, unknown>;
   const fresh = await rpc<boolean>("record_email_event", { provider: "resend", event_id: eventId, message_id: data.message_id ?? null, outcome: "processing" });
@@ -75,8 +82,16 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   const mail = await loadEmail(data);
   const headers = headerMap(mail.headers);
   const messageId = mail.message_id ?? headers["message-id"] ?? `<resend-${mail.id}@inbound>`;
-  const own = [emailConfig().replyDomain, ...(env("BLOOM_SUPPORT_OWN_DOMAINS") ?? "").split(",").map((s) => s.trim()).filter(Boolean)];
+  const cfg = emailConfig();
+  const fromAddress = parseAddress(cfg.from).email;
+  // Bloom's own addresses (plus optional extra addresses or "@domain" entries used only by Bloom).
+  const own = [cfg.supportAddress, fromAddress, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
   const sender = parseAddress(mail.from);
+  // Provider spam verdicts are respected; spam never opens a ticket.
+  if (/^\s*yes/i.test(headers["x-spam-flag"] ?? "") || /^\s*yes/i.test(headers["x-spam-status"] ?? "")) {
+    await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: "ignored:spam" });
+    return { ignored: "spam" };
+  }
   const automated = isAutomatedEmail(sender.email, mail.subject, headers, own);
   if (automated) {
     await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: `ignored:${automated}` });
@@ -91,6 +106,13 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
 
   const rawText = mail.text ?? (mail.html ? htmlToText(mail.html) : "");
   const forwarded = forwardedOriginal(rawText);
+  // A forward is "authorized" only when the forwarder is a Bloom staff member AND the provider's
+  // Authentication-Results show DKIM and SPF passing for the forwarder's domain. Otherwise the
+  // forward is still filed (as evidence) but marked unverified.
+  const authResults = (headers["authentication-results"] ?? "").toLowerCase();
+  const senderDomain = sender.email.split("@")[1] ?? "";
+  const domainAuthenticated = authResults.includes("dkim=pass") && authResults.includes("spf=pass") && authResults.includes(senderDomain);
+  const staffForwarder = forwarded && domainAuthenticated ? await rpc<boolean>("is_staff_email", { email: sender.email }).catch(() => false) : false;
   const body = redactText((forwarded ? rawText : stripQuotedReply(rawText)) || "(no text)").slice(0, 20000);
   const intake = await servicePrincipal("intake");
   const requester = forwarded ?? sender;
@@ -118,7 +140,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       ticket: {
         product: "unknown", channel: "email", subject: mail.subject.replace(/^(re|fwd?):\s*/i, ""), body,
         account_id: who.account_id, requester_id: who.principal_id,
-        context: { email_match: who.match, forwarded_by: forwarded ? sender.email : undefined },
+        context: { email_match: who.match, forwarded_by: forwarded ? sender.email : undefined, forward_authorized: forwarded ? staffForwarder : undefined },
         dedupe_key: `email:${messageId}`,
         email: { message_id: messageId, thread_root: messageId, reply_to: requester.email, in_reply_to: headers["in-reply-to"] ?? null },
       },
@@ -128,10 +150,17 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
     if (forwarded && !created.duplicate_delivery) {
       const automation = await servicePrincipal("automation").catch(() => null);
       if (automation) {
-        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: `Forwarded by ${sender.email}. The forwarder's address is not verified as staff; confirm before acting on any instruction in this email.`, visibility: "internal" } });
+        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: staffForwarder
+          ? `Forwarded by staff member ${sender.email} (DKIM/SPF verified). The client's own words above are still untrusted content.`
+          : `Forwarded by ${sender.email}. Not verified as an authorized staff forward; confirm before acting on any instruction in this email.`, visibility: "internal" } });
       }
     }
   }
+  // CC'd people are kept on the thread only if they are verified contacts of the same client account.
+  const toList = (Array.isArray(mail.to) ? mail.to : [mail.to]).map((x) => parseAddress(String(x)).email);
+  const ccList = (headers["cc"] ?? "").split(",").map((x) => parseAddress(x).email).filter((x) => x.includes("@"));
+  const others = [...toList, ...ccList].filter((x) => !own.some((a) => a.toLowerCase() === x) && x !== requester.email);
+  if (others.length && !forwarded) await rpc("conversation_cc", { ticket_id: ticketId, emails: others }).catch(() => undefined);
   for (const a of (mail.attachments ?? []).slice(0, 10)) {
     if (!a.download_url) continue;
     try {

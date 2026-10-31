@@ -5,7 +5,7 @@
 // rules decide what is *allowed*: sanitization, routing, release eligibility.
 
 export type Product = "cms" | "crm" | "pos" | "platform" | "unknown";
-export type Kind = "unknown" | "bug" | "question" | "request" | "feature" | "operation" | "account";
+export type Kind = "unknown" | "question" | "bug" | "change" | "incident" | "feature" | "other";
 export type Priority = "low" | "normal" | "high" | "urgent";
 
 // ---------------------------------------------------------------------------
@@ -129,11 +129,12 @@ export function classify(subject: string, body: string, product: Product): Class
   let kind: Kind = "unknown";
   if (FEATURE.test(text)) kind = "feature";
   else if (BUG.test(text)) kind = "bug";
-  else if (REQUEST.test(text)) kind = "request";
-  else if (ACCOUNT.test(text)) kind = "account";
+  else if (REQUEST.test(text)) kind = "change";
+  else if (ACCOUNT.test(text)) kind = "other";
   else if (QUESTION.test(text)) kind = "question";
 
   const priority: Priority = URGENT.test(text) ? "urgent" : HIGH.test(text) ? "high" : "normal";
+  if (kind === "bug" && priority === "urgent" && /\b(down|everyone|all (our )?customers|can'?t take payments?)\b/i.test(text)) kind = "incident";
   const category = CATEGORIES.find(([re]) => re.test(text))?.[1] ?? "general";
   const missing: string[] = [];
   if (kind === "bug") {
@@ -141,7 +142,7 @@ export function classify(subject: string, body: string, product: Product): Class
     if (!/\b(expected|should|supposed to)\b/i.test(body)) missing.push("what you expected to happen");
     if (product === "unknown") missing.push("which product (website, CRM or POS)");
   }
-  if (kind === "request" && product === "unknown") missing.push("which product (website, CRM or POS)");
+  if (kind === "change" && product === "unknown") missing.push("which product (website, CRM or POS)");
   return {
     kind,
     priority,
@@ -157,7 +158,7 @@ export function classify(subject: string, body: string, product: Product): Class
 export function mergeModelClassification(rules: Classification, model: unknown): Classification {
   if (!model || typeof model !== "object") return rules;
   const m = model as Record<string, unknown>;
-  const kinds = ["unknown", "bug", "question", "request", "feature", "operation", "account"];
+  const kinds = ["unknown", "question", "bug", "change", "incident", "feature", "other"];
   const priorities = ["low", "normal", "high", "urgent"];
   const impacts = ["unknown", "single_user", "account", "multi_account", "platform"];
   if (!kinds.includes(String(m.kind)) || !priorities.includes(String(m.priority))) return rules;
@@ -182,8 +183,12 @@ export interface InboundHeaders {
   [name: string]: string | undefined;
 }
 
-/** True for autoresponders, bounces, mailing lists and our own outbound mail. */
-export function isAutomatedEmail(from: string, subject: string, headers: InboundHeaders, ownDomains: string[]): string | null {
+/**
+ * True for autoresponders, bounces, mailing lists and Bloom's own outbound mail.
+ * `ownAddresses` are Bloom's sending/receiving addresses ("support@x.com"), or "@domain" for a
+ * domain used only by Bloom. Staff who share the company domain are not treated as Bloom.
+ */
+export function isAutomatedEmail(from: string, subject: string, headers: InboundHeaders, ownAddresses: string[]): string | null {
   const h = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), (v ?? "").toLowerCase()]));
   const sender = from.toLowerCase();
   if (h["auto-submitted"] && h["auto-submitted"] !== "no") return "auto-submitted";
@@ -193,7 +198,7 @@ export function isAutomatedEmail(from: string, subject: string, headers: Inbound
   if (/^(mailer-daemon|postmaster|no-?reply|do-?not-?reply|bounce)/.test(sender)) return "system-sender";
   if (/^(auto(matic)? ?reply|out of (the )?office|undeliverable|delivery status notification|mail delivery failed|returned mail)/i.test(subject.trim())) return "autoreply-subject";
   const domain = sender.split("@")[1] ?? "";
-  if (ownDomains.some((d) => domain === d.toLowerCase())) return "own-domain";
+  if (ownAddresses.some((a) => a.toLowerCase() === sender || (a.startsWith("@") && a.slice(1).toLowerCase() === domain))) return "own-address";
   if (h["x-bloom-support"]) return "own-message";
   return null;
 }

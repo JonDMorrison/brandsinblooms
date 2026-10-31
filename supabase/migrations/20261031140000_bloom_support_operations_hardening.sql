@@ -190,7 +190,8 @@ BEGIN
     PERFORM bloom_support.log(x.ticket_id, NULL, NULL, 'escalation.fallback', jsonb_build_object('escalation_id', x.id, 'level', x.fallback_level + 1, 'owner', next_owner));
     moved := moved + 1;
   END LOOP;
-  FOR t IN SELECT id, number, subject FROM bloom_support.tickets WHERE status <> 'resolved' AND due_at < now()
+  FOR t IN SELECT id, number, subject FROM bloom_support.tickets WHERE status <> 'resolved' AND due_at < now() AND NOT spam AND merged_into IS NULL
+             AND coalesce(waiting_reason, '') NOT IN ('customer','third_party','scheduled')
              AND NOT EXISTS (SELECT 1 FROM bloom_support.escalations e WHERE e.dedupe_key = 'overdue:' || tickets.id::text) LIMIT 100 LOOP
     INSERT INTO bloom_support.escalations(ticket_id, audience, reason, detail, dedupe_key)
     VALUES (t.id, 'both', 'ticket_overdue', '#' || t.number || ' ' || t.subject, 'overdue:' || t.id::text) ON CONFLICT (dedupe_key) DO NOTHING;
@@ -209,6 +210,7 @@ DECLARE lim jsonb := coalesce(bloom_support.setting('limits'), '{}'); enabled bo
   last_ok timestamptz; stale_queue int; dead int; findings jsonb := '[]'; f jsonb; hour text := to_char(now(), 'YYYY-MM-DD"T"HH24'); key text; resend_key text; recipients jsonb; inserted boolean;
 BEGIN
   PERFORM bloom_support.sweep_deadlines();
+  IF to_regprocedure('bloom_support.sweep_operational()') IS NOT NULL THEN EXECUTE 'SELECT bloom_support.sweep_operational()'; END IF;
   SELECT max(finished_at) INTO last_ok FROM bloom_support.worker_runs;
   IF enabled AND (last_ok IS NULL OR last_ok < now() - make_interval(mins => coalesce((lim->>'worker_stale_minutes')::int, 10))) THEN
     findings := findings || jsonb_build_object('condition', 'worker_not_running', 'last_finished_at', last_ok);
