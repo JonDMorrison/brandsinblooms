@@ -20,17 +20,39 @@ export function NewsletterInboxReview({
   preview,
   onChange,
   disabled = false,
+  campaignId,
 }: {
   blocks: StudioBlock[];
   subject: string;
   preview: string;
   onChange: (fields: { subjectLine?: string; preheaderText?: string }) => void;
   disabled?: boolean;
+  campaignId?: string | null;
 }) {
   const lines = React.useMemo(() => newsletterInboxText(blocks), [blocks]);
   const context = lines.join("\n").slice(0, 10000);
   const starter = React.useMemo(() => draftInboxSuggestion(lines), [lines]);
   const seeded = React.useRef(false);
+  const fingerprint = (value: string) => {
+    let hash = 2166136261;
+    for (let i = 0; i < value.length; i++)
+      hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
+    return (hash >>> 0).toString(36);
+  };
+  const storageKey = campaignId
+    ? `newsletter-inbox-review-v1:${campaignId}`
+    : null;
+  const [reviewedFingerprint, setReviewedFingerprint] = React.useState(() => {
+    try {
+      return storageKey ? sessionStorage.getItem(storageKey) : null;
+    } catch {
+      return null;
+    }
+  });
+  const firstContext = React.useRef(context);
+  const contentChanged = reviewedFingerprint
+    ? reviewedFingerprint !== fingerprint(context)
+    : firstContext.current !== context;
   const revision = React.useRef(context);
   revision.current = context;
   const [busy, setBusy] = React.useState(false);
@@ -71,6 +93,13 @@ export function NewsletterInboxReview({
             .slice(0, 3)
         : [];
       if (!options.length) throw new Error("No suggestions");
+      const signature = fingerprint(requestedContext);
+      setReviewedFingerprint(signature);
+      try {
+        if (storageKey) sessionStorage.setItem(storageKey, signature);
+      } catch {
+        /* Suggestions work without browser storage. */
+      }
       setSuggestions(options);
       setSuggestionContext(requestedContext);
     } catch {
@@ -82,7 +111,8 @@ export function NewsletterInboxReview({
     }
   };
   React.useEffect(() => {
-    if (disabled || !context || autoAIRequested.current) return;
+    if (disabled || !context || autoAIRequested.current || contentChanged)
+      return;
     autoAIRequested.current = true;
     void improve();
     // One initial content scan; later improvements are explicitly requested.
@@ -181,8 +211,16 @@ export function NewsletterInboxReview({
         startDecorator={<Sparkles size={18} />}
         sx={{ alignSelf: "flex-start", minHeight: 44 }}
       >
-        Help me improve this
+        {contentChanged && suggestionContext !== context
+          ? "Refresh suggestions from updated content"
+          : "Help me improve this"}
       </Button>
+      {contentChanged && suggestionContext !== context ? (
+        <Typography role="status" level="body-sm">
+          Your newsletter has changed. Refresh suggestions when you’re ready.
+          Your subject and preview text are unchanged.
+        </Typography>
+      ) : null}
       {error ? (
         <Typography role="status" level="body-sm">
           {error}

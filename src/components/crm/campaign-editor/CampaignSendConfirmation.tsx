@@ -109,7 +109,9 @@ function hasBlockingSuppression(
   suppressionTypes: string[],
   bypassTypes: Set<string>,
 ) {
-  return suppressionTypes.some((suppressionType) => !bypassTypes.has(suppressionType));
+  return suppressionTypes.some(
+    (suppressionType) => !bypassTypes.has(suppressionType),
+  );
 }
 
 async function fetchAudienceCustomers(params: {
@@ -203,9 +205,7 @@ async function fetchTenantSuppressionBypassTypes(tenantId: string) {
 
   const row = Array.isArray(data) ? data[0] : data;
   const record =
-    row && typeof row === "object"
-      ? (row as Record<string, unknown>)
-      : {};
+    row && typeof row === "object" ? (row as Record<string, unknown>) : {};
 
   return record.suppression_bypass_active === true
     ? [...TENANT_SUPPRESSION_BYPASS_TYPES]
@@ -311,8 +311,7 @@ async function fetchAudiencePreflightSummary(params: {
   let lastApprovedEmail: string | null = null;
 
   for (const customer of candidates) {
-    const suppressionTypes =
-      suppressionMap.get(customer.normalizedEmail) ?? [];
+    const suppressionTypes = suppressionMap.get(customer.normalizedEmail) ?? [];
     const blockedNormally = hasBlockingSuppression(
       suppressionTypes,
       baselineBypassTypes,
@@ -445,7 +444,11 @@ type ProtectedRowProps = {
   loading?: boolean;
 };
 
-function ProtectedRow({ message, variant = "info", loading }: ProtectedRowProps) {
+function ProtectedRow({
+  message,
+  variant = "info",
+  loading,
+}: ProtectedRowProps) {
   const Icon = variant === "locked" ? Lock : ShieldCheck;
   return (
     <Stack direction="row" spacing={1.25} alignItems="flex-start">
@@ -458,10 +461,7 @@ function ProtectedRow({ message, variant = "info", loading }: ProtectedRowProps)
             sx={{ "--CircularProgress-size": "18px" }}
           />
         ) : (
-          <Icon
-            size={18}
-            style={{ color: "var(--joy-palette-primary-500)" }}
-          />
+          <Icon size={18} style={{ color: "var(--joy-palette-primary-500)" }} />
         )}
       </Box>
       <Typography level="body-sm" sx={{ color: "neutral.700", minWidth: 0 }}>
@@ -543,7 +543,10 @@ function StatCard({ tone, label, value, helper, loading }: StatCardProps) {
           }}
         >
           {loading ? (
-            <Skeleton variant="text" sx={{ width: 60, display: "inline-block" }}>
+            <Skeleton
+              variant="text"
+              sx={{ width: 60, display: "inline-block" }}
+            >
               000
             </Skeleton>
           ) : (
@@ -631,9 +634,9 @@ export function ReviewExcludedDialog({
                   level="body-xs"
                   sx={{ color: "neutral.600", pl: 4 }}
                 >
-                  BloomSuite does not have their permission recorded. Select this
-                  option to confirm you have their permission and include them
-                  in this campaign.
+                  BloomSuite does not have their permission recorded. Select
+                  this option to confirm you have their permission and include
+                  them in this campaign.
                 </Typography>
               </Stack>
             </Sheet>
@@ -649,7 +652,8 @@ export function ReviewExcludedDialog({
               <Stack spacing={0.75}>
                 <Checkbox
                   checked={
-                    includeSoftSuppressions && softSuppressionRestorableCount > 0
+                    includeSoftSuppressions &&
+                    softSuppressionRestorableCount > 0
                   }
                   disabled={softSuppressionRestorableCount === 0}
                   onChange={(event) =>
@@ -668,9 +672,9 @@ export function ReviewExcludedDialog({
                   level="body-xs"
                   sx={{ color: "neutral.600", pl: 4 }}
                 >
-                  Mail to these contacts didn't go through recently — could
-                  be a full inbox or a server hiccup. Including them now may
-                  affect your inbox health.
+                  Mail to these contacts didn't go through recently — could be a
+                  full inbox or a server hiccup. Including them now may affect
+                  your inbox health.
                 </Typography>
               </Stack>
             </Sheet>
@@ -695,9 +699,9 @@ export function ReviewExcludedDialog({
                     {hardSuppressionExcludedCount.toLocaleString()} contacts
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                    These contacts unsubscribed, complained, or have an
-                    address that keeps bouncing. They stay blocked to keep
-                    your inbox health strong.
+                    These contacts unsubscribed, complained, or have an address
+                    that keeps bouncing. They stay blocked to keep your inbox
+                    health strong.
                   </Typography>
                 </Stack>
               </Stack>
@@ -718,12 +722,10 @@ export function ReviewExcludedDialog({
             <JoyButton variant="plain" color="neutral" onClick={onClose}>
               Cancel
             </JoyButton>
-            <JoyButton
-              variant="solid"
-              color="primary"
-              onClick={onContinue}
-            >
-              {hasSelection ? "Include selected contacts" : "Keep current audience"}
+            <JoyButton variant="solid" color="primary" onClick={onContinue}>
+              {hasSelection
+                ? "Include selected contacts"
+                : "Keep current audience"}
             </JoyButton>
           </Box>
         </DialogActions>
@@ -1035,8 +1037,8 @@ function ExclusionDetailsAccordion({
                   {softSuppressionRestorableCount.toLocaleString()}):
                 </Typography>{" "}
                 addresses where mail recently didn't go through — could be a
-                full inbox or a quiet recipient. You can review and include
-                them this once if you&apos;re confident.
+                full inbox or a quiet recipient. You can review and include them
+                this once if you&apos;re confident.
               </Typography>
             ) : null}
             {hardSuppressionExcludedCount > 0 ? (
@@ -1050,8 +1052,8 @@ function ExclusionDetailsAccordion({
                   {hardSuppressionExcludedCount.toLocaleString()}):
                 </Typography>{" "}
                 unsubscribes, complaints, and addresses that keep bouncing.
-                These stay blocked to keep your inbox health strong — they
-                can't be overridden.
+                These stay blocked to keep your inbox health strong — they can't
+                be overridden.
               </Typography>
             ) : null}
           </Stack>
@@ -1067,9 +1069,15 @@ export function CampaignSendConfirmation({
   builderWarnings = [],
   builderBlockers = [],
   placeholderWarnings = [],
+  reviewContent,
+  onEditContent,
+  onSchedule,
 }: {
   open: boolean;
   onClose: () => void;
+  reviewContent?: React.ReactNode;
+  onEditContent?: () => void;
+  onSchedule?: () => void;
   builderWarnings?: string[];
   builderBlockers?: string[];
   /**
@@ -1124,7 +1132,8 @@ export function CampaignSendConfirmation({
     React.useState(false);
   const [pendingIncludeSoftSuppressions, setPendingIncludeSoftSuppressions] =
     React.useState(false);
-  const [includeMissingConsent, setIncludeMissingConsent] = React.useState(false);
+  const [includeMissingConsent, setIncludeMissingConsent] =
+    React.useState(false);
   const [includeSoftSuppressions, setIncludeSoftSuppressions] =
     React.useState(false);
   const [placeholderAcknowledged, setPlaceholderAcknowledged] =
@@ -1218,9 +1227,7 @@ export function CampaignSendConfirmation({
       {
         id: "domain",
         label: "Domain verified",
-        detail: domainsLoading
-          ? "Checking sender"
-          : senderEmail || "No sender",
+        detail: domainsLoading ? "Checking sender" : senderEmail || "No sender",
         loading: domainsLoading,
       },
       {
@@ -1268,8 +1275,7 @@ export function CampaignSendConfirmation({
   const pendingOverrideAddedCount =
     (pendingIncludeMissingConsent ? consentGap : 0) +
     (pendingIncludeSoftSuppressions ? suppressionBypassRecipientCount : 0);
-  const protectedExcludedTotal =
-    consentGap + suppressionBypassRecipientCount;
+  const protectedExcludedTotal = consentGap + suppressionBypassRecipientCount;
   const displayedProtectedCount = Math.max(
     0,
     protectedExcludedTotal - overrideAddedCount,
@@ -1426,10 +1432,18 @@ export function CampaignSendConfirmation({
 
           <DialogContent sx={{ px: 3, py: 0 }}>
             <Stack spacing={2.25}>
+              <Typography level="body-sm">
+                Nothing sends until you confirm.
+              </Typography>
+              {reviewContent}
               {/* Campaign summary */}
               <Sheet
                 variant="outlined"
-                sx={{ borderRadius: "md", p: 2, backgroundColor: "background.body" }}
+                sx={{
+                  borderRadius: "md",
+                  p: 2,
+                  backgroundColor: "background.body",
+                }}
               >
                 <Stack spacing={1.25}>
                   <Box>
@@ -1584,16 +1598,18 @@ export function CampaignSendConfirmation({
                     ) : null}
                   </Stack>
                   <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                    Holding these contacts back keeps your inbox health
-                    strong and protects you from spam complaints.
+                    Holding these contacts back keeps your inbox health strong
+                    and protects you from spam complaints.
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Most campaigns hold a few contacts back. That's normal
-                    and it's how providers keep trusting you.
+                    Most campaigns hold a few contacts back. That's normal and
+                    it's how providers keep trusting you.
                   </Typography>
                   <ExclusionDetailsAccordion
                     consentGap={consentGap}
-                    softSuppressionRestorableCount={suppressionBypassRecipientCount}
+                    softSuppressionRestorableCount={
+                      suppressionBypassRecipientCount
+                    }
                     hardSuppressionExcludedCount={hardSuppressionExcludedCount}
                   />
                 </Stack>
@@ -1771,15 +1787,27 @@ export function CampaignSendConfirmation({
                       </Stack>
                     </Stack>
                     <Stack spacing={0.25} sx={{ pl: 3.5 }}>
-                      {placeholderWarnings.map((warning) => (
-                        <Typography
-                          key={warning}
-                          level="body-xs"
-                          sx={{ color: "neutral.700" }}
-                        >
-                          • {warning}
-                        </Typography>
-                      ))}
+                      {placeholderWarnings.map((warning) =>
+                        onEditContent ? (
+                          <JoyButton
+                            key={warning}
+                            variant="outlined"
+                            color="neutral"
+                            onClick={onEditContent}
+                            sx={{
+                              justifyContent: "flex-start",
+                              textAlign: "left",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {warning} · Review in Studio
+                          </JoyButton>
+                        ) : (
+                          <Typography key={warning} level="body-xs">
+                            {warning}
+                          </Typography>
+                        ),
+                      )}
                     </Stack>
                     <Checkbox
                       size="sm"
@@ -1857,6 +1885,16 @@ export function CampaignSendConfirmation({
                 spacing={1}
                 sx={{ ml: "auto", flexWrap: "wrap" }}
               >
+                {onSchedule ? (
+                  <JoyButton
+                    variant="outlined"
+                    color="neutral"
+                    disabled={isBusy}
+                    onClick={onSchedule}
+                  >
+                    Choose send time
+                  </JoyButton>
+                ) : null}
                 {hasProtectedExclusions ? (
                   <JoyButton
                     variant="outlined"

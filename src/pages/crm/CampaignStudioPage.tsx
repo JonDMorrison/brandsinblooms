@@ -24,7 +24,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Skeleton from "@mui/joy/Skeleton";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type {
   AIImageStudioAspectRatio,
@@ -626,6 +626,9 @@ function StudioShellSkeleton() {
 function CampaignStudioPageContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [reviewParams] = useSearchParams();
+  const reviewBlock = reviewParams.get("block");
+  const focusedReviewBlock = React.useRef<string | null>(null);
   const campaignId = id ?? "";
   const { designSystem } = useDesignSystem();
   const isMobileViewport = useMediaQuery("(max-width: 767.95px)");
@@ -647,6 +650,16 @@ function CampaignStudioPageContent() {
 
   const studio = useStudioState({ initialCampaignName, designSystem });
   const { saveTemplate, isSaving: isSavingTemplate } = useSavedTemplates();
+  React.useEffect(() => {
+    if (
+      reviewBlock &&
+      focusedReviewBlock.current !== reviewBlock &&
+      studio.blocks.some((block) => block.id === reviewBlock)
+    ) {
+      studio.selectBlock(reviewBlock);
+      focusedReviewBlock.current = reviewBlock;
+    }
+  }, [reviewBlock, studio]);
   const editorPath = campaignId
     ? `/crm/campaigns/${campaignId}/edit`
     : "/crm/campaigns";
