@@ -18,8 +18,9 @@ describe("campaign sending design and palette invariants", () => {
     expect(editor).toContain("<CampaignScheduleDrawer");
     expect(editor).toContain("onSchedule={() => {");
     expect(editor).toContain('data-testid="campaign-editor-fix-sender"');
-    expect(editor).toContain("disabled={sendButtonDisabled}");
-    expect(editor).toContain("onClick={openSendConfirmation}");
+    expect(editor).toContain("reviewingNewsletter || campaignType !== \"email\"");
+    expect(editor).toContain("? handleOpenStudio");
+    expect(editor).toContain(": openSendConfirmation");
     expect(editor).toContain("handleScheduleForLater();");
     expect(editor).not.toContain("scheduleInitiallyExpanded");
     expect(editor).not.toContain("previewManuallyToggledRef");
