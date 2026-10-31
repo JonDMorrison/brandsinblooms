@@ -563,6 +563,16 @@ BEGIN
     IF coalesce(btrim(coalesce(p->>'resolution_summary', t.resolution_summary)), '') = '' THEN
       RAISE EXCEPTION 'invalid: resolution summary required' USING ERRCODE = '22023';
     END IF;
+    -- Evidence: Bloom must attach what it checked. A linked fix needs both the
+    -- production deployment and a passing user-flow verification.
+    IF svc AND jsonb_typeof(p->'resolution_evidence') IS DISTINCT FROM 'object' THEN
+      RAISE EXCEPTION 'blocked: resolution evidence required' USING ERRCODE = '22023';
+    END IF;
+    IF svc AND t.engineering_issue_id IS NOT NULL AND (
+         p->'resolution_evidence'->'deployment'->>'state' IS DISTINCT FROM 'success'
+         OR coalesce((p->'resolution_evidence'->'verification'->>'passed')::boolean, false) = false) THEN
+      RAISE EXCEPTION 'blocked: resolution evidence must include a successful production deployment and a passing user-flow check' USING ERRCODE = '22023';
+    END IF;
   END IF;
 
   UPDATE bloom_support.tickets SET
@@ -574,6 +584,9 @@ BEGIN
     resolution_summary = coalesce(p->>'resolution_summary', resolution_summary),
     resolution_verified = CASE WHEN v_status = 'resolved' THEN coalesce((p->>'resolution_verified')::boolean, resolution_verified) ELSE false END,
     resolved_at = CASE WHEN v_status = 'resolved' THEN coalesce(resolved_at, now()) ELSE NULL END,
+    resolution_evidence = CASE WHEN v_status = 'resolved' AND t.status <> 'resolved'
+      THEN coalesce(p->'resolution_evidence', '{}'::jsonb) || jsonb_build_object('resolved_by', CASE WHEN svc THEN 'bloom' ELSE 'person' END, 'actor', p_actor, 'at', now())
+      WHEN v_status <> 'resolved' THEN NULL ELSE resolution_evidence END,
     reopen_count = reopen_count + CASE WHEN t.status = 'resolved' AND v_status <> 'resolved' THEN 1 ELSE 0 END,
     version = version + 1, updated_at = now()
   WHERE id = p_ticket RETURNING * INTO n;
@@ -1261,7 +1274,7 @@ CREATE OR REPLACE FUNCTION bloom_support.search_knowledge(p_product text, p_q te
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'title', k.title, 'body', k.body, 'product', k.product, 'rank', k.r) ORDER BY k.r DESC), '[]')
   FROM (SELECT *, ts_rank(search, websearch_to_tsquery('english', p_q)) r FROM bloom_support.knowledge
-        WHERE approved AND (p_product IS NULL OR product IN (p_product, 'platform')) AND search @@ websearch_to_tsquery('english', p_q)
+        WHERE approved AND audience = 'client' AND (p_product IS NULL OR product IN (p_product, 'platform')) AND search @@ websearch_to_tsquery('english', p_q)
         ORDER BY r DESC LIMIT p_limit) k
 $$;
 
@@ -1272,11 +1285,12 @@ BEGIN
   PERFORM bloom_support.require_permission(p_actor, 'tickets.write');
   IF bloom_support.principal_role(p_actor) = 'service' THEN RAISE EXCEPTION 'forbidden: Bloom cannot author approved knowledge' USING ERRCODE = '42501'; END IF;
   IF p->>'id' IS NULL THEN
-    INSERT INTO bloom_support.knowledge(product, title, body, approved, approved_by)
-    VALUES (p->>'product', p->>'title', p->>'body', can_approve AND coalesce((p->>'approved')::boolean, false), CASE WHEN can_approve AND coalesce((p->>'approved')::boolean,false) THEN p_actor END)
+    INSERT INTO bloom_support.knowledge(product, title, body, audience, approved, approved_by)
+    VALUES (p->>'product', p->>'title', p->>'body', coalesce(p->>'audience', 'internal'), can_approve AND coalesce((p->>'approved')::boolean, false), CASE WHEN can_approve AND coalesce((p->>'approved')::boolean,false) THEN p_actor END)
     RETURNING * INTO k;
   ELSE
     UPDATE bloom_support.knowledge SET title = coalesce(p->>'title', title), body = coalesce(p->>'body', body), product = coalesce(p->>'product', product),
+      audience = coalesce(p->>'audience', audience),
       approved = CASE WHEN can_approve AND p ? 'approved' THEN (p->>'approved')::boolean ELSE false END,
       approved_by = CASE WHEN can_approve AND coalesce((p->>'approved')::boolean,false) THEN p_actor END, updated_at = now()
     WHERE id = (p->>'id')::uuid RETURNING * INTO k;

@@ -72,6 +72,13 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
     await update(repair, issue, "escalated", {}, "Product unknown: Bloom cannot map this report to a repository");
     return { note: "escalated: unknown product" };
   }
+  // Bounded attempts and a global cap on concurrent repairs.
+  const cap = await rpc<{ active: number; max_active: number; attempts: number; max_attempts: number }>("repair_capacity", { issue_id: issue.id });
+  if (cap.attempts >= cap.max_attempts) {
+    await update(repair, issue, "escalated", {}, `Repair attempts exhausted (${cap.attempts}/${cap.max_attempts}); a person must take this bug`);
+    return { note: "escalated: attempts exhausted" };
+  }
+  if (cap.active >= cap.max_active) return { next: { step: "investigate", delaySeconds: 1800 }, note: `waiting for repair capacity (${cap.active}/${cap.max_active} active)` };
   const branch = branchFor(issue.id);
   const evidence = await evidenceFor(automation, issue);
   let ghIssue = (issue.evidence?.github_issue as { number: number; url: string } | undefined) ?? null;
@@ -92,7 +99,7 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
     });
     ghIssue = { number: created.number, url: created.html_url };
   }
-  await update(repair, issue, "investigating", { repository: target.repository, branch, evidence: { github_issue: ghIssue } }, `GitHub issue #${ghIssue.number}`);
+  await update(repair, issue, "investigating", { repository: target.repository, branch, evidence: { github_issue: ghIssue, dispatches: cap.attempts + 1 } }, `GitHub issue #${ghIssue.number} (attempt ${cap.attempts + 1}/${cap.max_attempts})`);
   const workflow = env("BLOOM_REPAIR_WORKFLOW") ?? "bloom-repair.yml";
   try {
     await gh("repair", "POST", `/repos/${target.repository}/actions/workflows/${workflow}/dispatches`, {
@@ -170,8 +177,33 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
   return { note: "awaiting approval" };
 }
 
+interface VercelTarget { projectId: string; teamId?: string }
+async function vercelTarget(repository: string): Promise<VercelTarget | null> {
+  const policy = (await rpc<Record<string, unknown> | null>("setting", { key: "release_policy" })) ?? {};
+  const map = (policy.vercel ?? {}) as Record<string, VercelTarget>;
+  return env("BLOOM_VERCEL_TOKEN") && map[repository]?.projectId ? map[repository] : null;
+}
+async function vercel<T>(method: string, path: string, target: VercelTarget): Promise<T> {
+  const sep = path.includes("?") ? "&" : "?";
+  const res = await fetch(`https://api.vercel.com${path}${target.teamId ? `${sep}teamId=${target.teamId}` : ""}`, {
+    method, headers: { Authorization: `Bearer ${env("BLOOM_VERCEL_TOKEN")}` }, signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) throw new BloomError(502, "vercel_error", `Vercel ${method} ${path}: ${res.status}`);
+  return res.status === 204 ? (undefined as T) : await res.json() as T;
+}
+
 async function merge(release: Caller, issueId: string, sha: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
+  // Record the production deployment that is serving now, so a failed release can be rolled back to it.
+  const target = await vercelTarget(issue.repository!);
+  if (target) {
+    try {
+      const list = await vercel<{ deployments: Array<{ uid: string; url: string }> }>("GET", `/v6/deployments?projectId=${target.projectId}&target=production&state=READY&limit=1`, target);
+      if (list.deployments[0]) await update(release, issue, null, { rollback: { previous_deployment_id: list.deployments[0].uid, previous_url: list.deployments[0].url, provider: "vercel" } });
+    } catch (e) {
+      console.warn("could not record previous deployment", String(e));
+    }
+  }
   try {
     const out = await mergePullRequest(issue.repository!, issue.pr_number!, sha, `fix: ${issue.title} (Bloom ${issue.id.slice(0, 8)})`);
     await update(release, issue, "merged", { merge_sha: out.sha });
@@ -244,7 +276,22 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     await update(release, issue, "verified", { verification: { passed: true, checks: results, at: new Date().toISOString() } });
     return { note: "verified" };
   }
-  await update(release, issue, "failed", { verification: { passed: false, checks: results, at: new Date().toISOString() } },
-    "Production verification failed after release. Roll back with the hosting provider's instant rollback to the previous production deployment, then decide.");
+  const verification = { passed: false, checks: results, at: new Date().toISOString() };
+  // Supported rollback: Vercel instant rollback to the deployment recorded before the merge.
+  const target = await vercelTarget(issue.repository!);
+  const previous = (issue as unknown as { rollback?: { previous_deployment_id?: string } }).rollback?.previous_deployment_id;
+  if (target && previous) {
+    try {
+      await vercel("POST", `/v9/projects/${target.projectId}/rollback/${previous}`, target);
+      await update(release, issue, "rolled_back", { verification, rollback: { previous_deployment_id: previous, provider: "vercel", rolled_back_at: new Date().toISOString() } },
+        "Production verification failed; Bloom rolled production back to the previous deployment. The fix needs a person.");
+      return { note: "verification failed; rolled back" };
+    } catch (e) {
+      await update(release, issue, "failed", { verification }, `Verification failed and automatic rollback failed (${e instanceof Error ? e.message : e}). Roll back in Vercel now.`);
+      return { note: "verification failed; rollback failed" };
+    }
+  }
+  await update(release, issue, "failed", { verification },
+    "Production verification failed after release. No automatic rollback is configured for this repository: roll back with Vercel instant rollback to the previous production deployment, then decide.");
   return { note: "verification failed" };
 }

@@ -93,6 +93,9 @@ BEGIN
     WHEN 'log' THEN
       PERFORM bloom_support.require_permission(a, 'tickets.internal');
       PERFORM bloom_support.log((p->>'ticket_id')::uuid, (p->>'account_id')::uuid, a, p->>'action', coalesce(p->'detail','{}'::jsonb)); r := '{"ok":true}';
+    WHEN 'log_usage' THEN
+      -- Model usage record (server code only; the gateway is service_role-only).
+      PERFORM bloom_support.log(NULL, NULL, NULL, 'ai.call', coalesce(p->'detail','{}'::jsonb)); r := '{"ok":true}';
     WHEN 'job_context' THEN
       -- Worker-only bundle: the ticket (full), related candidates, and account links.
       PERFORM bloom_support.require_permission(a, 'tickets.read_all');
@@ -107,6 +110,20 @@ BEGIN
                          'last_outbound', (SELECT o.rfc_message_id FROM bloom_support.outbound_emails o JOIN bloom_support.tickets t2 ON t2.id = o.ticket_id
                                            WHERE t2.conversation_id = c.id AND o.status = 'sent' ORDER BY o.created_at DESC LIMIT 1))
                        FROM bloom_support.tickets t JOIN bloom_support.conversations c ON c.id = t.conversation_id WHERE t.id = (p->>'ticket_id')::uuid));
+    WHEN 'ensure_service_principal' THEN r := to_jsonb(bloom_support.ensure_service_principal(p->>'scope'));
+    WHEN 'verify_worker_token' THEN r := to_jsonb(bloom_support.verify_worker_token(p->>'token'));
+    WHEN 'worker_run_start' THEN r := to_jsonb(bloom_support.worker_run_start(p->>'worker'));
+    WHEN 'worker_run_finish' THEN PERFORM bloom_support.worker_run_finish((p->>'run_id')::bigint, (p->>'processed')::int, (p->>'failed')::int, p->>'note'); r := '{"ok":true}';
+    WHEN 'sweep_deadlines' THEN r := bloom_support.sweep_deadlines();
+    WHEN 'acknowledge_escalation' THEN r := bloom_support.acknowledge_escalation(a, (p->>'escalation_id')::uuid, p->>'note');
+    WHEN 'repair_capacity' THEN r := bloom_support.repair_capacity((p->>'issue_id')::uuid);
+    WHEN 'readiness_facts' THEN r := bloom_support.readiness_facts(a);
+    WHEN 'oauth_register_client' THEN r := to_jsonb(bloom_support.oauth_register_client(p->>'client_name', ARRAY(SELECT jsonb_array_elements_text(coalesce(p->'redirect_uris','[]'::jsonb)))));
+    WHEN 'oauth_client' THEN r := bloom_support.oauth_client(p->>'client_id');
+    WHEN 'oauth_issue_code' THEN PERFORM bloom_support.oauth_issue_code(a, p->>'client_id', p->>'redirect_uri', p->>'code_challenge', p->>'scope', p->>'code_hash'); r := '{"ok":true}';
+    WHEN 'oauth_consume_code' THEN r := bloom_support.oauth_consume_code(p->>'code_hash', p->>'client_id', p->>'redirect_uri');
+    WHEN 'oauth_issue_tokens' THEN r := bloom_support.oauth_issue_tokens((p->>'principal_id')::uuid, p->>'client_id', p->>'scope', p->>'access_hash', p->>'access_prefix', p->>'refresh_hash', p->>'old_refresh_hash');
+    WHEN 'oauth_refresh_lookup' THEN r := bloom_support.oauth_refresh_lookup(p->>'refresh_hash');
     ELSE RAISE EXCEPTION 'unknown bloom_support function %', p_fn USING ERRCODE = '42883';
   END CASE;
   RETURN r;
@@ -124,25 +141,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Worker heartbeat: pg_cron calls the bloom-support-worker Edge Function every
--- minute with the project's internal key stored in Vault as
--- 'bloom_support_worker_key'. If the secret is absent, nothing is scheduled
--- and the handover lists it as missing configuration.
-DO $$ DECLARE has_key boolean := false; BEGIN
-  IF to_regclass('cron.job') IS NOT NULL AND to_regclass('vault.decrypted_secrets') IS NOT NULL THEN
-    EXECUTE 'SELECT EXISTS (SELECT 1 FROM vault.decrypted_secrets WHERE name = ''bloom_support_worker_key'')' INTO has_key;
-  END IF;
-  IF has_key THEN
-    EXECUTE $sched$SELECT cron.schedule('bloom-support-worker', '* * * * *', $cron$
-      SELECT net.http_post(
-        url := 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/bloom-support-worker',
-        headers := jsonb_build_object('Content-Type','application/json','apikey',
-          (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'bloom_support_worker_key')),
-        body := '{"source":"cron"}'::jsonb,
-        timeout_milliseconds := 55000)
-    $cron$)$sched$;
-  END IF;
-END $$;
+-- The worker and watchdog schedules are created in 20261031140000_bloom_support_operations_hardening.sql.
 
 -- Bootstrap: a CRM master admin (app_admin_emails allowlist / user_roles) becomes
 -- a Bloom platform administrator on first sign-in. Re-checked here; the caller's

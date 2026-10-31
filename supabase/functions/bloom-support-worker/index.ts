@@ -204,10 +204,16 @@ async function verifyResolution(job: Job): Promise<string> {
     await note(t, "The fix is verified in production. A person has this ticket, so Bloom did not message the client.", `verified-human:${t.id}`);
     return "verified; human owns client communication";
   }
-  const eng = await rpc<Array<{ id: string; status: string; verification: { passed?: boolean; checks?: unknown[] } | null; pr_url: string | null }>>("list_engineering", { actor: bot.principalId });
+  const eng = await rpc<Array<{ id: string; status: string; verification: { passed?: boolean; checks?: unknown[] } | null; deployment: Record<string, unknown> | null; pr_url: string | null; merge_sha: string | null }>>("list_engineering", { actor: bot.principalId });
   const issue = eng.find((e) => e.id === (job.payload.engineering_issue_id ?? t.engineering_issue_id));
   if (!issue || issue.status !== "verified" || issue.verification?.passed !== true) return "fix not verified; not resolving";
-  await patch(t, { status: "resolved", resolution_verified: true, resolution_summary: "We released a fix and confirmed it on the live site/app." });
+  // Evidence-based: the database refuses the resolution without a successful
+  // production deployment and a passing user-flow verification.
+  await patch(t, {
+    status: "resolved", resolution_verified: true,
+    resolution_summary: "We released a fix and confirmed the affected steps work on the live site/app.",
+    resolution_evidence: { engineering_issue_id: issue.id, pr_url: issue.pr_url, merge_sha: issue.merge_sha, deployment: issue.deployment, verification: issue.verification },
+  });
   return "resolved after verification";
 }
 
@@ -272,10 +278,20 @@ async function runOne(job: Job) {
   }
 }
 
+/** pg_cron sends the Vault-held worker token; operators may also use the project's internal key. */
+async function authorized(req: Request): Promise<boolean> {
+  const token = req.headers.get("x-bloom-worker-token");
+  if (token) return (await rpc<boolean>("verify_worker_token", { token }).catch(() => false)) === true;
+  return requireInternalApiKey(req) === null;
+}
+
 Deno.serve(async (req) => {
-  const denied = requireInternalApiKey(req);
-  if (denied) return denied;
+  if (!(await authorized(req))) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  let runId: number | null = null;
   try {
+    runId = await rpc<number>("worker_run_start", { worker: WORKER });
+    // Deadlines and fallback routing run every minute, independent of job volume.
+    await rpc("sweep_deadlines").catch((e) => console.error("sweep_deadlines", e));
     bot = await servicePrincipal("automation");
     repair = await servicePrincipal("investigation").catch(() => null);
     release = await servicePrincipal("release").catch(() => null);
@@ -288,8 +304,11 @@ Deno.serve(async (req) => {
       if (!jobs.length) break;
       results.push(...await Promise.all(jobs.map(runOne)));
     }
-    return json(req, { worker: WORKER, processed: results.length, results });
+    const failed = results.filter((r) => !r.ok).length;
+    await rpc("worker_run_finish", { run_id: runId, processed: results.length, failed, note: failed ? "some jobs failed" : "ok" });
+    return json(req, { worker: WORKER, processed: results.length, failed, results });
   } catch (e) {
+    if (runId !== null) await rpc("worker_run_finish", { run_id: runId, processed: 0, failed: 1, note: String(e).slice(0, 300) }).catch(() => undefined);
     return errorResponse(req, e);
   }
 });

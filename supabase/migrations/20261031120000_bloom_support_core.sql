@@ -222,6 +222,7 @@ CREATE TABLE bloom_support.tickets (
   feature_request_id uuid,
   resolution_summary text,
   resolution_verified boolean NOT NULL DEFAULT false,
+  resolution_evidence jsonb,
   resolved_at timestamptz,
   reopen_count integer NOT NULL DEFAULT 0,
   dedupe_key text UNIQUE,
@@ -432,6 +433,8 @@ CREATE TABLE bloom_support.knowledge (
   product text NOT NULL CHECK (product IN ('cms','crm','pos','platform')),
   title text NOT NULL,
   body text NOT NULL,
+  -- client: may be used in answers to clients once approved; internal: staff-only, never sent.
+  audience text NOT NULL DEFAULT 'internal' CHECK (audience IN ('client','internal')),
   approved boolean NOT NULL DEFAULT false,
   approved_by uuid REFERENCES bloom_support.principals(id),
   search tsvector GENERATED ALWAYS AS (to_tsvector('english', title || ' ' || body)) STORED,

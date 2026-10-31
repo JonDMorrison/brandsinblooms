@@ -89,6 +89,10 @@ export const actions = {
     return rpc("decide_feature_request", { ...A(c), feature_request_id: uuid(id, "feature_request_id"), decision, note: note ?? null });
   },
   listEscalations: (c: Caller, openOnly = true) => rpc("list_escalations", { ...A(c), open_only: openOnly }),
+  acknowledgeEscalation(c: Caller, id: string, note?: string) {
+    requireWriteScope(c);
+    return rpc("acknowledge_escalation", { ...A(c), escalation_id: uuid(id, "escalation_id"), note: note ?? null });
+  },
   resolveEscalation(c: Caller, id: string, decision: string) {
     requireWriteScope(c);
     return rpc("resolve_escalation", { ...A(c), escalation_id: uuid(id, "escalation_id"), decision });
@@ -163,7 +167,6 @@ export const actions = {
       ...(env("BLOOM_INTAKE_SECRET_CMS") ? [] : ["BLOOM_INTAKE_SECRET_CMS"]),
       ...(env("BLOOM_INTAKE_SECRET_POS") ? [] : ["BLOOM_INTAKE_SECRET_POS"]),
       ...ops.cms.missing, ...ops.pos.missing,
-      ...["AUTOMATION", "INVESTIGATION", "RELEASE"].filter((s) => !env(`BLOOM_SERVICE_KEY_${s}`)).map((s) => `BLOOM_SERVICE_KEY_${s}`),
       ...(env("BLOOM_GITHUB_REPAIR_TOKEN") ? [] : ["BLOOM_GITHUB_REPAIR_TOKEN"]),
       ...(env("BLOOM_GITHUB_RELEASE_TOKEN") ? [] : ["BLOOM_GITHUB_RELEASE_TOKEN"]),
     ];

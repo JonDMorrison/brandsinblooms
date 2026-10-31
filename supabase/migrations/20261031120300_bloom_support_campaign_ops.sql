@@ -19,15 +19,49 @@ BEGIN
   RETURN v;
 END $$;
 
-CREATE OR REPLACE FUNCTION bloom_support.campaign_schedule(p_actor uuid, p_account uuid, p_campaign uuid, p_at timestamptz, p_timezone text)
+-- Everything a person must see before a consequential campaign action: who the
+-- client is, who receives it, what it says, when it goes. The fingerprint lets
+-- execution refuse if any of it changed after the preview.
+CREATE OR REPLACE FUNCTION bloom_support.campaign_snapshot(p_tenant uuid, p_campaign uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
+DECLARE c record; segs jsonb; snap jsonb;
+BEGIN
+  SELECT * INTO c FROM public.crm_campaigns WHERE id = p_campaign AND tenant_id = p_tenant;
+  IF c.id IS NULL THEN RETURN NULL; END IF;
+  SELECT coalesce(jsonb_agg(DISTINCT jsonb_build_object('id', s.id, 'name', s.name)), '[]') INTO segs
+  FROM public.crm_segments s
+  WHERE s.tenant_id = p_tenant AND (s.id = c.segment_id OR s.id IN (SELECT cs.segment_id FROM public.campaign_segments cs WHERE cs.campaign_id = c.id));
+  snap := jsonb_build_object(
+    'client', (SELECT jsonb_build_object('tenant_id', t.id, 'name', t.name) FROM public.tenants t WHERE t.id = p_tenant),
+    'audience', jsonb_build_object('segments', segs, 'include_all_customers', coalesce(c.include_all_customers, false),
+       'additional_customers', coalesce(cardinality(c.additional_customer_ids), 0), 'projected_recipients', c.projected_recipient_count),
+    'content', jsonb_build_object('channel', c.delivery_method, 'subject', c.subject_line, 'preheader', c.preheader_text,
+       'sender_name', c.sender_name, 'sender_email', c.sender_email, 'excerpt', left(regexp_replace(coalesce(c.content, ''), '<[^>]+>', ' ', 'g'), 400),
+       'content_length', length(coalesce(c.content, ''))),
+    'timing', jsonb_build_object('scheduled_at', c.scheduled_at, 'timezone', c.metadata->>'scheduled_timezone'),
+    'campaign', jsonb_build_object('id', c.id, 'name', c.name, 'status', c.status, 'send_blocked_reason', c.send_blocked_reason));
+  RETURN snap || jsonb_build_object('fingerprint', md5((snap->'audience')::text || (snap->'content')::text || coalesce(c.status, '')));
+END $$;
+
+CREATE OR REPLACE FUNCTION bloom_support.campaign_schedule(p_actor uuid, p_account uuid, p_campaign uuid, p_at timestamptz, p_timezone text, p_fingerprint text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE v_tenant uuid := bloom_support.campaign_tenant_for_account(p_actor, p_account, 'ops.campaign.send'); c record;
+DECLARE v_tenant uuid := bloom_support.campaign_tenant_for_account(p_actor, p_account, 'ops.campaign.send'); c record; snap jsonb;
 BEGIN
   IF p_at IS NULL OR p_at < now() + interval '1 minute' THEN RAISE EXCEPTION 'invalid: schedule time must be at least one minute in the future' USING ERRCODE = '22023'; END IF;
   SELECT id, tenant_id, status, scheduled_at, name INTO c FROM public.crm_campaigns WHERE id = p_campaign FOR UPDATE;
   IF c.id IS NULL THEN RAISE EXCEPTION 'not_found: campaign' USING ERRCODE = 'P0002'; END IF;
   IF c.tenant_id IS DISTINCT FROM v_tenant THEN RAISE EXCEPTION 'forbidden: campaign belongs to another tenant' USING ERRCODE = '42501'; END IF;
   IF lower(coalesce(c.status, '')) IN ('sending', 'sent', 'queued', 'partially_queued') THEN RAISE EXCEPTION 'invalid: campaign is locked (%)', c.status USING ERRCODE = '22023'; END IF;
+  snap := bloom_support.campaign_snapshot(v_tenant, p_campaign);
+  IF p_fingerprint IS NULL OR snap->>'fingerprint' IS DISTINCT FROM p_fingerprint THEN
+    RAISE EXCEPTION 'conflict: the campaign''s audience or content changed after the preview — preview again' USING ERRCODE = '40001';
+  END IF;
+  IF coalesce(btrim(snap->'content'->>'subject'), '') = '' AND snap->'content'->>'channel' IS DISTINCT FROM 'sms' THEN RAISE EXCEPTION 'invalid: campaign has no subject line' USING ERRCODE = '22023'; END IF;
+  IF (snap->'content'->>'content_length')::int = 0 THEN RAISE EXCEPTION 'invalid: campaign has no content' USING ERRCODE = '22023'; END IF;
+  IF jsonb_array_length(snap->'audience'->'segments') = 0 AND NOT (snap->'audience'->>'include_all_customers')::boolean
+     AND (snap->'audience'->>'additional_customers')::int = 0 THEN
+    RAISE EXCEPTION 'invalid: campaign has no audience' USING ERRCODE = '22023';
+  END IF;
   UPDATE public.crm_campaigns SET scheduled_at = p_at, status = 'scheduled', send_started_at = NULL, send_error = NULL, send_blocked_reason = NULL, updated_at = now(),
     metadata = CASE WHEN p_timezone IS NULL THEN metadata ELSE coalesce(metadata, '{}'::jsonb) || jsonb_build_object('scheduled_timezone', p_timezone) END
   WHERE id = p_campaign;
@@ -54,12 +88,11 @@ CREATE OR REPLACE FUNCTION bloom_support.campaign_facts(p_actor uuid, p_account 
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
 DECLARE v_tenant uuid := bloom_support.campaign_tenant_for_account(p_actor, p_account, 'ops.campaign.edit'); r jsonb;
 BEGIN
-  SELECT jsonb_build_object('id', c.id, 'name', c.name, 'subject_line', c.subject_line, 'status', c.status, 'scheduled_at', c.scheduled_at,
-    'sent_at', c.sent_at, 'projected_recipient_count', c.projected_recipient_count, 'total_recipients', c.total_recipients,
-    'send_blocked_reason', c.send_blocked_reason, 'send_error', c.send_error, 'updated_at', c.updated_at)
-  INTO r FROM public.crm_campaigns c WHERE c.id = p_campaign AND c.tenant_id = v_tenant;
+  r := bloom_support.campaign_snapshot(v_tenant, p_campaign);
   IF r IS NULL THEN RAISE EXCEPTION 'not_found: campaign for this account' USING ERRCODE = 'P0002'; END IF;
-  RETURN r;
+  -- Flattened fields kept for existing callers.
+  RETURN r || jsonb_build_object('id', r->'campaign'->'id', 'name', r->'campaign'->'name', 'status', r->'campaign'->'status',
+    'scheduled_at', r->'timing'->'scheduled_at', 'subject_line', r->'content'->'subject', 'projected_recipient_count', r->'audience'->'projected_recipients');
 END $$;
 
 CREATE OR REPLACE FUNCTION bloom_support.campaign_list(p_actor uuid, p_account uuid, p_status text)
@@ -71,10 +104,10 @@ BEGIN
     FROM (SELECT * FROM public.crm_campaigns WHERE tenant_id = v_tenant AND (p_status IS NULL OR status = p_status) ORDER BY updated_at DESC LIMIT 50) c);
 END $$;
 
-REVOKE ALL ON FUNCTION bloom_support.campaign_tenant_for_account(uuid, uuid, text), bloom_support.campaign_schedule(uuid, uuid, uuid, timestamptz, text),
+REVOKE ALL ON FUNCTION bloom_support.campaign_tenant_for_account(uuid, uuid, text), bloom_support.campaign_schedule(uuid, uuid, uuid, timestamptz, text, text), bloom_support.campaign_snapshot(uuid, uuid),
   bloom_support.campaign_unschedule(uuid, uuid, uuid), bloom_support.campaign_facts(uuid, uuid, uuid), bloom_support.campaign_list(uuid, uuid, text)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION bloom_support.campaign_schedule(uuid, uuid, uuid, timestamptz, text), bloom_support.campaign_unschedule(uuid, uuid, uuid),
+GRANT EXECUTE ON FUNCTION bloom_support.campaign_schedule(uuid, uuid, uuid, timestamptz, text, text), bloom_support.campaign_snapshot(uuid, uuid), bloom_support.campaign_unschedule(uuid, uuid, uuid),
   bloom_support.campaign_facts(uuid, uuid, uuid), bloom_support.campaign_list(uuid, uuid, text) TO service_role;
 
 -- Gateway extension (re-declared with the campaign entries added).
@@ -83,7 +116,7 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE a uuid := nullif(p->>'actor','')::uuid;
 BEGIN
   CASE p_fn
-    WHEN 'campaign_schedule' THEN RETURN bloom_support.campaign_schedule(a, (p->>'account_id')::uuid, (p->>'campaign_id')::uuid, (p->>'scheduled_at')::timestamptz, p->>'timezone');
+    WHEN 'campaign_schedule' THEN RETURN bloom_support.campaign_schedule(a, (p->>'account_id')::uuid, (p->>'campaign_id')::uuid, (p->>'scheduled_at')::timestamptz, p->>'timezone', p->>'fingerprint');
     WHEN 'campaign_unschedule' THEN RETURN bloom_support.campaign_unschedule(a, (p->>'account_id')::uuid, (p->>'campaign_id')::uuid);
     WHEN 'campaign_facts' THEN RETURN bloom_support.campaign_facts(a, (p->>'account_id')::uuid, (p->>'campaign_id')::uuid);
     WHEN 'campaign_list' THEN RETURN bloom_support.campaign_list(a, (p->>'account_id')::uuid, p->>'status');

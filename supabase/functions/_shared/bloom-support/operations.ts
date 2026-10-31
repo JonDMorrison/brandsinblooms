@@ -179,14 +179,32 @@ function actorFacts(caller: Caller) {
 export async function previewOperation(caller: Caller, req: OperationRequest): Promise<Record<string, unknown>> {
   if (!WRITE_OPERATIONS.has(req.kind)) throw new BloomError(400, "invalid", `Unknown change operation ${req.kind}`);
   const permission = PERMISSION[req.kind];
-  const inputs = req.inputs ?? {};
+  const inputs = { ...(req.inputs ?? {}) };
   const account = await loadAccount(caller, req.account_id);
   let preview: Record<string, unknown>;
   switch (req.kind) {
     case "campaign.schedule": {
       const facts = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: account.id, campaign_id: inputs.campaign_id });
       if (typeof inputs.scheduled_at !== "string" || Number.isNaN(Date.parse(inputs.scheduled_at))) throw new BloomError(400, "invalid", "scheduled_at (ISO time) required");
-      preview = { summary: `Schedule "${facts.name}" to send at ${inputs.scheduled_at}`, campaign: facts, recipients: facts.projected_recipient_count, irreversible_after: inputs.scheduled_at };
+      const tz = typeof inputs.timezone === "string" ? inputs.timezone : "America/Toronto";
+      let local = inputs.scheduled_at;
+      try {
+        local = new Intl.DateTimeFormat("en-CA", { dateStyle: "full", timeStyle: "short", timeZone: tz }).format(new Date(inputs.scheduled_at));
+      } catch { /* invalid timezone: keep ISO */ }
+      const aud = facts.audience as { segments: Array<{ name: string }>; include_all_customers: boolean; additional_customers: number; projected_recipients: number | null };
+      const content = facts.content as { channel: string; subject: string | null; preheader: string | null; sender_name: string | null; sender_email: string | null; excerpt: string };
+      const client = facts.client as { name: string } | null;
+      // Fingerprint of audience + content: execution refuses if either changed after this preview.
+      inputs.fingerprint = facts.fingerprint;
+      inputs.timezone = tz;
+      preview = {
+        summary: `Schedule "${facts.name}" for ${client?.name ?? account.name}: ${aud.projected_recipients ?? "?"} recipients, ${local} (${tz})`,
+        client: { account: account.name, crm_tenant: client?.name ?? null },
+        audience: { segments: aud.segments.map((s) => s.name), include_all_customers: aud.include_all_customers, additional_customers: aud.additional_customers, projected_recipients: aud.projected_recipients },
+        content: { channel: content.channel, subject: content.subject, preheader: content.preheader, from: `${content.sender_name ?? ""} <${content.sender_email ?? "default sender"}>`, excerpt: content.excerpt },
+        timing: { scheduled_at_utc: inputs.scheduled_at, local, timezone: tz, irreversible_after: inputs.scheduled_at },
+        campaign: facts.campaign,
+      };
       break;
     }
     case "campaign.unschedule": {
@@ -250,6 +268,7 @@ async function perform(caller: Caller, op: OperationRow): Promise<{ result: unkn
     case "campaign.schedule": {
       const r = await opsRpc<Record<string, unknown>>("campaign_schedule", {
         actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id, scheduled_at: inputs.scheduled_at, timezone: inputs.timezone ?? null,
+        fingerprint: inputs.fingerprint ?? null,
       });
       const after = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id });
       return { result: r, verification: { checked: "campaign row", status: after.status, scheduled_at: after.scheduled_at, passed: after.status === "scheduled" }, undo: { kind: "campaign.unschedule", campaign_id: inputs.campaign_id } };

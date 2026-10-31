@@ -189,7 +189,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   await sql!`INSERT INTO public.app_admin_emails(email) VALUES ('jon@bloom.test')`;
   await sql!`INSERT INTO public.tenants(id, name) VALUES (${T.greenleaf}, 'Greenleaf Garden Centre'), (${T.rosehill}, 'Rose Hill Nursery')`;
   await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES (${U.gail}, ${T.greenleaf}, 'Gail Green', 'owner'), (${U.rosa}, ${T.rosehill}, 'Rosa Hill', 'owner'), (${U.jon}, NULL, 'Jon', NULL), (${U.jeff}, NULL, 'Jeff', NULL), (${U.sam}, NULL, 'Sam Support', NULL)`;
-  await sql!`INSERT INTO public.crm_campaigns(id, tenant_id, name, status) VALUES ('c0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Spring sale', 'draft')`;
+  await sql!`INSERT INTO public.crm_segments(id, tenant_id, name) VALUES ('d0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Rose lovers')`;
+  await sql!`INSERT INTO public.crm_campaigns(id, tenant_id, name, status, subject_line, content, segment_id, projected_recipient_count) VALUES ('c0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Spring sale', 'draft', 'Spring is here', '<p>Roses 20% off</p>', 'd0000000-0000-4000-8000-000000000001', 120)`;
   const tok = (u: string) => `jwt-${u}`;
   const keys: Record<string, string> = {};
 
@@ -258,7 +259,19 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(tools.json.result.tools.some((x: Any) => x.name === "execute_change"));
     const p = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct, ticket_id: crmTicket, inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 86400e3).toISOString() } });
     assert(!p.isError, p.content[0].text);
+    const pv = p.structuredContent.preview;
+    assertEquals(pv.client.crm_tenant, "Greenleaf Garden Centre");
+    assertEquals(pv.audience.segments, ["Rose lovers"]);
+    assertEquals(pv.audience.projected_recipients, 120);
+    assertEquals(pv.content.subject, "Spring is here");
+    assert(pv.timing.local && pv.timing.timezone, "timing shown in local time");
     assertEquals((await sql!`SELECT status FROM public.crm_campaigns`)[0].status, "draft", "preview changes nothing");
+    // A change to the audience after the preview makes the preview stale.
+    const p2 = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct, inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 86400e3).toISOString() } });
+    await sql!`UPDATE public.crm_campaigns SET projected_recipient_count = 5000, include_all_customers = true`;
+    const stale = await mcp(keys.jeff, "execute_change", { operation_id: p2.structuredContent.id });
+    assert(stale.isError && stale.content[0].text.includes("changed after the preview"), stale.content[0].text);
+    await sql!`UPDATE public.crm_campaigns SET projected_recipient_count = 120, include_all_customers = NULL`;
     const e = await mcp(keys.jeff, "execute_change", { operation_id: p.structuredContent.id });
     assert(!e.isError, e.content[0].text);
     assertEquals(e.structuredContent.status, "succeeded");
@@ -402,6 +415,61 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const tk = await ticketRow(posTicket);
     assert(tk.status !== "resolved", "deployment failure never resolves the ticket");
     assert((await sql!`SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = ${eng} AND reason = 'engineering_failed'`).length === 1);
+  });
+
+  await t.step("worker heartbeat, deadlines and readiness", async () => {
+    const runs = await sql!`SELECT count(*)::int AS n, max(finished_at) AS last FROM bloom_support.worker_runs`;
+    assert(runs[0].n > 0 && runs[0].last, "each worker invocation is recorded");
+    assertEquals((await call("bloom-support-worker", "POST", "", { headers: { "x-bloom-worker-token": "not-the-token-not-the-token-not-the-token" }, body: {} })).status, 401, "wrong worker token refused");
+    assertEquals((await call("bloom-support-worker", "POST", "", { body: {} })).status, 401, "unauthenticated worker call refused");
+    const r = await mcp(keys.jon, "readiness", {});
+    assert(!r.isError, r.content[0].text);
+    const caps = r.structuredContent.capabilities as Array<{ key: string; configured: boolean; enabled: boolean | null; live: string | null; missing: string[] }>;
+    const ai = caps.find((c) => c.key === "ai")!;
+    assert(!ai.configured && ai.missing.includes("OPENAI_API_KEY"), "model honestly unconfigured");
+    assert(caps.find((c) => c.key === "intake_crm")!.live, "CRM intake seen live in this environment");
+    assert(!caps.find((c) => c.key === "worker")!.configured, "no cron/vault here: worker reported not configured");
+    const esc = (await sql!`SELECT id, owner_id, due_at FROM bloom_support.escalations WHERE status = 'open' LIMIT 1`)[0];
+    assertExists(esc?.due_at, "escalations carry a deadline");
+    const ack = await mcp(keys.jeff, "acknowledge_escalation", { escalation_id: esc.id, note: "mine" });
+    assert(!ack.isError, ack.content[0].text);
+    assert((await mcp(keys.sam, "acknowledge_escalation", { escalation_id: esc.id })).isError, "Support cannot take Jon/Jeff escalations");
+  });
+
+  await t.step("ChatGPT OAuth: register → BloomSuite approval → PKCE token → MCP as that person → refresh", async () => {
+    const meta = await call("bloom-support-mcp", "GET", "/.well-known/oauth-protected-resource");
+    assertEquals(meta.json.authorization_servers[0], `${SB}/functions/v1/bloom-support-api/oauth`);
+    const unauth = await call("bloom-support-mcp", "POST", "", { body: { jsonrpc: "2.0", id: 1, method: "tools/list" } });
+    assertEquals(unauth.status, 401);
+    const asMeta = await call("bloom-support-api", "GET", "/oauth/.well-known/oauth-authorization-server");
+    assertEquals(asMeta.json.code_challenge_methods_supported, ["S256"]);
+    const reg = await call("bloom-support-api", "POST", "/oauth/register", { body: { client_name: "ChatGPT", redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"] } });
+    const clientId = reg.json.client_id;
+    const verifier = "v".repeat(20) + crypto.randomUUID() + crypto.randomUUID();
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+    const challenge = btoa(String.fromCharCode(...digest)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const authRes = await H["bloom-support-api"](new Request(`${SB}/functions/v1/bloom-support-api/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent("https://chatgpt.com/connector_platform_oauth_redirect")}&code_challenge=${challenge}&code_challenge_method=S256&state=xyz&scope=write`));
+    assertEquals(authRes.status, 302);
+    assert(authRes.headers.get("location")!.startsWith("https://bloomsuite.test/bloom-support/connect?"), "sent to BloomSuite to sign in and approve");
+    const clientTry = await call("bloom-support-api", "POST", "/oauth/approve", { token: tok(U.gail), body: { client_id: clientId, redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", code_challenge: challenge, scope: "write", state: "xyz" } });
+    assertEquals(clientTry.status, 403, "clients cannot connect assistants");
+    const ok = await call("bloom-support-api", "POST", "/oauth/approve", { token: tok(U.jeff), body: { client_id: clientId, redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", code_challenge: challenge, scope: "write", state: "xyz" } });
+    const code = new URL(ok.json.redirect_to).searchParams.get("code")!;
+    assertEquals(new URL(ok.json.redirect_to).searchParams.get("state"), "xyz");
+    const form = (o: Record<string, string>) => new URLSearchParams(o).toString();
+    const bad = await call("bloom-support-api", "POST", "/oauth/token", { raw: form({ grant_type: "authorization_code", code, client_id: clientId, redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", code_verifier: "wrong".repeat(10) }), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    assertEquals(bad.json.error, "invalid_grant", "PKCE enforced (and the code is now burned)");
+    const ok2 = await call("bloom-support-api", "POST", "/oauth/approve", { token: tok(U.jeff), body: { client_id: clientId, redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", code_challenge: challenge, scope: "write" } });
+    const code2 = new URL(ok2.json.redirect_to).searchParams.get("code")!;
+    const tokRes = await call("bloom-support-api", "POST", "/oauth/token", { raw: form({ grant_type: "authorization_code", code: code2, client_id: clientId, redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", code_verifier: verifier }), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    assertEquals(tokRes.json.token_type, "Bearer", JSON.stringify(tokRes.json));
+    const who = await mcp(tokRes.json.access_token, "whoami", {});
+    assertEquals(who.structuredContent.role, "platform_operator", "ChatGPT acts as Jeff, with Jeff's permissions");
+    assert((await mcp(tokRes.json.access_token, "decide_feature_request", { feature_request_id: crypto.randomUUID(), decision: "accepted" })).isError, "Jeff's connection cannot do Jon-only actions");
+    const ref = await call("bloom-support-api", "POST", "/oauth/token", { raw: form({ grant_type: "refresh_token", refresh_token: tokRes.json.refresh_token, client_id: clientId }), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    assert(ref.json.access_token && ref.json.refresh_token !== tokRes.json.refresh_token, "refresh rotates");
+    const reuse = await call("bloom-support-api", "POST", "/oauth/token", { raw: form({ grant_type: "refresh_token", refresh_token: tokRes.json.refresh_token, client_id: clientId }), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    assertEquals(reuse.json.error, "invalid_grant", "old refresh token revoked");
   });
 
   await t.step("kill switch and health", async () => {

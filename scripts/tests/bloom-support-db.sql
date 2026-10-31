@@ -20,6 +20,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \ir ../../supabase/migrations/20261031120100_bloom_support_functions.sql
 \ir ../../supabase/migrations/20261031120200_bloom_support_gateway.sql
 \ir ../../supabase/migrations/20261031120300_bloom_support_campaign_ops.sql
+\ir ../../supabase/migrations/20261031140000_bloom_support_operations_hardening.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -175,7 +176,10 @@ SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_en
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'release', 'issue_id', :'eng', 'update', '{"status":"verified","patch":{"verification":{"passed":true,"checks":["GET /checkout 200"]}}}'::jsonb));
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='verify_resolution' AND ticket_id = :'t2id'), 'verified fix queues resolution verification');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed"}}'::jsonb)$q$, :'bot', :'t2id'), 'after verifying');
-SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'bot', 'ticket_id', :'t2id', 'patch', '{"status":"resolved","resolution_summary":"Checkout fixed and verified on production","resolution_verified":true}'::jsonb));
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true}}'::jsonb)$q$, :'bot', :'t2id'), 'evidence required');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success"},"verification":{"passed":false}}}}'::jsonb)$q$, :'bot', :'t2id'), 'user-flow check');
+SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'bot', 'ticket_id', :'t2id', 'patch', '{"status":"resolved","resolution_summary":"Checkout fixed and verified on production","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success","sha":"def"},"verification":{"passed":true,"checks":[{"url":"https://x/checkout","pass":true}]}}}'::jsonb));
+SELECT pg_temp.assert((SELECT resolution_evidence->>'resolved_by' = 'bloom' AND resolution_evidence->'deployment'->>'state' = 'success' FROM bloom_support.tickets WHERE id = :'t2id'), 'evidence stored with resolution');
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='send_email' AND idempotency_key = 'email:resolution:' || :'t2id' || ':0'), 'resolution email queued');
 
 -- Sensitive repair → awaiting approval escalates to Jon; deployment failure escalates to both.
@@ -222,20 +226,85 @@ SELECT pg_temp.assert(pg_temp.rpc('ticket_by_tracking_token', '{"hash":"nope"}':
 
 
 -- 12. Campaign operations: Jeff schedules for any linked tenant; Support cannot; cross-tenant blocked.
+CREATE TABLE public.tenants(id uuid PRIMARY KEY, name text);
+INSERT INTO public.tenants VALUES ('30000000-0000-4000-8000-0000000000a1','Greenleaf'),('30000000-0000-4000-8000-0000000000ff','Other');
+CREATE TABLE public.crm_segments(id uuid PRIMARY KEY, tenant_id uuid, name text);
+CREATE TABLE public.campaign_segments(campaign_id uuid, segment_id uuid);
+INSERT INTO public.crm_segments VALUES ('50000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-0000000000a1','Rose lovers');
 CREATE TABLE public.crm_campaigns(id uuid PRIMARY KEY, tenant_id uuid, name text, subject_line text, status text, scheduled_at timestamptz, sent_at timestamptz,
-  projected_recipient_count int, total_recipients int, send_blocked_reason text, send_error text, send_started_at timestamptz, metadata jsonb, updated_at timestamptz);
-INSERT INTO public.crm_campaigns(id, tenant_id, name, status) VALUES
-  ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-0000000000a1','Spring sale','draft'),
-  ('40000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-0000000000ff','Other tenant','draft'),
-  ('40000000-0000-4000-8000-000000000003','30000000-0000-4000-8000-0000000000a1','Already sent','sent');
-SELECT pg_temp.assert(public.bloom_support_ops_rpc('campaign_schedule', jsonb_build_object('actor', :'jeff', 'account_id', :'greenleaf', 'campaign_id', '40000000-0000-4000-8000-000000000001', 'scheduled_at', (now() + interval '1 day')::text))->'after'->>'status' = 'scheduled', 'Jeff schedules client campaign');
+  projected_recipient_count int, total_recipients int, send_blocked_reason text, send_error text, send_started_at timestamptz, metadata jsonb, updated_at timestamptz,
+  content text, preheader_text text, sender_name text, sender_email text, delivery_method text DEFAULT 'email', include_all_customers boolean, additional_customer_ids uuid[], segment_id uuid);
+INSERT INTO public.crm_campaigns(id, tenant_id, name, status, subject_line, content, segment_id, projected_recipient_count) VALUES
+  ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-0000000000a1','Spring sale','draft','Spring is here','<p>Roses 20% off</p>','50000000-0000-4000-8000-000000000001',120),
+  ('40000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-0000000000ff','Other tenant','draft','x','y',NULL,0),
+  ('40000000-0000-4000-8000-000000000003','30000000-0000-4000-8000-0000000000a1','Already sent','sent','x','y',NULL,0),
+  ('40000000-0000-4000-8000-000000000004','30000000-0000-4000-8000-0000000000a1','No audience','draft','Hi','Body',NULL,0);
+SELECT public.bloom_support_ops_rpc('campaign_facts', jsonb_build_object('actor', :'jeff', 'account_id', :'greenleaf', 'campaign_id', '40000000-0000-4000-8000-000000000001')) AS facts \gset
+SELECT pg_temp.assert((:'facts'::jsonb)->'client'->>'name' = 'Greenleaf' AND (:'facts'::jsonb)->'audience'->'segments'->0->>'name' = 'Rose lovers'
+  AND (:'facts'::jsonb)->'content'->>'subject' = 'Spring is here' AND (:'facts'::jsonb)->'content'->>'excerpt' LIKE '%Roses 20%', 'preview shows client, audience, content');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_ops_rpc('campaign_schedule', '{"actor":"%s","account_id":"%s","campaign_id":"40000000-0000-4000-8000-000000000001","scheduled_at":"2099-01-01T00:00:00Z","fingerprint":"stale"}'::jsonb)$q$, :'jeff', :'greenleaf'), 'changed after the preview');
+SELECT public.bloom_support_ops_rpc('campaign_facts', jsonb_build_object('actor', :'jeff', 'account_id', :'greenleaf', 'campaign_id', '40000000-0000-4000-8000-000000000004'))->>'fingerprint' AS fp4 \gset
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_ops_rpc('campaign_schedule', '{"actor":"%s","account_id":"%s","campaign_id":"40000000-0000-4000-8000-000000000004","scheduled_at":"2099-01-01T00:00:00Z","fingerprint":"%s"}'::jsonb)$q$, :'jeff', :'greenleaf', :'fp4'), 'no audience');
+SELECT pg_temp.assert(public.bloom_support_ops_rpc('campaign_schedule', jsonb_build_object('actor', :'jeff', 'account_id', :'greenleaf', 'campaign_id', '40000000-0000-4000-8000-000000000001', 'scheduled_at', (now() + interval '1 day')::text, 'fingerprint', (:'facts'::jsonb)->>'fingerprint'))->'after'->>'status' = 'scheduled', 'Jeff schedules client campaign');
 SELECT pg_temp.assert((SELECT status FROM public.crm_campaigns WHERE id = '40000000-0000-4000-8000-000000000001') = 'scheduled', 'campaign row scheduled');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_ops_rpc('campaign_schedule', '{"actor":"%s","account_id":"%s","campaign_id":"40000000-0000-4000-8000-000000000002","scheduled_at":"2099-01-01T00:00:00Z"}'::jsonb)$q$, :'jeff', :'greenleaf'), 'another tenant');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_ops_rpc('campaign_schedule', '{"actor":"%s","account_id":"%s","campaign_id":"40000000-0000-4000-8000-000000000003","scheduled_at":"2099-01-01T00:00:00Z"}'::jsonb)$q$, :'jeff', :'greenleaf'), 'locked');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_ops_rpc('campaign_schedule', '{"actor":"%s","account_id":"%s","campaign_id":"40000000-0000-4000-8000-000000000001","scheduled_at":"2099-01-01T00:00:00Z"}'::jsonb)$q$, :'sam', :'greenleaf'), 'ops.campaign.send');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_ops_rpc('campaign_list', '{"actor":"%s","account_id":"%s"}'::jsonb)$q$, :'gail', :'greenleaf'), 'ops.campaign.edit');
-SELECT pg_temp.assert(jsonb_array_length(public.bloom_support_ops_rpc('campaign_list', jsonb_build_object('actor', :'sam', 'account_id', :'greenleaf'))) = 2, 'Support reads tenant campaigns only');
+SELECT pg_temp.assert(jsonb_array_length(public.bloom_support_ops_rpc('campaign_list', jsonb_build_object('actor', :'sam', 'account_id', :'greenleaf'))) = 3, 'Support reads tenant campaigns only');
 SELECT pg_temp.assert(public.bloom_support_ops_rpc('campaign_unschedule', jsonb_build_object('actor', :'jeff', 'account_id', :'greenleaf', 'campaign_id', '40000000-0000-4000-8000-000000000001'))->'after'->>'status' = 'draft', 'undo schedule');
 SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'public.bloom_support_ops_rpc(text,jsonb)', 'execute'), 'ops gateway is service-only');
+
+-- 13. Service identities resolve server-side, idempotently, one scope each.
+SELECT pg_temp.rpc('ensure_service_principal', '{"scope":"automation"}'::jsonb)#>>'{}' AS svc1 \gset
+SELECT pg_temp.assert(pg_temp.rpc('ensure_service_principal', '{"scope":"automation"}'::jsonb)#>>'{}' = :'svc1', 'service principal is stable');
+SELECT pg_temp.expect_error($q$SELECT public.bloom_support_rpc('ensure_service_principal', '{"scope":"admin"}'::jsonb)$q$, 'invalid service scope');
+
+-- 14. Escalations get an owner and a deadline; an unanswered one falls back to the other owner, then alerts.
+SELECT id AS esc FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND reason = 'engineering_awaiting_approval' \gset
+SELECT pg_temp.assert((SELECT owner_id = :'jon' AND due_at > now() FROM bloom_support.escalations WHERE id = :'esc'), 'approval escalation owned by Jon with a deadline');
+UPDATE bloom_support.escalations SET status = 'open', due_at = now() - interval '1 minute' WHERE id = :'esc';
+SELECT bloom_support.sweep_deadlines();
+SELECT pg_temp.assert((SELECT owner_id = :'jeff' AND fallback_level = 1 AND audience = 'both' FROM bloom_support.escalations WHERE id = :'esc'), 'falls back to Jeff');
+UPDATE bloom_support.escalations SET due_at = now() - interval '1 minute' WHERE id = :'esc';
+SELECT bloom_support.sweep_deadlines();
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.alerts WHERE condition = 'escalation_unanswered'), 'second miss raises an independent alert');
+SELECT pg_temp.rpc('acknowledge_escalation', jsonb_build_object('actor', :'jeff', 'escalation_id', :'esc', 'note', 'on it'));
+SELECT pg_temp.assert((SELECT status = 'acknowledged' AND owner_id = :'jeff' FROM bloom_support.escalations WHERE id = :'esc'), 'acknowledged');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('acknowledge_escalation', '{"actor":"%s","escalation_id":"%s"}'::jsonb)$q$, :'sam', :'esc'), 'escalations.resolve');
+-- Overdue tickets escalate once.
+UPDATE bloom_support.tickets SET due_at = now() - interval '1 hour' WHERE id = :'t3id';
+SELECT bloom_support.sweep_deadlines(); SELECT bloom_support.sweep_deadlines();
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.escalations WHERE dedupe_key = 'overdue:' || :'t3id') = 1, 'overdue ticket escalated once');
+SELECT pg_temp.assert((SELECT due_at IS NOT NULL FROM bloom_support.tickets WHERE id = :'t1id'), 'tickets carry a response deadline');
+
+-- 15. Watchdog works without any Edge Function: no worker heartbeat → alert recorded.
+SELECT bloom_support.watchdog() AS wd \gset
+SELECT pg_temp.assert((:'wd'::jsonb)->'findings' @> '[{"condition":"worker_not_running"}]', 'watchdog detects a stopped worker');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.alerts WHERE condition = 'worker_not_running' AND delivered = 'no_channel'), 'alert recorded; no email channel configured here');
+SELECT pg_temp.rpc('worker_run_start', '{"worker":"w1"}'::jsonb)#>>'{}' AS run \gset
+SELECT pg_temp.rpc('worker_run_finish', jsonb_build_object('run_id', :'run', 'processed', 3, 'failed', 0, 'note', 'ok'));
+SELECT pg_temp.assert(NOT ((bloom_support.watchdog())->'findings' @> '[{"condition":"worker_not_running"}]'), 'heartbeat clears the condition');
+SELECT pg_temp.assert(NOT pg_temp.rpc('verify_worker_token', '{"token":"anything-at-all-anything-at-all-anything"}'::jsonb)::boolean, 'no vault token here: worker trigger refused');
+
+-- 16. Knowledge: only approved client-audience articles are searchable for answers.
+INSERT INTO bloom_support.knowledge(product, title, body, audience, approved) VALUES
+  ('crm','Scheduling campaigns','Open the campaign and choose Schedule to pick a send time.','client', true),
+  ('crm','Scheduling internals','Campaign scheduling uses claim_scheduled_campaigns internally.','internal', true),
+  ('crm','Scheduling draft','Unreviewed scheduling notes.','client', false);
+SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('search_knowledge', '{"product":"crm","q":"scheduling"}'::jsonb)) = 1, 'internal and unapproved articles never used for answers');
+
+-- 17. OAuth: staff only, single-use codes, rotating refresh.
+SELECT pg_temp.rpc('oauth_register_client', '{"client_name":"ChatGPT","redirect_uris":["https://chatgpt.com/connector_platform_oauth_redirect"]}'::jsonb)#>>'{}' AS cid \gset
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('oauth_issue_code', '{"actor":"%s","client_id":"%s","redirect_uri":"https://chatgpt.com/connector_platform_oauth_redirect","code_challenge":"%s","scope":"write","code_hash":"c0"}'::jsonb)$q$, :'gail', :'cid', repeat('a',43)), 'only Brands in Blooms staff');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('oauth_issue_code', '{"actor":"%s","client_id":"%s","redirect_uri":"https://evil.example/cb","code_challenge":"%s","scope":"write","code_hash":"c0"}'::jsonb)$q$, :'jeff', :'cid', repeat('a',43)), 'redirect_uri');
+SELECT pg_temp.rpc('oauth_issue_code', jsonb_build_object('actor', :'jeff', 'client_id', :'cid', 'redirect_uri', 'https://chatgpt.com/connector_platform_oauth_redirect', 'code_challenge', repeat('a',43), 'scope', 'write', 'code_hash', 'c1'));
+SELECT pg_temp.assert(pg_temp.rpc('oauth_consume_code', jsonb_build_object('code_hash','c1','client_id', :'cid','redirect_uri','https://chatgpt.com/connector_platform_oauth_redirect'))->>'principal_id' = :'jeff', 'code exchanges for Jeff');
+SELECT pg_temp.assert(pg_temp.rpc('oauth_consume_code', jsonb_build_object('code_hash','c1','client_id', :'cid','redirect_uri','https://chatgpt.com/connector_platform_oauth_redirect')) IS NULL, 'code is single-use');
+SELECT pg_temp.rpc('oauth_issue_tokens', jsonb_build_object('principal_id', :'jeff', 'client_id', :'cid', 'scope', 'write', 'access_hash', 'a1', 'access_prefix', 'bsk_x', 'refresh_hash', 'r1'));
+SELECT pg_temp.assert(pg_temp.rpc('authenticate_api_key', '{"hash":"a1"}'::jsonb)->>'principal_id' = :'jeff', 'access token authenticates as Jeff');
+SELECT pg_temp.rpc('oauth_issue_tokens', jsonb_build_object('principal_id', :'jeff', 'client_id', :'cid', 'scope', 'write', 'access_hash', 'a2', 'access_prefix', 'bsk_x', 'refresh_hash', 'r2', 'old_refresh_hash', 'r1'));
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('oauth_issue_tokens', '{"principal_id":"%s","client_id":"%s","scope":"write","access_hash":"a3","access_prefix":"x","refresh_hash":"r3","old_refresh_hash":"r1"}'::jsonb)$q$, :'jeff', :'cid'), 'invalid refresh token');
+SELECT pg_temp.assert((pg_temp.rpc('readiness_facts', jsonb_build_object('actor', :'jon')) ? 'worker'), 'readiness facts');
 
 \echo 'bloom-support-db: all assertions passed'

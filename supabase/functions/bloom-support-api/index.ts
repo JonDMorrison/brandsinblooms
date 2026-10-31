@@ -5,6 +5,8 @@
 import { authenticate, BloomError, cors, errorResponse, json, readJson, str } from "../_shared/bloom-support/runtime.ts";
 import { actions } from "../_shared/bloom-support/service.ts";
 import { attachmentUrl, decodeBase64File, storeAttachment } from "../_shared/bloom-support/attachments.ts";
+import { readiness } from "../_shared/bloom-support/readiness.ts";
+import { approve, authorizationServerMetadata, authorize, register, token } from "../_shared/bloom-support/oauth.ts";
 
 type Handler = (req: Request, params: string[], url: URL) => Promise<unknown>;
 const routes: Array<[string, RegExp, Handler]> = [];
@@ -16,6 +18,14 @@ const q = (url: URL, k: string) => url.searchParams.get(k) ?? undefined;
 
 on("GET", "/me", async (req) => actions.me(await caller(req)));
 on("GET", "/health", async (req) => actions.health(await caller(req)));
+on("GET", "/readiness", async (req) => readiness(await caller(req)));
+on("POST", "/escalations/:id/acknowledge", async (req, [id]) => actions.acknowledgeEscalation(await caller(req), id, str((await readJson(req)).note, 1000)));
+// OAuth 2.1 for per-person ChatGPT / MCP connections.
+on("GET", "/oauth/.well-known/oauth-authorization-server", () => Promise.resolve(authorizationServerMetadata()));
+on("GET", "/oauth/.well-known/openid-configuration", () => Promise.resolve(authorizationServerMetadata()));
+on("GET", "/.well-known/oauth-authorization-server", () => Promise.resolve(authorizationServerMetadata()));
+on("POST", "/oauth/register", async (req) => register(await readJson(req), (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown"));
+on("POST", "/oauth/approve", async (req) => approve(req, await readJson(req)));
 on("GET", "/summary", async (req) => actions.summary(await caller(req)));
 on("GET", "/notifications", async (req, _p, url) => actions.notifications(await caller(req), q(url, "mark_read") === "true"));
 
@@ -110,6 +120,8 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/bloom-support-api/, "") || "/";
   try {
+    if (req.method === "GET" && path === "/oauth/authorize") return await authorize(url);
+    if (req.method === "POST" && path === "/oauth/token") return await token(req);
     for (const [method, re, h] of routes) {
       if (method !== req.method) continue;
       const m = path.match(re);

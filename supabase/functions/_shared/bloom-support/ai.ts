@@ -8,6 +8,7 @@ export interface AiConfig {
   model: string;
   baseUrl: string;
   maxCallsPerAccountPerDay: number;
+  maxCallsPerDayTotal: number;
   missing: string[];
 }
 
@@ -18,10 +19,12 @@ export async function aiConfig(): Promise<AiConfig> {
   if (provider === "openai" && !env("OPENAI_API_KEY")) missing.push("OPENAI_API_KEY");
   return {
     provider: missing.length ? "none" : provider,
-    model: env("BLOOM_AI_MODEL") ?? String(stored.model ?? "gpt-5-mini"),
+    // Settings (admin-editable at runtime) win over the env default.
+    model: String(stored.model ?? env("BLOOM_AI_MODEL") ?? "gpt-4o-mini"),
     // OpenAI-compatible endpoint; swap BLOOM_AI_BASE_URL to change vendors.
     baseUrl: env("BLOOM_AI_BASE_URL") ?? "https://api.openai.com/v1",
     maxCallsPerAccountPerDay: Number(stored.max_calls_per_account_per_day ?? 200),
+    maxCallsPerDayTotal: Number(((await rpc<Record<string, unknown> | null>("setting", { key: "limits" })) ?? {}).ai_calls_per_day_total ?? 1000),
     missing,
   };
 }
@@ -40,9 +43,10 @@ export type AiResult<T> = { ok: true; value: T; model: string } | { ok: false; r
 export async function completeJson<T>(call: JsonCall): Promise<AiResult<T>> {
   const cfg = await aiConfig();
   if (cfg.provider === "none") return { ok: false, reason: cfg.missing.length ? `not configured: ${cfg.missing.join(", ")}` : "provider disabled" };
-  const allowed = await rpc<boolean>("consume_usage", {
-    bucket: `ai:${new Date().toISOString().slice(0, 10)}`, subject: call.accountKey, limit: cfg.maxCallsPerAccountPerDay,
-  });
+  const day = new Date().toISOString().slice(0, 10);
+  const total = await rpc<boolean>("consume_usage", { bucket: `ai-total:${day}`, subject: "all", limit: cfg.maxCallsPerDayTotal });
+  if (!total) return { ok: false, reason: "daily model budget for Bloom reached (limits.ai_calls_per_day_total)" };
+  const allowed = await rpc<boolean>("consume_usage", { bucket: `ai:${day}`, subject: call.accountKey, limit: cfg.maxCallsPerAccountPerDay });
   if (!allowed) return { ok: false, reason: "daily model budget for this account reached" };
   try {
     const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
@@ -59,6 +63,8 @@ export async function completeJson<T>(call: JsonCall): Promise<AiResult<T>> {
     const body = await res.json();
     const content = body?.choices?.[0]?.message?.content;
     if (typeof content !== "string") return { ok: false, reason: "model returned no content" };
+    // Usage is billed to the OpenAI API account (not a ChatGPT subscription); record it.
+    await rpc("log_usage", { detail: { model: cfg.model, schema: call.schemaName, account: call.accountKey, usage: body?.usage ?? null } }).catch(() => undefined);
     return { ok: true, value: JSON.parse(content) as T, model: cfg.model };
   } catch (e) {
     return { ok: false, reason: `model error: ${String(e).slice(0, 200)}` };

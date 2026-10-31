@@ -8,6 +8,8 @@
 // read-only. Every tool call is authorized in the database for that person.
 import { authenticate, authenticateApiKey, BloomError, type Caller, cors, json } from "../_shared/bloom-support/runtime.ts";
 import { actions } from "../_shared/bloom-support/service.ts";
+import { readiness } from "../_shared/bloom-support/readiness.ts";
+import { authorizationServerMetadata, mcpBase, protectedResourceMetadata } from "../_shared/bloom-support/oauth.ts";
 
 type Schema = Record<string, unknown>;
 interface Tool { name: string; description: string; inputSchema: Schema; readOnly: boolean; run: (c: Caller, a: Record<string, unknown>) => Promise<unknown> | unknown }
@@ -21,6 +23,8 @@ const TOOLS: Tool[] = [
   { name: "whoami", readOnly: true, description: "Your Bloom identity, role and permissions.", inputSchema: S({}), run: (c) => actions.me(c) },
   { name: "queue_summary", readOnly: true, description: "Counts by status, your open tickets, human-owned tickets, open escalations, features awaiting decision, job health and automation switches.", inputSchema: S({}), run: (c) => actions.summary(c) },
   { name: "health", readOnly: true, description: "Integration status and every missing configuration value.", inputSchema: S({}), run: (c) => actions.health(c) },
+  { name: "readiness", readOnly: true, description: "Honest readiness per capability: implemented, configured (missing settings named), tested, enabled, and last live evidence. Use this before saying anything works.", inputSchema: S({}), run: (c) => readiness(c) },
+  { name: "acknowledge_escalation", readOnly: false, description: "Take ownership of an escalation (stops fallback routing to the other owner).", inputSchema: S({ escalation_id: id(), note: str("Note") }, ["escalation_id"]), run: (c, a) => actions.acknowledgeEscalation(c, String(a.escalation_id), a.note as string) },
   {
     name: "list_tickets", readOnly: true, description: "Search and filter support tickets across BloomSites, CRM and POS. Status values: new, working, waiting, needs_owner (Needs Jon/Jeff), resolved.",
     inputSchema: S({ status: str("Comma-separated statuses"), product: str("Product", ["cms", "crm", "pos", "platform", "unknown"]), q: str("Free text, #number or client name"), account_id: id(), owner: str("'me', 'none' or principal id"), kind: str("Kind"), limit: { type: "number" } }),
@@ -133,6 +137,8 @@ async function handleMessage(caller: Caller, msg: Record<string, unknown>) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   const path = new URL(req.url).pathname;
+  if (req.method === "GET" && path.endsWith("/.well-known/oauth-protected-resource")) return json(req, protectedResourceMetadata());
+  if (req.method === "GET" && (path.endsWith("/.well-known/oauth-authorization-server") || path.endsWith("/.well-known/openid-configuration"))) return json(req, authorizationServerMetadata());
   if (req.method === "GET") return new Response("Bloom Support MCP: POST JSON-RPC here.", { status: 405, headers: { Allow: "POST", ...cors(req) } });
   if (req.method === "DELETE") return new Response(null, { status: 204, headers: cors(req) });
   let caller: Caller;
@@ -140,7 +146,8 @@ Deno.serve(async (req) => {
     caller = await callerFor(req, path);
   } catch (e) {
     const status = e instanceof BloomError ? e.status : 401;
-    return json(req, rpcError(null, -32001, e instanceof Error ? e.message : "Unauthorized"), status, { "WWW-Authenticate": 'Bearer realm="bloom-support"' });
+    return json(req, rpcError(null, -32001, e instanceof Error ? e.message : "Unauthorized"), status,
+      { "WWW-Authenticate": `Bearer realm="bloom-support", resource_metadata="${mcpBase()}/.well-known/oauth-protected-resource"` });
   }
   let body: unknown;
   try {

@@ -117,12 +117,21 @@ export async function authenticateService(req: Request, identity: ServiceIdentit
   return caller;
 }
 
-/** Principal id of a service identity, looked up from its configured key. */
+/**
+ * Bloom's own service identity for server code running inside these Edge
+ * Functions. Resolved in the database (one principal per scope, created on
+ * first use); no shared administrator credential and no key to configure.
+ * External callers (e.g. the GitHub repair workflow) use an API key for the
+ * same identity instead.
+ */
+const serviceCache = new Map<ServiceIdentity, Caller>();
 export async function servicePrincipal(identity: ServiceIdentity): Promise<Caller> {
-  const key = env(`BLOOM_SERVICE_KEY_${identity.toUpperCase()}`);
-  if (!key) throw new BloomError(503, "not_configured", `BLOOM_SERVICE_KEY_${identity.toUpperCase()} is not set`);
-  const c = await authenticateApiKey(key);
-  return { ...c, via: "service" };
+  const cached = serviceCache.get(identity);
+  if (cached) return cached;
+  const id = await rpc<string>("ensure_service_principal", { scope: identity });
+  const caller: Caller = { principalId: id, role: "service", via: "service", name: `Bloom ${identity}`, scopes: [] };
+  serviceCache.set(identity, caller);
+  return caller;
 }
 
 export interface ProductIdentity {

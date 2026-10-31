@@ -22,7 +22,10 @@ CREATE TABLE public.app_admin_emails(email text PRIMARY KEY);
 CREATE FUNCTION public.is_master_admin(_user_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT EXISTS (SELECT 1 FROM auth.users u JOIN public.app_admin_emails a ON lower(a.email) = lower(u.email) WHERE u.id = _user_id) $$;
 CREATE TABLE public.crm_campaigns(id uuid PRIMARY KEY, tenant_id uuid, name text, subject_line text, status text, scheduled_at timestamptz, sent_at timestamptz,
-  projected_recipient_count int, total_recipients int, send_blocked_reason text, send_error text, send_started_at timestamptz, metadata jsonb, updated_at timestamptz);
+  projected_recipient_count int, total_recipients int, send_blocked_reason text, send_error text, send_started_at timestamptz, metadata jsonb, updated_at timestamptz,
+  content text, preheader_text text, sender_name text, sender_email text, delivery_method text DEFAULT 'email', include_all_customers boolean, additional_customer_ids uuid[], segment_id uuid);
+CREATE TABLE public.crm_segments(id uuid PRIMARY KEY, tenant_id uuid, name text);
+CREATE TABLE public.campaign_segments(campaign_id uuid, segment_id uuid);
 GRANT USAGE ON SCHEMA public TO service_role;
 GRANT SELECT ON public.tenants, public.users TO service_role;
 GRANT EXECUTE ON FUNCTION public.is_master_admin(uuid) TO service_role;
@@ -31,4 +34,5 @@ GRANT EXECUTE ON FUNCTION public.is_master_admin(uuid) TO service_role;
 \ir ../../supabase/migrations/20261031120100_bloom_support_functions.sql
 \ir ../../supabase/migrations/20261031120200_bloom_support_gateway.sql
 \ir ../../supabase/migrations/20261031120300_bloom_support_campaign_ops.sql
+\ir ../../supabase/migrations/20261031140000_bloom_support_operations_hardening.sql
 \echo 'bloom-support e2e database ready'
