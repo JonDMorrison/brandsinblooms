@@ -244,7 +244,11 @@ BEGIN
   -- Account: staff may name any account; others get the account they are a verified member of.
   IF p ? 'account_id' AND p->>'account_id' IS NOT NULL THEN
     acct := (p->>'account_id')::uuid;
-    IF NOT bloom_support.can_access_account(p_actor, acct) THEN RAISE EXCEPTION 'forbidden: account' USING ERRCODE = '42501'; END IF;
+    -- The intake identity files email/public requests against the account the
+    -- sender resolved to (resolve_email_sender), without reading the account.
+    IF NOT bloom_support.can_access_account(p_actor, acct) AND NOT bloom_support.has_permission(p_actor, 'intake.email') THEN
+      RAISE EXCEPTION 'forbidden: account' USING ERRCODE = '42501';
+    END IF;
   END IF;
 
   -- Requester: staff/automation may file on behalf of a principal.
@@ -684,7 +688,8 @@ END $$;
 CREATE OR REPLACE FUNCTION bloom_support.engineering_transition_permission(p_from text, p_to text)
 RETURNS text LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE
-    WHEN p_to IN ('investigating','reproduced','not_reproduced','fixing','in_review','failed','escalated')
+    WHEN p_to IN ('failed','escalated') AND p_from NOT IN ('verified','closed') THEN 'engineering.investigate|engineering.release'
+    WHEN p_to IN ('investigating','reproduced','not_reproduced','fixing','in_review')
          AND p_from NOT IN ('verified','closed') THEN 'engineering.investigate'
     WHEN p_to = 'awaiting_approval' AND p_from IN ('in_review','failed') THEN 'engineering.investigate'
     WHEN p_to = 'approved' AND p_from IN ('awaiting_approval','in_review','escalated') THEN 'engineering.approve'
@@ -704,7 +709,9 @@ BEGIN
   IF p ? 'status' AND p->>'status' <> e.status THEN
     perm := bloom_support.engineering_transition_permission(e.status, p->>'status');
     IF perm IS NULL THEN RAISE EXCEPTION 'invalid transition % -> %', e.status, p->>'status' USING ERRCODE = '22023'; END IF;
-    PERFORM bloom_support.require_permission(p_actor, perm);
+    IF NOT EXISTS (SELECT 1 FROM unnest(string_to_array(perm, '|')) AS needed(name) WHERE bloom_support.has_permission(p_actor, needed.name)) THEN
+      RAISE EXCEPTION 'forbidden: % required', perm USING ERRCODE = '42501';
+    END IF;
     -- Merge requires a recorded approval or a policy-eligible evaluation produced by the release identity.
     IF p->>'status' = 'merging' AND e.status <> 'approved' AND NOT coalesce((coalesce(x->'eligibility', e.eligibility)->>'eligible')::boolean, false) THEN
       RAISE EXCEPTION 'blocked: not eligible for automatic release and not approved' USING ERRCODE = '42501';
@@ -1144,7 +1151,7 @@ END $$;
 
 CREATE OR REPLACE FUNCTION bloom_support.whoami(p_actor uuid)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT jsonb_build_object('id', p.id, 'name', p.display_name, 'email', p.email, 'role', p.role, 'grants', p.grants, 'kind', p.kind,
+  SELECT jsonb_build_object('id', p.id, 'name', p.display_name, 'email', p.email, 'role', p.role, 'grants', p.grants, 'kind', p.kind, 'auth_user_id', p.auth_user_id,
     'permissions', (SELECT coalesce(jsonb_agg(DISTINCT x.permission), '[]') FROM (
        SELECT rp.permission FROM bloom_support.role_permissions rp WHERE rp.role = p.role
        UNION SELECT gp.permission FROM bloom_support.grant_permissions gp WHERE gp.grant_name = ANY(p.grants) AND p.role IN ('support','service')) x),
@@ -1190,7 +1197,12 @@ RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
   INSERT INTO bloom_support.email_events(provider, provider_event_id, message_id, outcome, ticket_id) VALUES (p_provider, p_event, p_message_id, p_outcome, p_ticket);
   RETURN true;
-EXCEPTION WHEN unique_violation THEN RETURN false;
+EXCEPTION WHEN unique_violation THEN
+  -- A delivery whose processing failed (or stalled) may be retried by the provider.
+  UPDATE bloom_support.email_events SET outcome = p_outcome, received_at = now()
+  WHERE provider = p_provider AND provider_event_id = p_event
+    AND (outcome = 'failed' OR (outcome = 'processing' AND received_at < now() - interval '5 minutes'));
+  RETURN FOUND;
 END $$;
 
 CREATE OR REPLACE FUNCTION bloom_support.finish_email_event(p_provider text, p_event text, p_outcome text, p_ticket uuid)

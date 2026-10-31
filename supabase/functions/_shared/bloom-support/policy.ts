@@ -22,7 +22,7 @@ const ALLOWED_CONTEXT_KEYS = new Set([
 export function redactText(input: string): string {
   return input
     // Payment card numbers (13–19 digits, optional separators) that pass Luhn.
-    .replace(/\b(?:\d[ -]?){13,19}\b/g, (m) => (luhn(m.replace(/\D/g, "")) ? "[redacted card]" : m))
+    .replace(/\b\d(?:[ -]?\d){12,18}\b/g, (m) => (luhn(m.replace(/\D/g, "")) ? "[redacted card]" : m))
     .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}\b/g, "[redacted token]")
     .replace(/\b(?:sk|pk|rk|sb_secret|sb_publishable|ghp|gho|ghs|github_pat|xox[abp]|re|bsk)_[A-Za-z0-9_-]{8,}\b/g, "[redacted key]")
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, "Bearer [redacted]")

@@ -1,5 +1,5 @@
 // Bloom Support — Edge runtime: database gateway, caller authentication, HTTP helpers.
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { sha256Hex, verifyIntakeSignature } from "./crypto.ts";
 
 export const env = (k: string): string | undefined => {
@@ -65,10 +65,10 @@ export type ServiceIdentity = typeof SERVICE_IDENTITIES[number];
  * - `Authorization: Bearer bsk_…`  → hashed API key (ChatGPT/MCP users, service identities)
  * - `Authorization: Bearer <CRM JWT>` → BloomSuite CRM session; tenant derived server-side
  */
-export async function authenticate(req: Request): Promise<Caller> {
+export function authenticate(req: Request): Promise<Caller> {
   const header = req.headers.get("authorization") ?? "";
   const token = header.replace(/^Bearer\s+/i, "").trim();
-  if (!token) throw new BloomError(401, "unauthenticated", "Sign in or provide an API key");
+  if (!token) return Promise.reject(new BloomError(401, "unauthenticated", "Sign in or provide an API key"));
   if (token.startsWith("bsk_")) return authenticateApiKey(token);
   return authenticateCrmSession(token);
 }

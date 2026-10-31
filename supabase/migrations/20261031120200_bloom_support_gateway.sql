@@ -75,8 +75,10 @@ BEGIN
     WHEN 'upsert_knowledge' THEN r := bloom_support.upsert_knowledge(a, p->'article');
     WHEN 'list_knowledge' THEN r := bloom_support.list_knowledge(a);
     WHEN 'consume_usage' THEN r := to_jsonb(bloom_support.consume_usage(p->>'bucket', p->>'subject', (p->>'limit')::int));
+    WHEN 'can_attach' THEN
+      r := to_jsonb(bloom_support.has_permission(a, 'intake.attach') OR bloom_support.can_read_ticket(a, (p->>'ticket_id')::uuid));
     WHEN 'add_attachment' THEN
-      PERFORM bloom_support.require_ticket(a, (p->>'ticket_id')::uuid);
+      IF NOT bloom_support.has_permission(a, 'intake.attach') THEN PERFORM bloom_support.require_ticket(a, (p->>'ticket_id')::uuid); END IF;
       INSERT INTO bloom_support.attachments(ticket_id, message_id, account_id, storage_path, file_name, content_type, size_bytes, sha256, visibility)
       SELECT t.id, (p->>'message_id')::uuid, t.account_id, p->>'storage_path', p->>'file_name', p->>'content_type', (p->>'size_bytes')::bigint, p->>'sha256',
              CASE WHEN bloom_support.is_staff(a) THEN coalesce(p->>'visibility','public') ELSE 'public' END

@@ -134,7 +134,7 @@ INSERT INTO bloom_support.grant_permissions(grant_name, permission) VALUES
   ('sensitive','ops.sensitive'),
   ('event_manage','ops.event.manage'),
   -- Service identities: one narrow scope each, never a shared admin credential.
-  ('intake','tickets.create'),('intake','intake.email'),('intake','intake.product'),
+  ('intake','tickets.create'),('intake','intake.email'),('intake','intake.product'),('intake','intake.attach'),
   ('operations','ops.site.read'),('operations','ops.site.edit'),('operations','ops.campaign.edit'),('operations','ops.pos.read'),
   ('operations','tickets.read_all'),('operations','tickets.write'),('operations','tickets.internal'),('operations','accounts.read_all'),
   ('automation','tickets.read_all'),('automation','tickets.write'),('automation','tickets.internal'),('automation','accounts.read_all'),
