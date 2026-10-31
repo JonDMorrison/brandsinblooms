@@ -63,7 +63,8 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
       setResult({ number: r.number, tracking_url: r.tracking_url });
       setState("sent");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      // The text and its idempotency key are kept, so retrying can never create a duplicate.
+      setError(`${e instanceof Error ? e.message : "Something went wrong."} Your message is still here — try again, or email support@brandsinblooms.com.`);
       setState("error");
     }
   };

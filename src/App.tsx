@@ -59,6 +59,9 @@ const ReportedProblemsPage = lazyRetry(
 const BloomSupportPage = lazyRetry(
   () => import("@/pages/admin/BloomSupportPage"),
 );
+const BloomSupportConnectPage = lazyRetry(
+  () => import("@/pages/BloomSupportConnectPage"),
+);
 const PublicSupportContact = lazyNamed(
   () => import("@/pages/PublicSupportPage"),
   "PublicSupportContact",
@@ -1278,6 +1281,14 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <AccountPage />,
                 "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
+            />
+            <Route
+              path="/bloom-support/connect"
+              element={renderProtectedSidebarLazyPage(
+                <BloomSupportConnectPage />,
+                "default",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
               )}
             />

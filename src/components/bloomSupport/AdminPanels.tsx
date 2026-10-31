@@ -57,11 +57,17 @@ export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) 
                   <Chip size="sm" color="danger" variant="soft">{String(x.audience) === "both" ? "Jon + Jeff" : String(x.audience) === "jon" ? "Jon" : "Jeff"}</Chip>
                   <Typography level="title-sm">{String(x.reason).replace(/_/g, " ")}</Typography>
                   <Typography level="body-xs" textColor="text.tertiary">{ago(x.created_at)}</Typography>
+                  {x.due_at ? <Chip size="sm" variant="outlined" color={Date.parse(String(x.due_at)) < Date.now() ? "danger" : "neutral"}>due {ago(x.due_at)}</Chip> : null}
+                  {Number(x.fallback_level ?? 0) > 0 ? <Chip size="sm" color="warning">fallback {String(x.fallback_level)}</Chip> : null}
+                  {String(x.status) === "acknowledged" ? <Chip size="sm" color="success" variant="soft">taken</Chip> : null}
                 </Stack>
                 {x.detail ? <Typography level="body-sm" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{String(x.detail)}</Typography> : null}
                 {ticket && x.ticket_id ? <Link level="body-sm" component="button" onClick={() => onOpenTicket(String(x.ticket_id))}>#{ticket.number} {ticket.subject}</Link> : null}
               </div>
-              <Button size="sm" onClick={() => { const d = window.prompt("Record your decision"); if (d) run(() => bloomSupport.resolveEscalation(String(x.id), d)); }}>Record decision</Button>
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                {String(x.status) === "open" && <Button size="sm" variant="outlined" onClick={() => run(() => bloomSupport.acknowledgeEscalation(String(x.id)))}>Take it</Button>}
+                <Button size="sm" onClick={() => { const d = window.prompt("Record your decision"); if (d) run(() => bloomSupport.resolveEscalation(String(x.id), d)); }}>Record decision</Button>
+              </Stack>
             </Stack>
           </Sheet>
         );
@@ -327,6 +333,58 @@ export function SettingsPanel({ me }: { me: Whoami }) {
               <Stack direction="row"><Button size="sm" variant="plain" onClick={() => run(() => bloomSupport.controlJob(String(j.id), "retry"))}>Retry</Button><Button size="sm" variant="plain" color="neutral" onClick={() => run(() => bloomSupport.controlJob(String(j.id), "cancel"))}>Cancel</Button></Stack>
             </Stack>
           ))}
+        </Sheet>
+      )}
+    </Stack>
+  );
+}
+
+export function ReadinessPanel() {
+  const q = useQuery({ queryKey: ["bloom-support", "readiness"], queryFn: () => bloomSupport.readiness(), refetchInterval: 60_000 });
+  const settings = useQuery({ queryKey: ["bloom-support", "settings"], queryFn: () => bloomSupport.settings() });
+  const { run, error } = useAction();
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
+  const r = q.data!;
+  const ai = (settings.data?.ai ?? {}) as { model?: string; max_calls_per_account_per_day?: number };
+  const tick = (v: boolean | null) => (v === null ? "—" : v ? "yes" : "no");
+  return (
+    <Stack spacing={1.5}>
+      {error && <Alert color="danger">{error}</Alert>}
+      <Alert color={r.summary.continuous_automation === "running" ? "success" : "warning"} variant="soft">
+        Continuous automation: <strong>{r.summary.continuous_automation}</strong>. ChatGPT connections are for people; the background worker runs on its own schedule.
+      </Alert>
+      <Sheet variant="outlined" sx={{ borderRadius: "md", overflow: "auto" }}>
+        <Table size="sm">
+          <thead><tr><th style={{ width: "26%" }}>Capability</th><th>Implemented</th><th>Configured</th><th>Enabled</th><th>Live evidence</th><th style={{ width: "28%" }}>Tested / missing</th></tr></thead>
+          <tbody>
+            {r.capabilities.map((c) => (
+              <tr key={c.key}>
+                <td><Typography level="body-sm">{c.label}</Typography>{c.note ? <Typography level="body-xs" textColor="text.tertiary">{c.note}</Typography> : null}</td>
+                <td>{tick(c.implemented)}</td>
+                <td><Chip size="sm" variant="soft" color={c.configured ? "success" : "warning"}>{tick(c.configured)}</Chip></td>
+                <td>{tick(c.enabled)}</td>
+                <td><Typography level="body-xs">{c.live ? ago(c.live) : "not seen"}</Typography></td>
+                <td><Typography level="body-xs">{c.tested}</Typography>{c.missing.length ? <Typography level="body-xs" color="warning">Missing: {c.missing.join(", ")}</Typography> : null}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </Sheet>
+      <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
+        <Typography level="title-sm">Model (OpenAI API, billed to the API account — not a ChatGPT subscription)</Typography>
+        <Stack direction="row" spacing={1} sx={{ mt: 1 }} alignItems="center">
+          <Typography level="body-sm">Current: {ai.model ?? "gpt-4o-mini"} · {ai.max_calls_per_account_per_day ?? 200} calls/client/day</Typography>
+          <Button size="sm" variant="outlined" onClick={() => {
+            const model = window.prompt("OpenAI model id for Bloom's background work", ai.model ?? "gpt-4o-mini");
+            if (model) run(() => bloomSupport.setSetting("ai", { ...ai, provider: "openai", model }));
+          }}>Change model</Button>
+        </Stack>
+      </Sheet>
+      {r.summary.open_alerts.length > 0 && (
+        <Sheet variant="soft" color="danger" sx={{ p: 2, borderRadius: "md" }}>
+          <Typography level="title-sm">Alerts (last 24h)</Typography>
+          {r.summary.open_alerts.map((a, i) => <Typography key={i} level="body-xs">{String(a.condition)} · {ago(a.created_at)} · {String(a.delivered)}</Typography>)}
         </Sheet>
       )}
     </Stack>

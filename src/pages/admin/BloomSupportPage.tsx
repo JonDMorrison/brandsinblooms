@@ -22,7 +22,7 @@ import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { bloomSupport, PRODUCT_LABEL } from "@/lib/bloomSupport/api";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { AutomationChip, PriorityChip, StatusChip } from "@/components/bloomSupport/chips";
-import { ClientsPanel, EngineeringPanel, EscalationsPanel, FeaturesPanel, OperationsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
+import { ClientsPanel, EngineeringPanel, EscalationsPanel, FeaturesPanel, OperationsPanel, ReadinessPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
 
 const QUEUES: Array<{ key: string; label: string; status?: string; owner?: string; automation?: string }> = [
   { key: "open", label: "Open", status: "new,working,waiting,needs_owner" },
@@ -34,7 +34,7 @@ const QUEUES: Array<{ key: string; label: string; status?: string; owner?: strin
   { key: "resolved", label: "Resolved", status: "resolved" },
 ];
 
-type View = "queue" | "escalations" | "engineering" | "features" | "clients" | "operations" | "settings";
+type View = "queue" | "escalations" | "engineering" | "features" | "clients" | "operations" | "readiness" | "settings";
 
 export default function BloomSupportPage() {
   const [params, setParams] = useSearchParams();
@@ -102,6 +102,7 @@ export default function BloomSupportPage() {
             <Tab value="features">Features{Number(s.features_awaiting ?? 0) ? ` (${s.features_awaiting})` : ""}</Tab>
             <Tab value="clients">Clients</Tab>
             <Tab value="operations">Operations</Tab>
+            <Tab value="readiness">Readiness</Tab>
             <Tab value="settings">Settings</Tab>
           </TabList>
         </Tabs>
@@ -162,6 +163,7 @@ export default function BloomSupportPage() {
         {view === "features" && <FeaturesPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "clients" && <ClientsPanel onOpenTicket={openTicket} />}
         {view === "operations" && <OperationsPanel />}
+        {view === "readiness" && <ReadinessPanel />}
         {view === "settings" && <SettingsPanel me={me.data!} />}
       </Box>
     </PageContainer>
