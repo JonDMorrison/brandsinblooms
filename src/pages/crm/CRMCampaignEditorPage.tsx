@@ -1,3 +1,4 @@
+import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
 import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
@@ -1110,6 +1111,25 @@ function CampaignEditorScreen() {
     () => reviewCampaignContent(contentBlocks),
     [contentBlocks],
   );
+  const [connectedEventWarnings, setConnectedEventWarnings] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    if (!sendConfirmOpen || campaignType !== "email") {
+      setConnectedEventWarnings([]);
+      return;
+    }
+    if (!contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event")) {
+      setConnectedEventWarnings([]);
+      return;
+    }
+    let active = true;
+    setConnectedEventWarnings(["Checking linked website events. Please wait before sending."]);
+    void reviewConnectedEvents(contentBlocks).then(warnings => {
+      if (active) setConnectedEventWarnings(warnings);
+    }).catch(() => {
+      if (active) setConnectedEventWarnings(["Linked website events could not be checked. Review them before sending."]);
+    });
+    return () => { active = false; };
+  }, [sendConfirmOpen, campaignType, contentBlocks]);
   const placeholderWarningLines = React.useMemo(
     () =>
       campaignType === "email"
@@ -1123,9 +1143,10 @@ function CampaignEditorScreen() {
             // not flagged.
             ...scanSubjectForUnrenderedTokens(subjectLine),
             ...contentReviewIssues.map((issue) => issue.message),
+            ...connectedEventWarnings,
           ]
         : [],
-    [campaignType, contentBlocks, subjectLine, contentReviewIssues],
+    [campaignType, contentBlocks, subjectLine, contentReviewIssues, connectedEventWarnings],
   );
 
   const sendButtonDisabled =
