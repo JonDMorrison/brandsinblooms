@@ -601,3 +601,6 @@ verify_jwt = true
 
 [functions.ideal-manual-sync-job]
 verify_jwt = true
+
+[functions.connected-content]
+verify_jwt = true

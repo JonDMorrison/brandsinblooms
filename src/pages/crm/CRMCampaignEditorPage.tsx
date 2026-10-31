@@ -1,3 +1,4 @@
+import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
 import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
@@ -586,6 +587,8 @@ function CampaignEditorScreen() {
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
+  const [connectedEventWarnings, setConnectedEventWarnings] = React.useState<string[]>([]);
+  const [connectedEventChecking, setConnectedEventChecking] = React.useState(false);
   const [verificationOpen, setVerificationOpen] = React.useState(false);
   const [senderConfigOpen, setSenderConfigOpen] = React.useState(false);
   const [previewUnavailableOpen, setPreviewUnavailableOpen] =
@@ -997,8 +1000,9 @@ function CampaignEditorScreen() {
       return;
     }
 
+    setConnectedEventChecking(campaignType === "email" && contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event"));
     setSendConfirmOpen(true);
-  }, [isLocked, pendingTemplateSave]);
+  }, [isLocked, pendingTemplateSave, campaignType, contentBlocks]);
 
   const sendBlockerLines = React.useMemo(() => {
     const blockers: string[] = [];
@@ -1110,6 +1114,27 @@ function CampaignEditorScreen() {
     () => reviewCampaignContent(contentBlocks),
     [contentBlocks],
   );
+  React.useEffect(() => {
+    if (!sendConfirmOpen || campaignType !== "email") {
+      setConnectedEventWarnings([]);
+      setConnectedEventChecking(false);
+      return;
+    }
+    if (!contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event")) {
+      setConnectedEventWarnings([]);
+      setConnectedEventChecking(false);
+      return;
+    }
+    let active = true;
+    setConnectedEventWarnings([]);
+    setConnectedEventChecking(true);
+    void reviewConnectedEvents(contentBlocks).then(warnings => {
+      if (active) { setConnectedEventWarnings(warnings); setConnectedEventChecking(false); }
+    }).catch(() => {
+      if (active) { setConnectedEventWarnings(["Linked website events could not be checked. Review them before sending."]); setConnectedEventChecking(false); }
+    });
+    return () => { active = false; };
+  }, [sendConfirmOpen, campaignType, contentBlocks]);
   const placeholderWarningLines = React.useMemo(
     () =>
       campaignType === "email"
@@ -1123,9 +1148,10 @@ function CampaignEditorScreen() {
             // not flagged.
             ...scanSubjectForUnrenderedTokens(subjectLine),
             ...contentReviewIssues.map((issue) => issue.message),
+            ...connectedEventWarnings,
           ]
         : [],
-    [campaignType, contentBlocks, subjectLine, contentReviewIssues],
+    [campaignType, contentBlocks, subjectLine, contentReviewIssues, connectedEventWarnings],
   );
 
   const sendButtonDisabled =
@@ -2642,7 +2668,7 @@ function CampaignEditorScreen() {
         open={sendConfirmOpen}
         onClose={() => setSendConfirmOpen(false)}
         builderWarnings={sendWarningLines}
-        builderBlockers={sendBlockerLines}
+        builderBlockers={connectedEventChecking ? [...sendBlockerLines, "Checking linked website events. Please wait."] : sendBlockerLines}
         placeholderWarnings={placeholderWarningLines}
         onEditContent={() => {
           setSendConfirmOpen(false);

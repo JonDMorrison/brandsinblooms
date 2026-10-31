@@ -1139,6 +1139,10 @@ export function CampaignSendConfirmation({
   const [placeholderAcknowledged, setPlaceholderAcknowledged] =
     React.useState(false);
 
+  // A newly discovered website warning requires a fresh acknowledgement.
+  const placeholderWarningKey = JSON.stringify(placeholderWarnings);
+  React.useEffect(() => { setPlaceholderAcknowledged(false); }, [placeholderWarningKey]);
+
   React.useEffect(() => {
     if (!open) {
       setInlineError(null);

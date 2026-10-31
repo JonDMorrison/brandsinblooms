@@ -53,6 +53,16 @@ describe("useStudioState history", () => {
     expect(result.current.canUndo).toBe(true);
   });
 
+  it("updates linked event details in one undoable step", () => {
+    const { result } = renderHook(() => useStudioState({ initialCampaignName: "Campaign", designSystem }));
+    act(() => result.current.loadCampaign(createSnapshot("Original copy")));
+    act(() => result.current.updateBlockFields("text-1", { body: "New copy", headline: "New title", id: "other" }));
+    expect(result.current.blocks.find(block => block.id === "text-1")).toMatchObject({ body: "New copy", headline: "New title", type: "plain-text" });
+    act(() => result.current.undo());
+    expect(getBody(result.current.blocks)).toBe("Original copy");
+    expect(result.current.blocks.find(block => block.id === "text-1")?.headline).toBeUndefined();
+  });
+
   it("clears redo history after a new edit", () => {
     const { result } = renderHook(() =>
       useStudioState({ initialCampaignName: "Campaign", designSystem }),
