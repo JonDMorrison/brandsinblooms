@@ -235,6 +235,13 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const ctx = (await ticketRow(crmTicket)).context;
     assert(!("password" in ctx) && String(ctx.page_url).includes("token=%5Bredacted%5D"), "context sanitized");
 
+    // A read-only key reads but can change nothing, on any write route (enforced centrally).
+    const ro = (await api("POST", "/keys", tok(U.jeff), { label: "Jeff read-only", scopes: ["read"] })).json.token;
+    assertEquals((await api("GET", `/tickets/${crmTicket}`, ro)).status, 200, "read-only key reads");
+    assertEquals((await api("POST", `/tickets/${crmTicket}/redact`, ro, { reason: "x" })).status, 403, "read-only key cannot redact");
+    assertEquals((await api("POST", `/tickets/${crmTicket}/client-action`, ro, { action: "talk_to_person" })).status, 403, "read-only key cannot act on a ticket");
+    assertEquals((await api("PATCH", `/tickets/${crmTicket}`, ro, { priority: "low" })).status, 403, "read-only key cannot update");
+
     const cms = await signed("cms", { identity: { external_user_id: "cms-user-1", email: "web@greenleaf.test", name: "Will", external_account_id: "site-1111", account_name: "Greenleaf Website" }, report: { body: "How do I change my store hours shown in the footer?", idempotency_key: "cms:1" } });
     assertEquals(cms.status, 201, JSON.stringify(cms.json));
     cmsTicket = cms.json.ticket_id;

@@ -31,6 +31,7 @@ export const actions = {
     return rpc("bulk_update", { ...A(c), ticket_ids: list, bulk });
   },
   clientAction(c: Caller, id: string, action: string, message?: string) {
+    requireWriteScope(c);
     return rpc("client_action", { ...A(c), ticket_id: uuid(id, "ticket_id"), action, message: message ?? null });
   },
   decidePostReply(c: Caller, id: string, decision: string, messageId?: string, note?: string) {
