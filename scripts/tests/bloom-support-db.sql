@@ -452,4 +452,22 @@ SELECT bloom_support.sweep_operational() AS so \gset
 SELECT pg_temp.assert((:'so'::jsonb) ? 'notifications', 'notification sweep runs');
 SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.notifications WHERE dedupe_key LIKE 'unassigned:%') = (SELECT count(DISTINCT dedupe_key) FROM bloom_support.notifications WHERE dedupe_key LIKE 'unassigned:%'), 'notifications deduplicated');
 
+-- 30. Review fixes: per-caller idempotency keys, tenant moves revoke membership, approval resumes release,
+--     retries of unaccepted Bloom sends respect takeover.
+SELECT pg_temp.rpc('resolve_crm_user', jsonb_build_object('auth_user_id','20000000-0000-4000-8000-0000000000f1','email','mal@other.test','name','Mal','tenant_id','30000000-0000-4000-8000-0000000000f1','tenant_name','Other Co'))#>>'{}' AS mal \gset
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'mal', 'ticket', jsonb_build_object('product','crm','channel','crm','subject','Mine','body','Reusing someone else''s key','dedupe_key','crm:abc'))) AS malt \gset
+SELECT pg_temp.assert((:'malt'::jsonb)->>'ticket_id' <> (:'t1'::jsonb)->>'ticket_id' AND NOT coalesce(((:'malt'::jsonb)->>'duplicate_delivery')::boolean, false), 'another caller''s idempotency key never returns their ticket');
+SELECT id AS othercrm FROM bloom_support.accounts WHERE crm_tenant_id = '30000000-0000-4000-8000-0000000000f1' \gset
+SELECT pg_temp.rpc('resolve_crm_user', jsonb_build_object('auth_user_id','20000000-0000-4000-8000-0000000000f1','email','mal@other.test','name','Mal','tenant_id','30000000-0000-4000-8000-0000000000f2','tenant_name','New Co'));
+SELECT pg_temp.assert(NOT bloom_support.can_access_account(:'mal', :'othercrm'), 'moving tenants revokes the old CRM account membership');
+SELECT pg_temp.rpc('resolve_crm_user', jsonb_build_object('auth_user_id','20000000-0000-4000-8000-0000000000f1','email','mal@other.test','name','Mal'));
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.account_members m JOIN bloom_support.accounts a ON a.id = m.account_id WHERE m.principal_id = :'mal' AND m.verified AND a.crm_tenant_id IS NOT NULL), 'removal from a tenant revokes all CRM account membership');
+UPDATE bloom_support.engineering_issues SET status = 'awaiting_approval' WHERE id = :'eng';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon', 'issue_id', :'eng', 'update', '{"status":"approved"}'::jsonb));
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE engineering_issue_id = :'eng' AND kind = 'engineering_step' AND payload->>'step' = 'evaluate' AND status = 'queued'), 'approval queues the release evaluation');
+INSERT INTO bloom_support.outbound_emails(ticket_id, purpose, to_email, subject, body, rfc_message_id, idempotency_key, status)
+VALUES (:'t2id', 'progress', 'web@greenleaf.test', 's', 'b', '<x2@bloom>', 'prog-retry', 'failed');
+SELECT pg_temp.rpc('set_automation', jsonb_build_object('actor', :'jeff', 'ticket_id', :'t2id', 'mode', 'human'));
+SELECT pg_temp.assert(pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t2id','purpose','progress','to','web@greenleaf.test','subject','s','body','b','rfc_message_id','<x3@bloom>','idempotency_key','prog-retry','bloom_initiated',true)))->>'status' = 'suppressed', 'a retried Bloom send is suppressed after takeover');
+
 \echo 'bloom-support-db: all assertions passed'

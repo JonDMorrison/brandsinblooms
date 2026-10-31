@@ -142,6 +142,11 @@ BEGIN
     INSERT INTO bloom_support.account_members(account_id, principal_id, relationship, verified) VALUES (acct, pid, 'member', true)
     ON CONFLICT (account_id, principal_id) DO UPDATE SET verified = true;
   END IF;
+  -- The CRM tenant is the source of truth for a CRM user's client account. Called on every request,
+  -- so moving or removing a user from a tenant revokes their old CRM-account membership immediately.
+  UPDATE bloom_support.account_members m SET verified = false
+  WHERE m.principal_id = pid AND m.verified AND m.account_id IS DISTINCT FROM acct
+    AND EXISTS (SELECT 1 FROM bloom_support.accounts a WHERE a.id = m.account_id AND a.crm_tenant_id IS NOT NULL);
   RETURN pid;
 END $$;
 
@@ -223,6 +228,9 @@ DECLARE
   lim jsonb := coalesce(bloom_support.setting('limits'), '{}'); staff boolean; v_requester uuid;
   v_kind text := coalesce(p->>'kind_hint','unknown'); v_priority text := coalesce(p->>'priority_hint','normal');
   msg_id uuid;
+  -- Idempotency keys are namespaced by the calling principal, so one caller's key can never
+  -- return (or reveal) a ticket created by someone else.
+  v_dedupe text := CASE WHEN nullif(p->>'dedupe_key','') IS NOT NULL THEN p_actor::text || ':' || (p->>'dedupe_key') END;
 BEGIN
   PERFORM bloom_support.require_permission(p_actor, 'tickets.create');
   staff := bloom_support.has_permission(p_actor, 'tickets.read_all');
@@ -234,8 +242,8 @@ BEGIN
   IF NOT staff AND v_priority = 'urgent' THEN v_priority := 'high'; END IF;
 
   -- Idempotent delivery.
-  IF p->>'dedupe_key' IS NOT NULL THEN
-    SELECT * INTO existing FROM bloom_support.tickets WHERE dedupe_key = p->>'dedupe_key';
+  IF v_dedupe IS NOT NULL THEN
+    SELECT * INTO existing FROM bloom_support.tickets WHERE dedupe_key = v_dedupe;
     IF FOUND THEN
       RETURN jsonb_build_object('ticket_id', existing.id, 'number', existing.number, 'duplicate_delivery', true, 'conversation_id', existing.conversation_id);
     END IF;
@@ -280,12 +288,12 @@ BEGIN
 
   INSERT INTO bloom_support.tickets(conversation_id, account_id, requester_id, product, channel, kind, priority, subject, summary, context, dedupe_key, stage, status)
   VALUES (conv.id, acct, v_requester, CASE WHEN v_product IN ('cms','crm','pos','platform') THEN v_product ELSE 'unknown' END,
-          v_channel, v_kind, v_priority, v_subject, v_body, coalesce(p->'context','{}'::jsonb), p->>'dedupe_key', 'intake', 'new')
+          v_channel, v_kind, v_priority, v_subject, v_body, coalesce(p->'context','{}'::jsonb), v_dedupe, 'intake', 'new')
   RETURNING * INTO t;
 
   INSERT INTO bloom_support.messages(conversation_id, ticket_id, author_id, author_kind, visibility, direction, body, email_message_id, in_reply_to, idempotency_key)
   VALUES (conv.id, t.id, v_requester, CASE WHEN bloom_support.is_staff(v_requester) THEN 'staff' ELSE 'client' END, 'public', 'inbound', v_body,
-          p->'email'->>'message_id', p->'email'->>'in_reply_to', CASE WHEN p->>'dedupe_key' IS NOT NULL THEN 'ticket:' || (p->>'dedupe_key') END)
+          p->'email'->>'message_id', p->'email'->>'in_reply_to', CASE WHEN v_dedupe IS NOT NULL THEN 'ticket:' || v_dedupe END)
   RETURNING id INTO msg_id;
 
   -- Two or more tickets in one conversation are linked automatically.
@@ -937,6 +945,12 @@ BEGIN
         jsonb_build_object('engineering_issue_id', p_issue), 'verify_resolution:' || tk.id::text || ':' || p_issue::text);
     END IF;
   END LOOP;
+  -- A person's approval resumes the release pipeline: the evaluate step re-checks CI and threads, then merges.
+  IF n.status = 'approved' AND e.status <> 'approved' THEN
+    PERFORM bloom_support.enqueue_job('engineering_step', (SELECT id FROM bloom_support.tickets WHERE engineering_issue_id = p_issue ORDER BY created_at LIMIT 1),
+      p_issue, 'engineering:' || p_issue::text, jsonb_build_object('step','evaluate','reason','approved'),
+      'eng:' || p_issue::text || ':evaluate:approved:' || n.version, now(), 3, 300);
+  END IF;
   IF n.status IN ('awaiting_approval','escalated','failed','rolled_back') AND n.status <> e.status THEN
     INSERT INTO bloom_support.escalations(engineering_issue_id, ticket_id, audience, reason, detail, dedupe_key)
     VALUES (p_issue, (SELECT id FROM bloom_support.tickets WHERE engineering_issue_id = p_issue ORDER BY created_at LIMIT 1),
@@ -1427,7 +1441,16 @@ BEGIN
   VALUES ((p->>'ticket_id')::uuid, (p->>'message_id')::uuid, p->>'purpose', lower(p->>'to'), p->>'subject', p->>'body', p->>'rfc_message_id', p->>'in_reply_to', p->>'idempotency_key',
     CASE WHEN coalesce((p->>'bloom_initiated')::boolean, false) AND t.automation <> 'auto' THEN 'suppressed' ELSE 'queued' END)
   ON CONFLICT (idempotency_key) DO NOTHING RETURNING * INTO o;
-  IF o.id IS NULL THEN SELECT * INTO o FROM bloom_support.outbound_emails WHERE idempotency_key = p->>'idempotency_key'; RETURN to_jsonb(o) || '{"duplicate":true}'; END IF;
+  IF o.id IS NULL THEN
+    SELECT * INTO o FROM bloom_support.outbound_emails WHERE idempotency_key = p->>'idempotency_key';
+    -- A retry of a Bloom-initiated send that the provider never accepted is re-checked against
+    -- human takeover, so a retry can never send after a person took the ticket over.
+    IF o.provider_id IS NULL AND o.status IN ('queued','uncertain','failed','not_configured')
+       AND coalesce((p->>'bloom_initiated')::boolean, false) AND t.id IS NOT NULL AND t.automation <> 'auto' THEN
+      UPDATE bloom_support.outbound_emails SET status = 'suppressed', error = 'ticket under human control' WHERE id = o.id RETURNING * INTO o;
+    END IF;
+    RETURN to_jsonb(o) || '{"duplicate":true}';
+  END IF;
   RETURN to_jsonb(o) || '{"duplicate":false}';
 END $$;
 

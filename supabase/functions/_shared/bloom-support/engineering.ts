@@ -282,7 +282,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
   const previous = (issue as unknown as { rollback?: { previous_deployment_id?: string } }).rollback?.previous_deployment_id;
   if (target && previous) {
     try {
-      await vercel("POST", `/v9/projects/${target.projectId}/rollback/${previous}`, target);
+      await vercel("POST", `/v1/projects/${target.projectId}/rollback/${previous}`, target);
       await update(release, issue, "rolled_back", { verification, rollback: { previous_deployment_id: previous, provider: "vercel", rolled_back_at: new Date().toISOString() } },
         "Production verification failed; Bloom rolled production back to the previous deployment. The fix needs a person.");
       return { note: "verification failed; rolled back" };

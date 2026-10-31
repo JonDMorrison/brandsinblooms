@@ -68,11 +68,11 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
       rfc_message_id: rfcId, in_reply_to: req.inReplyTo ?? null, idempotency_key: req.idempotencyKey, bloom_initiated: req.bloomInitiated,
     },
   });
-  // A previous attempt with an unknown outcome is retried with the SAME provider idempotency key and
-  // Message-ID: Resend deduplicates within 24 hours, so the client does not get two copies. Beyond
-  // that window the send is not retried automatically (exactly-once cannot be guaranteed).
-  const retryUncertain = queued.duplicate && ["uncertain", "queued"].includes(queued.status) && !queued.provider_id;
-  if (queued.duplicate && !retryUncertain) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true };
+  // A previous attempt the provider never accepted (unknown outcome, rejected, or not yet configured)
+  // is retried with the SAME provider idempotency key and Message-ID: Resend deduplicates within
+  // 24 hours, so the client does not get two copies. Sent and suppressed entries are never resent.
+  const retry = queued.duplicate && ["uncertain", "queued", "failed", "not_configured"].includes(queued.status) && !queued.provider_id;
+  if (queued.duplicate && !retry) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true };
   if (queued.status === "suppressed") return { id: queued.id, status: "suppressed", duplicate: false, reason: "ticket under human control" };
 
   if (req.toClient) {

@@ -121,7 +121,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
 
   const send = () =>
     run.mutate(async () => {
-      await bloomSupport.addMessage(t.id, { body: draft, visibility, idempotency_key: replyKey.current });
+      await bloomSupport.addMessage(t.id, { body: draft, visibility: staff ? visibility : "public", idempotency_key: replyKey.current });
       setDraft("");
       replyKey.current = crypto.randomUUID();
     });

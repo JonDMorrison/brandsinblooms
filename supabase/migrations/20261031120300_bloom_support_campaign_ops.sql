@@ -40,7 +40,15 @@ BEGIN
        'content_length', length(coalesce(c.content, ''))),
     'timing', jsonb_build_object('scheduled_at', c.scheduled_at, 'timezone', c.metadata->>'scheduled_timezone'),
     'campaign', jsonb_build_object('id', c.id, 'name', c.name, 'status', c.status, 'send_blocked_reason', c.send_blocked_reason));
-  RETURN snap || jsonb_build_object('fingerprint', md5((snap->'audience')::text || (snap->'content')::text || coalesce(c.status, '')));
+  -- The fingerprint covers everything that decides who receives what, not just the preview: the full
+  -- body, every additional recipient (sorted), the template and the sender, so any change after the
+  -- preview, even one the excerpt or the counts would not show, refuses execution.
+  RETURN snap || jsonb_build_object('fingerprint', md5(
+    (snap->'audience')::text || (snap->'content')::text || coalesce(c.status, '') || '|' ||
+    md5(coalesce(c.content, '')) || '|' ||
+    coalesce((SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(c.additional_customer_ids) x), '') || '|' ||
+    coalesce(to_jsonb(c)->>'template_id', '') || '|' || coalesce(to_jsonb(c)->>'sender_display_name', '') || '|' ||
+    coalesce(to_jsonb(c)->>'from_email_domain_id', '')));
 END $$;
 
 CREATE OR REPLACE FUNCTION bloom_support.campaign_schedule(p_actor uuid, p_account uuid, p_campaign uuid, p_at timestamptz, p_timezone text, p_fingerprint text)

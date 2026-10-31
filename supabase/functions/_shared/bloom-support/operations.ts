@@ -223,6 +223,10 @@ export async function previewOperation(caller: Caller, req: OperationRequest): P
       const product = "cms" as const;
       const site_id = linkFor(account, product, inputs);
       const r = await callProduct(product, `${req.kind}.preview`, { site_id, inputs, actor: actorFacts(caller) });
+      // The product returns the state the person reviewed (e.g. the page version). It is stored with the
+      // operation and overrides any caller-supplied value, so execution refuses if that state changed.
+      const guard = (r as { guard?: unknown } | null)?.guard;
+      if (guard && typeof guard === "object" && !Array.isArray(guard)) Object.assign(inputs, guard);
       preview = r;
     }
   }
