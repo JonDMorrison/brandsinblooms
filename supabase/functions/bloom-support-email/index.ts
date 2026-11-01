@@ -10,7 +10,7 @@ import { verifySvix, sha256Hex } from "../_shared/bloom-support/crypto.ts";
 import { indicatesStillBroken, isAutomatedEmail, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
 import { storeAttachment } from "../_shared/bloom-support/attachments.ts";
 import { emailConfig } from "../_shared/bloom-support/email.ts";
-import { alignedWith, verifiedDkimDomains } from "../_shared/bloom-support/dkim.ts";
+import { alignedWith, binaryString, rawFromAddress, verifiedDkimDomains } from "../_shared/bloom-support/dkim.ts";
 
 interface ReceivedEmail {
   id: string;
@@ -55,7 +55,7 @@ async function rawMessage(url: string): Promise<string | null> {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) return null;
   const buf = await res.arrayBuffer();
-  return buf.byteLength > 10_000_000 ? null : new TextDecoder("latin1").decode(buf);
+  return buf.byteLength > 10_000_000 ? null : binaryString(buf);
 }
 
 async function loadEmail(data: Record<string, unknown>): Promise<ReceivedEmail> {
@@ -128,7 +128,12 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   // message, against the key the sender's domain publishes. No verified, aligned signature means
   // the sender is unauthenticated.
   const senderDomain = sender.email.split("@")[1]?.toLowerCase() ?? "";
-  const dkimDomains = mail.raw?.download_url ? await rawMessage(mail.raw.download_url).then((raw) => raw ? verifiedDkimDomains(raw) : []).catch(() => []) : [];
+  // The signature must cover the very From address the intake acts on.
+  const dkimDomains = mail.raw?.download_url
+    ? await rawMessage(mail.raw.download_url)
+      .then((raw) => raw && rawFromAddress(raw) === sender.email.toLowerCase() ? verifiedDkimDomains(raw) : [])
+      .catch(() => [])
+    : [];
   const domainAuthenticated = senderDomain !== "" && alignedWith(senderDomain, dkimDomains);
   // Our own systems relay other people's messages from fixed addresses: the website contact form
   // and the BloomSites/BloomTill fallback when Bloom intake is unreachable. Each relay address is

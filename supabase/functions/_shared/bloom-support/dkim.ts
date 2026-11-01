@@ -91,6 +91,9 @@ function b64bytes(b64: string): Uint8Array<ArrayBuffer> {
 export async function verifiedDkimDomains(raw: string, /* binary string: one char per byte */ resolve: KeyResolver = dnsKeyResolver): Promise<string[]> {
   const { headers, body } = splitMessage(raw);
   const out: string[] = [];
+  // RFC 5322 allows exactly one From. With two, a reader could use the unsigned one while the
+  // signature covers the other, so such a message is never treated as authenticated.
+  if (headers.filter((h) => h.name === "from").length !== 1) return out;
   const sigs = headers.filter((h) => h.name === "dkim-signature").slice(0, 5);
   for (const sig of sigs) {
     try {
@@ -126,6 +129,24 @@ export async function verifiedDkimDomains(raw: string, /* binary string: one cha
     }
   }
   return out;
+}
+
+/** Bytes to a binary string (one char per byte). Unlike TextDecoder("latin1"), which is really
+ * windows-1252, this never remaps 0x80-0x9F, so signed bytes hash exactly as received. */
+export function binaryString(buf: ArrayBuffer): string {
+  const view = new Uint8Array(buf);
+  let out = "";
+  for (let i = 0; i < view.length; i += 8192) out += String.fromCharCode(...view.subarray(i, i + 8192));
+  return out;
+}
+
+/** The address in the message's single From header, or null when there is not exactly one. */
+export function rawFromAddress(raw: string): string | null {
+  const froms = splitMessage(raw).headers.filter((h) => h.name === "from");
+  if (froms.length !== 1) return null;
+  const value = froms[0].raw.slice(froms[0].raw.indexOf(":") + 1).replace(/\r\n/g, "");
+  const m = value.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/) ?? value.match(/([^\s<>"(),;:]+@[^\s<>"(),;:]+)/);
+  return m ? m[1].toLowerCase() : null;
 }
 
 /** True when a verified DKIM domain is aligned with the From domain (same domain or parent/child). */

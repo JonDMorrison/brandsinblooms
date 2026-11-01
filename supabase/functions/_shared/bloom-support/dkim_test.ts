@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
-import { alignedWith, type KeyResolver, verifiedDkimDomains } from "./dkim.ts";
+import { alignedWith, binaryString, type KeyResolver, rawFromAddress, verifiedDkimDomains } from "./dkim.ts";
 
 // Real message: the website contact form relaying an internal verification
 // request to Bloom (our own test content), as delivered by the receiving
@@ -78,4 +78,20 @@ Deno.test("alignment: same domain or parent/child only", () => {
   assert(alignedWith("mail.brandsinblooms.com", ["brandsinblooms.com"]));
   assert(!alignedWith("brandsinblooms.com", ["amazonses.com"]));
   assert(!alignedWith("brandsinblooms.com", ["evilbrandsinblooms.com"]));
+});
+
+Deno.test("a prepended unsigned From header is refused", async () => {
+  const ok = await signed("Staff <jeff@example.test>", "Forwarding this\r\n");
+  const twoFroms = "From: Attacker <attacker@evil.test>\r\n" + ok.raw;
+  assertEquals(await verifiedDkimDomains(twoFroms, ok.resolve), [], "two From headers");
+  assertEquals(rawFromAddress(twoFroms), null);
+  assertEquals(rawFromAddress(ok.raw), "jeff@example.test");
+});
+
+Deno.test("bytes 0x80-0x9F survive decoding and still verify", async () => {
+  const body = String.fromCharCode(0x41, 0x80, 0x93, 0x9f, 0x42);
+  const ok = await signedBinary(body);
+  const decoded = binaryString(Uint8Array.from(ok.raw, (c) => c.charCodeAt(0) & 0xff).buffer);
+  assertEquals(decoded, ok.raw);
+  assertEquals(await verifiedDkimDomains(decoded, ok.resolve), ["example.test"]);
 });
