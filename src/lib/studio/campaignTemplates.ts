@@ -92,12 +92,57 @@ type TemplateBlockOptions = {
   layout?: string;
 };
 
+const TEMPLATE_PAPER = "#fbfaf6";
+const TEMPLATE_CREAM = "#f6f2e8";
+
+export function applyCampaignTemplateDesignDefaults(blocks: StudioBlock[]) {
+  let splitBlockIndex = 0;
+
+  return blocks.map((block, index) => {
+    const isSplitBlock = ["image-text", "event", "blog", "announcement"].includes(
+      block.type,
+    );
+    const imageSide = splitBlockIndex % 2 === 0 ? "left" : "right";
+    if (isSplitBlock) splitBlockIndex += 1;
+
+    const rhythmicBlock = isSplitBlock
+      ? {
+          ...block,
+          imagePosition: imageSide,
+          layout:
+            block.type === "image-text" ? `image-${imageSide}` : block.layout,
+          backgroundColor:
+            block.backgroundColor ||
+            (splitBlockIndex % 2 === 0 ? TEMPLATE_CREAM : "#ffffff"),
+        }
+      : block;
+
+    if (rhythmicBlock.type === "footer") {
+      return {
+        ...rhythmicBlock,
+        newsletterSettings: {
+          version: 1,
+          width: 640,
+          blockGap: 12,
+          backgroundColor: "#ece8de",
+          contentBackgroundColor: TEMPLATE_PAPER,
+          ...rhythmicBlock.newsletterSettings,
+        },
+        order: index,
+        visible: rhythmicBlock.visible !== false,
+      };
+    }
+
+    return {
+      ...rhythmicBlock,
+      order: index,
+      visible: rhythmicBlock.visible !== false,
+    };
+  });
+}
+
 function finalizeBlocks(blocks: StudioBlock[]) {
-  return blocks.map((block, index) => ({
-    ...block,
-    order: index,
-    visible: block.visible !== false,
-  }));
+  return applyCampaignTemplateDesignDefaults(blocks);
 }
 
 function getPrimaryColor(
@@ -161,8 +206,9 @@ function createHero(
     textColor: options.textColor || "#fafafa",
     buttonText: options.buttonText || "View the edit",
     buttonUrl: options.buttonUrl || getWebsiteUrl(designSystem, "#preview"),
-    buttonColor: primaryColor,
-    buttonTextColor: designSystem?.colors.primaryContrastText || "#fafafa",
+    buttonColor: "#fffaf1",
+    buttonTextColor: primaryColor,
+    useBrandButtonColor: false,
     heroStyle: "solid",
     textAlign: "left",
     layoutPreset: "hero-dark-center",
@@ -178,11 +224,11 @@ function createText(
   return {
     ...block,
     body: options.body,
-    backgroundColor: options.backgroundColor || "#fcfcfb",
+    backgroundColor: options.backgroundColor || TEMPLATE_PAPER,
     textColor: options.textColor || getTextColor(designSystem, "#27272a"),
     accentColor: options.accentColor || "#52525b",
     layout: options.layout || "side-accent",
-    contentPadding: 26,
+    contentPadding: 30,
   } satisfies StudioBlock;
 }
 
@@ -200,10 +246,11 @@ function createQuote(
     quoteText: options.body,
     authorName: options.authorName,
     authorTitle: options.authorTitle,
-    backgroundColor: options.backgroundColor || "#ffffff",
+    backgroundColor: options.backgroundColor || TEMPLATE_CREAM,
     textColor: options.textColor || getTextColor(designSystem, "#18181b"),
     accentColor: options.accentColor || "#52525b",
     layout: options.layout || "classic",
+    contentPadding: 32,
   } satisfies StudioBlock;
 }
 
@@ -223,12 +270,13 @@ function createCta(
     body: options.body,
     buttonText: options.buttonText || "Open the collection",
     buttonUrl: options.buttonUrl || getWebsiteUrl(designSystem, "#collection"),
-    backgroundColor: options.backgroundColor || "#f4f4f5",
-    textColor: options.textColor || getTextColor(designSystem, "#18181b"),
-    buttonColor: primaryColor,
-    buttonTextColor: designSystem?.colors.primaryContrastText || "#fafafa",
+    backgroundColor: primaryColor,
+    textColor: designSystem?.colors.primaryContrastText || "#ffffff",
+    buttonColor: "#fffaf1",
+    buttonTextColor: primaryColor,
+    useBrandButtonColor: false,
     layout: options.layout || "centered-hero",
-    verticalPadding: 28,
+    verticalPadding: 36,
   } satisfies StudioBlock;
 }
 
@@ -294,7 +342,7 @@ function buildEditorialTemplate(
     }),
     createText(designSystem, {
       body: "Hello {{ first_name }},<br /><br />This layout gives you a clean editorial cadence: a strong opening statement, generous spacing, and one decisive call to action. Swap in your own studio copy, add imagery, or keep the monochrome tone intact.",
-      backgroundColor: "#fcfcfb",
+      backgroundColor: TEMPLATE_PAPER,
       textColor: "#27272a",
       accentColor: config.accentColor,
     }),
@@ -303,7 +351,7 @@ function buildEditorialTemplate(
       authorName: config.authorName,
       authorTitle: config.authorTitle,
       accentColor: config.accentColor,
-      backgroundColor: "#ffffff",
+      backgroundColor: config.surfaceColor || TEMPLATE_CREAM,
       textColor: "#18181b",
     }),
     createDivider(designSystem, config.accentColor),

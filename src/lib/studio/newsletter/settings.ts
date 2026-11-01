@@ -27,9 +27,9 @@ export const HEADING_SIZES: Record<HeadingLevel, number> = {
 export const DEFAULT_NEWSLETTER_SETTINGS: NewsletterSettings = {
   version: 1,
   width: 640,
-  backgroundColor: "#f5f5f5",
-  contentBackgroundColor: "#ffffff",
-  blockGap: 16,
+  backgroundColor: "#ece8de",
+  contentBackgroundColor: "#fbfaf6",
+  blockGap: 12,
 };
 export const clampNumber = (
   value: unknown,
@@ -75,9 +75,9 @@ export function normalizeNewsletterSettings(
     ...raw,
     version: 1,
     width: clampNumber(raw.width, 640, 480, 800),
-    backgroundColor: emailColor(raw.backgroundColor, "#f5f5f5"),
-    contentBackgroundColor: emailColor(raw.contentBackgroundColor, "#ffffff"),
-    blockGap: clampNumber(raw.blockGap, 16, 0, 96),
+    backgroundColor: emailColor(raw.backgroundColor, "#ece8de"),
+    contentBackgroundColor: emailColor(raw.contentBackgroundColor, "#fbfaf6"),
+    blockGap: clampNumber(raw.blockGap, 12, 0, 96),
     fontFamily: raw.fontFamily ? emailFont(raw.fontFamily) : undefined,
     allowedFonts: Array.isArray(raw.allowedFonts)
       ? raw.allowedFonts
