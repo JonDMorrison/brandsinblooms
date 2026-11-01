@@ -83,7 +83,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   // The account webhook includes mail for every receiving domain. Route only
   // Bloom's own mailbox. received_for is the provider's SMTP delivery target;
   // unlike the visible To header, it survives aliases and blind forwarding.
-  const receivedFor = data.received_for ?? data.to;
+  const receivedFor = Array.isArray(data.received_for) && data.received_for.length === 0 ? data.to : data.received_for ?? data.to;
   const recipients = Array.isArray(receivedFor) ? receivedFor : typeof receivedFor === "string" ? [receivedFor] : [];
   if (!recipients.some((s) => typeof s === "string" && allowedRecipients.includes(parseAddress(s).email))) {
     return { ignored: "other-recipient" };

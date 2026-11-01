@@ -333,6 +333,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const forgedTo = await inbound("msg_forged_to", { email_id: "forged-to", from: "someone@example.org", to: ["support@bloom.test"], received_for: ["other@inbound.test"], text: "A visible To header does not prove delivery to support" });
     assertEquals(forgedTo.json.ignored, "other-recipient", "SMTP routing wins over visible To");
     assertEquals((await sql!`SELECT count(*)::int AS n FROM bloom_support.tickets`)[0].n, beforeRouting, "unrelated receiving domains never create support tickets");
+    const emptyEnvelope = await inbound("msg_empty_envelope", { email_id: "empty-envelope", from: "gail@greenleaf.test", received_for: [], subject: "Where are my support requests?", text: "How do I find my support requests?", message_id: "<empty-envelope@greenleaf.test>" });
+    assertExists(emptyEnvelope.json.ticket_id, "An empty optional SMTP target list falls back to the configured To recipient");
     resendReceived.set("forwarded-provider-email", { from: "Gail <gail@greenleaf.test>", to: ["another-visible-to@example.org"], subject: "How do I find support replies?", text: "How do I find the replies to my support request?", message_id: "<forward-route@greenleaf.test>", headers: {} });
     const forwardedRoute = await inbound("msg_forward_route", { email_id: "forwarded-provider-email", to: ["another-visible-to@example.org"], received_for: ["FORWARD@inbound.test"] });
     assertExists(forwardedRoute.json.ticket_id, JSON.stringify(forwardedRoute.json));
