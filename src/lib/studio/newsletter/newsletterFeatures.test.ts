@@ -64,11 +64,11 @@ describe("newsletter design and safety", () => {
       expect(() => renderNewsletterBlock(b)).not.toThrow();
     }
   });
-  it("uses tighter defaults for new blocks and retains legacy gaps", () => {
-    expect(createStudioBlock("plain-text").contentPadding).toBe(16);
-    expect(createStudioBlock("image-text").contentPadding).toBe(16);
+  it("uses polished spacing defaults for new blocks and newsletters", () => {
+    expect(createStudioBlock("plain-text").contentPadding).toBe(24);
+    expect(createStudioBlock("image-text").contentPadding).toBe(24);
     expect(createStudioBlock("divider").paddingTop).toBe(8);
-    expect(normalizeNewsletterSettings(null).blockGap).toBe(16);
+    expect(normalizeNewsletterSettings(null).blockGap).toBe(12);
   });
   it("renders contained banners at natural height", () => {
     const output = renderNewsletterBlock(block("full-width-image", { imageUrl: "https://example.com/banner.png", imageFit: "contain", maxHeight: 210 }));
