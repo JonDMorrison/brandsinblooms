@@ -1,32 +1,76 @@
 # Bloom Support & Operations — handover
 
-Updated 2026-10-31. Branch `claude/bloom-support-operations-5l5p10` in all three product repositories.
-PRs: CRM JonDMorrison/brandsinblooms#284 (→ main), BloomSites Brands-In-Blooms/cms-brandsinblooms#4154 (→ dev),
-POS Brands-In-Blooms/bloomtill#628 (→ main).
+Updated 2026-11-01 after production deployment and live verification.
 
-## 0. Status in one table
+## 0. Deployment and activation status
 
-| Level | Meaning | Where Bloom is |
-| --- | --- | --- |
-| Implemented | Code exists on the branch | Everything in §3, except the gaps in §9 |
-| Tested | Automated tests pass (locally and in CI on the PR) | SQL contract (17 sections), 12 unit tests, 14-step end-to-end run against both the source and the exact deploy bundles |
-| Deployed | Running in production | **Nothing yet.** Production deploys from `main`. The CRM PR is waiting for Jon's merge |
-| Configured | Secrets and settings present | Partly automatic on merge (§5). The rest are listed by name in §6 |
-| Enabled | Switches on | Automation on by default. Client email off. Automatic release off |
-| Live | Seen working in production | Nothing yet. The **Readiness** tab shows the last real success time per capability |
+The CRM support desk is deployed at [Bloom Support](https://bloomsuite.app/admin/bloom-support).
+The complete cross-product assistant is **not yet fully activated**. Track the remaining work in
+Bloom ticket **#1001 — Complete Bloom production activation**, owned by Jon under human control.
 
-**Why it is not deployed.** Production for the CRM backend moves only through `main`. Deploying by another
-route would bypass review of a change that adds migrations and auth surfaces — the same rule Bloom's own
-release policy enforces.
+| Component | Verified state |
+| --- | --- |
+| CRM #284 | Merged to main; production frontend ready; all six migrations applied; five Edge Functions active |
+| Release repair #286 | Merged; fixed migration SQL exceeding the Linux argument-size limit; worker heartbeat verified |
+| Background worker | Runs each minute; last observed successful run 2026-11-01 01:26 UTC; watchdog active every five minutes |
+| Jon | Verified CRM identity; Bloom platform_admin |
+| Jeff | Verified CRM identity; Bloom platform_operator; access verified across all 229 active CRM tenants; cannot approve code or change Bloom roles |
+| Support role | Present in the role-permission map; available for future support staff; no additional person assigned |
+| Client directory | All 229 active, unarchived CRM tenants indexed with exact tenant IDs; no inferred cross-product matches |
+| POS #628 | Merged to main; till production and back office deployments ready |
+| POS backend | Canonical migration 20261031130000 applied; bloom-support-report and bloom-support-ops deployed and ACTIVE |
+| BloomSites #4154 | Merged to dev; staging deployment ready; **not released to main/production** |
+| Email inbox | bloom@brandsinblooms.com created in the existing Resend account using forwarding mode; no forwarding or webhook flow verified |
+| Client email / automatic code release | Both disabled |
+| Approved knowledge | No approved client articles yet |
+| ChatGPT | MCP tool discovery and OAuth metadata return HTTP 200; each person's real OAuth connection remains to be completed |
 
-The one remaining step is **merging PR #284**. The merge does the rest:
-- Vercel deploys the dashboard and the ChatGPT approval page.
-- `deploy-edge-functions.yml` deploys the five functions.
-- The new `bloom-support-release.yml` applies the five Bloom migrations exactly once, creates the Vault
-  worker token and the two pg_cron schedules, and then checks for worker heartbeats.
+Live security checks: a read-only key's POST to /tickets returned 403; unsigned POS operations and
+anonymous POS reporting returned 401. The temporary verification key was revoked. MCP discovery
+returned 19 tools for the read-only scope. These checks do not establish signed cross-product delivery,
+an end-to-end OAuth login, or a repaired production bug.
 
-The function code that will deploy is the code tested here: the end-to-end suite passed against the
-single-file bundles too.
+### Remaining activation work
+
+1. **Deployment configuration access.** The Vercel connector returned HTTP 403 for listing production
+   environment variables and for creating BLOOM_SUPPORT_INTAKE_URL on the explicit CMS staging project.
+   No Vercel CLI with its own credentials is available in this workspace. No configuration write succeeded.
+   Supabase's exposed connector has no Edge Function secret-setting operation.
+2. **Match intake secrets.** Set BLOOM_INTAKE_SECRET_CMS and BLOOM_INTAKE_SECRET_POS on the CRM functions
+   and the corresponding product servers. Set BLOOM_SUPPORT_INTAKE_URL on CMS/POS to
+   https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/bloom-support-intake.
+   Generate fresh secrets and transfer through provider secret stores; never put values in git or tickets.
+3. **Connect product operations.** Set CRM BLOOM_OPS_URL_CMS / BLOOM_OPS_SECRET_CMS and
+   BLOOM_OPS_URL_POS / BLOOM_OPS_SECRET_POS; set matching secrets on the receiving product.
+   POS endpoint: https://aimphmbjuawmxyvkwipf.supabase.co/functions/v1/bloom-support-ops.
+   Use the actual CMS deployed origin plus /api/internal/bloom/ops.
+   Add client product links only from verified IDs; no reviewed storefront links currently exist in
+   public.crm_storefront_tenant_links.
+4. **Activate email.** Forward bloom@brandsinblooms.com from the existing mail provider to
+   **0dc2823a@eeuntaiurk.resend.app**; receiving is not live until this is done.
+   Verify that the inbox's received-event payload matches bloom-support-email before enabling delivery.
+   Configure the receiving webhook and RESEND_INBOUND_WEBHOOK_SECRET. Set BLOOM_SUPPORT_INBOX to
+   bloom@brandsinblooms.com. Existing CRM RESEND_API_KEY is present. Add the independent alert key to
+   Vault as bloom_support_alert_resend_key. Test acknowledgement, reply threading, duplicate delivery,
+   reopen, human takeover and bounce handling with owner addresses before enabling client_email_enabled.
+5. **Release the website integration.** The main...dev comparison is diverged (139 ahead / 550 behind),
+   so releasing dev includes substantial unrelated changes. Follow the CMS production-release process;
+   do not treat the support PR's staging merge as a production release.
+6. **Connect people and knowledge.** Jon and Jeff connect their own ChatGPT accounts through OAuth;
+   publish reviewed client knowledge. Role assignment and notification owner emails are already complete.
+7. **Finish missing product capabilities.** Site creation, POS inventory and POS sales summaries are
+   unimplemented; fundraising operations are also absent. Existing site edits are limited to supported
+   fields. Permission to create a site does not mean the creation operation is implemented.
+8. **Validate automatic engineering separately.** Repair credentials, per-repository repair secrets,
+   release policy and rollback configuration are absent. Repair/provider tests use stubs. Review coding-agent
+   credential isolation and production verification URL controls before a live repair. Keep auto release
+   off until independent review, required checks, deployment evidence and rollback have been exercised.
+
+OPENAI_API_KEY is present for the existing model configuration. No paid helpdesk subscription or plan
+upgrade was added. Background model calls incur OpenAI API usage; ChatGPT subscription credits do not cover them.
+
+The following sections describe the implemented design and setup details. Where they mention a pending
+initial merge or unassigned people, the verified status above supersedes those historical instructions.
 
 ## 1. ChatGPT is not the automation
 
