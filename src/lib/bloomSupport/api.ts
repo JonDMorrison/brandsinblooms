@@ -3,6 +3,29 @@ import { SUPABASE_URL } from "@/integrations/supabase/config";
 
 export type SupportStatus = "new" | "working" | "waiting" | "needs_owner" | "resolved";
 
+export type KnowledgeProduct = "platform" | "crm" | "cms" | "pos";
+export interface PublicKnowledgeArticle {
+  id: string;
+  product: KnowledgeProduct;
+  title: string;
+  body: string;
+  updated_at: string;
+}
+export interface KnowledgeArticle extends PublicKnowledgeArticle {
+  audience: "client" | "internal";
+  approved: boolean;
+  approved_by: string | null;
+}
+export interface KnowledgeWrite {
+  id?: string;
+  expected_updated_at?: string;
+  product?: KnowledgeProduct;
+  title?: string;
+  body?: string;
+  audience?: "client" | "internal";
+  approved?: boolean;
+}
+
 export const STATUS_LABEL: Record<SupportStatus, string> = {
   new: "New",
   working: "Working",
@@ -229,8 +252,9 @@ export const bloomSupport = {
   revokeKey: (id: string) => send("DELETE", `/keys/${id}`),
   createServiceIdentity: (name: string, scope: string) => send<string>("POST", "/service-identities", { name, scope }),
   notifications: () => api<Array<{ id: string; kind: string; title: string; ticket_id: string | null; read_at: string | null; created_at: string }>>("/notifications"),
-  knowledge: () => api<Array<Record<string, unknown>>>("/knowledge"),
-  saveKnowledge: (article: Record<string, unknown>) => send("POST", "/knowledge", article),
+  knowledge: () => api<KnowledgeArticle[]>("/knowledge"),
+  saveKnowledge: (article: KnowledgeWrite) => send<KnowledgeArticle>("POST", "/knowledge", article),
+  publicKnowledge: (product?: KnowledgeProduct) => call<PublicKnowledgeArticle[]>("bloom-support-api", `/help${product ? `?product=${encodeURIComponent(product)}` : ""}`, {}, false),
 
   /** Intake: the signed-in CRM user reports a problem or asks for help. */
   report: (input: { body: string; subject?: string; product?: string; context?: Record<string, unknown>; attachments?: Array<{ file_name: string; content_type: string; data_base64: string }>; idempotency_key?: string; conversation_id?: string }) =>

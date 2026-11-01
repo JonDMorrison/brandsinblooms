@@ -23,6 +23,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \ir ../../supabase/migrations/20261031140000_bloom_support_operations_hardening.sql
 \ir ../../supabase/migrations/20261031150000_bloom_support_desk.sql
 \ir ../../supabase/migrations/20261101030000_bloom_support_delivery_readiness.sql
+\ir ../../supabase/migrations/20261101035144_bloom_support_knowledge_publication.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -486,5 +487,31 @@ SELECT pg_temp.assert((bloom_support.readiness_facts(:'jon')#>>'{last_seen,email
 UPDATE bloom_support.outbound_emails SET status='suppressed' WHERE idempotency_key='readiness-sent';
 SELECT pg_temp.assert((bloom_support.readiness_facts(:'jon')#>>'{last_seen,email_sent}') IS NULL, 'failed, bounced and suppressed mail are not successful readiness evidence');
 ROLLBACK;
+
+
+-- 32. Public help and reviewed answers share only approved client knowledge.
+SELECT pg_temp.assert(NOT has_function_privilege('anon','public.bloom_support_public_knowledge(text)','execute')
+  AND NOT has_function_privilege('authenticated','public.bloom_support_public_knowledge(text)','execute')
+  AND has_function_privilege('service_role','public.bloom_support_public_knowledge(text)','execute'), 'help projection is service-role only');
+SELECT pg_temp.assert(jsonb_array_length(public.bloom_support_public_knowledge('crm')) = 1, 'public help excludes internal and draft articles');
+SELECT pg_temp.assert(NOT ((public.bloom_support_public_knowledge('crm')->0) ? 'approved_by'), 'public help omits the approver identity');
+SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','Could you explain scheduling with pineapple?',5)) = 1, 'natural questions retrieve a matching approved answer even with unmatched words');
+SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('pos','scheduling',5)) = 0, 'knowledge search stays product-scoped');
+SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','and the or',5)) = 0, 'stopword-only questions return no answer');
+BEGIN;
+INSERT INTO bloom_support.knowledge(product,title,body,audience,approved) VALUES ('crm','Review purchases','View purchases in the reports area.','client',true);
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM jsonb_array_elements(bloom_support.search_knowledge('crm','purchases',5)) a WHERE a->>'title'='Review purchases'), 'English lexemes are not stemmed twice');
+ROLLBACK;
+SELECT bloom_support.upsert_knowledge(:'sam','{"product":"platform","title":"Support draft","body":"Use the support tracking link.","audience":"client","approved":true}'::jsonb) AS kb_draft \gset
+SELECT pg_temp.assert(NOT ((:'kb_draft'::jsonb)->>'approved')::boolean, 'Support can draft but cannot approve');
+SELECT bloom_support.upsert_knowledge(:'jeff',jsonb_build_object('id',(:'kb_draft'::jsonb)->>'id','expected_updated_at',(:'kb_draft'::jsonb)->>'updated_at','approved',true)) AS kb_approved \gset
+SELECT pg_temp.assert(((:'kb_approved'::jsonb)->>'approved')::boolean, 'Jeff approves an article');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM jsonb_array_elements(public.bloom_support_public_knowledge('pos')) a WHERE a->>'id'=(:'kb_draft'::jsonb)->>'id'), 'platform articles appear for each product');
+SELECT bloom_support.upsert_knowledge(:'sam',jsonb_build_object('id',(:'kb_approved'::jsonb)->>'id','expected_updated_at',(:'kb_approved'::jsonb)->>'updated_at','body','Updated draft requiring review')) AS kb_edited \gset
+SELECT pg_temp.assert(NOT ((:'kb_edited'::jsonb)->>'approved')::boolean, 'editing withdraws prior approval');
+SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"id":"%s","expected_updated_at":"%s","approved":true}'::jsonb)$q$, :'jeff', (:'kb_approved'::jsonb)->>'id', (:'kb_approved'::jsonb)->>'updated_at'), 'article changed');
+SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"product":"platform","title":"x","body":"x"}'::jsonb)$q$, :'bot'), 'only staff');
+SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"product":"platform","title":"x","body":"x"}'::jsonb)$q$, :'gail'), 'tickets.write');
+SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"product":"platform","title":"  ","body":"x"}'::jsonb)$q$, :'jeff'), 'title');
 
 \echo 'bloom-support-db: all assertions passed'

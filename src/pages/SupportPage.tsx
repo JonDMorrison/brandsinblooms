@@ -9,15 +9,13 @@ import Box from "@mui/joy/Box";
 import Alert from "@mui/joy/Alert";
 import Skeleton from "@mui/joy/Skeleton";
 import Link from "@mui/joy/Link";
-import { BookOpen, ExternalLink, LifeBuoy } from "lucide-react";
+import { BookOpen, LifeBuoy } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { StatusChip } from "@/components/bloomSupport/chips";
 import { bloomSupport } from "@/lib/bloomSupport/api";
-
-const KNOWLEDGE_BASE_URL = "https://bloomsuite.notion.site/bloomsuite-help";
 
 /**
  * Help & Support for BloomSuite users. Requests go to Bloom Support (the shared
@@ -52,7 +50,7 @@ const SupportPage = () => {
           <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", flex: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center"><BookOpen size={18} aria-hidden /><Typography level="title-md">Help centre</Typography></Stack>
             <Typography level="body-sm" sx={{ my: 1 }}>Guides and answers to common questions.</Typography>
-            <Button variant="outlined" component="a" href={KNOWLEDGE_BASE_URL} target="_blank" rel="noopener noreferrer" endDecorator={<ExternalLink size={14} />}>Open help centre</Button>
+            <Button variant="outlined" component={RouterLink} to="/knowledge-base">Open help centre</Button>
           </Sheet>
         </Stack>
 

@@ -159,6 +159,17 @@ on("POST", "/service-identities", async (req) => {
 on("GET", "/knowledge", async (req) => actions.listKnowledge(await caller(req)));
 on("POST", "/knowledge", async (req) => actions.saveKnowledge(await caller(req), await readJson(req)));
 
+// Only an approved, client-audience projection is exposed without a session.
+on("GET", "/help", async (_req, _p, url) => {
+  const product = q(url, "product") ?? null;
+  if (product !== null && !["platform", "crm", "cms", "pos"].includes(product)) {
+    throw new BloomError(400, "invalid", "Unknown help product");
+  }
+  const { data, error } = await db().rpc("bloom_support_public_knowledge", { p_product: product });
+  if (error) throw new BloomError(503, "unavailable", "The help centre is temporarily unavailable");
+  return data;
+});
+
 // Public, unauthenticated: one ticket's public thread via its tracking link.
 on("GET", "/track/:token", (_req, [token]) => actions.track(token));
 
