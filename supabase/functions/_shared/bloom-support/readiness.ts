@@ -82,7 +82,7 @@ export async function readiness(caller: Caller) {
     { key: "ops_cms", label: "BloomSites operations", implemented: true, configured: !!(env("BLOOM_OPS_URL_CMS") && env("BLOOM_OPS_SECRET_CMS")), missing: need("BLOOM_OPS_URL_CMS", "BLOOM_OPS_SECRET_CMS"),
       tested: "type-check only", enabled: true, live: null },
     { key: "ops_pos", label: "POS read-only operations", implemented: true, configured: !!(env("BLOOM_OPS_URL_POS") && env("BLOOM_OPS_SECRET_POS")), missing: need("BLOOM_OPS_URL_POS", "BLOOM_OPS_SECRET_POS"),
-      tested: "type-check only", enabled: true, live: null, note: "Products only; inventory and sales summaries return 501" },
+      tested: "SQL regression + signed handler tests: tenant guards, stock precision, completed sales and returns", enabled: true, live: null, note: "Products, store inventory and sales summaries; dates use the store time zone" },
     { key: "repair", label: "Automatic investigation + repair PRs", implemented: true, configured: !!env("BLOOM_GITHUB_REPAIR_TOKEN"), missing: need("BLOOM_GITHUB_REPAIR_TOKEN"),
       tested: "e2e with GitHub stubbed", enabled: automation, live: null, note: "Each repo also needs BLOOM_REPAIR_OPENAI_API_KEY, BLOOM_REPAIR_REPORT_KEY and the BLOOM_SUPPORT_API_URL variable" },
     { key: "release", label: "Automatic release of eligible fixes", implemented: true, configured: !!env("BLOOM_GITHUB_RELEASE_TOKEN") && f.release_policy_set === true,
