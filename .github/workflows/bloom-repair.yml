@@ -154,6 +154,8 @@ jobs:
         if: always()
         with:
           name: result
+          # .bloom is a hidden directory; upload-artifact v4 skips hidden files unless told not to.
+          include-hidden-files: true
           path: |
             .bloom/report.json
             .bloom/fix.patch
