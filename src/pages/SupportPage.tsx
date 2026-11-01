@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -28,14 +29,20 @@ const SupportPage = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
   const mine = useQuery({ queryKey: ["bloom-support", "tickets", "mine-client"], queryFn: () => bloomSupport.listTickets({ limit: "50" }), enabled: !!me.data, refetchInterval: 30_000 });
+  const staff = !!me.data && me.data.permissions.includes("tickets.read_all");
 
   return (
     <PageContainer>
       <Stack spacing={3}>
         <div>
           <Typography level="h2">Help &amp; Support</Typography>
-          <Typography level="body-md" textColor="text.secondary">Report a problem, ask a question, or request a change. Bloom replies by email and here.</Typography>
+          <Typography level="body-md" textColor="text.secondary">Report a problem, ask a question, or request a change. Track the conversation and replies here.</Typography>
         </div>
+        {staff && (
+          <Alert color="primary" variant="soft" endDecorator={<Button component={RouterLink} to="/admin/bloom-support" size="sm">Open support desk</Button>}>
+            Manage requests across all clients, review overdue tickets, and work with Bloom.
+          </Alert>
+        )}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", flex: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center"><LifeBuoy size={18} aria-hidden /><Typography level="title-md">Get help</Typography></Stack>
@@ -50,10 +57,11 @@ const SupportPage = () => {
         </Stack>
 
         <div>
-          <Typography level="title-lg" sx={{ mb: 1 }}>Your requests</Typography>
+          <Typography level="title-lg" sx={{ mb: 1 }}>{staff ? "Recent client requests" : "Your requests"}</Typography>
           {me.error && <Alert color="danger">{(me.error as Error).message}</Alert>}
+          {mine.error && <Alert color="danger">{(mine.error as Error).message}</Alert>}
           {mine.isLoading && <Skeleton variant="rectangular" height={120} />}
-          {mine.data?.length === 0 && <Typography level="body-sm" textColor="text.tertiary">You haven't sent any requests yet.</Typography>}
+          {mine.data?.length === 0 && <Typography level="body-sm" textColor="text.tertiary">{staff ? "No client requests yet." : "You haven't sent any requests yet."}</Typography>}
           {mine.data && mine.data.length > 0 && (
             <Sheet variant="outlined" sx={{ borderRadius: "lg", display: "grid", gridTemplateColumns: { xs: "1fr", md: selected ? "320px minmax(0,1fr)" : "1fr" }, minHeight: 240, overflow: "hidden" }}>
               <Box role="list" sx={{ borderRight: { md: selected ? "1px solid" : "none" }, borderColor: "divider", display: { xs: selected ? "none" : "block", md: "block" } }}>
@@ -62,6 +70,7 @@ const SupportPage = () => {
                     sx={{ p: 1.5, cursor: "pointer", borderBottom: "1px solid", borderColor: "divider", bgcolor: selected === t.id ? "primary.softBg" : undefined }}>
                     <Stack direction="row" spacing={1} alignItems="center"><Typography level="body-xs">#{t.number}</Typography><StatusChip status={t.status} /></Stack>
                     <Typography level="title-sm" noWrap>{t.subject}</Typography>
+                    {staff && t.account && <Typography level="body-xs" textColor="text.secondary">{t.account.name}</Typography>}
                     <Typography level="body-xs" textColor="text.tertiary">Updated {formatDistanceToNow(new Date(t.updated_at), { addSuffix: true })}</Typography>
                   </Box>
                 ))}
