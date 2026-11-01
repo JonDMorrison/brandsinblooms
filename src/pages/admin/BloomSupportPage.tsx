@@ -18,9 +18,10 @@ import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { bloomSupport } from "@/lib/bloomSupport/api";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { QueueList } from "@/components/bloomSupport/QueueList";
+import { KnowledgePanel } from "@/components/bloomSupport/KnowledgePanel";
 import { ClientsPanel, EngineeringPanel, EscalationsPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReadinessPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
 
-type View = "queue" | "escalations" | "problems" | "engineering" | "features" | "clients" | "operations" | "reports" | "readiness" | "settings";
+type View = "queue" | "escalations" | "problems" | "engineering" | "features" | "clients" | "operations" | "reports" | "readiness" | "settings" | "knowledge";
 
 export default function BloomSupportPage() {
   const [params, setParams] = useSearchParams();
@@ -85,6 +86,7 @@ export default function BloomSupportPage() {
             <Tab value="clients">Clients</Tab>
             <Tab value="operations">Operations</Tab>
             <Tab value="reports">Reports</Tab>
+            <Tab value="knowledge">Answers</Tab>
             <Tab value="readiness">Readiness</Tab>
             <Tab value="settings">Settings</Tab>
           </TabList>
@@ -116,6 +118,7 @@ export default function BloomSupportPage() {
         {view === "operations" && <OperationsPanel />}
         {view === "problems" && <ProblemsPanel onOpenTicket={openTicket} />}
         {view === "reports" && <ReportsPanel />}
+        {view === "knowledge" && <KnowledgePanel me={me.data!} />}
         {view === "readiness" && <ReadinessPanel />}
         {view === "settings" && <SettingsPanel me={me.data!} />}
       </Box>

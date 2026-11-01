@@ -618,6 +618,33 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals((await api("GET", "/reports/metrics", tok(U.gail))).status, 403, "clients cannot see reporting");
   });
 
+
+  await t.step("approved help is public; drafts, internal articles and stale approvals stay private", async () => {
+    const draft = await api("POST", "/knowledge", tok(U.sam), { product: "platform", title: "Track support requests", body: "Use the tracking link in your support email.", audience: "client", approved: true });
+    assertEquals(draft.status, 200);
+    assertEquals(draft.json.approved, false, "Support cannot approve its own draft");
+    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0);
+    const approved = await api("POST", "/knowledge", tok(U.jeff), { id: draft.json.id, expected_updated_at: draft.json.updated_at, approved: true });
+    assertEquals(approved.status, 200);
+    assertEquals(approved.json.approved, true);
+    await api("POST", "/knowledge", tok(U.jeff), { product: "crm", title: "Internal operational note", body: "INTERNAL-ARTICLE-PRIVATE", audience: "internal", approved: true });
+    const help = await call("bloom-support-api", "GET", "/help?product=pos");
+    assertEquals(help.status, 200);
+    assertEquals(help.json.length, 1, "platform guidance is available for every product");
+    assertEquals(help.json[0].id, draft.json.id);
+    assert(!JSON.stringify(help.json).includes("INTERNAL-ARTICLE-PRIVATE"));
+    assert(!("approved_by" in help.json[0]), "approval identity remains private");
+    assertEquals((await call("bloom-support-api", "GET", "/knowledge")).status, 401);
+    assertEquals((await call("bloom-support-api", "GET", "/help?product=invalid")).status, 400);
+    assertEquals((await api("POST", "/knowledge", keys.automation, { product: "platform", title: "Untrusted draft", body: "x", approved: true })).status, 403);
+    const edited = await api("POST", "/knowledge", tok(U.sam), { id: approved.json.id, expected_updated_at: approved.json.updated_at, body: "Draft edits need another review." });
+    assertEquals(edited.status, 200);
+    assertEquals(edited.json.approved, false);
+    const stale = await api("POST", "/knowledge", tok(U.jeff), { id: approved.json.id, expected_updated_at: approved.json.updated_at, approved: true });
+    assertEquals(stale.status, 409, "a stale review cannot approve content edited by another person");
+    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0, "withdrawn approvals disappear from public help");
+  });
+
   await t.step("kill switch and health", async () => {
     const off = await mcp(keys.jeff, "automation_switch", { enabled: false });
     assert(!off.isError);
