@@ -22,6 +22,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \ir ../../supabase/migrations/20261031120300_bloom_support_campaign_ops.sql
 \ir ../../supabase/migrations/20261031140000_bloom_support_operations_hardening.sql
 \ir ../../supabase/migrations/20261031150000_bloom_support_desk.sql
+\ir ../../supabase/migrations/20261101030000_bloom_support_delivery_readiness.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -469,5 +470,21 @@ INSERT INTO bloom_support.outbound_emails(ticket_id, purpose, to_email, subject,
 VALUES (:'t2id', 'progress', 'web@greenleaf.test', 's', 'b', '<x2@bloom>', 'prog-retry', 'failed');
 SELECT pg_temp.rpc('set_automation', jsonb_build_object('actor', :'jeff', 'ticket_id', :'t2id', 'mode', 'human'));
 SELECT pg_temp.assert(pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t2id','purpose','progress','to','web@greenleaf.test','subject','s','body','b','rfc_message_id','<x3@bloom>','idempotency_key','prog-retry','bloom_initiated',true)))->>'status' = 'suppressed', 'a retried Bloom send is suppressed after takeover');
+
+
+-- 31. Delivery readiness survives the sent -> delivered transition.
+-- Isolate these ledger fixtures so all earlier email checks retain their state.
+BEGIN;
+UPDATE bloom_support.outbound_emails SET sent_at = NULL;
+INSERT INTO bloom_support.outbound_emails(purpose,to_email,subject,body,rfc_message_id,idempotency_key,status,sent_at) VALUES
+ ('notification','test@example.test','readiness','x','<readiness-sent@test>','readiness-sent','sent','2020-01-01T00:00:00Z'),
+ ('notification','test@example.test','readiness','x','<readiness-delivered@test>','readiness-delivered','delivered','2020-01-02T00:00:00Z'),
+ ('notification','test@example.test','readiness','x','<readiness-failed@test>','readiness-failed','failed','2020-01-03T00:00:00Z');
+SELECT pg_temp.assert((bloom_support.readiness_facts(:'jon')#>>'{last_seen,email_sent}')::timestamptz = '2020-01-02T00:00:00Z', 'delivered mail remains evidence of successful sending; newer failed mail is excluded');
+UPDATE bloom_support.outbound_emails SET status='bounced' WHERE idempotency_key='readiness-delivered';
+SELECT pg_temp.assert((bloom_support.readiness_facts(:'jon')#>>'{last_seen,email_sent}')::timestamptz = '2020-01-01T00:00:00Z', 'bounced mail does not replace the last accepted send');
+UPDATE bloom_support.outbound_emails SET status='suppressed' WHERE idempotency_key='readiness-sent';
+SELECT pg_temp.assert((bloom_support.readiness_facts(:'jon')#>>'{last_seen,email_sent}') IS NULL, 'failed, bounced and suppressed mail are not successful readiness evidence');
+ROLLBACK;
 
 \echo 'bloom-support-db: all assertions passed'
