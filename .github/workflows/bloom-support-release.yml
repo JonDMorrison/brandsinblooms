@@ -10,7 +10,7 @@ name: Bloom Support release
 on:
   push:
     branches: [main]
-    paths: ['supabase/migrations/*bloom_support*']
+    paths: ['supabase/migrations/*bloom_support*', '.github/workflows/bloom-support-release.yml']
   workflow_dispatch:
 
 permissions:
@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           [ -n "$TOKEN" ] || { echo "::error::SUPABASE_ACCESS_TOKEN is not set"; exit 1; }
-          q() { jq -n --arg q "$1" '{query:$q}' > /tmp/q.json; curl -fsS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+          q() { printf '%s' "$1" | jq -Rs '{query:.}' > /tmp/q.json; curl -fsS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
           for f in $(ls supabase/migrations/*bloom_support*.sql | sort); do
             base=$(basename "$f" .sql); version=${base%%_*}; name=${base#*_}
             applied=$(q "select count(*)::int as n from supabase_migrations.schema_migrations where version = '$version' or name = '$name'" | jq -r '.[0].n')
@@ -48,7 +48,7 @@ jobs:
       - name: Check the background worker
         run: |
           set -euo pipefail
-          q() { jq -n --arg q "$1" '{query:$q}' > /tmp/q.json; curl -fsS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+          q() { printf '%s' "$1" | jq -Rs '{query:.}' > /tmp/q.json; curl -fsS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
           q "select jobname, active from cron.job where jobname like 'bloom-support-%'"
           for i in $(seq 1 12); do
             n=$(q "select count(*)::int as n from bloom_support.worker_runs where finished_at > now() - interval '3 minutes'" | jq -r '.[0].n')
