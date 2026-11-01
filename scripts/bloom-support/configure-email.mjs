@@ -24,9 +24,9 @@ export async function configureEmail({ token, request = fetch }) {
     { name: 'RESEND_INBOUND_WEBHOOK_SECRET', value: secret },
     { name: 'BLOOM_SUPPORT_INBOX', value: 'bloom@support.bloomsuite.app' },
     { name: 'BLOOM_SUPPORT_INBOUND_ADDRESSES', value: '0dc2823a@eeuntaiurk.resend.app' },
-    // Initial outbound verification is restricted to the owned test mailbox.
-    // Customer delivery needs a separately approved removal of this restriction.
-    { name: 'BLOOM_SUPPORT_EMAIL_ALLOWLIST', value: 'support-check@support.bloomsuite.app' },
+    // The production round-trip verification is complete. Customer email still
+    // requires the separately controlled client_email_enabled switch.
+    { name: 'BLOOM_SUPPORT_EMAIL_ALLOWLIST', value: '' },
   ]);
   // Signature verification is tested without filing a ticket or sending mail.
   const body = JSON.stringify({ type: 'bloom.configuration.check' });
@@ -39,7 +39,7 @@ export async function configureEmail({ token, request = fetch }) {
   });
   const data = await probe.json().catch(() => null);
   if (probe.status !== 200 || data?.ignored !== 'event bloom.configuration.check') throw new Error(`Bloom email signature verification failed: HTTP ${probe.status}`);
-  return { webhookConfigured: true, signatureVerified: true, clientEmailEnabledByThisSetup: false, deliveryRestriction: 'owned verification mailbox only' };
+  return { webhookConfigured: true, signatureVerified: true, clientEmailEnabledByThisSetup: false, deliveryRestriction: 'none; client email switch unchanged' };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
