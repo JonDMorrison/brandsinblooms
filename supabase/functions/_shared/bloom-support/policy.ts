@@ -423,21 +423,3 @@ export const STATUS_LABEL: Record<string, string> = {
   resolved: "Resolved",
 };
 
-/**
- * True only when the receiving provider's Authentication-Results show DKIM passing with
- * header.d equal to the sender's domain AND SPF passing for an envelope sender in that same
- * domain. Mentioning the domain anywhere else in the header (another method, a comment, a
- * different d= value) does not count.
- */
-export function senderDomainAuthenticated(authenticationResults: string, senderDomain: string): boolean {
-  const domain = senderDomain.trim().toLowerCase();
-  if (!domain) return false;
-  const methods = authenticationResults.toLowerCase().replace(/\([^)]*\)/g, " ").split(";").map((m) => m.trim());
-  const dkim = methods.some((m) => /^dkim=pass\b/.test(m) && m.match(/\bheader\.d=([a-z0-9.-]+)/)?.[1] === domain);
-  const spf = methods.some((m) => {
-    if (!/^spf=pass\b/.test(m)) return false;
-    const from = m.match(/\bsmtp\.mailfrom=([^\s;]+)/)?.[1] ?? "";
-    return (from.includes("@") ? from.split("@").pop() : from) === domain;
-  });
-  return dkim && spf;
-}

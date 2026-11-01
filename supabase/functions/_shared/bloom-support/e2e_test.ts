@@ -195,6 +195,16 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
   if (url.hostname === "api.vercel.com" && req.method === "GET" && url.pathname === "/v6/deployments") {
     return new Response(JSON.stringify({ deployments: [{ uid: "dpl_previous", url: "previous.vercel.test" }] }), { status: 200 });
   }
+  if (url.hostname === "raw.test") {
+    const raw = rawMessages.get(url.pathname.slice(1));
+    return new Response(raw ?? "", { status: raw ? 200 : 404 });
+  }
+  if (url.hostname === "cloudflare-dns.com") {
+    const name = url.searchParams.get("name") ?? "";
+    const domain = name.replace(/^resend\._domainkey\./, "");
+    const key = dkimKeys.get(domain);
+    return new Response(JSON.stringify(key ? { Status: 0, Answer: [{ name, type: 16, data: `"p=${key.spki}"` }] } : { Status: 3 }), { status: 200 });
+  }
   if (url.hostname === "api.github.com") return githubStub(req.method, url.pathname + url.search, bodyText ? JSON.parse(bodyText) : null);
   if (url.hostname === "verify.test" || (url.hostname === "bloomsuite.app" && url.pathname === "/campaigns/preview")) return new Response("<h1>Campaign preview works</h1>", { status: 200 });
   if (url.hostname === "api.openai.com") throw new Error("OpenAI must not be called in the harness (no key configured)");
@@ -240,6 +250,33 @@ async function signed(product: "cms" | "pos", payload: unknown) {
   const ts = Math.floor(Date.now() / 1000);
   return call("bloom-support-intake", "POST", "/report", { raw, headers: { "x-bloom-product": product, "x-bloom-timestamp": String(ts), "x-bloom-signature": await signIntake(ENV[`BLOOM_INTAKE_SECRET_${product.toUpperCase()}`], ts, raw) } });
 }
+// DKIM: messages "sent" by a domain the harness holds a key for are signed for real, served from
+// a raw-message URL, and verified by the email function against a stubbed DNS answer.
+const rawMessages = new Map<string, string>();
+const dkimKeys = new Map<string, { privateKey: CryptoKey; spki: string }>();
+async function dkimKey(domain: string) {
+  if (!dkimKeys.has(domain)) {
+    const pair = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 1024, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
+    dkimKeys.set(domain, { privateKey: pair.privateKey, spki: btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey)))) });
+  }
+  return dkimKeys.get(domain)!;
+}
+async function dkimSignedRaw(from: string, subject: string, text: string): Promise<string> {
+  const domain = (from.match(/@([^>\s]+)/)?.[1] ?? "").toLowerCase();
+  const key = await dkimKey(domain);
+  const body = text.replace(/\r?\n/g, "\r\n").replace(/(\r\n)*$/, "") + "\r\n";
+  const bh = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body)))));
+  const sig = `v=1; a=rsa-sha256; c=relaxed/simple; d=${domain}; s=resend; h=from:subject; bh=${bh}; b=`;
+  const data = `from:${from}\r\nsubject:${subject}\r\ndkim-signature:${sig}`;
+  const b = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key.privateKey, new TextEncoder().encode(data)))));
+  return `DKIM-Signature: ${sig}${b}\r\nFrom: ${from}\r\nSubject: ${subject}\r\n\r\n${body}`;
+}
+/** Adds a genuinely DKIM-signed raw message for the sender's domain. */
+async function dkimSigned(id: string, data: Record<string, unknown>) {
+  rawMessages.set(id, await dkimSignedRaw(String(data.from), String(data.subject ?? ""), String(data.text ?? "")));
+  return { ...data, raw: { download_url: `https://raw.test/${id}` } };
+}
+
 async function inbound(id: string, data: Record<string, unknown>) {
   const raw = JSON.stringify({ type: "email.received", data: { to: ["support@bloom.test"], ...data } });
   const ts = String(Math.floor(Date.now() / 1000));
@@ -725,9 +762,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(JSON.stringify(attempts[0].cc ?? null), JSON.stringify(attempts[1].cc ?? null), "same cc on retry");
 
     // Authorized forward: staff forwarder with passing DKIM/SPF; the client is the requester.
-    const fwd = await inbound("msg_fwd", { email_id: "efwd", from: "Jeff <jeff@bloom.test>", subject: "Fwd: website down?", message_id: "<fwd1@bloom.test>",
-      text: "FYI\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nOur website shows an error page.",
-      headers: { "Authentication-Results": "mx.resend.com; dkim=pass header.d=bloom.test; spf=pass smtp.mailfrom=bloom.test" } });
+    const fwd = await inbound("msg_fwd", await dkimSigned("msg_fwd", { email_id: "efwd", from: "Jeff <jeff@bloom.test>", subject: "Fwd: website down?", message_id: "<fwd1@bloom.test>",
+      text: "FYI\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nOur website shows an error page." }));
     assertExists(fwd.json.ticket_id, `forward filed: ${JSON.stringify(fwd.json)}`);
     const fr = await ticketRow(fwd.json.ticket_id);
     assertEquals(fr.context.forward_authorized, true);
@@ -747,26 +783,33 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(resendSent.slice(before3).filter((m) => m.to.includes("gail@greenleaf.test") || (m.cc ?? []).includes("gail@greenleaf.test")).length, 0, "forwarded third party not emailed");
 
     // Website contact form relay (authenticated): the visitor is the requester.
-    const relay = await inbound("msg_relay", { email_id: "erelay", from: "BloomSuite Contact <support@brandsinblooms.com>", subject: "Fwd: Contact form", message_id: "<relay1@brandsinblooms.com>",
+    const relay = await inbound("msg_relay", await dkimSigned("msg_relay", { email_id: "erelay", from: "BloomSuite Contact <support@brandsinblooms.com>", subject: "Fwd: Contact form", message_id: "<relay1@brandsinblooms.com>",
       text: "---------- Forwarded message ---------\nFrom: Visitor <visitor@example.net>\n\nDo you integrate with my till?",
-      headers: { "Authentication-Results": "mx.resend.com; dkim=pass header.d=brandsinblooms.com; spf=pass smtp.mailfrom=brandsinblooms.com" } });
+ }));
     const rr = await ticketRow(relay.json.ticket_id);
+    // A forged relay: right sender address and a fake Authentication-Results header, but no valid
+    // DKIM signature. The forward is not honoured; the third party is not the requester.
+    const forgedRelay = await inbound("msg_forged_relay", { email_id: "eforged", from: "BloomSuite Contact <support@brandsinblooms.com>", subject: "Fwd: Contact form", message_id: "<forged1@x.test>",
+      text: "---------- Forwarded message ---------\nFrom: Someone Else <victim@example.net>\n\nPlease email this person",
+      headers: { "Authentication-Results": "mx.resend.com; dkim=pass header.d=brandsinblooms.com; spf=pass smtp.mailfrom=brandsinblooms.com" } });
+    const fr2 = await ticketRow(forgedRelay.json.ticket_id);
+    assertEquals((await sql!`SELECT email FROM bloom_support.principals WHERE id = ${fr2.requester_id}`)[0].email, "support@brandsinblooms.com", "forged relay cannot name a third party");
+    assertEquals(fr2.context.forward_authorized, false);
     assertEquals((await sql!`SELECT email FROM bloom_support.principals WHERE id = ${rr.requester_id}`)[0].email, "visitor@example.net");
 
     // A product report that reached Bloom and also fell back to email is filed once.
     const prod = await signed("pos", { identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" }, report: { body: "Till freezes on the card screen", idempotency_key: "pos:rosa:dup-check-1" } });
     assertExists(prod.json.ticket_id);
     Deno.env.set("BLOOM_SUPPORT_RELAY_SENDERS", "support@brandsinblooms.com,noreply@bloomtill.test");
-    const relayAuth = { "Authentication-Results": "mx.resend.com; dkim=pass header.d=bloomtill.test; spf=pass smtp.mailfrom=bloomtill.test" };
-    const fallback = await inbound("msg_fallback", { email_id: "efallback", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb1@bloomtill.test>",
-      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nTill freezes on the card screen\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1", headers: relayAuth });
+    const fallback = await inbound("msg_fallback", await dkimSigned("msg_fallback", { email_id: "efallback", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb1@bloomtill.test>",
+      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nTill freezes on the card screen\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1" }));
     // The same key from an unauthenticated sender is ignored: it cannot hide a report.
     const spoofKey = await inbound("msg_fallback_spoof", { email_id: "efallback2", from: "Someone <someone@example.org>", subject: "Help", message_id: "<fb2@example.org>",
       text: "Different problem entirely\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1" });
     assert(spoofKey.json.ticket_id && spoofKey.json.ticket_id !== prod.json.ticket_id, "unauthenticated key line never merges into another ticket");
     // A relayed report with no matching product ticket is filed for the original sender.
-    const fresh2 = await inbound("msg_fallback_new", { email_id: "efallback3", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb3@bloomtill.test>",
-      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nReceipts print blank\n\nBloom-Idempotency-Key: pos:rosa:never-reached-bloom", headers: relayAuth });
+    const fresh2 = await inbound("msg_fallback_new", await dkimSigned("msg_fallback_new", { email_id: "efallback3", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb3@bloomtill.test>",
+      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nReceipts print blank\n\nBloom-Idempotency-Key: pos:rosa:never-reached-bloom" }));
     assertEquals((await sql!`SELECT p.email FROM bloom_support.tickets t JOIN bloom_support.principals p ON p.id = t.requester_id WHERE t.id = ${fresh2.json.ticket_id}`)[0].email, "till@rosehill.test", "no-reply relay accepted; original sender is the requester");
     Deno.env.delete("BLOOM_SUPPORT_RELAY_SENDERS");
     Deno.env.delete("BLOOM_VERCEL_TOKEN");

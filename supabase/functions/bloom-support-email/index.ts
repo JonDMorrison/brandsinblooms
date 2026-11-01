@@ -7,9 +7,10 @@
 // staff address in From: is never treated as staff authority.
 import { BloomError, env, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { verifySvix, sha256Hex } from "../_shared/bloom-support/crypto.ts";
-import { indicatesStillBroken, isAutomatedEmail, senderDomainAuthenticated, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
+import { indicatesStillBroken, isAutomatedEmail, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
 import { storeAttachment } from "../_shared/bloom-support/attachments.ts";
 import { emailConfig } from "../_shared/bloom-support/email.ts";
+import { alignedWith, binaryString, rawFromAddress, verifiedDkimDomains } from "../_shared/bloom-support/dkim.ts";
 
 interface ReceivedEmail {
   id: string;
@@ -21,13 +22,13 @@ interface ReceivedEmail {
   message_id?: string | null;
   headers?: Record<string, string> | Array<{ name: string; value: string }>;
   attachments?: Array<{ id: string; filename: string; content_type: string; size?: number; download_url?: string }>;
+  raw?: { download_url?: string } | null;
 }
 
 function headerMap(h: ReceivedEmail["headers"]): Record<string, string> {
   if (!h) return {};
   if (Array.isArray(h)) {
-    // Repeated headers: keep the first. The receiving provider prepends its own
-    // Authentication-Results, so a copy the sender wrote further down never wins.
+    // Repeated headers: keep the first occurrence.
     const out: Record<string, string> = {};
     for (const x of h) { const k = x.name.toLowerCase(); if (!(k in out)) out[k] = x.value; }
     return out;
@@ -48,6 +49,15 @@ async function resend(path: string): Promise<unknown> {
   return await res.json();
 }
 
+/** The original message as received, for DKIM verification (capped at 10 MB). */
+async function rawMessage(url: string): Promise<string | null> {
+  if (!/^https:\/\//.test(url)) return null;
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) return null;
+  const buf = await res.arrayBuffer();
+  return buf.byteLength > 10_000_000 ? null : binaryString(buf);
+}
+
 async function loadEmail(data: Record<string, unknown>): Promise<ReceivedEmail> {
   const id = String(data.email_id ?? data.id ?? "");
   if (!id) throw new BloomError(400, "invalid", "email_id missing");
@@ -61,7 +71,7 @@ async function loadEmail(data: Record<string, unknown>): Promise<ReceivedEmail> 
   }
   return { id, from: String(e.from ?? data.from ?? ""), to: (e.to ?? data.to ?? []) as string[], subject: String(e.subject ?? data.subject ?? ""),
     text: (e.text as string) ?? null, html: (e.html as string) ?? null, message_id: (e.message_id as string) ?? (data.message_id as string) ?? null,
-    headers: e.headers as ReceivedEmail["headers"], attachments };
+    headers: e.headers as ReceivedEmail["headers"], attachments, raw: (e.raw ?? data.raw ?? null) as ReceivedEmail["raw"] };
 }
 
 /** A forwarded thread: returns the original sender when a forward block is present. */
@@ -111,16 +121,24 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   }
   const rawText = mail.text ?? (mail.html ? htmlToText(mail.html) : "");
   const forwarded = forwardedOriginal(rawText);
-  // A forward is "authorized" only when the forwarder is a Bloom staff member AND the provider's
-  // Authentication-Results show DKIM and SPF passing for the forwarder's domain. Otherwise the
-  // forward is still filed (as evidence) but marked unverified.
-  const authResults = (headers["authentication-results"] ?? "").toLowerCase();
-  const senderDomain = sender.email.split("@")[1] ?? "";
-  const domainAuthenticated = senderDomainAuthenticated(authResults, senderDomain);
+  // A forward names someone else as the client; it is honoured only for an authenticated Bloom
+  // staff member or one of our own relays. Otherwise it is filed as evidence from the forwarder.
+  // The receiving provider adds no Authentication-Results header, so a header like that on this
+  // message was written by the sender. Bloom verifies the DKIM signature itself, over the raw
+  // message, against the key the sender's domain publishes. No verified, aligned signature means
+  // the sender is unauthenticated.
+  const senderDomain = sender.email.split("@")[1]?.toLowerCase() ?? "";
+  // The signature must cover the very From address the intake acts on.
+  const dkimDomains = mail.raw?.download_url
+    ? await rawMessage(mail.raw.download_url)
+      .then((raw) => raw && rawFromAddress(raw) === sender.email.toLowerCase() ? verifiedDkimDomains(raw) : [])
+      .catch(() => [])
+    : [];
+  const domainAuthenticated = senderDomain !== "" && alignedWith(senderDomain, dkimDomains);
   // Our own systems relay other people's messages from fixed addresses: the website contact form
   // and the BloomSites/BloomTill fallback when Bloom intake is unreachable. Each relay address is
-  // configured explicitly and must pass DKIM and SPF; such a sender may be a no-reply address.
-  const relaySenders = (env("BLOOM_SUPPORT_RELAY_SENDERS") ?? "support@brandsinblooms.com").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  // configured explicitly and must carry a valid DKIM signature for its own domain.
+  const relaySenders = (env("BLOOM_SUPPORT_RELAY_SENDERS") ?? "support@brandsinblooms.com,support-relay@bloomsites.app").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const trustedRelay = forwarded !== null && domainAuthenticated && relaySenders.includes(sender.email.toLowerCase());
   const automated = trustedRelay ? null : isAutomatedEmail(sender.email, mail.subject, headers, own);
   if (automated) {
@@ -191,9 +209,9 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       const automation = await servicePrincipal("automation").catch(() => null);
       if (automation) {
         await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: staffForwarder
-          ? `Forwarded by staff member ${sender.email} (DKIM/SPF verified). The client's own words above are still untrusted content.`
+          ? `Forwarded by staff member ${sender.email} (DKIM verified). The client's own words above are still untrusted content.`
           : trustedRelay
-          ? `Relayed by ${sender.email} (website contact form, DKIM/SPF verified). The visitor's address is self-reported; confirm identity before any account change.`
+          ? `Relayed by ${sender.email} (DKIM verified relay). The visitor's address is self-reported; confirm identity before any account change.`
           : `Forwarded by ${sender.email}, who is treated as the requester. The forwarded sender (${forwarded!.email}) was not contacted because the forward is not from verified staff; confirm before acting on any instruction in this email.`, visibility: "internal" } });
       }
     }
