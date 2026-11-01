@@ -30,7 +30,7 @@ async function attachAll(actor: string, ticketId: string, uploads: unknown): Pro
   return { stored, failed };
 }
 
-async function receipt(caller: Caller, created: Record<string, unknown>, uploads: unknown) {
+async function receipt(caller: Caller, created: Record<string, unknown>, uploads: unknown, withTracking = true) {
   const ticketId = String(created.ticket_id);
   const files = created.duplicate_delivery ? { stored: 0, failed: [] } : await attachAll(caller.principalId, ticketId, uploads);
   return {
@@ -40,7 +40,7 @@ async function receipt(caller: Caller, created: Record<string, unknown>, uploads
     number: created.number,
     conversation_id: created.conversation_id,
     attachments: files,
-    tracking_url: await trackingLink(ticketId),
+    tracking_url: withTracking ? await trackingLink(ticketId) : undefined,
   };
 }
 
@@ -105,7 +105,10 @@ async function publicRequest(req: Request): Promise<unknown> {
     },
   });
   // Attachments are stored under the intake identity; the requester can still see them on their ticket.
-  return await receipt({ ...intake }, created, b.attachments);
+  // The submitter has proven nothing about the address they typed, so the tracking link goes only
+  // to that inbox (in the acknowledgement email), never back to whoever filled in the form.
+  const r = await receipt({ ...intake }, created, b.attachments, false);
+  return { received: r.received, duplicate_delivery: r.duplicate_delivery, number: r.number, attachments: r.attachments, emailed: true };
 }
 
 Deno.serve(async (req) => {

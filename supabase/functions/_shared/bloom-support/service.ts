@@ -110,6 +110,11 @@ export const actions = {
     requireWriteScope(c);
     return rpc("open_engineering_issue", { ...A(c), ticket_id: uuid(id, "ticket_id"), issue: { title: str(input.title, 300), repository: str(input.repository, 200), existing_issue_id: str(input.existing_issue_id, 40), evidence: { requested_by: c.name ?? c.principalId, note: redactText(str(input.note, 4000) ?? "") } } });
   },
+  // Only Jon or Jeff, as themselves, can let a coding agent work on a bug Bloom or Support reported.
+  startRepair(c: Caller, id: string, note?: string) {
+    requireWriteScope(c);
+    return rpc("update_engineering_issue", { ...A(c), issue_id: uuid(id, "issue_id"), update: { start_repair: true, note: str(note, 2000) ?? null } });
+  },
   routeFeature(c: Caller, id: string, input: Record<string, unknown>) {
     requireWriteScope(c);
     return rpc("route_feature_request", { ...A(c), ticket_id: uuid(id, "ticket_id"), feature: { title: str(input.title, 300), description: str(input.description, 5000), feature_request_id: str(input.feature_request_id, 40), excerpt: str(input.excerpt, 1000) } });

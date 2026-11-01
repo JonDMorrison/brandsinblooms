@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertFalse } from "@std/assert";
 import {
   classify, DEFAULT_RELEASE_POLICY, evaluateRelease, indicatesStillBroken, isAutomatedEmail, matchesAny, mergeModelClassification,
-  parseReferences, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
+  parseReferences, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts, senderDomainAuthenticated,
 } from "./policy.ts";
 import { signIntake, verifyIntakeSignature, verifySvix, hmacSha256 } from "./crypto.ts";
 
@@ -139,4 +139,15 @@ Deno.test("svix signatures (Resend webhooks)", async () => {
   const sig = btoa(String.fromCharCode(...await hmacSha256(secretBytes, `msg_1.${ts}.${body}`)));
   assert(await verifySvix(secret, "msg_1", ts, `v1,${sig}`, body));
   assertFalse(await verifySvix(secret, "msg_2", ts, `v1,${sig}`, body));
+});
+
+Deno.test("sender authentication requires DKIM and SPF for the sender's own domain", () => {
+  const ok = "mx.resend.com; dkim=pass header.d=brandsinblooms.com header.s=resend; spf=pass smtp.mailfrom=bounce@brandsinblooms.com; dmarc=pass";
+  assert(senderDomainAuthenticated(ok, "brandsinblooms.com"));
+  // Passing results for another domain, with the relay domain merely mentioned, do not count.
+  assertFalse(senderDomainAuthenticated("mx.resend.com; dkim=pass header.d=evil.test (brandsinblooms.com); spf=pass smtp.mailfrom=evil.test; x-note=brandsinblooms.com", "brandsinblooms.com"));
+  assertFalse(senderDomainAuthenticated("mx; dkim=pass header.d=evil.test; spf=pass smtp.mailfrom=x@brandsinblooms.com", "brandsinblooms.com"));
+  assertFalse(senderDomainAuthenticated("mx; dkim=pass header.d=brandsinblooms.com.evil.test; spf=pass smtp.mailfrom=brandsinblooms.com.evil.test", "brandsinblooms.com"));
+  assertFalse(senderDomainAuthenticated("mx; dkim=fail header.d=brandsinblooms.com; spf=pass smtp.mailfrom=brandsinblooms.com", "brandsinblooms.com"));
+  assertFalse(senderDomainAuthenticated("", "brandsinblooms.com"));
 });

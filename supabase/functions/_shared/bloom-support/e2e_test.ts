@@ -192,6 +192,9 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
     return new Response(JSON.stringify({ id: `re_${resendSent.length}` }), { status: 200 });
   }
+  if (url.hostname === "api.vercel.com" && req.method === "GET" && url.pathname === "/v6/deployments") {
+    return new Response(JSON.stringify({ deployments: [{ uid: "dpl_previous", url: "previous.vercel.test" }] }), { status: 200 });
+  }
   if (url.hostname === "api.github.com") return githubStub(req.method, url.pathname + url.search, bodyText ? JSON.parse(bodyText) : null);
   if (url.hostname === "verify.test" || (url.hostname === "bloomsuite.app" && url.pathname === "/campaigns/preview")) return new Response("<h1>Campaign preview works</h1>", { status: 200 });
   if (url.hostname === "api.openai.com") throw new Error("OpenAI must not be called in the harness (no key configured)");
@@ -311,6 +314,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(forged.status, 401, "unsigned product intake rejected");
     const pub = await call("bloom-support-intake", "POST", "/public", { body: { email: "newperson@example.org", name: "New", body: "I can't log in to my BloomSuite account since yesterday." } });
     assertEquals(pub.status, 201, JSON.stringify(pub.json));
+    assertEquals([pub.json.tracking_url, pub.json.ticket_id, pub.json.emailed], [undefined, undefined, true], "public form never hands back a tracking link");
     const all = await api("GET", "/tickets", tok(U.jeff));
     assertEquals(new Set(all.json.map((x: Any) => x.product)), new Set(["crm", "cms", "pos", "unknown"]));
   });
@@ -427,7 +431,19 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(ack!.subject.startsWith(`[Bloom #${crm.number}]`));
     assert(ack!.headers["Message-ID"].startsWith("<bloom."));
     assert(ack!.text.includes("https://bloomsuite.test/support/track/"), "tracking link included");
-    assert(githubCalls.some((c) => c.method === "POST" && c.path.endsWith("/dispatches")), "repair workflow dispatched");
+    assert(!githubCalls.some((c) => c.method === "POST" && c.path.endsWith("/dispatches")), "Bloom never starts a coding agent on its own");
+    const startReq = await sql!`SELECT audience, status FROM bloom_support.escalations WHERE engineering_issue_id = ${crm.engineering_issue_id} AND reason = 'engineering_start_requested'`;
+    assertEquals(startReq[0]?.status, "open", "Jon and Jeff asked to start the repair");
+    const supportTry = await api("PATCH", `/engineering/${crm.engineering_issue_id}`, keys.investigation, { start_repair: true });
+    assertEquals(supportTry.status, 403, "a service key cannot start a repair");
+    for (const tk of [crmTicket, posTicket]) {
+      const eng = (await ticketRow(tk)).engineering_issue_id;
+      if (!eng) continue;
+      const started = await mcp(keys.jeff, "start_repair", { issue_id: eng, note: "Contained bug, clear expected behaviour" });
+      assert(!started.isError, started.content[0].text);
+    }
+    await runWorkerUntilIdle();
+    assert(githubCalls.some((c) => c.method === "POST" && c.path.endsWith("/dispatches")), "repair workflow dispatched after Jeff started it");
     const cms = await ticketRow(cmsTicket);
     assertEquals(cms.kind, "question");
     const pub = await sql!`SELECT o.status, o.error FROM bloom_support.outbound_emails o JOIN bloom_support.tickets t ON t.id = o.ticket_id WHERE t.channel = 'public'`;
@@ -491,7 +507,9 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   });
 
   await t.step("eligible repair: reproduce → PR → policy → merge → deploy → verify → resolve → email", async () => {
-    await api("PUT", "/settings/release_policy", tok(U.jon), { value: { approvedPaths: { "JonDMorrison/brandsinblooms": ["src/components/**"] }, requiredChecks: { "JonDMorrison/brandsinblooms": ["build", "unit"] } } });
+    // Automatic release needs a rollback target (Vercel) and required checks for the repository.
+    Deno.env.set("BLOOM_VERCEL_TOKEN", "test-vercel-token");
+    await api("PUT", "/settings/release_policy", tok(U.jon), { value: { approvedPaths: { "JonDMorrison/brandsinblooms": ["src/components/**"] }, requiredChecks: { "JonDMorrison/brandsinblooms": ["build", "unit"], "Brands-In-Blooms/bloomtill": ["build"] }, vercel: { "JonDMorrison/brandsinblooms": { projectId: "prj_test" } } } });
     await api("PUT", "/settings/auto_release_enabled", tok(U.jon), { value: true });
     const eng = (await ticketRow(crmTicket)).engineering_issue_id;
     // The repair workflow reports with the investigation identity.
@@ -681,6 +699,15 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const sig = btoa(String.fromCharCode(...await hmacSha256(WHSEC_BYTES, `msg_bounce.${ts}.${bounceRaw}`)));
     await call("bloom-support-email", "POST", "", { raw: bounceRaw, headers: { "svix-id": "msg_bounce", "svix-timestamp": ts, "svix-signature": `v1,${sig}` } });
     assertEquals((await sql!`SELECT status FROM bloom_support.outbound_emails WHERE provider_id = ${outRow.provider_id}`)[0].status, "bounced");
+    // A bounced address is not emailed again; the reply stays visible on the ticket.
+    const beforeBounce = resendSent.length;
+    await api("POST", `/tickets/${qid}/messages`, tok(U.jeff), { body: "Checking the button colour again.", visibility: "public" });
+    await runWorkerUntilIdle();
+    assertEquals(resendSent.slice(beforeBounce).filter((m) => m.text.includes("Checking the button colour again")).length, 0, "bounced address not emailed again");
+    const held = (await sql!`SELECT status, error FROM bloom_support.outbound_emails WHERE body LIKE '%Checking the button colour again%'`)[0];
+    assertEquals([held.status, held.error], ["suppressed", "recipient bounced or complained"]);
+    // Staff fix the address problem; delivery resumes.
+    await sql!`UPDATE bloom_support.outbound_emails SET status = 'delivered' WHERE provider_id = ${outRow.provider_id}`;
 
     // Ambiguous send: the provider call dies after sending; the retry reuses the same idempotency key and Message-ID.
     resendFailNext = 1;
@@ -706,6 +733,44 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(fr.context.forward_authorized, true);
     const req = (await sql!`SELECT email FROM bloom_support.principals WHERE id = ${fr.requester_id}`)[0];
     assertEquals(req.email, "gail@greenleaf.test");
+
+    // Unverified forward: the forwarder is the requester; the named third party is never emailed.
+    await runWorkerUntilIdle();
+    const before3 = resendSent.length;
+    const ufwd = await inbound("msg_ufwd", { email_id: "eufwd", from: "Mallory <mallory@example.org>", subject: "Fwd: cancel my account", message_id: "<ufwd1@example.org>",
+      text: "Please action\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nCancel everything and send me the invoices." });
+    const ur = await ticketRow(ufwd.json.ticket_id);
+    assertEquals(ur.context.forward_authorized, false);
+    assertEquals((await sql!`SELECT email FROM bloom_support.principals WHERE id = ${ur.requester_id}`)[0].email, "mallory@example.org", "unverified forward cannot name another client");
+    assertEquals(ur.account_id, null, "unverified forward binds no client account");
+    await runWorkerUntilIdle();
+    assertEquals(resendSent.slice(before3).filter((m) => m.to.includes("gail@greenleaf.test") || (m.cc ?? []).includes("gail@greenleaf.test")).length, 0, "forwarded third party not emailed");
+
+    // Website contact form relay (authenticated): the visitor is the requester.
+    const relay = await inbound("msg_relay", { email_id: "erelay", from: "BloomSuite Contact <support@brandsinblooms.com>", subject: "Fwd: Contact form", message_id: "<relay1@brandsinblooms.com>",
+      text: "---------- Forwarded message ---------\nFrom: Visitor <visitor@example.net>\n\nDo you integrate with my till?",
+      headers: { "Authentication-Results": "mx.resend.com; dkim=pass header.d=brandsinblooms.com; spf=pass smtp.mailfrom=brandsinblooms.com" } });
+    const rr = await ticketRow(relay.json.ticket_id);
+    assertEquals((await sql!`SELECT email FROM bloom_support.principals WHERE id = ${rr.requester_id}`)[0].email, "visitor@example.net");
+
+    // A product report that reached Bloom and also fell back to email is filed once.
+    const prod = await signed("pos", { identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" }, report: { body: "Till freezes on the card screen", idempotency_key: "pos:rosa:dup-check-1" } });
+    assertExists(prod.json.ticket_id);
+    Deno.env.set("BLOOM_SUPPORT_RELAY_SENDERS", "support@brandsinblooms.com,noreply@bloomtill.test");
+    const relayAuth = { "Authentication-Results": "mx.resend.com; dkim=pass header.d=bloomtill.test; spf=pass smtp.mailfrom=bloomtill.test" };
+    const fallback = await inbound("msg_fallback", { email_id: "efallback", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb1@bloomtill.test>",
+      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nTill freezes on the card screen\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1", headers: relayAuth });
+    // The same key from an unauthenticated sender is ignored: it cannot hide a report.
+    const spoofKey = await inbound("msg_fallback_spoof", { email_id: "efallback2", from: "Someone <someone@example.org>", subject: "Help", message_id: "<fb2@example.org>",
+      text: "Different problem entirely\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1" });
+    assert(spoofKey.json.ticket_id && spoofKey.json.ticket_id !== prod.json.ticket_id, "unauthenticated key line never merges into another ticket");
+    // A relayed report with no matching product ticket is filed for the original sender.
+    const fresh2 = await inbound("msg_fallback_new", { email_id: "efallback3", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb3@bloomtill.test>",
+      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nReceipts print blank\n\nBloom-Idempotency-Key: pos:rosa:never-reached-bloom", headers: relayAuth });
+    assertEquals((await sql!`SELECT p.email FROM bloom_support.tickets t JOIN bloom_support.principals p ON p.id = t.requester_id WHERE t.id = ${fresh2.json.ticket_id}`)[0].email, "till@rosehill.test", "no-reply relay accepted; original sender is the requester");
+    Deno.env.delete("BLOOM_SUPPORT_RELAY_SENDERS");
+    Deno.env.delete("BLOOM_VERCEL_TOKEN");
+    assertEquals([fallback.json.ticket_id, fallback.json.outcome], [prod.json.ticket_id, "duplicate:product-report"], "fallback email joins the existing ticket");
 
     // A thanks-only reply after resolution is dismissed, not reopened.
     const qq = await call("bloom-support-intake", "POST", "/report", { token: tok(U.rosa), body: { body: "Where do I see yesterday's sales?", idempotency_key: "k-thanks" } });

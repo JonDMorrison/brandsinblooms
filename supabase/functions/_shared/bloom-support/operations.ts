@@ -195,6 +195,11 @@ const siteUuid = (value: unknown): value is string =>
 export async function previewOperation(caller: Caller, req: OperationRequest): Promise<Record<string, unknown>> {
   if (!WRITE_OPERATIONS.has(req.kind)) throw new BloomError(400, "invalid", `Unknown change operation ${req.kind}`);
   const permission = PERMISSION[req.kind];
+  // Check before any product is asked for a preview, so a caller without the
+  // permission learns nothing about the client's data.
+  if (!await rpc<boolean>("has_permission", { actor: caller.principalId, permission })) {
+    throw new BloomError(403, "forbidden", `${permission} required`);
+  }
   const inputs = { ...(req.inputs ?? {}) };
   const account = await loadAccount(caller, req.account_id);
   let preview: Record<string, unknown>;
@@ -279,15 +284,12 @@ interface OperationRow {
 }
 
 /**
- * Executes a previewed operation exactly once. Consequential sends require a
- * person: service identities may prepare previews but not execute campaign
- * scheduling or publishing.
+ * Executes a previewed operation exactly once. Every change requires a person:
+ * service identities may prepare previews but never execute or undo.
  */
 export async function executeOperation(caller: Caller, operationId: string): Promise<Record<string, unknown>> {
-  const existing = await rpc<OperationRow>("get_operation", { actor: caller.principalId, operation_id: operationId });
-  if (caller.role === "service" && ["campaign.schedule", "site.publish", "site.create_draft"].includes(existing.kind)) {
-    throw new BloomError(403, "forbidden", "This change needs a person to confirm it");
-  }
+  // Every change is confirmed by a person. Service identities may prepare previews only.
+  if (caller.role === "service") throw new BloomError(403, "forbidden", "This change needs a person to confirm it");
   const op = await rpc<OperationRow>("claim_operation", { actor: caller.principalId, operation_id: operationId });
   if (op.already || op.status !== "executing") return op as unknown as Record<string, unknown>;
   try {
@@ -369,6 +371,7 @@ async function perform(caller: Caller, op: OperationRow): Promise<{ result: unkn
 
 /** Undo for operations that recorded restoration data. */
 export async function undoOperation(caller: Caller, operationId: string): Promise<Record<string, unknown>> {
+  if (caller.role === "service") throw new BloomError(403, "forbidden", "Undoing a change needs a person to confirm it");
   const op = await rpc<OperationRow>("get_operation", { actor: caller.principalId, operation_id: operationId });
   if (op.status !== "succeeded" || !op.undo) throw new BloomError(400, "invalid", "This operation has no supported undo");
   const undo = op.undo as Record<string, unknown>;

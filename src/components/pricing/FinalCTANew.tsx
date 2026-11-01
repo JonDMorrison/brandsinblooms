@@ -2,6 +2,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui-legacy/button";
 import { ArrowRight } from "lucide-react";
 import { BrandFoliage } from "@/components/brand";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 export const FinalCTANew = () => {
   const navigate = useNavigate();
@@ -52,8 +53,8 @@ export const FinalCTANew = () => {
 
           <p className="pricing-final-cta__support">
             Questions? Email{" "}
-            <a href="mailto:support@bloomsuite.app">
-              support@bloomsuite.app
+            <a href={`mailto:${SUPPORT_EMAIL}`}>
+              {SUPPORT_EMAIL}
             </a>
           </p>
         </div>

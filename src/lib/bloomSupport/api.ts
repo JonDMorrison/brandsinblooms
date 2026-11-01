@@ -258,9 +258,9 @@ export const bloomSupport = {
 
   /** Intake: the signed-in CRM user reports a problem or asks for help. */
   report: (input: { body: string; subject?: string; product?: string; context?: Record<string, unknown>; attachments?: Array<{ file_name: string; content_type: string; data_base64: string }>; idempotency_key?: string; conversation_id?: string }) =>
-    call<{ received: boolean; ticket_id: string; number: number; tracking_url: string }>("bloom-support-intake", "/report", { method: "POST", body: JSON.stringify(input) }),
+    call<{ received: boolean; ticket_id: string; number: number; tracking_url?: string; attachments?: { stored: number; failed: string[] } }>("bloom-support-intake", "/report", { method: "POST", body: JSON.stringify(input) }),
   /** Intake for people who cannot sign in. */
-  publicRequest: (input: Record<string, unknown>) => call<{ received: boolean; number?: number; tracking_url?: string }>("bloom-support-intake", "/public", { method: "POST", body: JSON.stringify(input) }, false),
+  publicRequest: (input: Record<string, unknown>) => call<{ received: boolean; number?: number; emailed?: boolean }>("bloom-support-intake", "/public", { method: "POST", body: JSON.stringify(input) }, false),
   track: (token: string) => call<{ number: number; subject: string; status: SupportStatus; created_at: string; updated_at: string; resolution_summary: string | null; messages: Array<{ from: string; body: string; created_at: string }> }>("bloom-support-api", `/track/${token}`, {}, false),
 };
 

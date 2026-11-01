@@ -115,8 +115,7 @@ connection cannot approve fixes, decide features, change roles or change policy,
 **Fallback: personal key.** Use this if a client cannot do OAuth discovery on a `supabase.co` path.
 - BloomSuite → `/admin/bloom-support` → Settings → API keys → New key. The key carries the same role.
 - Header: `Authorization: Bearer bsk_…`.
-- Or, for clients without header support, the URL `…/bloom-support-mcp/k/bsk_…` with "No authentication".
-  That URL is then a password; revoke the key in Settings if it is exposed.
+- Keys are never accepted in the URL (`…/k/bsk_…` is refused): URLs end up in proxy and provider logs.
 
 Before connecting:
 - Jon becomes `platform_admin` automatically on his first sign-in (he is on `app_admin_emails`).

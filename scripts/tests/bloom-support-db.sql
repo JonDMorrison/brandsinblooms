@@ -25,6 +25,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \ir ../../supabase/migrations/20261101030000_bloom_support_delivery_readiness.sql
 \ir ../../supabase/migrations/20261101035144_bloom_support_knowledge_publication.sql
 \ir ../../supabase/migrations/20261101051925_bloom_support_site_creation_recovery.sql
+\ir ../../supabase/migrations/20261101140000_bloom_support_audit_hardening.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -188,12 +189,21 @@ SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='send_
 
 -- Sensitive repair → awaiting approval escalates to Jon; deployment failure escalates to both.
 SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'sam', 'ticket_id', :'t1id', 'issue', '{}'))->>'engineering_issue_id' AS eng2 \gset
-SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"in_review"}'::jsonb));
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='investigate' AND engineering_issue_id = :'eng2'), 'Support cannot start an automated repair');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND reason='engineering_start_requested' AND status='open'), 'bug reported to Jon and Jeff for a start decision');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"start_repair":true}}'::jsonb)$q$, :'sam', :'eng2'), 'only Jon or Jeff');
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jeff', 'issue_id', :'eng2', 'update', '{"start_repair":true}'::jsonb));
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='investigate' AND engineering_issue_id = :'eng2'), 'Jeff started the repair');
+SELECT pg_temp.assert((SELECT repair_started_by FROM bloom_support.engineering_issues WHERE id = :'eng2') = :'jeff'::uuid, 'repair start recorded against Jeff');
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND reason='engineering_start_requested' AND status='open'), 'start request closed');
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"in_review","patch":{"pr_number":43,"head_sha":"h1"}}'::jsonb));
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"awaiting_approval","note":"touches payment amounts"}'::jsonb));
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND audience='jon' AND reason='engineering_awaiting_approval'), 'sensitive fix escalated to Jon');
 SELECT pg_temp.assert((SELECT status FROM bloom_support.tickets WHERE id = :'t1id') = 'needs_owner', 'ticket shows Needs Jon/Jeff');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"approved"}}'::jsonb)$q$, :'jeff', :'eng2'), 'engineering.approve');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon', 'issue_id', :'eng2', 'update', '{"status":"approved"}'::jsonb));
+SELECT pg_temp.assert((SELECT approved_head_sha FROM bloom_support.engineering_issues WHERE id = :'eng2') = 'h1', 'approval pinned to the reviewed commit');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"merging","patch":{"head_sha":"h2"}}}'::jsonb)$q$, :'release', :'eng2'), 'changed after approval');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'release', 'issue_id', :'eng2', 'update', '{"status":"merging"}'::jsonb));
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'release', 'issue_id', :'eng2', 'update', '{"status":"merged"}'::jsonb));
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'release', 'issue_id', :'eng2', 'update', '{"status":"deploying"}'::jsonb));
@@ -223,6 +233,46 @@ SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_tickets', jsonb_build
 SELECT pg_temp.assert(pg_temp.rpc('record_email_event', '{"provider":"resend","event_id":"evt1","outcome":"received"}'::jsonb)::boolean, 'first email event new');
 SELECT pg_temp.assert(NOT pg_temp.rpc('record_email_event', '{"provider":"resend","event_id":"evt1","outcome":"received"}'::jsonb)::boolean, 'duplicate email event detected');
 
+-- Ambiguous domains bind nothing.
+UPDATE bloom_support.accounts SET email_domains = '{greenleaf.test}' WHERE id = :'rose';
+SELECT pg_temp.rpc('resolve_email_sender', '{"email":"other@greenleaf.test","name":"Other"}'::jsonb) AS amb \gset
+SELECT pg_temp.assert((:'amb'::jsonb)->>'account_id' IS NULL, 'ambiguous domain binds no account');
+UPDATE bloom_support.accounts SET email_domains = '{}' WHERE id = :'rose';
+-- Bootstrap cannot mint a second administrator.
+CREATE OR REPLACE FUNCTION public.is_master_admin(uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
+SELECT pg_temp.assert(NOT public.bloom_support_bootstrap_admin(:'gail'), 'bootstrap refused once an administrator exists');
+SELECT pg_temp.assert((SELECT role FROM bloom_support.principals WHERE id = :'gail') = 'client', 'CRM master admin stays a client');
+DROP FUNCTION public.is_master_admin(uuid);
+-- Repair report key: outcome only.
+SELECT pg_temp.rpc('create_service_principal', jsonb_build_object('actor', :'jon', 'name', 'Bloom repair report', 'grants', '["repair_report"]'::jsonb))#>>'{}' AS rr \gset
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'rosa', 'ticket', jsonb_build_object('product','pos','channel','pos','body','Barcode scanner drops the last digit','account_id', :'rose')))->>'ticket_id' AS t5id \gset
+SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'jon', 'ticket_id', :'t5id', 'issue', '{"title":"Scanner"}'::jsonb))->>'engineering_issue_id' AS eng3 \gset
+SELECT pg_temp.assert((SELECT repair_started_by FROM bloom_support.engineering_issues WHERE id = :'eng3') = :'jon'::uuid, 'Jon opening an issue starts the repair');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"in_review","patch":{"pr_number":1,"head_sha":"x"}}}'::jsonb)$q$, :'rr', :'eng3'), 'forbidden');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"reproduced","patch":{"eligibility":{"eligible":true}}}}'::jsonb)$q$, :'rr', :'eng3'), 'reproduction');
+UPDATE bloom_support.engineering_issues SET status = 'investigating' WHERE id = :'eng3';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rr', 'issue_id', :'eng3', 'update', '{"status":"reproduced","patch":{"reproduction":{"steps":["print"]}}}'::jsonb));
+SELECT pg_temp.assert((SELECT status FROM bloom_support.engineering_issues WHERE id = :'eng3') = 'reproduced', 'repair report records the outcome');
+UPDATE bloom_support.engineering_issues SET status = 'in_review' WHERE id = :'eng3';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rr', 'issue_id', :'eng3', 'update', '{"status":"failed","patch":{"reproduction":{"late":true}}}'::jsonb));
+SELECT pg_temp.assert((SELECT status = 'in_review' AND reproduction->>'late' = 'true' FROM bloom_support.engineering_issues WHERE id = :'eng3'), 'late report adds notes without moving the issue back');
+-- Withdrawn Bloom replies never reach the client.
+INSERT INTO bloom_support.messages(id, conversation_id, ticket_id, author_kind, visibility, direction, body, delivery) SELECT '77777777-0000-4000-8000-000000000001', conversation_id, id, 'bloom', 'public', 'outbound', 'withdrawn draft answer', 'suppressed' FROM bloom_support.tickets WHERE id = :'t3id';
+UPDATE bloom_support.messages SET withdrawn_at = now() WHERE id = '77777777-0000-4000-8000-000000000001';
+SELECT pg_temp.assert(NOT (pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'rosa', 'ticket_id', :'t3id'))::text LIKE '%withdrawn draft answer%'), 'client view hides withdrawn reply');
+SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'jon', 'ticket_id', :'t3id'))::text LIKE '%withdrawn draft answer%', 'staff still see withdrawn reply');
+-- A repair started on an escalated issue reopens it for the investigation step.
+UPDATE bloom_support.engineering_issues SET status = 'escalated' WHERE id = :'eng3';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jeff', 'issue_id', :'eng3', 'update', '{"start_repair":true}'::jsonb));
+SELECT pg_temp.assert((SELECT status FROM bloom_support.engineering_issues WHERE id = :'eng3') = 'open', 'escalated issue reopened when a repair starts');
+-- A queued send retried after the address bounced is suppressed, not resent.
+SELECT pg_temp.rpc('queue_outbound_email', '{"email":{"purpose":"reply","to":"bouncer@example.test","subject":"s","body":"b","rfc_message_id":"<r1@x>","idempotency_key":"bounce-retry-1"}}'::jsonb);
+INSERT INTO bloom_support.outbound_emails(purpose, to_email, subject, body, rfc_message_id, idempotency_key, status) VALUES ('reply','bouncer@example.test','s','b','<r0@x>','bounce-earlier','bounced');
+SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', '{"email":{"purpose":"reply","to":"bouncer@example.test","subject":"s","body":"b","rfc_message_id":"<r1@x>","idempotency_key":"bounce-retry-1"}}'::jsonb))->>'status' = 'suppressed', 'retry after a bounce is suppressed');
+
+-- Operations need a person.
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('claim_operation', '{"actor":"%s","operation_id":"%s"}'::jsonb)$q$, :'bot', :'opid'), 'forbidden');
+
 -- Activity is append-only.
 SELECT pg_temp.expect_error('DELETE FROM bloom_support.activity', 'append-only');
 
@@ -230,6 +280,7 @@ SELECT pg_temp.expect_error('DELETE FROM bloom_support.activity', 'append-only')
 SELECT pg_temp.rpc('issue_tracking_token', jsonb_build_object('ticket_id', :'t3id', 'hash', 'h1'));
 SELECT pg_temp.assert(NOT (pg_temp.rpc('ticket_by_tracking_token', '{"hash":"h1"}'::jsonb)::text LIKE '%firmware%'), 'tracking page excludes internal notes');
 SELECT pg_temp.assert(pg_temp.rpc('ticket_by_tracking_token', '{"hash":"nope"}'::jsonb) IS NULL, 'unknown token yields nothing');
+SELECT pg_temp.assert(NOT (pg_temp.rpc('ticket_by_tracking_token', '{"hash":"h1"}'::jsonb)::text LIKE '%withdrawn draft answer%'), 'tracking page hides withdrawn reply');
 
 
 -- 12. Campaign operations: Jeff schedules for any linked tenant; Support cannot; cross-tenant blocked.

@@ -14,6 +14,7 @@ import Alert from "@mui/joy/Alert";
 import Chip from "@mui/joy/Chip";
 import { CheckCircle2, ImagePlus, X } from "lucide-react";
 import { bloomSupport, captureClientContext, fileToUpload } from "@/lib/bloomSupport/api";
+import { ATTACHMENT_ACCEPT, MAX_ATTACHMENTS, SUPPORT_EMAIL, checkAttachments } from "@/lib/bloomSupport/constants";
 
 interface Props {
   open: boolean;
@@ -32,7 +33,8 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
   const [subject, setSubject] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [result, setResult] = useState<{ number: number; tracking_url: string } | null>(null);
+  const [result, setResult] = useState<{ number: number; tracking_url?: string; notAttached: string[] } | null>(null);
+  const [pickWarnings, setPickWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const key = useRef<string>(crypto.randomUUID());
   const fileInput = useRef<HTMLInputElement>(null);
@@ -44,6 +46,7 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
     setState("idle");
     setResult(null);
     setError(null);
+    setPickWarnings([]);
     key.current = crypto.randomUUID();
   };
 
@@ -51,7 +54,7 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
     setState("sending");
     setError(null);
     try {
-      const attachments = await Promise.all(files.slice(0, 5).map(fileToUpload));
+      const attachments = await Promise.all(files.slice(0, MAX_ATTACHMENTS).map(fileToUpload));
       const r = await bloomSupport.report({
         body,
         subject: subject || undefined,
@@ -60,11 +63,12 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
         attachments,
         idempotency_key: key.current,
       });
-      setResult({ number: r.number, tracking_url: r.tracking_url });
+      // Files the server could not store are named, so the person can send them another way.
+      setResult({ number: r.number, tracking_url: r.tracking_url, notAttached: r.attachments?.failed ?? [] });
       setState("sent");
     } catch (e) {
       // The text and its idempotency key are kept, so retrying can never create a duplicate.
-      setError(`${e instanceof Error ? e.message : "Something went wrong."} Your message is still here — try again, or email bloom@support.bloomsuite.app.`);
+      setError(`${e instanceof Error ? e.message : "Something went wrong."} Your message is still here — try again, or email ${SUPPORT_EMAIL}.`);
       setState("error");
     }
   };
@@ -80,7 +84,16 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
             <Typography level="body-sm">
               We'll reply by email and you can follow progress any time from Help &amp; Support or this link.
             </Typography>
-            <Typography level="body-xs" sx={{ wordBreak: "break-all" }}>{result.tracking_url}</Typography>
+            {result.tracking_url && <Typography level="body-xs" sx={{ wordBreak: "break-all" }}>{result.tracking_url}</Typography>}
+            {result.notAttached.length > 0 && (
+              <Alert color="warning" variant="soft">
+                <div>
+                  <Typography level="body-sm" fontWeight="md">These files were not attached:</Typography>
+                  {result.notAttached.map((line) => <Typography key={line} level="body-xs">{line}</Typography>)}
+                  <Typography level="body-xs">Reply to Bloom's email with them attached, or email {SUPPORT_EMAIL}.</Typography>
+                </div>
+              </Alert>
+            )}
             <Button onClick={() => { reset(); onClose(); }}>Done</Button>
           </Stack>
         ) : (
@@ -105,14 +118,24 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
               <Button variant="outlined" color="neutral" size="sm" startDecorator={<ImagePlus size={16} />} onClick={() => fileInput.current?.click()}>
                 Add screenshot
               </Button>
-              <input ref={fileInput} type="file" hidden multiple accept="image/*,application/pdf,video/mp4,video/webm,text/plain"
-                onChange={(e) => setFiles((f) => [...f, ...Array.from(e.target.files ?? [])].slice(0, 5))} />
+              <input ref={fileInput} type="file" hidden multiple accept={ATTACHMENT_ACCEPT}
+                onChange={(e) => {
+                  const { accepted, rejected } = checkAttachments([...files, ...Array.from(e.target.files ?? [])]);
+                  setFiles(accepted);
+                  setPickWarnings(rejected);
+                  e.target.value = "";
+                }} />
               {files.map((f, i) => (
                 <Chip key={`${f.name}-${i}`} size="sm" variant="soft" endDecorator={
                   <X size={12} role="button" aria-label={`Remove ${f.name}`} style={{ cursor: "pointer" }} onClick={() => setFiles((all) => all.filter((_, j) => j !== i))} />
                 }>{f.name}</Chip>
               ))}
             </Stack>
+            {pickWarnings.length > 0 && (
+              <Alert color="warning" variant="soft">
+                <div>{pickWarnings.map((line) => <Typography key={line} level="body-xs">{line}</Typography>)}</div>
+              </Alert>
+            )}
             <Typography level="body-xs" textColor="text.tertiary">
               We'll include this page's address, your browser and the app version to help us investigate.
             </Typography>

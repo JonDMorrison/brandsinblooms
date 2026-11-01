@@ -92,9 +92,16 @@ async function issue(principal: string, client: string, scope: string, oldRefres
 export async function token(req: Request): Promise<Response> {
   const type = req.headers.get("content-type") ?? "";
   const raw = await req.text();
-  const f: Record<string, string> = type.includes("application/json") ? JSON.parse(raw || "{}") : Object.fromEntries(new URLSearchParams(raw));
   const fail = (error: string, description: string, status = 400) =>
     new Response(JSON.stringify({ error, error_description: description }), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  let f: Record<string, string>;
+  try {
+    const parsed: unknown = type.includes("application/json") ? JSON.parse(raw || "{}") : Object.fromEntries(new URLSearchParams(raw));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return fail("invalid_request", "Malformed token request");
+    f = Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, typeof v === "string" ? v : ""]));
+  } catch {
+    return fail("invalid_request", "Malformed token request");
+  }
   try {
     if (f.grant_type === "authorization_code") {
       const row = await rpc<{ principal_id: string; code_challenge: string; scope: string } | null>("oauth_consume_code", {

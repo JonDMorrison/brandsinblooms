@@ -19,7 +19,7 @@ export interface EngineeringIssue {
   evidence: Record<string, unknown>; reproduction: Record<string, unknown> | null; branch: string | null;
   pr_number: number | null; pr_url: string | null; head_sha: string | null; merge_sha: string | null;
   deployment: Record<string, unknown> | null; verification: Record<string, unknown> | null; eligibility: Record<string, unknown> | null;
-  attempts: number;
+  attempts: number; approved_head_sha?: string | null;
   tickets: Array<{ id: string; number: number; subject: string; account_id: string | null; status: string }>;
 }
 
@@ -145,6 +145,8 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
   }
   const policy = resolvePolicy(await rpc("setting", { key: "release_policy" }), (await rpc("setting", { key: "auto_release_enabled" })) === true);
   const kinds = issue.tickets.length ? "bug" : "unknown";
+  // Automatic rollback exists only where Bloom can redeploy the previous production build.
+  const rollbackTarget = await vercelTarget(issue.repository);
   const eligibility = evaluateRelease(policy, {
     kind: kinds as "bug",
     reproduced: !!issue.reproduction?.failing_test || issue.reproduction?.reproduced === true,
@@ -152,14 +154,19 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
     productsTouched: 1,
     labels: [],
     hasProductionVerification: Array.isArray(issue.reproduction?.verification) && (issue.reproduction?.verification as unknown[]).length > 0,
-    hasRollback: issue.product !== "unknown",
+    hasRollback: rollbackTarget !== null,
   }, facts);
   const checksPending = facts.checks.some((c) => c.status !== "completed");
   if (issue.status === "approved") {
     // A person approved; still require green checks and no open threads.
     // Jon's approval replaces the policy's area/size/review limits, never CI: every existing check
     // must be complete and green, no review may request changes, and no thread may be open.
-    const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|a check failed|unresolved|requested changes|not mergeable|empty change/.test(r));
+    const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|no required checks configured|a check failed|unresolved|requested changes|not mergeable|empty change/.test(r));
+    // The approval covers exactly the commit Jon reviewed. A new push needs a new approval.
+    if (issue.approved_head_sha && issue.approved_head_sha !== pr.head.sha) {
+      await update(release, issue, "awaiting_approval", { eligibility, head_sha: pr.head.sha }, "The pull request changed after approval; it needs approving again");
+      return { note: "re-approval needed" };
+    }
     if (checksPending) hardBlocks.push("checks still running");
     if (hardBlocks.length) return { next: { step: "evaluate", delaySeconds: 600 }, note: `approved, waiting: ${hardBlocks.join("; ")}` };
     await update(release, issue, "merging", { eligibility, head_sha: pr.head.sha });
