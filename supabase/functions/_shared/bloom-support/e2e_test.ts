@@ -22,7 +22,7 @@ const ENV: Record<string, string> = {
   BLOOM_SUPPORT_PUBLIC_URL: "https://bloomsuite.test", RESEND_INBOUND_WEBHOOK_SECRET: "whsec_" + btoa(String.fromCharCode(...WHSEC_BYTES)),
   BLOOM_INTAKE_SECRET_CMS: "cms-intake-secret", BLOOM_INTAKE_SECRET_POS: "pos-intake-secret",
   BLOOM_GITHUB_REPAIR_TOKEN: "gh-repair", BLOOM_GITHUB_RELEASE_TOKEN: "gh-release", BLOOM_GITHUB_REPAIR_LOGINS: "bloom-repair[bot]",
-  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test",
+  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test,buyer@greenleaf.test",
   BLOOM_SUPPORT_INBOUND_ADDRESSES: "forward@inbound.test",
 };
 
@@ -542,6 +542,20 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       headers: { Cc: "Buyer <buyer@greenleaf.test>, stranger@evil.example" } });
     const cc = (await sql!`SELECT c.cc_emails FROM bloom_support.conversations c JOIN bloom_support.tickets t ON t.conversation_id = c.id WHERE t.id = ${qid}`)[0].cc_emails;
     assertEquals(cc, ["buyer@greenleaf.test"], "only verified same-client contacts are kept on CC");
+    // Even a verified customer CC must be blocked when outside the test allowlist.
+    const originalAllowlist = Deno.env.get("BLOOM_SUPPORT_EMAIL_ALLOWLIST")!;
+    Deno.env.set("BLOOM_SUPPORT_EMAIL_ALLOWLIST", originalAllowlist.split(",").filter((address) => address !== "buyer@greenleaf.test").join(","));
+    try {
+      await api("POST", `/tickets/${qid}/messages`, tok(U.jeff), { body: "Blocked test-mode reply with customer CC.", visibility: "public" });
+      const sentBeforeBlockedCc = resendSent.length;
+      await runWorkerUntilIdle();
+      assert(!resendSent.slice(sentBeforeBlockedCc).some((message) => message.text.includes("Blocked test-mode reply")), "a customer CC never escapes the test allowlist");
+      const blockedCc = await sql!`SELECT status, error FROM bloom_support.outbound_emails WHERE ticket_id = ${qid} AND body LIKE '%Blocked test-mode reply%'`;
+      assertEquals(blockedCc[0]?.status, "suppressed");
+      assert(String(blockedCc[0]?.error).includes("CC"), "suppression records the recipient restriction");
+    } finally {
+      Deno.env.set("BLOOM_SUPPORT_EMAIL_ALLOWLIST", originalAllowlist);
+    }
     const jr = await api("POST", `/tickets/${qid}/messages`, tok(U.jeff), { body: "Here is how to change the button colour.", visibility: "public" });
     assertEquals(jr.status, 200);
     await runWorkerUntilIdle();
