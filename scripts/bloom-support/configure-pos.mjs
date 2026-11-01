@@ -38,7 +38,6 @@ export async function configurePos({ token, request = fetch }) {
     { name: 'BLOOM_INTAKE_SECRET_POS', value: intake },
     { name: 'BLOOM_OPS_URL_POS', value: `https://${POS}.supabase.co/functions/v1/bloom-support-ops` },
     { name: 'BLOOM_OPS_SECRET_POS', value: ops },
-    { name: 'BLOOM_SUPPORT_INBOX', value: 'bloom@brandsinblooms.com' },
   ]);
   // Positive HMAC check with a nonexistent business: it must pass signature
   // validation, then hit the existing RPC's tenant guard. No records are created

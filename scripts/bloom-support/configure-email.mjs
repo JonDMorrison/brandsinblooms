@@ -22,7 +22,7 @@ export async function configureEmail({ token, request = fetch }) {
   const secret = rows[0].value;
   await management('/secrets', [
     { name: 'RESEND_INBOUND_WEBHOOK_SECRET', value: secret },
-    { name: 'BLOOM_SUPPORT_INBOX', value: 'bloom@brandsinblooms.com' },
+    { name: 'BLOOM_SUPPORT_INBOX', value: 'bloom@support.bloomsuite.app' },
     { name: 'BLOOM_SUPPORT_INBOUND_ADDRESSES', value: '0dc2823a@eeuntaiurk.resend.app' },
   ]);
   // Signature verification is tested without filing a ticket or sending mail.
