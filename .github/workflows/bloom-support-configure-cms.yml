@@ -32,7 +32,7 @@ jobs:
           import { createHmac } from 'node:crypto';
           import { configureCms } from './scripts/bloom-support/configure-cms.mjs';
           const intake = 'a'.repeat(64), ops = 'b'.repeat(64);
-          async function scenario(status, payload, invalid = false) {
+          async function scenario(status, payload, invalid = false, unsignedStatus = 401) {
             const calls = [];
             const request = async (url, init) => {
               calls.push({ url, init });
@@ -57,6 +57,10 @@ jobs:
                 return Response.json({});
               }
               assert.equal(url, 'https://bloomsites.app/api/internal/bloom/ops');
+              if (calls.length === 4) {
+                assert.equal(init.headers['x-bloom-signature'], undefined);
+                return Response.json({ error: unsignedStatus === 401 ? 'unauthenticated' : 'not_found' }, { status: unsignedStatus });
+              }
               assert.equal(init.headers['x-bloom-signature'], createHmac('sha256', ops).update(init.headers['x-bloom-timestamp'] + '.' + init.body).digest('hex'));
               assert.deepEqual(JSON.parse(init.body), { action: 'site.read', site_id: '00000000-0000-0000-0000-000000000000' });
               return payload === null ? new Response('<html>missing</html>', { status }) : Response.json(payload, { status });
@@ -69,7 +73,8 @@ jobs:
           await assert.rejects(() => scenario(401, { error: 'unauthenticated' }), /verification failed/);
           await assert.rejects(() => scenario(404, null, true), /secrets are invalid/);
           await assert.rejects(() => configureCms({ token: '', request: () => { throw new Error('must not call'); } }), /not configured/);
-          console.log('Six CMS configuration boundary checks passed');
+          await assert.rejects(() => scenario(404, { error: 'not_found' }, false, 200), /unsigned-request verification failed/);
+          console.log('Seven CMS configuration boundary checks passed');
           JS
   configure:
     needs: validate

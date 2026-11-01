@@ -64,6 +64,17 @@ export async function configureCms({ token, request = fetch }) {
   // Read-only negative tenant probe. A real JSON tenant-guard rejection proves
   // HMAC authentication; a missing HTML route means release is still required.
   const body = JSON.stringify({ action: 'site.read', site_id: '00000000-0000-0000-0000-000000000000' });
+  const unsigned = await request(OPS_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body, redirect: 'error', signal: AbortSignal.timeout(30_000),
+  });
+  const unsignedData = await unsigned.json().catch(() => null);
+  if ((unsigned.status === 404 && unsignedData === null) || (unsigned.status === 503 && unsignedData?.error === 'not_configured')) {
+    return { configurationPrepared: true, signedTenantGuardVerified: false, productionConnected: false, releaseRequired: true };
+  }
+  if (unsigned.status !== 401 || unsignedData?.error !== 'unauthenticated') {
+    throw new Error(`CMS unsigned-request verification failed: HTTP ${unsigned.status}`);
+  }
   const timestamp = String(Math.floor(Date.now() / 1000));
   const signature = createHmac('sha256', ops).update(`${timestamp}.${body}`).digest('hex');
   const probe = await request(OPS_URL, {
