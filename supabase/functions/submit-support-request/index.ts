@@ -21,7 +21,7 @@ serve(async (req: Request): Promise<Response> => {
         || typeof input.message !== "string" || input.message.trim().length < 10 || input.message.length > 20000) {
       return corsJsonResponse({ error: "Subject and message are required" }, { status: 400 });
     }
-    const response = await fetch(`${url}/functions/v1/bloom-support-api/report`, {
+    const response = await fetch(`${url}/functions/v1/bloom-support-intake/report`, {
       method: "POST",
       headers: { Authorization: authorization, "Content-Type": "application/json" },
       body: JSON.stringify({ product: "crm", subject: input.subject.trim(), body: input.message.trim(), context: { source: "legacy_help_widget" } }),

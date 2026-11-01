@@ -108,7 +108,7 @@ describe("all support entry points reach Bloom", () => {
     const response = await handler(requestFor({ ...form, user_email: "spoof@example.test", user_name: "spoof", tenant_id: "another-client" }, true));
     expect(response.status).toBe(200);
     expect((await response.json()).success).toBe(true);
-    expect(call?.url).toBe("https://database.test/functions/v1/bloom-support-api/report");
+    expect(call?.url).toBe("https://database.test/functions/v1/bloom-support-intake/report");
     expect(new Headers(call?.init?.headers).get("Authorization")).toBe("Bearer fixture-session");
     expect(JSON.parse(String(call?.init?.body))).toEqual({ product: "crm", subject: form.subject, body: form.message, context: { source: "legacy_help_widget" } });
   });
