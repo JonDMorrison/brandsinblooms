@@ -106,11 +106,64 @@ function githubStub(method: string, path: string, body: unknown): Response {
   return ok({ message: `unstubbed ${method} ${path}` }, 404);
 }
 
+
+interface CmsDraftFixture {
+  parameters: string;
+  result: { account_id: string; site: { id: string; name: string; subdomain: string; tenant_id: string; created_by: string; is_published: boolean; commerce_enabled: boolean }; duplicate?: boolean };
+}
+const cmsDrafts = new Map<string, CmsDraftFixture>();
+const cmsOperationCalls: Array<Record<string, unknown>> = [];
+let cmsLoseCreatedResponse = false;
+let cmsFailBeforeCreation = false;
+let cmsBadPreviewAccount = false;
+async function cmsOperationsStub(req: Request, raw: string): Promise<Response> {
+  const timestamp = Number(req.headers.get("x-bloom-timestamp"));
+  assertEquals(req.headers.get("x-bloom-signature"), await signIntake(Deno.env.get("BLOOM_OPS_SECRET_CMS")!, timestamp, raw), "CMS operations retain their real HMAC contract");
+  const body = JSON.parse(raw) as Record<string, unknown>;
+  cmsOperationCalls.push(body);
+  const inputs = (body.inputs ?? {}) as Record<string, unknown>;
+  const actor = (body.actor ?? {}) as Record<string, unknown>;
+  assert(["jon@bloom.test","jeff@bloom.test"].includes(String(actor.email)), "creator identity comes from verified CRM principal");
+  if (body.action === "site.create_draft.preview") {
+    const anchor = [...cmsDrafts.values()].find(row => row.result.site.id === body.site_id);
+    if (body.site_id && !anchor) return Response.json({ error: "not_found" }, { status: 404 });
+    const creator = actor.email === "jeff@bloom.test" ? "e0000000-0000-4000-8000-000000000002" : "e0000000-0000-4000-8000-000000000001";
+    const wrongAccount = cmsBadPreviewAccount;
+    cmsBadPreviewAccount = false;
+    return Response.json({
+      summary: "Create unpublished website-only draft", workspace: { creates_new_workspace: !anchor },
+      guard: { expected_account_id: wrongAccount ? "ffffffff-ffff-4fff-8fff-ffffffffffff" : body.account_id,
+        expected_creator_id: creator, expected_creator_email: actor.email,
+        expected_tenant_id: anchor?.result.site.tenant_id ?? null, expected_anchor_site_id: body.site_id ?? null },
+    });
+  }
+  if (body.action !== "site.create_draft") return Response.json({ error: "invalid" }, { status: 400 });
+  const request = String(body.operation_id);
+  const parameters = JSON.stringify({ account_id: body.account_id, inputs });
+  let prior = cmsDrafts.get(request);
+  const duplicate = !!prior;
+  if (prior && prior.parameters !== parameters) return Response.json({ error: "conflict" }, { status: 409 });
+  if (!prior) {
+    if (body.resume_only) return Response.json({ error: "not_found", message: "No previously created draft" }, { status: 404 });
+    if (cmsFailBeforeCreation) { cmsFailBeforeCreation = false; throw new Error("CMS unavailable before commit"); }
+    prior = { parameters, result: { account_id: String(body.account_id), site: {
+      id: crypto.randomUUID(), name: String(inputs.name), subdomain: String(inputs.subdomain),
+      tenant_id: String(inputs.expected_tenant_id ?? crypto.randomUUID()), created_by: String(inputs.expected_creator_id),
+      is_published: false, commerce_enabled: false,
+    } } };
+    cmsDrafts.set(request, prior);
+    if (cmsLoseCreatedResponse) { cmsLoseCreatedResponse = false; throw new Error("CMS response lost after commit"); }
+  }
+  return Response.json({ result: { ...prior.result, duplicate },
+    verification: { passed: true, account_id: body.account_id, request_id: body.operation_id }, undo: null });
+}
+
 const realFetch = globalThis.fetch;
 globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) => {
   const req = input instanceof Request ? input : new Request(String(input), init);
   const url = new URL(req.url);
   const bodyText = req.method === "GET" || req.method === "HEAD" ? "" : await req.clone().text();
+  if (url.hostname === "cms.test") return await cmsOperationsStub(req, bodyText);
   if (url.origin === SB) {
     if (url.pathname.startsWith("/rest/v1/rpc/")) return await rpcCall(url.pathname.slice("/rest/v1/rpc/".length), bodyText ? JSON.parse(bodyText) : {});
     if (url.pathname.startsWith("/rest/v1/")) return await tableSelect(url.pathname.slice("/rest/v1/".length), url, req.headers.get("accept") ?? "");
@@ -305,6 +358,63 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals((await sql!`SELECT status FROM public.crm_campaigns`)[0].status, "draft");
     const cmsRead = await mcp(keys.jeff, "read_product", { kind: "site.pages", account_id: (await ticketRow(cmsTicket)).account_id });
     assert(cmsRead.isError && cmsRead.content[0].text.includes("BLOOM_OPS_URL_CMS"), "unconfigured CMS ops say exactly what is missing");
+  });
+
+
+  await t.step("Jeff creates and links a first client draft; lost responses recover without duplicates", async () => {
+    const rows = await sql!.unsafe("SELECT id FROM bloom_support.accounts WHERE crm_tenant_id=$1", [T.rosehill]);
+    const account = String(rows[0].id);
+    const linkCount = async (site?: string) => Number((await sql!.unsafe(
+      "SELECT count(*) AS n FROM bloom_support.account_links WHERE account_id=$1 AND product='cms'" + (site ? " AND external_id=$2" : ""), site ? [account, site] : [account]))[0].n);
+    assertEquals(await linkCount(), 0);
+    Deno.env.set("BLOOM_OPS_URL_CMS", "https://cms.test/api/internal/bloom/ops");
+    Deno.env.set("BLOOM_OPS_SECRET_CMS", "cms-operation-fixture-secret");
+    try {
+      const before = cmsOperationCalls.length;
+      const denied = await mcp(keys.sam, "preview_change", { kind: "site.create_draft", account_id: account, inputs: { name: "No", subdomain: "no" } });
+      assert(denied.isError, "Support cannot create sites");
+      assertEquals(cmsOperationCalls.length, before, "forbidden creation never reaches CMS");
+      cmsBadPreviewAccount = true;
+      const bad = await mcp(keys.jeff, "preview_change", { kind: "site.create_draft", account_id: account, inputs: { name: "Bad preview", subdomain: "bad-preview" } });
+      assert(bad.isError, "incorrect account binding from remote preview is rejected");
+      const preview = await mcp(keys.jeff, "preview_change", { kind: "site.create_draft", account_id: account,
+        inputs: { name: "Rose Hill draft", subdomain: "rose-hill-draft", expected_creator_email: "spoof@example.test", tenant_id: "someone-else" } });
+      assert(!preview.isError, preview.content[0].text);
+      assertEquals(preview.structuredContent.preview.workspace.creates_new_workspace, true);
+      assertEquals(preview.structuredContent.inputs.expected_creator_email, "jeff@bloom.test");
+      assertEquals(cmsDrafts.size, 0, "preview creates no site");
+      const id = String(preview.structuredContent.id);
+      const service = await mcp(keys.operations, "execute_change", { operation_id: id });
+      assert(service.isError, "service identity cannot execute site creation");
+      cmsLoseCreatedResponse = true;
+      const interrupted = await mcp(keys.jeff, "execute_change", { operation_id: id });
+      assert(interrupted.isError, "lost response is not reported as success");
+      assertEquals(cmsDrafts.size, 1, "remote draft committed exactly once");
+      assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [id]))[0].status, "failed");
+      await sql!.unsafe("UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=$1", [id]);
+      const recovered = await mcp(keys.jeff, "execute_change", { operation_id: id });
+      assert(!recovered.isError, recovered.content[0].text);
+      assertEquals(recovered.structuredContent.status, "succeeded");
+      assertEquals(recovered.structuredContent.verification.account_linked, true);
+      assertEquals(cmsDrafts.size, 1);
+      assertEquals(cmsOperationCalls.at(-1)?.resume_only, true, "expired recovery cannot create a new draft");
+      const site = String(cmsDrafts.get(id)!.result.site.id);
+      assertEquals(await linkCount(site), 1, "draft linked only to selected client");
+      const again = await mcp(keys.jeff, "execute_change", { operation_id: id });
+      assert(again.structuredContent.already, "completed creation remains exactly once");
+      const next = await mcp(keys.jeff, "preview_change", { kind: "site.create_draft", account_id: account, inputs: { name: "Another draft", subdomain: "another-draft" } });
+      assert(!next.isError, next.content[0].text);
+      assertEquals(next.structuredContent.preview.workspace.creates_new_workspace, false, "subsequent draft uses linked client workspace");
+      const nextId = String(next.structuredContent.id);
+      cmsFailBeforeCreation = true;
+      assert((await mcp(keys.jeff, "execute_change", { operation_id: nextId })).isError);
+      await sql!.unsafe("UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=$1", [nextId]);
+      assert((await mcp(keys.jeff, "execute_change", { operation_id: nextId })).isError, "expired uncreated request needs a new preview");
+      assertEquals(cmsDrafts.size, 1, "expired preview creates no replacement");
+    } finally {
+      Deno.env.delete("BLOOM_OPS_URL_CMS");
+      Deno.env.delete("BLOOM_OPS_SECRET_CMS");
+    }
   });
 
   await t.step("worker triages, acknowledges by email with threading, answers via staff, starts investigations", async () => {

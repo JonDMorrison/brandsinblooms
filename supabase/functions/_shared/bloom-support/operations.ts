@@ -89,7 +89,7 @@ export async function callProduct(product: "cms" | "pos", action: string, payloa
     signal: AbortSignal.timeout(25000),
   });
   const out = await res.json().catch(() => ({}));
-  if (!res.ok) throw new BloomError(res.status === 403 ? 403 : res.status === 404 ? 404 : res.status === 400 ? 400 : 502, out?.error ?? "product_error", out?.message ?? `${product} returned ${res.status}`);
+  if (!res.ok) throw new BloomError(res.status === 403 ? 403 : res.status === 404 ? 404 : res.status === 400 ? 400 : res.status === 409 ? 409 : 502, out?.error ?? "product_error", out?.message ?? `${product} returned ${res.status}`);
   return out as Record<string, unknown>;
 }
 
@@ -175,6 +175,22 @@ function actorFacts(caller: Caller) {
   return { principal_id: caller.principalId, role: caller.role, name: caller.name ?? null, via: caller.via };
 }
 
+
+/** Site creation uses the authenticated person's stored email, never model input. */
+async function siteCreationActor(caller: Caller) {
+  if (caller.role === "service") throw new BloomError(403, "forbidden", "Site creation needs a person to confirm it");
+  for (const permission of ["ops.site.create", "accounts.write"]) {
+    if (!await rpc<boolean>("has_permission", { actor: caller.principalId, permission })) {
+      throw new BloomError(403, "forbidden", permission + " required");
+    }
+  }
+  const me = await rpc<{ email: string | null }>("whoami", { actor: caller.principalId });
+  if (!me.email) throw new BloomError(403, "forbidden", "A verified person is required for site creation");
+  return { ...actorFacts(caller), email: me.email };
+}
+const siteUuid = (value: unknown): value is string =>
+  typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
 /** Builds and records a preview. Nothing changes in the product. */
 export async function previewOperation(caller: Caller, req: OperationRequest): Promise<Record<string, unknown>> {
   if (!WRITE_OPERATIONS.has(req.kind)) throw new BloomError(400, "invalid", `Unknown change operation ${req.kind}`);
@@ -183,6 +199,24 @@ export async function previewOperation(caller: Caller, req: OperationRequest): P
   const account = await loadAccount(caller, req.account_id);
   let preview: Record<string, unknown>;
   switch (req.kind) {
+    case "site.create_draft": {
+      const actor = await siteCreationActor(caller);
+      const hasAnchor = account.links.some(link => link.product === "cms");
+      const site_id = hasAnchor || inputs.site_id != null ? linkFor(account, "cms", inputs) : null;
+      const result = await callProduct("cms", "site.create_draft.preview", {
+        account_id: account.id, account_name: account.name, site_id, inputs, actor,
+      });
+      const guard = result.guard as Record<string, unknown> | undefined;
+      if (!guard || guard.expected_account_id !== account.id || !siteUuid(guard.expected_creator_id)
+          || typeof guard.expected_creator_email !== "string"
+          || !Object.hasOwn(guard, "expected_tenant_id") || !Object.hasOwn(guard, "expected_anchor_site_id")
+          || guard.expected_anchor_site_id !== site_id) {
+        throw new BloomError(502, "verification_failed", "BloomSites did not return a valid client and creator preview");
+      }
+      Object.assign(inputs, guard);
+      preview = result;
+      break;
+    }
     case "campaign.schedule": {
       const facts = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: account.id, campaign_id: inputs.campaign_id });
       if (typeof inputs.scheduled_at !== "string" || Number.isNaN(Date.parse(inputs.scheduled_at))) throw new BloomError(400, "invalid", "scheduled_at (ISO time) required");
@@ -241,7 +275,7 @@ export async function previewOperation(caller: Caller, req: OperationRequest): P
 
 interface OperationRow {
   id: string; kind: string; account_id: string; ticket_id: string | null; inputs: Record<string, unknown>; status: string;
-  already?: boolean; undo?: Record<string, unknown> | null; result?: unknown; permission: string;
+  already?: boolean; undo?: Record<string, unknown> | null; result?: unknown; permission: string; expires_at: string;
 }
 
 /**
@@ -269,6 +303,37 @@ export async function executeOperation(caller: Caller, operationId: string): Pro
 async function perform(caller: Caller, op: OperationRow): Promise<{ result: unknown; verification: unknown; undo: unknown }> {
   const inputs = op.inputs ?? {};
   switch (op.kind) {
+    case "site.create_draft": {
+      const actor = await siteCreationActor(caller);
+      const account = await loadAccount(caller, op.account_id);
+      const anchor = inputs.expected_anchor_site_id;
+      if (anchor !== null && (!siteUuid(anchor) || !account.links.some(link => link.product === "cms" && link.external_id === anchor))) {
+        throw new BloomError(403, "forbidden", "The reviewed anchor is no longer linked to this client");
+      }
+      const expiry = Date.parse(op.expires_at);
+      if (!Number.isFinite(expiry)) throw new BloomError(500, "invalid_operation", "The creation request has no valid expiry");
+      const response = await callProduct("cms", "site.create_draft", {
+        account_id: account.id, account_name: account.name, site_id: anchor, inputs, actor,
+        operation_id: op.id, resume_only: expiry < Date.now(),
+      });
+      const result = response.result as { site?: { id?: unknown; created_by?: unknown; tenant_id?: unknown; is_published?: unknown; commerce_enabled?: unknown }; account_id?: unknown } | undefined;
+      const verification = response.verification as Record<string, unknown> | undefined;
+      if (!result?.site || !siteUuid(result.site.id) || !siteUuid(result.site.tenant_id)
+          || result.account_id !== account.id || verification?.passed !== true || verification.account_id !== account.id
+          || result.site.created_by !== inputs.expected_creator_id || result.site.is_published !== false || result.site.commerce_enabled !== false) {
+        throw new BloomError(502, "verification_failed", "The new client draft could not be verified");
+      }
+      const siteId = result.site.id;
+      if (!account.links.some(link => link.product === "cms" && link.external_id === siteId)) {
+        await rpc("update_account", { actor: caller.principalId, account_id: account.id,
+          patch: { link: { product: "cms", external_id: siteId, label: String(inputs.name ?? account.name).slice(0, 200) } } });
+      }
+      const saved = await loadAccount(caller, account.id);
+      if (!saved.links.some(link => link.product === "cms" && link.external_id === siteId)) {
+        throw new BloomError(502, "verification_failed", "The draft exists but its client link needs recovery");
+      }
+      return { result, verification: { ...verification, account_linked: true }, undo: null };
+    }
     case "campaign.schedule": {
       const r = await opsRpc<Record<string, unknown>>("campaign_schedule", {
         actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id, scheduled_at: inputs.scheduled_at, timezone: inputs.timezone ?? null,

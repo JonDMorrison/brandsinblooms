@@ -81,11 +81,11 @@ const TOOLS: Tool[] = [
     run: (c, a) => actions.readOperation(c, a),
   },
   {
-    name: "preview_change", readOnly: false, description: "Prepare a product change and show exactly what it will do. Nothing changes until execute_change. Kinds: campaign.create_draft, campaign.update_draft, campaign.schedule, campaign.unschedule, site.page.update, site.create_draft, site.publish, event.update.",
+    name: "preview_change", readOnly: false, description: "Prepare a product change and show exactly what it will do. Nothing changes until execute_change. Kinds: campaign.create_draft, campaign.update_draft, campaign.schedule, campaign.unschedule, site.page.update, site.create_draft, site.publish, event.update. For site.create_draft supply name and subdomain; its verified creator and client workspace are shown in the preview and the result is linked to the client.",
     inputSchema: S({ kind: str("Change operation"), account_id: id(), ticket_id: id(), inputs: { type: "object" }, idempotency_key: str("Repeat-safe key") }, ["kind", "account_id"]),
     run: (c, a) => actions.previewOperation(c, a),
   },
-  { name: "execute_change", readOnly: false, description: "Execute a previewed change exactly once (previews expire after 30 minutes). Returns the result and the post-change verification.", inputSchema: S({ operation_id: id() }, ["operation_id"]), run: (c, a) => actions.executeOperation(c, String(a.operation_id)) },
+  { name: "execute_change", readOnly: false, description: "Execute a previewed change exactly once. New changes require a current preview (30 minutes). A confirmed site-creation request interrupted after creating its draft can recover that same draft and client link after expiry. Returns the result and verification.", inputSchema: S({ operation_id: id() }, ["operation_id"]), run: (c, a) => actions.executeOperation(c, String(a.operation_id)) },
   { name: "undo_change", readOnly: false, description: "Undo a completed change where the product supports restoration.", inputSchema: S({ operation_id: id() }, ["operation_id"]), run: (c, a) => actions.undoOperation(c, String(a.operation_id)) },
   { name: "verify_outcome", readOnly: true, description: "Inspect an operation's result and verification, or a ticket's resolution evidence.", inputSchema: S({ operation_id: id(), ticket_id: id() }), run: (c, a) => a.operation_id ? actions.getOperation(c, String(a.operation_id)) : actions.getTicket(c, String(a.ticket_id)) },
   { name: "automation_switch", readOnly: false, description: "Pause or resume all Bloom automation (kill switch).", inputSchema: S({ enabled: { type: "boolean" } }, ["enabled"]), run: (c, a) => actions.setSetting(c, "automation_enabled", a.enabled === true) },
