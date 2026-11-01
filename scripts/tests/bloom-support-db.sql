@@ -24,6 +24,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \ir ../../supabase/migrations/20261031150000_bloom_support_desk.sql
 \ir ../../supabase/migrations/20261101030000_bloom_support_delivery_readiness.sql
 \ir ../../supabase/migrations/20261101035144_bloom_support_knowledge_publication.sql
+\ir ../../supabase/migrations/20261101051925_bloom_support_site_creation_recovery.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -513,5 +514,40 @@ SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s'
 SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"product":"platform","title":"x","body":"x"}'::jsonb)$q$, :'bot'), 'only staff');
 SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"product":"platform","title":"x","body":"x"}'::jsonb)$q$, :'gail'), 'tickets.write');
 SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"product":"platform","title":"  ","body":"x"}'::jsonb)$q$, :'jeff'), 'title');
+
+
+-- 33. Person-confirmed, idempotent site creation can recover after a lost response.
+SELECT pg_temp.rpc('record_operation_preview',jsonb_build_object('actor',:'jeff','operation',jsonb_build_object(
+  'account_id',:'greenleaf','kind','site.create_draft','permission','ops.site.create','idempotency_key','site-recovery-contract',
+  'inputs',jsonb_build_object('expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001',
+    'expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),
+  'preview',jsonb_build_object('summary','Create unpublished draft')))) AS site_op \gset
+SELECT (:'site_op'::jsonb)->>'id' AS site_op_id \gset
+SELECT pg_temp.assert(pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'status'='executing','person claims site creation');
+SELECT pg_temp.assert((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'already')::boolean,'active creation is not claimed concurrently');
+SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id','outcome',jsonb_build_object('status','failed','error','response lost after CMS committed')));
+SELECT pg_temp.assert(pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'status'='executing','failed site creation recovers with same operation id');
+UPDATE bloom_support.operations SET updated_at=now()-interval '6 minutes' WHERE id=:'site_op_id';
+SELECT pg_temp.assert(NOT coalesce((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'already')::boolean,false),'stale executing creation can recover');
+SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id','outcome',jsonb_build_object('status','failed','error','interrupted')));
+UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=:'site_op_id';
+SELECT pg_temp.assert(pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'status'='executing','previously confirmed expired creation resumes only');
+SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id','outcome',jsonb_build_object('status','succeeded','verification',jsonb_build_object('passed',true))));
+SELECT pg_temp.assert((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'already')::boolean,'completed site creation remains exactly once');
+SELECT pg_temp.expect_error(format($q$SELECT bloom_support.claim_operation('%s','%s')$q$,:'sam',:'site_op_id'),'ops.site.create');
+
+SELECT pg_temp.rpc('record_operation_preview',jsonb_build_object('actor',:'jeff','operation',jsonb_build_object(
+  'account_id',:'greenleaf','kind','site.create_draft','permission','ops.site.create','idempotency_key','site-missing-guard-contract',
+  'inputs','{}'::jsonb,'preview','{}'::jsonb))) AS unguarded_site_op \gset
+SELECT pg_temp.expect_error(format($q$SELECT bloom_support.claim_operation('%s','%s')$q$,:'jeff',(:'unguarded_site_op'::jsonb)->>'id'),'fresh client and owner preview');
+
+-- Non-idempotent campaign changes retain their original no-retry behaviour.
+SELECT pg_temp.rpc('record_operation_preview',jsonb_build_object('actor',:'jeff','operation',jsonb_build_object(
+  'account_id',:'greenleaf','kind','campaign.update_draft','permission','ops.campaign.edit','idempotency_key','campaign-no-retry-contract',
+  'inputs','{}'::jsonb,'preview','{}'::jsonb))) AS no_retry_op \gset
+SELECT (:'no_retry_op'::jsonb)->>'id' AS no_retry_id \gset
+SELECT pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'no_retry_id'));
+SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'no_retry_id','outcome',jsonb_build_object('status','failed','error','test')));
+SELECT pg_temp.assert((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'no_retry_id'))->>'already')::boolean,'other failed changes are not automatically replayed');
 
 \echo 'bloom-support-db: all assertions passed'
