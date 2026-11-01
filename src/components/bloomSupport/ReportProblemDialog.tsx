@@ -64,7 +64,7 @@ export function ReportProblemDialog({ open, onClose, recordRefs }: Props) {
       setState("sent");
     } catch (e) {
       // The text and its idempotency key are kept, so retrying can never create a duplicate.
-      setError(`${e instanceof Error ? e.message : "Something went wrong."} Your message is still here — try again, or email support@brandsinblooms.com.`);
+      setError(`${e instanceof Error ? e.message : "Something went wrong."} Your message is still here — try again, or email bloom@support.bloomsuite.app.`);
       setState("error");
     }
   };
