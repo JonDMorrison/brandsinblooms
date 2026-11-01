@@ -7,7 +7,7 @@
 // staff address in From: is never treated as staff authority.
 import { BloomError, env, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { verifySvix, sha256Hex } from "../_shared/bloom-support/crypto.ts";
-import { indicatesStillBroken, isAutomatedEmail, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
+import { indicatesStillBroken, isAutomatedEmail, senderDomainAuthenticated, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
 import { storeAttachment } from "../_shared/bloom-support/attachments.ts";
 import { emailConfig } from "../_shared/bloom-support/email.ts";
 
@@ -25,7 +25,13 @@ interface ReceivedEmail {
 
 function headerMap(h: ReceivedEmail["headers"]): Record<string, string> {
   if (!h) return {};
-  if (Array.isArray(h)) return Object.fromEntries(h.map((x) => [x.name.toLowerCase(), x.value]));
+  if (Array.isArray(h)) {
+    // Repeated headers: keep the first. The receiving provider prepends its own
+    // Authentication-Results, so a copy the sender wrote further down never wins.
+    const out: Record<string, string> = {};
+    for (const x of h) { const k = x.name.toLowerCase(); if (!(k in out)) out[k] = x.value; }
+    return out;
+  }
   return Object.fromEntries(Object.entries(h).map(([k, v]) => [k.toLowerCase(), String(v)]));
 }
 
@@ -110,7 +116,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   // forward is still filed (as evidence) but marked unverified.
   const authResults = (headers["authentication-results"] ?? "").toLowerCase();
   const senderDomain = sender.email.split("@")[1] ?? "";
-  const domainAuthenticated = senderDomain !== "" && authResults.includes("dkim=pass") && authResults.includes("spf=pass") && authResults.includes(senderDomain);
+  const domainAuthenticated = senderDomainAuthenticated(authResults, senderDomain);
   // Our own systems relay other people's messages from fixed addresses: the website contact form
   // and the BloomSites/BloomTill fallback when Bloom intake is unreachable. Each relay address is
   // configured explicitly and must pass DKIM and SPF; such a sender may be a no-reply address.

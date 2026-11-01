@@ -261,6 +261,15 @@ INSERT INTO bloom_support.messages(id, conversation_id, ticket_id, author_kind, 
 UPDATE bloom_support.messages SET withdrawn_at = now() WHERE id = '77777777-0000-4000-8000-000000000001';
 SELECT pg_temp.assert(NOT (pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'rosa', 'ticket_id', :'t3id'))::text LIKE '%withdrawn draft answer%'), 'client view hides withdrawn reply');
 SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'jon', 'ticket_id', :'t3id'))::text LIKE '%withdrawn draft answer%', 'staff still see withdrawn reply');
+-- A repair started on an escalated issue reopens it for the investigation step.
+UPDATE bloom_support.engineering_issues SET status = 'escalated' WHERE id = :'eng3';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jeff', 'issue_id', :'eng3', 'update', '{"start_repair":true}'::jsonb));
+SELECT pg_temp.assert((SELECT status FROM bloom_support.engineering_issues WHERE id = :'eng3') = 'open', 'escalated issue reopened when a repair starts');
+-- A queued send retried after the address bounced is suppressed, not resent.
+SELECT pg_temp.rpc('queue_outbound_email', '{"email":{"purpose":"reply","to":"bouncer@example.test","subject":"s","body":"b","rfc_message_id":"<r1@x>","idempotency_key":"bounce-retry-1"}}'::jsonb);
+INSERT INTO bloom_support.outbound_emails(purpose, to_email, subject, body, rfc_message_id, idempotency_key, status) VALUES ('reply','bouncer@example.test','s','b','<r0@x>','bounce-earlier','bounced');
+SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', '{"email":{"purpose":"reply","to":"bouncer@example.test","subject":"s","body":"b","rfc_message_id":"<r1@x>","idempotency_key":"bounce-retry-1"}}'::jsonb))->>'status' = 'suppressed', 'retry after a bounce is suppressed');
+
 -- Operations need a person.
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('claim_operation', '{"actor":"%s","operation_id":"%s"}'::jsonb)$q$, :'bot', :'opid'), 'forbidden');
 

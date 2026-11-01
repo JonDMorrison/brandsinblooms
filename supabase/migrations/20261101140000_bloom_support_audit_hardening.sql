@@ -154,6 +154,14 @@ BEGIN
   END IF;
   IF o.id IS NULL THEN
     SELECT * INTO o FROM bloom_support.outbound_emails WHERE idempotency_key = p->>'idempotency_key';
+    -- A retry of any send the provider never accepted is re-checked against bounces and
+    -- complaints recorded since the first attempt.
+    IF o.provider_id IS NULL AND o.status IN ('queued','uncertain','failed','not_configured')
+       AND EXISTS (SELECT 1 FROM bloom_support.outbound_emails b WHERE lower(b.to_email) = lower(o.to_email) AND b.id <> o.id
+                     AND (b.status = 'complained' OR (b.status = 'bounced' AND b.created_at > now() - interval '30 days'))) THEN
+      UPDATE bloom_support.outbound_emails SET status = 'suppressed', error = 'recipient bounced or complained' WHERE id = o.id RETURNING * INTO o;
+      RETURN to_jsonb(o) || '{"duplicate":true}';
+    END IF;
     -- A retry of a Bloom-initiated send that the provider never accepted is re-checked against
     -- human takeover, so a retry can never send after a person took the ticket over.
     IF o.provider_id IS NULL AND o.status IN ('queued','uncertain','failed','not_configured')
@@ -429,7 +437,9 @@ BEGIN
     IF p ? 'status' OR x <> '{}'::jsonb THEN
       RAISE EXCEPTION 'invalid: start_repair cannot be combined with other changes' USING ERRCODE = '22023';
     END IF;
-    UPDATE bloom_support.engineering_issues SET repair_started_by = p_actor, repair_started_at = now(), version = version + 1, updated_at = now()
+    -- An escalated issue goes back to open so the investigation step picks it up.
+    UPDATE bloom_support.engineering_issues SET repair_started_by = p_actor, repair_started_at = now(), version = version + 1, updated_at = now(),
+      status = CASE WHEN status = 'escalated' THEN 'open' ELSE status END
     WHERE id = p_issue RETURNING * INTO n;
     PERFORM bloom_support.enqueue_job('investigate', (SELECT id FROM bloom_support.tickets WHERE engineering_issue_id = p_issue ORDER BY created_at LIMIT 1),
       p_issue, 'engineering:' || p_issue::text, jsonb_build_object('step','investigate'), 'investigate:' || p_issue::text || ':' || n.version, now(), 3, 900);
