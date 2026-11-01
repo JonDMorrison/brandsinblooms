@@ -63,7 +63,8 @@ DECLARE exact_query tsquery := websearch_to_tsquery('english', left(coalesce(p_q
   broad_query tsquery; term_query tsquery; term text;
 BEGIN
   FOR term IN SELECT unnest(tsvector_to_array(to_tsvector('english', left(coalesce(p_q, ''), 2000)))) LIMIT 64 LOOP
-    term_query := plainto_tsquery('english', term);
+    -- These are already English lexemes: do not stem them a second time.
+    term_query := plainto_tsquery('simple', term);
     IF numnode(term_query) > 0 THEN
       broad_query := CASE WHEN broad_query IS NULL THEN term_query ELSE broad_query || term_query END;
     END IF;

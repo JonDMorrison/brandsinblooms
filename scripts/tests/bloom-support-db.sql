@@ -498,6 +498,10 @@ SELECT pg_temp.assert(NOT ((public.bloom_support_public_knowledge('crm')->0) ? '
 SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','Could you explain scheduling with pineapple?',5)) = 1, 'natural questions retrieve a matching approved answer even with unmatched words');
 SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('pos','scheduling',5)) = 0, 'knowledge search stays product-scoped');
 SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','and the or',5)) = 0, 'stopword-only questions return no answer');
+BEGIN;
+INSERT INTO bloom_support.knowledge(product,title,body,audience,approved) VALUES ('crm','Review purchases','View purchases in the reports area.','client',true);
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM jsonb_array_elements(bloom_support.search_knowledge('crm','purchases',5)) a WHERE a->>'title'='Review purchases'), 'English lexemes are not stemmed twice');
+ROLLBACK;
 SELECT bloom_support.upsert_knowledge(:'sam','{"product":"platform","title":"Support draft","body":"Use the support tracking link.","audience":"client","approved":true}'::jsonb) AS kb_draft \gset
 SELECT pg_temp.assert(NOT ((:'kb_draft'::jsonb)->>'approved')::boolean, 'Support can draft but cannot approve');
 SELECT bloom_support.upsert_knowledge(:'jeff',jsonb_build_object('id',(:'kb_draft'::jsonb)->>'id','expected_updated_at',(:'kb_draft'::jsonb)->>'updated_at','approved',true)) AS kb_approved \gset
