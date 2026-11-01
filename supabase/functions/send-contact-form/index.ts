@@ -73,12 +73,8 @@ const handler = async (req: Request): Promise<Response> => {
       footer:"Sent through the BloomSuite contact form.",
     });
 
-    // Send email to founders and the public support inbox
-    const recipients = [
-      "jon@brandsinblooms.com",
-      "jeff@brandsinblooms.com",
-      "support@brandsinblooms.com",
-    ];
+    // All contact requests enter Bloom. It owns acknowledgements, answers and escalation.
+    const recipients = ["bloom@support.bloomsuite.app"];
 
     const emailResponse = await resend.emails.send({
       from: "BloomSuite Contact <support@brandsinblooms.com>",
@@ -86,6 +82,8 @@ const handler = async (req: Request): Promise<Response> => {
       replyTo: email, // Reply goes to the person who submitted the contact form
       subject: emailSubject,
       html: emailHtml,
+      // This is an unverified public form submission, never a staff instruction.
+      text: `---------- Forwarded message ---------\nFrom: ${email}\n\nPublic contact form (email address is self-reported, not identity verification).\nName: ${name}\nInquiry: ${selectedInquiries}\n\n${message}`,
     });
 
     if (emailResponse.error || !emailResponse.data?.id) {
@@ -98,8 +96,8 @@ const handler = async (req: Request): Promise<Response> => {
       message: "Contact form submitted successfully"
     });
 
-  } catch (error: any) {
-    console.error("Error in send-contact-form function:", error);
+  } catch {
+    console.error("Contact form delivery failed");
     return corsJsonResponse(
       { error: "Your message could not be delivered. Please try again." },
       { status: 500 }
