@@ -404,6 +404,15 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   },
   {
     kind: "link",
+    id: "admin-bloom-support",
+    label: "Bloom Support",
+    to: "/admin/bloom-support",
+    icon: LifeBuoy,
+    patterns: [{ path: "/admin/bloom-support", end: false }],
+    contentWidth: "full",
+  },
+  {
+    kind: "link",
     id: "admin-reported-problems",
     label: "Reported Problems",
     to: "/admin/reported-problems",

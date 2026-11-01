@@ -1,0 +1,42 @@
+name: Bloom Support
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*bloom_support*'
+      - 'supabase/functions/bloom-support-*/**'
+      - 'supabase/functions/_shared/bloom-support/**'
+      - 'scripts/tests/bloom-support-*'
+      - 'scripts/tests/run-bloom-support-tests.sh'
+      - '.github/workflows/bloom-support.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/*bloom_support*'
+      - 'supabase/functions/bloom-support-*/**'
+      - 'supabase/functions/_shared/bloom-support/**'
+permissions:
+  contents: read
+jobs:
+  bloom-support:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['127.0.0.1:5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - name: Lint and type-check Bloom Support functions
+        working-directory: supabase/functions
+        run: |
+          deno lint bloom-support-*/ _shared/bloom-support/
+          deno check bloom-support-*/index.ts _shared/bloom-support/*_test.ts
+      - name: SQL contract, unit and end-to-end tests
+        env: { PGHOST: 127.0.0.1, PGHOSTADDR: 127.0.0.1, PGPORT: '5432', PGUSER: postgres }
+        run: scripts/tests/run-bloom-support-tests.sh
