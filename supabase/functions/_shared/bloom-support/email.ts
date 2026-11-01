@@ -91,9 +91,11 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
       await rpc("mark_outbound_email", { id: queued.id, status: "suppressed", error: "client_email_enabled is off" });
       return { id: queued.id, status: "suppressed", duplicate: false, reason: "client_email_enabled is off" };
     }
-    if (cfg.allowlist.length && !cfg.allowlist.includes(req.to.toLowerCase())) {
-      await rpc("mark_outbound_email", { id: queued.id, status: "suppressed", error: "recipient not in BLOOM_SUPPORT_EMAIL_ALLOWLIST" });
-      return { id: queued.id, status: "suppressed", duplicate: false, reason: "recipient not in test allowlist" };
+    // A test-mode primary recipient must never carry a real customer on CC.
+    const recipients = [req.to, ...(req.cc ?? [])].map((address) => address.trim().toLowerCase());
+    if (cfg.allowlist.length && recipients.some((address) => !cfg.allowlist.includes(address))) {
+      await rpc("mark_outbound_email", { id: queued.id, status: "suppressed", error: "recipient or CC not in BLOOM_SUPPORT_EMAIL_ALLOWLIST" });
+      return { id: queued.id, status: "suppressed", duplicate: false, reason: "recipient or CC not in test allowlist" };
     }
   }
   if (!cfg.configured) {
