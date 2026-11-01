@@ -18,6 +18,7 @@ import {
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useToast } from "@/hooks/use-toast";
 import { SettingsSectionCard } from "./SettingsSurface";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 interface SupportResource {
   title: string;
@@ -48,7 +49,6 @@ interface SupportFeedbackCta {
   onClick: () => void;
 }
 
-const SUPPORT_EMAIL = "support@bloomsuite.com";
 const PLACEHOLDER_RESOURCE_URL = "#";
 
 const rowSx = {

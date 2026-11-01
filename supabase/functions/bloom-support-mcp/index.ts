@@ -2,11 +2,12 @@
 //
 // Lets Jon, Jeff and other staff operate Bloom from ChatGPT (or any MCP
 // client) with their *own* identity. Authentication:
-//   Authorization: Bearer bsk_…            (preferred)
-//   …/bloom-support-mcp/k/bsk_…            (for clients that cannot send headers)
+//   OAuth 2.1 (ChatGPT connectors: each person signs in as themselves), or
+//   Authorization: Bearer bsk_…            (other MCP clients)
+// Keys are never accepted in the URL: URLs are logged by proxies and providers.
 // Keys are minted per person in Bloom Support → Settings → API keys and can be
 // read-only. Every tool call is authorized in the database for that person.
-import { authenticate, authenticateApiKey, BloomError, type Caller, cors, json } from "../_shared/bloom-support/runtime.ts";
+import { authenticate, BloomError, type Caller, cors, json } from "../_shared/bloom-support/runtime.ts";
 import { actions } from "../_shared/bloom-support/service.ts";
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { authorizationServerMetadata, mcpBase, protectedResourceMetadata } from "../_shared/bloom-support/oauth.ts";
@@ -58,7 +59,8 @@ const TOOLS: Tool[] = [
   { name: "related_tickets", readOnly: true, description: "Possible duplicates and recent tickets from the same client.", inputSchema: S({ ticket_id: id() }, ["ticket_id"]), run: (c, a) => actions.related(c, String(a.ticket_id)) },
   { name: "find_client", readOnly: true, description: "Find client accounts by name, site id, tenant id or label.", inputSchema: S({ q: str("Search text") }), run: (c, a) => actions.listAccounts(c, a.q as string) },
   { name: "client_history", readOnly: true, description: "A client account with product links, contacts, tickets and recent operations.", inputSchema: S({ account_id: id() }, ["account_id"]), run: (c, a) => actions.getAccount(c, String(a.account_id)) },
-  { name: "start_investigation", readOnly: false, description: "Start (or join) an engineering investigation for a bug ticket. Bloom reproduces, fixes on an isolated branch, and releases only if policy allows.", inputSchema: S({ ticket_id: id(), note: str("What you know"), existing_issue_id: id("Join an existing engineering issue") }, ["ticket_id"]), run: (c, a) => actions.startInvestigation(c, String(a.ticket_id), a) },
+  { name: "start_investigation", readOnly: false, description: "Start (or join) an engineering investigation for a bug ticket. When Jon or Jeff opens it (otherwise they are asked to start it), Bloom reproduces, fixes on an isolated branch, and releases only if policy allows.", inputSchema: S({ ticket_id: id(), note: str("What you know"), existing_issue_id: id("Join an existing engineering issue") }, ["ticket_id"]), run: (c, a) => actions.startInvestigation(c, String(a.ticket_id), a) },
+  { name: "start_repair", readOnly: false, description: "Let Bloom's isolated coding agent work on a bug that Bloom or Support reported. Only Jon or Jeff can do this. Review the evidence first: start it only for a contained bug with clear intended behaviour. Nothing is released without the release policy or Jon's approval.", inputSchema: S({ issue_id: id(), note: str("Why it is safe to start") }, ["issue_id"]), run: (c, a) => actions.startRepair(c, String(a.issue_id), a.note as string | undefined) },
   { name: "engineering_status", readOnly: true, description: "Engineering issues with PR, eligibility, deployment and verification state.", inputSchema: S({ status: str("Comma-separated statuses") }), run: (c, a) => actions.listEngineering(c, a.status as string) },
   { name: "approve_fix", readOnly: false, description: "Platform administrator only: approve a fix that needs review (status awaiting_approval) so Bloom may release it once checks are green.", inputSchema: S({ issue_id: id(), note: str("Reason") }, ["issue_id"]), run: (c, a) => actions.updateEngineering(c, String(a.issue_id), { status: "approved", note: a.note }) },
   { name: "list_escalations", readOnly: true, description: "Open items waiting for Jon or Jeff.", inputSchema: S({ include_resolved: { type: "boolean" } }), run: (c, a) => actions.listEscalations(c, a.include_resolved !== true) },
@@ -96,8 +98,9 @@ const TOOLS: Tool[] = [
 const SERVER_INFO = { name: "bloom-support", version: "1.0.0" };
 
 async function callerFor(req: Request, path: string): Promise<Caller> {
-  const m = path.match(/\/k\/(bsk_[A-Za-z0-9_-]+)$/);
-  if (m) return await authenticateApiKey(m[1]);
+  if (/\/k\/bsk_/.test(path)) {
+    throw new BloomError(401, "unauthenticated", "Keys in the URL are no longer accepted. Connect with OAuth or send the key as an Authorization: Bearer header, then revoke the key that was in the URL.");
+  }
   return await authenticate(req);
 }
 

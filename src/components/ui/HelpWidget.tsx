@@ -7,9 +7,12 @@ import Input from "@mui/joy/Input";
 import Textarea from "@mui/joy/Textarea";
 import Button from "@mui/joy/Button";
 import CircularProgress from "@mui/joy/CircularProgress";
+import Alert from "@mui/joy/Alert";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
+import { HELP_CENTRE_PATH, SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 type View = "menu" | "form" | "success";
 
@@ -19,6 +22,9 @@ export function HelpWidget() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ticketNumber, setTicketNumber] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   const { user } = useAuth();
   const { tenant } = useTenant();
@@ -36,6 +42,8 @@ export function HelpWidget() {
         setView("menu");
         setSubject("");
         setMessage("");
+        setError(null);
+        setTicketNumber(null);
       }
       return !v;
     });
@@ -44,8 +52,9 @@ export function HelpWidget() {
   const handleSubmit = useCallback(async () => {
     if (!subject.trim() || !message.trim() || submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
-      const { error } = await supabase.functions.invoke(
+      const { data, error } = await supabase.functions.invoke<{ number?: number }>(
         "submit-support-request",
         {
           body: {
@@ -58,11 +67,14 @@ export function HelpWidget() {
         },
       );
       if (error) throw error;
+      setTicketNumber(typeof data?.number === "number" ? data.number : null);
       setView("success");
       setSubject("");
       setMessage("");
     } catch (err) {
+      // Keep the person's text so they can retry or copy it elsewhere.
       console.error("Support request failed:", err);
+      setError(`Your message wasn't sent. It's still here — try again, or email ${SUPPORT_EMAIL}.`);
     } finally {
       setSubmitting(false);
     }
@@ -116,12 +128,7 @@ export function HelpWidget() {
                   emoji="📚"
                   title="Browse Help Center"
                   subtitle="Guides, how-tos, and troubleshooting"
-                  onClick={() =>
-                    window.open(
-                      "https://bloomsuite.notion.site/bloomsuite-help",
-                      "_blank",
-                    )
-                  }
+                  onClick={() => navigate(HELP_CENTRE_PATH)}
                 />
                 <MenuRow
                   emoji="✉️"
@@ -167,6 +174,11 @@ export function HelpWidget() {
                 <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                   Sending as {userEmail}
                 </Typography>
+                {error && (
+                  <Alert color="danger" variant="soft" size="sm">
+                    {error}
+                  </Alert>
+                )}
                 <Button
                   size="sm"
                   disabled={!subject.trim() || !message.trim() || submitting}
@@ -188,7 +200,9 @@ export function HelpWidget() {
             {view === "success" && (
               <Box sx={{ textAlign: "center", py: 2 }}>
                 <Typography level="title-sm" sx={{ mb: 1 }}>
-                  Thanks! We'll be in touch soon.
+                  {ticketNumber !== null
+                    ? `Thanks! Request #${ticketNumber} is with Bloom Support.`
+                    : "Thanks! We'll be in touch soon."}
                 </Typography>
                 <Typography level="body-sm" sx={{ color: "neutral.500" }}>
                   Check your email for a confirmation.
@@ -218,7 +232,7 @@ export function HelpWidget() {
               level="body-xs"
               sx={{ color: "neutral.400", textAlign: "center" }}
             >
-              BloomSuite Support · help@bloomsuite.app
+              BloomSuite Support · {SUPPORT_EMAIL}
             </Typography>
           </Box>
         </Sheet>

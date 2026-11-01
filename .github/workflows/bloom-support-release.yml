@@ -23,6 +23,8 @@ concurrency:
 
 jobs:
   release:
+    # Production changes come only from main, even when started by hand.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

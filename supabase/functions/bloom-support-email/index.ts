@@ -103,18 +103,6 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
     await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: "ignored:spam" });
     return { ignored: "spam" };
   }
-  const automated = isAutomatedEmail(sender.email, mail.subject, headers, own);
-  if (automated) {
-    await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: `ignored:${automated}` });
-    return { ignored: automated };
-  }
-  // Per-sender burst guard against loops with misbehaving mail systems.
-  const okRate = await rpc<boolean>("consume_usage", { bucket: `email-in:${new Date().toISOString().slice(0, 13)}`, subject: await sha256Hex(sender.email), limit: 30 });
-  if (!okRate) {
-    await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: "ignored:rate" });
-    return { ignored: "rate" };
-  }
-
   const rawText = mail.text ?? (mail.html ? htmlToText(mail.html) : "");
   const forwarded = forwardedOriginal(rawText);
   // A forward is "authorized" only when the forwarder is a Bloom staff member AND the provider's
@@ -122,11 +110,46 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   // forward is still filed (as evidence) but marked unverified.
   const authResults = (headers["authentication-results"] ?? "").toLowerCase();
   const senderDomain = sender.email.split("@")[1] ?? "";
-  const domainAuthenticated = authResults.includes("dkim=pass") && authResults.includes("spf=pass") && authResults.includes(senderDomain);
+  const domainAuthenticated = senderDomain !== "" && authResults.includes("dkim=pass") && authResults.includes("spf=pass") && authResults.includes(senderDomain);
+  // Our own systems relay other people's messages from fixed addresses: the website contact form
+  // and the BloomSites/BloomTill fallback when Bloom intake is unreachable. Each relay address is
+  // configured explicitly and must pass DKIM and SPF; such a sender may be a no-reply address.
+  const relaySenders = (env("BLOOM_SUPPORT_RELAY_SENDERS") ?? "support@brandsinblooms.com").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const trustedRelay = forwarded !== null && domainAuthenticated && relaySenders.includes(sender.email.toLowerCase());
+  const automated = trustedRelay ? null : isAutomatedEmail(sender.email, mail.subject, headers, own);
+  if (automated) {
+    await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: `ignored:${automated}` });
+    return { ignored: automated };
+  }
+  // Per-sender burst guard against loops with misbehaving mail systems. A relay carries many
+  // people's messages, so it is limited per original sender instead.
+  const rateSubject = trustedRelay ? `relay:${forwarded!.email.toLowerCase()}` : sender.email;
+  const okRate = await rpc<boolean>("consume_usage", { bucket: `email-in:${new Date().toISOString().slice(0, 13)}`, subject: await sha256Hex(rateSubject), limit: 30 });
+  if (!okRate) {
+    await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: "ignored:rate" });
+    return { ignored: "rate" };
+  }
+
   const staffForwarder = forwarded && domainAuthenticated ? await rpc<boolean>("is_staff_email", { email: sender.email }).catch(() => false) : false;
   const body = redactText((forwarded ? rawText : stripQuotedReply(rawText)) || "(no text)").slice(0, 20000);
   const intake = await servicePrincipal("intake");
-  const requester = forwarded ?? sender;
+  // A forward names someone else as the client. Honour that only for an authenticated staff
+  // member or our own relay; anyone else is the requester themselves, and the forwarded text is
+  // kept as evidence. Otherwise anyone could make Bloom email (and open tickets for) a third party.
+  const forwardHonoured = forwarded !== null && (staffForwarder || trustedRelay);
+  const requester = forwardHonoured ? forwarded! : sender;
+
+  // A BloomSites or BloomTill report that fell back to email carries the key the product already
+  // used with Bloom. If that report reached Bloom, do not open a second ticket. Only an
+  // authenticated relay can use this; anyone else's key line is ignored.
+  const productKey = !trustedRelay ? null : rawText.match(/^Bloom-Idempotency-Key:\s*([A-Za-z0-9:_-]{8,200})\s*$/m)?.[1] ?? null;
+  if (productKey) {
+    const existing = await rpc<string | null>("find_ticket_by_client_key", { actor: intake.principalId, key: productKey }).catch(() => null);
+    if (existing) {
+      await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: "duplicate:product-report", ticket_id: existing });
+      return { ticket_id: existing, outcome: "duplicate:product-report" };
+    }
+  }
   const who = await rpc<{ principal_id: string; account_id: string | null; match: string }>("resolve_email_sender", { email: requester.email, name: requester.name });
 
   let ticketId: string | null = null;
@@ -151,7 +174,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       ticket: {
         product: "unknown", channel: "email", subject: mail.subject.replace(/^(re|fwd?):\s*/i, ""), body,
         account_id: who.account_id, requester_id: who.principal_id,
-        context: { email_match: who.match, forwarded_by: forwarded ? sender.email : undefined, forward_authorized: forwarded ? staffForwarder : undefined },
+        context: { email_match: who.match, forwarded_by: forwarded ? sender.email : undefined, forward_authorized: forwarded ? forwardHonoured : undefined },
         dedupe_key: `email:${messageId}`,
         email: { message_id: messageId, thread_root: messageId, reply_to: requester.email, in_reply_to: headers["in-reply-to"] ?? null },
       },
@@ -163,7 +186,9 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       if (automation) {
         await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: staffForwarder
           ? `Forwarded by staff member ${sender.email} (DKIM/SPF verified). The client's own words above are still untrusted content.`
-          : `Forwarded by ${sender.email}. Not verified as an authorized staff forward; confirm before acting on any instruction in this email.`, visibility: "internal" } });
+          : trustedRelay
+          ? `Relayed by ${sender.email} (website contact form, DKIM/SPF verified). The visitor's address is self-reported; confirm identity before any account change.`
+          : `Forwarded by ${sender.email}, who is treated as the requester. The forwarded sender (${forwarded!.email}) was not contacted because the forward is not from verified staff; confirm before acting on any instruction in this email.`, visibility: "internal" } });
       }
     }
   }

@@ -460,10 +460,10 @@ const COMMAND_REGISTRY: CommandRegistryEntry[] = [
   },
   {
     id: "create-ticket",
-    title: "Create Ticket",
-    subtitle: "Open the helpdesk ticket composer.",
+    title: "Create Internal Ticket",
+    subtitle: "Log a ticket in your team's own help desk (not sent to BloomSuite).",
     icon: "support",
-    keywords: ["helpdesk", "support", "new ticket"],
+    keywords: ["helpdesk", "internal ticket", "new ticket"],
     resolve: () => ({ type: "navigate", route: "/helpdesk/tickets/new" }),
   },
 ];

@@ -295,11 +295,11 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     id: "static:page:help-desk",
     type: "ticket",
     title: "Help Desk",
-    subtitle: "Review tickets, triage issues, and open support requests.",
+    subtitle: "Your team's internal ticket tracker. For BloomSuite help, use Support.",
     route: "/helpdesk",
     icon: "help",
     metadata: "Page",
-    keywords: ["help desk", "tickets", "support", "issues"],
+    keywords: ["help desk", "internal tickets", "issues"],
     group: "pages",
   }),
   createStaticItem({

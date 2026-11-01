@@ -17,6 +17,7 @@ import Skeleton from "@mui/joy/Skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, STATUS_LABEL } from "@/lib/bloomSupport/api";
 import { StatusChip } from "@/components/bloomSupport/chips";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -32,7 +33,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 /** Support for people who cannot sign in (locked out, invite problems, no account yet). */
 export function PublicSupportContact() {
   const [form, setForm] = useState({ name: "", email: "", product: "unknown", subject: "", body: "", website: "" });
-  const [sent, setSent] = useState<{ number?: number; tracking_url?: string } | null>(null);
+  const [sent, setSent] = useState<{ number?: number; emailed?: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const key = useRef(crypto.randomUUID());
@@ -54,8 +55,12 @@ export function PublicSupportContact() {
     return (
       <Shell>
         <Typography level="h3">Thanks — we've got it{sent.number ? ` (#${sent.number})` : ""}</Typography>
-        <Typography level="body-md" sx={{ mt: 1 }}>We'll reply to {form.email}. You can check progress any time:</Typography>
-        {sent.tracking_url && <Typography level="body-sm" sx={{ mt: 1, wordBreak: "break-all" }}><a href={sent.tracking_url}>{sent.tracking_url}</a></Typography>}
+        <Typography level="body-md" sx={{ mt: 1 }}>
+          We've emailed a tracking link to {form.email}. We'll reply to that address, and you can follow progress from the link in that email.
+        </Typography>
+        <Typography level="body-sm" textColor="text.secondary" sx={{ mt: 1 }}>
+          No email after a few minutes? Check your spam folder, or write to {SUPPORT_EMAIL}.
+        </Typography>
       </Shell>
     );
   }

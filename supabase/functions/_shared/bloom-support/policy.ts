@@ -258,7 +258,7 @@ export const DEFAULT_SENSITIVE_PATHS = [
   "**/migrations/**", "supabase/migrations/**", "**/*.sql",
   "**/auth/**", "**/*auth*", "**/*permission*", "**/*rbac*", "**/*role*", "**/middleware.ts", "**/rls*",
   "**/*payment*", "**/*stripe*", "**/*checkout*", "**/*tax*", "**/*payout*", "**/*refund*", "**/*billing*", "**/*price*", "**/*invoice*",
-  ".github/**", "**/.env*", "**/vercel.json", "**/Dockerfile*", "**/docker-compose*", "supabase/config.toml", "**/deno.json",
+  "supabase/functions/**", ".github/**", "**/.env*", "**/vercel.json", "**/Dockerfile*", "**/docker-compose*", "supabase/config.toml", "**/deno.json",
   "**/package.json", "**/pnpm-lock.yaml", "**/package-lock.json", "**/bun.lock*",
   "**/*release-policy*", "**/bloom-support/policy.ts", "**/CODEOWNERS", "**/*.test.*", "**/__tests__/**", "**/tests/**", "**/e2e/**",
   "**/vitest.config.*", "**/jest.config.*", "**/playwright.config.*", "**/eslint.config.*", "**/tsconfig*.json",

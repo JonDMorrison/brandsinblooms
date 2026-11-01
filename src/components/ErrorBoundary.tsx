@@ -6,8 +6,8 @@ import Link from "@mui/joy/Link";
 import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { logReactError } from "@/utils/devErrorLogger";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
-const SUPPORT_EMAIL = "support@brandsinblooms.com";
 
 const reportException = (error: Error, context: Record<string, unknown>) => {
   const telemetryEnabled =
