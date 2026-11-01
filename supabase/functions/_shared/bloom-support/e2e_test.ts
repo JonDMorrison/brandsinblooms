@@ -23,6 +23,7 @@ const ENV: Record<string, string> = {
   BLOOM_INTAKE_SECRET_CMS: "cms-intake-secret", BLOOM_INTAKE_SECRET_POS: "pos-intake-secret",
   BLOOM_GITHUB_REPAIR_TOKEN: "gh-repair", BLOOM_GITHUB_RELEASE_TOKEN: "gh-release", BLOOM_GITHUB_REPAIR_LOGINS: "bloom-repair[bot]",
   BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test",
+  BLOOM_SUPPORT_INBOUND_ADDRESSES: "forward@inbound.test",
 };
 
 // deno-lint-ignore no-explicit-any
@@ -73,6 +74,7 @@ async function tableSelect(table: string, url: URL, accept: string) {
 // External stubs
 // ---------------------------------------------------------------------------
 const resendSent: Array<{ to: string[]; cc?: string[]; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
+const resendReceived = new Map<string, Record<string, unknown>>();
 let resendFailNext = 0;
 const githubCalls: Array<{ method: string; path: string; body: unknown }> = [];
 const prs: Record<string, Any> = {};
@@ -122,6 +124,10 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     if (url.pathname.startsWith("/storage/v1/object/sign/")) return new Response(JSON.stringify({ signedURL: "/object/sign/x?token=t" }), { status: 200 });
     if (url.pathname.startsWith("/storage/v1/object/")) return new Response(JSON.stringify({ Key: url.pathname }), { status: 200 });
     return new Response("{}", { status: 404 });
+  }
+  if (url.hostname === "api.resend.com" && url.pathname.startsWith("/emails/receiving/")) {
+    const received = resendReceived.get(url.pathname.slice("/emails/receiving/".length));
+    return new Response(JSON.stringify(received ?? { error: "not_found" }), { status: received ? 200 : 404 });
   }
   if (url.hostname === "api.resend.com" && url.pathname === "/emails") {
     const b = JSON.parse(bodyText);
@@ -179,7 +185,7 @@ async function signed(product: "cms" | "pos", payload: unknown) {
   return call("bloom-support-intake", "POST", "/report", { raw, headers: { "x-bloom-product": product, "x-bloom-timestamp": String(ts), "x-bloom-signature": await signIntake(ENV[`BLOOM_INTAKE_SECRET_${product.toUpperCase()}`], ts, raw) } });
 }
 async function inbound(id: string, data: Record<string, unknown>) {
-  const raw = JSON.stringify({ type: "email.received", data });
+  const raw = JSON.stringify({ type: "email.received", data: { to: ["support@bloom.test"], ...data } });
   const ts = String(Math.floor(Date.now() / 1000));
   const sig = btoa(String.fromCharCode(...await hmacSha256(WHSEC_BYTES, `${id}.${ts}.${raw}`)));
   return call("bloom-support-email", "POST", "", { raw, headers: { "svix-id": id, "svix-timestamp": ts, "svix-signature": `v1,${sig}` } });
@@ -321,6 +327,16 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   let ackId = "";
   let emailTicket = "";
   await t.step("email: threaded reply, duplicate webhook, autoresponder, new sender, takeover", async () => {
+    const beforeRouting = (await sql!`SELECT count(*)::int AS n FROM bloom_support.tickets`)[0].n;
+    const unrelated = await inbound("msg_other_recipient", { email_id: "unrelated", from: "someone@example.org", to: ["another-client@example.org"], text: "Private correspondence for another mailbox" });
+    assertEquals(unrelated.json.ignored, "other-recipient");
+    const forgedTo = await inbound("msg_forged_to", { email_id: "forged-to", from: "someone@example.org", to: ["support@bloom.test"], received_for: ["other@inbound.test"], text: "A visible To header does not prove delivery to support" });
+    assertEquals(forgedTo.json.ignored, "other-recipient", "SMTP routing wins over visible To");
+    assertEquals((await sql!`SELECT count(*)::int AS n FROM bloom_support.tickets`)[0].n, beforeRouting, "unrelated receiving domains never create support tickets");
+    resendReceived.set("forwarded-provider-email", { from: "Gail <gail@greenleaf.test>", to: ["another-visible-to@example.org"], subject: "How do I find support replies?", text: "How do I find the replies to my support request?", message_id: "<forward-route@greenleaf.test>", headers: {} });
+    const forwardedRoute = await inbound("msg_forward_route", { email_id: "forwarded-provider-email", to: ["another-visible-to@example.org"], received_for: ["FORWARD@inbound.test"] });
+    assertExists(forwardedRoute.json.ticket_id, JSON.stringify(forwardedRoute.json));
+    assertEquals((await ticketRow(forwardedRoute.json.ticket_id)).summary, "How do I find the replies to my support request?", "metadata-only webhook loads the body from the Receiving API");
     const crm = await ticketRow(crmTicket);
     ackId = resendSent.find((m) => m.to[0] === "gail@greenleaf.test")!.headers["Message-ID"];
     const reply = await inbound("msg_1", { email_id: "e1", from: "Gail Green <gail@greenleaf.test>", to: ["support@bloom.test"], subject: `Re: [Bloom #${crm.number}] Campaign preview button broken`, text: `It happens in Chrome too.\n\nOn Tue, Bloom wrote:\n> Thanks`, message_id: "<g1@greenleaf.test>", headers: { "In-Reply-To": ackId } });

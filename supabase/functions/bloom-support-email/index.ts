@@ -46,11 +46,11 @@ async function loadEmail(data: Record<string, unknown>): Promise<ReceivedEmail> 
   const id = String(data.email_id ?? data.id ?? "");
   if (!id) throw new BloomError(400, "invalid", "email_id missing");
   // Webhook payloads carry metadata; the body and headers come from the Receiving API.
-  const full = (data.text || data.html) ? data : await resend(`/emails/receiving/${id}`);
+  const full = (data.text || data.html) ? data : await resend(`/emails/receiving/${encodeURIComponent(id)}`);
   const e = full as Record<string, unknown>;
   let attachments = e.attachments as ReceivedEmail["attachments"];
   if ((!attachments || attachments.some((a) => !a.download_url)) && Array.isArray(data.attachments) && data.attachments.length) {
-    const list = await resend(`/emails/receiving/${id}/attachments`).catch(() => null) as { data?: ReceivedEmail["attachments"] } | null;
+    const list = await resend(`/emails/receiving/${encodeURIComponent(id)}/attachments`).catch(() => null) as { data?: ReceivedEmail["attachments"] } | null;
     attachments = list?.data ?? attachments;
   }
   return { id, from: String(e.from ?? data.from ?? ""), to: (e.to ?? data.to ?? []) as string[], subject: String(e.subject ?? data.subject ?? ""),
@@ -76,16 +76,27 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   }
   if (evt.type !== "email.received") return { ignored: `event ${evt.type}` };
   const data = (evt.data ?? {}) as Record<string, unknown>;
+  const cfg = emailConfig();
+  const aliases = (env("BLOOM_SUPPORT_INBOUND_ADDRESSES") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const allowedRecipients = [cfg.supportAddress, ...aliases].filter((s): s is string => !!s).map((s) => parseAddress(s).email);
+  if (!allowedRecipients.length) throw new BloomError(503, "not_configured", "Bloom Support receiving addresses are not configured");
+  // The account webhook includes mail for every receiving domain. Route only
+  // Bloom's own mailbox. received_for is the provider's SMTP delivery target;
+  // unlike the visible To header, it survives aliases and blind forwarding.
+  const receivedFor = data.received_for ?? data.to;
+  const recipients = Array.isArray(receivedFor) ? receivedFor : typeof receivedFor === "string" ? [receivedFor] : [];
+  if (!recipients.some((s) => typeof s === "string" && allowedRecipients.includes(parseAddress(s).email))) {
+    return { ignored: "other-recipient" };
+  }
   const fresh = await rpc<boolean>("record_email_event", { provider: "resend", event_id: eventId, message_id: data.message_id ?? null, outcome: "processing" });
   if (!fresh) return { duplicate: true };
 
   const mail = await loadEmail(data);
   const headers = headerMap(mail.headers);
   const messageId = mail.message_id ?? headers["message-id"] ?? `<resend-${mail.id}@inbound>`;
-  const cfg = emailConfig();
   const fromAddress = parseAddress(cfg.from).email;
   // Bloom's own addresses (plus optional extra addresses or "@domain" entries used only by Bloom).
-  const own = [cfg.supportAddress, fromAddress, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
+  const own = [cfg.supportAddress, fromAddress, ...aliases, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
   const sender = parseAddress(mail.from);
   // Provider spam verdicts are respected; spam never opens a ticket.
   if (/^\s*yes/i.test(headers["x-spam-flag"] ?? "") || /^\s*yes/i.test(headers["x-spam-status"] ?? "")) {
@@ -180,6 +191,7 @@ Deno.serve(async (req) => {
     const secret = env("RESEND_INBOUND_WEBHOOK_SECRET");
     if (!secret) throw new BloomError(503, "not_configured", "RESEND_INBOUND_WEBHOOK_SECRET is not set");
     const raw = await req.text();
+    if (raw.length > 200_000) throw new BloomError(413, "too_large", "Webhook payload is too large");
     const id = req.headers.get("svix-id");
     const ok = await verifySvix(secret, id, req.headers.get("svix-timestamp"), req.headers.get("svix-signature"), raw);
     if (!ok) throw new BloomError(401, "unauthenticated", "Invalid webhook signature");
