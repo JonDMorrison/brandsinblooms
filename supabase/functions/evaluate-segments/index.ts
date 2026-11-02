@@ -272,11 +272,12 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Read current members from every membership row, not only from live
+        // customers, so archived, deleted or merged customers leave the group.
         const currentMemberIds = new Set<string>();
-        for (const customer of tenantCustomers) {
-          const currentMemberships = membershipsByCustomerId.get(customer.id);
-          if (currentMemberships?.has(segment.id)) {
-            currentMemberIds.add(customer.id);
+        for (const [customerId, currentMemberships] of membershipsByCustomerId) {
+          if (currentMemberships.has(segment.id)) {
+            currentMemberIds.add(customerId);
           }
         }
 

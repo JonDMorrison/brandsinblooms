@@ -16298,6 +16298,10 @@ export type Database = {
           worker_heartbeat_at: string | null;
         }[];
       };
+      ensure_system_segments: {
+        Args: { p_segments: Json; p_tenant_id: string };
+        Returns: number;
+      };
       ensure_org_usage_initialized: {
         Args: { p_tenant_id: string };
         Returns: undefined;

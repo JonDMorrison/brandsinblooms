@@ -13,12 +13,14 @@ type Chain = PromiseLike<Result> & {
   order: (...args: unknown[]) => Chain; range: (from: number, to: number) => Chain;
   upsert: (rows: Row[], options: unknown) => Chain; delete: () => Chain; update: (row: Row) => Chain;
 };
-function harness(options: { count?: number; membershipCount?: number; allowed?: boolean; failPage?: boolean } = {}) {
+function harness(options: { count?: number; membershipCount?: number; archivedMembers?: number; allowed?: boolean; failPage?: boolean } = {}) {
   const tenant = '11111111-1111-4111-8111-111111111111';
   const segments: Row[] = [{ id: 'segment', tenant_id: tenant, auto_update: true, status: 'active', deleted_at: null,
     conditions: { kind: 'group', operator: 'AND', children: [{ kind: 'rule', fieldId: 'custom:garden', operatorId: 'equals', value: true }] } }];
   const customers: Row[] = Array.from({ length: options.count ?? 1 }, (_, i) => ({ id: `c${String(i).padStart(6, '0')}`, tenant_id: tenant, deleted_at: null, merged_into_customer_id: null, custom_fields: { garden: true } }));
   const members: Row[] = Array.from({length: options.membershipCount ?? Math.min(1001, customers.length)}, (_, i) => ({customer_id: customers[i % customers.length].id, segment_id: 'segment'}));
+  // Memberships left behind by archived/deleted customers (not in the live customer list).
+  for (let i = 0; i < (options.archivedMembers ?? 0); i++) members.push({customer_id: `archived${i}`, segment_id: 'segment'});
   const state = { reads: 0, writes: 0, rpcCalls: 0, count: 0, batches: [] as number[] };
   let handler: (req: Request) => Promise<Response> = async () => new Response('', {status: 599});
   function from(table: string): Chain {
@@ -77,6 +79,10 @@ describe('segment evaluation runtime boundaries',()=>{
   });
   it('reads 150,000 memberships without exceeding runtime argument limits',async()=>{
     const h=harness({count:47934,membershipCount:150000});expect((await h.run({tenant_id:h.tenant})).status).toBe(200);expect(h.state.count).toBe(47934);
+  });
+  it('removes archived or deleted customers from the group',async()=>{
+    const h=harness({count:3,membershipCount:3,archivedMembers:616});const response=await h.run({tenant_id:h.tenant});expect(response.status).toBe(200);
+    const body=await response.json();expect(body.results[0]).toMatchObject({previous_count:619,new_count:3,entered:0,exited:616});expect(h.state.count).toBe(3);
   });
   it('fails before mutation if a later customer page cannot be read',async()=>{
     const h=harness({count:1500,failPage:true});expect((await h.run({tenant_id:h.tenant})).status).toBe(500);expect(h.state.writes).toBe(0);
