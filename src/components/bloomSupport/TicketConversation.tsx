@@ -57,8 +57,9 @@ const ENGINEERING_TEXT: Record<string, string> = {
 
 function banner(t: TicketDetail): Banner {
   const eng = t.engineering as { status?: string } | null | undefined;
-  if (t.status === "resolved") return { tone: "success", text: t.resolved_at ? `Solved ${formatDistanceToNow(new Date(t.resolved_at), { addSuffix: true })}.` : "Solved." };
+  // A reply after resolution needs a decision, so it outranks "Solved".
   if (t.pending_review === "reply_after_resolution") return { tone: "warning", text: "Waiting on you: the client replied after this was solved." };
+  if (t.status === "resolved") return { tone: "success", text: t.resolved_at ? `Solved ${formatDistanceToNow(new Date(t.resolved_at), { addSuffix: true })}.` : "Solved." };
   if (eng?.status === "awaiting_approval") return { tone: "warning", text: "Waiting on you: approve the fix." };
   if (t.status === "needs_owner") return { tone: "warning", text: `Waiting on you: ${t.next_action ?? "a decision from Jon or Jeff"}` };
   if (t.automation === "human") return { tone: "neutral", text: `${t.taken_over_by?.name ?? "A person"} is handling this. Bloom has stepped back.` };
@@ -74,11 +75,11 @@ const when = (d: string) => {
 const initials = (name: string) =>
   name.replace(/[^\p{L}\p{N} ]/gu, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 
-function Message({ m, clientName }: { m: TicketMessage; clientName: string }) {
+function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: string; onRequest?: string }) {
   const fromClient = m.author_kind === "client";
   const internal = m.visibility === "internal";
   const who = m.author_kind === "bloom" ? "Bloom" : m.author_kind === "system" ? "System" : m.author?.name ?? (fromClient ? clientName : "Staff");
-  const meta = [who, when(m.created_at), !internal && !fromClient && m.delivery && m.delivery !== "none" ? `email ${m.delivery}` : null].filter(Boolean).join(" · ");
+  const meta = [onRequest, who, when(m.created_at), !internal && !fromClient && m.delivery && m.delivery !== "none" ? `email ${m.delivery}` : null].filter(Boolean).join(" · ");
 
   if (internal) {
     return (
@@ -107,7 +108,7 @@ function Message({ m, clientName }: { m: TicketMessage; clientName: string }) {
   );
 }
 
-export function TicketConversation({ ticketId, me, onBack, onShowDetails }: { ticketId: string; me: Whoami; onBack: () => void; onShowDetails: () => void }) {
+export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket }: { ticketId: string; me: Whoami; onBack: () => void; onShowDetails: () => void; onOpenTicket: (id: string) => void }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["bloom-support", "ticket", ticketId], queryFn: () => bloomSupport.getTicket(ticketId), refetchInterval: 20_000 });
   const [draft, setDraft] = useState("");
@@ -133,6 +134,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails }: { ti
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
 
+  // The thread can include messages from other requests in the same conversation; label them.
+  const otherNumbers = new Map(t.conversation_tickets.map((c) => [c.id, c.number]));
   const clientName = t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client";
   const b = banner(t);
   const eng = t.engineering as { id?: string; title?: string; status?: string; pr_url?: string | null; pr_number?: number | null; eligibility?: { eligible?: boolean; reasons?: string[] } | null } | null | undefined;
@@ -183,7 +186,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails }: { ti
             <Typography level="title-sm" textColor="inherit">{b.text}</Typography>
           </Stack>
 
-          {t.merged_into && <Alert color="neutral" variant="soft">This continues in <Link component="button" onClick={onShowDetails}>#{t.merged_into_number}</Link>.</Alert>}
+          {t.merged_into && <Alert color="neutral" variant="soft">This continues in <Link component="button" onClick={() => onOpenTicket(t.merged_into!)}>#{t.merged_into_number}</Link>.</Alert>}
           {t.status === "resolved" && t.resolution_summary && (
             <Sheet variant="soft" color="success" sx={{ p: 2, borderRadius: "lg" }}>
               <Typography level="title-sm" startDecorator={<Check size={16} />}>How it was solved</Typography>
@@ -192,7 +195,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails }: { ti
           )}
 
           <Stack spacing={2.5} component="ol" sx={{ listStyle: "none", m: 0, p: 0 }}>
-            {t.messages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} /></Box>)}
+            {t.messages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} /></Box>)}
           </Stack>
 
           {t.attachments.length > 0 && (

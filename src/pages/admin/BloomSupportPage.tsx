@@ -101,7 +101,7 @@ export default function BloomSupportPage() {
       {view === "today" && (
         ticketId ? (
           <Sheet variant="outlined" sx={{ borderRadius: "lg", flex: 1, minHeight: { xs: "70dvh", md: 0 }, overflow: "hidden" }}>
-            <TicketConversation key={ticketId} ticketId={ticketId} me={me.data!} onBack={() => go({ ticket: null })} onShowDetails={() => go({ view: "queue" })} />
+            <TicketConversation key={ticketId} ticketId={ticketId} me={me.data!} onBack={() => go({ ticket: null })} onShowDetails={() => go({ view: "queue" })} onOpenTicket={(id) => go({ view: "today", ticket: id })} />
           </Sheet>
         ) : (
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
