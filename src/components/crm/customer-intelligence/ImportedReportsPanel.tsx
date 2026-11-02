@@ -13,8 +13,14 @@ interface ReportQuery extends PromiseLike<{data: Report[] | null; error: {messag
   order(column: string, options: {ascending: boolean}): ReportQuery;
   limit(count: number): ReportQuery;
 }
+type Source = {validation_summary: unknown};
+interface SourceQuery extends PromiseLike<{data: Source[] | null; error: {message: string} | null}> {
+  select(columns: string): SourceQuery;
+  eq(column: string, value: string): SourceQuery;
+  limit(count: number): SourceQuery;
+}
 // The deployed report schema is newer than the repository's generated Database type.
-const reportClient = supabase as unknown as {from(table: 'customer_intelligence_imports'): ReportQuery};
+const reportClient = supabase as unknown as {from(table: 'customer_intelligence_imports'): ReportQuery} & {from(table: 'customer_intelligence_sources'): SourceQuery};
 type Summary = {customers?: number; product_rows?: number; amount?: number; transactions?: number; warnings?: string[]};
 const money = (value: number) => new Intl.NumberFormat('en-CA', {style:'currency',currency:'CAD'}).format(value);
 
@@ -29,11 +35,24 @@ export function ImportedReportsPanel({tenantId}: {tenantId: string}) {
       if(error) throw error;
       return data as Report[];
     }});
+  // The source record carries the current, reviewed caveats. Warnings saved on
+  // older imports can be superseded (e.g. a prior-year file later recovered).
+  const sourceQuery = useQuery({queryKey:['intelligence-source-warnings',tenantId],enabled:Boolean(tenantId),staleTime:60000,
+    queryFn: async () => {
+      const {data,error} = await reportClient.from('customer_intelligence_sources')
+        .select('validation_summary').eq('tenant_id',tenantId).eq('provider','ideal').limit(1);
+      if(error) return null;
+      const warnings = (data?.[0]?.validation_summary as Summary | undefined)?.warnings;
+      return Array.isArray(warnings) ? warnings.filter((w): w is string => typeof w === 'string') : null;
+    }});
   if(query.isPending) return null;
   if(query.isError) return <Alert color="neutral">Imported reports could not load. <Button variant="plain" color="neutral" onClick={()=>void query.refetch()}>Retry reports</Button></Alert>;
   const reports = (query.data ?? []).filter(r=>['customer_master','customer_sales_summary','customer_spending'].includes(r.report_type));
   if(!reports.length) return null;
-  const latest = (type: string) => reports.find(r=>r.report_type===type);
+  // Use the report with the most recent period, not the most recently uploaded
+  // file: an older year imported later must not replace the current period.
+  const latest = (type: string) => reports.filter(r=>r.report_type===type)
+    .sort((a,b)=>(b.source_period_end ?? '').localeCompare(a.source_period_end ?? ''))[0];
   const master=latest('customer_master'), sales=latest('customer_sales_summary'), spending=latest('customer_spending');
   const stats = [
     {label:'Imported customer profiles',value:(master?.reconciliation as Summary)?.customers?.toLocaleString()},
@@ -41,7 +60,7 @@ export function ImportedReportsPanel({tenantId}: {tenantId: string}) {
     {label:'Reported customer spend',value:typeof (spending?.reconciliation as Summary)?.amount==='number'?money((spending!.reconciliation as Summary).amount!):undefined},
     {label:'Reported transactions',value:(spending?.reconciliation as Summary)?.transactions?.toLocaleString()},
   ];
-  const warnings = [...new Set(reports.flatMap(r=>(r.reconciliation as Summary)?.warnings ?? []))];
+  const warnings = sourceQuery.data ?? [...new Set([master,sales,spending].flatMap(r=>(r?.reconciliation as Summary)?.warnings ?? []))];
   const ask = (question: string) => navigate(bloomIntelligenceUrl(question,'explore'));
   return <Sheet variant="outlined" sx={{p:{xs:2,md:3},borderRadius:'lg'}}>
     <Stack spacing={2}>
