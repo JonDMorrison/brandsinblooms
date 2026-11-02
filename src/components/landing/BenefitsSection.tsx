@@ -12,7 +12,7 @@ export const BenefitsSection = () => {
     icon: Users,
     title: "Smart Customer Segments",
     description: "Automatically group customers by behavior, opt-ins, and purchase history. Segments update in real-time — no manual work required.",
-    bg: "#FEF3C7",
+    bg: "#F5E8E1",
     iconColor: "#F4C430"
   }, {
     icon: Calendar,
@@ -48,7 +48,7 @@ export const BenefitsSection = () => {
     icon: Leaf,
     title: "Email Marketing",
     description: "Create beautiful newsletters, promotional campaigns, and plant care tips that drive sales and customer loyalty.",
-    bg: "#FEF3C7",
+    bg: "#F5E8E1",
     iconColor: "#F4C430"
   }, {
     icon: Clock,

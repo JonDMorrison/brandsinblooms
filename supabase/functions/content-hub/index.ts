@@ -394,7 +394,7 @@ function generateHubPage(campaign: Campaign, blocks: ContentBlock[], sessionId: 
       height: auto;
     }
     .loyalty-widget {
-      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      background: linear-gradient(135deg, #C98A6B 0%, #B46B48 100%);
       color: white;
       padding: 20px;
       margin: 0 16px 20px;

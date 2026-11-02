@@ -9,7 +9,7 @@ interface SegmentAnalyticsDashboardProps {
   loading: boolean;
 }
 
-const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = ['#22c55e', '#3b82f6', '#B46B48', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export const SegmentAnalyticsDashboard = ({ counts, loading }: SegmentAnalyticsDashboardProps) => {
   // Prepare data for pie chart
@@ -26,7 +26,7 @@ export const SegmentAnalyticsDashboard = ({ counts, loading }: SegmentAnalyticsD
   // Engagement score distribution (mock data for now)
   const engagementDistribution = [
     { tier: 'Hot', count: Math.round(uniqueEstimate * 0.15), color: '#ef4444' },
-    { tier: 'Warm', count: Math.round(uniqueEstimate * 0.35), color: '#f59e0b' },
+    { tier: 'Warm', count: Math.round(uniqueEstimate * 0.35), color: '#B46B48' },
     { tier: 'Cold', count: Math.round(uniqueEstimate * 0.30), color: '#3b82f6' },
     { tier: 'Dormant', count: Math.round(uniqueEstimate * 0.20), color: '#6b7280' },
   ];

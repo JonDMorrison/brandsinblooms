@@ -1162,7 +1162,7 @@ export default function ProductDetailPage() {
                             aria-label="Mark as primary"
                             sx={{
                               color: image.is_primary
-                                ? "#facc15"
+                                ? "#C98A6B"
                                 : "common.white",
                               backgroundColor: "rgba(0, 0, 0, 0.24)",
                               pointerEvents: "auto",
@@ -1175,7 +1175,7 @@ export default function ProductDetailPage() {
                               size={15}
                               style={{
                                 fill: image.is_primary
-                                  ? "#facc15"
+                                  ? "#C98A6B"
                                   : "transparent",
                               }}
                             />

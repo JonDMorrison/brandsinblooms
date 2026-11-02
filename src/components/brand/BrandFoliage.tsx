@@ -52,7 +52,7 @@ export const BrandFoliage = ({
     >
       <path
         d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
-        fill="var(--auth-green-300, var(--hp-green-300, #87DFD8))"
+        fill="var(--auth-green-300, var(--hp-green-300, #83B1AD))"
       />
     </g>
     <g transform="translate(110 150) rotate(-58)" opacity="0.5">
@@ -76,7 +76,7 @@ export const BrandFoliage = ({
     >
       <path
         d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
-        fill="var(--auth-green-300, var(--hp-green-300, #87DFD8))"
+        fill="var(--auth-green-300, var(--hp-green-300, #83B1AD))"
       />
     </g>
   </svg>

@@ -177,7 +177,7 @@
 }
 
 .hp-glass-chip--dark {
-    color: #A5FFFA;
+    color: #A9C9C6;
     background: var(--dark-glass-bg);
     border: var(--dark-glass-border);
 }
@@ -217,11 +217,11 @@
 }
 
 .hp-screenshot-frame__dots span:nth-child(2) {
-    background: #FCD34D;
+    background: #DDAE97;
 }
 
 .hp-screenshot-frame__dots span:nth-child(3) {
-    background: #87DFD8;
+    background: #83B1AD;
 }
 
 .hp-screenshot-frame__url {

@@ -20,7 +20,7 @@ export const FeaturePageCta = ({ cta }: FeaturePageCtaProps) => (
       <div className="flex flex-wrap justify-center gap-3">
         <Link
           to={cta.primaryHref}
-          className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-[#2E605C] shadow-sm transition hover:bg-[#E1FFFE]"
+          className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-[#2E605C] shadow-sm transition hover:bg-[#E4EEED]"
         >
           {cta.primaryLabel}
         </Link>

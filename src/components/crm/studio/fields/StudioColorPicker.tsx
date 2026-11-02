@@ -21,7 +21,7 @@ const MORE_COLOR_PRESETS = [
   "#F8FAFC",
   "#E11D48",
   "#F97316",
-  "#FACC15",
+  "#C98A6B",
   "#84CC16",
   "#10B981",
   "#06B6D4",

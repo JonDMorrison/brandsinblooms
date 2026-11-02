@@ -106,7 +106,7 @@ const ContactPage = () => {
           <div className="max-w-2xl mx-auto">
             <Card className={isPosDemo ? "pos-demo-card p-6 md:p-8" : "p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl"}>
               <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-6 bg-[#E1FFFE] rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-[#E4EEED] rounded-full flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-[#3E7C77]" />
                 </div>
                 <h1 className="text-3xl font-bold text-accent mb-4">Message Sent!</h1>

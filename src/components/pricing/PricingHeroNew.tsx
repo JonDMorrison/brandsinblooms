@@ -28,7 +28,7 @@ export const PricingHeroNew = () => {
 
         <Badge
           variant="outline"
-          className="px-4 py-2 text-sm font-medium border-[#3E7C77]/30 text-[#1F4341] bg-[#E1FFFE]"
+          className="px-4 py-2 text-sm font-medium border-[#3E7C77]/30 text-[#1F4341] bg-[#E4EEED]"
         >
           <Leaf className="w-4 h-4 mr-2" />
           Early Adopter pricing — locked in for life when you join now

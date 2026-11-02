@@ -12,7 +12,7 @@ interface TourCelebrationProps {
 const confettiColors = [
   '#22C55E', // primary green
   '#3B82F6', // blue
-  '#F59E0B', // amber
+  '#B46B48', // amber
   '#EC4899', // pink
   '#8B5CF6', // purple
   '#14B8A6', // teal
