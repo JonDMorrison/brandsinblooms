@@ -238,6 +238,7 @@ export type ToolName =
   | "find_customer_opportunities"
   | "explore_customer_reported_spending"
   | "explore_customer_purchases"
+  | "get_customer_product_history"
   | "inspect_customer_set"
   | "explain_customer_set_member"
   | "analyze_customer_basket"

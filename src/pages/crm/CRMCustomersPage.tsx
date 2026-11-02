@@ -15,7 +15,6 @@ import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  Calendar,
   ChevronDown,
   DollarSign,
   Download,
@@ -40,6 +39,10 @@ import {
 } from "@/components/crm/catalog/CatalogStatsStrip";
 import { SyncFromCRMModal } from "@/components/crm/customers/SyncFromCRMModal";
 import { CustomerMergeReviewDialog } from "@/components/crm/customers/CustomerMergeReviewDialog";
+import {
+  CustomerListLastPurchaseCell,
+  CustomerListSpendCell,
+} from "@/components/crm/customers/CustomerListPurchaseCells";
 import { EnhancedSegmentImportDialog } from "@/components/crm/segments/EnhancedSegmentImportDialog";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -818,59 +821,10 @@ export const CRMCustomersPage: React.FC = () => {
                         )}
                       </JoyTableCell>
                       <JoyTableCell>
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          alignItems="center"
-                          justifyContent="flex-end"
-                        >
-                          <DollarSign
-                            size={12}
-                            strokeWidth={1.9}
-                            color="var(--joy-palette-neutral-400)"
-                          />
-                          <Typography
-                            sx={{
-                              fontFamily: "var(--joy-fontFamily-display)",
-                              fontSize: "14px",
-                              fontWeight: 500,
-                              color: "neutral.900",
-                            }}
-                          >
-                            {customer.total_spent
-                              ? customer.total_spent.toFixed(2)
-                              : "0.00"}
-                          </Typography>
-                        </Stack>
+                        <CustomerListSpendCell customer={customer} />
                       </JoyTableCell>
                       <JoyTableCell>
-                        {customer.last_purchase_date ? (
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            alignItems="center"
-                          >
-                            <Calendar
-                              size={12}
-                              strokeWidth={1.9}
-                              color="var(--joy-palette-neutral-400)"
-                            />
-                            <Typography
-                              sx={{ fontSize: "13px", color: "neutral.500" }}
-                            >
-                              {format(
-                                new Date(customer.last_purchase_date),
-                                "MMM d, yyyy",
-                              )}
-                            </Typography>
-                          </Stack>
-                        ) : (
-                          <Typography
-                            sx={{ fontSize: "13px", color: "neutral.500" }}
-                          >
-                            No purchases
-                          </Typography>
-                        )}
+                        <CustomerListLastPurchaseCell customer={customer} />
                       </JoyTableCell>
                       <JoyTableCell>
                         <Typography

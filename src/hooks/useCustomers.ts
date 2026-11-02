@@ -13,6 +13,7 @@ interface Customer {
   tags?: string[];
   total_spent?: number;
   last_purchase_date?: string;
+  custom_fields?: unknown;
   sms_opt_in?: boolean;
   created_at: string;
   updated_at: string;
