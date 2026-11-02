@@ -14,6 +14,7 @@ import IconButton from "@mui/joy/IconButton";
 import Button from "@mui/joy/Button";
 import { ArrowLeft, Inbox } from "lucide-react";
 import { TodayView } from "@/components/bloomSupport/TodayView";
+import { TicketConversation } from "@/components/bloomSupport/TicketConversation";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { bloomSupport } from "@/lib/bloomSupport/api";
@@ -28,8 +29,9 @@ export default function BloomSupportPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const ticketId = params.get("ticket");
-  // Deep links to a ticket (emails, notifications) open the desk; everything else lands on Today.
-  const view = (params.get("view") as View) ?? (ticketId ? "queue" : "today");
+  // Today is the default. A ticket opened from Today (or a deep link) reads as a conversation;
+  // the queue keeps its list-and-detail layout.
+  const view = (params.get("view") as View) ?? "today";
   const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
   const staff = !!me.data && me.data.role !== "client" && me.data.role !== "service";
   const summary = useQuery({ queryKey: ["bloom-support", "summary"], queryFn: () => bloomSupport.summary(), enabled: staff, refetchInterval: 30_000 });
@@ -54,14 +56,6 @@ export default function BloomSupportPage() {
   }
   const counts = (summary.data?.by_status ?? {}) as Record<string, number>;
   const s = summary.data ?? {};
-
-  if (view === "today") {
-    return (
-      <PageContainer fullWidth>
-        <TodayView me={me.data!} onOpenTicket={openTicket} onOpenDesk={() => go({ view: "queue", ticket: null })} />
-      </PageContainer>
-    );
-  }
 
   return (
     <PageContainer fullWidth sx={{ display: "flex", flexDirection: "column", gap: 1.5, height: { md: "calc(100dvh - 96px)" } }}>
@@ -104,6 +98,17 @@ export default function BloomSupportPage() {
         </Tabs>
       </Stack>
 
+      {view === "today" && (
+        ticketId ? (
+          <Sheet variant="outlined" sx={{ borderRadius: "lg", flex: 1, minHeight: { xs: "70dvh", md: 0 }, overflow: "hidden" }}>
+            <TicketConversation key={ticketId} ticketId={ticketId} me={me.data!} onBack={() => go({ ticket: null })} onShowDetails={() => go({ view: "queue" })} onOpenTicket={(id) => go({ view: "today", ticket: id })} />
+          </Sheet>
+        ) : (
+          <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+            <TodayView me={me.data!} onOpenTicket={(id) => go({ view: "today", ticket: id })} onOpenDesk={() => go({ view: "queue", ticket: null })} />
+          </Box>
+        )
+      )}
       {view === "queue" && (
         <Sheet variant="outlined" sx={{ borderRadius: "lg", flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(300px, 380px) minmax(0, 1fr)" }, overflow: "hidden" }}>
           <Box sx={{ borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, minHeight: 0, display: { xs: ticketId ? "none" : "block", md: "block" } }}>
@@ -121,7 +126,7 @@ export default function BloomSupportPage() {
           </Box>
         </Sheet>
       )}
-      <Box sx={{ overflow: "auto", display: view === "queue" ? "none" : "block" }}>
+      <Box sx={{ overflow: "auto", display: view === "queue" || view === "today" ? "none" : "block" }}>
         {view === "escalations" && <EscalationsPanel onOpenTicket={openTicket} />}
         {view === "engineering" && <EngineeringPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "features" && <FeaturesPanel me={me.data!} onOpenTicket={openTicket} />}

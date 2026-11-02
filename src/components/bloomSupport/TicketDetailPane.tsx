@@ -21,6 +21,7 @@ import {
   bloomSupport, KIND_LABEL, PRODUCT_LABEL, STATUS_LABEL, WAITING_LABEL, type SupportStatus, type TicketDetail, type TicketMessage, type WaitingReason, type Whoami,
 } from "@/lib/bloomSupport/api";
 import { StatusChip, PriorityChip, AutomationChip } from "./chips";
+import { statusPatch } from "./statusPatch";
 
 function Bubble({ m }: { m: TicketMessage }) {
   const internal = m.visibility === "internal";
@@ -28,7 +29,7 @@ function Bubble({ m }: { m: TicketMessage }) {
   return (
     <Sheet
       variant={internal ? "soft" : "outlined"}
-      color={internal ? "warning" : "neutral"}
+      color={internal ? "primary" : "neutral"}
       sx={{ p: 1.5, borderRadius: "md", maxWidth: "88%", alignSelf: mine ? "flex-end" : "flex-start", ...(internal ? { borderStyle: "dashed", borderWidth: 1 } : {}) }}
     >
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
@@ -36,7 +37,7 @@ function Bubble({ m }: { m: TicketMessage }) {
         <Typography level="body-xs" fontWeight="lg">
           {m.author_kind === "bloom" ? "Bloom" : m.author?.name ?? (m.author_kind === "client" ? "Client" : "Staff")}
         </Typography>
-        {internal && <Chip size="sm" color="warning" variant="solid">Internal note</Chip>}
+        {internal && <Chip size="sm" color="neutral" variant="outlined">Internal note</Chip>}
         <Typography level="body-xs" textColor="text.tertiary">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</Typography>
         {m.delivery && m.delivery !== "none" && <Typography level="body-xs" textColor="text.tertiary">· email {m.delivery}</Typography>}
       </Stack>
@@ -52,39 +53,6 @@ const dur = (v: unknown) => {
   if (n < 86400) return `${(n / 3600).toFixed(1)}h`;
   return `${(n / 86400).toFixed(1)}d`;
 };
-
-/** Collects what each status needs; returns null if the person cancels. */
-function statusPatch(t: TicketDetail, v: SupportStatus): Record<string, unknown> | null {
-  if (v === "waiting") {
-    const r = window.prompt("Waiting on: customer, internal, third_party, deployment or scheduled", "customer") as WaitingReason | null;
-    return r ? { status: "waiting", waiting_reason: r } : null;
-  }
-  if (v === "needs_owner") {
-    const decision = window.prompt("What decision is needed from Jon/Jeff?");
-    if (!decision) return null;
-    const who = window.prompt("Who decides: jon, jeff or both?", "both") ?? "both";
-    const rec = window.prompt("Your recommended next step (optional)") ?? undefined;
-    return { status: "needs_owner", decision_needed: decision, accountable: who, recommendation: rec };
-  }
-  if (v === "resolved") {
-    const summary = window.prompt(t.kind === "feature" ? "Summary for the client (it was routed for a product decision — not delivered)" : "What resolved it? (sent to the client)");
-    if (!summary) return null;
-    const evidence: Record<string, unknown> = {};
-    if (t.kind === "change") {
-      const note = window.prompt("How did you verify the saved change? (e.g. checked the live page)");
-      if (!note) return null;
-      evidence.verified_note = note;
-    }
-    if (t.kind === "bug" || t.kind === "incident") {
-      const note = window.prompt("How did you verify the affected flow works now?");
-      if (!note) return null;
-      evidence.verification = { passed: true, note };
-      if (!t.engineering_issue_id) evidence.no_deploy_reason = window.prompt("No code deployment linked — why? (e.g. configuration fix)") ?? "";
-    }
-    return { status: "resolved", resolution_summary: summary, resolution_evidence: evidence };
-  }
-  return { status: v };
-}
 
 export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: string; me: Whoami; onOpenTicket: (id: string) => void }) {
   const qc = useQueryClient();
@@ -179,7 +147,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
               {t.owner ? (t.owner.id === me.id ? "Unassign me" : `Owner: ${t.owner.name ?? "staff"}`) : "Assign to me"}
             </Button>
             {t.automation === "auto"
-              ? <Button size="sm" variant="soft" color="warning" onClick={() => run.mutate(() => bloomSupport.setAutomation(t.id, "human", "manual takeover"))}>Take over from Bloom</Button>
+              ? <Button size="sm" variant="outlined" color="neutral" onClick={() => run.mutate(() => bloomSupport.setAutomation(t.id, "human", "manual takeover"))}>Take over from Bloom</Button>
               : <Button size="sm" variant="soft" color="success" onClick={() => run.mutate(() => bloomSupport.setAutomation(t.id, "auto"))}>Hand back to Bloom</Button>}
           </Stack>
         )}
@@ -235,7 +203,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           {t.attachments.length > 0 && (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {t.attachments.map((a) => (
-                <Chip key={a.id} variant="outlined" startDecorator={<Paperclip size={12} />} color={a.visibility === "internal" ? "warning" : "neutral"}
+                <Chip key={a.id} variant="outlined" startDecorator={<Paperclip size={12} />} color="neutral"
                   onClick={async () => { const { url } = await bloomSupport.attachmentUrl(a.id); window.open(url, "_blank", "noopener"); }}>
                   {a.file_name}
                 </Chip>
@@ -244,7 +212,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           )}
           {/* Composer */}
           {!t.merged_into && (t.status !== "resolved" || staff) ? (
-            <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", mt: 1, borderColor: visibility === "internal" ? "warning.outlinedBorder" : "primary.outlinedBorder" }}>
+            <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", mt: 1, borderColor: "neutral.outlinedBorder" }}>
               {staff && (
                 <ToggleButtonGroup size="sm" value={visibility} onChange={(_, v) => v && setVisibility(v)} sx={{ mb: 1 }} aria-label="Reply visibility">
                   <Button value="internal" startDecorator={<Lock size={14} />}>Internal note</Button>
@@ -264,7 +232,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
                     run.mutate(async () => { for (const f of files) await bloomSupport.uploadAttachment(t.id, f, staff && visibility === "internal" ? "internal" : "public"); });
                   }} />
                 </Button>
-                <Button size="sm" disabled={!draft.trim()} loading={run.isPending} color={visibility === "internal" && staff ? "warning" : "primary"} onClick={send}>
+                <Button size="sm" disabled={!draft.trim()} loading={run.isPending} color="primary" onClick={send}>
                   {visibility === "internal" && staff ? "Add note" : "Send reply"}
                 </Button>
               </Stack>
@@ -279,7 +247,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Button size="sm" variant="outlined" startDecorator={<Wrench size={14} />} onClick={() => run.mutate(() => bloomSupport.investigate(t.id))}>Investigate bug</Button>
               <Button size="sm" variant="outlined" onClick={() => run.mutate(() => bloomSupport.routeFeature(t.id))}>Feature → Jon</Button>
-              <Button size="sm" variant="outlined" color="warning" onClick={() => { const reason = window.prompt("Why does this need Jon/Jeff?"); if (reason) run.mutate(() => bloomSupport.escalate(t.id, "both", reason)); }}>Escalate</Button>
+              <Button size="sm" variant="outlined" color="neutral" onClick={() => { const reason = window.prompt("Why does this need Jon/Jeff?"); if (reason) run.mutate(() => bloomSupport.escalate(t.id, "both", reason)); }}>Escalate</Button>
             </Stack>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Button size="sm" variant="plain" onClick={async () => {
