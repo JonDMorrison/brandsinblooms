@@ -369,10 +369,10 @@ export function CustomerGrowthWorkspace({
                 <CalendarDays size={20} />
                 <Stack sx={{ flex: 1 }}>
                   <Typography level="title-sm">
-                    {dates.baseline_start} – {dates.baseline_end}
+                    {dates.current_start} – {dates.current_end}
                   </Typography>
                   <Typography level="body-sm" color="neutral">
-                    compared with {dates.current_start} – {dates.current_end}
+                    compared with {dates.baseline_start} – {dates.baseline_end}
                   </Typography>
                 </Stack>
                 <Typography level="body-xs" color="neutral">

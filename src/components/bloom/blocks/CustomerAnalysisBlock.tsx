@@ -7,6 +7,7 @@ type Row=Record<string,unknown>;
 const isRow=(v:unknown):v is Row=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const rows=(v:unknown):Row[]=>Array.isArray(v)?v.filter(isRow):[];
 const text=(v:unknown)=>v===null||v===undefined?'Unknown':typeof v==='number'?v.toLocaleString('en-CA',{maximumFractionDigits:2}):typeof v==='object'?JSON.stringify(v):String(v);
+const growthStates:Record<string,string>={no_comparable_history:'Not enough history',retained:'Still shopping',lapsed:'Stopped shopping',reactivated:'Came back',newly_observed:'First seen this period',incomplete_data:'Some receipts incomplete'};
 const label=(value:string)=>value.replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
 function Details({title,value}:{title:string;value:unknown}) {
   return <Box component="details" sx={{border:'1px solid',borderColor:'neutral.outlinedBorder',borderRadius:'lg',p:1.5}}>
@@ -22,6 +23,10 @@ export function CustomerAnalysisBlock({data,onAction}:{data:Row;onAction?:(promp
     kind==='customer_evidence'?['product_name','quantity','net_amount','currency','purchased_at','source']:
     kind==='customer_opportunities'?['first_name','last_name','lifetime_value','purchase_velocity']:['name','reason','evidence_count'];
   const columns=preferred.filter(key=>entries.some(row=>key in row));
+  // A customer with no dated receipts in either period has unknown history,
+  // not a recorded $0 or zero visits. Never show those as zeros.
+  const noHistory=(row:Row)=>kind==='customer_growth'&&row.state==='no_comparable_history';
+  const cell=(row:Row,key:string)=>noHistory(row)&&['baseline_spend','current_spend','baseline_visits','current_visits'].includes(key)?'No dated receipts':key==='state'&&typeof row.state==='string'?(growthStates[row.state]??label(row.state)):text(row[key]);
   const total=data.total_count??data.scanned_customers??entries.length;
   return <Sheet variant="outlined" sx={{p:{xs:2,sm:3},borderRadius:'xl'}}><Stack spacing={2}>
     <Stack direction="row" justifyContent="space-between" useFlexGap flexWrap="wrap" gap={1}><Typography level="title-lg">{titles[kind]??'Customer analysis'}</Typography><Chip size="sm" variant="soft">Recorded data</Chip></Stack>
@@ -33,7 +38,7 @@ export function CustomerAnalysisBlock({data,onAction}:{data:Row;onAction?:(promp
     {data.method?<Typography level="body-sm">{text(data.method)}</Typography>:null}
     {data.reason?<Typography level="body-sm">{text(data.reason)}</Typography>:null}
     <Typography level="body-sm">Showing {entries.length} of {text(total)}{data.page?` · page ${text(data.page)}`:''}{data.omitted_by_limit?` · ${text(data.omitted_by_limit)} outside the selected limit`:''}.</Typography>
-    {entries.length?<Box sx={{overflowX:'auto'}}><Table size="sm" sx={{minWidth:Math.max(450,columns.length*130),tableLayout:'auto'}}><thead><tr>{columns.map(key=><th key={key}>{label(key)}</th>)}<th>Details</th></tr></thead><tbody>{entries.map((row,i)=><tr key={String(row.customer_id??row.id??i)}>{columns.map(key=><td key={key}>{text(row[key])}</td>)}<td><Details title="Source values" value={row}/>{kind==='customer_audiences'&&typeof row.id==='string'&&onAction?<Button size="sm" onClick={()=>onAction(`Inspect saved analytical audience_id ${row.id}, included bucket, page 1.`)}>Open audience</Button>:null}{typeof row.customer_id==='string'?<Button component={RouterLink} to={`/crm/customers/${row.customer_id}`} size="sm" variant="plain">Customer</Button>:null}{setId&&typeof row.customer_id==='string'&&onAction?<Button size="sm" variant="plain" onClick={()=>onAction(`Explain customer ${row.customer_id} in saved result ${setId}. Show the source evidence.`)}>Why?</Button>:null}</td></tr>)}</tbody></Table></Box>:<Typography level="body-md">No customers matched this view. Check excluded and unknown records before changing the rules.</Typography>}
+    {entries.length?<Box sx={{overflowX:'auto'}}><Table size="sm" sx={{minWidth:Math.max(450,columns.length*130),tableLayout:'auto'}}><thead><tr>{columns.map(key=><th key={key}>{label(key)}</th>)}<th>Details</th></tr></thead><tbody>{entries.map((row,i)=><tr key={String(row.customer_id??row.id??i)}>{columns.map(key=><td key={key}>{cell(row,key)}</td>)}<td><Details title="Source values" value={row}/>{kind==='customer_audiences'&&typeof row.id==='string'&&onAction?<Button size="sm" onClick={()=>onAction(`Inspect saved analytical audience_id ${row.id}, included bucket, page 1.`)}>Open audience</Button>:null}{typeof row.customer_id==='string'?<Button component={RouterLink} to={`/crm/customers/${row.customer_id}`} size="sm" variant="plain">Customer</Button>:null}{setId&&typeof row.customer_id==='string'&&onAction?<Button size="sm" variant="plain" onClick={()=>onAction(`Explain customer ${row.customer_id} in saved result ${setId}. Show the source evidence.`)}>Why?</Button>:null}</td></tr>)}</tbody></Table></Box>:<Typography level="body-md">No customers matched this view. Check excluded and unknown records before changing the rules.</Typography>}
     {data.current&&data.baseline?<Details title="Reported periods and comparison basis" value={{current:data.current,baseline:data.baseline,basis:data.comparison_basis,current_days:data.current_days,baseline_days:data.baseline_days}}/>:null}
     {data.settings?<Details title="Periods, currency and weights" value={data.settings}/>:null}
     {data.weights?<Details title="Selected ranking weights" value={data.weights}/>:null}

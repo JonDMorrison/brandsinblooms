@@ -428,6 +428,7 @@ export function useAskBloomConversation({
       conversationId,
       resourceType,
       resourceId,
+      tenantId,
     ],
     enabled: Boolean(
       enabled &&
