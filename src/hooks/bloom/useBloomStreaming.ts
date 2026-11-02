@@ -36,6 +36,7 @@ import {
   type BloomTaskPlan,
   type BloomTaskStatusUpdate,
 } from "@/hooks/bloom/taskPlanTypes";
+import { bloomChatClientContext } from "@/lib/bloomSupport/api";
 
 const TOKEN_FLUSH_INTERVAL_MS = 50;
 const TOKEN_FLUSH_COUNT = 5;
@@ -1374,6 +1375,7 @@ export function useBloomStreaming(handlers: BloomStreamingHandlers = {}) {
                 page_context: pageContext,
                 timezone,
                 attachments,
+                client_context: bloomChatClientContext(),
               }),
             },
           );

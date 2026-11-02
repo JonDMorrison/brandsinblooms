@@ -281,6 +281,53 @@ export function captureClientContext(extra: Record<string, unknown> = {}): Recor
   };
 }
 
+/** The subset of captureClientContext() that Bloom chat sends so a support report can say where it happened. */
+export type BloomChatClientContext = { route: string | null; user_agent: string | null; viewport: string | null };
+
+export function bloomChatClientContext(): BloomChatClientContext | null {
+  if (typeof window === "undefined") return null;
+  const captured = captureClientContext();
+  const pick = (v: unknown) => (typeof v === "string" && v ? v : null);
+  return { route: pick(captured.route), user_agent: pick(captured.user_agent), viewport: pick(captured.viewport) };
+}
+
+/** Diagnostics Bloom attached when it filed a ticket from chat (context.diagnostics). */
+export interface BloomDiagnostics {
+  capturedAt: string | null;
+  company: string | null;
+  filedByStaff: boolean;
+  adminWorkspace: boolean;
+  route: string | null;
+  userAgent: string | null;
+  viewport: string | null;
+  conversationId: string | null;
+  failedRunsStatus: "ok" | "unknown";
+  failedRuns: Array<{ tool: string; at: string | null; error: string | null }>;
+}
+
+export function readBloomDiagnostics(context: Record<string, unknown> | null | undefined): BloomDiagnostics | null {
+  const raw = context?.diagnostics;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const d = raw as Record<string, unknown>;
+  const s = (v: unknown) => (typeof v === "string" && v.trim() ? v : null);
+  const runs = Array.isArray(d.failed_tool_runs) ? d.failed_tool_runs : [];
+  return {
+    capturedAt: s(d.captured_at),
+    company: s(d.account_name),
+    filedByStaff: d.filed_by_staff === true,
+    adminWorkspace: d.admin_workspace === true,
+    route: s(d.route),
+    userAgent: s(d.user_agent),
+    viewport: s(d.viewport),
+    conversationId: s(d.bloom_conversation_id),
+    failedRunsStatus: d.failed_tool_runs_status === "unknown" ? "unknown" : "ok",
+    failedRuns: runs
+      .filter((r): r is Record<string, unknown> => !!r && typeof r === "object" && !Array.isArray(r))
+      .slice(0, 10)
+      .map((r) => ({ tool: s(r.tool) ?? "unknown", at: s(r.at), error: s(r.error) })),
+  };
+}
+
 export async function fileToUpload(file: File): Promise<{ file_name: string; content_type: string; data_base64: string }> {
   const buf = new Uint8Array(await file.arrayBuffer());
   let bin = "";

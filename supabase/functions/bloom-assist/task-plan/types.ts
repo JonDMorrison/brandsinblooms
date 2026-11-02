@@ -1,4 +1,5 @@
 import type {
+  BloomClientContext,
   BloomMode,
   JsonArray,
   JsonObject,
@@ -158,6 +159,7 @@ export type TaskPlanApprovalPayload = {
   retry_task_id: string | null;
   mode: BloomMode;
   timezone: string;
+  client_context?: BloomClientContext | null;
 };
 
 export type PersistedTaskPlan = {
@@ -195,6 +197,7 @@ export type TaskProgressEmitter = (event: {
 export type ApprovalExecutionContext = TaskPlanGenerationContext & {
   serviceClient: PersistenceClient;
   dataClient?: PersistenceClient;
+  clientContext?: BloomClientContext | null;
   mode: BloomMode;
   emitProgress: TaskProgressEmitter;
 };

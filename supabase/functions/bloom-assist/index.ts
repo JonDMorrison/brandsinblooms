@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { resolveAdminWorkspaceTenant } from "./admin-workspace.ts";
+import { parseClientContext } from "./client-context.ts";
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -43,6 +44,7 @@ import { validateTaskPlan } from "./task-plan/validator.ts";
 import type { TaskPlanApprovalPayload } from "./task-plan/types.ts";
 import { taskPlanSummaryToJson, taskPlanToJson } from "./task-plan/types.ts";
 import { executeTool } from "./tools/executor.ts";
+import { isSupportTool } from "./tools/implementations/support-tools.ts";
 import { classifyIntentWithComplexity } from "./tools/intent-classifier.ts";
 import {
   filterRegisteredTools,
@@ -57,6 +59,7 @@ import type {
 import type {
   BloomAssistRequest,
   BloomAuditEventType,
+  BloomClientContext,
   BloomCacheStats,
   BloomLatencyBreakdown,
   EntitySummary,
@@ -194,6 +197,7 @@ type ExecuteActionRequest = {
   conversationId: string;
   assistantMessageId: string | null;
   action: ExecuteActionPayload;
+  clientContext: BloomClientContext | null;
 };
 
 type ParsedExecuteActionResult =
@@ -688,6 +692,9 @@ function parseBloomAssistRequest(rawBody: unknown): ParsedRequestResult {
       page_context: pageContext.value,
       timezone,
       attachments: attachments.value,
+      client_context: parseClientContext(
+        rawBody.client_context ?? rawBody.clientContext,
+      ),
     },
   };
 }
@@ -826,6 +833,10 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
       retry_task_id: rawRetryTaskId,
       mode,
       timezone,
+      client_context: parseClientContext(
+        source.client_context ??
+          (isRecord(rawBody) ? rawBody.client_context : null),
+      ),
     },
   };
 }
@@ -886,6 +897,7 @@ function parseExecuteActionRequest(
         toolName,
         toolArgs,
       },
+      clientContext: parseClientContext(rawBody.client_context),
     },
   };
 }
@@ -977,7 +989,13 @@ function getToolDefinitionsForMode(
 ) {
   const categories = getToolCategoriesForRouting(mode, classification);
   return filterRegisteredTools({ mode, userRole })
-    .filter((tool) => !categories || categories.has(tool.category))
+    .filter(
+      (tool) =>
+        !categories ||
+        categories.has(tool.category) ||
+        // "This is broken" can classify as anything; support stays reachable.
+        (mode !== "image" && isSupportTool(tool.function.name)),
+    )
     .map(toOpenAIToolDefinition);
 }
 
@@ -2138,6 +2156,7 @@ function createBloomToolExecutor(
       cacheAuditScopeId,
       serviceClient,
       dataClient,
+      clientContext: bloomRequest.client_context,
     });
     const executionTimeMs = Date.now() - startedAt;
     const status = statusForToolResult(toolResult);
@@ -2911,6 +2930,7 @@ function createTaskApprovalStreamResponse(
             timezone: approval.timezone,
             serviceClient,
             dataClient,
+            clientContext: approval.client_context ?? null,
             mode: approval.mode,
             emitProgress: (progress) => {
               writeEvent({ event: "task_progress", data: progress });
@@ -3072,6 +3092,7 @@ async function createExecuteActionResponse(
     serviceClient,
     dataClient,
     approved: true,
+    clientContext: payload.clientContext,
   });
 
   const status = toolResult.success ? "completed" : "failed";

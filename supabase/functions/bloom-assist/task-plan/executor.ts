@@ -269,6 +269,7 @@ export async function executeTask(
       serviceClient,
       dataClient: context.dataClient,
       approved: true,
+      clientContext: context.clientContext ?? null,
     });
     const status = resultStatus(result);
     return {
