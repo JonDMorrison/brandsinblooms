@@ -135,6 +135,11 @@ async function handleMessage(caller: Caller, msg: Record<string, unknown>) {
       const p = (msg.params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
       const tool = TOOLS.find((t) => t.name === p.name);
       if (!tool) return rpcError(idv, -32602, `Unknown tool ${p.name}`);
+      // A read-only key can only call tools it can see in tools/list, whatever the tool does itself.
+      const readOnlyCaller = caller.scopes.length > 0 && !caller.scopes.includes("write") && !caller.scopes.includes("*");
+      if (!tool.readOnly && readOnlyCaller) {
+        return rpcResult(idv, { content: [{ type: "text", text: "forbidden: This API key is read-only" }], isError: true });
+      }
       try {
         const out = await tool.run(caller, p.arguments ?? {});
         return rpcResult(idv, { content: [{ type: "text", text: JSON.stringify(out ?? { ok: true }, null, 2) }], structuredContent: typeof out === "object" && out !== null && !Array.isArray(out) ? out : { result: out } });

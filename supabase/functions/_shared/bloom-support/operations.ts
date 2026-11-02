@@ -358,7 +358,14 @@ async function perform(caller: Caller, op: OperationRow): Promise<{ result: unkn
       if (!r.success) throw new BloomError(400, "invalid", r.error ?? "campaign change failed");
       const id = (r.data as Record<string, unknown> | null)?.campaign_id ?? (r.data as Record<string, unknown> | null)?.id ?? inputs.campaign_id;
       const after = id ? await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: op.account_id, campaign_id: id }) : null;
-      return { result: r.data, verification: { passed: !!after, campaign: after }, undo: before ? { kind: "campaign.update_draft", restore: before } : null };
+      // A draft edit has no automatic undo: the snapshot is a read model, not the
+      // editable fields, so replaying it could change more than the edit did.
+      // Keep the before state as evidence and say plainly that undo is done in the product.
+      return {
+        result: r.data,
+        verification: { passed: !!after, campaign: after, ...(before ? { before, undo: "Change it back in the campaign editor" } : {}) },
+        undo: null,
+      };
     }
     default: {
       const account = await loadAccount(caller, op.account_id);

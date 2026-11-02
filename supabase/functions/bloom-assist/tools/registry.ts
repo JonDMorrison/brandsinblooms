@@ -1,6 +1,7 @@
 import { loyaltyProgrammeTools } from "./loyalty-programme-registry.ts";
 import { customerExplorationTools, addIntelligenceScopeParameters } from "./customer-exploration-registry.ts";
 import { DIAGNOSTIC_AREAS } from "./implementations/support-tools.ts";
+import { SUITE_READ_KINDS } from "./implementations/suite-tools.ts";
 import type { BloomMode, JsonArray, JsonObject } from "../types.ts";
 import type {
   IntentClassification,
@@ -1620,6 +1621,28 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
         }),
       },
       ["area"],
+    ),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
+    name: "read_suite_data",
+    description:
+      "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, or a sales summary for a date range (up to 93 days). Read-only. Access depends on the person's own Bloom Support permissions; if Bloom says there is no access or no connection, tell the user plainly and do not retry.",
+    parameters: objectSchema(
+      {
+        kind: stringSchema("Which data to read.", { enum: SUITE_READ_KINDS }),
+        site_id: stringSchema("BloomSites site id, only when the company has more than one website."),
+        pos_tenant_id: stringSchema("POS business id, only when the company has more than one."),
+        store_id: stringSchema("POS store id, when the business has several stores."),
+        q: stringSchema("Product name or SKU to search for (POS products and stock)."),
+        from: stringSchema("Sales summary start date, YYYY-MM-DD."),
+        to: stringSchema("Sales summary end date, YYYY-MM-DD."),
+      },
+      ["kind"],
     ),
     category: "query",
     riskLevel: "safe",

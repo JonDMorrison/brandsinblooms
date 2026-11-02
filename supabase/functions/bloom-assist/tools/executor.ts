@@ -44,6 +44,7 @@ import { searchKnowledge } from "./implementations/search-knowledge.ts";
 import { segmentAudienceImplementation } from "./implementations/segment-audience.ts";
 import { tagConsentImplementation } from "./implementations/tag-consent-tools.ts";
 import { isSupportTool, supportToolImplementation } from "./implementations/support-tools.ts";
+import { isSuiteTool, suiteToolImplementation } from "./implementations/suite-tools.ts";
 import { getRegisteredTool, normalizeToolRole } from "./registry.ts";
 import type {
   ConfirmationDetails,
@@ -805,6 +806,7 @@ function unknownToolResult(toolName: string): ToolResult {
 
 function isCacheableTool(toolName: ToolName): boolean {
   if (isSupportTool(toolName)) return false;
+  if (isSuiteTool(toolName)) return false;
   return !["list_loyalty_programme_templates", "list_loyalty_programmes", "read_loyalty_programme_results", "explore_customer_purchases", "get_customer_product_history", "explore_customer_reported_spending", "inspect_customer_set", "explain_customer_set_member", "analyze_customer_basket", "compare_customer_growth", "save_customer_set_segment", "export_data", "rank_customers_by_intelligence", "find_customer_opportunities"].includes(toolName);
 }
 
@@ -894,6 +896,11 @@ function getToolImplementation(toolName: ToolName): ToolImplementation {
   const support = supportToolImplementation(toolName);
   if (support) {
     return support;
+  }
+
+  const suite = suiteToolImplementation(toolName);
+  if (suite) {
+    return suite;
   }
 
   switch (toolName) {

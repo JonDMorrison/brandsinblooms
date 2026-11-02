@@ -255,7 +255,8 @@ export type ToolName =
   | "compute_audience_size"
   | "report_support_problem"
   | "check_support_request"
-  | "run_self_diagnostics";
+  | "run_self_diagnostics"
+  | "read_suite_data";
 
 export type ToolDefinition = OpenAIToolDefinition & {
   function: OpenAIToolDefinition["function"] & {
