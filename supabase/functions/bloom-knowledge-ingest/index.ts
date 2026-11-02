@@ -227,6 +227,7 @@ async function authenticateRequest(
 
 async function resolveTenantMembership(args: {
   serviceClient: SupabaseClient;
+  userClient: SupabaseClient;
   userId: string;
   tenantId: string;
 }): Promise<void> {
@@ -241,7 +242,20 @@ async function resolveTenantMembership(args: {
   }
 
   const userRow = parsePublicUserRow(data);
-  if (!userRow || userRow.tenant_id !== args.tenantId) {
+  if (userRow?.tenant_id === args.tenantId) {
+    return;
+  }
+
+  // A master admin working inside this client (admin workspace switch) has
+  // the same Bloom access as its members. Checked with the caller's own token.
+  const { data: allowed, error: accessError } = await args.userClient.rpc(
+    "bloom_can_access_tenant",
+    { p_tenant_id: args.tenantId },
+  );
+  if (accessError) {
+    throw new Error(`Failed to resolve tenant access: ${accessError.message}`);
+  }
+  if (allowed !== true) {
     throw new HttpError(403, "Tenant membership required.");
   }
 }
@@ -914,9 +928,13 @@ Deno.serve(async (req: Request) => {
   try {
     const requestBody: unknown = await req.json();
     const ingestRequest = parseRequestBody(requestBody);
-    const { userId } = await authenticateRequest(req, envConfig);
+    const { userId, client: userClient } = await authenticateRequest(
+      req,
+      envConfig,
+    );
     await resolveTenantMembership({
       serviceClient,
+      userClient,
       userId,
       tenantId: ingestRequest.tenantId,
     });
