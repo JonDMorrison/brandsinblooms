@@ -15,6 +15,8 @@ import { ArrowLeft, Check, Lock, Paperclip, Sprout } from "lucide-react";
 import { format, formatDistanceToNow, isToday } from "date-fns";
 import { bloomSupport, PRODUCT_LABEL, WAITING_LABEL, type TicketDetail, type TicketMessage, type Whoami } from "@/lib/bloomSupport/api";
 import { statusPatch } from "./statusPatch";
+import { ENGINEERING_TEXT } from "./labels";
+import { useAskDialog } from "./useAskDialog";
 
 /**
  * Bloom Support conversation: one ticket read as a chat, with the single thing it needs
@@ -38,22 +40,6 @@ const STAGE_TEXT: Record<string, string> = {
   awaiting_client: "Waiting on the client.",
 };
 
-const ENGINEERING_TEXT: Record<string, string> = {
-  open: "Reported, not started yet",
-  investigating: "Investigating",
-  reproduced: "Bug reproduced",
-  not_reproduced: "Could not reproduce the bug",
-  fixing: "Writing the fix",
-  awaiting_approval: "Fix ready and tested, waiting for approval",
-  approved: "Fix approved, waiting to release",
-  merging: "Releasing the fix",
-  deploying: "Releasing the fix",
-  verifying: "Checking the fix on the live site",
-  verified: "Fix is live and checked",
-  failed: "The fix attempt failed",
-  rolled_back: "Fix rolled back",
-  escalated: "Needs a person",
-};
 
 function banner(t: TicketDetail): Banner {
   const eng = t.engineering as { status?: string } | null | undefined;
@@ -115,6 +101,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const replyKey = useRef(crypto.randomUUID());
+  const { ask, dialog } = useAskDialog();
   const can = (p: string) => me.permissions.includes(p);
 
   const run = useMutation({
@@ -153,8 +140,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       done: visibility === "public" ? `Sent to ${t.requester?.name ?? clientName}.` : "Private note added.",
     });
 
-  const markSolved = () => {
-    const patch = statusPatch(t, "resolved");
+  const markSolved = async () => {
+    const patch = await statusPatch(ask, t, "resolved");
     if (patch) run.mutate({ fn: () => bloomSupport.updateTicket(t.id, { version: t.version, ...patch }), done: "Marked solved. Bloom will let the client know." });
   };
 
@@ -167,6 +154,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
 
   return (
     <Stack sx={{ height: "100%", minHeight: 0, bgcolor: "background.body" }}>
+      {dialog}
       <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         <Stack spacing={3} sx={{ maxWidth: 760, mx: "auto", px: { xs: 2, md: 3 }, py: 3 }}>
           <Stack direction="row" spacing={1.5} alignItems="center">

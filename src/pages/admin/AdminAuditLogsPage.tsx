@@ -39,6 +39,7 @@ import {
 } from "@/components/joy/JoyTable";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { supabase } from "@/integrations/supabase/client";
+import { ReadableData } from "@/components/admin/ReadableData";
 
 interface InternalAuditRow {
   id: string;
@@ -69,13 +70,6 @@ interface AuditListResponse {
 
 const PAGE_SIZE = 25;
 
-function toPretty(value: unknown): string {
-  try {
-    return JSON.stringify(value ?? {}, null, 2);
-  } catch {
-    return "{}";
-  }
-}
 
 function formatDateTime(value: string | null): string {
   if (!value) return "—";
@@ -579,45 +573,15 @@ export default function AdminAuditLogsPage() {
                         <JoyTableCell
                           sx={{ minWidth: 260, verticalAlign: "top" }}
                         >
-                          <Box
-                            component="pre"
-                            sx={{
-                              m: 0,
-                              maxHeight: 160,
-                              overflow: "auto",
-                              borderRadius: "var(--joy-radius-md)",
-                              backgroundColor: "neutral.100",
-                              p: 1.5,
-                              fontSize: "var(--joy-fontSize-xs)",
-                              fontFamily:
-                                "ui-monospace, SFMono-Regular, Menlo, monospace",
-                              whiteSpace: "pre-wrap",
-                              overflowWrap: "anywhere",
-                            }}
-                          >
-                            {toPretty(row.previous_value)}
+                          <Box sx={{ maxHeight: 220, overflow: "auto", borderRadius: "var(--joy-radius-md)", backgroundColor: "neutral.50", p: 1.5 }}>
+                            <ReadableData value={row.previous_value ?? {}} />
                           </Box>
                         </JoyTableCell>
                         <JoyTableCell
                           sx={{ minWidth: 260, verticalAlign: "top" }}
                         >
-                          <Box
-                            component="pre"
-                            sx={{
-                              m: 0,
-                              maxHeight: 160,
-                              overflow: "auto",
-                              borderRadius: "var(--joy-radius-md)",
-                              backgroundColor: "neutral.100",
-                              p: 1.5,
-                              fontSize: "var(--joy-fontSize-xs)",
-                              fontFamily:
-                                "ui-monospace, SFMono-Regular, Menlo, monospace",
-                              whiteSpace: "pre-wrap",
-                              overflowWrap: "anywhere",
-                            }}
-                          >
-                            {toPretty(row.new_value)}
+                          <Box sx={{ maxHeight: 220, overflow: "auto", borderRadius: "var(--joy-radius-md)", backgroundColor: "neutral.50", p: 1.5 }}>
+                            <ReadableData value={row.new_value ?? {}} />
                           </Box>
                         </JoyTableCell>
                       </JoyTableRow>

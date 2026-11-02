@@ -19,6 +19,8 @@ import { Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, KIND_LABEL, PRODUCT_LABEL, QUEUE_VIEWS, STATUS_LABEL, WAITING_LABEL, type SupportStatus, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
 import { AutomationChip, PriorityChip, StatusChip } from "./chips";
+import { useAskDialog } from "./useAskDialog";
+import { WAITING_OPTIONS } from "./statusPatch";
 
 type Filters = { view: string; q?: string; product?: string; priority?: string; kind?: string; owner?: string; sort: string; age_days_min?: string };
 
@@ -67,11 +69,18 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
     },
     onError: (e: Error) => setNotice({ color: "danger", text: e.message }),
   });
-  const runBulk = (b: Record<string, unknown>, consequential = false) => {
+  const { ask, dialog } = useAskDialog();
+  const runBulk = async (b: Record<string, unknown>, consequential = false) => {
     const n = checked.size;
     if (consequential || n > 20) {
-      const typed = window.prompt(`This changes ${n} ticket(s). Type ${n} to confirm.`);
-      if (typed !== String(n)) return;
+      const r = await ask({
+        title: `Change ${n} request${n === 1 ? "" : "s"}?`,
+        description: "This changes every selected request at once and cannot be undone in one step.",
+        fields: [{ name: "typed", label: `Type ${n} to confirm`, kind: "text", required: true }],
+        confirmLabel: "Change them",
+        tone: "danger",
+      });
+      if (!r || String(r.typed).trim() !== String(n)) return;
       b = { ...b, confirm: String(n) };
     }
     bulk.mutate(b);
@@ -91,6 +100,7 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
 
   return (
     <Stack sx={{ minHeight: 0, height: "100%" }}>
+      {dialog}
       <Stack spacing={1} sx={{ p: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
         <Stack direction="row" spacing={0.5} sx={{ overflowX: "auto", pb: 0.5 }} role="tablist" aria-label="Queue views">
           {QUEUE_VIEWS.map((v) => (
@@ -134,8 +144,8 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
             <Menu size="sm">
               {(views.data ?? []).map((v) => <MenuItem key={v.id} onClick={() => setFilters({ sort: "priority", ...(v.filters as Filters) })}>{v.name}{v.shared ? " (shared)" : ""}</MenuItem>)}
               <MenuItem onClick={async () => {
-                const name = window.prompt("Name this view");
-                if (name) { await bloomSupport.saveView(name, filters); qc.invalidateQueries({ queryKey: ["bloom-support", "views"] }); }
+                const r = await ask({ title: "Save this view", description: "Keep these filters so you can come back to them in one click.", fields: [{ name: "name", label: "Name", kind: "text", placeholder: "e.g. Urgent POS problems", required: true }], confirmLabel: "Save view" });
+                if (r) { await bloomSupport.saveView(String(r.name).trim(), filters); qc.invalidateQueries({ queryKey: ["bloom-support", "views"] }); }
               }}>Save current view…</MenuItem>
             </Menu>
           </Dropdown>
@@ -144,11 +154,19 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
             <Typography level="body-xs">{checked.size} selected</Typography>
             <Button size="sm" variant="soft" onClick={() => runBulk({ patch: { owner_id: me.id } })}>Assign to me</Button>
-            <Button size="sm" variant="soft" onClick={() => { const tag = window.prompt("Tag to add"); if (tag) runBulk({ add_tags: [tag.trim().toLowerCase()] }); }}>Add tag</Button>
-            <Select size="sm" placeholder="Set status…" value={null} onChange={(_, v) => {
+            <Button size="sm" variant="soft" onClick={async () => { const r = await ask({ title: "Add a tag", description: "Tags help you find related requests later.", fields: [{ name: "tag", label: "Tag", kind: "text", placeholder: "e.g. spring-sale", required: true }], confirmLabel: "Add tag" }); if (r) runBulk({ add_tags: [String(r.tag).trim().toLowerCase()] }); }}>Add tag</Button>
+            <Select size="sm" placeholder="Set status…" value={null} onChange={async (_, v) => {
               if (!v) return;
-              if (v === "waiting") { const r = window.prompt("Waiting reason: customer, internal, third_party, deployment, scheduled", "customer"); if (r) runBulk({ patch: { status: "waiting", waiting_reason: r } }); return; }
-              if (v === "resolved") { const s = window.prompt("Resolution summary for all selected tickets"); if (s) runBulk({ patch: { status: "resolved", resolution_summary: s } }, true); return; }
+              if (v === "waiting") {
+                const r = await ask({ title: "Waiting on whom?", fields: [{ name: "reason", label: "Waiting on", kind: "select", required: true, initial: "customer", options: WAITING_OPTIONS }], confirmLabel: "Set to waiting" });
+                if (r) runBulk({ patch: { status: "waiting", waiting_reason: String(r.reason) } });
+                return;
+              }
+              if (v === "resolved") {
+                const r = await ask({ title: "Mark as solved", description: "This message is sent to each client.", fields: [{ name: "summary", label: "What fixed it?", kind: "textarea", required: true }], confirmLabel: "Continue" });
+                if (r) runBulk({ patch: { status: "resolved", resolution_summary: String(r.summary).trim() } }, true);
+                return;
+              }
               runBulk({ patch: { status: v } });
             }} sx={{ minWidth: 120 }}>
               {(["working", "waiting", "resolved"] as SupportStatus[]).map((s) => <Option key={s} value={s}>{STATUS_LABEL[s]}</Option>)}

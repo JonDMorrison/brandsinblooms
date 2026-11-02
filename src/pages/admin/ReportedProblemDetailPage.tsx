@@ -22,6 +22,8 @@ import { ProblemPriorityBadge } from "@/components/reportProblem/ProblemPriority
 import { ArrowLeft, Download, FileIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ProblemStatus, ProblemPriority } from "@/types/reportedProblems";
+import { ReadableData } from "@/components/admin/ReadableData";
+import Box from "@mui/joy/Box";
 
 const ReportedProblemDetailPage: React.FC = () => {
   const { problemId } = useParams<{ problemId: string }>();
@@ -206,10 +208,10 @@ const ReportedProblemDetailPage: React.FC = () => {
               ) : null}
               {problem.browser_info ? (
                 <div>
-                  <strong className="text-sm">Browser Info:</strong>
-                  <pre className="text-xs text-muted-foreground mt-1 p-2 bg-muted rounded">
-                    {JSON.stringify(problem.browser_info, null, 2)}
-                  </pre>
+                  <strong className="text-sm">Browser and device</strong>
+                  <Box sx={{ mt: 1 }}>
+                    <ReadableData value={problem.browser_info} />
+                  </Box>
                 </div>
               ) : null}
             </Stack>
