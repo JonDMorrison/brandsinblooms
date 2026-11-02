@@ -42,10 +42,12 @@ import { useCreateSegment } from "@/hooks/useCreateSegment";
 import { useDeleteSegment } from "@/hooks/useDeleteSegment";
 import { useEvaluateSegments } from "@/hooks/useSegmentEvaluation";
 import { type SegmentListItem, useSegments } from "@/hooks/useSegments";
+import { useSystemSegmentDataAvailability } from "@/hooks/useSystemSegmentDataAvailability";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { BASE_SEGMENT_FIELDS } from "@/lib/segmentFields";
 import { segmentRuleToNaturalLanguage } from "@/lib/segmentRuleToNaturalLanguage";
+import { getMissingDataExplanation } from "@/lib/crm/systemSegmentDataAvailability";
 import {
   downloadTextFile,
   sanitizeFileNamePart,
@@ -210,6 +212,10 @@ export function CRMSegmentsPage() {
     },
     staleTime: 60_000,
   });
+
+  // Explains empty built-in groups. Never blocks the page; on error the
+  // cards fall back to the plain member count.
+  const dataAvailabilityQuery = useSystemSegmentDataAvailability(tenantId);
 
   const summaries = React.useMemo(() => {
     return Object.fromEntries(
@@ -717,8 +723,13 @@ export function CRMSegmentsPage() {
                         }),
                         isSystemSegment: true,
                         memberCount: segment.memberCount,
-                        averageValue: 0,
-                        totalValue: 0,
+                        averageValue: null,
+                        totalValue: null,
+                        emptyReason: getMissingDataExplanation({
+                          segmentName: segment.name,
+                          memberCount: segment.memberCount,
+                          availability: dataAvailabilityQuery.data,
+                        }),
                       }}
                       detailHref={`/crm/segments/${segment.id}`}
                       membersHref={`/crm/segments/${segment.id}/members`}
@@ -764,8 +775,8 @@ export function CRMSegmentsPage() {
                         }),
                         isSystemSegment: false,
                         memberCount: segment.memberCount,
-                        averageValue: 0,
-                        totalValue: 0,
+                        averageValue: null,
+                        totalValue: null,
                       }}
                       detailHref={`/crm/segments/${segment.id}`}
                       membersHref={`/crm/segments/${segment.id}/members`}

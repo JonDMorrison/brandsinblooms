@@ -6,6 +6,7 @@ import Typography from "@mui/joy/Typography";
 import { MoreHorizontal } from "lucide-react";
 import { Link as RouterLink } from "react-router-dom";
 import { getSegmentIcon } from "@/components/icons/segments";
+import { formatSegmentValue } from "@/lib/crm/systemSegmentDataAvailability";
 import {
   JoyCard,
   JoyCardContent,
@@ -27,8 +28,11 @@ export interface SegmentCatalogItem {
   description: string;
   isSystemSegment: boolean;
   memberCount: number;
-  averageValue: number;
-  totalValue: number;
+  /** null when spend is unknown; never rendered as $0. */
+  averageValue: number | null;
+  totalValue: number | null;
+  /** Plain explanation shown instead of a bare 0 when the group cannot fill yet. */
+  emptyReason?: string | null;
 }
 
 interface SegmentCatalogCardProps {
@@ -156,9 +160,15 @@ export function SegmentCatalogCard({
             <Typography level="body-xs" color="neutral">
               Members
             </Typography>
-            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-              {item.memberCount.toLocaleString()} members
-            </Typography>
+            {item.memberCount === 0 && item.emptyReason ? (
+              <Typography level="body-sm" color="neutral">
+                {item.emptyReason}
+              </Typography>
+            ) : (
+              <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                {item.memberCount.toLocaleString()} members
+              </Typography>
+            )}
           </Stack>
 
           <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
@@ -167,7 +177,7 @@ export function SegmentCatalogCard({
                 Average value
               </Typography>
               <Typography level="body-sm" sx={{ fontWeight: 500 }}>
-                ${item.averageValue.toLocaleString()}
+                {formatSegmentValue(item.averageValue, item.memberCount)}
               </Typography>
             </Stack>
             <Stack spacing={0.35} sx={{ minWidth: 110 }}>
@@ -175,7 +185,7 @@ export function SegmentCatalogCard({
                 Total value
               </Typography>
               <Typography level="body-sm" sx={{ fontWeight: 500 }}>
-                ${item.totalValue.toLocaleString()}
+                {formatSegmentValue(item.totalValue, item.memberCount)}
               </Typography>
             </Stack>
           </Stack>
