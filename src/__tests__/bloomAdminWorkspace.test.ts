@@ -69,4 +69,10 @@ describe("Bloom follows the admin workspace switch", () => {
     expect(storage).toMatch(/c\.user_id = auth\.uid\(\)/);
     expect(sql).toContain("SET search_path = ''");
   });
+  it("lets knowledge search use the same access rule", () => {
+    const fn = sql.slice(sql.indexOf("FUNCTION public.match_bloom_knowledge_chunks"));
+    expect(fn).toContain("OR public.bloom_can_access_tenant(p_tenant_id)");
+    expect(fn).toContain("auth.role() = 'service_role'");
+    expect(fn).not.toMatch(/u\.tenant_id = p_tenant_id/);
+  });
 });

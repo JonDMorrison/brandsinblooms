@@ -215,3 +215,35 @@ CREATE POLICY "Tenant users can delete their Bloom attachments" ON storage.objec
       )
     )
   );
+
+-- Knowledge search uses the same access rule, so an admin in a client
+-- workspace searches that client's knowledge base. Body otherwise unchanged.
+CREATE OR REPLACE FUNCTION public.match_bloom_knowledge_chunks(p_tenant_id uuid, p_query_embedding vector, p_match_count integer DEFAULT 5, p_min_similarity double precision DEFAULT 0)
+ RETURNS TABLE(chunk_id uuid, document_id uuid, tenant_id uuid, document_title text, chunk_index integer, content text, metadata jsonb, similarity double precision)
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
+AS $function$
+  SELECT
+    c.id AS chunk_id,
+    c.document_id,
+    c.tenant_id,
+    d.title AS document_title,
+    c.chunk_index,
+    c.content,
+    c.metadata,
+    1 - (c.embedding <=> p_query_embedding) AS similarity
+  FROM public.bloom_knowledge_chunks c
+  JOIN public.bloom_knowledge_documents d
+    ON d.id = c.document_id
+   AND d.tenant_id = c.tenant_id
+  WHERE c.tenant_id = p_tenant_id
+    AND d.status = 'ready'
+    AND (
+      auth.role() = 'service_role'
+      OR public.bloom_can_access_tenant(p_tenant_id)
+    )
+    AND 1 - (c.embedding <=> p_query_embedding) >= COALESCE(p_min_similarity, 0)
+  ORDER BY c.embedding <=> p_query_embedding
+  LIMIT LEAST(GREATEST(COALESCE(p_match_count, 5), 1), 20);
+$function$;
