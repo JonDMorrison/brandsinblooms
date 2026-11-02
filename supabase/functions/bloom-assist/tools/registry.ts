@@ -99,6 +99,17 @@ const NAVIGATION_TARGETS = [
   "integrations",
   "analytics",
   "settings",
+  "customer_import",
+  "team_settings",
+  "billing",
+  "customer_intelligence",
+] as const;
+const CUSTOMER_INTELLIGENCE_VIEWS = [
+  "overview",
+  "explore",
+  "growth",
+  "rewards",
+  "data",
 ] as const;
 const ANALYTICS_RANGES = [
   "today",
@@ -1447,12 +1458,16 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "navigate_to",
     description:
-      "Navigate the user to a CRM page, customer record, product detail, campaign, segment, integration, dashboard, analytics, or settings screen. Use for go to, open, show me page, take me to, or deep-link requests.",
+      "Navigate the user to a CRM page, customer record, product detail, campaign, segment, integration, dashboard, analytics, or settings screen. Also opens customer import, locations and team settings, account and billing, and Customer Intelligence. Use for go to, open, show me page, take me to, where do I, or deep-link requests. Only these targets exist; never describe other menu paths.",
     parameters: objectSchema(
       {
         target: stringSchema("Navigation target.", {
           enum: NAVIGATION_TARGETS,
         }),
+        view: stringSchema(
+          "Customer Intelligence section, only for target customer_intelligence: overview, explore (Find customers), growth (Growth), rewards (Rewards), or data (Data & channels).",
+          { enum: CUSTOMER_INTELLIGENCE_VIEWS },
+        ),
         entity_id: stringSchema("Optional record ID for detail pages.", {
           pattern:
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",

@@ -6,6 +6,10 @@ import {
   type PlanDefinitionShape,
   type SubscriptionRecordShape,
 } from "../../../_shared/subscriptionSnapshot.ts";
+import {
+  NO_DATED_SALES_MESSAGE,
+  tenantHasDatedOrderRecords,
+} from "../../purchase-data-summary.ts";
 import type {
   ToolExecutionContext,
   ToolImplementation,
@@ -1082,14 +1086,29 @@ export const getCustomerTimeline: ToolImplementation = async (
   );
   const dateFilter = resolveDateFilter(params);
   const eventTypes = readTimelineEventTypes(params);
-  const [unifiedEvents, consentEvents, segmentEvents, tagEvents, rollups] =
-    await Promise.all([
-      loadUnifiedTimelineEvents(client, context.tenantId, customerId, limit),
-      loadConsentEvents(client, context.tenantId, customerId, limit),
-      loadSegmentEvents(client, context.tenantId, customerId),
-      loadTagEvents(client, context.tenantId, customerId),
-      loadTimelineRollups(client, customerId, monthsForRollup(dateFilter)),
-    ]);
+  const [
+    unifiedEvents,
+    consentEvents,
+    segmentEvents,
+    tagEvents,
+    loadedRollups,
+    hasDatedOrders,
+  ] = await Promise.all([
+    loadUnifiedTimelineEvents(client, context.tenantId, customerId, limit),
+    loadConsentEvents(client, context.tenantId, customerId, limit),
+    loadSegmentEvents(client, context.tenantId, customerId),
+    loadTagEvents(client, context.tenantId, customerId),
+    loadTimelineRollups(client, customerId, monthsForRollup(dateFilter)),
+    tenantHasDatedOrderRecords(
+      context.dataClient ?? context.serviceClient,
+      context.tenantId,
+    ),
+  ]);
+  // The purchase rollup fills every month with 0 orders even when the company
+  // has no dated sales source. Those zeros are unknown, so drop them.
+  const rollups = hasDatedOrders
+    ? loadedRollups
+    : { ...loadedRollups, purchases: [] };
 
   const events = [
     ...unifiedEvents,
@@ -1119,13 +1138,20 @@ export const getCustomerTimeline: ToolImplementation = async (
     summary: timelineSummary(events),
     events: events.map(timelineEventPayload),
     rollups,
+    purchase_history_status: hasDatedOrders
+      ? "dated_sales_records"
+      : "no_dated_sales_records",
+    purchase_history_note: hasDatedOrders ? null : NO_DATED_SALES_MESSAGE,
   };
 
+  const loadedMessage = `Loaded ${events.length} timeline events for ${customerDisplayName(customer)}.`;
   return createResult({
     data,
     count: events.length,
     blockType: "data_table",
-    message: `Loaded ${events.length} timeline events for ${customerDisplayName(customer)}.`,
+    message: hasDatedOrders
+      ? loadedMessage
+      : `${loadedMessage} Purchases are not shown. ${NO_DATED_SALES_MESSAGE}`,
   });
 };
 

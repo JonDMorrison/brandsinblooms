@@ -1,5 +1,6 @@
 import { BASE_SYSTEM_PROMPT } from "./prompts/base-system-prompt.ts";
 import { getContextWithCompaction } from "./compaction.ts";
+import { buildPurchaseDataLine } from "./purchase-data-summary.ts";
 import {
   detectRecallTrigger,
   formatRecalledContext,
@@ -803,7 +804,10 @@ function formatDateInTimezone(timezone: string): string {
   }
 }
 
-function buildTenantLayer(profile: TenantProfile): OpenAIChatMessage {
+function buildTenantLayer(
+  profile: TenantProfile,
+  purchaseDataLine: string | null = null,
+): OpenAIChatMessage {
   const instructions = extractTenantInstructions(profile.settings);
   const location = [profile.city, profile.region, profile.country]
     .filter(Boolean)
@@ -821,6 +825,7 @@ function buildTenantLayer(profile: TenantProfile): OpenAIChatMessage {
         profile.industry ? `Industry: ${profile.industry}` : null,
         profile.website ? `Website: ${profile.website}` : null,
         location ? `Location: ${location}` : null,
+        purchaseDataLine,
         instructions ? `Stored AI instructions: ${instructions}` : null,
         `Tenant settings summary: ${settingsText}`,
       ]
@@ -1231,12 +1236,14 @@ export async function buildContextLayers({
         trigger: "none" as const,
       });
 
-  const [tenantProfile, bloomProfile, historyContext, tools] =
+  const [tenantProfile, bloomProfile, historyContext, tools, purchaseDataLine] =
     await Promise.all([
       loadTenantProfile(serviceClient, context.tenantId),
       loadBloomProfile(serviceClient, context.tenantId, context.userId),
       historyContextPromise,
       loadToolDefinitions(request, context, toolDefinitionProvider),
+      // Time-boxed and never rejects, so it cannot block or fail the request.
+      buildPurchaseDataLine(serviceClient, context.tenantId),
     ]);
 
   const startingMessages: OpenAIChatMessage[] = [
@@ -1246,7 +1253,7 @@ export async function buildContextLayers({
       inputSecurity,
       buildFollowUpSuggestionContextInstruction(request, bloomProfile),
     ),
-    buildTenantLayer(tenantProfile),
+    buildTenantLayer(tenantProfile, purchaseDataLine),
     buildUserLayer(context, request, bloomProfile, entitySummary),
     buildToolLayer(tools, request, context),
   ];

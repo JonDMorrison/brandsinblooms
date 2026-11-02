@@ -44,6 +44,7 @@ import type { TaskPlanApprovalPayload } from "./task-plan/types.ts";
 import { taskPlanSummaryToJson, taskPlanToJson } from "./task-plan/types.ts";
 import { executeTool } from "./tools/executor.ts";
 import { classifyIntentWithComplexity } from "./tools/intent-classifier.ts";
+import { getToolCategoriesForRouting } from "./tools/tool-routing.ts";
 import {
   filterRegisteredTools,
   getRegisteredTool,
@@ -51,7 +52,6 @@ import {
 } from "./tools/registry.ts";
 import type {
   IntentClassificationResult,
-  ToolCategory,
   ToolResult,
 } from "./tools/types.ts";
 import type {
@@ -88,15 +88,6 @@ const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
 const TITLE_MODEL = "gpt-4o-mini";
 const OPENAI_MODEL = "gpt-4o";
-const QUERY_TOOL_CATEGORIES = new Set<ToolCategory>(["query"]);
-const QUERY_ANALYTICS_TOOL_CATEGORIES = new Set<ToolCategory>([
-  "query",
-  "analytics",
-]);
-const MUTATION_TOOL_CATEGORIES = new Set<ToolCategory>(["query", "mutation"]);
-const CONTENT_TOOL_CATEGORIES = new Set<ToolCategory>(["content"]);
-const NAVIGATION_TOOL_CATEGORIES = new Set<ToolCategory>(["navigation"]);
-const RESEARCH_TOOL_CATEGORIES = QUERY_ANALYTICS_TOOL_CATEGORIES;
 const RESEARCH_MAX_TOOL_ITERATIONS = 15;
 const MAX_OUTPUT_TOKENS = 8_000;
 const MAX_MESSAGE_LENGTH = 20_000;
@@ -937,37 +928,6 @@ function estimateTokenCount(text: string): number {
 
 function selectMaxToolIterations(mode: BloomMode): number | undefined {
   return mode === "research" ? RESEARCH_MAX_TOOL_ITERATIONS : undefined;
-}
-
-function getToolCategoriesForRouting(
-  mode: BloomMode,
-  classification: IntentClassificationResult,
-): Set<ToolCategory> | null {
-  if (mode === "research") {
-    return RESEARCH_TOOL_CATEGORIES;
-  }
-
-  if (mode === "image") {
-    return CONTENT_TOOL_CATEGORIES;
-  }
-
-  switch (classification.category) {
-    case "query":
-      return classification.complexity === "simple"
-        ? QUERY_TOOL_CATEGORIES
-        : QUERY_ANALYTICS_TOOL_CATEGORIES;
-    case "mutation":
-      return MUTATION_TOOL_CATEGORIES;
-    case "analytics":
-      return QUERY_ANALYTICS_TOOL_CATEGORIES;
-    case "content":
-    case "image":
-      return CONTENT_TOOL_CATEGORIES;
-    case "navigation":
-      return NAVIGATION_TOOL_CATEGORIES;
-    case "general":
-      return null;
-  }
 }
 
 function getToolDefinitionsForMode(

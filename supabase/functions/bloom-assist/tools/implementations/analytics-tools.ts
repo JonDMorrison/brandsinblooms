@@ -1,4 +1,8 @@
 import type { Database } from "../../../../../src/integrations/supabase/types.ts";
+import {
+  NO_DATED_SALES_MESSAGE,
+  tenantHasDatedOrderRecords,
+} from "../../purchase-data-summary.ts";
 import type { JsonArray, JsonObject, JsonValue } from "../../types.ts";
 import type {
   ToolExecutionContext,
@@ -7,6 +11,7 @@ import type {
 } from "../types.ts";
 import {
   formatCurrency,
+  UNKNOWN_AMOUNT_LABEL,
   getQueryClient,
   isRecord,
   toNumberOrNull,
@@ -104,7 +109,8 @@ type RevenueOrder = {
 
 type RevenueTotals = {
   averageOrderValue: number;
-  currency: string;
+  // Null when no order carries a currency. Never assume one.
+  currency: string | null;
   netRevenue: number;
   orderCount: number;
   refunds: number;
@@ -112,7 +118,6 @@ type RevenueTotals = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_CURRENCY = "USD";
 const ACTIVE_CAMPAIGN_STATUSES = ["active", "sending", "scheduled"] as const;
 const REVENUE_PROVIDERS: readonly RevenueProvider[] = [
   "square",
@@ -237,13 +242,13 @@ function changeDirection(changePercentage: number | null): ChangeDirection {
 function metricCard(args: {
   key: string;
   label: string;
-  rawValue: number;
+  rawValue: number | null;
   value: string;
   previousValue?: number | null;
 }): JsonObject {
   const previousValue = args.previousValue ?? null;
   const changePercentage =
-    previousValue === null
+    previousValue === null || args.rawValue === null
       ? null
       : percentageChange(args.rawValue, previousValue);
 
@@ -251,7 +256,7 @@ function metricCard(args: {
     key: args.key,
     label: args.label,
     value: args.value,
-    raw_value: round(args.rawValue, 2),
+    raw_value: args.rawValue === null ? null : round(args.rawValue, 2),
     comparison_value: previousValue === null ? null : round(previousValue, 2),
     change_percentage: changePercentage,
     change_label: formatPercent(changePercentage),
@@ -902,13 +907,21 @@ async function loadRevenueOrders(
   ];
 }
 
+async function hasDatedOrderSource(
+  context: ToolExecutionContext,
+): Promise<boolean> {
+  return await tenantHasDatedOrderRecords(
+    context.dataClient ?? context.serviceClient,
+    context.tenantId,
+  );
+}
+
 function revenueTotals(orders: RevenueOrder[]): RevenueTotals {
   const revenue = orders.reduce((sum, order) => sum + order.revenue, 0);
   const refunds = orders.reduce((sum, order) => sum + order.refunds, 0);
   const netRevenue = orders.reduce((sum, order) => sum + order.netRevenue, 0);
   const orderCount = orders.length;
-  const currency =
-    orders.find((order) => order.currency)?.currency ?? DEFAULT_CURRENCY;
+  const currency = orders.find((order) => order.currency)?.currency ?? null;
 
   return {
     revenue: round(revenue, 2),
@@ -1202,6 +1215,8 @@ export const getDashboardSummary: ToolImplementation = async (
   };
   const previousRecentRange = previousRange(recentRange);
 
+  const hasDatedOrders = await hasDatedOrderSource(context);
+  const noOrders = Promise.resolve<RevenueOrder[]>([]);
   const [
     totalCustomers,
     customersBeforeMonth,
@@ -1219,15 +1234,22 @@ export const getDashboardSummary: ToolImplementation = async (
     countCustomersInRange(client, context.tenantId, ranges.current),
     countCustomersInRange(client, context.tenantId, ranges.previous),
     countActiveCampaigns(client, context.tenantId),
-    loadRevenueOrders(client, context, ranges.current),
-    loadRevenueOrders(client, context, ranges.previous),
-    loadRevenueOrders(client, context, recentRange),
-    loadRevenueOrders(client, context, previousRecentRange),
+    hasDatedOrders
+      ? loadRevenueOrders(client, context, ranges.current)
+      : noOrders,
+    hasDatedOrders
+      ? loadRevenueOrders(client, context, ranges.previous)
+      : noOrders,
+    hasDatedOrders ? loadRevenueOrders(client, context, recentRange) : noOrders,
+    hasDatedOrders
+      ? loadRevenueOrders(client, context, previousRecentRange)
+      : noOrders,
     loadTopCampaign(client, context.tenantId),
   ]);
 
   const revenue = revenueTotals(revenueOrders);
   const previousRevenue = revenueTotals(previousRevenueOrders);
+  // Without a dated order source, revenue and orders are unknown, not zero.
   const metrics: JsonArray = [
     metricCard({
       key: "total_customers",
@@ -1246,9 +1268,11 @@ export const getDashboardSummary: ToolImplementation = async (
     metricCard({
       key: "revenue_this_month",
       label: "Revenue this month",
-      rawValue: revenue.revenue,
-      value: formatCurrency(revenue.revenue, revenue.currency),
-      previousValue: previousRevenue.revenue,
+      rawValue: hasDatedOrders ? revenue.revenue : null,
+      value: hasDatedOrders
+        ? formatCurrency(revenue.revenue, revenue.currency)
+        : UNKNOWN_AMOUNT_LABEL,
+      previousValue: hasDatedOrders ? previousRevenue.revenue : null,
     }),
     metricCard({
       key: "active_campaigns",
@@ -1260,9 +1284,11 @@ export const getDashboardSummary: ToolImplementation = async (
     metricCard({
       key: "recent_orders",
       label: "Recent orders",
-      rawValue: recentOrders.length,
-      value: formatInteger(recentOrders.length),
-      previousValue: previousRecentOrders.length,
+      rawValue: hasDatedOrders ? recentOrders.length : null,
+      value: hasDatedOrders
+        ? formatInteger(recentOrders.length)
+        : UNKNOWN_AMOUNT_LABEL,
+      previousValue: hasDatedOrders ? previousRecentOrders.length : null,
     }),
   ];
 
@@ -1276,13 +1302,19 @@ export const getDashboardSummary: ToolImplementation = async (
     },
     metrics,
     top_performing_campaign: topCampaign,
+    sales_data_status: hasDatedOrders
+      ? "dated_sales_records"
+      : "no_dated_sales_records",
+    sales_data_note: hasDatedOrders ? null : NO_DATED_SALES_MESSAGE,
   };
 
   return createResult({
     data,
     count: metrics.length,
     blockType: "stat_card",
-    message: `Loaded ${metrics.length} dashboard KPIs for this tenant, including customers, revenue, campaigns, orders, and top campaign performance.`,
+    message: hasDatedOrders
+      ? `Loaded ${metrics.length} dashboard KPIs for this tenant, including customers, revenue, campaigns, orders, and top campaign performance.`
+      : `Loaded customer and campaign numbers. Revenue and recent orders are Unknown. ${NO_DATED_SALES_MESSAGE}`,
   });
 };
 
@@ -1304,6 +1336,9 @@ export const getRevenueAnalytics: ToolImplementation = async (
   const metric = readString(params.metric) ?? "total_revenue";
   const comparisonEnabled = readBoolean(params.comparison, true);
   const comparisonRange = previousRange(range);
+  if (!(await hasDatedOrderSource(context))) {
+    return errorResult(NO_DATED_SALES_MESSAGE, "no_dated_sales_records");
+  }
   const [orders, comparisonOrders] = await Promise.all([
     loadRevenueOrders(client, context, range, source),
     comparisonEnabled

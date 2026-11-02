@@ -46,9 +46,19 @@ export const findCustomerOpportunities: ToolImplementation = async (params,conte
     .eq('tenant_id',context.tenantId).order('customer_id').range(from,to));
   const candidates=rows.filter(row=>finiteNumber(row.purchase_velocity)!==null&&Number(row.purchase_velocity)<=-minimum)
     .sort((a,b)=>(finiteNumber(b.lifetime_value)??-Infinity)-(finiteNumber(a.lifetime_value)??-Infinity)||a.customer_id.localeCompare(b.customer_id));
+  const missingMomentum=rows.filter(row=>finiteNumber(row.purchase_velocity)===null).length;
   return analysisResult({kind:'customer_opportunities',criteria:{minimum_decline_percent:minimum},total_count:candidates.length,
-    omitted_by_limit:Math.max(0,candidates.length-limit),missing_momentum:rows.filter(row=>finiteNumber(row.purchase_velocity)===null).length,
+    omitted_by_limit:Math.max(0,candidates.length-limit),missing_momentum:missingMomentum,
     rows:candidates.slice(0,limit),source:'Existing purchase velocity metric, not a seasonally matched year-over-year comparison.',
     note:'Historical lifetime value is not a prediction of recoverable revenue. Use compare_customer_growth for explicit comparable periods.'},
-    candidates.length,'Found customers with declining recorded purchase velocity. Missing momentum was not treated as zero.');
+    candidates.length,opportunityMessage(candidates.length,rows.length,missingMomentum,minimum));
 };
+
+export function opportunityMessage(found:number,total:number,missingMomentum:number,minimum:number):string{
+  if(found>0)return `Found ${found.toLocaleString('en-US')} ${found===1?'customer':'customers'} whose recorded buying slowed by ${minimum}% or more. Customers with no buying trend on file were left out, not counted as zero.`;
+  if(total===0)return 'No customer could be scored. There is no recorded buying history on file for this company yet, so a slowdown cannot be measured.';
+  const scored=total-missingMomentum;
+  if(scored===0)return `No customer could be scored. None of the ${total.toLocaleString('en-US')} customers on file have a buying trend recorded, usually because there are no dated sales records. This does not mean nobody is buying less.`;
+  const gap=missingMomentum>0?` ${missingMomentum.toLocaleString('en-US')} more customers have no buying trend on file, so they could not be checked.`:'';
+  return `No customer matched. ${scored.toLocaleString('en-US')} customers were checked and none slowed by ${minimum}% or more.${gap}`;
+}

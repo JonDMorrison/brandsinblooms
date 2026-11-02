@@ -633,6 +633,8 @@ function mapCustomer(
     last_name: row.last_name,
     email: row.email,
     phone: row.phone,
+    // crm_customers has no currency column and tenants have no currency
+    // setting, so the amount is shown without a currency symbol.
     total_spent: formatCurrency(toNumberOrNull(row.total_spent)),
     last_purchase_date: row.last_purchase_date,
     created_at: row.created_at,
@@ -719,7 +721,13 @@ export const queryCustomers: ToolImplementation = async (
     entity: "customer",
     timezone: context.timezone,
   })
-    .order(sortBy, { ascending: queryParams.sortOrder === "asc" })
+    // Unknown values (for example spend that was never recorded) go last in
+    // both directions. Postgres puts NULLs first for DESC by default, which
+    // made customers with no spend on file look like top spenders.
+    .order(sortBy, {
+      ascending: queryParams.sortOrder === "asc",
+      nullsFirst: false,
+    })
     .range(from, to);
 
   const { data, error, count } = await query;
