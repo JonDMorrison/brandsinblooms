@@ -7,6 +7,7 @@ import type {ToolExecutionContext, ToolImplementation, ToolResult} from '../type
 import {explorePurchases, analyzeBasket, MATCH_REASONS, type CustomerSet, type PurchaseFact} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
 import {compareCustomerGrowth, moneyMinorUnits, type GrowthOrder, type GrowthSettings} from '../../../_shared/customer-intelligence/customer-growth.ts';
 import {readAllPages} from '../../../_shared/customer-intelligence/query-pages.ts';
+import {loadCustomerProductHistory,ProductHistoryNotFound} from '../../../_shared/customer-intelligence/customer-product-history.ts';
 
 interface Customer {id: string; first_name: string | null; last_name: string | null; email: string | null; created_at: string | null;}
 export function analysisResult(data: unknown, count: number, message: string): ToolResult {
@@ -233,4 +234,23 @@ export const exploreCustomerReportedSpending: ToolImplementation = async (params
     criteria:{minimum_spend:minimum,minimum_transactions:transactions,currency},
     rows:result.rows.map(row=>({...row,reported_period_spend:values.get(row.customer_id)?.amount,reported_transactions:values.get(row.customer_id)?.transactions})),
     note:'Reported period spending and transaction totals are not lifetime value or dated receipts. Missing customers remain unknown, not inactive. Continue product searches with scope=previous_result.'},set.included_ids.length,'Selected an exact audience from the reconciled spending report. No customer classification or marketing consent changed.');
+};
+
+/** One customer's products from their own evidence only. Never scans the whole company. */
+export const getCustomerProductHistory: ToolImplementation = async (params,context) => {
+  const client = await requireAnalysisAccess(context);
+  const customerId = typeof params.customer_id === 'string' ? params.customer_id.trim() : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) throw new Error('Choose the customer by ID.');
+  const productQuery = typeof params.product_query === 'string' ? params.product_query : null;
+  try {
+    const history = await loadCustomerProductHistory(client,{tenantId:context.tenantId,customerId,cutoff:new Date().toISOString(),productQuery});
+    const matched = history.groups.reduce((sum,group)=>sum+group.matched_products,0);
+    const message = history.status==='matched'
+      ? `Found ${matched} matching product line${matched===1?'':'s'} across ${history.groups.filter(g=>g.matched_products>0).length} evidence source${history.groups.filter(g=>g.matched_products>0).length===1?'':'s'}. ${history.note}`
+      : history.note;
+    return analysisResult(history,matched,message);
+  } catch (error) {
+    if (error instanceof ProductHistoryNotFound) return {success:false,data:null,count:0,message:error.message,error:'not_found',block_type:'text',confirmation_required:false,confirmation_details:null};
+    throw error;
+  }
 };
