@@ -347,6 +347,9 @@ export async function reportSupportProblem(
         account_id: identity.account.id,
         context: ticketContext,
         dedupe_key: buildSupportDedupeKey(context.conversationId, context.messageId),
+        // Created paused: no triage job is ever queued, so the worker cannot
+        // email the requester or start engineering before a person looks.
+        automation: "paused",
       },
     });
   } catch (error) {
@@ -355,9 +358,9 @@ export async function reportSupportProblem(
 
   const ticketId = readString(created?.ticket_id);
   if (ticketId && created.duplicate_delivery !== true) {
-    // Bloom-chat tickets never start triage, client email or engineering work on
-    // their own: paused automation makes the worker skip them (triage/answer/
-    // verify all require automation = 'auto') and cancels the queued triage job.
+    // The ticket is already created paused (see create_ticket above). This
+    // records the reason and the bloom-chat tag; set_automation is kept as a
+    // fallback for a database without the paused-on-create option.
     try {
       const bot = await rpc<string>("ensure_service_principal", { scope: "automation" });
       await rpc("set_automation", {

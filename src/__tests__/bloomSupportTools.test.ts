@@ -146,6 +146,8 @@ describe("report_support_problem", () => {
     const first = fakeRpc();
     await reportSupportProblem({ what_happened: "Email sending stopped this morning." }, context({}), first.rpc);
     expect((first.calls.find((c) => c.fn === "create_ticket")!.args.ticket as Record<string, unknown>).dedupe_key).toBe(`${CONVERSATION}:${MESSAGE}`);
+    // Created paused, so no triage job is ever queued (no race with the worker).
+    expect((first.calls.find((c) => c.fn === "create_ticket")!.args.ticket as Record<string, unknown>).automation).toBe("paused");
     expect(first.calls.find((c) => c.fn === "set_automation")!.args).toMatchObject({ actor: "principal-bot", ticket_id: "ticket-1", mode: "paused" });
     expect(first.calls.find((c) => c.fn === "update_ticket")!.args).toMatchObject({ actor: "principal-bot", patch: { tags: ["bloom-chat"], internal_only: true } });
     const order = first.calls.map((c) => c.fn);
@@ -350,5 +352,14 @@ describe("support bridge migration", () => {
     expect(sql).toMatch(/m\.account_id = acct\.id AND m\.principal_id = p_actor AND m\.verified/);
     expect(sql).toContain("RAISE EXCEPTION 'forbidden: account' USING ERRCODE = '42501'");
     expect(sql).toContain("REVOKE ALL ON FUNCTION bloom_support.account_for_crm_tenant(uuid, uuid, text) FROM PUBLIC, anon, authenticated");
+  });
+});
+
+describe("create_ticket paused-on-create migration", () => {
+  const sql = fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20261102190000_bloom_support_create_ticket_paused.sql"), "utf8");
+  it("only accepts lowering automation and skips the triage job when paused", () => {
+    expect(sql).toContain("IN (''paused'', ''human'')");
+    expect(sql).toContain("IF v_automation IS NULL THEN");
+    expect(sql).toContain("RAISE EXCEPTION 'create_ticket anchors not found");
   });
 });
