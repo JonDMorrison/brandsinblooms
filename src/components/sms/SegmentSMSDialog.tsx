@@ -108,7 +108,7 @@ export const SegmentSMSDialog: React.FC<SegmentSMSDialogProps> = ({
             query = query.gte('created_at', thirtyDaysAgo.toISOString());
             break;
           case 'frequent-buyers':
-            query = query.gte('order_count', 3);
+            query = query.gte('pos_order_count', 3);
             break;
           default:
             // For other system segments, use a simplified count
