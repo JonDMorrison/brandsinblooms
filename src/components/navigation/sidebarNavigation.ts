@@ -495,8 +495,7 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
         label: "Marketing tools",
         icon: Mail,
         children: [
-          // Keep existing newsletter and SMS routes accessible from campaigns;
-          // avoid competing "start an email" destinations in the sidebar.
+          // Campaign creation has one navigation entry; retain legacy routes for bookmarks.
           createDashboardLinkItem("calendar", legacyCalendarItem, {
             contentWidth: "full",
           }),
