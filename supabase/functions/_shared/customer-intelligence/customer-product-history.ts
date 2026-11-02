@@ -26,7 +26,7 @@ export interface ProductHistoryResult {
 export const PRODUCT_HISTORY_ROW_LIMIT=100;
 const LEGACY_COLUMNS=['product_code','product_name','department','quantity','net_amount','source_row'];
 
-interface CustomerIdentity {id:string;tenant_id:string;external_id:string|null;first_name:string|null;last_name:string|null;email:string|null;merged_into_customer_id:string|null;}
+interface CustomerIdentity {id:string;tenant_id:string;external_id:string|null;first_name:string|null;last_name:string|null;email:string|null;merged_into_customer_id:string|null;deleted_at:string|null;}
 interface SummaryEventRow extends PeriodSummaryEvent {external_customer_code:string|null;}
 type DatedRow=PurchaseFact & {import_id:string|null};
 
@@ -65,13 +65,15 @@ export async function loadCustomerProductHistory(client:PersistenceClient,args:{
   const {tenantId,customerId,cutoff}=args;const productQuery=args.productQuery?.trim()||null;
   if(!tenantId||!customerId||!Number.isFinite(Date.parse(cutoff)))throw new Error('Company, customer and a valid evidence cutoff are required.');
 
-  const {data:customer,error:customerError}=await client.from('crm_customers').select('id,tenant_id,external_id,first_name,last_name,email,merged_into_customer_id')
-    .eq('tenant_id',tenantId).eq('id',customerId).is('deleted_at',null).maybeSingle();
+  const {data:customer,error:customerError}=await client.from('crm_customers').select('id,tenant_id,external_id,first_name,last_name,email,merged_into_customer_id,deleted_at')
+    .eq('tenant_id',tenantId).eq('id',customerId).maybeSingle();
   if(customerError)throw new Error(customerError.message);
   if(!customer)throw new ProductHistoryNotFound('No accessible customer has that ID in this company.');
   const identity=customer as CustomerIdentity;
   if(identity.tenant_id!==tenantId||identity.id!==customerId)throw new Error('Customer scope differs from the request.');
   if(identity.merged_into_customer_id)throw new ProductHistoryNotFound(`This customer record was merged into ${identity.merged_into_customer_id}. Look up that customer instead.`);
+  // Merged aliases are soft-deleted, so check the merge pointer before treating deletion as not found.
+  if(identity.deleted_at)throw new ProductHistoryNotFound('No accessible customer has that ID in this company.');
 
   // Report ledger is a handful of rows per company; selection is global so a
   // superseded snapshot is never revived for one customer.

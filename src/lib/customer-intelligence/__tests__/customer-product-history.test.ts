@@ -102,8 +102,12 @@ describe('Bloom per-customer product history (West Coast / John Pasca)',()=>{
     }
   });
   it('sends a merged duplicate to its surviving record instead of a partial history',async()=>{
-    const tables=base();tables.crm_customers=[{...john,merged_into_customer_id:SOMEONE_ELSE}];
+    const tables=base();tables.crm_customers=[{...john,merged_into_customer_id:SOMEONE_ELSE,deleted_at:'2026-10-20T00:00:00Z'}];
     await expect(load(tables)).rejects.toThrow(/merged into/);
+  });
+  it('treats a soft-deleted, unmerged customer as not found',async()=>{
+    const tables=base();tables.crm_customers=[{...john,deleted_at:'2026-10-20T00:00:00Z'}];
+    await expect(load(tables)).rejects.toBeInstanceOf(ProductHistoryNotFound);
   });
   it('lists dated receipts separately with their own note',async()=>{
     const tables=base();tables.customer_intelligence_source_events=[];
