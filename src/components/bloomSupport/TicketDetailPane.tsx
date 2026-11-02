@@ -22,6 +22,8 @@ import {
 } from "@/lib/bloomSupport/api";
 import { StatusChip, PriorityChip, AutomationChip } from "./chips";
 import { statusPatch } from "./statusPatch";
+import { useAskDialog } from "./useAskDialog";
+import { ReadableData } from "@/components/admin/ReadableData";
 
 function Bubble({ m }: { m: TicketMessage }) {
   const internal = m.visibility === "internal";
@@ -63,6 +65,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
   const [error, setError] = useState<string | null>(null);
   const [linkTo, setLinkTo] = useState("");
   const replyKey = useRef(crypto.randomUUID());
+  const { ask, dialog } = useAskDialog();
   const staff = me.role !== "client";
 
   const patchCache = (t: Partial<TicketDetail>) => {
@@ -96,6 +99,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
 
   return (
     <Stack sx={{ height: "100%", minHeight: 0 }}>
+      {dialog}
       {/* Header: client identity, status, owner, next action, automation */}
       <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -132,9 +136,9 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
         {staff && (
           <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mt: 1.5 }} alignItems={{ md: "center" }}>
             <Select size="sm" value={t.status} aria-label="Status" sx={{ minWidth: 150 }}
-              onChange={(_, v) => {
+              onChange={async (_, v) => {
                 if (!v || v === t.status) return;
-                const patch = statusPatch(t, v as SupportStatus);
+                const patch = await statusPatch(ask, t, v as SupportStatus);
                 if (patch) run.mutate(() => bloomSupport.updateTicket(t.id, { version: t.version, ...patch }));
               }}>
               {(Object.keys(STATUS_LABEL) as SupportStatus[]).map((s) => <Option key={s} value={s}>{STATUS_LABEL[s]}</Option>)}
@@ -177,7 +181,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
         {!staff && t.status === "resolved" && !t.merged_into && (
           <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
             <Button size="sm" color="success" onClick={() => run.mutate(() => bloomSupport.clientAction(t.id, "confirm_resolved"))}>Yes, it's fixed</Button>
-            <Button size="sm" variant="outlined" color="warning" onClick={() => { const m = window.prompt("What is still happening?"); if (m) run.mutate(() => bloomSupport.clientAction(t.id, "still_broken", m)); }}>It's still happening</Button>
+            <Button size="sm" variant="outlined" color="warning" onClick={async () => { const r = await ask({ title: "It's still happening", description: "Tell us what you see now, and we'll pick it straight back up.", fields: [{ name: "m", label: "What is still happening?", kind: "textarea", required: true }], confirmLabel: "Send" }); if (r) run.mutate(() => bloomSupport.clientAction(t.id, "still_broken", String(r.m).trim())); }}>It's still happening</Button>
           </Stack>
         )}
         {!staff && t.status !== "resolved" && !t.merged_into && (
@@ -247,20 +251,23 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Button size="sm" variant="outlined" startDecorator={<Wrench size={14} />} onClick={() => run.mutate(() => bloomSupport.investigate(t.id))}>Investigate bug</Button>
               <Button size="sm" variant="outlined" onClick={() => run.mutate(() => bloomSupport.routeFeature(t.id))}>Feature → Jon</Button>
-              <Button size="sm" variant="outlined" color="neutral" onClick={() => { const reason = window.prompt("Why does this need Jon/Jeff?"); if (reason) run.mutate(() => bloomSupport.escalate(t.id, "both", reason)); }}>Escalate</Button>
+              <Button size="sm" variant="outlined" color="neutral" onClick={async () => { const r = await ask({ title: "Ask Jon or Jeff", fields: [{ name: "reason", label: "Why does this need one of them?", kind: "textarea", required: true }], confirmLabel: "Send to Jon and Jeff" }); if (r) run.mutate(() => bloomSupport.escalate(t.id, "both", String(r.reason).trim())); }}>Escalate</Button>
             </Stack>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Button size="sm" variant="plain" onClick={async () => {
-                const n = window.prompt("Merge this ticket into which ticket number (same client)?");
-                if (!n) return;
+                const r = await ask({ title: "Merge into another request", description: "Use this when the same client asked the same thing twice. Both must be for the same client.", fields: [{ name: "n", label: "Request number", kind: "text", required: true, placeholder: "e.g. 1042" }], confirmLabel: "Merge" });
+                if (!r) return;
+                const n = String(r.n).trim();
                 const found = await bloomSupport.pageTickets({ q: `#${n.replace("#", "")}`, limit: "1" });
                 const target = found.items.find((x) => String(x.number) === n.replace("#", ""));
                 if (!target) { setError(`Ticket #${n} not found`); return; }
                 run.mutate(() => bloomSupport.merge(t.id, target.id, "duplicate"));
               }}>Merge into…</Button>
               <Button size="sm" variant="plain" onClick={async () => {
-                const id = window.prompt("Shared problem id (from the Problems tab), or leave blank to create one from this ticket");
-                if (id === null) return;
+                const problems = await bloomSupport.problems().catch(() => [] as Array<Record<string, unknown>>);
+                const r = await ask({ title: "Link to a shared problem", description: "Group this with other clients' requests about the same issue.", fields: [{ name: "id", label: "Which problem?", kind: "select", required: true, initial: "__new", options: [{ value: "__new", label: "Create a new one from this request" }, ...problems.map((p) => ({ value: String(p.id), label: String(p.title) }))] }], confirmLabel: "Link" });
+                if (!r) return;
+                const id = r.id === "__new" ? "" : String(r.id);
                 run.mutate(async () => {
                   const problemId = id || String((await bloomSupport.createProblem({ title: t.subject, product: t.product })).id);
                   await bloomSupport.linkProblem(t.id, problemId);
@@ -331,7 +338,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
               <>
                 <Divider />
                 <Typography level="title-sm">Resolution evidence</Typography>
-                <Box component="pre" sx={{ fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0 }}>{JSON.stringify(t.resolution_evidence, null, 2)}</Box>
+                <ReadableData value={t.resolution_evidence} />
               </>
             )}
             {t.history && t.history.length > 0 && (
@@ -347,7 +354,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
               <>
                 <Divider />
                 <Typography level="title-sm">Captured context</Typography>
-                <Box component="pre" sx={{ fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0 }}>{JSON.stringify(t.context, null, 2)}</Box>
+                <ReadableData value={t.context} />
               </>
             )}
             {t.activity && (

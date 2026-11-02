@@ -187,7 +187,7 @@ export const TenantTable = ({
               style={{ color: "var(--joy-palette-neutral-400)" }}
             />
             <Typography level="title-sm">
-              No tenants match your filters
+              No clients match these filters
             </Typography>
             <Typography level="body-sm" color="neutral" textAlign="center">
               Adjust the current filters or clear the current search to broaden

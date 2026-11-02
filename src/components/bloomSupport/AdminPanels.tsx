@@ -19,6 +19,22 @@ import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { Inbox } from "lucide-react";
+import { splitList, useAskDialog } from "./useAskDialog";
+import { ClientPicker, type PickedClient } from "./ClientPicker";
+import { ReadableData } from "@/components/admin/ReadableData";
+import { labelFor } from "@/components/admin/readableFormat";
+import { OPEN_BY, engineeringLabel, featureLabel, problemLabel, reasonLabel, ticketStatusLabel } from "./labels";
+import FormControl from "@mui/joy/FormControl";
+import FormLabel from "@mui/joy/FormLabel";
+import FormHelperText from "@mui/joy/FormHelperText";
+
+const ROLE_LABEL: Record<string, string> = { platform_admin: "Admin", platform_operator: "Operator", support: "Support", client: "Client", service: "Automation" };
+const GRANT_LABEL: Record<string, string> = { publish: "Publish websites", campaign_send: "Send email campaigns", event_manage: "Manage events", sensitive: "Sensitive details" };
+const FEATURE_DECISIONS = [
+  { value: "accepted", label: "Yes, we'll build it" },
+  { value: "planned", label: "Add to the plan" },
+  { value: "declined", label: "Not now" },
+];
 
 type Dur = { n: number; median_seconds?: number | null; p90_seconds?: number | null; median_business_seconds?: number | null; p90_business_seconds?: number | null };
 interface Metrics {
@@ -55,11 +71,13 @@ const ago = (d: unknown) => (typeof d === "string" ? formatDistanceToNow(new Dat
 export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => void }) {
   const q = useQuery({ queryKey: ["bloom-support", "escalations"], queryFn: () => bloomSupport.escalations() });
   const { run, error } = useAction();
+  const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
   if (!q.data?.length) return <Empty title="Nothing waiting for Jon or Jeff" description="Escalations, approvals and failed automation show up here." />;
   return (
     <Stack spacing={1}>
+      {dialog}
       {error && <Alert color="danger">{error}</Alert>}
       {q.data.map((x) => {
         const ticket = x.ticket as { number: number; subject: string } | null;
@@ -69,7 +87,7 @@ export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) 
               <div>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Chip size="sm" color="danger" variant="soft">{String(x.audience) === "both" ? "Jon + Jeff" : String(x.audience) === "jon" ? "Jon" : "Jeff"}</Chip>
-                  <Typography level="title-sm">{String(x.reason).replace(/_/g, " ")}</Typography>
+                  <Typography level="title-sm">{reasonLabel(x.reason)}</Typography>
                   <Typography level="body-xs" textColor="text.tertiary">{ago(x.created_at)}</Typography>
                   {x.due_at ? <Chip size="sm" variant="outlined" color={Date.parse(String(x.due_at)) < Date.now() ? "danger" : "neutral"}>due {ago(x.due_at)}</Chip> : null}
                   {Number(x.fallback_level ?? 0) > 0 ? <Chip size="sm" color="warning">fallback {String(x.fallback_level)}</Chip> : null}
@@ -80,7 +98,7 @@ export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) 
               </div>
               <Stack direction="row" spacing={1} alignItems="flex-start">
                 {String(x.status) === "open" && <Button size="sm" variant="outlined" onClick={() => run(() => bloomSupport.acknowledgeEscalation(String(x.id)))}>Take it</Button>}
-                <Button size="sm" onClick={() => { const d = window.prompt("Record your decision"); if (d) run(() => bloomSupport.resolveEscalation(String(x.id), d)); }}>Record decision</Button>
+                <Button size="sm" onClick={async () => { const r = await ask({ title: "Record your decision", description: "Bloom follows this and lets the client know where it lands.", fields: [{ name: "decision", label: "What did you decide?", kind: "textarea", required: true, placeholder: "e.g. Refund the order and apologise for the delay." }], confirmLabel: "Save decision" }); if (r) run(() => bloomSupport.resolveEscalation(String(x.id), String(r.decision).trim())); }}>Record decision</Button>
               </Stack>
             </Stack>
           </Sheet>
@@ -101,7 +119,7 @@ export function EngineeringPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicke
     <Sheet variant="outlined" sx={{ borderRadius: "md", overflow: "auto" }}>
       {error && <Alert color="danger">{error}</Alert>}
       <Table size="sm" stickyHeader>
-        <thead><tr><th style={{ width: "34%" }}>Issue</th><th>Status</th><th>PR</th><th>Release check</th><th>Tickets</th><th /></tr></thead>
+        <thead><tr><th style={{ width: "34%" }}>Problem</th><th>Where it is</th><th>The change</th><th>Can it go live on its own?</th><th>Requests</th><th /></tr></thead>
         <tbody>
           {q.data.map((e) => {
             const elig = e.eligibility as { eligible?: boolean; reasons?: string[] } | null;
@@ -109,11 +127,11 @@ export function EngineeringPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicke
             return (
               <tr key={String(e.id)}>
                 <td><Typography level="body-sm">{String(e.title)}</Typography><Typography level="body-xs" textColor="text.tertiary">{String(e.repository ?? e.product)}</Typography></td>
-                <td><Chip size="sm" variant="soft" color={["verified"].includes(String(e.status)) ? "success" : ["failed", "rolled_back", "escalated", "awaiting_approval"].includes(String(e.status)) ? "danger" : "neutral"}>{String(e.status)}</Chip></td>
+                <td><Chip size="sm" variant="soft" color={["verified"].includes(String(e.status)) ? "success" : ["failed", "rolled_back", "escalated", "awaiting_approval"].includes(String(e.status)) ? "danger" : "neutral"}>{engineeringLabel(e.status)}</Chip></td>
                 <td>{e.pr_url ? <Link href={String(e.pr_url)} target="_blank" rel="noopener" level="body-sm">#{String(e.pr_number)}</Link> : "—"}</td>
-                <td><Typography level="body-xs">{elig ? (elig.eligible ? "eligible" : (elig.reasons ?? []).slice(0, 2).join("; ")) : "—"}</Typography></td>
+                <td><Typography level="body-xs">{elig ? (elig.eligible ? "Yes" : `No: ${(elig.reasons ?? []).slice(0, 2).join("; ")}`) : "Not checked yet"}</Typography></td>
                 <td>{tickets.map((t) => <Link key={t.id} level="body-xs" component="button" onClick={() => onOpenTicket(t.id)} sx={{ mr: 0.5 }}>#{t.number}</Link>)}</td>
-                <td>{canApprove && String(e.status) === "awaiting_approval" ? <Button size="sm" onClick={() => run(() => bloomSupport.updateEngineering(String(e.id), { status: "approved", note: "Approved in dashboard" }))}>Approve</Button> : null}</td>
+                <td>{canApprove && String(e.status) === "awaiting_approval" ? <Button size="sm" onClick={() => run(() => bloomSupport.updateEngineering(String(e.id), { status: "approved", note: "Approved in dashboard" }))}>Approve fix</Button> : null}</td>
               </tr>
             );
           })}
@@ -126,12 +144,14 @@ export function EngineeringPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicke
 export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: (id: string) => void }) {
   const q = useQuery({ queryKey: ["bloom-support", "features"], queryFn: () => bloomSupport.features() });
   const { run, error } = useAction();
+  const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
   if (!q.data?.length) return <Empty title="No feature requests" description="Requests Bloom recognises as new features are sent here for Jon's decision, with the customer evidence attached." />;
   const canDecide = me.permissions.includes("features.decide");
   return (
     <Stack spacing={1}>
+      {dialog}
       {error && <Alert color="danger">{error}</Alert>}
       {q.data.map((f) => {
         const evidence = (f.evidence as Array<{ ticket_id: string; number: number; account: string | null; excerpt: string | null }>) ?? [];
@@ -139,7 +159,7 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
           <Sheet key={String(f.id)} variant="outlined" sx={{ p: 1.5, borderRadius: "md" }}>
             <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
               <div>
-                <Stack direction="row" spacing={1} alignItems="center"><Typography level="title-sm">{String(f.title)}</Typography><Chip size="sm">{String(f.status).replace(/_/g, " ")}</Chip><Chip size="sm" variant="outlined">{evidence.length} client{evidence.length === 1 ? "" : "s"}</Chip></Stack>
+                <Stack direction="row" spacing={1} alignItems="center"><Typography level="title-sm">{String(f.title)}</Typography><Chip size="sm">{featureLabel(f.status)}</Chip><Chip size="sm" variant="outlined">{evidence.length} client{evidence.length === 1 ? "" : "s"}</Chip></Stack>
                 {evidence.slice(0, 4).map((x) => (
                   <Typography key={x.ticket_id} level="body-xs" sx={{ mt: 0.5 }}>
                     <Link component="button" onClick={() => onOpenTicket(x.ticket_id)}>#{x.number}</Link> {x.account ?? "unknown client"}: “{(x.excerpt ?? "").slice(0, 140)}”
@@ -149,8 +169,11 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
               </div>
               {canDecide && String(f.status) === "awaiting_decision" && (
                 <Stack direction="row" spacing={0.5}>
-                  {["accepted", "planned", "declined"].map((d) => (
-                    <Button key={d} size="sm" variant={d === "declined" ? "outlined" : "solid"} color={d === "declined" ? "neutral" : "primary"} onClick={() => run(() => bloomSupport.decideFeature(String(f.id), d, window.prompt("Note (optional)") ?? undefined))}>{d}</Button>
+                  {FEATURE_DECISIONS.map((d) => (
+                    <Button key={d.value} size="sm" variant={d.value === "declined" ? "outlined" : "solid"} color={d.value === "declined" ? "neutral" : "primary"} onClick={async () => {
+                      const r = await ask({ title: d.label, description: "Bloom tells the clients who asked. Add a note if there is something they should know.", fields: [{ name: "note", label: "Note (optional)", kind: "textarea" }], confirmLabel: "Confirm" });
+                      if (r) run(() => bloomSupport.decideFeature(String(f.id), d.value, String(r.note).trim() || undefined));
+                    }}>{d.label}</Button>
                   ))}
                 </Stack>
               )}
@@ -168,10 +191,11 @@ export function ClientsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => v
   const list = useQuery({ queryKey: ["bloom-support", "accounts", q], queryFn: () => bloomSupport.listAccounts(q || undefined) });
   const detail = useQuery({ queryKey: ["bloom-support", "account", selected], queryFn: () => bloomSupport.getAccount(selected!), enabled: !!selected });
   const { run, error } = useAction();
+  const { ask, dialog } = useAskDialog();
   return (
     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
       <Stack spacing={1} sx={{ width: { md: 320 }, flexShrink: 0 }}>
-        <Input placeholder="Search clients, site or tenant id" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input placeholder="Search clients by name" value={q} onChange={(e) => setQ(e.target.value)} />
         {list.isLoading ? <Loading /> : (list.data ?? []).map((a) => (
           <Sheet key={a.id} variant={selected === a.id ? "soft" : "outlined"} color={selected === a.id ? "primary" : "neutral"} sx={{ p: 1, borderRadius: "sm", cursor: "pointer" }} onClick={() => setSelected(a.id)}>
             <Typography level="title-sm">{a.name}</Typography>
@@ -180,21 +204,22 @@ export function ClientsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => v
         ))}
       </Stack>
       <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-        {error && <Alert color="danger">{error}</Alert>}
+        {dialog}
+      {error && <Alert color="danger">{error}</Alert>}
         {!selected ? <Empty title="Pick a client" description="See their products, contacts, every ticket and recent operations." /> : detail.isLoading ? <Loading /> : detail.data ? (
           <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
             <Typography level="title-lg">{String(detail.data.name)}</Typography>
             <Typography level="body-xs">Account {String(detail.data.id)}{detail.data.crm_tenant_id ? ` · CRM tenant ${String(detail.data.crm_tenant_id)}` : ""}</Typography>
             <Stack direction="row" spacing={1} sx={{ my: 1 }} flexWrap="wrap" useFlexGap>
               {((detail.data.links as Array<{ product: string; external_id: string; label: string | null }>) ?? []).map((l) => <Chip key={`${l.product}-${l.external_id}`} size="sm" variant="outlined">{l.product}: {l.label ?? l.external_id}</Chip>)}
-              <Button size="sm" variant="plain" onClick={() => {
-                const domains = window.prompt("Registered email domains (comma separated) — senders from these domains are linked to this client but stay unverified", ((detail.data.email_domains as string[]) ?? []).join(", "));
-                if (domains !== null) run(() => bloomSupport.updateAccount(selected, { email_domains: domains.split(",").map((s) => s.trim()).filter(Boolean), needs_review: false }));
+              <Button size="sm" variant="plain" onClick={async () => {
+                const r = await ask({ title: "Email domains", description: "Emails from these domains are linked to this client automatically (they still count as unverified).", fields: [{ name: "domains", label: "Domains", kind: "textarea", placeholder: "e.g. greenleafgardens.com, greenleaf.ca", helper: "Separate with commas or new lines.", initial: ((detail.data!.email_domains as string[]) ?? []).join(", ") }], confirmLabel: "Save domains" });
+                if (r) run(() => bloomSupport.updateAccount(selected, { email_domains: splitList(r.domains), needs_review: false }));
               }}>Email domains</Button>
             </Stack>
             <Typography level="title-sm" sx={{ mt: 1 }}>Tickets</Typography>
             {((detail.data.tickets as Array<{ id: string; number: number; subject: string; status: string; updated_at: string }>) ?? []).map((t) => (
-              <Typography key={t.id} level="body-sm"><Link component="button" onClick={() => onOpenTicket(t.id)}>#{t.number}</Link> {t.subject} · {t.status} · {ago(t.updated_at)}</Typography>
+              <Typography key={t.id} level="body-sm"><Link component="button" onClick={() => onOpenTicket(t.id)}>#{t.number}</Link> {t.subject} · {ticketStatusLabel(t.status)} · {ago(t.updated_at)}</Typography>
             ))}
             <Typography level="title-sm" sx={{ mt: 1 }}>Contacts</Typography>
             {((detail.data.members as Array<{ id: string; name: string | null; email: string | null; product: string | null; verified: boolean }>) ?? []).map((m) => (
@@ -207,41 +232,85 @@ export function ClientsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => v
   );
 }
 
+const OPERATION_INFO: Record<string, { label: string; help: string; template?: Record<string, string> }> = {
+  "client.lookup": { label: "Look up the client's linked accounts", help: "Shows which website, CRM and POS accounts belong to this client." },
+  "campaign.list": { label: "List email campaigns", help: "Every campaign, newest first. Optionally filter by status.", template: { status: "" } },
+  "campaign.read": { label: "See one email campaign", help: "Details of a single campaign.", template: { campaign_id: "" } },
+  "campaign.create_draft": { label: "Create a draft email campaign", help: "Starts a new draft. Nothing is sent." },
+  "campaign.update_draft": { label: "Edit a draft email campaign", help: "Changes a draft. Can be undone.", template: { campaign_id: "" } },
+  "campaign.schedule": { label: "Schedule an email campaign", help: "Sets when a campaign is sent. Can be undone until it sends.", template: { campaign_id: "", scheduled_at: "2026-11-03T15:00:00Z", timezone: "America/Vancouver" } },
+  "campaign.unschedule": { label: "Cancel a scheduled campaign", help: "Stops a scheduled send. Can be undone.", template: { campaign_id: "" } },
+  "site.read": { label: "See the client's website", help: "Basic details of their website." },
+  "site.pages": { label: "List website pages", help: "Every page on their website." },
+  "site.create_draft": { label: "Create a draft website", help: "Starts a draft site. Nothing goes live." },
+  "site.page.update": { label: "Edit a website page", help: "Changes a page. Can be undone." },
+  "site.publish": { label: "Publish the website", help: "Makes saved changes live. Can be undone." },
+  "event.list": { label: "List events", help: "Their upcoming and past events." },
+  "event.update": { label: "Edit an event", help: "Changes an event. Can be undone." },
+  "pos.products": { label: "List POS products", help: "Products in their point-of-sale system." },
+  "pos.inventory": { label: "Check POS stock levels", help: "Current stock in their point-of-sale system." },
+  "pos.sales_summary": { label: "POS sales summary", help: "Recent sales totals from their point-of-sale system." },
+};
+const opLabel = (kind: string) => OPERATION_INFO[kind]?.label ?? labelFor(kind);
+
 export function OperationsPanel() {
   const catalog = useQuery({ queryKey: ["bloom-support", "ops-catalog"], queryFn: () => bloomSupport.operationsCatalog() });
-  const [accountId, setAccountId] = useState("");
+  const [client, setClient] = useState<PickedClient | null>(null);
   const [kind, setKind] = useState("campaign.list");
-  const [inputs, setInputs] = useState("{}");
+  const [inputs, setInputs] = useState(JSON.stringify(OPERATION_INFO["campaign.list"].template ?? {}, null, 2));
   const [output, setOutput] = useState<unknown>(null);
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
   const { run, error, pending } = useAction();
   const isRead = catalog.data?.reads.some((r) => r.kind === kind);
-  const parsed = () => { try { return JSON.parse(inputs || "{}"); } catch { throw new Error("Inputs must be JSON"); } };
+  const parsed = () => { try { return JSON.parse(inputs || "{}"); } catch { throw new Error("The details box isn't filled in correctly. Keep the quotes and braces as shown."); } };
+  const accountId = client?.id ?? "";
+  const pick = (k: string) => { setKind(k); setInputs(JSON.stringify(OPERATION_INFO[k]?.template ?? {}, null, 2)); setOutput(null); setPreview(null); };
   return (
-    <Stack spacing={1.5}>
-      {catalog.data && Object.entries(catalog.data.remote).filter(([, v]) => !v.configured).map(([k, v]) => (
-        <Alert key={k} color="warning" variant="soft">{k === "cms" ? "BloomSites" : "POS"} operations are not connected: set {v.missing.join(", ")}.</Alert>
+    <Stack spacing={2} sx={{ maxWidth: 820 }}>
+      {catalog.data && Object.entries(catalog.data.remote).filter(([, v]) => !v.configured).map(([k]) => (
+        <Alert key={k} color="warning" variant="soft">{k === "cms" ? "Website" : "POS"} actions aren't connected yet. Ask a developer to finish the setup (see Setup check).</Alert>
       ))}
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
-        <Input placeholder="Client account id" value={accountId} onChange={(e) => setAccountId(e.target.value)} sx={{ flex: 1 }} />
-        <Select value={kind} onChange={(_, v) => v && setKind(v)} sx={{ minWidth: 220 }}>
-          {[...(catalog.data?.reads ?? []), ...(catalog.data?.changes ?? [])].map((o) => <Option key={o.kind} value={o.kind}>{o.kind}</Option>)}
-        </Select>
-      </Stack>
-      <Textarea minRows={3} value={inputs} onChange={(e) => setInputs(e.target.value)} placeholder='Inputs as JSON, e.g. {"campaign_id":"…","scheduled_at":"2026-11-03T15:00:00Z"}' sx={{ fontFamily: "monospace" }} />
-      <Stack direction="row" spacing={1}>
-        {isRead
-          ? <Button loading={pending} disabled={!accountId} onClick={() => run(async () => setOutput(await bloomSupport.readOperation({ kind, account_id: accountId, inputs: parsed() })))}>Run read</Button>
-          : <Button loading={pending} disabled={!accountId} onClick={() => run(async () => { const p = await bloomSupport.previewOperation({ kind, account_id: accountId, inputs: parsed() }); setPreview(p); setOutput(p.preview); })}>Preview change</Button>}
-        {preview && String(preview.status) === "previewed" && (
-          <Button color="danger" loading={pending} onClick={() => run(async () => { const r = await bloomSupport.executeOperation(String(preview.id)); setPreview(r); setOutput(r); })}>Confirm and execute</Button>
-        )}
-        {preview && String(preview.status) === "succeeded" && preview.undo ? (
-          <Button variant="outlined" onClick={() => run(async () => { const r = await bloomSupport.undoOperation(String(preview.id)); setPreview(r); setOutput(r); })}>Undo</Button>
-        ) : null}
-      </Stack>
+      <Sheet variant="outlined" sx={{ p: 2.5, borderRadius: "lg", bgcolor: "background.surface" }}>
+        <Stack spacing={2}>
+          <FormControl required>
+            <FormLabel>1. Which client?</FormLabel>
+            <ClientPicker value={client} onChange={(c) => { setClient(c); setOutput(null); setPreview(null); }} />
+          </FormControl>
+          <FormControl required>
+            <FormLabel>2. What do you want to do?</FormLabel>
+            <Select value={kind} onChange={(_, v) => v && pick(v)}>
+              {catalog.data?.reads.length ? <Option key="__reads" value="__reads" disabled>Look things up (safe, changes nothing)</Option> : null}
+              {(catalog.data?.reads ?? []).map((o) => <Option key={o.kind} value={o.kind} label={opLabel(o.kind)}>{opLabel(o.kind)}</Option>)}
+              {catalog.data?.changes.length ? <Option key="__changes" value="__changes" disabled>Make a change (you see a preview first)</Option> : null}
+              {(catalog.data?.changes ?? []).map((o) => <Option key={o.kind} value={o.kind} label={opLabel(o.kind)}>{opLabel(o.kind)}{o.undo ? " · can be undone" : ""}</Option>)}
+            </Select>
+            {OPERATION_INFO[kind] && <FormHelperText>{OPERATION_INFO[kind].help}</FormHelperText>}
+          </FormControl>
+          <FormControl>
+            <FormLabel>3. Details</FormLabel>
+            <Textarea minRows={3} value={inputs} onChange={(e) => setInputs(e.target.value)} sx={{ fontFamily: "monospace" }} />
+            <FormHelperText>Fill in the values between the quotes. Leave as {"{}"} when nothing is needed.</FormHelperText>
+          </FormControl>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {isRead
+              ? <Button size="lg" sx={{ borderRadius: "xl" }} loading={pending} disabled={!accountId} onClick={() => run(async () => setOutput(await bloomSupport.readOperation({ kind, account_id: accountId, inputs: parsed() })))}>Look it up</Button>
+              : <Button size="lg" sx={{ borderRadius: "xl" }} loading={pending} disabled={!accountId} onClick={() => run(async () => { const p = await bloomSupport.previewOperation({ kind, account_id: accountId, inputs: parsed() }); setPreview(p); setOutput(p.preview); })}>Show me a preview</Button>}
+            {preview && String(preview.status) === "previewed" && (
+              <Button size="lg" color="danger" sx={{ borderRadius: "xl" }} loading={pending} onClick={() => run(async () => { const r = await bloomSupport.executeOperation(String(preview.id)); setPreview(r); setOutput(r); })}>Yes, make this change</Button>
+            )}
+            {preview && String(preview.status) === "succeeded" && preview.undo ? (
+              <Button size="lg" variant="outlined" sx={{ borderRadius: "xl" }} onClick={() => run(async () => { const r = await bloomSupport.undoOperation(String(preview.id)); setPreview(r); setOutput(r); })}>Undo</Button>
+            ) : null}
+          </Stack>
+        </Stack>
+      </Sheet>
       {error && <Alert color="danger">{error}</Alert>}
-      {output !== null && <Sheet variant="soft" sx={{ p: 1.5, borderRadius: "md", overflow: "auto", maxHeight: 420 }}><pre style={{ margin: 0, fontSize: 12 }}>{JSON.stringify(output, null, 2)}</pre></Sheet>}
+      {output !== null && (
+        <Sheet variant="soft" sx={{ p: 2, borderRadius: "lg", overflow: "auto", maxHeight: 520 }}>
+          <Typography level="title-sm" sx={{ mb: 1 }}>{preview && String(preview.status) === "previewed" ? "This is what will change" : "Result"}</Typography>
+          <ReadableData value={output} />
+        </Sheet>
+      )}
     </Stack>
   );
 }
@@ -254,6 +323,7 @@ export function SettingsPanel({ me }: { me: Whoami }) {
   const jobs = useQuery({ queryKey: ["bloom-support", "jobs", "failed,dead"], queryFn: () => bloomSupport.jobs("failed,dead"), enabled: me.permissions.includes("automation.control") });
   const [newKey, setNewKey] = useState<string | null>(null);
   const { run, error } = useAction();
+  const { ask, dialog } = useAskDialog();
   const isAdmin = me.permissions.includes("admin.policy");
   const s = settings.data ?? {};
   const toggle = (key: string, label: string, help: string, allowed: boolean) => (
@@ -264,6 +334,7 @@ export function SettingsPanel({ me }: { me: Whoami }) {
   );
   return (
     <Stack spacing={2}>
+      {dialog}
       {error && <Alert color="danger">{error}</Alert>}
       {health.data && health.data.missing_configuration.length > 0 && (
         <Alert color="warning" variant="soft">
@@ -279,14 +350,21 @@ export function SettingsPanel({ me }: { me: Whoami }) {
       </Sheet>
       {isAdmin && (
         <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
-          <Typography level="title-sm">Jon / Jeff notification addresses</Typography>
-          <Button size="sm" variant="outlined" sx={{ mt: 1 }} onClick={() => {
+          <Typography level="title-sm">Where Jon and Jeff get alerts</Typography>
+          <Typography level="body-xs">Bloom emails these addresses when something needs one of you.</Typography>
+          {(["jon", "jeff"] as const).map((who) => (
+            <Typography key={who} level="body-sm" sx={{ mt: 0.5 }}>
+              <strong>{who === "jon" ? "Jon" : "Jeff"}:</strong> {(((s.owners as Record<string, string[]>) ?? {})[who] ?? []).join(", ") || "not set"}
+            </Typography>
+          ))}
+          <Button size="sm" variant="outlined" sx={{ mt: 1 }} onClick={async () => {
             const owners = (s.owners as { jon?: string[]; jeff?: string[] }) ?? {};
-            const jon = window.prompt("Jon's email(s)", (owners.jon ?? []).join(", "));
-            const jeff = window.prompt("Jeff's email(s)", (owners.jeff ?? []).join(", "));
-            if (jon !== null && jeff !== null) run(() => bloomSupport.setSetting("owners", { jon: jon.split(",").map((x) => x.trim()).filter(Boolean), jeff: jeff.split(",").map((x) => x.trim()).filter(Boolean) }));
+            const r = await ask({ title: "Alert addresses", fields: [
+              { name: "jon", label: "Jon's email", kind: "text", helper: "Separate several with commas.", initial: (owners.jon ?? []).join(", ") },
+              { name: "jeff", label: "Jeff's email", kind: "text", helper: "Separate several with commas.", initial: (owners.jeff ?? []).join(", ") },
+            ], confirmLabel: "Save" });
+            if (r) run(() => bloomSupport.setSetting("owners", { jon: splitList(r.jon), jeff: splitList(r.jeff) }));
           }}>Edit</Button>
-          <Typography level="body-xs" sx={{ mt: 1 }}>{JSON.stringify(s.owners ?? {})}</Typography>
         </Sheet>
       )}
       <Typography level="title-md">Support configuration</Typography>
@@ -299,11 +377,11 @@ export function SettingsPanel({ me }: { me: Whoami }) {
             {(staff.data ?? []).filter((p) => p.kind === "user").map((p) => (
               <tr key={p.id}>
                 <td>{p.name ?? p.email}<Typography level="body-xs">{p.email}</Typography></td>
-                <td>{p.role}</td>
-                <td>{p.grants.join(", ") || "—"}</td>
+                <td>{ROLE_LABEL[p.role] ?? p.role}</td>
+                <td>{p.grants.map((g) => GRANT_LABEL[g] ?? g).join(", ") || "—"}</td>
                 <td>{me.permissions.includes("admin.roles") && p.id !== me.id && (
                   <Select size="sm" value={p.role} onChange={(_, v) => v && run(() => bloomSupport.setRole({ principal_id: p.id, role: v }))}>
-                    {["platform_admin", "platform_operator", "support", "client"].map((r) => <Option key={r} value={r}>{r}</Option>)}
+                    {["platform_admin", "platform_operator", "support", "client"].map((r) => <Option key={r} value={r}>{ROLE_LABEL[r] ?? r}</Option>)}
                   </Select>
                 )}</td>
               </tr>
@@ -312,15 +390,28 @@ export function SettingsPanel({ me }: { me: Whoami }) {
         </Table>
         {me.permissions.includes("admin.roles") && (
           <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
-            <Button size="sm" variant="outlined" onClick={() => {
-              const email = window.prompt("Email of a person who has signed in to BloomSuite at least once");
-              const role = email && window.prompt("Role: platform_operator, support or platform_admin", "support");
-              if (email && role) run(() => bloomSupport.setRole({ email, role }));
+            <Button size="sm" variant="outlined" onClick={async () => {
+              const r = await ask({ title: "Add a team member", description: "They must have signed in to BloomSuite at least once.", fields: [
+                { name: "email", label: "Their email", kind: "email", required: true },
+                { name: "role", label: "What can they do?", kind: "select", required: true, initial: "support", options: [
+  { value: "support", label: "Support", hint: "Handles client requests" },
+  { value: "platform_operator", label: "Operator", hint: "Support plus account changes and fixes" },
+  { value: "platform_admin", label: "Admin", hint: "Everything, including settings and people" },
+] },
+              ], confirmLabel: "Add" });
+              if (r) run(() => bloomSupport.setRole({ email: String(r.email).trim(), role: String(r.role) }));
             }}>Add staff by email</Button>
-            <Button size="sm" variant="outlined" onClick={() => {
-              const email = window.prompt("Support person's email");
-              const grants = email && window.prompt("Extra permissions (comma separated): publish, campaign_send, sensitive, event_manage", "");
-              if (email && grants !== null) run(() => bloomSupport.setRole({ email, grants: (grants ?? "").split(",").map((x) => x.trim()).filter(Boolean) }));
+            <Button size="sm" variant="outlined" onClick={async () => {
+              const r = await ask({ title: "Extra permissions", description: "For Support team members who need to do a bit more.", fields: [
+                { name: "email", label: "Their email", kind: "email", required: true },
+                { name: "grants", label: "Allow them to", kind: "checkboxes", options: [
+  { value: "publish", label: "Publish websites" },
+  { value: "campaign_send", label: "Send email campaigns" },
+  { value: "event_manage", label: "Manage events" },
+  { value: "sensitive", label: "See sensitive account details" },
+] },
+              ], confirmLabel: "Save permissions" });
+              if (r) run(() => bloomSupport.setRole({ email: String(r.email).trim(), grants: r.grants as string[] }));
             }}>Support permissions</Button>
           </Stack>
         )}
@@ -359,6 +450,7 @@ export function ReadinessPanel() {
   const q = useQuery({ queryKey: ["bloom-support", "readiness"], queryFn: () => bloomSupport.readiness(), refetchInterval: 60_000 });
   const settings = useQuery({ queryKey: ["bloom-support", "settings"], queryFn: () => bloomSupport.settings() });
   const { run, error } = useAction();
+  const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
   const r = q.data!;
@@ -366,13 +458,14 @@ export function ReadinessPanel() {
   const tick = (v: boolean | null) => (v === null ? "—" : v ? "yes" : "no");
   return (
     <Stack spacing={1.5}>
+      {dialog}
       {error && <Alert color="danger">{error}</Alert>}
       <Alert color={r.summary.continuous_automation === "running" ? "success" : "warning"} variant="soft">
-        Continuous automation: <strong>{r.summary.continuous_automation}</strong>. ChatGPT connections are for people; the background worker runs on its own schedule.
+        Bloom's background work is <strong>{r.summary.continuous_automation === "running" ? "running" : labelFor(String(r.summary.continuous_automation)).toLowerCase()}</strong>. It runs on its own schedule; ChatGPT connections are only for people asking Bloom things.
       </Alert>
       <Sheet variant="outlined" sx={{ borderRadius: "md", overflow: "auto" }}>
         <Table size="sm">
-          <thead><tr><th style={{ width: "26%" }}>Capability</th><th>Implemented</th><th>Configured</th><th>Enabled</th><th>Live evidence</th><th style={{ width: "28%" }}>Tested / missing</th></tr></thead>
+          <thead><tr><th style={{ width: "26%" }}>What Bloom can do</th><th>Built</th><th>Set up</th><th>Switched on</th><th>Last seen working</th><th style={{ width: "28%" }}>Checked / still needed</th></tr></thead>
           <tbody>
             {r.capabilities.map((c) => (
               <tr key={c.key}>
@@ -391,9 +484,9 @@ export function ReadinessPanel() {
         <Typography level="title-sm">Model (OpenAI API, billed to the API account — not a ChatGPT subscription)</Typography>
         <Stack direction="row" spacing={1} sx={{ mt: 1 }} alignItems="center">
           <Typography level="body-sm">Current: {ai.model ?? "gpt-4o-mini"} · {ai.max_calls_per_account_per_day ?? 200} calls/client/day</Typography>
-          <Button size="sm" variant="outlined" onClick={() => {
-            const model = window.prompt("OpenAI model id for Bloom's background work", ai.model ?? "gpt-4o-mini");
-            if (model) run(() => bloomSupport.setSetting("ai", { ...ai, provider: "openai", model }));
+          <Button size="sm" variant="outlined" onClick={async () => {
+            const r = await ask({ title: "Change Bloom's AI model", description: "Used for Bloom's background work. Billed to the OpenAI API account.", fields: [{ name: "model", label: "Model name", kind: "text", required: true, initial: ai.model ?? "gpt-4o-mini", helper: "Exactly as OpenAI names it, e.g. gpt-4o-mini." }], confirmLabel: "Change model" });
+            if (r) run(() => bloomSupport.setSetting("ai", { ...ai, provider: "openai", model: String(r.model).trim() }));
           }}>Change model</Button>
         </Stack>
       </Sheet>
@@ -410,12 +503,14 @@ export function ReadinessPanel() {
 export function ProblemsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => void }) {
   const q = useQuery({ queryKey: ["bloom-support", "problems"], queryFn: () => bloomSupport.problems() });
   const { run, error } = useAction();
+  const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
   return (
     <Stack spacing={1}>
+      {dialog}
       {error && <Alert color="danger">{error}</Alert>}
-      <Stack direction="row"><Button size="sm" onClick={() => { const title = window.prompt("Problem or incident title"); if (title) run(() => bloomSupport.createProblem({ title })); }}>New shared problem</Button></Stack>
+      <Stack direction="row"><Button size="sm" onClick={async () => { const r = await ask({ title: "New shared problem", description: "Group requests from several clients about the same issue, so it is fixed once.", fields: [{ name: "title", label: "What's the problem?", kind: "text", required: true, placeholder: "e.g. Checkout fails on phones" }], confirmLabel: "Create" }); if (r) run(() => bloomSupport.createProblem({ title: String(r.title).trim() })); }}>New shared problem</Button></Stack>
       {!q.data?.length && <Empty title="No shared problems" description="When several clients hit the same issue, link their tickets to one problem: one investigation, separate private conversations." />}
       {(q.data ?? []).map((p) => {
         const tickets = (p.tickets as Array<{ id: string; number: number; status: string; account: string | null }>) ?? [];
@@ -425,7 +520,7 @@ export function ProblemsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => 
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <Chip size="sm" color={p.kind === "incident" ? "danger" : "neutral"}>{String(p.kind)}</Chip>
               <Typography level="title-sm">{String(p.title)}</Typography>
-              <Chip size="sm" variant="outlined">{String(p.status)}</Chip>
+              <Chip size="sm" variant="outlined">{problemLabel(p.status)}</Chip>
               <Typography level="body-xs">{tickets.length} tickets · {new Set(tickets.map((t) => t.account)).size} clients</Typography>
               {eng && <Typography level="body-xs">Engineering: {eng.status}{eng.pr_url ? <> · <Link href={eng.pr_url} target="_blank" rel="noopener">PR</Link></> : null}</Typography>}
             </Stack>
@@ -499,8 +594,8 @@ export function ReportsPanel() {
       <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
         {(["status", "priority", "product"] as const).map((k) => (
           <Sheet key={k} variant="outlined" sx={{ p: 1.5, borderRadius: "md", flex: 1 }}>
-            <Typography level="title-sm">Open by {k}</Typography>
-            {Object.entries(m.open_by[k]).map(([a, n]) => <Typography key={a} level="body-sm">{a}: {n}</Typography>)}
+            <Typography level="title-sm">{OPEN_BY[k].title}</Typography>
+            {Object.entries(m.open_by[k]).map(([a, n]) => <Typography key={a} level="body-sm">{OPEN_BY[k].value(a)}: {n}</Typography>)}
           </Sheet>
         ))}
         <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", flex: 1 }}>
@@ -555,7 +650,7 @@ export function SupportConfigPanel({ me }: { me: Whoami }) {
               </Stack>
             </Stack>
           ) : (
-            <Box component="pre" sx={{ fontSize: 11, m: 0, mt: 0.5, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{JSON.stringify(settings.data?.[c.key] ?? null)}</Box>
+            <Box sx={{ mt: 1 }}><ReadableData value={settings.data?.[c.key] ?? null} /></Box>
           )}
         </Sheet>
       ))}

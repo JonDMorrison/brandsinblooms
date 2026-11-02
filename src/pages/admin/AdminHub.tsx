@@ -735,9 +735,9 @@ export default function AdminHub() {
           iconColor: "danger",
         },
         {
-          title: "Email Governance Settings",
+          title: "Email sending rules",
           description:
-            "Manage global email governance thresholds, batch defaults, and warmup limits",
+            "Safety limits that protect every client's email reputation",
           icon: Shield,
           href: "/admin/governance-config",
           iconColor: "warning",
@@ -900,7 +900,6 @@ export default function AdminHub() {
                     useFlexGap
                     flexWrap="wrap"
                   >
-                    <JoyStatusChip label="Live admin view" status="active" />
                     <Typography level="body-xs" color="neutral">
                       Snapshot updated{" "}
                       {format(new Date(), "MMM d, yyyy 'at' h:mm a")}

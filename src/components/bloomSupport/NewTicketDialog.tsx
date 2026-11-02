@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import Modal from "@mui/joy/Modal";
 import ModalDialog from "@mui/joy/ModalDialog";
 import ModalClose from "@mui/joy/ModalClose";
@@ -8,36 +8,27 @@ import Stack from "@mui/joy/Stack";
 import FormControl from "@mui/joy/FormControl";
 import FormLabel from "@mui/joy/FormLabel";
 import FormHelperText from "@mui/joy/FormHelperText";
-import Autocomplete from "@mui/joy/Autocomplete";
 import Textarea from "@mui/joy/Textarea";
 import Button from "@mui/joy/Button";
 import Alert from "@mui/joy/Alert";
 import { bloomSupport } from "@/lib/bloomSupport/api";
 
-type Account = { id: string; name: string };
+import { ClientPicker, type PickedClient as Account } from "./ClientPicker";
 
 /**
  * Files a request on a client's behalf (phone call, in person). It is triaged like
  * any other request. Replaces the old chain of browser prompts.
  */
 export function NewTicketDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (ticketId: string) => void }) {
-  const [search, setSearch] = useState("");
   const [account, setAccount] = useState<Account | null>(null);
   const [body, setBody] = useState("");
 
-  const accounts = useQuery({
-    queryKey: ["bloom-support", "accounts", "search", search],
-    queryFn: () => bloomSupport.listAccounts(search),
-    enabled: open && search.trim().length >= 2,
-    staleTime: 30_000,
-  });
 
   const create = useMutation({
     mutationFn: () => bloomSupport.createTicket({ account_id: account!.id, body: body.trim(), channel: "staff", subject: body.trim().split("\n")[0].slice(0, 120) }),
     onSuccess: (created) => {
       setAccount(null);
       setBody("");
-      setSearch("");
       onCreated(created.ticket_id);
     },
   });
@@ -53,21 +44,7 @@ export function NewTicketDialog({ open, onClose, onCreated }: { open: boolean; o
           </div>
           <FormControl required>
             <FormLabel>Which client?</FormLabel>
-            <Autocomplete
-              placeholder="Start typing the client's name"
-              options={(accounts.data ?? []).map((a): Account => ({ id: a.id, name: a.name }))}
-              multiple={false}
-              freeSolo={false}
-              getOptionLabel={(o: Account) => o.name}
-              isOptionEqualToValue={(a: Account, b: Account) => a.id === b.id}
-              value={account}
-              onChange={(_, v: Account | null) => setAccount(v)}
-              inputValue={search}
-              onInputChange={(_, v) => setSearch(v)}
-              loading={accounts.isFetching}
-              noOptionsText={search.trim().length < 2 ? "Type at least 2 letters" : "No client with that name"}
-              filterOptions={(o: Account[]) => o}
-            />
+            <ClientPicker value={account} onChange={setAccount} />
           </FormControl>
           <FormControl required>
             <FormLabel>What do they need?</FormLabel>

@@ -339,8 +339,8 @@ const ReportedProblemsPage = () => {
                   <JoyTableHead>
                     <JoyTableRow>
                       <JoyTableHeaderCell>Title</JoyTableHeaderCell>
-                      <JoyTableHeaderCell>User</JoyTableHeaderCell>
-                      <JoyTableHeaderCell>URL</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Reported by</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Page</JoyTableHeaderCell>
                       <JoyTableHeaderCell>Status</JoyTableHeaderCell>
                       <JoyTableHeaderCell>Priority</JoyTableHeaderCell>
                       <JoyTableHeaderCell>Created</JoyTableHeaderCell>
@@ -383,8 +383,8 @@ const ReportedProblemsPage = () => {
                     <JoyTableHead>
                       <JoyTableRow>
                         <JoyTableHeaderCell>Title</JoyTableHeaderCell>
-                        <JoyTableHeaderCell>User</JoyTableHeaderCell>
-                        <JoyTableHeaderCell>URL</JoyTableHeaderCell>
+                        <JoyTableHeaderCell>Reported by</JoyTableHeaderCell>
+                        <JoyTableHeaderCell>Page</JoyTableHeaderCell>
                         <JoyTableHeaderCell>Status</JoyTableHeaderCell>
                         <JoyTableHeaderCell>Priority</JoyTableHeaderCell>
                         <JoyTableHeaderCell>Created</JoyTableHeaderCell>

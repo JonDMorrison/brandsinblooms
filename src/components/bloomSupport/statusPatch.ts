@@ -1,34 +1,55 @@
-import type { SupportStatus, TicketDetail, WaitingReason } from "@/lib/bloomSupport/api";
+import type { SupportStatus, TicketDetail } from "@/lib/bloomSupport/api";
+import type { AskField, AskOptions, AskValues } from "./useAskDialog";
 
-/** Collects what each status needs; returns null if the person cancels. */
-export function statusPatch(t: TicketDetail, v: SupportStatus): Record<string, unknown> | null {
+type Ask = (opts: AskOptions) => Promise<AskValues | null>;
+
+export const WAITING_OPTIONS = [
+  { value: "customer", label: "Waiting on the client" },
+  { value: "internal", label: "Waiting on our team" },
+  { value: "third_party", label: "Waiting on another company", hint: "e.g. a payment or POS provider" },
+  { value: "deployment", label: "Waiting for a fix to go live" },
+  { value: "scheduled", label: "Scheduled for later" },
+];
+
+const str = (v: unknown) => String(v ?? "").trim();
+
+/** Collects what each status needs in one friendly form; resolves null if the person cancels. */
+export async function statusPatch(ask: Ask, t: TicketDetail, v: SupportStatus): Promise<Record<string, unknown> | null> {
   if (v === "waiting") {
-    const r = window.prompt("Waiting on: customer, internal, third_party, deployment or scheduled", "customer") as WaitingReason | null;
-    return r ? { status: "waiting", waiting_reason: r } : null;
+    const r = await ask({ title: "Waiting on whom?", fields: [{ name: "reason", label: "Waiting on", kind: "select", required: true, initial: "customer", options: WAITING_OPTIONS }], confirmLabel: "Set to waiting" });
+    return r ? { status: "waiting", waiting_reason: str(r.reason) } : null;
   }
   if (v === "needs_owner") {
-    const decision = window.prompt("What decision is needed from Jon/Jeff?");
-    if (!decision) return null;
-    const who = window.prompt("Who decides: jon, jeff or both?", "both") ?? "both";
-    const rec = window.prompt("Your recommended next step (optional)") ?? undefined;
-    return { status: "needs_owner", decision_needed: decision, accountable: who, recommendation: rec };
+    const r = await ask({
+      title: "Ask Jon or Jeff to decide",
+      fields: [
+        { name: "decision", label: "What needs deciding?", kind: "textarea", required: true },
+        { name: "who", label: "Who decides?", kind: "select", required: true, initial: "both", options: [{ value: "jon", label: "Jon" }, { value: "jeff", label: "Jeff" }, { value: "both", label: "Either of them" }] },
+        { name: "rec", label: "What do you recommend? (optional)", kind: "textarea" },
+      ],
+      confirmLabel: "Send for a decision",
+    });
+    if (!r) return null;
+    return { status: "needs_owner", decision_needed: str(r.decision), accountable: str(r.who) || "both", recommendation: str(r.rec) || undefined };
   }
   if (v === "resolved") {
-    const summary = window.prompt(t.kind === "feature" ? "Summary for the client (it was routed for a product decision — not delivered)" : "What resolved it? (sent to the client)");
-    if (!summary) return null;
-    const evidence: Record<string, unknown> = {};
-    if (t.kind === "change") {
-      const note = window.prompt("How did you verify the saved change? (e.g. checked the live page)");
-      if (!note) return null;
-      evidence.verified_note = note;
-    }
+    const fields: AskField[] = [
+      { name: "summary", label: t.kind === "feature" ? "What should the client know?" : "What fixed it?", kind: "textarea", required: true, helper: t.kind === "feature" ? "It was passed on for a product decision, not built yet." : "This is sent to the client." },
+    ];
+    if (t.kind === "change") fields.push({ name: "verified", label: "How did you check the change is saved?", kind: "text", required: true, placeholder: "e.g. Checked the live page" });
     if (t.kind === "bug" || t.kind === "incident") {
-      const note = window.prompt("How did you verify the affected flow works now?");
-      if (!note) return null;
-      evidence.verification = { passed: true, note };
-      if (!t.engineering_issue_id) evidence.no_deploy_reason = window.prompt("No code deployment linked — why? (e.g. configuration fix)") ?? "";
+      fields.push({ name: "verified", label: "How did you check it works now?", kind: "text", required: true, placeholder: "e.g. Placed a test order on the live site" });
+      if (!t.engineering_issue_id) fields.push({ name: "no_deploy", label: "No code fix is linked. Why? (optional)", kind: "text", placeholder: "e.g. It was a settings change" });
     }
-    return { status: "resolved", resolution_summary: summary, resolution_evidence: evidence };
+    const r = await ask({ title: "Mark as solved", fields, confirmLabel: "Mark solved" });
+    if (!r) return null;
+    const evidence: Record<string, unknown> = {};
+    if (t.kind === "change") evidence.verified_note = str(r.verified);
+    if (t.kind === "bug" || t.kind === "incident") {
+      evidence.verification = { passed: true, note: str(r.verified) };
+      if (!t.engineering_issue_id) evidence.no_deploy_reason = str(r.no_deploy);
+    }
+    return { status: "resolved", resolution_summary: str(r.summary), resolution_evidence: evidence };
   }
   return { status: v };
 }

@@ -13,6 +13,7 @@ import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
+import { useAskDialog } from "./useAskDialog";
 import { bloomSupport, PRODUCT_LABEL, type KnowledgeArticle, type KnowledgeProduct, type KnowledgeWrite, type Whoami } from "@/lib/bloomSupport/api";
 
 const emptyDraft = () => ({ title: "", body: "", product: "platform" as KnowledgeProduct, audience: "client" as "client" | "internal" });
@@ -24,6 +25,7 @@ export function KnowledgePanel({ me }: { me: Whoami }) {
   const [draft, setDraft] = useState(emptyDraft);
   const [notice, setNotice] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const { ask, dialog } = useAskDialog();
   const canWrite = me.permissions.includes("tickets.write");
   const canApprove = me.role === "platform_operator" || me.permissions.includes("admin.policy");
   const save = useMutation({
@@ -43,8 +45,8 @@ export function KnowledgePanel({ me }: { me: Whoami }) {
     setNotice(null);
     save.reset();
   };
-  const changeApproval = (article: KnowledgeArticle, approved: boolean) => {
-    if (approved && !window.confirm(`Approve “${article.title}” for customer answers and the public help centre?`)) return;
+  const changeApproval = async (article: KnowledgeArticle, approved: boolean) => {
+    if (approved && !(await ask({ title: "Approve this answer?", description: `“${article.title}” will be used in replies to clients and shown in the public help centre.`, confirmLabel: "Approve" }))) return;
     save.mutate({ id: article.id, expected_updated_at: article.updated_at, approved });
   };
   const needle = search.trim().toLowerCase();
@@ -52,6 +54,7 @@ export function KnowledgePanel({ me }: { me: Whoami }) {
 
   return (
     <Stack spacing={2}>
+      {dialog}
       <div>
         <Typography level="title-lg">Approved answers</Typography>
         <Typography level="body-sm" textColor="text.secondary">Support can draft answers. Jon and Jeff approve customer articles. Internal notes and drafts stay private.</Typography>

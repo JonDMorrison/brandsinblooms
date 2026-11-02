@@ -12,6 +12,7 @@ import Skeleton from "@mui/joy/Skeleton";
 import Link from "@mui/joy/Link";
 import { ArrowRight, Check, Search, X } from "lucide-react";
 import { formatDistanceToNow, isToday } from "date-fns";
+import { plainSummary } from "@/components/admin/readableFormat";
 import { bloomSupport, STATUS_LABEL, WAITING_LABEL, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
 
 /**
@@ -84,7 +85,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       when: ago(e.updated_at),
       text: `Bloom has a tested fix ready: ${String(e.title)}. Approve it to go live?`,
       detail: [
-        e.risk ? `Risk: ${typeof e.risk === "string" ? e.risk : JSON.stringify(e.risk)}` : null,
+        e.risk ? `Risk: ${plainSummary(e.risk)}` : null,
         tickets.length ? `Fixes ${tickets.length} ticket${tickets.length === 1 ? "" : "s"}: ${tickets.map((t) => `#${t.number}`).join(", ")}` : null,
       ].filter(Boolean).join(" · ") || undefined,
       primary: can("engineering.approve") ? { label: "Approve fix", run: () => bloomSupport.updateEngineering(String(e.id), { status: "approved", note: "Approved from Today" }), done: "Fix approved. Bloom will release it." } : undefined,
