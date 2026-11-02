@@ -13,10 +13,12 @@ type Chain = PromiseLike<Result> & {
   order: (...args: unknown[]) => Chain; range: (from: number, to: number) => Chain;
   upsert: (rows: Row[], options: unknown) => Chain; delete: () => Chain; update: (row: Row) => Chain;
 };
-function harness(options: { count?: number; membershipCount?: number; archivedMembers?: number; allowed?: boolean; failPage?: boolean } = {}) {
+function harness(options: { count?: number; membershipCount?: number; archivedMembers?: number; perksRule?: boolean; perksMembers?: number; allowed?: boolean; failPage?: boolean } = {}) {
   const tenant = '11111111-1111-4111-8111-111111111111';
   const segments: Row[] = [{ id: 'segment', tenant_id: tenant, auto_update: true, status: 'active', deleted_at: null,
-    conditions: { kind: 'group', operator: 'AND', children: [{ kind: 'rule', fieldId: 'custom:garden', operatorId: 'equals', value: true }] } }];
+    conditions: options.perksRule
+      ? { logic: 'AND', rules: [{ field: 'is_perks_member', operator: '=', value: true }] }
+      : { kind: 'group', operator: 'AND', children: [{ kind: 'rule', fieldId: 'custom:garden', operatorId: 'equals', value: true }] } }];
   const customers: Row[] = Array.from({ length: options.count ?? 1 }, (_, i) => ({ id: `c${String(i).padStart(6, '0')}`, tenant_id: tenant, deleted_at: null, merged_into_customer_id: null, custom_fields: { garden: true } }));
   const members: Row[] = Array.from({length: options.membershipCount ?? Math.min(1001, customers.length)}, (_, i) => ({customer_id: customers[i % customers.length].id, segment_id: 'segment'}));
   // Memberships left behind by archived/deleted customers (not in the live customer list).
@@ -40,7 +42,8 @@ function harness(options: { count?: number; membershipCount?: number; archivedMe
         const result = async (): Promise<Result> => {
           if(mutation){state.writes++;if(mutation==='upsert'){state.batches.push(payload.length);members.push(...payload);}if(mutation==='update')state.count=Number(payload[0].customer_count);return {data:[],error:null};}
           if(table==='crm_customers' && start>=1000 && options.failPage)return {data:null,error:{message:'source page unavailable'}};
-          const rows = table==='crm_segments'?segments:table==='crm_customers'?customers:members;
+          const perks = customers.slice(0, options.perksMembers ?? 0).map(c => ({customer_id: c.id, tenant_id: tenant, is_perks_member: true}));
+          const rows = table==='crm_segments'?segments:table==='crm_customers'?customers:table==='customer_loyalty_metrics'?perks:members;
           return {data:rows.filter(row=>predicates.every(p=>p(row))).slice(start,end+1),error:null};
         };
         return result().then(resolve,reject);
@@ -83,6 +86,10 @@ describe('segment evaluation runtime boundaries',()=>{
   it('removes archived or deleted customers from the group',async()=>{
     const h=harness({count:3,membershipCount:3,archivedMembers:616});const response=await h.run({tenant_id:h.tenant});expect(response.status).toBe(200);
     const body=await response.json();expect(body.results[0]).toMatchObject({previous_count:619,new_count:3,entered:0,exited:616});expect(h.state.count).toBe(3);
+  });
+  it('counts Perks members from loyalty metrics',async()=>{
+    const h=harness({count:10,membershipCount:0,perksRule:true,perksMembers:4});const response=await h.run({tenant_id:h.tenant});expect(response.status).toBe(200);
+    const body=await response.json();expect(body.results[0]).toMatchObject({previous_count:0,new_count:4,entered:4,exited:0});
   });
   it('fails before mutation if a later customer page cannot be read',async()=>{
     const h=harness({count:1500,failPage:true});expect((await h.run({tenant_id:h.tenant})).status).toBe(500);expect(h.state.writes).toBe(0);
