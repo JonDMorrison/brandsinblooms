@@ -1132,7 +1132,9 @@ export default function CustomerIntelligencePage() {
                 lineHeight: 1.1,
               }}
             >
-              Know your customers. Know what to do next.
+              Know your customers.{" "}
+              <br />
+              Know what to do next.
             </Typography>
             <Typography
               level="body-lg"

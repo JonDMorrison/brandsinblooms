@@ -29,7 +29,7 @@ function Bubble({ m }: { m: TicketMessage }) {
   return (
     <Sheet
       variant={internal ? "soft" : "outlined"}
-      color={internal ? "warning" : "neutral"}
+      color={internal ? "primary" : "neutral"}
       sx={{ p: 1.5, borderRadius: "md", maxWidth: "88%", alignSelf: mine ? "flex-end" : "flex-start", ...(internal ? { borderStyle: "dashed", borderWidth: 1 } : {}) }}
     >
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
@@ -37,7 +37,7 @@ function Bubble({ m }: { m: TicketMessage }) {
         <Typography level="body-xs" fontWeight="lg">
           {m.author_kind === "bloom" ? "Bloom" : m.author?.name ?? (m.author_kind === "client" ? "Client" : "Staff")}
         </Typography>
-        {internal && <Chip size="sm" color="warning" variant="solid">Internal note</Chip>}
+        {internal && <Chip size="sm" color="neutral" variant="outlined">Internal note</Chip>}
         <Typography level="body-xs" textColor="text.tertiary">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</Typography>
         {m.delivery && m.delivery !== "none" && <Typography level="body-xs" textColor="text.tertiary">· email {m.delivery}</Typography>}
       </Stack>
@@ -147,7 +147,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
               {t.owner ? (t.owner.id === me.id ? "Unassign me" : `Owner: ${t.owner.name ?? "staff"}`) : "Assign to me"}
             </Button>
             {t.automation === "auto"
-              ? <Button size="sm" variant="soft" color="warning" onClick={() => run.mutate(() => bloomSupport.setAutomation(t.id, "human", "manual takeover"))}>Take over from Bloom</Button>
+              ? <Button size="sm" variant="outlined" color="neutral" onClick={() => run.mutate(() => bloomSupport.setAutomation(t.id, "human", "manual takeover"))}>Take over from Bloom</Button>
               : <Button size="sm" variant="soft" color="success" onClick={() => run.mutate(() => bloomSupport.setAutomation(t.id, "auto"))}>Hand back to Bloom</Button>}
           </Stack>
         )}
@@ -203,7 +203,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           {t.attachments.length > 0 && (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {t.attachments.map((a) => (
-                <Chip key={a.id} variant="outlined" startDecorator={<Paperclip size={12} />} color={a.visibility === "internal" ? "warning" : "neutral"}
+                <Chip key={a.id} variant="outlined" startDecorator={<Paperclip size={12} />} color="neutral"
                   onClick={async () => { const { url } = await bloomSupport.attachmentUrl(a.id); window.open(url, "_blank", "noopener"); }}>
                   {a.file_name}
                 </Chip>
@@ -212,7 +212,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           )}
           {/* Composer */}
           {!t.merged_into && (t.status !== "resolved" || staff) ? (
-            <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", mt: 1, borderColor: visibility === "internal" ? "warning.outlinedBorder" : "primary.outlinedBorder" }}>
+            <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", mt: 1, borderColor: "neutral.outlinedBorder" }}>
               {staff && (
                 <ToggleButtonGroup size="sm" value={visibility} onChange={(_, v) => v && setVisibility(v)} sx={{ mb: 1 }} aria-label="Reply visibility">
                   <Button value="internal" startDecorator={<Lock size={14} />}>Internal note</Button>
@@ -232,7 +232,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
                     run.mutate(async () => { for (const f of files) await bloomSupport.uploadAttachment(t.id, f, staff && visibility === "internal" ? "internal" : "public"); });
                   }} />
                 </Button>
-                <Button size="sm" disabled={!draft.trim()} loading={run.isPending} color={visibility === "internal" && staff ? "warning" : "primary"} onClick={send}>
+                <Button size="sm" disabled={!draft.trim()} loading={run.isPending} color="primary" onClick={send}>
                   {visibility === "internal" && staff ? "Add note" : "Send reply"}
                 </Button>
               </Stack>
@@ -247,7 +247,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Button size="sm" variant="outlined" startDecorator={<Wrench size={14} />} onClick={() => run.mutate(() => bloomSupport.investigate(t.id))}>Investigate bug</Button>
               <Button size="sm" variant="outlined" onClick={() => run.mutate(() => bloomSupport.routeFeature(t.id))}>Feature → Jon</Button>
-              <Button size="sm" variant="outlined" color="warning" onClick={() => { const reason = window.prompt("Why does this need Jon/Jeff?"); if (reason) run.mutate(() => bloomSupport.escalate(t.id, "both", reason)); }}>Escalate</Button>
+              <Button size="sm" variant="outlined" color="neutral" onClick={() => { const reason = window.prompt("Why does this need Jon/Jeff?"); if (reason) run.mutate(() => bloomSupport.escalate(t.id, "both", reason)); }}>Escalate</Button>
             </Stack>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Button size="sm" variant="plain" onClick={async () => {
