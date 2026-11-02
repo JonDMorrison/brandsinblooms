@@ -1,4 +1,6 @@
 name: Bloom repair
+# The engineering issue id in the run name lets Bloom tell its own run apart when retrying a dispatch.
+run-name: Bloom repair ${{ inputs.engineering_issue_id }}
 # Dispatched by Bloom Support (repair identity) for one engineering issue, only
 # after a person started the repair in Bloom. Proposes a fix as a pull request.
 #

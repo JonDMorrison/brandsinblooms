@@ -90,7 +90,8 @@ function githubStub(method: string, path: string, body: unknown): Response {
     if (dispatchFailNext > 0) { dispatchFailNext--; return ok({ message: "Server Error" }, 500); }
     return new Response(null, { status: 204 });
   }
-  if (method === "GET" && /\/actions\/workflows\/[^/]+\/runs\?/.test(path)) return ok({ total_count: 0, workflow_runs: [] });
+  // Another repair's run started in the same window: it must not be mistaken for this one.
+  if (method === "GET" && /\/actions\/workflows\/[^/]+\/runs\?/.test(path)) return ok({ total_count: 1, workflow_runs: [{ created_at: new Date().toISOString(), display_title: "Bloom repair 00000000-0000-0000-0000-000000000000" }] });
   if (method === "GET" && /^\/repos\/[^/]+\/[^/]+$/.test(path)) return ok({ default_branch: "main" });
   if (method === "GET" && (m = path.match(/^\/repos\/(.+)\/pulls\?state=all&head=([^&]+)/))) {
     const repo = m[1];

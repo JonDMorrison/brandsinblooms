@@ -69,6 +69,7 @@ async function evidenceFor(automation: Caller, issue: EngineeringIssue): Promise
  * confirming GitHub did not start a run anyway, so a glitch never produces two repairs.
  */
 async function dispatchWithRetry(repository: string, workflow: string, payload: { ref: string; inputs: Record<string, string> }): Promise<void> {
+  const issueId = payload.inputs.engineering_issue_id;
   const path = `/repos/${repository}/actions/workflows/${workflow}/dispatches`;
   const since = new Date(Date.now() - 10_000).toISOString();
   try {
@@ -78,10 +79,11 @@ async function dispatchWithRetry(repository: string, workflow: string, payload: 
     if (!(e instanceof GitHubError) || e.upstream < 500) throw e;
   }
   await new Promise((r) => setTimeout(r, Number(env("BLOOM_GITHUB_RETRY_DELAY_MS") ?? 5000)));
-  const runs = await gh<{ workflow_runs?: Array<{ created_at: string }> }>(
+  // The workflow's run-name carries the engineering issue id, so only this repair's own run counts.
+  const runs = await gh<{ workflow_runs?: Array<{ created_at: string; display_title?: string }> }>(
     "repair", "GET", `/repos/${repository}/actions/workflows/${workflow}/runs?event=workflow_dispatch&per_page=10&created=${encodeURIComponent(`>=${since}`)}`,
   );
-  if ((runs.workflow_runs ?? []).length) return;
+  if ((runs.workflow_runs ?? []).some((r) => (r.display_title ?? "").includes(issueId))) return;
   await gh("repair", "POST", path, payload);
 }
 
