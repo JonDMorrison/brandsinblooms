@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -26,8 +26,15 @@ export const useTenant = () => {
   const { user } = useAuth();
   const { isMasterAdmin, activeTenantId, hasHydratedTenantContext } =
     useAdmin();
+  // Each fetch gets a sequence number so a slower, superseded response (for
+  // example the home company read before admin status resolved) can never
+  // overwrite the company the admin is actually working in.
+  const fetchSequenceRef = useRef(0);
 
   const fetchTenant = useCallback(async () => {
+    const fetchSequence = ++fetchSequenceRef.current;
+    const isCurrent = () => fetchSequenceRef.current === fetchSequence;
+
     if (!user) {
       setTenant(null);
       setError(null);
@@ -35,7 +42,10 @@ export const useTenant = () => {
       return;
     }
 
-    if (isMasterAdmin && !hasHydratedTenantContext) {
+    // Wait until admin status and the admin workspace are known. Before that,
+    // isMasterAdmin is still false for a master admin, which would wrongly
+    // resolve their home company instead of the client they are working in.
+    if (!hasHydratedTenantContext) {
       setLoading(true);
       return;
     }
@@ -63,8 +73,10 @@ export const useTenant = () => {
           .maybeSingle();
 
         if (tenantError) throw tenantError;
+        if (!isCurrent()) return;
         setTenant(tenantData as unknown as Tenant);
       } else {
+        if (!isCurrent()) return;
         setTenant(null);
         setError(
           isMasterAdmin
@@ -73,11 +85,14 @@ export const useTenant = () => {
         );
       }
     } catch (error) {
+      if (!isCurrent()) return;
       console.error("Error fetching tenant:", error);
       setTenant(null);
       setError("Unable to load organization information. Please try again.");
     } finally {
-      setLoading(false);
+      if (isCurrent()) {
+        setLoading(false);
+      }
     }
   }, [activeTenantId, hasHydratedTenantContext, isMasterAdmin, user]);
 
