@@ -45,7 +45,7 @@ async function openAdminManage(browser: Browser) {
   });
   const page = await context.newPage();
   await page.goto('/admin/manage', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Admin Manage', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Client tools', level: 2 })).toBeVisible({ timeout: 15_000 });
   return { context, page };
 }
 
@@ -67,12 +67,12 @@ async function selectTenant(page: Page, tenantName: string) {
 
   // Prove the server-side selection survives a fresh document load. Activating a
   // tenant can intentionally move a master admin into the tenant workspace, so
-  // return to Admin Manage before asserting the persisted context.
+  // return to Client tools (/admin/manage) before asserting the persisted context.
   await page.reload({ waitUntil: 'domcontentloaded' });
   if (new URL(page.url()).pathname !== '/admin/manage') {
     await page.goto('/admin/manage', { waitUntil: 'domcontentloaded' });
   }
-  await expect(page.getByText('Admin Manage', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Client tools', level: 2 })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(`Managing ${tenantName}`, { exact: true })).toBeVisible({ timeout: 10_000 });
 }
 

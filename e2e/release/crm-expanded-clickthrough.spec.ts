@@ -87,7 +87,7 @@ async function openAdminManage(browser: Browser) {
   });
   const page = await context.newPage();
   await page.goto('/admin/manage', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Admin Manage', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Client tools', level: 2 })).toBeVisible({ timeout: 15_000 });
   return { context, page };
 }
 
