@@ -74,7 +74,7 @@ describe("tenant sidebar permissions", () => {
     );
   });
 
-  it("keeps just four everyday destinations at the top level", () => {
+  it("keeps primary CRM destinations visible while removing duplicate editor entry points", () => {
     const workspace = getDashboardSidebarGroups({ mode: "tenant" }).find(
       (group) => group.id === "dashboard",
     );
@@ -83,8 +83,15 @@ describe("tenant sidebar permissions", () => {
       "dashboard",
       "campaigns",
       "customers",
+      "forms",
+      "automations",
       "analytics",
     ]);
+    const visible = getDashboardSidebarGroups({ mode: "tenant" })
+      .flatMap((group) => group.items)
+      .flatMap((item) => item.kind === "link" ? [item.id] : item.children.map((child) => child.id));
+    expect(visible).not.toContain("newsletter");
+    expect(visible).not.toContain("sms-campaigns");
   });
 
   it("shows every tenant item when every permission is granted", () => {
@@ -104,9 +111,9 @@ describe("tenant sidebar permissions", () => {
       "content.design",
     ]);
 
-    expect(items).toHaveLength(21);
+    expect(items).toHaveLength(19);
     expect(items).toEqual(
-      expect.arrayContaining(["customer-intelligence", "integrations", "settings", "sms-campaigns"]),
+      expect.arrayContaining(["customer-intelligence", "integrations", "settings", "campaigns", "forms"]),
     );
   });
 });
