@@ -3,13 +3,17 @@
 -- there with the same tenant scope the CRM already grants via has_tenant_permission.
 -- Regular users are unchanged: they still match on users.tenant_id.
 -- Conversation, message, export and profile rows stay owned by auth.uid().
+-- The bloom-uploads storage policies are recreated too. Their unqualified
+-- `name` resolved to public.users.name instead of storage.objects.name, so no
+-- upload could ever match (the bucket has zero objects). They now use
+-- objects.name explicitly.
 
 CREATE OR REPLACE FUNCTION public.bloom_can_access_tenant(p_tenant_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT p_tenant_id IS NOT NULL AND (
     EXISTS (
@@ -143,3 +147,71 @@ CREATE POLICY bloom_tool_executions_insert_tenant ON public.bloom_tool_execution
 DROP POLICY bloom_tool_executions_select_tenant ON public.bloom_tool_executions;
 CREATE POLICY bloom_tool_executions_select_tenant ON public.bloom_tool_executions FOR SELECT TO authenticated
   USING (public.bloom_can_access_tenant(bloom_tool_executions.tenant_id));
+
+-- Storage folder names are text; only a well-formed UUID is checked.
+CREATE OR REPLACE FUNCTION public.bloom_can_access_tenant_folder(p_folder text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT CASE
+    WHEN p_folder ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      THEN public.bloom_can_access_tenant(p_folder::uuid)
+    ELSE false
+  END;
+$$;
+
+REVOKE ALL ON FUNCTION public.bloom_can_access_tenant_folder(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.bloom_can_access_tenant_folder(text) TO authenticated, service_role;
+
+DROP POLICY "Tenant users can read Bloom attachments" ON storage.objects;
+CREATE POLICY "Tenant users can read Bloom attachments" ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'bloom-uploads'
+    AND public.bloom_can_access_tenant_folder((storage.foldername(objects.name))[1])
+  );
+
+DROP POLICY "Tenant users can upload Bloom attachments" ON storage.objects;
+CREATE POLICY "Tenant users can upload Bloom attachments" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'bloom-uploads'
+    AND public.bloom_can_access_tenant_folder((storage.foldername(objects.name))[1])
+    AND (
+      EXISTS (
+        SELECT 1 FROM public.bloom_conversations c
+        WHERE c.user_id = auth.uid()
+          AND c.tenant_id::text = (storage.foldername(objects.name))[1]
+          AND c.id::text = (storage.foldername(objects.name))[2]
+      )
+      OR EXISTS (
+        SELECT 1 FROM public.bloom_knowledge_documents d
+        WHERE d.tenant_id::text = (storage.foldername(objects.name))[1]
+          AND (storage.foldername(objects.name))[2] = 'knowledge'
+          AND d.id::text = (storage.foldername(objects.name))[3]
+          AND d.source_file = objects.name
+      )
+    )
+  );
+
+DROP POLICY "Tenant users can delete their Bloom attachments" ON storage.objects;
+CREATE POLICY "Tenant users can delete their Bloom attachments" ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'bloom-uploads'
+    AND public.bloom_can_access_tenant_folder((storage.foldername(objects.name))[1])
+    AND (
+      EXISTS (
+        SELECT 1 FROM public.bloom_conversations c
+        WHERE c.user_id = auth.uid()
+          AND c.tenant_id::text = (storage.foldername(objects.name))[1]
+          AND c.id::text = (storage.foldername(objects.name))[2]
+      )
+      OR EXISTS (
+        SELECT 1 FROM public.bloom_knowledge_documents d
+        WHERE d.tenant_id::text = (storage.foldername(objects.name))[1]
+          AND (storage.foldername(objects.name))[2] = 'knowledge'
+          AND d.id::text = (storage.foldername(objects.name))[3]
+      )
+    )
+  );

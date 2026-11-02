@@ -62,4 +62,11 @@ describe("Bloom follows the admin workspace switch", () => {
         expect(sql).toMatch(new RegExp(`CREATE POLICY ${table}_${cmd}_own[\\s\\S]*?\\(auth\\.uid\\(\\) = user_id\\) AND public\\.bloom_can_access_tenant\\(${table}\\.tenant_id\\)`));
     expect(sql).not.toMatch(/FROM users u\s+WHERE \(\(u\.id = auth\.uid\(\)\)/);
   });
+  it("ties Bloom attachments to the stored object path, not users.name", () => {
+    const storage = sql.slice(sql.indexOf("bloom_can_access_tenant_folder"));
+    expect(storage).not.toMatch(/storage\.foldername\(name\)/);
+    expect(storage.match(/storage\.foldername\(objects\.name\)/g)?.length).toBeGreaterThan(10);
+    expect(storage).toMatch(/c\.user_id = auth\.uid\(\)/);
+    expect(sql).toContain("SET search_path = ''");
+  });
 });
