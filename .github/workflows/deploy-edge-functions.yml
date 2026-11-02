@@ -17,6 +17,12 @@ on:
       - "src/components/crm/pos/adapters/**"
       - "src/hooks/useCompanyInfo.ts"
       - "src/integrations/supabase/types.ts"
+  # Re-run a deploy that failed after merge, for the named functions only.
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: "Space-separated function names to deploy"
+        required: true
 
 # A failed deploy must never pass silently: the job opens a tracking issue.
 permissions:
@@ -35,7 +41,23 @@ jobs:
 
       - name: Detect changed functions
         id: changed
+        env:
+          REQUESTED_FUNCTIONS: ${{ github.event.inputs.functions }}
         run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            for fn in $REQUESTED_FUNCTIONS; do
+              if [[ ! "$fn" =~ ^[a-z0-9-]+$ || ! -f "supabase/functions/$fn/index.ts" ]]; then
+                echo "::error::Unknown edge function: $fn"
+                exit 1
+              fi
+            done
+            {
+              echo "deploy_all=false"
+              echo "functions=$(echo "$REQUESTED_FUNCTIONS" | xargs)"
+              echo "reason=manual redeploy"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           changed_paths="$(git diff --name-only HEAD~1 HEAD | grep -v '^supabase/config.toml$' || true)"
           config_function_paths=""
           if ! git diff --quiet HEAD~1 HEAD -- supabase/config.toml; then
