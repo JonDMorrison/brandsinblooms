@@ -184,10 +184,10 @@ export default function AdminManage() {
                   <Shield className="h-6 w-6" />
                 </Sheet>
                 <Stack spacing={0.75}>
-                  <Typography level="h2">Admin Manage</Typography>
+                  <Typography level="h2">Client tools</Typography>
                   <Typography level="body-sm" color="neutral">
-                    Select a tenant context and run scoped admin operations
-                    without leaving the dashboard shell.
+                    Choose a client, then use the tools below to import data or
+                    fix their account.
                   </Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     <JoyStatusChip
@@ -491,7 +491,7 @@ export default function AdminManage() {
                         onClick={() => navigate("/admin/tenants")}
                         endDecorator={<ArrowRight className="h-4 w-4" />}
                       >
-                        Open Tenant Operations
+                        See all clients
                       </JoyButton>
                     </JoyCardContent>
                   </JoyCard>

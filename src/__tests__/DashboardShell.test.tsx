@@ -184,6 +184,10 @@ function AdminReportsPage() {
   return <div>Admin reports page</div>;
 }
 
+function AdminAuditLogsPage() {
+  return <div>Admin audit logs page</div>;
+}
+
 function renderShell(initialPath = "/admin") {
   return render(
     <TestQueryClientProvider>
@@ -192,6 +196,7 @@ function renderShell(initialPath = "/admin") {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminHubPage />} />
             <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="audit-logs" element={<AdminAuditLogsPage />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -232,11 +237,11 @@ describe("DashboardShell", () => {
       width: "260px",
     });
     expect(screen.getByTestId("dashboard-shell-topbar")).toBeInTheDocument();
-    expect(screen.getAllByText("Admin Hub")).toHaveLength(2);
+    expect(screen.getAllByText("Admin home")).toHaveLength(2);
     expect(screen.getByLabelText("Open command palette")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Admin Hub" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Admin home" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Admin Tools" }),
+      screen.getByRole("button", { name: "Developer tools" }),
     ).toBeInTheDocument();
   });
 
@@ -374,7 +379,7 @@ describe("DashboardShell", () => {
     renderShell();
 
     scrollToMock.mockClear();
-    fireEvent.click(screen.getByRole("link", { name: "Reports" }));
+    fireEvent.click(screen.getByRole("link", { name: "Trial reports" }));
 
     expect(screen.getByText("Admin reports page")).toBeInTheDocument();
     expect(scrollToMock).toHaveBeenCalledWith({
@@ -387,9 +392,9 @@ describe("DashboardShell", () => {
   it("marks the active admin sub-item as the current page when its branch is expanded", () => {
     setViewportWidth(1440);
 
-    renderShell("/admin/reports");
+    renderShell("/admin/audit-logs");
 
-    expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Change history" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -403,16 +408,16 @@ describe("DashboardShell", () => {
     fireEvent.click(screen.getAllByLabelText("Collapse sidebar")[0]);
 
     const adminToolsButton = screen.getByRole("button", {
-      name: "Admin Tools",
+      name: "Developer tools",
     });
     fireEvent.mouseEnter(adminToolsButton);
 
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Admin Tools");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Developer tools");
 
     fireEvent.click(adminToolsButton);
 
     expect(screen.getByTestId("dashboard-sidebar-flyout")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Tenants" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Reports" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Change history" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Data pipeline health" })).toBeInTheDocument();
   });
 });

@@ -252,11 +252,10 @@ const AdminPage = () => {
                     <Shield className="h-6 w-6" />
                   </Sheet>
                   <Stack spacing={0.75}>
-                    <Typography level="h2">Tenant Operations</Typography>
+                    <Typography level="h2">All clients</Typography>
                     <Typography level="body-sm" color="neutral">
-                      Review the full tenant roster, manage trial and plan
-                      states, and open detailed admin workflows without leaving
-                      the Joy shell.
+                      Every client account, their plan and trial status. Open a
+                      client to see details or make changes.
                     </Typography>
                     <Stack
                       direction="row"
