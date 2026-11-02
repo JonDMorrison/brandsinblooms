@@ -102,8 +102,11 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
   await update(repair, issue, "investigating", { repository: target.repository, branch, evidence: { github_issue: ghIssue, dispatches: cap.attempts + 1 } }, `GitHub issue #${ghIssue.number} (attempt ${cap.attempts + 1}/${cap.max_attempts})`);
   const workflow = env("BLOOM_REPAIR_WORKFLOW") ?? "bloom-repair.yml";
   try {
+    // The repair workflow only runs from the repository's default branch (it checks
+    // github.ref). The fix still targets target.base, which travels as an input.
+    const { default_branch } = await gh<{ default_branch: string }>("repair", "GET", `/repos/${target.repository}`);
     await gh("repair", "POST", `/repos/${target.repository}/actions/workflows/${workflow}/dispatches`, {
-      ref: target.base,
+      ref: default_branch,
       inputs: { github_issue: String(ghIssue.number), engineering_issue_id: issue.id, branch, base: target.base },
     });
   } catch (e) {

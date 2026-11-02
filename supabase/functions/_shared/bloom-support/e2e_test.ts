@@ -86,6 +86,7 @@ function githubStub(method: string, path: string, body: unknown): Response {
   let m: RegExpMatchArray | null;
   if (method === "POST" && (m = path.match(/^\/repos\/(.+)\/issues$/))) return ok({ number: 100 + githubCalls.length, html_url: `https://github.com/${m[1]}/issues/${100 + githubCalls.length}` }, 201);
   if (method === "POST" && /\/actions\/workflows\/.+\/dispatches$/.test(path)) return new Response(null, { status: 204 });
+  if (method === "GET" && /^\/repos\/[^/]+\/[^/]+$/.test(path)) return ok({ default_branch: "main" });
   if (method === "GET" && (m = path.match(/^\/repos\/(.+)\/pulls\?state=all&head=([^&]+)/))) {
     const repo = m[1];
     const pr = prs[repo];
@@ -481,6 +482,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     }
     await runWorkerUntilIdle();
     assert(githubCalls.some((c) => c.method === "POST" && c.path.endsWith("/dispatches")), "repair workflow dispatched after Jeff started it");
+    const dispatches = githubCalls.filter((c) => c.method === "POST" && c.path.endsWith("/dispatches"));
+    assert(dispatches.every((c) => (c.body as { ref?: string }).ref === "main"), "repair workflow runs from the default branch; the fix base travels as an input");
     const cms = await ticketRow(cmsTicket);
     assertEquals(cms.kind, "question");
     const pub = await sql!`SELECT o.status, o.error FROM bloom_support.outbound_emails o JOIN bloom_support.tickets t ON t.id = o.ticket_id WHERE t.channel = 'public'`;
