@@ -54,9 +54,13 @@ export const actions = {
   },
   listViews: (c: Caller) => rpc("list_views", A(c)),
   saveView(c: Caller, name: string, filters: Record<string, unknown>, shared: boolean) {
+    requireWriteScope(c);
     return rpc("save_view", { ...A(c), name, filters, shared });
   },
-  deleteView: (c: Caller, id: string) => rpc("delete_view", { ...A(c), view_id: uuid(id, "view_id") }),
+  deleteView(c: Caller, id: string) {
+    requireWriteScope(c);
+    return rpc("delete_view", { ...A(c), view_id: uuid(id, "view_id") });
+  },
   metrics: (c: Caller, from?: string, to?: string) => rpc("report_metrics", { ...A(c), from: from ?? null, to: to ?? null }),
   summary_report: (c: Caller, period: string) => rpc("summary_report", { ...A(c), period }),
   setAccountAutomation(c: Caller, id: string, paused: boolean) {

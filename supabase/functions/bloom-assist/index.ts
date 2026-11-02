@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { claimAction, finishClaim, loadStoredActionCard, sameArguments } from "./action-claims.ts";
 import { resolveAdminWorkspaceTenant } from "./admin-workspace.ts";
 import { parseClientContext } from "./client-context.ts";
 
@@ -3096,60 +3097,119 @@ async function createExecuteActionResponse(
     );
   }
 
-  const toolDefinition = getRegisteredTool(payload.action.toolName);
+  // Approvals run only the change Bloom stored when it proposed it, exactly once.
+  if (!payload.assistantMessageId) {
+    return jsonResponse(req, { error: "assistant_message_id is required to approve an action" }, 400);
+  }
+  const messageId = payload.assistantMessageId;
+  const stored = await loadStoredActionCard(serviceClient, {
+    tenantId: context.tenantId,
+    conversationId: payload.conversationId,
+    messageId,
+    mutationId: payload.action.mutationId,
+  });
+  if (!stored) {
+    return jsonResponse(req, { error: "Bloom couldn't find that proposed change. Ask Bloom again." }, 404);
+  }
+  if (stored.toolName !== payload.action.toolName || !sameArguments(stored.toolArgs, payload.action.toolArgs)) {
+    await recordRequestRejection(serviceClient, context, {
+      stage: "access_denied",
+      status: 403,
+      reason: "execute_action_arguments_changed",
+      conversationId: payload.conversationId,
+    });
+    return jsonResponse(req, { error: "This change no longer matches what Bloom proposed. Ask Bloom again." }, 409);
+  }
+
+  if (stored.status === "completed") {
+    return jsonResponse(req, { mutationId: stored.mutationId, status: "completed", result: null, error: null, data: null, replayed: true });
+  }
+
+  const toolDefinition = getRegisteredTool(stored.toolName);
   if (!toolDefinition || toolDefinition.category !== "mutation") {
     return jsonResponse(req, { error: "execute_action requires a mutation tool" }, 400);
   }
 
-  if (payload.assistantMessageId) {
-    await loadMessageOwnership(
-      serviceClient,
-      context.tenantId,
-      payload.conversationId,
-      payload.assistantMessageId,
-    );
+  const claim = await claimAction(serviceClient, {
+    mutationId: stored.mutationId,
+    tenantId: context.tenantId,
+    userId: context.userId,
+    conversationId: payload.conversationId,
+    messageId,
+    toolName: stored.toolName,
+  });
+  if (claim.kind === "already_done") {
+    return jsonResponse(req, {
+      mutationId: stored.mutationId,
+      status: "completed",
+      result: claim.result,
+      error: null,
+      data: null,
+      replayed: true,
+    });
+  }
+  if (claim.kind === "in_progress") {
+    return jsonResponse(req, { error: "Bloom is already applying this change." }, 409);
+  }
+
+  try {
     await updateAssistantMessageActionCard({
       serviceClient,
       tenantId: context.tenantId,
       conversationId: payload.conversationId,
-      messageId: payload.assistantMessageId,
-      mutationId: payload.action.mutationId,
+      messageId,
+      mutationId: stored.mutationId,
       status: "executing",
       result: null,
     });
+  } catch (error) {
+    // Nothing has run yet, so release the claim for a retry.
+    await finishClaim(serviceClient, stored.mutationId, "failed", toErrorMessage(error)).catch(() => undefined);
+    throw error;
   }
 
-  const toolResult = await executeTool(payload.action.toolName, payload.action.toolArgs, {
-    ...context,
-    conversationId: payload.conversationId,
-    messageId: payload.assistantMessageId ?? payload.action.mutationId,
-    timezone: "UTC",
-    authenticatedTenantId: context.tenantId,
-    serviceClient,
-    dataClient,
-    approved: true,
-    clientContext: payload.clientContext,
-  });
+  let toolResult: Awaited<ReturnType<typeof executeTool>>;
+  try {
+    toolResult = await executeTool(stored.toolName, stored.toolArgs, {
+      ...context,
+      conversationId: payload.conversationId,
+      messageId,
+      timezone: "UTC",
+      authenticatedTenantId: context.tenantId,
+      serviceClient,
+      dataClient,
+      approved: true,
+      clientContext: payload.clientContext,
+    });
+  } catch (error) {
+    // The change may already be saved (for example, only the execution log failed).
+    // Leave the claim "executing" so it can never run twice, and say the outcome is unknown.
+    console.error("[bloom-assist] action outcome unknown", stored.mutationId, toErrorMessage(error));
+    return jsonResponse(req, {
+      error: "Bloom couldn't confirm whether this change was applied. Check the record before asking Bloom again.",
+      mutationId: stored.mutationId,
+      outcome: "unknown",
+    }, 500);
+  }
 
   const status = toolResult.success ? "completed" : "failed";
   const resultMessage = toolResult.success
     ? toolResult.message
     : toolResult.error || toolResult.message;
 
-  if (payload.assistantMessageId) {
-    await updateAssistantMessageActionCard({
-      serviceClient,
-      tenantId: context.tenantId,
-      conversationId: payload.conversationId,
-      messageId: payload.assistantMessageId,
-      mutationId: payload.action.mutationId,
-      status,
-      result: resultMessage,
-    });
-  }
+  await finishClaim(serviceClient, stored.mutationId, status, resultMessage ?? null);
+  await updateAssistantMessageActionCard({
+    serviceClient,
+    tenantId: context.tenantId,
+    conversationId: payload.conversationId,
+    messageId,
+    mutationId: stored.mutationId,
+    status,
+    result: resultMessage,
+  });
 
   return jsonResponse(req, {
-    mutationId: payload.action.mutationId,
+    mutationId: stored.mutationId,
     status,
     result: status === "completed" ? resultMessage : null,
     error: status === "failed" ? resultMessage : null,

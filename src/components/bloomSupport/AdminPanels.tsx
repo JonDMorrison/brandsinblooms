@@ -250,6 +250,7 @@ const OPERATION_INFO: Record<string, { label: string; help: string; template?: R
   "pos.products": { label: "List POS products", help: "Products in their point-of-sale system." },
   "pos.inventory": { label: "Check POS stock levels", help: "Current stock in their point-of-sale system." },
   "pos.sales_summary": { label: "POS sales summary", help: "Recent sales totals from their point-of-sale system." },
+  "pos.price_history": { label: "POS price history", help: "Who changed one product's price, and when. Find the variant with List POS products first.", template: { variant_id: "" } },
 };
 const opLabel = (kind: string) => OPERATION_INFO[kind]?.label ?? labelFor(kind);
 

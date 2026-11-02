@@ -412,6 +412,7 @@ export const OPERATION_PERMISSIONS: Record<string, string> = {
   "pos.products": "ops.pos.read",
   "pos.inventory": "ops.pos.read",
   "pos.sales_summary": "ops.pos.read",
+  "pos.price_history": "ops.pos.read",
 };
 
 /** Status labels shown to people. */
