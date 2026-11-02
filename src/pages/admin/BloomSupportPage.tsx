@@ -13,6 +13,7 @@ import Skeleton from "@mui/joy/Skeleton";
 import IconButton from "@mui/joy/IconButton";
 import Button from "@mui/joy/Button";
 import { ArrowLeft, Inbox } from "lucide-react";
+import { TodayView } from "@/components/bloomSupport/TodayView";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { bloomSupport } from "@/lib/bloomSupport/api";
@@ -21,13 +22,14 @@ import { QueueList } from "@/components/bloomSupport/QueueList";
 import { KnowledgePanel } from "@/components/bloomSupport/KnowledgePanel";
 import { ClientsPanel, EngineeringPanel, EscalationsPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReadinessPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
 
-type View = "queue" | "escalations" | "problems" | "engineering" | "features" | "clients" | "operations" | "reports" | "readiness" | "settings" | "knowledge";
+type View = "today" | "queue" | "escalations" | "problems" | "engineering" | "features" | "clients" | "operations" | "reports" | "readiness" | "settings" | "knowledge";
 
 export default function BloomSupportPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
-  const view = (params.get("view") as View) ?? "queue";
   const ticketId = params.get("ticket");
+  // Deep links to a ticket (emails, notifications) open the desk; everything else lands on Today.
+  const view = (params.get("view") as View) ?? (ticketId ? "queue" : "today");
   const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
   const staff = !!me.data && me.data.role !== "client" && me.data.role !== "service";
   const summary = useQuery({ queryKey: ["bloom-support", "summary"], queryFn: () => bloomSupport.summary(), enabled: staff, refetchInterval: 30_000 });
@@ -52,6 +54,14 @@ export default function BloomSupportPage() {
   }
   const counts = (summary.data?.by_status ?? {}) as Record<string, number>;
   const s = summary.data ?? {};
+
+  if (view === "today") {
+    return (
+      <PageContainer fullWidth>
+        <TodayView me={me.data!} onOpenTicket={openTicket} onOpenDesk={() => go({ view: "queue", ticket: null })} />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer fullWidth sx={{ display: "flex", flexDirection: "column", gap: 1.5, height: { md: "calc(100dvh - 96px)" } }}>
@@ -78,6 +88,7 @@ export default function BloomSupportPage() {
         }}>New ticket</Button>
         <Tabs value={view} onChange={(_, v) => go({ view: String(v), ticket: null })} sx={{ bgcolor: "transparent" }}>
           <TabList size="sm" sx={{ overflowX: "auto", flexWrap: "nowrap" }}>
+            <Tab value="today">Today</Tab>
             <Tab value="queue">Queue</Tab>
             <Tab value="escalations">Escalations{Number(s.open_escalations ?? 0) ? ` (${s.open_escalations})` : ""}</Tab>
             <Tab value="problems">Problems</Tab>
