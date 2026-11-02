@@ -93,7 +93,7 @@ export const SendToSegmentCard: React.FC = () => {
             break;
           }
           case "frequent-buyers":
-            query = query.gte("order_count", 3);
+            query = query.gte("pos_order_count", 3);
             break;
           default:
             break;
