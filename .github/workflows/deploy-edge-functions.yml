@@ -113,7 +113,7 @@ jobs:
             # Respect each function's verify_jwt declaration in
             # supabase/config.toml. A global --no-verify-jwt here silently
             # disabled the gateway on functions explicitly configured true.
-            if supabase functions deploy "$fn" --project-ref "$PROJECT_ID"; then
+            if supabase functions deploy "$fn" --project-ref "$PROJECT_ID" --yes; then
               echo "  ✓ $fn deployed"
               succeeded=$((succeeded + 1))
             else
