@@ -324,13 +324,13 @@ export default function AdminAuditLogsPage() {
               <Grid xs={12} md={4} lg={2}>
                 <JoyInput
                   id="tenant-filter"
-                  label="Tenant ID"
+                  label="Client account ID"
                   value={tenantIdFilter}
                   onChange={(event) => {
                     setPage(0);
                     setTenantIdFilter(event.target.value);
                   }}
-                  placeholder="Optional UUID"
+                  placeholder="Leave blank for all clients"
                 />
               </Grid>
               <Grid xs={12} md={8} lg={4}>

@@ -996,9 +996,9 @@ export default function TenantEmailManagement() {
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Mail className="h-7 w-7 text-primary" />
             <Stack spacing={0.5}>
-              <Typography level="h1">Tenant Email Management</Typography>
+              <Typography level="h2">Client email health</Typography>
               <Typography level="body-md" color="neutral">
-                {panel.company_name || "Tenant"} ({panel.tenant_id})
+                {panel.company_name || "This client"}: how their emails are being delivered, who is blocked from receiving them, and their sending limits.
               </Typography>
             </Stack>
           </Stack>

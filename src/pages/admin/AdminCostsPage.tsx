@@ -472,8 +472,8 @@ export default function AdminCostsPage() {
             sx={{ borderColor: "warning.200", backgroundColor: "warning.50" }}
           >
             <JoyCardHeader
-              title="Usage Anomalies Detected"
-              description="These tenants are using >3x more resources than average."
+              title="Unusually heavy use"
+              description="These clients are using more than three times the average."
               startDecorator={
                 <AlertTriangle className="h-5 w-5 text-amber-600" />
               }

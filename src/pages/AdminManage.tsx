@@ -320,8 +320,7 @@ export default function AdminManage() {
                   <JoyTable stickyHeader containerSx={{ minWidth: 860 }}>
                     <JoyTableHead>
                       <JoyTableRow>
-                        <JoyTableHeaderCell>Tenant</JoyTableHeaderCell>
-                        <JoyTableHeaderCell>Tenant ID</JoyTableHeaderCell>
+                        <JoyTableHeaderCell>Client</JoyTableHeaderCell>
                         <JoyTableHeaderCell>Created</JoyTableHeaderCell>
                         <JoyTableHeaderCell>Context</JoyTableHeaderCell>
                         <JoyTableHeaderCell align="right">
@@ -351,12 +350,9 @@ export default function AdminManage() {
                                   {getTenantLabel(tenant)}
                                 </Typography>
                                 <Typography level="body-xs" color="neutral">
-                                  Master-admin workspace target
+                                  Client account
                                 </Typography>
                               </Stack>
-                            </JoyTableCell>
-                            <JoyTableCell sx={{ fontFamily: "monospace" }}>
-                              {tenant.id}
                             </JoyTableCell>
                             <JoyTableCell>
                               {createdAt
@@ -521,8 +517,8 @@ export default function AdminManage() {
         ) : (
           <JoyCard>
             <JoyCardHeader
-              title="Management Workspace"
-              description="Select a tenant above to unlock scoped import and operational tools."
+              title="Choose a client first"
+              description="Pick a client above. Their import and repair tools appear here."
             />
             <JoyCardContent>
               <Sheet

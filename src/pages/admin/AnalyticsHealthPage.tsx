@@ -332,10 +332,10 @@ const AnalyticsHealthPage = () => {
           spacing={2}
         >
           <Stack spacing={0.5}>
-            <Typography level="h2">Analytics Health</Typography>
+            <Typography level="h2">Data pipeline health</Typography>
             <Typography level="body-sm" color="neutral">
-              Monitor webhook processing, event ingestion, and deliverability
-              metrics
+              Whether email results (opens, clicks, bounces) are arriving from
+              the email providers and being counted. For developers.
             </Typography>
           </Stack>
           <JoyButton
@@ -466,8 +466,8 @@ const AnalyticsHealthPage = () => {
           <Grid xs={12} lg={6}>
             <JoyCard>
               <JoyCardHeader
-                title="Webhook Status"
-                description="Real-time event ingestion from email providers"
+                title="Email provider updates"
+                description="Opens, clicks and bounces arriving from the email providers"
                 startDecorator={<Webhook className="h-5 w-5" />}
               />
               <JoyCardContent>
@@ -630,8 +630,8 @@ const AnalyticsHealthPage = () => {
 
         <JoyCard>
           <JoyCardHeader
-            title="Recent Campaigns - Metric Freshness"
-            description="Campaigns with potentially stale analytics that may need recomputation"
+            title="Recent campaigns: are the numbers up to date?"
+            description="Campaigns whose results may be out of date and need recounting"
           />
           <JoyCardContent>
             {isLoading ? (
