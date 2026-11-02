@@ -115,7 +115,8 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       open: x.ticket_id ? { label: "Open ticket", onClick: () => onOpenTicket(String(x.ticket_id)) } : undefined,
     });
   }
-  const escalatedTickets = new Set(((escalations.data ?? []) as Row[]).map((x) => String(x.ticket_id)));
+  // Only an escalation still shown as a card stands in for its ticket; once taken, the ticket shows on its own until resolved.
+  const escalatedTickets = new Set(((escalations.data ?? []) as Row[]).filter((x) => String(x.status) === "open").map((x) => String(x.ticket_id)));
   for (const t of needsOwner.data?.items ?? []) {
     if (escalatedTickets.has(t.id)) continue;
     decisions.push({
@@ -130,12 +131,23 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
   const pending = decisions.filter((d) => !acted[d.key]);
   const decided = decisions.filter((d) => acted[d.key]);
   const handling = (open.data?.items ?? []).filter((t) => t.status !== "needs_owner");
+  const handlingTotal = Math.max(handling.length, (open.data?.total ?? 0) - (needsOwner.data?.total ?? 0));
+  // Needs-owner tickets beyond the first page still need someone; count them and point to the desk.
+  const moreNeedsOwner = Math.max(0, (needsOwner.data?.total ?? 0) - (needsOwner.data?.items.length ?? 0));
   const doneToday = (resolved.data?.items ?? []).filter((t) => t.resolved_at && isToday(new Date(t.resolved_at)));
-  const loading = needsOwner.isLoading || open.isLoading;
-  const loadError = [engineering, features, escalations, needsOwner, open, resolved].find((q) => q.error)?.error as Error | undefined;
+  const decisionQueries = [engineering, features, escalations, needsOwner];
+  // "All quiet" is only said once every source of decisions has answered.
+  const loading = decisionQueries.some((q) => q.isLoading) || open.isLoading;
+  const decisionsUnknown = decisionQueries.some((q) => q.error);
+  const loadError = [...decisionQueries, open, resolved].find((q) => q.error)?.error as Error | undefined;
 
-  const headline = pending.length === 0 ? "All quiet. Bloom has it handled." : pending.length === 1 ? "1 thing needs you." : `${pending.length} things need you.`;
-  const subline = `Bloom is handling ${handling.length} other request${handling.length === 1 ? "" : "s"}${decided.length ? `. You've made ${decided.length} decision${decided.length === 1 ? "" : "s"} here` : ""}.`;
+  const needCount = pending.length + moreNeedsOwner;
+  const headline = decisionsUnknown && needCount === 0
+    ? "Bloom couldn't check everything."
+    : needCount === 0 ? "All quiet. Bloom has it handled." : needCount === 1 ? "1 thing needs you." : `${needCount} things need you.`;
+  const subline = decisionsUnknown && needCount === 0
+    ? "Some decisions may be waiting. Open the full desk to check."
+    : `Bloom is handling ${handlingTotal} other request${handlingTotal === 1 ? "" : "s"}${decided.length ? `. You've made ${decided.length} decision${decided.length === 1 ? "" : "s"} here` : ""}.`;
 
   const submitSearch = (e: FormEvent) => { e.preventDefault(); setQuery(search.trim()); };
 
@@ -172,14 +184,15 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
         </Stack>
       )}
 
-      {pending.length > 0 && (
+      {needCount > 0 && (
         <Stack spacing={1.5} component="section" aria-label="Needs you">
           <Typography sx={sectionLabel} textColor="warning.700">Needs you</Typography>
           {pending.map((d) => <DecisionCard key={d.key} d={d} busy={busy === d.key} onRun={(a) => act.mutate({ key: d.key, ...a })} />)}
+          {moreNeedsOwner > 0 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>{moreNeedsOwner} more need Jon/Jeff. See them in the full desk</Link>}
         </Stack>
       )}
 
-      {!loading && pending.length === 0 && (
+      {!loading && !decisionsUnknown && needCount === 0 && (
         <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 3, display: "flex", gap: 2, alignItems: "center", bgcolor: "background.surface" }}>
           <Box sx={{ width: 44, height: 44, borderRadius: "50%", bgcolor: "primary.100", color: "primary.700", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}><Check size={22} /></Box>
           <div>
@@ -205,7 +218,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
         {loading ? <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "lg" }} /> : handling.length ? (
           <ListCard>{handling.slice(0, 8).map((t) => <TicketRow key={t.id} t={t} onOpen={onOpenTicket} />)}</ListCard>
         ) : <Typography level="body-md" textColor="text.secondary">No open requests right now.</Typography>}
-        {handling.length > 8 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>See all {handling.length} in the full desk</Link>}
+        {handlingTotal > 8 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>See all {handlingTotal} in the full desk</Link>}
       </Stack>
 
       {doneToday.length > 0 && (
