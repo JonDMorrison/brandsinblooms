@@ -333,7 +333,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-hub",
-    label: "Admin Hub",
+    label: "Admin home",
     to: "/admin",
     icon: LayoutDashboard,
     patterns: [{ path: "/admin", end: true }],
@@ -342,7 +342,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-tenants",
-    label: "Tenants",
+    label: "All clients",
     to: "/admin/tenants",
     icon: Store,
     patterns: [{ path: "/admin/tenants", end: false }],
@@ -351,7 +351,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-search",
-    label: "Search",
+    label: "Find a client",
     to: "/admin/search",
     icon: Search,
     patterns: [{ path: "/admin/search", end: true }],
@@ -360,7 +360,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-manage",
-    label: "Manage",
+    label: "Client tools",
     to: "/admin/manage",
     icon: SlidersHorizontal,
     patterns: [{ path: "/admin/manage", end: true }],
@@ -369,7 +369,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-governance",
-    label: "Governance",
+    label: "Email sending rules",
     to: "/admin/governance-config",
     icon: ScrollText,
     patterns: [{ path: "/admin/governance-config", end: true }],
@@ -378,7 +378,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-reports",
-    label: "Reports",
+    label: "Trial reports",
     to: "/admin/reports",
     icon: FileBarChart2,
     patterns: [{ path: "/admin/reports", end: true }],
@@ -387,7 +387,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-costs",
-    label: "Costs",
+    label: "Running costs",
     to: "/admin/costs",
     icon: BadgeDollarSign,
     patterns: [{ path: "/admin/costs", end: true }],
@@ -396,7 +396,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-audit-logs",
-    label: "Audit Logs",
+    label: "Change history",
     to: "/admin/audit-logs",
     icon: ShieldCheck,
     patterns: [{ path: "/admin/audit-logs", end: true }],
@@ -405,7 +405,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-bloom-support",
-    label: "Bloom Support",
+    label: "Support desk",
     to: "/admin/bloom-support",
     icon: LifeBuoy,
     patterns: [{ path: "/admin/bloom-support", end: false }],
@@ -414,7 +414,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-reported-problems",
-    label: "Reported Problems",
+    label: "Problem reports",
     to: "/admin/reported-problems",
     icon: Bug,
     patterns: [{ path: "/admin/reported-problems", end: false }],
@@ -423,7 +423,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-oauth-debug",
-    label: "OAuth Debug",
+    label: "Sign-in connection log",
     to: "/admin/oauth-debug",
     icon: FlaskConical,
     patterns: [{ path: "/admin/oauth-debug", end: true }],
@@ -432,7 +432,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-seed-demo",
-    label: "Seed Demo",
+    label: "Demo data (developers)",
     to: "/admin/seed-demo",
     icon: HeartPulse,
     patterns: [{ path: "/admin/seed-demo", end: true }],
@@ -441,7 +441,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-twilio-copy",
-    label: "Twilio Copy",
+    label: "SMS registration text",
     to: "/admin/twilio-copy",
     icon: MessageSquare,
     patterns: [{ path: "/admin/twilio-copy", end: true }],
@@ -450,7 +450,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-analytics-health",
-    label: "Analytics Health",
+    label: "Data pipeline health",
     to: "/admin/analytics-health",
     icon: Activity,
     patterns: [{ path: "/admin/analytics-health", end: true }],
@@ -570,17 +570,51 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
   },
 ];
 
+const adminItem = (id: string) => {
+  const item = adminLinkItems.find((entry) => entry.id === id);
+  if (!item) throw new Error(`Unknown admin nav item: ${id}`);
+  return item;
+};
+
+// Plain-English groups for non-technical staff. Everyday screens stay visible;
+// developer-only tools sit in one collapsed branch. Permission checks are unchanged.
 const adminSidebarGroups: DashboardSidebarGroup[] = [
   {
     id: "admin",
     label: "Admin",
+    items: [adminItem("admin-hub"), adminItem("admin-bloom-support"), adminItem("admin-reported-problems")],
+  },
+  {
+    id: "admin-clients",
+    label: "Clients",
+    items: [adminItem("admin-tenants"), adminItem("admin-search"), adminItem("admin-manage")],
+  },
+  {
+    id: "admin-money",
+    label: "Money and reports",
+    items: [adminItem("admin-reports"), adminItem("admin-costs")],
+  },
+  {
+    id: "admin-email",
+    label: "Email safety",
+    items: [adminItem("admin-governance")],
+  },
+  {
+    id: "admin-system",
+    label: "System",
     items: [
       {
         kind: "branch",
-        id: "admin-tools",
-        label: "Admin Tools",
+        id: "admin-developer-tools",
+        label: "Developer tools",
         icon: Shield,
-        children: adminLinkItems,
+        children: [
+          adminItem("admin-audit-logs"),
+          adminItem("admin-analytics-health"),
+          adminItem("admin-oauth-debug"),
+          adminItem("admin-twilio-copy"),
+          adminItem("admin-seed-demo"),
+        ],
       },
     ],
   },

@@ -113,9 +113,9 @@ export default function AdminDashboard() {
     <PageContainer fullWidth>
       <Stack spacing={3}>
         <Stack spacing={0.75}>
-          <Typography level="h2">Master Admin Dashboard</Typography>
+          <Typography level="h2">Find a client</Typography>
           <Typography level="body-md" color="neutral">
-            Search and manage tenant accounts
+            Look up a client by the email address they sign in with.
           </Typography>
         </Stack>
 

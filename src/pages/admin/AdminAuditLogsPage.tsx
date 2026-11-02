@@ -238,10 +238,10 @@ export default function AdminAuditLogsPage() {
                   <FileText className="h-6 w-6" />
                 </Sheet>
                 <Stack spacing={0.75}>
-                  <Typography level="h2">Governance Audit Logs</Typography>
+                  <Typography level="h2">Change history</Typography>
                   <Typography level="body-sm" color="neutral">
-                    Internal forensic trail for super-admin actions, automation
-                    precedence changes, and governance override updates.
+                    A record of every change made by admins and by automation,
+                    with who made it and when.
                   </Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     <JoyStatusChip

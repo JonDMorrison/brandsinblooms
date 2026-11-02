@@ -169,11 +169,10 @@ const ReportedProblemsPage = () => {
                   <AlertTriangle className="h-6 w-6" />
                 </Sheet>
                 <Stack spacing={0.75}>
-                  <Typography level="h2">Reported Problems</Typography>
+                  <Typography level="h2">Problem reports</Typography>
                   <Typography level="body-sm" color="neutral">
-                    Review user-reported issues, track investigation progress,
-                    and open detailed problem reports from a single Joy-composed
-                    queue.
+                    Problems people reported from inside the app. Open one to see
+                    what happened and where it is up to.
                   </Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     <JoyStatusChip

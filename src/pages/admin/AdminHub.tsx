@@ -701,7 +701,7 @@ export default function AdminHub() {
           iconColor: "success",
         },
         {
-          title: "Cost Dashboard",
+          title: "Running costs",
           description: "Monitor platform resource usage, costs, and anomalies",
           icon: DollarSign,
           href: "/admin/costs",
@@ -886,10 +886,10 @@ export default function AdminHub() {
                       <Shield size={24} />
                     </Sheet>
                     <Stack spacing={0.5}>
-                      <Typography level="h2">Admin Operations Hub</Typography>
+                      <Typography level="h2">Admin home</Typography>
                       <Typography level="body-sm" color="neutral">
-                        A live operational view of tenant health, billing
-                        checkpoints, and admin tasks.
+                        How clients are doing, billing to check, and admin tasks
+                        that need attention.
                       </Typography>
                     </Stack>
                   </Stack>
