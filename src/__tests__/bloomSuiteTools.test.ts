@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   explainReadFailure,
@@ -78,5 +80,21 @@ describe("Bloom reads the website and point of sale through Support permissions"
 describe("POS price history is a read like the others", () => {
   it("forwards only the variant and business", () => {
     expect(pickInputs("pos.price_history", { variant_id: "v-1", store_id: "ignored", q: "x" })).toEqual({ variant_id: "v-1" });
+  });
+});
+
+describe("Website section edits are registered as draft-only Support changes", () => {
+  const read = (p: string) => fs.readFileSync(path.resolve(__dirname, "../../supabase/functions/_shared/bloom-support", p), "utf8");
+  it("needs ops.site.edit and supports undo", () => {
+    const policy = read("policy.ts");
+    const ops = read("operations.ts");
+    for (const kind of ["site.section.update", "site.section.reorder", "site.section.visibility"]) {
+      expect(policy).toContain(`"${kind}": "ops.site.edit"`);
+      expect(ops.slice(ops.indexOf("WRITE_OPERATIONS"), ops.indexOf("const PERMISSION"))).toContain(`"${kind}"`);
+      expect(ops.slice(ops.indexOf("const UNDOABLE"))).toContain(`"${kind}"`);
+    }
+  });
+  it("preview links are a read anyone with website read access can run from chat", () => {
+    expect(pickInputs("site.preview_link", { content_id: "c1", patch: "x" })).toEqual({ content_id: "c1" });
   });
 });

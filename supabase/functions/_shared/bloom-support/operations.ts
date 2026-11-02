@@ -12,17 +12,19 @@ import { campaignMutationImplementation } from "../../bloom-assist/tools/impleme
 import type { ToolExecutionContext } from "../../bloom-assist/tools/types.ts";
 
 export const READ_OPERATIONS = new Set([
-  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history",
+  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history", "site.preview_link",
 ]);
 export const WRITE_OPERATIONS = new Set([
   "campaign.create_draft", "campaign.update_draft", "campaign.schedule", "campaign.unschedule",
   "site.page.update", "site.create_draft", "site.publish", "event.update",
+  "site.section.update", "site.section.reorder", "site.section.visibility",
 ]);
 const PERMISSION: Record<string, string> = {
   ...OPERATION_PERMISSIONS,
   "campaign.list": "ops.campaign.edit",
   "site.pages": "ops.site.read",
   "event.list": "ops.site.read",
+  "site.preview_link": "ops.site.read",
 };
 
 export function describeOperations() {
@@ -32,7 +34,7 @@ export function describeOperations() {
     remote: { cms: remoteConfigured("cms"), pos: remoteConfigured("pos") },
   };
 }
-const UNDOABLE = new Set(["campaign.schedule", "campaign.unschedule", "campaign.update_draft", "site.page.update", "site.publish", "event.update"]);
+const UNDOABLE = new Set(["campaign.schedule", "campaign.unschedule", "campaign.update_draft", "site.page.update", "site.publish", "event.update", "site.section.update", "site.section.reorder", "site.section.visibility"]);
 
 async function opsRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc("bloom_support_ops_rpc", { p_fn: fn, p: args });
@@ -159,6 +161,7 @@ export async function runRead(caller: Caller, req: OperationRequest): Promise<un
     case "site.read":
     case "site.pages":
     case "event.list":
+    case "site.preview_link":
       result = await callProduct("cms", req.kind, { site_id: linkFor(account, "cms", inputs), inputs, actor: actorFacts(caller) });
       break;
     case "pos.products":

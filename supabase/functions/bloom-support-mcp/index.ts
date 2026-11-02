@@ -78,12 +78,12 @@ const TOOLS: Tool[] = [
   { name: "ticket_timers", readOnly: true, description: "Time accounting for a ticket: age, our clock (business and wall), customer/third-party waits, time per status, first response and resolution times.", inputSchema: S({ ticket_id: id() }, ["ticket_id"]), run: (c, a) => actions.timers(c, String(a.ticket_id)) },
   { name: "product_operations", readOnly: true, description: "Catalogue of product operations, their permissions, and whether BloomSites/POS operations are connected.", inputSchema: S({}), run: () => actions.operationsCatalog() },
   {
-    name: "read_product", readOnly: true, description: "Run a read-only product query for a client: client.lookup, campaign.list, campaign.read, site.read, site.pages, event.list, pos.products, pos.inventory, pos.sales_summary.",
+    name: "read_product", readOnly: true, description: "Run a read-only product query for a client: client.lookup, campaign.list, campaign.read, site.read, site.pages, event.list, pos.products, pos.inventory, pos.sales_summary, pos.price_history (variant_id), site.preview_link (content_id).",
     inputSchema: S({ kind: str("Read operation"), account_id: id(), ticket_id: id(), inputs: { type: "object", description: "Operation inputs, e.g. {campaign_id} or {site_id}" } }, ["kind", "account_id"]),
     run: (c, a) => actions.readOperation(c, a),
   },
   {
-    name: "preview_change", readOnly: false, description: "Prepare a product change and show exactly what it will do. Nothing changes until execute_change. Kinds: campaign.create_draft, campaign.update_draft, campaign.schedule, campaign.unschedule, site.page.update, site.create_draft, site.publish, event.update. For site.create_draft supply name and subdomain; its verified creator and client workspace are shown in the preview and the result is linked to the client.",
+    name: "preview_change", readOnly: false, description: "Prepare a product change and show exactly what it will do. Nothing changes until execute_change. Kinds: campaign.create_draft, campaign.update_draft, campaign.schedule, campaign.unschedule, site.page.update, site.create_draft, site.publish, event.update, site.section.update (inputs content_id, section_key, patch: only existing plain-text, link, number or boolean fields; images only from the site's own media), site.section.reorder (content_id, order: every section key), site.section.visibility (content_id, section_key, visible). Section changes save to the page draft only and return a preview_url; nothing goes live until site.publish. For site.create_draft supply name and subdomain; its verified creator and client workspace are shown in the preview and the result is linked to the client.",
     inputSchema: S({ kind: str("Change operation"), account_id: id(), ticket_id: id(), inputs: { type: "object" }, idempotency_key: str("Repeat-safe key") }, ["kind", "account_id"]),
     run: (c, a) => actions.previewOperation(c, a),
   },
