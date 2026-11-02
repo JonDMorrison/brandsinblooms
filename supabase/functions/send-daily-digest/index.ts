@@ -169,7 +169,7 @@ Deno.serve(async (_req) => {
     // Health score line
     let healthHtml = "";
     if (healthScore !== null) {
-      const color = healthScore >= 80 ? "#365D4C" : healthScore >= 50 ? "#92400e" : "#991b1b";
+      const color = healthScore >= 80 ? "#365D4C" : healthScore >= 50 ? "#6A3C28" : "#991b1b";
       healthHtml = `<p style="font-size:13px;color:${color};margin:4px 0 16px;">System health score: <strong>${healthScore}</strong>/100</p>`;
     }
 

@@ -304,8 +304,8 @@ serve(async () => {
         </div>`
       }
       if (dataCleanup.length > 0) {
-        bodyHtml += `<div style="border-left:4px solid #f59e0b;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#fffbeb;">
-          <p style="font-size:12px;font-weight:600;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Data Cleanup</p>
+        bodyHtml += `<div style="border-left:4px solid #B46B48;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#FBF5F2;">
+          <p style="font-size:12px;font-weight:600;color:#6A3C28;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Data Cleanup</p>
           ${dataCleanup.map(renderItem).join('')}
         </div>`
       }
