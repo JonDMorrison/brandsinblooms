@@ -12,7 +12,7 @@
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
 import { BloomError, type Caller, env, rpc } from "./runtime.ts";
 import { evaluateRelease, PRODUCT_REPOSITORIES, redactText, resolvePolicy, type Product } from "./policy.ts";
-import { findPullRequestForBranch, gh, mergePullRequest, productionDeployment, pullRequestFacts } from "./github.ts";
+import { findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionDeployment, pullRequestFacts } from "./github.ts";
 
 export interface EngineeringIssue {
   id: string; title: string; product: Product; repository: string | null; status: string; version: number;
@@ -64,6 +64,29 @@ async function evidenceFor(automation: Caller, issue: EngineeringIssue): Promise
   return parts.join("\n\n");
 }
 
+/**
+ * Starts the repair workflow. A GitHub-side error (5xx) is retried once, but only after
+ * confirming GitHub did not start a run anyway, so a glitch never produces two repairs.
+ */
+async function dispatchWithRetry(repository: string, workflow: string, payload: { ref: string; inputs: Record<string, string> }): Promise<void> {
+  const issueId = payload.inputs.engineering_issue_id;
+  const path = `/repos/${repository}/actions/workflows/${workflow}/dispatches`;
+  const since = new Date(Date.now() - 10_000).toISOString();
+  try {
+    await gh("repair", "POST", path, payload);
+    return;
+  } catch (e) {
+    if (!(e instanceof GitHubError) || e.upstream < 500) throw e;
+  }
+  await new Promise((r) => setTimeout(r, Number(env("BLOOM_GITHUB_RETRY_DELAY_MS") ?? 5000)));
+  // The workflow's run-name carries the engineering issue id, so only this repair's own run counts.
+  const runs = await gh<{ workflow_runs?: Array<{ created_at: string; display_title?: string }> }>(
+    "repair", "GET", `/repos/${repository}/actions/workflows/${workflow}/runs?event=workflow_dispatch&per_page=10&created=${encodeURIComponent(`>=${since}`)}`,
+  );
+  if ((runs.workflow_runs ?? []).some((r) => (r.display_title ?? "").includes(issueId))) return;
+  await gh("repair", "POST", path, payload);
+}
+
 export async function investigate(repair: Caller, automation: Caller, issueId: string): Promise<StepResult> {
   const issue = await loadIssue(repair, issueId);
   if (!["open", "investigating", "not_reproduced", "failed"].includes(issue.status)) return { note: `already ${issue.status}` };
@@ -105,7 +128,7 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
     // The repair workflow only runs from the repository's default branch (it checks
     // github.ref). The fix still targets target.base, which travels as an input.
     const { default_branch } = await gh<{ default_branch: string }>("repair", "GET", `/repos/${target.repository}`);
-    await gh("repair", "POST", `/repos/${target.repository}/actions/workflows/${workflow}/dispatches`, {
+    await dispatchWithRetry(target.repository, workflow, {
       ref: default_branch,
       inputs: { github_issue: String(ghIssue.number), engineering_issue_id: issue.id, branch, base: target.base },
     });

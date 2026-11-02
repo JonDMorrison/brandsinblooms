@@ -79,13 +79,19 @@ let resendFailNext = 0;
 const githubCalls: Array<{ method: string; path: string; body: unknown }> = [];
 const prs: Record<string, Any> = {};
 let deploymentState: "success" | "failure" = "success";
+let dispatchFailNext = 0;
 
 function githubStub(method: string, path: string, body: unknown): Response {
   githubCalls.push({ method, path, body });
   const ok = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json" } });
   let m: RegExpMatchArray | null;
   if (method === "POST" && (m = path.match(/^\/repos\/(.+)\/issues$/))) return ok({ number: 100 + githubCalls.length, html_url: `https://github.com/${m[1]}/issues/${100 + githubCalls.length}` }, 201);
-  if (method === "POST" && /\/actions\/workflows\/.+\/dispatches$/.test(path)) return new Response(null, { status: 204 });
+  if (method === "POST" && /\/actions\/workflows\/.+\/dispatches$/.test(path)) {
+    if (dispatchFailNext > 0) { dispatchFailNext--; return ok({ message: "Server Error" }, 500); }
+    return new Response(null, { status: 204 });
+  }
+  // Another repair's run started in the same window: it must not be mistaken for this one.
+  if (method === "GET" && /\/actions\/workflows\/[^/]+\/runs\?/.test(path)) return ok({ total_count: 1, workflow_runs: [{ created_at: new Date().toISOString(), display_title: "Bloom repair 00000000-0000-0000-0000-000000000000" }] });
   if (method === "GET" && /^\/repos\/[^/]+\/[^/]+$/.test(path)) return ok({ default_branch: "main" });
   if (method === "GET" && (m = path.match(/^\/repos\/(.+)\/pulls\?state=all&head=([^&]+)/))) {
     const repo = m[1];
@@ -474,6 +480,9 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(startReq[0]?.status, "open", "Jon and Jeff asked to start the repair");
     const supportTry = await api("PATCH", `/engineering/${crm.engineering_issue_id}`, keys.investigation, { start_repair: true });
     assertEquals(supportTry.status, 403, "a service key cannot start a repair");
+    // GitHub answers the first dispatch with a server error; Bloom checks no run started and retries once.
+    dispatchFailNext = 1;
+    Deno.env.set("BLOOM_GITHUB_RETRY_DELAY_MS", "0");
     for (const tk of [crmTicket, posTicket]) {
       const eng = (await ticketRow(tk)).engineering_issue_id;
       if (!eng) continue;
@@ -484,6 +493,10 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(githubCalls.some((c) => c.method === "POST" && c.path.endsWith("/dispatches")), "repair workflow dispatched after Jeff started it");
     const dispatches = githubCalls.filter((c) => c.method === "POST" && c.path.endsWith("/dispatches"));
     assert(dispatches.every((c) => (c.body as { ref?: string }).ref === "main"), "repair workflow runs from the default branch; the fix base travels as an input");
+    assertEquals(dispatchFailNext, 0, "the injected GitHub server error was hit");
+    assert(githubCalls.some((c) => c.method === "GET" && /\/actions\/workflows\/[^/]+\/runs\?/.test(c.path)), "Bloom checked for a run before retrying");
+    const notStarted = await sql!`SELECT count(*)::int AS n FROM bloom_support.escalations WHERE detail LIKE 'Repair workflow could not start%'`;
+    assertEquals(notStarted[0].n, 0, "a single GitHub server error does not stop a repair");
     const cms = await ticketRow(cmsTicket);
     assertEquals(cms.kind, "question");
     const pub = await sql!`SELECT o.status, o.error FROM bloom_support.outbound_emails o JOIN bloom_support.tickets t ON t.id = o.ticket_id WHERE t.channel = 'public'`;

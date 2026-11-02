@@ -16,6 +16,13 @@ function token(cred: Credential): string {
   return t;
 }
 
+/** A GitHub API failure that keeps GitHub's own status code, so callers can tell a GitHub-side outage (5xx) from a rejection. */
+export class GitHubError extends BloomError {
+  constructor(status: number, public upstream: number, message: string) {
+    super(status, "github_error", message);
+  }
+}
+
 export async function gh<T = unknown>(cred: Credential, method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`https://api.github.com${path}`, {
     method,
@@ -31,7 +38,7 @@ export async function gh<T = unknown>(cred: Credential, method: string, path: st
   });
   if (res.status === 204) return undefined as T;
   const out = await res.json().catch(() => ({}));
-  if (!res.ok) throw new BloomError(res.status === 404 ? 404 : res.status === 403 || res.status === 401 ? 403 : 502, "github_error", `GitHub ${method} ${path}: ${res.status} ${(out as { message?: string }).message ?? ""}`);
+  if (!res.ok) throw new GitHubError(res.status === 404 ? 404 : res.status === 403 || res.status === 401 ? 403 : 502, res.status, `GitHub ${method} ${path}: ${res.status} ${(out as { message?: string }).message ?? ""}`);
   return out as T;
 }
 
