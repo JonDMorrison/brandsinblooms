@@ -7,10 +7,10 @@
        consumers continue to compile; values remap to brand teal #3E7C77 at
        the 500 step, with darker/lighter steps around it. CTA hover targets
        #68BEB9 (--hp-green-400). */
-    --hp-green-50: #E1FFFE;
+    --hp-green-50: #E4EEED;
     --hp-green-100: #C5FBF7;
-    --hp-green-200: #A5FFFA;
-    --hp-green-300: #87DFD8;
+    --hp-green-200: #A9C9C6;
+    --hp-green-300: #83B1AD;
     --hp-green-400: #68BEB9;
     --hp-green-500: #3E7C77;
     --hp-green-600: #2E605C;

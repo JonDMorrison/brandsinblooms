@@ -29,7 +29,7 @@ const COLOR_PRESETS = [
     name: "Green Garden (Default)",
     primary: "#22c55e",
     secondary: "#1e40af",
-    accent: "#f59e0b",
+    accent: "#B46B48",
     text: "#1f2937",
   },
   {
@@ -72,7 +72,7 @@ const COLOR_PRESETS = [
 const DEFAULT_COLORS = {
   primary: "#22c55e",
   secondary: "#1e40af",
-  accent: "#f59e0b",
+  accent: "#B46B48",
   text: "#1f2937",
 };
 
@@ -98,7 +98,7 @@ const FOOTER_ACCENT_PRESETS = [
   { label: "Blue", value: "#3B82F6" },
   { label: "Green", value: "#22C55E" },
   { label: "Rose", value: "#F472B6" },
-  { label: "Gold", value: "#F59E0B" },
+  { label: "Clay", value: "#B46B48" },
 ];
 
 export const BrandColorsSettings: React.FC = () => {
@@ -547,7 +547,7 @@ export const BrandColorsSettings: React.FC = () => {
                   onChange={(e) =>
                     setColors({ ...colors, accent: e.target.value })
                   }
-                  placeholder="#f59e0b"
+                  placeholder="#B46B48"
                   className="flex-1"
                 />
               </div>

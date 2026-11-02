@@ -57,8 +57,8 @@ const ICON_MAPPINGS: IconMapping[] = [
   
   // Food & Cooking
   { keywords: ['cooking', 'chef', 'kitchen', 'recipe', 'culinary'], icon: ChefHat, color: '#7C2D12' },
-  { keywords: ['restaurant', 'dining', 'food', 'meal'], icon: UtensilsCrossed, color: '#A16207' },
-  { keywords: ['coffee', 'cafe', 'beverage', 'drink'], icon: Coffee, color: '#92400E' },
+  { keywords: ['restaurant', 'dining', 'food', 'meal'], icon: UtensilsCrossed, color: '#834A31' },
+  { keywords: ['coffee', 'cafe', 'beverage', 'drink'], icon: Coffee, color: '#6A3C28' },
   
   // Creative & Arts
   { keywords: ['photography', 'photo', 'camera', 'visual'], icon: Camera, color: '#7C3AED' },
@@ -78,7 +78,7 @@ const ICON_MAPPINGS: IconMapping[] = [
   { keywords: ['facebook', 'fb', 'meta'], icon: Facebook, color: '#1877F2' },
   
   // Seasonal & Events
-  { keywords: ['summer', 'sun', 'sunny', 'hot'], icon: Sun, color: '#F59E0B' },
+  { keywords: ['summer', 'sun', 'sunny', 'hot'], icon: Sun, color: '#B46B48' },
   { keywords: ['winter', 'snow', 'cold', 'holiday'], icon: Snowflake, color: '#06B6D4' },
   { keywords: ['gift', 'present', 'celebration', 'party'], icon: Gift, color: '#DC2626' },
   { keywords: ['calendar', 'event', 'schedule'], icon: Calendar, color: '#7C3AED' },
@@ -116,7 +116,7 @@ export const getDynamicIcon = (campaign: any, companyProfile?: any): { icon: Luc
   // Seasonal fallback based on current month
   const currentMonth = new Date().getMonth();
   if (currentMonth >= 5 && currentMonth <= 7) { // Summer
-    return { icon: Sun, color: '#F59E0B' };
+    return { icon: Sun, color: '#B46B48' };
   } else if (currentMonth >= 11 || currentMonth <= 1) { // Winter
     return { icon: Snowflake, color: '#06B6D4' };
   } else if (currentMonth >= 2 && currentMonth <= 4) { // Spring

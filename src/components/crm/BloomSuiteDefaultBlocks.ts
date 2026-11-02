@@ -68,14 +68,14 @@ export const bloomsuiteDefaultBlocks: BloomSuiteBlock[] = [
     created_at: new Date().toISOString(),
     content: {
       html: `
-        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 32px; border-radius: 12px; border-left: 6px solid #f59e0b; margin: 16px 0;">
+        <div style="background: linear-gradient(135deg, #F5E8E1 0%, #EBCFC1 100%); padding: 32px; border-radius: 12px; border-left: 6px solid #B46B48; margin: 16px 0;">
           <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <div style="background: #f59e0b; color: white; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 14px; margin-right: 16px;">WORKSHOP</div>
-            <span style="color: #92400e; font-weight: 600;">Saturday, March 15th • 10:00 AM</span>
+            <div style="background: #B46B48; color: white; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 14px; margin-right: 16px;">WORKSHOP</div>
+            <span style="color: #6A3C28; font-weight: 600;">Saturday, March 15th • 10:00 AM</span>
           </div>
-          <h3 style="color: #92400e; font-size: 24px; font-weight: bold; margin: 0 0 12px 0;">Container Gardening Masterclass</h3>
+          <h3 style="color: #6A3C28; font-size: 24px; font-weight: bold; margin: 0 0 12px 0;">Container Gardening Masterclass</h3>
           <p style="color: #451a03; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Learn the secrets of successful container gardening from our master gardener. Includes hands-on planting and take-home container.</p>
-          <a href="#" style="background: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">RSVP Now - $35</a>
+          <a href="#" style="background: #B46B48; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">RSVP Now - $35</a>
         </div>
       `
     }
@@ -133,15 +133,15 @@ export const bloomsuiteDefaultBlocks: BloomSuiteBlock[] = [
     created_at: new Date().toISOString(),
     content: {
       html: `
-        <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #fbbf24; border-radius: 12px; padding: 24px; margin: 16px 0;">
+        <div style="background: linear-gradient(135deg, #FBF5F2 0%, #F5E8E1 100%); border: 2px solid #C98A6B; border-radius: 12px; padding: 24px; margin: 16px 0;">
           <div style="text-align: center; margin-bottom: 20px;">
             <span style="font-size: 48px; display: block; margin-bottom: 8px;">🐝</span>
-            <h3 style="color: #92400e; font-size: 24px; font-weight: bold; margin: 0;">Bee & Butterfly Friendly Plants</h3>
+            <h3 style="color: #6A3C28; font-size: 24px; font-weight: bold; margin: 0;">Bee & Butterfly Friendly Plants</h3>
           </div>
           <p style="color: #451a03; font-size: 16px; line-height: 1.6; text-align: center; margin: 0 0 20px 0;">Support local pollinators with our specially curated selection of bee and butterfly-friendly plants. Every purchase helps create pollinator corridors in our community.</p>
           <div style="text-align: center;">
-            <a href="#" style="background: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-right: 12px;">Shop Pollinator Plants</a>
-            <a href="#" style="color: #f59e0b; padding: 12px 24px; text-decoration: none; border: 2px solid #f59e0b; border-radius: 6px; font-weight: 600;">Learn More</a>
+            <a href="#" style="background: #B46B48; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-right: 12px;">Shop Pollinator Plants</a>
+            <a href="#" style="color: #B46B48; padding: 12px 24px; text-decoration: none; border: 2px solid #B46B48; border-radius: 6px; font-weight: 600;">Learn More</a>
           </div>
         </div>
       `

@@ -25,7 +25,7 @@ export const FeaturePageFaq = ({ faq }: FeaturePageFaqProps) => (
                 <span>{item.question}</span>
                 <span
                   aria-hidden="true"
-                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#E1FFFE] text-[#3E7C77] transition group-open:rotate-45"
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#E4EEED] text-[#3E7C77] transition group-open:rotate-45"
                 >
                   +
                 </span>

@@ -214,7 +214,7 @@ export const PricingCardsGrid = ({
                         "w-10 h-10 rounded-lg flex items-center justify-center",
                         tier.recommended
                           ? "bg-[#3E7C77] text-white"
-                          : "bg-[#E1FFFE] text-[#1F4341]",
+                          : "bg-[#E4EEED] text-[#1F4341]",
                       )}
                     >
                       <IconComponent className="w-5 h-5" />

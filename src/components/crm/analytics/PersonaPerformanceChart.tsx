@@ -17,7 +17,7 @@ interface PersonaPerformanceChartProps {
   isLoading: boolean;
 }
 
-const COLORS = ['#22C55E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16', '#F97316', '#EC4899'];
+const COLORS = ['#22C55E', '#3B82F6', '#8B5CF6', '#B46B48', '#EF4444', '#06B6D4', '#84CC16', '#F97316', '#EC4899'];
 
 export function PersonaPerformanceChart({ data, isLoading }: PersonaPerformanceChartProps) {
   if (isLoading) {

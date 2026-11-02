@@ -8,7 +8,7 @@ interface FeaturePageCapabilitiesProps {
 export const FeaturePageCapabilities = ({
   capabilities,
 }: FeaturePageCapabilitiesProps) => (
-  <section className="bg-[#E1FFFE]/30 px-6 py-20 lg:py-28">
+  <section className="bg-[#E4EEED]/30 px-6 py-20 lg:py-28">
     <div className="mx-auto max-w-6xl">
       <div className="mb-14 max-w-2xl">
         <SectionEyebrow>{capabilities.eyebrow}</SectionEyebrow>

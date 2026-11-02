@@ -35,7 +35,7 @@ export const FinalCTANew = () => {
             <Button
               onClick={() => navigate("/auth")}
               size="lg"
-              className="bg-[#E1FFFE] text-[#1F4341] hover:bg-white font-semibold px-8 py-6 text-base group min-w-[200px]"
+              className="bg-[#E4EEED] text-[#1F4341] hover:bg-white font-semibold px-8 py-6 text-base group min-w-[200px]"
             >
               Start free trial
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />

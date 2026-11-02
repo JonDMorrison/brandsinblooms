@@ -24,11 +24,11 @@ export const colors: Config["theme"]["extend"]["colors"] = {
   },
   'brand-teal-mint': {
     DEFAULT: '#68BEB9',
-    50: '#F0FFFE',
-    100: '#E1FFFE',
-    200: '#C3FFFC',
-    300: '#A5FFFA',
-    400: '#87DFD8',
+    50: '#F3F7F7',
+    100: '#E4EEED',
+    200: '#C9DDDB',
+    300: '#A9C9C6',
+    400: '#83B1AD',
     500: '#68BEB9', // Primary brand teal-mint
     600: '#5AA8A3',
     700: '#4C928D',
@@ -56,7 +56,8 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     600: '#475569',   
     700: '#334155',   
     800: '#1E293B',   
-    900: '#0F172A',   
+    900: '#0F172A',
+    950: '#020617',
   },
   amber: {
     50: '#F8FAFC',    // Light gray
@@ -68,7 +69,8 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     600: '#475569',   
     700: '#334155',   
     800: '#1E293B',   
-    900: '#0F172A',   
+    900: '#0F172A',
+    950: '#020617',
   },
   orange: {
     50: '#F8FAFC',    // Light gray
@@ -150,8 +152,8 @@ export const colors: Config["theme"]["extend"]["colors"] = {
   },
   success: {
     DEFAULT: '#68BEB9',
-    50: '#F0FFFE',
-    100: '#E1FFFE',
+    50: '#F3F7F7',
+    100: '#E4EEED',
     500: '#68BEB9',
     600: '#5AA8A3',
     foreground: '#FFFFFF'

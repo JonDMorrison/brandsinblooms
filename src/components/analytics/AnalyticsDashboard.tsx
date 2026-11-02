@@ -156,7 +156,7 @@ export const AnalyticsDashboard: React.FC = () => {
               <Tooltip />
               <Bar dataKey="likes" fill="#3b82f6" name="Likes" />
               <Bar dataKey="comments" fill="#10b981" name="Comments" />
-              <Bar dataKey="shares" fill="#f59e0b" name="Shares" />
+              <Bar dataKey="shares" fill="#B46B48" name="Shares" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

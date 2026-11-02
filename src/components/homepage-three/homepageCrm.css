@@ -307,12 +307,12 @@
 }
 
 .hp-crm-frame__traffic-light--amber {
-    background: #FCD34D;
-    border: 1px solid #F59E0B;
+    background: #DDAE97;
+    border: 1px solid #B46B48;
 }
 
 .hp-crm-frame__traffic-light--green {
-    background: #87DFD8;
+    background: #83B1AD;
     border: 1px solid #68BEB9;
 }
 

@@ -73,11 +73,11 @@ export default {
         },
         "brand-teal": {
           DEFAULT: "#68BEB9",
-          50: "#F0FFFE",
-          100: "#E1FFFE",
-          200: "#C3FFFC",
-          300: "#A5FFFA",
-          400: "#87DFD8",
+          50: "#F3F7F7",
+          100: "#E4EEED",
+          200: "#C9DDDB",
+          300: "#A9C9C6",
+          400: "#83B1AD",
           500: "#68BEB9", // Primary brand teal
           600: "#5AA8A3",
           700: "#4C928D",
@@ -86,11 +86,11 @@ export default {
         },
         mint: {
           50: "#F0FDF4",
-          100: "#E7FAF7", // mint-100 for success backgrounds
-          200: "#BCF5E6",
-          300: "#86EFDB",
-          400: "#4AE0C4",
-          500: "#22D3B0",
+          100: "#E3EFE8", // mint-100 for success backgrounds
+          200: "#C5DFD0",
+          300: "#9FC9B1",
+          400: "#6FAE8B",
+          500: "#3E9168",
           600: "#1FA87B", // mint-600 for success text/badges
           700: "#167A5B",
           800: "#0F5F45",
