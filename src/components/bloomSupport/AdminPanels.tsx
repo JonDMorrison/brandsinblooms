@@ -232,7 +232,7 @@ export function ClientsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => v
   );
 }
 
-const OPERATION_INFO: Record<string, { label: string; help: string; template?: Record<string, string> }> = {
+const OPERATION_INFO: Record<string, { label: string; help: string; template?: Record<string, unknown> }> = {
   "client.lookup": { label: "Look up the client's linked accounts", help: "Shows which website, CRM and POS accounts belong to this client." },
   "campaign.list": { label: "List email campaigns", help: "Every campaign, newest first. Optionally filter by status.", template: { status: "" } },
   "campaign.read": { label: "See one email campaign", help: "Details of a single campaign.", template: { campaign_id: "" } },
@@ -245,6 +245,10 @@ const OPERATION_INFO: Record<string, { label: string; help: string; template?: R
   "site.create_draft": { label: "Create a draft website", help: "Starts a draft site. Nothing goes live." },
   "site.page.update": { label: "Edit a website page", help: "Changes a page. Can be undone." },
   "site.publish": { label: "Publish the website", help: "Makes saved changes live. Can be undone." },
+  "site.section.update": { label: "Change a section's words, buttons or images", help: "Saves to the page draft only. Nothing goes live until the page is published. Can be undone.", template: { content_id: "", section_key: "", patch: { heading: "New heading text" } } },
+  "site.section.reorder": { label: "Reorder a page's sections", help: "Saves to the page draft only. List every section in the new order. Can be undone.", template: { content_id: "", order: ["hero", "features", "footer"] } },
+  "site.section.visibility": { label: "Show or hide a section", help: "Saves to the page draft only. Required sections can't be hidden. Can be undone.", template: { content_id: "", section_key: "", visible: true } },
+  "site.preview_link": { label: "Get a page's preview link", help: "A private link to see draft changes before they're published.", template: { content_id: "" } },
   "event.list": { label: "List events", help: "Their upcoming and past events." },
   "event.update": { label: "Edit an event", help: "Changes an event. Can be undone." },
   "pos.products": { label: "List POS products", help: "Products in their point-of-sale system." },
