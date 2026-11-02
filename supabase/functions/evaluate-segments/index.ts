@@ -227,6 +227,16 @@ Deno.serve(async (req) => {
         .from("crm_customers").select("*").eq("tenant_id", currentTenantId)
         .is("deleted_at", null).is("merged_into_customer_id", null)
         .order("id").range(from, to));
+      // Perks membership lives in customer_loyalty_metrics, not crm_customers.
+      // Attach it so the built-in "Perks Members" rule (is_perks_member = true)
+      // can match; without this every Perks group evaluated to 0 members.
+      const perksRows = await readAllPages<{ customer_id: string }>((from, to) => supabase
+        .from("customer_loyalty_metrics").select("customer_id").eq("tenant_id", currentTenantId)
+        .eq("is_perks_member", true).order("customer_id").range(from, to));
+      const perksIds = new Set(perksRows.map((row) => row.customer_id));
+      for (const customer of customers) {
+        customer.is_perks_member = perksIds.has(customer.id);
+      }
       customersByTenant.set(currentTenantId, customers);
     }
 
