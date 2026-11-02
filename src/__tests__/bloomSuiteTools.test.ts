@@ -98,3 +98,18 @@ describe("Website section edits are registered as draft-only Support changes", (
     expect(pickInputs("site.preview_link", { content_id: "c1", patch: "x" })).toEqual({ content_id: "c1" });
   });
 });
+
+describe("Theme drafts are registered as Support changes", () => {
+  const read = (p: string) => fs.readFileSync(path.resolve(__dirname, "../../supabase/functions/_shared/bloom-support", p), "utf8");
+  it("drafting needs ops.site.edit, publishing needs ops.site.publish, all undoable", () => {
+    const policy = read("policy.ts");
+    const ops = read("operations.ts");
+    expect(policy).toContain('"site.theme.update": "ops.site.edit"');
+    expect(policy).toContain('"site.theme.discard": "ops.site.edit"');
+    expect(policy).toContain('"site.theme.publish": "ops.site.publish"');
+    for (const kind of ["site.theme.update", "site.theme.publish", "site.theme.discard"]) {
+      expect(ops.slice(ops.indexOf("WRITE_OPERATIONS"), ops.indexOf("const PERMISSION"))).toContain(`"${kind}"`);
+      expect(ops.slice(ops.indexOf("const UNDOABLE"))).toContain(`"${kind}"`);
+    }
+  });
+});
