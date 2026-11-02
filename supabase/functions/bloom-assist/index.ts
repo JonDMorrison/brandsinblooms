@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { resolveAdminWorkspaceTenant } from "./admin-workspace.ts";
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -1495,7 +1496,12 @@ async function resolveUserContext(
   }
 
   const userRow = parsePublicUserRow(data);
-  if (!userRow?.tenant_id) {
+  const adminWorkspaceTenantId = await resolveAdminWorkspaceTenant(
+    userClient,
+    userId,
+  );
+  const tenantId = adminWorkspaceTenantId ?? userRow?.tenant_id ?? null;
+  if (!tenantId) {
     return null;
   }
 
@@ -1504,10 +1510,11 @@ async function resolveUserContext(
     readMetadataString(userMetadata, "name");
 
   return {
-    tenantId: userRow.tenant_id,
+    tenantId,
     userId,
-    userRole: userRow.role || "user",
-    userName: metadataName || userRow.full_name || userRow.name,
+    // A master admin acting in a client's workspace has full admin scope there.
+    userRole: adminWorkspaceTenantId ? "admin" : userRow?.role || "user",
+    userName: metadataName || userRow?.full_name || userRow?.name || null,
     conversationId: null,
   };
 }
