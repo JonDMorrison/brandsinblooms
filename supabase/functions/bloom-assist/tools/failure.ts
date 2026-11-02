@@ -1,10 +1,10 @@
-import type { ToolResult } from "./types.ts";
+import type { ToolName, ToolResult } from "./types.ts";
 
 /**
  * Tool failures reach the model as tool results. A failed purchase lookup must
  * never read as "no purchases", and a timeout must be named as a timeout.
  */
-const PURCHASE_EVIDENCE_TOOLS: readonly string[] = [
+const PURCHASE_EVIDENCE_TOOLS: readonly ToolName[] = [
   "get_customer_product_history",
   "explore_customer_purchases",
   "explore_customer_reported_spending",
@@ -44,7 +44,7 @@ export function isTimeoutFailure(message: string, code: string | null): boolean 
 export function toolFailureResult(toolName: string, error: unknown): ToolResult {
   const { message, code } = readErrorDetails(error);
   const timeout = isTimeoutFailure(message, code);
-  const purchaseTool = PURCHASE_EVIDENCE_TOOLS.includes(toolName);
+  const purchaseTool = (PURCHASE_EVIDENCE_TOOLS as readonly string[]).includes(toolName);
   const base = timeout
     ? "The data lookup timed out before it finished. No partial result was returned."
     : message;

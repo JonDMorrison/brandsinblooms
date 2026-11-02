@@ -24,8 +24,9 @@ export interface ProductHistoryResult {
   product_query:string|null;status:ProductHistoryStatus;groups:ProductHistoryGroup[];note:string;
 }
 export const PRODUCT_HISTORY_ROW_LIMIT=100;
+const LEGACY_COLUMNS=['product_code','product_name','department','quantity','net_amount','source_row'];
 
-interface CustomerIdentity {id:string;tenant_id:string;external_id:string|null;first_name:string|null;last_name:string|null;email:string|null;}
+interface CustomerIdentity {id:string;tenant_id:string;external_id:string|null;first_name:string|null;last_name:string|null;email:string|null;merged_into_customer_id:string|null;}
 interface SummaryEventRow extends PeriodSummaryEvent {external_customer_code:string|null;}
 type DatedRow=PurchaseFact & {import_id:string|null};
 
@@ -64,12 +65,13 @@ export async function loadCustomerProductHistory(client:PersistenceClient,args:{
   const {tenantId,customerId,cutoff}=args;const productQuery=args.productQuery?.trim()||null;
   if(!tenantId||!customerId||!Number.isFinite(Date.parse(cutoff)))throw new Error('Company, customer and a valid evidence cutoff are required.');
 
-  const {data:customer,error:customerError}=await client.from('crm_customers').select('id,tenant_id,external_id,first_name,last_name,email')
+  const {data:customer,error:customerError}=await client.from('crm_customers').select('id,tenant_id,external_id,first_name,last_name,email,merged_into_customer_id')
     .eq('tenant_id',tenantId).eq('id',customerId).is('deleted_at',null).maybeSingle();
   if(customerError)throw new Error(customerError.message);
   if(!customer)throw new ProductHistoryNotFound('No accessible customer has that ID in this company.');
   const identity=customer as CustomerIdentity;
   if(identity.tenant_id!==tenantId||identity.id!==customerId)throw new Error('Customer scope differs from the request.');
+  if(identity.merged_into_customer_id)throw new ProductHistoryNotFound(`This customer record was merged into ${identity.merged_into_customer_id}. Look up that customer instead.`);
 
   // Report ledger is a handful of rows per company; selection is global so a
   // superseded snapshot is never revived for one customer.
@@ -92,6 +94,7 @@ export async function loadCustomerProductHistory(client:PersistenceClient,args:{
       // Per-row checks from the reconciled legacy format. The full-snapshot hash is
       // verified by company-wide analysis; one customer's read must not require 30k rows.
       if(Object.hasOwn(raw,'source_sha256')||raw.source_filename!==certificate.filename||raw.dated_transactions!==false||raw.currency!=='CAD'
+        ||JSON.stringify(raw.columns)!==JSON.stringify(LEGACY_COLUMNS)
         ||!row.external_customer_code||row.external_customer_code!==identity.external_id)throw new Error('Legacy report evidence differs from its reconciled format or customer code.');
     }else if(raw.source_sha256!==parent.source_sha256)throw new Error('Report evidence does not match its completed source ledger.');
     groups.push(summarise('reported_period_total',periodSummaryFacts([row],tenantId),productQuery,
@@ -103,7 +106,7 @@ export async function loadCustomerProductHistory(client:PersistenceClient,args:{
     .eq('tenant_id',tenantId).eq('customer_id',customerId).lte('created_at',cutoff).order('id').range(from,to),20000);
   const importIds=[...new Set(dated.flatMap(f=>f.import_id?[f.import_id]:[]))];
   const completed=importIds.length?await readAllPages<{id:string;source:string}>((from,to)=>client.from('customer_intelligence_imports').select('id,source')
-    .eq('tenant_id',tenantId).eq('status','completed').in('id',importIds).lte('completed_at',cutoff).order('id').range(from,to)):[];
+    .eq('tenant_id',tenantId).eq('status','completed').in('id',importIds).lte('completed_at',cutoff).lte('created_at',cutoff).order('id').range(from,to)):[];
   const completedSources=new Map(completed.map(row=>[row.id,row.source]));
   // Same contract as company analysis: Ideal dated imports are not certified receipts yet.
   const eligible=dated.filter(f=>f.source!=='ideal'&&(!f.import_id||completedSources.get(f.import_id)===f.source));
@@ -114,10 +117,12 @@ export async function loadCustomerProductHistory(client:PersistenceClient,args:{
   const anyMatch=groups.some(g=>g.matched_products>0);
   const status:ProductHistoryStatus=!anyEvidence?'no_purchase_evidence':anyMatch?'matched':'no_matching_products';
   const name=[identity.first_name,identity.last_name].filter(Boolean).join(' ')||identity.email||'Customer';
+  const kinds=new Set(groups.filter(g=>g.matched_products>0||status!=='matched').map(g=>g.evidence_kind));
   const note=status==='no_purchase_evidence'
     ?'No imported purchase records are on file for this customer. This is unknown history, not proof that the customer bought nothing.'
     :status==='no_matching_products'
       ?'Purchase records exist, but no product in them matches the search. This covers imported records only, not every possible purchase.'
-      :'Reported period totals are POS report sums for each stated period. They have no individual purchase dates and are not receipt counts. Dated receipts are listed separately.';
+      :[kinds.has('reported_period_total')?'Reported period totals are POS report sums for each stated period. They have no individual purchase dates and are not receipt counts.':null,
+        kinds.has('dated_receipts')?'Dated receipts are individual recorded purchases with their dates.':null].filter(Boolean).join(' ');
   return {kind:'customer_product_history',customer_id:customerId,customer_name:name,captured_at:cutoff,product_query:productQuery,status,groups,note};
 }

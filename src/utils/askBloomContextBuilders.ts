@@ -420,17 +420,23 @@ export function buildCustomerFocus(
       ? formatDate(recentOrders[0]?.created_at)
       : "No dated receipts on file";
   const reported = readReportedPeriodSpending(customer.custom_fields);
-  const recordedValue =
-    readNumber(customer.lifetime_value) ?? readNumber(customer.total_spent);
-  const recordedOrders =
-    readNumber(customer.order_count) ?? readNumber(customer.pos_order_count);
+  // These columns default to 0, so 0 means "nothing recorded", never a verified zero.
+  // Take the first positive value; strings come from PostgREST numeric columns.
+  const firstPositive = (...values: unknown[]) => {
+    const numbers = values
+      .map((value) => (typeof value === "string" && value.trim() ? Number(value) : value))
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    return numbers.find((value) => value > 0) ?? (numbers.length ? 0 : null);
+  };
+  const recordedValue = firstPositive(customer.lifetime_value, customer.total_spent);
+  const recordedOrders = firstPositive(customer.order_count, customer.pos_order_count);
   const lifetimeValue =
     recordedValue !== null && recordedValue > 0
       ? formatMoney(recordedValue)
       : reported
         ? "Not available (no dated receipts on file; see Reported Period Spending)"
         : recordedValue === 0
-          ? "$0 recorded"
+          ? "No recorded spend"
           : "Not available";
   const totalOrders =
     recordedOrders !== null && recordedOrders > 0
@@ -438,7 +444,7 @@ export function buildCustomerFocus(
       : reported
         ? "Unknown (no dated receipts on file; see Reported Transactions)"
         : recordedOrders === 0
-          ? "0 recorded"
+          ? "No recorded orders"
           : "Not available";
   const posCustomerCode = readString(
     isRecord(customer.custom_fields)
@@ -725,10 +731,10 @@ export const describeCustomerOrders = (summary: string) => {
   }
   const reported = readFocusSummaryValue(summary, "Reported Transactions").match(/^(\d+)/);
   if (reported) {
-    return `${reported[1]} reported transactions`;
+    return `${reported[1]} reported ${reported[1] === "1" ? "transaction" : "transactions"}`;
   }
-  if (orders === "0 recorded" || count === 0) {
-    return "0 recorded orders";
+  if (orders === "No recorded orders" || count === 0) {
+    return "no recorded orders";
   }
   return "order history not on file";
 };

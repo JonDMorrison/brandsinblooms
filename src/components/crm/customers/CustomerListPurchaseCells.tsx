@@ -75,7 +75,8 @@ export function CustomerListLastPurchaseCell({ customer }: { customer: PurchaseC
       <Stack spacing={0.25}>
         <Typography sx={mutedSx}>No dated receipts</Typography>
         <Typography sx={captionSx}>
-          {reported.transactions} reported transactions
+          {reported.transactions} reported{" "}
+          {reported.transactions === 1 ? "transaction" : "transactions"}
         </Typography>
       </Stack>
     );

@@ -42,6 +42,15 @@ describe('customer list: imported spending (Bryan, Nov 2: “pasca” showed $0 
 });
 
 describe('Ask Bloom customer context (header said “0 orders”)',()=>{
+  it('uses dated receipt spend when lifetime_value is the column default 0, including numeric strings',()=>{
+    expect(buildCustomerFocus({id:'a',lifetime_value:0,total_spent:410.5}).resourceSummary).toMatch(/Lifetime Value: \$410\.5/);
+    expect(buildCustomerFocus({id:'a',lifetime_value:null,total_spent:'410.50'}).resourceSummary).toMatch(/Lifetime Value: \$410\.5/);
+    expect(buildCustomerFocus({id:'a',lifetime_value:0,total_spent:0}).resourceSummary).toMatch(/Lifetime Value: No recorded spend/);
+  });
+  it('uses singular wording for one reported transaction',()=>{
+    const one={...westCoastJohn,custom_fields:{ideal_reported_ytd:{start:'2026-01-01',end:'2026-10-14',spend:12,transactions:1}}};
+    expect(describeCustomerOrders(buildCustomerFocus(one).resourceSummary)).toBe('1 reported transaction');
+  });
   const summary=buildCustomerFocus(westCoastJohn,undefined,undefined,[{name:'New Customers'}]).resourceSummary;
   it('sends reported evidence and no fabricated zeros',()=>{
     expect(summary).not.toMatch(/Total Orders: 0\b/);
@@ -59,7 +68,7 @@ describe('Ask Bloom customer context (header said “0 orders”)',()=>{
   });
   it('header keeps real order counts and only says 0 when 0 is recorded',()=>{
     expect(describeCustomerOrders(buildCustomerFocus({id:'a',pos_order_count:3,lifetime_value:120}).resourceSummary)).toBe('3 orders');
-    expect(describeCustomerOrders(buildCustomerFocus({id:'a',pos_order_count:0,total_spent:0}).resourceSummary)).toBe('0 recorded orders');
+    expect(describeCustomerOrders(buildCustomerFocus({id:'a',pos_order_count:0,total_spent:0}).resourceSummary)).toBe('no recorded orders');
     expect(describeCustomerOrders(buildCustomerFocus({id:'a'}).resourceSummary)).toBe('order history not on file');
   });
 });

@@ -27,14 +27,14 @@ const john={id:JOHN,tenant_id:WEST_COAST,external_id:'18712',first_name:'John',l
 type Row=Record<string,unknown>;
 interface Tables {[table:string]:Row[]}
 /** In-memory PostgREST stand-in that really applies eq/in/is filters, so scoping bugs show up as wrong data. */
-function db(tables:Tables,options:{fail?:{table:string;error:{message:string;code?:string}}}={}){
+function db(tables:Tables,options:{fail?:{table:string;error:{message:string;code?:string}}; ignoreTenantFilter?:boolean}={}){
   const calls:{table:string;filters:[string,string,unknown][]}[]=[];
   const client={from(table:string){
     const filters:[string,string,unknown][]=[];calls.push({table,filters});
-    const rows=()=>(tables[table]??[]).filter(row=>filters.every(([op,key,value])=>op==='eq'?row[key]===value:op==='in'?(value as unknown[]).includes(row[key]):op==='is'?(row[key]??null)===value:true));
+    const rows=()=>(tables[table]??[]).filter(row=>filters.every(([op,key,value])=>options.ignoreTenantFilter&&key==='tenant_id'?true:op==='eq'?row[key]===value:op==='in'?(value as unknown[]).includes(row[key]):op==='is'?(row[key]??null)===value:true));
     const result=(data:unknown)=>options.fail?.table===table?{data:null,error:options.fail.error}:{data,error:null};
     const q={select:()=>q,eq:(k:string,v:unknown)=>{filters.push(['eq',k,v]);return q;},in:(k:string,v:unknown[])=>{filters.push(['in',k,v]);return q;},
-      is:(k:string,v:unknown)=>{filters.push(['is',k,v]);return q;},lte:()=>q,order:()=>q,
+      is:(k:string,v:unknown)=>{filters.push(['is',k,v]);return q;},lte:(k:string,v:unknown)=>{filters.push(['lte',k,v]);return q;},order:()=>q,
       range:async(from:number,to:number)=>result(rows().slice(from,to+1)),maybeSingle:async()=>result(rows()[0]??null)};
     return q;}};
   return {client:client as unknown as PersistenceClient,calls};
@@ -80,6 +80,39 @@ describe('Bloom per-customer product history (West Coast / John Pasca)',()=>{
     expect((await load(leaked)).status).toBe('no_purchase_evidence'); // filtered out, never merged in
     const reassigned=base();reassigned.customer_intelligence_source_events=[{...ytdEvent,external_customer_code:'99999'}];
     await expect(load(reassigned)).rejects.toThrow(/customer code/);
+  });
+  it('rejects a foreign-tenant row even if the database returned it',async()=>{
+    const tables=base();tables.customer_intelligence_source_events=[{...annualEvent,tenant_id:OTHER_TENANT}];
+    const {client}=db(tables,{ignoreTenantFilter:true});
+    await expect(loadCustomerProductHistory(client,{tenantId:WEST_COAST,customerId:JOHN,cutoff:'2026-11-02T07:00:00Z',productQuery:null})).rejects.toThrow(/source ledger|Cross-company/);
+  });
+  it('scopes the report ledger and every read to the evidence cutoff',async()=>{
+    const {client,calls}=db(base());
+    await loadCustomerProductHistory(client,{tenantId:WEST_COAST,customerId:JOHN,cutoff:'2026-11-02T07:00:00Z',productQuery:null});
+    const ledger=calls.find(c=>c.table==='customer_intelligence_imports')!;
+    expect(ledger.filters).toEqual(expect.arrayContaining([['eq','tenant_id',WEST_COAST],['eq','status','completed'],['lte','completed_at','2026-11-02T07:00:00Z']]));
+    for(const table of ['customer_intelligence_source_events','customer_purchase_line_items'])
+      expect(calls.find(c=>c.table===table)!.filters).toEqual(expect.arrayContaining([['lte','created_at','2026-11-02T07:00:00Z']]));
+  });
+  it('rejects legacy rows that differ from the reconciled format',async()=>{
+    for(const raw_data of [{...ytdEvent.raw_data,source_sha256:YTD.source_sha256},{...ytdEvent.raw_data,source_filename:'renamed.csv'},
+      {...ytdEvent.raw_data,columns:['product_code','product_name','department','net_amount','quantity','source_row']}]){
+      const tables=base();tables.customer_intelligence_source_events=[{...ytdEvent,raw_data}];
+      await expect(load(tables)).rejects.toThrow(/reconciled format/);
+    }
+  });
+  it('sends a merged duplicate to its surviving record instead of a partial history',async()=>{
+    const tables=base();tables.crm_customers=[{...john,merged_into_customer_id:SOMEONE_ELSE}];
+    await expect(load(tables)).rejects.toThrow(/merged into/);
+  });
+  it('lists dated receipts separately with their own note',async()=>{
+    const tables=base();tables.customer_intelligence_source_events=[];
+    tables.customer_purchase_line_items=[{id:'l1',tenant_id:WEST_COAST,customer_id:JOHN,product_code:'754',product_name:'32L Sea Soil Original',sales_category:null,department:'Soil',quantity:2,net_amount:15.98,currency:'CAD',purchased_at:'2026-10-30T18:00:00Z',created_at:'2026-10-30T18:00:00Z',source:'lightspeed',import_id:null}];
+    const result=await load(tables);
+    expect(result.groups).toEqual([expect.objectContaining({evidence_kind:'dated_receipts',matched_products:1})]);
+    expect(result.groups[0].rows[0].purchased_at).toBe('2026-10-30T18:00:00Z');
+    expect(result.note).toMatch(/Dated receipts/);
+    expect(result.note).not.toMatch(/Reported period/);
   });
   it('reports unknown history, not “no purchases”, when nothing is on file',async()=>{
     const empty=base();empty.crm_customers=[{...john,id:SOMEONE_ELSE}];empty.customer_intelligence_source_events=[];
