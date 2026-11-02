@@ -107,3 +107,17 @@ describe("Ask Bloom approvals run the stored change exactly once", () => {
     expect(handler).toContain("claimAction(");
   });
 });
+
+describe("Ask Bloom never re-runs a change whose outcome is unknown", () => {
+  const src = fs.readFileSync(path.resolve(__dirname, "../../supabase/functions/bloom-assist/index.ts"), "utf8");
+  const handler = src.slice(src.indexOf("async function createExecuteActionResponse"), src.indexOf("export async function handleRequest"));
+  it("releases the claim only when marking the card failed before anything ran", () => {
+    const beforeRun = handler.slice(handler.indexOf('status: "executing"'), handler.indexOf("executeTool(stored.toolName"));
+    expect(beforeRun).toContain('finishClaim(serviceClient, stored.mutationId, "failed"');
+  });
+  it("leaves the claim held when the tool throws, so a retry cannot apply it twice", () => {
+    const afterRun = handler.slice(handler.indexOf("executeTool(stored.toolName"), handler.indexOf("const status = toolResult.success"));
+    expect(afterRun).not.toContain("finishClaim(");
+    expect(afterRun).toContain('outcome: "unknown"');
+  });
+});

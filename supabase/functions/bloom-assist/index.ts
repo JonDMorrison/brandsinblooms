@@ -3152,32 +3152,44 @@ async function createExecuteActionResponse(
     return jsonResponse(req, { error: "Bloom is already applying this change." }, 409);
   }
 
-  await updateAssistantMessageActionCard({
-    serviceClient,
-    tenantId: context.tenantId,
-    conversationId: payload.conversationId,
-    messageId,
-    mutationId: stored.mutationId,
-    status: "executing",
-    result: null,
-  });
+  try {
+    await updateAssistantMessageActionCard({
+      serviceClient,
+      tenantId: context.tenantId,
+      conversationId: payload.conversationId,
+      messageId,
+      mutationId: stored.mutationId,
+      status: "executing",
+      result: null,
+    });
+  } catch (error) {
+    // Nothing has run yet, so release the claim for a retry.
+    await finishClaim(serviceClient, stored.mutationId, "failed", toErrorMessage(error)).catch(() => undefined);
+    throw error;
+  }
 
   let toolResult: Awaited<ReturnType<typeof executeTool>>;
   try {
     toolResult = await executeTool(stored.toolName, stored.toolArgs, {
-    ...context,
-    conversationId: payload.conversationId,
-    messageId,
-    timezone: "UTC",
-    authenticatedTenantId: context.tenantId,
-    serviceClient,
-    dataClient,
-    approved: true,
-    clientContext: payload.clientContext,
-  });
+      ...context,
+      conversationId: payload.conversationId,
+      messageId,
+      timezone: "UTC",
+      authenticatedTenantId: context.tenantId,
+      serviceClient,
+      dataClient,
+      approved: true,
+      clientContext: payload.clientContext,
+    });
   } catch (error) {
-    await finishClaim(serviceClient, stored.mutationId, "failed", toErrorMessage(error)).catch(() => undefined);
-    throw error;
+    // The change may already be saved (for example, only the execution log failed).
+    // Leave the claim "executing" so it can never run twice, and say the outcome is unknown.
+    console.error("[bloom-assist] action outcome unknown", stored.mutationId, toErrorMessage(error));
+    return jsonResponse(req, {
+      error: "Bloom couldn't confirm whether this change was applied. Check the record before asking Bloom again.",
+      mutationId: stored.mutationId,
+      outcome: "unknown",
+    }, 500);
   }
 
   const status = toolResult.success ? "completed" : "failed";
