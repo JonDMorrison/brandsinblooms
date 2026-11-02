@@ -109,6 +109,9 @@ interface CampaignActivationOptions extends CampaignSendInvocationOptions {
 
 interface CampaignEditorContextValue extends CampaignEditorState {
   isLoading: boolean;
+  /** True once the company this editor saves into is known. Saving earlier
+   *  would fall back to the user's own company. */
+  isTenantReady: boolean;
   syncLiveCampaign: (
     next: Partial<
       Pick<CampaignEditorState, "campaignId" | "status" | "sendBlockedReason">
@@ -1589,6 +1592,7 @@ export function CampaignEditorProvider({
     () => ({
       ...state,
       isLoading,
+      isTenantReady: Boolean(tenant?.id),
       syncLiveCampaign,
       updateSetup,
       updateAudience,
@@ -1607,6 +1611,7 @@ export function CampaignEditorProvider({
       activate,
       cancel,
       isLoading,
+      tenant?.id,
       reload,
       resume,
       saveDraft,

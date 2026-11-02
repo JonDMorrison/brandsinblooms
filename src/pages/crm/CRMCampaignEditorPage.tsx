@@ -573,6 +573,7 @@ function CampaignEditorScreen() {
     updateContent,
     updateSchedule,
     saveDraft,
+    isTenantReady,
   } = useCampaignEditor();
 
   const audienceHealthQuery = useCampaignAudienceHealth({
@@ -971,6 +972,13 @@ function CampaignEditorScreen() {
       return;
     }
 
+    // Until the company is known, a save would fall back to the signed-in
+    // user's own company (wrong for admins working in a client account, and
+    // refused by the server). The card stays disabled until then.
+    if (!isTenantReady) {
+      return;
+    }
+
     // Drafts can be created with no subject or preview. Those fields are
     // checked only when the customer reviews or sends the newsletter.
     const nextCampaignId =
@@ -986,7 +994,7 @@ function CampaignEditorScreen() {
     }
 
     navigate(`/crm/campaigns/${nextCampaignId}/studio`);
-  }, [campaignId, campaignType, isLocked, navigate, saveDraft]);
+  }, [campaignId, campaignType, isLocked, isTenantReady, navigate, saveDraft]);
 
   const handleScheduleForLater = React.useCallback(() => {
     setScheduleOpen(true);
@@ -1723,13 +1731,17 @@ function CampaignEditorScreen() {
 
             <StudioCtaCard
               onOpen={handleOpenStudio}
-              disabled={isLocked || Boolean(pendingTemplateSave)}
+              disabled={
+                isLocked || Boolean(pendingTemplateSave) || !isTenantReady
+              }
               disabledReason={
                 isLocked
                   ? "This campaign has already been sent"
                   : pendingTemplateSave
                     ? "Your template is being saved"
-                    : undefined
+                    : !isTenantReady
+                      ? "Loading your garden centre"
+                      : undefined
               }
               title={isLocked ? "View in Studio" : "Customize in Design Studio"}
               subtitle="Make it yours. Edit text, add images, change colours, and arrange every block. Start with a layout or a blank canvas."
