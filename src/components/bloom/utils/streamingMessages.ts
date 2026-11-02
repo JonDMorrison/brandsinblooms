@@ -264,6 +264,11 @@ export const TOOL_MESSAGES: Record<string, readonly string[]> = {
     "Building export file…",
   ],
 
+  // ── Support ────────────────────────────────────────────────────────────
+  run_self_diagnostics: ["Running a quick health check…", "Checking your data…"],
+  check_support_request: ["Checking your support requests…"],
+  report_support_problem: ["Sending your report to the support team…"],
+
   // ── Task Plans (legacy) ────────────────────────────────────────────────
   create_task_plan: [
     "Building a task plan…",

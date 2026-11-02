@@ -44,6 +44,7 @@ import { buildResourceFocusFromMutationResult } from "@/utils/askBloomMutationRe
 import { serializeAskBloomBlock } from "@/utils/askBloomBlocks";
 import { parseResourceFromPath } from "@/utils/askBloomRouteContext";
 import { dispatchAskBloomResourceSync } from "@/utils/askBloomResourceSync";
+import { bloomChatClientContext } from "@/lib/bloomSupport/api";
 
 interface AskBloomProviderProps {
   children: React.ReactNode;
@@ -1576,6 +1577,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
               mode: "resource_focused",
               timezone:
                 Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+              client_context: bloomChatClientContext(),
             }),
           },
         );
@@ -2404,6 +2406,7 @@ export function AskBloomProvider({ children }: AskBloomProviderProps) {
                 toolName: card.toolName,
                 toolArgs: card.toolArgs,
               },
+              client_context: bloomChatClientContext(),
             }),
           },
         );

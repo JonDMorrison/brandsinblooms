@@ -50,6 +50,7 @@ import {
   toAskBloomActionCard,
   toDataRecord,
 } from "@/utils/askBloomBlocks";
+import { bloomChatClientContext } from "@/lib/bloomSupport/api";
 
 interface UseAskBloomStreamingOptions {
   conversationId: string | null;
@@ -957,6 +958,7 @@ export function useAskBloomStreaming(options: UseAskBloomStreamingOptions) {
                 page_context: resolvePageContext(resolvedResourceFocus),
                 timezone: getTimezone(),
                 attachments: [],
+                client_context: bloomChatClientContext(),
               }),
             },
           );

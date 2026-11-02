@@ -56,6 +56,13 @@ export type EntitySummary = {
   summaryText: string;
 };
 
+/** Optional browser facts the client sends so a support report can say where it happened. */
+export type BloomClientContext = {
+  route: string | null;
+  user_agent: string | null;
+  viewport: string | null;
+};
+
 export type BloomAssistRequest = {
   conversation_id: string | null;
   message: string;
@@ -66,6 +73,7 @@ export type BloomAssistRequest = {
   page_context: PageContext | null;
   timezone: string;
   attachments: JsonArray | null;
+  client_context: BloomClientContext | null;
 };
 
 export type InputSecurityAssessment = {
