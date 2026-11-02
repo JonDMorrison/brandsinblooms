@@ -1916,6 +1916,76 @@ export async function logAuditEvent(
   }
 }
 
+export type BloomRequestRejection = {
+  stage: "access_denied" | "request_failed";
+  status: 403 | 500;
+  reason: string;
+  conversationId?: string | null;
+};
+
+/**
+ * Records a request Bloom refused before streaming, so the watchdog can see
+ * 403 storms and pre-stream failures. Best-effort: it never throws, so a
+ * logging failure cannot change the response the user receives.
+ *
+ * The conversation column is set only when the conversation belongs to the
+ * caller's tenant. For any other case, the requested id stays in event_data and
+ * conversation_scope names why access failed, without copying another
+ * tenant's id into this tenant's audit log.
+ */
+export async function recordRequestRejection(
+  serviceClient: PersistenceClient,
+  context: { tenantId: string; userId: string },
+  rejection: BloomRequestRejection,
+): Promise<void> {
+  try {
+    let conversationId: string | null = null;
+    let conversationScope: string | null = null;
+
+    if (rejection.conversationId) {
+      const { data, error } = await serviceClient
+        .from("bloom_conversations")
+        .select("id, tenant_id, user_id, status")
+        .eq("id", rejection.conversationId)
+        .maybeSingle();
+
+      if (error || !isRecord(data)) {
+        conversationScope = error ? "lookup_failed" : "not_found";
+      } else if (data.tenant_id !== context.tenantId) {
+        conversationScope = "other_tenant";
+      } else {
+        conversationId = typeof data.id === "string" ? data.id : null;
+        conversationScope =
+          data.status === "deleted"
+            ? "deleted"
+            : data.user_id !== context.userId
+              ? "other_user"
+              : "same_tenant";
+      }
+    }
+
+    await logAuditEvent(
+      serviceClient,
+      context.tenantId,
+      context.userId,
+      "error",
+      compactAuditObject({
+        stage: rejection.stage,
+        status: rejection.status,
+        reason: rejection.reason,
+        requested_conversation_id: rejection.conversationId ?? null,
+        conversation_scope: conversationScope,
+      }),
+      { conversationId },
+    );
+  } catch (error) {
+    console.error(
+      "[bloom-assist] Failed to record request rejection",
+      toErrorMessage(error),
+    );
+  }
+}
+
 function formatSseEvent(event: BloomSseEvent): string {
   return `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`;
 }
@@ -3029,6 +3099,12 @@ async function createExecuteActionResponse(
     data.tenant_id !== context.tenantId ||
     data.user_id !== context.userId
   ) {
+    await recordRequestRejection(serviceClient, context, {
+      stage: "access_denied",
+      status: 403,
+      reason: "execute_action_conversation_access_denied",
+      conversationId: payload.conversationId,
+    });
     return jsonResponse(req, { error: "Conversation access denied" }, 403);
   }
 
@@ -3130,6 +3206,10 @@ export async function handleRequest(req: Request): Promise<Response> {
     return jsonResponse(req, { error: "Server configuration error" }, 500);
   }
 
+  let rejectionClient: PersistenceClient | null = null;
+  let rejectionContext: UserContext | null = null;
+  let rejectionConversationId: string | null = null;
+
   try {
     const userClient = createClient(envConfig.supabaseUrl, envConfig.anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -3138,6 +3218,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       envConfig.supabaseUrl,
       envConfig.serviceRoleKey,
     );
+    rejectionClient = serviceClient;
 
     const {
       data: { user },
@@ -3152,8 +3233,15 @@ export async function handleRequest(req: Request): Promise<Response> {
     const context = await resolveUserContext(userClient, user.id, userMetadata);
 
     if (!context) {
+      // No tenant resolved, so there is no tenant to attribute a
+      // bloom_audit_log row to (tenant_id is NOT NULL). Log for function logs.
+      console.error(
+        "[bloom-assist] Request rejected: tenant membership required",
+        JSON.stringify({ user_id: user.id, stage: "access_denied" }),
+      );
       return jsonResponse(req, { error: "Tenant membership required" }, 403);
     }
+    rejectionContext = context;
 
     let rawBody: unknown;
     try {
@@ -3167,6 +3255,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       if (!parsedExecuteAction.ok) {
         return jsonResponse(req, { error: parsedExecuteAction.message }, 400);
       }
+      rejectionConversationId = parsedExecuteAction.value.conversationId;
 
       return await createExecuteActionResponse(
         req,
@@ -3182,6 +3271,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       if (!parsedApproval.ok) {
         return jsonResponse(req, { error: parsedApproval.message }, 400);
       }
+      rejectionConversationId = parsedApproval.value.conversation_id;
 
       const conversation = await validateConversationOwnership(
         serviceClient,
@@ -3191,6 +3281,12 @@ export async function handleRequest(req: Request): Promise<Response> {
       );
 
       if (!conversation) {
+        await recordRequestRejection(serviceClient, context, {
+          stage: "access_denied",
+          status: 403,
+          reason: "task_approval_conversation_access_denied",
+          conversationId: parsedApproval.value.conversation_id,
+        });
         return jsonResponse(req, { error: "Conversation access denied" }, 403);
       }
 
@@ -3222,6 +3318,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (!parsedBody.ok) {
       return jsonResponse(req, { error: parsedBody.message }, 400);
     }
+    rejectionConversationId = parsedBody.value.conversation_id ?? null;
 
     const rateLimit = await checkRateLimit(
       context.tenantId,
@@ -3279,6 +3376,12 @@ export async function handleRequest(req: Request): Promise<Response> {
 
       if (!conversation) {
         releaseReservedRateLimit();
+        await recordRequestRejection(serviceClient, context, {
+          stage: "access_denied",
+          status: 403,
+          reason: "conversation_access_denied",
+          conversationId: sanitizedBody.conversation_id,
+        });
         return jsonResponse(req, { error: "Conversation access denied" }, 403);
       }
     }
@@ -3309,6 +3412,14 @@ export async function handleRequest(req: Request): Promise<Response> {
   } catch (error) {
     releaseReservedRateLimit();
     console.error("[bloom-assist] Request failed", toErrorMessage(error));
+    if (rejectionClient && rejectionContext) {
+      await recordRequestRejection(rejectionClient, rejectionContext, {
+        stage: "request_failed",
+        status: 500,
+        reason: toErrorMessage(error).slice(0, 300),
+        conversationId: rejectionConversationId,
+      });
+    }
     return jsonResponse(req, { error: "Internal server error" }, 500);
   }
 }

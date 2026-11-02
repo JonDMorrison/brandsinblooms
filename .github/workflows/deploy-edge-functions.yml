@@ -83,10 +83,13 @@ jobs:
             | node scripts/find-affected-edge-functions.mjs \
             >> "$GITHUB_OUTPUT"
 
+      # Pinned. 'latest' moved to CLI 3.0.0 on 2026-11-02 and silently changed
+      # deploy behaviour (the hosted-project confirmation answered by --yes
+      # below). Upgrade on purpose, in its own PR, and watch the first deploy.
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.0.0
 
       - name: Validate Supabase config
         run: |
