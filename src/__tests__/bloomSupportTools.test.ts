@@ -76,13 +76,26 @@ function context(opts: {
   dataClient?: unknown;
   approved?: boolean;
   role?: string;
+  serviceTables?: (table: string, calls: Array<[string, unknown[]]>) => Response | undefined;
+  serviceLog?: Array<{ table: string; calls: Array<[string, unknown[]]> }>;
 }): ToolExecutionContext {
-  const service = client((table) => {
+  const service = client((table, calls) => {
+    const custom = opts.serviceTables?.(table, calls);
+    if (custom) return custom;
     if (table === "users") return { data: { email: "jon@example.com", full_name: "Jon", tenant_id: opts.ownTenant === undefined ? OWN_TENANT : opts.ownTenant }, error: null };
     if (table === "tenants") return { data: { name: "Brands in Blooms" }, error: null };
     if (table === "bloom_tool_executions") return opts.failedRuns ?? { data: [], error: null };
     return { data: null, error: { message: `unexpected table ${table}` } };
   });
+  const serviceLog = opts.serviceLog;
+  if (serviceLog) {
+    const from = service.client.from;
+    service.client.from = (table: string) => {
+      const builder = from(table);
+      serviceLog.push(service.log[service.log.length - 1]);
+      return builder;
+    };
+  }
   return {
     tenantId: opts.tenantId ?? CLIENT_TENANT,
     authenticatedTenantId: opts.tenantId ?? CLIENT_TENANT,
@@ -258,6 +271,22 @@ describe("run_self_diagnostics", () => {
       expect(entry.calls.some(([m]) => m === "abortSignal"), entry.table).toBe(true);
     }
     for (const c of checks) expect(c.plain_message).not.toMatch(/—/);
+  });
+
+  it("sees POS and email failures for the client company an admin is working in, including partly failed email batches", async () => {
+    const serviceLog: Array<{ table: string; calls: Array<[string, unknown[]]> }> = [];
+    const serviceTables = (table: string) =>
+      table === "pos_sync_jobs" || table === "email_send_jobs" ? { data: null, error: null, count: 2 } : undefined;
+    const result = await runSelfDiagnostics({ area: "all" }, context({ dataClient: client(() => ({ data: null, error: null, count: 0 })).client, serviceTables, serviceLog }), { now });
+    const byId = Object.fromEntries((result.data as { checks: Array<{ id: string; status: string; evidence: { count: number | null } }> }).checks.map((c) => [c.id, c]));
+    expect(byId.pos_sync_failures).toMatchObject({ status: "warn", evidence: { count: 2 } });
+    expect(byId.email_send_failures).toMatchObject({ status: "warn", evidence: { count: 2 } });
+    const email = serviceLog.find((e) => e.table === "email_send_jobs");
+    expect(email?.calls).toContainEqual(["or", ["status.eq.failed,emails_failed.gt.0"]]);
+    for (const table of ["pos_sync_jobs", "email_send_jobs"]) {
+      const entry = serviceLog.find((e) => e.table === table);
+      expect(entry?.calls).toContainEqual(["eq", ["tenant_id", CLIENT_TENANT]]);
+    }
   });
 
   it("only runs the checks for the requested area", async () => {

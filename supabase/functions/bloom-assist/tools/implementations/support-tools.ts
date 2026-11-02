@@ -593,8 +593,11 @@ const CHECKS: CheckDefinition[] = [
     id: "pos_sync_failures",
     area: "pos_sync",
     areas: ["pos_sync"],
-    run: async ({ client, context, signal, now }) => {
-      const count = countOf(await client.from("pos_sync_jobs").select("id", { count: "exact", head: true })
+    // Service client with an explicit tenant filter: row security on this
+    // table only shows a user's home company, so an admin working in a client
+    // workspace would otherwise always see "no failures".
+    run: async ({ context, signal, now }) => {
+      const count = countOf(await context.serviceClient.from("pos_sync_jobs").select("id", { count: "exact", head: true })
         .eq("tenant_id", context.tenantId).eq("status", "failed")
         .gte("created_at", new Date(now.getTime() - DAY_MS).toISOString())
         .abortSignal(signal) as QueryResponse);
@@ -611,16 +614,18 @@ const CHECKS: CheckDefinition[] = [
     id: "email_send_failures",
     area: "email_sending",
     areas: ["email_sending"],
-    run: async ({ client, context, signal, now }) => {
-      const count = countOf(await client.from("email_send_jobs").select("id", { count: "exact", head: true })
-        .eq("tenant_id", context.tenantId).eq("status", "failed")
+    // Same row-security reason as the POS check. A batch can complete with
+    // some failed recipients, so count failed batches and partial failures.
+    run: async ({ context, signal, now }) => {
+      const count = countOf(await context.serviceClient.from("email_send_jobs").select("id", { count: "exact", head: true })
+        .eq("tenant_id", context.tenantId).or("status.eq.failed,emails_failed.gt.0")
         .gte("created_at", new Date(now.getTime() - DAY_MS).toISOString())
         .abortSignal(signal) as QueryResponse);
       return {
         status: count > 0 ? "warn" : "ok",
         plain_message: count > 0
-          ? `${count} email sending batch${count === 1 ? "" : "es"} failed in the last 24 hours.`
-          : "No email sending batches failed in the last 24 hours.",
+          ? `${count} email sending batch${count === 1 ? "" : "es"} had failed emails in the last 24 hours.`
+          : "No email sending batches had failed emails in the last 24 hours.",
         evidence: { count, as_of: now.toISOString() },
       };
     },
