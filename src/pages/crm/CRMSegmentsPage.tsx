@@ -231,10 +231,13 @@ export function CRMSegmentsPage() {
   }, [allSegments]);
 
   React.useEffect(() => {
+    // Never restore built-in groups from a failed or partial load: an empty
+    // list after an error is not proof the groups are missing.
     if (
       !tenantId ||
       !userId ||
       isLoading ||
+      error ||
       missingSystemDefinitions.length === 0
     ) {
       return;
@@ -258,21 +261,19 @@ export function CRMSegmentsPage() {
       setIsHydratingSystemSegments(true);
 
       try {
-        const { error: insertError } = await supabase
-          .from("crm_segments")
-          .insert(
-            missingSystemDefinitions.map((segment) => ({
-              tenant_id: tenantId,
-              user_id: userId,
+        // Server-side, locked and idempotent: creates only groups that do not
+        // already exist, even when several tabs or remounts race.
+        const { error: insertError } = await supabase.rpc(
+          "ensure_system_segments",
+          {
+            p_tenant_id: tenantId,
+            p_segments: missingSystemDefinitions.map((segment) => ({
               name: segment.name,
               description: segment.description,
-              auto_update: true,
               conditions: segment.conditions,
-              status: "active",
-              is_system_segment: true,
-              customer_count: 0,
             })),
-          );
+          },
+        );
 
         if (insertError) {
           throw insertError;
@@ -304,6 +305,7 @@ export function CRMSegmentsPage() {
       cancelled = true;
     };
   }, [
+    error,
     evaluateSegments,
     isHydratingSystemSegments,
     isLoading,

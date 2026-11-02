@@ -76,7 +76,7 @@ export const SYSTEM_SEGMENTS: SegmentDefinition[] = [
     is_system: true,
     conditions: {
       rules: [
-        { field: 'created_at', operator: 'within_days', value: 30 }
+        { field: 'first_purchase_date', operator: 'within_days', value: 30 }
       ],
       logic: 'AND'
     },
@@ -110,12 +110,12 @@ export const SYSTEM_SEGMENTS: SegmentDefinition[] = [
   {
     id: 'frequent-buyers',
     name: 'Frequent Buyers',
-    description: 'Customers with 3+ purchases in the last 6 months',
+    description: 'Customers with 3 or more recorded purchases',
     icon: 'shopping',
     is_system: true,
     conditions: {
       rules: [
-        { field: 'order_count', operator: '>=', value: 3 }
+        { field: 'pos_order_count', operator: '>=', value: 3 }
       ],
       logic: 'AND'
     },
