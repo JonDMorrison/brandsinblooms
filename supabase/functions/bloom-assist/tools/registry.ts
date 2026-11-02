@@ -1631,7 +1631,7 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "read_suite_data",
     description:
-      "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, or a sales summary for a date range (up to 93 days). Read-only. Access depends on the person's own Bloom Support permissions; if Bloom says there is no access or no connection, tell the user plainly and do not retry.",
+      "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, a sales summary for a date range (up to 93 days), or one product variant's price changes (who changed it and when). Read-only. Access depends on the person's own Bloom Support permissions; if Bloom says there is no access or no connection, tell the user plainly and do not retry.",
     parameters: objectSchema(
       {
         kind: stringSchema("Which data to read.", { enum: SUITE_READ_KINDS }),
@@ -1639,6 +1639,7 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
         pos_tenant_id: stringSchema("POS business id, only when the company has more than one."),
         store_id: stringSchema("POS store id, when the business has several stores."),
         q: stringSchema("Product name or SKU to search for (POS products and stock)."),
+        variant_id: stringSchema("POS product variant id, for price history. Find it with pos.products first."),
         from: stringSchema("Sales summary start date, YYYY-MM-DD."),
         to: stringSchema("Sales summary end date, YYYY-MM-DD."),
       },

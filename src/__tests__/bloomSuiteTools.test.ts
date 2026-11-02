@@ -74,3 +74,9 @@ describe("Bloom reads the website and point of sale through Support permissions"
     expect(explainReadFailure("site.read", new SupportRpcError("42501", "forbidden: account"))).toContain("could not connect your sign-in");
   });
 });
+
+describe("POS price history is a read like the others", () => {
+  it("forwards only the variant and business", () => {
+    expect(pickInputs("pos.price_history", { variant_id: "v-1", store_id: "ignored", q: "x" })).toEqual({ variant_id: "v-1" });
+  });
+});

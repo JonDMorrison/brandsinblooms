@@ -25,6 +25,7 @@ export const SUITE_READ_KINDS = [
   "pos.products",
   "pos.inventory",
   "pos.sales_summary",
+  "pos.price_history",
 ] as const;
 export type SuiteReadKind = (typeof SUITE_READ_KINDS)[number];
 
@@ -38,6 +39,7 @@ const KIND_LABEL: Record<SuiteReadKind, string> = {
   "pos.products": "point of sale products",
   "pos.inventory": "point of sale stock levels",
   "pos.sales_summary": "point of sale sales summary",
+  "pos.price_history": "point of sale price history",
 };
 
 /** Only these input fields are forwarded. Everything else the model sends is dropped. */
@@ -48,6 +50,7 @@ const ALLOWED_INPUTS: Record<SuiteReadKind, readonly string[]> = {
   "pos.products": ["pos_tenant_id", "q"],
   "pos.inventory": ["pos_tenant_id", "store_id", "q"],
   "pos.sales_summary": ["pos_tenant_id", "store_id", "from", "to"],
+  "pos.price_history": ["pos_tenant_id", "variant_id"],
 };
 
 export type RunRead = (

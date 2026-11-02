@@ -12,7 +12,7 @@ import { campaignMutationImplementation } from "../../bloom-assist/tools/impleme
 import type { ToolExecutionContext } from "../../bloom-assist/tools/types.ts";
 
 export const READ_OPERATIONS = new Set([
-  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary",
+  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history",
 ]);
 export const WRITE_OPERATIONS = new Set([
   "campaign.create_draft", "campaign.update_draft", "campaign.schedule", "campaign.unschedule",
@@ -164,6 +164,7 @@ export async function runRead(caller: Caller, req: OperationRequest): Promise<un
     case "pos.products":
     case "pos.inventory":
     case "pos.sales_summary":
+    case "pos.price_history":
       result = await callProduct("pos", req.kind, { pos_tenant_id: linkFor(account, "pos", inputs), inputs, actor: actorFacts(caller) });
       break;
   }
