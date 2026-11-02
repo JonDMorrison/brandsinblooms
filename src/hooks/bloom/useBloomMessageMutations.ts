@@ -45,6 +45,7 @@ import {
   type BloomMessagesPage,
 } from "@/hooks/bloom/useBloomMessages";
 import type { BloomConversation } from "@/hooks/bloom/types";
+import { bloomChatClientContext } from "@/lib/bloomSupport/api";
 
 interface SendMessageInput {
   conversationId: string;
@@ -787,6 +788,7 @@ export function useBloomMessageMutations(
           retry_task_id: retryTaskId,
           mode,
           timezone,
+          client_context: bloomChatClientContext(),
         },
         handlers,
       );

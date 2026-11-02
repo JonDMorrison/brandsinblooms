@@ -1,5 +1,6 @@
 import { loyaltyProgrammeTools } from "./loyalty-programme-registry.ts";
 import { customerExplorationTools, addIntelligenceScopeParameters } from "./customer-exploration-registry.ts";
+import { DIAGNOSTIC_AREAS } from "./implementations/support-tools.ts";
 import type { BloomMode, JsonArray, JsonObject } from "../types.ts";
 import type {
   IntentClassification,
@@ -37,6 +38,14 @@ const IMAGE_MODES: BloomMode[] = ["image"];
 const NAVIGATION_MODES: BloomMode[] = ["standard", "reasoning", "research"];
 const SORT_ORDERS = ["asc", "desc"] as const;
 const EXPORT_FORMATS = ["csv", "json"] as const;
+const SUPPORT_KIND_HINTS = [
+  "question",
+  "bug",
+  "change",
+  "feature",
+  "other",
+] as const;
+const SUPPORT_URGENCIES = ["normal", "high"] as const;
 const CONTENT_TYPES = [
   "email_body",
   "subject_lines",
@@ -1552,6 +1561,71 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     requiresConfirmation: false,
     allowedRoles: ALL_ROLES,
     allowedModes: STANDARD_REASONING,
+  }),
+  defineTool({
+    name: "report_support_problem",
+    description:
+      "Send a problem report to the Bloom support team (a person) when something in BloomSuite seems broken, wrong or confusing, or the user asks for help from support. Run run_self_diagnostics first when something seems broken. Bloom attaches technical details automatically; describe only what the user saw.",
+    parameters: objectSchema(
+      {
+        subject: stringSchema("Short plain title for the problem.", {
+          maxLength: 120,
+        }),
+        what_happened: stringSchema(
+          "What the user saw or tried, in their own plain words, including what you already checked.",
+          { minLength: 10, maxLength: 4000 },
+        ),
+        expected: stringSchema("What the user expected to happen.", {
+          maxLength: 2000,
+        }),
+        kind_hint: stringSchema("Best guess at the kind of request.", {
+          enum: SUPPORT_KIND_HINTS,
+        }),
+        urgency: stringSchema(
+          "Use high only when the user cannot do their work at all.",
+          { enum: SUPPORT_URGENCIES },
+        ),
+      },
+      ["what_happened"],
+    ),
+    category: "mutation",
+    riskLevel: "low",
+    requiresConfirmation: true,
+    allowedRoles: ALL_ROLES,
+    allowedModes: STANDARD_REASONING,
+  }),
+  defineTool({
+    name: "check_support_request",
+    description:
+      "Check the status of the company's Bloom support requests. Give ticket_number for one request, or leave it out to list open requests.",
+    parameters: objectSchema({
+      ticket_number: integerSchema("Support request number, like 1042.", {
+        minimum: 1,
+      }),
+    }),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
+    name: "run_self_diagnostics",
+    description:
+      "Run read-only health checks on this company's BloomSuite data when the user says something is broken, missing or wrong: customers and purchase data, imports, segments, point-of-sale sync, email sending and recent Bloom failures. Changes nothing.",
+    parameters: objectSchema(
+      {
+        area: stringSchema("Which area to check. Use all when unsure.", {
+          enum: DIAGNOSTIC_AREAS,
+        }),
+      },
+      ["area"],
+    ),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
   }),
 ];
 

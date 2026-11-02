@@ -18,7 +18,8 @@ import Link from "@mui/joy/Link";
 import { Bot, Lock, Paperclip, User, Wrench } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
-  bloomSupport, KIND_LABEL, PRODUCT_LABEL, STATUS_LABEL, WAITING_LABEL, type SupportStatus, type TicketDetail, type TicketMessage, type WaitingReason, type Whoami,
+  bloomSupport, KIND_LABEL, PRODUCT_LABEL, readBloomDiagnostics, STATUS_LABEL, WAITING_LABEL,
+  type BloomDiagnostics, type SupportStatus, type TicketDetail, type TicketMessage, type WaitingReason, type Whoami,
 } from "@/lib/bloomSupport/api";
 import { StatusChip, PriorityChip, AutomationChip } from "./chips";
 import { statusPatch } from "./statusPatch";
@@ -45,6 +46,44 @@ function Bubble({ m }: { m: TicketMessage }) {
       </Stack>
       <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</Typography>
     </Sheet>
+  );
+}
+
+/** What Bloom attached when it filed this ticket from chat. Staff only. */
+function BloomDiagnosticsSection({ d }: { d: BloomDiagnostics }) {
+  const row = (label: string, value: string | null) =>
+    value ? <Typography level="body-xs"><strong>{label}:</strong> {value}</Typography> : null;
+  return (
+    <>
+      <Divider />
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+        <Bot size={14} aria-hidden />
+        <Typography level="title-sm">Diagnostics from Bloom</Typography>
+        {d.filedByStaff && <Chip size="sm" variant="soft" color="primary">{d.adminWorkspace ? "Filed by staff in client workspace" : "Filed by staff"}</Chip>}
+      </Stack>
+      <Sheet variant="soft" sx={{ p: 1, borderRadius: "sm" }}>
+        <Stack spacing={0.25}>
+          {row("Company", d.company)}
+          {row("Page", d.route)}
+          {row("Screen", d.viewport)}
+          {row("Browser", d.userAgent)}
+          {row("Captured", d.capturedAt ? formatDistanceToNow(new Date(d.capturedAt), { addSuffix: true }) : null)}
+          {row("Bloom conversation", d.conversationId)}
+        </Stack>
+      </Sheet>
+      <Typography level="body-xs" fontWeight="lg">Failed Bloom requests (24 hours before the report)</Typography>
+      {d.failedRunsStatus === "unknown" ? (
+        <Typography level="body-xs" color="warning">Bloom could not read these when the report was sent.</Typography>
+      ) : d.failedRuns.length === 0 ? (
+        <Typography level="body-xs" textColor="text.secondary">None.</Typography>
+      ) : (
+        d.failedRuns.map((r, i) => (
+          <Typography key={`${r.tool}-${r.at ?? i}`} level="body-xs" color="danger" sx={{ wordBreak: "break-word" }}>
+            {r.tool}{r.at ? ` · ${formatDistanceToNow(new Date(r.at), { addSuffix: true })}` : ""}{r.error ? `: ${r.error}` : ""}
+          </Typography>
+        ))
+      )}
+    </>
   );
 }
 
@@ -86,6 +125,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
   const t = q.data;
   const lastClientId = t ? [...t.messages].reverse().find((m) => m.author_kind === "client")?.id : undefined;
   const conversationNumbers = useMemo(() => new Map((t?.conversation_tickets ?? []).map((c) => [c.id, c.number])), [t]);
+  const bloomDiagnostics = useMemo(() => readBloomDiagnostics(t?.context), [t?.context]);
   if (q.isLoading) return <Stack spacing={1} sx={{ p: 2 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={240} /></Stack>;
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
@@ -350,6 +390,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
                 ))}
               </>
             )}
+            {bloomDiagnostics && <BloomDiagnosticsSection d={bloomDiagnostics} />}
             {t.context && Object.keys(t.context).length > 0 && (
               <>
                 <Divider />

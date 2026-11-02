@@ -1,4 +1,5 @@
 import type {
+  BloomClientContext,
   BloomMode,
   JsonArray,
   JsonObject,
@@ -251,7 +252,10 @@ export type ToolName =
   | "generate_image"
   | "navigate_to"
   | "export_data"
-  | "compute_audience_size";
+  | "compute_audience_size"
+  | "report_support_problem"
+  | "check_support_request"
+  | "run_self_diagnostics";
 
 export type ToolDefinition = OpenAIToolDefinition & {
   function: OpenAIToolDefinition["function"] & {
@@ -308,6 +312,8 @@ export type ToolExecutionContext = OrchestratorContext & {
   serviceClient: PersistenceClient;
   dataClient?: PersistenceClient;
   approved?: boolean;
+  /** Browser route, user agent and viewport, when the client sent them. */
+  clientContext?: BloomClientContext | null;
 };
 
 export type ToolImplementation = (
