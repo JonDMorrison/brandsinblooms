@@ -20,7 +20,21 @@ type NavigateTarget =
   | "segment_detail"
   | "integrations"
   | "analytics"
-  | "settings";
+  | "settings"
+  | "customer_import"
+  | "team_settings"
+  | "billing"
+  | "customer_intelligence";
+
+/** Mirrors INTELLIGENCE_VIEWS in src/lib/customer-intelligence/intelligenceExperience.ts. */
+export const CUSTOMER_INTELLIGENCE_VIEWS = [
+  "overview",
+  "explore",
+  "growth",
+  "rewards",
+  "data",
+] as const;
+type CustomerIntelligenceView = (typeof CUSTOMER_INTELLIGENCE_VIEWS)[number];
 
 type CustomerNavigationRow = Pick<
   Database["public"]["Tables"]["crm_customers"]["Row"],
@@ -43,7 +57,7 @@ type NavigationTargetConfig = {
   defaultLabel: string;
   description: string;
   requiresEntityId: boolean;
-  path: (entityId: string | null) => string | null;
+  path: (entityId: string | null, view: CustomerIntelligenceView) => string | null;
 };
 
 const NAVIGATION_TARGETS: Record<NavigateTarget, NavigationTargetConfig> = {
@@ -119,7 +133,40 @@ const NAVIGATION_TARGETS: Record<NavigateTarget, NavigationTargetConfig> = {
     requiresEntityId: false,
     path: () => "/settings",
   },
+  customer_import: {
+    defaultLabel: "Import customers",
+    description: "Open the customer list with the import window ready.",
+    requiresEntityId: false,
+    path: () => "/crm/customers?import=1",
+  },
+  team_settings: {
+    defaultLabel: "Locations and team",
+    description: "Open settings for locations, team members and their access.",
+    requiresEntityId: false,
+    path: () => "/settings?tab=organization",
+  },
+  billing: {
+    defaultLabel: "Account and billing",
+    description: "Open account, plan and billing settings.",
+    requiresEntityId: false,
+    path: () => "/settings?tab=account",
+  },
+  customer_intelligence: {
+    defaultLabel: "Customer Intelligence",
+    description: "Open Customer Intelligence.",
+    requiresEntityId: false,
+    path: (_entityId, view) =>
+      view === "overview"
+        ? "/crm/intelligence"
+        : `/crm/intelligence?view=${view}`,
+  },
 };
+
+function readIntelligenceView(value: unknown): CustomerIntelligenceView {
+  return CUSTOMER_INTELLIGENCE_VIEWS.includes(value as CustomerIntelligenceView)
+    ? (value as CustomerIntelligenceView)
+    : "overview";
+}
 
 function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
@@ -249,7 +296,7 @@ async function loadEntityNavigationLabel(args: {
   }
 }
 
-const navigateTo: ToolImplementation = async (
+export const navigateTo: ToolImplementation = async (
   params: JsonObject,
   context: ToolExecutionContext,
 ): Promise<ToolResult> => {
@@ -271,7 +318,7 @@ const navigateTo: ToolImplementation = async (
     );
   }
 
-  const path = config.path(entityId);
+  const path = config.path(entityId, readIntelligenceView(params.view));
   if (!path) {
     return errorResult(
       `Bloom could not resolve a path for ${formatTargetLabel(target)}.`,

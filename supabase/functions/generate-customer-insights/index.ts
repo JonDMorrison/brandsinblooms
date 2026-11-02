@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { buildPurchaseBehaviorLines } from "./purchase-lines.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -225,10 +226,7 @@ serve(async (req) => {
 - Fatigue status: ${crossChannel?.fatigue_status || "Normal"}
 
 **Purchase Behavior:**
-- Lifetime value: ${purchaseMetrics?.lifetime_value ? "$" + purchaseMetrics.lifetime_value.toFixed(2) : "N/A"}
-- Total orders: ${purchaseMetrics?.total_purchases || 0}
-- Average order value: ${purchaseMetrics?.average_order_value ? "$" + purchaseMetrics.average_order_value.toFixed(2) : "N/A"}
-- Days since last purchase: ${purchaseMetrics?.days_since_last_purchase || "N/A"}
+${buildPurchaseBehaviorLines(purchaseMetrics).join("\n")}
 
 **Content Preferences:**
 - Intent score: ${contentIntent?.intent_score || "N/A"}
@@ -251,7 +249,7 @@ Provide your analysis in the following JSON format. Be specific and actionable:`
 - Phone: ${customer.phone || "Not provided"}
 - Customer since: ${customer.created_at}
 
-There's no engagement or purchase history available yet.
+No engagement or purchase history is on file yet. That is unknown, not proof they have never bought.
 
 Provide recommendations for:
 1. How to build a relationship with this customer

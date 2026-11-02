@@ -20,16 +20,22 @@ function readFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function formatCurrency(value: number | null): string | null {
+// Never assume a currency. Without a known ISO code, show the plain amount.
+function formatCurrency(
+  value: number | null,
+  currency: string | null = null,
+): string | null {
   if (value === null) {
     return null;
   }
 
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+  const code = currency?.toUpperCase() ?? null;
+  return new Intl.NumberFormat(
+    "en-US",
+    code && /^[A-Z]{3}$/.test(code)
+      ? { style: "currency", currency: code, maximumFractionDigits: 0 }
+      : { maximumFractionDigits: 0 },
+  ).format(value);
 }
 
 function formatInteger(value: number | null): string | null {
@@ -105,7 +111,10 @@ function buildProductSummary(
   record: EntityRecord,
   entityId: string,
 ): EntitySummary {
-  const price = formatCurrency(readFiniteNumber(record.price));
+  const price = formatCurrency(
+    readFiniteNumber(record.price),
+    readString(record.currency),
+  );
   const status = readString(record.status);
   const inventoryCount = formatInteger(
     readFiniteNumber(record.inventory_count),
@@ -138,7 +147,7 @@ function buildCampaignSummary(
     entityId,
     name: readString(record.name) || fallbackName("Campaign", entityId),
     summaryText: joinSummaryParts([
-      subjectLine ? `subject \"${subjectLine}\"` : null,
+      subjectLine ? `subject "${subjectLine}"` : null,
       status ? `status ${status}` : null,
       audienceSize ? `${audienceSize} audience size` : null,
     ]),
@@ -210,7 +219,7 @@ async function fetchProductSummary(
 ): Promise<EntitySummary | null> {
   const { data, error } = await serviceClient
     .from("products")
-    .select("id, name, price, status, inventory_count, tenant_id")
+    .select("id, name, price, currency, status, inventory_count, tenant_id")
     .eq("id", entityId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
