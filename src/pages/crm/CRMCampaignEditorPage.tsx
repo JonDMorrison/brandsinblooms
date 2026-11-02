@@ -573,6 +573,7 @@ function CampaignEditorScreen() {
     updateContent,
     updateSchedule,
     saveDraft,
+    isTenantReady,
   } = useCampaignEditor();
 
   const audienceHealthQuery = useCampaignAudienceHealth({
@@ -974,7 +975,7 @@ function CampaignEditorScreen() {
     // Until the company is known, a save would fall back to the signed-in
     // user's own company (wrong for admins working in a client account, and
     // refused by the server). The card stays disabled until then.
-    if (!tenant?.id) {
+    if (!isTenantReady) {
       return;
     }
 
@@ -993,7 +994,7 @@ function CampaignEditorScreen() {
     }
 
     navigate(`/crm/campaigns/${nextCampaignId}/studio`);
-  }, [campaignId, campaignType, isLocked, navigate, saveDraft, tenant?.id]);
+  }, [campaignId, campaignType, isLocked, isTenantReady, navigate, saveDraft]);
 
   const handleScheduleForLater = React.useCallback(() => {
     setScheduleOpen(true);
@@ -1731,14 +1732,14 @@ function CampaignEditorScreen() {
             <StudioCtaCard
               onOpen={handleOpenStudio}
               disabled={
-                isLocked || Boolean(pendingTemplateSave) || !tenant?.id
+                isLocked || Boolean(pendingTemplateSave) || !isTenantReady
               }
               disabledReason={
                 isLocked
                   ? "This campaign has already been sent"
                   : pendingTemplateSave
                     ? "Your template is being saved"
-                    : !tenant?.id
+                    : !isTenantReady
                       ? "Loading your garden centre"
                       : undefined
               }
