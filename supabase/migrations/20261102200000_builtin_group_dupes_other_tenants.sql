@@ -40,6 +40,9 @@ BEGIN
     UNION ALL SELECT 1 FROM public.crm_automations a JOIN _dupes d
       ON a.trigger_conditions->>'segment_id' = d.id::text
       OR a.flow_state->'nodes'->0->'data'->'conditions'->>'segment_id' = d.id::text
+    -- A live group whose rule uses segment membership of a duplicate.
+    UNION ALL SELECT 1 FROM public.crm_segments s JOIN _dupes d
+      ON s.id <> d.id AND s.deleted_at IS NULL AND s.conditions::text LIKE '%' || d.id::text || '%'
   ) THEN
     RAISE EXCEPTION 'A duplicate built-in group is still referenced; repoint it before archiving';
   END IF;

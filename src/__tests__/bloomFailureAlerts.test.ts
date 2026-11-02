@@ -150,6 +150,7 @@ describe("built-in group cleanup for other companies", () => {
     expect(sql.indexOf("UPDATE public.crm_campaigns")).toBeLessThan(sql.indexOf("UPDATE public.crm_segments s"));
     expect(sql).toContain("SET deleted_at = now(), status = 'archived'");
     expect(sql).not.toMatch(/DELETE FROM public\.crm_segments/);
+    expect(sql).toContain("s.conditions::text LIKE '%' || d.id::text || '%'");
   });
   it("makes the watchdog ignore memberships held only by archived groups", () => {
     expect(sql).toContain("live_s.deleted_at IS NULL");
