@@ -5,7 +5,6 @@ import {loadReportLedger, loadSummaryRows} from './load-reported-evidence.ts';
 import {legacySummaryCertificate, verifyLegacySummarySnapshot} from './legacy-summary-evidence.ts';
 import {currentSummaryImports, periodSummaryFacts, type PeriodSummaryEvent} from './period-summary.ts';
 import {idealEvidenceTimestamp} from './ideal-metric-projection.ts';
-import {readAllPages} from './query-pages.ts';
 
 /**
  * Company-wide product search without reading every report row.
@@ -45,6 +44,27 @@ export function productSearchTerms(rule: PurchaseRule): string[] | null {
   return [term];
 }
 
+type Identity = {id: string; tenant_id: string; external_id: string | null};
+/**
+ * Every live customer's code, read by ID cursor. Offset paging re-scans every
+ * earlier row per page and timed out on the last pages of a 48,000-customer company.
+ */
+export async function readCustomerIdentities(client: PersistenceClient, tenantId: string, pageSize = 1000, maximum = 250000): Promise<Identity[]> {
+  const rows: Identity[] = [];
+  let after: string | null = null;
+  for (;;) {
+    let query = client.from('crm_customers').select('id,tenant_id,external_id').eq('tenant_id', tenantId).is('deleted_at', null).is('merged_into_customer_id', null);
+    if (after) query = query.gt('id', after);
+    const {data, error} = await query.order('id').range(0, pageSize - 1);
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as Identity[];
+    if (rows.length + page.length > maximum) throw new Error(`The analysis exceeds the ${maximum.toLocaleString()}-record safety limit. No partial total was returned.`);
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+    after = page[page.length - 1].id;
+  }
+}
+
 interface CandidateEvent extends PeriodSummaryEvent { external_customer_code?: string | null; }
 
 export interface ProductSearchFacts { facts: PurchaseFact[]; evidenceCustomerIds: Set<string>; }
@@ -71,7 +91,7 @@ export async function loadProductSearchFacts(
       const rows = (await loadSummaryRows(client, tenantId, cutoff, parent.id)).filter(row => row.import_id === parent.id);
       const certificate = legacy.get(parent.id);
       if (certificate) {
-        const identities = await readAllPages<{id: string; tenant_id: string; external_id: string | null}>((from, to) => client.from('crm_customers').select('id,tenant_id,external_id').eq('tenant_id', tenantId).is('deleted_at', null).is('merged_into_customer_id', null).order('id').range(from, to));
+        const identities = await readCustomerIdentities(client, tenantId);
         await verifyLegacySummarySnapshot(rows as (PeriodSummaryEvent & {external_customer_code?: string})[], certificate, identities);
       } else {
         for (const row of rows) checkRowAgainstLedger(row, parent, false);
