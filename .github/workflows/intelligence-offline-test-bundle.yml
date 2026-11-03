@@ -8,27 +8,19 @@ permissions:
 jobs:
   bundle:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - name: Install locked test dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Package source and test dependencies without credentials
+      - name: Package tracked source without credentials or dependencies
         run: |
           set -euo pipefail
-          git archive HEAD > "$RUNNER_TEMP/intelligence-source.tar"
-          tar --exclude='node_modules/onnxruntime-node' --exclude='node_modules/onnxruntime-web' --exclude='node_modules/@huggingface' --exclude='node_modules/supabase' --exclude='node_modules/@img' -rf "$RUNNER_TEMP/intelligence-source.tar" node_modules
-          gzip -1 "$RUNNER_TEMP/intelligence-source.tar"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/intelligence-source.tar.gz"
           ls -lh "$RUNNER_TEMP/intelligence-source.tar.gz"
       - uses: actions/upload-artifact@v4
         with:
-          name: intelligence-offline-test-bundle
+          name: intelligence-source-only
           path: ${{ runner.temp }}/intelligence-source.tar.gz
           retention-days: 1
           compression-level: 0
