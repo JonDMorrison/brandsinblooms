@@ -16,7 +16,7 @@ import type { JsonObject } from "../../supabase/functions/bloom-assist/types";
 const context = { tenantId: "crm-tenant", userId: "user-1", userName: "Ann", serviceClient: {} } as unknown as ToolExecutionContext;
 
 describe("Bloom campaign channel and sender routing contracts", () => {
-  function harness(metadata: JsonObject = { campaignType: "email" }, profileCount = 1) {
+  function harness(metadata: JsonObject = { campaignType: "email" }, profileCount = 1, memberIds = ["user-1"]) {
     let row: JsonObject = {
       id: "0cc95987-2fd9-43ea-96cb-834c876b063e", tenant_id: "crm-tenant",
       name: "Workshop", status: "draft", delivery_method: "custom_domain",
@@ -41,7 +41,7 @@ describe("Bloom campaign channel and sender routing contracts", () => {
             row = { ...row, ...mutation };
           }
           return { data: table === "crm_campaigns" && operation !== "delete" ? row
-            : table === "users" ? [{ id: "user-1" }]
+            : table === "users" ? memberIds.map((id) => ({ id }))
             : table === "company_profiles" ? Array.from({ length: profileCount }, () => ({ company_name: "My Nursery", feature_flags: { company_logo_url: "https://example.com/logo.png" } }))
             : [], error: null };
         };
@@ -91,6 +91,13 @@ describe("Bloom campaign channel and sender routing contracts", () => {
     const h = harness();
     await createCampaign(newsletter, { ...h.context, userId: "outside-admin" });
     expect(h.scopes).toContainEqual(["company_profiles", "user_id", ["user-1"]]);
+  });
+  it("uses the tenant brand for a staff member without their own company profile", async () => {
+    const h = harness(undefined, 1, ["user-1", "staff-member"]);
+    const result = await createCampaign(newsletter, { ...h.context, userId: "staff-member" });
+    expect(result.success).toBe(true);
+    expect(h.scopes).toContainEqual(["company_profiles", "user_id", ["user-1", "staff-member"]]);
+    expect(h.writes[0].content).toContain("My Nursery");
   });
   it("refuses ambiguous brand profiles before saving", async () => {
     const h = harness(undefined, 2);

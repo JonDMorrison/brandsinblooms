@@ -23,10 +23,9 @@ export async function newsletterTemplateMetadata(params: JsonObject, context: To
   if (members.error) throw members.error;
   const ids = (members.data || []).map((member) => member.id);
   if (!ids.length) throw new Error("This account has no brand profile owner.");
-  const ownerIds = ids.includes(context.userId) ? [context.userId] : ids;
   const profiles = await client.from("company_profiles")
     .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
-    .in("user_id", ownerIds).is("deleted_at", null).limit(2);
+    .in("user_id", ids).is("deleted_at", null).limit(2);
   if (profiles.error) throw profiles.error;
   if (!profiles.data?.length) throw new Error("Complete this account's brand profile before creating a branded newsletter.");
   if (profiles.data.length > 1) throw new Error("This account has multiple brand profiles. Create the newsletter in its Design Studio to use the selected brand.");
