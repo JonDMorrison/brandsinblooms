@@ -19,6 +19,8 @@ import {
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   getTemplateForIntent,
+  CAMPAIGN_TEMPLATES,
+  type CampaignTemplate,
   type CampaignIntentKey,
 } from "@/lib/studio/campaignTemplates";
 import type { SavedTemplate } from "@/hooks/useSavedTemplates";
@@ -384,6 +386,7 @@ export interface IntentPickerProps {
   /** Intent keys that have no matching template — rendered as Coming soon. */
   unavailableIntents?: ReadonlySet<CampaignIntentKey>;
   onSelectIntent: (key: CampaignIntentKey) => void;
+  onApplyBuiltInTemplate?: (template: CampaignTemplate) => void;
   onApplySavedTemplate: (template: SavedTemplate) => void;
   onRenameSavedTemplate: (template: SavedTemplate) => void;
   onArchiveSavedTemplate: (template: SavedTemplate) => void;
@@ -397,6 +400,7 @@ export function IntentPicker({
   disabled = false,
   unavailableIntents,
   onSelectIntent,
+  onApplyBuiltInTemplate,
   onApplySavedTemplate,
   onRenameSavedTemplate,
   onArchiveSavedTemplate,
@@ -422,6 +426,26 @@ export function IntentPicker({
           Pick what you want to send. You can edit everything afterward.
         </Typography>
       </Stack>
+
+      {onApplyBuiltInTemplate ? (
+        <Stack spacing={1.5}>
+          <Typography level="title-md">Botanical Editorial collection</Typography>
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            Photographic layouts with your branding. Replace the photos and copy, then save your own version in My templates.
+          </Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
+            {CAMPAIGN_TEMPLATES.filter((template) => template.id.startsWith("botanical-")).map((template) => (
+              <Box key={template.id} sx={{ ...cardBaseSx, cursor: "default" }}>
+                <IntentCardThumbnail template={template} />
+                <Typography level="title-sm">{template.name}</Typography>
+                <JoyButton variant="outlined" color="neutral" disabled={disabled} onClick={() => onApplyBuiltInTemplate(template)}>
+                  Use {template.name}
+                </JoyButton>
+              </Box>
+            ))}
+          </Box>
+        </Stack>
+      ) : null}
 
       {hasSavedTemplates ? (
         <Stack spacing={1.5} data-testid="intent-picker-my-templates">

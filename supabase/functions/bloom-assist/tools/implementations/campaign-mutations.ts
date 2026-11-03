@@ -1,3 +1,4 @@
+import { newsletterTemplateMetadata, validateNewsletterTemplate } from "./newsletter-template.ts";
 import type { Database } from "../../../../../src/integrations/supabase/types.ts";
 import type { JsonArray, JsonObject, JsonValue } from "../../types.ts";
 import type {
@@ -1004,6 +1005,7 @@ async function createCampaignExecution(
     return errorResult("Campaign name is required.", "validation_error");
   }
 
+  const templateDraft = await newsletterTemplateMetadata(params, context);
   const method = campaignChannel(params);
   const audience = await resolveAudienceSelection(context, params);
   const nowIso = new Date().toISOString();
@@ -1022,7 +1024,7 @@ async function createCampaignExecution(
     sender_display_name: senderName(params, context),
     sender_email: email,
     actual_sender_email: email,
-    content: campaignContent(params, method),
+    content: templateDraft.content ?? campaignContent(params, method),
     status: "draft",
     // Let the database use its normal draft sender-routing default. The
     // sending pipeline resolves and validates the actual sender later.
@@ -1034,7 +1036,7 @@ async function createCampaignExecution(
     segment_id: segmentIds[0] ?? null,
     persona_ids: personaIds,
     metadata: buildCampaignMetadata(
-      {},
+      templateDraft.metadata,
       {
         campaignType: method,
         replyTo: email,
@@ -1080,6 +1082,9 @@ async function createCampaignExecution(
 }
 
 export const createCampaign: ToolImplementation = async (params, context) => {
+  try { validateNewsletterTemplate(params); } catch (error) {
+    return errorResult(error instanceof Error ? error.message : "Invalid newsletter brief.", "validation_error");
+  }
   if (shouldExecuteAfterConfirmation(context, "create_campaign", params)) {
     return await createCampaignExecution(params, context);
   }

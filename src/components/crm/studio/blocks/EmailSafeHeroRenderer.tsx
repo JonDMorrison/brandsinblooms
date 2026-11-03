@@ -1,3 +1,4 @@
+import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
 import Box from "@mui/joy/Box";
 import Typography from "@mui/joy/Typography";
 import { formatDraftRichText } from "@/lib/crm/htmlContent";
@@ -116,9 +117,9 @@ function HeroContent({
       <Typography
         sx={{
           mb: hasSubheading || hasBody ? 1 : 0,
-          fontFamily: "var(--studio-font-headline)",
-          fontSize: "28px",
-          fontWeight: 700,
+          fontFamily: block.appearance?.text?.heading?.fontFamily || "var(--studio-font-headline)",
+          fontSize: block.appearance?.text?.heading?.size || "28px",
+          fontWeight: block.appearance?.text?.heading?.weight || 700,
           color: textColor,
           lineHeight: 1.2,
           opacity: hasHeadline ? 1 : 0.4,
@@ -183,6 +184,16 @@ export default function EmailSafeHeroRenderer({
   const textAlign = block.textAlign || "center";
   const alignItems = getAlignItems(textAlign);
   const heroStyle = block.heroStyle || "solid";
+
+  if (heroStyle === "image-overlay" && block.layout === "editorial-panel") {
+    return (
+      <Box sx={{ bgcolor: block.backgroundColor || "#243c32", backgroundImage: block.imageUrl ? `url(${block.imageUrl})` : "none", backgroundSize: "cover", backgroundPosition: getImageObjectPosition(block.imageFocalX, block.imageFocalY), p: "24px", pt: block.imageUrl ? "180px" : "24px" }}>
+        <Box sx={{ bgcolor: block.backgroundColor || "#243c32", p: "24px" }}>
+          <HeroContent block={block} />
+        </Box>
+      </Box>
+    );
+  }
 
   if (heroStyle === "image-overlay") {
     return (

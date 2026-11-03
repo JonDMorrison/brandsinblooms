@@ -34,6 +34,15 @@ function makeSavedTemplate(overrides: Partial<SavedTemplate> = {}): SavedTemplat
 }
 
 describe("IntentPicker", () => {
+  it("offers all Botanical designs and applies the chosen editable template", async () => {
+    const user = userEvent.setup();
+    const onApplyBuiltInTemplate = vi.fn();
+    render(<IntentPicker savedTemplates={[]} {...noopHandlers()} onApplyBuiltInTemplate={onApplyBuiltInTemplate} />);
+    expect(screen.getAllByRole("button", { name: /^Use Botanical/ })).toHaveLength(4);
+    await user.click(screen.getByRole("button", { name: "Use Botanical Event Roundup" }));
+    expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: "botanical-events" }));
+  });
+
   it("renders all six intent cards", () => {
     const handlers = noopHandlers();
     render(<IntentPicker savedTemplates={[]} {...handlers} />);

@@ -1,3 +1,4 @@
+import { BOTANICAL_TEMPLATES, buildBotanicalEditorial } from "./botanicalEditorial.ts";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
 import type { StudioDesignSystem } from "@/lib/studio/designSystem";
 import type { StudioBlock } from "@/types/studioBlocks";
@@ -102,7 +103,7 @@ export function applyCampaignTemplateDesignDefaults(blocks: StudioBlock[]) {
     const isSplitBlock = ["image-text", "event", "blog", "announcement"].includes(
       block.type,
     );
-    const imageSide = splitBlockIndex % 2 === 0 ? "left" : "right";
+    const imageSide: "left" | "right" = splitBlockIndex % 2 === 0 ? "left" : "right";
     if (isSplitBlock) splitBlockIndex += 1;
 
     const rhythmicBlock = isSplitBlock
@@ -369,6 +370,14 @@ function buildEditorialTemplate(
 }
 
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
+  ...BOTANICAL_TEMPLATES.map((template): CampaignTemplate => ({
+    id: template.id, name: template.name,
+    summary: "A photographic opening, readable text panel, clear details and generous imagery. Add your own photos and copy.",
+    season: "evergreen", tags: [...template.tags], accentColor: "#243c32",
+    subjectLine: "", previewText: "",
+    thumbnailBlocks: [{ kind: "newsletter-header" }, { kind: "hero", height: 64 }, { kind: "text" }, { kind: "cta" }, { kind: "product-gallery", height: 40 }, { kind: "footer" }],
+    buildBlocks: (designSystem) => buildBotanicalEditorial(template.id, designSystem),
+  })),
   {
     id: "spring-studio-introduction",
     name: "Spring Studio Introduction",
