@@ -15,19 +15,27 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
   const visible=new Set(population);
   if(set?.included_ids.some(id=>!visible.has(id))) throw new Error('Some members of the saved audience are no longer accessible. Start a new search.');
   const allowed=new Set(set?.included_ids??population);
-  const rows=await readAllPages<RankingRow>((from,to)=>client.from('customer_purchase_intelligence')
+  const loadRows=()=>readAllPages<RankingRow>((from,to)=>client.from('customer_purchase_intelligence')
     .select('customer_id,first_name,last_name,email,lifetime_value,purchase_frequency,days_since_last_purchase,purchase_velocity,total_quantity,departments_shopped,category_spend,department_spend')
     .eq('tenant_id',context.tenantId).order('customer_id').range(from,to));
-  const report=rankCustomerPopulation(rows.filter(row=>allowed.has(row.customer_id)),{
+  const rank=(rows:RankingRow[])=>rankCustomerPopulation(rows.filter(row=>allowed.has(row.customer_id)),{
     dimension:typeof params.dimension==='string'?params.dimension:undefined,
     dimension_value:typeof params.dimension_value==='string'?params.dimension_value:undefined,
     weights:params.weights,limit:typeof params.limit==='number'?params.limit:100,
   });
+  // With the default weights a customer without a lifetime value can never be ranked. When no
+  // customer has one, skip reading every customer's metrics (about a minute for 48,000 customers).
+  let noLifetimeValues=false;
+  if(params.weights===undefined&&(params.bucket===undefined||params.bucket==='ranked')){
+    const probe=await client.from('customer_purchase_metrics').select('customer_id').eq('tenant_id',context.tenantId).not('lifetime_value','is',null).limit(1);
+    noLifetimeValues=!probe.error&&Array.isArray(probe.data)&&probe.data.length===0;
+  }
+  let report=rank(noLifetimeValues?[]:await loadRows());
   // Companies with only imported sales reports have no receipt metrics to rank, so every
   // customer would be "unranked". Rank by reported spending on the named department instead.
   const value=typeof params.dimension_value==='string'?params.dimension_value.trim():'';
   if(report.eligible_customers===0&&report.dimension!=='overall'&&value&&(params.bucket===undefined||params.bucket==='ranked')){
-    const fallback=await exploreCustomerPurchases({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:`Top ${value} shoppers`.slice(0,180),criteria:{mode:'purchased',department:value}},context);
+    const fallback=await exploreCustomerPurchases({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:`Top ${value} shoppers`.slice(0,180),criteria:{mode:'purchased',department:value},top_n:typeof params.limit==='number'?params.limit:100},context);
     const data=fallback.data as Record<string,unknown>|null;
     return {...fallback,data:data?{...data,ranking_basis:'reported_department_spend',
       note:'No dated receipt metrics exist for this company, so customers are ordered by their reported spending in this department from the imported sales reports. 50 per page; use inspect_customer_set for more.'}:data,
@@ -36,13 +44,14 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
   // Same for "top customers" overall: rank by the imported spending report instead of returning nobody.
   if(report.eligible_customers===0&&report.dimension==='overall'&&(params.bucket===undefined||params.bucket==='ranked')){
     try{
-      const fallback=await exploreCustomerReportedSpending({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:'Top customers by reported spending',currency:'CAD'},context);
+      const fallback=await exploreCustomerReportedSpending({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:'Top customers by reported spending',currency:'CAD',top_n:typeof params.limit==='number'?params.limit:100},context);
       const data=fallback.data as Record<string,unknown>|null;
       return {...fallback,data:data?{...data,ranking_basis:'reported_period_spend'}:data,
         message:`${fallback.message} Ordered by reported spending for the report period, largest first.`};
     }catch(error){
       // No spending report either: fall through and show the empty ranking with its reasons.
       if(!(error instanceof Error)||!/no reconciled customer spending report/i.test(error.message))throw error;
+      if(noLifetimeValues)report=rank(await loadRows());
     }
   }
   const bucket=params.bucket??'ranked';

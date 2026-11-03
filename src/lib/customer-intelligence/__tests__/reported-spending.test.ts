@@ -20,6 +20,14 @@ describe('Reported spending audiences',()=>{
   const d=r.data as Record<string,unknown>;expect(d.included_count).toBe(1);expect(d.excluded_count).toBe(1);expect(d.unknown_count).toBe(1);expect(d.period_end).toBe('2026-10-14');expect(saved).toHaveLength(1);
   expect((saved[0] as {payload:{included_ids:string[]}}).payload.included_ids).toEqual(['buyer']);expect(d.rows).toMatchObject([{customer_id:'buyer',reported_period_spend:1000,reported_transactions:2}]);
  });
+ it('saves exactly the top N as the group so "these" means the customers shown',async()=>{
+  const {context,saved}=fixture();const r=await exploreCustomerReportedSpending({scope:'all_customers',label:'Top customers',top_n:1},context);
+  const payload=(saved[0] as {payload:{included_ids:string[];excluded_ids:string[];reasons:Record<string,string>;trail:{top_n?:number;qualifying_customers?:number}[]}}).payload;
+  expect(payload.included_ids).toEqual(['buyer']);
+  expect(payload.excluded_ids).toContain('lower');expect(payload.reasons.lower).toBe('outside_top_n');
+  expect(payload.trail.at(-1)).toMatchObject({top_n:1,qualifying_customers:2});
+  expect((r.data as Record<string,unknown>).included_count).toBe(1);
+ });
  it('requires explicit scope and rejects invalid monetary and transaction thresholds',async()=>{
   const {context}=fixture();await expect(exploreCustomerReportedSpending({label:'test'},context)).rejects.toThrow('starting population');
   await expect(exploreCustomerReportedSpending({scope:'all_customers',minimum_spend:-1},context)).rejects.toThrow('threshold');

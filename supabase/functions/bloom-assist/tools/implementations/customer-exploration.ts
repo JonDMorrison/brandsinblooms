@@ -134,6 +134,16 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
     matched.set(id,{amount:mixed?null:cents/100,quantity:Math.round(quantity*1000)/1000,currency:mixed?null:currency});
   }
   if (matched.size) set.included_ids.sort((a,b)=>(matched.get(b)?.amount??-Infinity)-(matched.get(a)?.amount??-Infinity)||a.localeCompare(b));
+  // "Top 50 Tropical shoppers": keep exactly the top N as the saved group, so a follow-up
+  // about "these" means the customers shown, not every buyer.
+  const topN = params.top_n;
+  if (topN !== undefined) {
+    if (typeof topN !== 'number' || !Number.isInteger(topN) || topN < 1 || topN > 500) throw new Error('Choose a top number from 1 to 500.');
+    if (rule.mode !== 'purchased') throw new Error('A top number only applies to buyers.');
+    const outside = set.included_ids.splice(topN);
+    for (const id of outside) { set.excluded_ids.push(id); set.reasons[id] = 'outside_top_n'; }
+    Object.assign(set.trail[set.trail.length-1], {included:set.included_ids.length, excluded:set.excluded_ids.length, top_n:topN, matched_buyers:set.included_ids.length+outside.length});
+  }
   if (JSON.stringify(set).length > 16000000) throw new Error('This result is too large to save safely. No partial audience was returned.');
   const {error} = await context.serviceClient.from('bloom_customer_sets').insert({id:set.id,tenant_id:context.tenantId,user_id:context.userId,conversation_id:context.conversationId,parent_id:set.parent_id,label:String(params.label),payload:set,created_at:cutoff});
   if (error) throw new Error(`The exact customer result could not be saved: ${error.message}`);
@@ -144,7 +154,9 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
     rows:result.rows.map(row=>({...row,matched_reported_spend:matched.get(row.customer_id)?.amount??null,matched_quantity:matched.get(row.customer_id)?.quantity??null,currency:matched.get(row.customer_id)?.currency??null})),
     order:matched.size?'Largest matched spending first.':'Customer ID order.',
     evidence_note:reportOnly?'Matches come from imported period sales reports (product totals per customer per report period), not dated receipts.':null},
-    set.included_ids.length,exploreMessage(rule.mode,set.included_ids.length,set.excluded_ids.length,set.unknown_ids.length));
+    set.included_ids.length,typeof params.top_n==='number'
+      ? `Search succeeded: ${(set.included_ids.length+set.excluded_ids.filter(id=>set.reasons[id]==='outside_top_n').length).toLocaleString('en-US')} customers bought it. The saved group is the top ${set.included_ids.length.toLocaleString('en-US')} by matched spending; follow-up questions about "these" use exactly those ${set.included_ids.length.toLocaleString('en-US')}. This is a complete answer, not an error.`
+      : exploreMessage(rule.mode,set.included_ids.length,set.excluded_ids.length,set.unknown_ids.length));
 };
 /** Plain result line. Customers with no records on file are normal for imported reports, not a failed lookup. */
 export function exploreMessage(mode: string, included: number, excluded: number, unknown: number): string {
@@ -324,7 +336,14 @@ export const exploreCustomerReportedSpending: ToolImplementation = async (params
     else {set.excluded_ids.push(id);set.reasons[id]='no_matching_purchase';}
   }
   set.included_ids.sort((a,b)=>values.get(b)!.amount-values.get(a)!.amount||a.localeCompare(b));
+  // "Top 5 customers": the saved group is exactly the top N, so "these" means the customers shown.
+  const topN=params.top_n;const qualifying=set.included_ids.length;
+  if(topN!==undefined){
+    if(typeof topN!=='number'||!Number.isInteger(topN)||topN<1||topN>500)throw new Error('Choose a top number from 1 to 500.');
+    for(const id of set.included_ids.splice(topN)){set.excluded_ids.push(id);set.reasons[id]='outside_top_n';}
+  }
   Object.assign(set.trail[set.trail.length-1],{included:set.included_ids.length,excluded:set.excluded_ids.length,unknown:set.unknown_ids.length,
+    ...(topN!==undefined?{top_n:topN,qualifying_customers:qualifying}:{}),
     reported_spending:{report_id:report.id,period_start:report.source_period_start,period_end:report.source_period_end,minimum_spend:minimum,minimum_transactions:transactions}});
   if(JSON.stringify(set).length>16000000) throw new Error('This source audience is too large to save safely. No partial audience was returned.');
   const {error}=await context.serviceClient.from('bloom_customer_sets').insert({id:set.id,tenant_id:context.tenantId,user_id:context.userId,conversation_id:context.conversationId,parent_id:set.parent_id,label,payload:set,created_at:cutoff});

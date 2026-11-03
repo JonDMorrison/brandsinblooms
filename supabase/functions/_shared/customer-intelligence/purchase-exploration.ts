@@ -13,7 +13,7 @@ export interface PurchaseRule {
   product_match?: 'contains' | 'exact' | 'sku'; category?: string; department?: string;
   start_date?: string; end_date?: string; within_days?: number;
 }
-export type MatchReason = 'all_customers' | 'matching_purchase' | 'no_matching_purchase' | 'no_purchase_history' | 'missing_fields';
+export type MatchReason = 'all_customers' | 'matching_purchase' | 'no_matching_purchase' | 'no_purchase_history' | 'missing_fields' | 'outside_top_n';
 export interface SearchStep {
   set_id: string; label: string; rule: PurchaseRule; input: number;
   included: number; excluded: number; unknown: number; source_read_at: string;
@@ -31,6 +31,7 @@ export const MATCH_REASONS: Record<MatchReason, string> = {
   no_matching_purchase: 'No qualifying purchase was found in the available records. This does not prove that the export contains the complete purchase history.',
   no_purchase_history: 'No purchase records are available for this customer. Not treated as a non-buyer.',
   missing_fields: 'A required field is missing or invalid, so a reliable inclusion/exclusion decision cannot be made.',
+  outside_top_n: 'Bought it, but is not among the top customers by matched spending that were asked for.',
 };
 export function finiteNumber(value: unknown): number | null {
   if (typeof value !== 'number' && typeof value !== 'string') return null;

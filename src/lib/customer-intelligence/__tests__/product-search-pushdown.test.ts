@@ -184,3 +184,23 @@ describe('customer codes are read by ID cursor', () => {
     expect(cursors).toEqual([null, 'c00999', 'c01999']);
   });
 });
+
+describe('a cold first search is retried once', () => {
+  it('retries a statement timeout once and returns the second result', async () => {
+    const {retryOnceOnTimeout} = await import('../../../../supabase/functions/_shared/customer-intelligence/load-product-search-facts');
+    const call = vi.fn()
+      .mockResolvedValueOnce({data: null, error: {message: 'canceling statement due to statement timeout', code: '57014'}})
+      .mockResolvedValueOnce({data: ['ok'], error: null});
+    expect(await retryOnceOnTimeout(call)).toEqual({data: ['ok'], error: null});
+    expect(call).toHaveBeenCalledTimes(2);
+  });
+  it('does not retry other errors or a second timeout', async () => {
+    const {retryOnceOnTimeout} = await import('../../../../supabase/functions/_shared/customer-intelligence/load-product-search-facts');
+    const denied = vi.fn().mockResolvedValue({data: null, error: {message: 'permission denied'}});
+    expect((await retryOnceOnTimeout(denied)).error?.message).toBe('permission denied');
+    expect(denied).toHaveBeenCalledTimes(1);
+    const slow = vi.fn().mockResolvedValue({data: null, error: {message: 'canceling statement due to statement timeout', code: '57014'}});
+    expect((await retryOnceOnTimeout(slow)).error?.code).toBe('57014');
+    expect(slow).toHaveBeenCalledTimes(2);
+  });
+});
