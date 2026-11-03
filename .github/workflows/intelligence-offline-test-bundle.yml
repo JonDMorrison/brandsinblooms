@@ -1,0 +1,34 @@
+name: Intelligence offline test bundle
+on:
+  push:
+    branches: [fix/west-coast-intelligence-workflow]
+    paths: [.github/workflows/intelligence-offline-test-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked test dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Package source and test dependencies without credentials
+        run: |
+          set -euo pipefail
+          git archive HEAD > "$RUNNER_TEMP/intelligence-source.tar"
+          tar -rf "$RUNNER_TEMP/intelligence-source.tar" node_modules
+          gzip -1 "$RUNNER_TEMP/intelligence-source.tar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: intelligence-offline-test-bundle
+          path: ${{ runner.temp }}/intelligence-source.tar.gz
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
