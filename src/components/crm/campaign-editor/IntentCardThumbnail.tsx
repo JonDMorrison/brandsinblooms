@@ -161,6 +161,51 @@ export function IntentCardThumbnail({
                   {cta(125, "SHOP THE SALE")}
                   {line(153, 110, 65)}
                 </>
+              ) : kind === "showcase" ? (
+                <>
+                  <rect
+                    x="30"
+                    y="31"
+                    width="180"
+                    height="43"
+                    rx="2"
+                    fill="#315a46"
+                  />
+                  <text
+                    x="42"
+                    y="47"
+                    fontSize="6"
+                    letterSpacing="1"
+                    fill="#e8f0ea"
+                  >
+                    THE SEASONAL EDIT
+                  </text>
+                  <text
+                    x="42"
+                    y="64"
+                    fontSize="13"
+                    fontWeight="700"
+                    fill="white"
+                  >
+                    Stories for the season
+                  </text>
+                  {[82, 111, 140].map((y, index) => (
+                    <g key={y}>
+                      <rect
+                        x={index % 2 === 0 ? 36 : 151}
+                        y={y}
+                        width="53"
+                        height="23"
+                        rx="2"
+                        fill={index === 1 ? "#dbe7de" : "#e8dfcf"}
+                      />
+                      {line(y + 3, 49, index % 2 === 0 ? 98 : 91)}
+                      {line(y + 11, 42, index % 2 === 0 ? 98 : 98)}
+                      {line(y + 19, 30, index % 2 === 0 ? 98 : 110)}
+                    </g>
+                  ))}
+                  {cta(154, "EXPLORE WHAT'S NEW")}
+                </>
               ) : kind === "new-arrivals" ? (
                 <>
                   <text

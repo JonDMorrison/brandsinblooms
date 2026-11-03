@@ -16,7 +16,9 @@ function noopHandlers() {
   };
 }
 
-function makeSavedTemplate(overrides: Partial<SavedTemplate> = {}): SavedTemplate {
+function makeSavedTemplate(
+  overrides: Partial<SavedTemplate> = {},
+): SavedTemplate {
   return {
     id: "tpl-1",
     user_id: "user-1",
@@ -24,8 +26,20 @@ function makeSavedTemplate(overrides: Partial<SavedTemplate> = {}): SavedTemplat
     name: "Spring promo",
     description: "Saved layout",
     layout_json: [
-      { id: "b1", type: "newsletter-header", label: "Header", order: 0, visible: true } as never,
-      { id: "b2", type: "plain-text", label: "Body", order: 1, visible: true } as never,
+      {
+        id: "b1",
+        type: "newsletter-header",
+        label: "Header",
+        order: 0,
+        visible: true,
+      } as never,
+      {
+        id: "b2",
+        type: "plain-text",
+        label: "Body",
+        order: 1,
+        visible: true,
+      } as never,
     ],
     created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
@@ -37,22 +51,44 @@ describe("IntentPicker", () => {
   it("offers all Botanical designs and applies the chosen editable template", async () => {
     const user = userEvent.setup();
     const onApplyBuiltInTemplate = vi.fn();
-    render(<IntentPicker savedTemplates={[]} {...noopHandlers()} onApplyBuiltInTemplate={onApplyBuiltInTemplate} />);
-    expect(screen.getAllByRole("button", { name: /^Use Botanical/ })).toHaveLength(4);
-    await user.click(screen.getByRole("button", { name: "Use Botanical Event Roundup" }));
-    expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: "botanical-events" }));
+    render(
+      <IntentPicker
+        savedTemplates={[]}
+        {...noopHandlers()}
+        onApplyBuiltInTemplate={onApplyBuiltInTemplate}
+      />,
+    );
+    expect(
+      screen.getAllByRole("button", { name: /^Use Botanical/ }),
+    ).toHaveLength(4);
+    await user.click(
+      screen.getByRole("button", { name: "Use Botanical Event Roundup" }),
+    );
+    expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "botanical-events" }),
+    );
   });
 
-  it("renders all six intent cards", () => {
+  it("renders all seven intent cards", () => {
     const handlers = noopHandlers();
     render(<IntentPicker savedTemplates={[]} {...handlers} />);
 
     expect(screen.getByTestId("intent-card-newsletter")).toBeInTheDocument();
+    expect(screen.getByTestId("intent-card-showcase")).toBeInTheDocument();
     expect(screen.getByTestId("intent-card-sale")).toBeInTheDocument();
     expect(screen.getByTestId("intent-card-new-arrivals")).toBeInTheDocument();
     expect(screen.getByTestId("intent-card-event")).toBeInTheDocument();
     expect(screen.getByTestId("intent-card-thank-you")).toBeInTheDocument();
     expect(screen.getByTestId("intent-card-blank")).toBeInTheDocument();
+  });
+
+  it("names the applied design and summarizes its structure", () => {
+    render(<IntentPicker savedTemplates={[]} {...noopHandlers()} />);
+
+    expect(screen.getAllByText("Seasonal Showcase").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Image-led · 3 stories · Closing CTA"),
+    ).toBeInTheDocument();
   });
 
   it("hides My templates section when there are no saved templates", () => {
@@ -67,9 +103,7 @@ describe("IntentPicker", () => {
   it("renders My templates section when at least one is saved", () => {
     const handlers = noopHandlers();
     const template = makeSavedTemplate();
-    render(
-      <IntentPicker savedTemplates={[template]} {...handlers} />,
-    );
+    render(<IntentPicker savedTemplates={[template]} {...handlers} />);
     expect(
       screen.getByTestId("intent-picker-my-templates"),
     ).toBeInTheDocument();
@@ -84,12 +118,8 @@ describe("IntentPicker", () => {
     const user = userEvent.setup();
     const handlers = noopHandlers();
     const template = makeSavedTemplate();
-    render(
-      <IntentPicker savedTemplates={[template]} {...handlers} />,
-    );
-    await user.click(
-      screen.getByTestId(`saved-template-card-${template.id}`),
-    );
+    render(<IntentPicker savedTemplates={[template]} {...handlers} />);
+    await user.click(screen.getByTestId(`saved-template-card-${template.id}`));
     expect(handlers.onApplySavedTemplate).toHaveBeenCalledWith(template);
   });
 
@@ -119,9 +149,7 @@ describe("IntentPicker", () => {
     const user = userEvent.setup();
     const handlers = noopHandlers();
     const template = makeSavedTemplate();
-    render(
-      <IntentPicker savedTemplates={[template]} {...handlers} />,
-    );
+    render(<IntentPicker savedTemplates={[template]} {...handlers} />);
     await user.click(screen.getByTestId("intent-picker-manage-link"));
     expect(handlers.onOpenManage).toHaveBeenCalledOnce();
   });

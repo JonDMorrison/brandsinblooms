@@ -1261,6 +1261,7 @@ function CampaignEditorScreen() {
   const unavailableIntents = React.useMemo(() => {
     const intents: CampaignIntentKey[] = [
       "newsletter",
+      "showcase",
       "sale",
       "new-arrivals",
       "event",
@@ -1600,7 +1601,9 @@ function CampaignEditorScreen() {
                 level="title-sm"
                 sx={{ fontWeight: 700, color: "neutral.900" }}
               >
-                {campaignType === "email" && !reviewingNewsletter ? "Design your newsletter" : "Review your campaign"}
+                {campaignType === "email" && !reviewingNewsletter
+                  ? "Design your newsletter"
+                  : "Review your campaign"}
               </Typography>
               <Typography
                 level="body-xs"
@@ -1613,10 +1616,10 @@ function CampaignEditorScreen() {
                 {campaignType === "email" && !reviewingNewsletter
                   ? "Start with your content. Review the subject and audience next."
                   : sendBlockerLines.length > 0
-                  ? sendBlockerLines[0]
-                  : isAudienceLoading
-                    ? "Checking your audience…"
-                    : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving…" : "Ready for final review"}`}
+                    ? sendBlockerLines[0]
+                    : isAudienceLoading
+                      ? "Checking your audience…"
+                      : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving…" : "Ready for final review"}`}
               </Typography>
               {blockerSignals.senderUnverified ? (
                 <JoyButton
