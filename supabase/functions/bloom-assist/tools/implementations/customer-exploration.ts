@@ -107,7 +107,7 @@ function publicSetFrom(set: CustomerSet, visible: ReadonlySet<string>, names: Re
     captured_at:set.captured_at,timezone:set.timezone,bucket,page,page_size:50,total_count:ids.length,has_more:start+50<ids.length,
     included_count:set.included_ids.length,excluded_count:set.excluded_ids.length,unknown_count:set.unknown_ids.length,trail:set.trail,
     rows:ids.slice(start,start+50).map(id=>({customer_id:id,name:names.get(id)??'Customer',reason:MATCH_REASONS[set.reasons[id]],evidence_count:set.evidence_ids[id]?.length??0})),
-    notes:['Membership is saved as actual customer IDs, not remembered by the language model.','The next question reads the available purchase records for this same group; every step records its source-read time.','Unknown customers were not silently treated as non-buyers. No marketing-consent or persona filters were applied.']};
+    notes:['Membership is saved as actual customer IDs, not remembered by the language model.','The next question reads the available purchase records for this same group; every step records its source-read time.','Customers with no purchase records on file are counted separately, never as non-buyers. No marketing-consent or persona filters were applied.']};
 }
 export const exploreCustomerPurchases: ToolImplementation = async (params,context) => {
   const scope = requireScope(params), cutoff = new Date().toISOString();
@@ -144,8 +144,18 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
     rows:result.rows.map(row=>({...row,matched_reported_spend:matched.get(row.customer_id)?.amount??null,matched_quantity:matched.get(row.customer_id)?.quantity??null,currency:matched.get(row.customer_id)?.currency??null})),
     order:matched.size?'Largest matched spending first.':'Customer ID order.',
     evidence_note:reportOnly?'Matches come from imported period sales reports (product totals per customer per report period), not dated receipts.':undefined},
-    set.included_ids.length,`Found ${set.included_ids.length} customers. ${set.excluded_ids.length} excluded; ${set.unknown_ids.length} require more data.`);
+    set.included_ids.length,exploreMessage(rule.mode,set.included_ids.length,set.excluded_ids.length,set.unknown_ids.length));
 };
+/** Plain result line. Customers with no records on file are normal for imported reports, not a failed lookup. */
+export function exploreMessage(mode: string, included: number, excluded: number, unknown: number): string {
+  const n = (value: number) => value.toLocaleString('en-US');
+  const lead = mode === 'not_purchased' ? `Search succeeded: ${n(included)} customers have purchase records and none match.`
+    : mode === 'all' ? `Search succeeded: ${n(included)} customers selected.`
+    : `Search succeeded: ${n(included)} customers bought it.`;
+  if (mode === 'all') return lead;
+  const other = mode === 'not_purchased' ? `${n(excluded)} did buy it.` : `${n(excluded)} have purchase records without it.`;
+  return `${lead} ${other} ${n(unknown)} have no purchase records on file, so they are counted separately. This is a complete answer, not an error.`;
+}
 export const inspectCustomerSet: ToolImplementation = async (params,context) => {
   if(params.list_audiences===true){
     const client=await requireAnalysisAccess(context),page=pageNumber(params.page);

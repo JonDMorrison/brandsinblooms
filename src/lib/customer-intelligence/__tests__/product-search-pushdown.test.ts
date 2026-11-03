@@ -126,3 +126,12 @@ describe('narrowed report rows are still checked', () => {
     expect(await loadProductSearchFacts(fakeClient([]), T, '2026-11-03T00:00:00Z', {mode: 'purchased', category: 'Plants'}, store)).toBeNull();
   });
 });
+
+describe('search result wording', () => {
+  it('reads as a complete answer, not a failed lookup', async () => {
+    const {exploreMessage} = await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const message = exploreMessage('purchased', 1828, 19791, 26315);
+    expect(message).toBe('Search succeeded: 1,828 customers bought it. 19,791 have purchase records without it. 26,315 have no purchase records on file, so they are counted separately. This is a complete answer, not an error.');
+    expect(message).not.toMatch(/unknown|require more data|could not/i);
+  });
+});
