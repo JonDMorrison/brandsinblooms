@@ -143,7 +143,7 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
   return analysisResult({...result,
     rows:result.rows.map(row=>({...row,matched_reported_spend:matched.get(row.customer_id)?.amount??null,matched_quantity:matched.get(row.customer_id)?.quantity??null,currency:matched.get(row.customer_id)?.currency??null})),
     order:matched.size?'Largest matched spending first.':'Customer ID order.',
-    evidence_note:reportOnly?'Matches come from imported period sales reports (product totals per customer per report period), not dated receipts.':undefined},
+    evidence_note:reportOnly?'Matches come from imported period sales reports (product totals per customer per report period), not dated receipts.':null},
     set.included_ids.length,exploreMessage(rule.mode,set.included_ids.length,set.excluded_ids.length,set.unknown_ids.length));
 };
 /** Plain result line. Customers with no records on file are normal for imported reports, not a failed lookup. */

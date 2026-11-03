@@ -885,10 +885,27 @@ function parseToolArguments(argumentsText: string): JsonObject {
   }
 }
 
+/**
+ * JSON-serialise a tool result the way it is stored. An `undefined` field used
+ * to fail the strict check and blank the whole result, so the model was told a
+ * successful search returned nothing and replied that the data "could not be
+ * retrieved".
+ */
+export function toJsonResult(value: unknown): JsonValue {
+  if (value === undefined) return null;
+  try {
+    if (isJsonValue(value)) return value;
+    const roundTripped: unknown = JSON.parse(JSON.stringify(value));
+    return isJsonValue(roundTripped) ? roundTripped : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeToolResult(value: ToolExecutorResult): ToolExecutorResult {
   return {
     block_type: value.block_type || "data",
-    result: isJsonValue(value.result) ? value.result : null,
+    result: toJsonResult(value.result),
     status: value.status,
     execution_time_ms: value.execution_time_ms,
     error_message: value.error_message,
