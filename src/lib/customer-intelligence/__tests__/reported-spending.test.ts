@@ -7,9 +7,9 @@ function fixture(){
  const saved: unknown[]=[];
  const customers=['buyer','lower','unknown'].map(id=>({id,first_name:id,last_name:null,email:null,created_at:'2026-01-01T00:00:00Z'}));
  const events=[{id:'a',customer_id:'buyer',amount:'1000.00',raw_data:{kind:'reported_period_spending',currency:'CAD',transactions:2}},{id:'b',customer_id:'lower',amount:'500.00',raw_data:{kind:'reported_period_spending',currency:'CAD',transactions:1}}];
- const client={rpc:vi.fn().mockResolvedValue({data:true,error:null}),from:(table:string)=>{
+ const client={rpc:vi.fn(async(name:string)=>({data:name==='bloom_live_customer_ids'?customers.map(c=>c.id):true,error:null})),from:(table:string)=>{
   const data=table==='crm_customers'?customers:table==='customer_intelligence_source_events'?events:[];
-  const q={select:()=>q,eq:()=>q,is:()=>q,lte:()=>q,neq:()=>q,order:()=>q,limit:()=>q,range:async()=>({data,error:null}),maybeSingle:async()=>({data:table==='bloom_conversations'?{id:'conversation'}:{id:'report',source_filename:'synthetic.xls',source_period_start:'2026-01-01',source_period_end:'2026-10-14'},error:null})};return q;
+  const q={select:()=>q,eq:()=>q,is:()=>q,lte:()=>q,neq:()=>q,in:async()=>({data,error:null}),order:()=>q,limit:()=>q,range:async()=>({data,error:null}),maybeSingle:async()=>({data:table==='bloom_conversations'?{id:'conversation'}:{id:'report',source_filename:'synthetic.xls',source_period_start:'2026-01-01',source_period_end:'2026-10-14'},error:null})};return q;
  }};
  const context={tenantId:'tenant',authenticatedTenantId:'tenant',userId:'user',conversationId:'conversation',timezone:'America/Vancouver',dataClient:client,serviceClient:{from:()=>({insert:async(v:unknown)=>{saved.push(v);return {error:null};}})}} as unknown as ToolExecutionContext;
  return {context,saved};

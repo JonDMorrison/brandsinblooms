@@ -2,7 +2,7 @@ import type {ToolImplementation} from '../types.ts';
 import {rankCustomerPopulation, type RankingRow} from '../../../_shared/customer-intelligence/customer-ranking.ts';
 import {finiteNumber} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
 import {readAllPages} from '../../../_shared/customer-intelligence/query-pages.ts';
-import {analysisResult, loadAnalysisCustomers, loadCustomerSet, requireAnalysisAccess} from './customer-exploration.ts';
+import {analysisResult, exploreCustomerPurchases, loadAnalysisPopulation, loadCustomerSet, requireAnalysisAccess} from './customer-exploration.ts';
 
 export const rankCustomersByIntelligence: ToolImplementation = async (params,context) => {
   const client = await requireAnalysisAccess(context);
@@ -10,11 +10,11 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
   if(!['all_customers','previous_result','saved_result'].includes(String(scope))) throw new Error('Choose an explicit ranking population.');
   if(scope==='saved_result' && typeof params.set_id!=='string') throw new Error('Choose the earlier result ID.');
   if(scope!=='saved_result' && params.set_id!==undefined) throw new Error('Use saved_result when choosing a result ID.');
-  const customers=await loadAnalysisCustomers(context);
+  const population=await loadAnalysisPopulation(context);
   const set=scope==='all_customers'?null:await loadCustomerSet(context,scope==='saved_result'?String(params.set_id):undefined);
-  const visible=new Set(customers.map(c=>c.id));
+  const visible=new Set(population);
   if(set?.included_ids.some(id=>!visible.has(id))) throw new Error('Some members of the saved audience are no longer accessible. Start a new search.');
-  const allowed=new Set(set?.included_ids??customers.map(c=>c.id));
+  const allowed=new Set(set?.included_ids??population);
   const rows=await readAllPages<RankingRow>((from,to)=>client.from('customer_purchase_intelligence')
     .select('customer_id,first_name,last_name,email,lifetime_value,purchase_frequency,days_since_last_purchase,purchase_velocity,total_quantity,departments_shopped,category_spend,department_spend')
     .eq('tenant_id',context.tenantId).order('customer_id').range(from,to));
@@ -23,6 +23,16 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
     dimension_value:typeof params.dimension_value==='string'?params.dimension_value:undefined,
     weights:params.weights,limit:typeof params.limit==='number'?params.limit:100,
   });
+  // Companies with only imported sales reports have no receipt metrics to rank, so every
+  // customer would be "unranked". Rank by reported spending on the named department instead.
+  const value=typeof params.dimension_value==='string'?params.dimension_value.trim():'';
+  if(report.eligible_customers===0&&report.dimension!=='overall'&&value&&(params.bucket===undefined||params.bucket==='ranked')){
+    const fallback=await exploreCustomerPurchases({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:`Top ${value} shoppers`.slice(0,180),criteria:{mode:'purchased',department:value}},context);
+    const data=fallback.data as Record<string,unknown>|null;
+    return {...fallback,data:data?{...data,ranking_basis:'reported_department_spend',
+      note:'No dated receipt metrics exist for this company, so customers are ordered by their reported spending in this department from the imported sales reports. 50 per page; use inspect_customer_set for more.'}:data,
+      message:`${fallback.message} Ordered by reported spending in ${value}, largest first.`};
+  }
   const bucket=params.bucket??'ranked';
   if(!['ranked','unranked'].includes(String(bucket))) throw new Error('Choose ranked or unranked customers.');
   const page=params.page??1;if(typeof page!=='number'||!Number.isInteger(page)||page<1)throw new Error('Choose a valid page.');
