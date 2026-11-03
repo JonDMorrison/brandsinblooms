@@ -11,9 +11,10 @@ import {readAllPages} from './query-pages.ts';
  * Company-wide product search without reading every report row.
  *
  * The database returns only report lines that could match the search, plus
- * the list of customers that have any report evidence. The exact matching and
- * all row validation still happen here, with the same rules as the full scan.
- * A reconciled legacy snapshot is fully re-verified whenever its fingerprint
+ * the list of customers that have any report evidence. The exact matching
+ * still happens here, with the same rules as the full scan. Every report
+ * import is verified in full (ledger, shape and, for the reconciled legacy
+ * snapshot, its certificate) once, and again whenever its fingerprint
  * differs from the one recorded after its last successful verification.
  */
 
@@ -60,22 +61,41 @@ export async function loadProductSearchFacts(
   const parents = active.map(row => ledger.find(entry => entry.id === row.id)!);
   const legacy = new Map(parents.flatMap(parent => {const certificate = legacySummaryCertificate(parent); return certificate ? [[parent.id, certificate] as const] : [];}));
 
-  const verifyLegacy = async () => {
-    for (const [importId, certificate] of legacy) {
-      const before = await store.fingerprint(importId);
-      if (before && (await store.get(importId)) === before) continue;
-      const rows = (await loadSummaryRows(client, tenantId, cutoff, importId)).filter(row => row.import_id === importId);
-      const identities = await readAllPages<{id: string; tenant_id: string; external_id: string | null}>((from, to) => client.from('crm_customers').select('id,tenant_id,external_id').eq('tenant_id', tenantId).is('deleted_at', null).is('merged_into_customer_id', null).order('id').range(from, to));
-      await verifyLegacySummarySnapshot(rows as (PeriodSummaryEvent & {external_customer_code?: string})[], certificate, identities);
-      const after = await store.fingerprint(importId);
-      if (after !== before) throw Error('The reconciled report changed while it was being verified. Try the search again.');
-      await store.set(importId, after);
+  // Each active import is verified in full once, then again only when its fingerprint changes.
+  // Returns false when the import has blank product lines, which only the full scan classifies exactly.
+  const verifyImports = async (): Promise<boolean> => {
+    let searchable = true;
+    for (const parent of parents) {
+      const before = await store.fingerprint(parent.id);
+      if (before && (await store.get(parent.id)) === before) continue;
+      const rows = (await loadSummaryRows(client, tenantId, cutoff, parent.id)).filter(row => row.import_id === parent.id);
+      const certificate = legacy.get(parent.id);
+      if (certificate) {
+        const identities = await readAllPages<{id: string; tenant_id: string; external_id: string | null}>((from, to) => client.from('crm_customers').select('id,tenant_id,external_id').eq('tenant_id', tenantId).is('deleted_at', null).is('merged_into_customer_id', null).order('id').range(from, to));
+        await verifyLegacySummarySnapshot(rows as (PeriodSummaryEvent & {external_customer_code?: string})[], certificate, identities);
+      } else {
+        for (const row of rows) checkRowAgainstLedger(row, parent, false);
+      }
+      const facts = periodSummaryFacts(rows, tenantId); // Full shape validation.
+      if (facts.some(fact => !fact.product_name?.trim() && !fact.product_code?.trim())) { searchable = false; continue; }
+      const after = await store.fingerprint(parent.id);
+      if (after !== before) throw Error('The report changed while it was being verified. Try the search again.');
+      await store.set(parent.id, after);
     }
+    return searchable;
+  };
+  const checkRowAgainstLedger = (row: CandidateEvent, parent: typeof parents[number] | undefined, isLegacy: boolean) => {
+    const raw = row.raw_data as {period_start?: unknown; period_end?: unknown; source_sha256?: unknown} | null;
+    if (!parent || row.tenant_id !== tenantId || row.source !== parent.source
+      || !Number.isFinite(idealEvidenceTimestamp(row.created_at)) || idealEvidenceTimestamp(row.created_at) > idealEvidenceTimestamp(cutoff)
+      || (!isLegacy && raw?.source_sha256 !== parent.source_sha256)
+      || raw?.period_start !== parent.source_period_start || raw?.period_end !== parent.source_period_end)
+      throw Error('Report facts do not match their completed source ledger.');
   };
 
   const importIds = parents.map(parent => parent.id);
-  const [, dated, scopeResult, candidateResult] = await Promise.all([
-    verifyLegacy(),
+  const [searchable, dated, scopeResult, candidateResult] = await Promise.all([
+    verifyImports(),
     loadEligibleDatedFacts(client, tenantId, cutoff),
     importIds.length ? client.rpc('bloom_summary_evidence_scope', {
       p_tenant_id: tenantId, p_cutoff: cutoff,
@@ -92,14 +112,10 @@ export async function loadProductSearchFacts(
   const candidates = candidateResult.data as CandidateEvent[] | null;
   if (!Array.isArray(candidates)) throw Error('The report evidence could not be read.');
 
+  if (!searchable) return null;
   for (const row of candidates) {
     const parent = parents.find(p => p.id === row.import_id);
-    const raw = row.raw_data as {period_start?: unknown; period_end?: unknown; source_sha256?: unknown} | null;
-    if (!parent || row.tenant_id !== tenantId || row.source !== parent.source
-      || !Number.isFinite(idealEvidenceTimestamp(row.created_at)) || idealEvidenceTimestamp(row.created_at) > idealEvidenceTimestamp(cutoff)
-      || (!legacy.has(parent.id) && raw?.source_sha256 !== parent.source_sha256)
-      || raw?.period_start !== parent.source_period_start || raw?.period_end !== parent.source_period_end)
-      throw Error('Report facts do not match their completed source ledger.');
+    checkRowAgainstLedger(row, parent, Boolean(parent && legacy.has(parent.id)));
   }
 
   const evidenceCustomerIds = new Set<string>(scope.customer_ids.filter((id): id is string => typeof id === 'string'));
