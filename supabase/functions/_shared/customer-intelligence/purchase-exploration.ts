@@ -69,6 +69,22 @@ export function validatePurchaseRule(value: unknown): PurchaseRule {
   return rule as unknown as PurchaseRule;
 }
 const normalized = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase('en-CA');
+/** POS department labels often carry a numeric code: "1,501    Tropicals". */
+const withoutCode = (value: string) => value.replace(/^[\d,.\s-]+(?=\D)/, '').trim();
+function wordFound(haystack: string, word: string) {
+  return haystack.includes(word) || (word.length > 3 && word.endsWith('s') && haystack.includes(word.slice(0, -1)));
+}
+/**
+ * Department/category match: the exact label, or every word the user named
+ * appears in the label without its numeric code ("tropical" → "1,501 Tropicals").
+ */
+export function groupMatches(expected: string, actual: string): boolean {
+  const want = normalized(expected), have = normalized(actual);
+  if (want === have) return true;
+  const words = withoutCode(want).split(/\s+/).filter(Boolean);
+  const label = withoutCode(have);
+  return words.length > 0 && words.every((word) => wordFound(label, word));
+}
 function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anchors?: number[]): boolean | null {
   let missing = false;
   const quantity = finiteNumber(fact.quantity);
@@ -90,7 +106,7 @@ function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anc
   for (const [expected, actual] of [[rule.category, fact.sales_category], [rule.department, fact.department]]) {
     if (!expected) continue;
     if (!actual?.trim()) missing = true;
-    else if (normalized(expected) !== normalized(actual)) return false;
+    else if (!groupMatches(expected, actual)) return false;
   }
   if (rule.start_date || rule.end_date || rule.within_days !== undefined) {
     // explorePurchases already validates timezone once. Aggregate rows have no timestamp.
@@ -120,6 +136,12 @@ export function explorePurchases(input: {
   previous?: CustomerSet | null; now?: string; id?: string;
   /** Saved refreshes may lose dated evidence; keep those customers unknown. */
   allowMissingAnchors?: boolean;
+  /**
+   * Customers known to have purchase evidence whose non-matching lines were
+   * filtered out before this call. With no remaining facts they did not match,
+   * rather than having no purchase history.
+   */
+  knownEvidence?: ReadonlySet<string>;
 }): CustomerSet {
   const rule = validatePurchaseRule(input.rule), now = input.now ?? new Date().toISOString();
   if (!input.label.trim() || input.label.length > 180) throw new Error('Name the customer search in 180 characters or fewer.');
@@ -152,7 +174,12 @@ export function explorePurchases(input: {
   for (const customerId of population) {
     const facts = byCustomer.get(customerId) ?? [];
     if (rule.mode === 'all') { set.included_ids.push(customerId); set.reasons[customerId] = 'all_customers'; continue; }
-    if (!facts.length) { set.unknown_ids.push(customerId); set.reasons[customerId] = 'no_purchase_history'; continue; }
+    if (!facts.length) {
+      if (input.knownEvidence?.has(customerId)) {
+        (rule.mode === 'not_purchased' ? set.included_ids : set.excluded_ids).push(customerId); set.reasons[customerId] = 'no_matching_purchase';
+      } else { set.unknown_ids.push(customerId); set.reasons[customerId] = 'no_purchase_history'; }
+      continue;
+    }
     const matched: PurchaseFact[] = []; let unknown = false;
     for (const fact of facts) {
       const decision = matchFact(fact, rule, input.timezone, previous?.anchors[customerId]);

@@ -3,6 +3,8 @@ import { assertDate, type PurchaseFact } from './purchase-exploration.ts';
 export interface PeriodSummaryEvent {
   id: string; tenant_id: string; customer_id: string | null; import_id: string;
   source: string; created_at: string; raw_data: unknown;
+  /** Original item positions when the server returned only candidate lines. */
+  item_indexes?: number[];
 }
 /** A reported product total is evidence of purchasing within a period, never a receipt. */
 export function periodSummaryFacts(events: PeriodSummaryEvent[], tenantId: string): PurchaseFact[] {
@@ -14,7 +16,13 @@ export function periodSummaryFacts(events: PeriodSummaryEvent[], tenantId: strin
       || typeof raw.currency !== 'string') throw new Error('The imported report evidence needs reconciliation.');
     assertDate(raw.period_start); assertDate(raw.period_end);
     if (raw.period_start > raw.period_end) throw new Error('The report period is invalid.');
-    return raw.items.map((item, index) => {
+    // Pre-filtered rows carry each line's original position so evidence IDs stay stable.
+    const positions = (event as {item_indexes?: unknown}).item_indexes;
+    if (positions !== undefined && (!Array.isArray(positions) || positions.length !== raw.items.length
+      || !positions.every((position) => Number.isInteger(position) && position >= 0)))
+      throw new Error('The imported report evidence needs reconciliation.');
+    return raw.items.map((item, listIndex) => {
+      const index = positions ? positions[listIndex] as number : listIndex;
       if (!Array.isArray(item) || item.length !== 6 || typeof item[0] !== 'string' || typeof item[1] !== 'string'
         || typeof item[2] !== 'string' || typeof item[3] !== 'number' || !Number.isFinite(item[3])
         || typeof item[4] !== 'number' || !Number.isFinite(item[4]) || !Number.isInteger(item[5]))

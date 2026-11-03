@@ -176,9 +176,30 @@ function humanizeSegmentType(record: EntityRecord): string {
   return source.replace(/[_-]+/g, " ");
 }
 
-function buildSegmentSummary(
+/** Customer fields a group rule can depend on that imported period reports never fill. */
+const PURCHASE_DATA_FIELDS: Record<string, string> = {
+  first_purchase_date: "purchase dates",
+  last_purchase_date: "purchase dates",
+  total_spent: "lifetime spending totals",
+  pos_order_count: "order counts",
+};
+
+/** Purchase data this group's rules need that no live customer in the company has. */
+export function missingRuleData(conditions: unknown, available: ReadonlySet<string>): string[] {
+  const rules = isRecord(conditions) && Array.isArray(conditions.rules) ? conditions.rules : [];
+  const missing: string[] = [];
+  for (const rule of rules) {
+    const field = isRecord(rule) ? readString(rule.field) : null;
+    const label = field ? PURCHASE_DATA_FIELDS[field] : undefined;
+    if (field && label && !available.has(field) && !missing.includes(label)) missing.push(label);
+  }
+  return missing;
+}
+
+export function buildSegmentSummary(
   record: EntityRecord,
   entityId: string,
+  missingData: string[] = [],
 ): EntitySummary {
   const status = readString(record.status);
   const memberCount = formatInteger(readFiniteNumber(record.customer_count));
@@ -191,6 +212,9 @@ function buildSegmentSummary(
       `${humanizeSegmentType(record)} segment`,
       status ? `status ${status}` : null,
       memberCount ? `${memberCount} members` : null,
+      missingData.length
+        ? `empty because no customer in this company has ${missingData.join(" or ")} on file yet (the imported sales reports do not include them). Say that plainly; do not say no customers meet the criteria`
+        : null,
     ]),
   };
 }
@@ -277,7 +301,7 @@ async function fetchSegmentSummary(
   const { data, error } = await serviceClient
     .from("crm_segments")
     .select(
-      "id, name, source, is_system_segment, status, customer_count, tenant_id, deleted_at",
+      "id, name, source, is_system_segment, status, customer_count, conditions, tenant_id, deleted_at",
     )
     .eq("id", entityId)
     .eq("tenant_id", tenantId)
@@ -292,7 +316,30 @@ async function fetchSegmentSummary(
     return null;
   }
 
-  return isRecord(data) ? buildSegmentSummary(data, entityId) : null;
+  if (!isRecord(data)) return null;
+  // An empty group may only be empty because the data its rule reads was never imported.
+  let missing: string[] = [];
+  if (readFiniteNumber(data.customer_count) === 0) {
+    const rules = isRecord(data.conditions) && Array.isArray(data.conditions.rules) ? data.conditions.rules : [];
+    const needed = [...new Set(rules.flatMap((rule) => {
+      const field = isRecord(rule) ? readString(rule.field) : null;
+      return field && PURCHASE_DATA_FIELDS[field] ? [field] : [];
+    }))];
+    const available = new Set<string>();
+    for (const field of needed) {
+      const { data: sample, error: sampleError } = await serviceClient
+        .from("crm_customers")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null)
+        .not(field, "is", null)
+        .limit(1);
+      // On a failed check, claim nothing.
+      if (sampleError || (Array.isArray(sample) && sample.length > 0)) available.add(field);
+    }
+    missing = missingRuleData(data.conditions, available);
+  }
+  return buildSegmentSummary(data, entityId, missing);
 }
 
 export async function prefetchEntitySummary(
