@@ -35,7 +35,7 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
   // customer would be "unranked". Rank by reported spending on the named department instead.
   const value=typeof params.dimension_value==='string'?params.dimension_value.trim():'';
   if(report.eligible_customers===0&&report.dimension!=='overall'&&value&&(params.bucket===undefined||params.bucket==='ranked')){
-    const fallback=await exploreCustomerPurchases({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:`Top ${value} shoppers`.slice(0,180),criteria:{mode:'purchased',department:value}},context);
+    const fallback=await exploreCustomerPurchases({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:`Top ${value} shoppers`.slice(0,180),criteria:{mode:'purchased',department:value},top_n:typeof params.limit==='number'?params.limit:100},context);
     const data=fallback.data as Record<string,unknown>|null;
     return {...fallback,data:data?{...data,ranking_basis:'reported_department_spend',
       note:'No dated receipt metrics exist for this company, so customers are ordered by their reported spending in this department from the imported sales reports. 50 per page; use inspect_customer_set for more.'}:data,
@@ -44,7 +44,7 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
   // Same for "top customers" overall: rank by the imported spending report instead of returning nobody.
   if(report.eligible_customers===0&&report.dimension==='overall'&&(params.bucket===undefined||params.bucket==='ranked')){
     try{
-      const fallback=await exploreCustomerReportedSpending({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:'Top customers by reported spending',currency:'CAD'},context);
+      const fallback=await exploreCustomerReportedSpending({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:'Top customers by reported spending',currency:'CAD',top_n:typeof params.limit==='number'?params.limit:100},context);
       const data=fallback.data as Record<string,unknown>|null;
       return {...fallback,data:data?{...data,ranking_basis:'reported_period_spend'}:data,
         message:`${fallback.message} Ordered by reported spending for the report period, largest first.`};
