@@ -167,3 +167,20 @@ describe('each report import is verified once, then reused until it changes', ()
     await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), undefined, tampered), T, '2026-11-03T00:00:00Z', rule, s)).rejects.toThrow('ledger');
   });
 });
+
+describe('customer codes are read by ID cursor', () => {
+  it('returns every live customer once across pages, each page starting after the last ID', async () => {
+    const {readCustomerIdentities} = await import('../../../../supabase/functions/_shared/customer-intelligence/load-product-search-facts');
+    const all = Array.from({length: 2500}, (_, i) => ({id: `c${String(i).padStart(5, '0')}`, tenant_id: T, external_id: `X${i}`}));
+    const cursors: (string | null)[] = [];
+    const client = {from: () => {
+      let after: string | null = null;
+      const q = {select: () => q, eq: () => q, is: () => q, gt: (_c: string, v: string) => {after = v; return q;}, order: () => q,
+        range: async (from: number, to: number) => {cursors.push(after); return {data: all.filter(r => !after || r.id > after).slice(from, to + 1), error: null};}};
+      return q;
+    }} as unknown as PersistenceClient;
+    const rows = await readCustomerIdentities(client, T, 1000);
+    expect(rows.map(r => r.id)).toEqual(all.map(r => r.id));
+    expect(cursors).toEqual([null, 'c00999', 'c01999']);
+  });
+});

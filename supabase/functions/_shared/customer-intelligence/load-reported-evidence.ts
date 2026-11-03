@@ -25,6 +25,19 @@ export async function loadReportedEvidence(client:PersistenceClient,tenantId:str
  const allowed=options.customerIds?new Set(options.customerIds):null;const facts=periodSummaryFacts(rows,tenantId).filter(row=>!allowed||(row.customer_id!==null&&allowed.has(row.customer_id)));
  return {ledger,activeImportIds:active.map(r=>r.id),facts};
 }
-export async function loadSummaryRows(client:PersistenceClient,tenantId:string,cutoff:string,importId:string){
- return readAllPages<PeriodSummaryEvent & {external_customer_code?:string}>((from,to)=>client.from('customer_intelligence_source_events').select('id,tenant_id,customer_id,external_customer_code,import_id,source,created_at,raw_data').eq('tenant_id',tenantId).eq('source','ideal').eq('event_type','purchase_summary').eq('import_id',importId).lte('created_at',cutoff).order('id').range(from,to));
+/** One import's report rows by ID cursor; each page costs the same however deep it is. */
+export async function loadSummaryRows(client:PersistenceClient,tenantId:string,cutoff:string,importId:string,pageSize=1000,maximum=250000){
+ type Row=PeriodSummaryEvent & {external_customer_code?:string};
+ const rows:Row[]=[];let after:string|null=null;
+ for(;;){
+  let query=client.from('customer_intelligence_source_events').select('id,tenant_id,customer_id,external_customer_code,import_id,source,created_at,raw_data').eq('tenant_id',tenantId).eq('source','ideal').eq('event_type','purchase_summary').eq('import_id',importId).lte('created_at',cutoff);
+  if(after)query=query.gt('id',after);
+  const {data,error}=await query.order('id').range(0,pageSize-1);
+  if(error)throw new Error(error.message);
+  const page=(data??[]) as Row[];
+  if(rows.length+page.length>maximum)throw new Error(`The analysis exceeds the ${maximum.toLocaleString()}-record safety limit. No partial total was returned.`);
+  rows.push(...page);
+  if(page.length<pageSize)return rows;
+  after=page[page.length-1].id;
+ }
 }
