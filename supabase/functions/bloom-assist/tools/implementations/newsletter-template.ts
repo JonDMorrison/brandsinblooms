@@ -1,3 +1,4 @@
+import { generateEmailHtml } from "../../../../../src/lib/studio/emailHtmlGenerator.ts";
 import { buildBotanicalEditorial, isBotanicalTemplateId, parseBotanicalBrief } from "../../../../../src/lib/studio/botanicalEditorial.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT, resolveDesignSystem, type ServerCompanyProfileShape } from "../../../_shared/resolveDesignSystem.ts";
 import type { JsonObject } from "../../types.ts";
@@ -11,8 +12,8 @@ export function validateNewsletterTemplate(params: JsonObject): void {
   parseBotanicalBrief(params.newsletter_brief);
 }
 
-export async function newsletterTemplateMetadata(params: JsonObject, context: ToolExecutionContext): Promise<JsonObject> {
-  if (params.template_id === undefined) return {};
+export async function newsletterTemplateMetadata(params: JsonObject, context: ToolExecutionContext): Promise<{ metadata: JsonObject; content?: string }> {
+  if (params.template_id === undefined) return { metadata: {} };
   validateNewsletterTemplate(params);
   if (!isBotanicalTemplateId(params.template_id)) throw new Error("Unknown newsletter template.");
   const client = getQueryClient(context);
@@ -31,9 +32,15 @@ export async function newsletterTemplateMetadata(params: JsonObject, context: To
   if (profiles.data.length > 1) throw new Error("This account has multiple brand profiles. Create the newsletter in its Design Studio to use the selected brand.");
   const design = resolveDesignSystem(profiles.data[0] as unknown as ServerCompanyProfileShape);
   const brief = parseBotanicalBrief(params.newsletter_brief);
-  return JSON.parse(JSON.stringify({
+  const blocks = buildBotanicalEditorial(params.template_id, design, brief);
+  const metadata = JSON.parse(JSON.stringify({
     templateId: params.template_id,
     templateVersion: 1,
-    contentBlocks: buildBotanicalEditorial(params.template_id, design, brief),
+    contentBlocks: blocks,
   })) as JsonObject;
+  return { metadata, content: generateEmailHtml({
+    blocks, subject: typeof params.subject_line === "string" ? params.subject_line : "",
+    previewText: typeof params.preheader_text === "string" ? params.preheader_text : "",
+    footer: null, designSystem: design,
+  }) };
 }

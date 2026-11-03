@@ -80,6 +80,8 @@ describe("Bloom campaign channel and sender routing contracts", () => {
     expect(result.success).toBe(true);
     const metadata = h.writes[0].metadata as JsonObject;
     expect(metadata.templateId).toBe("botanical-editorial");
+    expect(h.writes[0].content).toContain("Come create");
+    expect(h.writes[0].content).not.toContain("Draft campaign content will be added later");
     expect(metadata.contentBlocks).toEqual(expect.arrayContaining([expect.objectContaining({ type: "email-safe-hero", layout: "editorial-panel", headline: "Come create" })]));
     expect(h.scopes).toContainEqual(["users", "tenant_id", "crm-tenant"]);
     expect(h.scopes).toContainEqual(["company_profiles", "user_id", ["user-1"]]);

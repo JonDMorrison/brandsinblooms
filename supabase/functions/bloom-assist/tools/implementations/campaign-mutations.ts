@@ -1005,7 +1005,7 @@ async function createCampaignExecution(
     return errorResult("Campaign name is required.", "validation_error");
   }
 
-  const templateMetadata = await newsletterTemplateMetadata(params, context);
+  const templateDraft = await newsletterTemplateMetadata(params, context);
   const method = campaignChannel(params);
   const audience = await resolveAudienceSelection(context, params);
   const nowIso = new Date().toISOString();
@@ -1024,7 +1024,7 @@ async function createCampaignExecution(
     sender_display_name: senderName(params, context),
     sender_email: email,
     actual_sender_email: email,
-    content: campaignContent(params, method),
+    content: templateDraft.content ?? campaignContent(params, method),
     status: "draft",
     // Let the database use its normal draft sender-routing default. The
     // sending pipeline resolves and validates the actual sender later.
@@ -1036,7 +1036,7 @@ async function createCampaignExecution(
     segment_id: segmentIds[0] ?? null,
     persona_ids: personaIds,
     metadata: buildCampaignMetadata(
-      templateMetadata,
+      templateDraft.metadata,
       {
         campaignType: method,
         replyTo: email,
