@@ -1,14 +1,13 @@
-import { BOTANICAL_TEMPLATES, buildBotanicalEditorial } from "./botanicalEditorial.ts";
+import {
+  BOTANICAL_TEMPLATES,
+  buildBotanicalEditorial,
+} from "./botanicalEditorial.ts";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
 import type { StudioDesignSystem } from "@/lib/studio/designSystem";
 import type { StudioBlock } from "@/types/studioBlocks";
 
 export type CampaignTemplateSeason =
-  | "spring"
-  | "summer"
-  | "autumn"
-  | "winter"
-  | "evergreen";
+  "spring" | "summer" | "autumn" | "winter" | "evergreen";
 
 export type CampaignTemplateCategory = "newsletter" | "promo";
 
@@ -76,6 +75,8 @@ export type CampaignTemplate = {
   accentColor: string;
   subjectLine: string;
   previewText: string;
+  /** Short, human-readable description shown beneath the picker preview. */
+  formatLabel?: string;
   thumbnailBlocks: CampaignTemplateThumbnailBlock[];
   buildBlocks: (designSystem?: StudioDesignSystem | null) => StudioBlock[];
 };
@@ -100,10 +101,14 @@ export function applyCampaignTemplateDesignDefaults(blocks: StudioBlock[]) {
   let splitBlockIndex = 0;
 
   return blocks.map((block, index) => {
-    const isSplitBlock = ["image-text", "event", "blog", "announcement"].includes(
-      block.type,
-    );
-    const imageSide: "left" | "right" = splitBlockIndex % 2 === 0 ? "left" : "right";
+    const isSplitBlock = [
+      "image-text",
+      "event",
+      "blog",
+      "announcement",
+    ].includes(block.type);
+    const imageSide: "left" | "right" =
+      splitBlockIndex % 2 === 0 ? "left" : "right";
     if (isSplitBlock) splitBlockIndex += 1;
 
     const rhythmicBlock = isSplitBlock
@@ -255,6 +260,35 @@ function createQuote(
   } satisfies StudioBlock;
 }
 
+function createImageText(
+  designSystem: StudioDesignSystem | null | undefined,
+  options: TemplateBlockOptions & { imagePosition?: "left" | "right" },
+) {
+  const block = createStudioBlock("image-text", designSystem);
+  const primaryColor = getPrimaryColor(
+    designSystem,
+    options.accentColor || "#315a46",
+  );
+
+  return {
+    ...block,
+    headline: options.headline,
+    subheading: options.subheading,
+    body: options.body,
+    imagePosition: options.imagePosition || "left",
+    layout: `image-${options.imagePosition || "left"}`,
+    backgroundColor: options.backgroundColor || TEMPLATE_PAPER,
+    textColor: options.textColor || getTextColor(designSystem, "#27272a"),
+    buttonText: options.buttonText || "Read the story",
+    buttonUrl: options.buttonUrl || getWebsiteUrl(designSystem, "#story"),
+    buttonColor: primaryColor,
+    buttonTextColor: designSystem?.colors.primaryContrastText || "#ffffff",
+    contentPadding: 28,
+    columnSplit: "50/50",
+    borderRadius: 12,
+  } satisfies StudioBlock;
+}
+
 function createCta(
   designSystem: StudioDesignSystem | null | undefined,
   options: TemplateBlockOptions,
@@ -371,13 +405,116 @@ function buildEditorialTemplate(
 
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   ...BOTANICAL_TEMPLATES.map((template): CampaignTemplate => ({
-    id: template.id, name: template.name,
-    summary: "A photographic opening, readable text panel, clear details and generous imagery. Add your own photos and copy.",
-    season: "evergreen", tags: [...template.tags], accentColor: "#243c32",
-    subjectLine: "", previewText: "",
-    thumbnailBlocks: [{ kind: "newsletter-header" }, { kind: "hero", height: 64 }, { kind: "text" }, { kind: "cta" }, { kind: "product-gallery", height: 40 }, { kind: "footer" }],
-    buildBlocks: (designSystem) => buildBotanicalEditorial(template.id, designSystem),
+    id: template.id,
+    name: template.name,
+    summary:
+      "A photographic opening, readable text panel, clear details and generous imagery. Add your own photos and copy.",
+    season: "evergreen",
+    tags: [...template.tags],
+    accentColor: "#243c32",
+    subjectLine: "",
+    previewText: "",
+    thumbnailBlocks: [
+      { kind: "newsletter-header" },
+      { kind: "hero", height: 64 },
+      { kind: "text" },
+      { kind: "cta" },
+      { kind: "product-gallery", height: 40 },
+      { kind: "footer" },
+    ],
+    buildBlocks: (designSystem) =>
+      buildBotanicalEditorial(template.id, designSystem),
   })),
+  {
+    id: "evergreen-seasonal-showcase",
+    name: "Seasonal Showcase",
+    summary:
+      "Image-led magazine layout for seasonal stories, services, and featured products.",
+    season: "evergreen",
+    tags: ["newsletter", "showcase", "seasonal stories"],
+    accentColor: "#315a46",
+    subjectLine: "A fresh seasonal edit for {{ first_name }}",
+    previewText:
+      "Three visual stories, thoughtful pacing, and one clear next step.",
+    formatLabel: "Image-led · 3 stories · Closing CTA",
+    thumbnailBlocks: [
+      { kind: "newsletter-header" },
+      { kind: "hero", height: 48 },
+      { kind: "image-text", height: 34 },
+      { kind: "image-text", height: 34 },
+      { kind: "image-text", height: 34 },
+      { kind: "cta", width: "46%" },
+      { kind: "social-follow" },
+    ],
+    buildBlocks: (designSystem) => {
+      const accentColor = "#315a46";
+      return finalizeBlocks([
+        createHeader(designSystem, {
+          headline: designSystem?.company.name || "The Seasonal Edit",
+          tagLabel: "Stories, ideas & what's new",
+          backgroundColor: "#f3eee3",
+          textColor: "#1f3028",
+        }),
+        createHero(designSystem, {
+          headline: "A season worth slowing down for.",
+          subheading:
+            "Lead with one beautiful idea, then guide readers through a curated mix of stories and highlights.",
+          body: "Designed like a small magazine: visual, spacious, and easy to scan on every screen.",
+          tagLabel: "The seasonal showcase",
+          backgroundColor: accentColor,
+          textColor: "#fffaf1",
+          accentColor,
+          buttonText: "Explore the season",
+          buttonUrl: getWebsiteUrl(designSystem, "#seasonal-showcase"),
+        }),
+        createText(designSystem, {
+          body: "Hello {{ first_name }},<br /><br />Use this opening note to welcome readers and introduce the theme that connects the stories below. Keep it warm, brief, and personal.",
+          backgroundColor: TEMPLATE_PAPER,
+          textColor: "#29362f",
+          accentColor,
+          layout: "standard",
+        }),
+        createImageText(designSystem, {
+          headline: "Your lead story",
+          subheading: "A timely idea with room to breathe",
+          body: "Feature the most important product, service, event, or seasonal idea here. Add one strong image and keep the copy focused.",
+          buttonText: "Discover the story",
+          buttonUrl: getWebsiteUrl(designSystem, "#lead-story"),
+          accentColor,
+          backgroundColor: "#f4efe5",
+          imagePosition: "left",
+        }),
+        createImageText(designSystem, {
+          headline: "A second perspective",
+          subheading: "Useful, inspiring, and easy to act on",
+          body: "Use the alternating layout for a helpful tip, a behind-the-scenes story, or a complementary feature.",
+          buttonText: "See the details",
+          buttonUrl: getWebsiteUrl(designSystem, "#second-story"),
+          accentColor,
+          backgroundColor: "#edf3ee",
+          imagePosition: "right",
+        }),
+        createImageText(designSystem, {
+          headline: "One final highlight",
+          subheading: "End the editorial section on a fresh note",
+          body: "Close with a smaller discovery, upcoming date, or customer favourite before the final call to action.",
+          buttonText: "Take a closer look",
+          buttonUrl: getWebsiteUrl(designSystem, "#final-story"),
+          accentColor,
+          backgroundColor: "#f4efe5",
+          imagePosition: "left",
+        }),
+        createCta(designSystem, {
+          headline: "Ready to explore the full collection?",
+          body: "Give readers one clear next step that ties the whole newsletter together.",
+          buttonText: "Explore what's new",
+          buttonUrl: getWebsiteUrl(designSystem, "#whats-new"),
+          accentColor,
+        }),
+        createFooter(designSystem),
+      ]);
+    },
+  },
   {
     id: "spring-studio-introduction",
     name: "Spring Studio Introduction",
@@ -831,6 +968,7 @@ export function applyCampaignTemplate(
 
 export type CampaignIntentKey =
   | "newsletter"
+  | "showcase"
   | "sale"
   | "new-arrivals"
   | "event"
@@ -846,6 +984,7 @@ const INTENT_TAG_KEYWORDS: Record<
   readonly string[]
 > = {
   newsletter: ["newsletter", "editorial", "retention", "monthly"],
+  showcase: ["showcase", "seasonal stories"],
   sale: ["sale", "promo", "promotion", "launch", "drop"],
   "new-arrivals": [
     "new arrivals",

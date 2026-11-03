@@ -10,6 +10,7 @@ import {
   Calendar,
   FilePlus,
   Heart,
+  Images,
   MoreHorizontal,
   Newspaper,
   Sprout,
@@ -38,9 +39,15 @@ export type IntentCardEntry = {
 const DEFAULT_INTENTS: ReadonlyArray<Omit<IntentCardEntry, "comingSoon">> = [
   {
     key: "newsletter",
-    title: "Newsletter",
+    title: "Editorial Newsletter",
     subtitle: "Monthly update with multiple sections",
     icon: Newspaper,
+  },
+  {
+    key: "showcase",
+    title: "Seasonal Showcase",
+    subtitle: "Image-led stories in a magazine-style layout",
+    icon: Images,
   },
   {
     key: "sale",
@@ -175,6 +182,9 @@ function IntentCard({
     () => (isBlank ? null : getTemplateForIntent(entry.key)),
     [entry.key, isBlank],
   );
+  const formatLabel =
+    template?.formatLabel ||
+    (isBlank ? "Build your own layout" : "Ready-to-edit email design");
 
   return (
     <Box
@@ -212,8 +222,11 @@ function IntentCard({
         justifyContent="space-between"
         sx={{ minHeight: 22 }}
       >
-        <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-          Layout preview
+        <Typography
+          level="body-xs"
+          sx={{ color: "neutral.700", fontWeight: 600 }}
+        >
+          {template?.name || "Blank canvas"}
         </Typography>
         {selected ? (
           <Typography
@@ -246,6 +259,12 @@ function IntentCard({
             sx={{ fontSize: "14px", color: "neutral.600" }}
           >
             {entry.subtitle}
+          </Typography>
+          <Typography
+            level="body-xs"
+            sx={{ mt: 0.5, color: "neutral.500", fontSize: "12px" }}
+          >
+            {formatLabel}
           </Typography>
         </Stack>
       </Stack>
@@ -429,16 +448,35 @@ export function IntentPicker({
 
       {onApplyBuiltInTemplate ? (
         <Stack spacing={1.5}>
-          <Typography level="title-md">Botanical Editorial collection</Typography>
-          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-            Photographic layouts with your branding. Replace the photos and copy, then save your own version in My templates.
+          <Typography level="title-md">
+            Botanical Editorial collection
           </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
-            {CAMPAIGN_TEMPLATES.filter((template) => template.id.startsWith("botanical-")).map((template) => (
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            Photographic layouts with your branding. Replace the photos and
+            copy, then save your own version in My templates.
+          </Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            {CAMPAIGN_TEMPLATES.filter((template) =>
+              template.id.startsWith("botanical-"),
+            ).map((template) => (
               <Box key={template.id} sx={{ ...cardBaseSx, cursor: "default" }}>
                 <IntentCardThumbnail template={template} />
                 <Typography level="title-sm">{template.name}</Typography>
-                <JoyButton variant="outlined" color="neutral" disabled={disabled} onClick={() => onApplyBuiltInTemplate(template)}>
+                <JoyButton
+                  variant="outlined"
+                  color="neutral"
+                  disabled={disabled}
+                  onClick={() => onApplyBuiltInTemplate(template)}
+                >
                   Use {template.name}
                 </JoyButton>
               </Box>
