@@ -931,9 +931,12 @@ function senderEmail(params: JsonObject): string | null {
   );
 }
 
-function deliveryMethod(params: JsonObject): "email" | "sms" {
+// The tool's legacy delivery_method parameter is a channel. The database
+// delivery_method column is sender routing (custom_domain/shared_sender).
+function campaignChannel(params: JsonObject, metadata: JsonObject = {}): "email" | "sms" {
   const method =
-    readString(params.delivery_method) || readString(params.campaign_type);
+    readString(params.delivery_method) || readString(params.campaign_type) ||
+    readString(metadata.campaignType);
   return method === "sms" ? "sms" : "email";
 }
 
@@ -969,7 +972,7 @@ function buildCampaignMetadata(
     additionalCustomerIds: jsonArray(args.additionalCustomerIds),
     sourceSegmentId: args.sourceSegmentId,
     sourcePersonaId: args.sourcePersonaId,
-    contentBlocks: [],
+    contentBlocks: existingMetadata.contentBlocks ?? [],
   };
 }
 
@@ -1001,7 +1004,7 @@ async function createCampaignExecution(
     return errorResult("Campaign name is required.", "validation_error");
   }
 
-  const method = deliveryMethod(params);
+  const method = campaignChannel(params);
   const audience = await resolveAudienceSelection(context, params);
   const nowIso = new Date().toISOString();
   const email = senderEmail(params);
@@ -1021,7 +1024,8 @@ async function createCampaignExecution(
     actual_sender_email: email,
     content: campaignContent(params, method),
     status: "draft",
-    delivery_method: method,
+    // Let the database use its normal draft sender-routing default. The
+    // sending pipeline resolves and validates the actual sender later.
     scheduled_at: null,
     send_blocked_reason: null,
     projected_recipient_count: audience.audienceSize,
@@ -1107,7 +1111,7 @@ export const createCampaign: ToolImplementation = async (params, context) => {
       operation: "create_campaign",
       campaign: {
         name,
-        delivery_method: deliveryMethod(params),
+        delivery_method: campaignChannel(params),
         subject_line: readString(params.subject_line),
         preheader_text: readString(params.preheader_text),
         sender_name: senderName(params, context),
@@ -1150,10 +1154,7 @@ function updatePayloadFromChanges(
   audience: AudienceSelection | null,
 ): CampaignUpdate {
   const metadata = toJsonObject(campaign.metadata);
-  const method = deliveryMethod({
-    delivery_method:
-      changes.delivery_method ?? campaign.delivery_method ?? "email",
-  });
+  const method = campaignChannel(changes, metadata);
   const content = readString(changes.content);
   const preheader = readString(changes.preheader_text);
   const sender =
@@ -1173,7 +1174,6 @@ function updatePayloadFromChanges(
     update.preheader = preheader;
   }
   if (content !== null) update.content = content;
-  if (readString(changes.delivery_method)) update.delivery_method = method;
   if (sender) {
     update.sender_name = sender;
     update.sender_display_name = sender;
@@ -1193,6 +1193,9 @@ function updatePayloadFromChanges(
     update.include_all_customers = audience.includeAllCustomers;
     update.additional_customer_ids = audience.additionalCustomerIds;
     update.projected_recipient_count = audience.audienceSize;
+  }
+
+  if (audience || content !== null || email || readString(changes.delivery_method) || readString(changes.campaign_type)) {
     update.metadata = buildCampaignMetadata(metadata, {
       campaignType: method,
       replyTo: email ?? readString(metadata.replyTo) ?? campaign.sender_email,
@@ -1200,10 +1203,10 @@ function updatePayloadFromChanges(
         method === "sms"
           ? (content ?? campaign.content ?? "")
           : (readString(metadata.smsMessage) ?? ""),
-      includeAllCustomers: audience.includeAllCustomers,
-      additionalCustomerIds: audience.additionalCustomerIds,
-      sourceSegmentId: segmentIds[0] ?? null,
-      sourcePersonaId: personaIds[0] ?? null,
+      includeAllCustomers: audience?.includeAllCustomers ?? campaign.include_all_customers,
+      additionalCustomerIds: audience?.additionalCustomerIds ?? campaign.additional_customer_ids ?? [],
+      sourceSegmentId: audience ? audience.segments[0]?.id ?? null : readString(metadata.sourceSegmentId),
+      sourcePersonaId: audience ? audience.personas[0]?.id ?? null : readString(metadata.sourcePersonaId),
     });
   }
 
@@ -2111,3 +2114,4 @@ export function campaignMutationImplementation(
       return null;
   }
 }
+

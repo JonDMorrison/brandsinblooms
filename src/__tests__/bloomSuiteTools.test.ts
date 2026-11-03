@@ -10,8 +10,107 @@ import {
 import { SupportRpcError } from "../../supabase/functions/bloom-assist/tools/implementations/support-tools";
 import { getRegisteredTool } from "../../supabase/functions/bloom-assist/tools/registry";
 import type { ToolExecutionContext } from "../../supabase/functions/bloom-assist/tools/types";
+import { createCampaign, updateCampaign } from "../../supabase/functions/bloom-assist/tools/implementations/campaign-mutations";
+import type { JsonObject } from "../../supabase/functions/bloom-assist/types";
 
 const context = { tenantId: "crm-tenant", userId: "user-1", userName: "Ann", serviceClient: {} } as unknown as ToolExecutionContext;
+
+describe("Bloom campaign channel and sender routing contracts", () => {
+  function harness(metadata: JsonObject = { campaignType: "email" }) {
+    let row: JsonObject = {
+      id: "0cc95987-2fd9-43ea-96cb-834c876b063e", tenant_id: "crm-tenant",
+      name: "Workshop", status: "draft", delivery_method: "custom_domain",
+      content: "Original body", metadata, include_all_customers: false,
+      additional_customer_ids: [], persona_ids: [], segment_id: null,
+      sender_email: "hello@example.test",
+    };
+    const writes: JsonObject[] = [];
+    const scopes: Array<[string, string, unknown]> = [];
+    const client = {
+      from(table: string) {
+        let mutation: JsonObject | null = null;
+        let operation = "read";
+        const result = () => {
+          if (mutation) {
+            // Enforce the production check constraint, rather than accepting
+            // a payload that Postgres would reject.
+            if (mutation.delivery_method !== undefined && !["custom_domain", "shared_sender"].includes(String(mutation.delivery_method))) {
+              return { data: null, error: new Error("crm_campaigns_delivery_method_check") };
+            }
+            writes.push(mutation);
+            row = { ...row, ...mutation };
+          }
+          return { data: table === "crm_campaigns" && operation !== "delete" ? row : [], error: null };
+        };
+        const query = {
+          select() { return query; },
+          insert(value: JsonObject) { mutation = value; operation = "insert"; return query; },
+          update(value: JsonObject) { mutation = value; operation = "update"; return query; },
+          delete() { operation = "delete"; return query; },
+          eq(column: string, value: unknown) { scopes.push([table, column, value]); return query; },
+          is() { return query; },
+          ilike() { return query; },
+          limit() { return query; },
+          range() { return query; },
+          in() { return query; },
+          single: async () => result(),
+          maybeSingle: async () => result(),
+          then(resolve: (value: ReturnType<typeof result>) => unknown) { return Promise.resolve(result()).then(resolve); },
+        };
+        return query;
+      },
+    };
+    return {
+      writes, scopes,
+      context: { ...context, approved: true, serviceClient: client } as unknown as ToolExecutionContext,
+      getRow: () => row,
+    };
+  }
+
+  it.each(["email", "sms"])("creates an approved %s draft without writing the channel to sender routing", async (channel) => {
+    const h = harness();
+    const result = await createCampaign({ name: "Workshop", delivery_method: channel, content: "Draft body" }, h.context);
+    expect(result.success).toBe(true);
+    expect(h.writes[0]).not.toHaveProperty("delivery_method");
+    expect(h.writes[0].metadata).toMatchObject({ campaignType: channel });
+    expect(h.writes[0]).toMatchObject({ tenant_id: "crm-tenant", user_id: "user-1", status: "draft" });
+  });
+
+  it("updates the channel in metadata while preserving sender routing", async () => {
+    const h = harness();
+    const result = await updateCampaign({ campaign_id: h.getRow().id, changes: { delivery_method: "sms", content: "Updated SMS" } }, h.context);
+    expect(result.success).toBe(true);
+    expect(h.writes[0]).not.toHaveProperty("delivery_method");
+    expect(h.writes[0].metadata).toMatchObject({ campaignType: "sms", smsMessage: "Updated SMS" });
+    expect(h.scopes).toContainEqual(["crm_campaigns", "tenant_id", "crm-tenant"]);
+  });
+
+  it("preserves an SMS draft's channel when only its audience changes", async () => {
+    const h = harness({ campaignType: "sms", smsMessage: "Original body" });
+    await updateCampaign({ campaign_id: h.getRow().id, changes: { include_all_customers: false } }, h.context);
+    expect(h.writes[0].metadata).toMatchObject({ campaignType: "sms", smsMessage: "Original body" });
+  });
+
+  it("updates SMS metadata when only the message body changes", async () => {
+    const h = harness({ campaignType: "sms", smsMessage: "Original body" });
+    await updateCampaign({ campaign_id: h.getRow().id, changes: { content: "New message" } }, h.context);
+    expect(h.writes[0].metadata).toMatchObject({ campaignType: "sms", smsMessage: "New message" });
+  });
+
+  it("preserves newsletter design blocks when changing its audience", async () => {
+    const blocks = [{ id: "hero-1", type: "text", content: "Saved newsletter" }];
+    const h = harness({ campaignType: "email", contentBlocks: blocks, custom: "keep" });
+    await updateCampaign({ campaign_id: h.getRow().id, changes: { include_all_customers: false } }, h.context);
+    expect(h.writes[0].metadata).toMatchObject({ contentBlocks: blocks, custom: "keep" });
+  });
+
+  it("requires confirmation before creating a draft", async () => {
+    const h = harness();
+    const result = await createCampaign({ name: "Workshop", delivery_method: "email" }, { ...h.context, approved: false });
+    expect(result.confirmation_required).toBe(true);
+    expect(h.writes).toHaveLength(0);
+  });
+});
 
 function deps(over: Partial<SuiteDeps> = {}): SuiteDeps & { runRead: ReturnType<typeof vi.fn> } {
   const runRead = vi.fn(async () => ({ pages: [{ id: "p1", title: "Home" }] }));
@@ -113,3 +212,4 @@ describe("Theme drafts are registered as Support changes", () => {
     }
   });
 });
+

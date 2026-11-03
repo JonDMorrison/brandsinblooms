@@ -492,7 +492,7 @@ const campaignWriteFields = {
   subject_line: stringSchema("Email subject line.", { maxLength: 180 }),
   preheader_text: stringSchema("Email preheader text.", { maxLength: 220 }),
   content: stringSchema("Campaign body content.", { maxLength: 20000 }),
-  delivery_method: stringSchema("Campaign delivery channel.", {
+  delivery_method: stringSchema("Message channel: email or sms. Stored as metadata.campaignType; this is not the database sender-routing field.", {
     enum: CAMPAIGN_DELIVERY_METHODS,
   }),
   status: stringSchema("Campaign status.", { enum: CAMPAIGN_STATUSES }),
@@ -1741,3 +1741,4 @@ export function getToolDefinitionsForIntent(
     toOpenAIToolDefinition,
   );
 }
+
