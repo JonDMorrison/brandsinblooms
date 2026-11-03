@@ -29,10 +29,10 @@ function serverCandidates(terms: string[]) {
     return kept.length ? [{...e, raw_data: {...raw, items: kept.map(k => k.item)}, item_indexes: kept.map(k => k.index)}] : [];
   });
 }
-function fakeClient(candidates: unknown, scope: unknown = {customer_ids: ['buyer', 'other', 'blank', 'both'], rows: 4, invalid_rows: 0}) {
+function fakeClient(candidates: unknown, scope: unknown = {customer_ids: ['buyer', 'other', 'blank', 'both'], rows: 4, invalid_rows: 0}, rows: unknown[] = events) {
   const rpc = vi.fn(async (name: string) => ({data: name === 'bloom_summary_evidence_scope' ? scope : name === 'bloom_summary_product_candidates' ? candidates : null, error: null}));
   const from = (table: string) => {
-    const data = table === 'customer_intelligence_imports' ? [report] : [];
+    const data = table === 'customer_intelligence_imports' ? [report] : table === 'customer_intelligence_source_events' ? rows : [];
     const q = {select: () => q, eq: () => q, is: () => q, lte: () => q, gte: () => q, in: () => q, order: () => q, range: async () => ({data, error: null})};
     return q;
   };
@@ -124,5 +124,46 @@ describe('narrowed report rows are still checked', () => {
   });
   it('falls back to the full scan for rules that need every line', async () => {
     expect(await loadProductSearchFacts(fakeClient([]), T, '2026-11-03T00:00:00Z', {mode: 'purchased', category: 'Plants'}, store)).toBeNull();
+  });
+});
+
+describe('search result wording', () => {
+  it('reads as a complete answer, not a failed lookup', async () => {
+    const {exploreMessage} = await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const message = exploreMessage('purchased', 1828, 19791, 26315);
+    expect(message).toBe('Search succeeded: 1,828 customers bought it. 19,791 have purchase records without it. 26,315 have no purchase records on file, so they are counted separately. This is a complete answer, not an error.');
+    expect(message).not.toMatch(/unknown|require more data|could not/i);
+  });
+});
+
+describe('each report import is verified once, then reused until it changes', () => {
+  const rule: PurchaseRule = {mode: 'purchased', product: 'sea soil'};
+  const verified = events.filter(e => e.customer_id !== 'blank');
+  function memoryStore(fingerprint = 'fp1') {
+    const saved = new Map<string, string>();
+    return {saved, store: {fingerprint: async () => fingerprint, get: async (id: string) => saved.get(id) ?? null, set: async (id: string, value: string) => {saved.set(id, value);}} as VerifiedSnapshotStore};
+  }
+  it('verifies every row of a new import, then records its fingerprint', async () => {
+    const {saved, store: s} = memoryStore();
+    const result = await loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), undefined, verified), T, '2026-11-03T00:00:00Z', rule, s);
+    expect(result).not.toBeNull();
+    expect(saved.get('r2025')).toBe('fp1');
+  });
+  it('rejects the search when any row of the import disagrees with its ledger, even one that does not match the term', async () => {
+    const {saved, store: s} = memoryStore();
+    const tampered = verified.map(e => e.id === 'e2' ? {...e, raw_data: {...(e.raw_data as object), source_sha256: 'other'}} : e);
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), undefined, tampered), T, '2026-11-03T00:00:00Z', rule, s)).rejects.toThrow('ledger');
+    expect(saved.size).toBe(0);
+  });
+  it('falls back to the full scan when an import has product lines with no name or code', async () => {
+    const {saved, store: s} = memoryStore();
+    expect(await loadProductSearchFacts(fakeClient(serverCandidates(['sea soil'])), T, '2026-11-03T00:00:00Z', rule, s)).toBeNull();
+    expect(saved.size).toBe(0);
+  });
+  it('re-verifies when the fingerprint changed since the last verification', async () => {
+    const {saved, store: s} = memoryStore('fp2');
+    saved.set('r2025', 'fp1');
+    const tampered = verified.map(e => e.id === 'e2' ? {...e, raw_data: {...(e.raw_data as object), period_end: '2025-06-30'}} : e);
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), undefined, tampered), T, '2026-11-03T00:00:00Z', rule, s)).rejects.toThrow('ledger');
   });
 });
