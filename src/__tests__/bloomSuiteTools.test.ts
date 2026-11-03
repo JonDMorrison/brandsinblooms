@@ -97,6 +97,14 @@ describe("Bloom campaign channel and sender routing contracts", () => {
     expect(h.writes[0].metadata).toMatchObject({ campaignType: "sms", smsMessage: "New message" });
   });
 
+  it("does not rebuild legacy audience metadata during a body-only edit", async () => {
+    const metadata = { campaignType: "sms", includeAllCustomers: true, additionalCustomerIds: ["legacy-customer"], sourceSegmentId: "legacy-segment" };
+    const h = harness(metadata);
+    await updateCampaign({ campaign_id: h.getRow().id, changes: { content: "New message" } }, h.context);
+    expect(h.writes[0].metadata).toMatchObject(metadata);
+    expect(h.writes[0]).not.toHaveProperty("include_all_customers");
+  });
+
   it("preserves newsletter design blocks when changing its audience", async () => {
     const blocks = [{ id: "hero-1", type: "text", content: "Saved newsletter" }];
     const h = harness({ campaignType: "email", contentBlocks: blocks, custom: "keep" });

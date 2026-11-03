@@ -1195,7 +1195,7 @@ function updatePayloadFromChanges(
     update.projected_recipient_count = audience.audienceSize;
   }
 
-  if (audience || content !== null || email || readString(changes.delivery_method) || readString(changes.campaign_type)) {
+  if (audience) {
     update.metadata = buildCampaignMetadata(metadata, {
       campaignType: method,
       replyTo: email ?? readString(metadata.replyTo) ?? campaign.sender_email,
@@ -1203,11 +1203,19 @@ function updatePayloadFromChanges(
         method === "sms"
           ? (content ?? campaign.content ?? "")
           : (readString(metadata.smsMessage) ?? ""),
-      includeAllCustomers: audience?.includeAllCustomers ?? campaign.include_all_customers,
-      additionalCustomerIds: audience?.additionalCustomerIds ?? campaign.additional_customer_ids ?? [],
-      sourceSegmentId: audience ? audience.segments[0]?.id ?? null : readString(metadata.sourceSegmentId),
-      sourcePersonaId: audience ? audience.personas[0]?.id ?? null : readString(metadata.sourcePersonaId),
+      includeAllCustomers: audience.includeAllCustomers,
+      additionalCustomerIds: audience.additionalCustomerIds,
+      sourceSegmentId: audience.segments[0]?.id ?? null,
+      sourcePersonaId: audience.personas[0]?.id ?? null,
     });
+  } else if (content !== null || email || readString(changes.delivery_method) || readString(changes.campaign_type)) {
+    // A body/channel/sender edit must not rebuild or change the audience.
+    update.metadata = {
+      ...metadata,
+      campaignType: method,
+      ...(email ? { replyTo: email } : {}),
+      ...(method === "sms" && content !== null ? { smsMessage: content } : {}),
+    };
   }
 
   return update;
