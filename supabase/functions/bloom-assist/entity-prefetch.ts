@@ -3,6 +3,7 @@ import type {
   PageEntityType,
   PersistenceClient,
 } from "./types.ts";
+import { readCustomerPurchaseEvidence } from "../_shared/customer-intelligence/customer-purchase-evidence.ts";
 
 type EntityRecord = Record<string, unknown>;
 
@@ -90,7 +91,14 @@ function buildCustomerSummary(
   entityId: string,
 ): EntitySummary {
   const email = readString(record.email);
-  const totalSpent = formatCurrency(readFiniteNumber(record.total_spent));
+  const purchases = readCustomerPurchaseEvidence(record);
+  const totalSpent = purchases.total_spent === null
+    ? null
+    : new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(purchases.total_spent);
+  const reported = purchases.reported_period_spending;
+  const reportSummary = reported
+    ? `${new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(reported.spend)} CAD reported spending from ${reported.start} to ${reported.end}; ${reported.transactions} reported transactions. These are source-period totals, not lifetime value or dated orders.`
+    : null;
   const lastPurchaseDate = formatShortDate(
     readString(record.last_purchase_date),
   );
@@ -101,7 +109,8 @@ function buildCustomerSummary(
     name: buildCustomerName(record, entityId),
     summaryText: joinSummaryParts([
       email ? email : null,
-      totalSpent ? `${totalSpent} total spent` : null,
+      totalSpent !== null ? `${totalSpent} recorded spending` : "Recorded spending unknown",
+      reportSummary,
       lastPurchaseDate ? `last purchase ${lastPurchaseDate}` : null,
     ]),
   };
@@ -194,7 +203,7 @@ async function fetchCustomerSummary(
   const { data, error } = await serviceClient
     .from("crm_customers")
     .select(
-      "id, first_name, last_name, email, total_spent, last_purchase_date, tenant_id, deleted_at",
+      "id, first_name, last_name, email, total_spent, first_purchase_date, last_purchase_date, pos_order_count, custom_fields, tenant_id, deleted_at",
     )
     .eq("id", entityId)
     .eq("tenant_id", tenantId)

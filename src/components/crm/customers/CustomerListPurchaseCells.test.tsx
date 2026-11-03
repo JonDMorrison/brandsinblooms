@@ -13,6 +13,16 @@ const westCoastJohn={id:'0a98530f-931b-4ce5-865f-377f6c6f4d4e',first_name:'John'
     ideal_reported_ytd:{start:'2026-01-01',end:'2026-10-14',spend:2013.85,transactions:29,source:'Customer Spending YTD.xls',basis:'reported period totals, not lifetime or dated receipts'}}};
 
 describe('customer list: imported spending (Bryan, Nov 2: “pasca” showed $0 / No purchases)',()=>{
+  it.each([null, undefined, '', '   ', 'unknown', Number.NaN])('keeps unavailable spend unknown (%s)',(total_spent)=>{
+    render(<CustomerListSpendCell customer={{total_spent}}/>);
+    expect(screen.getByText('Unknown')).toBeVisible();
+    expect(screen.queryByText('0.00')).toBeNull();
+  });
+  it.each([0, '0', -42.5])('preserves a supplied recorded amount (%s)',(total_spent)=>{
+    render(<CustomerListSpendCell customer={{total_spent}}/>);
+    expect(screen.getByText(Number(total_spent).toFixed(2))).toBeVisible();
+    expect(screen.queryByText('Unknown')).toBeNull();
+  });
   it('shows the reported total with its period instead of $0',()=>{
     render(<CustomerListSpendCell customer={westCoastJohn}/>);
     expect(screen.getByText('$2,013.85')).toBeVisible();

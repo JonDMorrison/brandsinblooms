@@ -51,7 +51,9 @@ export function readNumber(value: unknown): number | null {
     return null;
   }
 
-  const numeric = Number(value.replace(/[^0-9.-]+/g, ""));
+  const normalized = value.replace(/[^0-9.-]+/g, "");
+  if (!normalized || !/\d/.test(normalized)) return null;
+  const numeric = Number(normalized);
   return Number.isFinite(numeric) ? numeric : null;
 }
 
@@ -171,10 +173,19 @@ export function formatCurrencyValue(
 ): string {
   const amount = readNumber(value);
   if (amount === null) {
-    return readString(value) ?? "$0.00";
+    return readString(value) ?? "Unknown";
   }
 
-  const currency = readString(currencyValue) ?? "USD";
+  const currency = readString(currencyValue);
+  if (!currency) {
+    // Preserve explicitly formatted currency, but never invent USD for a
+    // numeric amount from a source that does not supply a currency.
+    if (typeof value === "string" && /\p{Sc}/u.test(value)) return value.trim();
+    return new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
@@ -185,7 +196,7 @@ export function formatCurrencyValue(
 export function formatNumberValue(value: unknown): string {
   const numeric = readNumber(value);
   return numeric === null
-    ? "0"
+    ? readString(value) ?? "Unknown"
     : new Intl.NumberFormat("en-US").format(numeric);
 }
 

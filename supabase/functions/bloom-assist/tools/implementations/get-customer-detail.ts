@@ -1,4 +1,5 @@
 import { SYSTEM_PERSONAS } from "../../../../../src/config/systemPersonas.ts";
+import { readCustomerPurchaseEvidence } from "../../../_shared/customer-intelligence/customer-purchase-evidence.ts";
 import type { Database } from "../../../../../src/integrations/supabase/types.ts";
 import type { JsonObject, JsonValue } from "../../types.ts";
 import type {
@@ -10,7 +11,6 @@ import {
   getQueryClient,
   isJsonValue,
   isRecord,
-  toNumberOrNull,
   uniqueStrings,
   type BloomQueryClient,
 } from "./shared.ts";
@@ -244,10 +244,6 @@ function readNotes(customFields: JsonValue | null): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
-}
-
-function orderHistoryCount(value: JsonValue | null): number | null {
-  return Array.isArray(value) ? value.length : null;
 }
 
 function averageOrderValue(
@@ -617,13 +613,7 @@ function mapCustomerDetail(args: {
 }): JsonObject {
   const customFields = jsonOrNull(args.customer.custom_fields);
   const orderHistory = jsonOrNull(args.customer.order_history);
-  const orderCount =
-    toNumberOrNull(args.customer.pos_order_count) ??
-    orderHistoryCount(orderHistory);
-  const lifetimeValue =
-    toNumberOrNull(args.customer.lifetime_value) ??
-    toNumberOrNull(args.customer.total_spent);
-  const totalSpent = toNumberOrNull(args.customer.total_spent);
+  const purchases = readCustomerPurchaseEvidence(args.customer);
 
   return {
     id: args.customer.id,
@@ -649,6 +639,8 @@ function mapCustomerDetail(args: {
     suppressed: args.customer.suppressed,
     notes: readNotes(customFields),
     custom_fields: customFields,
+    reported_period_spending: purchases.reported_period_spending,
+    purchase_data_note: purchases.purchase_data_note,
     email_consent: {
       status: consentStatus(args.customer.email_opt_in),
       status_date:
@@ -690,14 +682,14 @@ function mapCustomerDetail(args: {
         : null,
     },
     purchase_metrics: {
-      order_count: orderCount,
+      order_count: purchases.order_count,
       average_order_value: averageOrderValue(
-        lifetimeValue ?? totalSpent,
-        orderCount,
+        purchases.lifetime_value ?? purchases.total_spent ?? purchases.pos_total_spent,
+        purchases.order_count,
       ),
-      lifetime_value: lifetimeValue,
-      total_spent: totalSpent,
-      pos_total_spent: args.customer.pos_total_spent,
+      lifetime_value: purchases.lifetime_value,
+      total_spent: purchases.total_spent,
+      pos_total_spent: purchases.pos_total_spent,
       first_purchase_date: args.customer.first_purchase_date,
       last_purchase_date: args.customer.last_purchase_date,
       order_history: orderHistory,
