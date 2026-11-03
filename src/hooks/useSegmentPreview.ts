@@ -43,8 +43,9 @@ export interface SegmentPreviewResult {
   lifecycleBreakdown: SegmentPreviewDistributionItem[];
   engagementBreakdown: SegmentPreviewDistributionItem[];
   preferredChannelBreakdown: SegmentPreviewDistributionItem[];
-  averageLifetimeValue: number;
-  averageLifetimeValueDelta: number;
+  /** null when no customer in the group has a known lifetime value. Never shown as $0. */
+  averageLifetimeValue: number | null;
+  averageLifetimeValueDelta: number | null;
   updatedLabel: string;
   customFields: SegmentField[];
   /**
@@ -340,26 +341,17 @@ export function useSegmentPreview({
     const preferredChannelBreakdown = buildBreakdown(
       matchedCustomers.map((customer) => customer.preferred_channel || "none"),
     );
-    const averageLifetimeValue = matchedCustomers.length
-      ? matchedCustomers.reduce(
-          (sum, customer) =>
-            sum +
-            Number(
-              getCustomerComparableValue(customer, "lifetime_value", {}) ?? 0,
-            ),
-          0,
-        ) / matchedCustomers.length
-      : 0;
-    const allAverageLifetimeValue = customers.length
-      ? customers.reduce(
-          (sum, customer) =>
-            sum +
-            Number(
-              getCustomerComparableValue(customer, "lifetime_value", {}) ?? 0,
-            ),
-          0,
-        ) / customers.length
-      : 0;
+    // Average only known values. Unknown lifetime value is not zero spend.
+    const averageKnownLifetimeValue = (list: typeof customers): number | null => {
+      const known = list
+        .map((customer) => getCustomerComparableValue(customer, "lifetime_value", {}))
+        .filter((value): value is number | string => value !== null && value !== undefined && value !== "")
+        .map(Number)
+        .filter((value) => Number.isFinite(value));
+      return known.length ? known.reduce((sum, value) => sum + value, 0) / known.length : null;
+    };
+    const averageLifetimeValue = averageKnownLifetimeValue(matchedCustomers);
+    const allAverageLifetimeValue = averageKnownLifetimeValue(customers);
 
     return {
       audienceMode,
@@ -371,7 +363,10 @@ export function useSegmentPreview({
       engagementBreakdown,
       preferredChannelBreakdown,
       averageLifetimeValue,
-      averageLifetimeValueDelta: averageLifetimeValue - allAverageLifetimeValue,
+      averageLifetimeValueDelta:
+        averageLifetimeValue === null || allAverageLifetimeValue === null
+          ? null
+          : averageLifetimeValue - allAverageLifetimeValue,
       updatedLabel: baseQuery.isFetching ? "Updating..." : "Updated just now",
       customFields,
       basedOnSample: baseQuery.data?.basedOnSample ?? false,
