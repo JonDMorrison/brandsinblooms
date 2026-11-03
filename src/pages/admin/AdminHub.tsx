@@ -637,6 +637,31 @@ export default function AdminHub() {
     enabled: isSuperAdmin === true,
   });
 
+  // Hooks must run on every render, before the loading and access returns below.
+  const operationalItems = useMemo(
+    () => buildAdminHubItems(tenants),
+    [tenants],
+  );
+
+  const selectedDateItems = useMemo(
+    () =>
+      operationalItems.filter((item) =>
+        isSameDay(item.scheduledStart, selectedDate),
+      ),
+    [operationalItems, selectedDate],
+  );
+
+  useEffect(() => {
+    if (selectedDateItems.length === 0) {
+      setSelectedItemId(null);
+      return;
+    }
+
+    if (!selectedDateItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(selectedDateItems[0].id);
+    }
+  }, [selectedDateItems, selectedItemId]);
+
   if (isLoading) {
     return (
       <PageContainer fullWidth>
@@ -769,30 +794,6 @@ export default function AdminHub() {
       action: () => navigate("/admin/reports"),
     },
   ];
-
-  const operationalItems = useMemo(
-    () => buildAdminHubItems(tenants),
-    [tenants],
-  );
-
-  const selectedDateItems = useMemo(
-    () =>
-      operationalItems.filter((item) =>
-        isSameDay(item.scheduledStart, selectedDate),
-      ),
-    [operationalItems, selectedDate],
-  );
-
-  useEffect(() => {
-    if (selectedDateItems.length === 0) {
-      setSelectedItemId(null);
-      return;
-    }
-
-    if (!selectedDateItems.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId(selectedDateItems[0].id);
-    }
-  }, [selectedDateItems, selectedItemId]);
 
   const selectedItem =
     selectedDateItems.find((item) => item.id === selectedItemId) ?? null;
