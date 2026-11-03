@@ -24,6 +24,7 @@ const captionSx = { fontSize: "11px", color: "neutral.500", whiteSpace: "nowrap"
 const mutedSx = { fontSize: "13px", color: "neutral.500" } as const;
 
 function recordedSpend(value: PurchaseCellCustomer["total_spent"]): number | null {
+  if (typeof value === "string" && !value.trim()) return null;
   const amount = typeof value === "string" ? Number(value) : value;
   return typeof amount === "number" && Number.isFinite(amount) ? amount : null;
 }
@@ -48,10 +49,14 @@ export function CustomerListSpendCell({ customer }: { customer: PurchaseCellCust
     );
   }
 
+  if (recorded === null) {
+    return <Typography sx={{ ...mutedSx, textAlign: "right" }}>Unknown</Typography>;
+  }
+
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
       <DollarSign size={12} strokeWidth={1.9} color="var(--joy-palette-neutral-400)" />
-      <Typography sx={amountSx}>{recorded ? recorded.toFixed(2) : "0.00"}</Typography>
+      <Typography sx={amountSx}>{recorded.toFixed(2)}</Typography>
     </Stack>
   );
 }

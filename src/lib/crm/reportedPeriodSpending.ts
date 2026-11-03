@@ -51,6 +51,14 @@ export function formatReportedCurrency(amount: number): string {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(amount);
 }
 
+/** Both Bloom tool results and customer rows carry the same report evidence. */
+export function readCustomerReportedSpending(
+  customer: Record<string, unknown>,
+): ReportedPeriodSpending | null {
+  return readReportedPeriodSpending({ ideal_reported_ytd: customer.reported_period_spending })
+    ?? readReportedPeriodSpending(customer.custom_fields);
+}
+
 /** e.g. "Jan 1 – Oct 14, 2026" or "Dec 1, 2025 – Jan 31, 2026". Dates are calendar dates, not instants. */
 export function formatReportedPeriod(report: Pick<ReportedPeriodSpending, "start" | "end">): string {
   const parse = (value: string) => {
