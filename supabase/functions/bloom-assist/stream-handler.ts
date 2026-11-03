@@ -24,6 +24,7 @@ import type {
   OutputValidationResult,
 } from "./security/output-validator.ts";
 import { sandboxToolResult } from "./security/tool-result-sandbox.ts";
+import { correctFalseFailureReply, toolOutcomeFrom, type ToolOutcome } from "./reply-guard.ts";
 
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
@@ -1159,6 +1160,7 @@ async function executeAndAppendTools(args: {
   researchProgress: ResearchProgressState | null;
   thinkingContent: string;
   actionCards: JsonObject[];
+  toolOutcomes?: ToolOutcome[];
 }): Promise<TaskPlanToolResult[]> {
   const confirmationResults: TaskPlanToolResult[] = [];
 
@@ -1220,6 +1222,7 @@ async function executeAndAppendTools(args: {
     if (result.result !== null) {
       collectKnownEntityIds(result.result, args.knownEntityIds);
     }
+    args.toolOutcomes?.push(toolOutcomeFrom(result.status, result.result));
 
     if (
       result.block_type === "mutation_action" &&
@@ -1298,6 +1301,7 @@ export function processOpenAIStream(
   let finalizedCompletion: FinalizedCompletion | null = null;
   const knownEntityIds = new Set<string>();
   const actionCards: JsonObject[] = [];
+  const toolOutcomes: ToolOutcome[] = [];
   const latencyState: StreamLatencyState = {
     firstOpenAiChunkAt: null,
     firstTokenEmittedAt: null,
@@ -1341,6 +1345,8 @@ export function processOpenAIStream(
       content = outputValidation.sanitizedResponse;
       followUpChips = [];
     }
+    // Never tell the user a lookup failed when every lookup succeeded.
+    content = correctFalseFailureReply(content, toolOutcomes);
     const thinkingContent = routingState.thinkingContent.trim() || null;
     const tokenCounts = computeTokenCounts(
       latestUsage,
@@ -1492,6 +1498,7 @@ export function processOpenAIStream(
             researchProgress,
             thinkingContent: routingState.thinkingContent,
             actionCards,
+            toolOutcomes,
           });
 
           if (confirmationResults.length > 0 && options.onTaskPlan) {
