@@ -2,7 +2,7 @@ import type {ToolImplementation} from '../types.ts';
 import {rankCustomerPopulation, type RankingRow} from '../../../_shared/customer-intelligence/customer-ranking.ts';
 import {finiteNumber} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
 import {readAllPages} from '../../../_shared/customer-intelligence/query-pages.ts';
-import {analysisResult, exploreCustomerPurchases, loadAnalysisPopulation, loadCustomerSet, requireAnalysisAccess} from './customer-exploration.ts';
+import {analysisResult, exploreCustomerPurchases, exploreCustomerReportedSpending, loadAnalysisPopulation, loadCustomerSet, requireAnalysisAccess} from './customer-exploration.ts';
 
 export const rankCustomersByIntelligence: ToolImplementation = async (params,context) => {
   const client = await requireAnalysisAccess(context);
@@ -32,6 +32,18 @@ export const rankCustomersByIntelligence: ToolImplementation = async (params,con
     return {...fallback,data:data?{...data,ranking_basis:'reported_department_spend',
       note:'No dated receipt metrics exist for this company, so customers are ordered by their reported spending in this department from the imported sales reports. 50 per page; use inspect_customer_set for more.'}:data,
       message:`${fallback.message} Ordered by reported spending in ${value}, largest first.`};
+  }
+  // Same for "top customers" overall: rank by the imported spending report instead of returning nobody.
+  if(report.eligible_customers===0&&report.dimension==='overall'&&(params.bucket===undefined||params.bucket==='ranked')){
+    try{
+      const fallback=await exploreCustomerReportedSpending({scope:String(scope),...(scope==='saved_result'?{set_id:params.set_id}:{}),label:'Top customers by reported spending',currency:'CAD'},context);
+      const data=fallback.data as Record<string,unknown>|null;
+      return {...fallback,data:data?{...data,ranking_basis:'reported_period_spend'}:data,
+        message:`${fallback.message} Ordered by reported spending for the report period, largest first.`};
+    }catch(error){
+      // No spending report either: fall through and show the empty ranking with its reasons.
+      if(!(error instanceof Error)||!/no reconciled customer spending report/i.test(error.message))throw error;
+    }
   }
   const bucket=params.bucket??'ranked';
   if(!['ranked','unranked'].includes(String(bucket))) throw new Error('Choose ranked or unranked customers.');
