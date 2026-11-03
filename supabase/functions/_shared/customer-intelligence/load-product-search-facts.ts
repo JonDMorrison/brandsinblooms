@@ -65,6 +65,18 @@ export async function readCustomerIdentities(client: PersistenceClient, tenantId
   }
 }
 
+type RpcResult = {data: unknown; error: {message: string; code?: string} | null};
+/**
+ * A first search on a cold cache can pass the 8 second statement limit while
+ * it reads report rows from disk; those rows are then in memory and the same
+ * query takes about a second. Retry exactly once, and only for a timeout.
+ */
+export async function retryOnceOnTimeout(call: () => PromiseLike<RpcResult>): Promise<RpcResult> {
+  const first = await call();
+  const timedOut = first.error && (first.error.code === '57014' || /statement timeout|canceling statement/i.test(first.error.message));
+  return timedOut ? await call() : first;
+}
+
 interface CandidateEvent extends PeriodSummaryEvent { external_customer_code?: string | null; }
 
 export interface ProductSearchFacts { facts: PurchaseFact[]; evidenceCustomerIds: Set<string>; }
@@ -117,11 +129,11 @@ export async function loadProductSearchFacts(
   const [searchable, dated, scopeResult, candidateResult] = await Promise.all([
     verifyImports(),
     loadEligibleDatedFacts(client, tenantId, cutoff),
-    importIds.length ? client.rpc('bloom_summary_evidence_scope', {
+    importIds.length ? retryOnceOnTimeout(() => client.rpc('bloom_summary_evidence_scope', {
       p_tenant_id: tenantId, p_cutoff: cutoff,
       p_imports: parents.map(parent => ({id: parent.id, sha: parent.source_sha256, start: parent.source_period_start, end: parent.source_period_end, legacy: legacy.has(parent.id)})),
-    }) : Promise.resolve({data: {customer_ids: [], rows: 0, invalid_rows: 0}, error: null}),
-    importIds.length ? client.rpc('bloom_summary_product_candidates', {p_tenant_id: tenantId, p_import_ids: importIds, p_terms: terms, p_cutoff: cutoff})
+    })) : Promise.resolve({data: {customer_ids: [], rows: 0, invalid_rows: 0}, error: null}),
+    importIds.length ? retryOnceOnTimeout(() => client.rpc('bloom_summary_product_candidates', {p_tenant_id: tenantId, p_import_ids: importIds, p_terms: terms, p_cutoff: cutoff}))
       : Promise.resolve({data: [], error: null}),
   ]);
   if (scopeResult.error) throw new Error(scopeResult.error.message);

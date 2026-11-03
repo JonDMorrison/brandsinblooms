@@ -5,12 +5,18 @@ const mocks = vi.hoisted(() => ({
   reported: vi.fn(),
   purchases: vi.fn(),
   rows: [] as Record<string, unknown>[],
+  metricsWithValue: [] as Record<string, unknown>[],
+  viewReads: 0,
 }));
 
 vi.mock("../../supabase/functions/bloom-assist/tools/implementations/customer-exploration.ts", () => {
   const client = {
-    from: () => {
-      const q = { select: () => q, eq: () => q, order: () => q, range: async () => ({ data: mocks.rows, error: null }) };
+    from: (table: string) => {
+      const q = {
+        select: () => q, eq: () => q, order: () => q, not: () => q,
+        limit: async () => ({ data: table === "customer_purchase_metrics" ? mocks.metricsWithValue : [], error: null }),
+        range: async () => { mocks.viewReads += 1; return { data: mocks.rows, error: null }; },
+      };
       return q;
     },
   };
@@ -36,6 +42,23 @@ describe("ranking when a company only has imported sales reports", () => {
     mocks.reported.mockReset();
     mocks.purchases.mockReset();
     mocks.rows = reportOnly;
+    mocks.metricsWithValue = [];
+    mocks.viewReads = 0;
+  });
+
+  it("does not read every customer's metrics when no customer has a lifetime value", async () => {
+    mocks.reported.mockResolvedValue(ok("Selected an exact audience from the reconciled spending report."));
+    await rankCustomersByIntelligence({}, context);
+    expect(mocks.viewReads).toBe(0);
+  });
+
+  it("still reads and ranks receipt metrics when they exist", async () => {
+    mocks.metricsWithValue = [{ customer_id: "a" }];
+    mocks.rows = ["a", "b"].map((customer_id, i) => ({ ...reportOnly[i], lifetime_value: 100 * (i + 1), purchase_frequency: 1, total_quantity: 1, departments_shopped: 1 }));
+    const result = await rankCustomersByIntelligence({}, context);
+    expect(mocks.viewReads).toBeGreaterThan(0);
+    expect(mocks.reported).not.toHaveBeenCalled();
+    expect(result.data).toMatchObject({ kind: "customer_ranking", eligible_customers: 2 });
   });
 
   it("ranks top customers by the spending report instead of returning nobody", async () => {
