@@ -487,6 +487,27 @@ const productWriteFields = {
   status: stringSchema("Product status.", { enum: PRODUCT_STATUSES }),
   is_visible: booleanSchema("Whether product is visible to shoppers."),
 };
+const newsletterBriefSchema = objectSchema({
+  headline: stringSchema("Short headline.", { maxLength: 180 }),
+  subheading: stringSchema("Supporting sentence.", { maxLength: 400 }),
+  introduction: stringSchema("Personal introduction, using verified facts.", { maxLength: 5000 }),
+  heroImageUrl: stringSchema("Public image URL from this client's media, event/product record or user selection. Never invent a URL.", { maxLength: 2048 }),
+  heroImageAlt: stringSchema("Image description.", { maxLength: 300 }),
+  closing: stringSchema("Short personal closing.", { maxLength: 5000 }),
+  features: arraySchema("Verified event, product or story details; do not invent dates, availability or pricing.", objectSchema({
+    title: stringSchema("Feature title.", { maxLength: 180 }),
+    body: stringSchema("Verified details, including date/location or price when known.", { maxLength: 5000 }),
+    buttonText: stringSchema("Action label.", { maxLength: 80 }),
+    buttonUrl: stringSchema("Verified destination URL.", { maxLength: 2048 }),
+    imageUrl: stringSchema("Optional public feature photo URL.", { maxLength: 2048 }),
+    imageAlt: stringSchema("Image description.", { maxLength: 300 }),
+  }, ["title", "body", "buttonText", "buttonUrl"]), { minItems: 1, maxItems: 6 }),
+  images: arraySchema("Supporting photographs from this account or supplied by the user.", objectSchema({
+    url: stringSchema("Public image URL.", { maxLength: 2048 }),
+    alt: stringSchema("Image description.", { maxLength: 300 }),
+  }, ["url", "alt"]), { maxItems: 6 }),
+}, ["headline", "introduction", "features"]);
+
 const campaignWriteFields = {
   name: stringSchema("Campaign name.", { minLength: 1, maxLength: 180 }),
   subject_line: stringSchema("Email subject line.", { maxLength: 180 }),
@@ -835,7 +856,10 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     name: "create_campaign",
     description:
       "Create a new campaign, newsletter, email, SMS blast, promotion, announcement, or marketing message draft. Use when the user wants a campaign record created, not just content generated.",
-    parameters: objectSchema(campaignWriteFields, ["name", "delivery_method"]),
+    parameters: objectSchema({ ...campaignWriteFields,
+      template_id: stringSchema("Reusable editable newsletter design. Use Botanical Editorial for workshop invitations.", { enum: ["botanical-editorial", "botanical-seasonal", "botanical-product", "botanical-events"] }),
+      newsletter_brief: newsletterBriefSchema,
+    }, ["name", "delivery_method"]),
     category: "mutation",
     riskLevel: "low",
     requiresConfirmation: true,

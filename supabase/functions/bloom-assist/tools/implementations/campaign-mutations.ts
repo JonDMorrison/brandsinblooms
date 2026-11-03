@@ -1,3 +1,4 @@
+import { newsletterTemplateMetadata, validateNewsletterTemplate } from "./newsletter-template.ts";
 import type { Database } from "../../../../../src/integrations/supabase/types.ts";
 import type { JsonArray, JsonObject, JsonValue } from "../../types.ts";
 import type {
@@ -1004,6 +1005,7 @@ async function createCampaignExecution(
     return errorResult("Campaign name is required.", "validation_error");
   }
 
+  const templateMetadata = await newsletterTemplateMetadata(params, context);
   const method = campaignChannel(params);
   const audience = await resolveAudienceSelection(context, params);
   const nowIso = new Date().toISOString();
@@ -1034,7 +1036,7 @@ async function createCampaignExecution(
     segment_id: segmentIds[0] ?? null,
     persona_ids: personaIds,
     metadata: buildCampaignMetadata(
-      {},
+      templateMetadata,
       {
         campaignType: method,
         replyTo: email,
@@ -1080,6 +1082,9 @@ async function createCampaignExecution(
 }
 
 export const createCampaign: ToolImplementation = async (params, context) => {
+  try { validateNewsletterTemplate(params); } catch (error) {
+    return errorResult(error instanceof Error ? error.message : "Invalid newsletter brief.", "validation_error");
+  }
   if (shouldExecuteAfterConfirmation(context, "create_campaign", params)) {
     return await createCampaignExecution(params, context);
   }

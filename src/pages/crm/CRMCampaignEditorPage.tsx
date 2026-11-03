@@ -1723,6 +1723,7 @@ function CampaignEditorScreen() {
               disabled={isLocked || Boolean(pendingTemplateSave)}
               unavailableIntents={unavailableIntents}
               onSelectIntent={handleSelectIntent}
+              onApplyBuiltInTemplate={handleApplyTemplate}
               onApplySavedTemplate={handleApplySavedTemplate}
               onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
               onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}

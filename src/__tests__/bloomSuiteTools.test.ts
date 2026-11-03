@@ -16,7 +16,7 @@ import type { JsonObject } from "../../supabase/functions/bloom-assist/types";
 const context = { tenantId: "crm-tenant", userId: "user-1", userName: "Ann", serviceClient: {} } as unknown as ToolExecutionContext;
 
 describe("Bloom campaign channel and sender routing contracts", () => {
-  function harness(metadata: JsonObject = { campaignType: "email" }) {
+  function harness(metadata: JsonObject = { campaignType: "email" }, profileCount = 1) {
     let row: JsonObject = {
       id: "0cc95987-2fd9-43ea-96cb-834c876b063e", tenant_id: "crm-tenant",
       name: "Workshop", status: "draft", delivery_method: "custom_domain",
@@ -40,7 +40,10 @@ describe("Bloom campaign channel and sender routing contracts", () => {
             writes.push(mutation);
             row = { ...row, ...mutation };
           }
-          return { data: table === "crm_campaigns" && operation !== "delete" ? row : [], error: null };
+          return { data: table === "crm_campaigns" && operation !== "delete" ? row
+            : table === "users" ? [{ id: "user-1" }]
+            : table === "company_profiles" ? Array.from({ length: profileCount }, () => ({ company_name: "My Nursery", feature_flags: { company_logo_url: "https://example.com/logo.png" } }))
+            : [], error: null };
         };
         const query = {
           select() { return query; },
@@ -52,7 +55,7 @@ describe("Bloom campaign channel and sender routing contracts", () => {
           ilike() { return query; },
           limit() { return query; },
           range() { return query; },
-          in() { return query; },
+          in(column: string, value: unknown) { scopes.push([table, column, value]); return query; },
           single: async () => result(),
           maybeSingle: async () => result(),
           then(resolve: (value: ReturnType<typeof result>) => unknown) { return Promise.resolve(result()).then(resolve); },
@@ -66,6 +69,38 @@ describe("Bloom campaign channel and sender routing contracts", () => {
       getRow: () => row,
     };
   }
+
+  const newsletter = { name: "Workshop", delivery_method: "email", template_id: "botanical-editorial",
+    newsletter_brief: { headline: "Come create", introduction: "A creative evening.", heroImageUrl: "https://example.com/wreath.jpg",
+      features: [{ title: "Workshop", body: "Verified details", buttonText: "Book", buttonUrl: "https://example.com/book" }] } };
+
+  it("creates a branded editable newsletter through the approved campaign tool", async () => {
+    const h = harness();
+    const result = await createCampaign(newsletter, h.context);
+    expect(result.success).toBe(true);
+    const metadata = h.writes[0].metadata as JsonObject;
+    expect(metadata.templateId).toBe("botanical-editorial");
+    expect(metadata.contentBlocks).toEqual(expect.arrayContaining([expect.objectContaining({ type: "email-safe-hero", layout: "editorial-panel", headline: "Come create" })]));
+    expect(h.scopes).toContainEqual(["users", "tenant_id", "crm-tenant"]);
+    expect(h.scopes).toContainEqual(["company_profiles", "user_id", ["user-1"]]);
+    expect(h.writes[0].status).toBe("draft");
+  });
+  it("does not pick an operator's brand when operating another tenant", async () => {
+    const h = harness();
+    await createCampaign(newsletter, { ...h.context, userId: "outside-admin" });
+    expect(h.scopes).toContainEqual(["company_profiles", "user_id", ["user-1"]]);
+  });
+  it("refuses ambiguous brand profiles before saving", async () => {
+    const h = harness(undefined, 2);
+    await expect(createCampaign(newsletter, { ...h.context, userId: "outside-admin" })).rejects.toThrow("multiple brand profiles");
+    expect(h.writes).toHaveLength(0);
+  });
+  it("rejects incomplete newsletter briefs and SMS templates without writing", async () => {
+    const h = harness();
+    expect((await createCampaign({ ...newsletter, newsletter_brief: {} }, h.context)).success).toBe(false);
+    expect((await createCampaign({ ...newsletter, delivery_method: "sms" }, h.context)).success).toBe(false);
+    expect(h.writes).toHaveLength(0);
+  });
 
   it.each(["email", "sms"])("creates an approved %s draft without writing the channel to sender routing", async (channel) => {
     const h = harness();

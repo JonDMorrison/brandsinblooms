@@ -938,6 +938,13 @@ function renderHeroBlock(
       : `background-color:${backgroundColor};`;
   const content = `<div style="max-width:560px;margin:${align === "center" ? "0 auto" : align === "right" ? "0 0 0 auto" : "0"};text-align:${align};color:${textColor};">${renderTextContent({ ...block, textColor }, designSystem, { compact: false })}${renderButton(block, designSystem, { align })}</div>`;
 
+  if (heroStyle === "image-overlay" && block.layout === "editorial-panel") {
+    // Solid panel keeps live copy readable with blocked images and in Outlook.
+    const photo = imageUrl ? ` background="${escapeAttribute(imageUrl)}"` : "";
+    const photoStyle = imageUrl ? `background-image:url('${escapeAttribute(imageUrl)}');background-size:cover;background-position:${getImageObjectPosition(block.imageFocalX, block.imageFocalY)};` : "";
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td${photo} bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};${photoStyle}padding:${imageUrl ? 180 : 24}px 24px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:24px;background-color:${backgroundColor};">${content}</td></tr></table></td></tr></table>`;
+  }
+
   if (heroStyle === "image-overlay" && imageUrl) {
     const overlayOpacity =
       Math.max(0, Math.min(100, numberValue(block.overlayOpacity, 45))) / 100;

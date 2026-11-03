@@ -1,3 +1,7 @@
+import { buildBotanicalEditorial, BOTANICAL_TEMPLATES, parseBotanicalBrief } from "./botanicalEditorial";
+import { generateEmailHtml } from "./emailHtmlGenerator";
+import { buildStudioDesignSystem } from "./designSystem";
+import { renderContentBlocksToEmailHtml } from "../../../supabase/functions/_shared/campaignEmailSource";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -17,8 +21,8 @@ describe("campaign template design system", () => {
     });
   });
 
-  it("gives every built-in template a strong branded close and shared rhythm", () => {
-    for (const template of CAMPAIGN_TEMPLATES) {
+  it("preserves the existing seasonal templates branded close and rhythm", () => {
+    for (const template of CAMPAIGN_TEMPLATES.filter((entry) => !entry.id.startsWith("botanical-"))) {
       const blocks = template.buildBlocks();
       const cta = blocks.find((block) => block.type === "call-to-action");
       const footer = blocks.find((block) => block.type === "footer");
@@ -59,5 +63,64 @@ describe("campaign template design system", () => {
       layout: "image-left",
       backgroundColor: "#fbfaf6",
     });
+  });
+});
+
+
+describe("Botanical Editorial reusable newsletter", () => {
+  const brief = {
+    headline: "Make a wreath. Make a night of it.", introduction: "Join us for a creative evening.",
+    heroImageUrl: "https://example.com/wreath.jpg", heroImageAlt: "A fresh evergreen wreath",
+    features: [{ title: "Wreath workshop", body: "Wednesday at 7 p.m.", buttonText: "Book your place", buttonUrl: "https://example.com/workshop" }],
+    images: [{ url: "https://example.com/ribbon.jpg", alt: "A ribbon wreath" }], closing: "See you soon!",
+  };
+  it("registers four discoverable designs with fresh editable blocks and no client-specific assets", () => {
+    for (const entry of BOTANICAL_TEMPLATES) {
+      const template = CAMPAIGN_TEMPLATES.find((item) => item.id === entry.id)!;
+      const first = template.buildBlocks();
+      const second = template.buildBlocks();
+      expect(first[1]).toMatchObject({ type: "email-safe-hero", heroStyle: "image-overlay", layout: "editorial-panel", imageUrl: "" });
+      expect(first.map((block) => block.id)).not.toEqual(second.map((block) => block.id));
+      expect(first.every((block, index) => block.order === index)).toBe(true);
+      expect(JSON.stringify(first)).not.toMatch(/flowerhouse|Chilliwack|6 seats|123 Main/i);
+      expect(first.find((block) => block.type === "footer")?.newsletterSettings).toMatchObject({ blockGap: 0, width: 640 });
+    }
+  });
+  it("renders supplied photos, live text, one action and compliance through the send renderer", () => {
+    const blocks = buildBotanicalEditorial("botanical-editorial", null, brief);
+    const html = generateEmailHtml({ blocks, subject: "Invitation", previewText: "Come create", footer: null,
+      footerLinks: { unsubscribeUrl: "https://example.com/unsubscribe", preferencesUrl: "https://example.com/preferences" } });
+    expect(html).toContain('background="https://example.com/wreath.jpg"');
+    expect(html).toContain("background-color:#243c32");
+    expect(html).toContain("Make a wreath. Make a night of it.");
+    expect(html).toContain("https://example.com/ribbon.jpg");
+    expect(html.match(/href="https:\/\/example.com\/workshop"/g)).toHaveLength(1);
+    expect(html).toContain("https://example.com/unsubscribe");
+    expect(html).not.toMatch(/6 seats|price|November/);
+  });
+  it("preserves blocks after JSON storage and uses the same server rendering path", () => {
+    const blocks = JSON.parse(JSON.stringify(buildBotanicalEditorial("botanical-events", null, { ...brief,
+      features: [...brief.features, { ...brief.features[0], title: "Second workshop", buttonUrl: "https://example.com/second" }],
+    })));
+    const html = renderContentBlocksToEmailHtml(blocks, { subject: "Workshops" });
+    expect(html).toContain("Second workshop");
+    expect(html).toContain('background="https://example.com/wreath.jpg"');
+    expect(html).toContain("https://example.com/second");
+  });
+  it("inherits the selected company logo and accent without borrowing another client's media", () => {
+    const design = buildStudioDesignSystem({ name: "My Nursery", logoUrl: "https://example.com/logo.png", brandPrimaryColor: "#d191ad", brandPrimaryColorRaw: "#d191ad" });
+    const blocks = buildBotanicalEditorial("botanical-product", design, brief);
+    expect(blocks[0].logoUrl).toBe("https://example.com/logo.png");
+    expect(blocks.find((block) => block.type === "divider")?.lineColor).toBe("#d191ad");
+    expect(blocks.find((block) => block.type === "footer")?.businessName).toBe("My Nursery");
+  });
+  it("keeps the headline readable when a photo is missing and rejects unsafe destinations", () => {
+    const blocks = buildBotanicalEditorial("botanical-editorial", null, { ...brief, heroImageUrl: undefined });
+    const html = generateEmailHtml({ blocks, subject: "Invitation", previewText: "", footer: null });
+    expect(html).toContain(brief.headline);
+    expect(html).not.toContain('background="https://example.com/wreath.jpg"');
+    expect(() => parseBotanicalBrief({ ...brief, heroImageUrl: "javascript:alert(1)" })).toThrow();
+    expect(() => parseBotanicalBrief({ ...brief, features: [{ ...brief.features[0], buttonUrl: "javascript:alert(1)" }] })).toThrow();
+    expect(() => parseBotanicalBrief({ headline: "Missing details" })).toThrow();
   });
 });
