@@ -1325,7 +1325,7 @@ SELECT dblink_connect(
     current_database(),
     current_user,
     coalesce(
-      inet_server_addr()::text,
+      pg_catalog.host(inet_server_addr()),
       btrim(split_part(current_setting('unix_socket_directories'), ',', 1))
     ),
     coalesce(inet_server_port(), current_setting('port')::integer)
