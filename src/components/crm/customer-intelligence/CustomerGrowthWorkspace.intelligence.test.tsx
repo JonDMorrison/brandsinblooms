@@ -81,7 +81,7 @@ describe("Customer Intelligence workbenches", () => {
     const baseline = "2025-10-07T16:00:00Z",
       current = "2026-10-07T16:00:00Z";
     mocks.pages
-      .mockResolvedValueOnce([{ id: "customer-a" }])
+      .mockResolvedValueOnce([{ id: "customer-a", first_name: "Alex", last_name: "Gardener" }])
       .mockResolvedValueOnce([
         {
           id: "order-a",
@@ -116,6 +116,7 @@ describe("Customer Intelligence workbenches", () => {
       screen.getByRole("button", { name: "Compare customer growth" }),
     );
     expect(await screen.findByText("Your comparison")).toBeVisible();
+    expect(screen.getByText("Alex Gardener")).toBeVisible();
     expect(screen.getByText("Average customer growth")).toBeVisible();
     expect(screen.getByText("Comparable customers")).toBeVisible();
     expect(screen.getByText("Missing a comparison")).toBeVisible();
