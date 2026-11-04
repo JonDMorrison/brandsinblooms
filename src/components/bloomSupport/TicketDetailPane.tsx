@@ -29,6 +29,7 @@ import { StatusChip, PriorityChip, AutomationChip } from "./chips";
 import { statusPatch } from "./statusPatch";
 import { useAskDialog } from "./useAskDialog";
 import { ReadableData } from "@/components/admin/ReadableData";
+import { humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
 
 function Bubble({ m }: { m: TicketMessage }) {
@@ -49,7 +50,7 @@ function Bubble({ m }: { m: TicketMessage }) {
         <Typography level="body-xs" textColor="text.tertiary">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</Typography>
         {m.delivery && m.delivery !== "none" && <Typography level="body-xs" textColor="text.tertiary">· email {m.delivery}</Typography>}
       </Stack>
-      <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</Typography>
+      <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{internal && m.author_kind === "bloom" ? humanizeStaffNote(m.body) : m.body}</Typography>
     </Sheet>
   );
 }

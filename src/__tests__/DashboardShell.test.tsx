@@ -294,6 +294,7 @@ function renderShell(initialPath = "/admin") {
         <Routes>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminHubPage />} />
+            <Route path="bloom-support" element={<div>Support desk page</div>} />
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="audit-logs" element={<AdminAuditLogsPage />} />
           </Route>
@@ -376,6 +377,18 @@ describe("DashboardShell", () => {
     expect(
       screen.getByRole("button", { name: "Developer tools" }),
     ).toBeInTheDocument();
+  });
+
+  it("keeps the floating help button off support pages so it never covers the composer", () => {
+    setViewportWidth(1440);
+
+    const { unmount } = renderShell();
+    expect(screen.getByTestId("help-widget")).toBeInTheDocument();
+    unmount();
+
+    renderShell("/admin/bloom-support");
+    expect(screen.getByText("Support desk page")).toBeInTheDocument();
+    expect(screen.queryByTestId("help-widget")).not.toBeInTheDocument();
   });
 
   it("renders the tablet shell with the sidebar collapsed by default", async () => {
@@ -954,7 +967,8 @@ describe("Bloom Support staff workspace", () => {
 
     expect(screen.getByText("20,001 / 20,000 characters")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send to client" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Private note" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Internal note" }));
+    expect(screen.getByRole("button", { name: "Add note" })).toBeDisabled();
     expect(supportMocks.addMessage).not.toHaveBeenCalled();
   });
 
@@ -1018,7 +1032,8 @@ describe("Bloom Support staff workspace", () => {
     await waitFor(() => expect(reply).toHaveFocus());
     await user.clear(reply);
     await user.type(reply, "This is deliberately a new private note.");
-    await user.click(screen.getByRole("button", { name: "Private note" }));
+    await user.click(screen.getByRole("button", { name: "Internal note" }));
+    await user.click(screen.getByRole("button", { name: "Add note" }));
 
     await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(2));
     const newPayload = supportMocks.addMessage.mock.calls[1][1];
@@ -1027,6 +1042,49 @@ describe("Bloom Support staff workspace", () => {
       visibility: "internal",
     });
     expect(newPayload.idempotency_key).not.toBe(firstPayload.idempotency_key);
+  });
+
+  it("sends with the keyboard shortcut and keeps internal notes on their own toggle", async () => {
+    const user = userEvent.setup();
+    renderConversation();
+
+    const reply = await screen.findByRole("textbox", { name: "Message" });
+    await user.click(screen.getByRole("button", { name: "Internal note" }));
+    await user.type(reply, "Checked the logs, nothing for the client yet.");
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
+    await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(1));
+    expect(supportMocks.addMessage.mock.calls[0][1]).toMatchObject({
+      body: "Checked the logs, nothing for the client yet.",
+      visibility: "internal",
+    });
+    expect(await screen.findByText("Internal note added.")).toBeInTheDocument();
+  });
+
+  it("shows Bloom's findings and the fix in plain words", async () => {
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      stage: "investigating",
+      engineering: { id: "eng-1", title: "Receipt printer is offline.", status: "open" },
+      messages: [{
+        id: "note-1",
+        ticket_id: supportTicket.id,
+        author_kind: "bloom",
+        visibility: "internal",
+        direction: "internal",
+        body: "Triage (model): bug, high, pos-hardware",
+        created_at: supportTicket.updated_at,
+        author: null,
+      }],
+    });
+    renderConversation();
+
+    expect(await screen.findByText("Bloom read this as a bug, high priority, about pos hardware.")).toBeInTheDocument();
+    expect(screen.queryByText(/Triage \(model\)/)).not.toBeInTheDocument();
+    expect(screen.getByText("Bloom is investigating")).toBeInTheDocument();
+    expect(screen.getByText("Not started")).toBeInTheDocument();
+    expect(screen.getByText("Logged for engineering. Work hasn't started yet.")).toBeInTheDocument();
+    expect(screen.queryByText(/\.\./)).not.toBeInTheDocument();
   });
 
   it("keeps operational telemetry collapsed until staff asks for it", async () => {

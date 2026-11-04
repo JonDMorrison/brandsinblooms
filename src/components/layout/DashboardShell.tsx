@@ -158,6 +158,8 @@ export function DashboardShell({
     [mode, pathname],
   );
   const isBloomRoute = pathname.startsWith("/bloom");
+  // The floating help button would sit on top of the reply composer, and these pages are already support.
+  const isSupportRoute = /^\/(support|admin\/bloom-support)(\/|$)/.test(pathname);
   const showBotanicalCanvas = mode !== "admin" &&
     /^\/(dashboard|analytics|crm)(\/|$)/.test(pathname) &&
     !/studio|email-builder/.test(pathname);
@@ -456,7 +458,7 @@ export function DashboardShell({
           <DashboardMobileSidebarBackdrop open={isMobileSidebarOpen} />
         )}
         {isMobile && <DashboardMobileSidebarSlot mode={mode} />}
-        {!isBloomRoute && <HelpWidget />}
+        {!isBloomRoute && !isSupportRoute && <HelpWidget />}
       </Box>
       {hasRequestedCommandPalette ? (
         <ChunkErrorBoundary>
