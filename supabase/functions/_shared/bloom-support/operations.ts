@@ -5,7 +5,7 @@
 // and carry undo data where the product supports it. Every operation is
 // re-authorized in the database (record_operation_preview / claim_operation)
 // for the acting principal and the target account.
-import { BloomError, type Caller, db, env, rpc } from "./runtime.ts";
+import { BloomError, type Caller, db, directRpc, env, rpc } from "./runtime.ts";
 import { OPERATION_PERMISSIONS } from "./policy.ts";
 import { signIntake } from "./crypto.ts";
 import { campaignMutationImplementation } from "../../bloom-assist/tools/implementations/campaign-mutations.ts";
@@ -145,7 +145,11 @@ export async function runRead(caller: Caller, req: OperationRequest): Promise<un
   if (!READ_OPERATIONS.has(req.kind)) throw new BloomError(400, "invalid", `Unknown read operation ${req.kind}`);
   const permission = PERMISSION[req.kind];
   const allowed = await rpc<boolean>("has_permission", { actor: caller.principalId, permission });
-  if (!allowed) throw new BloomError(403, "forbidden", `${permission} required`);
+  // Clients (no staff permission) get a read-only path for their own company's
+  // website and POS data. The database decides it: kind -> client permission,
+  // verified membership of this account, current CRM user of its tenant, and
+  // sales figures only for that tenant's CRM owner/admin. It also audits the read.
+  const clientRead = allowed ? null : await authorizeClientRead(caller, req);
   const inputs = req.inputs ?? {};
   const account = await loadAccount(caller, req.account_id);
   const audit = (detail: Record<string, unknown>) =>
@@ -174,8 +178,26 @@ export async function runRead(caller: Caller, req: OperationRequest): Promise<un
       result = await callProduct("pos", req.kind, { pos_tenant_id: linkFor(account, "pos", inputs), inputs, actor: actorFacts(caller) });
       break;
   }
-  if (caller.role !== "service") await audit({ inputs: Object.keys(inputs) });
+  // Client reads were already audited by the database when they were authorized.
+  if (caller.role !== "service" && !clientRead) await audit({ inputs: Object.keys(inputs) });
   return result;
+}
+
+/** Kinds a client may read about their own company. Everything else stays staff-only. */
+export const CLIENT_READ_KINDS = new Set(["site.read", "site.pages", "event.list", "site.preview_link", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history"]);
+
+async function authorizeClientRead(caller: Caller, req: OperationRequest): Promise<{ permission: string }> {
+  const permission = PERMISSION[req.kind];
+  if (!CLIENT_READ_KINDS.has(req.kind) || caller.role !== "client") throw new BloomError(403, "forbidden", `${permission} required`);
+  const verdict = await directRpc<{ allowed?: boolean; reason?: string; permission?: string } | null>(
+    "bloom_support_client_suite_read",
+    { p_actor: caller.principalId, p_account: req.account_id, p_kind: req.kind },
+  );
+  if (verdict?.allowed === true && typeof verdict.permission === "string") return { permission: verdict.permission };
+  if (verdict?.reason === "owner_or_admin_only") {
+    throw new BloomError(403, "owner_or_admin_only", "Only the account owner or an admin can see sales figures");
+  }
+  throw new BloomError(403, "forbidden", `${permission} required`);
 }
 
 function actorFacts(caller: Caller) {

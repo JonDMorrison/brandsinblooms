@@ -1655,7 +1655,7 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "read_suite_data",
     description:
-      "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, a sales summary for a date range (up to 93 days), one product variant's price changes (who changed it and when), or a private preview link for a website page's unpublished draft. Read-only. Access depends on the person's own Bloom Support permissions; if Bloom says there is no access or no connection, tell the user plainly and do not retry.",
+      "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, a sales summary for a date range (up to 93 days), one product variant's price changes (who changed it and when), or a private preview link for a website page's unpublished draft. Read-only, and only for the company the person is signed in to. Every signed-in user of the company can read the website, products and stock levels. The sales summary and price history are only for the company's account owner or an admin; anyone else gets a plain message saying so. If Bloom says there is no access or no connection, tell the user that plainly and do not retry.",
     parameters: objectSchema(
       {
         kind: stringSchema("Which data to read.", { enum: SUITE_READ_KINDS }),

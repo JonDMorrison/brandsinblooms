@@ -5,8 +5,12 @@
  * It does not add a second path to those products. Every read goes through the
  * Bloom Support operations layer (`runRead` in _shared/bloom-support/operations.ts),
  * which:
- *   - checks the person's own Support permission in the database
- *     (ops.site.read / ops.pos.read). The model cannot grant or widen it;
+ *   - checks the person's own Support permission in the database. Staff use
+ *     ops.site.read / ops.pos.read. Clients (decision 2026-11-04) use the
+ *     database check public.bloom_support_client_suite_read: website, products
+ *     and stock for every CRM user of their own company; sales summary and
+ *     price history only for that company's CRM owner/admin users. The model
+ *     cannot grant or widen either;
  *   - only reaches the BloomSites site or POS business linked to this
  *     company's Support account;
  *   - signs the call to the product and records it in the Support audit log.
@@ -89,6 +93,16 @@ export function pickInputs(kind: SuiteReadKind, params: JsonObject): Record<stri
   return out;
 }
 
+function errorCode(error: unknown): string | null {
+  if (error && typeof error === "object" && "code" in error && typeof (error as { code: unknown }).code === "string") {
+    return (error as { code: string }).code;
+  }
+  return null;
+}
+
+export const SALES_OWNER_ONLY_MESSAGE =
+  "Only your account owner or an admin can see sales figures. Bloom can still show your website, products and stock levels.";
+
 function errorStatus(error: unknown): number | null {
   if (error && typeof error === "object" && "status" in error && typeof (error as { status: unknown }).status === "number") {
     return (error as { status: number }).status;
@@ -104,6 +118,7 @@ export function explainReadFailure(kind: SuiteReadKind, error: unknown): string 
   if (error instanceof SupportRpcError && error.code === "42501") {
     return `Bloom could not connect your sign-in to this company's account, so it did not read the ${what}.`;
   }
+  if (status === 403 && errorCode(error) === "owner_or_admin_only") return SALES_OWNER_ONLY_MESSAGE;
   if (status === 403) return `You don't have access to the ${what} through Bloom. An administrator can give access in Support settings.`;
   if (/no linked/i.test(message)) {
     return kind.startsWith("pos.")
