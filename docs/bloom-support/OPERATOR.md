@@ -41,7 +41,7 @@ production. **Open PR** = written and tested, waiting on CI. **Not built** = not
 | Product | Bloom can read | Bloom can change (with approval) | Not available |
 | --- | --- | --- | --- |
 | CRM | everything above | CRM tools above; campaign drafts and scheduling via Support | campaign **send** from a support message (blocked on purpose) |
-| BloomSites | site, pages, events, private preview links | page title/excerpt, publish a page, event fields, new draft site; section content/order/visibility as drafts (`site.section.*`); theme drafts with publish/discard (`site.theme.*`, publish needs ops.site.publish). All with undo except draft creation. The Design page tells owners when a theme draft is waiting (cms #4227) | blog, SEO, navigation, image swaps (in progress, 2026-11-04) |
+| BloomSites | site, pages, events, private preview links | page title/excerpt, publish a page, event fields, new draft site; section content/order/visibility as drafts (`site.section.*`); theme drafts with publish/discard (`site.theme.*`, publish needs ops.site.publish). All with undo except draft creation. The Design page tells owners when a theme draft is waiting (cms #4227). Menu drafts with publish/discard (`site.navigation.*`, publish needs ops.site.publish; links only to the site's own published pages or https) and image swaps from the site's own media into the page draft (`site.image.replace`), all with undo (cms #4231) | blog, SEO (in progress, 2026-11-04) |
 | POS | products, stock, sales summary, price history | none from Bloom Support. The POS's own Bloom does reviewed price/details tasks in the back office | refunds, payments, stock adjustments, permissions (excluded by design) |
 
 ## B. Architecture
