@@ -29,6 +29,7 @@ import {
   MAX_ATTACHMENT_TOTAL_BYTES,
   safeSupportTrackingUrl,
 } from "@/lib/bloomSupport/constants";
+import { asSentence, humanizeStaffNote, triageNoteText } from "../../supabase/functions/_shared/bloom-support/notes";
 import {
   decodeBase64File,
   validateAttachmentFile,
@@ -547,6 +548,28 @@ describe("Bloom Support intake and attachment contracts", () => {
     expect(tickets[1].intake_fingerprint).toBe(tickets[0].intake_fingerprint);
     expect(tickets[2].intake_fingerprint).not.toBe(tickets[0].intake_fingerprint);
     expect(tickets[0].intake_fingerprint).not.toBe("a".repeat(64));
+  });
+});
+
+describe("Bloom Support staff note wording", () => {
+  it("writes triage as a plain sentence, with what is missing and any duplicate", () => {
+    expect(triageNoteText({ kind: "bug", priority: "high", category: "fundraising", missing: [] }))
+      .toBe("Bloom read this as a bug, high priority, about fundraising.");
+    expect(triageNoteText({ kind: "unknown", priority: "normal", category: "general", missing: ["which product (website, CRM or POS)"], duplicateOf: 12 }))
+      .toBe("Bloom couldn't tell what kind of request this is yet, normal priority. Still needs from the client: which product (website, CRM or POS). Looks like the same issue as #12.");
+  });
+
+  it("rewrites older machine-style triage notes and leaves other notes alone", () => {
+    expect(humanizeStaffNote("Triage (model): bug, high, fundraising")).toBe("Bloom read this as a bug, high priority, about fundraising.");
+    expect(humanizeStaffNote("Triage (rules): change, normal, website; missing: what page; which logo; likely same issue as #7"))
+      .toBe("Bloom read this as a change request, normal priority, about website. Still needs from the client: what page; which logo. Looks like the same issue as #7.");
+    expect(humanizeStaffNote("Triage limit reached for today; a person should look at this ticket.")).toBe("Triage limit reached for today; a person should look at this ticket.");
+  });
+
+  it("never doubles the full stop", () => {
+    expect(asSentence("it won't let me save.")).toBe("it won't let me save.");
+    expect(asSentence("Reported, not started yet")).toBe("Reported, not started yet.");
+    expect(asSentence("Is it live?")).toBe("Is it live?");
   });
 });
 

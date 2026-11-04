@@ -6,6 +6,7 @@ import { BloomError, type Caller, directRpc, errorResponse, json, rpc, servicePr
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { classify, indicatesStillBroken, mergeModelClassification, type Product, STATUS_LABEL } from "../_shared/bloom-support/policy.ts";
 import { ANSWER_SCHEMA, CLASSIFY_SCHEMA, completeJson, fence } from "../_shared/bloom-support/ai.ts";
+import { triageNoteText } from "../_shared/bloom-support/notes.ts";
 import { sendSupportEmail, subjectFor, trackingLink } from "../_shared/bloom-support/email.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
@@ -76,7 +77,7 @@ async function triage(job: Job): Promise<string> {
     priority: c.priority, impact: c.impact, category: c.category, stage: "triage",
     next_action: null, reason: `triage (${c.source}${model.ok ? "" : `; model: ${model.reason}`})`,
   });
-  await note(t, `Triage (${c.source}): ${c.kind}, ${c.priority}, ${c.category}${c.missing.length ? `; missing: ${c.missing.join("; ")}` : ""}${dup ? `; likely same issue as #${dup.number}` : ""}`, `triage-note:${job.id}`);
+  await note(t, triageNoteText({ kind: c.kind, priority: c.priority, category: c.category, missing: c.missing, duplicateOf: dup?.number ?? null }), `triage-note:${job.id}`);
 
   if (isFirst && ctx.requester_email) {
     await bloomSays(t, `Thanks — we've received your request (#${t.number}). Bloom is looking at it now and will keep you posted here.`, "acknowledgement", `ack:${t.id}`);

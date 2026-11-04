@@ -19,6 +19,27 @@ export const ENGINEERING_TEXT: Record<string, string> = {
   escalated: "Needs a person",
 };
 
+export type FixStageTone = "neutral" | "primary" | "warning" | "success" | "danger";
+
+/** The fix's progress in one word-pair a person can scan: Not started, In progress, Needs approval, Fixed or Needs a person. */
+export function fixStage(status: string): { label: string; tone: FixStageTone } {
+  switch (status) {
+    case "open":
+      return { label: "Not started", tone: "neutral" };
+    case "awaiting_approval":
+      return { label: "Needs approval", tone: "warning" };
+    case "verified":
+      return { label: "Fixed", tone: "success" };
+    case "not_reproduced":
+    case "failed":
+    case "rolled_back":
+    case "escalated":
+      return { label: "Needs a person", tone: "danger" };
+    default:
+      return { label: "In progress", tone: "primary" };
+  }
+}
+
 export const FEATURE_STATUS: Record<string, string> = {
   awaiting_decision: "Waiting for a decision",
   accepted: "We'll build it",
