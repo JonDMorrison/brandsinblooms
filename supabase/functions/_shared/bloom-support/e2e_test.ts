@@ -1202,13 +1202,13 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     await sql!`
       INSERT INTO bloom_support.engineering_issues(
         id, title, product, repository, status, reproduction, branch, pr_number,
-        pr_url, head_sha, approved_head_sha, attempts
+        pr_url, head_sha, approved_head_sha, attempts, updated_at
       ) VALUES (
         ${issueId}, 'Manual CMS repair', 'cms', ${repository}, 'approved',
         '{"reproduced":true,"verification":[{"url":"https://verify.test/manual-cms","expect_status":200}]}'::jsonb,
         'bloom/fix-manual42', 4243,
         'https://github.com/Brands-In-Blooms/cms-brandsinblooms/pull/4243',
-        'reviewed-manual-head', 'reviewed-manual-head', 1
+        'reviewed-manual-head', 'reviewed-manual-head', 1, now() - interval '10 minutes'
       )`;
     prs[repository] = {
       number: 4243,
@@ -1227,10 +1227,14 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     mainPromotions.set(repository, { contains: new Set([devMerge]), head: mainHead });
     await sql!`
       INSERT INTO bloom_support.jobs(
-        kind, engineering_issue_id, lane, payload, idempotency_key, max_attempts, timeout_seconds
+        kind, engineering_issue_id, lane, payload, idempotency_key, status,
+        result, max_attempts, timeout_seconds, created_at, updated_at
       ) VALUES (
         'engineering_step', ${issueId}, ${"engineering:" + issueId},
-        '{"step":"evaluate"}', ${"e2e-manual-merge:" + issueId}, 5, 300
+        '{"step":"evaluate","reason":"release_state_recovery"}',
+        ${"engineering-release-recovery:" + issueId}, 'succeeded',
+        '{"note":"evaluate: already merged"}', 5, 300,
+        now() - interval '9 minutes', now() - interval '9 minutes'
       )`;
 
     await runWorkerUntilIdle(10);
@@ -1246,6 +1250,20 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(githubCalls.some((c) => c.path.includes(`/deployments?sha=${mainHead}`)), "production deployment follows the main commit");
     assert(!githubCalls.some((c) => c.method === "PUT" && c.path.endsWith("/pulls/4243/merge")), "Bloom observes but never repeats a person's merge");
     assert(!githubCalls.some((c) => c.path.includes("/deployments/76/") || c.path.includes("/deployments/75/")), "preview and demo deployments are never production evidence");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.jobs
+      WHERE engineering_issue_id = ${issueId}
+        AND idempotency_key LIKE ${"engineering-release-reconcile:" + issueId + ":%"}
+    `)[0].n), 1, "the worker reconciles the stranded one-shot recovery exactly once");
+    const idle = await runWorker();
+    assertEquals(idle.status, 200, JSON.stringify(idle.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.jobs
+      WHERE engineering_issue_id = ${issueId}
+        AND idempotency_key LIKE ${"engineering-release-reconcile:" + issueId + ":%"}
+    `)[0].n), 1, "later worker ticks do not duplicate a recovered release");
   });
 
   await t.step("client reports it persists → ticket reopens", async () => {
