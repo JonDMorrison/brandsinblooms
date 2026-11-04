@@ -18,7 +18,7 @@ import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDial
 import { TicketConversation } from "@/components/bloomSupport/TicketConversation";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { PublicSupportContact } from "@/pages/PublicSupportPage";
-import SupportPage from "@/pages/SupportPage";
+import SupportPage, { SUPPORT_MOBILE_GRID_TRACK } from "@/pages/SupportPage";
 import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 import type { TicketDetail, Whoami } from "@/lib/bloomSupport/api";
 
@@ -895,7 +895,13 @@ describe("Bloom Support staff workspace", () => {
 
     const row = await screen.findByRole("button", { name: `Open request #${supportTicket.number}: ${supportTicket.subject}` });
     await user.click(row);
-    expect(await screen.findByRole("region", { name: "Request details" })).toHaveFocus();
+    const detail = await screen.findByRole("region", { name: "Request details" });
+    expect(detail).toHaveFocus();
+    await screen.findByRole("button", { name: "Back" });
+    expect(SUPPORT_MOBILE_GRID_TRACK).toBe("minmax(0, 1fr)");
+    expect(detail.parentElement).toHaveStyle({ minWidth: "0" });
+    expect(detail).toHaveStyle({ width: "100%", maxWidth: "100%", minWidth: "0" });
+    expect(detail.firstElementChild).toHaveStyle({ width: "100%", maxWidth: "100%", minWidth: "0" });
 
     await user.click(await screen.findByRole("button", { name: "Back" }));
     await waitFor(() => expect(row).toHaveFocus());

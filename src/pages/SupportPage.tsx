@@ -18,6 +18,8 @@ import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { StatusChip } from "@/components/bloomSupport/chips";
 import { bloomSupport } from "@/lib/bloomSupport/api";
 
+export const SUPPORT_MOBILE_GRID_TRACK = "minmax(0, 1fr)";
+
 /**
  * Help & Support for BloomSuite users. Requests go to Bloom Support (the shared
  * support system for BloomSites, CRM and POS); people see and reply to their
@@ -144,8 +146,8 @@ const SupportPage = () => {
           {mine.isLoading && <Skeleton variant="rectangular" height={120} />}
           {mine.data?.length === 0 && <Typography level="body-sm" textColor="text.tertiary">{staff ? "No client requests yet." : "You haven't sent any requests yet."}</Typography>}
           {mine.data && mine.data.length > 0 && (
-            <Sheet variant="outlined" sx={{ borderRadius: "lg", display: "grid", gridTemplateColumns: { xs: "1fr", md: selected ? "minmax(280px, 340px) minmax(0,1fr)" : "1fr" }, minHeight: staff ? { xs: 480, md: 0 } : 240, flex: staff ? 1 : undefined, overflow: "hidden" }}>
-              <Box role="list" aria-label={staff ? "Recent client conversations" : "Your support requests"} sx={{ borderRight: { md: selected ? "1px solid" : "none" }, borderColor: "divider", display: { xs: selected ? "none" : "block", md: "block" }, overflowY: "auto", minHeight: 0 }}>
+            <Sheet variant="outlined" sx={{ borderRadius: "lg", display: "grid", gridTemplateColumns: { xs: SUPPORT_MOBILE_GRID_TRACK, md: selected ? "minmax(280px, 340px) minmax(0,1fr)" : "1fr" }, minWidth: 0, minHeight: staff ? { xs: 480, md: 0 } : 240, flex: staff ? 1 : undefined, overflow: "hidden" }}>
+              <Box role="list" aria-label={staff ? "Recent client conversations" : "Your support requests"} sx={{ borderRight: { md: selected ? "1px solid" : "none" }, borderColor: "divider", display: { xs: selected ? "none" : "block", md: "block" }, overflowY: "auto", minWidth: 0, minHeight: 0 }}>
                 {mine.data.map((t) => (
                   <Box key={t.id} role="listitem">
                     <Box
@@ -187,7 +189,7 @@ const SupportPage = () => {
                 ))}
               </Box>
               {selected && me.data && (
-                <Box ref={detailRef} tabIndex={-1} role="region" aria-label="Request details" sx={{ minHeight: 360, borderRadius: "sm", "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: -2 } }}>
+                <Box ref={detailRef} tabIndex={-1} role="region" aria-label="Request details" sx={{ width: "100%", maxWidth: "100%", minWidth: 0, minHeight: 360, borderRadius: "sm", "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: -2 } }}>
                   {staff ? (
                     <TicketConversation
                       key={selected}
