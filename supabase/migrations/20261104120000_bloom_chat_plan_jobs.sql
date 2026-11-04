@@ -224,7 +224,8 @@ BEGIN
     WHEN 'claim' THEN RETURN bloom_support.chat_plan_claim_step(t, u, pl, p->>'task_id', p->>'worker');
     WHEN 'finish' THEN RETURN to_jsonb(bloom_support.chat_plan_finish_step(t, u, pl, (p->>'job_id')::uuid, p->>'worker',
       p->>'outcome', p->>'error', coalesce((p->>'permanent')::boolean, false), (p->>'retry_in')::int, p->'result'));
-    WHEN 'cancel' THEN RETURN bloom_support.chat_plan_cancel(t, u, pl, p->'task_ids', p->>'reason');
+    WHEN 'cancel' THEN RETURN bloom_support.chat_plan_cancel(t, u, pl,
+      CASE WHEN jsonb_typeof(p->'task_ids') = 'array' THEN p->'task_ids' END, p->>'reason');
     WHEN 'requeue' THEN RETURN bloom_support.chat_plan_requeue_step(t, u, pl, p->>'task_id');
     ELSE RAISE EXCEPTION 'invalid: unknown chat plan function %', p_fn USING ERRCODE = '22023';
   END CASE;
