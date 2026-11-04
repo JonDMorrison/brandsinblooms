@@ -21,6 +21,7 @@ import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { Inbox } from "lucide-react";
 import { splitList, useAskDialog } from "./useAskDialog";
 import { ClientPicker, type PickedClient } from "./ClientPicker";
+import { ChatSpendPanel } from "./ChatSpendPanel";
 import { ReadableData } from "@/components/admin/ReadableData";
 import { labelFor } from "@/components/admin/readableFormat";
 import { OPEN_BY, engineeringLabel, featureLabel, problemLabel, reasonLabel, ticketStatusLabel } from "./labels";
@@ -375,6 +376,7 @@ export function SettingsPanel({ me }: { me: Whoami }) {
           }}>Edit</Button>
         </Sheet>
       )}
+      {isAdmin && <ChatSpendPanel />}
       <Typography level="title-md">Support configuration</Typography>
       <SupportConfigPanel me={me} />
       <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>

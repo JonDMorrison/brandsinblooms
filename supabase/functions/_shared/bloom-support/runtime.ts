@@ -45,6 +45,13 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
   return data as T;
 }
 
+/** A service-role-only public function that authorizes p_actor itself (not routed through the gateway). */
+export async function directRpc<T = unknown>(fn: "bloom_chat_spend_overview" | "bloom_chat_spend_set_cap", args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await db().rpc(fn, args);
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
 // ---------------------------------------------------------------------------
 // Callers
 // ---------------------------------------------------------------------------

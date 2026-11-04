@@ -7,6 +7,7 @@ import type {
   OpenAITextContentPart,
   PersistenceClient,
 } from "./types.ts";
+import { meteredModelFetch, type SpendMeter } from "./security/spend-cap.ts";
 
 type XlsxModule = typeof import("npm:xlsx@0.18.5");
 
@@ -57,6 +58,7 @@ type ProcessAttachmentOptions = {
   conversationId: string;
   dataClient: PersistenceClient;
   openAiApiKey: string;
+  meter?: SpendMeter | null;
 };
 
 export type ProcessAttachmentResult = {
@@ -941,6 +943,7 @@ function parseOpenAiTextResponse(payload: unknown): string | null {
 
 async function describeImage(args: {
   openAiApiKey: string;
+  meter?: SpendMeter | null;
   filename: string;
   dataUrl: string;
 }): Promise<string> {
@@ -955,7 +958,7 @@ async function describeImage(args: {
     },
   ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await meteredModelFetch(args.meter, "image_description", "https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${args.openAiApiKey}`,
@@ -1100,6 +1103,7 @@ async function processImageAttachment(args: {
   attachment: NormalizedAttachment;
   bytes: Uint8Array;
   openAiApiKey: string;
+  meter?: SpendMeter | null;
 }): Promise<{
   analysisResult: JsonObject;
   contextInjection: string;
@@ -1110,6 +1114,7 @@ async function processImageAttachment(args: {
   const dimensions = imageDimensions(args.bytes, args.attachment.mimeType);
   const description = await describeImage({
     openAiApiKey: args.openAiApiKey,
+    meter: args.meter,
     filename: args.attachment.filename,
     dataUrl,
   });
@@ -1213,6 +1218,7 @@ export async function processAttachment(
       attachment: normalized,
       bytes,
       openAiApiKey: options.openAiApiKey,
+      meter: options.meter,
     });
     return {
       attachment: readyAttachment(normalized, result.analysisResult),
@@ -1239,6 +1245,7 @@ export async function processAttachments(args: {
   tenantId: string;
   conversationId: string;
   openAiApiKey: string;
+  meter?: SpendMeter | null;
 }): Promise<ProcessAttachmentsResult> {
   if (!args.attachments || args.attachments.length === 0) {
     return {
@@ -1260,6 +1267,7 @@ export async function processAttachments(args: {
           conversationId: args.conversationId,
           dataClient: args.dataClient,
           openAiApiKey: args.openAiApiKey,
+          meter: args.meter,
         },
       ),
     ),

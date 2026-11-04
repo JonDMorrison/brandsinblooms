@@ -167,6 +167,22 @@ export class BloomSupportError extends Error {
   }
 }
 
+/** Bloom chat month-to-date model spend per company (micro-USD: 1 USD = 1,000,000). */
+export interface ChatSpendRow {
+  tenant_id: string;
+  tenant_name: string | null;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  settled_micros: number;
+  in_flight_micros: number;
+  committed_micros: number;
+  cap_micros: number;
+  override: boolean;
+  override_note: string | null;
+}
+export interface ChatSpendOverview { month: string; default_cap_micros: number; tenants: ChatSpendRow[] }
+
 async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -245,6 +261,8 @@ export const bloomSupport = {
   controlJob: (id: string, action: "retry" | "cancel") => send("POST", `/jobs/${id}/${action}`),
   settings: () => api<Record<string, unknown>>("/settings"),
   setSetting: (key: string, value: unknown) => send("PUT", `/settings/${key}`, { value }),
+  chatSpend: () => api<ChatSpendOverview>("/chat-spend"),
+  setChatSpendCap: (tenantId: string, capUsd: number | null, note?: string) => send("PUT", `/chat-spend/${tenantId}`, { cap_usd: capUsd, note }),
   staff: () => api<Array<{ id: string; name: string | null; email: string | null; role: string; grants: string[]; kind: string; active: boolean }>>("/staff"),
   setRole: (principal: Record<string, unknown>) => send("POST", "/staff/role", principal),
   keys: () => api<Array<Record<string, unknown>>>("/keys"),

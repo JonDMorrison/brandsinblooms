@@ -5,6 +5,7 @@ import type {
   IntentComplexity,
 } from "./types.ts";
 import { INTENT_CATEGORIES, INTENT_COMPLEXITIES } from "./types.ts";
+import { meteredModelFetch } from "../security/spend-cap.ts";
 
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
@@ -143,7 +144,7 @@ export async function classifyIntentWithComplexity(
   );
 
   try {
-    const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+    const response = await meteredModelFetch(options.meter, "intent", OPENAI_CHAT_COMPLETIONS_URL, {
       method: "POST",
       signal: controller.signal,
       headers: {

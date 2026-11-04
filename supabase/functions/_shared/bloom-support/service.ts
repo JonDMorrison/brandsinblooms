@@ -1,5 +1,5 @@
 // Bloom Support — high-level actions shared by the REST API and the MCP server.
-import { BloomError, type Caller, rpc, str, uuid } from "./runtime.ts";
+import { BloomError, type Caller, directRpc, rpc, str, uuid } from "./runtime.ts";
 import { sanitizeContext, redactText, STATUS_LABEL } from "./policy.ts";
 import { randomToken, sha256Hex } from "./crypto.ts";
 import { describeOperations, executeOperation, previewOperation, runRead, undoOperation } from "./operations.ts";
@@ -179,6 +179,14 @@ export const actions = {
     return rpc("set_setting", { ...A(c), key, value });
   },
   listStaff: (c: Caller) => rpc("list_staff", A(c)),
+  // Bloom chat spending cap (platform admins only; enforced in the database).
+  chatSpend: (c: Caller) => directRpc("bloom_chat_spend_overview", { p_actor: c.principalId }),
+  setChatSpendCap(c: Caller, tenantId: string, capUsd: unknown, note?: string) {
+    requireWriteScope(c);
+    const cap = capUsd === null ? null : Number(capUsd);
+    if (cap !== null && (!Number.isFinite(cap) || cap < 0)) throw new BloomError(400, "invalid", "cap_usd must be a number of US dollars, or null to use the default");
+    return directRpc("bloom_chat_spend_set_cap", { p_actor: c.principalId, p_tenant_id: uuid(tenantId, "tenant_id"), p_cap_usd: cap, p_note: note ?? null });
+  },
   setRole(c: Caller, principal: Record<string, unknown>) {
     requireWriteScope(c);
     return rpc("set_principal_role", { ...A(c), principal });
