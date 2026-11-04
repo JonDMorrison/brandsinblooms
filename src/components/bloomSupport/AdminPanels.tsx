@@ -440,6 +440,15 @@ export function SettingsPanel({ me }: { me: Whoami }) {
         <Stack direction="row" spacing={1} sx={{ my: 1 }}>
           <Button size="sm" onClick={() => run(async () => setNewKey((await bloomSupport.createKey({ label: "ChatGPT", scopes: ["*"] })).token))}>New full key</Button>
           <Button size="sm" variant="outlined" onClick={() => run(async () => setNewKey((await bloomSupport.createKey({ label: "ChatGPT (read-only)", scopes: ["read"] })).token))}>New read-only key</Button>
+          {me.permissions.includes("admin.roles") && (
+            <Button size="sm" variant="outlined" onClick={() => run(async () => {
+              // A dedicated service identity that can only record repair outcomes
+              // (engineering.report). This is the key the repair workflow's
+              // BLOOM_REPAIR_REPORT_KEY secret should hold, never a person's key.
+              const principalId = await bloomSupport.createServiceIdentity("Bloom repair report", "repair_report");
+              setNewKey((await bloomSupport.createKey({ label: "Bloom repair report", principal_id: principalId })).token);
+            })}>New repair report key</Button>
+          )}
         </Stack>
         {newKey && <Alert color="success" variant="soft" sx={{ wordBreak: "break-all" }}>Copy now — shown once: {newKey}</Alert>}
         {(keys.data ?? []).map((k) => (
