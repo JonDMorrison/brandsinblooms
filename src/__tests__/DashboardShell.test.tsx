@@ -791,6 +791,59 @@ describe("Bloom Support reply composer", () => {
 });
 
 describe("Bloom Support staff workspace", () => {
+  it("waits for the support identity before choosing the staff or client workspace", async () => {
+    const meRequest = deferred<Whoami>();
+    supportMocks.me.mockImplementationOnce(() => meRequest.promise);
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+
+    expect(screen.getByRole("status", { name: "Loading your support workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Loading your support workspace…")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Loading support" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Support" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Help & Support" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Get help")).not.toBeInTheDocument();
+    expect(screen.queryByText("Help centre")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open full support desk" })).not.toBeInTheDocument();
+    expect(supportMocks.listTickets).not.toHaveBeenCalled();
+
+    await act(async () => meRequest.resolve(supportAgent));
+
+    expect(await screen.findByRole("heading", { name: "Support" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open full support desk" })).toBeInTheDocument();
+    expect(screen.queryByText("Get help")).not.toBeInTheDocument();
+  });
+
+  it("does not fall back to the client portal when support identity loading fails", async () => {
+    const user = userEvent.setup();
+    supportMocks.me
+      .mockRejectedValueOnce(new Error("Identity unavailable"))
+      .mockResolvedValueOnce(supportAgent);
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Support unavailable" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Try again to securely load your support access.");
+    expect(screen.queryByText("Get help")).not.toBeInTheDocument();
+    expect(screen.queryByText("Help centre")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open full support desk" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByRole("heading", { name: "Support" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open full support desk" })).toBeInTheDocument();
+  });
+
   it("keeps staff on a calm conversation-first support surface", async () => {
     const user = userEvent.setup();
     render(

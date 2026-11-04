@@ -306,7 +306,12 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
               minRows={2} maxRows={8} value={draft} disabled={replyLocked} onChange={(e) => setDraft(e.target.value)}
               placeholder={`Write to ${t.requester?.name ?? clientName}, or add a private note`}
               slotProps={{ textarea: { ref: replyInput, disabled: replyLocked, maxLength: MAX_SUPPORT_BODY_LENGTH, "aria-label": "Message", "aria-describedby": replyError ? "conversation-reply-count conversation-reply-error" : "conversation-reply-count" } }}
-              sx={{ borderRadius: "lg", fontSize: "md" }}
+              sx={{
+                borderRadius: "lg",
+                fontSize: "md",
+                // Keep the theme's 80px root while letting Joy's hidden autosize clone measure a real row.
+                "& .MuiTextarea-textarea": { minHeight: 0 },
+              }}
             />
             <Typography id="conversation-reply-count" level="body-xs" color={draft.length > MAX_SUPPORT_BODY_LENGTH ? "danger" : undefined} textColor={draft.length > MAX_SUPPORT_BODY_LENGTH ? undefined : "text.tertiary"} sx={{ textAlign: "right" }}>
               {draft.length.toLocaleString()} / {MAX_SUPPORT_BODY_LENGTH.toLocaleString()} characters
