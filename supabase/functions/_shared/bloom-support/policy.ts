@@ -406,6 +406,12 @@ export const OPERATION_PERMISSIONS: Record<string, string> = {
   "site.theme.update": "ops.site.edit",
   "site.theme.discard": "ops.site.edit",
   "site.theme.publish": "ops.site.publish",
+  // Blog posts: drafts need edit; going live needs publish. SEO is saved
+  // straight to the live page (meta_data has no draft copy), so it needs publish.
+  "site.blog.create": "ops.site.edit",
+  "site.blog.update": "ops.site.edit",
+  "site.blog.publish": "ops.site.publish",
+  "site.seo.update": "ops.site.publish",
   "site.navigation.update": "ops.site.edit",
   "site.navigation.discard": "ops.site.edit",
   "site.navigation.publish": "ops.site.publish",
