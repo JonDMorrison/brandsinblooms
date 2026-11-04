@@ -214,7 +214,6 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ inputs.base }}", fetch-depth: 1 }
@@ -234,14 +233,25 @@ jobs:
             echo "::error::Patch modifies an existing test"; exit 1
           fi
           [ "$(echo "$FILES" | wc -l)" -le 6 ] || { echo "::error::Too many files"; exit 1; }
-      - name: Open pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Commit and push the fix branch
         run: |
           git config user.name "bloom-repair[bot]"
           git config user.email "bloom-repair@users.noreply.github.com"
           git commit -q -m "fix: Bloom repair for #$IN_ISSUE" -m "Bloom-Engineering-Issue: $IN_ID"
           git push -u origin "$IN_BRANCH"
+      # The repository does not let GitHub Actions' own token create pull requests
+      # (that setting would also let workflows approve them). The PR is opened with
+      # BLOOM_REPAIR_PR_TOKEN instead: a fine-grained token limited to this
+      # repository with Pull requests: read/write and Contents: read only. It cannot
+      # push, approve or merge. A PR opened with it also triggers the normal CI.
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ secrets.BLOOM_REPAIR_PR_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::BLOOM_REPAIR_PR_TOKEN is not set. The fix branch $IN_BRANCH was pushed; open its pull request by hand or add the secret."
+            exit 1
+          fi
           {
             echo "Automated fix proposed by Bloom for #$IN_ISSUE."
             echo
