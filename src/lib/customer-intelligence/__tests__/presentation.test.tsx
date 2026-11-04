@@ -21,3 +21,17 @@ describe('customer analysis presentation',()=>{
  it('never shows a customer with no dated receipts as $0 or zero visits',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_growth',rows:[{name:'Bryan customer',baseline_spend:0,current_spend:0,baseline_visits:0,current_visits:0,growth_index:null,state:'no_comparable_history'}]}}/></MemoryRouter>);expect(screen.getAllByText('No dated receipts')).toHaveLength(4);expect(screen.getByText('Not enough history')).toBeTruthy();expect(screen.queryByText('0')).toBeNull();});
  it('shows null growth values as unknown, not zero',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_growth',rows:[{name:'Alice',growth_index:null,state:'incomplete_data'}]}}/></MemoryRouter>);expect(screen.getByText('Unknown')).toBeTruthy();});
 });
+
+it('offers a campaign-selectable CRM segment without analytical-audience mode',()=>{
+ const action=vi.fn();render(<MemoryRouter><CustomerAnalysisBlock data={sample} onAction={action}/></MemoryRouter>);
+ fireEvent.click(screen.getByRole('button',{name:'Save campaign segment'}));
+ expect(action).toHaveBeenCalledOnce();
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('result-a as a static CRM segment'));
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('save_customer_set_segment without mode'));
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('before confirmation'));
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('Do not send any messages or change consent'));
+});
+it('does not offer a campaign segment for an empty included set',()=>{
+ render(<MemoryRouter><CustomerAnalysisBlock data={{...sample,included_count:0}} onAction={vi.fn()}/></MemoryRouter>);
+ expect(screen.queryByRole('button',{name:'Save campaign segment'})).toBeNull();
+});
