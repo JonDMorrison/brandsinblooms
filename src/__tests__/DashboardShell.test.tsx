@@ -926,6 +926,29 @@ describe("Bloom Support staff workspace", () => {
     );
   });
 
+  it("clears stale attachment feedback when a reply starts", async () => {
+    const user = userEvent.setup();
+    const pendingReply = deferred<{ message_id: string; duplicate: boolean }>();
+    supportMocks.uploadAttachment.mockRejectedValueOnce(new Error("Attachment upload failed"));
+    supportMocks.addMessage.mockImplementationOnce(() => pendingReply.promise);
+    renderConversation();
+
+    const reply = await screen.findByRole("textbox", { name: "Message" });
+    const privateInput = document.querySelector<HTMLInputElement>('input[aria-label="Attach a private file"]');
+    await user.upload(
+      privateInput!,
+      new File(["photo"], "printer.png", { type: "image/png" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Attachment upload failed");
+
+    await user.type(reply, "The printer still needs help.");
+    await user.click(screen.getByRole("button", { name: "Send to client" }));
+
+    await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Attachment upload failed")).not.toBeInTheDocument();
+    await act(async () => pendingReply.resolve({ message_id: "88888888-8888-4888-8888-888888888888", duplicate: false }));
+  });
+
   it("rotates the conversation key only after edit and send as new", async () => {
     const user = userEvent.setup();
     supportMocks.addMessage.mockRejectedValueOnce(new Error("Connection ended before confirmation"));

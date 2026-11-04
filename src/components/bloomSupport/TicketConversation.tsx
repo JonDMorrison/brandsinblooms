@@ -172,6 +172,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       idempotency_key: replyKey.current,
     };
     pendingReply.current = payload;
+    setError(null);
     setReplyError(null);
     setNotice(null);
     replyRun.mutate(payload);
