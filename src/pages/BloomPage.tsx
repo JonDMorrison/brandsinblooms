@@ -283,11 +283,11 @@ function BloomPageParamHandler() {
   return null;
 }
 
-/** Contextual return is allow-listed, not an arbitrary user-supplied URL. */
-function BloomIntelligenceReturn() {
+/** Offer a clear exit while keeping Intelligence return destinations allow-listed. */
+function BloomReturnControl() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  if (params.get("origin") !== "intelligence") return null;
+  const fromIntelligence = params.get("origin") === "intelligence";
   const returnView = intelligenceView(params.get("returnView"));
   return (
     <Box
@@ -298,9 +298,15 @@ function BloomIntelligenceReturn() {
         variant="soft"
         color="neutral"
         startDecorator={<ArrowLeft size={15} />}
-        onClick={() => navigate("/crm/intelligence?view=" + returnView)}
+        onClick={() =>
+          navigate(
+            fromIntelligence
+              ? "/crm/intelligence?view=" + returnView
+              : "/dashboard",
+          )
+        }
       >
-        Back to Intelligence
+        {fromIntelligence ? "Back to Intelligence" : "Back to Dashboard"}
       </Button>
     </Box>
   );
@@ -325,7 +331,7 @@ export default function BloomPage() {
           flexDirection: "column",
         }}
       >
-        <BloomIntelligenceReturn />
+        <BloomReturnControl />
         <BloomConversationArea prioritizePageContext={prioritizePageContext} />
         {/* Floating composer: absolutely anchored to the bottom so it hovers
             over the conversation rather than sitting in a flat bar. The wrapper
