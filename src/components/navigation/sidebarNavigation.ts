@@ -158,7 +158,7 @@ const legacyBloomItem = createLegacyItem("Bloom", "/bloom", Sparkles, [
   { path: "/bloom/*", end: false },
 ]);
 const legacyAnalyticsItem = createLegacyItem(
-  "Analytics",
+  "Reports",
   "/analytics",
   BarChart3,
   [{ path: "/analytics", end: false }],
@@ -179,7 +179,7 @@ const legacyIntelligenceItem = createLegacyItem(
   [{ path: "/crm/intelligence", end: false }],
 );
 const legacyCustomersItem = createLegacyItem(
-  "Customers",
+  "Contacts",
   "/crm/customers",
   Users,
   [{ path: "/crm/customers", end: false }],
@@ -474,6 +474,12 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
       createDashboardLinkItem("customers", legacyCustomersItem, {
         contentWidth: "full",
       }),
+      createDashboardLinkItem("forms", legacyFormsItem, {
+        contentWidth: "full",
+      }),
+      createDashboardLinkItem("automations", legacyAutomationsItem, {
+        contentWidth: "full",
+      }),
       createDashboardLinkItem("analytics", legacyAnalyticsItem, {
         contentWidth: "full",
       }),
@@ -489,15 +495,7 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
         label: "Marketing tools",
         icon: Mail,
         children: [
-          createDashboardLinkItem("newsletter", legacyNewsletterItem, {
-            contentWidth: "full",
-          }),
-          createDashboardLinkItem("sms-campaigns", legacySmsItem, {
-            contentWidth: "full",
-          }),
-          createDashboardLinkItem("automations", legacyAutomationsItem, {
-            contentWidth: "full",
-          }),
+          // Campaign creation has one navigation entry; retain legacy routes for bookmarks.
           createDashboardLinkItem("calendar", legacyCalendarItem, {
             contentWidth: "full",
           }),
@@ -519,9 +517,6 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
             contentWidth: "full",
           }),
           createDashboardLinkItem("personas", legacyPersonasItem, {
-            contentWidth: "full",
-          }),
-          createDashboardLinkItem("forms", legacyFormsItem, {
             contentWidth: "full",
           }),
         ],
@@ -639,10 +634,10 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   ),
   createRouteDescriptor("Bloom", legacyBloomItem.patterns, "full"),
   createRouteDescriptor("Campaign Analytics", [{ path: "/crm/analytics", end: true }], "full"),
-  createRouteDescriptor("Analytics", legacyAnalyticsItem.patterns, "full"),
+  createRouteDescriptor("Reports", legacyAnalyticsItem.patterns, "full"),
   createRouteDescriptor("Activity Center", legacyActivityItem.patterns, "full"),
   createRouteDescriptor("Calendar", legacyCalendarItem.patterns, "full"),
-  createRouteDescriptor("Customers", legacyCustomersItem.patterns, "full"),
+  createRouteDescriptor("Contacts", legacyCustomersItem.patterns, "full"),
   createRouteDescriptor("Customer Intelligence", legacyIntelligenceItem.patterns, "full"),
   createRouteDescriptor("Campaigns", legacyCampaignsItem.patterns, "full"),
   createRouteDescriptor("Automations", legacyAutomationsItem.patterns, "full"),
