@@ -16,11 +16,11 @@ production. **Open PR** = written and tested, waiting on CI. **Not built** = not
 | --- | --- | --- |
 | CRM reads (customers, products, campaigns, segments, orders, analytics, knowledge) | Live | `bloom-assist/tools/registry.ts`, 54 tools |
 | CRM changes with approval (customers, products, campaigns, segments, tags, consent) | Live | executor confirmation gate, `tools/executor.ts` |
-| Approval runs the stored change exactly once | Open PR #324 | `bloom-assist/action-claims.ts`, table `bloom_action_claims` (applied 2026-11-02 as `20261102172227`) |
+| Approval runs the stored change exactly once | Live (#324) | `bloom-assist/action-claims.ts`, table `bloom_action_claims` (applied 2026-11-02 as `20261102172227`) |
 | Report a problem / check a request / self-diagnostics | Live (#316, #319) | `tools/implementations/support-tools.ts` |
-| Read BloomSites site, pages, events | Open PR #324 | `read_suite_data` → Support `runRead` → CMS ops endpoint |
-| Read POS products, stock, sales summary | Open PR #324 | same path. CRM→POS reads verified live 2026-11-01 (3 audited `operation.read` rows) |
-| Read POS price history | Open PRs #324 + bloomtill #640 | needs the POS migration and function rollout (see E) |
+| Read BloomSites site, pages, events, preview links | Live (#324) | `read_suite_data` → Support `runRead` → CMS ops endpoint |
+| Read POS products, stock, sales summary | Live (#324) | same path. CRM→POS reads verified live 2026-11-01 (3 audited `operation.read` rows) |
+| Read POS price history | Live (#324, bloomtill #640) | migration `20261102150000` applied alone to POS production; `bloom-support-ops` deployed alone |
 | Change website / POS from chat | Not built, on purpose | Changes go through the Support desk preview → confirm → verify flow |
 | Durable multi-step plans (resume after crash, cancel) | Not built | Plans live in `bloom_messages.block_data`. No resume worker. See F |
 | Model budget per tenant (cost cap) | Live (PR pending number in Changes) | Monthly cap per company, default $25 (settings `chat_spend`), per-company override by platform admins only. Every model call reserves its estimated cost first and settles actual tokens after (`bloom-assist/security/spend-cap.ts`; ledger `bloom_support.chat_usage`; total in `bloom_support.usage_counters` bucket `chat-spend:YYYY-MM`). Over the cap Bloom replies with a plain notice and makes no model call. Support desk → Settings → Bloom chat usage. Not metered: image generation and content-writing functions called as tools, knowledge-search embeddings |
@@ -31,7 +31,7 @@ production. **Open PR** = written and tested, waiting on CI. **Not built** = not
 | --- | --- | --- |
 | A Intake (in-app, CMS, POS, email) | Live for CRM/POS; CMS reporting merged to dev/main (#4154, #4186); email inbox not verified | HANDOVER §0 |
 | B Knowledge answers | Live, staff-reviewed publication | `bloom_support.knowledge` |
-| C Product operations (preview → execute → verify → undo) | Live for CRM campaigns and POS reads. CMS page/event writes get version guards in cms #4188 | `_shared/bloom-support/operations.ts` |
+| C Product operations (preview → execute → verify → undo) | Live for CRM campaigns, POS reads, and BloomSites page/event/section/theme changes (all version-guarded, cms #4188 and later) | `_shared/bloom-support/operations.ts` |
 | D Engineering repair | Pipeline proven through dispatch, prepare and report-back (#1007 test). A full real repair is not yet proven | HANDOVER, #310/#317 |
 | E Escalation | Live | `escalations`, `resolve_escalation` |
 | F Verify and follow up | Live jobs; client email disabled | worker `verify_resolution` |
@@ -41,8 +41,8 @@ production. **Open PR** = written and tested, waiting on CI. **Not built** = not
 | Product | Bloom can read | Bloom can change (with approval) | Not available |
 | --- | --- | --- | --- |
 | CRM | everything above | CRM tools above; campaign drafts and scheduling via Support | campaign **send** from a support message (blocked on purpose) |
-| BloomSites | site, pages, events | page title/excerpt, publish a page, event fields, new draft site (all with undo except draft creation) | sections, hero, images, theme, navigation, blog, SEO. No server-side writer exists. See F |
-| POS | products, stock, sales summary, price history (pending rollout) | none from Bloom Support. The POS's own Bloom does reviewed price/details tasks in the back office | refunds, payments, stock adjustments, permissions (excluded by design) |
+| BloomSites | site, pages, events, private preview links | page title/excerpt, publish a page, event fields, new draft site; section content/order/visibility as drafts (`site.section.*`); theme drafts with publish/discard (`site.theme.*`, publish needs ops.site.publish). All with undo except draft creation. The Design page tells owners when a theme draft is waiting (cms #4227) | blog, SEO, navigation, image swaps (in progress, 2026-11-04) |
+| POS | products, stock, sales summary, price history | none from Bloom Support. The POS's own Bloom does reviewed price/details tasks in the back office | refunds, payments, stock adjustments, permissions (excluded by design) |
 
 ## B. Architecture
 
@@ -96,15 +96,13 @@ Browser walks: not run.
 
 ## E. Runtime handoff (what still has to happen in production)
 
-1. **CRM #324:** CI, then merge. bloom-assist and the Support functions deploy through `deploy-edge-functions.yml`. The table is already applied.
-2. **cms #4188:** merge to `dev` (staging), then a targeted release PR to `main` per the standing rule. Previews made before the deploy have no guard and get "preview again". That is intended.
-3. **bloomtill #640:** merge to `main`. Production is **not** deployed by merge. The production workflow runs `supabase db push --include-all`, which can apply unrelated migrations, so it must not be used for this. Targeted rollout instead: apply `20261102150000_bloom_support_price_history.sql` alone, then deploy `bloom-support-ops` alone.
-4. **POS report CORS (bloomtill #640):** before deploying `bloom-support-report` to production, set `POS_BACKOFFICE_ORIGIN` (and `POS_TILL_ORIGIN` if the till is on a different origin) on project aimphmbjuawmxyvkwipf. Without them, browser reports get 403. Production has had no function traffic in the last 24 h (logs, 2026-11-02), and the endpoint requires a staff bearer token, so leaving the current version running is low risk.
+1. CRM #324, cms #4188, bloomtill #640 (price history) and the CMS section/theme releases are merged and deployed. Nothing outstanding from that round.
+2. **POS report CORS (bloomtill #640):** before deploying `bloom-support-report` to production, set `POS_BACKOFFICE_ORIGIN` (and `POS_TILL_ORIGIN` if the till is on a different origin) on project aimphmbjuawmxyvkwipf. Without them, browser reports get 403. The POS production workflow runs `supabase db push --include-all`; never use it for Bloom rollouts. Deploy single functions and apply single migrations instead.
 
 ## F. Blockers and decisions
 
 - **Client access to website/POS data through chat:** clients hold no `ops.*` read permission. Granting it would let CRM staff see POS sales that the POS limits to managers (rank ≥30). That decision is the owner's. It needs a role mapping per product, not a blanket grant. Left closed.
-- **Website design edits (hero, sections, images, theme, navigation):** BloomSites has no server-side writer. Every save is browser-side with RLS, theme changes go live with no draft, and there is no revision history (cms inventory, `useContentEditorData.ts`, `theme.ts:768`). A safe Bloom path needs a version-guarded server writer and a theme draft first. Not built.
+- **Website design edits:** sections and theme are built and live as version-guarded drafts with preview and undo (cms #4192, #4193, #4201, #4227; theme migrations `20261102203000`, `20261103053000` in CMS production). Blog, SEO, navigation and image swaps are the remaining gaps (in progress 2026-11-04).
 - **Blog and SEO from Bloom:** the routes need a cookie session. The insert logic would have to be pulled out of `blog-posts/route.ts` first. Not built.
 - **Durable chat plans:** no resume or cancel for multi-task plans. Recommended path: move chat plans onto `bloom_support.jobs` (leases, retries, dead letters) instead of a new runner.
 - **ChatGPT per-user connection:** OAuth works. Each person still has to connect their own account. No shared key is handed out.
