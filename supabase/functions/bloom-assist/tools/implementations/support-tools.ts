@@ -25,6 +25,7 @@ import {
   sanitizeContext,
   STATUS_LABEL,
 } from "../../../_shared/bloom-support/policy.ts";
+import { sha256Hex } from "../../../_shared/bloom-support/crypto.ts";
 
 export const SUPPORT_TOOL_NAMES = [
   "report_support_problem",
@@ -124,7 +125,7 @@ export async function resolveSupportIdentity(
     .eq("id", context.userId)
     .maybeSingle();
   if (error) throw new Error(`Could not read the signed-in user: ${error.message}`);
-  const row = isRecord(user) ? user : {};
+  const row: Record<string, unknown> = isRecord(user) ? user : {};
   const ownTenantId = readString(row.tenant_id);
   let ownTenantName: string | null = null;
   if (ownTenantId) {
@@ -332,6 +333,23 @@ export async function reportSupportProblem(
     product_area: "bloom-chat",
     diagnostics,
   };
+  const storedSubject = redactText(subject).slice(0, 120);
+  const storedBody = redactText(body);
+  const storedKind = kindHint && KIND_HINTS.has(kindHint) ? kindHint : null;
+  const storedPriority = params.urgency === "high" ? "high" : "normal";
+  // The conversation/message pair is immutable. Bind it to the person's
+  // stable request and account, excluding diagnostics that can legitimately
+  // change between an ambiguous response and an exact retry.
+  const intakeFingerprint = await sha256Hex(JSON.stringify({
+    version: 1,
+    product: "crm",
+    channel: "crm",
+    subject: storedSubject,
+    body: storedBody,
+    kind_hint: storedKind,
+    priority_hint: storedPriority,
+    account_id: identity.account.id,
+  }));
 
   let created: { ticket_id?: string; number?: number; duplicate_delivery?: boolean };
   try {
@@ -340,13 +358,14 @@ export async function reportSupportProblem(
       ticket: {
         product: "crm",
         channel: "crm",
-        subject: redactText(subject).slice(0, 120),
-        body: redactText(body),
-        kind_hint: kindHint && KIND_HINTS.has(kindHint) ? kindHint : null,
-        priority_hint: params.urgency === "high" ? "high" : "normal",
+        subject: storedSubject,
+        body: storedBody,
+        kind_hint: storedKind,
+        priority_hint: storedPriority,
         account_id: identity.account.id,
         context: ticketContext,
         dedupe_key: buildSupportDedupeKey(context.conversationId, context.messageId),
+        intake_fingerprint: intakeFingerprint,
         // Created paused: no triage job is ever queued, so the worker cannot
         // email the requester or start engineering before a person looks.
         automation: "paused",

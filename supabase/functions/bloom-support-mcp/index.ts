@@ -16,7 +16,12 @@ type Schema = Record<string, unknown>;
 interface Tool { name: string; description: string; inputSchema: Schema; readOnly: boolean; run: (c: Caller, a: Record<string, unknown>) => Promise<unknown> | unknown }
 
 const S = (props: Record<string, Schema>, required: string[] = []): Schema => ({ type: "object", properties: props, required, additionalProperties: false });
-const str = (d: string, e?: string[]): Schema => (e ? { type: "string", description: d, enum: e } : { type: "string", description: d });
+const str = (d: string, e?: string[], maxLength?: number): Schema => ({
+  type: "string",
+  description: d,
+  ...(e ? { enum: e } : {}),
+  ...(maxLength ? { maxLength } : {}),
+});
 const id = (d = "UUID") => str(d);
 const STATUSES = ["new", "working", "waiting", "needs_owner", "resolved"];
 
@@ -36,12 +41,12 @@ const TOOLS: Tool[] = [
   { name: "get_ticket", readOnly: true, description: "Full ticket: conversation (public + internal for staff), attachments, related tickets, activity, jobs, operations, engineering and escalations.", inputSchema: S({ ticket_id: id() }, ["ticket_id"]), run: (c, a) => actions.getTicket(c, String(a.ticket_id)) },
   {
     name: "create_ticket", readOnly: false, description: "Open a support request (for yourself or on behalf of a client account). Bloom triages it automatically.",
-    inputSchema: S({ body: str("What is happening / what is needed"), subject: str("Short title"), account_id: id("Client account (see find_client)"), product: str("Product", ["cms", "crm", "pos", "platform", "unknown"]), conversation_id: id("Add as another request in an existing conversation"), priority: str("Priority", ["low", "normal", "high", "urgent"]), idempotency_key: str("Repeat-safe key") }, ["body"]),
+    inputSchema: S({ body: str("What is happening / what is needed", undefined, 20_000), subject: str("Short title", undefined, 300), account_id: id("Client account (see find_client)"), product: str("Product", ["cms", "crm", "pos", "platform", "unknown"]), conversation_id: id("Add as another request in an existing conversation"), priority: str("Priority", ["low", "normal", "high", "urgent"]), idempotency_key: str("Repeat-safe key") }, ["body"]),
     run: (c, a) => actions.createTicket(c, a, "chatgpt"),
   },
   {
     name: "reply_to_ticket", readOnly: false, description: "Add a message. visibility=public is emailed to the client (and takes the ticket over from Bloom); visibility=internal is a private note.",
-    inputSchema: S({ ticket_id: id(), body: str("Message"), visibility: str("public or internal", ["public", "internal"]), idempotency_key: str("Repeat-safe key") }, ["ticket_id", "body", "visibility"]),
+    inputSchema: S({ ticket_id: id(), body: str("Message", undefined, 20_000), visibility: str("public or internal", ["public", "internal"]), idempotency_key: str("Repeat-safe key") }, ["ticket_id", "body", "visibility"]),
     run: (c, a) => actions.addMessage(c, String(a.ticket_id), a),
   },
   {

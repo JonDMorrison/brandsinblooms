@@ -5,10 +5,17 @@
 // notes or change policy. Sender identity is matched to accounts only through
 // verified memberships or registered account domains (unverified), and a
 // staff address in From: is never treated as staff authority.
-import { BloomError, env, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
-import { verifySvix, sha256Hex } from "../_shared/bloom-support/crypto.ts";
+import { BloomError, directRpc, env, errorResponse, json, readBodyText, readResponseBytes, readResponseText, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
+import { verifySvix, sha256Hex, toHex } from "../_shared/bloom-support/crypto.ts";
 import { indicatesStillBroken, isAutomatedEmail, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
-import { storeAttachment } from "../_shared/bloom-support/attachments.ts";
+import {
+  MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENT_TOTAL_BYTES,
+  storeAttachment,
+  validateAttachmentFile,
+  validateAttachmentMetadata,
+  type AttachmentFile,
+} from "../_shared/bloom-support/attachments.ts";
 import { emailConfig } from "../_shared/bloom-support/email.ts";
 import { alignedWith, binaryString, rawFromAddress, verifiedDkimDomains } from "../_shared/bloom-support/dkim.ts";
 
@@ -46,16 +53,125 @@ async function resend(path: string): Promise<unknown> {
   if (!key) throw new BloomError(503, "not_configured", "RESEND_API_KEY is not set");
   const res = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new BloomError(502, "provider_error", `Resend ${path} returned ${res.status}`);
-  return await res.json();
+  const raw = await readResponseText(res, 1_000_000);
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new BloomError(502, "provider_error", "Resend returned invalid JSON");
+  }
 }
 
 /** The original message as received, for DKIM verification (capped at 10 MB). */
 async function rawMessage(url: string): Promise<string | null> {
   if (!/^https:\/\//.test(url)) return null;
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000), redirect: "error" });
   if (!res.ok) return null;
-  const buf = await res.arrayBuffer();
-  return buf.byteLength > 10_000_000 ? null : binaryString(buf);
+  const bytes = await readResponseBytes(res, 10_000_000);
+  return binaryString(new Uint8Array(bytes).buffer);
+}
+
+interface PreparedInboundAttachment extends AttachmentFile {
+  sha256: string;
+}
+
+interface PreparedInboundAttachments {
+  accepted: PreparedInboundAttachment[];
+  rejected: string[];
+}
+
+const safeAttachmentLabel = (value: unknown, index: number) => {
+  const raw = typeof value === "string" ? value : "";
+  const safe = [...raw]
+    .map((character) => {
+      const point = character.codePointAt(0) ?? 0;
+      return character === "\\" || character === "/" || point < 32 || point === 127 ? "_" : character;
+    })
+    .join("")
+    .trim()
+    .slice(0, 120);
+  return safe || `attachment ${index + 1}`;
+};
+
+/** Download and validate the complete inbound manifest before ticket finalization. */
+async function prepareInboundAttachments(
+  manifest: ReceivedEmail["attachments"],
+): Promise<PreparedInboundAttachments> {
+  const accepted: PreparedInboundAttachment[] = [];
+  const rejected: string[] = [];
+  let total = 0;
+  for (const [index, attachment] of (manifest ?? []).entries()) {
+    const label = safeAttachmentLabel(attachment?.filename, index);
+    if (index >= 5) {
+      rejected.push(`${label}: only 5 attachments can be accepted`);
+      continue;
+    }
+    if (!attachment || !attachment.download_url || !/^https:\/\//i.test(attachment.download_url)) {
+      rejected.push(`${label}: the email provider did not supply a safe download`);
+      continue;
+    }
+    let metadata: { fileName: string; contentType: string };
+    try {
+      metadata = validateAttachmentMetadata(attachment.filename, attachment.content_type);
+    } catch (error) {
+      if (error instanceof BloomError && error.status < 500) {
+        rejected.push(`${label}: unsupported attachment name or type`);
+        continue;
+      }
+      throw error;
+    }
+    if (typeof attachment.size === "number" && attachment.size > MAX_ATTACHMENT_BYTES) {
+      rejected.push(`${label}: files must be 8 MB or smaller`);
+      continue;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(attachment.download_url, {
+        signal: AbortSignal.timeout(20_000),
+        redirect: "error",
+      });
+    } catch (error) {
+      throw new BloomError(502, "provider_error", `Could not download inbound attachment: ${error instanceof Error ? error.name : "network error"}`);
+    }
+    if (!response.ok) {
+      throw new BloomError(502, "provider_error", `Attachment provider returned ${response.status}`);
+    }
+
+    let bytes: Uint8Array;
+    try {
+      bytes = await readResponseBytes(response, MAX_ATTACHMENT_BYTES);
+    } catch (error) {
+      if (error instanceof BloomError && error.status === 413) {
+        rejected.push(`${label}: files must be 8 MB or smaller`);
+        continue;
+      }
+      throw error;
+    }
+    const file: AttachmentFile = {
+      name: metadata.fileName,
+      type: metadata.contentType,
+      bytes,
+    };
+    try {
+      validateAttachmentFile(file);
+    } catch (error) {
+      if (error instanceof BloomError && error.status < 500) {
+        rejected.push(`${label}: contents did not match an accepted file type`);
+        continue;
+      }
+      throw error;
+    }
+    if (total + bytes.byteLength > MAX_ATTACHMENT_TOTAL_BYTES) {
+      rejected.push(`${label}: attachments must total 12 MB or less`);
+      continue;
+    }
+    total += bytes.byteLength;
+    accepted.push({
+      ...file,
+      sha256: toHex(await crypto.subtle.digest("SHA-256", bytes as BufferSource)),
+    });
+  }
+  return { accepted, rejected };
 }
 
 async function loadEmail(data: Record<string, unknown>): Promise<ReceivedEmail> {
@@ -109,7 +225,8 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
 
   const mail = await loadEmail(data);
   const headers = headerMap(mail.headers);
-  const messageId = mail.message_id ?? headers["message-id"] ?? `<resend-${mail.id}@inbound>`;
+  const messageId = (mail.message_id ?? headers["message-id"] ?? "").trim() || `<resend-${mail.id}@inbound>`;
+  const inReplyTo = headers["in-reply-to"]?.trim() || null;
   const fromAddress = parseAddress(cfg.from).email;
   // Bloom's own addresses (plus optional extra addresses or "@domain" entries used only by Bloom).
   const own = [cfg.supportAddress, fromAddress, ...aliases, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
@@ -148,20 +265,37 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   // Per-sender burst guard against loops with misbehaving mail systems. A relay carries many
   // people's messages, so it is limited per original sender instead.
   const rateSubject = trustedRelay ? `relay:${forwarded!.email.toLowerCase()}` : sender.email;
-  const okRate = await rpc<boolean>("consume_usage", { bucket: `email-in:${new Date().toISOString().slice(0, 13)}`, subject: await sha256Hex(rateSubject), limit: 30 });
+  // Charge a provider event once. A transient attachment/storage failure asks
+  // Resend to retry the same event; that retry must not spend quota again or
+  // strand an otherwise accepted message at the hourly boundary.
+  const okRate = await directRpc<boolean>("bloom_support_consume_email_usage", {
+    p_provider: "resend",
+    p_event: eventId,
+    p_bucket: `email-in:${new Date().toISOString().slice(0, 13)}`,
+    p_subject: await sha256Hex(rateSubject),
+    p_limit: 30,
+  });
   if (!okRate) {
     await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: "ignored:rate" });
     return { ignored: "rate" };
   }
 
   const staffForwarder = forwarded && domainAuthenticated ? await rpc<boolean>("is_staff_email", { email: sender.email }).catch(() => false) : false;
-  const body = redactText((forwarded ? rawText : stripQuotedReply(rawText)) || "(no text)").slice(0, 20000);
+  const body = redactText((forwarded ? rawText : stripQuotedReply(rawText)) || "(no text)").slice(0, 20000).trim();
   const intake = await servicePrincipal("intake");
   // A forward names someone else as the client. Honour that only for an authenticated staff
   // member or our own relay; anyone else is the requester themselves, and the forwarded text is
   // kept as evidence. Otherwise anyone could make Bloom email (and open tickets for) a third party.
   const forwardHonoured = forwarded !== null && (staffForwarder || trustedRelay);
   const requester = forwardHonoured ? forwarded! : sender;
+  const preparedAttachments = await prepareInboundAttachments(mail.attachments);
+
+  let ticketId: string | null = null;
+  // Files use the requester proven for the selected ticket. The intake
+  // identity is reserved for an authenticated product relay finishing files
+  // on a ticket originally created through signed product intake.
+  let attachmentActor = intake.principalId;
+  let outcome = "created";
 
   // A BloomSites or BloomTill report that fell back to email carries the key the product already
   // used with Bloom. If that report reached Bloom, do not open a second ticket. Only an
@@ -170,21 +304,23 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   if (productKey) {
     const existing = await rpc<string | null>("find_ticket_by_client_key", { actor: intake.principalId, key: productKey }).catch(() => null);
     if (existing) {
-      await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome: "duplicate:product-report", ticket_id: existing });
-      return { ticket_id: existing, outcome: "duplicate:product-report" };
+      // The direct report may have committed while one or more files failed to
+      // store. Continue through the bounded attachment path so the signed email
+      // fallback can finish those exact files idempotently.
+      ticketId = existing;
+      outcome = "duplicate:product-report";
     }
   }
   const who = await rpc<{ principal_id: string; account_id: string | null; match: string }>("resolve_email_sender", { email: requester.email, name: requester.name });
 
-  let ticketId: string | null = null;
-  let outcome = "created";
-  if (!forwarded) {
+  if (!ticketId && !forwarded) {
     const refs = parseReferences(headers);
     const matched = await rpc<string | null>("match_email_thread", { refs, number: ticketNumberFromSubject(mail.subject) });
     if (matched) {
       try {
-        await rpc("append_inbound_email", { actor: who.principal_id, ticket_id: matched, body, message_id: messageId, in_reply_to: headers["in-reply-to"] ?? null });
+        await rpc("append_inbound_email", { actor: who.principal_id, ticket_id: matched, body, message_id: messageId, in_reply_to: inReplyTo });
         ticketId = matched;
+        attachmentActor = who.principal_id;
         outcome = indicatesStillBroken(body) ? "reply:reopen-signal" : "reply";
       } catch (e) {
         // Sender may not read that ticket (e.g. a different person replied with the number): start a new one.
@@ -193,17 +329,58 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
     }
   }
   if (!ticketId) {
+    const subject = mail.subject.replace(/^(re|fwd?):\s*/i, "").trim().slice(0, 300);
+    // First sight of a standalone sender is reported as `none`; the exact
+    // retry resolves the principal created by that first delivery. Treat both
+    // as the same stable email-identity provenance for idempotency.
+    const emailMatch = who.match === "none" || who.match === "principal" ? "email" : who.match;
+    const context = {
+      email_match: emailMatch,
+      forwarded_by: forwarded ? sender.email : undefined,
+      forward_authorized: forwarded ? forwardHonoured : undefined,
+    };
+    const email = {
+      message_id: messageId,
+      thread_root: messageId,
+      reply_to: requester.email,
+      in_reply_to: inReplyTo,
+    };
+    // Message-ID is only a lookup key. Bind it to the complete normalized
+    // intake so a provider retry is safe while a reused ID with changed
+    // content or files is rejected instead of claiming the old ticket.
+    const intakeFingerprint = await sha256Hex(JSON.stringify({
+      version: 1,
+      product: "unknown",
+      channel: "email",
+      subject,
+      body,
+      account_id: who.account_id,
+      requester_id: who.principal_id,
+      context,
+      email,
+      attachments: preparedAttachments.accepted
+        .map((attachment) => ({
+          file_name: attachment.name,
+          content_type: attachment.type,
+          size_bytes: attachment.bytes.byteLength,
+          sha256: attachment.sha256,
+        }))
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+      rejected_attachments: [...preparedAttachments.rejected].sort(),
+    }));
     const created = await rpc<{ ticket_id: string; duplicate_delivery: boolean }>("create_ticket", {
       actor: intake.principalId,
       ticket: {
-        product: "unknown", channel: "email", subject: mail.subject.replace(/^(re|fwd?):\s*/i, ""), body,
+        product: "unknown", channel: "email", subject, body,
         account_id: who.account_id, requester_id: who.principal_id,
-        context: { email_match: who.match, forwarded_by: forwarded ? sender.email : undefined, forward_authorized: forwarded ? forwardHonoured : undefined },
-        dedupe_key: `email:${messageId}`,
-        email: { message_id: messageId, thread_root: messageId, reply_to: requester.email, in_reply_to: headers["in-reply-to"] ?? null },
+        context,
+        dedupe_key: `email:${who.principal_id}:${messageId}`,
+        intake_fingerprint: intakeFingerprint,
+        email,
       },
     });
     ticketId = created.ticket_id;
+    attachmentActor = who.principal_id;
     outcome = created.duplicate_delivery ? "duplicate" : forwarded ? "created:forwarded" : "created";
     if (forwarded && !created.duplicate_delivery) {
       const automation = await servicePrincipal("automation").catch(() => null);
@@ -221,14 +398,23 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   const ccList = (headers["cc"] ?? "").split(",").map((x) => parseAddress(x).email).filter((x) => x.includes("@"));
   const others = [...toList, ...ccList].filter((x) => !own.some((a) => a.toLowerCase() === x) && x !== requester.email);
   if (others.length && !forwarded) await rpc("conversation_cc", { ticket_id: ticketId, emails: others }).catch(() => undefined);
-  for (const a of (mail.attachments ?? []).slice(0, 10)) {
-    if (!a.download_url) continue;
-    try {
-      const res = await fetch(a.download_url, { signal: AbortSignal.timeout(20000) });
-      if (res.ok) await storeAttachment(intake.principalId, ticketId, { name: a.filename, type: a.content_type, bytes: new Uint8Array(await res.arrayBuffer()) });
-    } catch (e) {
-      console.warn("bloom-support-email attachment skipped", a.filename, String(e));
-    }
+  for (const attachment of preparedAttachments.accepted) {
+    // Storage/provider failures are retryable: do not finish the email event.
+    // A provider retry finds the same ticket and deterministic attachment path.
+    await storeAttachment(attachmentActor, ticketId, attachment);
+  }
+  if (preparedAttachments.rejected.length) {
+    const automation = await servicePrincipal("automation");
+    await rpc("add_message", {
+      actor: automation.principalId,
+      ticket_id: ticketId,
+      message: {
+        body: `Bloom could not accept these email attachments:\n${preparedAttachments.rejected.map((line) => `- ${line}`).join("\n")}\nPlease reply with a supported file if it is still needed.`,
+        visibility: "public",
+        notify_client: false,
+        idempotency_key: `email-attachment-rejections:${messageId}`,
+      },
+    });
   }
   await rpc("finish_email_event", { provider: "resend", event_id: eventId, outcome, ticket_id: ticketId });
   return { ticket_id: ticketId, outcome };
@@ -239,8 +425,7 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") throw new BloomError(405, "method", "POST only");
     const secret = env("RESEND_INBOUND_WEBHOOK_SECRET");
     if (!secret) throw new BloomError(503, "not_configured", "RESEND_INBOUND_WEBHOOK_SECRET is not set");
-    const raw = await req.text();
-    if (raw.length > 200_000) throw new BloomError(413, "too_large", "Webhook payload is too large");
+    const raw = await readBodyText(req, 256 * 1024);
     const id = req.headers.get("svix-id");
     const ok = await verifySvix(secret, id, req.headers.get("svix-timestamp"), req.headers.get("svix-signature"), raw);
     if (!ok) throw new BloomError(401, "unauthenticated", "Invalid webhook signature");

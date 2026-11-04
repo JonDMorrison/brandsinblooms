@@ -26,6 +26,21 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \ir ../../supabase/migrations/20261101035144_bloom_support_knowledge_publication.sql
 \ir ../../supabase/migrations/20261101051925_bloom_support_site_creation_recovery.sql
 \ir ../../supabase/migrations/20261101140000_bloom_support_audit_hardening.sql
+-- Migration backfill fixture: preserve intentional post-resolution reply
+-- review while removing stale waiting state.
+INSERT INTO bloom_support.conversations(id, channel, subject)
+VALUES ('f0000000-0000-4000-8000-000000000001', 'crm', 'Resolved reply migration fixture');
+INSERT INTO bloom_support.tickets(
+  id, conversation_id, product, channel, subject, summary, status, stage,
+  resolved_at, pending_review, waiting_since
+) VALUES (
+  'f0000000-0000-4000-8000-000000000002',
+  'f0000000-0000-4000-8000-000000000001',
+  'crm', 'crm', 'Resolved reply migration fixture',
+  'A customer replied after resolution and staff still need to route it.',
+  'resolved', 'resolved', now(), 'reply_after_resolution', now()
+);
+\ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -40,12 +55,43 @@ CREATE OR REPLACE FUNCTION pg_temp.rpc(p_fn text, p jsonb) RETURNS jsonb LANGUAG
 CREATE OR REPLACE FUNCTION pg_temp.assert(p_ok boolean, p_msg text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN IF NOT coalesce(p_ok,false) THEN RAISE EXCEPTION 'assertion failed: %', p_msg; END IF; END $$;
 
+SELECT pg_temp.assert((
+  SELECT pending_review = 'reply_after_resolution'
+    AND waiting_since IS NULL
+  FROM bloom_support.tickets
+  WHERE id = 'f0000000-0000-4000-8000-000000000002'
+), 'migration preserves post-resolution reply review while clearing stale waiting time');
+ALTER TABLE bloom_support.ticket_events DISABLE TRIGGER ticket_events_append_only;
+DELETE FROM bloom_support.ticket_events
+WHERE ticket_id = 'f0000000-0000-4000-8000-000000000002';
+ALTER TABLE bloom_support.ticket_events ENABLE TRIGGER ticket_events_append_only;
+ALTER TABLE bloom_support.activity DISABLE TRIGGER activity_append_only;
+DELETE FROM bloom_support.activity
+WHERE ticket_id = 'f0000000-0000-4000-8000-000000000002';
+ALTER TABLE bloom_support.activity ENABLE TRIGGER activity_append_only;
+DELETE FROM bloom_support.tickets
+WHERE id = 'f0000000-0000-4000-8000-000000000002';
+DELETE FROM bloom_support.conversations
+WHERE id = 'f0000000-0000-4000-8000-000000000001';
+
 -- Privilege boundary: no client role may reach the schema or the gateway.
 SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'public.bloom_support_rpc(text,jsonb)', 'execute'), 'authenticated cannot call gateway');
 SELECT pg_temp.assert(NOT has_function_privilege('anon', 'public.bloom_support_rpc(text,jsonb)', 'execute'), 'anon cannot call gateway');
 SELECT pg_temp.assert(has_function_privilege('service_role', 'public.bloom_support_rpc(text,jsonb)', 'execute'), 'service_role can call gateway');
 SELECT pg_temp.assert(NOT has_schema_privilege('authenticated', 'bloom_support', 'usage'), 'authenticated has no schema usage');
 SELECT pg_temp.assert(NOT has_table_privilege('authenticated', 'bloom_support.tickets', 'select'), 'authenticated cannot read tickets');
+SELECT pg_temp.assert((
+  SELECT count(*) = 5
+    AND bool_and(coalesce(proconfig @> ARRAY['search_path=""'], false))
+  FROM pg_proc
+  WHERE oid = ANY(ARRAY[
+    'bloom_support.status_for_stage(text)'::regprocedure,
+    'bloom_support.reject_mutation()'::regprocedure,
+    'bloom_support.engineering_transition_permission(text,text)'::regprocedure,
+    'bloom_support.valid_transition(text,text)'::regprocedure,
+    'bloom_support.client_progress(bloom_support.tickets)'::regprocedure
+  ])
+), 'security-advisor functions have an immutable empty search path');
 
 -- People.
 INSERT INTO bloom_support.principals(id, kind, auth_user_id, product, email, display_name, role) VALUES
@@ -101,6 +147,43 @@ SELECT pg_temp.assert(NOT (pg_temp.rpc('get_ticket', jsonb_build_object('actor',
 SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'t3id'))::text LIKE '%firmware%', 'support sees internal note');
 SELECT pg_temp.assert(NOT (pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'rosa', 'ticket_id', :'t3id')) ? 'activity'), 'client gets no activity log');
 
+-- A reply key confirms one exact actor/ticket/body/visibility tuple only.
+SELECT pg_temp.rpc('add_message', jsonb_build_object(
+  'actor', :'sam',
+  'ticket_id', :'t3id',
+  'message', '{"body":"Exact retry contract","visibility":"internal","idempotency_key":"reply-contract-1"}'::jsonb
+)) AS reply_first \gset
+SELECT pg_temp.rpc('add_message', jsonb_build_object(
+  'actor', :'sam',
+  'ticket_id', :'t3id',
+  'message', '{"body":"Exact retry contract","visibility":"internal","idempotency_key":"reply-contract-1"}'::jsonb
+)) AS reply_retry \gset
+SELECT pg_temp.assert(
+  (:'reply_retry'::jsonb->>'duplicate')::boolean
+    AND :'reply_retry'::jsonb->>'message_id' = :'reply_first'::jsonb->>'message_id',
+  'an exact reply retry returns the original receipt'
+);
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Edited retry contract","visibility":"internal","idempotency_key":"reply-contract-1"}}'::jsonb)$q$,
+  :'sam', :'t3id'
+), 'different message');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Exact retry contract","visibility":"public","idempotency_key":"reply-contract-1"}}'::jsonb)$q$,
+  :'sam', :'t3id'
+), 'different message');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Exact retry contract","visibility":"internal","idempotency_key":"reply-contract-1"}}'::jsonb)$q$,
+  :'jeff', :'t3id'
+), 'different message');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Exact retry contract","visibility":"internal","idempotency_key":"reply-contract-1"}}'::jsonb)$q$,
+  :'sam', :'t2id'
+), 'different message');
+SELECT pg_temp.assert(
+  (SELECT count(*) = 1 FROM bloom_support.messages WHERE idempotency_key = 'reply-contract-1'),
+  'changed reply retries never create or claim another message'
+);
+
 -- 4. Jeff (operator) has universal authority; Support needs opt-ins.
 SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'jeff'))) = 3, 'Jeff sees every client');
 SELECT pg_temp.assert(bloom_support.has_permission(:'jeff', 'ops.site.publish') AND bloom_support.has_permission(:'jeff', 'ops.campaign.send') AND bloom_support.has_permission(:'jeff','ops.site.create'), 'Jeff can publish/send/create');
@@ -132,6 +215,29 @@ SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'bot', 'ticket_id
 SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.jobs WHERE kind='send_email' AND ticket_id = :'t2id') = 1, 'Bloom reply queues email');
 SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'bot', 'ticket_id', :'t2id', 'message', '{"body":"Thanks — looking into it.","visibility":"public","idempotency_key":"bot-ack-1"}'::jsonb));
 SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.messages WHERE idempotency_key='bot-ack-1') = 1, 'duplicate Bloom reply suppressed');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Thanks — looking into it.","visibility":"public","purpose":"progress","idempotency_key":"bot-ack-1"}}'::jsonb)$q$,
+  :'bot', :'t2id'
+), 'different message');
+SELECT pg_temp.rpc('add_message', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', :'t2id',
+  'message', '{"body":"Background progress only","visibility":"public","purpose":"progress","notify_client":false,"idempotency_key":"bot-silent-1"}'::jsonb
+));
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Background progress only","visibility":"public","purpose":"progress","notify_client":true,"idempotency_key":"bot-silent-1"}}'::jsonb)$q$,
+  :'bot', :'t2id'
+), 'different message');
+SELECT pg_temp.assert((
+  SELECT NOT notify_client
+    AND purpose = 'progress'
+    AND NOT EXISTS (
+      SELECT 1 FROM bloom_support.jobs
+      WHERE kind = 'send_email' AND payload->>'message_id' = message.id::text
+    )
+  FROM bloom_support.messages AS message
+  WHERE idempotency_key = 'bot-silent-1'
+), 'a silent reply durably binds purpose and notification without queuing email');
 SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'jeff', 'ticket_id', :'t2id', 'message', '{"body":"Jeff here, I will call you."}'::jsonb));
 SELECT pg_temp.assert((SELECT automation FROM bloom_support.tickets WHERE id = :'t2id') = 'human', 'public staff reply takes over');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('add_message', '{"actor":"%s","ticket_id":"%s","message":{"body":"Bloom again","visibility":"public"}}'::jsonb)$q$, :'bot', :'t2id'), 'human control');
@@ -183,7 +289,25 @@ SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='verif
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed"}}'::jsonb)$q$, :'bot', :'t2id'), 'after verifying');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true}}'::jsonb)$q$, :'bot', :'t2id'), 'evidence required');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success"},"verification":{"passed":false}}}}'::jsonb)$q$, :'bot', :'t2id'), 'affected-flow verification');
-SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'bot', 'ticket_id', :'t2id', 'patch', '{"status":"resolved","resolution_summary":"Checkout fixed and verified on production","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success","sha":"def"},"verification":{"passed":true,"checks":[{"url":"https://x/checkout","pass":true}]}}}'::jsonb));
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"fixed","resolution_verified":true,"resolution_evidence":{"deployment":{"state":"success"},"verification":{"passed":true,"scope":"release_smoke","checks":[{"url":"https://x/health","pass":true}]}}}}'::jsonb)$q$, :'bot', :'t2id'), 'explicitly bound to this ticket');
+SELECT pg_temp.rpc('update_ticket', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', :'t2id',
+  'patch', jsonb_build_object(
+    'status', 'resolved',
+    'resolution_summary', 'Checkout fixed and verified on production',
+    'resolution_verified', true,
+    'resolution_evidence', jsonb_build_object(
+      'deployment', jsonb_build_object('state', 'success', 'sha', 'def'),
+      'verification', jsonb_build_object(
+        'passed', true,
+        'scope', 'ticket_flow',
+        'ticket_ids', jsonb_build_array(:'t2id'),
+        'checks', jsonb_build_array(jsonb_build_object('url', 'https://x/checkout', 'pass', true))
+      )
+    )
+  )
+));
 SELECT pg_temp.assert((SELECT resolution_evidence->>'resolved_by' = 'bloom' AND resolution_evidence->'deployment'->>'state' = 'success' FROM bloom_support.tickets WHERE id = :'t2id'), 'evidence stored with resolution');
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='send_email' AND idempotency_key = 'email:resolution:' || :'t2id' || ':0'), 'resolution email queued');
 
@@ -230,8 +354,101 @@ SELECT pg_temp.assert((:'spoof'::jsonb)->>'principal_id' <> :'jon', 'email never
 SELECT pg_temp.rpc('resolve_email_sender', '{"email":"manager@greenleaf.test","name":"Manager"}'::jsonb) AS mgr \gset
 SELECT pg_temp.assert((:'mgr'::jsonb)->>'match' = 'domain' AND (:'mgr'::jsonb)->>'account_id' = :'greenleaf', 'domain match links account');
 SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_tickets', jsonb_build_object('actor', (:'mgr'::jsonb)->>'principal_id'))) = 0, 'domain-matched sender cannot read account tickets');
+
+-- Message-ID retries authorize the sender first and bind the exact reply.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'email', 'subject', 'Inbound reply binding',
+    'body', 'A dedicated ticket for inbound reply idempotency.',
+    'account_id', :'greenleaf', 'automation', 'paused'
+  )
+))#>>'{ticket_id}' AS inbound_reply_ticket \gset
+SELECT pg_temp.rpc('resolve_crm_user', jsonb_build_object(
+  'auth_user_id', '20000000-0000-4000-8000-0000000000a2',
+  'email', 'coworker@greenleaf.test', 'name', 'Coworker',
+  'tenant_id', '30000000-0000-4000-8000-0000000000a1',
+  'tenant_name', 'Greenleaf'
+))#>>'{}' AS coworker \gset
+SELECT pg_temp.rpc('append_inbound_email', jsonb_build_object(
+  'actor', :'gail', 'ticket_id', :'inbound_reply_ticket',
+  'body', 'The exact inbound reply.',
+  'message_id', '<bound-reply@greenleaf.test>',
+  'in_reply_to', '<bound-ack@bloom.test>'
+)) AS inbound_reply_first \gset
+SELECT pg_temp.rpc('append_inbound_email', jsonb_build_object(
+  'actor', :'gail', 'ticket_id', :'inbound_reply_ticket',
+  'body', 'The exact inbound reply.',
+  'message_id', '<bound-reply@greenleaf.test>',
+  'in_reply_to', '<bound-ack@bloom.test>'
+)) AS inbound_reply_retry \gset
+SELECT pg_temp.assert(
+  (:'inbound_reply_retry'::jsonb->>'duplicate')::boolean
+    AND :'inbound_reply_retry'::jsonb->>'message_id' = :'inbound_reply_first'::jsonb->>'message_id',
+  'an exact inbound Message-ID retry returns the original message'
+);
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('append_inbound_email', %L::jsonb)$q$,
+  jsonb_build_object(
+    'actor', :'gail', 'ticket_id', :'inbound_reply_ticket',
+    'body', 'A changed inbound reply.',
+    'message_id', '<bound-reply@greenleaf.test>',
+    'in_reply_to', '<bound-ack@bloom.test>'
+  )::text
+), 'email message id reused with different reply');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('append_inbound_email', %L::jsonb)$q$,
+  jsonb_build_object(
+    'actor', :'gail', 'ticket_id', :'inbound_reply_ticket',
+    'body', 'The exact inbound reply.',
+    'message_id', '<bound-reply@greenleaf.test>',
+    'in_reply_to', '<different-ack@bloom.test>'
+  )::text
+), 'email message id reused with different reply');
+SELECT pg_temp.rpc('append_inbound_email', jsonb_build_object(
+  'actor', :'coworker', 'ticket_id', :'inbound_reply_ticket',
+  'body', 'A coworker sent a distinct reply with a colliding Message-ID.',
+  'message_id', '<bound-reply@greenleaf.test>',
+  'in_reply_to', '<bound-ack@bloom.test>'
+)) AS coworker_collision \gset
+SELECT pg_temp.assert(
+  NOT coalesce((:'coworker_collision'::jsonb->>'duplicate')::boolean, false)
+    AND :'coworker_collision'::jsonb->>'message_id' <> :'inbound_reply_first'::jsonb->>'message_id',
+  'a different authorized sender may independently use the same Message-ID'
+);
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('append_inbound_email', %L::jsonb)$q$,
+  jsonb_build_object(
+    'actor', :'gail', 'ticket_id', :'t1id',
+    'body', 'The exact inbound reply.',
+    'message_id', '<bound-reply@greenleaf.test>',
+    'in_reply_to', '<bound-ack@bloom.test>'
+  )::text
+), 'email message id reused with different reply');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('append_inbound_email', %L::jsonb)$q$,
+  jsonb_build_object(
+    'actor', :'rosa', 'ticket_id', :'inbound_reply_ticket',
+    'body', 'The exact inbound reply.',
+    'message_id', '<bound-reply@greenleaf.test>',
+    'in_reply_to', '<bound-ack@bloom.test>'
+  )::text
+), 'forbidden: ticket');
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 AND count(DISTINCT author_id) = 2
+   FROM bloom_support.messages WHERE email_message_id = '<bound-reply@greenleaf.test>'),
+  'Message-ID uniqueness is requester-scoped while changed and unauthorized retries create nothing'
+);
 SELECT pg_temp.assert(pg_temp.rpc('record_email_event', '{"provider":"resend","event_id":"evt1","outcome":"received"}'::jsonb)::boolean, 'first email event new');
 SELECT pg_temp.assert(NOT pg_temp.rpc('record_email_event', '{"provider":"resend","event_id":"evt1","outcome":"received"}'::jsonb)::boolean, 'duplicate email event detected');
+SELECT pg_temp.assert(pg_temp.rpc('record_email_event', '{"provider":"resend","event_id":"evt-rate-1","outcome":"processing"}'::jsonb)::boolean, 'rate fixture email event created');
+SELECT pg_temp.assert(public.bloom_support_consume_email_usage('resend', 'evt-rate-1', 'email-retry-test', 'sender', 1), 'first email event spends quota');
+UPDATE bloom_support.email_events SET outcome = 'failed' WHERE provider = 'resend' AND provider_event_id = 'evt-rate-1';
+SELECT pg_temp.assert(pg_temp.rpc('record_email_event', '{"provider":"resend","event_id":"evt-rate-1","outcome":"processing"}'::jsonb)::boolean, 'failed email event can be retried');
+SELECT pg_temp.assert(public.bloom_support_consume_email_usage('resend', 'evt-rate-1', 'email-retry-test', 'sender', 1), 'same provider event retry does not spend quota again');
+SELECT pg_temp.assert((SELECT count = 1 FROM bloom_support.usage_counters WHERE bucket = 'email-retry-test' AND subject = 'sender'), 'email retry is charged exactly once');
+SELECT pg_temp.assert(pg_temp.rpc('record_email_event', '{"provider":"resend","event_id":"evt-rate-2","outcome":"processing"}'::jsonb)::boolean, 'second email event created');
+SELECT pg_temp.assert(NOT public.bloom_support_consume_email_usage('resend', 'evt-rate-2', 'email-retry-test', 'sender', 1), 'new email event remains rate limited');
 
 -- Ambiguous domains bind nothing.
 UPDATE bloom_support.accounts SET email_domains = '{greenleaf.test}' WHERE id = :'rose';
@@ -251,11 +468,19 @@ SELECT pg_temp.assert((SELECT repair_started_by FROM bloom_support.engineering_i
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"in_review","patch":{"pr_number":1,"head_sha":"x"}}}'::jsonb)$q$, :'rr', :'eng3'), 'forbidden');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"reproduced","patch":{"eligibility":{"eligible":true}}}}'::jsonb)$q$, :'rr', :'eng3'), 'reproduction');
 UPDATE bloom_support.engineering_issues SET status = 'investigating' WHERE id = :'eng3';
-SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rr', 'issue_id', :'eng3', 'update', '{"status":"reproduced","patch":{"reproduction":{"steps":["print"]}}}'::jsonb));
-SELECT pg_temp.assert((SELECT status FROM bloom_support.engineering_issues WHERE id = :'eng3') = 'reproduced', 'repair report records the outcome');
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rr', 'issue_id', :'eng3', 'update', '{"status":"reproduced","patch":{"reproduction":{"reproduced":true,"failing_test":"scanner.test.ts","root_cause":"Off by one","verification":[{"url":"https://169.254.169.254/latest"}],"steps":["print"]}}}'::jsonb));
+SELECT pg_temp.assert((
+  SELECT status = 'reproduced'
+    AND reproduction->>'failing_test' = 'scanner.test.ts'
+    AND reproduction->>'root_cause' = 'Off by one'
+    AND NOT reproduction ? 'verification'
+    AND NOT reproduction ? 'steps'
+  FROM bloom_support.engineering_issues
+  WHERE id = :'eng3'
+), 'repair report records only its normalized outcome schema');
 UPDATE bloom_support.engineering_issues SET status = 'in_review' WHERE id = :'eng3';
-SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rr', 'issue_id', :'eng3', 'update', '{"status":"failed","patch":{"reproduction":{"late":true}}}'::jsonb));
-SELECT pg_temp.assert((SELECT status = 'in_review' AND reproduction->>'late' = 'true' FROM bloom_support.engineering_issues WHERE id = :'eng3'), 'late report adds notes without moving the issue back');
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'rr', 'issue_id', :'eng3', 'update', '{"status":"failed","patch":{"reproduction":{"root_cause":"Late diagnostic note"}}}'::jsonb));
+SELECT pg_temp.assert((SELECT status = 'awaiting_approval' AND reproduction->>'root_cause' = 'Late diagnostic note' FROM bloom_support.engineering_issues WHERE id = :'eng3'), 'late failure report adds normalized notes and forces human review without moving the issue back to failed');
 -- Withdrawn Bloom replies never reach the client.
 INSERT INTO bloom_support.messages(id, conversation_id, ticket_id, author_kind, visibility, direction, body, delivery) SELECT '77777777-0000-4000-8000-000000000001', conversation_id, id, 'bloom', 'public', 'outbound', 'withdrawn draft answer', 'suppressed' FROM bloom_support.tickets WHERE id = :'t3id';
 UPDATE bloom_support.messages SET withdrawn_at = now() WHERE id = '77777777-0000-4000-8000-000000000001';
@@ -600,5 +825,466 @@ SELECT (:'no_retry_op'::jsonb)->>'id' AS no_retry_id \gset
 SELECT pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'no_retry_id'));
 SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'no_retry_id','outcome',jsonb_build_object('status','failed','error','test')));
 SELECT pg_temp.assert((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'no_retry_id'))->>'already')::boolean,'other failed changes are not automatically replayed');
+
+-- 34. Readiness reports independent live evidence for CMS and POS.
+BEGIN;
+INSERT INTO bloom_support.activity(account_id, actor_id, action, detail, created_at) VALUES
+  (:'greenleaf', :'jeff', 'operation.read', '{"kind":"site.pages"}', '2090-02-01T00:00:00Z'),
+  (:'greenleaf', :'jeff', 'operation.read', '{"kind":"pos.products"}', '2090-03-01T00:00:00Z'),
+  (:'greenleaf', :'jeff', 'operation.read_denied', '{"kind":"pos.inventory"}', '2090-04-01T00:00:00Z');
+INSERT INTO bloom_support.operations(
+  account_id, actor_id, kind, permission, inputs, status, idempotency_key, updated_at
+) VALUES
+  (:'greenleaf', :'jeff', 'site.page.update', 'ops.site.edit', '{}', 'succeeded', 'readiness-cms-success', '2090-02-02T00:00:00Z'),
+  (:'greenleaf', :'jeff', 'site.publish', 'ops.site.publish', '{}', 'failed', 'readiness-cms-failed', '2090-05-01T00:00:00Z'),
+  (:'greenleaf', :'jeff', 'campaign.schedule', 'ops.campaign.edit', '{}', 'succeeded', 'readiness-crm-success', '2090-06-01T00:00:00Z');
+SELECT pg_temp.assert(
+  (bloom_support.readiness_facts(:'jon')#>>'{last_seen,operation_cms}')::timestamptz = '2090-02-02T00:00:00Z',
+  'CMS readiness uses successful CMS reads and writes, not failed or CRM operations'
+);
+SELECT pg_temp.assert(
+  (bloom_support.readiness_facts(:'jon')#>>'{last_seen,operation_pos}')::timestamptz = '2090-03-01T00:00:00Z',
+  'POS readiness uses successful POS reads, not denied attempts'
+);
+ROLLBACK;
+
+-- 35. Resolved ticket queue state cannot be reintroduced by later jobs.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm',
+    'channel', 'crm',
+    'subject', 'Resolved-state invariant',
+    'body', 'This request is only for the resolved-state regression contract.',
+    'account_id', :'greenleaf'
+  )
+))->>'ticket_id' AS resolved_invariant_ticket \gset
+UPDATE bloom_support.tickets
+SET status = 'resolved',
+    resolved_at = now(),
+    next_action = 'must clear',
+    next_action_due_at = now() + interval '1 hour',
+    waiting_reason = 'internal',
+    pending_review = 'must clear'
+WHERE id = :'resolved_invariant_ticket';
+SELECT pg_temp.assert((
+  SELECT stage = 'resolved'
+    AND next_action IS NULL
+    AND next_action_due_at IS NULL
+    AND waiting_reason IS NULL
+    AND pending_review IS NULL
+    AND due_at IS NULL
+  FROM bloom_support.tickets
+  WHERE id = :'resolved_invariant_ticket'
+), 'entering resolved clears all queue-driving state');
+UPDATE bloom_support.tickets
+SET next_action = 'later job tried to requeue',
+    next_action_due_at = now() + interval '2 hours',
+    waiting_reason = 'customer',
+    waiting_since = now(),
+    pending_review = 'reply_after_resolution'
+WHERE id = :'resolved_invariant_ticket';
+SELECT pg_temp.assert((
+  SELECT next_action IS NULL
+    AND next_action_due_at IS NULL
+    AND waiting_reason IS NULL
+    AND waiting_since IS NULL
+    AND pending_review = 'reply_after_resolution'
+    AND due_at IS NULL
+  FROM bloom_support.tickets
+  WHERE id = :'resolved_invariant_ticket'
+), 'later updates are re-cleared without breaking post-resolution reply routing');
+UPDATE bloom_support.tickets
+SET pending_review = 'stale_internal_job'
+WHERE id = :'resolved_invariant_ticket';
+SELECT pg_temp.assert((
+  SELECT pending_review IS NULL
+  FROM bloom_support.tickets
+  WHERE id = :'resolved_invariant_ticket'
+), 'later resolved-ticket updates clear every non-reply pending review value');
+INSERT INTO bloom_support.escalations(
+  ticket_id, audience, reason, detail, status, dedupe_key
+) VALUES (
+  :'resolved_invariant_ticket', 'both', 'ticket_overdue',
+  'A late watchdog attempted to reopen this escalation', 'open',
+  'resolved-invariant-ticket-level'
+);
+SELECT pg_temp.assert((
+  SELECT status = 'resolved'
+    AND decision = 'Ticket resolved'
+    AND resolved_at IS NOT NULL
+  FROM bloom_support.escalations
+  WHERE dedupe_key = 'resolved-invariant-ticket-level'
+), 'new ticket-level escalations for a resolved ticket close immediately');
+UPDATE bloom_support.escalations
+SET status = 'open', decision = NULL, resolved_at = NULL
+WHERE dedupe_key = 'resolved-invariant-ticket-level';
+SELECT pg_temp.assert((
+  SELECT status = 'resolved' AND resolved_at IS NOT NULL
+  FROM bloom_support.escalations
+  WHERE dedupe_key = 'resolved-invariant-ticket-level'
+), 'reopening a ticket-level escalation for a resolved ticket is prevented');
+INSERT INTO bloom_support.escalations(
+  ticket_id, engineering_issue_id, audience, reason, detail, status, dedupe_key
+) VALUES (
+  :'resolved_invariant_ticket', :'eng', 'jon', 'automation_failed',
+  'The linked release still needs an engineering decision', 'open',
+  'resolved-invariant-engineering'
+);
+SELECT pg_temp.assert((
+  SELECT status = 'open'
+  FROM bloom_support.escalations
+  WHERE dedupe_key = 'resolved-invariant-engineering'
+), 'intentional engineering escalations remain open after the client ticket resolves');
+
+-- 36. Explicit no-deploy resolutions close only terminal pre-PR work and its shared problem.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'No-deploy issue A',
+    'body', 'This fixture will share a conservative no-deploy engineering record.',
+    'account_id', :'greenleaf'
+  )
+))->>'ticket_id' AS no_deploy_a \gset
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'No-deploy issue B',
+    'body', 'This second fixture proves every linked ticket must be resolved.',
+    'account_id', :'greenleaf'
+  )
+))->>'ticket_id' AS no_deploy_b \gset
+SELECT pg_temp.rpc('create_problem', jsonb_build_object(
+  'actor', :'jeff',
+  'problem', jsonb_build_object('title', 'Shared no-deploy problem', 'product', 'crm')
+))->>'id' AS no_deploy_problem \gset
+SELECT pg_temp.rpc('link_problem', jsonb_build_object('actor', :'jeff', 'ticket_id', :'no_deploy_a', 'problem_id', :'no_deploy_problem'));
+SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'jeff', 'ticket_id', :'no_deploy_a', 'issue', '{}'))#>>'{engineering_issue_id}' AS no_deploy_issue \gset
+SELECT pg_temp.rpc('link_problem', jsonb_build_object('actor', :'jeff', 'ticket_id', :'no_deploy_b', 'problem_id', :'no_deploy_problem'));
+UPDATE bloom_support.engineering_issues SET status = 'escalated' WHERE id = :'no_deploy_issue';
+INSERT INTO bloom_support.escalations(
+  ticket_id, engineering_issue_id, audience, reason, detail, status, dedupe_key
+) VALUES (
+  :'no_deploy_a', :'no_deploy_issue', 'both', 'automation_failed',
+  'This escalation should close with the explicit no-deploy resolution.',
+  'acknowledged', 'no-deploy-engineering-escalation'
+);
+UPDATE bloom_support.tickets
+SET status = 'resolved',
+    resolved_at = now(),
+    resolution_evidence = '{"no_deploy_reason":"The setting was corrected without a code release."}'
+WHERE id = :'no_deploy_a';
+SELECT pg_temp.assert((
+  SELECT status = 'escalated'
+  FROM bloom_support.engineering_issues
+  WHERE id = :'no_deploy_issue'
+), 'one unresolved linked ticket keeps terminal engineering work visible');
+SELECT pg_temp.assert((
+  SELECT status = 'open'
+  FROM bloom_support.problems
+  WHERE id = :'no_deploy_problem'
+), 'one unresolved linked ticket keeps the shared problem open');
+UPDATE bloom_support.tickets
+SET status = 'resolved',
+    resolved_at = now(),
+    resolution_evidence = '{"no_deploy_reason":"The same configuration correction fixed this report."}'
+WHERE id = :'no_deploy_b';
+SELECT pg_temp.assert((
+  SELECT status = 'closed'
+    AND evidence->>'no_deploy_previous_status' = 'escalated'
+    AND evidence->>'no_deploy_closed_at' IS NOT NULL
+    AND pr_number IS NULL
+    AND merge_sha IS NULL
+    AND deployment IS NULL
+  FROM bloom_support.engineering_issues
+  WHERE id = :'no_deploy_issue'
+), 'all explicit no-deploy resolutions close a terminal pre-PR issue and preserve evidence');
+SELECT pg_temp.assert((
+  SELECT status = 'resolved'
+    AND decision = 'Closed without deployment: all linked tickets resolved'
+    AND resolved_at IS NOT NULL
+  FROM bloom_support.escalations
+  WHERE dedupe_key = 'no-deploy-engineering-escalation'
+), 'no-deploy cleanup closes the linked engineering escalation');
+SELECT pg_temp.assert(EXISTS (
+  SELECT 1
+  FROM bloom_support.activity
+  WHERE ticket_id = :'no_deploy_a'
+    AND action = 'engineering.closed_no_deploy'
+    AND detail->>'engineering_issue_id' = :'no_deploy_issue'
+), 'no-deploy engineering cleanup is append-only audited');
+SELECT pg_temp.assert((
+  SELECT status = 'resolved'
+  FROM bloom_support.problems
+  WHERE id = :'no_deploy_problem'
+), 'a shared problem resolves after every ticket and linked engineering issue are terminal');
+
+-- AFTER-trigger ordering: the RPC must observe conservative closure before it
+-- creates failed/escalated side effects from a stale RETURNING row.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'Ordering no-deploy issue',
+    'body', 'This fixture is resolved before the repair report finishes.',
+    'account_id', :'greenleaf'
+  )
+))->>'ticket_id' AS ordering_ticket \gset
+SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object(
+  'actor', :'jeff', 'ticket_id', :'ordering_ticket',
+  'issue', '{"title":"Ordering no-deploy issue"}'::jsonb
+))#>>'{engineering_issue_id}' AS ordering_issue \gset
+UPDATE bloom_support.engineering_issues
+SET status = 'investigating'
+WHERE id = :'ordering_issue';
+UPDATE bloom_support.tickets
+SET status = 'resolved', resolved_at = now(),
+    resolution_evidence = '{"no_deploy_reason":"No code change was required."}'
+WHERE id = :'ordering_ticket';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object(
+  'actor', :'rr', 'issue_id', :'ordering_issue',
+  'update', '{"status":"failed","patch":{"reproduction":{"reproduced":false,"reason":"Configuration only"}}}'::jsonb
+)) AS ordering_result \gset
+SELECT pg_temp.assert(
+  (:'ordering_result'::jsonb)->>'status' = 'closed'
+  AND (SELECT status = 'closed' FROM bloom_support.engineering_issues WHERE id = :'ordering_issue'),
+  'repair RPC returns the post-trigger closed status'
+);
+SELECT pg_temp.assert(NOT EXISTS (
+  SELECT 1 FROM bloom_support.escalations
+  WHERE engineering_issue_id = :'ordering_issue' AND status <> 'resolved'
+), 'post-trigger closure cannot recreate an engineering escalation');
+SELECT pg_temp.assert(NOT EXISTS (
+  SELECT 1 FROM bloom_support.notifications
+  WHERE kind = 'engineering.failed' AND title LIKE '%Ordering no-deploy issue%'
+), 'post-trigger closure cannot create a misleading failed notification');
+
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'Active release issue',
+    'body', 'This fixture proves a PR prevents conservative no-deploy cleanup.',
+    'account_id', :'greenleaf'
+  )
+))->>'ticket_id' AS active_release_ticket \gset
+SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'jeff', 'ticket_id', :'active_release_ticket', 'issue', '{}'))#>>'{engineering_issue_id}' AS active_release_issue \gset
+UPDATE bloom_support.engineering_issues
+SET status = 'escalated',
+    pr_number = 42,
+    pr_url = 'https://github.com/Brands-In-Blooms/brandsinblooms/pull/42'
+WHERE id = :'active_release_issue';
+UPDATE bloom_support.tickets
+SET status = 'resolved',
+    resolved_at = now(),
+    resolution_evidence = '{"no_deploy_reason":"Ticket-level workaround documented."}'
+WHERE id = :'active_release_ticket';
+SELECT pg_temp.assert((
+  SELECT status = 'escalated' AND pr_number = 42
+  FROM bloom_support.engineering_issues
+  WHERE id = :'active_release_issue'
+), 'an issue with release evidence is never auto-closed by a ticket resolution');
+
+-- 37. Intake idempotency is atomically bound to the stored payload.
+SELECT repeat('a', 64) AS intake_fp_a, repeat('b', 64) AS intake_fp_b \gset
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'Fingerprint fixture',
+    'body', 'The exact same request may be retried safely.',
+    'account_id', :'greenleaf', 'dedupe_key', 'fingerprint-fixture',
+    'intake_fingerprint', :'intake_fp_a'
+  )
+)) AS fingerprint_first \gset
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'Fingerprint fixture',
+    'body', 'The exact same request may be retried safely.',
+    'account_id', :'greenleaf', 'dedupe_key', 'fingerprint-fixture',
+    'intake_fingerprint', :'intake_fp_a'
+  )
+)) AS fingerprint_retry \gset
+SELECT pg_temp.assert(
+  (:'fingerprint_retry'::jsonb->>'duplicate_delivery')::boolean
+  AND :'fingerprint_retry'::jsonb->>'ticket_id' = :'fingerprint_first'::jsonb->>'ticket_id',
+  'an exact fingerprint retry returns the one stored ticket'
+);
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('create_ticket', %L::jsonb)$q$,
+  jsonb_build_object(
+    'actor', :'gail',
+    'ticket', jsonb_build_object(
+      'product', 'crm', 'channel', 'crm', 'subject', 'Edited retry',
+      'body', 'This changed request must not claim the old ticket was saved.',
+      'account_id', :'greenleaf', 'dedupe_key', 'fingerprint-fixture',
+      'intake_fingerprint', :'intake_fp_b'
+    )
+  )::text
+), 'idempotency key reused with different request');
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'rosa',
+  'ticket', jsonb_build_object(
+    'product', 'pos', 'channel', 'pos', 'subject', 'Actor-isolated key',
+    'body', 'Another actor may independently use the same client key.',
+    'account_id', :'rose', 'dedupe_key', 'fingerprint-fixture',
+    'intake_fingerprint', :'intake_fp_b'
+  )
+)) AS fingerprint_other_actor \gset
+SELECT pg_temp.assert(
+  :'fingerprint_other_actor'::jsonb->>'ticket_id' <> :'fingerprint_first'::jsonb->>'ticket_id',
+  'idempotency keys remain isolated by actor'
+);
+
+-- Public rate claims share the create transaction: exact retries do not spend
+-- quota twice, and a rejected new key leaves both counters unchanged.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'intake',
+  'ticket', jsonb_build_object(
+    'product', 'unknown', 'channel', 'public', 'subject', 'Public quota fixture',
+    'body', 'A public retry at the quota boundary must still find this ticket.',
+    'dedupe_key', 'public:quota-fixture',
+    'intake_fingerprint', :'intake_fp_a',
+    'public_rate', jsonb_build_object(
+      'email_bucket', 'test-public-email', 'email_subject', 'email-hash', 'email_limit', 1,
+      'ip_bucket', 'test-public-ip', 'ip_subject', 'ip-hash', 'ip_limit', 1
+    )
+  )
+)) AS public_rate_first \gset
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'intake',
+  'ticket', jsonb_build_object(
+    'product', 'unknown', 'channel', 'public', 'subject', 'Public quota fixture',
+    'body', 'A public retry at the quota boundary must still find this ticket.',
+    'dedupe_key', 'public:quota-fixture',
+    'intake_fingerprint', :'intake_fp_a',
+    'public_rate', jsonb_build_object(
+      'email_bucket', 'test-public-email', 'email_subject', 'email-hash', 'email_limit', 1,
+      'ip_bucket', 'test-public-ip', 'ip_subject', 'ip-hash', 'ip_limit', 1
+    )
+  )
+)) AS public_rate_retry \gset
+SELECT pg_temp.assert(
+  (:'public_rate_retry'::jsonb->>'duplicate_delivery')::boolean
+  AND (SELECT count = 1 FROM bloom_support.usage_counters WHERE bucket = 'test-public-email' AND subject = 'email-hash')
+  AND (SELECT count = 1 FROM bloom_support.usage_counters WHERE bucket = 'test-public-ip' AND subject = 'ip-hash'),
+  'public exact retry succeeds without consuming quota twice'
+);
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('create_ticket', %L::jsonb)$q$,
+  jsonb_build_object(
+    'actor', :'intake',
+    'ticket', jsonb_build_object(
+      'product', 'unknown', 'channel', 'public', 'subject', 'New over-limit request',
+      'body', 'A genuinely new request must still be rejected at the boundary.',
+      'dedupe_key', 'public:quota-fixture-2', 'intake_fingerprint', :'intake_fp_b',
+      'public_rate', jsonb_build_object(
+        'email_bucket', 'test-public-email', 'email_subject', 'email-hash', 'email_limit', 1,
+        'ip_bucket', 'test-public-ip', 'ip_subject', 'ip-hash', 'ip_limit', 1
+      )
+    )
+  )::text
+), 'rate_limited');
+SELECT pg_temp.assert(
+  (SELECT count = 1 FROM bloom_support.usage_counters WHERE bucket = 'test-public-email' AND subject = 'email-hash')
+  AND NOT EXISTS (SELECT 1 FROM bloom_support.tickets WHERE dedupe_key = :'intake' || ':public:quota-fixture-2'),
+  'a rejected public request rolls back quota and ticket state'
+);
+
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'chatgpt', 'subject', 'Paused handoff',
+    'body', 'Chat handoff must never race a triage job.',
+    'account_id', :'greenleaf', 'dedupe_key', 'paused-handoff',
+    'automation', 'paused'
+  )
+))#>>'{ticket_id}' AS paused_handoff \gset
+SELECT pg_temp.assert((
+  SELECT automation = 'paused'
+    AND NOT EXISTS (SELECT 1 FROM bloom_support.jobs WHERE ticket_id = :'paused_handoff' AND kind = 'triage')
+  FROM bloom_support.tickets WHERE id = :'paused_handoff'
+), 'create_ticket preserves paused automation and never enqueues triage');
+
+-- 38. A late repair report merges report-owned facts and re-enters evaluation.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'Late report race',
+    'body', 'Evaluation reached approval before the repair report arrived.',
+    'account_id', :'greenleaf'
+  )
+))#>>'{ticket_id}' AS late_report_ticket \gset
+SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object(
+  'actor', :'jeff', 'ticket_id', :'late_report_ticket',
+  'issue', '{"title":"Late report race"}'::jsonb
+))#>>'{engineering_issue_id}' AS late_report_issue \gset
+UPDATE bloom_support.engineering_issues
+SET status = 'approved',
+    pr_number = 88,
+    head_sha = 'late-report-head',
+    approved_head_sha = 'late-report-head',
+    reproduction = '{"trusted_note":"preserve me","reproduced":false}'::jsonb
+WHERE id = :'late_report_issue';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object(
+  'actor', :'rr', 'issue_id', :'late_report_issue',
+  'update', '{"status":"not_reproduced","patch":{"reproduction":{"reproduced":false,"root_cause":"Late evidence changed the release decision","verification":[{"url":"https://attacker.invalid"}]}}}'::jsonb
+));
+SELECT pg_temp.assert((
+  SELECT status = 'awaiting_approval'
+    AND approved_head_sha IS NULL
+    AND reproduction->>'trusted_note' = 'preserve me'
+    AND reproduction->>'root_cause' = 'Late evidence changed the release decision'
+    AND NOT (reproduction ? 'verification')
+  FROM bloom_support.engineering_issues
+  WHERE id = :'late_report_issue'
+), 'late repair report merges allowed facts and invalidates approval when material evidence changes');
+SELECT pg_temp.assert(EXISTS (
+  SELECT 1 FROM bloom_support.jobs
+  WHERE engineering_issue_id = :'late_report_issue'
+    AND kind = 'engineering_step'
+    AND payload->>'step' = 'evaluate'
+    AND payload->>'reason' = 'late_repair_report'
+), 'late repair report schedules an idempotent reevaluation');
+
+-- 39. Only system-resolved shared problems reopen when work becomes active.
+UPDATE bloom_support.tickets
+SET status = 'working'
+WHERE id = :'no_deploy_a';
+SELECT pg_temp.assert((
+  SELECT status = 'open' AND auto_resolved_at IS NULL
+  FROM bloom_support.problems WHERE id = :'no_deploy_problem'
+), 'reopening a linked ticket reopens an auto-resolved problem');
+UPDATE bloom_support.tickets
+SET status = 'resolved',
+    resolved_at = now(),
+    resolution_evidence = '{"no_deploy_reason":"The configuration remains corrected."}'
+WHERE id = :'no_deploy_a';
+SELECT pg_temp.assert((
+  SELECT status = 'resolved' AND auto_resolved_at IS NOT NULL
+  FROM bloom_support.problems WHERE id = :'no_deploy_problem'
+), 'the shared problem auto-resolves again when all work is terminal');
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'New linked evidence',
+    'body', 'A new active ticket must make the shared problem visible again.',
+    'account_id', :'greenleaf'
+  )
+))#>>'{ticket_id}' AS reopened_problem_ticket \gset
+SELECT pg_temp.rpc('link_problem', jsonb_build_object(
+  'actor', :'jeff', 'ticket_id', :'reopened_problem_ticket',
+  'problem_id', :'no_deploy_problem'
+));
+SELECT pg_temp.assert((
+  SELECT status = 'open' FROM bloom_support.problems WHERE id = :'no_deploy_problem'
+), 'linking a new active ticket reopens an auto-resolved problem');
+SELECT pg_temp.rpc('update_problem', jsonb_build_object(
+  'actor', :'jeff', 'problem_id', :'no_deploy_problem',
+  'patch', '{"status":"resolved"}'::jsonb
+));
+UPDATE bloom_support.tickets SET status = 'working' WHERE id = :'reopened_problem_ticket';
+SELECT pg_temp.assert((
+  SELECT status = 'resolved' AND auto_resolved_at IS NULL
+  FROM bloom_support.problems WHERE id = :'no_deploy_problem'
+), 'a person-resolved problem is not reopened automatically');
 
 \echo 'bloom-support-db: all assertions passed'

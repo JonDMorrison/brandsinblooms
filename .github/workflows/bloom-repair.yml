@@ -282,7 +282,11 @@ jobs:
           AGENT_RESULT: ${{ needs.agent.result }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
         run: |
-          [ -n "$BLOOM_API" ] && [ -n "$BLOOM_KEY" ] || { echo "Bloom reporting not configured"; exit 0; }
+          set -euo pipefail
+          umask 077
+          [ -n "$BLOOM_API" ] || { echo "::error::BLOOM_SUPPORT_API_URL is not configured"; exit 1; }
+          [ -n "$BLOOM_KEY" ] || { echo "::error::BLOOM_REPAIR_REPORT_KEY is not configured"; exit 1; }
+          [[ "$BLOOM_API" =~ ^https://[^[:space:]]+$ ]] || { echo "::error::BLOOM_SUPPORT_API_URL must use https://"; exit 1; }
           REPORT=$(cat result/report.json 2>/dev/null || echo '{}')
           node -e '
             const [report,agent,publish]=process.argv.slice(1);let r={};try{r=JSON.parse(report)}catch{}
@@ -290,4 +294,13 @@ jobs:
             if(agent!=="success"||(publish!=="success"&&publish!=="skipped"))status="failed";
             process.stdout.write(JSON.stringify({status,patch:{reproduction:r},note:(r.reason||r.root_cause||"repair workflow finished").slice(0,500)}));
           ' "$REPORT" "$AGENT_RESULT" "$PUBLISH_RESULT" > update.json
-          curl -fsS -X PATCH "$BLOOM_API/engineering/$IN_ID" -H "Authorization: Bearer $BLOOM_KEY" -H "Content-Type: application/json" --data @update.json || echo "Bloom report failed"
+          # Suppress the response body so a server error cannot put support data in
+          # the Actions log. Transient failures are retried; a persistent failure
+          # fails this job so Bloom cannot silently retain stale repair state.
+          curl --fail --silent --show-error --output /dev/null --proto '=https' --tlsv1.2 \
+            --retry 3 --retry-delay 2 --retry-max-time 90 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 \
+            -X PATCH "$BLOOM_API/engineering/$IN_ID" \
+            -H "Authorization: Bearer $BLOOM_KEY" \
+            -H "Content-Type: application/json" \
+            --data @update.json

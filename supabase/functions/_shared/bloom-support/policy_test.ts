@@ -1,9 +1,11 @@
-import { assert, assertEquals, assertFalse } from "@std/assert";
+import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
 import {
   classify, DEFAULT_RELEASE_POLICY, evaluateRelease, indicatesStillBroken, isAutomatedEmail, matchesAny, mergeModelClassification,
   parseReferences, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
 } from "./policy.ts";
 import { signIntake, verifyIntakeSignature, verifySvix, hmacSha256 } from "./crypto.ts";
+import { isProductionEnvironment, productionCommitForRepair } from "./github.ts";
+import { readBodyText, readJson } from "./runtime.ts";
 
 Deno.test("sanitizeContext keeps allow-listed fields and strips secrets", () => {
   const out = sanitizeContext({
@@ -119,6 +121,75 @@ Deno.test("stored policy cannot remove default sensitive paths", () => {
   assert(p.sensitivePaths.includes("supabase/migrations/**"));
   assertEquals(p.maxChangedFiles, 20);
   assertEquals(DEFAULT_RELEASE_POLICY.autoReleaseEnabled, false);
+});
+
+Deno.test("production evidence excludes preview and demo names before provider flags", () => {
+  assert(isProductionEnvironment({ environment: "Production – BloomSuite", production_environment: false }));
+  assert(isProductionEnvironment({ environment: "Production - POS", production_environment: false }));
+  assertFalse(isProductionEnvironment({ environment: "Production – demo", production_environment: true }));
+  assertFalse(isProductionEnvironment({ environment: "Preview – pull-request", production_environment: true }));
+});
+
+Deno.test("a trusted merged source-to-main squash is production evidence", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = Deno.env.get("BLOOM_GITHUB_RELEASE_TOKEN");
+  Deno.env.set("BLOOM_GITHUB_RELEASE_TOKEN", "test-release-token");
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes("/compare/dev-merge-sha...main")) return Promise.resolve(Response.json({ status: "diverged" }));
+    if (url.includes("/pulls?state=closed")) {
+      return Promise.resolve(Response.json([{
+        merged: true,
+        merge_commit_sha: "main-squash-sha",
+        head: { sha: "release-pr-head", ref: "dev" },
+        base: { ref: "main" },
+      }]));
+    }
+    if (url.includes("/compare/dev-merge-sha...release-pr-head")) return Promise.resolve(Response.json({ status: "ahead" }));
+    if (url.includes("/compare/main-squash-sha...main")) return Promise.resolve(Response.json({ status: "ahead" }));
+    return Promise.resolve(Response.json({ message: "unexpected" }, { status: 404 }));
+  }) as typeof fetch;
+  try {
+    assertEquals(
+      await productionCommitForRepair(
+        "Brands-In-Blooms/cms-brandsinblooms",
+        "dev-merge-sha",
+        "dev",
+      ),
+      "main-squash-sha",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) Deno.env.delete("BLOOM_GITHUB_RELEASE_TOKEN");
+    else Deno.env.set("BLOOM_GITHUB_RELEASE_TOKEN", originalToken);
+  }
+});
+
+Deno.test("bounded bodies reject declared and streamed UTF-8 byte overflow", async () => {
+  const declared = new Request("https://example.test/report", {
+    method: "POST",
+    headers: { "content-length": "11" },
+    body: "small",
+  });
+  await assertRejects(
+    () => readBodyText(declared, 10),
+    Error,
+    "Request too large",
+  );
+
+  const chunks = ["{\"body\":\"", "🌷🌷", "\"}"];
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      const chunk = chunks.shift();
+      if (chunk === undefined) controller.close();
+      else controller.enqueue(new TextEncoder().encode(chunk));
+    },
+  });
+  await assertRejects(
+    () => readJson(new Request("https://example.test/public", { method: "POST", body }), 15),
+    Error,
+    "Request too large",
+  );
 });
 
 Deno.test("product intake signatures", async () => {

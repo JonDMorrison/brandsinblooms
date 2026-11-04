@@ -25,6 +25,7 @@ import { StatusChip, PriorityChip, AutomationChip } from "./chips";
 import { statusPatch } from "./statusPatch";
 import { useAskDialog } from "./useAskDialog";
 import { ReadableData } from "@/components/admin/ReadableData";
+import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
 
 function Bubble({ m }: { m: TicketMessage }) {
   const internal = m.visibility === "internal";
@@ -95,15 +96,21 @@ const dur = (v: unknown) => {
   return `${(n / 86400).toFixed(1)}d`;
 };
 
+type ReplyPayload = Parameters<typeof bloomSupport.addMessage>[1];
+
 export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: string; me: Whoami; onOpenTicket: (id: string) => void }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["bloom-support", "ticket", ticketId], queryFn: () => bloomSupport.getTicket(ticketId), refetchInterval: 20_000 });
   const [visibility, setVisibility] = useState<"public" | "internal">("internal");
   const [draft, setDraft] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [replyNotice, setReplyNotice] = useState<string | null>(null);
   const [nextAction, setNextAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [linkTo, setLinkTo] = useState("");
   const replyKey = useRef(crypto.randomUUID());
+  const pendingReply = useRef<ReplyPayload | null>(null);
+  const replyInput = useRef<HTMLTextAreaElement | null>(null);
   const { ask, dialog } = useAskDialog();
   const staff = me.role !== "client";
 
@@ -121,6 +128,27 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
     },
     onError: (e: Error) => setError(e.message),
   });
+  const replyRun = useMutation({
+    mutationFn: (payload: ReplyPayload) => bloomSupport.addMessage(ticketId, payload),
+    onSuccess: async () => {
+      const sentVisibility = pendingReply.current?.visibility;
+      pendingReply.current = null;
+      replyKey.current = crypto.randomUUID();
+      setDraft("");
+      setReplyError(null);
+      setReplyNotice(sentVisibility === "internal" ? "Internal note saved." : "Reply sent.");
+      try {
+        const fresh = await bloomSupport.getTicket(ticketId);
+        patchCache(fresh);
+      } catch {
+        void qc.invalidateQueries({ queryKey: ["bloom-support", "ticket", ticketId] });
+      }
+    },
+    onError: (e: Error) => {
+      setReplyNotice(null);
+      setReplyError(e.message);
+    },
+  });
 
   const t = q.data;
   const lastClientId = t ? [...t.messages].reverse().find((m) => m.author_kind === "client")?.id : undefined;
@@ -130,12 +158,28 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
 
-  const send = () =>
-    run.mutate(async () => {
-      await bloomSupport.addMessage(t.id, { body: draft, visibility: staff ? visibility : "public", idempotency_key: replyKey.current });
-      setDraft("");
-      replyKey.current = crypto.randomUUID();
-    });
+  const retryLocked = pendingReply.current !== null && replyError !== null;
+  const replyLocked = replyRun.isPending || retryLocked;
+  const replyLabel = staff && visibility === "internal" ? "Internal note message" : "Reply message";
+  const send = () => {
+    const payload = pendingReply.current ?? {
+      body: draft.trim(),
+      visibility: staff ? visibility : "public",
+      idempotency_key: replyKey.current,
+    };
+    pendingReply.current = payload;
+    setReplyError(null);
+    setReplyNotice(null);
+    replyRun.mutate(payload);
+  };
+  const editAsNewReply = () => {
+    pendingReply.current = null;
+    replyKey.current = crypto.randomUUID();
+    setReplyError(null);
+    setReplyNotice(null);
+    replyRun.reset();
+    window.requestAnimationFrame(() => replyInput.current?.focus());
+  };
 
   return (
     <Stack sx={{ height: "100%", minHeight: 0 }}>
@@ -259,26 +303,54 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
             <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "md", mt: 1, borderColor: "neutral.outlinedBorder" }}>
               {staff && (
                 <ToggleButtonGroup size="sm" value={visibility} onChange={(_, v) => v && setVisibility(v)} sx={{ mb: 1 }} aria-label="Reply visibility">
-                  <Button value="internal" startDecorator={<Lock size={14} />}>Internal note</Button>
-                  <Button value="public" startDecorator={<User size={14} />}>Reply to client</Button>
+                  <Button value="internal" disabled={replyLocked} startDecorator={<Lock size={14} />}>Internal note</Button>
+                  <Button value="public" disabled={replyLocked} startDecorator={<User size={14} />}>Reply to client</Button>
                 </ToggleButtonGroup>
               )}
-              <Textarea minRows={3} value={draft} onChange={(e) => setDraft(e.target.value)}
+              <Textarea minRows={3} value={draft} disabled={replyLocked} onChange={(e) => setDraft(e.target.value)}
+                slotProps={{ textarea: { ref: replyInput, disabled: replyLocked, maxLength: MAX_SUPPORT_BODY_LENGTH, "aria-label": replyLabel, "aria-describedby": replyError ? "reply-body-count reply-send-error" : "reply-body-count" } }}
                 placeholder={visibility === "internal" && staff ? "Private note — never sent to the client" : "Your reply (emailed to the client)"} />
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
-                <Typography level="body-xs" textColor="text.tertiary">
+              <Typography id="reply-body-count" level="body-xs" color={draft.length > MAX_SUPPORT_BODY_LENGTH ? "danger" : undefined} textColor={draft.length > MAX_SUPPORT_BODY_LENGTH ? undefined : "text.tertiary"} sx={{ mt: 0.5, textAlign: "right" }}>
+                {draft.length.toLocaleString()} / {MAX_SUPPORT_BODY_LENGTH.toLocaleString()} characters
+              </Typography>
+              {replyError && (
+                <Alert id="reply-send-error" role="alert" color="danger" variant="soft" sx={{ mt: 1 }}>
+                  <Stack spacing={0.5}>
+                    <Typography level="body-sm">{replyError}</Typography>
+                    <Typography level="body-xs">
+                      Your reply is unchanged. Retry it exactly, or choose edit and send as new before changing anything.
+                    </Typography>
+                  </Stack>
+                </Alert>
+              )}
+              {replyNotice && <Typography role="status" aria-live="polite" level="body-sm" color="success" sx={{ mt: 1 }}>{replyNotice}</Typography>}
+              <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={1} sx={{ mt: 1 }}>
+                <Typography level="body-xs" textColor="text.tertiary" sx={{ flex: 1 }}>
                   {staff && visibility === "public" && t.automation === "auto" ? "Replying publicly takes this ticket over from Bloom." : ""}
                 </Typography>
-                <Button size="sm" variant="plain" component="label" startDecorator={<Paperclip size={14} />}>
-                  Attach
-                  <input hidden type="file" multiple accept="image/*,application/pdf,video/mp4,video/webm,text/plain,text/csv" onChange={async (e) => {
-                    const files = Array.from(e.target.files ?? []).slice(0, 5);
-                    run.mutate(async () => { for (const f of files) await bloomSupport.uploadAttachment(t.id, f, staff && visibility === "internal" ? "internal" : "public"); });
-                  }} />
-                </Button>
-                <Button size="sm" disabled={!draft.trim()} loading={run.isPending} color="primary" onClick={send}>
-                  {visibility === "internal" && staff ? "Add note" : "Send reply"}
-                </Button>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button size="sm" variant="plain" component="label" disabled={replyLocked || run.isPending} startDecorator={<Paperclip size={14} />}>
+                    Attach one file
+                    <input hidden type="file" disabled={replyLocked || run.isPending} accept={ATTACHMENT_ACCEPT} onChange={async (e) => {
+                      const { accepted, rejected } = checkAttachments(Array.from(e.target.files ?? []));
+                      e.target.value = "";
+                      if (rejected.length) {
+                        setError(`${rejected.join(" ")} No file was attached; choose a valid file and try again.`);
+                        return;
+                      }
+                      if (!accepted.length) return;
+                      run.mutate(() => bloomSupport.uploadAttachment(t.id, accepted[0], staff && visibility === "internal" ? "internal" : "public"));
+                    }} />
+                  </Button>
+                  {retryLocked && (
+                    <Button size="sm" variant="outlined" color="neutral" onClick={editAsNewReply}>
+                      Edit and send as new reply
+                    </Button>
+                  )}
+                  <Button size="sm" disabled={replyRun.isPending || !draft.trim() || draft.length > MAX_SUPPORT_BODY_LENGTH} loading={replyRun.isPending} color="primary" onClick={send}>
+                    {retryLocked ? "Retry same reply" : visibility === "internal" && staff ? "Add note" : "Send reply"}
+                  </Button>
+                </Stack>
               </Stack>
             </Sheet>
           ) : null}
