@@ -1,4 +1,6 @@
 import * as React from "react";
+import { CatalogViewToggle, type CatalogLayout } from "@/components/crm/catalog/CatalogViewToggle";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useQuery } from "@tanstack/react-query";
 import Box from "@mui/joy/Box";
 import Divider from "@mui/joy/Divider";
@@ -177,6 +179,8 @@ export function CRMSegmentsPage() {
   const tenantId = tenant?.id ?? null;
   const userId = user?.id ?? null;
   const [query, setQuery] = React.useState("");
+  const [storedLayout, setLayout] = useLocalStorage<CatalogLayout>("crm:segments:layout", "grid");
+  const layout: CatalogLayout = storedLayout === "list" ? "list" : "grid";
   const [view, setView] = React.useState<SegmentViewFilter>("all");
   const [sort, setSort] = React.useState<SegmentSortOption>("members-desc");
   const [segmentPendingDelete, setSegmentPendingDelete] =
@@ -589,6 +593,7 @@ export function CRMSegmentsPage() {
           description="Groups of customers who go together — big spenders, weekend regulars, people new this season. Use segments to send the right message to the right group."
           actions={
             <>
+              <CatalogViewToggle value={layout} onChange={setLayout} label="Segments view" />
               <JoyTooltip title="Refresh segments">
                 <IconButton
                   variant="plain"
@@ -705,12 +710,13 @@ export function CRMSegmentsPage() {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: SEGMENT_GRID_COLUMNS,
+                    gridTemplateColumns: layout === "list" ? "minmax(0, 1fr)" : SEGMENT_GRID_COLUMNS,
                     gap: 2,
                   }}
                 >
                   {visibleSystemSegments.map((segment) => (
                     <SegmentCatalogCard
+                      layout={layout}
                       key={segment.id}
                       item={{
                         id: segment.id,
@@ -756,13 +762,14 @@ export function CRMSegmentsPage() {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: SEGMENT_GRID_COLUMNS,
+                    gridTemplateColumns: layout === "list" ? "minmax(0, 1fr)" : SEGMENT_GRID_COLUMNS,
                     gap: 2,
                   }}
                 >
-                  <CreateSegmentCard onClick={openCreateSegment} />
+                  {layout === "grid" ? <CreateSegmentCard onClick={openCreateSegment} /> : null}
                   {visibleCustomSegments.map((segment) => (
                     <SegmentCatalogCard
+                      layout={layout}
                       key={segment.id}
                       item={{
                         id: segment.id,
