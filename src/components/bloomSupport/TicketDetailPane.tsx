@@ -432,7 +432,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
 
               <Accordion>
                 <AccordionSummary>
-                  <DetailSectionSummary title="Related requests" detail={`${(t.links?.length ?? 0) + (t.account_history?.length ?? 0)} linked`} />
+                  <DetailSectionSummary title="Related requests" detail={`${(t.links?.length ?? 0) + (t.account_history?.length ?? 0)} related`} />
                 </AccordionSummary>
                 <AccordionDetails>
                   <Stack spacing={1} sx={{ pb: 1 }}>

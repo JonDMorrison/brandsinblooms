@@ -331,7 +331,15 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
                 </>
               )}
               <Dropdown>
-                <MenuButton size="sm" variant="plain" disabled={replyLocked || run.isPending} startDecorator={<Paperclip size={14} />}>Attach</MenuButton>
+                <MenuButton
+                  size="sm"
+                  variant="plain"
+                  disabled={replyLocked || run.isPending}
+                  startDecorator={<Paperclip size={14} />}
+                  sx={{ minHeight: 44, px: 1.25 }}
+                >
+                  Attach
+                </MenuButton>
                 <Menu placement="top-start" size="sm">
                   <MenuItem onClick={() => publicAttachmentInput.current?.click()}>For the client</MenuItem>
                   <MenuItem onClick={() => privateAttachmentInput.current?.click()}>Private for staff</MenuItem>
