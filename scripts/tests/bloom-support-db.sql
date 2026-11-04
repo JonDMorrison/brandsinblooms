@@ -15,6 +15,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
 END $$;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS dblink;
 
 \ir ../../supabase/migrations/20261031120000_bloom_support_core.sql
 \ir ../../supabase/migrations/20261031120100_bloom_support_functions.sql
@@ -1289,7 +1290,6 @@ SELECT pg_temp.assert((
 ), 'a person-resolved problem is not reopened automatically');
 
 -- 40. Stale release state is self-healing across migration/function rollout order.
-BEGIN;
 UPDATE bloom_support.engineering_issues
 SET updated_at = now()
 WHERE status IN ('in_review', 'approved', 'awaiting_approval');
@@ -1313,7 +1313,45 @@ INSERT INTO bloom_support.jobs(
   'engineering-release-recovery:f1000000-0000-4000-8000-000000000001',
   now() - interval '9 minutes', now() - interval '9 minutes'
 );
-SELECT public.bloom_support_enqueue_engineering_recoveries(:'release') AS recovery_count \gset
+
+-- Hold the reconciler's advisory key in this session, then prove a second
+-- database session cannot enter the candidate query until the key is released.
+-- This exercises cross-worker serialization rather than only the idempotency
+-- key used within one cooldown bucket.
+SELECT dblink_connect(
+  'release_reconcile_concurrency',
+  format(
+    'dbname=%s user=%s host=%s port=%s',
+    current_database(),
+    current_user,
+    coalesce(
+      inet_server_addr()::text,
+      btrim(split_part(current_setting('unix_socket_directories'), ',', 1))
+    ),
+    coalesce(inet_server_port(), current_setting('port')::integer)
+  )
+);
+SELECT pg_catalog.pg_advisory_lock(
+  pg_catalog.hashtextextended('bloom_support:engineering-release-reconcile', 0)
+);
+SELECT dblink_send_query(
+  'release_reconcile_concurrency',
+  format(
+    'SELECT public.bloom_support_enqueue_engineering_recoveries(%L::uuid)',
+    :'release'
+  )
+);
+SELECT pg_sleep(0.1);
+SELECT pg_temp.assert(
+  dblink_is_busy('release_reconcile_concurrency') = 1,
+  'a concurrent release reconciler waits for the transaction-scoped advisory lock'
+);
+SELECT pg_catalog.pg_advisory_unlock(
+  pg_catalog.hashtextextended('bloom_support:engineering-release-reconcile', 0)
+);
+SELECT recovery_count
+FROM dblink_get_result('release_reconcile_concurrency') AS result(recovery_count integer) \gset
+SELECT dblink_disconnect('release_reconcile_concurrency');
 SELECT pg_temp.assert(:'recovery_count'::integer = 1, 'a succeeded one-shot recovery does not strand a stale release under the old worker');
 SELECT pg_temp.assert((
   SELECT count(*) = 1
@@ -1342,6 +1380,5 @@ SELECT pg_temp.expect_error(
   format($q$SELECT public.bloom_support_enqueue_engineering_recoveries('%s')$q$, :'bot'),
   'engineering.release'
 );
-ROLLBACK;
 
 \echo 'bloom-support-db: all assertions passed'

@@ -24,6 +24,15 @@ DECLARE
 BEGIN
   PERFORM bloom_support.require_permission(p_actor, 'engineering.release');
 
+  -- This must be a separate statement from the candidate query. Under READ
+  -- COMMITTED, a caller that waits here receives a fresh snapshot for the next
+  -- statement and sees any job inserted by the previous caller. That closes
+  -- the time-bucket-boundary race where two otherwise valid idempotency keys
+  -- could be created for the same issue.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('bloom_support:engineering-release-reconcile', 0)
+  );
+
   WITH candidates AS (
     SELECT
       issue.id,
