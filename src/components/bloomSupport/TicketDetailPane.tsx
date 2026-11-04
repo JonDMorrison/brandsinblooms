@@ -15,6 +15,10 @@ import Skeleton from "@mui/joy/Skeleton";
 import Sheet from "@mui/joy/Sheet";
 import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
 import Link from "@mui/joy/Link";
+import Accordion from "@mui/joy/Accordion";
+import AccordionDetails from "@mui/joy/AccordionDetails";
+import AccordionGroup from "@mui/joy/AccordionGroup";
+import AccordionSummary from "@mui/joy/AccordionSummary";
 import { Bot, Lock, Paperclip, User, Wrench } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -56,7 +60,6 @@ function BloomDiagnosticsSection({ d }: { d: BloomDiagnostics }) {
     value ? <Typography level="body-xs"><strong>{label}:</strong> {value}</Typography> : null;
   return (
     <>
-      <Divider />
       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
         <Bot size={14} aria-hidden />
         <Typography level="title-sm">Diagnostics from Bloom</Typography>
@@ -85,6 +88,15 @@ function BloomDiagnosticsSection({ d }: { d: BloomDiagnostics }) {
         ))
       )}
     </>
+  );
+}
+
+function DetailSectionSummary({ title, detail }: { title: string; detail?: string }) {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
+      <Typography level="title-sm">{title}</Typography>
+      {detail ? <Typography level="body-xs" textColor="text.tertiary" noWrap sx={{ ml: "auto !important" }}>{detail}</Typography> : null}
+    </Stack>
   );
 }
 
@@ -274,9 +286,9 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
         {error && <Alert color="danger" variant="soft" sx={{ mt: 1 }}>{error}</Alert>}
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", display: "grid", gridTemplateColumns: { xs: "1fr", lg: staff ? "minmax(0,1fr) 300px" : "1fr" } }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: { xs: "auto", lg: "hidden" }, display: "grid", gridTemplateColumns: { xs: "1fr", lg: staff ? "minmax(0,1fr) 300px" : "1fr" } }}>
         {/* Conversation */}
-        <Stack spacing={1.25} sx={{ p: 2 }}>
+        <Stack spacing={1.25} sx={{ p: 2, minHeight: 0, overflowY: { xs: "visible", lg: "auto" } }}>
           {t.conversation_tickets.length > 0 && (
             <Alert size="sm" variant="soft" color="primary">
               Same conversation: {t.conversation_tickets.map((c) => <Link key={c.id} component="button" onClick={() => onOpenTicket(c.id)} sx={{ mx: 0.5 }}>#{c.number} {c.subject} ({STATUS_LABEL[c.status]})</Link>)}
@@ -356,129 +368,153 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           ) : null}
         </Stack>
 
-        {/* Side panel: relationships, engineering, jobs, activity */}
+        {/* Side panel: the next useful action stays visible; supporting evidence is on demand. */}
         {staff && (
-          <Stack spacing={1.5} sx={{ p: 2, borderLeft: { lg: "1px solid" }, borderColor: { lg: "divider" } }}>
-            <Typography level="title-sm">Bloom</Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Button size="sm" variant="outlined" startDecorator={<Wrench size={14} />} onClick={() => run.mutate(() => bloomSupport.investigate(t.id))}>Investigate bug</Button>
-              <Button size="sm" variant="outlined" onClick={() => run.mutate(() => bloomSupport.routeFeature(t.id))}>Feature → Jon</Button>
-              <Button size="sm" variant="outlined" color="neutral" onClick={async () => { const r = await ask({ title: "Ask Jon or Jeff", fields: [{ name: "reason", label: "Why does this need one of them?", kind: "textarea", required: true }], confirmLabel: "Send to Jon and Jeff" }); if (r) run.mutate(() => bloomSupport.escalate(t.id, "both", String(r.reason).trim())); }}>Escalate</Button>
+          <Stack spacing={1.5} sx={{ p: 2, borderLeft: { lg: "1px solid" }, borderColor: { lg: "divider" }, minWidth: 0, minHeight: 0, overflowY: { xs: "visible", lg: "auto" } }}>
+            <Stack spacing={0.25}>
+              <Typography level="title-sm">Ticket tools</Typography>
+              <Typography level="body-xs" textColor="text.tertiary">Extra actions and supporting details.</Typography>
             </Stack>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Button size="sm" variant="plain" onClick={async () => {
-                const r = await ask({ title: "Merge into another request", description: "Use this when the same client asked the same thing twice. Both must be for the same client.", fields: [{ name: "n", label: "Request number", kind: "text", required: true, placeholder: "e.g. 1042" }], confirmLabel: "Merge" });
-                if (!r) return;
-                const n = String(r.n).trim();
-                const found = await bloomSupport.pageTickets({ q: `#${n.replace("#", "")}`, limit: "1" });
-                const target = found.items.find((x) => String(x.number) === n.replace("#", ""));
-                if (!target) { setError(`Ticket #${n} not found`); return; }
-                run.mutate(() => bloomSupport.merge(t.id, target.id, "duplicate"));
-              }}>Merge into…</Button>
-              <Button size="sm" variant="plain" onClick={async () => {
-                const problems = await bloomSupport.problems().catch(() => [] as Array<Record<string, unknown>>);
-                const r = await ask({ title: "Link to a shared problem", description: "Group this with other clients' requests about the same issue.", fields: [{ name: "id", label: "Which problem?", kind: "select", required: true, initial: "__new", options: [{ value: "__new", label: "Create a new one from this request" }, ...problems.map((p) => ({ value: String(p.id), label: String(p.title) }))] }], confirmLabel: "Link" });
-                if (!r) return;
-                const id = r.id === "__new" ? "" : String(r.id);
-                run.mutate(async () => {
-                  const problemId = id || String((await bloomSupport.createProblem({ title: t.subject, product: t.product })).id);
-                  await bloomSupport.linkProblem(t.id, problemId);
-                });
-              }}>Link to shared problem</Button>
-              <Button size="sm" variant="plain" color="neutral" onClick={() => run.mutate(() => bloomSupport.spam(t.id, !t.spam))}>{t.spam ? "Not spam" : "Mark spam"}</Button>
-            </Stack>
-            {t.problem && (
+            {t.problem ? (
               <Sheet variant="soft" sx={{ p: 1, borderRadius: "sm" }}>
                 <Typography level="body-xs" fontWeight="lg">{t.problem.kind === "incident" ? "Incident" : "Shared problem"}: {t.problem.title}</Typography>
                 <Typography level="body-xs">{t.problem.tickets} tickets from {t.problem.accounts} clients · {t.problem.status}</Typography>
               </Sheet>
-            )}
-            {t.engineering && (
+            ) : null}
+            {t.engineering ? (
               <Sheet variant="soft" sx={{ p: 1, borderRadius: "sm" }}>
                 <Typography level="body-xs" fontWeight="lg">Engineering: {String(t.engineering.status)}</Typography>
                 {t.engineering.pr_url ? <Link level="body-xs" href={String(t.engineering.pr_url)} target="_blank" rel="noopener">Pull request</Link> : null}
                 {(t.engineering.eligibility as { reasons?: string[] } | null)?.reasons?.length
                   ? <Typography level="body-xs">Needs review: {(t.engineering.eligibility as { reasons: string[] }).reasons.slice(0, 3).join("; ")}</Typography> : null}
               </Sheet>
-            )}
-            <Divider />
-            <Typography level="title-sm">Link to another ticket</Typography>
-            <Stack direction="row" spacing={1}>
-              <Input size="sm" placeholder="Ticket id" value={linkTo} onChange={(e) => setLinkTo(e.target.value)} sx={{ flex: 1 }} />
-              <Button size="sm" variant="outlined" disabled={!linkTo} onClick={() => run.mutate(async () => { await bloomSupport.link(t.id, linkTo.trim(), "duplicate"); setLinkTo(""); })}>Duplicate of</Button>
-            </Stack>
-            {t.links && t.links.length > 0 && t.links.map((l) => (
-              <Link key={`${l.ticket_id}-${l.kind}`} level="body-xs" component="button" onClick={() => onOpenTicket(l.ticket_id)}>{l.kind}: #{l.number} {l.subject}</Link>
-            ))}
-            {t.account_history && t.account_history.length > 0 && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Client history</Typography>
-                {t.account_history.slice(0, 6).map((h) => (
-                  <Link key={h.id} level="body-xs" component="button" onClick={() => onOpenTicket(h.id)}>#{h.number} {h.subject} · {STATUS_LABEL[h.status]}</Link>
-                ))}
-              </>
-            )}
-            {t.jobs && t.jobs.length > 0 && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Automation</Typography>
-                {t.jobs.slice(0, 6).map((j) => (
-                  <Typography key={j.id} level="body-xs" color={j.status === "dead" || j.status === "failed" ? "danger" : "neutral"}>
-                    {j.kind}: {j.status}{j.attempts > 1 ? ` (try ${j.attempts})` : ""}{j.last_error ? ` — ${j.last_error.slice(0, 80)}` : ""}
-                  </Typography>
-                ))}
-              </>
-            )}
-            {t.emails && t.emails.length > 0 && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Email</Typography>
-                {t.emails.slice(0, 5).map((e, i) => <Typography key={i} level="body-xs">{e.purpose} → {e.to}: {e.status}{e.error ? ` (${e.error.slice(0, 60)})` : ""}</Typography>)}
-              </>
-            )}
-            {t.timers && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Time</Typography>
-                <Typography level="body-xs">Age {dur(t.timers.age_seconds)} · our clock {dur(t.timers.our_clock_seconds)} ({dur(t.timers.our_clock_business_seconds)} business)</Typography>
-                <Typography level="body-xs">Waiting on customer {dur(t.timers.waiting_customer_seconds)} · third party {dur(t.timers.waiting_third_party_seconds)} · scheduled {dur(t.timers.scheduled_seconds)}</Typography>
-                <Typography level="body-xs">First response {dur(t.timers.first_response_seconds)} · first resolution {dur(t.timers.first_resolution_seconds)}{t.timers.reopened ? ` · latest resolution ${dur(t.timers.latest_resolution_seconds)}` : ""}</Typography>
-              </>
-            )}
-            {t.resolution_evidence && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Resolution evidence</Typography>
-                <ReadableData value={t.resolution_evidence} />
-              </>
-            )}
-            {t.history && t.history.length > 0 && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Status and assignment history</Typography>
-                {t.history.slice(-12).reverse().map((h, i) => (
-                  <Typography key={i} level="body-xs" textColor="text.secondary">{h.kind}: {h.from ?? "—"} → {h.to ?? "—"} · {h.actor ?? "Bloom/system"} · {formatDistanceToNow(new Date(h.at), { addSuffix: true })}</Typography>
-                ))}
-              </>
-            )}
-            {bloomDiagnostics && <BloomDiagnosticsSection d={bloomDiagnostics} />}
-            {t.context && Object.keys(t.context).length > 0 && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Captured context</Typography>
-                <ReadableData value={t.context} />
-              </>
-            )}
-            {t.activity && (
-              <>
-                <Divider />
-                <Typography level="title-sm">Activity</Typography>
-                {t.activity.slice(-10).reverse().map((a, i) => (
-                  <Typography key={i} level="body-xs" textColor="text.secondary">{a.actor ?? "Bloom"} · {a.action} · {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</Typography>
-                ))}
-              </>
-            )}
+            ) : null}
+
+            <AccordionGroup
+              size="sm"
+              sx={{
+                "--AccordionGroup-gap": "0.5rem",
+                "--Accordion-radius": "var(--joy-radius-md)",
+                "--AccordionDetails-paddingInline": "0.75rem",
+                "& .MuiAccordion-root": { border: "1px solid", borderColor: "divider", bgcolor: "background.surface" },
+              }}
+            >
+              <Accordion>
+                <AccordionSummary><DetailSectionSummary title="More actions" /></AccordionSummary>
+                <AccordionDetails>
+                  <Stack spacing={0.75} alignItems="flex-start" sx={{ pb: 1 }}>
+                    <Button size="sm" variant="plain" startDecorator={<Wrench size={14} />} onClick={() => run.mutate(() => bloomSupport.investigate(t.id))}>Investigate bug</Button>
+                    <Button size="sm" variant="plain" color="neutral" onClick={async () => { const r = await ask({ title: "Ask Jon or Jeff", fields: [{ name: "reason", label: "Why does this need one of them?", kind: "textarea", required: true }], confirmLabel: "Send to Jon and Jeff" }); if (r) run.mutate(() => bloomSupport.escalate(t.id, "both", String(r.reason).trim())); }}>Escalate to Jon and Jeff</Button>
+                    <Button size="sm" variant="plain" onClick={() => run.mutate(() => bloomSupport.routeFeature(t.id))}>Send feature request to Jon</Button>
+                    <Button size="sm" variant="plain" onClick={async () => {
+                      const r = await ask({ title: "Merge into another request", description: "Use this when the same client asked the same thing twice. Both must be for the same client.", fields: [{ name: "n", label: "Request number", kind: "text", required: true, placeholder: "e.g. 1042" }], confirmLabel: "Merge" });
+                      if (!r) return;
+                      const n = String(r.n).trim();
+                      const found = await bloomSupport.pageTickets({ q: `#${n.replace("#", "")}`, limit: "1" });
+                      const target = found.items.find((x) => String(x.number) === n.replace("#", ""));
+                      if (!target) { setError(`Ticket #${n} not found`); return; }
+                      run.mutate(() => bloomSupport.merge(t.id, target.id, "duplicate"));
+                    }}>Merge duplicate into…</Button>
+                    <Button size="sm" variant="plain" onClick={async () => {
+                      const problems = await bloomSupport.problems().catch(() => [] as Array<Record<string, unknown>>);
+                      const r = await ask({ title: "Link to a shared problem", description: "Group this with other clients' requests about the same issue.", fields: [{ name: "id", label: "Which problem?", kind: "select", required: true, initial: "__new", options: [{ value: "__new", label: "Create a new one from this request" }, ...problems.map((p) => ({ value: String(p.id), label: String(p.title) }))] }], confirmLabel: "Link" });
+                      if (!r) return;
+                      const id = r.id === "__new" ? "" : String(r.id);
+                      run.mutate(async () => {
+                        const problemId = id || String((await bloomSupport.createProblem({ title: t.subject, product: t.product })).id);
+                        await bloomSupport.linkProblem(t.id, problemId);
+                      });
+                    }}>Link to shared problem</Button>
+                    <Button size="sm" variant="plain" color="neutral" onClick={() => run.mutate(() => bloomSupport.spam(t.id, !t.spam))}>{t.spam ? "Mark as not spam" : "Mark as spam"}</Button>
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+
+              <Accordion>
+                <AccordionSummary>
+                  <DetailSectionSummary title="Related requests" detail={`${(t.links?.length ?? 0) + (t.account_history?.length ?? 0)} related`} />
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Stack spacing={1} sx={{ pb: 1 }}>
+                    <Stack direction="row" spacing={1}>
+                      <Input size="sm" aria-label="Ticket id to link" placeholder="Ticket id" value={linkTo} onChange={(e) => setLinkTo(e.target.value)} sx={{ flex: 1 }} />
+                      <Button size="sm" variant="outlined" disabled={!linkTo} onClick={() => run.mutate(async () => { await bloomSupport.link(t.id, linkTo.trim(), "duplicate"); setLinkTo(""); })}>Link</Button>
+                    </Stack>
+                    {t.links?.map((l) => (
+                      <Link key={`${l.ticket_id}-${l.kind}`} level="body-xs" component="button" onClick={() => onOpenTicket(l.ticket_id)}>{l.kind}: #{l.number} {l.subject}</Link>
+                    ))}
+                    {t.account_history?.slice(0, 6).map((h) => (
+                      <Link key={h.id} level="body-xs" component="button" onClick={() => onOpenTicket(h.id)}>Client history: #{h.number} {h.subject} · {STATUS_LABEL[h.status]}</Link>
+                    ))}
+                    {!t.links?.length && !t.account_history?.length ? <Typography level="body-xs" textColor="text.tertiary">No related requests yet.</Typography> : null}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+
+              {(t.jobs?.length || t.emails?.length) ? (
+                <Accordion>
+                  <AccordionSummary><DetailSectionSummary title="Automation & delivery" detail={`${(t.jobs?.length ?? 0) + (t.emails?.length ?? 0)} events`} /></AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1} sx={{ pb: 1 }}>
+                      {t.jobs?.slice(0, 6).map((j) => (
+                        <Typography key={j.id} level="body-xs" color={j.status === "dead" || j.status === "failed" ? "danger" : "neutral"}>
+                          {j.kind}: {j.status}{j.attempts > 1 ? ` (try ${j.attempts})` : ""}{j.last_error ? ` — ${j.last_error.slice(0, 80)}` : ""}
+                        </Typography>
+                      ))}
+                      {t.emails?.slice(0, 5).map((e, i) => <Typography key={`${e.purpose}-${e.created_at}-${i}`} level="body-xs">{e.purpose} → {e.to}: {e.status}{e.error ? ` (${e.error.slice(0, 60)})` : ""}</Typography>)}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              ) : null}
+
+              {(t.timers || t.history?.length || t.activity?.length) ? (
+                <Accordion>
+                  <AccordionSummary><DetailSectionSummary title="Timing & history" /></AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1} sx={{ pb: 1 }}>
+                      {t.timers ? (
+                        <Stack spacing={0.25}>
+                          <Typography level="body-xs">Age {dur(t.timers.age_seconds)} · our clock {dur(t.timers.our_clock_seconds)} ({dur(t.timers.our_clock_business_seconds)} business)</Typography>
+                          <Typography level="body-xs">Waiting on customer {dur(t.timers.waiting_customer_seconds)} · third party {dur(t.timers.waiting_third_party_seconds)} · scheduled {dur(t.timers.scheduled_seconds)}</Typography>
+                          <Typography level="body-xs">First response {dur(t.timers.first_response_seconds)} · first resolution {dur(t.timers.first_resolution_seconds)}{t.timers.reopened ? ` · latest resolution ${dur(t.timers.latest_resolution_seconds)}` : ""}</Typography>
+                        </Stack>
+                      ) : null}
+                      {t.history?.length ? <Divider /> : null}
+                      {t.history?.slice(-12).reverse().map((h, i) => (
+                        <Typography key={`${h.at}-${h.kind}-${i}`} level="body-xs" textColor="text.secondary">{h.kind}: {h.from ?? "—"} → {h.to ?? "—"} · {h.actor ?? "Bloom/system"} · {formatDistanceToNow(new Date(h.at), { addSuffix: true })}</Typography>
+                      ))}
+                      {t.activity?.length ? <Divider /> : null}
+                      {t.activity?.slice(-10).reverse().map((a, i) => (
+                        <Typography key={`${a.created_at}-${a.action}-${i}`} level="body-xs" textColor="text.secondary">{a.actor ?? "Bloom"} · {a.action} · {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</Typography>
+                      ))}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              ) : null}
+
+              {(t.resolution_evidence || bloomDiagnostics || (t.context && Object.keys(t.context).length > 0)) ? (
+                <Accordion>
+                  <AccordionSummary><DetailSectionSummary title="Technical context" /></AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1} sx={{ pb: 1 }}>
+                      {t.resolution_evidence ? (
+                        <>
+                          <Typography level="body-xs" fontWeight="lg">Resolution evidence</Typography>
+                          <ReadableData value={t.resolution_evidence} />
+                        </>
+                      ) : null}
+                      {bloomDiagnostics ? <BloomDiagnosticsSection d={bloomDiagnostics} /> : null}
+                      {t.context && Object.keys(t.context).length > 0 ? (
+                        <>
+                          <Typography level="body-xs" fontWeight="lg">Captured context</Typography>
+                          <ReadableData value={t.context} />
+                        </>
+                      ) : null}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              ) : null}
+            </AccordionGroup>
           </Stack>
         )}
       </Box>
