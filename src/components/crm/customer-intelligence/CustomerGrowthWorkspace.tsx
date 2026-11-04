@@ -49,7 +49,10 @@ import {
 } from "@/lib/customer-intelligence/intelligenceExperience";
 
 type WorkspaceSection = "all" | "explore" | "growth";
-type GrowthReport = ReturnType<typeof compareCustomerGrowth>;
+type GrowthReport = ReturnType<typeof compareCustomerGrowth> & {
+  rows: (ReturnType<typeof compareCustomerGrowth>["rows"][number] & { name: string })[];
+};
+type GrowthCustomer = { id: string; first_name: string | null; last_name: string | null };
 
 export function CustomerGrowthWorkspace({
   section = "all",
@@ -134,10 +137,10 @@ export function CustomerGrowthWorkspace({
     setReport(null);
     try {
       const [customers, orders] = await Promise.all([
-        readAllPages<{ id: string }>((from, to) =>
+        readAllPages<GrowthCustomer>((from, to) =>
           supabase
             .from("crm_customers")
-            .select("id")
+            .select("id,first_name,last_name")
             .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             .is("merged_into_customer_id", null)
@@ -172,7 +175,11 @@ export function CustomerGrowthWorkspace({
         },
       );
       if (token === request.current) {
-        setReport(result);
+        const names = new Map(customers.map((customer) => [
+          customer.id,
+          [customer.first_name, customer.last_name].filter(Boolean).join(" ").trim() || "Unnamed customer",
+        ]));
+        setReport({ ...result, rows: result.rows.map((row) => ({ ...row, name: names.get(row.customer_id) ?? "Unnamed customer" })) });
         setPage(1);
       }
     } catch (e) {
