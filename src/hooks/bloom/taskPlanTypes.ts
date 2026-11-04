@@ -26,7 +26,9 @@ export type BloomTaskPlanStatus =
   | "executing"
   | "completed"
   | "failed"
-  | "blocked";
+  | "blocked"
+  | "cancelled"
+  | "unknown";
 
 export type BloomTaskRiskLevel = "safe" | "low" | "medium" | "high";
 
@@ -149,6 +151,8 @@ const TASK_STATUSES = new Set<BloomTaskPlanStatus>([
   "completed",
   "failed",
   "blocked",
+  "cancelled",
+  "unknown",
 ]);
 
 const RISK_LEVELS = new Set<BloomTaskRiskLevel>([

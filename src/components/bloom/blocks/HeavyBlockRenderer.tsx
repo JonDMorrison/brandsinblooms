@@ -172,6 +172,8 @@ function TaskPlanRenderer({ payload }: { payload: unknown }) {
     isTaskPlanExecuting,
     pendingTaskPlan,
     retryTaskPlan,
+    resumeTaskPlan,
+    cancelTaskPlanSteps,
   } = useBloom();
   const plan = parseBloomTaskPlan(payload);
 
@@ -189,8 +191,16 @@ function TaskPlanRenderer({ payload }: { payload: unknown }) {
   const taskStatuses = getTaskStatuses(plan.planId);
   const completionSummary = getTaskCompletionSummary(plan.planId);
   const isExecuting = isTaskPlanExecuting(plan.planId);
+  // The saved plan carries each step's state, so an interrupted plan still
+  // shows its progress (and Resume) after the page is reopened.
+  const hasPersistedProgress = plan.tasks.some(
+    (task) => task.status !== "pending",
+  );
   const hasExecutionState =
-    completionSummary !== null || isExecuting || taskStatuses.size > 0;
+    completionSummary !== null ||
+    isExecuting ||
+    taskStatuses.size > 0 ||
+    hasPersistedProgress;
 
   if (decision?.decision === "cancelled") {
     return (
@@ -219,6 +229,11 @@ function TaskPlanRenderer({ payload }: { payload: unknown }) {
           onRetry={(taskId) => {
             void retryTaskPlan(plan, taskId).catch(() => undefined);
           }}
+          isExecuting={isExecuting}
+          onResume={() => resumeTaskPlan(plan).catch(() => undefined)}
+          onCancelRemaining={() =>
+            cancelTaskPlanSteps(plan).catch(() => undefined)
+          }
         />
       ) : null}
     </Stack>
