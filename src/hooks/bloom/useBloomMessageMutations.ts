@@ -80,6 +80,8 @@ interface TaskPlanApprovalInput {
   mode: BloomMode;
   timezone: string;
   retryTaskId?: string | null;
+  /** approve (default), resume an interrupted plan, or cancel its pending steps. */
+  planAction?: "approve" | "resume" | "cancel";
 }
 
 interface BloomMessageMutationHandlers {
@@ -364,6 +366,34 @@ const postBloomAssistStream = async (
   }
 
   return events;
+};
+
+/** Plain JSON call to bloom-assist (used to cancel a plan's pending steps). */
+const postBloomAssistJson = async (body: BloomJsonObject) => {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    throw error;
+  }
+
+  const accessToken = data.session?.access_token;
+  if (!accessToken) {
+    throw new Error("Sign in to message Bloom.");
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/bloom-assist`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readResponseErrorMessage(response));
+  }
 };
 
 const getTimezone = () => {
@@ -771,6 +801,7 @@ export function useBloomMessageMutations(
       retryTaskId = null,
       skippedTaskIds,
       timezone,
+      planAction = "approve",
     }: TaskPlanApprovalInput): Promise<BloomMessagesPage> => {
       if (!tenantId || !userId) {
         throw new Error(
@@ -778,20 +809,23 @@ export function useBloomMessageMutations(
         );
       }
 
-      await postBloomAssistStream(
-        {
-          conversation_id: conversationId,
-          plan_id: plan.planId,
-          approved_task_ids: approvedTaskIds,
-          skipped_task_ids: skippedTaskIds,
-          edited_fields: editedFields,
-          retry_task_id: retryTaskId,
-          mode,
-          timezone,
-          client_context: bloomChatClientContext(),
-        },
-        handlers,
-      );
+      const body: BloomJsonObject = {
+        plan_action: planAction,
+        conversation_id: conversationId,
+        plan_id: plan.planId,
+        approved_task_ids: approvedTaskIds,
+        skipped_task_ids: skippedTaskIds,
+        edited_fields: editedFields,
+        retry_task_id: retryTaskId,
+        mode,
+        timezone,
+        client_context: bloomChatClientContext(),
+      };
+      if (planAction === "cancel") {
+        await postBloomAssistJson(body);
+      } else {
+        await postBloomAssistStream(body, handlers);
+      }
 
       return fetchBloomMessagesPage({ conversationId, tenantId, userId });
     },
@@ -1169,6 +1203,46 @@ export function useBloomMessageMutations(
     [approveTaskPlanMutation],
   );
 
+  const resumeTaskPlan = useCallback(
+    (
+      conversationId: string,
+      plan: BloomTaskPlan,
+      mode: BloomMode,
+      timezone: string,
+    ) =>
+      approveTaskPlanMutation.mutateAsync({
+        conversationId,
+        plan,
+        approvedTaskIds: [],
+        skippedTaskIds: [],
+        editedFields: {},
+        mode,
+        timezone,
+        planAction: "resume",
+      }),
+    [approveTaskPlanMutation],
+  );
+
+  const cancelTaskPlanSteps = useCallback(
+    (
+      conversationId: string,
+      plan: BloomTaskPlan,
+      mode: BloomMode,
+      timezone: string,
+    ) =>
+      approveTaskPlanMutation.mutateAsync({
+        conversationId,
+        plan,
+        approvedTaskIds: [],
+        skippedTaskIds: [],
+        editedFields: {},
+        mode,
+        timezone,
+        planAction: "cancel",
+      }),
+    [approveTaskPlanMutation],
+  );
+
   const regenerateResponse = useCallback(
     (messageId: string) => regenerateResponseMutation.mutateAsync(messageId),
     [regenerateResponseMutation],
@@ -1181,6 +1255,8 @@ export function useBloomMessageMutations(
     editAndResend,
     approveTaskPlan,
     retryTaskPlan,
+    resumeTaskPlan,
+    cancelTaskPlanSteps,
     regenerateResponse,
     isSendingMessage: sendMessageMutation.isPending,
     isApprovingTaskPlan: approveTaskPlanMutation.isPending,
