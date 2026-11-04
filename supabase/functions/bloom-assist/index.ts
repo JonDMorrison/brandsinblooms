@@ -34,6 +34,13 @@ import {
   releaseRateLimitSlot,
 } from "./security/rate-limiter.ts";
 import { sanitizeInput } from "./security/sanitizer.ts";
+import {
+  createSpendMeter,
+  isSpendCapReached,
+  meteredModelFetch,
+  SPEND_CAP_MESSAGE,
+  type SpendMeter,
+} from "./security/spend-cap.ts";
 import { validateOutput } from "./security/output-validator.ts";
 import { processOpenAIStream } from "./stream-handler.ts";
 import { processApproval, processCancel, processResume } from "./task-plan/executor.ts";
@@ -1422,6 +1429,7 @@ function extractOpenAiTitle(payload: unknown): string | null {
 
 export async function generateConversationTitle(
   message: string,
+  meter: SpendMeter | null = null,
 ): Promise<string> {
   const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openAiApiKey) {
@@ -1429,7 +1437,7 @@ export async function generateConversationTitle(
   }
 
   try {
-    const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+    const response = await meteredModelFetch(meter, "title", OPENAI_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${openAiApiKey}`,
@@ -1688,13 +1696,14 @@ export async function persistUserMessage(
   attachments: JsonArray | null = null,
   sessionType: BloomSessionType = "standard",
   resourceFocus: BloomResourceFocus | null = null,
+  titleMeter: SpendMeter | null = null,
 ): Promise<PersistUserMessageResult> {
   let resolvedConversationId = conversationId;
   let title: string | null = null;
   const isNewConversation = !resolvedConversationId;
 
   if (!resolvedConversationId) {
-    title = await generateConversationTitle(message);
+    title = await generateConversationTitle(message, titleMeter);
 
     const { data, error } = await serviceClient
       .from("bloom_conversations")
@@ -1727,7 +1736,7 @@ export async function persistUserMessage(
       !existingConversation.title &&
       existingConversation.message_count === 0
     ) {
-      title = await generateConversationTitle(message);
+      title = await generateConversationTitle(message, titleMeter);
 
       const { error: updateError } = await serviceClient
         .from("bloom_conversations")
@@ -2260,6 +2269,12 @@ function createBloomStreamResponse(
   let innerReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let streamCancelled = false;
   const toolExecutions: PostResponseToolExecution[] = [];
+  // Server-derived tenant only; nothing in the request body reaches the cap.
+  const spendMeter = createSpendMeter({
+    client: serviceClient,
+    tenantId: context.tenantId,
+    userId: context.userId,
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -2447,10 +2462,71 @@ function createBloomStreamResponse(
         };
       };
 
+      // Over this month's cap: answer with a plain message, make no model call.
+      const replyWithSpendCap = async () => {
+        const tokenCounts: TokenCounts = { tokens_input: 0, tokens_output: 0 };
+        if (conversationId) {
+          const assistantMessage = await persistAssistantResponse(
+            serviceClient,
+            context.tenantId,
+            conversationId,
+            SPEND_CAP_MESSAGE,
+            null,
+            {},
+            tokenCounts,
+            [],
+            effectiveBody.mode,
+            "none",
+            { spend_cap_reached: true },
+          );
+          assistantMessageId = assistantMessage.messageId;
+          pendingResponseAudit = {
+            assistantMessageId: assistantMessage.messageId,
+            model: "none",
+            tokenCounts,
+            eventData: { status: "spend_cap_reached", stage: "spend_cap" },
+          };
+        }
+        writeEvent({ event: "token", data: { text: SPEND_CAP_MESSAGE } });
+        writeEvent({
+          event: "done",
+          data: {
+            ...tokenCounts,
+            model: "none",
+            conversation_id: conversationId ?? "",
+            ...(assistantMessageId
+              ? { assistant_message_id: assistantMessageId }
+              : {}),
+            ...(conversationTitle ? { title: conversationTitle } : {}),
+            follow_up_chips: [],
+          },
+        });
+      };
+
       try {
+        if (await spendMeter.isOverCap()) {
+          const persisted = await persistUserMessage(
+            serviceClient,
+            context.tenantId,
+            context.userId,
+            body.conversation_id,
+            body.message,
+            body.mode,
+            preparePendingAttachments(body.attachments),
+            body.session_type,
+            body.resource_focus,
+            spendMeter,
+          );
+          conversationId = persisted.conversationId;
+          conversationTitle = persisted.title;
+          userMessageId = persisted.messageId;
+          await replyWithSpendCap();
+          return;
+        }
+
         const intentClassification = await classifyIntentWithComplexity(
           body.message,
-          { openAiApiKey },
+          { openAiApiKey, meter: spendMeter },
         );
         const { mode: effectiveMode, modeOverride: resolvedModeOverride } =
           resolveEffectiveMode(body.mode, intentClassification);
@@ -2469,6 +2545,7 @@ function createBloomStreamResponse(
           pendingAttachments,
           effectiveBody.session_type,
           effectiveBody.resource_focus,
+          spendMeter,
         );
 
         conversationId = persistedUserMessage.conversationId;
@@ -2483,6 +2560,7 @@ function createBloomStreamResponse(
           tenantId: context.tenantId,
           conversationId,
           openAiApiKey,
+          meter: spendMeter,
         });
 
         if (pendingAttachments && pendingAttachments.length > 0) {
@@ -2640,6 +2718,7 @@ function createBloomStreamResponse(
           inputSecurity,
           toolDefinitionProvider: ({ mode, userRole }) =>
             getToolDefinitionsForMode(mode, userRole, intentClassification),
+          meter: spendMeter,
         });
         latencyCapture.contextBuildCompletedAt = Date.now();
 
@@ -2699,7 +2778,7 @@ function createBloomStreamResponse(
         }
 
         latencyCapture.openAiRequestStartedAt = Date.now();
-        const openAiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+        const openAiResponse = await meteredModelFetch(spendMeter, "chat", OPENAI_CHAT_COMPLETIONS_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${openAiApiKey}`,
@@ -2723,6 +2802,7 @@ function createBloomStreamResponse(
           ),
           {
             openAiApiKey,
+            meter: spendMeter,
             model: selectedModel,
             mode: effectiveBody.mode,
             modeOverride,
@@ -2903,6 +2983,17 @@ function createBloomStreamResponse(
           controller.enqueue(value);
         }
       } catch (error) {
+        if (isSpendCapReached(error)) {
+          try {
+            await replyWithSpendCap();
+          } catch (replyError) {
+            console.error(
+              "[bloom-assist] Spend cap reply failed",
+              toErrorMessage(replyError),
+            );
+          }
+          return;
+        }
         const message = toErrorMessage(error);
         console.error("[bloom-assist] Stream pipeline failed", message);
 

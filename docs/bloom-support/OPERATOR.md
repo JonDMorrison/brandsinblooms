@@ -23,7 +23,7 @@ production. **Open PR** = written and tested, waiting on CI. **Not built** = not
 | Read POS price history | Live (#324, bloomtill #640) | migration `20261102150000` applied alone to POS production; `bloom-support-ops` deployed alone |
 | Change website / POS from chat | Not built, on purpose | Changes go through the Support desk preview → confirm → verify flow |
 | Durable multi-step plans (resume after crash, cancel) | Open PR (this change) | Each approved step is a `bloom_support.jobs` row (kind `chat_plan_step`, migration `20261104120000_bloom_chat_plan_jobs.sql`); exactly-once via `bloom_action_claims` (`plan:<plan>:<task>`). `task-plan/durable-runner.ts`; Resume / Cancel remaining on the plan card. See F |
-| Model budget per tenant (cost cap) | Not built for chat | Rate limits only (`security/rate-limiter.ts`). Support has a daily call budget (`_shared/bloom-support/ai.ts`) |
+| Model budget per tenant (cost cap) | Live (#346), migration `20261104150000` applied 2026-11-04 | Monthly cap per company, default $25 (settings `chat_spend`), per-company override by platform admins only. Every model call reserves its estimated cost first and settles actual tokens after (`bloom-assist/security/spend-cap.ts`; ledger `bloom_support.chat_usage`; total in `bloom_support.usage_counters` bucket `chat-spend:YYYY-MM`). Over the cap Bloom replies with a plain notice and makes no model call. Support desk → Settings → Bloom chat usage. Not metered: image generation and content-writing functions called as tools, knowledge-search embeddings |
 
 ### Bloom Support desk (levels A–F)
 
@@ -91,6 +91,7 @@ Browser walks: not run.
 - **See what Bloom did:** Support desk → Reports / Activity (`bloom_support.activity`). Chat tool runs are in `bloom_tool_executions`. Approvals are in `bloom_action_claims`.
 - **A chat approval says "no longer matches":** the card in the browser differs from what Bloom stored. Ask Bloom again. Nothing ran.
 - **A chat read says "no access":** the person's Support role lacks `ops.site.read` / `ops.pos.read`. Clients don't have these.
+- **A company says Bloom chat "reached this month's usage limit":** Support desk → Settings → Bloom chat usage shows its month-to-date spend vs limit. A platform admin can raise that company's limit there (or the default). The limit is an internal cost guard, not a charge to the customer, and resets on the 1st (UTC).
 - **A chat read says "not connected":** the Support account has no linked site/POS business. Link it in Support → Clients.
 
 ## E. Runtime handoff (what still has to happen in production)

@@ -1,3 +1,4 @@
+import type { SpendMeter } from "../security/spend-cap.ts";
 import type {
   BloomClientContext,
   BloomMode,
@@ -349,6 +350,8 @@ export type ToolDefinitionFilter = {
 export type IntentClassifierOptions = {
   openAiApiKey?: string;
   timeoutMs?: number;
+  /** Tenant spending cap; over the cap the deterministic default is used. */
+  meter?: SpendMeter | null;
 };
 
 export type FilterFieldCatalog = Record<ToolEntity, readonly string[]>;

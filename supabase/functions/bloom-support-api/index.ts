@@ -147,6 +147,11 @@ on("POST", "/jobs/:id/:action", async (req, [id, action]) => actions.controlJob(
 
 on("GET", "/settings", async (req) => actions.getSettings(await caller(req)));
 on("PUT", "/settings/:key", async (req, [key]) => actions.setSetting(await caller(req), key, (await readJson(req)).value));
+on("GET", "/chat-spend", async (req) => actions.chatSpend(await caller(req)));
+on("PUT", "/chat-spend/:tenant", async (req, [tenant]) => {
+  const b = await readJson(req);
+  return actions.setChatSpendCap(await caller(req), tenant, b.cap_usd ?? null, str(b.note, 500));
+});
 on("GET", "/staff", async (req) => actions.listStaff(await caller(req)));
 on("POST", "/staff/role", async (req) => actions.setRole(await caller(req), await readJson(req)));
 on("GET", "/keys", async (req) => actions.listKeys(await caller(req)));
