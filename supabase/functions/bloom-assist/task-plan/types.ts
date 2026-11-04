@@ -35,6 +35,10 @@ export const TASK_PLAN_ITEM_STATUSES = [
   "completed",
   "failed",
   "blocked",
+  // The person cancelled the plan before this step started.
+  "cancelled",
+  // The step started but its result was never recorded (the request died).
+  "unknown",
 ] as const;
 
 export const VALIDATION_ANNOTATION_TYPES = [
@@ -150,7 +154,10 @@ export type TaskPlanGenerationContext = {
   timezone: string;
 };
 
+export type TaskPlanRequestAction = "approve" | "resume" | "cancel";
+
 export type TaskPlanApprovalPayload = {
+  action: TaskPlanRequestAction;
   conversation_id: string;
   plan_id: string;
   approved_task_ids: string[];
@@ -184,6 +191,8 @@ export type TaskPlanCompletionSummary = {
   skipped_count: number;
   failed_count: number;
   blocked_count: number;
+  cancelled_count: number;
+  unknown_count: number;
   results: TaskExecutionResult[];
 };
 
@@ -265,6 +274,8 @@ export function taskPlanSummaryToJson(
     skipped_count: summary.skipped_count,
     failed_count: summary.failed_count,
     blocked_count: summary.blocked_count,
+    cancelled_count: summary.cancelled_count,
+    unknown_count: summary.unknown_count,
     results: summary.results.map((result) => ({
       task_id: result.task_id,
       tool_name: result.tool_name,

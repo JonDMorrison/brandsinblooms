@@ -135,6 +135,10 @@ interface BloomContextType {
   ) => Promise<void>;
   cancelTaskPlan: (planId: string) => void;
   retryTaskPlan: (plan: BloomTaskPlan, taskId: string) => Promise<void>;
+  /** Continues an interrupted plan; steps that already ran are not run again. */
+  resumeTaskPlan: (plan: BloomTaskPlan) => Promise<void>;
+  /** Stops the plan's steps that have not started. A running step finishes. */
+  cancelTaskPlanSteps: (plan: BloomTaskPlan) => Promise<void>;
   getTaskStatuses: (
     planId: string,
   ) => Map<
@@ -662,6 +666,65 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
     [activeConversationId, activeMode, messageMutations.retryTaskPlan],
   );
 
+  const resumeTaskPlan = React.useCallback(
+    async (plan: BloomTaskPlan) => {
+      if (!activeConversationId) {
+        return;
+      }
+
+      setExecutingPlanIds((current) => new Set(current).add(plan.planId));
+      setCompletionSummaries((current) => {
+        const next = { ...current };
+        delete next[plan.planId];
+        return next;
+      });
+
+      try {
+        await messageMutations.resumeTaskPlan(
+          activeConversationId,
+          plan,
+          activeMode,
+          getTimezone(),
+        );
+      } finally {
+        setExecutingPlanIds((current) => {
+          const next = new Set(current);
+          next.delete(plan.planId);
+          return next;
+        });
+      }
+    },
+    [activeConversationId, activeMode, messageMutations.resumeTaskPlan],
+  );
+
+  const cancelTaskPlanSteps = React.useCallback(
+    async (plan: BloomTaskPlan) => {
+      if (!activeConversationId) {
+        return;
+      }
+
+      await messageMutations.cancelTaskPlanSteps(
+        activeConversationId,
+        plan,
+        activeMode,
+        getTimezone(),
+      );
+      // Show the cancelled steps right away; the refreshed message carries the same state.
+      setTaskStatusesByPlan((current) => {
+        const existing = current[plan.planId] ?? {};
+        const next = { ...existing };
+        for (const task of plan.tasks) {
+          const status = existing[task.taskId]?.status ?? task.status;
+          if (status === "approved" || status === "pending") {
+            next[task.taskId] = { status: "cancelled", errorMessage: null };
+          }
+        }
+        return { ...current, [plan.planId]: next };
+      });
+    },
+    [activeConversationId, activeMode, messageMutations.cancelTaskPlanSteps],
+  );
+
   const cancelTaskPlan = React.useCallback((planId: string) => {
     setPlanDecisions((current) => ({
       ...current,
@@ -903,6 +966,8 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
       approveTaskPlan,
       cancelTaskPlan,
       retryTaskPlan,
+      resumeTaskPlan,
+      cancelTaskPlanSteps,
       getTaskStatuses,
       getTaskCompletionSummary,
       isTaskPlanExecuting,
@@ -997,6 +1062,8 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
       streamingThinking,
       switchConversation,
       retryTaskPlan,
+      resumeTaskPlan,
+      cancelTaskPlanSteps,
     ],
   );
 

@@ -44,6 +44,8 @@ export interface ConfirmationBlockProps {
 
 const statusIcons: Record<ConfirmationResultStatus, LucideIcon> = {
   blocked: Lock,
+  cancelled: MinusCircle,
+  unknown: AlertTriangle,
   completed: CheckCircle,
   failed: XCircle,
   pending: MinusCircle,
@@ -52,6 +54,8 @@ const statusIcons: Record<ConfirmationResultStatus, LucideIcon> = {
 
 const statusTones: Record<ConfirmationResultStatus, JoyBlockTone> = {
   blocked: "warning",
+  cancelled: "neutral",
+  unknown: "warning",
   completed: "success",
   failed: "danger",
   pending: "neutral",
@@ -68,6 +72,8 @@ function normalizeStatus(
     status === "failed" ||
     status === "skipped" ||
     status === "blocked" ||
+    status === "cancelled" ||
+    status === "unknown" ||
     status === "pending"
   ) {
     return status;
