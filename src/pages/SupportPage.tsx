@@ -37,6 +37,58 @@ const SupportPage = () => {
     if (selected) detailRef.current?.focus();
   }, [selected]);
 
+  if (me.isLoading) {
+    return (
+      <PageContainer>
+        <Stack spacing={2} aria-busy="true">
+          <div>
+            <Typography level="h2">Loading support</Typography>
+            <Typography level="body-md" textColor="text.secondary">Loading your support workspace…</Typography>
+          </div>
+          <Sheet
+            role="status"
+            aria-label="Loading your support workspace"
+            aria-live="polite"
+            variant="outlined"
+            sx={{ p: 2, borderRadius: "lg" }}
+          >
+            <Stack spacing={1.25} aria-hidden="true">
+              <Skeleton variant="text" level="title-md" sx={{ width: "min(240px, 70%)" }} />
+              <Skeleton variant="rectangular" height={88} sx={{ borderRadius: "md" }} />
+            </Stack>
+          </Sheet>
+        </Stack>
+      </PageContainer>
+    );
+  }
+
+  if (me.error) {
+    return (
+      <PageContainer>
+        <Stack spacing={2}>
+          <div>
+            <Typography level="h2">Support unavailable</Typography>
+            <Typography level="body-md" textColor="text.secondary">We couldn't confirm which support workspace you should see.</Typography>
+          </div>
+          <Sheet role="alert" variant="outlined" sx={{ p: 2, borderRadius: "lg" }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ sm: "center" }}>
+              <Typography level="body-sm">Try again to securely load your support access.</Typography>
+              <Button
+                variant="outlined"
+                color="neutral"
+                loading={me.isFetching}
+                onClick={() => { void me.refetch(); }}
+                sx={{ minHeight: 44, alignSelf: { xs: "stretch", sm: "auto" } }}
+              >
+                Retry
+              </Button>
+            </Stack>
+          </Sheet>
+        </Stack>
+      </PageContainer>
+    );
+  }
+
   const showRequestList = () => {
     const previous = selected;
     setSelected(null);
@@ -88,7 +140,6 @@ const SupportPage = () => {
 
         <Box sx={staff ? { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" } : undefined}>
           <Typography level="title-lg" sx={{ mb: 1 }}>{staff ? "Recent conversations" : "Your requests"}</Typography>
-          {me.error && <Alert color="danger">{(me.error as Error).message}</Alert>}
           {mine.error && <Alert color="danger">{(mine.error as Error).message}</Alert>}
           {mine.isLoading && <Skeleton variant="rectangular" height={120} />}
           {mine.data?.length === 0 && <Typography level="body-sm" textColor="text.tertiary">{staff ? "No client requests yet." : "You haven't sent any requests yet."}</Typography>}
