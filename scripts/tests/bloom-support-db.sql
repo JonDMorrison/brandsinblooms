@@ -41,6 +41,7 @@ INSERT INTO bloom_support.tickets(
   'resolved', 'resolved', now(), 'reply_after_resolution', now()
 );
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
+\ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -1286,5 +1287,61 @@ SELECT pg_temp.assert((
   SELECT status = 'resolved' AND auto_resolved_at IS NULL
   FROM bloom_support.problems WHERE id = :'no_deploy_problem'
 ), 'a person-resolved problem is not reopened automatically');
+
+-- 40. Stale release state is self-healing across migration/function rollout order.
+BEGIN;
+UPDATE bloom_support.engineering_issues
+SET updated_at = now()
+WHERE status IN ('in_review', 'approved', 'awaiting_approval');
+INSERT INTO bloom_support.engineering_issues(
+  id, title, product, repository, status, pr_number, pr_url, head_sha,
+  approved_head_sha, updated_at
+) VALUES (
+  'f1000000-0000-4000-8000-000000000001',
+  'Stranded merged release', 'crm', 'JonDMorrison/brandsinblooms',
+  'approved', 1012, 'https://github.com/JonDMorrison/brandsinblooms/pull/1012',
+  'reviewed-head', 'reviewed-head', now() - interval '10 minutes'
+);
+INSERT INTO bloom_support.jobs(
+  kind, engineering_issue_id, lane, payload, status, result,
+  idempotency_key, created_at, updated_at
+) VALUES (
+  'engineering_step', 'f1000000-0000-4000-8000-000000000001',
+  'engineering:f1000000-0000-4000-8000-000000000001',
+  '{"step":"evaluate","reason":"release_state_recovery"}', 'succeeded',
+  '{"note":"evaluate: already merged"}',
+  'engineering-release-recovery:f1000000-0000-4000-8000-000000000001',
+  now() - interval '9 minutes', now() - interval '9 minutes'
+);
+SELECT public.bloom_support_enqueue_engineering_recoveries(:'release') AS recovery_count \gset
+SELECT pg_temp.assert(:'recovery_count'::integer = 1, 'a succeeded one-shot recovery does not strand a stale release under the old worker');
+SELECT pg_temp.assert((
+  SELECT count(*) = 1
+    AND bool_and(status = 'queued')
+    AND bool_and(payload->>'step' = 'evaluate')
+    AND bool_and(payload->>'reason' = 'release_state_reconcile')
+  FROM bloom_support.jobs
+  WHERE engineering_issue_id = 'f1000000-0000-4000-8000-000000000001'
+    AND idempotency_key LIKE 'engineering-release-reconcile:%'
+), 'release reconciliation queues one fresh evaluation');
+SELECT public.bloom_support_enqueue_engineering_recoveries(:'release') AS recovery_count \gset
+SELECT pg_temp.assert(:'recovery_count'::integer = 0, 'an active recovery job suppresses duplicate worker ticks');
+UPDATE bloom_support.jobs
+SET status = 'succeeded', result = '{"note":"evaluate: still open"}'
+WHERE engineering_issue_id = 'f1000000-0000-4000-8000-000000000001'
+  AND idempotency_key LIKE 'engineering-release-reconcile:%';
+SELECT public.bloom_support_enqueue_engineering_recoveries(:'release') AS recovery_count \gset
+SELECT pg_temp.assert(:'recovery_count'::integer = 0, 'a recently completed recovery observes the cooldown instead of looping');
+SELECT pg_temp.assert(
+  NOT has_function_privilege('anon', 'public.bloom_support_enqueue_engineering_recoveries(uuid)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_enqueue_engineering_recoveries(uuid)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_enqueue_engineering_recoveries(uuid)', 'execute'),
+  'release reconciliation is service-role only'
+);
+SELECT pg_temp.expect_error(
+  format($q$SELECT public.bloom_support_enqueue_engineering_recoveries('%s')$q$, :'bot'),
+  'engineering.release'
+);
+ROLLBACK;
 
 \echo 'bloom-support-db: all assertions passed'

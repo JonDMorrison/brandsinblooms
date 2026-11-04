@@ -2,7 +2,7 @@
 // Claims leased jobs, runs them with a timeout, and records success or a
 // bounded retry. Survives restarts: an expired lease is re-queued by
 // claim_jobs, and every handler is idempotent.
-import { BloomError, type Caller, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
+import { BloomError, type Caller, directRpc, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { classify, indicatesStillBroken, mergeModelClassification, type Product, STATUS_LABEL } from "../_shared/bloom-support/policy.ts";
 import { ANSWER_SCHEMA, CLASSIFY_SCHEMA, completeJson, fence } from "../_shared/bloom-support/ai.ts";
@@ -399,6 +399,13 @@ Deno.serve(async (req) => {
     repair = await servicePrincipal("investigation").catch(() => null);
     release = await servicePrincipal("release").catch(() => null);
     operations = await servicePrincipal("operations").catch(() => null);
+    // Reconcile stale pre-merge states every minute. This direct call is
+    // deliberately best-effort so either migration/function deployment order
+    // is safe; the next cron tick repairs the missing half after rollout.
+    if (release) {
+      await directRpc<number>("bloom_support_enqueue_engineering_recoveries", { p_actor: release.principalId })
+        .catch((e) => console.error("enqueue_engineering_recoveries", e));
+    }
     const started = Date.now();
     const results = [];
     // Drain for up to ~45s so one cron tick handles a burst; each claim respects lanes.
