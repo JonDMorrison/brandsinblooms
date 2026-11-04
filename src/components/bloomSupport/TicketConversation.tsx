@@ -150,7 +150,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   });
 
   const t = q.data;
-  if (q.isLoading) return <Stack spacing={2} sx={{ maxWidth: 760, mx: "auto", p: 2 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
+  if (q.isLoading) return <Stack spacing={2} sx={{ width: "100%", maxWidth: 760, minWidth: 0, boxSizing: "border-box", mx: "auto", p: 2 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
 
@@ -213,10 +213,10 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   };
 
   return (
-    <Stack sx={{ height: "100%", minHeight: 0, bgcolor: "background.body" }}>
+    <Stack sx={{ width: "100%", maxWidth: "100%", minWidth: 0, height: "100%", minHeight: 0, overflowWrap: "anywhere", bgcolor: "background.body" }}>
       {dialog}
-      <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-        <Stack spacing={3} sx={{ maxWidth: 760, mx: "auto", px: { xs: 2, md: 3 }, py: 3 }}>
+      <Box sx={{ flex: 1, maxWidth: "100%", minWidth: 0, minHeight: 0, overflow: "auto" }}>
+        <Stack spacing={3} sx={{ width: "100%", maxWidth: 760, minWidth: 0, boxSizing: "border-box", mx: "auto", px: { xs: 2, md: 3 }, py: 3 }}>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <IconButton variant="outlined" color="neutral" aria-label="Back" onClick={onBack} sx={{ borderRadius: "50%", "--IconButton-size": "44px", flex: "0 0 auto" }}><ArrowLeft size={18} /></IconButton>
             <Box aria-hidden sx={{ flex: "0 0 auto", width: 44, height: 44, borderRadius: "50%", bgcolor: "primary.100", color: "primary.900", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "display", fontWeight: 600 }}>{initials(clientName)}</Box>
@@ -249,7 +249,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
           {t.attachments.length > 0 && (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {t.attachments.map((a) => (
-                <Chip key={a.id} variant="outlined" size="lg" startDecorator={<Paperclip size={14} />}
+                <Chip key={a.id} variant="outlined" size="lg" startDecorator={<Paperclip size={14} />} title={`${a.file_name}${a.visibility === "internal" ? " (private)" : ""}`}
+                  sx={{ maxWidth: "100%", "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}
                   onClick={() => run.mutate({ fn: async () => { const { url } = await bloomSupport.attachmentUrl(a.id); window.open(url, "_blank", "noopener"); } })}>
                   {a.file_name}{a.visibility === "internal" ? " (private)" : ""}
                 </Chip>
@@ -290,8 +291,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       </Box>
 
       {canWrite && !closed && (
-        <Box sx={{ borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 3 }, py: 2 }}>
-          <Stack spacing={1.25} sx={{ maxWidth: 760, mx: "auto" }}>
+        <Box sx={{ width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 3 }, py: 2 }}>
+          <Stack spacing={1.25} sx={{ width: "100%", maxWidth: 760, minWidth: 0, boxSizing: "border-box", mx: "auto" }}>
             {error ? <Alert role="alert" size="sm" variant="soft" color="danger">{error}</Alert> : null}
             {replyError ? (
               <Alert id="conversation-reply-error" role="alert" size="sm" variant="soft" color="danger">
@@ -307,6 +308,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
               placeholder={`Write to ${t.requester?.name ?? clientName}, or add a private note`}
               slotProps={{ textarea: { ref: replyInput, disabled: replyLocked, maxLength: MAX_SUPPORT_BODY_LENGTH, "aria-label": "Message", "aria-describedby": replyError ? "conversation-reply-count conversation-reply-error" : "conversation-reply-count" } }}
               sx={{
+                width: "100%",
+                minWidth: 0,
                 borderRadius: "lg",
                 fontSize: "md",
                 // Keep the theme's 80px root while letting Joy's hidden autosize clone measure a real row.
