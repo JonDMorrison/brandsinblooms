@@ -141,9 +141,49 @@ jobs:
       - name: Repository checks (no secrets present)
         if: steps.guard.outputs.changed == 'true'
         run: |
-          if grep -q '"verify:types"' package.json; then pnpm verify:types && pnpm verify:lint && pnpm verify:test; \
+          # Lint: the repair may not add a lint error to any file it touches. Errors that the base
+          # branch already has in those files are counted and left alone (the agent is told not to
+          # widen its change), so only an increase over the base fails. Types and tests are unchanged.
+          if grep -q '"verify:types"' package.json; then pnpm verify:types && node -e "$LINT_DELTA" && pnpm verify:test; \
           elif [ -f pnpm-workspace.yaml ]; then pnpm -r --if-present test; \
           else npx vitest run --changed "origin/$IN_BASE"; fi
+        env:
+          LINT_DELTA: |
+            const { execFileSync, spawnSync } = require("child_process");
+            const fs = require("fs");
+            const base = `origin/${process.env.IN_BASE}`;
+            const env = { ...process.env };
+            if (!fs.readdirSync(".").some((f) => /^eslint\.config\.[cm]?[jt]s$/.test(f)) && fs.readdirSync(".").some((f) => /^\.eslintrc/.test(f))) env.ESLINT_USE_FLAT_CONFIG = "false";
+            const changed = execFileSync("git", ["diff", "--cached", "--name-status", base], { encoding: "utf8" })
+              .split("\n").map((l) => l.split("\t")).filter((p) => /^[AM]/.test(p[0] || "")).map((p) => p[p.length - 1])
+              .filter((f) => /\.(?:[cm]?[jt]sx?)$/.test(f) && !f.startsWith(".bloom/"));
+            if (!changed.length) { console.log("lint: no changed lintable files"); process.exit(0); }
+            function errors(args, input) {
+              const r = spawnSync("npx", ["eslint", "-f", "json", "--no-error-on-unmatched-pattern", ...args], { encoding: "utf8", env, input, maxBuffer: 64 << 20 });
+              let out;
+              try { out = JSON.parse(r.stdout); } catch { console.error(r.stdout, r.stderr); throw new Error("eslint did not produce a report"); }
+              const counts = new Map();
+              for (const file of out) for (const m of file.messages) {
+                if (m.severity !== 2) continue;
+                const key = `${m.ruleId || "fatal"}: ${m.message}`;
+                counts.set(key, (counts.get(key) || 0) + 1);
+              }
+              return counts;
+            }
+            let added = 0;
+            for (const f of changed) {
+              const after = errors([f]);
+              let before = new Map();
+              const existed = spawnSync("git", ["cat-file", "-e", `${base}:${f}`]).status === 0;
+              if (existed) before = errors(["--stdin", "--stdin-filename", f], execFileSync("git", ["show", `${base}:${f}`], { encoding: "utf8", maxBuffer: 64 << 20 }));
+              for (const [key, n] of after) {
+                const was = before.get(key) || 0;
+                if (n > was) { added += n - was; console.log(`::error file=${f}::new lint error (${n - was}): ${key}`); }
+                else if (was) console.log(`lint: ${f}: ${n} pre-existing error(s) left as they were on ${base}: ${key}`);
+              }
+            }
+            if (added) { console.log(`lint: the repair adds ${added} lint error(s)`); process.exit(1); }
+            console.log(`lint: no new lint errors in ${changed.length} changed file(s)`);
       - name: Normalise report
         if: always()
         run: |
