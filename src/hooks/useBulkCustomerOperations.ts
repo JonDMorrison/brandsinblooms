@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -39,9 +39,9 @@ export const useBulkCustomerOperations = () => {
     setSelectedIds(new Set(customerIds));
   };
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
-  };
+  }, []);
 
   const bulkDeleteCustomers = async (customerIds: string[]) => {
     if (customerIds.length === 0) return;
