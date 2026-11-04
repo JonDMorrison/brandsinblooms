@@ -7,7 +7,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
+  Play,
   RotateCcw,
+  Square,
   XCircle,
 } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -193,6 +195,7 @@ function ExecutionResultRow({
 }: ExecutionResultRowProps) {
   const failed = status === "failed";
   const completed = status === "completed";
+  const unknown = status === "unknown";
   const value = primaryParamValue(task);
   const paramEntries = Object.entries(task.toolParams);
 
@@ -240,6 +243,14 @@ function ExecutionResultRow({
             <JoyChip size="sm" variant="soft" color="success">
               Done
             </JoyChip>
+          ) : unknown ? (
+            <JoyChip size="sm" variant="soft" color="warning">
+              Not confirmed
+            </JoyChip>
+          ) : status === "approved" ? (
+            <JoyChip size="sm" variant="soft" color="neutral">
+              Not run yet
+            </JoyChip>
           ) : (
             <JoyChip size="sm" variant="soft" color="neutral">
               {status.replace(/_/g, " ")}
@@ -278,6 +289,19 @@ function ExecutionResultRow({
                 </JoyButton>
               </Box>
             </Stack>
+          ) : unknown || status === "cancelled" ? (
+            <Typography
+              level="body-xs"
+              sx={{
+                color: unknown ? "warning.plainColor" : "text.tertiary",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {errorMessage ??
+                (unknown
+                  ? "Bloom couldn't confirm whether this step was applied."
+                  : "Cancelled before it ran.")}
+            </Typography>
           ) : paramEntries.length > 0 ? (
             <Stack spacing={0.5}>
               {paramEntries.map(([key, paramValue]) => (
@@ -323,6 +347,12 @@ interface BloomExecutionResultCardProps {
   statuses: Map<string, TaskStatusEntry>;
   summary: BloomTaskCompletionSummary | null;
   onRetry: (taskId: string) => void;
+  /** True while this plan is running in this browser. */
+  isExecuting?: boolean;
+  /** Continue an interrupted plan. Shown when steps are left and nothing is running here. */
+  onResume?: () => Promise<void>;
+  /** Stop the steps that have not started. */
+  onCancelRemaining?: () => Promise<void>;
 }
 
 export function BloomExecutionResultCard({
@@ -330,7 +360,13 @@ export function BloomExecutionResultCard({
   statuses,
   summary,
   onRetry,
+  isExecuting = false,
+  onResume,
+  onCancelRemaining,
 }: BloomExecutionResultCardProps) {
+  const [pendingAction, setPendingAction] = React.useState<
+    "resume" | "cancel" | null
+  >(null);
   const rows = plan.tasks
     .map((task) => {
       const entry = statuses.get(task.taskId);
@@ -347,7 +383,7 @@ export function BloomExecutionResultCard({
     () =>
       new Set(
         rows
-          .filter((row) => row.status === "failed")
+          .filter((row) => row.status === "failed" || row.status === "unknown")
           .map((row) => row.task.taskId),
       ),
   );
@@ -357,7 +393,25 @@ export function BloomExecutionResultCard({
     rows.filter((row) => row.status === "completed").length;
   const failedCount =
     summary?.failed ?? rows.filter((row) => row.status === "failed").length;
-  const allSucceeded = failedCount === 0;
+  const remainingCount = rows.filter(
+    (row) =>
+      row.status === "approved" ||
+      row.status === "pending" ||
+      row.status === "executing",
+  ).length;
+  const notConfirmedCount = rows.filter(
+    (row) => row.status === "unknown",
+  ).length;
+  const allSucceeded =
+    failedCount === 0 && notConfirmedCount === 0 && remainingCount === 0;
+  const runAction = (
+    action: "resume" | "cancel",
+    handler?: () => Promise<void>,
+  ) => {
+    if (!handler || pendingAction) return;
+    setPendingAction(action);
+    void handler().finally(() => setPendingAction(null));
+  };
 
   const toggle = (taskId: string) => {
     setExpandedTaskIds((current) => {
@@ -402,7 +456,12 @@ export function BloomExecutionResultCard({
           )}
         </Box>
         <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-          Task complete: {completedCount} completed, {failedCount} failed
+          {remainingCount > 0 && !isExecuting
+            ? `Plan stopped: ${completedCount} completed, ${remainingCount} not run yet`
+            : `Task complete: ${completedCount} completed, ${failedCount} failed`}
+          {notConfirmedCount > 0
+            ? `, ${notConfirmedCount} not confirmed`
+            : ""}
         </Typography>
       </Stack>
 
@@ -419,6 +478,42 @@ export function BloomExecutionResultCard({
           />
         ))}
       </Stack>
+
+      {remainingCount > 0 && (onResume || onCancelRemaining) ? (
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap", justifyContent: "flex-end", mt: 1 }}
+        >
+          {!isExecuting && onResume ? (
+            <JoyButton
+              size="sm"
+              variant="soft"
+              color="primary"
+              startDecorator={<Play size={14} aria-hidden />}
+              loading={pendingAction === "resume"}
+              disabled={pendingAction !== null}
+              onClick={() => runAction("resume", onResume)}
+            >
+              Resume
+            </JoyButton>
+          ) : null}
+          {onCancelRemaining ? (
+            <JoyButton
+              size="sm"
+              variant="plain"
+              color="neutral"
+              startDecorator={<Square size={14} aria-hidden />}
+              loading={pendingAction === "cancel"}
+              disabled={pendingAction !== null}
+              onClick={() => runAction("cancel", onCancelRemaining)}
+            >
+              Cancel remaining
+            </JoyButton>
+          ) : null}
+        </Stack>
+      ) : null}
     </Box>
   );
 }

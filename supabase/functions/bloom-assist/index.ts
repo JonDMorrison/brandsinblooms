@@ -43,13 +43,14 @@ import {
 } from "./security/spend-cap.ts";
 import { validateOutput } from "./security/output-validator.ts";
 import { processOpenAIStream } from "./stream-handler.ts";
-import { processApproval } from "./task-plan/executor.ts";
+import { processApproval, processCancel, processResume } from "./task-plan/executor.ts";
+import { PlanAccessError, PlanBusyError } from "./task-plan/durable-runner.ts";
 import {
   generateTaskPlan,
   prefillCampaignContent,
 } from "./task-plan/generator.ts";
 import { validateTaskPlan } from "./task-plan/validator.ts";
-import type { TaskPlanApprovalPayload } from "./task-plan/types.ts";
+import type { TaskPlanApprovalPayload, TaskProgressEmitter } from "./task-plan/types.ts";
 import { taskPlanSummaryToJson, taskPlanToJson } from "./task-plan/types.ts";
 import { executeTool } from "./tools/executor.ts";
 import { isSupportTool } from "./tools/implementations/support-tools.ts";
@@ -815,6 +816,11 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
     return { ok: false, message: "retry_task_id must be a task id" };
   }
 
+  const rawAction = source.plan_action ?? "approve";
+  if (rawAction !== "approve" && rawAction !== "resume" && rawAction !== "cancel") {
+    return { ok: false, message: "plan_action must be approve, resume or cancel" };
+  }
+
   const mode = isBloomMode(source.mode) ? source.mode : "standard";
   const timezone =
     typeof source.timezone === "string" && source.timezone.trim().length > 0
@@ -824,6 +830,7 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
   return {
     ok: true,
     value: {
+      action: rawAction,
       conversation_id: conversationId,
       plan_id: planId,
       approved_task_ids: approvedTaskIds.value,
@@ -3037,29 +3044,32 @@ function createTaskApprovalStreamResponse(
       };
 
       try {
-        const summary = await processApproval(
-          approval.plan_id,
-          approval.approved_task_ids,
-          approval.skipped_task_ids,
-          approval.edited_fields,
-          {
-            tenantId: context.tenantId,
-            userId: context.userId,
-            userRole: context.userRole,
-            userName: context.userName,
-            conversationId: approval.conversation_id,
-            messageId: approval.plan_id,
-            timezone: approval.timezone,
-            serviceClient,
-            dataClient,
-            clientContext: approval.client_context ?? null,
-            mode: approval.mode,
-            emitProgress: (progress) => {
-              writeEvent({ event: "task_progress", data: progress });
-            },
+        const executionContext = {
+          tenantId: context.tenantId,
+          userId: context.userId,
+          userRole: context.userRole,
+          userName: context.userName,
+          conversationId: approval.conversation_id,
+          messageId: approval.plan_id,
+          timezone: approval.timezone,
+          serviceClient,
+          dataClient,
+          clientContext: approval.client_context ?? null,
+          mode: approval.mode,
+          emitProgress: (progress: Parameters<TaskProgressEmitter>[0]) => {
+            writeEvent({ event: "task_progress", data: progress });
           },
-          approval.retry_task_id,
-        );
+        };
+        const summary = approval.action === "resume"
+          ? await processResume(approval.plan_id, executionContext)
+          : await processApproval(
+            approval.plan_id,
+            approval.approved_task_ids,
+            approval.skipped_task_ids,
+            approval.edited_fields,
+            executionContext,
+            approval.retry_task_id,
+          );
 
         const summaryJson = taskPlanSummaryToJson(summary);
         writeEvent({ event: "task_complete", data: summaryJson });
@@ -3132,7 +3142,14 @@ function createTaskApprovalStreamResponse(
         }
         writeEvent({
           event: "error",
-          data: { message, code: "task_approval_error" },
+          data: {
+            message,
+            code: error instanceof PlanBusyError
+              ? "task_plan_busy"
+              : error instanceof PlanAccessError
+              ? "task_plan_forbidden"
+              : "task_approval_error",
+          },
         });
       } finally {
         releaseRateLimitSlot(context.userId);
@@ -3147,6 +3164,48 @@ function createTaskApprovalStreamResponse(
   });
 
   return new Response(stream, { headers: createSseHeaders(req) });
+}
+
+/** Stops the plan's steps that have not started. Same checks as running the plan. */
+async function createTaskPlanCancelResponse(
+  req: Request,
+  serviceClient: PersistenceClient,
+  dataClient: PersistenceClient,
+  context: UserContext,
+  approval: TaskPlanApprovalPayload,
+): Promise<Response> {
+  try {
+    const outcome = await processCancel(approval.plan_id, {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      userRole: context.userRole,
+      userName: context.userName,
+      conversationId: approval.conversation_id,
+      messageId: approval.plan_id,
+      timezone: approval.timezone,
+      serviceClient,
+      dataClient,
+      clientContext: approval.client_context ?? null,
+      mode: approval.mode,
+      emitProgress: () => undefined,
+    });
+    return jsonResponse(req, outcome);
+  } catch (error) {
+    if (error instanceof PlanAccessError) {
+      await recordRequestRejection(serviceClient, context, {
+        stage: "access_denied",
+        status: 403,
+        reason: "task_plan_cancel_access_denied",
+        conversationId: approval.conversation_id,
+      });
+      return jsonResponse(req, { error: error.message }, 403);
+    }
+    const message = toErrorMessage(error);
+    if (message === "Task plan not found for this conversation.") {
+      return jsonResponse(req, { error: message }, 404);
+    }
+    throw error;
+  }
 }
 
 async function createExecuteActionResponse(
@@ -3420,6 +3479,16 @@ export async function handleRequest(req: Request): Promise<Response> {
           conversationId: parsedApproval.value.conversation_id,
         });
         return jsonResponse(req, { error: "Conversation access denied" }, 403);
+      }
+
+      if (parsedApproval.value.action === "cancel") {
+        return await createTaskPlanCancelResponse(
+          req,
+          serviceClient,
+          userClient,
+          { ...context, conversationId: parsedApproval.value.conversation_id },
+          parsedApproval.value,
+        );
       }
 
       const rateLimit = await checkRateLimit(
