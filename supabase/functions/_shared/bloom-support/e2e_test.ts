@@ -26,8 +26,8 @@ const ENV: Record<string, string> = {
   BLOOM_SUPPORT_INBOUND_ADDRESSES: "forward@inbound.test",
 };
 
-// deno-lint-ignore no-explicit-any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// deno-lint-ignore no-explicit-any
 type Any = any;
 const sql = DB_URL ? postgres(DB_URL, { max: 4, onnotice: () => {} }) : null;
 
