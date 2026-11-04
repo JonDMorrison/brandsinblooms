@@ -216,11 +216,27 @@ async function verifyResolution(job: Job): Promise<string> {
     await note(t, "The fix is verified in production. A person has this ticket, so Bloom did not message the client.", `verified-human:${t.id}`);
     return "verified; human owns client communication";
   }
-  const eng = await rpc<Array<{ id: string; status: string; verification: { passed?: boolean; checks?: unknown[] } | null; deployment: Record<string, unknown> | null; pr_url: string | null; merge_sha: string | null }>>("list_engineering", { actor: bot.principalId });
+  const eng = await rpc<Array<{ id: string; status: string; product?: string; verification: { passed?: boolean; scope?: string; ticket_ids?: string[]; checks?: unknown[] } | null; deployment: Record<string, unknown> | null; pr_url: string | null; merge_sha: string | null }>>("list_engineering", { actor: bot.principalId });
   const issue = eng.find((e) => e.id === (job.payload.engineering_issue_id ?? t.engineering_issue_id));
   if (!issue || issue.status !== "verified" || issue.verification?.passed !== true) return "fix not verified; not resolving";
+  // Repository smoke checks prove that the release is healthy enough to keep,
+  // not that this person's affected workflow now works. Autonomous client
+  // resolution requires separate, trusted evidence explicitly bound to this
+  // ticket. Generic same-host checks must never close a request.
+  if (
+    issue.verification.scope !== "ticket_flow" ||
+    !issue.verification.ticket_ids?.includes(t.id)
+  ) {
+    await note(t, "The release smoke checks passed, but the affected workflow was not verified. Confirm the result with the client before resolving.", `verify-gap:${t.id}:${issue.id}`);
+    await patch(t, {
+      internal_only: true,
+      next_action: "Confirm the client's own flow works, then resolve",
+      next_action_due_at: new Date(Date.now() + 8 * 3600e3).toISOString(),
+    });
+    return "release smoke passed; ticket flow needs confirmation";
+  }
   // Each ticket is judged on its own affected flow: the fix being verified is necessary, not sufficient.
-  const engProduct = (eng.find((e) => e.id === issue.id) as unknown as { product?: string })?.product;
+  const engProduct = issue.product;
   const pageUrl = typeof t.context?.page_url === "string" ? t.context.page_url : null;
   const checkedHosts = ((issue.verification?.checks ?? []) as Array<{ url?: string }>).map((c) => { try { return new URL(String(c.url)).host; } catch { return null; } }).filter(Boolean);
   const affectedHost = pageUrl ? (() => { try { return new URL(pageUrl).host; } catch { return null; } })() : null;

@@ -7,6 +7,7 @@
 import { type Caller, env, rpc } from "./runtime.ts";
 import { emailConfig } from "./email.ts";
 import { aiConfig } from "./ai.ts";
+import { verificationChecksForPolicy } from "./engineering.ts";
 
 interface Facts {
   settings: Record<string, unknown>;
@@ -36,6 +37,41 @@ export interface Capability {
 const need = (...names: string[]) => names.filter((n) => !env(n));
 const recent = (iso: string | null | undefined, days = 7) => (iso && Date.now() - Date.parse(iso) < days * 86400_000 ? iso : null);
 
+export function rollbackReadiness(
+  releasePolicy: unknown,
+  hasVercelToken: boolean,
+): { configured: boolean; missing: string[]; repositories: string[] } {
+  const policy = releasePolicy && typeof releasePolicy === "object"
+    ? releasePolicy as Record<string, unknown>
+    : {};
+  const approved = policy.approvedPaths && typeof policy.approvedPaths === "object"
+    ? policy.approvedPaths as Record<string, unknown>
+    : {};
+  const vercel = policy.vercel && typeof policy.vercel === "object"
+    ? policy.vercel as Record<string, unknown>
+    : {};
+  const repositories = Object.entries(approved)
+    .filter(([, paths]) => Array.isArray(paths) && paths.length > 0)
+    .map(([repository]) => repository);
+  const missingTargets = repositories.filter((repository) => {
+    const target = vercel[repository];
+    return !target || typeof target !== "object" ||
+      typeof (target as Record<string, unknown>).projectId !== "string" ||
+      !(target as Record<string, string>).projectId.trim();
+  });
+  const missing = [
+    ...(hasVercelToken ? [] : ["BLOOM_VERCEL_TOKEN"]),
+    ...missingTargets.map((repository) =>
+      `settings.release_policy.vercel.${repository}.projectId`
+    ),
+  ];
+  return {
+    configured: missing.length === 0,
+    missing,
+    repositories,
+  };
+}
+
 export async function readiness(caller: Caller) {
   const f = await rpc<Facts>("readiness_facts", { actor: caller.principalId });
   const s = f.settings ?? {};
@@ -43,6 +79,31 @@ export async function readiness(caller: Caller) {
   const mail = emailConfig();
   const owners = (s.owners ?? {}) as { jon?: string[]; jeff?: string[] };
   const automation = s.automation_enabled === true;
+  const rollback = rollbackReadiness(
+    s.release_policy,
+    !!env("BLOOM_VERCEL_TOKEN"),
+  );
+  const releasePolicy = s.release_policy && typeof s.release_policy === "object"
+    ? s.release_policy as Record<string, unknown>
+    : {};
+  const verificationOrigins = releasePolicy.verificationOrigins && typeof releasePolicy.verificationOrigins === "object"
+    ? releasePolicy.verificationOrigins as Record<string, unknown>
+    : {};
+  const verificationMissing = rollback.repositories.flatMap((repository) => {
+    const origins = verificationOrigins[repository];
+    if (!Array.isArray(origins) || origins.length === 0) {
+      return [`settings.release_policy.verificationOrigins.${repository}`];
+    }
+    return verificationChecksForPolicy(releasePolicy, repository) === null
+      ? [`settings.release_policy.verificationChecks.${repository}`]
+      : [];
+  });
+  const releaseMissing = [
+    ...need("BLOOM_GITHUB_RELEASE_TOKEN"),
+    ...(f.release_policy_set ? [] : ["settings.release_policy"]),
+    ...rollback.missing,
+    ...verificationMissing,
+  ];
   const workerLive = recent(f.worker.last_finished_at, 1 / 96);
   const caps: Capability[] = [
     { key: "worker", label: "Background worker (no chat needed)", implemented: true, configured: f.cron.worker && f.vault.worker_token,
@@ -81,16 +142,20 @@ export async function readiness(caller: Caller) {
     { key: "ops_campaigns", label: "Campaign operations", implemented: true, configured: true, missing: [], tested: "SQL + e2e: preview/execute/undo, cross-tenant, stale preview refused",
       enabled: true, live: recent(f.last_seen.operation_succeeded, 30) },
     { key: "ops_cms", label: "BloomSites operations", implemented: true, configured: !!(env("BLOOM_OPS_URL_CMS") && env("BLOOM_OPS_SECRET_CMS")), missing: need("BLOOM_OPS_URL_CMS", "BLOOM_OPS_SECRET_CMS"),
-      tested: "type-check only", enabled: true, live: null },
+      tested: "SQL: per-product operation evidence; e2e: signed CMS reads and writes", enabled: true, live: recent(f.last_seen.operation_cms, 30) },
     { key: "ops_pos", label: "POS read-only operations", implemented: true, configured: !!(env("BLOOM_OPS_URL_POS") && env("BLOOM_OPS_SECRET_POS")), missing: need("BLOOM_OPS_URL_POS", "BLOOM_OPS_SECRET_POS"),
-      tested: "SQL regression + signed handler tests: tenant guards, stock precision, completed sales and returns", enabled: true, live: null, note: "Products, store inventory and sales summaries; dates use the store time zone" },
+      tested: "SQL regression + signed handler tests: tenant guards, stock precision, completed sales and returns", enabled: true, live: recent(f.last_seen.operation_pos, 30), note: "Products, store inventory and sales summaries; dates use the store time zone" },
     { key: "repair", label: "Automatic investigation + repair PRs", implemented: true, configured: !!env("BLOOM_GITHUB_REPAIR_TOKEN"), missing: need("BLOOM_GITHUB_REPAIR_TOKEN"),
       tested: "e2e with GitHub stubbed", enabled: automation, live: null, note: "Each repo also needs BLOOM_REPAIR_OPENAI_API_KEY, BLOOM_REPAIR_REPORT_KEY and the BLOOM_SUPPORT_API_URL variable" },
-    { key: "release", label: "Automatic release of eligible fixes", implemented: true, configured: !!env("BLOOM_GITHUB_RELEASE_TOKEN") && f.release_policy_set === true,
-      missing: [...need("BLOOM_GITHUB_RELEASE_TOKEN"), ...(f.release_policy_set ? [] : ["settings.release_policy"])], tested: "unit: policy; e2e: eligible, sensitive, failed deploy",
+    { key: "release", label: "Automatic release of eligible fixes", implemented: true, configured: releaseMissing.length === 0,
+      missing: releaseMissing, tested: "unit: policy; e2e: eligible, sensitive, failed deploy",
       enabled: s.auto_release_enabled === true, live: recent(f.last_seen.fix_verified, 90) },
-    { key: "rollback", label: "Automatic rollback (Vercel)", implemented: true, configured: !!env("BLOOM_VERCEL_TOKEN"), missing: need("BLOOM_VERCEL_TOKEN").concat(["settings.release_policy.vercel per repository"]),
-      tested: "not covered by automated tests", enabled: s.auto_release_enabled === true, live: null, note: "Without it, failed releases are escalated with rollback instructions" },
+    { key: "rollback", label: "Automatic rollback (Vercel)", implemented: true, configured: rollback.configured, missing: rollback.missing,
+      tested: "e2e: failed production verification restores the recorded previous Vercel deployment", enabled: s.auto_release_enabled === true,
+      live: recent(f.last_seen.rollback_succeeded, 90),
+      note: rollback.repositories.length
+        ? `Rollback targets cover ${rollback.repositories.length} auto-release ${rollback.repositories.length === 1 ? "repository" : "repositories"}`
+        : "No repositories currently have auto-approved release paths" },
     { key: "chatgpt", label: "ChatGPT / MCP (per-person OAuth or key)", implemented: true, configured: true, missing: [], tested: "e2e: MCP tools with per-person keys; SQL: OAuth codes/tokens",
       enabled: true, live: recent(f.last_seen.mcp_or_api_key_used, 30), note: "OAuth approval page needs the CRM frontend deployed; until then use a personal key" },
   ];

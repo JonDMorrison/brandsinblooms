@@ -10,15 +10,23 @@
 //
 // The repair side never holds merge credentials and cannot write eligibility.
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
-import { BloomError, type Caller, env, rpc } from "./runtime.ts";
+import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
 import { evaluateRelease, PRODUCT_REPOSITORIES, redactText, resolvePolicy, type Product } from "./policy.ts";
-import { findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionDeployment, pullRequestFacts } from "./github.ts";
+import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts } from "./github.ts";
 
 export interface EngineeringIssue {
   id: string; title: string; product: Product; repository: string | null; status: string; version: number;
   evidence: Record<string, unknown>; reproduction: Record<string, unknown> | null; branch: string | null;
   pr_number: number | null; pr_url: string | null; head_sha: string | null; merge_sha: string | null;
   deployment: Record<string, unknown> | null; verification: Record<string, unknown> | null; eligibility: Record<string, unknown> | null;
+  rollback?: {
+    previous_deployment_id?: string;
+    previous_url?: string;
+    provider?: string;
+    status?: string;
+    requested_at?: string;
+    polls?: number;
+  } | null;
   attempts: number; approved_head_sha?: string | null;
   tickets: Array<{ id: string; number: number; subject: string; account_id: string | null; status: string }>;
 }
@@ -38,6 +46,127 @@ async function update(actor: Caller, issue: EngineeringIssue, status: string | n
 
 export function branchFor(issueId: string): string {
   return `bloom/fix-${issueId.slice(0, 8)}`;
+}
+
+function hasExplicitPort(raw: string): boolean {
+  const authority = raw.match(/^https:\/\/([^/?#]+)/i)?.[1] ?? "";
+  const host = authority.slice(authority.lastIndexOf("@") + 1);
+  return host.startsWith("[") ? /\]:\d+$/.test(host) : /:\d+$/.test(host);
+}
+
+function isPrivateVerificationHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    /\.(?:local|internal|home|lan)$/.test(host)
+  ) return true;
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [a, b] = ipv4.slice(1).map(Number);
+    return a === 0 || a === 10 || a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      a >= 224;
+  }
+  return host === "::" || host === "::1" ||
+    /^(?:fc|fd|fe[89ab])/.test(host) ||
+    host.startsWith("::ffff:127.") || host.startsWith("::ffff:10.") ||
+    host.startsWith("::ffff:192.168.");
+}
+
+/** Canonical HTTPS URL on a repository's trusted production-origin allowlist. */
+export function approvedVerificationUrl(
+  releasePolicy: unknown,
+  repository: string,
+  value: unknown,
+): string | null {
+  if (typeof value !== "string" || !value || hasExplicitPort(value)) return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" || url.username || url.password || url.port ||
+      url.search || url.hash || isPrivateVerificationHost(url.hostname)
+    ) return null;
+    const policy = releasePolicy && typeof releasePolicy === "object"
+      ? releasePolicy as Record<string, unknown>
+      : {};
+    const maps = policy.verificationOrigins;
+    const configured = maps && typeof maps === "object"
+      ? (maps as Record<string, unknown>)[repository]
+      : null;
+    const approved = Array.isArray(configured) && configured.some((origin) => {
+      if (typeof origin !== "string" || hasExplicitPort(origin)) return false;
+      try {
+        const allowed = new URL(origin);
+        return allowed.protocol === "https:" && !allowed.username &&
+          !allowed.password && !allowed.port && !allowed.search &&
+          !allowed.hash && allowed.pathname === "/" &&
+          !isPrivateVerificationHost(allowed.hostname) &&
+          allowed.origin === url.origin;
+      } catch {
+        return false;
+      }
+    });
+    return approved ? `${url.origin}${url.pathname}` : null;
+  } catch {
+    return null;
+  }
+}
+
+interface VerificationCheck {
+  url: string;
+  expect_status?: number;
+  contains?: string;
+  not_contains?: string;
+}
+
+/** Release-owned, fully validated production checks; agent reports cannot add URLs. */
+export function verificationChecksForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+): VerificationCheck[] | null {
+  const policy = releasePolicy && typeof releasePolicy === "object"
+    ? releasePolicy as Record<string, unknown>
+    : {};
+  const maps = policy.verificationChecks;
+  const raw = maps && typeof maps === "object"
+    ? (maps as Record<string, unknown>)[repository]
+    : null;
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 10) return null;
+  const checks: VerificationCheck[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const check = item as Record<string, unknown>;
+    const url = approvedVerificationUrl(releasePolicy, repository, check.url);
+    if (!url) return null;
+    if (
+      check.expect_status !== undefined &&
+      (!Number.isInteger(check.expect_status) ||
+        (check.expect_status as number) < 100 ||
+        (check.expect_status as number) > 599)
+    ) return null;
+    for (const key of ["contains", "not_contains"] as const) {
+      if (
+        check[key] !== undefined &&
+        (typeof check[key] !== "string" || (check[key] as string).length > 500)
+      ) return null;
+    }
+    checks.push({
+      url,
+      ...(check.expect_status !== undefined
+        ? { expect_status: check.expect_status as number }
+        : {}),
+      ...(typeof check.contains === "string" ? { contains: check.contains } : {}),
+      ...(typeof check.not_contains === "string"
+        ? { not_contains: check.not_contains }
+        : {}),
+    });
+  }
+  return checks;
 }
 
 function repoFor(issue: EngineeringIssue): { repository: string; base: string } | null {
@@ -164,12 +293,70 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
   if (!["in_review", "approved", "awaiting_approval"].includes(issue.status)) return { note: `status ${issue.status}` };
   const repairLogins = (env("BLOOM_GITHUB_REPAIR_LOGINS") ?? "github-actions[bot]").split(",").map((s) => s.trim());
   const { pr, facts } = await pullRequestFacts(issue.repository, issue.pr_number, repairLogins);
-  if (pr.merged) return { next: { step: "deploy", delaySeconds: 60 }, note: "already merged" };
+  if (pr.merged) {
+    const mergeSha = pr.merge_commit_sha?.trim();
+    if (!mergeSha) {
+      return { next: { step: "evaluate", delaySeconds: 60 }, note: "merged; waiting for GitHub merge commit" };
+    }
+    const target = repoFor(issue);
+    // A dev-base merge is not production. Its rollback point must be captured
+    // later, immediately before/at the proven main promotion; recording here
+    // could roll back unrelated good releases made in between.
+    const rollbackReady = target?.base === "main"
+      ? await recordPreviousProductionDeployment(
+        release,
+        issue,
+        [mergeSha],
+        [mergeSha, pr.head.sha],
+      )
+      : true;
+    if (!rollbackReady) {
+      await update(
+        release,
+        issue,
+        "escalated",
+        { merge_sha: mergeSha, head_sha: pr.head.sha },
+        "Pull request was already merged, but Bloom could not prove which prior production deployment is safe to restore. A person must verify the release and rollback point.",
+      );
+      return { note: "merged; rollback point could not be proven" };
+    }
+    // A person may merge an approved PR before Bloom's next evaluation. Persist
+    // the same release facts as the automated merge path before deployment.
+    await update(release, issue, "merged", { merge_sha: mergeSha, head_sha: pr.head.sha }, "Pull request was merged outside Bloom; continuing release tracking");
+    const merged = await loadIssue(release, issueId);
+    await update(release, merged, "deploying", {});
+    return { next: { step: "deploy", delaySeconds: 60 }, note: "existing merge recorded; tracking deployment" };
+  }
   if (pr.state === "closed") {
     await update(release, issue, "failed", {}, "Fix PR was closed without merging");
     return { note: "PR closed" };
   }
-  const policy = resolvePolicy(await rpc("setting", { key: "release_policy" }), (await rpc("setting", { key: "auto_release_enabled" })) === true);
+  // A delayed repair report can arrive after polling has already moved the
+  // issue into review. Never let its explicit human-review signal be bypassed
+  // by automatic eligibility or an approval that predates that report. The
+  // report RPC clears the old approval binding, so a later person approval of
+  // the current head remains an intentional override.
+  if (issue.reproduction?.needs_human === true &&
+    (issue.status !== "approved" || !issue.approved_head_sha)) {
+    const eligibility = {
+      eligible: false,
+      reasons: ["repair report requires human review"],
+    };
+    if (issue.status !== "awaiting_approval") {
+      await update(
+        release,
+        issue,
+        "awaiting_approval",
+        { eligibility },
+        "The repair report requires human review before this pull request can merge",
+      );
+    } else {
+      await update(release, issue, null, { eligibility });
+    }
+    return { note: "awaiting approval: repair report requires human review" };
+  }
+  const releasePolicy = await rpc("setting", { key: "release_policy" });
+  const policy = resolvePolicy(releasePolicy, (await rpc("setting", { key: "auto_release_enabled" })) === true);
   const kinds = issue.tickets.length ? "bug" : "unknown";
   // Automatic rollback exists only where Bloom can redeploy the previous production build.
   const rollbackTarget = await vercelTarget(issue.repository);
@@ -179,7 +366,10 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
     intendedBehaviourEstablished: issue.reproduction?.intended_behaviour_established === true,
     productsTouched: 1,
     labels: [],
-    hasProductionVerification: Array.isArray(issue.reproduction?.verification) && (issue.reproduction?.verification as unknown[]).length > 0,
+    hasProductionVerification: verificationChecksForPolicy(
+      releasePolicy,
+      issue.repository!,
+    ) !== null,
     hasRollback: rollbackTarget !== null,
   }, facts);
   const checksPending = facts.checks.some((c) => c.status !== "completed");
@@ -187,7 +377,7 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
     // A person approved; still require green checks and no open threads.
     // Jon's approval replaces the policy's area/size/review limits, never CI: every existing check
     // must be complete and green, no review may request changes, and no thread may be open.
-    const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|no required checks configured|a check failed|unresolved|requested changes|not mergeable|empty change/.test(r));
+    const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|no required checks configured|a check failed|unresolved|requested changes|not mergeable|empty change|no production verification|no supported rollback/.test(r));
     // The approval covers exactly the commit Jon reviewed. A new push needs a new approval.
     if (issue.approved_head_sha && issue.approved_head_sha !== pr.head.sha) {
       await update(release, issue, "awaiting_approval", { eligibility, head_sha: pr.head.sha }, "The pull request changed after approval; it needs approving again");
@@ -222,20 +412,157 @@ async function vercel<T>(method: string, path: string, target: VercelTarget): Pr
     method, headers: { Authorization: `Bearer ${env("BLOOM_VERCEL_TOKEN")}` }, signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) throw new BloomError(502, "vercel_error", `Vercel ${method} ${path}: ${res.status}`);
-  return res.status === 204 ? (undefined as T) : await res.json() as T;
+  if (res.status === 204) return undefined as T;
+  const body = await readResponseText(res, 2 * 1024 * 1024);
+  return (body ? JSON.parse(body) : undefined) as T;
+}
+
+interface VercelDeployment {
+  uid: string;
+  url: string;
+  meta?: Record<string, unknown>;
+  readyState?: string;
+}
+
+interface VercelProjectAlias {
+  target?: string;
+  redirect?: string | null;
+  deployment?: {
+    id?: string;
+    uid?: string;
+    url?: string;
+    meta?: Record<string, unknown>;
+    readyState?: string;
+  } | null;
+}
+
+function vercelDeploymentCommit(deployment: VercelDeployment): string | null {
+  for (const key of ["githubCommitSha", "gitCommitSha", "commitSha"]) {
+    const value = deployment.meta?.[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function projectAliasDeployment(alias: VercelProjectAlias): VercelDeployment | null {
+  const deployment = alias.deployment;
+  const uid = deployment?.uid ?? deployment?.id;
+  if (!deployment || !uid || !deployment.url || deployment.readyState !== "READY") return null;
+  return {
+    uid,
+    url: deployment.url,
+    meta: deployment.meta,
+    readyState: deployment.readyState,
+  };
+}
+
+async function deploymentContainsAny(
+  repository: string,
+  deployment: VercelDeployment,
+  forbiddenAncestorShas: string[],
+  excluded: Set<string>,
+): Promise<boolean | null> {
+  const sha = vercelDeploymentCommit(deployment);
+  if (!sha) return null;
+  if (excluded.has(sha.toLowerCase())) return true;
+  for (const marker of forbiddenAncestorShas) {
+    if (await commitContains(repository, marker, sha)) return true;
+  }
+  return false;
+}
+
+/** Record only a deployment whose commit metadata proves it predates this fix. */
+async function recordPreviousProductionDeployment(
+  release: Caller,
+  issue: EngineeringIssue,
+  forbiddenAncestorShas: string[],
+  excludeShas: string[],
+  replaceExisting = false,
+): Promise<boolean> {
+  const target = await vercelTarget(issue.repository!);
+  if (!target) return true;
+  if (issue.rollback?.previous_deployment_id && !replaceExisting) return true;
+  const excluded = new Set(excludeShas.map((sha) => sha.toLowerCase()));
+  try {
+    // READY deployment history is not authoritative: a failed deployment stays
+    // READY after its aliases are rolled back. First prove which deployment is
+    // serving every production alias, then consider only that deployment or
+    // older history if the repair is already live.
+    const project = await vercel<{ alias?: VercelProjectAlias[] }>(
+      "GET",
+      `/v9/projects/${encodeURIComponent(target.projectId)}`,
+      target,
+    );
+    const productionAliases = (project.alias ?? []).filter((alias) =>
+      alias.target?.toUpperCase() === "PRODUCTION" && !alias.redirect
+    );
+    if (productionAliases.length === 0) return false;
+    const servingDeployments = productionAliases.map(projectAliasDeployment);
+    if (servingDeployments.some((deployment) => deployment === null)) return false;
+    const serving = servingDeployments[0]!;
+    if (servingDeployments.some((deployment) => deployment!.uid !== serving.uid)) return false;
+
+    const list = await vercel<{ deployments: VercelDeployment[] }>(
+      "GET",
+      `/v6/deployments?projectId=${encodeURIComponent(target.projectId)}&target=production&state=READY&limit=20`,
+      target,
+    );
+    const servingUnsafe = await deploymentContainsAny(
+      issue.repository!,
+      serving,
+      forbiddenAncestorShas,
+      excluded,
+    );
+    if (servingUnsafe === null) return false;
+
+    let previous: VercelDeployment | undefined = servingUnsafe ? undefined : serving;
+    if (!previous) {
+      const servingIndex = list.deployments.findIndex((deployment) => deployment.uid === serving.uid);
+      // When the repair is already serving, only deployments older than the
+      // current alias target can be rollback candidates. Newer READY history
+      // may be failed releases whose aliases were already moved away.
+      if (servingIndex < 0) return false;
+      for (const deployment of list.deployments.slice(servingIndex + 1)) {
+        const unsafe = await deploymentContainsAny(
+          issue.repository!,
+          deployment,
+          forbiddenAncestorShas,
+          excluded,
+        );
+        if (unsafe === false) {
+          previous = deployment;
+          break;
+        }
+      }
+    }
+    if (!previous) return false;
+    await update(release, issue, null, {
+      rollback: {
+        previous_deployment_id: previous.uid,
+        previous_url: previous.url,
+        previous_commit_sha: vercelDeploymentCommit(previous),
+        provider: "vercel",
+      },
+    });
+    return true;
+  } catch (error) {
+    console.warn("could not prove previous deployment", String(error));
+    return false;
+  }
 }
 
 async function merge(release: Caller, issueId: string, sha: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
-  // Record the production deployment that is serving now, so a failed release can be rolled back to it.
-  const target = await vercelTarget(issue.repository!);
-  if (target) {
-    try {
-      const list = await vercel<{ deployments: Array<{ uid: string; url: string }> }>("GET", `/v6/deployments?projectId=${target.projectId}&target=production&state=READY&limit=1`, target);
-      if (list.deployments[0]) await update(release, issue, null, { rollback: { previous_deployment_id: list.deployments[0].uid, previous_url: list.deployments[0].url, provider: "vercel" } });
-    } catch (e) {
-      console.warn("could not record previous deployment", String(e));
-    }
+  const base = repoFor(issue)?.base ?? "main";
+  if (base === "main" && !(await recordPreviousProductionDeployment(release, issue, [sha], [sha]))) {
+    await update(
+      release,
+      issue,
+      "escalated",
+      {},
+      "Bloom could not prove which production deployment is safe to restore, so it did not merge automatically.",
+    );
+    return { note: "merge blocked: rollback point could not be proven" };
   }
   try {
     const out = await mergePullRequest(issue.repository!, issue.pr_number!, sha, `fix: ${issue.title} (Bloom ${issue.id.slice(0, 8)})`);
@@ -254,29 +581,195 @@ export async function deploy(release: Caller, issueId: string): Promise<StepResu
   if (!issue.merge_sha || !issue.repository) return { note: "no merge" };
   if (!["merged", "deploying"].includes(issue.status)) return { note: `status ${issue.status}` };
   const base = Object.values(PRODUCT_REPOSITORIES).find((r) => r.repository.toLowerCase() === issue.repository!.toLowerCase())?.base ?? "main";
+  let deploymentSha = issue.merge_sha;
+  let promotion: Record<string, unknown> = {};
   if (base !== "main") {
-    // e.g. BloomSites: dev is staging; production moves only by a person-authorised dev → main release.
-    await update(release, issue, null, { deployment: { state: "awaiting_production_release", base, note: `Merged to ${base}; production release is a person-authorised ${base} → main merge.` } });
-    return { next: { step: "deploy", delaySeconds: 3600 }, note: "awaiting person-authorised production release" };
+    // e.g. BloomSites: dev is staging; production moves only by a person-authorised
+    // dev → main release. Bloom observes that promotion but never performs it.
+    const productionSha = await productionCommitForRepair(
+      issue.repository,
+      issue.merge_sha,
+      base,
+    );
+    if (!productionSha) {
+      await update(release, issue, null, { deployment: { state: "awaiting_production_release", base, source_merge_sha: issue.merge_sha, note: `Merged to ${base}; production release is a person-authorised ${base} → main merge.` } });
+      return { next: { step: "deploy", delaySeconds: 3600 }, note: "awaiting person-authorised production release" };
+    }
+    deploymentSha = productionSha;
+    promotion = { source_merge_sha: issue.merge_sha, production_sha: productionSha, promoted_from: base, production_branch: "main" };
+    // Refresh at the observed promotion and use the production SHA as the
+    // ancestry marker. This rejects both the promotion deployment and every
+    // later production descendant while selecting the newest proven-safe build.
+    if (!(await recordPreviousProductionDeployment(
+      release,
+      issue,
+      [issue.merge_sha, productionSha],
+      [issue.merge_sha, productionSha],
+      true,
+    ))) {
+      await update(
+        release,
+        issue,
+        "escalated",
+        { deployment: { ...promotion, state: "rollback_point_unproven" } },
+        "Production promotion was found, but Bloom could not prove which immediately prior deployment is safe to restore. A person must verify the release and rollback point.",
+      );
+      return { note: "promotion found; rollback point could not be proven" };
+    }
+  } else if (!(await recordPreviousProductionDeployment(
+    release,
+    issue,
+    [issue.merge_sha],
+    [issue.merge_sha],
+    true,
+  ))) {
+    // Re-prove this immediately before tracking production. Another person may
+    // have shipped a good release after Bloom's pre-merge snapshot; rolling
+    // back past that release would remove unrelated good work.
+    await update(
+      release,
+      issue,
+      "escalated",
+      { deployment: { state: "rollback_point_unproven", production_sha: issue.merge_sha } },
+      "Bloom could not prove the newest safe production deployment immediately before this release. A person must verify the release and rollback point.",
+    );
+    return { note: "deployment blocked: rollback point could not be proven" };
   }
-  const dep = await productionDeployment(issue.repository, issue.merge_sha);
+  const dep = await productionDeployment(issue.repository, deploymentSha);
   if (dep.state === "pending") {
     const waited = Number(issue.deployment?.polls ?? 0) + 1;
     if (waited > 24) {
-      await update(release, issue, "failed", { deployment: { ...dep, polls: waited } }, "Production deployment did not complete within 2 hours");
+      await update(release, issue, "failed", { deployment: { ...dep, ...promotion, polls: waited } }, "Production deployment did not complete within 2 hours");
       return { note: "deployment timeout" };
     }
-    await update(release, issue, null, { deployment: { ...dep, polls: waited } });
+    await update(release, issue, null, { deployment: { ...dep, ...promotion, polls: waited } });
     return { next: { step: "deploy", delaySeconds: 300 }, note: "deployment pending" };
   }
   if (dep.state === "failure") {
-    await update(release, issue, "failed", { deployment: dep }, "Production deployment failed. The previous production deployment is still serving; no rollback was needed.");
+    await update(release, issue, "failed", { deployment: { ...dep, ...promotion } }, "Production deployment failed. The previous production deployment is still serving; no rollback was needed.");
     return { note: "deployment failed" };
   }
-  await update(release, issue, "deployed", { deployment: dep });
+  await update(release, issue, "deployed", { deployment: { ...dep, ...promotion } });
   const deployed = await loadIssue(release, issueId);
   await update(release, deployed, "verifying", {});
   return { next: { step: "verify", delaySeconds: 30 }, note: "deployed" };
+}
+
+async function runProductionChecks(
+  releasePolicy: unknown,
+  repository: string,
+  checks: VerificationCheck[],
+) {
+  const results = [];
+  for (const c of checks) {
+    let resultUrl = "[rejected]";
+    try {
+      const safeUrl = approvedVerificationUrl(releasePolicy, repository, c.url);
+      if (!safeUrl) throw new Error("URL is not an approved production target");
+      resultUrl = safeUrl;
+      const res = await fetch(safeUrl, {
+        redirect: "error",
+        signal: AbortSignal.timeout(15000),
+        headers: { "User-Agent": "bloom-support-verifier" },
+      });
+      const text = await readResponseText(res, 1024 * 1024);
+      const pass = res.status === (c.expect_status ?? 200) &&
+        (!c.contains || text.includes(c.contains)) &&
+        (!c.not_contains || !text.includes(c.not_contains));
+      results.push({ url: safeUrl, status: res.status, pass });
+    } catch (e) {
+      results.push({
+        url: resultUrl,
+        error: String(e).slice(0, 200),
+        pass: false,
+      });
+    }
+  }
+  return results;
+}
+
+type RollbackConfirmation =
+  | { state: "pending"; polls: number }
+  | { state: "failed"; reason: string; polls: number }
+  | { state: "confirmed"; polls: number; aliases: number };
+
+/**
+ * Vercel's rollback POST only accepts the request. Confirm the provider's
+ * alias job targets the recorded deployment and that every production alias
+ * finished mapping before claiming traffic is restored.
+ */
+async function confirmVercelRollback(
+  target: VercelTarget,
+  rollback: NonNullable<EngineeringIssue["rollback"]>,
+): Promise<RollbackConfirmation> {
+  const previous = rollback.previous_deployment_id!;
+  const requestedAt = Date.parse(rollback.requested_at ?? "");
+  const polls = Number(rollback.polls ?? 0) + 1;
+  if (!Number.isFinite(requestedAt)) {
+    return { state: "failed", reason: "rollback request time is missing", polls };
+  }
+  const project = await vercel<{
+    lastAliasRequest?: {
+      type?: string;
+      jobStatus?: string;
+      requestedAt?: number;
+      toDeploymentId?: string;
+    } | null;
+  }>("GET", `/v9/projects/${encodeURIComponent(target.projectId)}`, target);
+  const job = project.lastAliasRequest;
+  if (!job || !job.requestedAt || job.requestedAt < requestedAt - 1000) {
+    return polls > 20
+      ? { state: "failed", reason: "rollback confirmation timed out", polls }
+      : { state: "pending", polls };
+  }
+  if (job.type !== "rollback" || job.toDeploymentId !== previous) {
+    return {
+      state: "failed",
+      reason: "rollback was superseded by another production alias operation",
+      polls,
+    };
+  }
+  if (["failed", "skipped"].includes(String(job.jobStatus))) {
+    return { state: "failed", reason: `Vercel rollback ${job.jobStatus}`, polls };
+  }
+  if (!["succeeded"].includes(String(job.jobStatus))) {
+    return polls > 20
+      ? { state: "failed", reason: "rollback confirmation timed out", polls }
+      : { state: "pending", polls };
+  }
+  const aliases = await vercel<{
+    aliases?: Array<{
+      alias?: { alias?: string; deploymentId?: string };
+      status?: string;
+    }>;
+    pagination?: { next?: number | null };
+  }>(
+    "GET",
+    `/v9/projects/${encodeURIComponent(target.projectId)}/rollback/aliases?limit=100&since=${job.requestedAt}`,
+    target,
+  );
+  if (!Array.isArray(aliases.aliases) || aliases.aliases.length === 0) {
+    return { state: "failed", reason: "Vercel returned no production aliases to confirm", polls };
+  }
+  if (aliases.pagination?.next) {
+    return { state: "failed", reason: "rollback alias confirmation was incomplete", polls };
+  }
+  const failed = aliases.aliases.find((alias) =>
+    alias.alias?.deploymentId !== previous || alias.status === "failed" || alias.status === "skipped"
+  );
+  if (failed) {
+    return {
+      state: "failed",
+      reason: "one or more production aliases did not map to the rollback deployment",
+      polls,
+    };
+  }
+  if (aliases.aliases.some((alias) => alias.status !== "completed")) {
+    return polls > 20
+      ? { state: "failed", reason: "rollback alias confirmation timed out", polls }
+      : { state: "pending", polls };
+  }
+  return { state: "confirmed", polls, aliases: aliases.aliases.length };
 }
 
 /**
@@ -286,39 +779,119 @@ export async function deploy(release: Caller, issueId: string): Promise<StepResu
 export async function verify(release: Caller, issueId: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
   if (issue.status !== "verifying") return { note: `status ${issue.status}` };
-  const checks = (Array.isArray(issue.reproduction?.verification) ? issue.reproduction!.verification : []) as Array<{ url: string; expect_status?: number; contains?: string; not_contains?: string }>;
-  if (!checks.length) {
+  const releasePolicy = await rpc("setting", { key: "release_policy" });
+  const checks = verificationChecksForPolicy(releasePolicy, issue.repository!);
+  if (!checks) {
     await update(release, issue, "escalated", {}, "Deployed, but no production verification is defined — a person must verify");
     return { note: "no checks" };
   }
-  const results = [];
-  for (const c of checks.slice(0, 10)) {
+  const target = await vercelTarget(issue.repository!);
+  const previous = issue.rollback?.previous_deployment_id;
+  if (target && previous && issue.rollback?.status === "requested") {
     try {
-      const u = new URL(c.url);
-      if (u.protocol !== "https:") throw new Error("https only");
-      const res = await fetch(u, { redirect: "follow", signal: AbortSignal.timeout(15000), headers: { "User-Agent": "bloom-support-verifier" } });
-      const text = await res.text();
-      const pass = res.status === (c.expect_status ?? 200) && (!c.contains || text.includes(c.contains)) && (!c.not_contains || !text.includes(c.not_contains));
-      results.push({ url: c.url, status: res.status, pass });
+      const confirmation = await confirmVercelRollback(target, issue.rollback);
+      if (confirmation.state === "pending") {
+        await update(release, issue, null, {
+          rollback: { ...issue.rollback, polls: confirmation.polls },
+        });
+        return {
+          next: { step: "verify", delaySeconds: 30 },
+          note: "rollback accepted; waiting for production aliases",
+        };
+      }
+      if (confirmation.state === "failed") {
+        await update(release, issue, "failed", {
+          rollback: {
+            ...issue.rollback,
+            status: "confirmation_failed",
+            polls: confirmation.polls,
+          },
+        }, `Vercel accepted rollback, but Bloom could not confirm restored traffic (${confirmation.reason}). Check production and complete rollback manually now.`);
+        return { note: "rollback confirmation failed" };
+      }
+      const recoveryResults = await runProductionChecks(
+        releasePolicy,
+        issue.repository!,
+        checks,
+      );
+      if (!recoveryResults.every((result) => result.pass)) {
+        await update(release, issue, "failed", {
+          rollback: {
+            ...issue.rollback,
+            status: "smoke_failed",
+            polls: confirmation.polls,
+            aliases_confirmed: confirmation.aliases,
+            recovery_verification: {
+              passed: false,
+              scope: "release_smoke",
+              checks: recoveryResults,
+              at: new Date().toISOString(),
+            },
+          },
+        }, "Vercel confirmed the rollback aliases, but the recovery smoke checks still failed. Production needs immediate human investigation.");
+        return { note: "rollback recovery smoke failed" };
+      }
+      await update(release, issue, "rolled_back", {
+        rollback: {
+          ...issue.rollback,
+          status: "confirmed",
+          polls: confirmation.polls,
+          aliases_confirmed: confirmation.aliases,
+          rolled_back_at: new Date().toISOString(),
+          recovery_verification: {
+            passed: true,
+            scope: "release_smoke",
+            checks: recoveryResults,
+            at: new Date().toISOString(),
+          },
+        },
+      }, "Production verification failed; Vercel confirmed every production alias was restored to the previous deployment and Bloom's recovery smoke checks passed. The fix still needs a person.");
+      return { note: "verification failed; rollback confirmed" };
     } catch (e) {
-      results.push({ url: c.url, error: String(e).slice(0, 200), pass: false });
+      await update(release, issue, "failed", {
+        rollback: { ...issue.rollback, status: "confirmation_failed" },
+      }, `Vercel accepted rollback, but confirmation failed (${e instanceof Error ? e.message : e}). Check production and complete rollback manually now.`);
+      return { note: "rollback confirmation failed" };
     }
   }
+  const results = await runProductionChecks(releasePolicy, issue.repository!, checks);
   const passed = results.every((r) => r.pass);
   if (passed) {
-    await update(release, issue, "verified", { verification: { passed: true, checks: results, at: new Date().toISOString() } });
+    await update(release, issue, "verified", {
+      verification: {
+        passed: true,
+        scope: "release_smoke",
+        checks: results,
+        at: new Date().toISOString(),
+      },
+    });
     return { note: "verified" };
   }
-  const verification = { passed: false, checks: results, at: new Date().toISOString() };
+  const verification = {
+    passed: false,
+    scope: "release_smoke",
+    checks: results,
+    at: new Date().toISOString(),
+  };
   // Supported rollback: Vercel instant rollback to the deployment recorded before the merge.
-  const target = await vercelTarget(issue.repository!);
-  const previous = (issue as unknown as { rollback?: { previous_deployment_id?: string } }).rollback?.previous_deployment_id;
   if (target && previous) {
     try {
       await vercel("POST", `/v1/projects/${target.projectId}/rollback/${previous}`, target);
-      await update(release, issue, "rolled_back", { verification, rollback: { previous_deployment_id: previous, provider: "vercel", rolled_back_at: new Date().toISOString() } },
-        "Production verification failed; Bloom rolled production back to the previous deployment. The fix needs a person.");
-      return { note: "verification failed; rolled back" };
+      await update(release, issue, null, {
+        verification,
+        rollback: {
+          ...issue.rollback,
+          previous_deployment_id: previous,
+          provider: "vercel",
+          status: "requested",
+          requested_at: new Date().toISOString(),
+          polls: 0,
+        },
+      }, "Production verification failed. Vercel accepted the rollback request; Bloom is waiting to confirm every production alias before reporting recovery.");
+      return {
+        next: { step: "verify", delaySeconds: 30 },
+        note: "verification failed; rollback requested",
+      };
     } catch (e) {
       await update(release, issue, "failed", { verification }, `Verification failed and automatic rollback failed (${e instanceof Error ? e.message : e}). Roll back in Vercel now.`);
       return { note: "verification failed; rollback failed" };

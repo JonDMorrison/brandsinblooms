@@ -27,6 +27,7 @@ const ENV: Record<string, string> = {
 };
 
 // deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 const sql = DB_URL ? postgres(DB_URL, { max: 4, onnotice: () => {} }) : null;
 
@@ -75,11 +76,18 @@ async function tableSelect(table: string, url: URL, accept: string) {
 // ---------------------------------------------------------------------------
 const resendSent: Array<{ to: string[]; cc?: string[]; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
 const resendReceived = new Map<string, Record<string, unknown>>();
+const attachmentDownloads = new Map<string, Uint8Array>();
 let resendFailNext = 0;
 const githubCalls: Array<{ method: string; path: string; body: unknown }> = [];
+const vercelCalls: Array<{ method: string; path: string }> = [];
 const prs: Record<string, Any> = {};
+const mainPromotions = new Map<string, { contains: Set<string>; head: string }>();
+const commitContainments = new Set<string>();
 let deploymentState: "success" | "failure" = "success";
 let dispatchFailNext = 0;
+let storageFailNext = 0;
+let vercelServingSha = "prior-serving-sha";
+let vercelRollbackRequested = false;
 
 function githubStub(method: string, path: string, body: unknown): Response {
   githubCalls.push({ method, path, body });
@@ -108,7 +116,22 @@ function githubStub(method: string, path: string, body: unknown): Response {
     prs[m[1]].merged = true;
     return ok({ merged: true, sha: "merge" + m[2].padStart(36, "0") });
   }
-  if (/\/deployments\?sha=/.test(path)) return ok([{ id: 77, environment: "Production", production_environment: true }]);
+  if ((m = path.match(/^\/repos\/([^/]+\/[^/]+)\/compare\/([^.]*)\.\.\.main$/)) && method === "GET") {
+    const promotion = mainPromotions.get(m[1]);
+    return ok({ status: promotion?.contains.has(m[2]) ? (promotion.head === m[2] ? "identical" : "ahead") : "diverged" });
+  }
+  if ((m = path.match(/^\/repos\/([^/]+\/[^/]+)\/compare\/([^.]*)\.\.\.([^?]+)$/)) && method === "GET") {
+    const key = `${m[1]}:${decodeURIComponent(m[2])}:${decodeURIComponent(m[3])}`;
+    return ok({ status: commitContainments.has(key) ? "ahead" : "diverged" });
+  }
+  if ((m = path.match(/^\/repos\/([^/]+\/[^/]+)\/branches\/main$/)) && method === "GET") {
+    return ok({ commit: { sha: mainPromotions.get(m[1])?.head ?? "main-head" } });
+  }
+  if (/\/deployments\?sha=/.test(path)) return ok([
+    { id: 77, environment: "Production – primary", production_environment: false },
+    { id: 76, environment: "Preview – pull request", production_environment: false },
+    { id: 75, environment: "Production – demo", production_environment: false },
+  ]);
   if (/\/deployments\/77\/statuses/.test(path)) return ok([{ state: deploymentState, environment_url: "https://app.test" }]);
   return ok({ message: `unstubbed ${method} ${path}` }, 404);
 }
@@ -182,7 +205,13 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
       return new Response(JSON.stringify({ id: rows[0].id, email: rows[0].email, user_metadata: rows[0].raw_user_meta_data, aud: "authenticated" }), { status: 200 });
     }
     if (url.pathname.startsWith("/storage/v1/object/sign/")) return new Response(JSON.stringify({ signedURL: "/object/sign/x?token=t" }), { status: 200 });
-    if (url.pathname.startsWith("/storage/v1/object/")) return new Response(JSON.stringify({ Key: url.pathname }), { status: 200 });
+    if (url.pathname.startsWith("/storage/v1/object/")) {
+      if (storageFailNext > 0) {
+        storageFailNext--;
+        return Response.json({ message: "temporary storage failure" }, { status: 503 });
+      }
+      return new Response(JSON.stringify({ Key: url.pathname }), { status: 200 });
+    }
     return new Response("{}", { status: 404 });
   }
   if (url.hostname === "api.resend.com" && url.pathname.startsWith("/emails/receiving/")) {
@@ -199,12 +228,57 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
     return new Response(JSON.stringify({ id: `re_${resendSent.length}` }), { status: 200 });
   }
-  if (url.hostname === "api.vercel.com" && req.method === "GET" && url.pathname === "/v6/deployments") {
-    return new Response(JSON.stringify({ deployments: [{ uid: "dpl_previous", url: "previous.vercel.test" }] }), { status: 200 });
+  if (url.hostname === "api.vercel.com") {
+    vercelCalls.push({ method: req.method, path: url.pathname + url.search });
+    if (req.method === "GET" && url.pathname === "/v6/deployments") {
+      return new Response(JSON.stringify({ deployments: [
+        { uid: "dpl_current", url: "current.vercel.test", meta: { githubCommitSha: vercelServingSha } },
+        { uid: "dpl_previous", url: "previous.vercel.test", meta: { githubCommitSha: "prior-production-sha" } },
+      ] }), { status: 200 });
+    }
+    if (req.method === "POST" && /\/v1\/projects\/[^/]+\/rollback\/[^/]+$/.test(url.pathname)) {
+      vercelRollbackRequested = true;
+      return new Response(null, { status: 201 });
+    }
+    if (req.method === "GET" && /\/v9\/projects\/[^/]+$/.test(url.pathname)) {
+      const serving = vercelRollbackRequested
+        ? { uid: "dpl_previous", url: "previous.vercel.test", meta: { githubCommitSha: "prior-production-sha" } }
+        : { uid: "dpl_current", url: "current.vercel.test", meta: { githubCommitSha: vercelServingSha } };
+      return Response.json({
+        alias: [
+          { target: "PRODUCTION", domain: "bloomsuite.app", deployment: { ...serving, readyState: "READY" } },
+          { target: "PRODUCTION", domain: "www.bloomsuite.app", deployment: { ...serving, readyState: "READY" } },
+        ],
+        lastAliasRequest: vercelRollbackRequested
+          ? {
+            type: "rollback",
+            jobStatus: "succeeded",
+            requestedAt: Date.now(),
+            toDeploymentId: "dpl_previous",
+          }
+          : null,
+      });
+    }
+    if (req.method === "GET" && /\/v9\/projects\/[^/]+\/rollback\/aliases$/.test(url.pathname)) {
+      return Response.json({
+        aliases: [
+          { alias: { alias: "bloomsuite.app", deploymentId: "dpl_previous" }, status: "completed" },
+          { alias: { alias: "www.bloomsuite.app", deploymentId: "dpl_previous" }, status: "completed" },
+        ],
+        pagination: { next: null },
+      });
+    }
   }
   if (url.hostname === "raw.test") {
     const raw = rawMessages.get(url.pathname.slice(1));
     return new Response(raw ?? "", { status: raw ? 200 : 404 });
+  }
+  if (url.hostname === "attachment.test") {
+    const body = attachmentDownloads.get(url.pathname);
+    return new Response(body ? new Uint8Array(body) : "", {
+      status: body ? 200 : 404,
+      headers: body ? { "Content-Length": String(body.byteLength) } : {},
+    });
   }
   if (url.hostname === "cloudflare-dns.com") {
     const name = url.searchParams.get("name") ?? "";
@@ -213,7 +287,12 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     return new Response(JSON.stringify(key ? { Status: 0, Answer: [{ name, type: 16, data: `"p=${key.spki}"` }] } : { Status: 3 }), { status: 200 });
   }
   if (url.hostname === "api.github.com") return githubStub(req.method, url.pathname + url.search, bodyText ? JSON.parse(bodyText) : null);
-  if (url.hostname === "verify.test" || (url.hostname === "bloomsuite.app" && url.pathname === "/campaigns/preview")) return new Response("<h1>Campaign preview works</h1>", { status: 200 });
+  if (url.hostname === "verify.test" || (url.hostname === "bloomsuite.app" && url.pathname === "/campaigns/preview")) {
+    const text = url.pathname === "/rollback" && vercelRollbackRequested
+      ? "never-present"
+      : "<h1>Campaign preview works</h1>";
+    return new Response(text, { status: 200 });
+  }
   if (url.hostname === "api.openai.com") throw new Error("OpenAI must not be called in the harness (no key configured)");
   return realFetch(input as Request, init);
 }) as typeof fetch;
@@ -331,15 +410,96 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   });
 
   let crmTicket = "", cmsTicket = "", posTicket = "";
+  let releasePolicyValue: Any = null;
   await t.step("reports from all three products land in one queue; duplicate delivery is idempotent", async () => {
-    const crm = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: { subject: "Campaign preview button broken", body: "Campaign preview is broken: clicking Preview does nothing. Expected it to open the preview of my newsletter.", context: { page_url: "https://bloomsuite.app/campaigns/1?token=secret", password: "x" }, idempotency_key: "k-crm-1" } });
+    const crmReport = { subject: "Campaign preview button broken", body: "Campaign preview is broken: clicking Preview does nothing. Expected it to open the preview of my newsletter.", context: { page_url: "https://bloomsuite.app/campaigns/1?token=secret", password: "x" }, idempotency_key: "k-crm-1" };
+    const crm = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: crmReport });
     assertEquals(crm.status, 201, JSON.stringify(crm.json));
     crmTicket = crm.json.ticket_id;
-    const again = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: { subject: "Campaign preview button broken", body: "Campaign preview is broken: clicking Preview does nothing. Expected it to open the preview of my newsletter.", idempotency_key: "k-crm-1" } });
+    const again = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: crmReport });
     assertEquals(again.json.ticket_id, crmTicket);
     assert(again.json.duplicate_delivery);
     const ctx = (await ticketRow(crmTicket)).context;
     assert(!("password" in ctx) && String(ctx.page_url).includes("token=%5Bredacted%5D"), "context sanitized");
+
+    const attachmentReport = {
+      subject: "Attachment durability",
+      body: "The diagnostic attachment must never be silently discarded.",
+      idempotency_key: "k-crm-attachment-retry",
+      attachments: [{
+        file_name: "browser.log",
+        content_type: "text/plain",
+        data_base64: btoa("Save failed with status 503"),
+      }],
+    };
+    storageFailNext = 1;
+    const lostUpload = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: attachmentReport,
+    });
+    assertEquals(lostUpload.status, 201, JSON.stringify(lostUpload.json));
+    assertEquals(lostUpload.json.attachments.stored, 0);
+    assertEquals(lostUpload.json.attachments.failed.length, 1, "storage loss is explicit in the receipt");
+    const recoveredUpload = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: attachmentReport,
+    });
+    assertEquals(recoveredUpload.status, 201, JSON.stringify(recoveredUpload.json));
+    assert(recoveredUpload.json.duplicate_delivery, "exact retry returns the committed ticket");
+    assertEquals(recoveredUpload.json.attachments, { stored: 1, failed: [] }, "exact retry completes the missing attachment");
+    const changedUpload = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: {
+        ...attachmentReport,
+        body: "A changed body must not mutate the already received request.",
+        attachments: [{
+          file_name: "different.log",
+          content_type: "text/plain",
+          data_base64: btoa("different evidence"),
+        }],
+      },
+    });
+    assertEquals(changedUpload.status, 409, "changed body/file cannot reuse the committed idempotency key");
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.attachments WHERE ticket_id = ${lostUpload.json.ticket_id}`)[0].n),
+      1,
+      "conflicting retry never adds a changed attachment",
+    );
+
+    const concurrentReport = {
+      body: "Two simultaneous deliveries must still create exactly one ticket.",
+      idempotency_key: "k-crm-concurrent",
+    };
+    const [concurrentA, concurrentB] = await Promise.all([
+      call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: concurrentReport }),
+      call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: concurrentReport }),
+    ]);
+    assertEquals([concurrentA.status, concurrentB.status], [201, 201]);
+    assertEquals(concurrentA.json.ticket_id, concurrentB.json.ticket_id, "concurrent exact retries share one ticket");
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets WHERE id = ${concurrentA.json.ticket_id}`)[0].n),
+      1,
+    );
+
+    const beforeInvalidAttachment = Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n);
+    const invalidAttachment = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: {
+        body: "This invalid attachment must be rejected before ticket creation.",
+        idempotency_key: "k-crm-invalid-attachment",
+        attachments: [{
+          file_name: "../browser.log",
+          content_type: "text/plain",
+          data_base64: btoa("diagnostic"),
+        }],
+      },
+    });
+    assertEquals(invalidAttachment.status, 400);
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n),
+      beforeInvalidAttachment,
+      "invalid attachment is rejected before creating a ticket",
+    );
 
     // A read-only key reads but can change nothing, on any write route (enforced centrally).
     const ro = (await api("POST", "/keys", tok(U.jeff), { label: "Jeff read-only", scopes: ["read"] })).json.token;
@@ -351,14 +511,188 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const cms = await signed("cms", { identity: { external_user_id: "cms-user-1", email: "web@greenleaf.test", name: "Will", external_account_id: "site-1111", account_name: "Greenleaf Website" }, report: { body: "How do I change my store hours shown in the footer?", idempotency_key: "cms:1" } });
     assertEquals(cms.status, 201, JSON.stringify(cms.json));
     cmsTicket = cms.json.ticket_id;
+    const accountBoundReport = {
+      body: "The same product request cannot silently move between client accounts.",
+      idempotency_key: "cms:account-bound",
+    };
+    assertEquals((await signed("cms", {
+      identity: { external_user_id: "cms-user-1", email: "web@greenleaf.test", external_account_id: "site-1111", account_name: "Greenleaf Website" },
+      report: accountBoundReport,
+    })).status, 201);
+    assertEquals((await signed("cms", {
+      identity: { external_user_id: "cms-user-1", email: "web@greenleaf.test", external_account_id: "site-2222", account_name: "Second Website" },
+      report: accountBoundReport,
+    })).status, 409, "server-resolved account participates in the fingerprint");
     const pos = await signed("pos", { identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" }, report: { subject: "Receipt printer broken after update", body: "Receipt printer is broken since this morning's update: it prints nothing. Expected a receipt after each sale.", context: { screen: "sale", saved_locally_at: new Date().toISOString() }, idempotency_key: "pos:1" } });
     assertEquals(pos.status, 201, JSON.stringify(pos.json));
     posTicket = pos.json.ticket_id;
+
+    const directApiRequest = {
+      subject: "Direct API idempotency",
+      body: "This exact direct API request can be retried safely.",
+      product: "crm",
+      idempotency_key: "direct-api-idempotency",
+      // External callers cannot choose the fingerprint that binds a request.
+      intake_fingerprint: "f".repeat(64),
+    };
+    const directApiFirst = await api("POST", "/tickets", tok(U.jeff), directApiRequest);
+    assertEquals(directApiFirst.status, 200, JSON.stringify(directApiFirst.json));
+    const directApiRetry = await api("POST", "/tickets", tok(U.jeff), directApiRequest);
+    assertEquals(directApiRetry.status, 200, JSON.stringify(directApiRetry.json));
+    assertEquals(directApiRetry.json.ticket_id, directApiFirst.json.ticket_id);
+    assertEquals(directApiRetry.json.duplicate_delivery, true);
+    const directApiEdited = await api("POST", "/tickets", tok(U.jeff), {
+      ...directApiRequest,
+      body: "A forged identical fingerprint cannot make changed content look saved.",
+    });
+    assertEquals(directApiEdited.status, 409, "generic API fingerprints are computed server-side");
+    assertEquals((await api("POST", "/tickets", tok(U.jeff), {
+      body: "x".repeat(20_001),
+    })).status, 400, "generic API rejects an overlong body instead of silently truncating it");
+    assertEquals((await api("POST", "/tickets", tok(U.jeff), {
+      body: "A valid body with an overlong subject.",
+      subject: "x".repeat(301),
+    })).status, 400, "generic API rejects an overlong subject instead of silently truncating it");
+
+    const mcpRequest = {
+      subject: "MCP idempotency",
+      body: "This exact MCP request can be retried safely.",
+      product: "crm",
+      idempotency_key: "mcp-create-idempotency",
+    };
+    const mcpFirst = await mcp(keys.jeff, "create_ticket", mcpRequest);
+    const mcpRetry = await mcp(keys.jeff, "create_ticket", mcpRequest);
+    assertEquals(mcpRetry.structuredContent?.ticket_id, mcpFirst.structuredContent?.ticket_id);
+    assertEquals(mcpRetry.structuredContent?.duplicate_delivery, true);
+    const mcpEdited = await mcp(keys.jeff, "create_ticket", {
+      ...mcpRequest,
+      body: "Changed MCP content cannot claim the original request was saved.",
+    });
+    assertEquals(mcpEdited.isError, true, "edited MCP retry conflicts instead of false success");
+    assertEquals((await mcp(keys.jeff, "create_ticket", {
+      body: "x".repeat(20_001),
+    })).isError, true, "MCP schema rejects an overlong ticket body");
+
     const forged = await call("bloom-support-intake", "POST", "/report", { raw: "{}", headers: { "x-bloom-product": "cms", "x-bloom-timestamp": String(Math.floor(Date.now() / 1000)), "x-bloom-signature": "00" } });
     assertEquals(forged.status, 401, "unsigned product intake rejected");
-    const pub = await call("bloom-support-intake", "POST", "/public", { body: { email: "newperson@example.org", name: "New", body: "I can't log in to my BloomSuite account since yesterday." } });
+    const malformedJwt = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), raw: "{" });
+    assertEquals(malformedJwt.status, 400, "malformed CRM JSON is a client error");
+    const arrayJwt = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), raw: "[]" });
+    assertEquals(arrayJwt.status, 400, "CRM JSON must be an object");
+    const malformedProductRaw = "{";
+    const malformedProductTimestamp = Math.floor(Date.now() / 1000);
+    const malformedProduct = await call("bloom-support-intake", "POST", "/report", {
+      raw: malformedProductRaw,
+      headers: {
+        "x-bloom-product": "cms",
+        "x-bloom-timestamp": String(malformedProductTimestamp),
+        "x-bloom-signature": await signIntake(ENV.BLOOM_INTAKE_SECRET_CMS, malformedProductTimestamp, malformedProductRaw),
+      },
+    });
+    assertEquals(malformedProduct.status, 400, "signed product JSON is validated after its signature");
+    const arrayProductRaw = "[]";
+    const arrayProductTimestamp = Math.floor(Date.now() / 1000);
+    const arrayProduct = await call("bloom-support-intake", "POST", "/report", {
+      raw: arrayProductRaw,
+      headers: {
+        "x-bloom-product": "cms",
+        "x-bloom-timestamp": String(arrayProductTimestamp),
+        "x-bloom-signature": await signIntake(ENV.BLOOM_INTAKE_SECRET_CMS, arrayProductTimestamp, arrayProductRaw),
+      },
+    });
+    assertEquals(arrayProduct.status, 400, "signed product JSON must be an object");
+    const unauthenticatedOversized = await call("bloom-support-intake", "POST", "/report", { raw: "x".repeat(17 * 1024 * 1024 + 1) });
+    assertEquals(unauthenticatedOversized.status, 401, "CRM authentication runs before buffering a maximum-size report");
+    const pub = await call("bloom-support-intake", "POST", "/public", { body: {
+      email: "newperson@example.org",
+      name: "New",
+      subject: "Login failed with sk_test_1234567890abcdef",
+      body: "I can't log in; card 4242 4242 4242 4242 and sk_test_1234567890abcdef appeared on screen.",
+      page_url: "https://bloomsuite.app/reset?token=secret-value&other=also-secret#oauth-fragment",
+    } });
     assertEquals(pub.status, 201, JSON.stringify(pub.json));
-    assertEquals([pub.json.tracking_url, pub.json.ticket_id, pub.json.emailed], [undefined, undefined, true], "public form never hands back a tracking link");
+    assertEquals([pub.json.tracking_url, pub.json.ticket_id, pub.json.email_delivery], [undefined, undefined, "pending"], "public form never hands back a tracking link and reports honest queued email state");
+    const publicStored = (await sql!`SELECT subject, summary, context FROM bloom_support.tickets WHERE channel = 'public' ORDER BY created_at DESC LIMIT 1`)[0];
+    assert(!JSON.stringify(publicStored).includes("1234567890abcdef"), "public text is redacted server-side even for direct callers");
+    assert(!JSON.stringify(publicStored).includes("4242 4242"), "public payment details are redacted server-side");
+    assertEquals(publicStored.context.page_url, "https://bloomsuite.app/reset", "public page URLs never persist query or fragment secrets");
+    const publicIdempotent = {
+      email: "idempotent@example.org",
+      body: "My original public support request is saved exactly once.",
+      idempotency_key: "public-edit-race",
+    };
+    const publicFirst = await call("bloom-support-intake", "POST", "/public", { body: publicIdempotent });
+    assertEquals(publicFirst.status, 201);
+    const publicExactRetry = await call("bloom-support-intake", "POST", "/public", { body: publicIdempotent });
+    assertEquals(publicExactRetry.status, 201);
+    assert(publicExactRetry.json.duplicate_delivery, "exact public retry returns the original request");
+    const publicEditedRetry = await call("bloom-support-intake", "POST", "/public", {
+      body: { ...publicIdempotent, body: "The user edited this after an ambiguous response." },
+    });
+    assertEquals(publicEditedRetry.status, 409, "edited public retry cannot claim the old request was saved");
+    const longPublicKey = await call("bloom-support-intake", "POST", "/public", {
+      body: {
+        email: "bounded-key@example.org",
+        body: "This request proves public idempotency keys stay bounded.",
+        idempotency_key: "k".repeat(500),
+      },
+    });
+    assertEquals(longPublicKey.status, 201);
+    const storedKey = (await sql!`SELECT dedupe_key FROM bloom_support.tickets WHERE channel = 'public' AND summary LIKE 'This request proves%' ORDER BY created_at DESC LIMIT 1`)[0].dedupe_key;
+    assert(String(storedKey).length <= 309, "public idempotency keys use only the bounded 200-character value plus fixed actor/email scoping");
+    const beforeHoneypot = Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n);
+    const honeypot = await call("bloom-support-intake", "POST", "/public", {
+      body: {
+        email: "bot@example.org",
+        body: "A bot should see a normal-looking success response.",
+        website: "https://spam.example",
+      },
+    });
+    assertEquals(honeypot.status, 201);
+    assert(
+      honeypot.json.received === true &&
+        Number.isSafeInteger(honeypot.json.number) &&
+        honeypot.json.number > 0 &&
+        honeypot.json.email_delivery === "pending" && honeypot.json.duplicate_delivery === false,
+      "honeypot success stays contract-shaped",
+    );
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n),
+      beforeHoneypot,
+      "honeypot creates no ticket",
+    );
+    const longPublicMessage = await call("bloom-support-intake", "POST", "/public", {
+      body: { email: "newperson@example.org", body: "x".repeat(10_001) },
+    });
+    assertEquals(longPublicMessage.status, 400, "public messages over 10,000 characters are rejected, not truncated");
+    const multibytePublicMessage = await call("bloom-support-intake", "POST", "/public", {
+      body: { email: "multibyte@example.org", body: "漢".repeat(10_000) },
+    });
+    assertEquals(multibytePublicMessage.status, 201, "the full 10,000-character UI contract fits the bounded UTF-8 envelope");
+    const oversizedPublicEnvelope = await call("bloom-support-intake", "POST", "/public", {
+      raw: JSON.stringify({
+        email: "newperson@example.org",
+        body: "A valid short support request.",
+        padding: "x".repeat(66_000),
+      }),
+    });
+    assertEquals(oversizedPublicEnvelope.status, 413, "public unauthenticated JSON stays tightly bounded");
+    const longSignedMessage = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { body: "x".repeat(20_001) },
+    });
+    assertEquals(longSignedMessage.status, 400, "signed messages over 20,000 characters are rejected, not truncated");
+    const wrongSignedType = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      raw: JSON.stringify({ body: "A valid-length request with the wrong media type." }),
+      headers: { "Content-Type": "text/plain" },
+    });
+    assertEquals(wrongSignedType.status, 415, "signed intake requires application/json");
+    const wrongPublicType = await call("bloom-support-intake", "POST", "/public", {
+      raw: JSON.stringify({ email: "newperson@example.org", body: "A valid public request." }),
+      headers: { "Content-Type": "text/plain" },
+    });
+    assertEquals(wrongPublicType.status, 415, "public intake requires application/json");
     const all = await api("GET", "/tickets", tok(U.jeff));
     assertEquals(new Set(all.json.map((x: Any) => x.product)), new Set(["crm", "cms", "pos", "unknown"]));
   });
@@ -499,7 +833,16 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(notStarted[0].n, 0, "a single GitHub server error does not stop a repair");
     const cms = await ticketRow(cmsTicket);
     assertEquals(cms.kind, "question");
-    const pub = await sql!`SELECT o.status, o.error FROM bloom_support.outbound_emails o JOIN bloom_support.tickets t ON t.id = o.ticket_id WHERE t.channel = 'public'`;
+    const pub = await sql!`
+      SELECT o.status, o.error
+      FROM bloom_support.outbound_emails o
+      JOIN bloom_support.tickets t ON t.id = o.ticket_id
+      WHERE t.channel = 'public'
+        AND lower(o.to_email) = 'newperson@example.org'
+        AND o.purpose = 'acknowledgement'
+      ORDER BY o.created_at DESC
+      LIMIT 1
+    `;
     assertEquals(pub[0]?.status, "sent", "public requester acknowledged (allow-listed test address)");
   });
 
@@ -524,6 +867,102 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(reply.json.ticket_id, crmTicket, JSON.stringify(reply.json));
     const dup = await inbound("msg_1", { email_id: "e1", from: "gail@greenleaf.test", subject: "x", text: "x" });
     assert(dup.json.duplicate, "duplicate webhook delivery ignored");
+
+    // Message-ID is sender-controlled. Reusing Gail's ID while naming her
+    // ticket must create Mallory's own ticket and put Mallory's file there,
+    // never return or mutate Gail's request.
+    const victimFilesBefore = Number((await sql!`SELECT count(*) AS n FROM bloom_support.attachments WHERE ticket_id = ${crmTicket}`)[0].n);
+    const collisionBytes = new TextEncoder().encode("Evidence supplied by the colliding sender");
+    attachmentDownloads.set("/email/message-id-collision.log", collisionBytes);
+    const collision = await inbound("msg_cross_sender_collision", {
+      email_id: "e-cross-sender-collision",
+      from: "Mallory <mallory@example.org>",
+      to: ["support@bloom.test"],
+      subject: `Re: [Bloom #${crm.number}] Campaign preview button broken`,
+      text: "This is a separate request from a different sender.",
+      message_id: "<g1@greenleaf.test>",
+      attachments: [{
+        id: "message-id-collision",
+        filename: "collision.log",
+        content_type: "text/plain",
+        size: collisionBytes.byteLength,
+        download_url: "https://attachment.test/email/message-id-collision.log",
+      }],
+    });
+    assertEquals(collision.status, 200, JSON.stringify(collision.json));
+    assert(collision.json.ticket_id && collision.json.ticket_id !== crmTicket, "a colliding sender receives a separate ticket");
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.attachments WHERE ticket_id = ${crmTicket}`)[0].n),
+      victimFilesBefore,
+      "a colliding sender cannot add a file to the named victim ticket",
+    );
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.attachments WHERE ticket_id = ${collision.json.ticket_id} AND file_name = 'collision.log'`)[0].n),
+      1,
+      "the colliding sender's validated file is stored only on their own ticket",
+    );
+    assertEquals(
+      (await sql!`SELECT principal.email FROM bloom_support.tickets AS ticket JOIN bloom_support.principals AS principal ON principal.id = ticket.requester_id WHERE ticket.id = ${collision.json.ticket_id}`)[0].email,
+      "mallory@example.org",
+      "the separate ticket remains owned by the actual sender",
+    );
+
+    // A new provider event can be an exact retry of an already accepted
+    // email. It must return the original ticket and finish the same file once;
+    // changed text or bytes under the same sender/Message-ID must conflict.
+    const retryBytes = new TextEncoder().encode("Stable email retry evidence");
+    const changedRetryBytes = new TextEncoder().encode("Changed email retry evidence");
+    attachmentDownloads.set("/email/retry.log", retryBytes);
+    attachmentDownloads.set("/email/retry-changed.log", changedRetryBytes);
+    const retryEmail = {
+      email_id: "e-email-fingerprint",
+      from: "Retry Sender <retry@example.org>",
+      to: ["support@bloom.test"],
+      subject: "Question about delivery receipts",
+      text: "Where can I find the delivery receipt for my message?",
+      message_id: "<email-fingerprint@example.org>",
+      attachments: [{
+        id: "email-fingerprint-log",
+        filename: "retry.log",
+        content_type: "text/plain",
+        size: retryBytes.byteLength,
+        download_url: "https://attachment.test/email/retry.log",
+      }],
+    };
+    const firstEmail = await inbound("msg_email_fingerprint_first", retryEmail);
+    assertEquals(firstEmail.status, 200, JSON.stringify(firstEmail.json));
+    const exactEmail = await inbound("msg_email_fingerprint_exact", retryEmail);
+    assertEquals(exactEmail.status, 200, JSON.stringify(exactEmail.json));
+    assertEquals(exactEmail.json.ticket_id, firstEmail.json.ticket_id, "an exact email retry returns the original ticket");
+    assertEquals(exactEmail.json.outcome, "duplicate");
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.attachments WHERE ticket_id = ${firstEmail.json.ticket_id} AND file_name = 'retry.log'`)[0].n),
+      1,
+      "an exact email retry stores its file exactly once",
+    );
+    const editedEmail = await inbound("msg_email_fingerprint_edited", {
+      ...retryEmail,
+      text: "This edited body must not claim the original email was saved.",
+    });
+    assertEquals(editedEmail.status, 409, "changed email text cannot reuse a sender's Message-ID");
+    const changedManifestEmail = await inbound("msg_email_fingerprint_changed_file", {
+      ...retryEmail,
+      attachments: [{
+        id: "email-fingerprint-log-changed",
+        filename: "retry.log",
+        content_type: "text/plain",
+        size: changedRetryBytes.byteLength,
+        download_url: "https://attachment.test/email/retry-changed.log",
+      }],
+    });
+    assertEquals(changedManifestEmail.status, 409, "changed attachment bytes cannot reuse a sender's Message-ID");
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.attachments WHERE ticket_id = ${firstEmail.json.ticket_id}`)[0].n),
+      1,
+      "conflicting email retries never add changed files",
+    );
+    assertEquals((await ticketRow(firstEmail.json.ticket_id)).summary, retryEmail.text, "conflicting retries leave the original request unchanged");
+
     const ooo = await inbound("msg_2", { email_id: "e2", from: "gail@greenleaf.test", subject: "Out of office", text: "Back Monday", headers: { "Auto-Submitted": "auto-replied" } });
     assertEquals(ooo.json.ignored, "auto-submitted");
     const bad = await call("bloom-support-email", "POST", "", { raw: "{}", headers: { "svix-id": "x", "svix-timestamp": String(Math.floor(Date.now() / 1000)), "svix-signature": "v1,AAAA" } });
@@ -559,10 +998,28 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(j.attempts >= 2 && String(j.last_error).includes("lease expired"));
   });
 
-  await t.step("eligible repair: reproduce → PR → policy → merge → deploy → verify → resolve → email", async () => {
+  await t.step("eligible repair: smoke verification keeps the release but requires affected-flow confirmation", async () => {
     // Automatic release needs a rollback target (Vercel) and required checks for the repository.
     Deno.env.set("BLOOM_VERCEL_TOKEN", "test-vercel-token");
-    await api("PUT", "/settings/release_policy", tok(U.jon), { value: { approvedPaths: { "JonDMorrison/brandsinblooms": ["src/components/**"] }, requiredChecks: { "JonDMorrison/brandsinblooms": ["build", "unit"], "Brands-In-Blooms/bloomtill": ["build"] }, vercel: { "JonDMorrison/brandsinblooms": { projectId: "prj_test" } } } });
+    releasePolicyValue = {
+      approvedPaths: { "JonDMorrison/brandsinblooms": ["src/components/**"] },
+      requiredChecks: { "JonDMorrison/brandsinblooms": ["build", "unit"], "Brands-In-Blooms/bloomtill": ["build"] },
+      vercel: {
+        "JonDMorrison/brandsinblooms": { projectId: "prj_test" },
+        "Brands-In-Blooms/bloomtill": { projectId: "prj_pos_test" },
+      },
+      verificationOrigins: {
+        "JonDMorrison/brandsinblooms": ["https://bloomsuite.app", "https://verify.test"],
+        "Brands-In-Blooms/cms-brandsinblooms": ["https://verify.test"],
+        "Brands-In-Blooms/bloomtill": ["https://verify.test"],
+      },
+      verificationChecks: {
+        "JonDMorrison/brandsinblooms": [{ url: "https://bloomsuite.app/campaigns/preview", expect_status: 200, contains: "preview works" }],
+        "Brands-In-Blooms/cms-brandsinblooms": [{ url: "https://verify.test/manual-cms", expect_status: 200 }],
+        "Brands-In-Blooms/bloomtill": [{ url: "https://verify.test/receipt", expect_status: 200 }],
+      },
+    };
+    await api("PUT", "/settings/release_policy", tok(U.jon), { value: releasePolicyValue });
     await api("PUT", "/settings/auto_release_enabled", tok(U.jon), { value: true });
     const eng = (await ticketRow(crmTicket)).engineering_issue_id;
     // The repair workflow reports with the investigation identity.
@@ -578,14 +1035,217 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       checks: [{ name: "build", status: "completed", conclusion: "success" }, { name: "unit", status: "completed", conclusion: "success" }],
       reviews: [{ state: "APPROVED", user: { login: "jeff-reviewer" }, commit_id: "head42" }],
     };
+    const staleEscalation = crypto.randomUUID();
+    await sql!`UPDATE bloom_support.tickets SET next_action = 'Support: review and reply', next_action_due_at = now() - interval '1 hour', waiting_reason = 'internal' WHERE id = ${crmTicket}`;
+    await sql!`INSERT INTO bloom_support.escalations(id, ticket_id, audience, reason, detail, dedupe_key) VALUES (${staleEscalation}, ${crmTicket}, 'both', 'ticket_overdue', 'Regression fixture', ${"e2e-overdue:" + crmTicket})`;
     await runWorkerUntilIdle(10);
     const e = (await sql!`SELECT * FROM bloom_support.engineering_issues WHERE id = ${eng}`)[0];
     assertEquals(e.status, "verified", JSON.stringify({ status: e.status, eligibility: e.eligibility, verification: e.verification }));
     assert(githubCalls.some((c) => c.method === "PUT" && c.path.endsWith("/pulls/42/merge") && (c.body as Any).sha === "head42"), "merge pinned to evaluated SHA");
     const tk = await ticketRow(crmTicket);
-    assertEquals(tk.status, "resolved");
-    assert(tk.resolution_verified);
-    assert(resendSent.some((m) => m.to[0] === "gail@greenleaf.test" && m.text.includes("resolved") && m.headers["In-Reply-To"]), "verified resolution emailed in thread");
+    assert(tk.status !== "resolved", "generic repository smoke checks never resolve the client ticket");
+    assertEquals(tk.resolution_verified, false);
+    assertEquals(tk.next_action, "Confirm the client's own flow works, then resolve");
+    assertExists(tk.next_action_due_at);
+    const closedEscalation = (await sql!`SELECT status, reason, detail, created_at, resolved_at, decision FROM bloom_support.escalations WHERE id = ${staleEscalation}`)[0];
+    assertEquals(closedEscalation.status, "open", "the overdue escalation remains actionable until the ticket is genuinely resolved");
+    assertEquals(closedEscalation.reason, "ticket_overdue", "escalation audit reason is preserved");
+    assertEquals(closedEscalation.detail, "Regression fixture", "escalation evidence is preserved");
+    assertExists(closedEscalation.created_at);
+    assertEquals(closedEscalation.resolved_at, null);
+    assert(!resendSent.some((m) => m.to[0] === "gail@greenleaf.test" && m.text.includes("Good news — this is resolved")), "release smoke checks do not send a false resolution email");
+
+    const confirmed = await api("PATCH", `/tickets/${crmTicket}`, tok(U.jeff), {
+      status: "resolved",
+      resolution_summary: "The campaign preview now opens correctly in production.",
+      resolution_evidence: {
+        verification: {
+          passed: true,
+          note: "Jeff opened the affected campaign and confirmed Preview works.",
+        },
+      },
+    });
+    assertEquals(confirmed.status, 200, JSON.stringify(confirmed.json));
+    await runWorkerUntilIdle();
+    const resolved = await ticketRow(crmTicket);
+    assertEquals(resolved.status, "resolved", "staff can resolve after explicitly confirming the affected flow");
+    assertEquals(resolved.resolution_evidence.resolved_by, "person");
+    assertEquals(resolved.resolution_evidence.deployment.state, "success", "trusted release evidence is added server-side");
+    assertEquals(resolved.next_action, null, "genuine resolution clears the queue action");
+    assertEquals(resolved.next_action_due_at, null, "genuine resolution clears the action deadline");
+    assertEquals(resolved.waiting_reason, null, "genuine resolution clears waiting state");
+    const resolvedEscalation = (await sql!`SELECT status, resolved_at FROM bloom_support.escalations WHERE id = ${staleEscalation}`)[0];
+    assertEquals(resolvedEscalation.status, "resolved", "genuine resolution closes obsolete ticket escalation");
+    assertExists(resolvedEscalation.resolved_at);
+    assert(resendSent.some((m) => m.to[0] === "gail@greenleaf.test" && m.text.includes("Good news — this is resolved") && m.headers["In-Reply-To"]), "staff-confirmed resolution is emailed in thread");
+  });
+
+  await t.step("a recovered manual merge restores a proven previous Vercel deployment when verification fails", async () => {
+    deploymentState = "success";
+    vercelRollbackRequested = false;
+    releasePolicyValue.verificationChecks["JonDMorrison/brandsinblooms"] = [{
+      url: "https://verify.test/rollback",
+      expect_status: 200,
+      contains: "never-present",
+    }];
+    await api("PUT", "/settings/release_policy", tok(U.jon), { value: releasePolicyValue });
+    const issueId = crypto.randomUUID();
+    const repository = "JonDMorrison/brandsinblooms";
+    const branch = `bloom/fix-${issueId.slice(0, 8)}`;
+    const mergeSha = "manual-main-merge-43";
+    vercelServingSha = "current-production-after-manual-43";
+    commitContainments.add(`${repository}:${mergeSha}:${vercelServingSha}`);
+    await sql!`
+      INSERT INTO bloom_support.engineering_issues(
+        id, title, product, repository, status, reproduction, branch, pr_number,
+        pr_url, head_sha, approved_head_sha, attempts
+      ) VALUES (
+        ${issueId}, 'Rollback verification fixture', 'crm', ${repository}, 'approved',
+        '{"reproduced":true,"verification":[{"url":"https://verify.test/rollback","expect_status":200,"contains":"never-present"}]}'::jsonb,
+        ${branch}, 43,
+        'https://github.com/JonDMorrison/brandsinblooms/pull/43',
+        'head43', 'head43', 1
+      )`;
+    prs[repository] = {
+      number: 43,
+      html_url: "https://github.com/JonDMorrison/brandsinblooms/pull/43",
+      state: "closed",
+      merged: true,
+      mergeable: null,
+      head: { ref: branch, sha: "head43" },
+      base: { ref: "main" },
+      user: { login: "bloom-repair[bot]" },
+      merge_commit_sha: mergeSha,
+      files: [
+        { filename: "src/components/crm/RollbackFixture.tsx", additions: 3, deletions: 1, status: "modified" },
+        { filename: "src/components/crm/RollbackFixture.regression.test.tsx", additions: 20, deletions: 0, status: "added" },
+      ],
+      checks: [
+        { name: "build", status: "completed", conclusion: "success" },
+        { name: "unit", status: "completed", conclusion: "success" },
+      ],
+      reviews: [{ state: "APPROVED", user: { login: "jeff-reviewer" }, commit_id: "head43" }],
+    };
+    await sql!`
+      INSERT INTO bloom_support.jobs(
+        kind, engineering_issue_id, lane, payload, idempotency_key, max_attempts,
+        timeout_seconds
+      ) VALUES (
+        'engineering_step', ${issueId}, ${"engineering:" + issueId},
+        '{"step":"evaluate"}', ${"e2e-rollback:" + issueId}, 5, 300
+      )`;
+
+    await runWorkerUntilIdle(10);
+
+    const rolledBack = (await sql!`
+      SELECT status, rollback, verification
+      FROM bloom_support.engineering_issues
+      WHERE id = ${issueId}
+    `)[0];
+    assertEquals(rolledBack.status, "rolled_back", JSON.stringify(rolledBack));
+    assertEquals(rolledBack.rollback.previous_deployment_id, "dpl_previous");
+    assertExists(rolledBack.rollback.rolled_back_at);
+    assertEquals(rolledBack.rollback.status, "confirmed");
+    assertEquals(rolledBack.rollback.aliases_confirmed, 2);
+    assertEquals(rolledBack.rollback.recovery_verification.passed, true);
+    assertEquals(rolledBack.verification.passed, false);
+    assert(
+      vercelCalls.some((call) =>
+        call.method === "GET" &&
+        call.path.includes("/v6/deployments?projectId=prj_test")
+      ),
+      "the serving deployment is recorded before merge",
+    );
+    assert(
+      vercelCalls.some((call) =>
+        call.method === "POST" &&
+        call.path === "/v1/projects/prj_test/rollback/dpl_previous"
+      ),
+      "failed verification invokes the configured Vercel rollback",
+    );
+    assert(
+      vercelCalls.some((call) =>
+        call.method === "GET" &&
+        call.path.startsWith("/v9/projects/prj_test/rollback/aliases?")
+      ),
+      "rollback is not reported complete until every production alias is confirmed",
+    );
+    assert(
+      !githubCalls.some((call) =>
+        call.method === "PUT" && call.path.endsWith("/pulls/43/merge")
+      ),
+      "recovery observes the person's merge instead of merging again",
+    );
+    assert(
+      githubCalls.some((call) =>
+        call.path.endsWith(`/compare/${mergeSha}...current-production-after-manual-43`)
+      ),
+      "a later production commit is rejected by ancestry, not only SHA equality",
+    );
+    commitContainments.delete(`${repository}:${mergeSha}:${vercelServingSha}`);
+    vercelServingSha = "prior-serving-sha";
+    vercelRollbackRequested = false;
+    releasePolicyValue.verificationChecks["JonDMorrison/brandsinblooms"] = [{
+      url: "https://bloomsuite.app/campaigns/preview",
+      expect_status: 200,
+      contains: "preview works",
+    }];
+    await api("PUT", "/settings/release_policy", tok(U.jon), { value: releasePolicyValue });
+  });
+
+  await t.step("manually merged dev repair recovers, observes main promotion, deploys and verifies", async () => {
+    deploymentState = "success";
+    const issueId = crypto.randomUUID();
+    const repository = "Brands-In-Blooms/cms-brandsinblooms";
+    const devMerge = "manual-dev-merge-sha";
+    const mainHead = "promoted-main-head-sha";
+    await sql!`
+      INSERT INTO bloom_support.engineering_issues(
+        id, title, product, repository, status, reproduction, branch, pr_number,
+        pr_url, head_sha, approved_head_sha, attempts
+      ) VALUES (
+        ${issueId}, 'Manual CMS repair', 'cms', ${repository}, 'approved',
+        '{"reproduced":true,"verification":[{"url":"https://verify.test/manual-cms","expect_status":200}]}'::jsonb,
+        'bloom/fix-manual42', 4243,
+        'https://github.com/Brands-In-Blooms/cms-brandsinblooms/pull/4243',
+        'reviewed-manual-head', 'reviewed-manual-head', 1
+      )`;
+    prs[repository] = {
+      number: 4243,
+      html_url: "https://github.com/Brands-In-Blooms/cms-brandsinblooms/pull/4243",
+      state: "closed",
+      merged: true,
+      mergeable: null,
+      head: { ref: "bloom/fix-manual42", sha: "reviewed-manual-head" },
+      base: { ref: "dev" },
+      user: { login: "bloom-repair[bot]" },
+      merge_commit_sha: devMerge,
+      files: [{ filename: "src/example.ts", additions: 2, deletions: 1, status: "modified" }],
+      checks: [],
+      reviews: [],
+    };
+    mainPromotions.set(repository, { contains: new Set([devMerge]), head: mainHead });
+    await sql!`
+      INSERT INTO bloom_support.jobs(
+        kind, engineering_issue_id, lane, payload, idempotency_key, max_attempts, timeout_seconds
+      ) VALUES (
+        'engineering_step', ${issueId}, ${"engineering:" + issueId},
+        '{"step":"evaluate"}', ${"e2e-manual-merge:" + issueId}, 5, 300
+      )`;
+
+    await runWorkerUntilIdle(10);
+
+    const recovered = (await sql!`SELECT status, merge_sha, deployment, verification FROM bloom_support.engineering_issues WHERE id = ${issueId}`)[0];
+    assertEquals(recovered.status, "verified", JSON.stringify(recovered));
+    assertEquals(recovered.merge_sha, devMerge, "GitHub's existing merge commit is persisted");
+    assertEquals(recovered.deployment.source_merge_sha, devMerge);
+    assertEquals(recovered.deployment.production_sha, mainHead);
+    assertEquals(recovered.deployment.state, "success");
+    assert(recovered.verification.passed, "promoted production flow verified");
+    assert(githubCalls.some((c) => c.path.endsWith(`/compare/${devMerge}...main`)), "dev merge containment in main is checked");
+    assert(githubCalls.some((c) => c.path.includes(`/deployments?sha=${mainHead}`)), "production deployment follows the main commit");
+    assert(!githubCalls.some((c) => c.method === "PUT" && c.path.endsWith("/pulls/4243/merge")), "Bloom observes but never repeats a person's merge");
+    assert(!githubCalls.some((c) => c.path.includes("/deployments/76/") || c.path.includes("/deployments/75/")), "preview and demo deployments are never production evidence");
   });
 
   await t.step("client reports it persists → ticket reopens", async () => {
@@ -624,6 +1284,13 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert((await mcp(keys.jeff, "approve_fix", { issue_id: eng })).isError, "only Jon approves");
     assert(!(await mcp(keys.jon, "approve_fix", { issue_id: eng, note: "reviewed migration" })).isError);
     deploymentState = "failure";
+    await sql!`
+      UPDATE bloom_support.jobs
+      SET status = 'cancelled', updated_at = now()
+      WHERE status = 'queued'
+        AND kind = 'engineering_step'
+        AND engineering_issue_id IS DISTINCT FROM ${eng}
+    `;
     await sql!`INSERT INTO bloom_support.jobs(kind, ticket_id, engineering_issue_id, lane, payload, idempotency_key) VALUES ('engineering_step', ${posTicket}, ${eng}, ${"engineering:" + eng}, '{"step":"evaluate"}', 'test-eval-after-approval')`;
     await runWorkerUntilIdle(8);
     e = (await sql!`SELECT * FROM bloom_support.engineering_issues WHERE id = ${eng}`)[0];
@@ -707,6 +1374,46 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE ticket_id = ${qid}`;
     const planned = await api("POST", `/tickets/${qid}/messages`, keys.automation, { body: "Planned Bloom answer", visibility: "public", purpose: "reply" });
     assertEquals(planned.status, 200, JSON.stringify(planned.json));
+    const purposeKey = "e2e-rest-message-purpose";
+    const progress = await api("POST", `/tickets/${qid}/messages`, keys.automation, {
+      body: "Purpose-bound internal note",
+      visibility: "internal",
+      purpose: "progress",
+      notify_client: false,
+      idempotency_key: purposeKey,
+    });
+    assertEquals(progress.status, 200, JSON.stringify(progress.json));
+    const exactProgress = await api("POST", `/tickets/${qid}/messages`, keys.automation, {
+      body: "Purpose-bound internal note",
+      visibility: "internal",
+      purpose: "progress",
+      notify_client: false,
+      idempotency_key: purposeKey,
+    });
+    assertEquals(exactProgress.status, 200, JSON.stringify(exactProgress.json));
+    assertEquals(exactProgress.json.duplicate, true, "an exact REST message retry is idempotent");
+    const changedPurpose = await api("POST", `/tickets/${qid}/messages`, keys.automation, {
+      body: "Purpose-bound internal note",
+      visibility: "internal",
+      purpose: "resolution",
+      notify_client: false,
+      idempotency_key: purposeKey,
+    });
+    assertEquals(changedPurpose.status, 409, "the same REST key cannot claim a changed message purpose was saved");
+    const invalidPurpose = await api("POST", `/tickets/${qid}/messages`, keys.automation, {
+      body: "Unsupported semantic side effect",
+      visibility: "internal",
+      purpose: "made-up",
+      notify_client: false,
+    });
+    assertEquals(invalidPurpose.status, 400, "REST rejects unsupported message purposes instead of silently changing them");
+    const overlongReply = await api("POST", `/tickets/${qid}/messages`, keys.automation, {
+      body: "x".repeat(20_001),
+      visibility: "internal",
+      purpose: "reply",
+      notify_client: false,
+    });
+    assertEquals(overlongReply.status, 400, "REST rejects an overlong reply instead of silently truncating it");
     const ask = await api("POST", `/tickets/${qid}/client-action`, tok(U.gail), { action: "request_person", message: "I'd like a person please" });
     assertEquals(ask.status, 200, JSON.stringify(ask.json));
     const before = resendSent.length;
@@ -814,11 +1521,26 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals((await sql!`SELECT email FROM bloom_support.principals WHERE id = ${rr.requester_id}`)[0].email, "visitor@example.net");
 
     // A product report that reached Bloom and also fell back to email is filed once.
-    const prod = await signed("pos", { identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" }, report: { body: "Till freezes on the card screen", idempotency_key: "pos:rosa:dup-check-1" } });
+    const fallbackBytes = new TextEncoder().encode("Till froze while terminal id 42 was active");
+    const fallbackAttachment = {
+      file_name: "till-diagnostic.log",
+      content_type: "text/plain",
+      data_base64: btoa(String.fromCharCode(...fallbackBytes)),
+    };
+    storageFailNext = 1;
+    const prod = await signed("pos", { identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" }, report: { body: "Till freezes on the card screen", idempotency_key: "pos:rosa:dup-check-1", attachments: [fallbackAttachment] } });
     assertExists(prod.json.ticket_id);
+    assertEquals(prod.json.attachments, { stored: 0, failed: ["till-diagnostic.log: could not be stored; attach it to your reply"] }, "direct intake reports the lost file explicitly");
     Deno.env.set("BLOOM_SUPPORT_RELAY_SENDERS", "support@brandsinblooms.com,noreply@bloomtill.test");
-    const fallback = await inbound("msg_fallback", await dkimSigned("msg_fallback", { email_id: "efallback", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb1@bloomtill.test>",
-      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nTill freezes on the card screen\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1" }));
+    attachmentDownloads.set("/fallback/till-diagnostic.log", fallbackBytes);
+    const fallbackMail = await dkimSigned("msg_fallback", { email_id: "efallback", from: "BloomTill <noreply@bloomtill.test>", subject: "[BloomTill report] Rose Hill", message_id: "<fb1@bloomtill.test>",
+      text: "Automatically forwarded report.\n\n---------- Forwarded message ---------\nFrom: till@rosehill.test\n\nTill freezes on the card screen\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1",
+      attachments: [{ id: "fallback-log", filename: "till-diagnostic.log", content_type: "text/plain", size: fallbackBytes.byteLength, download_url: "https://attachment.test/fallback/till-diagnostic.log" }],
+    });
+    storageFailNext = 1;
+    const fallbackFailed = await inbound("msg_fallback", fallbackMail);
+    assertEquals(fallbackFailed.status, 502, "transient attachment storage failure asks the provider to retry");
+    const fallback = await inbound("msg_fallback", fallbackMail);
     // The same key from an unauthenticated sender is ignored: it cannot hide a report.
     const spoofKey = await inbound("msg_fallback_spoof", { email_id: "efallback2", from: "Someone <someone@example.org>", subject: "Help", message_id: "<fb2@example.org>",
       text: "Different problem entirely\n\nBloom-Idempotency-Key: pos:rosa:dup-check-1" });
@@ -830,6 +1552,12 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     Deno.env.delete("BLOOM_SUPPORT_RELAY_SENDERS");
     Deno.env.delete("BLOOM_VERCEL_TOKEN");
     assertEquals([fallback.json.ticket_id, fallback.json.outcome], [prod.json.ticket_id, "duplicate:product-report"], "fallback email joins the existing ticket");
+    const fallbackFiles = await sql!`SELECT file_name FROM bloom_support.attachments WHERE ticket_id = ${prod.json.ticket_id}`;
+    assertEquals(
+      Array.from(fallbackFiles, (row) => ({ file_name: row.file_name })),
+      [{ file_name: "till-diagnostic.log" }],
+      "fallback retry stores the missing file on the original product ticket exactly once",
+    );
 
     // A thanks-only reply after resolution is dismissed, not reopened.
     const qq = await call("bloom-support-intake", "POST", "/report", { token: tok(U.rosa), body: { body: "Where do I see yesterday's sales?", idempotency_key: "k-thanks" } });

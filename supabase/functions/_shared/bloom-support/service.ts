@@ -9,6 +9,50 @@ import { env } from "./runtime.ts";
 
 const A = (c: Caller) => ({ actor: c.principalId });
 
+const MESSAGE_PURPOSES = new Set([
+  "reply",
+  "clarification",
+  "resolution",
+  "acknowledgement",
+  "progress",
+  "notification",
+]);
+const MAX_TICKET_BODY_LENGTH = 20_000;
+const MAX_TICKET_SUBJECT_LENGTH = 300;
+
+function boundedString(value: unknown, name: string, maxLength: number): string | undefined {
+  if (typeof value !== "string") return undefined;
+  if (value.length > maxLength) {
+    throw new BloomError(400, "invalid", `${name} must be ${maxLength.toLocaleString("en-US")} characters or fewer`);
+  }
+  return value;
+}
+
+function messagePurpose(value: unknown): string {
+  const purpose = str(value, 30) ?? "reply";
+  if (!MESSAGE_PURPOSES.has(purpose)) {
+    throw new BloomError(400, "invalid", "Unsupported message purpose");
+  }
+  return purpose;
+}
+
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => [key, canonical(item)]),
+    );
+  }
+  return value;
+}
+
+interface TrustedCreateTicketOptions {
+  /** Computed only by the signed intake handler, where attachment manifests are available. */
+  intakeFingerprint: string;
+}
+
 export function requireWriteScope(c: Caller) {
   if (c.scopes.length && !c.scopes.includes("write") && !c.scopes.includes("*")) throw new BloomError(403, "forbidden", "This API key is read-only");
 }
@@ -69,23 +113,42 @@ export const actions = {
   },
   getTicket: (c: Caller, id: string) => rpc("get_ticket", { ...A(c), ticket_id: uuid(id, "ticket_id") }),
 
-  async createTicket(c: Caller, input: Record<string, unknown>, channel = "staff") {
+  async createTicket(
+    c: Caller,
+    input: Record<string, unknown>,
+    channel = "staff",
+    trusted?: TrustedCreateTicketOptions,
+  ) {
     requireWriteScope(c);
-    const body = redactText(str(input.body ?? input.description ?? input.message) ?? "");
+    const body = redactText(boundedString(
+      input.body ?? input.description ?? input.message,
+      "body",
+      MAX_TICKET_BODY_LENGTH,
+    ) ?? "");
+    const ticket = {
+      product: str(input.product, 20) ?? "unknown",
+      channel: str(input.channel, 20) ?? channel,
+      subject: redactText(boundedString(input.subject, "subject", MAX_TICKET_SUBJECT_LENGTH) ?? ""),
+      body,
+      kind_hint: str(input.kind, 20) ?? str(input.kind_hint, 20),
+      priority_hint: str(input.priority, 20) ?? str(input.priority_hint, 20),
+      account_id: str(input.account_id, 40) ?? null,
+      conversation_id: str(input.conversation_id, 40) ?? null,
+      requester_id: str(input.requester_id, 40) ?? null,
+      context: sanitizeContext(input.context),
+      dedupe_key: str(input.idempotency_key ?? input.dedupe_key, 200) ?? null,
+    };
+    const intakeFingerprint = ticket.dedupe_key
+      ? trusted?.intakeFingerprint ?? await sha256Hex(JSON.stringify(canonical(ticket)))
+      : null;
+    if (trusted && !/^[0-9a-f]{64}$/.test(trusted.intakeFingerprint)) {
+      throw new BloomError(500, "invalid_fingerprint", "Internal intake fingerprint is invalid");
+    }
     return await rpc("create_ticket", {
       ...A(c),
       ticket: {
-        product: str(input.product, 20) ?? "unknown",
-        channel: str(input.channel, 20) ?? channel,
-        subject: redactText(str(input.subject, 300) ?? ""),
-        body,
-        kind_hint: str(input.kind, 20) ?? str(input.kind_hint, 20),
-        priority_hint: str(input.priority, 20) ?? str(input.priority_hint, 20),
-        account_id: str(input.account_id, 40) ?? null,
-        conversation_id: str(input.conversation_id, 40) ?? null,
-        requester_id: str(input.requester_id, 40) ?? null,
-        context: sanitizeContext(input.context),
-        dedupe_key: str(input.idempotency_key ?? input.dedupe_key, 200) ?? null,
+        ...ticket,
+        intake_fingerprint: intakeFingerprint,
       },
     });
   },
@@ -94,12 +157,47 @@ export const actions = {
     requireWriteScope(c);
     return rpc("add_message", {
       ...A(c), ticket_id: uuid(id, "ticket_id"),
-      message: { body: str(input.body), visibility: str(input.visibility, 10) ?? "public", idempotency_key: str(input.idempotency_key, 200) ?? null, notify_client: input.notify_client ?? true },
+      message: {
+        body: boundedString(input.body, "body", MAX_TICKET_BODY_LENGTH),
+        visibility: str(input.visibility, 10) ?? "public",
+        purpose: messagePurpose(input.purpose),
+        idempotency_key: str(input.idempotency_key, 200) ?? null,
+        notify_client: input.notify_client ?? true,
+      },
     });
   },
-  updateTicket(c: Caller, id: string, patch: Record<string, unknown>) {
+  async updateTicket(c: Caller, id: string, patch: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("update_ticket", { ...A(c), ticket_id: uuid(id, "ticket_id"), patch });
+    const ticketId = uuid(id, "ticket_id");
+    let trustedPatch = patch;
+    // A staff member confirms the affected flow in the desk UI. For a linked
+    // fix, take deployment evidence from the trusted database record rather
+    // than making the browser reproduce internal release metadata.
+    if (patch.status === "resolved" && c.role !== "service") {
+      const ticket = await rpc<Record<string, unknown>>("get_ticket", {
+        ...A(c),
+        ticket_id: ticketId,
+      });
+      const engineering = ticket.engineering && typeof ticket.engineering === "object"
+        ? ticket.engineering as Record<string, unknown>
+        : null;
+      const deployment = engineering?.deployment;
+      if (ticket.engineering_issue_id && deployment && typeof deployment === "object") {
+        const evidence = patch.resolution_evidence && typeof patch.resolution_evidence === "object"
+          ? patch.resolution_evidence as Record<string, unknown>
+          : {};
+        trustedPatch = {
+          ...patch,
+          resolution_evidence: {
+            ...evidence,
+            deployment,
+            release_verification: engineering?.verification ?? null,
+            engineering_issue_id: ticket.engineering_issue_id,
+          },
+        };
+      }
+    }
+    return rpc("update_ticket", { ...A(c), ticket_id: ticketId, patch: trustedPatch });
   },
   setAutomation(c: Caller, id: string, mode: string, reason?: string) {
     requireWriteScope(c);

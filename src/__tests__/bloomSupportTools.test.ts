@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -14,7 +14,103 @@ import {
 import { getRegisteredTool } from "../../supabase/functions/bloom-assist/tools/registry";
 import { parseClientContext } from "../../supabase/functions/bloom-assist/client-context";
 import type { ToolExecutionContext } from "../../supabase/functions/bloom-assist/tools/types";
-import { readBloomDiagnostics } from "@/lib/bloomSupport/api";
+import {
+  bloomSupport,
+  captureClientContext,
+  parsePublicSupportIntake,
+  parseSignedSupportIntake,
+  parseSupportMessageResult,
+  readBloomDiagnostics,
+  safeClientPageUrl,
+} from "@/lib/bloomSupport/api";
+import {
+  checkAttachments,
+  MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENT_TOTAL_BYTES,
+  safeSupportTrackingUrl,
+} from "@/lib/bloomSupport/constants";
+import {
+  decodeBase64File,
+  validateAttachmentFile,
+  validateAttachmentName,
+} from "../../supabase/functions/_shared/bloom-support/attachments";
+import {
+  approvedVerificationUrl,
+  deploy as deployEngineeringRelease,
+  evaluate as evaluateEngineeringRelease,
+  type EngineeringIssue,
+  verify as verifyEngineeringRelease,
+  verificationChecksForPolicy,
+} from "../../supabase/functions/_shared/bloom-support/engineering";
+import { actions as supportActions } from "../../supabase/functions/_shared/bloom-support/service";
+
+const releaseMocks = vi.hoisted(() => ({
+  commitContains: vi.fn(),
+  env: vi.fn(),
+  productionCommitForRepair: vi.fn(),
+  productionDeployment: vi.fn(),
+  pullRequestFacts: vi.fn(),
+  rpc: vi.fn(),
+}));
+
+vi.mock("../../supabase/functions/_shared/bloom-support/runtime.ts", () => {
+  class BloomError extends Error {
+    constructor(public status: number, public code: string, message: string) {
+      super(message);
+    }
+  }
+  return {
+    BloomError,
+    db: vi.fn(),
+    directRpc: vi.fn(),
+    env: (...args: unknown[]) => releaseMocks.env(...args),
+    readResponseText: async (response: globalThis.Response, limit: number) => {
+      const reader = response.body?.getReader();
+      if (!reader) return "";
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > limit) {
+          await reader.cancel();
+          throw new BloomError(413, "too_large", "Response too large");
+        }
+        chunks.push(value);
+      }
+      const bytes = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return new TextDecoder().decode(bytes);
+    },
+    rpc: (...args: unknown[]) => releaseMocks.rpc(...args),
+    str: (value: unknown, max = 20_000) => {
+      if (value === undefined || value === null) return undefined;
+      const text = String(value).trim();
+      return text ? text.slice(0, max) : undefined;
+    },
+    uuid: (value: unknown) => String(value),
+  };
+});
+
+vi.mock("../../supabase/functions/_shared/bloom-support/github.ts", () => ({
+  commitContains: releaseMocks.commitContains,
+  GitHubError: class GitHubError extends Error {},
+  findPullRequestForBranch: vi.fn(),
+  gh: vi.fn(),
+  mergePullRequest: vi.fn(),
+  productionCommitForRepair: releaseMocks.productionCommitForRepair,
+  productionDeployment: releaseMocks.productionDeployment,
+  pullRequestFacts: releaseMocks.pullRequestFacts,
+}));
+
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: { auth: { getSession: vi.fn() } },
+}));
 
 const OWN_TENANT ="11111111-1111-4111-8111-111111111111";
 const CLIENT_TENANT = "22222222-2222-4222-8222-222222222222";
@@ -145,7 +241,9 @@ describe("report_support_problem", () => {
     expect(buildSupportDedupeKey(CONVERSATION, MESSAGE)).toBe(`${CONVERSATION}:${MESSAGE}`);
     const first = fakeRpc();
     await reportSupportProblem({ what_happened: "Email sending stopped this morning." }, context({}), first.rpc);
-    expect((first.calls.find((c) => c.fn === "create_ticket")!.args.ticket as Record<string, unknown>).dedupe_key).toBe(`${CONVERSATION}:${MESSAGE}`);
+    const firstTicket = first.calls.find((c) => c.fn === "create_ticket")!.args.ticket as Record<string, unknown>;
+    expect(firstTicket.dedupe_key).toBe(`${CONVERSATION}:${MESSAGE}`);
+    expect(firstTicket.intake_fingerprint).toMatch(/^[0-9a-f]{64}$/);
     // Created paused, so no triage job is ever queued (no race with the worker).
     expect((first.calls.find((c) => c.fn === "create_ticket")!.args.ticket as Record<string, unknown>).automation).toBe("paused");
     expect(first.calls.find((c) => c.fn === "set_automation")!.args).toMatchObject({ actor: "principal-bot", ticket_id: "ticket-1", mode: "paused" });
@@ -158,6 +256,12 @@ describe("report_support_problem", () => {
     const again = await reportSupportProblem({ what_happened: "Email sending stopped this morning." }, context({}), retry.rpc);
     expect(again.success).toBe(true);
     expect(retry.calls.some((c) => c.fn === "set_automation" || c.fn === "update_ticket")).toBe(false);
+
+    const changed = fakeRpc();
+    await reportSupportProblem({ what_happened: "Email sending stopped for a different reason." }, context({}), changed.rpc);
+    const changedTicket = changed.calls.find((c) => c.fn === "create_ticket")!.args.ticket as Record<string, unknown>;
+    expect(changedTicket.dedupe_key).toBe(firstTicket.dedupe_key);
+    expect(changedTicket.intake_fingerprint).not.toBe(firstTicket.intake_fingerprint);
   });
 
   it("attaches up to 10 recent failures with redacted, 300-character error text", async () => {
@@ -324,6 +428,126 @@ describe("client context", () => {
     expect(d).toMatchObject({ company: "West Coast Gardens", filedByStaff: true, adminWorkspace: true, failedRuns: [{ tool: "query_customers", error: "timed out" }] });
     expect(readBloomDiagnostics({ route: "/crm" })).toBeNull();
   });
+
+  it("strips URL credentials and only accepts canonical Bloom tracking links", () => {
+    const original = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.history.replaceState({}, "", "/reset-password?token_hash=secret#access_token=also-secret");
+    try {
+      const captured = captureClientContext();
+      expect(safeClientPageUrl()).toBe(`${window.location.origin}/reset-password`);
+      expect(captured).toMatchObject({ page_url: `${window.location.origin}/reset-password`, route: "/reset-password" });
+      expect(JSON.stringify(captured)).not.toContain("secret");
+    } finally {
+      window.history.replaceState({}, "", original);
+    }
+
+    const token = "0123456789abcdef0123456789ABCDEF";
+    expect(safeSupportTrackingUrl("javascript:alert(1)")).toBeNull();
+    expect(safeSupportTrackingUrl(`https://attacker.example/support/track/${token}`)).toBeNull();
+    expect(safeSupportTrackingUrl(`https://bloomsuite.app:8443/support/track/${token}`)).toBeNull();
+    expect(safeSupportTrackingUrl(`https://bloomsuite.app/support/track/${token}?code=secret#fragment`))
+      .toBe(`https://bloomsuite.app/support/track/${token}`);
+  });
+});
+
+describe("Bloom Support intake and attachment contracts", () => {
+  const encode = (text: string) => new TextEncoder().encode(text);
+  const ticketId = "11111111-1111-4111-8111-111111111111";
+  const browserFile = (name: string, size: number, type = "image/png") => ({ name, size, type }) as File;
+
+  it("enforces 8 MB per file and 12 MB total before browser upload", () => {
+    expect(MAX_ATTACHMENT_BYTES).toBe(8 * 1024 * 1024);
+    expect(MAX_ATTACHMENT_TOTAL_BYTES).toBe(12 * 1024 * 1024);
+    expect(checkAttachments([browserFile("large.png", MAX_ATTACHMENT_BYTES + 1)]))
+      .toMatchObject({ accepted: [], rejected: [expect.stringContaining("8 MB or smaller")] });
+    expect(checkAttachments([
+      browserFile("first.png", 7 * 1024 * 1024),
+      browserFile("second.png", 6 * 1024 * 1024),
+    ])).toMatchObject({
+      accepted: [expect.objectContaining({ name: "first.png" })],
+      rejected: [expect.stringContaining("12 MB or less")],
+    });
+  });
+
+  it("rejects an oversized reply attachment before reading or uploading it", async () => {
+    const arrayBuffer = vi.fn();
+    const oversized = {
+      name: "huge.pdf", type: "application/pdf", size: MAX_ATTACHMENT_BYTES + 1,
+      lastModified: 1, arrayBuffer,
+    } as unknown as File;
+    await expect(bloomSupport.uploadAttachment(ticketId, oversized)).rejects.toMatchObject({
+      code: "invalid_attachment", status: 400,
+    });
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
+
+  it("validates extension, signature, text safety and filename boundaries", () => {
+    expect(() => validateAttachmentFile({ name: "invoice.exe", type: "application/pdf", bytes: encode("%PDF-1.7\n%%EOF") }))
+      .toThrow("extension does not match");
+    expect(() => validateAttachmentFile({ name: "screenshot.png", type: "image/png", bytes: encode("<script>alert(1)</script>") }))
+      .toThrow("contents do not match");
+    expect(() => validateAttachmentFile({ name: "notes.txt", type: "text/plain", bytes: new Uint8Array([0x61, 0x00, 0x62]) }))
+      .toThrow("contents do not match");
+    expect(validateAttachmentFile({ name: "browser.log", type: "text/plain", bytes: encode("Save failed with status 503") }))
+      .toBe("text/plain");
+    expect(() => validateAttachmentName("../private.txt")).toThrow("cannot contain paths");
+    expect(() => validateAttachmentName("bad\nname.txt")).toThrow("control characters");
+    expect(new TextDecoder().decode(decodeBase64File("bm90ZXM="))).toBe("notes");
+    expect(() => decodeBase64File("not base64!")).toThrow("valid base64");
+  });
+
+  it("rejects malformed 2xx intake receipts and strips unsafe tracking URLs", () => {
+    const receipt = {
+      received: true,
+      duplicate_delivery: false,
+      ticket_id: ticketId,
+      number: 42,
+      tracking_url: "javascript:alert(1)",
+      attachments: { stored: 1, failed: [] },
+    };
+    expect(parseSignedSupportIntake(receipt)).toEqual({
+      received: true,
+      duplicate_delivery: false,
+      ticket_id: ticketId,
+      number: 42,
+      attachments: { stored: 1, failed: [] },
+    });
+    expect(() => parseSignedSupportIntake({ ...receipt, attachments: undefined })).toThrow("did not confirm");
+    expect(() => parseSignedSupportIntake({ ...receipt, received: false })).toThrow("did not confirm");
+    expect(() => parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "sent" }))
+      .toThrow("did not confirm");
+    expect(parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "pending" }))
+      .toMatchObject({ number: 42, email_delivery: "pending" });
+    expect(parseSupportMessageResult({ message_id: ticketId, duplicate: false }))
+      .toEqual({ message_id: ticketId, duplicate: false });
+    expect(() => parseSupportMessageResult({ ok: true })).toThrow("did not confirm your reply");
+  });
+
+  it("computes generic API idempotency fingerprints from normalized stored content", async () => {
+    releaseMocks.rpc.mockResolvedValue({ ticket_id: ticketId, number: 42, duplicate_delivery: false });
+    const caller = { principalId: "staff-principal", role: "support", via: "crm_session" as const, scopes: [] };
+    const base = {
+      subject: "Checkout issue",
+      body: "The checkout button does not respond.",
+      product: "crm",
+      idempotency_key: "generic-api-key",
+      intake_fingerprint: "a".repeat(64),
+    };
+    await supportActions.createTicket(caller, base);
+    await supportActions.createTicket(caller, base);
+    await supportActions.createTicket(caller, {
+      ...base,
+      body: "The edited request must not alias the first ticket.",
+      intake_fingerprint: "a".repeat(64),
+    });
+    const tickets = releaseMocks.rpc.mock.calls.map(([, args]) =>
+      (args as { ticket: Record<string, unknown> }).ticket
+    );
+    expect(tickets[0].intake_fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    expect(tickets[1].intake_fingerprint).toBe(tickets[0].intake_fingerprint);
+    expect(tickets[2].intake_fingerprint).not.toBe(tickets[0].intake_fingerprint);
+    expect(tickets[0].intake_fingerprint).not.toBe("a".repeat(64));
+  });
 });
 
 describe("cleanErrorText", () => {
@@ -361,5 +585,454 @@ describe("create_ticket paused-on-create migration", () => {
     expect(sql).toContain("IN (''paused'', ''human'')");
     expect(sql).toContain("IF v_automation IS NULL THEN");
     expect(sql).toContain("RAISE EXCEPTION 'create_ticket anchors not found");
+  });
+});
+
+describe("Bloom repair outcome reporting", () => {
+  const workflow = fs.readFileSync(
+    path.join(process.cwd(), ".github/workflows/bloom-repair.yml"),
+    "utf8",
+  );
+  const reportJob = workflow.slice(workflow.indexOf("\n  report:"));
+
+  it("fails visibly after bounded HTTPS retries without logging response data", () => {
+    expect(reportJob).toContain("BLOOM_SUPPORT_API_URL is not configured");
+    expect(reportJob).toContain("BLOOM_REPAIR_REPORT_KEY is not configured");
+    expect(reportJob).toContain("--retry 3");
+    expect(reportJob).toContain("--retry-max-time 90");
+    expect(reportJob).toContain("--retry-all-errors");
+    expect(reportJob).toContain("BLOOM_SUPPORT_API_URL must use https://");
+    expect(reportJob).toContain("--proto '=https' --tlsv1.2");
+    expect(reportJob).toContain("umask 077");
+    expect(reportJob).toContain("--silent --show-error --output /dev/null");
+    expect(reportJob).not.toContain('|| echo "Bloom report failed"');
+  });
+});
+
+describe("Bloom engineering release recovery", () => {
+  const releaseCaller = {
+    principalId: "release-service",
+    role: "service",
+    via: "service" as const,
+    scopes: [],
+  };
+  const repository = "JonDMorrison/brandsinblooms";
+  const cmsRepository = "Brands-In-Blooms/cms-brandsinblooms";
+  const policy = {
+    vercel: {
+      [repository]: { projectId: "prj_test" },
+      [cmsRepository]: { projectId: "prj_cms" },
+    },
+    verificationOrigins: {
+      [repository]: ["https://bloomsuite.app"],
+      [cmsRepository]: ["https://winderberry.bloomsites.app"],
+    },
+    verificationChecks: {
+      [repository]: [{ url: "https://bloomsuite.app/health", contains: "healthy" }],
+      [cmsRepository]: [{ url: "https://winderberry.bloomsites.app/api/health", contains: "ok" }],
+    },
+  };
+
+  const baseIssue = (): EngineeringIssue => ({
+    id: "11111111-1111-4111-8111-111111111111",
+    title: "Broken support flow",
+    product: "crm",
+    repository,
+    status: "approved",
+    version: 1,
+    evidence: {},
+    reproduction: { reproduced: true },
+    branch: "bloom/fix-11111111",
+    pr_number: 4243,
+    pr_url: `https://github.com/${repository}/pull/4243`,
+    head_sha: "reviewed-head",
+    merge_sha: null,
+    deployment: null,
+    verification: null,
+    eligibility: null,
+    attempts: 1,
+    approved_head_sha: "reviewed-head",
+    tickets: [],
+  });
+
+  function wireIssue(initial: EngineeringIssue, releasePolicy: Record<string, unknown> = policy) {
+    let issue = structuredClone(initial);
+    releaseMocks.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      if (fn === "list_engineering") return [structuredClone(issue)];
+      if (fn === "setting") return args.key === "release_policy" ? releasePolicy : null;
+      if (fn === "update_engineering_issue") {
+        const update = args.update as { status?: string; patch?: Record<string, unknown> };
+        issue = {
+          ...issue,
+          ...(update.patch ?? {}),
+          ...(update.status ? { status: update.status } : {}),
+          version: issue.version + 1,
+        } as EngineeringIssue;
+        return structuredClone(issue);
+      }
+      throw new Error(`unexpected rpc ${fn}`);
+    });
+    return () => issue;
+  }
+
+  const rollbackIssue = (polls = 0): EngineeringIssue => ({
+    ...baseIssue(),
+    status: "verifying",
+    merge_sha: "bad-production-sha",
+    verification: {
+      passed: false,
+      scope: "release_smoke",
+      checks: [{ url: "https://bloomsuite.app/health", pass: false }],
+    },
+    rollback: {
+      previous_deployment_id: "dpl_previous",
+      previous_url: "previous.vercel.test",
+      provider: "vercel",
+      status: "requested",
+      requested_at: new Date(Date.now() - 1_000).toISOString(),
+      polls,
+    },
+  });
+
+  const productionAlias = (deployment: {
+    uid: string;
+    url: string;
+    meta: Record<string, unknown>;
+  }) => ({
+    target: "PRODUCTION",
+    deployment: { ...deployment, readyState: "READY" },
+  });
+
+  beforeEach(() => {
+    releaseMocks.commitContains.mockReset().mockResolvedValue(false);
+    releaseMocks.env.mockReset().mockImplementation((key: string) =>
+      key === "BLOOM_VERCEL_TOKEN" || key.includes("GITHUB") ? "test-value" : undefined
+    );
+    releaseMocks.productionCommitForRepair.mockReset();
+    releaseMocks.productionDeployment.mockReset();
+    releaseMocks.pullRequestFacts.mockReset();
+    releaseMocks.rpc.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps verification targets on the approved production origin", () => {
+    expect(approvedVerificationUrl(policy, repository, "https://attacker.example/health")).toBeNull();
+    expect(approvedVerificationUrl(policy, repository, "https://user:secret@bloomsuite.app/health")).toBeNull();
+    expect(approvedVerificationUrl(policy, repository, "https://bloomsuite.app/health?token=secret")).toBeNull();
+    expect(verificationChecksForPolicy({
+      ...policy,
+      verificationChecks: { [repository]: Array.from({ length: 11 }, () => ({ url: "https://bloomsuite.app/health" })) },
+    }, repository)).toBeNull();
+  });
+
+  it("blocks verifier redirects and bounds streamed response evidence", async () => {
+    const redirectIssue = {
+      ...baseIssue(),
+      status: "verifying",
+      merge_sha: "merge-sha",
+    };
+    const redirectCurrent = wireIssue(redirectIssue);
+    const redirectFetch = vi.fn().mockRejectedValue(new TypeError("redirect blocked"));
+    vi.stubGlobal("fetch", redirectFetch);
+    await expect(verifyEngineeringRelease(releaseCaller, redirectIssue.id)).resolves.toEqual({ note: "verification failed" });
+    expect(redirectFetch).toHaveBeenCalledWith(
+      "https://bloomsuite.app/health",
+      expect.objectContaining({ redirect: "error" }),
+    );
+    expect(redirectCurrent()).toMatchObject({ status: "failed", verification: { passed: false } });
+
+    vi.unstubAllGlobals();
+    const oversizedIssue = { ...redirectIssue, id: "22222222-2222-4222-8222-222222222222" };
+    const oversizedCurrent = wireIssue(oversizedIssue);
+    let cancelled = false;
+    const responseBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(700_000));
+        controller.enqueue(new Uint8Array(700_000));
+      },
+      cancel() { cancelled = true; },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(responseBody)));
+    await verifyEngineeringRelease(releaseCaller, oversizedIssue.id);
+    expect(cancelled).toBe(true);
+    expect(oversizedCurrent()).toMatchObject({ status: "failed", verification: { passed: false } });
+  });
+
+  it("persists a manually merged pull request before deployment recovery", async () => {
+    const current = wireIssue(baseIssue(), {});
+    releaseMocks.pullRequestFacts.mockResolvedValue({
+      pr: {
+        merged: true,
+        merge_commit_sha: "manual-merge-sha",
+        state: "closed",
+        head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
+      },
+      facts: {},
+    });
+    await expect(evaluateEngineeringRelease(releaseCaller, baseIssue().id)).resolves.toMatchObject({
+      next: { step: "deploy" },
+    });
+    expect(current()).toMatchObject({ status: "deploying", merge_sha: "manual-merge-sha" });
+  });
+
+  it("waits for GitHub's merge commit instead of inventing release evidence", async () => {
+    const current = wireIssue(baseIssue(), {});
+    releaseMocks.pullRequestFacts.mockResolvedValue({
+      pr: {
+        merged: true,
+        merge_commit_sha: null,
+        state: "closed",
+        head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
+      },
+      facts: {},
+    });
+    await expect(evaluateEngineeringRelease(releaseCaller, baseIssue().id)).resolves.toEqual({
+      next: { step: "evaluate", delaySeconds: 60 },
+      note: "merged; waiting for GitHub merge commit",
+    });
+    expect(current()).toMatchObject({ status: "approved", merge_sha: null });
+  });
+
+  it("never auto-merges a delayed repair report that requires human review", async () => {
+    const issue = {
+      ...baseIssue(),
+      status: "approved",
+      approved_head_sha: null,
+      reproduction: {
+        reproduced: true,
+        intended_behaviour_established: true,
+        needs_human: true,
+      },
+    };
+    const current = wireIssue(issue);
+    releaseMocks.pullRequestFacts.mockResolvedValue({
+      pr: {
+        merged: false,
+        state: "open",
+        merge_commit_sha: null,
+        head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
+      },
+      facts: { checks: [], files: [] },
+    });
+
+    await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
+      note: "awaiting approval: repair report requires human review",
+    });
+    expect(current()).toMatchObject({
+      status: "awaiting_approval",
+      eligibility: { eligible: false, reasons: ["repair report requires human review"] },
+    });
+  });
+
+  it("observes a dev promotion and skips every rollback deployment that already contains the repair", async () => {
+    const issue = {
+      ...baseIssue(),
+      product: "cms" as const,
+      repository: cmsRepository,
+      status: "deploying",
+      merge_sha: "dev-merge-sha",
+    };
+    const current = wireIssue(issue);
+    releaseMocks.productionCommitForRepair.mockResolvedValue("main-production-sha");
+    releaseMocks.productionDeployment.mockResolvedValue({
+      state: "success",
+      environment: "Production – cms-brandsinblooms-latest",
+      url: "https://winderberry.bloomsites.app",
+      deployment_id: 7552913436,
+    });
+    releaseMocks.commitContains.mockImplementation(
+      async (_repository: string, marker: string, candidate: string) =>
+        marker === "dev-merge-sha" && candidate === "promotion-production-sha",
+    );
+    const promoted = {
+      uid: "dpl_contains_repair",
+      url: "promotion.example.test",
+      meta: { githubCommitSha: "promotion-production-sha" },
+    };
+    const previous = {
+      uid: "dpl_safe_previous",
+      url: "previous.example.test",
+      meta: { githubCommitSha: "previous-production-sha" },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/v9/projects/prj_cms") {
+        return Response.json({ alias: [productionAlias(promoted)] });
+      }
+      if (url.pathname === "/v6/deployments") {
+        return Response.json({ deployments: [promoted, previous] });
+      }
+      throw new Error(`unexpected request ${url}`);
+    }));
+
+    await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({ next: { step: "verify" } });
+    expect(releaseMocks.productionCommitForRepair).toHaveBeenCalledWith(cmsRepository, "dev-merge-sha", "dev");
+    expect(current()).toMatchObject({
+      status: "verifying",
+      deployment: { production_sha: "main-production-sha", promoted_from: "dev" },
+      rollback: { previous_deployment_id: "dpl_safe_previous" },
+    });
+  });
+
+  it("only observes a person-authorised dev-to-main release; it never promotes dev itself", async () => {
+    const issue = {
+      ...baseIssue(),
+      product: "cms" as const,
+      repository: cmsRepository,
+      status: "deploying",
+      merge_sha: "dev-merge-sha",
+    };
+    const current = wireIssue(issue);
+    releaseMocks.productionCommitForRepair.mockResolvedValue(null);
+    await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
+      next: { step: "deploy", delaySeconds: 3600 },
+      note: "awaiting person-authorised production release",
+    });
+    expect(releaseMocks.productionDeployment).not.toHaveBeenCalled();
+    expect(current().deployment).toMatchObject({
+      state: "awaiting_production_release",
+      source_merge_sha: "dev-merge-sha",
+    });
+  });
+
+  it("uses the deployment actually serving production, not newer failed READY history", async () => {
+    const issue = {
+      ...baseIssue(),
+      status: "deploying",
+      merge_sha: "bloom-merge-c",
+      rollback: {
+        previous_deployment_id: "dpl_old_a",
+        previous_url: "old-a.example.test",
+        previous_commit_sha: "old-a",
+        provider: "vercel",
+      },
+    };
+    const current = wireIssue(issue);
+    releaseMocks.productionDeployment.mockResolvedValue({
+      state: "success",
+      environment: "Production – bloomsuite-crm",
+      url: "https://bloomsuite.app",
+      deployment_id: 7552913437,
+    });
+    const failedHistory = {
+      uid: "dpl_failed_c",
+      url: "failed-c.example.test",
+      meta: { githubCommitSha: "failed-release-c" },
+    };
+    const serving = {
+      uid: "dpl_intervening_b",
+      url: "good-b.example.test",
+      meta: { githubCommitSha: "good-release-b" },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/v9/projects/prj_test") {
+        return Response.json({ alias: [productionAlias(serving)] });
+      }
+      if (url.pathname === "/v6/deployments") {
+        return Response.json({ deployments: [failedHistory, serving] });
+      }
+      throw new Error(`unexpected request ${url}`);
+    }));
+
+    await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({ next: { step: "verify" } });
+    expect(current()).toMatchObject({
+      status: "verifying",
+      rollback: {
+        previous_deployment_id: "dpl_intervening_b",
+        previous_commit_sha: "good-release-b",
+      },
+    });
+  });
+
+  it("records Vercel's 201 rollback response as requested, not restored", async () => {
+    const issue = { ...rollbackIssue(), rollback: { ...rollbackIssue().rollback, status: undefined } };
+    const current = wireIssue(issue);
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.hostname === "bloomsuite.app") return new Response("still broken", { status: 200 });
+      if (url.pathname.includes("/rollback/")) return new Response(null, { status: 201 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+
+    await expect(verifyEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
+      next: { step: "verify", delaySeconds: 30 },
+    });
+    expect(current()).toMatchObject({ status: "verifying", rollback: { status: "requested", polls: 0 } });
+    expect(current().rollback).not.toHaveProperty("rolled_back_at");
+  });
+
+  it("keeps an accepted rollback pending while Vercel remaps aliases", async () => {
+    const issue = rollbackIssue();
+    const current = wireIssue(issue);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      lastAliasRequest: {
+        type: "rollback",
+        jobStatus: "in-progress",
+        requestedAt: Date.now(),
+        toDeploymentId: "dpl_previous",
+      },
+    })));
+
+    await expect(verifyEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
+      next: { step: "verify", delaySeconds: 30 },
+    });
+    expect(current()).toMatchObject({ status: "verifying", rollback: { status: "requested", polls: 1 } });
+  });
+
+  it("fails safely on a wrong alias target or bounded confirmation timeout", async () => {
+    const wrongAlias = rollbackIssue();
+    const wrongCurrent = wireIssue(wrongAlias);
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({
+        lastAliasRequest: { type: "rollback", jobStatus: "succeeded", requestedAt: Date.now(), toDeploymentId: "dpl_previous" },
+      }))
+      .mockResolvedValueOnce(Response.json({
+        aliases: [{ alias: { alias: "bloomsuite.app", deploymentId: "dpl_wrong" }, status: "failed" }],
+        pagination: { next: null },
+      })));
+    await expect(verifyEngineeringRelease(releaseCaller, wrongAlias.id)).resolves.toEqual({ note: "rollback confirmation failed" });
+    expect(wrongCurrent()).toMatchObject({ status: "failed", rollback: { status: "confirmation_failed" } });
+
+    vi.unstubAllGlobals();
+    const timedOut = rollbackIssue(20);
+    const timeoutCurrent = wireIssue(timedOut);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      lastAliasRequest: { type: "rollback", jobStatus: "pending", requestedAt: Date.now(), toDeploymentId: "dpl_previous" },
+    })));
+    await expect(verifyEngineeringRelease(releaseCaller, timedOut.id)).resolves.toEqual({ note: "rollback confirmation failed" });
+    expect(timeoutCurrent()).toMatchObject({ status: "failed", rollback: { status: "confirmation_failed", polls: 21 } });
+  });
+
+  it("reports rollback only after nested alias mappings and recovery smoke are confirmed", async () => {
+    const issue = rollbackIssue();
+    const current = wireIssue(issue);
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/v9/projects/prj_test") {
+        return Response.json({
+          lastAliasRequest: { type: "rollback", jobStatus: "succeeded", requestedAt: Date.now(), toDeploymentId: "dpl_previous" },
+        });
+      }
+      if (url.pathname.endsWith("/rollback/aliases")) {
+        return Response.json({
+          aliases: [{ alias: { alias: "bloomsuite.app", deploymentId: "dpl_previous" }, status: "completed" }],
+          pagination: { next: null },
+        });
+      }
+      if (url.hostname === "bloomsuite.app") return new Response("healthy", { status: 200 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+
+    await expect(verifyEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
+      note: "verification failed; rollback confirmed",
+    });
+    expect(current()).toMatchObject({
+      status: "rolled_back",
+      rollback: { status: "confirmed", aliases_confirmed: 1, recovery_verification: { passed: true, scope: "release_smoke" } },
+    });
   });
 });

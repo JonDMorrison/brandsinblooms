@@ -46,7 +46,7 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
 }
 
 /** A service-role-only public function that authorizes p_actor itself (not routed through the gateway). */
-export async function directRpc<T = unknown>(fn: "bloom_chat_spend_overview" | "bloom_chat_spend_set_cap" | "bloom_support_client_suite_read", args: Record<string, unknown>): Promise<T> {
+export async function directRpc<T = unknown>(fn: "bloom_chat_spend_overview" | "bloom_chat_spend_set_cap" | "bloom_support_client_suite_read" | "bloom_support_confirm_attachment" | "bloom_support_consume_email_usage", args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(fn, args);
   if (error) throw mapDbError(error);
   return data as T;
@@ -150,24 +150,46 @@ export interface ProductIdentity {
   account_name?: string | null;
 }
 
+/** Reject obviously unauthenticated product traffic before buffering its body. */
+export function preflightProductAuthentication(
+  req: Request,
+): { product: "cms" | "pos"; secret: string } {
+  const product = req.headers.get("x-bloom-product");
+  if (product !== "cms" && product !== "pos") {
+    throw new BloomError(401, "unauthenticated", "Unknown product");
+  }
+  const secret = env(`BLOOM_INTAKE_SECRET_${product.toUpperCase()}`);
+  if (!secret) {
+    throw new BloomError(
+      503,
+      "not_configured",
+      `BLOOM_INTAKE_SECRET_${product.toUpperCase()} is not set`,
+    );
+  }
+  const timestamp = req.headers.get("x-bloom-timestamp");
+  const signature = req.headers.get("x-bloom-signature") ?? "";
+  const seconds = Number(timestamp);
+  if (
+    !timestamp ||
+    !Number.isFinite(seconds) ||
+    Math.abs(Date.now() / 1000 - seconds) > 300 ||
+    !/^(?:sha256=)?[0-9a-f]{64}$/i.test(signature)
+  ) {
+    throw new BloomError(401, "unauthenticated", "Invalid product signature");
+  }
+  return { product, secret };
+}
+
 /**
  * Signed product intake: the BloomSites or POS server authenticated the person
  * and derived their site/tenant, then signs the request body with its own
  * per-product secret. Bloom trusts the identity only when the signature checks.
  */
 export async function authenticateProduct(req: Request, rawBody: string): Promise<{ product: "cms" | "pos"; payload: Record<string, unknown> }> {
-  const product = req.headers.get("x-bloom-product");
-  if (product !== "cms" && product !== "pos") throw new BloomError(401, "unauthenticated", "Unknown product");
-  const secret = env(`BLOOM_INTAKE_SECRET_${product.toUpperCase()}`);
-  if (!secret) throw new BloomError(503, "not_configured", `BLOOM_INTAKE_SECRET_${product.toUpperCase()} is not set`);
+  const { product, secret } = preflightProductAuthentication(req);
   const ok = await verifyIntakeSignature(secret, req.headers.get("x-bloom-timestamp"), req.headers.get("x-bloom-signature"), rawBody);
   if (!ok) throw new BloomError(401, "unauthenticated", "Invalid product signature");
-  let payload: Record<string, unknown>;
-  try {
-    payload = JSON.parse(rawBody);
-  } catch {
-    throw new BloomError(400, "invalid", "Body must be JSON");
-  }
+  const payload = parseJsonObject(rawBody);
   return { product, payload };
 }
 
@@ -203,10 +225,98 @@ export function errorResponse(req: Request, e: unknown): Response {
   return json(req, { error: "internal", message: "Unexpected error" }, 500);
 }
 
-export async function readJson(req: Request, limit = 1_000_000): Promise<Record<string, unknown>> {
-  const text = await req.text();
-  if (text.length > limit) throw new BloomError(413, "too_large", "Request too large");
+async function readBoundedBytes(
+  body: ReadableStream<Uint8Array> | null,
+  declared: string | null,
+  limitBytes: number,
+  tooLargeMessage: string,
+): Promise<Uint8Array> {
+  if (declared && /^\d+$/.test(declared) && Number(declared) > limitBytes) {
+    throw new BloomError(413, "too_large", tooLargeMessage);
+  }
+  if (!body) return new Uint8Array();
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limitBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new BloomError(413, "too_large", tooLargeMessage);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+async function readBoundedText(
+  body: ReadableStream<Uint8Array> | null,
+  declared: string | null,
+  limitBytes: number,
+): Promise<string> {
+  const bytes = await readBoundedBytes(
+    body,
+    declared,
+    limitBytes,
+    "Request too large",
+  );
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new BloomError(400, "invalid", "Body must be valid UTF-8");
+  }
+}
+
+/** Read a request body with a real UTF-8 byte ceiling, including chunked bodies. */
+export async function readBodyText(req: Request, limitBytes = 1_000_000): Promise<string> {
+  return await readBoundedText(
+    req.body,
+    req.headers.get("content-length"),
+    limitBytes,
+  );
+}
+
+/** Apply the same allocation bound to an upstream response body. */
+export async function readResponseText(
+  response: Response,
+  limitBytes = 1_000_000,
+): Promise<string> {
+  return await readBoundedText(
+    response.body,
+    response.headers.get("content-length"),
+    limitBytes,
+  );
+}
+
+/** Read an upstream response without trusting Content-Length or buffering past the cap. */
+export async function readResponseBytes(
+  response: Response,
+  limitBytes: number,
+): Promise<Uint8Array> {
+  return await readBoundedBytes(
+    response.body,
+    response.headers.get("content-length"),
+    limitBytes,
+    "Upstream response too large",
+  );
+}
+
+export async function readJson(req: Request, limitBytes = 1_000_000): Promise<Record<string, unknown>> {
+  const text = await readBodyText(req, limitBytes);
   if (!text) return {};
+  return parseJsonObject(text);
+}
+
+export function parseJsonObject(text: string): Record<string, unknown> {
   try {
     const v = JSON.parse(text);
     if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error();

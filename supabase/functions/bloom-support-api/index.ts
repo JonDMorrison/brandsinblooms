@@ -98,16 +98,14 @@ on("POST", "/tickets/:id/feature", async (req, [id]) => actions.routeFeature(awa
 on("POST", "/tickets/:id/escalate", async (req, [id]) => actions.escalate(await caller(req), id, await readJson(req)));
 on("POST", "/tickets/:id/attachments", async (req, [id]) => {
   const c = await caller(req);
-  const type = req.headers.get("content-type") ?? "";
-  if (type.startsWith("multipart/form-data")) {
-    const form = await req.formData();
-    const out = [];
-    for (const v of form.getAll("file")) {
-      if (v instanceof File) out.push(await storeAttachment(c.principalId, id, { name: v.name, type: v.type, bytes: new Uint8Array(await v.arrayBuffer()) }, { visibility: form.get("visibility") === "internal" ? "internal" : "public" }));
-    }
-    return out;
+  const type = req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (type !== "application/json") {
+    throw new BloomError(415, "unsupported_media_type", "Attachment uploads require application/json");
   }
-  const b = await readJson(req, 22_000_000);
+  // One 8 MiB file is about 10.7 MiB as base64. Bound the JSON envelope before
+  // parsing so chunked and dishonest Content-Length requests cannot make the
+  // Edge runtime allocate an unbounded multipart/File body.
+  const b = await readJson(req, 12 * 1024 * 1024);
   return storeAttachment(c.principalId, id, { name: String(b.file_name ?? "file"), type: String(b.content_type ?? ""), bytes: decodeBase64File(String(b.data_base64 ?? "")) }, { visibility: b.visibility === "internal" ? "internal" : "public" });
 });
 on("GET", "/attachments/:id", async (req, [id]) => attachmentUrl((await caller(req)).principalId, id));
