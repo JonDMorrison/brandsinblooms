@@ -20,6 +20,7 @@ export const WRITE_OPERATIONS = new Set([
   "site.section.update", "site.section.reorder", "site.section.visibility",
   "site.theme.update", "site.theme.publish", "site.theme.discard",
   "site.blog.create", "site.blog.update", "site.blog.publish", "site.seo.update",
+  "site.navigation.update", "site.navigation.publish", "site.navigation.discard", "site.image.replace",
 ]);
 const PERMISSION: Record<string, string> = {
   ...OPERATION_PERMISSIONS,
@@ -36,7 +37,7 @@ export function describeOperations() {
     remote: { cms: remoteConfigured("cms"), pos: remoteConfigured("pos") },
   };
 }
-const UNDOABLE = new Set(["campaign.schedule", "campaign.unschedule", "campaign.update_draft", "site.page.update", "site.publish", "event.update", "site.section.update", "site.section.reorder", "site.section.visibility", "site.theme.update", "site.theme.publish", "site.theme.discard", "site.blog.create", "site.blog.update", "site.blog.publish", "site.seo.update"]);
+const UNDOABLE = new Set(["campaign.schedule", "campaign.unschedule", "campaign.update_draft", "site.page.update", "site.publish", "event.update", "site.section.update", "site.section.reorder", "site.section.visibility", "site.theme.update", "site.theme.publish", "site.theme.discard", "site.blog.create", "site.blog.update", "site.blog.publish", "site.seo.update", "site.navigation.update", "site.navigation.publish", "site.navigation.discard", "site.image.replace"]);
 
 async function opsRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc("bloom_support_ops_rpc", { p_fn: fn, p: args });
