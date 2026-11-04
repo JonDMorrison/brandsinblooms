@@ -15,8 +15,10 @@ import {
   resolveAdminDashboardContentWidth,
 } from "@/components/layout/DashboardShell";
 import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
+import { TicketConversation } from "@/components/bloomSupport/TicketConversation";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { PublicSupportContact } from "@/pages/PublicSupportPage";
+import SupportPage from "@/pages/SupportPage";
 import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 import type { TicketDetail, Whoami } from "@/lib/bloomSupport/api";
 
@@ -35,6 +37,8 @@ const supportMocks = vi.hoisted(() => ({
   report: vi.fn(),
   addMessage: vi.fn(),
   getTicket: vi.fn(),
+  listTickets: vi.fn(),
+  me: vi.fn(),
   uploadAttachment: vi.fn(),
   safeClientPageUrl: vi.fn(() => "https://bloomsuite.app/support/contact"),
 }));
@@ -142,6 +146,8 @@ vi.mock("@/lib/bloomSupport/api", () => ({
     report: supportMocks.report,
     addMessage: supportMocks.addMessage,
     getTicket: supportMocks.getTicket,
+    listTickets: supportMocks.listTickets,
+    me: supportMocks.me,
     uploadAttachment: supportMocks.uploadAttachment,
   },
   captureClientContext: supportMocks.captureClientContext,
@@ -336,6 +342,8 @@ beforeEach(() => {
     email_delivery: "pending",
   });
   supportMocks.getTicket.mockResolvedValue(supportTicket);
+  supportMocks.listTickets.mockResolvedValue([supportTicket]);
+  supportMocks.me.mockResolvedValue(supportAgent);
   supportMocks.addMessage.mockResolvedValue({
     message_id: "77777777-7777-4777-8777-777777777777",
     duplicate: false,
@@ -779,5 +787,198 @@ describe("Bloom Support reply composer", () => {
       expect.objectContaining({ name: "printer.png" }),
       "internal",
     );
+  });
+});
+
+describe("Bloom Support staff workspace", () => {
+  it("keeps staff on a calm conversation-first support surface", async () => {
+    const user = userEvent.setup();
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Support" })).toBeInTheDocument();
+    expect(screen.queryByText("Get help")).not.toBeInTheDocument();
+    expect(screen.queryByText("Help centre")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open full support desk" })).toHaveAttribute("href", "/admin/bloom-support");
+
+    await user.click(await screen.findByRole("button", { name: `Open request #${supportTicket.number}: ${supportTicket.subject}` }));
+
+    expect(await screen.findByRole("button", { name: "Details" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+    expect(screen.queryByText("Captured context")).not.toBeInTheDocument();
+  });
+
+  it("preserves the self-service portal for client users", async () => {
+    supportMocks.me.mockResolvedValueOnce({ ...supportAgent, role: "client", permissions: [] });
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Help & Support" })).toBeInTheDocument();
+    expect(screen.getByText("Get help")).toBeInTheDocument();
+    expect(screen.getByText("Help centre")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open full support desk" })).not.toBeInTheDocument();
+  });
+
+  it("restores focus to the originating ticket after the mobile conversation closes", async () => {
+    const user = userEvent.setup();
+    setViewportWidth(390);
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+
+    const row = await screen.findByRole("button", { name: `Open request #${supportTicket.number}: ${supportTicket.subject}` });
+    await user.click(row);
+    expect(await screen.findByRole("region", { name: "Request details" })).toHaveFocus();
+
+    await user.click(await screen.findByRole("button", { name: "Back" }));
+    await waitFor(() => expect(row).toHaveFocus());
+  });
+
+  const renderConversation = () => render(
+    <TestQueryClientProvider>
+      <TicketConversation
+        ticketId={supportTicket.id}
+        me={{ ...supportAgent, permissions: [...supportAgent.permissions, "tickets.write"] }}
+        onBack={vi.fn()}
+        onShowDetails={vi.fn()}
+        onOpenTicket={vi.fn()}
+      />
+    </TestQueryClientProvider>,
+  );
+
+  it("freezes and retries the exact conversation reply after an ambiguous failure", async () => {
+    const user = userEvent.setup();
+    const first = deferred<{ message_id: string; duplicate: boolean }>();
+    supportMocks.addMessage
+      .mockImplementationOnce(() => first.promise)
+      .mockResolvedValueOnce({
+        message_id: "88888888-8888-4888-8888-888888888888",
+        duplicate: true,
+      });
+    renderConversation();
+
+    const reply = await screen.findByRole("textbox", { name: "Message" });
+    expect(reply).toHaveAttribute("maxlength", "20000");
+    expect(screen.getByText("0 / 20,000 characters")).toBeInTheDocument();
+    await user.type(reply, "Please restart the receipt printer and tell us what happens.");
+    await user.click(screen.getByRole("button", { name: "Send to client" }));
+
+    await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(1));
+    const originalPayload = supportMocks.addMessage.mock.calls[0][1];
+    expect(reply).toBeDisabled();
+    await act(async () => first.reject(new Error("Response lost after commit")));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Response lost after commit");
+    expect(reply).toBeDisabled();
+    expect(reply).toHaveValue("Please restart the receipt printer and tell us what happens.");
+    await user.click(screen.getByRole("button", { name: "Retry same reply" }));
+
+    await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(2));
+    expect(supportMocks.addMessage.mock.calls[1][1]).toBe(originalPayload);
+    await waitFor(() => expect(reply).toHaveValue(""));
+    expect(await screen.findByText("Reply sent to the client.")).toBeInTheDocument();
+  });
+
+  it("blocks both conversation send paths above the body limit", async () => {
+    renderConversation();
+
+    const reply = await screen.findByRole("textbox", { name: "Message" });
+    fireEvent.change(reply, { target: { value: "x".repeat(20_001) } });
+
+    expect(screen.getByText("20,001 / 20,000 characters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send to client" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Private note" })).toBeDisabled();
+    expect(supportMocks.addMessage).not.toHaveBeenCalled();
+  });
+
+  it("preserves public and private attachment choices in the focused composer", async () => {
+    const user = userEvent.setup();
+    renderConversation();
+    await screen.findByRole("textbox", { name: "Message" });
+    const privateInput = document.querySelector<HTMLInputElement>('input[aria-label="Attach a private file"]');
+
+    expect(privateInput).not.toBeNull();
+    expect(privateInput).not.toHaveAttribute("multiple");
+    await user.upload(
+      privateInput!,
+      new File(["photo"], "printer.png", { type: "image/png" }),
+    );
+
+    await waitFor(() => expect(supportMocks.uploadAttachment).toHaveBeenCalledTimes(1));
+    expect(supportMocks.uploadAttachment).toHaveBeenCalledWith(
+      supportTicket.id,
+      expect.objectContaining({ name: "printer.png" }),
+      "internal",
+    );
+  });
+
+  it("rotates the conversation key only after edit and send as new", async () => {
+    const user = userEvent.setup();
+    supportMocks.addMessage.mockRejectedValueOnce(new Error("Connection ended before confirmation"));
+    renderConversation();
+
+    const reply = await screen.findByRole("textbox", { name: "Message" });
+    await user.type(reply, "The first reply may already be saved.");
+    await user.click(screen.getByRole("button", { name: "Send to client" }));
+    await screen.findByRole("button", { name: "Retry same reply" });
+    const firstPayload = supportMocks.addMessage.mock.calls[0][1];
+
+    await user.click(screen.getByRole("button", { name: "Edit and send as new" }));
+    expect(reply).toBeEnabled();
+    await waitFor(() => expect(reply).toHaveFocus());
+    await user.clear(reply);
+    await user.type(reply, "This is deliberately a new private note.");
+    await user.click(screen.getByRole("button", { name: "Private note" }));
+
+    await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(2));
+    const newPayload = supportMocks.addMessage.mock.calls[1][1];
+    expect(newPayload).toMatchObject({
+      body: "This is deliberately a new private note.",
+      visibility: "internal",
+    });
+    expect(newPayload.idempotency_key).not.toBe(firstPayload.idempotency_key);
+  });
+
+  it("keeps operational telemetry collapsed until staff asks for it", async () => {
+    const user = userEvent.setup();
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      jobs: [{ id: "job-1", kind: "triage", status: "succeeded", attempts: 1, last_error: null, run_after: supportTicket.updated_at, updated_at: supportTicket.updated_at }],
+      emails: [{ purpose: "acknowledgement", to: "gail@example.com", status: "delivered", created_at: supportTicket.updated_at, error: null }],
+      timers: { age_seconds: 3600, our_clock_seconds: 1800, our_clock_business_seconds: 1200 },
+      history: [{ kind: "status", from: "new", to: "working", at: supportTicket.updated_at, actor: "Bloom" }],
+      activity: [{ action: "ticket.updated", detail: {}, created_at: supportTicket.updated_at, actor: "Bloom" }],
+      context: { route: "/dashboard", viewport: "1440x900" },
+    });
+    render(
+      <TestQueryClientProvider>
+        <TicketDetailPane ticketId={supportTicket.id} me={supportAgent} onOpenTicket={vi.fn()} />
+      </TestQueryClientProvider>,
+    );
+
+    const delivery = await screen.findByRole("button", { name: /Automation & delivery/ });
+    const history = screen.getByRole("button", { name: "Timing & history" });
+    const context = screen.getByRole("button", { name: "Technical context" });
+    expect(delivery).toHaveAttribute("aria-expanded", "false");
+    expect(history).toHaveAttribute("aria-expanded", "false");
+    expect(context).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(delivery);
+    expect(delivery).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("acknowledgement → gail@example.com: delivered")).toBeInTheDocument();
   });
 });

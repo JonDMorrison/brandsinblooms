@@ -11,12 +11,17 @@ import Chip from "@mui/joy/Chip";
 import Alert from "@mui/joy/Alert";
 import Skeleton from "@mui/joy/Skeleton";
 import Link from "@mui/joy/Link";
+import Dropdown from "@mui/joy/Dropdown";
+import MenuButton from "@mui/joy/MenuButton";
+import Menu from "@mui/joy/Menu";
+import MenuItem from "@mui/joy/MenuItem";
 import { ArrowLeft, Check, Lock, Paperclip, Sprout } from "lucide-react";
 import { format, formatDistanceToNow, isToday } from "date-fns";
 import { bloomSupport, PRODUCT_LABEL, WAITING_LABEL, type TicketDetail, type TicketMessage, type Whoami } from "@/lib/bloomSupport/api";
 import { statusPatch } from "./statusPatch";
 import { ENGINEERING_TEXT } from "./labels";
 import { useAskDialog } from "./useAskDialog";
+import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
 
 /**
  * Bloom Support conversation: one ticket read as a chat, with the single thing it needs
@@ -26,6 +31,7 @@ import { useAskDialog } from "./useAskDialog";
 
 type Tone = "warning" | "primary" | "success" | "neutral";
 type Banner = { tone: Tone; text: string };
+type ReplyPayload = Parameters<typeof bloomSupport.addMessage>[1];
 
 const STAGE_TEXT: Record<string, string> = {
   intake: "Bloom has the request and is reading it.",
@@ -99,8 +105,13 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   const q = useQuery({ queryKey: ["bloom-support", "ticket", ticketId], queryFn: () => bloomSupport.getTicket(ticketId), refetchInterval: 20_000 });
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const replyKey = useRef(crypto.randomUUID());
+  const pendingReply = useRef<ReplyPayload | null>(null);
+  const replyInput = useRef<HTMLTextAreaElement | null>(null);
+  const publicAttachmentInput = useRef<HTMLInputElement | null>(null);
+  const privateAttachmentInput = useRef<HTMLInputElement | null>(null);
   const { ask, dialog } = useAskDialog();
   const can = (p: string) => me.permissions.includes(p);
 
@@ -114,6 +125,28 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       qc.invalidateQueries({ queryKey: ["bloom-support"], predicate: (x) => x.queryKey[1] !== "ticket" });
     },
     onError: (e: Error) => setError(e.message),
+  });
+  const replyRun = useMutation({
+    mutationFn: (payload: ReplyPayload) => bloomSupport.addMessage(ticketId, payload),
+    onSuccess: async () => {
+      const sentVisibility = pendingReply.current?.visibility;
+      pendingReply.current = null;
+      replyKey.current = crypto.randomUUID();
+      setDraft("");
+      setReplyError(null);
+      setNotice(sentVisibility === "internal" ? "Private note added." : "Reply sent to the client.");
+      try {
+        const fresh = await bloomSupport.getTicket(ticketId);
+        qc.setQueryData<TicketDetail>(["bloom-support", "ticket", ticketId], fresh);
+        void qc.invalidateQueries({ queryKey: ["bloom-support"], predicate: (x) => x.queryKey[1] !== "ticket" });
+      } catch {
+        void qc.invalidateQueries({ queryKey: ["bloom-support", "ticket", ticketId] });
+      }
+    },
+    onError: (e: Error) => {
+      setNotice(null);
+      setReplyError(e.message);
+    },
   });
 
   const t = q.data;
@@ -129,16 +162,42 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   const lastClientId = [...t.messages].reverse().find((m) => m.author_kind === "client")?.id;
   const canWrite = can("tickets.write");
   const closed = !!t.merged_into;
+  const retryLocked = pendingReply.current !== null && replyError !== null;
+  const replyLocked = replyRun.isPending || retryLocked;
 
-  const send = (visibility: "public" | "internal") =>
+  const send = (visibility: "public" | "internal") => {
+    const payload = pendingReply.current ?? {
+      body: draft.trim(),
+      visibility,
+      idempotency_key: replyKey.current,
+    };
+    pendingReply.current = payload;
+    setReplyError(null);
+    setNotice(null);
+    replyRun.mutate(payload);
+  };
+
+  const editAsNewReply = () => {
+    pendingReply.current = null;
+    replyKey.current = crypto.randomUUID();
+    setReplyError(null);
+    setNotice(null);
+    replyRun.reset();
+    window.requestAnimationFrame(() => replyInput.current?.focus());
+  };
+
+  const attach = (visibility: "public" | "internal", files: FileList | null) => {
+    const { accepted, rejected } = checkAttachments(Array.from(files ?? []));
+    if (rejected.length) {
+      setError(`${rejected.join(" ")} No file was attached; choose a valid file and try again.`);
+      return;
+    }
+    if (!accepted.length) return;
     run.mutate({
-      fn: async () => {
-        await bloomSupport.addMessage(t.id, { body: draft, visibility, idempotency_key: replyKey.current });
-        setDraft("");
-        replyKey.current = crypto.randomUUID();
-      },
-      done: visibility === "public" ? `Sent to ${t.requester?.name ?? clientName}.` : "Private note added.",
+      fn: () => bloomSupport.uploadAttachment(t.id, accepted[0], visibility),
+      done: visibility === "internal" ? "Private file attached." : "File attached for the client.",
     });
+  };
 
   const markSolved = async () => {
     const patch = await statusPatch(ask, t, "resolved");
@@ -232,23 +291,61 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       {canWrite && !closed && (
         <Box sx={{ borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 3 }, py: 2 }}>
           <Stack spacing={1.25} sx={{ maxWidth: 760, mx: "auto" }}>
-            {(error || notice) && <Alert size="sm" variant="soft" color={error ? "danger" : "success"}>{error ?? notice}</Alert>}
+            {error ? <Alert role="alert" size="sm" variant="soft" color="danger">{error}</Alert> : null}
+            {replyError ? (
+              <Alert id="conversation-reply-error" role="alert" size="sm" variant="soft" color="danger">
+                <Stack spacing={0.5}>
+                  <Typography level="body-sm">{replyError}</Typography>
+                  <Typography level="body-xs">Your message is unchanged. Retry it exactly, or choose edit and send as new before changing anything.</Typography>
+                </Stack>
+              </Alert>
+            ) : null}
+            {notice ? <Alert role="status" aria-live="polite" size="sm" variant="soft" color="success">{notice}</Alert> : null}
             <Textarea
-              minRows={2} maxRows={8} value={draft} onChange={(e) => setDraft(e.target.value)}
+              minRows={2} maxRows={8} value={draft} disabled={replyLocked} onChange={(e) => setDraft(e.target.value)}
               placeholder={`Write to ${t.requester?.name ?? clientName}, or add a private note`}
-              slotProps={{ textarea: { "aria-label": "Message" } }}
+              slotProps={{ textarea: { ref: replyInput, disabled: replyLocked, maxLength: MAX_SUPPORT_BODY_LENGTH, "aria-label": "Message", "aria-describedby": replyError ? "conversation-reply-count conversation-reply-error" : "conversation-reply-count" } }}
               sx={{ borderRadius: "lg", fontSize: "md" }}
             />
+            <Typography id="conversation-reply-count" level="body-xs" color={draft.length > MAX_SUPPORT_BODY_LENGTH ? "danger" : undefined} textColor={draft.length > MAX_SUPPORT_BODY_LENGTH ? undefined : "text.tertiary"} sx={{ textAlign: "right" }}>
+              {draft.length.toLocaleString()} / {MAX_SUPPORT_BODY_LENGTH.toLocaleString()} characters
+            </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-              <Button size="lg" disabled={!draft.trim()} loading={run.isPending} onClick={() => send("public")} sx={{ borderRadius: "xl" }}>Send to client</Button>
-              <Button size="lg" variant="outlined" color="neutral" disabled={!draft.trim() || run.isPending} onClick={() => send("internal")} startDecorator={<Lock size={14} />} sx={{ borderRadius: "xl" }}>Private note</Button>
+              {pendingReply.current ? (
+                <>
+                  <Button
+                    size="lg"
+                    disabled={!retryLocked || replyRun.isPending}
+                    loading={replyRun.isPending}
+                    onClick={() => send(pendingReply.current?.visibility ?? "public")}
+                    sx={{ borderRadius: "xl" }}
+                  >
+                    {retryLocked ? `Retry same ${pendingReply.current.visibility === "internal" ? "private note" : "reply"}` : "Sending…"}
+                  </Button>
+                  {retryLocked ? <Button size="lg" variant="outlined" color="neutral" onClick={editAsNewReply} sx={{ borderRadius: "xl" }}>Edit and send as new</Button> : null}
+                </>
+              ) : (
+                <>
+                  <Button size="lg" disabled={!draft.trim() || draft.length > MAX_SUPPORT_BODY_LENGTH || replyRun.isPending} loading={replyRun.isPending} onClick={() => send("public")} sx={{ borderRadius: "xl" }}>Send to client</Button>
+                  <Button size="lg" variant="outlined" color="neutral" disabled={!draft.trim() || draft.length > MAX_SUPPORT_BODY_LENGTH || replyRun.isPending} onClick={() => send("internal")} startDecorator={<Lock size={14} />} sx={{ borderRadius: "xl" }}>Private note</Button>
+                </>
+              )}
+              <Dropdown>
+                <MenuButton size="sm" variant="plain" disabled={replyLocked || run.isPending} startDecorator={<Paperclip size={14} />}>Attach</MenuButton>
+                <Menu placement="top-start" size="sm">
+                  <MenuItem onClick={() => publicAttachmentInput.current?.click()}>For the client</MenuItem>
+                  <MenuItem onClick={() => privateAttachmentInput.current?.click()}>Private for staff</MenuItem>
+                </Menu>
+              </Dropdown>
+              <input ref={publicAttachmentInput} hidden type="file" aria-label="Attach a file for the client" disabled={replyLocked || run.isPending} accept={ATTACHMENT_ACCEPT} onChange={(e) => { attach("public", e.target.files); e.target.value = ""; }} />
+              <input ref={privateAttachmentInput} hidden type="file" aria-label="Attach a private file" disabled={replyLocked || run.isPending} accept={ATTACHMENT_ACCEPT} onChange={(e) => { attach("internal", e.target.files); e.target.value = ""; }} />
               <Box sx={{ flex: 1 }} />
               {t.automation === "auto"
-                ? <Button variant="plain" color="neutral" disabled={run.isPending} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "human", "Taken over from conversation"), done: "It's yours. Bloom won't message the client." })}>I'll take it from here</Button>
-                : <Button variant="plain" color="primary" disabled={run.isPending} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "auto"), done: "Handed back to Bloom." })}>Hand back to Bloom</Button>}
-              {t.status !== "resolved" && <Button variant="plain" color="success" disabled={run.isPending} startDecorator={<Check size={16} />} onClick={markSolved}>Mark solved</Button>}
+                ? <Button variant="plain" color="neutral" disabled={run.isPending || replyLocked} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "human", "Taken over from conversation"), done: "It's yours. Bloom won't message the client." })}>I'll take it from here</Button>
+                : <Button variant="plain" color="primary" disabled={run.isPending || replyLocked} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "auto"), done: "Handed back to Bloom." })}>Hand back to Bloom</Button>}
+              {t.status !== "resolved" ? <Button variant="plain" color="success" disabled={run.isPending || replyLocked} startDecorator={<Check size={16} />} onClick={markSolved}>Mark solved</Button> : null}
             </Stack>
-            {t.automation === "auto" && draft.trim() && <Typography level="body-xs" textColor="text.tertiary">Sending to the client takes this over from Bloom.</Typography>}
+            {t.automation === "auto" && draft.trim() ? <Typography level="body-xs" textColor="text.tertiary">Sending to the client takes this over from Bloom.</Typography> : null}
           </Stack>
         </Box>
       )}
