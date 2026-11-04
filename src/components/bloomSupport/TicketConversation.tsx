@@ -208,7 +208,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   });
 
   const t = q.data;
-  if (q.isLoading) return <Stack spacing={2} sx={{ maxWidth: 820, mx: "auto", p: 3 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
+  if (q.isLoading) return <Stack spacing={2} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", p: 3 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
 
@@ -274,7 +274,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
     : eng?.status ? asSentence(engineeringLabel(eng.status)) : "";
 
   return (
-    <Stack sx={{ height: "100%", minHeight: 0, bgcolor: "background.surface" }}>
+    <Stack sx={{ width: "100%", maxWidth: "100%", minWidth: 0, height: "100%", minHeight: 0, overflowWrap: "anywhere", bgcolor: "background.surface" }}>
       {dialog}
 
       {/* Header: stays put while the thread scrolls. */}
@@ -307,8 +307,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
         <Button variant="outlined" color="neutral" size="sm" onClick={onShowDetails} sx={{ flex: "0 0 auto", borderRadius: "md" }}>Details</Button>
       </Stack>
 
-      <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-        <Stack spacing={3} sx={{ maxWidth: 820, mx: "auto", px: { xs: 2, md: 4 }, py: 3 }}>
+      <Box sx={{ flex: 1, maxWidth: "100%", minWidth: 0, minHeight: 0, overflow: "auto" }}>
+        <Stack spacing={3} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", px: { xs: 2, md: 4 }, py: 3 }}>
           {/* Status: what Bloom is doing, and where the fix stands. */}
           <Sheet variant="outlined" sx={{ borderRadius: "lg", bgcolor: "background.surface", overflow: "hidden", boxShadow: "xs" }}>
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ px: 2, py: 1.5 }} role="status">
@@ -357,7 +357,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
           {t.attachments.length > 0 && (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {t.attachments.map((a) => (
-                <Chip key={a.id} variant="outlined" color="neutral" startDecorator={<Paperclip size={14} />}
+                <Chip key={a.id} variant="outlined" color="neutral" startDecorator={<Paperclip size={14} />} title={`${a.file_name}${a.visibility === "internal" ? " (private)" : ""}`}
+                  sx={{ maxWidth: "100%", "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}
                   onClick={() => run.mutate({ fn: async () => { const { url } = await bloomSupport.attachmentUrl(a.id); window.open(url, "_blank", "noopener"); } })}>
                   {a.file_name}{a.visibility === "internal" ? " (private)" : ""}
                 </Chip>
@@ -379,8 +380,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       </Box>
 
       {canWrite && !closed && (
-        <Box sx={{ flex: "0 0 auto", borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
-          <Stack spacing={1} sx={{ maxWidth: 820, mx: "auto" }}>
+        <Box sx={{ flex: "0 0 auto", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
+          <Stack spacing={1} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto" }}>
             {error ? <Alert role="alert" size="sm" variant="soft" color="danger">{error}</Alert> : null}
             {replyError ? (
               <Alert id="conversation-reply-error" role="alert" size="sm" variant="soft" color="danger">
@@ -447,6 +448,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
                   },
                 }}
                 sx={{
+                  width: "100%",
+                  minWidth: 0,
                   bgcolor: "transparent",
                   border: 0,
                   boxShadow: "none",

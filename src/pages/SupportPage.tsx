@@ -20,6 +20,8 @@ import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { StatusChip } from "@/components/bloomSupport/chips";
 import { bloomSupport, type TicketSummary } from "@/lib/bloomSupport/api";
 
+export const SUPPORT_MOBILE_GRID_TRACK = "minmax(0, 1fr)";
+
 /** Compact inbox age: "now", "12m", "3h", "4d", then the date. */
 function shortAge(iso: string, now = new Date()): string {
   const date = new Date(iso);
@@ -175,14 +177,15 @@ const SupportPage = () => {
                 boxShadow: "sm",
                 bgcolor: "background.surface",
                 display: "grid",
-                gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(300px, 360px) minmax(0, 1fr)" },
+                gridTemplateColumns: { xs: SUPPORT_MOBILE_GRID_TRACK, md: "minmax(300px, 360px) minmax(0, 1fr)" },
                 gridTemplateRows: "minmax(0, 1fr)",
+                minWidth: 0,
                 minHeight: staff ? { xs: 480, md: 0 } : 360,
                 flex: staff ? 1 : undefined,
                 overflow: "hidden",
               }}
             >
-              <Box sx={{ display: { xs: selected ? "none" : "flex", md: "flex" }, flexDirection: "column", minHeight: 0, borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, bgcolor: "background.level1" }}>
+              <Box sx={{ display: { xs: selected ? "none" : "flex", md: "flex" }, flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, bgcolor: "background.level1" }}>
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
                   <Typography level="title-md" sx={{ flex: 1 }}>{staff ? "Recent conversations" : "Your requests"}</Typography>
                   <Chip size="sm" variant="soft" color="neutral">{mine.data.length}</Chip>
@@ -243,7 +246,7 @@ const SupportPage = () => {
                 </Stack>
               </Box>
               {selected && me.data ? (
-                <Box ref={detailRef} tabIndex={-1} role="region" aria-label="Request details" sx={{ minHeight: { xs: 480, md: 0 }, minWidth: 0, outline: "none" }}>
+                <Box ref={detailRef} tabIndex={-1} role="region" aria-label="Request details" sx={{ width: "100%", maxWidth: "100%", minWidth: 0, minHeight: { xs: 480, md: 0 }, outline: "none" }}>
                   {staff ? (
                     <TicketConversation
                       key={selected}
