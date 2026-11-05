@@ -75,11 +75,12 @@ for (const reason of ["ticket_overdue", "engineering_failed", "engineering_start
     assertNoLeaks(mail.subject, "subject");
     assertNoLeaks(mail.text, "text");
     assertNoLeaks(mail.html, "html");
-    assertMatch(mail.subject, /^Needs you: Greenleaf Garden Centre — When I add a logo .* \(#1011\)$/);
+    // The subject says what to do: a reply for a stuck or overdue request, a decision for a repair start.
+    assertMatch(mail.subject, /^Needs a (reply|decision): Greenleaf Garden Centre — When I add a logo .* \(#1011\)$/);
     assert(mail.html.includes("What Bloom told the client"));
     assert(mail.html.includes("we&#39;ve received your request"));
     assert(mail.html.includes("What Bloom did"));
-    assert(mail.html.includes("Bloom recommends"));
+    assert(mail.html.includes(mail.step.recommendation.replace(/'/g, "&#39;")));
     // One primary button, deep-linked to the ticket with the recommended action.
     assertEquals(mail.html.match(/bgcolor="#1B3049" style="border-radius:8px/g)?.length, 1);
     assert(mail.html.includes(`href="${supportLink(APP, ticket1011.id, mail.step.action).replace(/&/g, "&amp;")}"`));

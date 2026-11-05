@@ -2,10 +2,13 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Button from "@mui/joy/Button";
+import Textarea from "@mui/joy/Textarea";
+import { useRef, useState } from "react";
 import { Sprout } from "lucide-react";
 import { labelFor } from "@/components/admin/readableFormat";
 import { bloomSupport, type TicketDetail, type Whoami } from "@/lib/bloomSupport/api";
-import { liveNextStep, type NextAction } from "../../../supabase/functions/_shared/bloom-support/next-step";
+import { MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
+import { type EngineeringFacts, liveNextStep, type NextAction, resolutionPlan } from "../../../supabase/functions/_shared/bloom-support/next-step";
 
 /**
  * "Bloom recommends": the one thing this ticket needs from a person, with a
@@ -27,11 +30,17 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
     automation: t.automation,
     pending_review: t.pending_review,
     merged_into: t.merged_into,
-    engineering: t.engineering as { id?: unknown; status?: unknown; repair_started_at?: unknown } | null | undefined,
+    engineering: t.engineering as EngineeringFacts | null | undefined,
     operations: t.operations,
     feature_request: t.feature_request as { id?: unknown; status?: unknown } | null | undefined,
     escalations: t.escalations as Array<{ reason?: unknown; status?: unknown }> | undefined,
   }, hint);
+  const plan = step?.action === "send-and-solve"
+    ? resolutionPlan({ engineering: t.engineering as EngineeringFacts | null | undefined, requesterName: t.requester?.name ?? null })
+    : null;
+  // The drafted reply is the person's to edit; it is only sent when they confirm.
+  const [draft, setDraft] = useState<string | null>(null);
+  const replyKey = useRef(crypto.randomUUID());
   // A client's reply after resolution already has its own one-click choices below.
   if (!step || step.action === "review-reply") return null;
   // Everyday "take over / reply" is only suggested when a person was asked for.
@@ -61,6 +70,27 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
       case "reply":
         onReply();
         return;
+      case "send-and-solve": {
+        if (!plan) return;
+        const body = (draft ?? plan.draft).trim();
+        if (!body) return;
+        run(async () => {
+          // The existing reply and status endpoints; each checks the person's permission.
+          const sent = await bloomSupport.addMessage(t.id, { body, visibility: "public", idempotency_key: replyKey.current });
+          await bloomSupport.updateTicket(t.id, {
+            status: "resolved",
+            resolution_summary: plan.summary,
+            resolution_evidence: {
+              via: "send-and-solve",
+              reply_message_id: sent.message_id,
+              verification: { passed: true, note: plan.checked },
+              verified_note: plan.checked,
+              ...(plan.noDeployReason ? { no_deploy_reason: plan.noDeployReason } : {}),
+            },
+          });
+        }, "Reply sent and the request is marked solved.");
+        return;
+      }
       default:
         return;
     }
@@ -77,6 +107,22 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
       <Stack spacing={1}>
         <Typography level="title-sm" startDecorator={<Sprout size={16} aria-hidden />}>Bloom recommends</Typography>
         <Typography level="body-sm" textColor="text.primary">{step.recommendation}</Typography>
+        {plan ? (
+          <Stack spacing={0.75}>
+            {plan.findings.map((f) => <Typography key={f} level="body-xs" textColor="text.secondary">{f}</Typography>)}
+            <Textarea
+              size="sm"
+              minRows={4}
+              maxRows={12}
+              value={draft ?? plan.draft}
+              disabled={busy || !allowed}
+              onChange={(e) => setDraft(e.target.value)}
+              slotProps={{ textarea: { maxLength: MAX_SUPPORT_BODY_LENGTH, "aria-label": "Reply to the client" } }}
+              sx={{ bgcolor: "background.surface" }}
+            />
+            <Typography level="body-xs" textColor="text.tertiary">Sent to the client as your reply. Edit anything first.</Typography>
+          </Stack>
+        ) : null}
         {step.action === "confirm-change" && op ? (
           <Typography level="body-xs" textColor="text.secondary">Prepared change: {labelFor(String(op.kind ?? "change"))}</Typography>
         ) : null}
@@ -90,7 +136,7 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
           </Stack>
         ) : (
           <Stack direction="row" sx={{ pt: 0.5 }}>
-            <Button size="sm" loading={busy} onClick={primary} sx={{ borderRadius: "md" }}>{step.button}</Button>
+            <Button size="sm" loading={busy} disabled={!!plan && !(draft ?? plan.draft).trim()} onClick={primary} sx={{ borderRadius: "md" }}>{step.button}</Button>
           </Stack>
         )}
       </Stack>
