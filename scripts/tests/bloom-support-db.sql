@@ -43,6 +43,7 @@ INSERT INTO bloom_support.tickets(
 );
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
+\ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -1380,5 +1381,35 @@ SELECT pg_temp.expect_error(
   format($q$SELECT public.bloom_support_enqueue_engineering_recoveries('%s')$q$, :'bot'),
   'engineering.release'
 );
+
+
+-- Email design: one conversation per ticket, coalesced Bloom messages, HTML kept for retries.
+UPDATE bloom_support.tickets SET automation = 'auto' WHERE id = :'t1id';
+INSERT INTO bloom_support.messages(id, conversation_id, ticket_id, author_kind, visibility, direction, body, delivery, purpose)
+SELECT x.id, t.conversation_id, t.id, 'bloom', 'public', 'outbound', x.body, 'queued', x.purpose
+  FROM bloom_support.tickets t, (VALUES ('e1000000-0000-4000-8000-000000000001'::uuid, 'We have your request.', 'acknowledgement'),
+                                        ('e1000000-0000-4000-8000-000000000002'::uuid, 'We passed it on.', 'progress')) x(id, body, purpose)
+ WHERE t.id = :'t1id';
+SELECT pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'message_id', 'e1000000-0000-4000-8000-000000000001',
+  'purpose', 'acknowledgement', 'to', 'client@greenleaf.test', 'subject', '[Bloom #1] s', 'body', 'both', 'html', '<p>both</p>',
+  'rfc_message_id', '<bloom.random1@bloom.test>', 'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>', 'idempotency_key', 'design-1',
+  'covered_message_ids', jsonb_build_array('e1000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000099'))))->>'id' AS design_email \gset
+SELECT pg_temp.assert((SELECT rfc_message_id = '<bloom-ticket.' || :'t1id' || '@bloom.test>' AND html = '<p>both</p>'
+                         AND covered_message_ids = ARRAY['e1000000-0000-4000-8000-000000000002'::uuid]
+                         FROM bloom_support.outbound_emails WHERE id = :'design_email'), 'first email takes the ticket thread root and keeps its HTML; only same-ticket messages are covered');
+SELECT pg_temp.rpc('mark_outbound_email', jsonb_build_object('id', :'design_email', 'status', 'sent', 'provider_id', 'prov-design-1'));
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.messages WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002') AND delivery = 'sent') = 2,
+  'a coalesced email marks every message it delivered as sent');
+SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'purpose', 'progress', 'to', 'client@greenleaf.test',
+  'subject', '[Bloom #1] s', 'body', 'later', 'rfc_message_id', '<bloom.random2@bloom.test>', 'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>',
+  'idempotency_key', 'design-2'))))->>'rfc_message_id' = '<bloom.random2@bloom.test>', 'later emails keep their own Message-ID');
+SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'message_id', 'e1000000-0000-4000-8000-000000000001',
+  'purpose', 'acknowledgement', 'to', 'client@greenleaf.test', 'subject', '[Bloom #1] s', 'body', 'both', 'rfc_message_id', '<bloom.random3@bloom.test>',
+  'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>', 'idempotency_key', 'design-1'))))->>'duplicate' = 'true', 'a retry is a duplicate of the recorded email');
+SELECT pg_temp.assert(jsonb_typeof(public.bloom_support_digest_report(now() - interval '1 day')->'needs_you') = 'array', 'digest report runs');
+SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'public.bloom_support_digest_report(timestamptz)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_digest_report(timestamptz)', 'execute'), 'digest report is service-role only');
+SELECT pg_temp.assert(position('Bloom alert' IN bloom_support.botanical_alert_html('A <b>', ARRAY['x & y'], 'i', 'd', 'b', 'https://bloomsuite.app/x')) > 0
+  AND position('<b>' IN bloom_support.botanical_alert_html('A <b>', ARRAY['x & y'], 'i', 'd', 'b', 'https://bloomsuite.app/x')) = 0, 'alert html escapes text');
 
 \echo 'bloom-support-db: all assertions passed'

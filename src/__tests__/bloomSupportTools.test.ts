@@ -412,7 +412,8 @@ describe("check_support_request", () => {
     });
     const result = await checkSupportRequest({ ticket_number: 1042 }, context({ tenantId: OWN_TENANT }), rpc);
     expect(calls.find((c) => c.fn === "list_tickets")!.args).toMatchObject({ filters: { account_id: "account-client", q: "1042" } });
-    expect(result.data).toMatchObject({ request_number: 1042, status: "Needs Jon/Jeff", latest_reply_from_support: "We are looking into it." });
+    expect(result.data).toMatchObject({ request_number: 1042, status: "With our team", latest_reply_from_support: "We are looking into it." });
+    expect(JSON.stringify(result.data)).not.toMatch(/Jon|Jeff/);
   });
 });
 

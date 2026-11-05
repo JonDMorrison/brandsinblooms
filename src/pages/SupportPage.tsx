@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -19,6 +19,7 @@ import { TicketConversation } from "@/components/bloomSupport/TicketConversation
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { StatusChip } from "@/components/bloomSupport/chips";
 import { bloomSupport, type TicketSummary } from "@/lib/bloomSupport/api";
+import { isNextAction } from "../../supabase/functions/_shared/bloom-support/next-step";
 
 export const SUPPORT_MOBILE_GRID_TRACK = "minmax(0, 1fr)";
 
@@ -49,8 +50,13 @@ function needsAttention(t: TicketSummary): boolean {
  */
 const SupportPage = () => {
   const navigate = useNavigate();
+  // Staff emails link here as /support?ticket=<id>&action=<recommended action>.
+  // The link only opens the ticket with the action pre-selected; nothing runs until a person confirms.
+  const [params] = useSearchParams();
+  const linkedTicket = params.get("ticket");
+  const linkedAction = params.get("action");
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(linkedTicket && /^[0-9a-f-]{36}$/i.test(linkedTicket) ? linkedTicket : null);
   const detailRef = useRef<HTMLDivElement>(null);
   const requestRefs = useRef(new Map<string, HTMLButtonElement>());
   const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
@@ -256,6 +262,7 @@ const SupportPage = () => {
                       onBack={showRequestList}
                       onShowDetails={() => navigate(`/admin/bloom-support?view=queue&ticket=${encodeURIComponent(selected)}`)}
                       onOpenTicket={setSelected}
+                      actionHint={selected === linkedTicket && isNextAction(linkedAction) ? linkedAction : null}
                     />
                   ) : (
                     <>
