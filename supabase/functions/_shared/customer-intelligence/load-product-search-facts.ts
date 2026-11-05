@@ -93,6 +93,7 @@ export async function loadProductSearchFacts(
   const active = currentSummaryImports(ledger);
   const parents = active.map(row => ledger.find(entry => entry.id === row.id)!);
   const legacy = new Map(parents.flatMap(parent => {const certificate = legacySummaryCertificate(parent); return certificate ? [[parent.id, certificate] as const] : [];}));
+  const generations = new Map<string,string>();
 
   // Each active import is verified in full once, then again only when its fingerprint changes.
   // Returns false when the import has blank product lines, which only the full scan classifies exactly.
@@ -100,6 +101,7 @@ export async function loadProductSearchFacts(
     let searchable = true;
     for (const parent of parents) {
       const before = await store.fingerprint(parent.id);
+      generations.set(parent.id,before);
       if (before && (await store.get(parent.id)) === before) continue;
       const rows = (await loadSummaryRows(client, tenantId, cutoff, parent.id)).filter(row => row.import_id === parent.id);
       const certificate = legacy.get(parent.id);
@@ -127,11 +129,19 @@ export async function loadProductSearchFacts(
   };
 
   const importIds = parents.map(parent => parent.id);
-  const [searchable, dated, pageResult] = await Promise.all([
-    verifyImports(),
+  // Establish the verified generation BEFORE any paged candidate reads.
+  const searchable = await verifyImports();
+  const [dated, pageResult] = await Promise.all([
     loadEligibleDatedFacts(client, tenantId, cutoff),
-    readProductSearchPages(client,tenantId,cutoff,importIds,terms),
+    readProductSearchPages(client,tenantId,cutoff,importIds,terms,row=>{
+      const parent=parents.find(p=>p.id===row.import_id);
+      checkRowAgainstLedger(row,parent,Boolean(parent && legacy.has(parent.id)));
+    }),
   ]);
+  for(const parent of parents)if(await store.fingerprint(parent.id)!==generations.get(parent.id))
+    throw Error('The report changed during the search. No partial audience was returned.');
+  if(JSON.stringify(await loadReportLedger(client,tenantId,cutoff))!==JSON.stringify(ledger))
+    throw Error('The source ledger changed during the search. No partial audience was returned.');
   const candidates = pageResult.candidates as CandidateEvent[];
   const scope = {customer_ids:pageResult.customer_ids};
 

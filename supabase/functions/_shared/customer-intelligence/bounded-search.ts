@@ -25,7 +25,7 @@ export async function readLiveCustomerIds(client: PersistenceClient, tenantId: s
 }
 
 /** Cursor advances over scanned rows, including pages with no matching products. */
-export async function readProductSearchPages(client: PersistenceClient, tenantId: string, cutoff: string, imports: string[], terms: string[]) {
+export async function readProductSearchPages(client: PersistenceClient, tenantId: string, cutoff: string, imports: string[], terms: string[], validate: (row:PeriodSummaryEvent)=>void) {
   const candidates: PeriodSummaryEvent[]=[];
   const customer_ids=new Set<string>();
   let total=0;
@@ -36,13 +36,15 @@ export async function readProductSearchPages(client: PersistenceClient, tenantId
         p_tenant_id:tenantId,p_import_id:importId,p_cutoff:cutoff,p_after:after,p_term:terms[0],
       });
       if(error)throw new Error(error.message);
-      const page=data as {scanned:number;last_id:string|null;customer_ids:string[];candidates:PeriodSummaryEvent[]}|null;
+      const page=data as {scanned:number;last_id:string|null;customer_ids:string[];candidates:PeriodSummaryEvent[];provenance:PeriodSummaryEvent[]}|null;
       if(!page || !Number.isInteger(page.scanned) || page.scanned<0 || page.scanned>PAGE_SIZE
         || !Array.isArray(page.customer_ids) || page.customer_ids.some(id=>typeof id!=='string') || !Array.isArray(page.candidates)
+        || !Array.isArray(page.provenance) || page.provenance.length!==page.scanned
         || page.candidates.length>page.scanned || (page.scanned>0 && (typeof page.last_id!=='string' || (after!==null && page.last_id<=after))))
         throw new Error('The report search cursor did not advance safely.');
       total+=page.scanned;
       if(total>MAXIMUM)throw limitError();
+      for(const row of page.provenance)validate(row);
       for(const id of page.customer_ids)customer_ids.add(id);
       candidates.push(...page.candidates);
       if(page.scanned<PAGE_SIZE)break;

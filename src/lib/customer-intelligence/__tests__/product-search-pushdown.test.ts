@@ -32,7 +32,7 @@ function serverCandidates(terms: string[]) {
 function fakeClient(candidates: unknown, scope: unknown = {customer_ids: ['buyer', 'other', 'blank', 'both'], rows: 4, invalid_rows: 0}, rows: unknown[] = events) {
   const rpc = vi.fn(async () => {
     const evidence = scope as {customer_ids:string[];invalid_rows:number};
-    return evidence.invalid_rows ? {data:null,error:{message:'Report facts do not match their completed source ledger.'}} : {data:{scanned:4,last_id:'e4',customer_ids:evidence.customer_ids,candidates},error:null};
+    return evidence.invalid_rows ? {data:null,error:{message:'Report facts do not match their completed source ledger.'}} : {data:{scanned:rows.length,last_id:'e4',customer_ids:evidence.customer_ids,candidates,provenance:rows},error:null};
   });
   const neqCalls: Array<{table: string; column: string; value: unknown}> = [];
   const from = (table: string) => {
@@ -118,8 +118,13 @@ describe('narrowed report rows are still checked', () => {
     const tampered = serverCandidates(['sea soil']).map(e => ({...e, raw_data: {...(e.raw_data as object), source_sha256: 'other'}}));
     await expect(loadProductSearchFacts(fakeClient(tampered), T, '2026-11-03T00:00:00Z', rule, store)).rejects.toThrow('ledger');
   });
-  it('rejects the search when any report row disagrees with its import', async () => {
-    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), {customer_ids: [], rows: 4, invalid_rows: 1}), T, '2026-11-03T00:00:00Z', rule, store)).rejects.toThrow('ledger');
+  it('validates nonmatching-row provenance even when the full-snapshot fingerprint is cached', async () => {
+    const bad=events.map(e=>e.id==='e2'?{...e,raw_data:{...(e.raw_data as object),source_sha256:'other'}}:e);
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']),undefined,bad),T,'2026-11-03T00:00:00Z',rule,store)).rejects.toThrow('ledger');
+  });
+  it('rejects a concurrent source mutation after cached verification and paged reads',async()=>{
+    const fingerprint=vi.fn().mockResolvedValueOnce('fp').mockResolvedValueOnce('changed');
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil'])),T,'2026-11-03T00:00:00Z',rule,{...store,fingerprint})).rejects.toThrow('changed during');
   });
   it('rejects line positions that do not line up with the lines', () => {
     const bad = {...serverCandidates(['sea soil'])[0], item_indexes: [0, 1]};

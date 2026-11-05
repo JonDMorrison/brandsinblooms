@@ -32,6 +32,7 @@ DO $$ DECLARE p jsonb; a uuid:=NULL; n integer:=0; pages integer:=0; BEGIN
  LOOP
   p:=public.bloom_summary_search_page('10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','2026-02-01',a,'eucalyptus');
   IF (p->>'scanned')::integer>250 THEN RAISE EXCEPTION 'Unbounded page'; END IF;
+  IF jsonb_array_length(p->'provenance')<>(p->>'scanned')::integer THEN RAISE EXCEPTION 'All-row provenance missing'; END IF;
   IF jsonb_array_length(p->'candidates')<>(p->>'scanned')::integer THEN RAISE EXCEPTION 'Lost matching rows'; END IF;
   IF p->'candidates'->0->'item_indexes'<>'[1]'::jsonb THEN RAISE EXCEPTION 'Original item position lost'; END IF;
   n:=n+(p->>'scanned')::integer;pages:=pages+1;a:=(p->>'last_id')::uuid;
@@ -40,6 +41,7 @@ DO $$ DECLARE p jsonb; a uuid:=NULL; n integer:=0; pages integer:=0; BEGIN
  IF n<>501 OR pages<>3 THEN RAISE EXCEPTION 'Incomplete traversal'; END IF;
  p:=public.bloom_summary_search_page('10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','2026-02-01',NULL,'wreath');
  IF p->>'scanned'<>'250' OR jsonb_array_length(p->'candidates')<>0 OR jsonb_array_length(p->'customer_ids')<>1 THEN RAISE EXCEPTION 'Nonmatching page lost cursor or evidence'; END IF;
+ IF jsonb_array_length(p->'provenance')<>250 THEN RAISE EXCEPTION 'Nonmatching provenance lost'; END IF;
  p:=public.bloom_summary_search_page('90000000-0000-4000-8000-000000000001','90000000-0000-4000-8000-000000000001','2026-02-01',NULL,'eucalyptus');
  IF p->>'scanned'<>'0' THEN RAISE EXCEPTION 'Cross tenant disclosure'; END IF;
  p:=public.bloom_summary_search_page('10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','2025-12-31',NULL,'eucalyptus');

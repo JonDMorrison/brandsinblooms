@@ -36,6 +36,9 @@ CREATE FUNCTION public.bloom_summary_search_page(
   ) SELECT jsonb_build_object(
     'scanned',(SELECT count(*) FROM page),
     'last_id',(SELECT id FROM page ORDER BY id DESC LIMIT 1),
+    'provenance',coalesce((SELECT jsonb_agg(jsonb_build_object('id',id,'tenant_id',tenant_id,
+      'import_id',import_id,'source',source,'created_at',created_at,'raw_data',jsonb_build_object(
+        'period_start',raw_data->'period_start','period_end',raw_data->'period_end','source_sha256',raw_data->'source_sha256')) ORDER BY id) FROM page),'[]'::jsonb),
     'customer_ids',coalesce((SELECT jsonb_agg(DISTINCT customer_id) FROM page WHERE customer_id IS NOT NULL),'[]'::jsonb),
     'candidates',coalesce((SELECT jsonb_agg(value ORDER BY id) FROM candidates),'[]'::jsonb)
   );

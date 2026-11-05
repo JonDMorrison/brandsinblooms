@@ -17,21 +17,21 @@ describe('bounded search reads',()=>{
   expect(calls).toContainEqual(['created_at','cutoff']);
  });
  it('continues through full pages with zero matches and resets cursor between imports',async()=>{
-  const rpc=vi.fn().mockResolvedValueOnce({data:{scanned:250,last_id:'a',customer_ids:['nonbuyer'],candidates:[]},error:null})
-   .mockResolvedValueOnce({data:{scanned:1,last_id:'b',customer_ids:['buyer'],candidates:[{id:'hit'}]},error:null})
-   .mockResolvedValueOnce({data:{scanned:0,last_id:null,customer_ids:[],candidates:[]},error:null});
-  const result=await readProductSearchPages({rpc} as unknown as PersistenceClient,'t','time',['2025','2026'],['eucalyptus']);
+  const rpc=vi.fn().mockResolvedValueOnce({data:{scanned:250,provenance:Array.from({length:250},()=>({})),last_id:'a',customer_ids:['nonbuyer'],candidates:[]},error:null})
+   .mockResolvedValueOnce({data:{scanned:1,provenance:[{}],last_id:'b',customer_ids:['buyer'],candidates:[{id:'hit'}]},error:null})
+   .mockResolvedValueOnce({data:{scanned:0,provenance:[],last_id:null,customer_ids:[],candidates:[]},error:null});
+  const result=await readProductSearchPages({rpc} as unknown as PersistenceClient,'t','time',['2025','2026'],['eucalyptus'],()=>undefined);
   expect(result).toEqual({candidates:[{id:'hit'}],customer_ids:['nonbuyer','buyer']});
   expect(rpc.mock.calls.map(c=>[c[1].p_import_id,c[1].p_after])).toEqual([['2025',null],['2025','a'],['2026',null]]);
  });
  it('fails without returning partial data on a later-page timeout',async()=>{
-  const rpc=vi.fn().mockResolvedValueOnce({data:{scanned:250,last_id:'a',customer_ids:['buyer'],candidates:[]},error:null})
+  const rpc=vi.fn().mockResolvedValueOnce({data:{scanned:250,provenance:Array.from({length:250},()=>({})),last_id:'a',customer_ids:['buyer'],candidates:[]},error:null})
    .mockResolvedValueOnce({data:null,error:{message:'statement timeout'}});
-  await expect(readProductSearchPages({rpc} as unknown as PersistenceClient,'t','time',['2025'],['sea soil'])).rejects.toThrow('statement timeout');
+  await expect(readProductSearchPages({rpc} as unknown as PersistenceClient,'t','time',['2025'],['sea soil'],()=>undefined)).rejects.toThrow('statement timeout');
   expect(rpc).toHaveBeenCalledTimes(2);
  });
  it('rejects a repeated cursor instead of duplicating an audience',async()=>{
-  const rpc=vi.fn().mockResolvedValue({data:{scanned:250,last_id:'a',customer_ids:[],candidates:[]},error:null});
-  await expect(readProductSearchPages({rpc} as unknown as PersistenceClient,'t','time',['2025'],['wreath'])).rejects.toThrow('cursor');
+  const rpc=vi.fn().mockResolvedValue({data:{scanned:250,provenance:Array.from({length:250},()=>({})),last_id:'a',customer_ids:[],candidates:[]},error:null});
+  await expect(readProductSearchPages({rpc} as unknown as PersistenceClient,'t','time',['2025'],['wreath'],()=>undefined)).rejects.toThrow('cursor');
  });
 });
