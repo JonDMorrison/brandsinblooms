@@ -27,6 +27,8 @@ import { engineeringLabel, fixStage } from "./labels";
 import { StatusChip } from "./chips";
 import { asSentence, humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { useAskDialog } from "./useAskDialog";
+import { BloomRecommends } from "./BloomRecommends";
+import type { NextAction } from "../../../supabase/functions/_shared/bloom-support/next-step";
 import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
 
 /**
@@ -144,7 +146,7 @@ function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: s
   );
 }
 
-export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket, backOn = "always" }: {
+export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket, backOn = "always", actionHint = null }: {
   ticketId: string;
   me: Whoami;
   onBack: () => void;
@@ -152,6 +154,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   onOpenTicket: (id: string) => void;
   /** "compact" shows Back only on narrow screens, where the request list is hidden behind the conversation. */
   backOn?: "always" | "compact";
+  /** Action pre-selected by a staff email link; the live ticket decides whether it still applies. */
+  actionHint?: NextAction | null;
 }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["bloom-support", "ticket", ticketId], queryFn: () => bloomSupport.getTicket(ticketId), refetchInterval: 20_000 });
@@ -341,6 +345,17 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
               </>
             ) : null}
           </Sheet>
+
+          {canWrite ? (
+            <BloomRecommends
+              t={t}
+              me={me}
+              hint={actionHint}
+              busy={run.isPending}
+              run={(fn, done) => run.mutate({ fn, done })}
+              onReply={() => { setMode("public"); window.requestAnimationFrame(() => replyInput.current?.focus()); }}
+            />
+          ) : null}
 
           {t.merged_into && <Alert color="neutral" variant="soft">This continues in <Link component="button" onClick={() => onOpenTicket(t.merged_into!)}>#{t.merged_into_number}</Link>.</Alert>}
           {t.status === "resolved" && t.resolution_summary && (

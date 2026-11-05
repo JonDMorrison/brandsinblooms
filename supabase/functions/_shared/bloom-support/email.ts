@@ -1,6 +1,7 @@
 // Bloom Support — outbound email through the existing Resend account.
 import { env, rpc } from "./runtime.ts";
 import { randomToken, sha256Hex } from "./crypto.ts";
+import { threadingHeaders } from "./support-emails.ts";
 
 export interface EmailConfig {
   configured: boolean;
@@ -41,6 +42,12 @@ export interface SendRequest {
   to: string;
   subject: string;
   text: string;
+  /** Designed HTML alternative (support-emails.ts). Stored in the ledger so a retry resends it unchanged. */
+  html?: string | null;
+  /** Stable per-ticket thread root (ticketThreadRoot). The first email of a ticket uses it as its Message-ID. */
+  threadRoot?: string | null;
+  /** Other queued Bloom messages this email also delivers (coalesced). */
+  coveredMessageIds?: string[];
   inReplyTo?: string | null;
   references?: string[];
   idempotencyKey: string;
@@ -64,10 +71,11 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   const rfcId = newMessageId(cfg.replyDomain);
   const queued = await rpc<{
     id: string; status: string; duplicate: boolean; rfc_message_id: string; provider_id: string | null;
-    to_email: string; subject: string; body: string; in_reply_to: string | null; cc: string[] | null;
+    to_email: string; subject: string; body: string; html?: string | null; in_reply_to: string | null; cc: string[] | null;
   }>("queue_outbound_email", {
     email: {
       ticket_id: req.ticketId, message_id: req.messageId ?? null, purpose: req.purpose, to: req.to, subject: req.subject, body: req.text,
+      html: req.html ?? null, thread_root: req.threadRoot?.startsWith("<bloom-ticket.") ? req.threadRoot : null, covered_message_ids: req.coveredMessageIds ?? [],
       rfc_message_id: rfcId, in_reply_to: req.inReplyTo ?? null, idempotency_key: req.idempotencyKey, bloom_initiated: req.bloomInitiated,
       cc: req.cc ?? [],
     },
@@ -82,7 +90,7 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   // fresh tracking link) would change the payload under the same idempotency key, which the provider
   // rejects, so the stored ledger copy is authoritative.
   if (retry) {
-    req = { ...req, to: queued.to_email, subject: queued.subject, text: queued.body, inReplyTo: queued.in_reply_to, cc: queued.cc ?? [] };
+    req = { ...req, to: queued.to_email, subject: queued.subject, text: queued.body, html: queued.html ?? null, inReplyTo: queued.in_reply_to, cc: queued.cc ?? [] };
   }
 
   if (req.toClient) {
@@ -105,7 +113,9 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
 
   const messageId = queued.rfc_message_id ?? rfcId;
   const headers: Record<string, string> = { "Message-ID": messageId, "X-Bloom-Support": "1", "Auto-Submitted": "auto-replied" };
-  if (req.inReplyTo) {
+  if (req.threadRoot) {
+    Object.assign(headers, threadingHeaders(messageId, { root: req.threadRoot, inReplyTo: req.inReplyTo, references: req.references }));
+  } else if (req.inReplyTo) {
     headers["In-Reply-To"] = req.inReplyTo;
     headers["References"] = [...new Set([...(req.references ?? []), req.inReplyTo])].join(" ");
   }
@@ -120,6 +130,7 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
         reply_to: cfg.supportAddress ?? undefined,
         subject: req.subject,
         text: req.text,
+        html: req.html ?? undefined,
         headers,
       }),
       signal: AbortSignal.timeout(15000),

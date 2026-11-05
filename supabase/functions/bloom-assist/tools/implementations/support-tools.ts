@@ -23,9 +23,9 @@ import type {
 import {
   redactText,
   sanitizeContext,
-  STATUS_LABEL,
 } from "../../../_shared/bloom-support/policy.ts";
 import { sha256Hex } from "../../../_shared/bloom-support/crypto.ts";
+import { customerStatusLabel } from "../../../_shared/bloom-support/support-emails.ts";
 
 export const SUPPORT_TOOL_NAMES = [
   "report_support_problem",
@@ -407,7 +407,7 @@ export async function reportSupportProblem(
       : `Sent to the Bloom support team${forClient}. A person will look at it.`,
     data: {
       ticket_number: number,
-      status: STATUS_LABEL.new,
+      status: customerStatusLabel("new"),
       company: identity.account.name,
       already_sent: created?.duplicate_delivery === true,
     },
@@ -433,7 +433,8 @@ function ticketSummary(ticket: TicketRow): JsonObject {
   return {
     request_number: typeof ticket.number === "number" ? ticket.number : null,
     subject: readString(ticket.subject),
-    status: STATUS_LABEL[status] ?? status,
+    // Client-facing: never an internal routing label such as "Needs Jon/Jeff".
+    status: customerStatusLabel(status, waiting),
     waiting_on: waiting ? WAITING_PLAIN[waiting] ?? null : null,
     opened_at: readString(ticket.created_at),
     last_update_at: readString(ticket.updated_at),
