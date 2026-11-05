@@ -22,7 +22,7 @@ import AccordionSummary from "@mui/joy/AccordionSummary";
 import { Bot, Lock, Paperclip, User, Wrench } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
-  bloomSupport, KIND_LABEL, PRODUCT_LABEL, readBloomDiagnostics, STATUS_LABEL, WAITING_LABEL,
+  bloomSupport, KIND_LABEL, PRODUCT_LABEL, readBloomDiagnostics, STATUS_LABEL, statusLabel, WAITING_LABEL,
   type BloomDiagnostics, type SupportStatus, type TicketDetail, type TicketMessage, type WaitingReason, type Whoami,
 } from "@/lib/bloomSupport/api";
 import { StatusChip, PriorityChip, AutomationChip } from "./chips";
@@ -201,12 +201,13 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
       <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Typography level="body-sm" textColor="text.tertiary">#{t.number}</Typography>
-          <StatusChip status={t.status} />
+          <StatusChip status={t.status} audience={staff ? "staff" : "client"} />
           <PriorityChip priority={t.priority} />
           <Chip size="sm" variant="outlined">{PRODUCT_LABEL[t.product] ?? t.product}</Chip>
           {t.kind !== "unknown" && <Chip size="sm" variant="plain">{t.kind}</Chip>}
           {staff && t.automation && <AutomationChip mode={t.automation} />}
-          {t.waiting_reason && <Chip size="sm" variant="soft" color="warning">{WAITING_LABEL[t.waiting_reason]}</Chip>}
+          {/* Clients read waiting state from the status chip ("Waiting for your reply"); the reason is staff routing detail. */}
+          {staff && t.waiting_reason && <Chip size="sm" variant="soft" color="warning">{WAITING_LABEL[t.waiting_reason]}</Chip>}
           {staff && t.flags?.overdue && <Chip size="sm" color="danger" variant="solid">Overdue</Chip>}
           {staff && !t.flags?.overdue && t.flags?.due_soon && <Chip size="sm" color="warning">Due soon</Chip>}
           {staff && t.flags?.stalled && <Chip size="sm" color="warning" variant="outlined">Stalled</Chip>}
@@ -292,7 +293,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
         <Stack spacing={1.25} sx={{ p: 2, minHeight: 0, overflowY: { xs: "visible", lg: "auto" } }}>
           {t.conversation_tickets.length > 0 && (
             <Alert size="sm" variant="soft" color="primary">
-              Same conversation: {t.conversation_tickets.map((c) => <Link key={c.id} component="button" onClick={() => onOpenTicket(c.id)} sx={{ mx: 0.5 }}>#{c.number} {c.subject} ({STATUS_LABEL[c.status]})</Link>)}
+              Same conversation: {t.conversation_tickets.map((c) => <Link key={c.id} component="button" onClick={() => onOpenTicket(c.id)} sx={{ mx: 0.5 }}>#{c.number} {c.subject} ({statusLabel(c.status, staff ? "staff" : "client")})</Link>)}
             </Alert>
           )}
           {t.messages.map((m) => (

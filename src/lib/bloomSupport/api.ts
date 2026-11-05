@@ -4,6 +4,14 @@ import { checkAttachments, safeSupportTrackingUrl } from "@/lib/bloomSupport/con
 import type { TrackReplyInput, TrackResponse, TrackView } from "@/lib/bloomSupport/trackView";
 
 export type SupportStatus = "new" | "working" | "waiting" | "needs_owner" | "resolved";
+/**
+ * What a client sees. The server (bloom_support.client_status) projects every
+ * non-staff ticket read to these four states, so routing states such as
+ * needs_owner never reach a client.
+ */
+export type ClientStatus = "received" | "in_progress" | "waiting_on_you" | "resolved";
+/** A ticket status as returned by the API: raw for staff, projected for clients. */
+export type TicketStatus = SupportStatus | ClientStatus;
 
 export type KnowledgeProduct = "platform" | "crm" | "cms" | "pos";
 export interface PublicKnowledgeArticle {
@@ -36,6 +44,37 @@ export const STATUS_LABEL: Record<SupportStatus, string> = {
   resolved: "Resolved",
 };
 
+/** Client-facing labels; match customerStatusLabel in the support emails. */
+export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
+  received: "Received",
+  in_progress: "In progress",
+  waiting_on_you: "Waiting for your reply",
+  resolved: "Resolved",
+};
+
+const CLIENT_STATUSES = new Set<string>(Object.keys(CLIENT_STATUS_LABEL));
+
+export function isClientStatus(status: string): status is ClientStatus {
+  return CLIENT_STATUSES.has(status);
+}
+
+/**
+ * The client view of any status. The server already projects client reads;
+ * this keeps a client surface safe if it is ever handed a raw status.
+ */
+export function clientStatusOf(status: string, waitingReason?: string | null): ClientStatus {
+  if (isClientStatus(status)) return status;
+  if (status === "new") return "received";
+  if (status === "waiting" && waitingReason === "customer") return "waiting_on_you";
+  return "in_progress";
+}
+
+/** Staff label for a raw status; client label otherwise. */
+export function statusLabel(status: TicketStatus, audience: "staff" | "client" = "staff"): string {
+  if (audience === "client") return CLIENT_STATUS_LABEL[clientStatusOf(status)];
+  return (STATUS_LABEL as Record<string, string>)[status] ?? CLIENT_STATUS_LABEL[status as ClientStatus] ?? status;
+}
+
 export const PRODUCT_LABEL: Record<string, string> = {
   cms: "BloomSites",
   crm: "BloomSuite CRM",
@@ -48,7 +87,7 @@ export interface TicketSummary {
   id: string;
   number: number;
   subject: string;
-  status: SupportStatus;
+  status: TicketStatus;
   product: string;
   kind: string;
   priority: "low" | "normal" | "high" | "urgent";
@@ -135,7 +174,7 @@ export interface TicketDetail extends TicketSummary {
   summary: string;
   messages: TicketMessage[];
   attachments: Array<{ id: string; file_name: string; content_type: string; size_bytes: number; visibility: string; created_at: string }>;
-  conversation_tickets: Array<{ id: string; number: number; subject: string; status: SupportStatus }>;
+  conversation_tickets: Array<{ id: string; number: number; subject: string; status: TicketStatus }>;
   context?: Record<string, unknown>;
   links?: Array<{ ticket_id: string; kind: string; number: number; subject: string; status: SupportStatus }>;
   activity?: Array<{ action: string; detail: Record<string, unknown>; created_at: string; actor: string | null }>;

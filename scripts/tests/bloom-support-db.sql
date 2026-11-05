@@ -44,6 +44,7 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
 \ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
+\ir ../../supabase/migrations/20261105220000_bloom_support_client_status.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -1411,5 +1412,36 @@ SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'public.bloom_
   AND has_function_privilege('service_role', 'public.bloom_support_digest_report(timestamptz)', 'execute'), 'digest report is service-role only');
 SELECT pg_temp.assert(position('Bloom alert' IN bloom_support.botanical_alert_html('A <b>', ARRAY['x & y'], 'i', 'd', 'b', 'https://bloomsuite.app/x')) > 0
   AND position('<b>' IN bloom_support.botanical_alert_html('A <b>', ARRAY['x & y'], 'i', 'd', 'b', 'https://bloomsuite.app/x')) = 0, 'alert html escapes text');
+
+-- Clients never see an internal routing status: non-staff get the four-state client model.
+DO $$
+DECLARE t bloom_support.tickets;
+BEGIN
+  SELECT * INTO t FROM bloom_support.tickets LIMIT 1;
+  t.status := 'new'; t.waiting_reason := NULL;
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'received', 'new -> received');
+  t.status := 'working';
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'in_progress', 'working -> in_progress');
+  t.status := 'needs_owner';
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'in_progress', 'needs_owner -> in_progress');
+  t.status := 'waiting'; t.waiting_reason := 'customer';
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'waiting_on_you', 'waiting on customer -> waiting_on_you');
+  FOREACH t.waiting_reason IN ARRAY ARRAY['internal','third_party','deployment','scheduled'] LOOP
+    PERFORM pg_temp.assert(bloom_support.client_status(t) = 'in_progress', 'waiting on ' || t.waiting_reason || ' -> in_progress');
+  END LOOP;
+  t.status := 'resolved'; t.waiting_reason := NULL;
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'resolved', 'resolved -> resolved');
+END $$;
+SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'bloom_support.client_status(bloom_support.tickets)', 'execute')
+  AND NOT has_function_privilege('anon', 'bloom_support.client_status(bloom_support.tickets)', 'execute'), 'client_status is not callable by API roles');
+UPDATE bloom_support.tickets SET status = 'needs_owner', waiting_reason = NULL WHERE id = :'t1id';
+SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'gail', 'ticket_id', :'t1id'))->>'status' = 'in_progress', 'client sees needs_owner as in_progress');
+SELECT pg_temp.assert(position('needs_owner' IN pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'gail', 'ticket_id', :'t1id'))::text) = 0, 'client ticket payload never names needs_owner');
+SELECT pg_temp.assert(position('needs_owner' IN pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'gail'))::text) = 0, 'client ticket list never names needs_owner');
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'gail'))) e
+  WHERE e->>'status' NOT IN ('received','in_progress','waiting_on_you','resolved')), 'client list uses only the four client statuses');
+SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'jon', 'ticket_id', :'t1id'))->>'status' = 'needs_owner', 'staff still see needs_owner');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'jon'))) e
+  WHERE e->>'id' = :'t1id' AND e->>'status' = 'needs_owner'), 'staff list keeps the raw status');
 
 \echo 'bloom-support-db: all assertions passed'
