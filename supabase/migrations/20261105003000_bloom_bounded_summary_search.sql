@@ -16,7 +16,11 @@ CREATE FUNCTION public.bloom_summary_search_page(
     FROM public.customer_intelligence_source_events e
     WHERE e.tenant_id=p_tenant_id AND e.import_id=p_import_id
       AND e.source='ideal' AND e.event_type='purchase_summary'
-      AND e.created_at<=p_cutoff AND (p_after IS NULL OR e.id>p_after)
+      AND e.created_at<=p_cutoff
+      -- Keep an indexable range even if PostgreSQL chooses a generic plan.
+      -- The second predicate excludes only the previous boundary row.
+      AND e.id>=coalesce(p_after,'00000000-0000-0000-0000-000000000000'::uuid)
+      AND (p_after IS NULL OR e.id<>p_after)
     ORDER BY e.id LIMIT 250
   ), candidates AS (
     SELECT jsonb_build_object('id',e.id,'tenant_id',e.tenant_id,'customer_id',e.customer_id,
