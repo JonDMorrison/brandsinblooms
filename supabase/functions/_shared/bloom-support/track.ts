@@ -7,10 +7,12 @@
 // writes per link and per IP, and runs writes as the ticket's requester through
 // the same add_message / client_action rules as email and the portal.
 // sanitizeTrackView then rebuilds the response from an allow-list.
-import { BloomError, db, readJson } from "./runtime.ts";
+import { BloomError, type Caller, db, readJson, servicePrincipal } from "./runtime.ts";
 import { sha256Hex } from "./crypto.ts";
 import { type AttachmentFile, decodeBase64File, storeAttachment } from "./attachments.ts";
 import { sendSupportEmail, subjectFor, trackingLink } from "./email.ts";
+import { type ClientBrand, clientLogoUrl, clientWebsite } from "./botanical-email.ts";
+import { clientBrand } from "./client-brand-loader.ts";
 import {
   isTrackToken,
   sanitizeTrackView,
@@ -63,14 +65,42 @@ export async function clientIpKey(req: Request): Promise<string> {
   return ip ? (await sha256Hex(`bloom-track-ip:${ip}`)).slice(0, 32) : "unknown";
 }
 
-export async function viewTicket(token: string, call: TrackRpc = trackRpc): Promise<TrackResponse> {
-  const view = sanitizeTrackView(await call("view", await tokenHash(token), {}));
+export type BrandLookup = (account: { id: string; name: string }) => Promise<ClientBrand | null>;
+
+let automation: Promise<Caller> | null = null;
+/** Same records and cache as the support emails; never waits more than 2.5 s for the page. */
+const defaultBrand: BrandLookup = (account) => {
+  automation ??= servicePrincipal("automation");
+  const lookup = automation.then((actor) => clientBrand(actor, account)).catch(() => null);
+  return Promise.race([lookup, new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500))]);
+};
+
+/**
+ * The database names the ticket's own account in `_account`; its website and
+ * logo come from our stored records via the shared loader and are re-validated
+ * with clientWebsite / clientLogoUrl (https, our own logo hosts). `_account`
+ * never leaves the server: sanitizeTrackView only copies allow-listed fields.
+ */
+async function withBrand(raw: unknown, brand: BrandLookup): Promise<unknown> {
+  if (typeof raw !== "object" || raw === null) return raw;
+  const r = raw as Record<string, unknown>;
+  const acct = r._account as { id?: unknown; name?: unknown } | null | undefined;
+  if (!acct || typeof acct.id !== "string" || typeof acct.name !== "string") return raw;
+  const b = await brand({ id: acct.id, name: acct.name }).catch(() => null);
+  return {
+    ...r,
+    company: { name: acct.name, website: clientWebsite(b?.website)?.href ?? null, logo_url: clientLogoUrl(b?.logoUrl) || null },
+  };
+}
+
+export async function viewTicket(token: string, call: TrackRpc = trackRpc, brand: BrandLookup = defaultBrand): Promise<TrackResponse> {
+  const view = sanitizeTrackView(await withBrand(await call("view", await tokenHash(token), {}), brand));
   if (!view) throw new BloomError(404, "not_found", "This link has expired or does not exist");
   return view;
 }
 
-async function liveView(hash: string, call: TrackRpc): Promise<TrackView | null> {
-  const view = sanitizeTrackView(await call("view", hash, {}));
+async function liveView(hash: string, call: TrackRpc, brand: BrandLookup = defaultBrand): Promise<TrackView | null> {
+  const view = sanitizeTrackView(await withBrand(await call("view", hash, {}), brand));
   return view && view.state === "ok" ? view : null;
 }
 
@@ -82,7 +112,7 @@ export async function replyToTicket(
 ): Promise<{ message_id: string; duplicate: boolean; attachments: number; view: TrackView | null }> {
   const hash = await tokenHash(token);
   const checked = validateTrackReply(await readJson(req, TRACK_MAX_REQUEST_BYTES));
-  if (!checked.ok) throw new BloomError(400, "invalid", checked.error);
+  if ("error" in checked) throw new BloomError(400, "invalid", checked.error);
   const { body, idempotency_key, attachments } = checked.value;
   // Decode before writing anything so a bad file never leaves a half-sent reply.
   const files = attachments.map((f) => ({ name: f.file_name, type: f.content_type, bytes: decodeBase64File(f.data_base64) }));

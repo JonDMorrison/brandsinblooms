@@ -2,7 +2,7 @@
 // Claims leased jobs, runs them with a timeout, and records success or a
 // bounded retry. Survives restarts: an expired lease is re-queued by
 // claim_jobs, and every handler is idempotent.
-import { BloomError, type Caller, db, directRpc, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
+import { BloomError, type Caller, directRpc, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { classify, indicatesStillBroken, mergeModelClassification, type Product } from "../_shared/bloom-support/policy.ts";
 import { ANSWER_SCHEMA, CLASSIFY_SCHEMA, completeJson, fence } from "../_shared/bloom-support/ai.ts";
@@ -13,9 +13,8 @@ import {
   renderEscalationEmail, renderStaffNotification, type StaffTicket, ticketThreadRoot,
 } from "../_shared/bloom-support/support-emails.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
-import { callProduct, previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
-import type { ClientBrand } from "../_shared/bloom-support/botanical-email.ts";
-import { brandFromSources, type CmsSiteFacts, type CrmBrandFacts } from "../_shared/bloom-support/client-brand.ts";
+import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
+import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 
 interface Job {
   id: string; kind: string; ticket_id: string | null; engineering_issue_id: string | null; lane: string;
@@ -50,54 +49,7 @@ async function context(ticketId: string): Promise<JobContext> {
 // (BloomSites site record, CRM company profile). Best effort: an email never
 // waits long for it or fails because of it.
 // ---------------------------------------------------------------------------
-const BRAND_TTL_MS = 10 * 60_000;
-const brandCache = new Map<string, { at: number; brand: Promise<ClientBrand | null> }>();
-
-function clientBrand(account: { id: string; name: string } | null | undefined): Promise<ClientBrand | null> {
-  if (!account?.id || !account.name?.trim()) return Promise.resolve(null);
-  const hit = brandCache.get(account.id);
-  if (hit && Date.now() - hit.at < BRAND_TTL_MS) return hit.brand;
-  const brand = loadClientBrand(account).catch((e) => {
-    console.error("client brand", account.id, e instanceof Error ? e.message : String(e));
-    return null;
-  });
-  brandCache.set(account.id, { at: Date.now(), brand });
-  return brand;
-}
-
-async function loadClientBrand(account: { id: string; name: string }): Promise<ClientBrand> {
-  const a = await rpc<{ crm_tenant_id: string | null; links: Array<{ product: string; external_id: string }> }>("get_account", { actor: bot.principalId, account_id: account.id });
-  const sites = (a.links ?? []).filter((l) => l.product === "cms");
-  const [site, crm] = await Promise.all([
-    sites.length === 1
-      ? callProduct("cms", "site.read", {
-        site_id: sites[0].external_id, inputs: {},
-        actor: { principal_id: bot.principalId, role: bot.role, name: bot.name ?? null, via: bot.via },
-      }, 8000).then((r) => (r.site ?? null) as CmsSiteFacts | null).catch(() => null)
-      : Promise.resolve(null),
-    a.crm_tenant_id ? crmBrandFacts(a.crm_tenant_id).catch(() => null) : Promise.resolve(null),
-  ]);
-  return brandFromSources(account.name.trim(), site, crm);
-}
-
-/** The CRM tenant's website and logo: tenants.website and its owner's (else admin's) company profile. */
-async function crmBrandFacts(tenantId: string): Promise<CrmBrandFacts | null> {
-  const [{ data: tenant }, { data: users }] = await Promise.all([
-    db().from("tenants").select("website").eq("id", tenantId).maybeSingle(),
-    db().from("users").select("id, role").eq("tenant_id", tenantId).in("role", ["owner", "admin"]).limit(25),
-  ]);
-  const rows = (users ?? []) as Array<{ id: string; role: string | null }>;
-  const owner = rows.find((r) => r.role === "owner") ?? rows[0];
-  const { data: profile } = owner
-    ? await db().from("company_profiles").select("website_url, feature_flags").eq("user_id", owner.id).maybeSingle()
-    : { data: null };
-  const p = profile as { website_url?: string | null; feature_flags?: { company_logo_url?: unknown } | null } | null;
-  return {
-    tenant_website: (tenant as { website?: string | null } | null)?.website ?? null,
-    website_url: p?.website_url ?? null,
-    logo_url: typeof p?.feature_flags?.company_logo_url === "string" ? p.feature_flags.company_logo_url : null,
-  };
-}
+const clientBrand = (account: { id: string; name: string } | null | undefined) => sharedClientBrand(bot, account);
 
 async function bloomSays(t: TicketView, body: string, purpose: string, key: string) {
   return await rpc("add_message", { actor: bot.principalId, ticket_id: t.id, message: { body, visibility: "public", idempotency_key: key, purpose } });

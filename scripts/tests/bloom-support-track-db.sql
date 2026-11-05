@@ -88,16 +88,6 @@ INSERT INTO bloom_support.attachments(id, ticket_id, message_id, storage_path, f
 -- The routing state is internal ("Needs Jon/Jeff").
 UPDATE bloom_support.tickets SET status = 'needs_owner', stage = 'awaiting_decision' WHERE id = :'t1';
 
--- CRM company data (minimal shapes of the public tables the header reads).
-CREATE TABLE public.tenants(id uuid PRIMARY KEY, name text, website text);
-CREATE TABLE public.users(id uuid PRIMARY KEY, tenant_id uuid);
-CREATE TABLE public.company_profiles(user_id uuid PRIMARY KEY, website_url text, feature_flags jsonb, updated_at timestamptz DEFAULT now());
-INSERT INTO public.tenants VALUES ('30000000-0000-4000-8000-0000000000a1', 'Greenleaf', NULL), ('30000000-0000-4000-8000-0000000000b2', 'Rose Hill', 'https://rosehill.test');
-INSERT INTO public.users VALUES ('40000000-0000-4000-8000-0000000000a1', '30000000-0000-4000-8000-0000000000a1'), ('40000000-0000-4000-8000-0000000000b2', '30000000-0000-4000-8000-0000000000b2');
-INSERT INTO public.company_profiles(user_id, website_url, feature_flags) VALUES
- ('40000000-0000-4000-8000-0000000000a1', 'www.greenleaf.test', '{"company_logo_url":"https://cdn.test/greenleaf.png"}'),
- ('40000000-0000-4000-8000-0000000000b2', NULL, '{"company_logo_url":"https://cdn.test/rosehill.png"}');
-
 SELECT pg_temp.issue(:'t1', 'token-for-ticket-one-aaaaaaaa');
 SELECT pg_temp.track('view', 'token-for-ticket-one-aaaaaaaa') AS v \gset
 
@@ -111,14 +101,14 @@ SELECT pg_temp.assert(NOT (:'v'::jsonb::text LIKE '%withdrawn draft answer%'), '
 SELECT pg_temp.assert(NOT (:'v'::jsonb::text LIKE '%Sam%'), 'staff names never returned');
 SELECT pg_temp.assert(NOT (:'v'::jsonb::text LIKE '%internal-trace.png%'), 'internal file never returned');
 SELECT pg_temp.assert(NOT (:'v'::jsonb::text LIKE '%Rose Hill%') AND NOT (:'v'::jsonb::text LIKE '%rose-receipt%'), 'other customers never returned');
-SELECT pg_temp.assert(NOT (:'v'::jsonb ? 'id') AND NOT (:'v'::jsonb::text LIKE '%' || :'gail' || '%'), 'no internal ids returned');
+SELECT pg_temp.assert(NOT (:'v'::jsonb ? 'id') AND NOT (:'v'::jsonb::text LIKE '%' || :'gail' || '%'), 'no ticket or person ids returned');
 SELECT pg_temp.assert(jsonb_array_length(:'v'::jsonb->'messages') = 4, 'request, two automatic notes and the staff reply');
 SELECT pg_temp.assert((:'v'::jsonb#>>'{messages,0,author}') = 'customer' AND (:'v'::jsonb#>>'{messages,0,name}') = 'Gail', 'request attributed to the customer by first name');
 SELECT pg_temp.assert((:'v'::jsonb#>>'{messages,1,automatic}')::boolean AND (:'v'::jsonb#>>'{messages,1,purpose}') = 'acknowledgement', 'acknowledgement marked automatic');
 SELECT pg_temp.assert((:'v'::jsonb#>>'{messages,3,author}') = 'team' AND (:'v'::jsonb#>>'{messages,3,name}') = 'Bloom Support' AND NOT (:'v'::jsonb#>>'{messages,3,automatic}')::boolean, 'person reply shown as Bloom Support');
 SELECT pg_temp.assert((:'v'::jsonb#>>'{messages,3,attachments,0,file_name}') = 'send-log.png', 'public file listed on its message');
-SELECT pg_temp.assert((:'v'::jsonb->'company') = '{"name":"Greenleaf","logo_url":"https://cdn.test/greenleaf.png","website":"www.greenleaf.test"}'::jsonb AND (:'v'::jsonb->>'requester_name') = 'Gail', 'client company from its own account and first name');
-SELECT pg_temp.assert(NOT (:'v'::jsonb::text LIKE '%rosehill%'), 'another account''s logo and website never returned');
+SELECT pg_temp.assert((:'v'::jsonb->'company') = '{"name":"Greenleaf"}'::jsonb AND (:'v'::jsonb->>'requester_name') = 'Gail', 'client company name from its own account and first name');
+SELECT pg_temp.assert((:'v'::jsonb#>>'{_account,id}') = :'greenleaf', 'the Edge Function is told the ticket''s own account for branding');
 SELECT pg_temp.assert((:'v'::jsonb->>'can_reply')::boolean, 'client requester can reply');
 -- The gateway route returns the same projection.
 SELECT pg_temp.assert(NOT (pg_temp.rpc('ticket_by_tracking_token', jsonb_build_object('hash', encode(sha256(convert_to('token-for-ticket-one-aaaaaaaa','UTF8')),'hex')))::text LIKE '%SMTP relay%'), 'gateway route excludes internal note');

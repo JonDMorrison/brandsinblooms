@@ -92,3 +92,26 @@ Deno.test("tracking responses are private, uncached and not indexed", () => {
   assertEquals(TRACK_HEADERS["Referrer-Policy"], "no-referrer");
   assert(TRACK_HEADERS["Cache-Control"].includes("no-store"));
 });
+
+Deno.test("company website and logo come from the shared brand loader, validated, and the account hint is stripped", async () => {
+  const { rpc } = fakeRpc({ view: { ...leakyView, company: { name: "Old" }, context: { site_domain: "evil.example" }, _account: { id: "acct-9", name: "Greenleaf" } } });
+  const seen: string[] = [];
+  const view = await viewTicket(TOKEN, rpc, (a) => {
+    seen.push(a.id);
+    return Promise.resolve({ name: a.name, website: "greenleaf.example.com", logoUrl: "https://cdn.bloomsuite.app/logos/greenleaf.png" });
+  });
+  assertEquals(seen, ["acct-9"]);
+  assert(view.state === "ok");
+  assertEquals(view.company, { name: "Greenleaf", website: "https://greenleaf.example.com/", logo_url: "https://cdn.bloomsuite.app/logos/greenleaf.png" });
+  const text = JSON.stringify(view);
+  assert(!text.includes("acct-9") && !text.includes("evil.example"), "no account id or ticket context");
+
+  const untrusted = await viewTicket(TOKEN, fakeRpc({ view: { ...leakyView, _account: { id: "acct-9", name: "Greenleaf" } } }).rpc,
+    () => Promise.resolve({ name: "Greenleaf", website: "javascript:alert(1)", logoUrl: "https://tracker.example/pixel.png" }));
+  assert(untrusted.state === "ok");
+  assertEquals(untrusted.company, { name: "Greenleaf", website: null, logo_url: null });
+
+  const failed = await viewTicket(TOKEN, fakeRpc({ view: { ...leakyView, _account: { id: "acct-9", name: "Greenleaf" } } }).rpc, () => Promise.reject(new Error("cms down")));
+  assert(failed.state === "ok");
+  assertEquals(failed.company, { name: "Greenleaf", website: null, logo_url: null });
+});

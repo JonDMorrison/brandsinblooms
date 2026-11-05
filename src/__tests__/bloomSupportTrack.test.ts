@@ -9,7 +9,6 @@ import {
   presentStatus,
   safeHttpsUrl,
   sanitizeTrackView,
-  type TrackMessage,
   type TrackView,
   validateTrackReply,
 } from "@/lib/bloomSupport/trackView";
@@ -17,7 +16,7 @@ import {
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const at = (minute: number) => new Date(Date.UTC(2026, 10, 5, 17, minute)).toISOString();
 
-function message(n: number, over: Partial<TrackMessage> & Record<string, unknown> = {}): Record<string, unknown> {
+function message(n: number, over: Record<string, unknown> = {}): Record<string, unknown> {
   return { id: id(n), author: "team", name: "Bloom Support", automatic: false, purpose: "reply", body: `message ${n}`, created_at: at(n), attachments: [], ...over };
 }
 
@@ -25,7 +24,7 @@ function rawView(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     state: "ok", number: 1015, subject: "Import history", product: "crm", kind: "idea", status: "in_progress", step: 2,
     progress: "We are working on this.", created_at: at(0), last_activity_at: at(3), resolved_at: null, resolution_summary: null,
-    confirmed: false, merged_into_number: null, requester_name: "Jon", company: { name: "Brands in Blooms", logo_url: "https://cdn.example.test/logo.png", website: "www.brandsinblooms.com", internal: "x" }, can_reply: true,
+    confirmed: false, merged_into_number: null, requester_name: "Jon", company: { name: "Brands in Blooms", logo_url: "https://cdn.example.test/logo.png", website: "https://brandsinblooms.com/", internal: "x" }, _account: { id: "acct-1", name: "Brands in Blooms" }, can_reply: true,
     can_confirm: false, can_reopen: false, reply_expected_by: null,
     support_hours: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "America/Toronto" },
     link_expires_at: at(59), attachments: [],
@@ -93,9 +92,11 @@ describe("tracking page server filter (sanitizeTrackView)", () => {
     expect(done.can_confirm).toBe(true);
   });
 
-  it("shows only https company logo and website, upgrading a bare domain", () => {
-    expect(ok(rawView()).company).toEqual({ name: "Brands in Blooms", logo_url: "https://cdn.example.test/logo.png", website: "https://www.brandsinblooms.com/" });
-    for (const bad of ["javascript:alert(1)", "http://plain.example.com", "https://user:pw@evil.test", "data:image/png;base64,AAAA", "https://10.0.0.1/x", "not a url", "//evil.test/x"]) {
+  it("passes only https company logo and website and never the internal account hint", () => {
+    const view = ok(rawView());
+    expect(view.company).toEqual({ name: "Brands in Blooms", logo_url: "https://cdn.example.test/logo.png", website: "https://brandsinblooms.com/" });
+    expect(JSON.stringify(view)).not.toContain("acct-1");
+    for (const bad of ["javascript:alert(1)", "http://plain.example.com", "https://user:pw@evil.test", "data:image/png;base64,AAAA", "www.example.com", "//evil.test/x"]) {
       expect(safeHttpsUrl(bad)).toBeNull();
       expect(ok(rawView({ company: { name: "X", logo_url: bad, website: bad } })).company).toEqual({ name: "X", logo_url: null, website: null });
     }

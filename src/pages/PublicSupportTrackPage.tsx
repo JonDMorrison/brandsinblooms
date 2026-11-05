@@ -77,8 +77,8 @@ function Shell({ children, company, title }: { children: ReactNode; company?: Tr
                 <Typography level="body-xs" sx={{ color: T.muted, lineHeight: 1.2, display: { xs: "none", sm: "block" } }}>Request from</Typography>
                 <Typography level="title-sm" noWrap sx={{ color: T.navy, fontWeight: 700, maxWidth: { xs: 130, sm: 240 } }}>{company.name}</Typography>
                 {company.website && (
-                  <Link href={company.website} target="_blank" rel="noopener noreferrer" level="body-xs" noWrap
-                    sx={{ color: T.sage, fontWeight: 600, maxWidth: { xs: 130, sm: 240 }, display: "block", ...focusRing }}>
+                  <Link href={company.website} target="_blank" rel="noopener noreferrer" level="body-xs"
+                    sx={{ color: T.sage, fontWeight: 600, maxWidth: { xs: 130, sm: 240 }, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", ...focusRing }}>
                     {displayHost(company.website)}
                   </Link>
                 )}
@@ -214,7 +214,7 @@ function Composer({
       keyRef.current ??= crypto.randomUUID();
       const attachments = await Promise.all(files.map(async (f) => ({ file_name: f.name, content_type: f.type, data_base64: await readBase64(f) })));
       const checked = validateTrackReply({ body, idempotency_key: keyRef.current, attachments });
-      if (!checked.ok) throw new Error(checked.error);
+      if ("error" in checked) throw new Error(checked.error);
       onPending({ key: keyRef.current, body: checked.value.body, files: files.map((f) => f.name), state: "sending" });
       return bloomSupport.trackReply(token, checked.value);
     },

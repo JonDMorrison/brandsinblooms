@@ -43,9 +43,9 @@ export interface TrackSupportHours {
 
 export interface TrackCompany {
   name: string;
-  /** https only; anything else is dropped. */
+  /** Chosen by clientLogoUrl on the server; https only. */
   logo_url: string | null;
-  /** https only; bare domains are upgraded to https. */
+  /** Chosen by clientWebsite on the server; https only. */
   website: string | null;
 }
 
@@ -154,19 +154,15 @@ function sanitizeMessage(m: unknown): TrackMessage | null {
 }
 
 /**
- * Only an https URL without credentials on a real host name survives. A bare
- * domain ("www.example.com") is read as https. Everything else is null.
+ * Last-gate check only: the Edge Function has already chosen the website and
+ * logo with clientWebsite / clientLogoUrl (supabase/functions/_shared/bloom-support/botanical-email.ts).
+ * Here anything that is not an absolute https URL without credentials is dropped.
  */
 export function safeHttpsUrl(v: unknown): string | null {
-  if (typeof v !== "string") return null;
-  const raw = v.trim();
-  if (!raw || raw.length > 2048 || /\s/.test(raw)) return null;
-  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/.*)?$/i.test(raw) ? `https://${raw}` : null;
-  if (!candidate) return null;
+  if (typeof v !== "string" || v.length > 2048) return null;
   try {
-    const u = new URL(candidate);
-    if (u.protocol !== "https:" || u.username || u.password || !u.hostname.includes(".") || /^[\d.]+$/.test(u.hostname)) return null;
-    return u.href;
+    const u = new URL(v);
+    return u.protocol === "https:" && !u.username && !u.password ? u.href : null;
   } catch {
     return null;
   }

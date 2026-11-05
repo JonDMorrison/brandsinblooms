@@ -11,7 +11,8 @@
 -- * Only public, non-withdrawn, non-internal messages and public attachments.
 -- * Staff are always "Bloom Support"; no staff names, owners or notes.
 -- * The requester's own first name and the client company name are shown,
---   because the person holding the link is that requester.
+--   because the person holding the link is that requester. The company's
+--   website and logo come from our own records only (never the ticket).
 --
 -- Writes (reply, confirm resolved, still not fixed) run as the ticket's
 -- requester through the same add_message / client_action functions the email
@@ -21,35 +22,6 @@
 --
 -- Everything is reached through one service-role-only entry point that the
 -- bloom-support-api Edge Function calls; anon/authenticated have no access.
-
--- ---------------------------------------------------------------------------
--- The client company on the page header: name, logo and website from that
--- ticket's own account only. Website/logo are raw candidates; the Edge
--- Function accepts only https URLs before anything is rendered.
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION bloom_support.track_company(t bloom_support.tickets)
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
-DECLARE acct bloom_support.accounts; v_logo text; v_web text; v_profile_web text;
-BEGIN
-  SELECT * INTO acct FROM bloom_support.accounts WHERE id = t.account_id;
-  IF NOT FOUND THEN RETURN NULL; END IF;
-  IF acct.crm_tenant_id IS NOT NULL THEN
-    SELECT nullif(btrim(tn.website), '') INTO v_web FROM public.tenants tn WHERE tn.id = acct.crm_tenant_id;
-    -- CRM company profile of the tenant's own users (the same logo their customer emails use).
-    SELECT nullif(btrim(cp.feature_flags->>'company_logo_url'), ''), nullif(btrim(cp.website_url), '')
-      INTO v_logo, v_profile_web
-      FROM public.company_profiles cp JOIN public.users u ON u.id = cp.user_id
-     WHERE u.tenant_id = acct.crm_tenant_id
-     ORDER BY (nullif(btrim(cp.feature_flags->>'company_logo_url'), '') IS NULL), cp.updated_at DESC NULLS LAST
-     LIMIT 1;
-  END IF;
-  -- A BloomSites report is signed by the product, so its site domain is the client's own site.
-  RETURN jsonb_build_object(
-    'name', acct.name,
-    'logo_url', v_logo,
-    'website', coalesce(v_web, v_profile_web, CASE WHEN t.channel = 'cms' THEN nullif(btrim(t.context->>'site_domain'), '') END));
-END $$;
-REVOKE ALL ON FUNCTION bloom_support.track_company(bloom_support.tickets) FROM PUBLIC, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Client projection of one ticket
@@ -102,7 +74,11 @@ BEGIN
     'confirmed', t.status = 'resolved' AND coalesce(t.resolution_evidence ? 'client_confirmed_at', false),
     'merged_into_number', (SELECT o.number FROM bloom_support.tickets o WHERE o.id = t.merged_into),
     'requester_name', nullif(split_part(btrim(coalesce(req.display_name, '')), ' ', 1), ''),
-    'company', bloom_support.track_company(t),
+    -- The client company's name. Its website and logo are added by the Edge Function from our
+    -- own stored records (client-brand-loader.ts, the same source as support emails); `_account`
+    -- tells it which account, and is removed before the response leaves the server.
+    'company', (SELECT jsonb_build_object('name', a.name) FROM bloom_support.accounts a WHERE a.id = t.account_id),
+    '_account', (SELECT jsonb_build_object('id', a.id, 'name', a.name) FROM bloom_support.accounts a WHERE a.id = t.account_id),
     'can_reply', v_can_write AND t.status <> 'resolved',
     'can_confirm', v_can_write AND t.status = 'resolved' AND NOT coalesce(t.resolution_evidence ? 'client_confirmed_at', false),
     'can_reopen', v_can_write AND t.status = 'resolved',
