@@ -60,7 +60,7 @@ export async function readProductSearchPages(client: PersistenceClient, tenantId
     }
     return {candidates:localCandidates,customers:localCustomers};
    }));
-   for(const result of results){candidates.push(...result.candidates);for(const id of result.customers)customer_ids.add(id);}
+   for(const result of results){for(const row of result.candidates)candidates.push(row);for(const id of result.customers)customer_ids.add(id);}
   }
   return {candidates,customer_ids:[...customer_ids]};
 }

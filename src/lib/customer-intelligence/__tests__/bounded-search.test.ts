@@ -46,4 +46,16 @@ describe('bounded search reads',()=>{
   expect(peak).toBe(4);expect(result.candidates.map(row=>row.id)).toEqual(imports);
  });
 
+ it('retains more than 150,000 matches without a spread argument stack overflow',async()=>{
+  const count=200001;
+  const rpc=vi.fn(async(_name:string,args:{p_after:string|null})=>{
+   const start=args.p_after===null?0:Number(args.p_after)+1;
+   const candidates=Array.from({length:Math.min(250,count-start)},(_,i)=>({id:String(start+i).padStart(6,'0')}));
+   return {data:{scanned:candidates.length,provenance:candidates,last_id:candidates.at(-1)?.id??null,customer_ids:[],candidates},error:null};
+  });
+  const result=await readProductSearchPages({rpc} as unknown as PersistenceClient,'t','time',['large'],['eucalyptus'],()=>undefined);
+  expect(result.candidates).toHaveLength(count);
+  expect(result.candidates.every((row,i)=>row.id===String(i).padStart(6,'0'))).toBe(true);
+ });
+
 });
