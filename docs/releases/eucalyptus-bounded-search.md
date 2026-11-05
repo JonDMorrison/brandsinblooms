@@ -19,7 +19,7 @@ Production was inspected as PostgreSQL **17.6**, which supports `transaction_tim
 
 The index covers **all tenants**, not only West Coast. Catalog inspection estimated 213,226 rows, 152,436,736 heap bytes and 550,281,216 total relation bytes. Local fixture scale was expanded accordingly. If production cannot finish within these limits, stop and reassess; do not silently increase limits or repeatedly retry.
 
-Use Supabase `apply_migration` for this reviewed, exact migration only. Do not run an unrelated `db push`. Confirm the runner wraps the body and migration-history write in a transaction; the `SET LOCAL` limits require that transaction. Inspect migration history and catalog after any uncertain result before retrying.
+Use Supabase `apply_migration` for this reviewed, exact migration only. Do not run an unrelated `db push`. The migration checks a transaction-local transaction-ID marker and all three limits before DDL. A runner that splits statements into autocommit transactions fails closed before creating the index. Confirm migration history is recorded atomically with the body; never embed COMMIT inside the body. Inspect migration history and catalog after any uncertain result before retrying.
 
 Preflight: verify final reviewed commit, CI, maintenance window, server >=17, no conflicting same-name function/index or invalid index, and no long-running conflicting writers. If an index already exists, verify its definition and validity; `IF NOT EXISTS` alone does not certify its shape. Apply only `20261105003000_bloom_bounded_summary_search.sql`.
 

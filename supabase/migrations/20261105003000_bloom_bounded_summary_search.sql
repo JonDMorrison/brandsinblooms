@@ -5,6 +5,17 @@ SET LOCAL lock_timeout = '250ms';
 SET LOCAL statement_timeout = '4s';
 SET LOCAL transaction_timeout = '5s';
 
+-- Fail before DDL if a runner splits statements into separate transactions.
+SELECT set_config('bloom.bounded_migration_xid', pg_current_xact_id()::text, true);
+DO $$ BEGIN
+  IF current_setting('bloom.bounded_migration_xid',true) IS DISTINCT FROM pg_current_xact_id()::text
+    OR current_setting('lock_timeout') <> '250ms'
+    OR current_setting('statement_timeout') <> '4s'
+    OR current_setting('transaction_timeout') <> '5s' THEN
+    RAISE EXCEPTION 'Bounded search migration requires one transaction with all timeout guards';
+  END IF;
+END $$;
+
 -- Bound the input BEFORE inspecting JSON. Authenticated RLS plans cannot
 -- necessarily push substring predicates into the existing trigram index.
 -- No policy, authority, source data or existing RPC is changed.
