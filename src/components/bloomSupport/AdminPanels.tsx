@@ -17,6 +17,8 @@ import Skeleton from "@mui/joy/Skeleton";
 import Box from "@mui/joy/Box";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
+import { ADMIN_INBOX_KEYS, adminAudienceLabel, adminInboxNames } from "@/lib/bloomSupport/adminLabels";
+import { useAdminInboxNames } from "./useAdminInboxNames";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { Inbox } from "lucide-react";
 import { splitList, useAskDialog } from "./useAskDialog";
@@ -69,13 +71,16 @@ function Empty({ title, description }: { title: string; description: string }) {
 }
 const ago = (d: unknown) => (typeof d === "string" ? formatDistanceToNow(new Date(d), { addSuffix: true }) : "");
 
-export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => void }) {
+export function EscalationsPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: (id: string) => void }) {
   const q = useQuery({ queryKey: ["bloom-support", "escalations"], queryFn: () => bloomSupport.escalations() });
+  const adminNames = useAdminInboxNames(me);
+  const people = useQuery({ queryKey: ["bloom-support", "staff"], queryFn: () => bloomSupport.staff(), enabled: me.permissions.includes("tickets.read_all"), retry: false });
+  const ownerName = (id: unknown) => { const p = (people.data ?? []).find((x) => x.id === id); return p ? (p.name?.trim() || p.email) : null; };
   const { run, error } = useAction();
   const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
-  if (!q.data?.length) return <Empty title="Nothing waiting for Jon or Jeff" description="Escalations, approvals and failed automation show up here." />;
+  if (!q.data?.length) return <Empty title="Nothing waiting for an admin" description="Escalations, approvals and failed automation show up here." />;
   return (
     <Stack spacing={1}>
       {dialog}
@@ -87,7 +92,7 @@ export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) 
             <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
               <div>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="sm" color="danger" variant="soft">{String(x.audience) === "both" ? "Jon + Jeff" : String(x.audience) === "jon" ? "Jon" : "Jeff"}</Chip>
+                  <Chip size="sm" color="danger" variant="soft">{adminAudienceLabel(String(x.audience), adminNames, ownerName(x.owner_id))}</Chip>
                   <Typography level="title-sm">{reasonLabel(x.reason)}</Typography>
                   <Typography level="body-xs" textColor="text.tertiary">{ago(x.created_at)}</Typography>
                   {x.due_at ? <Chip size="sm" variant="outlined" color={Date.parse(String(x.due_at)) < Date.now() ? "danger" : "neutral"}>due {ago(x.due_at)}</Chip> : null}
@@ -148,7 +153,7 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
   const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
-  if (!q.data?.length) return <Empty title="No feature requests" description="Requests Bloom recognises as new features are sent here for Jon's decision, with the customer evidence attached." />;
+  if (!q.data?.length) return <Empty title="No feature requests" description="Requests Bloom recognises as new features are sent here for an admin decision, with the customer evidence attached." />;
   const canDecide = me.permissions.includes("features.decide");
   return (
     <Stack spacing={1}>
@@ -343,6 +348,7 @@ export function SettingsPanel({ me }: { me: Whoami }) {
   const { ask, dialog } = useAskDialog();
   const isAdmin = me.permissions.includes("admin.policy");
   const s = settings.data ?? {};
+  const inboxNames = adminInboxNames(s.owners, staff.data);
   const toggle = (key: string, label: string, help: string, allowed: boolean) => (
     <Stack direction="row" spacing={1.5} alignItems="center">
       <Switch checked={s[key] === true} disabled={!allowed} onChange={(e) => run(() => bloomSupport.setSetting(key, e.target.checked))} />
@@ -367,18 +373,18 @@ export function SettingsPanel({ me }: { me: Whoami }) {
       </Sheet>
       {isAdmin && (
         <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
-          <Typography level="title-sm">Where Jon and Jeff get alerts</Typography>
-          <Typography level="body-xs">Bloom emails these addresses when something needs one of you.</Typography>
-          {(["jon", "jeff"] as const).map((who) => (
+          <Typography level="title-sm">Where admins get alerts</Typography>
+          <Typography level="body-xs">Bloom emails these addresses when something needs an admin.</Typography>
+          {ADMIN_INBOX_KEYS.map((who) => (
             <Typography key={who} level="body-sm" sx={{ mt: 0.5 }}>
-              <strong>{who === "jon" ? "Jon" : "Jeff"}:</strong> {(((s.owners as Record<string, string[]>) ?? {})[who] ?? []).join(", ") || "not set"}
+              <strong>{adminAudienceLabel(who, inboxNames)}:</strong> {(((s.owners as Record<string, string[]>) ?? {})[who] ?? []).join(", ") || "not set"}
             </Typography>
           ))}
           <Button size="sm" variant="outlined" sx={{ mt: 1 }} onClick={async () => {
             const owners = (s.owners as { jon?: string[]; jeff?: string[] }) ?? {};
             const r = await ask({ title: "Alert addresses", fields: [
-              { name: "jon", label: "Jon's email", kind: "text", helper: "Separate several with commas.", initial: (owners.jon ?? []).join(", ") },
-              { name: "jeff", label: "Jeff's email", kind: "text", helper: "Separate several with commas.", initial: (owners.jeff ?? []).join(", ") },
+              { name: "jon", label: `${adminAudienceLabel("jon", inboxNames)}: email`, kind: "text", helper: "Separate several with commas.", initial: (owners.jon ?? []).join(", ") },
+              { name: "jeff", label: `${adminAudienceLabel("jeff", inboxNames)}: email`, kind: "text", helper: "Separate several with commas.", initial: (owners.jeff ?? []).join(", ") },
             ], confirmLabel: "Save" });
             if (r) run(() => bloomSupport.setSetting("owners", { jon: splitList(r.jon), jeff: splitList(r.jeff) }));
           }}>Edit</Button>
@@ -649,7 +655,7 @@ const CONFIG_KEYS: Array<{ key: string; label: string; help: string }> = [
   { key: "automation_scopes", label: "Automation scopes", help: "Pause triage, answer, email, operations or engineering separately. Intake always continues." },
   { key: "limits", label: "Usage limits", help: "Model calls, tickets per client, repair attempts and concurrency." },
   { key: "ai", label: "Model", help: "OpenAI API model id and per-client budget (billed to the API account)." },
-  { key: "support", label: "Accountability", help: "default_owner_email: who is accountable for unassigned tickets (defaults to Jon)." },
+  { key: "support", label: "Accountability", help: "default_owner_email: who is accountable for unassigned tickets (defaults to the admin on inbox 1)." },
 ];
 
 export function SupportConfigPanel({ me }: { me: Whoami }) {

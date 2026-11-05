@@ -43,4 +43,5 @@ GRANT EXECUTE ON FUNCTION public.is_master_admin(uuid) TO service_role;
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
 \ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
+\ir ../../supabase/migrations/20261105230000_bloom_support_admin_wording.sql
 \echo 'bloom-support e2e database ready'

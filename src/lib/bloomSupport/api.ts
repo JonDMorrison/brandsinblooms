@@ -32,7 +32,7 @@ export const STATUS_LABEL: Record<SupportStatus, string> = {
   new: "New",
   working: "Working",
   waiting: "Waiting",
-  needs_owner: "Needs Jon/Jeff",
+  needs_owner: "Needs admin",
   resolved: "Resolved",
 };
 
@@ -114,7 +114,7 @@ export const QUEUE_VIEWS: Array<{ key: string; label: string }> = [
   { key: "due_soon", label: "Due soon" },
   { key: "overdue", label: "Overdue" },
   { key: "waiting_customer", label: "Waiting on customer" },
-  { key: "needs_owner", label: "Needs Jon/Jeff" },
+  { key: "needs_owner", label: "Needs admin" },
   { key: "recently_resolved", label: "Recently resolved" },
 ];
 export interface TicketPage { items: TicketSummary[]; total: number; next_cursor: string | null }

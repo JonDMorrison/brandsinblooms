@@ -44,6 +44,7 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
 \ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
+\ir ../../supabase/migrations/20261105230000_bloom_support_admin_wording.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -318,7 +319,7 @@ SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='send_
 SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'sam', 'ticket_id', :'t1id', 'issue', '{}'))->>'engineering_issue_id' AS eng2 \gset
 SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='investigate' AND engineering_issue_id = :'eng2'), 'Support cannot start an automated repair');
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND reason='engineering_start_requested' AND status='open'), 'bug reported to Jon and Jeff for a start decision');
-SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"start_repair":true}}'::jsonb)$q$, :'sam', :'eng2'), 'only Jon or Jeff');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"start_repair":true}}'::jsonb)$q$, :'sam', :'eng2'), 'only an admin can start');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jeff', 'issue_id', :'eng2', 'update', '{"start_repair":true}'::jsonb));
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='investigate' AND engineering_issue_id = :'eng2'), 'Jeff started the repair');
 SELECT pg_temp.assert((SELECT repair_started_by FROM bloom_support.engineering_issues WHERE id = :'eng2') = :'jeff'::uuid, 'repair start recorded against Jeff');
@@ -326,7 +327,7 @@ SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.escalations WHERE 
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"in_review","patch":{"pr_number":43,"head_sha":"h1"}}'::jsonb));
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"awaiting_approval","note":"touches payment amounts"}'::jsonb));
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND audience='jon' AND reason='engineering_awaiting_approval'), 'sensitive fix escalated to Jon');
-SELECT pg_temp.assert((SELECT status FROM bloom_support.tickets WHERE id = :'t1id') = 'needs_owner', 'ticket shows Needs Jon/Jeff');
+SELECT pg_temp.assert((SELECT status FROM bloom_support.tickets WHERE id = :'t1id') = 'needs_owner', 'ticket shows Needs admin');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"approved"}}'::jsonb)$q$, :'jeff', :'eng2'), 'engineering.approve');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon', 'issue_id', :'eng2', 'update', '{"status":"approved"}'::jsonb));
 SELECT pg_temp.assert((SELECT approved_head_sha FROM bloom_support.engineering_issues WHERE id = :'eng2') = 'h1', 'approval pinned to the reviewed commit');
@@ -346,6 +347,7 @@ SELECT pg_temp.assert((SELECT status = 'working' AND reopen_count = 1 AND NOT re
 
 -- 10. Feature requests go to Jon with evidence; only Jon decides.
 SELECT pg_temp.rpc('route_feature_request', jsonb_build_object('actor', :'bot', 'ticket_id', ((:'t4'::jsonb)->>'ticket_id'), 'feature', '{"title":"Multi-location accounts"}'::jsonb))->>'feature_request_id' AS fr \gset
+SELECT pg_temp.assert((SELECT next_action FROM bloom_support.tickets WHERE id = ((:'t4'::jsonb)->>'ticket_id')::uuid) = 'Admin decides on the feature request', 'feature request next action names the role');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('decide_feature_request', '{"actor":"%s","feature_request_id":"%s","decision":"accepted"}'::jsonb)$q$, :'jeff', :'fr'), 'features.decide');
 SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object('actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned', 'note', 'Q1'));
 SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_features', jsonb_build_object('actor', :'jeff'))->0->'evidence') = 1, 'feature evidence linked');
@@ -596,15 +598,17 @@ SELECT id AS oauthkey FROM bloom_support.api_keys WHERE key_hash = 'a2' \gset
 SELECT pg_temp.rpc('revoke_api_key', jsonb_build_object('actor', :'jeff', 'key_id', :'oauthkey'));
 SELECT pg_temp.assert(pg_temp.rpc('oauth_refresh_lookup', '{"refresh_hash":"r2"}'::jsonb) IS NULL, 'revoking the OAuth key revokes the refresh token');
 
--- 18. Status rules: valid transitions, waiting reasons, Needs Jon/Jeff as an escalation, history.
+-- 18. Status rules: valid transitions, waiting reasons, Needs admin as an escalation, history.
 SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'sam', 'ticket', jsonb_build_object('product','crm','channel','staff','subject','How do I export customers?','body','Client asked by phone how to export customers to CSV.','account_id', :'greenleaf','kind_hint','question'))) ->>'ticket_id' AS q1 \gset
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"waiting","waiting_reason":"lunch"}}'::jsonb)$q$, :'sam', :'q1'), 'waiting requires a reason');
 SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"waiting","waiting_reason":"third_party"}'::jsonb));
 SELECT pg_temp.assert((SELECT waiting_reason = 'third_party' AND waiting_since IS NOT NULL FROM bloom_support.tickets WHERE id = :'q1'), 'waiting reason and since recorded');
-SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"needs_owner"}}'::jsonb)$q$, :'sam', :'q1'), 'decision_needed');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"needs_owner"}}'::jsonb)$q$, :'sam', :'q1'), 'Needs admin requires decision_needed');
 SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"needs_owner","decision_needed":"Can we give this client a custom export?","accountable":"jeff","recommendation":"Offer the standard CSV export","decision_due_at":"2099-01-01T00:00:00Z"}'::jsonb));
 SELECT pg_temp.assert((SELECT owner_id = :'jeff' AND recommendation IS NOT NULL AND due_at = '2099-01-01T00:00:00Z' FROM bloom_support.escalations WHERE ticket_id = :'q1' AND reason = 'decision_needed'), 'Needs Jon/Jeff records decision, accountable person, recommendation, due');
 SELECT pg_temp.assert((SELECT waiting_reason IS NULL FROM bloom_support.tickets WHERE id = :'q1'), 'no contradictory waiting reason outside Waiting');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.notifications WHERE ticket_id = :'q1' AND kind = 'ticket.needs_owner' AND title LIKE 'Needs admin #%')
+  AND NOT EXISTS (SELECT 1 FROM bloom_support.notifications WHERE ticket_id = :'q1' AND title ~ '\m(Jon|Jeff)\M'), 'Needs admin notification names the role, not a person');
 
 -- 19. Resolution evidence per type; meaningful responses vs acknowledgements.
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"done"}}'::jsonb)$q$, :'sam', :'q1'), 'answer the question');
