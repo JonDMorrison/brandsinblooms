@@ -1,6 +1,4 @@
 import { useRef, useState } from "react";
-import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -13,10 +11,7 @@ import FormControl from "@mui/joy/FormControl";
 import FormLabel from "@mui/joy/FormLabel";
 import Alert from "@mui/joy/Alert";
 import Sheet from "@mui/joy/Sheet";
-import Skeleton from "@mui/joy/Skeleton";
-import { formatDistanceToNow } from "date-fns";
-import { bloomSupport, safeClientPageUrl, STATUS_LABEL } from "@/lib/bloomSupport/api";
-import { StatusChip } from "@/components/bloomSupport/chips";
+import { bloomSupport, safeClientPageUrl } from "@/lib/bloomSupport/api";
 import { MAX_PUBLIC_SUPPORT_BODY_LENGTH, MAX_SUPPORT_SUBJECT_LENGTH, SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -107,33 +102,6 @@ export function PublicSupportContact() {
         {retryLocked && <Button type="button" variant="outlined" color="neutral" onClick={startNewRequest}>Edit and send as a new request</Button>}
         <Button type="submit" loading={busy} disabled={busy || !form.email || form.body.trim().length < 10}>{retryLocked ? "Retry same request" : "Send"}</Button>
       </Stack>
-    </Shell>
-  );
-}
-
-/** Read-only tracking page from the link in Bloom's emails (one ticket per link). */
-export function PublicSupportTrack() {
-  const { token = "" } = useParams();
-  const q = useQuery({ queryKey: ["bloom-support", "track", token], queryFn: () => bloomSupport.track(token), retry: false });
-  return (
-    <Shell>
-      {q.isLoading && <Skeleton variant="rectangular" height={200} />}
-      {q.error && <Alert color="warning">{(q.error as Error).message}</Alert>}
-      {q.data && (
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1} alignItems="center"><Typography level="body-sm">Request #{q.data.number}</Typography><StatusChip status={q.data.status} /></Stack>
-          <Typography level="h3">{q.data.subject}</Typography>
-          <Typography level="body-sm" textColor="text.secondary">Status: {STATUS_LABEL[q.data.status]} · updated {formatDistanceToNow(new Date(q.data.updated_at), { addSuffix: true })}</Typography>
-          {q.data.resolution_summary && q.data.status === "resolved" && <Alert color="success" variant="soft">{q.data.resolution_summary}</Alert>}
-          {q.data.messages.map((m, i) => (
-            <Sheet key={i} variant={m.from === "you" ? "soft" : "outlined"} sx={{ p: 1.5, borderRadius: "md" }}>
-              <Typography level="body-xs" fontWeight="lg">{m.from === "you" ? "You" : m.from} · {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</Typography>
-              <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{m.body}</Typography>
-            </Sheet>
-          ))}
-          <Typography level="body-xs" textColor="text.tertiary">To add something, reply to any email about this request.</Typography>
-        </Stack>
-      )}
     </Shell>
   );
 }

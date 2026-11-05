@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/config";
 import { checkAttachments, safeSupportTrackingUrl } from "@/lib/bloomSupport/constants";
+import type { TrackReplyInput, TrackResponse, TrackView } from "@/lib/bloomSupport/trackView";
 
 export type SupportStatus = "new" | "working" | "waiting" | "needs_owner" | "resolved";
 
@@ -432,7 +433,16 @@ export const bloomSupport = {
   /** Intake for people who cannot sign in. */
   publicRequest: (input: Record<string, unknown>) =>
     call("bloom-support-intake", "/public", { method: "POST", body: JSON.stringify(input) }, false, parsePublicSupportIntake),
-  track: (token: string) => call<{ number: number; subject: string; status: SupportStatus; created_at: string; updated_at: string; resolution_summary: string | null; messages: Array<{ from: string; body: string; created_at: string }> }>("bloom-support-api", `/track/${token}`, {}, false),
+
+  /** Public tracking page: the link in every support email is the only credential. */
+  track: (token: string) => call<TrackResponse>("bloom-support-api", `/track/${encodeURIComponent(token)}`, {}, false),
+  trackReply: (token: string, input: TrackReplyInput) =>
+    call<{ message_id: string; duplicate: boolean; attachments: number; view: TrackView | null }>("bloom-support-api", `/track/${encodeURIComponent(token)}/reply`, { method: "POST", body: JSON.stringify(input) }, false),
+  trackAction: (token: string, action: "confirm_resolved" | "still_broken", message?: string) =>
+    call<{ ok: true; view: TrackView | null }>("bloom-support-api", `/track/${encodeURIComponent(token)}/action`, { method: "POST", body: JSON.stringify({ action, message }) }, false),
+  trackAttachment: (token: string, attachmentId: string) =>
+    call<{ url: string; file_name: string }>("bloom-support-api", `/track/${encodeURIComponent(token)}/attachments/${encodeURIComponent(attachmentId)}`, {}, false),
+  trackRenew: (token: string) => call<{ ok: true }>("bloom-support-api", `/track/${encodeURIComponent(token)}/renew`, { method: "POST", body: "{}" }, false),
 };
 
 /** The current page without query/hash credentials such as reset or OAuth tokens. */

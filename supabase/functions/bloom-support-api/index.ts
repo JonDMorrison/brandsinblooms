@@ -7,6 +7,7 @@ import { actions, requireWriteScope } from "../_shared/bloom-support/service.ts"
 import { attachmentUrl, decodeBase64File, storeAttachment } from "../_shared/bloom-support/attachments.ts";
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { approve, authorizationServerMetadata, authorize, register, token } from "../_shared/bloom-support/oauth.ts";
+import { actOnTicket, attachmentLink, renewLink, replyToTicket, TRACK_HEADERS, viewTicket } from "../_shared/bloom-support/track.ts";
 
 type Handler = (req: Request, params: string[], url: URL) => Promise<unknown>;
 const routes: Array<[string, RegExp, Handler]> = [];
@@ -173,23 +174,31 @@ on("GET", "/help", async (_req, _p, url) => {
   return data;
 });
 
-// Public, unauthenticated: one ticket's public thread via its tracking link.
-on("GET", "/track/:token", (_req, [token]) => actions.track(token));
+// Public, unauthenticated: one ticket's client view via its tracking link. The token is
+// the credential; see _shared/bloom-support/track.ts for what it can and cannot do.
+on("GET", "/track/:token", (_req, [token]) => viewTicket(token));
+on("POST", "/track/:token/reply", (req, [token]) => replyToTicket(req, token));
+on("POST", "/track/:token/action", (req, [token]) => actOnTicket(req, token));
+on("GET", "/track/:token/attachments/:id", (_req, [token, id]) => attachmentLink(token, id));
+on("POST", "/track/:token/renew", (req, [token]) => renewLink(req, token));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/bloom-support-api/, "") || "/";
+  const extra = path.startsWith("/track/") ? TRACK_HEADERS : {};
   try {
     if (req.method === "GET" && path === "/oauth/authorize") return await authorize(url);
     if (req.method === "POST" && path === "/oauth/token") return await token(req);
     for (const [method, re, h] of routes) {
       if (method !== req.method) continue;
       const m = path.match(re);
-      if (m) return json(req, await h(req, m.slice(1).map(decodeURIComponent), url));
+      if (m) return json(req, await h(req, m.slice(1).map(decodeURIComponent), url), 200, extra);
     }
     throw new BloomError(404, "not_found", `No route ${req.method} ${path}`);
   } catch (e) {
-    return errorResponse(req, e);
+    const res = errorResponse(req, e);
+    for (const [k, v] of Object.entries(extra)) res.headers.set(k, v);
+    return res;
   }
 });

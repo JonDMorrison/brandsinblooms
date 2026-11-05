@@ -333,10 +333,4 @@ export const actions = {
     ];
     return { ok: true, missing_configuration: [...new Set(missing)], email: { configured: email.configured, inbox: email.supportAddress }, ai: { provider: ai.provider, model: ai.model }, operations: ops, statuses: STATUS_LABEL };
   },
-  async track(token: string) {
-    if (!/^[A-Za-z0-9_-]{20,80}$/.test(token)) throw new BloomError(404, "not_found", "Link not found");
-    const t = await rpc("ticket_by_tracking_token", { hash: await sha256Hex(token) });
-    if (!t) throw new BloomError(404, "not_found", "This link has expired or does not exist");
-    return t;
-  },
 };
