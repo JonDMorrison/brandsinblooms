@@ -222,3 +222,37 @@ Deno.test("digest renders alerts whose detail has no condition (escalation_unans
   assertNotMatch(mail.html, /2960c9bb|escalation_unanswered|ticket_overdue/);
   assertMatch(mail.html, /West Coast Gardens/);
 });
+
+Deno.test("digest merges repeat firings of the same escalation alert into one line with a count", () => {
+  const esc = "2960c9bb-5ec6-4cfc-a840-6379cd9f9d6c";
+  // Shape of the live bloom_support_digest_report rows: one per deadline sweep that missed again.
+  const repeat = [8, 9, 10, 11, 12].map((level) => ({
+    condition: "escalation_unanswered", at: `2026-11-05T${String(level).padStart(2, "0")}:00:00Z`,
+    detail: { reason: "ticket_overdue", escalation_id: esc } as unknown as AlertFinding,
+  }));
+  const report: DigestReport = {
+    needs_you: [], resolved: [], said: [], repairs: [],
+    alerts: [...repeat, { condition: "dead_jobs", at: "2026-11-05T19:30:00Z", detail: { condition: "dead_jobs", jobs: 2 } }],
+  };
+  const mail = renderDigestEmail(report, { appUrl: APP, date: "Thu, Nov 5" })!;
+  const escLines = mail.text.split("\n").filter((l) => /escalated request/i.test(l));
+  assertEquals(escLines, ["• An escalated request still has no reply from a person (flagged 5 times)"]);
+  assertEquals((mail.html.match(/escalated request still has no reply/g) ?? []).length, 1);
+  assertMatch(mail.text, /Some of Bloom's automatic steps gave up/);
+  assertNotMatch(mail.html, new RegExp(`${esc}|escalation_unanswered|ticket_overdue`));
+
+  // A second, different escalation shares the line rather than repeating it.
+  const two = renderDigestEmail({ ...report, alerts: [...report.alerts, { condition: "escalation_unanswered", at: "2026-11-05T13:30:00Z", detail: { reason: "ticket_overdue", escalation_id: "ae67e02c-361d-410c-9e49-54c6596891df" } as unknown as AlertFinding }] }, { appUrl: APP, date: "Thu, Nov 5" })!;
+  assertEquals(two.text.split("\n").filter((l) => /escalated request/i.test(l)), ["• An escalated request still has no reply from a person (2 cases, flagged 6 times)"]);
+});
+
+Deno.test("alert grouping keeps different escalations and checks apart and counts repeats", () => {
+  const groups = groupAlertFindings([
+    { condition: "escalation_unanswered", escalation_id: "a" }, { condition: "escalation_unanswered", escalation_id: "a" },
+    { condition: "escalation_unanswered", escalation_id: "b" },
+    { condition: "watchdog_check_failed", check: "x" }, { condition: "watchdog_check_failed", check: "y" },
+  ]);
+  assertEquals(groups.map((g) => [g.key, g.count]), [
+    ["escalation_unanswered:a", 2], ["escalation_unanswered:b", 1], ["watchdog_check_failed:x", 1], ["watchdog_check_failed:y", 1],
+  ]);
+});
