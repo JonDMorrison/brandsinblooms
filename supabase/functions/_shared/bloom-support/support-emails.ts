@@ -500,16 +500,22 @@ export interface AlertGroup {
   conditions: string[];
   tools?: ToolProblem[];
   finding?: AlertFinding;
+  /** How many findings were merged into this group (repeat firings of the same condition). */
+  count?: number;
 }
 
 /**
  * Dedupe: tool failures and tool timeouts for the same tenant and tool in the
- * same hour are one problem and become one alert. Other findings pass through.
+ * same hour are one problem and become one alert. Other findings with the same
+ * condition, check and escalation are repeats of one problem (the watchdog or
+ * the deadline sweep firing again) and merge into one group with a count,
+ * keeping the latest finding.
  */
 export function groupAlertFindings(findings: AlertFinding[]): AlertGroup[] {
   const groups: AlertGroup[] = [];
   const tools = new Map<string, ToolProblem>();
   const toolConditions = new Set<string>();
+  const byKey = new Map<string, AlertGroup>();
   for (const f of findings) {
     if (f.condition === "bloom_tool_failures" || f.condition === "bloom_tool_timeouts") {
       toolConditions.add(f.condition);
@@ -527,7 +533,16 @@ export function groupAlertFindings(findings: AlertFinding[]): AlertGroup[] {
       }
       continue;
     }
-    groups.push({ key: f.condition + (typeof f.check === "string" ? `:${f.check}` : ""), conditions: [f.condition], finding: f });
+    const key = f.condition + (typeof f.check === "string" ? `:${f.check}` : "") + (typeof f.escalation_id === "string" ? `:${f.escalation_id}` : "");
+    const seen = byKey.get(key);
+    if (seen) {
+      seen.count = (seen.count ?? 1) + 1;
+      seen.finding = f;
+      continue;
+    }
+    const g: AlertGroup = { key, conditions: [f.condition], finding: f, count: 1 };
+    byKey.set(key, g);
+    groups.push(g);
   }
   if (tools.size) {
     groups.unshift({
@@ -593,6 +608,11 @@ const ALERT_COPY: Record<string, Omit<AlertCopy, "lines"> & { line?: (f: AlertFi
   watchdog_check_failed: {
     headline: "One of Bloom's health checks couldn't run", impact: "A problem in that area would not be noticed until the check runs again.",
     doing: "The other checks are still running.", button: "Check Bloom's health", path: "/admin/bloom-support?view=readiness",
+  },
+  escalation_unanswered: {
+    headline: "An escalated request still has no reply from a person", impact: "A client is waiting on Brands in Blooms staff.",
+    doing: "At each missed deadline Bloom moves it to the other owner and reminds you both.", button: "Open Support", path: "/support",
+    line: (f) => (typeof f.reason === "string" && f.reason ? reasonSentence(f.reason) : ""),
   },
   possible_incident: {
     headline: "Several clients are reporting the same problem", impact: "This may be an outage.",
@@ -679,6 +699,25 @@ export function digestIsEmpty(r: DigestReport): boolean {
   return !r.needs_you.length && !r.resolved.length && !r.said.length && !r.repairs.length && !r.alerts.length;
 }
 
+/**
+ * One digest line per problem. Groups with the same headline (for example two
+ * different unanswered escalations) share a line; repeat firings show as a count.
+ */
+export function digestAlertLines(groups: AlertGroup[]): string[] {
+  const lines = new Map<string, { groups: number; fired: number }>();
+  for (const g of groups) {
+    const headline = alertCopy(g).headline;
+    const cur = lines.get(headline) ?? { groups: 0, fired: 0 };
+    cur.groups += 1;
+    cur.fired += g.count ?? 1;
+    lines.set(headline, cur);
+  }
+  return [...lines.entries()].map(([headline, { groups: n, fired }]) => {
+    const parts = [n > 1 ? `${n} cases` : "", fired > 1 ? `flagged ${fired} times` : ""].filter(Boolean);
+    return parts.length ? `${headline} (${parts.join(", ")})` : headline;
+  });
+}
+
 export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date: string; timeZone?: string; preview?: boolean; period?: "daily" | "weekly" }): RenderedEmail | null {
   const weekly = opts.period === "weekly";
   if (digestIsEmpty(r)) return null;
@@ -698,7 +737,7 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
   const repairLines = r.repairs.slice(0, 8).map((x) => `${x.client ? `${x.client} · ` : ""}${shortTopic(cleanStaffText(x.title, 200), 70)} · ${ENGINEERING_WORDS[x.status] ?? words(x.status)}`);
   // The report row carries the condition; some details (e.g. escalation_unanswered) do not.
   const alertGroups = groupAlertFindings(r.alerts.map((a) => ({ ...(a.detail ?? {}), condition: a.detail?.condition ?? a.condition })));
-  const alertLines = alertGroups.slice(0, 6).map((g) => alertCopy(g).headline);
+  const alertLines = digestAlertLines(alertGroups).slice(0, 6);
   const saidByTicket = new Map<number, typeof r.said>();
   for (const s of r.said) saidByTicket.set(s.number, [...(saidByTicket.get(s.number) ?? []), s]);
 
