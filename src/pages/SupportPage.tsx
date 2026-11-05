@@ -243,7 +243,7 @@ const SupportPage = () => {
                           {staff ? <Typography level="body-sm" textColor="text.secondary" noWrap sx={{ mt: 0.5 }}>{t.subject}</Typography> : null}
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                             <Typography level="body-xs" textColor="text.tertiary">#{t.number}</Typography>
-                            <StatusChip status={t.status} />
+                            <StatusChip status={t.status} audience={staff ? "staff" : "client"} />
                           </Stack>
                         </Box>
                       </Box>

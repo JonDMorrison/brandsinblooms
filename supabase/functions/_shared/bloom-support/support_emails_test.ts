@@ -106,6 +106,9 @@ Deno.test("customer emails never show internal status labels", () => {
   }
   assertEquals(customerStatusLabel("needs_owner"), "With our team");
   assertEquals(customerStatusLabel("waiting", "customer"), "Waiting for your reply");
+  assertEquals(customerStatusLabel("received"), "Received");
+  assertEquals(customerStatusLabel("in_progress"), "In progress");
+  assertEquals(customerStatusLabel("waiting_on_you"), "Waiting for your reply");
 });
 
 Deno.test("threading: a stable per-ticket root, then In-Reply-To and References to it", () => {

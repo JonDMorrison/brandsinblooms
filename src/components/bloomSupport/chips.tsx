@@ -1,8 +1,10 @@
 import Chip from "@mui/joy/Chip";
 import { Bot, Hand, Pause } from "lucide-react";
-import { STATUS_LABEL, type SupportStatus } from "@/lib/bloomSupport/api";
+import { clientStatusOf, STATUS_LABEL, CLIENT_STATUS_LABEL, type ClientStatus, type SupportStatus, type TicketStatus } from "@/lib/bloomSupport/api";
 
-const STATUS_COLOR: Record<SupportStatus, "neutral" | "primary" | "warning" | "danger" | "success"> = {
+type ChipColor = "neutral" | "primary" | "warning" | "danger" | "success";
+
+const STATUS_COLOR: Record<SupportStatus, ChipColor> = {
   new: "primary",
   working: "neutral",
   waiting: "warning",
@@ -10,8 +12,25 @@ const STATUS_COLOR: Record<SupportStatus, "neutral" | "primary" | "warning" | "d
   resolved: "success",
 };
 
-export function StatusChip({ status }: { status: SupportStatus }) {
-  return <Chip size="sm" variant="soft" color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Chip>;
+const CLIENT_STATUS_COLOR: Record<ClientStatus, ChipColor> = {
+  received: "primary",
+  in_progress: "neutral",
+  waiting_on_you: "warning",
+  resolved: "success",
+};
+
+/**
+ * Ticket status chip. `audience="client"` always renders the client four-state
+ * label, so an internal routing state (e.g. needs_owner) never reaches a client
+ * even if a raw status slips through.
+ */
+export function StatusChip({ status, audience = "staff" }: { status: TicketStatus; audience?: "staff" | "client" }) {
+  if (audience === "client" || !(status in STATUS_COLOR)) {
+    const c = clientStatusOf(status);
+    return <Chip size="sm" variant="soft" color={CLIENT_STATUS_COLOR[c]}>{CLIENT_STATUS_LABEL[c]}</Chip>;
+  }
+  const s = status as SupportStatus;
+  return <Chip size="sm" variant="soft" color={STATUS_COLOR[s]}>{STATUS_LABEL[s] ?? s}</Chip>;
 }
 
 export function PriorityChip({ priority }: { priority: string }) {

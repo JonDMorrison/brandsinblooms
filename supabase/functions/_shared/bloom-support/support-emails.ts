@@ -97,6 +97,10 @@ export function customerStatusLabel(status: string, waitingReason?: string | nul
     case "waiting": return waitingReason === "customer" ? "Waiting for your reply" : "In progress";
     case "needs_owner": return "With our team";
     case "resolved": return "Resolved";
+    // Client reads of the ticket API already arrive projected (bloom_support.client_status).
+    case "received": return "Received";
+    case "in_progress": return "In progress";
+    case "waiting_on_you": return "Waiting for your reply";
     default: return "In progress";
   }
 }

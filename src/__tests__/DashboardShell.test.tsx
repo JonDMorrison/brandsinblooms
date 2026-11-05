@@ -140,6 +140,9 @@ vi.mock("@/lib/bloomSupport/api", () => ({
   KIND_LABEL: {},
   PRODUCT_LABEL: {},
   STATUS_LABEL: {},
+  CLIENT_STATUS_LABEL: { received: "Received", in_progress: "In progress", waiting_on_you: "Waiting for your reply", resolved: "Resolved" },
+  clientStatusOf: () => "in_progress",
+  statusLabel: (status: string) => status,
   WAITING_LABEL: {},
   bloomSupport: {
     publicRequest: supportMocks.publicRequest,
