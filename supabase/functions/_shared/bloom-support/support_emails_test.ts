@@ -209,3 +209,16 @@ Deno.test("botanical palette and icon host match BloomSites premium-botanical.ts
   assert(html.includes("&lt;b&gt;t&lt;/b&gt;"));
   assertFalse(/<script|<svg|@import|font-face/i.test(html));
 });
+
+Deno.test("digest renders alerts whose detail has no condition (escalation_unanswered from the live report)", () => {
+  const mail = renderDigestEmail({
+    needs_you: [], resolved: [], said: [], repairs: [],
+    alerts: [
+      { condition: "escalation_unanswered", at: "2026-11-05T02:01:12Z", detail: { reason: "ticket_overdue", escalation_id: "2960c9bb-5ec6-4cfc-a840-6379cd9f9d6c" } as unknown as AlertFinding },
+      { condition: "bloom_tool_timeouts", at: "2026-11-05T00:00:02Z", detail: { condition: "bloom_tool_timeouts", tools: [{ timeouts: 4, tool_name: "explore_customer_purchases", tenant_name: "West Coast Gardens" }] } },
+    ],
+  }, { appUrl: APP, date: "Thu, Nov 5" })!;
+  assert(mail);
+  assertNotMatch(mail.html, /2960c9bb|escalation_unanswered|ticket_overdue/);
+  assertMatch(mail.html, /West Coast Gardens/);
+});
