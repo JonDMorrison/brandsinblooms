@@ -81,7 +81,7 @@ function remoteConfigured(product: "cms" | "pos"): { configured: boolean; missin
   return { configured: missing.length === 0, missing };
 }
 
-export async function callProduct(product: "cms" | "pos", action: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function callProduct(product: "cms" | "pos", action: string, payload: Record<string, unknown>, timeoutMs = 25000): Promise<Record<string, unknown>> {
   const cfg = remoteConfigured(product);
   if (!cfg.configured) throw new BloomError(503, "not_configured", `${product.toUpperCase()} operations are not connected: set ${cfg.missing.join(", ")}`);
   const body = JSON.stringify({ action, ...payload });
@@ -91,7 +91,7 @@ export async function callProduct(product: "cms" | "pos", action: string, payloa
     method: "POST",
     headers: { "Content-Type": "application/json", "x-bloom-timestamp": String(ts), "x-bloom-signature": sig },
     body,
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const out = await res.json().catch(() => ({}));
   if (!res.ok) throw new BloomError(res.status === 403 ? 403 : res.status === 404 ? 404 : res.status === 400 ? 400 : res.status === 409 ? 409 : 502, out?.error ?? "product_error", out?.message ?? `${product} returned ${res.status}`);

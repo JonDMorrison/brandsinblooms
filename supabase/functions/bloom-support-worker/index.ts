@@ -2,7 +2,7 @@
 // Claims leased jobs, runs them with a timeout, and records success or a
 // bounded retry. Survives restarts: an expired lease is re-queued by
 // claim_jobs, and every handler is idempotent.
-import { BloomError, type Caller, directRpc, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
+import { BloomError, type Caller, db, directRpc, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { classify, indicatesStillBroken, mergeModelClassification, type Product } from "../_shared/bloom-support/policy.ts";
 import { ANSWER_SCHEMA, CLASSIFY_SCHEMA, completeJson, fence } from "../_shared/bloom-support/ai.ts";
@@ -13,7 +13,9 @@ import {
   renderEscalationEmail, renderStaffNotification, type StaffTicket, ticketThreadRoot,
 } from "../_shared/bloom-support/support-emails.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
-import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
+import { callProduct, previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
+import type { ClientBrand } from "../_shared/bloom-support/botanical-email.ts";
+import { brandFromSources, type CmsSiteFacts, type CrmBrandFacts } from "../_shared/bloom-support/client-brand.ts";
 
 interface Job {
   id: string; kind: string; ticket_id: string | null; engineering_issue_id: string | null; lane: string;
@@ -41,6 +43,60 @@ let bot: Caller, repair: Caller | null, release: Caller | null, operations: Call
 
 async function context(ticketId: string): Promise<JobContext> {
   return await rpc<JobContext>("job_context", { actor: bot.principalId, ticket_id: ticketId });
+}
+
+// ---------------------------------------------------------------------------
+// Client brand for emails: website and logo from our own records only
+// (BloomSites site record, CRM company profile). Best effort: an email never
+// waits long for it or fails because of it.
+// ---------------------------------------------------------------------------
+const BRAND_TTL_MS = 10 * 60_000;
+const brandCache = new Map<string, { at: number; brand: Promise<ClientBrand | null> }>();
+
+function clientBrand(account: { id: string; name: string } | null | undefined): Promise<ClientBrand | null> {
+  if (!account?.id || !account.name?.trim()) return Promise.resolve(null);
+  const hit = brandCache.get(account.id);
+  if (hit && Date.now() - hit.at < BRAND_TTL_MS) return hit.brand;
+  const brand = loadClientBrand(account).catch((e) => {
+    console.error("client brand", account.id, e instanceof Error ? e.message : String(e));
+    return null;
+  });
+  brandCache.set(account.id, { at: Date.now(), brand });
+  return brand;
+}
+
+async function loadClientBrand(account: { id: string; name: string }): Promise<ClientBrand> {
+  const a = await rpc<{ crm_tenant_id: string | null; links: Array<{ product: string; external_id: string }> }>("get_account", { actor: bot.principalId, account_id: account.id });
+  const sites = (a.links ?? []).filter((l) => l.product === "cms");
+  const [site, crm] = await Promise.all([
+    sites.length === 1
+      ? callProduct("cms", "site.read", {
+        site_id: sites[0].external_id, inputs: {},
+        actor: { principal_id: bot.principalId, role: bot.role, name: bot.name ?? null, via: bot.via },
+      }, 8000).then((r) => (r.site ?? null) as CmsSiteFacts | null).catch(() => null)
+      : Promise.resolve(null),
+    a.crm_tenant_id ? crmBrandFacts(a.crm_tenant_id).catch(() => null) : Promise.resolve(null),
+  ]);
+  return brandFromSources(account.name.trim(), site, crm);
+}
+
+/** The CRM tenant's website and logo: tenants.website and its owner's (else admin's) company profile. */
+async function crmBrandFacts(tenantId: string): Promise<CrmBrandFacts | null> {
+  const [{ data: tenant }, { data: users }] = await Promise.all([
+    db().from("tenants").select("website").eq("id", tenantId).maybeSingle(),
+    db().from("users").select("id, role").eq("tenant_id", tenantId).in("role", ["owner", "admin"]).limit(25),
+  ]);
+  const rows = (users ?? []) as Array<{ id: string; role: string | null }>;
+  const owner = rows.find((r) => r.role === "owner") ?? rows[0];
+  const { data: profile } = owner
+    ? await db().from("company_profiles").select("website_url, feature_flags").eq("user_id", owner.id).maybeSingle()
+    : { data: null };
+  const p = profile as { website_url?: string | null; feature_flags?: { company_logo_url?: unknown } | null } | null;
+  return {
+    tenant_website: (tenant as { website?: string | null } | null)?.website ?? null,
+    website_url: p?.website_url ?? null,
+    logo_url: typeof p?.feature_flags?.company_logo_url === "string" ? p.feature_flags.company_logo_url : null,
+  };
 }
 
 async function bloomSays(t: TicketView, body: string, purpose: string, key: string) {
@@ -219,9 +275,9 @@ async function sendEmail(job: Job): Promise<string> {
   } else {
     return `nothing to send for ${purpose}`;
   }
-  const link = await trackingLink(t.id);
+  const [link, client] = await Promise.all([trackingLink(t.id), clientBrand(t.account)]);
   const rendered = renderCustomerEmail({
-    number: t.number, subject: t.subject, status: t.status, waitingReason: t.waiting_reason ?? null, purpose: design, bodies, trackUrl: link,
+    number: t.number, subject: t.subject, status: t.status, waitingReason: t.waiting_reason ?? null, purpose: design, bodies, trackUrl: link, client,
   });
   const result = await sendSupportEmail({
     ticketId: t.id, messageId: (job.payload.message_id as string) ?? null, purpose: purpose as "reply", to,
@@ -290,7 +346,8 @@ async function escalationEmail(x: EscalationRow, ticketId: string | null, previe
   const tz = await staffTimeZone();
   if (ticketId) {
     const t = (await context(ticketId)).ticket;
-    return renderEscalationEmail({ escalation: x, ticket: t as unknown as StaffTicket, appUrl: appUrl(), timeZone: tz, preview });
+    const client = await clientBrand(t.account);
+    return renderEscalationEmail({ escalation: x, ticket: t as unknown as StaffTicket, appUrl: appUrl(), timeZone: tz, preview, client });
   }
   return { ...renderStaffNotification({ title: x.detail ?? x.reason, appUrl: appUrl(), preview }), step: null };
 }
@@ -415,7 +472,9 @@ async function alertEmails(job: Job): Promise<string> {
 /**
  * Preview of every staff email to ONE staff address, marked [Preview]. Reads
  * only: it never changes a ticket, escalation or alert. Enqueued by an operator
- * as a notify job with payload { preview: true, to, alerts? } and ticket_id.
+ * as a notify job with payload { preview: true, to, alerts?, customer? } and
+ * ticket_id. With a ticket it also sends that ticket's client-facing email to
+ * the same staff address (customer: false skips it).
  */
 async function previewEmails(job: Job): Promise<string> {
   const to = String(job.payload.to ?? "").trim().toLowerCase();
@@ -432,6 +491,16 @@ async function previewEmails(job: Job): Promise<string> {
     const x = escs.find((e) => (e as unknown as { status?: string }).status === "open") ?? escs[0] ??
       { id: "preview", ticket_id: t.id, audience: "both", reason: "ticket_overdue", detail: null, recommendation: null, created_at: new Date().toISOString(), ticket: null };
     await send("escalation", await escalationEmail(x, t.id, true));
+    if (job.payload.customer !== false) {
+      // The client-facing email for the same ticket, sent only to the staff address above. No tracking token is minted.
+      const lastBloom = [...t.messages].reverse().find((m) => m.visibility === "public" && m.author_kind === "bloom");
+      const mail = renderCustomerEmail({
+        number: t.number, subject: t.subject, status: t.status, waitingReason: t.waiting_reason ?? null,
+        purpose: lastBloom?.purpose ?? "reply", bodies: [lastBloom?.body ?? `Thanks — we've received your request (#${t.number}).`],
+        trackUrl: `${emailConfig().publicBaseUrl}/support/track/preview`, client: await clientBrand(t.account),
+      });
+      await send("customer", { subject: `[Preview] ${subjectFor(t.number, t.subject)}`, text: mail.text, html: mail.html });
+    }
   }
   for (const g of groupAlertFindings((job.payload.alerts as AlertFinding[] | undefined) ?? [])) {
     await send(`alert-${g.key}`, renderAlertEmail(g, { appUrl: appUrl(), preview: true }));

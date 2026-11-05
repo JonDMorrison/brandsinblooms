@@ -5,8 +5,8 @@
 // Staff emails never show raw reason codes, UUIDs, run IDs or JSON. Customer
 // emails never show internal routing labels.
 import {
-  botanicalEmailButton, botanicalEmailFacts, botanicalEmailLinks, botanicalEmailList, botanicalEmailParagraph,
-  botanicalEmailQuote, botanicalEmailSection, type BotanicalEmailFact, renderBotanicalEmail,
+  botanicalEmailButton, botanicalEmailClientLine, botanicalEmailFacts, botanicalEmailLinks, botanicalEmailList, botanicalEmailParagraph,
+  botanicalEmailQuote, botanicalEmailSection, type BotanicalEmailFact, type ClientBrand, clientWebsite, renderBotanicalEmail,
 } from "./botanical-email.ts";
 import { asSentence, humanizeStaffNote } from "./notes.ts";
 import { type NextAction, type NextStep, nextStepFor, nextStepForReason, supportLink } from "./next-step.ts";
@@ -165,6 +165,8 @@ export function renderCustomerEmail(input: {
   purpose: string;
   bodies: string[];
   trackUrl: string;
+  /** The client company, from the ticket's account. Its website and logo show only when validated. */
+  client?: ClientBrand | null;
 }): Omit<RenderedEmail, "subject"> {
   const status = customerStatusLabel(input.status, input.waitingReason);
   const body = input.bodies.map((b) => b.trim()).filter(Boolean).join("\n\n");
@@ -178,19 +180,22 @@ export function renderCustomerEmail(input: {
     { icon: "leaf", label: "Request", value: `#${input.number} ${clip(cleanSubject(input.subject), 90)}` },
     { icon: resolved ? "check" : "calendar", label: "Status", value: status },
   ];
+  const client = input.client?.name?.trim() ? { ...input.client, name: input.client.name.trim() } : null;
+  const site = client ? clientWebsite(client.website) : null;
   const html = renderBotanicalEmail({
     header: "Bloom Support",
     eyebrow,
     title,
     preheader: clip(body.replace(/\s+/g, " "), 140),
     icon,
-    bodyHtml: body.split(/\n{2,}/).map((p) => botanicalEmailParagraph(p, { margin: "0 0 14px" })).join("") +
+    bodyHtml: (client ? botanicalEmailClientLine(client) : "") + body.split(/\n{2,}/).map((p) => botanicalEmailParagraph(p, { margin: "0 0 14px" })).join("") +
       botanicalEmailFacts(facts) +
       botanicalEmailButton("Track your request", input.trackUrl) +
       botanicalEmailParagraph("You can reply to this email at any time.", { muted: true, size: 13, margin: "6px 0 0" }),
     footer: CUSTOMER_FOOTER,
   });
-  const text = `${body}\n\n—\nBloom Support · Request #${input.number} · ${status}\nTrack this request: ${input.trackUrl}`;
+  const forLine = client ? `\nRequest for ${client.name}${site ? ` · ${site.href}` : ""}` : "";
+  const text = `${body}\n\n—\nBloom Support · Request #${input.number} · ${status}${forLine}\nTrack this request: ${input.trackUrl}\nBloomSuite · https://bloomsuite.app/`;
   return { text, html };
 }
 
@@ -335,6 +340,8 @@ export function renderEscalationEmail(input: {
   now?: Date;
   timeZone?: string;
   preview?: boolean;
+  /** The client company's brand, from the ticket's account. Website and logo show only when validated. */
+  client?: ClientBrand | null;
 }): RenderedEmail & { step: NextStep } {
   const { escalation: x, ticket: t } = input;
   const now = input.now ?? new Date();
@@ -356,8 +363,11 @@ export function renderEscalationEmail(input: {
   const prefix = input.preview ? "[Preview] " : "";
   const subject = clip(`${prefix}Needs you: ${client} — ${shortTopic(t.subject)} (#${t.number})`, 200);
 
+  // Brand facts belong to the ticket's account, never to a requester's typed name.
+  const brand = t.account?.name?.trim() && input.client ? { ...input.client, name: client } : null;
+  const site = brand ? clientWebsite(brand.website) : null;
   const facts: BotanicalEmailFact[] = [
-    { icon: "leaf", label: "Client", value: client },
+    { icon: "leaf", label: "Client", value: client, link: site, avatar: brand },
     { icon: "mail", label: "Request", value: `#${t.number} · ${productName(t.product)}` },
   ];
   if (age) facts.push({ icon: "calendar", label: "Waiting", value: `${age} since it came in` });
@@ -395,7 +405,7 @@ export function renderEscalationEmail(input: {
   const text = [
     headline,
     "",
-    `Client: ${client}`,
+    `Client: ${client}${site ? ` · ${site.href}` : ""}`,
     `Request: #${t.number} · ${productName(t.product)} · ${cleanSubject(t.subject)}`,
     age ? `Waiting: ${age}` : "",
     "",
