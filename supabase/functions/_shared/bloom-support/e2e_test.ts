@@ -807,7 +807,9 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const ack = resendSent.find((m) => m.to[0] === "gail@greenleaf.test");
     assertExists(ack, "acknowledgement emailed");
     assert(ack!.subject.startsWith(`[Bloom #${crm.number}]`));
-    assert(ack!.headers["Message-ID"].startsWith("<bloom."));
+    // The first email of a ticket carries the ticket's stable thread root, so every later email threads under it.
+    assert(ack!.headers["Message-ID"].startsWith(`<bloom-ticket.${crmTicket}@`), ack!.headers["Message-ID"]);
+    assert(ack!.text.includes(`Request #${crm.number} · `), "plain-text body keeps the request line");
     assert(ack!.text.includes("https://bloomsuite.test/support/track/"), "tracking link included");
     assert(!githubCalls.some((c) => c.method === "POST" && c.path.endsWith("/dispatches")), "Bloom never starts a coding agent on its own");
     const startReq = await sql!`SELECT audience, status FROM bloom_support.escalations WHERE engineering_issue_id = ${crm.engineering_issue_id} AND reason = 'engineering_start_requested'`;
