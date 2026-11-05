@@ -433,7 +433,7 @@ function ticketSummary(ticket: TicketRow): JsonObject {
   return {
     request_number: typeof ticket.number === "number" ? ticket.number : null,
     subject: readString(ticket.subject),
-    // Client-facing: never an internal routing label such as "Needs Jon/Jeff".
+    // Client-facing: never an internal routing label such as "Needs admin".
     status: customerStatusLabel(status, waiting),
     waiting_on: waiting ? WAITING_PLAIN[waiting] ?? null : null,
     opened_at: readString(ticket.created_at),

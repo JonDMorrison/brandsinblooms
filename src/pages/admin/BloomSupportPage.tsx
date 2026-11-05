@@ -108,7 +108,7 @@ export default function BloomSupportPage() {
             <Chip size="sm" variant="soft">{counts.new ?? 0} new</Chip>
             <Chip size="sm" variant="soft">{counts.working ?? 0} being handled</Chip>
             <Chip size="sm" variant="soft">{counts.waiting ?? 0} waiting on someone</Chip>
-            <Chip size="sm" variant="soft" color={(counts.needs_owner ?? 0) > 0 ? "warning" : "neutral"}>{counts.needs_owner ?? 0} need Jon or Jeff</Chip>
+            <Chip size="sm" variant="soft" color={(counts.needs_owner ?? 0) > 0 ? "warning" : "neutral"}>{counts.needs_owner ?? 0} need an admin</Chip>
             {s.automation_enabled === false && <Chip size="sm" color="danger">Bloom is paused</Chip>}
             {Number(s.dead_jobs ?? 0) > 0 && <Chip size="sm" color="danger" variant="soft">{String(s.dead_jobs)} automatic steps failed</Chip>}
           </Stack>
@@ -176,7 +176,7 @@ export default function BloomSupportPage() {
         </Sheet>
       )}
       <Box sx={{ overflow: "auto", display: view === "queue" || view === "today" ? "none" : "block" }}>
-        {view === "escalations" && <EscalationsPanel onOpenTicket={openTicket} />}
+        {view === "escalations" && <EscalationsPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "engineering" && <EngineeringPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "features" && <FeaturesPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "clients" && <ClientsPanel onOpenTicket={openTicket} />}

@@ -25,7 +25,7 @@ import { bloomSupport, PRODUCT_LABEL, WAITING_LABEL, type TicketDetail, type Tic
 import { statusPatch } from "./statusPatch";
 import { engineeringLabel, fixStage } from "./labels";
 import { StatusChip } from "./chips";
-import { asSentence, humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
+import { asSentence, humanizeNextAction, humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { useAskDialog } from "./useAskDialog";
 import { BloomRecommends } from "./BloomRecommends";
 import type { NextAction } from "../../../supabase/functions/_shared/bloom-support/next-step";
@@ -61,7 +61,7 @@ function banner(t: TicketDetail): Banner {
   if (t.pending_review === "reply_after_resolution") return { tone: "warning", text: "Waiting on you: the client replied after this was solved" };
   if (t.status === "resolved") return { tone: "success", text: t.resolved_at ? `Solved ${formatDistanceToNow(new Date(t.resolved_at), { addSuffix: true })}` : "Solved" };
   if (eng?.status === "awaiting_approval") return { tone: "warning", text: "Waiting on you: approve the fix" };
-  if (t.status === "needs_owner") return { tone: "warning", text: `Waiting on you: ${t.next_action ?? "a decision from Jon or Jeff"}` };
+  if (t.status === "needs_owner") return { tone: "warning", text: `Waiting on you: ${t.next_action ? humanizeNextAction(t.next_action) : "an admin decision"}` };
   if (t.automation === "human") return { tone: "neutral", text: `${t.taken_over_by?.name ?? "A person"} is handling this. Bloom has stepped back` };
   if (t.automation === "paused") return { tone: "neutral", text: "Bloom is paused here and will only suggest, not act" };
   if (t.status === "waiting" && t.waiting_reason) return { tone: "primary", text: WAITING_LABEL[t.waiting_reason] };

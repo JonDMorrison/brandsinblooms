@@ -437,7 +437,7 @@ export const STATUS_LABEL: Record<string, string> = {
   new: "New",
   working: "Working",
   waiting: "Waiting",
-  needs_owner: "Needs Jon/Jeff",
+  needs_owner: "Needs admin",
   resolved: "Resolved",
 };
 

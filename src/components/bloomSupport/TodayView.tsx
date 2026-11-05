@@ -13,6 +13,7 @@ import Link from "@mui/joy/Link";
 import { ArrowRight, Check, Search, X } from "lucide-react";
 import { formatDistanceToNow, isToday } from "date-fns";
 import { plainSummary } from "@/components/admin/readableFormat";
+import { humanizeNextAction } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { bloomSupport, STATUS_LABEL, WAITING_LABEL, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
 
 /**
@@ -124,7 +125,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       key: `tkt:${t.id}`,
       who: clientName(t),
       when: ago(t.updated_at),
-      text: t.next_action ? `${t.subject}. ${t.next_action}` : t.subject,
+      text: t.next_action ? `${t.subject}. ${humanizeNextAction(t.next_action)}` : t.subject,
       open: { label: "Open conversation", onClick: () => onOpenTicket(t.id) },
     });
   }
@@ -189,7 +190,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
         <Stack spacing={1.5} component="section" aria-label="Needs you">
           <Typography sx={sectionLabel} textColor="warning.700">Needs you</Typography>
           {pending.map((d) => <DecisionCard key={d.key} d={d} busy={busy === d.key} onRun={(a) => act.mutate({ key: d.key, ...a })} />)}
-          {moreNeedsOwner > 0 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>{moreNeedsOwner} more need Jon/Jeff. See them in the full desk</Link>}
+          {moreNeedsOwner > 0 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>{moreNeedsOwner} more need an admin. See them in the full desk</Link>}
         </Stack>
       )}
 

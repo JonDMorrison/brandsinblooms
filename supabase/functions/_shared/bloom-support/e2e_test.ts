@@ -1298,7 +1298,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(e.status, "awaiting_approval", JSON.stringify({ e, jobs: await sql!`SELECT kind, status, last_error, payload FROM bloom_support.jobs WHERE engineering_issue_id = ${eng}` }));
     assert(JSON.stringify(e.eligibility.reasons).includes("review-required paths"));
     assert(!githubCalls.some((c) => c.path.endsWith("/pulls/7/merge")), "sensitive fix not merged");
-    assertEquals((await ticketRow(posTicket)).status, "needs_owner", "ticket shows Needs Jon/Jeff");
+    assertEquals((await ticketRow(posTicket)).status, "needs_owner", "ticket shows Needs admin");
     const esc = await mcp(keys.jon, "list_escalations", {});
     assert(JSON.stringify(esc.structuredContent ?? esc.content[0].text).includes("engineering_awaiting_approval"));
     assert((await mcp(keys.jeff, "approve_fix", { issue_id: eng })).isError, "only Jon approves");
@@ -1337,7 +1337,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertExists(esc?.due_at, "escalations carry a deadline");
     const ack = await mcp(keys.jeff, "acknowledge_escalation", { escalation_id: esc.id, note: "mine" });
     assert(!ack.isError, ack.content[0].text);
-    assert((await mcp(keys.sam, "acknowledge_escalation", { escalation_id: esc.id })).isError, "Support cannot take Jon/Jeff escalations");
+    assert((await mcp(keys.sam, "acknowledge_escalation", { escalation_id: esc.id })).isError, "Support cannot take admin escalations");
   });
 
   await t.step("ChatGPT OAuth: register → BloomSuite approval → PKCE token → MCP as that person → refresh", async () => {
