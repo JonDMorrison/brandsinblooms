@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 7
     services:
       postgres:
-        image: postgres:15
+        image: postgres:17
         env:
           POSTGRES_DB: bloom_analysis_test
           POSTGRES_HOST_AUTH_METHOD: trust

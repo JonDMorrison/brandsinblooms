@@ -1,3 +1,10 @@
+-- Run as one transaction during the documented maintenance window.
+-- PostgreSQL 17+ is required for a hard bound on the entire lock-holding transaction.
+-- Production was inspected at 17.6. Never retry a failed build with larger limits.
+SET LOCAL lock_timeout = '250ms';
+SET LOCAL statement_timeout = '4s';
+SET LOCAL transaction_timeout = '5s';
+
 -- Bound the input BEFORE inspecting JSON. Authenticated RLS plans cannot
 -- necessarily push substring predicates into the existing trigram index.
 -- No policy, authority, source data or existing RPC is changed.
