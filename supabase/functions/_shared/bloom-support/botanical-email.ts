@@ -51,16 +51,126 @@ export function safeUrl(value: unknown): string {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Brand: the BloomSuite mark, and the client's own website and logo
+// ---------------------------------------------------------------------------
+/**
+ * The BloomSuite app mark, served by bloomsuite.app from the CRM repo's
+ * public/pos/features-assets/bloomsuite-logo.png (144x144 PNG, about 10 KB).
+ * Shown at 44px, so it is sharp on 2x and 3x screens.
+ */
+export const BLOOMSUITE_LOGO_URL = "https://bloomsuite.app/pos/features-assets/bloomsuite-logo.png";
+export const BLOOMSUITE_SITE_URL = "https://bloomsuite.app/";
+
+/** What we know about the client's brand, all from our own stored records. */
+export interface ClientBrand {
+  name: string;
+  /** A hostname or https URL from BloomSites or the CRM company profile. Validated before use. */
+  website?: string | null;
+  /** An image URL from BloomSites or the CRM company profile. Validated before use. */
+  logoUrl?: string | null;
+}
+
+// A public DNS name: dotted labels and an alphabetic TLD. No IPs, ports, localhost or userinfo.
+const HOSTNAME = /^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
+
+/**
+ * The client's website as a link we are willing to send: https only, a public
+ * hostname, and only its home page (the path is dropped). Accepts a bare
+ * hostname ("example.com") or an https URL. Anything else returns null.
+ */
+export function clientWebsite(value: unknown): { href: string; label: string } | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  if (!v || v.length > 2048 || /[\s\\<>"'`]/.test(v)) return null;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(v);
+  if (scheme && scheme[1].toLowerCase() !== "https") return null;
+  if (!scheme && (v.includes(":") || !/^[a-z0-9]/i.test(v))) return null;
+  let u: URL;
+  try {
+    u = new URL(scheme ? v : `https://${v}`);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
+  const host = u.hostname.toLowerCase().replace(/\.$/, "");
+  if (!HOSTNAME.test(host)) return null;
+  return { href: `https://${host}/`, label: host.replace(/^www\./, "") };
+}
+
+/** Image hosts that serve our own stored uploads (BloomSites CDN and storage, CRM storage). */
+const CLIENT_LOGO_HOSTS: Record<string, string> = {
+  "cdn.bloomsuite.app": "/",
+  "udldmkqwnxhdeztyqcau.supabase.co": "/storage/v1/object/public/",
+  "isvcjikzheswgvpkfpfr.supabase.co": "/storage/v1/object/public/",
+};
+
+/** A client logo URL only if it is one of our own hosted PNG/JPEG/GIF uploads over https. */
+export function clientLogoUrl(value: unknown): string {
+  if (typeof value !== "string" || value.length > 1024) return "";
+  let u: URL;
+  try {
+    u = new URL(value.trim());
+  } catch {
+    return "";
+  }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return "";
+  const prefix = CLIENT_LOGO_HOSTS[u.hostname.toLowerCase()];
+  if (!prefix || !u.pathname.startsWith(prefix) || !/\.(png|jpe?g|gif)$/i.test(u.pathname)) return "";
+  return u.href;
+}
+
+/**
+ * The client's logo as a small rounded avatar, or their initial when there is
+ * no usable logo. Decorative: the client's name is always printed next to it.
+ */
+export function botanicalClientAvatar(brand: ClientBrand, size = 42): string {
+  const t = PREMIUM_BOTANICAL_EMAIL;
+  const logo = clientLogoUrl(brand.logoUrl);
+  if (logo) {
+    return '<img src="' + esc(logo) + '" width="' + size + '" height="' + size + '" alt="" ' +
+      'style="display:block;width:' + size + "px;height:" + size + "px;border:1px solid " + t.border +
+      ';border-radius:10px;background:#FFFFFF;object-fit:contain" />';
+  }
+  const initial = (brand.name.match(/[\p{L}\p{N}]/u)?.[0] ?? "?").toUpperCase();
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="' + size + '" style="width:' + size + 'px"><tr>' +
+    '<td align="center" valign="middle" width="' + size + '" height="' + size + '" bgcolor="' + t.callout + '" ' +
+    'style="width:' + size + "px;height:" + size + "px;background:" + t.callout + ";border:1px solid " + t.border +
+    ";border-radius:10px;color:" + t.navy + ";font-size:" + Math.round(size * 0.45) + 'px;line-height:1;font-weight:700;text-align:center">' +
+    esc(initial) + "</td></tr></table>";
+}
+
+/** "Request for The Flowerhouse · theflowerhousegardencenter.com", with the client's avatar. */
+export function botanicalEmailClientLine(brand: ClientBrand, lead = "Request for"): string {
+  const t = PREMIUM_BOTANICAL_EMAIL;
+  const site = clientWebsite(brand.website);
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px"><tr>' +
+    '<td width="44" valign="middle" style="width:44px;vertical-align:middle;padding-right:10px">' + botanicalClientAvatar(brand, 34) + "</td>" +
+    '<td valign="middle" style="vertical-align:middle;font-size:14px;line-height:1.5;color:' + t.muted + '">' +
+    esc(lead) + ' <strong style="font-weight:700;color:' + t.navy + '">' + esc(brand.name) + "</strong>" +
+    (site
+      ? '<span style="color:' + t.muted + '">&nbsp; · &nbsp;</span><a href="' + esc(site.href) + '" style="color:' + t.sage +
+        ';font-weight:700;text-decoration:underline">' + esc(site.label) + "</a>"
+      : "") +
+    "</td></tr></table>";
+}
+
 /** Optional illustration only. Labels and values remain readable if disabled. */
 export function botanicalEmailIcon(name: BotanicalEmailIcon, size = 42): string {
   return bloomEmailIcon(name, size);
 }
 
-/** One semantic row: icon, bold label, value. Values are plain text. */
+/**
+ * One semantic row: icon, bold label, value. Values are plain text. A row may
+ * carry a validated https link after the value, and the client's avatar in
+ * place of the icon.
+ */
 export interface BotanicalEmailFact {
   label: string;
   value: string;
   icon: BotanicalEmailIcon;
+  link?: { href: string; label: string } | null;
+  avatar?: ClientBrand | null;
 }
 export function botanicalEmailFacts(rows: BotanicalEmailFact[]): string {
   const t = PREMIUM_BOTANICAL_EMAIL;
@@ -69,14 +179,22 @@ export function botanicalEmailFacts(rows: BotanicalEmailFact[]): string {
     rows.map((row, index) => (
       '<tr><td width="54" valign="top" style="width:54px;vertical-align:top;padding:' +
       (index === 0 ? "14px" : "18px") + " 8px 15px 4px;border-bottom:1px solid " + t.border + '">' +
-      botanicalEmailIcon(row.icon, 42) +
+      (row.avatar ? botanicalClientAvatar(row.avatar, 42) : botanicalEmailIcon(row.icon, 42)) +
       '</td><td valign="top" style="vertical-align:top;padding:' +
       (index === 0 ? "17px" : "21px") + " 4px 17px 4px;border-bottom:1px solid " + t.border +
       ";font-size:15px;line-height:1.65;color:" + t.body + '">' +
       '<strong style="font-weight:700;color:' + t.navy + '">' + esc(row.label) +
       '</strong><span style="color:' + t.muted + '">&nbsp; · &nbsp;</span>' + esc(row.value) +
-      "</td></tr>"
+      factLink(row.link) + "</td></tr>"
     )).join("") + "</table>";
+}
+
+function factLink(link: BotanicalEmailFact["link"]): string {
+  const url = link ? safeUrl(link.href) : "";
+  if (!link || !url) return "";
+  const t = PREMIUM_BOTANICAL_EMAIL;
+  return '<span style="color:' + t.muted + '">&nbsp; · &nbsp;</span><a href="' + esc(url) + '" style="color:' + t.sage +
+    ';font-weight:700;text-decoration:underline">' + esc(link.label) + "</a>";
 }
 
 /** Compact branded hero (BloomSites botanicalEmailHero). */
@@ -166,8 +284,10 @@ export function botanicalEmailLinks(links: Array<{ label: string; href: string }
 
 /**
  * Page shell (BloomSites renderBotanicalNotificationEmail): navy header with the
- * sender name, hero, body, panel footer. `bodyHtml` must be built from escaped
- * fragments.
+ * BloomSuite mark and the sender name, hero, body, panel footer with a link to
+ * bloomsuite.app. The mark has alt="BloomSuite" and fixed dimensions, and the
+ * sender name is text, so the header reads the same with images blocked.
+ * `bodyHtml` must be built from escaped fragments.
  */
 export function renderBotanicalEmail(args: {
   header: string;
@@ -193,12 +313,20 @@ export function renderBotanicalEmail(args: {
     '<tr><td align="center" style="padding:24px 12px">' +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" ' +
     'style="width:100%;max-width:600px;background:#FFFFFF;border:1px solid ' + t.border + ';border-radius:15px;overflow:hidden">' +
-    '<tr><td bgcolor="' + t.navy + '" class="bs-pad" style="padding:22px 26px;background:' + t.navy +
-    ';color:#FFFFFF;font-size:21px;line-height:1.4;font-weight:700">' + esc(args.header) + "</td></tr>" +
+    '<tr><td bgcolor="' + t.navy + '" class="bs-pad" style="padding:18px 26px;background:' + t.navy + '">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' +
+    '<td width="44" valign="middle" style="width:44px;vertical-align:middle;padding-right:12px">' +
+    '<a href="' + BLOOMSUITE_SITE_URL + '" style="text-decoration:none;color:#FFFFFF">' +
+    '<img src="' + BLOOMSUITE_LOGO_URL + '" width="44" height="44" alt="BloomSuite" ' +
+    'style="display:block;width:44px;height:44px;border:0;outline:none;color:#FFFFFF;font-size:11px;font-weight:700;line-height:44px" /></a></td>' +
+    '<td valign="middle" style="vertical-align:middle;color:#FFFFFF;font-size:21px;line-height:1.3;font-weight:700">' + esc(args.header) +
+    "</td></tr></table></td></tr>" +
     '<tr><td class="bs-pad" style="padding:24px 24px 26px">' +
     botanicalEmailHero(args.eyebrow, args.title, args.intro, args.icon ?? "leaf") +
     '<div style="font-size:15px;line-height:1.65;color:' + t.body + '">' + args.bodyHtml + "</div></td></tr>" +
     '<tr><td class="bs-pad" style="padding:17px 24px;background:' + t.panel + ";border-top:1px solid " + t.border +
-    ";font-size:12px;line-height:1.5;color:" + t.muted + '">' + esc(args.footer) + "</td></tr>" +
+    ";font-size:12px;line-height:1.5;color:" + t.muted + '">' + esc(args.footer) +
+    '<br />BloomSuite · <a href="' + BLOOMSUITE_SITE_URL + '" style="color:' + t.sage +
+    ';font-weight:700;text-decoration:underline">bloomsuite.app</a></td></tr>' +
     "</table></td></tr></table></body></html>";
 }
