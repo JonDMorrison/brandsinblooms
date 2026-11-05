@@ -22,19 +22,38 @@ RETURNS jsonb LANGUAGE sql STABLE SET search_path TO '' AS $$
   FROM public.ideal_journal_staging WHERE batch_id = p_batch_id AND seq = 0;
 $$;
 
--- Department label for a product code, taken from the newest reconciled report that lists it.
-CREATE OR REPLACE FUNCTION public.ideal_product_departments(p_tenant_id uuid)
-RETURNS TABLE(product_code text, department text)
-LANGUAGE sql STABLE SET search_path TO '' AS $$
-  SELECT DISTINCT ON (item->>0) item->>0, item->>2
-  FROM public.customer_intelligence_source_events e
-  JOIN public.customer_intelligence_imports i ON i.id = e.import_id AND i.status = 'completed'
+-- Department label for each product code, taken from the newest reconciled
+-- report that lists it. Built once per company before applying receipts, so
+-- every chunk does not re-read every report row.
+CREATE TABLE IF NOT EXISTS public.ideal_product_department_map (
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  product_code text NOT NULL,
+  department text NOT NULL,
+  built_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, product_code)
+);
+ALTER TABLE public.ideal_product_department_map ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.ideal_product_department_map FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.ideal_build_department_map(p_tenant_id uuid)
+RETURNS integer LANGUAGE plpgsql SET search_path TO '' AS $$
+DECLARE v_count integer;
+BEGIN
+  DELETE FROM public.ideal_product_department_map WHERE tenant_id = p_tenant_id;
+  INSERT INTO public.ideal_product_department_map(tenant_id, product_code, department)
+  SELECT DISTINCT ON (item->>0) p_tenant_id, item->>0, item->>2
+  FROM (
+    SELECT id, source_period_end, completed_at FROM public.customer_intelligence_imports
+    WHERE tenant_id = p_tenant_id AND source = 'ideal' AND report_type = 'customer_sales_summary'
+      AND status = 'completed' AND coalesce(reconciliation->>'evidence_kind', '') NOT LIKE '%journal%'
+  ) i
+  JOIN public.customer_intelligence_source_events e ON e.import_id = i.id AND e.event_type = 'purchase_summary'
   CROSS JOIN LATERAL jsonb_array_elements(e.raw_data->'items') AS item
-  WHERE e.tenant_id = p_tenant_id AND e.event_type = 'purchase_summary' AND e.source = 'ideal'
-    AND coalesce(i.reconciliation->>'evidence_kind', '') NOT LIKE '%journal%'
-    AND coalesce(item->>0, '') <> '' AND coalesce(item->>2, '') <> ''
+  WHERE coalesce(item->>0, '') <> '' AND coalesce(item->>2, '') <> ''
   ORDER BY item->>0, i.source_period_end DESC, i.completed_at DESC;
-$$;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.ideal_journal_open_import(p_batch_id text)
 RETURNS uuid LANGUAGE plpgsql SET search_path TO '' AS $$
@@ -88,7 +107,7 @@ BEGIN
     WHERE tenant_id = v_import.tenant_id AND deleted_at IS NULL AND merged_into_customer_id IS NULL AND external_id IS NOT NULL
     GROUP BY external_id
   ), departments AS (
-    SELECT * FROM public.ideal_product_departments(v_import.tenant_id)
+    SELECT product_code, department FROM public.ideal_product_department_map WHERE tenant_id = v_import.tenant_id
   ), ins AS (
     INSERT INTO public.customer_purchase_line_items(
       tenant_id, customer_id, import_id, source, external_transaction_id, external_line_id,
@@ -133,7 +152,8 @@ BEGIN
   IF v_lines <> (v_head->>'lines')::bigint OR v_cents <> (v_head->>'net_cents')::numeric THEN
     RAISE EXCEPTION 'Journal lines do not reconcile: % lines / % cents, expected % / %', v_lines, v_cents, v_head->>'lines', v_head->>'net_cents';
   END IF;
-  IF v_receipts > (v_head->>'receipts')::bigint OR v_customers <> (v_head->>'customers')::bigint THEN
+  -- Receipts and customers whose only lines were zero-value or excluded carry no lines, so stored counts may be lower.
+  IF v_receipts > (v_head->>'receipts')::bigint OR v_customers > (v_head->>'customers')::bigint THEN
     RAISE EXCEPTION 'Journal receipts or customers do not reconcile';
   END IF;
 
@@ -191,7 +211,7 @@ BEGIN
 END $$;
 
 REVOKE ALL ON FUNCTION public.ideal_journal_header(text) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.ideal_product_departments(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.ideal_build_department_map(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.ideal_journal_open_import(text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.ideal_journal_apply_chunk(text, integer) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.ideal_journal_finish(text, boolean) FROM PUBLIC, anon, authenticated;

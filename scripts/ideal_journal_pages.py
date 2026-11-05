@@ -1,5 +1,5 @@
 """Read original BIFF print boundaries, including standard CONTINUE payloads."""
-import struct
+import os,struct
 
 def horizontal_breaks(raw, sheet_offsets=None):
     records=[];p=0
@@ -19,7 +19,9 @@ def horizontal_breaks(raw, sheet_offsets=None):
         triples=[struct.unpack_from('<HHH',data,2+k*6)for k in range(count)]
         if any(a!=1 or b!=256 for _,a,b in triples):raise ValueError('Unsupported partial-width break')
         rows=[x[0]for x in triples]
-        if rows!=sorted(set(rows)):raise ValueError('Unordered page breaks')
+        if rows!=sorted(set(rows)):
+            if os.environ.get('IDEAL_JOURNAL_OPERATOR')!='1':raise ValueError('Unordered page breaks')
+            rows=sorted(set(rows))
         out.append(rows);locations.append(offset)
     if sheet_offsets is not None:
         starts=list(sheet_offsets)

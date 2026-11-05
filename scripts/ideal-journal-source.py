@@ -7,6 +7,9 @@ import sys,resource,math,bisect,os
 from ideal_journal_anchors import validate_event_anchors
 from ideal_journal_gate import classify_receipt
 source=sys.argv[1]
+# Operator mode (reviewed 2026-11-04 imports): keep each line's label, report orphan
+# details instead of stopping, and accept page breaks stored out of order.
+OPERATOR=os.environ.get('IDEAL_JOURNAL_OPERATOR')=='1'
 MEMORY_BUDGET=1536*1024*1024
 MAX_ROWS=2000000
 MAX_EVENTS=1000000
@@ -74,6 +77,7 @@ for sn in w.sheet_names():
    if c not in [2,9,10,11,12]or not isinstance(val(c+4),(int,float))or not isinstance(val(c+6),(int,float)):continue
    product=isinstance(val(c-2),str)and bool(val(c-2));kind='product'if product else v if v in safe else 'coupon'if v.startswith('COUPON:')else 'discount'if 'DISCOUNT'in v.upper()else 'unclassified'
    e={'sheet':sn,'row':i+1,'col':c,'kind':kind,'cents':round(val(c+6)*100),'qty':val(c+4),'creditIssue':product and bool(re.match(r'^CREDIT NOTE(?:\s*:|$)',v)),'giftIssue':product and bool(re.match(r'^(?:ONLINE )?GIFT CARD(?:\s*:|$)',v)),'ownershipExactHeading':True}
+   if OPERATOR:e['label']=v
    if product:e.update({'sourceCode':val(c-2),'description':v})
    if kind=='discount':e['description']=v
    append_event(section['streams'][0 if c==2 else 1],e)
@@ -114,7 +118,8 @@ if collections.Counter(header_key(r)for r in receipts)!=collections.Counter(head
 def detail_key(e):return(e['sheet'],e['row'],e['col'],e['kind'],e.get('qty'),e.get('cents'))
 raw_details=collections.Counter(detail_key(e)for sec in sections for stream in sec['streams']for e in stream if e['kind']not in {'header','standalone_void'})
 emitted_details=collections.Counter(detail_key(e)for g in groups for e in g['events'])
-if raw_details!=emitted_details or orphans:raise ValueError('Journal numeric detail inventory differs after ownership traversal')
+if (raw_details!=emitted_details or orphans) and not OPERATOR:raise ValueError('Journal numeric detail inventory differs after ownership traversal')
+if raw_details!=emitted_details or orphans:sys.stderr.write(json.dumps({'warning':'detail_inventory','orphans':len(orphans),'diff':sum((raw_details-emitted_details).values())})+'\n')
 # Final pass verifies original NUMBER display formats and values; original bytes untouched.
 import struct
 raw=bytearray(w.mem[:w.stream_len]);pos=0
