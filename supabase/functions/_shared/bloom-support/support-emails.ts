@@ -29,7 +29,7 @@ const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g
 const LONG_NUMBER = /\b\d{6,}\b/g;
 const SNAKE = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g;
 
-const words = (code: string) => code.replace(/[_-]+/g, " ").trim();
+const words = (code: string | null | undefined) => String(code ?? "").replace(/[_-]+/g, " ").trim();
 
 /**
  * Makes staff-facing free text safe to show: no UUIDs, run IDs, JSON or
@@ -686,7 +686,8 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
   });
   const resolvedLines = r.resolved.slice(0, 10).map((x) => `${x.client ?? "A client"} · #${x.number} ${clip(cleanSubject(x.subject), 60)}${x.by_bloom ? " · solved by Bloom" : ""}`);
   const repairLines = r.repairs.slice(0, 8).map((x) => `${x.client ? `${x.client} · ` : ""}${shortTopic(cleanStaffText(x.title, 200), 70)} · ${ENGINEERING_WORDS[x.status] ?? words(x.status)}`);
-  const alertGroups = groupAlertFindings(r.alerts.map((a) => a.detail));
+  // The report row carries the condition; some details (e.g. escalation_unanswered) do not.
+  const alertGroups = groupAlertFindings(r.alerts.map((a) => ({ ...(a.detail ?? {}), condition: a.detail?.condition ?? a.condition })));
   const alertLines = alertGroups.slice(0, 6).map((g) => alertCopy(g).headline);
   const saidByTicket = new Map<number, typeof r.said>();
   for (const s of r.said) saidByTicket.set(s.number, [...(saidByTicket.get(s.number) ?? []), s]);
