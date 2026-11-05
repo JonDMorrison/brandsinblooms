@@ -12,7 +12,7 @@ it('rejects hash mismatch and invalid calendar cutoff',async()=>{await expect(lo
 import {loadCompanyAnalysisFacts} from '../../../../supabase/functions/_shared/customer-intelligence/load-analysis-facts';
 it('excludes uncertified Ideal and mismatched native imports while retaining native confirmed and unimported facts',async()=>{
  const dated=[{id:'ideal-null',source:'ideal',import_id:null},{id:'ideal-complete',source:'ideal',import_id:'ideal-ledger'},{id:'wrong',source:'shopify',import_id:'ideal-ledger'},{id:'native',source:'shopify',import_id:'shop-ledger'},{id:'pos',source:'pos',import_id:null}].map(row=>({...row,tenant_id:'t',customer_id:'c'}));
- const db={from:(table:string)=>{let imported=false;const q={select:()=>q,eq:()=>q,lte:()=>q,order:()=>q,in:()=>{imported=true;return q;},range:async()=>({data:table==='customer_purchase_line_items'?dated:imported?[{id:'ideal-ledger',source:'ideal'},{id:'shop-ledger',source:'shopify'}]:[],error:null})};return q;}} as unknown as PersistenceClient;
+ const db={from:(table:string)=>{let imported=false;const q={select:()=>q,eq:()=>q,neq:()=>q,lte:()=>q,order:()=>q,in:()=>{imported=true;return q;},range:async()=>({data:table==='customer_purchase_line_items'?dated:imported?[{id:'ideal-ledger',source:'ideal'},{id:'shop-ledger',source:'shopify'}]:[],error:null})};return q;}} as unknown as PersistenceClient;
  expect((await loadCompanyAnalysisFacts(db,'t','2026-02-01T00:00:00Z')).map(row=>row.id)).toEqual(['native','pos']);
 });
 
