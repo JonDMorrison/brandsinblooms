@@ -81,7 +81,7 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
           <Typography level="body-xs" textColor="text.secondary">Prepared change: {labelFor(String(op.kind ?? "change"))}</Typography>
         ) : null}
         {!allowed ? (
-          <Typography level="body-xs" textColor="text.secondary">Your role can't do this. Jon or Jeff can.</Typography>
+          <Typography level="body-xs" textColor="text.secondary">Your role can't do this. An admin can.</Typography>
         ) : step.action === "decide-feature" && feature?.id ? (
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 0.5 }}>
             <Button size="sm" loading={busy} onClick={() => run(() => bloomSupport.decideFeature(feature.id!, "accepted", note), "Accepted. Bloom will tell the client.")}>Accept</Button>

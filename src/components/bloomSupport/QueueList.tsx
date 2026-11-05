@@ -21,6 +21,7 @@ import { bloomSupport, KIND_LABEL, PRODUCT_LABEL, QUEUE_VIEWS, STATUS_LABEL, WAI
 import { AutomationChip, PriorityChip, StatusChip } from "./chips";
 import { useAskDialog } from "./useAskDialog";
 import { WAITING_OPTIONS } from "./statusPatch";
+import { humanizeNextAction } from "../../../supabase/functions/_shared/bloom-support/notes";
 
 type Filters = { view: string; q?: string; product?: string; priority?: string; kind?: string; owner?: string; sort: string; age_days_min?: string };
 
@@ -202,7 +203,7 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
                 <strong>{t.account?.name ?? "No client"}</strong> · {PRODUCT_LABEL[t.product] ?? t.product} · {KIND_LABEL[t.kind] ?? t.kind}
                 {t.waiting_reason ? ` · ${WAITING_LABEL[t.waiting_reason]}` : ""}
                 {` · ${t.owner?.name ?? "Unassigned"}${t.executor === "bloom" ? " (Bloom working)" : ""}`}
-                {t.next_action ? ` · Next: ${t.next_action}` : ""}
+                {t.next_action ? ` · Next: ${humanizeNextAction(t.next_action)}` : ""}
               </Typography>
             </Box>
           </Box>

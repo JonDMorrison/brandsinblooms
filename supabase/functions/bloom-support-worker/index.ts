@@ -109,8 +109,8 @@ async function triage(job: Job): Promise<string> {
   switch (c.kind) {
     case "feature":
       await rpc("route_feature_request", { actor: bot.principalId, ticket_id: t.id, feature: { title: t.subject } });
-      await bloomSays(t, "Thanks for the suggestion. We've passed it to Jon for a decision and will let you know the outcome.", "progress", `feature-ack:${t.id}`);
-      return "feature routed to Jon";
+      await bloomSays(t, "Thanks for the suggestion. We've passed it to our team for a decision and will let you know the outcome.", "progress", `feature-ack:${t.id}`);
+      return "feature routed for an admin decision";
     case "question":
       await rpc("enqueue_job", { actor: bot.principalId, kind: "answer", ticket_id: t.id, lane: job.lane, payload: {}, idempotency_key: `answer:${t.id}:${t.reopen_count}:${lastClient?.id ?? "first"}` });
       await patch(t, { stage: "answering" });
@@ -134,7 +134,7 @@ async function triage(job: Job): Promise<string> {
 /** Model proposes; deterministic rules decide whether a preview may be prepared. A person confirms. */
 async function proposeOperation(t: TicketView): Promise<string> {
   if (!t.account || !operations) {
-    await patch(t, { stage: "operating", next_action: "Jeff/Support: prepare the requested change" });
+    await patch(t, { stage: "operating", next_action: "Admin or Support: prepare the requested change" });
     return "operation needs a person (no account or operations identity)";
   }
   const proposal = await completeJson<{ kind: string; inputs_json: string; explanation: string }>({
@@ -144,7 +144,7 @@ async function proposeOperation(t: TicketView): Promise<string> {
     schema: { type: "object", additionalProperties: false, required: ["kind", "inputs_json", "explanation"], properties: { kind: { type: "string" }, inputs_json: { type: "string" }, explanation: { type: "string" } } },
   });
   if (!proposal.ok || !WRITE_KINDS.has(proposal.value.kind)) {
-    await patch(t, { stage: "operating", next_action: "Jeff/Support: prepare the requested change" });
+    await patch(t, { stage: "operating", next_action: "Admin or Support: prepare the requested change" });
     return "operation needs a person";
   }
   let inputs: Record<string, unknown> = {};
@@ -158,7 +158,7 @@ async function proposeOperation(t: TicketView): Promise<string> {
     return "operation preview prepared";
   } catch (e) {
     await note(t, `Bloom could not prepare ${proposal.value.kind}: ${e instanceof Error ? e.message : e}`);
-    await patch(t, { stage: "operating", next_action: "Jeff/Support: prepare the requested change" });
+    await patch(t, { stage: "operating", next_action: "Admin or Support: prepare the requested change" });
     return "operation preview failed; handed to a person";
   }
 }

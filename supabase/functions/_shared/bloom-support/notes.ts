@@ -67,3 +67,21 @@ export function humanizeStaffNote(body: string): string {
     duplicateOf: m[5] ? Number(m[5]) : null,
   });
 }
+
+// Routing text written before support copy named roles instead of people
+// ("Jon/Jeff: …", "Jon decides on the feature request", "Jeff/Support: …").
+// Stored values stay as they are; staff views reword them when they render.
+const LEGACY_ROUTING: Array<[RegExp, string]> = [
+  [/^Needs Jon\/Jeff\b/, "Needs admin"],
+  [/^Jon\/Jeff:\s*/, "Admin: "],
+  [/^Jeff\/Support:\s*/, "Admin or Support: "],
+  [/^Jon decides on the feature request\b/, "Admin decides on the feature request"],
+];
+
+/** Rewords Bloom's older people-named routing text (next actions) to role wording. Anything else is returned unchanged. */
+export function humanizeNextAction(text: string): string {
+  for (const [pattern, replacement] of LEGACY_ROUTING) {
+    if (pattern.test(text)) return text.replace(pattern, replacement);
+  }
+  return text;
+}
