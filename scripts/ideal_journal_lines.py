@@ -6,8 +6,10 @@ the matching summary discount line is then skipped. Unallocated discounts stay
 as their own receipt-level lines. Gift card / credit note issuance is not merchandise."""
 import json,re,sys,collections
 ANN=re.compile(r'^(-?\d[\d,]*\.\d{2}) {2}(.+)$')
-TENDER={'CASH','DEBIT/CREDIT','SA','GIFT CARD','CREDIT NOTE','ONLINE GIFT CARD','PROMOTIONAL','CHEQUE'}
-NONMERCH={'GST','PST','ROUNDING','Change','Points','Total Accumulated Points','Total Savings','unresolved_change'}|TENDER
+# 2019-2020 layout: card tenders VISA/MASTERCARD/DEBIT/AMEX, FREQ. BUYER rewards,
+# web orders paid ONLINE with 'GST Amount'/'PST Amount' tax lines, and E-TRANSFER.
+TENDER={'CASH','DEBIT/CREDIT','SA','GIFT CARD','CREDIT NOTE','ONLINE GIFT CARD','PROMOTIONAL','CHEQUE','VISA','MASTERCARD','DEBIT','AMEX','AMERICAN EXPRESS','FREQ. BUYER','FREQ BUYER','ONLINE','E-TRANSFER'}
+NONMERCH={'GST','PST','HST','GST Amount','PST Amount','GST Subtotal','PST Subtotal','ROUNDING','Change','Points','Total Accumulated Points','Total Savings','unresolved_change'}|TENDER
 def receipt_lines(f):
   ev=f['events'];out=[];stats=collections.Counter();ann_by_label=collections.defaultdict(int)
   void_next=False;last=None
@@ -31,6 +33,10 @@ def receipt_lines(f):
       else:out.append({'code':e.get('sourceCode'),'name':key,'qty':0,'net_cents':cents,'discount_cents':cents,'gross_cents':0,'kind':'discount','src':[e['sheet'],e['row'],e['col']]});stats['ann_unallocated']+=1
       continue
     refund=k=='product' and (re.search(r'\s\*REF[A-Z]*\*?$',label) is not None or (isinstance(e.get('qty'),(int,float)) and e['qty']<0))
+    if k=='product' and not m and not refund and cents>0 and ann_by_label.get(label.strip())==cents:
+      # Positive multi-buy adjustment ('0.15  Seed Geranium 18 for $24.99') already
+      # added to the item above; its summary line repeats the same amount.
+      ann_by_label[label.strip()]=0;stats['plain_skipped']+=1;continue
     if k=='product' and (cents>=0 or refund) and not m:
       name=re.sub(r'\s+\*REF[A-Z]*\*?$','',label).strip()
       dm=re.search(r'\s\((\d+)\)$',name)
@@ -46,7 +52,26 @@ def receipt_lines(f):
       stats['plain_skipped']+=1;continue
     out.append({'code':e.get('sourceCode'),'name':label,'qty':e.get('qty') or 0,'net_cents':cents,'gross_cents':0,'discount_cents':cents,'kind':'discount','src':[e['sheet'],e['row'],e['col']]});stats['plain_kept']+=1
   return out,stats
+TAX={'GST','PST','HST','GST Amount','PST Amount','GST Subtotal','PST Subtotal'}
+def receipt_balances(f):
+  """merchandise + tax + rounding = payments - change. A Points line after Total
+  Accumulated Points is a points redemption paid in dollars; a GIFT CARD line before
+  the tax lines is a gift card sold; store credit or gift cards issued are not payments."""
+  ev=f['events'];lines,_=receipt_lines(f);m=sum(l['net_cents'] for l in lines)
+  t=sum(e['cents'] for e in ev if e['kind'] in TAX);r=sum(e['cents'] for e in ev if e['kind']=='ROUNDING')
+  p=sum(e['cents'] for e in ev if e['kind'] in TENDER);ch=sum(e['cents'] for e in ev if e['kind']=='Change')
+  seen_tap=taxed=False
+  for e in ev:
+    if e['kind'] in TAX:taxed=True
+    if e['kind'] in ('GIFT CARD','ONLINE GIFT CARD') and not taxed:p-=2*e['cents']
+    if e['kind']=='Total Accumulated Points':seen_tap=True
+    elif e['kind']=='Points' and seen_tap:p+=e['cents'];seen_tap=False
+    if e.get('creditIssue') or e.get('giftIssue'):p-=e['cents']
+  return m+t+r in (p-ch,p+ch,p)
 if __name__=='__main__':
+  import os
+  # 2019-2020 operator gate: an unbalanced receipt keeps its date, never its product lines.
+  GATE=os.environ.get('IDEAL_JOURNAL_BALANCE_GATE')=='1'
   tot=collections.Counter();per=collections.Counter();n=0
   w=open(sys.argv[2],'w')
   for line in open(sys.argv[1]):
@@ -54,6 +79,7 @@ if __name__=='__main__':
     if 'normalized' not in d:continue
     f=d['normalized']['fields'];code=d['normalized']['customerCode'];h=f['header']
     lines,st=receipt_lines(f);tot.update(st);n+=1
+    if GATE and not receipt_balances(f):tot['gated_receipts']+=1;tot['gated_cents']+=sum(l['net_cents'] for l in lines);lines=[]
     s=sum(l['net_cents'] for l in lines);per[code]+=s;tot['merch_cents']+=s;tot['lines']+=len(lines)
     w.write(json.dumps({'code':code,'date':h['date'],'terminal':h['terminal'],'number':h['number'],'src':[h['sheet'],h['row'],h['column']],'lines':lines},separators=(',',':'))+'\n')
   json.dump(per,open(sys.argv[2]+'.percustomer.json','w'))
