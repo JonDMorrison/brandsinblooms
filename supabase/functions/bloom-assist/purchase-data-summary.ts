@@ -53,12 +53,25 @@ async function loadIdealPeriods(
     .eq("status", "completed")
     .not("source_period_end", "is", null)
     .order("completed_at", { ascending: false })
-    .limit(5);
+    .limit(IDEAL_IMPORT_SCAN_LIMIT);
   if (error) {
     throw error;
   }
   return (data ?? []) as ImportPeriodRow[];
 }
+
+/**
+ * Enough rows to see every retained period. A short "most recent" window
+ * hid older years as soon as new years were imported, and Bloom then said
+ * those years had no data.
+ */
+const IDEAL_IMPORT_SCAN_LIMIT = 200;
+
+/**
+ * Journal imports keep receipt lines for review only. Bloom reads product
+ * facts from the period reports, so journals are left out of this line.
+ */
+const REPORT_TYPES_NOT_READ_BY_BLOOM = new Set(["journal"]);
 
 /**
  * True when the company has at least one dated order or sale on file
@@ -103,21 +116,22 @@ export function formatPurchaseDataLine(facts: PurchaseDataFacts | null): string 
   const dated = facts.hasDatedOrders
     ? "dated sales records are connected"
     : "no dated sales records are connected, so order, revenue and last-purchase tools will have nothing to show";
-  const seen = new Set<string>();
-  const periods = facts.idealPeriods
-    .filter((row) => {
-      const key = `${row.report_type}|${row.source_period_start}|${row.source_period_end}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .map(
-      (row) =>
-        `${readableReportType(row.report_type)} ${row.source_period_start ?? "unknown start"} to ${row.source_period_end ?? "unknown end"}`,
-    );
+  // Group every retained period under its report type, oldest first, so no
+  // covered year is left out of the line.
+  const byType = new Map<string, Set<string>>();
+  for (const row of facts.idealPeriods) {
+    if (REPORT_TYPES_NOT_READ_BY_BLOOM.has(row.report_type ?? "")) continue;
+    const type = readableReportType(row.report_type);
+    const period = `${row.source_period_start ?? "unknown start"} to ${row.source_period_end ?? "unknown end"}`;
+    if (!byType.has(type)) byType.set(type, new Set());
+    byType.get(type)!.add(period);
+  }
+  const groups = [...byType.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([type, periods]) => `${type} ${[...periods].sort().join(", ")}`);
   const ideal =
-    periods.length > 0
-      ? `IdealPOS period reports imported: ${periods.join("; ")}. For spend questions use the reported-spending tools and name the period.`
+    groups.length > 0
+      ? `IdealPOS period reports imported: ${groups.join("; ")}. Every listed period has data: for product, buyer or spend questions about these periods, call the tools and name the period. Do not say a listed period is unavailable.`
       : "no IdealPOS period reports imported";
 
   return `Purchase data available: ${dated}; ${ideal}`;
