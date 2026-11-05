@@ -6,10 +6,13 @@
 // emails never show internal routing labels.
 import {
   botanicalEmailButton, botanicalEmailClientLine, botanicalEmailFacts, botanicalEmailLinks, botanicalEmailList, botanicalEmailParagraph,
-  botanicalEmailQuote, botanicalEmailSection, type BotanicalEmailFact, type ClientBrand, clientWebsite, renderBotanicalEmail,
+  botanicalEmailQuote, botanicalEmailSection, type BotanicalEmailFact, type ClientBrand, clientWebsite, PREMIUM_BOTANICAL_EMAIL, renderBotanicalEmail,
 } from "./botanical-email.ts";
 import { asSentence, humanizeStaffNote } from "./notes.ts";
-import { type NextAction, type NextStep, nextStepFor, nextStepForReason, supportLink } from "./next-step.ts";
+import {
+  DECISION_ACTIONS, type EngineeringFacts, liveNextStep, type NextAction, type NextStep, nextStepFor, nextStepForReason, type ResolutionPlan,
+  resolutionPlan, supportLink,
+} from "./next-step.ts";
 
 export interface RenderedEmail {
   subject: string;
@@ -218,8 +221,15 @@ export interface StaffTicket {
   requester?: { name?: string | null; email?: string | null } | null;
   next_action?: string | null;
   messages?: OutgoingMessage[];
-  engineering?: { status?: unknown } | null;
+  engineering?: EngineeringFacts | null;
   history?: Array<{ kind: string; from: string | null; to: string | null; at: string }>;
+  pending_review?: string | null;
+  merged_into?: string | null;
+  operations?: Array<Record<string, unknown>> | null;
+  feature_request?: { id?: unknown; status?: unknown } | null;
+  escalations?: Array<{ reason?: unknown; status?: unknown }> | null;
+  /** The ticket's email ledger (staff view): used to avoid sending the same "needs you" twice in a day. */
+  emails?: Array<{ purpose?: string | null; to?: string | null; status?: string | null; created_at?: string | null }> | null;
 }
 
 export interface EscalationFacts {
@@ -333,6 +343,100 @@ function lastFromClient(t: StaffTicket): OutgoingMessage | null {
   return [...(t.messages ?? [])].reverse().find((m) => m.author_kind === "client") ?? null;
 }
 
+// Which automatic step failed, in words. Staff-only steps never escalate (see fail_job).
+const STEP_WORDS: Record<string, { label: string; verb: string }> = {
+  triage: { label: "reading and sorting the request", verb: "sort" },
+  answer: { label: "drafting an answer", verb: "draft an answer for" },
+  send_email: { label: "emailing the client", verb: "email" },
+  verify_resolution: { label: "checking the fix on the live site", verb: "check the fix for" },
+  investigate: { label: "investigating the problem", verb: "investigate the problem for" },
+  engineering_step: { label: "the automatic repair", verb: "finish the repair for" },
+  post_resolution_reply: { label: "reading the client's reply", verb: "read the reply from" },
+  operate: { label: "making the change", verb: "make the change for" },
+  notify: { label: "a staff notification", verb: "notify staff about" },
+  digest: { label: "the daily summary", verb: "send the summary for" },
+  escalate: { label: "a staff email", verb: "email staff about" },
+};
+export const STAFF_ONLY_STEPS: readonly string[] = ["notify", "digest", "escalate"];
+
+/** "send_email: provider 500 …" → the step and a human error class. Never the raw error. */
+export function failedStep(detail: string | null | undefined): { kind: string; label: string; verb: string; problem: string } | null {
+  const m = String(detail ?? "").match(/^([a-z_]+):\s*([\s\S]*)$/);
+  if (!m || !STEP_WORDS[m[1]]) return null;
+  const err = m[2];
+  const problem = /timeout|timed out|aborted/i.test(err) ? "kept timing out"
+    : /\b(401|403)\b|auth|credential|token|permission|forbidden/i.test(err) ? "was refused access"
+    : /\b429\b|rate.?limit|too many/i.test(err) ? "was rate-limited by another service"
+    : /\b5\d\d\b|fetch failed|network|ECONN|unavailable|bad gateway/i.test(err) ? "couldn't reach a service it depends on"
+    : /\b404\b|not.?found/i.test(err) ? "couldn't find something it needed"
+    : /cannot read prop|undefined|is not a function|null|TypeError|ReferenceError|SyntaxError/i.test(err) ? "hit a bug in Bloom's own code"
+    : /not.?configured|missing/i.test(err) ? "isn't set up yet"
+    : "kept failing";
+  return { kind: m[1], ...STEP_WORDS[m[1]], problem };
+}
+
+/**
+ * The one concrete thing this escalation needs from a person, or null when
+ * there is nothing a person can do (the request is resolved or merged, or the
+ * failure was in staff-only work). No step means no "needs you" email: the
+ * open escalation still shows in the daily digest.
+ */
+export function needsYouStep(x: EscalationFacts, t: StaffTicket): NextStep | null {
+  if (t.status === "resolved" || t.merged_into) return null;
+  if (x.reason === "automation_failed") {
+    const f = failedStep(x.detail);
+    if (f && STAFF_ONLY_STEPS.includes(f.kind)) return null;
+  }
+  const live = liveNextStep({
+    status: t.status, automation: t.automation, pending_review: t.pending_review, merged_into: t.merged_into, engineering: t.engineering,
+    operations: t.operations, feature_request: t.feature_request, escalations: t.escalations,
+  });
+  // What the live ticket can do now wins over the escalation's original reason.
+  if (live && live.action !== "take-over" && live.action !== "reply") return live;
+  return nextStepForReason(x.reason, t);
+}
+
+/** Subject line: what to do, then who and what. */
+export function needsYouSubject(step: NextStep, t: StaffTicket, preview = false): string {
+  const lead = step.action === "send-and-solve" ? "Ready to close"
+    : DECISION_ACTIONS.includes(step.action) ? "Needs a decision"
+    : step.action === "review-reply" ? "Client wrote again"
+    : "Needs a reply";
+  const tail = step.action === "send-and-solve" ? " · reply drafted" : "";
+  return clip(`${preview ? "[Preview] " : ""}${lead}: ${clientNameOf(t)} — ${shortTopic(t.subject, 48)} (#${t.number})${tail}`, 200);
+}
+
+const REPAIR_STATUS: Record<string, string> = {
+  open: "The repair hasn't started.", investigating: "Bloom is still investigating.", fixing: "Bloom is writing a fix.",
+  awaiting_approval: "A tested fix is waiting for approval.", failed: "The last repair attempt failed.", escalated: "The repair needs a person.",
+  verified: "The fix is live and checked.", rolled_back: "The last fix was rolled back.",
+};
+
+/** Headline and the one-sentence reason, from the real escalation and what Bloom knows. */
+function needsYouCopy(x: EscalationFacts, t: StaffTicket, step: NextStep, plan: ResolutionPlan | null, now: Date): { headline: string; why: string; findings: string[] } {
+  const client = clientNameOf(t);
+  if (step.action === "send-and-solve" && plan) {
+    return plan.outcome === "fixed"
+      ? { headline: `${client}'s fix is live: ready to close`, why: "Bloom's fix passed its live check. A reply to the client is drafted.", findings: plan.findings }
+      : { headline: `${client}'s request is ready to close`, why: `${plan.findings.slice(0, 2).join(" ")} A reply to the client is drafted.`, findings: plan.findings };
+  }
+  const repair = typeof t.engineering?.status === "string" ? REPAIR_STATUS[t.engineering.status] ?? "" : "";
+  if (x.reason === "automation_failed") {
+    const f = failedStep(x.detail);
+    if (f) {
+      return {
+        headline: `Bloom couldn't ${f.verb} ${client}`,
+        why: `Bloom's step “${f.label}” ${f.problem} after every retry, so it stopped and nothing more went to the client.${repair ? ` ${repair}` : ""}`,
+        findings: [],
+      };
+    }
+  }
+  return { headline: escalationHeadline(x, t, now), why: reasonSentence(x.reason, x.detail), findings: repair ? [repair] : [] };
+}
+
+const HTML_DETAILS_OPEN = '<details style="margin:18px 0 0"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:' +
+  PREMIUM_BOTANICAL_EMAIL.sage + '">';
+
 export function renderEscalationEmail(input: {
   escalation: EscalationFacts;
   ticket: StaffTicket;
@@ -342,45 +446,50 @@ export function renderEscalationEmail(input: {
   preview?: boolean;
   /** The client company's brand, from the ticket's account. Website and logo show only when validated. */
   client?: ClientBrand | null;
-}): RenderedEmail & { step: NextStep } {
+}): RenderedEmail & { step: NextStep; draft: string | null } {
   const { escalation: x, ticket: t } = input;
   const now = input.now ?? new Date();
   const tz = input.timeZone ?? "America/Toronto";
-  const step = nextStepForReason(x.reason, t);
+  // Previews render even when nothing is actionable; real sends check needsYouStep first.
+  const step = needsYouStep(x, t) ?? nextStepForReason(x.reason, t);
+  const plan = step.action === "send-and-solve" ? resolutionPlan({ engineering: t.engineering, requesterName: t.requester?.name, timeZone: tz }) : null;
   const client = clientNameOf(t);
-  const headline = escalationHeadline(x, t, now);
-  const why = reasonSentence(x.reason, x.detail);
+  const { headline, why, findings } = needsYouCopy(x, t, step, plan, now);
   const age = t.created_at ? formatAge(now.getTime() - new Date(t.created_at).getTime()) : null;
   const summary = cleanStaffText(t.summary, 280);
   const doing = t.stage ? STAGE_DOING[t.stage] : null;
-  const recommendation = x.recommendation ? cleanStaffText(x.recommendation, 300) : step.recommendation;
+  const recommendation = x.recommendation && step.action !== "send-and-solve" ? cleanStaffText(x.recommendation, 300) : step.recommendation;
   const timeline = bloomTimeline(t, x, tz, now);
   const told = toldCustomer(t);
   const fromClient = lastFromClient(t);
   const primary = supportLink(input.appUrl, t.id, step.action);
   const open = supportLink(input.appUrl, t.id);
   const takeOver = supportLink(input.appUrl, t.id, "take-over");
-  const prefix = input.preview ? "[Preview] " : "";
-  const subject = clip(`${prefix}Needs you: ${client} — ${shortTopic(t.subject)} (#${t.number})`, 200);
+  const subject = needsYouSubject(step, t, input.preview);
+  const draft = plan?.draft ?? null;
 
   // Brand facts belong to the ticket's account, never to a requester's typed name.
   const brand = t.account?.name?.trim() && input.client ? { ...input.client, name: client } : null;
   const site = brand ? clientWebsite(brand.website) : null;
+  const topic = shortTopic(t.subject, 70);
   const facts: BotanicalEmailFact[] = [
     { icon: "leaf", label: "Client", value: client, link: site, avatar: brand },
-    { icon: "mail", label: "Request", value: `#${t.number} · ${productName(t.product)}` },
+    { icon: "mail", label: "Request", value: `#${t.number} · ${topic} · ${productName(t.product)}` },
   ];
   if (age) facts.push({ icon: "calendar", label: "Waiting", value: `${age} since it came in` });
 
-  // The hero already says why it needs you; this panel adds what the request is and where Bloom is.
   const summaryLines = [summary ? asSentence(clip(summary, 280)) : asSentence(cleanSubject(t.subject)), doing ? asSentence(doing) : ""].filter(Boolean);
+  const secondary = [{ label: "Open the request", href: open }, ...(step.action !== "take-over" ? [{ label: "Take it over instead", href: takeOver }] : [])];
+
+  // Order: the action first (above the fold on a phone), then the facts, then the details.
   const bodyHtml =
+    botanicalEmailButton(step.button, primary).replace("margin:20px 0 8px", "margin:0 0 6px") +
+    botanicalEmailParagraph(`${recommendation} The button opens BloomSuite; nothing happens until you confirm there.`, { muted: true, size: 13, margin: "0 0 14px" }) +
+    (draft ? botanicalEmailParagraph("The reply Bloom drafted", { size: 13, margin: "4px 0 0" }) + botanicalEmailQuote(draft, `To ${client} · you can edit it before sending`) : "") +
     botanicalEmailFacts(facts) +
-    botanicalEmailSection("What's going on", summaryLines.map((l) => botanicalEmailParagraph(l, { size: 14, margin: "0 0 8px" })).join(""), "alert") +
-    botanicalEmailSection("Bloom recommends", botanicalEmailParagraph(recommendation, { size: 14, margin: "0 0 4px" }) +
-      botanicalEmailButton(step.button, primary) +
-      botanicalEmailLinks([{ label: "Open the request", href: open }, ...(step.action !== "take-over" ? [{ label: "Take it over", href: takeOver }] : [])]) +
-      botanicalEmailParagraph("The button opens BloomSuite. Nothing changes until you confirm there.", { muted: true, size: 12, margin: "10px 0 0" }), "leaf") +
+    HTML_DETAILS_OPEN + "Details: what Bloom found, did and told the client</summary>" +
+    (findings.length ? botanicalEmailSection("What Bloom found", botanicalEmailList(findings), "check") : "") +
+    botanicalEmailSection("The request", summaryLines.map((l) => botanicalEmailParagraph(l, { size: 14, margin: "0 0 8px" })).join(""), "alert") +
     (told.length || fromClient
       ? botanicalEmailSection("What Bloom told the client",
         told.map((m) => botanicalEmailQuote(clip(m.body.trim(), 600), `${m.author_kind === "bloom" ? "Bloom" : "Your team"} · ${formatWhen(m.created_at, tz)}`)).join("") +
@@ -389,45 +498,81 @@ export function renderEscalationEmail(input: {
             botanicalEmailQuote(clip(fromClient.body.trim(), 400), `${client} · ${formatWhen(fromClient.created_at, tz)}`) : ""),
         "mail")
       : "") +
-    (timeline.length ? botanicalEmailSection("What Bloom did", botanicalEmailList(timeline), "leaf") : "");
+    (timeline.length ? botanicalEmailSection("What Bloom did", botanicalEmailList(timeline), "leaf") : "") +
+    botanicalEmailLinks(secondary) +
+    "</details>";
 
   const html = renderBotanicalEmail({
     header: "Bloom Support",
-    eyebrow: input.preview ? "Preview · Needs you" : "Needs you",
+    eyebrow: input.preview ? `Preview · ${subject.replace(/^\[Preview\] /, "").split(":")[0]}` : subject.split(":")[0],
     title: headline,
     intro: why,
     preheader: `${step.button}. ${why}`,
-    icon: "alert",
+    icon: step.action === "send-and-solve" ? "check" : "alert",
     bodyHtml,
     footer: "Sent by Bloom to Brands in Blooms staff. Bloom never acts on a link in this email; every change is confirmed in BloomSuite.",
   });
 
   const text = [
     headline,
+    why,
+    "",
+    `${step.button}: ${primary}`,
+    `(${recommendation} Nothing happens until you confirm in BloomSuite.)`,
+    ...(draft ? ["", "The reply Bloom drafted:", ...draft.split("\n").map((l) => (l ? `> ${l}` : ">"))] : []),
     "",
     `Client: ${client}${site ? ` · ${site.href}` : ""}`,
-    `Request: #${t.number} · ${productName(t.product)} · ${cleanSubject(t.subject)}`,
+    `Request: #${t.number} · ${topic} · ${productName(t.product)}`,
     age ? `Waiting: ${age}` : "",
     "",
-    "What's going on",
-    why,
+    "Details",
+    ...findings.map((l) => `• ${l}`),
     ...summaryLines,
-    "",
-    "Bloom recommends",
-    recommendation,
-    `${step.button}: ${primary}`,
-    `Open the request: ${open}`,
-    step.action !== "take-over" ? `Take it over: ${takeOver}` : "",
-    "",
-    told.length ? "What Bloom told the client" : "",
+    told.length ? "What Bloom told the client:" : "",
     ...told.map((m) => `“${clip(m.body.trim(), 600)}” (${formatWhen(m.created_at, tz)})`),
     fromClient ? `Last from the client: “${clip(fromClient.body.trim(), 400)}”` : "",
-    "",
-    timeline.length ? "What Bloom did" : "",
+    timeline.length ? "What Bloom did:" : "",
     ...timeline.map((l) => `• ${l}`),
+    "",
+    `Open the request: ${open}`,
+    step.action !== "take-over" ? `Take it over instead: ${takeOver}` : "",
   ].filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n").trim();
 
-  return { subject, text, html, step };
+  return { subject, text, html, step, draft };
+}
+
+/**
+ * Whether a "needs you" email goes out now or waits for the daily digest.
+ * The same escalation is never emailed twice (the ledger's idempotency key),
+ * and a ticket gets at most one "needs you" per person per day; repeats roll
+ * into the digest. A decision only a person can make (approve a fix, decide
+ * a feature, ...) is not held back.
+ */
+export function needsYouDelivery(input: { step: NextStep | null; ticket: StaffTicket; to: string; now?: Date }): "send" | "digest" {
+  if (!input.step) return "digest";
+  if (DECISION_ACTIONS.includes(input.step.action)) return "send";
+  const now = (input.now ?? new Date()).getTime();
+  const to = input.to.trim().toLowerCase();
+  const recent = (input.ticket.emails ?? []).some((e) =>
+    e.purpose === "escalation" && String(e.to ?? "").toLowerCase() === to &&
+    !["failed", "suppressed", "not_configured"].includes(String(e.status ?? "")) &&
+    now - new Date(String(e.created_at ?? 0)).getTime() < 86_400_000
+  );
+  return recent ? "digest" : "send";
+}
+
+/**
+ * The automatic "this is resolved" email is skipped when the person resolved
+ * the request with "Send this reply and mark solved": their reply already told
+ * the client, so the client gets one email, not two. Only that flow records
+ * the reply it sent in the resolution evidence; an ordinary "Mark solved"
+ * still sends the resolution email with the summary the person wrote.
+ */
+export function resolutionAlreadyTold(evidence: unknown, messages: OutgoingMessage[]): boolean {
+  const ev = evidence && typeof evidence === "object" ? evidence as Record<string, unknown> : null;
+  if (ev?.via !== "send-and-solve" || typeof ev.reply_message_id !== "string") return false;
+  const reply = messages.find((m) => m.id === ev.reply_message_id);
+  return !!reply && reply.visibility === "public" && reply.author_kind !== "client" && reply.delivery !== "suppressed";
 }
 
 // ---------------------------------------------------------------------------

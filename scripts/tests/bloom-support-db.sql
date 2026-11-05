@@ -44,6 +44,7 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
 \ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
+\ir ../../supabase/migrations/20261105235000_bloom_support_staff_job_failures.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -263,6 +264,25 @@ SELECT pg_temp.expect_error(format($q$SELECT bloom_support.complete_job('%s','wo
 UPDATE bloom_support.jobs SET max_attempts = attempts WHERE id = :'jid';
 SELECT pg_temp.assert(bloom_support.fail_job(:'jid', 'worker-b', 'provider 500') = 'dead', 'retries are bounded');
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE dedupe_key = 'job-dead:' || :'jid'), 'dead job escalates');
+-- 7b. A preview or staff-only job that dies never escalates the client's request (the #1011 incident).
+SELECT status AS t2_status, version AS t2_version, coalesce(next_action, '') AS t2_next FROM bloom_support.tickets WHERE id = :'t2id' \gset
+SELECT count(*) AS t2_escalations FROM bloom_support.escalations WHERE ticket_id = :'t2id' \gset
+INSERT INTO bloom_support.jobs(kind, ticket_id, lane, payload, idempotency_key, status, attempts, max_attempts, locked_by, lease_until)
+VALUES ('notify', :'t2id', 'email:notify', '{"preview": true, "to": "jon@bloom.test"}', 'test:preview-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute'),
+       ('notify', :'t2id', 'email:notify', '{"kind": "job.dead", "title": "x"}', 'test:staff-notify-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute'),
+       ('digest', :'t2id', 'email:digest', '{}', 'test:digest-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute'),
+       ('escalate', :'t2id', 'email:escalation', '{}', 'test:escalate-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute');
+SELECT pg_temp.assert(bloom_support.fail_job(id, 'worker-p', 'Cannot read properties of undefined (reading ''replace'')') = 'dead', 'staff job dies after its retries')
+  FROM bloom_support.jobs WHERE idempotency_key LIKE 'test:%-dies';
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.escalations e JOIN bloom_support.jobs j ON e.dedupe_key = 'job-dead:' || j.id::text
+  WHERE j.idempotency_key LIKE 'test:%-dies'), 'preview and staff-only job failures never escalate');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.escalations WHERE ticket_id = :'t2id') = :t2_escalations, 'no escalation was added to the client request');
+SELECT pg_temp.assert((SELECT status = :'t2_status' AND version = :t2_version AND coalesce(next_action, '') = :'t2_next' FROM bloom_support.tickets WHERE id = :'t2id'),
+  'the client request is untouched by a staff job failure');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.activity a JOIN bloom_support.jobs j ON a.detail->>'job_id' = j.id::text
+  WHERE j.idempotency_key LIKE 'test:%-dies' AND a.action = 'job.dead' AND a.detail->>'escalated' = 'false') = 4, 'staff job failures are still recorded');
+SELECT pg_temp.assert((SELECT a.ticket_id IS NULL FROM bloom_support.activity a JOIN bloom_support.jobs j ON a.detail->>'job_id' = j.id::text
+  WHERE j.idempotency_key = 'test:preview-dies'), 'a preview failure stays off the borrowed ticket''s history');
 UPDATE bloom_support.settings SET value = 'false' WHERE key = 'automation_enabled';
 UPDATE bloom_support.jobs SET status='queued', run_after = now(), lease_until = NULL, locked_by = NULL WHERE status = 'running';
 SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.claim_jobs('worker-c', 10)) = 0, 'kill switch stops claiming');

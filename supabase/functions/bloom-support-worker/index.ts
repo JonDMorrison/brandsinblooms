@@ -9,8 +9,8 @@ import { ANSWER_SCHEMA, CLASSIFY_SCHEMA, completeJson, fence } from "../_shared/
 import { triageNoteText } from "../_shared/bloom-support/notes.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink } from "../_shared/bloom-support/email.ts";
 import {
-  type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, renderAlertEmail, renderCustomerEmail, renderDigestEmail,
-  renderEscalationEmail, renderStaffNotification, type StaffTicket, ticketThreadRoot,
+  type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
+  renderDigestEmail, renderEscalationEmail, renderStaffNotification, resolutionAlreadyTold, type StaffTicket, ticketThreadRoot,
 } from "../_shared/bloom-support/support-emails.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
@@ -27,7 +27,7 @@ interface TicketView {
   engineering_issue_id: string | null; feature_request_id: string | null; reopen_count: number; version: number;
   messages: Array<{ id: string; ticket_id?: string | null; author_kind: string; visibility: string; body: string; created_at: string; delivery?: string; purpose?: string | null }>;
   created_at?: string; waiting_reason?: string | null; requester?: { name?: string | null; email?: string | null } | null;
-  engineering?: { status?: unknown } | null; escalations?: Array<Record<string, unknown>>;
+  engineering?: { status?: unknown } | null; escalations?: Array<Record<string, unknown>>; resolution_evidence?: unknown;
 }
 interface JobContext {
   ticket: TicketView;
@@ -223,6 +223,8 @@ async function sendEmail(job: Job): Promise<string> {
     design = group.some((x) => x.purpose === "resolution") ? "resolution" : (m.purpose ?? purpose);
     bloomInitiated = m.author_kind === "bloom";
   } else if (purpose === "resolution") {
+    // "Send this reply and mark solved": the person's reply already told the client.
+    if (resolutionAlreadyTold(t.resolution_evidence, t.messages)) return "client already told in the person's reply; no separate resolution email";
     bodies = [`Good news — this is resolved.\n\n${t.resolution_summary ?? ""}\n\nIf anything still isn't right, just reply to this email and we'll reopen it.`];
   } else {
     return `nothing to send for ${purpose}`;
@@ -294,16 +296,22 @@ async function verifyResolution(job: Job): Promise<string> {
 interface EscalationRow { id: string; ticket_id: string | null; audience: string; reason: string; detail: string | null; recommendation: string | null; created_at: string; ticket: { number: number; subject: string } | null }
 
 /** Staff "Needs you" email for one escalation, built from the live ticket. */
-async function escalationEmail(x: EscalationRow, ticketId: string | null, preview = false) {
+async function escalationEmail(x: EscalationRow, ticketId: string | null, preview = false, ticket?: TicketView) {
   const tz = await staffTimeZone();
   if (ticketId) {
-    const t = (await context(ticketId)).ticket;
+    const t = ticket ?? (await context(ticketId)).ticket;
     const client = await clientBrand(t.account);
     return renderEscalationEmail({ escalation: x, ticket: t as unknown as StaffTicket, appUrl: appUrl(), timeZone: tz, preview, client });
   }
   return { ...renderStaffNotification({ title: x.detail ?? x.reason, appUrl: appUrl(), preview }), step: null };
 }
 
+/**
+ * One "needs you" email per escalation, only when a person can act on it, and
+ * at most one per ticket per person per day. Re-fires (the 4-hourly fallback)
+ * and anything without a concrete action wait for the daily digest, which
+ * lists every open escalation.
+ */
 async function escalateEmail(job: Job): Promise<string> {
   const owners = (await rpc<{ jon?: string[]; jeff?: string[] }>("setting", { key: "owners" })) ?? {};
   const list = await rpc<EscalationRow[]>("list_escalations", { actor: bot.principalId });
@@ -311,14 +319,26 @@ async function escalateEmail(job: Job): Promise<string> {
   if (!x) return "escalation closed";
   const to = x.audience === "jon" ? owners.jon ?? [] : x.audience === "jeff" ? owners.jeff ?? [] : [...(owners.jon ?? []), ...(owners.jeff ?? [])];
   if (!to.length) return "no owner emails configured (settings.owners); in-app notification only";
-  const mail = await escalationEmail(x, job.ticket_id ?? x.ticket_id);
-  for (const addr of [...new Set(to)]) {
-    await sendSupportEmail({
+  const ticketId = job.ticket_id ?? x.ticket_id;
+  const t = ticketId ? (await context(ticketId)).ticket : null;
+  const staffTicket = t as unknown as StaffTicket | null;
+  if (staffTicket && !needsYouStep(x, staffTicket)) return "nothing a person can act on; listed in the daily digest";
+  const mail = await escalationEmail(x, ticketId, false, t ?? undefined);
+  const counts = { sent: 0, repeat: 0, digest: 0 };
+  for (const addr of [...new Set(to.map((a) => a.toLowerCase()))]) {
+    if (staffTicket && needsYouDelivery({ step: mail.step, ticket: staffTicket, to: addr }) === "digest") {
+      counts.digest++;
+      continue;
+    }
+    const r = await sendSupportEmail({
       ticketId: job.ticket_id, purpose: "escalation", to: addr, toClient: false, bloomInitiated: true,
       subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `escalation:${x.id}:${addr}`,
     });
+    if (r.duplicate) counts.repeat++;
+    else counts.sent++;
   }
-  return `escalation emailed to ${to.length}`;
+  return `escalation emailed to ${counts.sent}` + (counts.repeat ? `; ${counts.repeat} already had it` : "") +
+    (counts.digest ? `; ${counts.digest} rolled into the digest (emailed in the last day)` : "");
 }
 
 async function engineeringStep(job: Job): Promise<string> {
@@ -439,10 +459,13 @@ async function previewEmails(job: Job): Promise<string> {
   };
   if (job.ticket_id) {
     const t = (await context(job.ticket_id)).ticket;
-    const escs = (t.escalations ?? []) as unknown as EscalationRow[];
-    const x = escs.find((e) => (e as unknown as { status?: string }).status === "open") ?? escs[0] ??
+    const escs = (t.escalations ?? []) as unknown as Array<EscalationRow & { status?: string }>;
+    // The email a person would get now: an open escalation first, then any other that still has an action.
+    const actionable = [...escs.filter((e) => e.status === "open"), ...escs.filter((e) => e.status !== "open")]
+      .find((e) => needsYouStep(e, t as unknown as StaffTicket));
+    const x = actionable ??
       { id: "preview", ticket_id: t.id, audience: "both", reason: "ticket_overdue", detail: null, recommendation: null, created_at: new Date().toISOString(), ticket: null };
-    await send("escalation", await escalationEmail(x, t.id, true));
+    await send("escalation", await escalationEmail(x, t.id, true, t));
     if (job.payload.customer !== false) {
       // The client-facing email for the same ticket, sent only to the staff address above. No tracking token is minted.
       const lastBloom = [...t.messages].reverse().find((m) => m.visibility === "public" && m.author_kind === "bloom");
