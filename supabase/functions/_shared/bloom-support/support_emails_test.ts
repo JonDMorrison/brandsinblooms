@@ -167,6 +167,18 @@ Deno.test("alert email is plain English with impact, what Bloom is doing and one
   assertEquals(toolLabel("query_widgets"), "look up widgets");
 });
 
+Deno.test("email reputation alert names each business and its score, and says nothing was paused", () => {
+  const finding: AlertFinding = {
+    condition: "email_reputation_low",
+    tenants: [{ tenant_id: "c190e3a2-1111-4222-8333-444455556666", tenant_name: "Harbour View Gardens", score: 40 }],
+  };
+  const mail = renderAlertEmail(groupAlertFindings([finding])[0], { appUrl: APP });
+  assertEquals(mail.subject, "Bloom alert: A business's email reputation has dropped");
+  assert(mail.text.includes("Harbour View Gardens: reputation score 40 of 100"));
+  assert(mail.text.includes("sending is not throttled or paused"));
+  assertNoLeaks(mail.subject + mail.text, "reputation alert text");
+});
+
 const digest: DigestReport = {
   needs_you: [{ id: ticket1011.id, number: 1011, subject: ticket1011.subject, client: "Greenleaf Garden Centre", reason: "ticket_overdue", since: "2026-11-03T17:28:01Z" }],
   resolved: [{ number: 1013, subject: "Email intake test", client: null, by_bloom: true, summary: null }],
