@@ -252,7 +252,7 @@ export function mergeImportedCustomerWithExisting(
       ? (imported.custom_fields as Record<string, unknown>)
       : {};
 
-  const merged = {
+  const merged: Record<string, unknown> = {
     ...imported,
     custom_fields: { ...existingCustomFields, ...importedCustomFields },
   };

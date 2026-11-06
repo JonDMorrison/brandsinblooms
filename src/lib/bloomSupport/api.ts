@@ -222,6 +222,8 @@ export interface PublicSupportIntakeResult {
   duplicate_delivery: boolean;
   number: number;
   email_delivery: "pending";
+  /** What happened to attached files. Absent only from a server that predates public attachments. */
+  attachments?: { stored: number; failed: string[] };
 }
 
 export interface SupportMessageResult {
@@ -268,21 +270,7 @@ export function parseSignedSupportIntake(
     return invalidIntakeResponse();
   }
 
-  const attachmentFacts =
-    body.attachments && typeof body.attachments === "object" &&
-      !Array.isArray(body.attachments)
-      ? body.attachments as Record<string, unknown>
-      : null;
-  const stored = attachmentFacts?.stored;
-  const failed = attachmentFacts?.failed;
-  const attachments =
-    Number.isSafeInteger(stored) && (stored as number) >= 0 &&
-      Array.isArray(failed) && failed.every((item) => typeof item === "string")
-      ? {
-        stored: stored as number,
-        failed: failed as string[],
-      }
-      : null;
+  const attachments = parseAttachmentFacts(body.attachments);
   if (!attachments) return invalidIntakeResponse();
   const trackingUrl = safeSupportTrackingUrl(body.tracking_url);
 
@@ -294,6 +282,17 @@ export function parseSignedSupportIntake(
     ...(trackingUrl ? { tracking_url: trackingUrl } : {}),
     attachments,
   };
+}
+
+/** The intake's per-file outcome: how many were stored, and a line for each one that was not. */
+function parseAttachmentFacts(value: unknown): { stored: number; failed: string[] } | null {
+  const facts = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const stored = facts?.stored;
+  const failed = facts?.failed;
+  return Number.isSafeInteger(stored) && (stored as number) >= 0 &&
+      Array.isArray(failed) && failed.every((item) => typeof item === "string")
+    ? { stored: stored as number, failed: failed as string[] }
+    : null;
 }
 
 /** Public intake never exposes a ticket id, but must confirm a real request number. */
@@ -312,11 +311,13 @@ export function parsePublicSupportIntake(
   ) {
     return invalidIntakeResponse();
   }
+  const attachments = parseAttachmentFacts(body.attachments);
   return {
     received: true,
     duplicate_delivery: body.duplicate_delivery,
     number: body.number,
     email_delivery: "pending",
+    ...(attachments ? { attachments } : {}),
   };
 }
 
