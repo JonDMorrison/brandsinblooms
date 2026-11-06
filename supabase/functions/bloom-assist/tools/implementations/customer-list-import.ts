@@ -22,6 +22,7 @@ import {
   getDefaultImportField,
   type ImportColumnMapping,
   isAllowedImportField,
+  isValidImportEmail,
 } from "../../../../../src/lib/crm/customerImportRows.ts";
 import { getAttestationOption } from "../../../../../src/lib/crm/importAttestationOptions.ts";
 import {
@@ -109,6 +110,19 @@ function samplesFor(rows: string[][], index: number): string[] {
   return samples;
 }
 
+/** True when most non-empty values in the first 50 rows of a column are email addresses. */
+function looksLikeEmailColumn(rows: string[][], index: number): boolean {
+  let filled = 0;
+  let emails = 0;
+  for (const row of rows.slice(0, 50)) {
+    const value = (row[index] ?? "").trim();
+    if (!value) continue;
+    filled++;
+    if (isValidImportEmail(value)) emails++;
+  }
+  return filled >= 1 && emails / filled >= 0.8;
+}
+
 /**
  * Header matching first; a proposed mapping ({ "<header>": "<field>" }) may
  * override it, but only onto a real header and an allowed import field.
@@ -140,6 +154,14 @@ export function resolveColumnMapping(
         fields[index] = field;
       }
     }
+  }
+
+  // An unusual header on a column that is plainly email addresses is still the email column.
+  if (!fields.includes("email")) {
+    const emailLike = headers
+      .map((_, index) => index)
+      .filter((index) => looksLikeEmailColumn(dataRows, index));
+    if (emailLike.length === 1) fields[emailLike[0]] = "email";
   }
 
   const emailColumns = fields.filter((field) => field === "email").length;

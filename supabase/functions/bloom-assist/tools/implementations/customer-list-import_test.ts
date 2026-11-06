@@ -393,3 +393,30 @@ Deno.test("the task plan pins the previewed file, keeps the mapping read-only an
   const json = taskPlanToJson(plan) as { tasks: Array<{ notice: { body: string } }> };
   assertEquals(json.tasks[0].notice.body, getAttestationOption("express").wording);
 });
+
+// ---------------------------------------------------------------------------
+// Real-world headers (QA on a production-shaped file, 2026-11-06)
+// ---------------------------------------------------------------------------
+
+Deno.test("an Outlook-style \"E-mail Address\" header is the email column without a suggestion", () => {
+  const headers = ["E-mail Address", "First", "Surname", "Cell", "Zip"];
+  const rows = [["a@example.com", "Ann", "Lee", "604-555-0101", "V6B 1A1"]];
+  const resolved = resolveColumnMapping(headers, rows, undefined);
+  assertEquals(resolved.error, null);
+  assertEquals(resolved.mappings.map((m) => m.databaseField), ["email", "first_name", "last_name", "phone", "postal_code"]);
+});
+
+Deno.test("a column plainly full of email addresses is used when its header is unusual", () => {
+  const headers = ["Who", "Correo"];
+  const rows = [["Ann", "ann@example.com"], ["Bob", "bob@example.com"], ["Cara", ""], ["Dee", "dee@example.com"]];
+  const resolved = resolveColumnMapping(headers, rows, undefined);
+  assertEquals(resolved.error, null);
+  assertEquals(resolved.mappings[1].databaseField, "email");
+});
+
+Deno.test("two email-looking columns are not guessed between", () => {
+  const headers = ["Work", "Home"];
+  const rows = [["a@work.com", "a@home.com"]];
+  const resolved = resolveColumnMapping(headers, rows, undefined);
+  assertStringIncludes(resolved.error ?? "", "No column in this file is an email address");
+});
