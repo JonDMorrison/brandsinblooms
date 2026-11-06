@@ -12,7 +12,7 @@
 // deno-lint-ignore no-import-prefix -- test-only driver, pinned here rather than in the shared import map
 import postgres from "npm:postgres@3.4.4";
 import { assert, assertEquals, assertExists, assertNotEquals } from "@std/assert";
-import { signIntake, hmacSha256 } from "./crypto.ts";
+import { signIntake, hmacSha256, sha256Hex } from "./crypto.ts";
 
 const DB_URL = Deno.env.get("BLOOM_E2E_DATABASE_URL");
 const SB = "http://supabase.test";
@@ -723,6 +723,33 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(!JSON.stringify(publicStored).includes("1234567890abcdef"), "public text is redacted server-side even for direct callers");
     assert(!JSON.stringify(publicStored).includes("4242 4242"), "public payment details are redacted server-side");
     assertEquals(publicStored.context.page_url, "https://bloomsuite.app/reset", "public page URLs never persist query or fragment secrets");
+    // People who cannot sign in can attach a real-sized screenshot (well over the old 64 KB form cap).
+    const screenshot = new Uint8Array(300 * 1024);
+    screenshot.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+    let screenshotBinary = "";
+    for (let i = 0; i < screenshot.length; i += 0x8000) screenshotBinary += String.fromCharCode(...screenshot.subarray(i, i + 0x8000));
+    const publicWithFiles = await call("bloom-support-intake", "POST", "/public", { body: {
+      email: "newperson@example.org",
+      body: "Sign-in page shows an error; screenshot attached.",
+      idempotency_key: "public-screenshot",
+      attachments: [
+        { file_name: "sign-in-error.png", content_type: "image/png", data_base64: btoa(screenshotBinary) },
+        { file_name: "steps.txt", content_type: "text/plain", data_base64: btoa("1. open sign-in 2. error") },
+      ],
+    } });
+    assertEquals(publicWithFiles.status, 201, JSON.stringify(publicWithFiles.json));
+    assertEquals(publicWithFiles.json.attachments, { stored: 2, failed: [] }, "public intake stores checked attachments");
+    const publicFiles = await sql!`SELECT a.file_name, a.content_type, a.size_bytes FROM bloom_support.attachments a JOIN bloom_support.tickets t ON t.id = a.ticket_id WHERE t.channel = 'public' AND t.summary LIKE 'Sign-in page shows an error%' ORDER BY a.file_name`;
+    assertEquals(publicFiles.map((f) => [f.file_name, f.content_type, Number(f.size_bytes)]), [["sign-in-error.png", "image/png", 300 * 1024], ["steps.txt", "text/plain", 24]]);
+    const publicSvg = await call("bloom-support-intake", "POST", "/public", { body: {
+      email: "newperson@example.org",
+      body: "An SVG must be refused before any ticket is created.",
+      attachments: [{ file_name: "logo.svg", content_type: "image/svg+xml", data_base64: btoa("<svg/>") }],
+    } });
+    assertEquals(publicSvg.status, 415, "public intake applies the same attachment type rules");
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets WHERE summary LIKE 'An SVG must be refused%'`)[0].n), 0);
+    const publicOversized = await call("bloom-support-intake", "POST", "/public", { raw: "x".repeat(17 * 1024 * 1024 + 1) });
+    assertEquals(publicOversized.status, 413, "public intake keeps a hard transport cap");
     const publicIdempotent = {
       email: "idempotent@example.org",
       body: "My original public support request is saved exactly once.",
@@ -785,6 +812,51 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       }),
     });
     assertEquals(oversizedPublicEnvelope.status, 413, "public unauthenticated JSON stays tightly bounded");
+    const oversizedPublicEnvelopeWithFile = await call("bloom-support-intake", "POST", "/public", {
+      raw: JSON.stringify({
+        email: "newperson@example.org",
+        body: "A valid short support request.",
+        padding: "x".repeat(66_000),
+        attachments: [{ file_name: "steps.txt", content_type: "text/plain", data_base64: btoa("steps") }],
+      }),
+    });
+    assertEquals(oversizedPublicEnvelopeWithFile.status, 413, "attaching a file does not lift the public text bound");
+    // Anonymous size and per-IP limits apply before the body is read: a stream that is never pulled proves it.
+    const unreadPublic = (ip: string, headers: Record<string, string> = {}) => {
+      const state = { pulled: false };
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          state.pulled = true;
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({ email: "limited@example.org", body: "A request that must never be read." })));
+          controller.close();
+        },
+      }, { highWaterMark: 0 });
+      const request = new Request(`${SB}/functions/v1/bloom-support-intake/public`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": ip, ...headers },
+        body,
+        duplex: "half",
+      } as RequestInit);
+      return { state, response: H["bloom-support-intake"](request) };
+    };
+    const declaredHuge = unreadPublic("203.0.113.76", { "content-length": String(17 * 1024 * 1024 + 1) });
+    assertEquals((await declaredHuge.response).status, 413, "a declared oversize public body is refused");
+    assert(!declaredHuge.state.pulled, "a declared oversize public body is never read");
+    const limitedIp = "203.0.113.77";
+    const limitedSubject = await sha256Hex(limitedIp);
+    const thisHour = new Date();
+    for (const at of [thisHour, new Date(thisHour.getTime() + 60 * 60 * 1000)]) {
+      await sql!`INSERT INTO bloom_support.usage_counters(bucket, subject, count) VALUES (${`public-ip-attempt:${at.toISOString().slice(0, 13)}`}, ${limitedSubject}, 40) ON CONFLICT (bucket, subject) DO UPDATE SET count = 40`;
+    }
+    const ticketsBeforeLimited = Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n);
+    const limited = unreadPublic(limitedIp);
+    const limitedResponse = await limited.response;
+    assertEquals(limitedResponse.status, 429, "an IP over its hourly public attempt budget is refused");
+    assert(!limited.state.pulled, "a rate-limited public request is refused before its body is read");
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n), ticketsBeforeLimited);
+    const otherIp = unreadPublic("203.0.113.78");
+    assertEquals((await otherIp.response).status, 201, "another network is unaffected");
+    assert(otherIp.state.pulled);
     const longSignedMessage = await call("bloom-support-intake", "POST", "/report", {
       token: tok(U.gail),
       body: { body: "x".repeat(20_001) },
