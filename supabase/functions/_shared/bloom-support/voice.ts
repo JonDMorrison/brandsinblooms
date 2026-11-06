@@ -55,7 +55,7 @@ export function bloomEngineeringProgress(status: string): string | null {
       return "I couldn't reproduce the problem reliably, so I've handed the evidence to a person on our support team for a closer look.";
     case "failed":
     case "escalated":
-      return "The automatic repair stopped safely, and a person on our support team has been alerted. Nothing unverified was released.";
+      return "The automatic repair has stopped. This request is in our support team's review queue. The next step is for an admin to choose how to continue; you don't need to submit it again.";
     case "rolled_back":
       return "The live check did not pass, so the change was rolled back. A person on our support team has been alerted, and the request remains open.";
     default:
@@ -66,7 +66,7 @@ export function bloomEngineeringProgress(status: string): string | null {
 export function bloomFeatureDecision(decision: string): string {
   switch (decision) {
     case "accepted":
-      return "Our product team has accepted your idea for further consideration. It isn't scheduled yet, so I can't promise a date, but your request is now linked to it.";
+      return "Our product team has accepted this request. The team will confirm the implementation plan and next update here. This decision does not mean the feature is available yet.";
     case "planned":
       return "Good news — our product team plans to build this. There isn't a date I can promise yet, but your request will stay linked to the feature.";
     case "shipped":

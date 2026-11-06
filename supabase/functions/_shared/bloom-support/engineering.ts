@@ -270,7 +270,15 @@ async function dispatchWithRetry(repository: string, workflow: string, payload: 
 
 export async function investigate(repair: Caller, automation: Caller, issueId: string): Promise<StepResult> {
   const issue = await loadIssue(repair, issueId);
-  if (!["open", "investigating", "not_reproduced", "failed"].includes(issue.status)) return { note: `already ${issue.status}` };
+  // A queued duplicate observes the existing run; it never spends another attempt.
+  if (["investigating", "reproduced", "fixing"].includes(issue.status)) {
+    return { next: { step: "poll", delaySeconds: 300 }, note: "repair already running; observing existing run" };
+  }
+  if (issue.reproduction?.needs_human === true && ["open", "failed", "not_reproduced"].includes(issue.status)) {
+    await update(repair, issue, "escalated", {}, "Automatic repair requires human review. Repeating Start repair cannot clear this stop. Admin: take ownership, review the recorded reason, and continue through an authorized engineering path with existing release holds intact.");
+    return { note: "human review required; no repair dispatched" };
+  }
+  if (!["open", "not_reproduced", "failed"].includes(issue.status)) return { note: `already ${issue.status}` };
   const target = repoFor(issue);
   if (!target) {
     await update(repair, issue, "escalated", {}, "Product unknown: Bloom cannot map this report to a repository");
@@ -284,20 +292,26 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
   }
   if (cap.active >= cap.max_active) return { next: { step: "investigate", delaySeconds: 1800 }, note: `waiting for repair capacity (${cap.active}/${cap.max_active} active)` };
   const branch = branchFor(issue.id);
-  const evidence = await evidenceFor(automation, issue);
-  let ghIssue = (issue.evidence?.github_issue as { number: number; url: string } | undefined) ?? null;
-  if (!ghIssue) {
-    const created = await gh<{ number: number; html_url: string }>(
-      "repair",
-      "POST",
-      `/repos/${target.repository}/issues`,
-      engineeringIssuePayload({ issueId: issue.id, title: issue.title, branch, base: target.base, evidence }),
-    );
-    ghIssue = { number: created.number, url: created.html_url };
-  }
-  await update(repair, issue, "investigating", { repository: target.repository, branch, evidence: { github_issue: ghIssue, dispatches: cap.attempts + 1 } }, `GitHub issue #${ghIssue.number} (attempt ${cap.attempts + 1}/${cap.max_attempts})`);
+  // Claim the issue with its database version before any GitHub mutation.
+  // The losing concurrent job retries against the persisted investigating state.
+  await rpc("update_engineering_issue", {
+    actor: repair.principalId, issue_id: issue.id,
+    update: { version: issue.version, status: "investigating", patch: {
+      repository: target.repository, branch, evidence: { dispatches: cap.attempts + 1 },
+    }, note: `Starting repair attempt ${cap.attempts + 1}/${cap.max_attempts}` },
+  });
   const workflow = env("BLOOM_REPAIR_WORKFLOW") ?? "bloom-repair.yml";
   try {
+    const evidence = await evidenceFor(automation, issue);
+    let ghIssue = (issue.evidence?.github_issue as { number: number; url: string } | undefined) ?? null;
+    if (!ghIssue) {
+      const created = await gh<{ number: number; html_url: string }>(
+        "repair", "POST", `/repos/${target.repository}/issues`,
+        engineeringIssuePayload({ issueId: issue.id, title: issue.title, branch, base: target.base, evidence }),
+      );
+      ghIssue = { number: created.number, url: created.html_url };
+    }
+    await update(repair, issue, null, { evidence: { github_issue: ghIssue } }, `GitHub issue #${ghIssue.number}`);
     // The repair workflow only runs from the repository's default branch (it checks
     // github.ref). The fix still targets target.base, which travels as an input.
     const { default_branch } = await gh<{ default_branch: string }>("repair", "GET", `/repos/${target.repository}`);

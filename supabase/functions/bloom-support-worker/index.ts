@@ -41,7 +41,7 @@ interface TicketView {
   id: string; number: number; subject: string; summary: string; status: string; stage: string; kind: string; product: Product;
   executor: string; merged_into: string | null; pending_review: string | null; context: Record<string, unknown>;
   priority: string; automation: string; account: { id: string; name: string } | null; resolution_summary: string | null;
-  engineering_issue_id: string | null; feature_request_id: string | null; reopen_count: number; version: number;
+  engineering_issue_id: string | null; feature_request_id: string | null; feature_request?: { status?: string } | null; reopen_count: number; version: number;
   messages: Array<{ id: string; ticket_id?: string | null; author_kind: string; visibility: string; body: string; created_at: string; delivery?: string; purpose?: string | null }>;
   created_at?: string; waiting_reason?: string | null; requester?: { name?: string | null; email?: string | null } | null;
   engineering?: { status?: unknown } | null; escalations?: Array<Record<string, unknown>>; resolution_evidence?: unknown;
@@ -145,6 +145,10 @@ async function triage(job: Job): Promise<string> {
     user: `Product: ${t.product}\nSubject: ${t.subject}\n${fence("request", text)}${visionPromptText(vision)}\nReturn kind, priority, impact, a short lowercase category slug, what information is missing to act (empty if none), confidence 0-1, and a one-line summary.`,
     schemaName: "triage", schema: CLASSIFY_SCHEMA, accountKey: t.account?.id ?? "none", images: vision.images,
   });
+  const latest = (await context(t.id)).ticket;
+  if (latest.automation !== "auto" || latest.executor === "person" || latest.engineering_issue_id) {
+    return "skipped: ownership or engineering changed during triage";
+  }
   const c = model.ok ? mergeModelClassification(rules, model.value) : rules;
   const isFirst = job.payload.reason === "new_ticket";
 
@@ -255,6 +259,8 @@ async function answer(job: Job): Promise<string> {
   if (job.payload.mode === "engineering_progress") {
     if (t.status === "resolved" || t.merged_into) return "skipped: ticket already resolved or merged";
     const status = String(job.payload.status ?? "");
+    if (t.engineering?.status !== status) return "skipped: engineering status changed";
+    const progressKey = `engineering-progress:${t.id}:${t.engineering_issue_id}:${t.reopen_count}:${status}`;
     const body = bloomEngineeringProgress(status);
     if (!body) return `skipped: no customer update for engineering status ${status}`;
     const needsPerson = ["not_reproduced", "failed", "escalated", "rolled_back"].includes(status);
@@ -269,19 +275,32 @@ async function answer(job: Job): Promise<string> {
           detail: `The repair reached ${status.replaceAll("_", " ")}; a person needs to continue the request.`,
           dedupe_key: `engineering-handoff:${job.engineering_issue_id ?? t.engineering_issue_id ?? job.id}:${t.id}:${status}`,
         }),
-        () => bloomSays(t, body, "progress", `engineering-progress:${job.id}`),
+        () => bloomSays(t, body, "progress", progressKey),
       );
       return routed ? `engineering progress shared after handoff: ${status}` : "skipped: no active handoff to announce";
     }
-    await bloomSays(t, body, "progress", `engineering-progress:${job.id}`);
+    await bloomSays(t, body, "progress", progressKey);
     return `engineering progress shared: ${status}`;
   }
   if (job.payload.mode === "feature_decision") {
     if (t.status === "resolved" || t.merged_into) return "skipped: ticket already resolved or merged";
     const decision = String(job.payload.decision ?? "");
     if (!["accepted", "declined", "planned", "shipped"].includes(decision)) return "skipped: invalid feature decision";
+    if (t.feature_request?.status !== decision) return "skipped: feature decision changed";
     await bloomSays(t, bloomFeatureDecision(decision), "feature_decision", `feature-decision:${job.id}`);
+    // Product news is not a request for customer input. Engineering keeps its
+    // own status, owner and next action, including a pending human handoff.
+    if (t.engineering_issue_id) return `feature decision shared; engineering retained: ${decision}`;
+    if (["accepted", "planned"].includes(decision)) {
+      await patch(t, {
+        version: t.version, status: "working", stage: "triage",
+        next_action: "Product team: confirm the implementation plan and next update",
+        next_action_due_at: new Date(Date.now() + 24 * 3600e3).toISOString(),
+      });
+      return `feature decision shared; team follow-up: ${decision}`;
+    }
     await patch(t, {
+      version: t.version,
       status: "waiting",
       waiting_reason: "customer",
       stage: "awaiting_client",
@@ -484,6 +503,12 @@ async function escalateEmail(job: Job): Promise<string> {
 async function engineeringStep(job: Job): Promise<string> {
   const step = String(job.payload.step ?? "investigate");
   const id = job.engineering_issue_id!;
+  // A human decision holds pre-release automation. Continue observing a release
+  // already in progress so takeover never abandons verification or rollback.
+  if (job.ticket_id && ["investigate", "poll", "evaluate"].includes(step)) {
+    const ticket = (await context(job.ticket_id)).ticket;
+    if (ticket.automation !== "auto" || ticket.executor === "person") return "skipped: human owns engineering review";
+  }
   let r: StepResult;
   if (step === "investigate" || step === "poll") {
     if (!repair) throw new BloomError(503, "not_configured", "BLOOM_SERVICE_KEY_INVESTIGATION is not set");
