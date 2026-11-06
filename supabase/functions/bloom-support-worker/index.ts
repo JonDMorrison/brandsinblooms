@@ -15,7 +15,7 @@ import {
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
-import { BLOOM_ANSWER_SYSTEM_PROMPT, bloomAcknowledgement, bloomHandoff } from "../_shared/bloom-support/voice.ts";
+import { announceAfterActiveHandoff, BLOOM_ANSWER_SYSTEM_PROMPT, bloomAcknowledgement, bloomHandoff } from "../_shared/bloom-support/voice.ts";
 
 interface Job {
   id: string; kind: string; ticket_id: string | null; engineering_issue_id: string | null; lane: string;
@@ -60,6 +60,23 @@ async function note(t: TicketView, body: string, key?: string) {
 }
 async function patch(t: TicketView, p: Record<string, unknown>) {
   return await rpc("update_ticket", { actor: bot.principalId, ticket_id: t.id, patch: p });
+}
+
+async function handAnswerToPerson(t: TicketView, lastClientId: string, explanation: string) {
+  const key = `answer-handoff:${t.id}:${t.reopen_count}:${lastClientId}`;
+  // Create the owned escalation before telling the client a person will take
+  // over. If routing fails, no operational promise is sent.
+  await announceAfterActiveHandoff(
+    () => rpc<{ escalation_id: string; status: string }>("escalate", {
+      actor: bot.principalId,
+      ticket_id: t.id,
+      audience: "both",
+      reason: "Support reply needed",
+      detail: explanation,
+      dedupe_key: key,
+    }),
+    () => bloomSays(t, bloomHandoff(explanation), "progress", key),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -172,13 +189,7 @@ async function answer(job: Job): Promise<string> {
   const question = `${t.subject}\n${lastClient?.body ?? t.summary}`;
   const articles = await rpc<Array<{ id: string; title: string; body: string; rank: number }>>("search_knowledge", { product: t.product === "unknown" ? null : t.product, q: question.slice(0, 500), limit: 4 });
   if (!articles.length) {
-    await bloomSays(
-      t,
-      bloomHandoff("I don't have a reliable answer in the approved guidance yet"),
-      "progress",
-      `answer-handoff:${t.id}:${t.reopen_count}:${lastClient?.id ?? "first"}`,
-    );
-    await patch(t, { stage: "answering", next_action: "Support: answer (no approved article matches)" });
+    await handAnswerToPerson(t, lastClient?.id ?? "first", "I don't have a reliable answer in the approved guidance yet");
     return "no approved knowledge";
   }
   const model = await completeJson<{ answerable: boolean; answer: string; cited_article_ids: string[] }>({
@@ -194,14 +205,8 @@ async function answer(job: Job): Promise<string> {
     return "answered";
   }
   // Deterministic fallback: never send unreviewed text. Suggest the best article to staff.
-  await bloomSays(
-    t,
-    bloomHandoff("I couldn't verify a complete answer from the approved guidance"),
-    "progress",
-    `answer-handoff:${t.id}:${t.reopen_count}:${lastClient?.id ?? "first"}`,
-  );
+  await handAnswerToPerson(t, lastClient?.id ?? "first", "I couldn't verify a complete answer from the approved guidance");
   await note(t, `Suggested approved article for a reply: "${articles[0].title}" (${articles[0].id}).${model.ok ? "" : ` Model unavailable: ${model.reason}.`}`, `suggest:${job.id}`);
-  await patch(t, { stage: "answering", next_action: "Support: review the suggested article and reply" });
   return "suggested article to staff";
 }
 

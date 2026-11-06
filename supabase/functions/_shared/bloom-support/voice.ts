@@ -18,3 +18,14 @@ export function bloomHandoff(reason: string): string {
   const why = reason.trim().replace(/[\s.]+$/, "");
   return `${why}. I'm handing this to a person on our support team rather than guessing. They'll continue with you here.`;
 }
+
+/** Announce a human handoff only after durable routing proves it is active. */
+export async function announceAfterActiveHandoff(
+  route: () => Promise<{ status: string }>,
+  announce: () => Promise<unknown>,
+): Promise<boolean> {
+  const routed = await route();
+  if (!["open", "acknowledged"].includes(routed.status)) return false;
+  await announce();
+  return true;
+}

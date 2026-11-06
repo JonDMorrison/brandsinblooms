@@ -7,11 +7,20 @@
 // Keys are never accepted in the URL: URLs are logged by proxies and providers.
 // Keys are minted per person in Bloom Support → Settings → API keys and can be
 // read-only. Every tool call is authorized in the database for that person.
-import { authenticate, BloomError, type Caller, cors, json } from "../_shared/bloom-support/runtime.ts";
+import {
+  authenticate,
+  BloomError,
+  closeMcpSession,
+  type Caller,
+  cors,
+  json,
+  openMcpSession,
+  touchMcpSession,
+} from "../_shared/bloom-support/runtime.ts";
 import { actions } from "../_shared/bloom-support/service.ts";
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { authorizationServerMetadata, mcpBase, protectedResourceMetadata } from "../_shared/bloom-support/oauth.ts";
-import { legacyMcpRequestScope, normalizeMcpSessionId, withMcpIdempotency } from "../_shared/bloom-support/mcp-idempotency.ts";
+import { mutationInputSchema, normalizeMcpSessionId, prepareMcpMutation } from "../_shared/bloom-support/mcp-idempotency.ts";
 
 type Schema = Record<string, unknown>;
 interface Tool { name: string; description: string; inputSchema: Schema; readOnly: boolean; run: (c: Caller, a: Record<string, unknown>) => Promise<unknown> | unknown }
@@ -93,8 +102,20 @@ const TOOLS: Tool[] = [
     inputSchema: S({ kind: str("Change operation"), account_id: id(), ticket_id: id(), inputs: { type: "object" }, idempotency_key: str("Repeat-safe key") }, ["kind", "account_id"]),
     run: (c, a) => actions.previewOperation(c, a),
   },
-  { name: "execute_change", readOnly: false, description: "Execute a previewed change exactly once. New changes require a current preview (30 minutes). A confirmed site-creation request interrupted after creating its draft can recover that same draft and client link after expiry. Returns the result and verification.", inputSchema: S({ operation_id: id() }, ["operation_id"]), run: (c, a) => actions.executeOperation(c, String(a.operation_id)) },
+  { name: "execute_change", readOnly: false, description: "Execute a previewed change exactly once. New changes require a current preview (30 minutes). If a product response is lost after the request was sent, Bloom blocks retries and reports reconciliation_needed until a person verifies the product state. Returns the result and verification only after a proven outcome.", inputSchema: S({ operation_id: id() }, ["operation_id"]), run: (c, a) => actions.executeOperation(c, String(a.operation_id)) },
   { name: "undo_change", readOnly: false, description: "Undo a completed change where the product supports restoration.", inputSchema: S({ operation_id: id() }, ["operation_id"]), run: (c, a) => actions.undoOperation(c, String(a.operation_id)) },
+  {
+    name: "record_reconciliation",
+    readOnly: false,
+    description: "Staff only: resolve a reconciliation_needed operation after independently checking the product. For a pending execute record applied or not_applied; for a pending undo record undone or not_undone. verification must say passed=true and describe the evidence checked. For a recovered site.create_draft include the exact product result in verification.result so Bloom can validate and link the site to the client. This records evidence only; it never sends the product change again.",
+    inputSchema: S({
+      operation_id: id(),
+      outcome: str("Verified outcome", ["applied", "not_applied", "undone", "not_undone"]),
+      verification: { type: "object", description: "Evidence checked in the product. Must include passed=true; may include the verified result." },
+      note: str("What was checked and where", undefined, 2_000),
+    }, ["operation_id", "outcome", "verification", "note"]),
+    run: (c, a) => actions.recordReconciliation(c, String(a.operation_id), a.outcome, a.verification, a.note),
+  },
   { name: "verify_outcome", readOnly: true, description: "Inspect an operation's result and verification, or a ticket's resolution evidence.", inputSchema: S({ operation_id: id(), ticket_id: id() }), run: (c, a) => a.operation_id ? actions.getOperation(c, String(a.operation_id)) : actions.getTicket(c, String(a.ticket_id)) },
   { name: "automation_switch", readOnly: false, description: "Pause or resume all Bloom automation (kill switch).", inputSchema: S({ enabled: { type: "boolean" } }, ["enabled"]), run: (c, a) => actions.setSetting(c, "automation_enabled", a.enabled === true) },
   { name: "list_jobs", readOnly: true, description: "Background jobs (failed, dead, running…).", inputSchema: S({ status: str("Comma-separated statuses") }), run: (c, a) => actions.listJobs(c, a.status as string) },
@@ -117,7 +138,7 @@ function rpcError(idv: unknown, code: number, message: string) {
   return { jsonrpc: "2.0", id: idv, error: { code, message } };
 }
 
-async function handleMessage(caller: Caller, msg: Record<string, unknown>, requestScope: string) {
+async function handleMessage(caller: Caller, msg: Record<string, unknown>, sessionId: string | null) {
   const method = String(msg.method ?? "");
   const idv = msg.id;
   if (idv === undefined) return null; // notification
@@ -134,7 +155,12 @@ async function handleMessage(caller: Caller, msg: Record<string, unknown>, reque
     case "tools/list": {
       const readOnlyKey = caller.scopes.length > 0 && !caller.scopes.includes("write") && !caller.scopes.includes("*");
       return rpcResult(idv, {
-        tools: TOOLS.filter((t) => t.readOnly || !readOnlyKey).map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema, annotations: { readOnlyHint: t.readOnly } })),
+        tools: TOOLS.filter((t) => t.readOnly || !readOnlyKey).map((t) => ({
+          name: t.name,
+          description: t.description,
+          inputSchema: t.readOnly ? t.inputSchema : mutationInputSchema(t.inputSchema),
+          annotations: { readOnlyHint: t.readOnly },
+        })),
       });
     }
     case "tools/call": {
@@ -147,14 +173,18 @@ async function handleMessage(caller: Caller, msg: Record<string, unknown>, reque
         return rpcResult(idv, { content: [{ type: "text", text: "forbidden: This API key is read-only" }], isError: true });
       }
       try {
-        const args = await withMcpIdempotency({
+        const rawArguments = p.arguments ?? {};
+        const prepared = tool.readOnly ? null : await prepareMcpMutation({
           callerId: caller.principalId,
-          requestScope,
+          sessionId,
           requestId: idv,
           toolName: tool.name,
-          arguments: p.arguments ?? {},
+          arguments: rawArguments,
         });
-        const out = await tool.run(caller, args);
+        const out = await tool.run(
+          prepared ? { ...caller, mcpMutation: { requestKey: prepared.requestKey, tool: tool.name, argumentsHash: prepared.argumentsHash } } : caller,
+          prepared?.arguments ?? rawArguments,
+        );
         return rpcResult(idv, { content: [{ type: "text", text: JSON.stringify(out ?? { ok: true }, null, 2) }], structuredContent: typeof out === "object" && out !== null && !Array.isArray(out) ? out : { result: out } });
       } catch (e) {
         const message = e instanceof BloomError ? `${e.code}: ${e.message}` : "Unexpected error";
@@ -172,7 +202,6 @@ Deno.serve(async (req) => {
   if (req.method === "GET" && path.endsWith("/.well-known/oauth-protected-resource")) return json(req, protectedResourceMetadata());
   if (req.method === "GET" && (path.endsWith("/.well-known/oauth-authorization-server") || path.endsWith("/.well-known/openid-configuration"))) return json(req, authorizationServerMetadata());
   if (req.method === "GET") return new Response("Bloom Support MCP: POST JSON-RPC here.", { status: 405, headers: { Allow: "POST", ...cors(req) } });
-  if (req.method === "DELETE") return new Response(null, { status: 204, headers: cors(req) });
   let caller: Caller;
   try {
     caller = await callerFor(req, path);
@@ -181,6 +210,16 @@ Deno.serve(async (req) => {
     return json(req, rpcError(null, -32001, e instanceof Error ? e.message : "Unauthorized"), status,
       { "WWW-Authenticate": `Bearer realm="bloom-support", resource_metadata="${mcpBase()}/.well-known/oauth-protected-resource"` });
   }
+  const rawSession = req.headers.get("mcp-session-id");
+  const incomingSession = normalizeMcpSessionId(rawSession);
+  if (rawSession && !incomingSession) return json(req, rpcError(null, -32600, "Invalid Mcp-Session-Id"), 400);
+  if (req.method === "DELETE") {
+    if (!incomingSession || !await touchMcpSession(caller.principalId, incomingSession)) {
+      return json(req, rpcError(null, -32001, "MCP session not found or expired"), 404);
+    }
+    await closeMcpSession(caller.principalId, incomingSession);
+    return new Response(null, { status: 204, headers: cors(req) });
+  }
   let body: unknown;
   try {
     body = await req.json();
@@ -188,18 +227,17 @@ Deno.serve(async (req) => {
     return json(req, rpcError(null, -32700, "Parse error"), 400);
   }
   const messages = Array.isArray(body) ? body : [body];
-  const incomingSession = normalizeMcpSessionId(req.headers.get("mcp-session-id"));
   const initializes = messages.some((m) => m && typeof m === "object" && (m as Record<string, unknown>).method === "initialize");
   const session = incomingSession ?? (initializes ? crypto.randomUUID() : null);
-  const requestScope = session ?? await legacyMcpRequestScope(
-    req.headers.get("authorization") ?? "",
-    req.headers.get("user-agent") ?? "",
-  );
+  if (incomingSession && !await touchMcpSession(caller.principalId, incomingSession)) {
+    return json(req, rpcError(null, -32001, "MCP session not found or expired"), 404);
+  }
+  if (!incomingSession && session) await openMcpSession(caller.principalId, session);
   const responseHeaders: Record<string, string> = !incomingSession && session ? { "Mcp-Session-Id": session } : {};
   if (Array.isArray(body)) {
-    const out = (await Promise.all(body.map((m) => handleMessage(caller, m, requestScope)))).filter(Boolean);
+    const out = (await Promise.all(body.map((m) => handleMessage(caller, m, session)))).filter(Boolean);
     return out.length ? json(req, out, 200, responseHeaders) : new Response(null, { status: 202, headers: { ...cors(req), ...responseHeaders } });
   }
-  const out = await handleMessage(caller, body as Record<string, unknown>, requestScope);
+  const out = await handleMessage(caller, body as Record<string, unknown>, session);
   return out ? json(req, out, 200, responseHeaders) : new Response(null, { status: 202, headers: { ...cors(req), ...responseHeaders } });
 });

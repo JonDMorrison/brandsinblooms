@@ -1,11 +1,8 @@
 import { sha256Hex } from "./crypto.ts";
+import { BloomError } from "./runtime.ts";
 
-/**
- * These writes create a new durable record. Other MCP writes address an
- * existing resource and are guarded by its state/version (for example an
- * operation can be executed exactly once).
- */
-const RECORD_CREATING_TOOLS = new Set(["create_ticket", "reply_to_ticket", "preview_change"]);
+/** Native handlers that also accept the durable key for their own ledger. */
+const NATIVE_IDEMPOTENCY_TOOLS = new Set(["create_ticket", "reply_to_ticket", "preview_change"]);
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -25,52 +22,74 @@ export function normalizeMcpSessionId(value: string | null): string | null {
   return value;
 }
 
-/** A fallback for older clients that do not implement MCP session headers. */
-export async function legacyMcpRequestScope(
-  authorization: string,
-  userAgent: string,
-  now = new Date(),
-): Promise<string> {
-  const credential = await sha256Hex(`${authorization}\n${userAgent}`);
-  // Bound implicit de-duplication for a legacy long-lived API key. Standards-
-  // compliant clients use the stable per-connection session id instead.
-  return `legacy:${now.toISOString().slice(0, 10)}:${credential.slice(0, 24)}`;
+function withoutExplicitKey(arguments_: Record<string, unknown>): Record<string, unknown> {
+  const { idempotency_key: _ignored, ...rest } = arguments_;
+  return rest;
 }
 
-export async function deriveMcpIdempotencyKey(input: {
-  callerId: string;
-  requestScope: string;
-  requestId: unknown;
-  toolName: string;
+export interface PreparedMcpMutation {
   arguments: Record<string, unknown>;
-}): Promise<string> {
-  const digest = await sha256Hex(JSON.stringify(canonical({
-    caller: input.callerId,
-    scope: input.requestScope,
-    request: input.requestId,
-    tool: input.toolName,
-    arguments: input.arguments,
-  })));
-  return `mcp:${digest}`;
+  requestKey: string;
+  argumentsHash: string;
 }
 
 /**
- * Preserve caller-provided keys. For older OAuth/MCP clients that omit one,
- * derive it from the transport request so a retry after a lost response is the
- * same write, while a later JSON-RPC call remains a new write.
+ * Creates the identity used by the database-backed mutation receipt.
+ *
+ * A caller-provided key deliberately survives reconnects. Otherwise a valid,
+ * server-issued MCP session is mandatory: JSON-RPC ids are only unique inside
+ * that session, and an OAuth access-token refresh must not change the identity.
  */
-export async function withMcpIdempotency(input: {
+export async function prepareMcpMutation(input: {
   callerId: string;
-  requestScope: string;
+  sessionId: string | null;
   requestId: unknown;
   toolName: string;
   arguments: Record<string, unknown>;
-}): Promise<Record<string, unknown>> {
-  if (!RECORD_CREATING_TOOLS.has(input.toolName) || typeof input.arguments.idempotency_key === "string") {
-    return input.arguments;
+}): Promise<PreparedMcpMutation> {
+  const hasExplicit = Object.hasOwn(input.arguments, "idempotency_key");
+  const candidate = input.arguments.idempotency_key;
+  if (hasExplicit && (typeof candidate !== "string" || !candidate.trim() || candidate.length > 200)) {
+    throw new BloomError(400, "invalid", "idempotency_key must be a nonblank string of 200 characters or fewer");
   }
+  // Keep the exact caller value in the outer identity. Whitespace is data;
+  // silently normalizing it would make two different keys replay one receipt.
+  const explicit = hasExplicit ? candidate as string : null;
+  if (!explicit && !input.sessionId) {
+    throw new BloomError(409, "session_required", "Reinitialize the MCP connection before changing data, or provide idempotency_key.");
+  }
+  const semanticArguments = canonical(withoutExplicitKey(input.arguments));
+  const argumentsHash = await sha256Hex(JSON.stringify(semanticArguments));
+  const identity = explicit
+    ? { caller: input.callerId, explicit, tool: input.toolName }
+    : { caller: input.callerId, session: input.sessionId, request: input.requestId, tool: input.toolName };
+  const requestKey = `mcp:${await sha256Hex(JSON.stringify(canonical(identity)))}`;
   return {
-    ...input.arguments,
-    idempotency_key: await deriveMcpIdempotencyKey(input),
+    // Native ledgers historically accepted a globally unique caller key.
+    // Always replace it with the caller-scoped outer receipt key so an
+    // explicit key cannot collide across principals or bypass payload checks.
+    arguments: NATIVE_IDEMPOTENCY_TOOLS.has(input.toolName)
+      ? { ...input.arguments, idempotency_key: requestKey }
+      : input.arguments,
+    requestKey,
+    argumentsHash,
+  };
+}
+
+/** Adds the optional explicit retry key to every advertised write-tool schema. */
+export function mutationInputSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  const properties = schema.properties && typeof schema.properties === "object" && !Array.isArray(schema.properties)
+    ? schema.properties as Record<string, unknown>
+    : {};
+  return {
+    ...schema,
+    properties: {
+      ...properties,
+      idempotency_key: properties.idempotency_key ?? {
+        type: "string",
+        maxLength: 200,
+        description: "Optional stable retry key, retained for 30 days. Reuse only for the exact same mutation.",
+      },
+    },
   };
 }
