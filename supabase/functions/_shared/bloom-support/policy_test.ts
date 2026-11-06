@@ -52,8 +52,57 @@ Deno.test("classify routes without requiring the user to choose", () => {
 
 Deno.test("model classification cannot lower an outage priority or invent vocabulary", () => {
   const rules = classify("Down", "site is down", "cms");
-  assertEquals(mergeModelClassification(rules, { kind: "question", priority: "low", impact: "account", category: "website", missing: [], confidence: 0.9 }).priority, "urgent");
+  const merged = mergeModelClassification(rules, { kind: "question", priority: "low", impact: "account", category: "website", missing: [], confidence: 0.9 });
+  assertEquals(rules.kind, "incident");
+  assertEquals(merged.kind, "incident");
+  assertEquals(merged.priority, "urgent");
   assertEquals(mergeModelClassification(rules, { kind: "delete-everything", priority: "low" }), rules);
+});
+
+Deno.test("deterministic outage evidence covers varied current high-impact failures", () => {
+  const cases: Array<[string, string]> = [
+    ["Website unavailable", "Every customer sees an unavailable page and cannot access the store."],
+    ["Checkout failing", "Payments fail for every customer right now."],
+    ["Website not loading", "The website will not load for anyone."],
+    ["Platform disruption", "We are experiencing a current service outage."],
+    ["POS outage", "No one can use the tills; all stores see 503 errors."],
+    ["Cannot access the platform", "Customers cannot access the platform."],
+    ["BloomSites unavailable", "BloomSites is unavailable across multiple sites."],
+    ["Login failure", "No one can log in to the CRM."],
+    ["App crash", "The app crashes for every user."],
+  ];
+  for (const [subject, body] of cases) {
+    const rules = classify(subject, body, "cms");
+    assertEquals(rules.kind, "incident", `${subject}: deterministic rules recognize the observed outage`);
+    assertEquals(rules.priority, "urgent", `${subject}: observed outages are urgent`);
+    const merged = mergeModelClassification(rules, {
+      kind: "question", priority: "low", impact: "single_user", category: "website", missing: [], confidence: 0.95,
+    });
+    assertEquals(merged.kind, "incident", `${subject}: a model cannot downgrade deterministic outage evidence`);
+    assertEquals(merged.priority, "urgent", `${subject}: a model cannot lower deterministic outage urgency`);
+  }
+});
+
+Deno.test("model classification cannot turn routing checks or outage-information questions into incidents", () => {
+  const cases: Array<[string, string]> = [
+    ["Support-subdomain fallback check", "Please confirm the established address reaches the same support pipeline. No staff action is required."],
+    ["Status question", "Is there an outage page where I can check service health?"],
+    ["Reporting question", "How do I report an outage?"],
+    ["Notification question", "Can I subscribe to outage alerts?"],
+    ["Website down?", "Is the website down?"],
+    ["Store status", "Are all stores unavailable?"],
+    ["Outage notification test", "Please send a test outage notification."],
+    ["Platform outage", "Where can I find outage history?"],
+    ["Website down", "Can I subscribe to status alerts?"],
+  ];
+  for (const [subject, body] of cases) {
+    const rules = classify(subject, body, "unknown");
+    assertFalse(rules.kind === "incident", `${subject}: an information request is not outage evidence`);
+    const merged = mergeModelClassification(rules, {
+      kind: "incident", priority: "normal", impact: "platform", category: "support", missing: [], confidence: 0.92,
+    });
+    assertFalse(merged.kind === "incident", `${subject}: a model-only incident label cannot page people`);
+  }
 });
 
 Deno.test("automated mail and loops are detected", () => {

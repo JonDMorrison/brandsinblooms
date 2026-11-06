@@ -133,13 +133,47 @@ export interface Classification {
   source: "rules" | "model";
 }
 
-const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|doesn'?t work|won'?t|can'?t|cannot|stuck|blank|500|404|wrong|missing|disappeared|frozen|spinning|offline)\b/i;
+const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|not loading|doesn'?t work|won'?t|can'?t|cannot|unavailable|stuck|blank|500|404|wrong|missing|disappeared|frozen|spinning|offline)\b/i;
 const FEATURE = /\b(feature request|would be (nice|great)|could you add|can you add|wish|suggest(ion)?|it would help if|please add|roadmap|ability to)\b/i;
 const QUESTION = /(\?\s*$|\b(how (do|can|to)|where (is|do|can)|what (is|does)|is it possible|can i)\b)/im;
 const REQUEST = /\b(please (update|change|create|publish|send|schedule|set up|add|remove)|can you (update|change|create|publish|send|schedule|set up)|need (you )?to (update|change|publish))\b/i;
-const URGENT = /\b(urgent|asap|emergency|down for everyone|site is down|can'?t take payments?|cannot (take|process) (payments?|sales)|checkout (is )?(broken|down)|lost (orders|sales))\b/i;
+const URGENT = /\b(urgent|asap|emergency|down for everyone|(site|system|platform|store) is down|can'?t take payments?|cannot (take|process) (payments?|sales)|checkout (is )?(broken|down)|lost (orders|sales))\b/i;
 const HIGH = /\b(today|before (the )?(weekend|event|sale)|customers? (can'?t|cannot)|all (our )?(customers|staff))\b/i;
 const ACCOUNT = /\b(password|log ?in|sign ?in|locked out|invite|access|2fa|mfa|billing|invoice|subscription|cancel my)\b/i;
+
+// Incident routing pages people and opens engineering work, so a model label is
+// not evidence on its own. These signals describe a failure the reporter says
+// is happening now. Questions are removed before evaluating them, which keeps
+// requests for status pages, outage history and notifications in normal support.
+const OUTAGE_INFORMATION_REQUEST = /\b(?:outage|incident|status|service health)\s+(?:page|history|policy|process|procedure|notifications?|alerts?|updates?|reporting|postmortem)\b|\b(?:how|where)\s+(?:do|can|should|would)\s+(?:i|we)\s+(?:report|check|view|find|subscribe to)\b[^.!?\n]{0,80}\b(?:an?\s+)?(?:outage|incident|status|service health)\b/i;
+const CURRENT_SERVICE_FAILURE = /\b(?:(?:our|the|this|production|live)\s+)?(?:websites?|sites?|systems?|platform|apps?|stores?|services?|checkouts?|pos|tills?|registers?|servers?|api|bloomsuite|bloomsites?|bloomtill|crm|cms|log ?in|sign ?in)\s+(?:(?:is|are|seems?|appears?|keeps?|has gone|went)\s+(?:currently\s+|still\s+)?(?:down|offline|unavailable|not\s+(?:working|loading|responding|accessible)|failing)|(?:won't|will\s+not|doesn't|does\s+not)\s+(?:load|work|respond))\b/i;
+const ACTIVE_OUTAGE = /\b(?:we(?:'re| are)?\s+)?(?:are\s+)?(?:experiencing|seeing|having)\s+(?:an?\s+)?(?:active|current|ongoing|major|widespread)?\s*(?:(?:platform|system|service|website|payment|checkout|api|server|bloomsuite|bloomsites?|bloomtill|crm|cms|pos)\s+)?(?:outage|disruption)\b|\b(?:active|current|ongoing|major|widespread)\s+(?:(?:platform|system|service|website|payment|checkout|api|server|bloomsuite|bloomsites?|bloomtill|crm|cms|pos)\s+)?(?:outage|disruption)\b|\b(?:outage|service disruption)\s+(?:is\s+)?(?:affecting|impacting)\b/i;
+const PAYMENT_OUTAGE = /\b(?:we|staff|shoppers?)\s+can'?t\s+(?:take|make|process|accept)\s+(?:payments?|sales)\b/i;
+const GROUP_SERVICE_UNAVAILABLE = /\b(?:(?:customers|users|staff|shoppers|visitors)\s+(?:can'?t|cannot|are unable to)\s+(?:access|use|load|open|reach|log ?in(?: to)?|sign ?in(?: to)?)\s+(?:(?:the|our)\s+)?(?:website|site|system|platform|app|service|store|checkout|pos|till|register|api|bloomsuite|bloomsites?|bloomtill|crm|cms)|(?:customers|users|staff)\s+are\s+locked out)\b/i;
+const WIDESPREAD_OUTAGE_SCOPE = /\b(?:everyone|no one|nobody|for anyone|all\s+(?:of\s+)?(?:(?:our|the)\s+)?(?:customers?|users?|staff|accounts?|sites?|stores?|locations?)|every\s+(?:customer|user|account|site|store|location)|multiple\s+(?:customers?|accounts?|sites?|stores?|locations?)|across\s+(?:(?:all|multiple|our|the)\s+)?(?:customers?|accounts?|sites?|stores?|locations?)|company-wide|platform-wide|system-wide|site-wide|widespread)\b/i;
+const OUTAGE_FAILURE_SYMPTOM = /\b(?:down|offline|unavailable|not\s+(?:working|loading|responding|accessible|processing)|won't\s+load|will\s+not\s+load|can'?t\s+(?:access|use|load|open|pay|check ?out|process|take|make|log ?in|sign ?in)|cannot\s+(?:access|use|load|open|pay|check ?out|process|take|make|log ?in|sign ?in)|unable\s+to\s+(?:access|use|load|open|pay|check ?out|process|take|make|log ?in|sign ?in)|(?:no one|nobody)\s+can\s+(?:access|use|load|open|pay|check ?out|process|take|make|log ?in|sign ?in)|fail(?:s|ed|ing)?|errors?|crash(?:es|ed|ing)?|freez(?:e|es|ing)|frozen|5\d\d)\b/i;
+const CRITICAL_SERVICE_SURFACE = /\b(?:website|site|page|system|platform|app|service|store|checkout|cart|payments?|orders?|sales|transactions?|accounts?|log ?in|sign ?in|pos|till|register|card reader|server|api|bloomsuite|bloomsites?|bloomtill|crm|cms)\b/i;
+
+function deterministicOutageEvidence(subject: string, body: string): boolean {
+  const bodyClauses = body.match(/[^.!?\n]+[.!?]?/g) ?? [];
+  const declarativeText = [subject, ...bodyClauses]
+    .map((part) => part.trim())
+    .filter((part) => part !== "" && !part.endsWith("?"))
+    .join("\n");
+  const observedFailure = CURRENT_SERVICE_FAILURE.test(declarativeText)
+    || ACTIVE_OUTAGE.test(declarativeText)
+    || PAYMENT_OUTAGE.test(declarativeText)
+    || GROUP_SERVICE_UNAVAILABLE.test(declarativeText);
+  // A terse declarative subject is common during a real outage. A question
+  // mark deliberately keeps "Website down?" in normal support triage unless
+  // the body adds observed symptoms.
+  const terseOutageSubject = /^(?:our\s+)?(?:website|site|system|platform|app|store|service|checkout|payments?|pos|till|register|server|api|bloomsuite|bloomsites?|bloomtill|crm|cms|log ?in|sign ?in)\s+(?:is\s+)?(?:down|offline|unavailable|not\s+(?:working|loading)|outage)\s*[!.]*$/i.test(subject.trim());
+  const widespreadFailure = WIDESPREAD_OUTAGE_SCOPE.test(declarativeText)
+    && OUTAGE_FAILURE_SYMPTOM.test(declarativeText)
+    && CRITICAL_SERVICE_SURFACE.test(declarativeText);
+  if (OUTAGE_INFORMATION_REQUEST.test(`${subject}\n${body}`) && !observedFailure && !widespreadFailure) return false;
+  return observedFailure || terseOutageSubject || widespreadFailure;
+}
 
 const CATEGORIES: Array<[RegExp, string]> = [
   [/\b(checkout|cart|payment|stripe|refund|tax|payout|card reader|terminal)\b/i, "payments"],
@@ -155,6 +189,7 @@ const CATEGORIES: Array<[RegExp, string]> = [
 
 export function classify(subject: string, body: string, product: Product): Classification {
   const text = `${subject}\n${body}`;
+  const outageEvidence = deterministicOutageEvidence(subject, body);
   let kind: Kind = "unknown";
   if (FEATURE.test(text)) kind = "feature";
   else if (BUG.test(text)) kind = "bug";
@@ -162,8 +197,8 @@ export function classify(subject: string, body: string, product: Product): Class
   else if (ACCOUNT.test(text)) kind = "other";
   else if (QUESTION.test(text)) kind = "question";
 
-  const priority: Priority = URGENT.test(text) ? "urgent" : HIGH.test(text) ? "high" : "normal";
-  if (kind === "bug" && priority === "urgent" && /\b(down|everyone|all (our )?customers|can'?t take payments?)\b/i.test(text)) kind = "incident";
+  const priority: Priority = outageEvidence || URGENT.test(text) ? "urgent" : HIGH.test(text) ? "high" : "normal";
+  if (outageEvidence) kind = "incident";
   const category = CATEGORIES.find(([re]) => re.test(text))?.[1] ?? "general";
   const missing: string[] = [];
   if (kind === "bug") {
@@ -175,7 +210,7 @@ export function classify(subject: string, body: string, product: Product): Class
   return {
     kind,
     priority,
-    impact: /\b(all (our )?customers|everyone|every (site|store))\b/i.test(text) ? "multi_account" : "unknown",
+    impact: WIDESPREAD_OUTAGE_SCOPE.test(text) ? "multi_account" : "unknown",
     category,
     missing,
     confidence: kind === "unknown" ? 0.2 : 0.6,
@@ -194,8 +229,13 @@ export function mergeModelClassification(rules: Classification, model: unknown):
   // Urgency floor: the model may raise priority but never lower an explicit outage signal.
   const order = { low: 0, normal: 1, high: 2, urgent: 3 } as const;
   const priority = order[m.priority as Priority] >= order[rules.priority] ? (m.priority as Priority) : rules.priority;
+  // Incident routing pages people and opens engineering work. Require the
+  // deterministic outage signals above instead of letting a model invent or
+  // downgrade that high-impact branch from otherwise harmless wording.
+  const modelKind = m.kind as Kind;
+  const kind: Kind = rules.kind === "incident" ? "incident" : modelKind === "incident" ? rules.kind : modelKind;
   return {
-    kind: m.kind as Kind,
+    kind,
     priority,
     impact: impacts.includes(String(m.impact)) ? (m.impact as Classification["impact"]) : rules.impact,
     category: typeof m.category === "string" && /^[a-z-]{2,30}$/.test(m.category) ? m.category : rules.category,
