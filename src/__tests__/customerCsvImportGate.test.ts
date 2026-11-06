@@ -9,6 +9,8 @@ const importDialog = readFileSync(
   "src/components/crm/segments/EnhancedSegmentImportDialog.tsx",
   "utf8",
 );
+// Row building moved out of the dialog so Bloom chat imports share it.
+const importRows = readFileSync("src/lib/crm/customerImportRows.ts", "utf8");
 const csvAnalyzer = readFileSync(
   "supabase/functions/analyze-csv-intelligent/index.ts",
   "utf8",
@@ -46,12 +48,14 @@ describe("identity-safe customer CSV imports", () => {
   it("routes the UI through the guarded RPC and honors source column indexes", () => {
     expect(importDialog).toContain('"begin_customer_csv_import"');
     expect(importDialog).toContain('"import_crm_customer_batch"');
-    expect(importDialog).toContain(
+    expect(importDialog).toContain('from "@/lib/crm/customerImportRows"');
+    expect(importRows).toContain(
       "row[emailMapping.sourceIndex ?? emailMappingIndex]",
     );
-    expect(importDialog).toMatch(
+    expect(importRows).toMatch(
       /if \(!value\) return;\s+if \(fieldKey === "email_opt_in"\)/,
     );
+    expect(importRows).not.toContain('.from("crm_customers").upsert');
     expect(importDialog).not.toContain('.from("crm_customers").upsert');
     expect(importDialog).not.toContain("recordImportConsentEvents");
   });
