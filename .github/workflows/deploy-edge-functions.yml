@@ -29,6 +29,8 @@ on:
 permissions:
   contents: read
   issues: write
+  # Read the Bloom Support release run for this commit (see the wait step).
+  actions: read
 
 jobs:
   deploy:
@@ -39,6 +41,43 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
+
+      # bloom-support-release.yml applies Bloom Support migrations on the same
+      # push. Both workflows start together, so new function code could go
+      # live before the schema it calls (new RPCs, tables, statuses) exists,
+      # or stay live against the old schema if the release fails. When this
+      # commit changes a Bloom Support migration, deploy only after that
+      # release run for the same commit has succeeded. Manual redeploys
+      # (workflow_dispatch) are never gated.
+      - name: Wait for Bloom Support migrations
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet HEAD~1 HEAD -- 'supabase/migrations/*bloom_support*'; then
+            echo "No Bloom Support migration in this commit; nothing to wait for."
+            exit 0
+          fi
+          for i in $(seq 1 60); do
+            run="$(gh api "repos/$REPO/actions/workflows/bloom-support-release.yml/runs?head_sha=$SHA&event=push&per_page=1" \
+              --jq '.workflow_runs[0] // {} | "\(.status // "missing") \(.conclusion // "")"')"
+            read -r status conclusion <<< "$run"
+            if [[ "$status" == "completed" ]]; then
+              if [[ "$conclusion" == "success" ]]; then
+                echo "Bloom Support migrations applied; deploying."
+                exit 0
+              fi
+              echo "::error title=Bloom Support release did not succeed::conclusion=$conclusion. Functions were NOT deployed; fix the release, then re-run this workflow."
+              exit 1
+            fi
+            echo "Waiting for Bloom Support release ($status) $i/60…"
+            sleep 30
+          done
+          echo "::error title=Bloom Support release timed out::No completed release run for $SHA within 30 minutes. Functions were NOT deployed."
+          exit 1
 
       - name: Detect changed functions
         id: changed
