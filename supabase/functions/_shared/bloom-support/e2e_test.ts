@@ -1245,7 +1245,9 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     resendReceived.set("forwarded-provider-email", { from: "Gail <gail@greenleaf.test>", to: ["another-visible-to@example.org"], subject: "How do I find support replies?", text: "How do I find the replies to my support request?", message_id: "<forward-route@greenleaf.test>", headers: {} });
     const forwardedRoute = await inbound("msg_forward_route", { email_id: "forwarded-provider-email", to: ["another-visible-to@example.org"], received_for: ["FORWARD@inbound.test"] });
     assertExists(forwardedRoute.json.ticket_id, JSON.stringify(forwardedRoute.json));
-    assertEquals((await ticketRow(forwardedRoute.json.ticket_id)).summary, "How do I find the replies to my support request?", "metadata-only webhook loads the body from the Receiving API");
+    const forwardedRouteTicket = await ticketRow(forwardedRoute.json.ticket_id);
+    assertEquals(forwardedRouteTicket.summary, "How do I find the replies to my support request?", "metadata-only webhook loads the body from the Receiving API");
+    assertEquals(forwardedRouteTicket.automation, "auto", "recipient routing preserves automation for mail the client sent directly to support");
     const crm = await ticketRow(crmTicket);
     ackId = resendSent.find((m) => m.to[0] === "gail@greenleaf.test")!.headers["Message-ID"];
     const reply = await inbound("msg_1", { email_id: "e1", from: "Gail Green <gail@greenleaf.test>", to: ["support@bloom.test"], subject: `Re: [Bloom #${crm.number}] Campaign preview button broken`, text: `It happens in Chrome too.\n\nOn Tue, Bloom wrote:\n> Thanks`, message_id: "<g1@greenleaf.test>", headers: { "In-Reply-To": ackId } });
@@ -1903,14 +1905,25 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(attempts[0].subject, attempts[1].subject, "same subject on retry");
     assertEquals(JSON.stringify(attempts[0].cc ?? null), JSON.stringify(attempts[1].cc ?? null), "same cc on retry");
 
-    // Authorized forward: staff forwarder with passing DKIM/SPF; the client is the requester.
+    // Authorized forward: staff forwarder with valid DKIM; the client is the requester.
     const fwd = await inbound("msg_fwd", await dkimSigned("msg_fwd", { email_id: "efwd", from: "Jeff <jeff@bloom.test>", subject: "Fwd: website down?", message_id: "<fwd1@bloom.test>",
-      text: "FYI\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nOur website shows an error page." }));
+      text: "FYI\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nOur website shows an error page.",
+      attachments: [{ id: "unsafe-forward-file", filename: "unsafe.exe", content_type: "application/octet-stream", size: 4, download_url: "https://attachment.test/forward/unsafe.exe" }] }));
     assertExists(fwd.json.ticket_id, `forward filed: ${JSON.stringify(fwd.json)}`);
     const fr = await ticketRow(fwd.json.ticket_id);
     assertEquals(fr.context.forward_authorized, true);
+    assertEquals(fr.context.manual_forward_review, true);
+    assertEquals(fr.automation, "paused", "a manual staff forward waits for review before Bloom contacts the named client");
     const req = (await sql!`SELECT email FROM bloom_support.principals WHERE id = ${fr.requester_id}`)[0];
     assertEquals(req.email, "gail@greenleaf.test");
+    await runWorkerUntilIdle();
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.outbound_emails WHERE ticket_id = ${fwd.json.ticket_id}`)[0].n),
+      0,
+      "a manual staff forward never triggers an acknowledgement before review",
+    );
+    const heldAttachment = (await sql!`SELECT visibility, notify_client FROM bloom_support.messages WHERE ticket_id = ${fwd.json.ticket_id} AND body LIKE 'Bloom could not accept these attachments from the forwarded email:%'`)[0];
+    assertEquals([heldAttachment.visibility, heldAttachment.notify_client], ["internal", false], "rejected forwarded attachments stay inside the review queue");
 
     // Unverified forward: the forwarder is the requester; the named third party is never emailed.
     await runWorkerUntilIdle();
@@ -1929,6 +1942,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       text: "---------- Forwarded message ---------\nFrom: Visitor <visitor@example.net>\n\nDo you integrate with my till?",
  }));
     const rr = await ticketRow(relay.json.ticket_id);
+    assertEquals(rr.automation, "auto", "an authenticated purpose-built support relay remains automated");
     // A forged relay: right sender address and a fake Authentication-Results header, but no valid
     // DKIM signature. The forward is not honoured; the third party is not the requester.
     const forgedRelay = await inbound("msg_forged_relay", { email_id: "eforged", from: "BloomSuite Contact <support@brandsinblooms.com>", subject: "Fwd: Contact form", message_id: "<forged1@x.test>",

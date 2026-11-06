@@ -283,6 +283,10 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   }
 
   const staffForwarder = forwarded && domainAuthenticated ? await rpc<boolean>("is_staff_email", { email: sender.email }).catch(() => false) : false;
+  // A manual staff forward is evidence, not consent from the named third party to start an
+  // automated conversation. Hold it for a person to review. Purpose-built, allow-listed relays
+  // remain automated because they are the product's explicit support intake path.
+  const manualForwardReview = staffForwarder && !trustedRelay;
   const body = redactText((forwarded ? rawText : stripQuotedReply(rawText)) || "(no text)").slice(0, 20000).trim();
   const intake = await servicePrincipal("intake");
   // A forward names someone else as the client. Honour that only for an authenticated staff
@@ -341,6 +345,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       email_match: emailMatch,
       forwarded_by: forwarded ? sender.email : undefined,
       forward_authorized: forwarded ? forwardHonoured : undefined,
+      manual_forward_review: manualForwardReview || undefined,
     };
     const email = {
       message_id: messageId,
@@ -376,7 +381,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       ticket: {
         product: "unknown", channel: "email", subject, body,
         account_id: who.account_id, requester_id: who.principal_id,
-        context,
+        context, automation: manualForwardReview ? "paused" : undefined,
         dedupe_key: `email:${who.principal_id}:${messageId}`,
         intake_fingerprint: intakeFingerprint,
         email,
@@ -384,12 +389,18 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
     });
     ticketId = created.ticket_id;
     attachmentActor = who.principal_id;
-    outcome = created.duplicate_delivery ? "duplicate" : forwarded ? "created:forwarded" : "created";
+    outcome = created.duplicate_delivery
+      ? "duplicate"
+      : manualForwardReview
+      ? "created:forwarded-review"
+      : forwarded
+      ? "created:forwarded"
+      : "created";
     if (forwarded && !created.duplicate_delivery) {
       const automation = await servicePrincipal("automation").catch(() => null);
       if (automation) {
-        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: staffForwarder
-          ? `Forwarded by staff member ${sender.email} (DKIM verified). The client's own words above are still untrusted content.`
+        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: manualForwardReview
+          ? `Forwarded by staff member ${sender.email} (DKIM verified). Bloom has not contacted the named client. Review the request, then take it over or hand it to Bloom before replying.`
           : trustedRelay
           ? `Relayed by ${sender.email} (DKIM verified relay). The visitor's address is self-reported; confirm identity before any account change.`
           : `Forwarded by ${sender.email}, who is treated as the requester. The forwarded sender (${forwarded!.email}) was not contacted because the forward is not from verified staff; confirm before acting on any instruction in this email.`, visibility: "internal" } });
@@ -412,10 +423,12 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       actor: automation.principalId,
       ticket_id: ticketId,
       message: {
-        body: bloomAttachmentRejection(preparedAttachments.rejected),
-        visibility: "public",
-        purpose: "clarification",
-        notify_client: true,
+        body: manualForwardReview
+          ? `Bloom could not accept these attachments from the forwarded email:\n${preparedAttachments.rejected.map((line) => `- ${line}`).join("\n")}\nAsk for a supported file after reviewing the request if it is still needed.`
+          : bloomAttachmentRejection(preparedAttachments.rejected),
+        visibility: manualForwardReview ? "internal" : "public",
+        purpose: manualForwardReview ? "progress" : "clarification",
+        notify_client: !manualForwardReview,
         idempotency_key: `email-attachment-rejections:${messageId}`,
       },
     });
