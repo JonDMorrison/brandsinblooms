@@ -1198,6 +1198,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const ack = resendSent.find((m) => m.to[0] === "gail@greenleaf.test");
     assertExists(ack, "acknowledgement emailed");
     assert(ack!.subject.startsWith(`[Bloom #${crm.number}]`));
+    assertEquals(ack!.headers["Auto-Submitted"], "auto-replied", "Bloom's acknowledgement prevents automatic response loops");
     // The first email of a ticket carries the ticket's stable thread root, so every later email threads under it.
     assert(ack!.headers["Message-ID"].startsWith(`<bloom-ticket.${crmTicket}@`), ack!.headers["Message-ID"]);
     assert(ack!.text.includes(`Request #${crm.number} · `), "plain-text body keeps the request line");
@@ -1440,6 +1441,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const sentNow = resendSent.slice(before).filter((m) => m.to[0] === "newperson@example.org");
     assertEquals(sentNow.length, 1, "only Jeff's own reply is emailed");
     assert(sentNow[0].text.includes("Jeff here"));
+    assertEquals(sentNow[0].headers["Auto-Submitted"], undefined, "a person's reply is not labelled as an automatic response");
     assertEquals(sentNow[0].headers["In-Reply-To"], "<n1@example.org>", "reply threads onto the client's email");
     const before2 = resendSent.length;
     await inbound("msg_4", { email_id: "e4", from: "newperson@example.org", subject: "Re: invoices", text: "Thanks! One more thing.", message_id: "<n2@example.org>", headers: { "In-Reply-To": sentNow[0].headers["Message-ID"] } });

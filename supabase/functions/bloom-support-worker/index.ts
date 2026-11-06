@@ -318,6 +318,7 @@ async function sendEmail(job: Job): Promise<string> {
   let covered: string[] = [];
   let design = purpose;
   let bloomInitiated = true;
+  let humanAuthored = false;
   if (job.payload.message_id) {
     const m = t.messages.find((x) => x.id === job.payload.message_id);
     if (!m || m.visibility !== "public") return "message not public";
@@ -330,6 +331,7 @@ async function sendEmail(job: Job): Promise<string> {
     covered = group.filter((x) => x.id !== m.id).map((x) => x.id);
     design = group.some((x) => x.purpose === "resolution") ? "resolution" : (m.purpose ?? purpose);
     bloomInitiated = m.author_kind === "bloom";
+    humanAuthored = m.author_kind === "staff";
   } else if (purpose === "resolution") {
     // "Send this reply and mark solved": the person's reply already told the client.
     if (resolutionAlreadyTold(t.resolution_evidence, t.messages)) return "client already told in the person's reply; no separate resolution email";
@@ -349,7 +351,7 @@ async function sendEmail(job: Job): Promise<string> {
     inReplyTo: ctx.thread.last_inbound ?? ctx.thread.last_outbound ?? null, references: [ctx.thread.root, ctx.thread.last_outbound].filter(Boolean) as string[],
     coveredMessageIds: covered,
     cc: ctx.cc ?? [],
-    idempotencyKey: `job:${job.id}`, bloomInitiated, toClient: true,
+    idempotencyKey: `job:${job.id}`, bloomInitiated, humanAuthored, toClient: true,
   });
   if (result.status === "failed" || result.status === "uncertain") throw new Error(`email ${result.status}: ${result.reason}`);
   return `email ${result.status}${covered.length ? ` (with ${covered.length} more message${covered.length === 1 ? "" : "s"})` : ""}${result.reason ? ` (${result.reason})` : ""}`;

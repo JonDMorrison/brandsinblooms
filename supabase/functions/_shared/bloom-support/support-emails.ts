@@ -187,7 +187,7 @@ function customerEmailMoment(input: { purpose: string; status: string; body: str
   const investigation = /started (?:the |an )?investigation|possible incident|possible product problem/i.test(input.body);
   if (!input.fromBloom) return {
     eyebrow: "A reply from our team", title: "Our support team replied", icon: "mail" as const,
-    intro: "A person from Brands in Blooms Support has replied to your request.",
+    intro: "A person from BloomSuite Support has replied to your request.",
     next: "Reply to this email if you need anything else. Your response will stay in the same conversation.",
   };
   if (resolved) return {
@@ -255,7 +255,7 @@ export function renderCustomerEmail(input: {
   ];
   const client = input.client?.name?.trim() ? { ...input.client, name: input.client.name.trim() } : null;
   const site = client ? clientWebsite(client.website) : null;
-  const signature = fromBloom ? BLOOM_SIGNATURE : "Brands in Blooms Support";
+  const signature = fromBloom ? BLOOM_SIGNATURE : "BloomSuite Support";
   const actionLabel = resolved ? "Confirm or reopen" : "View your request";
   const roleLine = fromBloom && input.purpose === "acknowledgement" && !body.includes(BLOOM_ROLE_DISCLOSURE)
     ? botanicalEmailParagraph(BLOOM_ROLE_DISCLOSURE, { muted: true, size: 14, margin: "0 0 14px" })
