@@ -5,9 +5,14 @@ import {
   type Page,
   type Response,
 } from "@playwright/test";
+import { deleteMarkedCampaigns } from "../../scripts/ci/production-e2e-state.mjs";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "https://www.bloomsuite.app";
+const BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL || "https://www.bloomsuite.app";
 const DEMO_TENANT = "Greenfield Garden Centre";
+const ARTIFACT_MARKER =
+  process.env.E2E_ARTIFACT_MARKER ??
+  `bloom-e2e-local-${process.pid}-${Date.now()}`;
 let previousTenantLabel: string | null = null;
 let tenantSetupAttempted = false;
 
@@ -68,7 +73,9 @@ async function selectTenant(page: Page, tenantName: string) {
 async function clearTenant(page: Page) {
   const managing = page.getByText(/^Managing /).first();
   if (!(await managing.isVisible().catch(() => false))) {
-    await expect(page.getByText("No tenant selected", { exact: true })).toBeVisible({
+    await expect(
+      page.getByText("No tenant selected", { exact: true }),
+    ).toBeVisible({
       timeout: 10_000,
     });
     return;
@@ -88,7 +95,9 @@ async function clearTenant(page: Page) {
     response.ok(),
     `admin tenant context clear failed: ${response.status()} ${response.url()}`,
   ).toBeTruthy();
-  await expect(page.getByText("No tenant selected", { exact: true })).toBeVisible({
+  await expect(
+    page.getByText("No tenant selected", { exact: true }),
+  ).toBeVisible({
     timeout: 10_000,
   });
 }
@@ -129,22 +138,46 @@ test.afterAll(async ({ browser }) => {
 test("a new newsletter opens Design Studio without subject or preview", async ({
   page,
 }) => {
+  const email = process.env.E2E_EMAIL;
+  const password = process.env.E2E_PASSWORD;
+  if (!email || !password) {
+    throw new Error("E2E_EMAIL and E2E_PASSWORD are required for cleanup");
+  }
+
   await page.goto("/crm/campaigns/new?type=newsletter");
+  await page.getByRole("button", { name: /Campaign details/ }).click();
+  await page
+    .getByRole("textbox", { name: "Campaign name", exact: true })
+    .fill(ARTIFACT_MARKER);
   const studioEntry = page.getByRole("button", {
     name: "Customize in Design Studio",
     exact: true,
   });
   await expect(studioEntry).toBeVisible();
   await expect(studioEntry).not.toHaveAttribute("aria-disabled", "true");
-  await studioEntry.click();
-  await expect(page).toHaveURL(
-    /\/crm\/campaigns\/[0-9a-f-]+\/studio(?:\?|$)/,
-    { timeout: 30_000 },
-  );
-  await expect(
-    page.getByText("Save the draft before opening Campaign Studio"),
-  ).toHaveCount(0);
-  await expect(
-    page.getByText("Could not create your newsletter draft"),
-  ).toHaveCount(0);
+  let campaignId: string | null = null;
+  try {
+    await studioEntry.click();
+    await expect(page).toHaveURL(
+      /\/crm\/campaigns\/[0-9a-f-]+\/studio(?:\?|$)/,
+      { timeout: 30_000 },
+    );
+    campaignId = new URL(page.url()).pathname.split("/")[3] ?? null;
+    await expect(
+      page.getByText("Save the draft before opening Campaign Studio"),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("Could not create your newsletter draft"),
+    ).toHaveCount(0);
+  } finally {
+    const navigatedCampaignId = page
+      .url()
+      .match(/\/crm\/campaigns\/([0-9a-f-]+)\/studio(?:\?|$)/)?.[1];
+    await deleteMarkedCampaigns({
+      email,
+      password,
+      marker: ARTIFACT_MARKER,
+      expectedCampaignId: campaignId ?? navigatedCampaignId ?? null,
+    });
+  }
 });

@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Page, type Response } from '@playwright/test';
 
-const BASE_URL = 'https://www.bloomsuite.app';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'https://www.bloomsuite.app';
 const DEMO_TENANT = 'Greenfield Garden Centre';
 let previousTenantLabel: string | null = null;
 

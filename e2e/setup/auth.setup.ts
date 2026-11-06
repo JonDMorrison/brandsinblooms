@@ -1,12 +1,13 @@
 import { test as setup, expect } from "@playwright/test";
 import path from "path";
 import { fileURLToPath } from "url";
+import { authenticateProtectedDeployment } from "../utils/vercel-deployment-protection.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const AUTH_FILE = path.join(__dirname, "../.auth/user.json");
 
-setup("authenticate", async ({ page }) => {
+setup("authenticate", async ({ page }, testInfo) => {
   const email = process.env.E2E_EMAIL;
   const password = process.env.E2E_PASSWORD;
 
@@ -16,6 +17,12 @@ setup("authenticate", async ({ page }) => {
         "Run with: E2E_EMAIL=you@example.com E2E_PASSWORD=secret npx playwright test",
     );
   }
+
+  await authenticateProtectedDeployment(
+    page.context(),
+    testInfo.project.use.baseURL,
+    process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+  );
 
   // Navigate to the login page
   await page.goto("/auth");
