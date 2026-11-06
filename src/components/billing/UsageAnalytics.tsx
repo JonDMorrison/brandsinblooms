@@ -12,7 +12,6 @@ import {
   BarChart3,
   FileText,
   Sparkles,
-  Users,
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,8 +22,6 @@ import { supabase } from "@/integrations/supabase/client";
 interface UsageData {
   postsCreated: number;
   maxPosts: number;
-  connectionsUsed: number;
-  maxConnections: number;
   tokensRemaining: number;
   maxTokens: number;
 }
@@ -65,8 +62,6 @@ export const UsageAnalytics = () => {
   const [usageData, setUsageData] = useState<UsageData>({
     postsCreated: 0,
     maxPosts: 0,
-    connectionsUsed: 0,
-    maxConnections: 0,
     tokensRemaining: 0,
     maxTokens: 0,
   });
@@ -90,12 +85,6 @@ export const UsageAnalytics = () => {
           .eq("user_id", user.id)
           .gte("created_at", startOfMonth.toISOString());
 
-        const { count: connectionsCount } = await supabase
-          .from("social_connections")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("is_active", true);
-
         const { data: profile } = await supabase
           .from("company_profiles")
           .select("tokens_balance")
@@ -105,20 +94,15 @@ export const UsageAnalytics = () => {
         const isExpiredPlan =
           (subscription.tier ?? subscription.plan) === "expired";
         const fallbackPosts = isExpiredPlan ? 0 : 200;
-        const fallbackConnections = isExpiredPlan ? 0 : 4;
         const fallbackTokens = isExpiredPlan ? 0 : 200;
         const maxPosts =
           subscriptionLimits?.max_posts_per_month ?? fallbackPosts;
-        const maxConnections =
-          subscriptionLimits?.max_connections ?? fallbackConnections;
         const maxTokens =
           subscriptionLimits?.max_posts_per_month ?? fallbackTokens;
 
         setUsageData({
           postsCreated: postsCount || 0,
           maxPosts,
-          connectionsUsed: connectionsCount || 0,
-          maxConnections,
           tokensRemaining: Math.max(0, profile?.tokens_balance || 0),
           maxTokens,
         });
@@ -152,10 +136,10 @@ export const UsageAnalytics = () => {
           sx={{
             display: "grid",
             gap: 2,
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
           }}
         >
-          {[1, 2, 3].map((metricIndex) => (
+          {[1, 2].map((metricIndex) => (
             <Sheet
               key={metricIndex}
               variant="soft"
@@ -185,10 +169,6 @@ export const UsageAnalytics = () => {
     usageData.postsCreated,
     usageData.maxPosts,
   );
-  const connectionsPercentage = getUsagePercentage(
-    usageData.connectionsUsed,
-    usageData.maxConnections,
-  );
   const tokensConsumed =
     usageData.maxTokens <= 0 || usageData.maxTokens === -1
       ? 0
@@ -210,21 +190,6 @@ export const UsageAnalytics = () => {
       percentage: postsPercentage,
       finite: usageData.maxPosts !== -1,
       status: getUsageStatus(postsPercentage, usageData.maxPosts === -1),
-    },
-    {
-      label: "Active Connections",
-      icon: Users,
-      value: usageData.connectionsUsed.toLocaleString(),
-      subtext:
-        usageData.maxConnections === -1
-          ? "No active connection cap on this plan."
-          : `${Math.max(usageData.maxConnections - usageData.connectionsUsed, 0).toLocaleString()} remaining of ${usageData.maxConnections.toLocaleString()}`,
-      percentage: connectionsPercentage,
-      finite: usageData.maxConnections !== -1,
-      status: getUsageStatus(
-        connectionsPercentage,
-        usageData.maxConnections === -1,
-      ),
     },
     {
       label: "Tokens Remaining",
@@ -251,8 +216,7 @@ export const UsageAnalytics = () => {
         <Stack spacing={0.75}>
           <Typography level="title-lg">Usage Analytics</Typography>
           <Typography level="body-sm" textColor="text.secondary">
-            Monitor publishing activity, connected channels, and remaining token
-            balance.
+            Monitor publishing activity and your remaining token balance.
           </Typography>
         </Stack>
         <Chip
@@ -269,7 +233,7 @@ export const UsageAnalytics = () => {
         sx={{
           display: "grid",
           gap: 2,
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
         }}
       >
         {usageMetrics.map((metric) => {
@@ -331,14 +295,6 @@ export const UsageAnalytics = () => {
                 {usageData.postsCreated > 0
                   ? `You created ${usageData.postsCreated.toLocaleString()} posts this month.`
                   : "No posts have been created yet this month."}
-              </Typography>
-            </Stack>
-            <Stack direction="row" spacing={1} alignItems="flex-start">
-              <Users size={16} color="var(--joy-palette-neutral-500)" />
-              <Typography level="body-sm" textColor="text.secondary">
-                {usageData.connectionsUsed > 0
-                  ? `${usageData.connectionsUsed.toLocaleString()} social connections are currently active.`
-                  : "No active social connections are linked right now."}
               </Typography>
             </Stack>
             {(subscription.tier ?? subscription.plan) === "free_trial" ? (
