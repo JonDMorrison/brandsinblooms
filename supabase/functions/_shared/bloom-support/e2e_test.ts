@@ -2344,6 +2344,13 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
         AND payload->>'generation' = '3'
     `)[0].n), 2, "generation three has one answer job per subscription");
 
+    await sql!`
+      UPDATE bloom_support.principals requester
+      SET email = NULL
+      FROM bloom_support.tickets ticket
+      WHERE ticket.id = ${humanId}
+        AND requester.id = ticket.requester_id
+    `;
     await runWorkerUntilIdle(10);
     const messages = await sql!`
       SELECT m.ticket_id, m.id, m.delivery, m.purpose, m.meaningful
@@ -2357,16 +2364,91 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(messages.length, 2);
     assert(messages.every((message) => message.purpose === "feature_decision" && message.meaningful === true),
       "both requesters receive one substantive, typed message for the current generation");
-    assert(messages.every((message) => ["sent", "delivered"].includes(String(message.delivery))),
-      "both current shipment messages reach the email ledger/provider path");
-    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 2, "only the current generation reaches the provider stub");
+    const emailedMessage = messages.find((message) => String(message.ticket_id) === resolvedId);
+    const inProductMessage = messages.find((message) => String(message.ticket_id) === humanId);
+    assert(emailedMessage && ["sent", "delivered"].includes(String(emailedMessage.delivery)),
+      "the requester with email reaches the provider path");
+    assertEquals(inProductMessage?.delivery, "suppressed",
+      "the requester without email reaches a terminal in-product-only state");
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 1, "only the current emailable generation reaches the provider stub");
     assertEquals(Number((await sql!`
       SELECT count(*) AS n
       FROM bloom_support.outbound_emails
       WHERE message_id IN (${messages[0].id}, ${messages[1].id})
         AND purpose = 'feature_decision'
         AND status = 'sent'
-    `)[0].n), 2, "human takeover does not suppress the explicitly subscribed current shipment email");
+    `)[0].n), 1, "human takeover does not suppress the explicitly subscribed emailable shipment");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND s.ticket_id = ${humanId}
+        AND d.generation = 3
+        AND d.delivery_status = 'suppressed'
+        AND d.retracted_at IS NULL
+        AND s.delivery_status = 'suppressed'
+    `)[0].n), 1, "in-product-only delivery terminalizes both immutable and current summaries");
+    await sql!`
+      UPDATE bloom_support.principals requester
+      SET email = 'rosa@rosehill.test'
+      FROM bloom_support.tickets ticket
+      WHERE ticket.id = ${humanId}
+        AND requester.id = ticket.requester_id
+    `;
+
+    const resolvedShipment = (await sql!`
+      SELECT s.id AS subscription_id, d.notification_message_id AS message_id
+      FROM bloom_support.feature_shipment_subscriptions s
+      JOIN bloom_support.feature_shipment_deliveries d
+        ON d.subscription_id = s.id AND d.generation = s.current_generation
+      WHERE s.feature_request_id = ${featureId}
+        AND s.ticket_id = ${resolvedId}
+    `)[0];
+    await sql!`
+      UPDATE bloom_support.messages
+      SET delivery = 'sent'
+      WHERE id = ${resolvedShipment.message_id}
+    `;
+    const subscriptionLocked = deferred();
+    const providerCommitted = deferred();
+    const staleGenerationExit = sql!.begin(async (tx: Any) => {
+      await tx.unsafe(
+        "UPDATE bloom_support.feature_shipment_subscriptions SET delivery_status='queued' WHERE id=$1 RETURNING id",
+        [resolvedShipment.subscription_id],
+      );
+      subscriptionLocked.resolve();
+      await providerCommitted.promise;
+      const skippedSummary = await tx.unsafe(
+        "SELECT delivery_status FROM bloom_support.feature_shipment_subscriptions WHERE id=$1",
+        [resolvedShipment.subscription_id],
+      );
+      assertEquals(skippedSummary[0].delivery_status, "queued",
+        "the concurrent provider callback really did skip the locked subscription summary");
+      const stale = await tx.unsafe(
+        "SELECT public.bloom_support_deliver_feature_shipment($1::uuid, $2::uuid, 2, 'This stale generation must stay retired.') AS result",
+        [automationPrincipal, resolvedShipment.subscription_id],
+      );
+      assertEquals(stale[0].result.delivered, false, "the stale generation remains undeliverable");
+    });
+    await subscriptionLocked.promise;
+    await sql!`
+      UPDATE bloom_support.messages
+      SET delivery = 'delivered'
+      WHERE id = ${resolvedShipment.message_id}
+    `;
+    providerCommitted.resolve();
+    await staleGenerationExit;
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions s
+      JOIN bloom_support.feature_shipment_deliveries d
+        ON d.subscription_id = s.id AND d.generation = s.current_generation
+      WHERE s.id = ${resolvedShipment.subscription_id}
+        AND s.delivery_status = 'delivered'
+        AND d.delivery_status = 'delivered'
+    `)[0].n), 1,
+    "a provider callback skipped by a locked subscription is reconciled from the actual current generation before the early exit");
 
     const after = await sql!`
       SELECT id, status, stage, automation, executor, executor_id, owner_id,
@@ -2413,8 +2495,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       SELECT count(*) AS n
       FROM bloom_support.outbound_emails
       WHERE message_id IN (${messages[0].id}, ${messages[1].id})
-    `)[0].n), 2, "repeating the shipped decision never creates another email ledger row");
-    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 2, "repeating shipped never sends another email");
+    `)[0].n), 1, "repeating the shipped decision never creates another email ledger row");
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 1, "repeating shipped never sends another email");
   });
 
   await t.step("an inconclusive repair is handed to a person before Bloom says so", async () => {

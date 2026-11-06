@@ -330,7 +330,14 @@ async function sendEmail(job: Job): Promise<string> {
   const t = ctx.ticket;
   const purpose = String(job.payload.purpose ?? "reply");
   const to = ctx.requester_email;
-  if (!to) return "no requester email; message visible in-product only";
+  if (!to) {
+    if (job.payload.feature_shipment_subscription_id && job.payload.message_id) {
+      await directRpc<boolean>("bloom_support_mark_feature_shipment_in_product_only", {
+        p_message: String(job.payload.message_id),
+      });
+    }
+    return "no requester email; message visible in-product only";
+  }
   let bodies: string[];
   let covered: string[] = [];
   let design = purpose;

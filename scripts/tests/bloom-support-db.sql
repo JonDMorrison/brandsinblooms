@@ -565,7 +565,10 @@ SELECT pg_temp.assert(
   AND has_function_privilege('service_role', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
   AND NOT has_function_privilege('anon', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
   AND NOT has_function_privilege('authenticated', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
-  AND has_function_privilege('service_role', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute'),
+  AND has_function_privilege('service_role', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND NOT has_function_privilege('anon', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute'),
   'shipment delivery RPC is service-role only');
 SELECT pg_temp.expect_error(format(
   $q$SELECT public.bloom_support_deliver_feature_shipment('%s', s.id, s.current_generation, 'Now available') FROM bloom_support.feature_shipment_subscriptions s WHERE s.feature_request_id = '%s' LIMIT 1$q$,
@@ -632,7 +635,14 @@ WHERE idempotency_key = 'feature-shipment-human-ledger' \gset
 SELECT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email') AS human_shipment_claimed \gset
 SELECT pg_temp.assert(
   :'human_shipment_claimed'::boolean
-  AND (SELECT status = 'uncertain' FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email'),
+  AND (SELECT status = 'uncertain' FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email')
+  AND (SELECT delivery = 'uncertain' FROM bloom_support.messages WHERE id = :'human_shipment_message')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE notification_message_id = :'human_shipment_message')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE notification_message_id = :'human_shipment_message'),
   'the final provider gate records a valid shipment as in flight before dispatch');
 SELECT pg_temp.assert(
   NOT EXISTS (
@@ -669,8 +679,15 @@ SELECT pg_temp.assert(
    FROM bloom_support.feature_shipment_deliveries
    WHERE subscription_id = :'lifecycle_subscription'
      AND generation = :'lifecycle_generation_one')
-  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NOT NULL
+  AND (SELECT delivery = 'uncertain' AND withdrawn_at IS NOT NULL
        FROM bloom_support.messages WHERE id = :'lifecycle_message_one')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'lifecycle_subscription'
+         AND generation = :'lifecycle_generation_one')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE id = :'lifecycle_subscription')
   AND (SELECT status = 'uncertain'
        FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email')
   AND NOT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email'),
@@ -772,6 +789,28 @@ SELECT pg_temp.assert(
            SELECT id::text FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
          )),
   'repeating shipped does not increment the generation or duplicate its email work');
+
+SELECT id AS in_product_subscription, notification_message_id AS in_product_message,
+       current_generation AS in_product_generation
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id <> ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+LIMIT 1 \gset
+SELECT public.bloom_support_mark_feature_shipment_in_product_only(
+  :'in_product_message'
+) AS in_product_terminalized \gset
+SELECT pg_temp.assert(
+  :'in_product_terminalized'::boolean
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NULL
+       FROM bloom_support.messages WHERE id = :'in_product_message')
+  AND (SELECT delivery_status = 'suppressed' AND retracted_at IS NULL
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'in_product_subscription'
+         AND generation = :'in_product_generation')
+  AND (SELECT delivery_status = 'suppressed'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE id = :'in_product_subscription'),
+  'a shipment without requester email remains visible in-product and reaches a terminal delivery state');
 
 SELECT id AS terminal_subscription, notification_message_id AS terminal_message,
        current_generation AS terminal_generation
