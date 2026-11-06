@@ -156,7 +156,7 @@ export async function closeMcpSession(actor: string, session: string): Promise<v
 }
 
 /** A service-role-only public function that authorizes p_actor itself (not routed through the gateway). */
-export async function directRpc<T = unknown>(fn: "bloom_chat_spend_overview" | "bloom_chat_spend_set_cap" | "bloom_support_client_suite_read" | "bloom_support_confirm_attachment" | "bloom_support_consume_email_usage" | "bloom_support_digest_report" | "bloom_support_enqueue_engineering_recoveries", args: Record<string, unknown>): Promise<T> {
+export async function directRpc<T = unknown>(fn: "bloom_chat_spend_overview" | "bloom_chat_spend_set_cap" | "bloom_support_claim_feature_shipment_email" | "bloom_support_client_suite_read" | "bloom_support_confirm_attachment" | "bloom_support_consume_email_usage" | "bloom_support_deliver_feature_shipment" | "bloom_support_digest_report" | "bloom_support_enqueue_engineering_recoveries" | "bloom_support_mark_feature_shipment_in_product_only", args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(fn, args);
   if (error) throw mapDbError(error);
   return data as T;

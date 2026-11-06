@@ -22,13 +22,12 @@ const ENV: Record<string, string> = {
   BLOOM_SUPPORT_PUBLIC_URL: "https://bloomsuite.test", RESEND_INBOUND_WEBHOOK_SECRET: "whsec_" + btoa(String.fromCharCode(...WHSEC_BYTES)),
   BLOOM_INTAKE_SECRET_CMS: "cms-intake-secret", BLOOM_INTAKE_SECRET_POS: "pos-intake-secret",
   BLOOM_GITHUB_REPAIR_TOKEN: "gh-repair", BLOOM_GITHUB_RELEASE_TOKEN: "gh-release", BLOOM_GITHUB_REPAIR_LOGINS: "bloom-repair[bot]",
-  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test,buyer@greenleaf.test",
+  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,rosa@rosehill.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test,buyer@greenleaf.test",
   BLOOM_SUPPORT_INBOUND_ADDRESSES: "forward@inbound.test",
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 // deno-lint-ignore no-explicit-any
-type Any = any;
+type Any = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 const sql = DB_URL ? postgres(DB_URL, { max: 4, onnotice: () => {} }) : null;
 
 // ---------------------------------------------------------------------------
@@ -2157,6 +2156,365 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     `)[0].n), 1, "the email ledger retains the feature-decision lifecycle type");
   });
 
+  await t.step("feature shipment subscriptions notify resolved and human-owned requesters once without taking over", async () => {
+    const resolvedRequest = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Shipment subscriber A", body: "Please let me know when shared wishlists ship.", idempotency_key: "e2e-feature-shipment-a" },
+    });
+    const humanRequest = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.rosa),
+      body: { subject: "Shipment subscriber B", body: "Please tell me when shared wishlists are available.", idempotency_key: "e2e-feature-shipment-b" },
+    });
+    assertEquals(resolvedRequest.status, 201, JSON.stringify(resolvedRequest.json));
+    assertEquals(humanRequest.status, 201, JSON.stringify(humanRequest.json));
+    const resolvedId = String(resolvedRequest.json.ticket_id);
+    const humanId = String(humanRequest.json.ticket_id);
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE kind = 'triage' AND ticket_id IN (${resolvedId}, ${humanId})`;
+
+    const routed = await api("POST", `/tickets/${resolvedId}/feature`, tok(U.jon), { title: "Shared wishlists" });
+    assertEquals(routed.status, 200, JSON.stringify(routed.json));
+    const featureId = String(routed.json.feature_request_id);
+    const linked = await api("POST", `/tickets/${humanId}/feature`, tok(U.jon), {
+      feature_request_id: featureId,
+      excerpt: "A second customer asked for the same feature.",
+    });
+    assertEquals(linked.status, 200, JSON.stringify(linked.json));
+
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now(),
+          waiting_reason = NULL, waiting_since = NULL
+      WHERE id = ${resolvedId}
+    `;
+    const takeover = await api("POST", `/tickets/${humanId}/automation`, tok(U.jon), {
+      mode: "human",
+      reason: "Support is handling the conversation",
+    });
+    assertEquals(takeover.status, 200, JSON.stringify(takeover.json));
+
+    const before = await sql!`
+      SELECT id, status, stage, automation, executor, executor_id, owner_id,
+             next_action, resolved_at, version
+      FROM bloom_support.tickets
+      WHERE id IN (${resolvedId}, ${humanId})
+      ORDER BY id
+    `;
+    const shipmentEmailCount = () => resendSent.filter((message) => message.subject.includes("Shipment subscriber")).length;
+    const emailsBeforeShipment = shipmentEmailCount();
+    const shipped = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Available in production",
+    });
+    assertEquals(shipped.status, 200, JSON.stringify(shipped.json));
+
+    const shipmentJobs = await sql!`
+      SELECT id, ticket_id, status, payload
+      FROM bloom_support.jobs
+      WHERE kind = 'answer'
+        AND payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '1'
+    `;
+    assertEquals(shipmentJobs.length, 2, "each subscription has one durable shipment job");
+    assert(shipmentJobs.every((job) => Number(job.payload.generation) === 1), "the first shipment is generation one");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 1
+        AND d.delivery_status = 'queued'
+    `)[0].n), 2, "each subscription has one immutable generation-one delivery");
+    await sql!`SELECT bloom_support.invalidate_planned(${resolvedId}::uuid, 'customer reply before worker')`;
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.jobs
+      WHERE payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '1'
+        AND status = 'queued'
+    `)[0].n), 2, "ordinary invalidation preserves both shipment promises");
+
+    const planned = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "planned",
+      note: "Held before the notification worker ran",
+    });
+    assertEquals(planned.status, 200, JSON.stringify(planned.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 1
+        AND d.retracted_at IS NOT NULL
+        AND d.delivery_status = 'suppressed'
+        AND d.notification_message_id IS NULL
+    `)[0].n), 2, "planning after shipped retracts generation one before it renders");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.jobs
+      WHERE payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '1'
+        AND status = 'cancelled'
+    `)[0].n), 2, "the retracted generation-one answer jobs are cancelled");
+    await runWorkerUntilIdle(4);
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment, "a retracted pre-render generation sends no email");
+
+    const shippedAgain = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Available again",
+    });
+    assertEquals(shippedAgain.status, 200, JSON.stringify(shippedAgain.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions
+      WHERE feature_request_id = ${featureId} AND current_generation = 2
+    `)[0].n), 2, "the next real shipment starts generation two once per subscription");
+
+    const automationPrincipal = String((await sql!`
+      SELECT id
+      FROM bloom_support.principals
+      WHERE kind = 'service' AND role = 'service' AND 'automation' = ANY(grants)
+      LIMIT 1
+    `)[0].id);
+    await sql!`
+      SELECT public.bloom_support_deliver_feature_shipment(
+        ${automationPrincipal}::uuid,
+        subscription.id,
+        subscription.current_generation,
+        'Good news — the lifecycle fixture is now available.'
+      )
+      FROM bloom_support.feature_shipment_subscriptions subscription
+      WHERE subscription.feature_request_id = ${featureId}
+    `;
+    const generationTwoMessages = await sql!`
+      SELECT d.notification_message_id AS id
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 2
+        AND d.notification_message_id IS NOT NULL
+      ORDER BY d.notification_message_id
+    `;
+    assertEquals(generationTwoMessages.length, 2, "generation two renders exactly one message per subscription");
+
+    const declined = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "declined",
+      note: "Withdrawn before the email worker ran",
+    });
+    assertEquals(declined.status, 200, JSON.stringify(declined.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 2
+        AND d.retracted_at IS NOT NULL
+        AND d.delivery_status = 'suppressed'
+    `)[0].n), 2, "declining retracts both rendered generation-two deliveries");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.messages
+      WHERE id IN (${generationTwoMessages[0].id}, ${generationTwoMessages[1].id})
+        AND delivery = 'suppressed'
+        AND withdrawn_at IS NOT NULL
+    `)[0].n), 2, "rendered shipment messages are withdrawn before email dispatch");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.jobs
+      WHERE kind = 'send_email'
+        AND payload->>'feature_shipment_generation' = '2'
+        AND status = 'cancelled'
+    `)[0].n), 2, "the generation-two email jobs are cancelled before dispatch");
+    await runWorkerUntilIdle(4);
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment, "withdrawn rendered messages never reach the provider stub");
+
+    const staleAttempts = await sql!`
+      SELECT public.bloom_support_deliver_feature_shipment(
+        ${automationPrincipal}::uuid,
+        subscription.id,
+        stale.generation,
+        'A stale generation must not be recreated.'
+      ) AS result
+      FROM bloom_support.feature_shipment_subscriptions subscription
+      CROSS JOIN (VALUES (1), (2)) AS stale(generation)
+      WHERE subscription.feature_request_id = ${featureId}
+    `;
+    assert(staleAttempts.every((row) => row.result.delivered === false), "every retracted generation stays permanently undeliverable");
+
+    const shippedFinally = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Finally available",
+    });
+    assertEquals(shippedFinally.status, 200, JSON.stringify(shippedFinally.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions
+      WHERE feature_request_id = ${featureId} AND current_generation = 3
+    `)[0].n), 2, "the later shipment creates generation three exactly once");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.jobs
+      WHERE kind = 'answer'
+        AND payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '3'
+    `)[0].n), 2, "generation three has one answer job per subscription");
+
+    await sql!`
+      UPDATE bloom_support.principals requester
+      SET email = NULL
+      FROM bloom_support.tickets ticket
+      WHERE ticket.id = ${humanId}
+        AND requester.id = ticket.requester_id
+    `;
+    await runWorkerUntilIdle(10);
+    const messages = await sql!`
+      SELECT m.ticket_id, m.id, m.delivery, m.purpose, m.meaningful
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      JOIN bloom_support.messages m ON m.id = d.notification_message_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 3
+      ORDER BY m.ticket_id
+    `;
+    assertEquals(messages.length, 2);
+    assert(messages.every((message) => message.purpose === "feature_decision" && message.meaningful === true),
+      "both requesters receive one substantive, typed message for the current generation");
+    const emailedMessage = messages.find((message) => String(message.ticket_id) === resolvedId);
+    const inProductMessage = messages.find((message) => String(message.ticket_id) === humanId);
+    assert(emailedMessage && ["sent", "delivered"].includes(String(emailedMessage.delivery)),
+      "the requester with email reaches the provider path");
+    assertEquals(inProductMessage?.delivery, "suppressed",
+      "the requester without email reaches a terminal in-product-only state");
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 1, "only the current emailable generation reaches the provider stub");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE message_id IN (${messages[0].id}, ${messages[1].id})
+        AND purpose = 'feature_decision'
+        AND status = 'sent'
+    `)[0].n), 1, "human takeover does not suppress the explicitly subscribed emailable shipment");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND s.ticket_id = ${humanId}
+        AND d.generation = 3
+        AND d.delivery_status = 'suppressed'
+        AND d.retracted_at IS NULL
+        AND s.delivery_status = 'suppressed'
+    `)[0].n), 1, "in-product-only delivery terminalizes both immutable and current summaries");
+    await sql!`
+      UPDATE bloom_support.principals requester
+      SET email = 'rosa@rosehill.test'
+      FROM bloom_support.tickets ticket
+      WHERE ticket.id = ${humanId}
+        AND requester.id = ticket.requester_id
+    `;
+
+    const resolvedShipment = (await sql!`
+      SELECT s.id AS subscription_id, d.notification_message_id AS message_id
+      FROM bloom_support.feature_shipment_subscriptions s
+      JOIN bloom_support.feature_shipment_deliveries d
+        ON d.subscription_id = s.id AND d.generation = s.current_generation
+      WHERE s.feature_request_id = ${featureId}
+        AND s.ticket_id = ${resolvedId}
+    `)[0];
+    await sql!`
+      UPDATE bloom_support.messages
+      SET delivery = 'sent'
+      WHERE id = ${resolvedShipment.message_id}
+    `;
+    const subscriptionLocked = deferred();
+    const providerCommitted = deferred();
+    const staleGenerationExit = sql!.begin(async (tx: Any) => {
+      await tx.unsafe(
+        "UPDATE bloom_support.feature_shipment_subscriptions SET delivery_status='queued' WHERE id=$1 RETURNING id",
+        [resolvedShipment.subscription_id],
+      );
+      subscriptionLocked.resolve();
+      await providerCommitted.promise;
+      const skippedSummary = await tx.unsafe(
+        "SELECT delivery_status FROM bloom_support.feature_shipment_subscriptions WHERE id=$1",
+        [resolvedShipment.subscription_id],
+      );
+      assertEquals(skippedSummary[0].delivery_status, "queued",
+        "the concurrent provider callback really did skip the locked subscription summary");
+      const stale = await tx.unsafe(
+        "SELECT public.bloom_support_deliver_feature_shipment($1::uuid, $2::uuid, 2, 'This stale generation must stay retired.') AS result",
+        [automationPrincipal, resolvedShipment.subscription_id],
+      );
+      assertEquals(stale[0].result.delivered, false, "the stale generation remains undeliverable");
+    });
+    await subscriptionLocked.promise;
+    await sql!`
+      UPDATE bloom_support.messages
+      SET delivery = 'delivered'
+      WHERE id = ${resolvedShipment.message_id}
+    `;
+    providerCommitted.resolve();
+    await staleGenerationExit;
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions s
+      JOIN bloom_support.feature_shipment_deliveries d
+        ON d.subscription_id = s.id AND d.generation = s.current_generation
+      WHERE s.id = ${resolvedShipment.subscription_id}
+        AND s.delivery_status = 'delivered'
+        AND d.delivery_status = 'delivered'
+    `)[0].n), 1,
+    "a provider callback skipped by a locked subscription is reconciled from the actual current generation before the early exit");
+
+    const after = await sql!`
+      SELECT id, status, stage, automation, executor, executor_id, owner_id,
+             next_action, resolved_at, version
+      FROM bloom_support.tickets
+      WHERE id IN (${resolvedId}, ${humanId})
+      ORDER BY id
+    `;
+    const workflowState = (rows: Any[]) => rows.map((row) => ({
+      id: String(row.id),
+      status: String(row.status),
+      stage: String(row.stage),
+      automation: String(row.automation),
+      executor: String(row.executor),
+      executor_id: row.executor_id ? String(row.executor_id) : null,
+      owner_id: row.owner_id ? String(row.owner_id) : null,
+      next_action: row.next_action ? String(row.next_action) : null,
+      resolved_at: row.resolved_at ? new Date(row.resolved_at).toISOString() : null,
+      version: Number(row.version),
+    }));
+    assertEquals(workflowState(after), workflowState(before),
+      "shipment delivery does not reopen, reassign, or alter ticket workflow");
+
+    const repeated = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Copy edit only",
+    });
+    assertEquals(repeated.status, 200, JSON.stringify(repeated.json));
+    await runWorkerUntilIdle(4);
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions
+      WHERE feature_request_id = ${featureId} AND current_generation = 3
+    `)[0].n), 2, "repeating shipped never increments the current generation");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 3
+        AND d.notification_message_id IS NOT NULL
+    `)[0].n), 2, "repeating the shipped decision never creates another customer message");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE message_id IN (${messages[0].id}, ${messages[1].id})
+    `)[0].n), 1, "repeating the shipped decision never creates another email ledger row");
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 1, "repeating shipped never sends another email");
+  });
+
   await t.step("an inconclusive repair is handed to a person before Bloom says so", async () => {
     const report = await call("bloom-support-intake", "POST", "/report", {
       token: tok(U.gail),
@@ -2211,17 +2569,20 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const draft = await api("POST", "/knowledge", tok(U.sam), { product: "platform", title: "Track support requests", body: "Use the tracking link in your support email.", audience: "client", approved: true });
     assertEquals(draft.status, 200);
     assertEquals(draft.json.approved, false, "Support cannot approve its own draft");
-    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0);
+    const starterHelp = await call("bloom-support-api", "GET", "/help");
+    assertEquals(starterHelp.json.length, 9, "the reviewed starter set publishes three articles per product");
+    assert(starterHelp.json.every((article: Any) => !("source_refs" in article)), "repository provenance remains private");
     const approved = await api("POST", "/knowledge", tok(U.jeff), { id: draft.json.id, expected_updated_at: draft.json.updated_at, approved: true });
     assertEquals(approved.status, 200);
     assertEquals(approved.json.approved, true);
     await api("POST", "/knowledge", tok(U.jeff), { product: "crm", title: "Internal operational note", body: "INTERNAL-ARTICLE-PRIVATE", audience: "internal", approved: true });
     const help = await call("bloom-support-api", "GET", "/help?product=pos");
     assertEquals(help.status, 200);
-    assertEquals(help.json.length, 1, "platform guidance is available for every product");
-    assertEquals(help.json[0].id, draft.json.id);
+    assertEquals(help.json.length, 4, "POS guidance includes its three reviewed articles and platform guidance");
+    assert(help.json.some((article: Any) => article.id === draft.json.id), "platform guidance is available for every product");
     assert(!JSON.stringify(help.json).includes("INTERNAL-ARTICLE-PRIVATE"));
-    assert(!("approved_by" in help.json[0]), "approval identity remains private");
+    assert(help.json.every((article: Any) => !("approved_by" in article) && !("source_refs" in article)),
+      "approval identity and repository provenance remain private");
     assertEquals((await call("bloom-support-api", "GET", "/knowledge")).status, 401);
     assertEquals((await call("bloom-support-api", "GET", "/help?product=invalid")).status, 400);
     assertEquals((await api("POST", "/knowledge", keys.automation, { product: "platform", title: "Untrusted draft", body: "x", approved: true })).status, 403);
@@ -2230,7 +2591,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(edited.json.approved, false);
     const stale = await api("POST", "/knowledge", tok(U.jeff), { id: approved.json.id, expected_updated_at: approved.json.updated_at, approved: true });
     assertEquals(stale.status, 409, "a stale review cannot approve content edited by another person");
-    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0, "withdrawn approvals disappear from public help");
+    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 9,
+      "withdrawn approvals disappear while the reviewed starter guidance remains public");
   });
 
   await t.step("kill switch and health", async () => {

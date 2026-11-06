@@ -52,6 +52,7 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261106030000_bloom_support_feature_decision_followup.sql
 \ir ../../supabase/migrations/20261106040000_bloom_support_engineering_progress_email.sql
 \ir ../../supabase/migrations/20261106050000_bloom_support_feature_decision_messages.sql
+\ir ../../supabase/migrations/20261106110933_bloom_support_feature_shipments_and_knowledge.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -480,6 +481,362 @@ SELECT pg_temp.assert(
   'a feature decision remains typed and counts as a substantive response');
 SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_features', jsonb_build_object('actor', :'jeff'))->0->'evidence') = 2, 'feature evidence links every requester');
 
+-- Shipping is a separate, durable promise. It reaches resolved and
+-- human-owned requesters exactly once without changing their workflow state.
+SELECT id AS rendered_planned_job
+FROM bloom_support.jobs
+WHERE ticket_id = ((:'t4'::jsonb)->>'ticket_id')::uuid
+  AND payload @> '{"mode":"feature_decision","decision":"planned"}'::jsonb \gset
+SELECT pg_temp.rpc('add_message', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', ((:'t4'::jsonb)->>'ticket_id'),
+  'message', jsonb_build_object(
+    'body', 'Our product team plans to build this.',
+    'visibility', 'public',
+    'purpose', 'feature_decision',
+    'idempotency_key', 'feature-decision:' || :'rendered_planned_job'
+  )
+))->>'message_id' AS rendered_planned_message \gset
+UPDATE bloom_support.tickets
+SET status = 'resolved', stage = 'resolved', resolved_at = now(),
+    waiting_reason = NULL, waiting_since = NULL
+WHERE id = ((:'t4'::jsonb)->>'ticket_id')::uuid;
+UPDATE bloom_support.tickets
+SET automation = 'human', executor = 'person', executor_id = :'sam',
+    owner_id = :'sam', taken_over_by = :'sam', taken_over_at = now()
+WHERE id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid;
+CREATE TEMP TABLE feature_shipment_ticket_state AS
+SELECT id, status, stage, automation, executor, executor_id, owner_id,
+       next_action, resolved_at, version
+FROM bloom_support.tickets
+WHERE feature_request_id = :'fr';
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Available now'
+));
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'),
+  'shipping queues one durable notification for every linked ticket');
+SELECT pg_temp.assert(
+  (SELECT bool_and(status = 'cancelled')
+   FROM bloom_support.jobs
+   WHERE kind = 'answer' AND payload->>'mode' = 'feature_decision'
+     AND ticket_id IN (
+       SELECT id FROM bloom_support.tickets WHERE feature_request_id = :'fr'
+     ))
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'rendered_planned_message')
+  AND (SELECT bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email' AND payload->>'message_id' = :'rendered_planned_message'),
+  'a shipped decision cancels older queued decision work and email copy');
+SELECT pg_temp.assert(
+  NOT EXISTS (
+    SELECT 1
+    FROM bloom_support.tickets current
+    JOIN feature_shipment_ticket_state before USING (id)
+    WHERE current.status IS DISTINCT FROM before.status
+       OR current.stage IS DISTINCT FROM before.stage
+       OR current.automation IS DISTINCT FROM before.automation
+       OR current.executor IS DISTINCT FROM before.executor
+       OR current.executor_id IS DISTINCT FROM before.executor_id
+       OR current.owner_id IS DISTINCT FROM before.owner_id
+       OR current.next_action IS DISTINCT FROM before.next_action
+       OR current.resolved_at IS DISTINCT FROM before.resolved_at
+       OR current.version IS DISTINCT FROM before.version
+  ),
+  'the shipped decision does not reopen or take over resolved and human-owned tickets');
+SELECT pg_temp.assert(
+  bloom_support.invalidate_planned((( :'t4'::jsonb)->>'ticket_id')::uuid, 'customer reply') >= 0
+  AND EXISTS (
+    SELECT 1 FROM bloom_support.jobs
+    WHERE ticket_id = ((:'t4'::jsonb)->>'ticket_id')::uuid
+      AND payload->>'mode' = 'feature_shipment' AND status = 'queued'
+  ),
+  'a customer reply cannot erase a promised shipment notification');
+SELECT pg_temp.assert(
+  NOT has_function_privilege('anon', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND NOT has_function_privilege('anon', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND NOT has_function_privilege('anon', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute'),
+  'shipment delivery RPC is service-role only');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_deliver_feature_shipment('%s', s.id, s.current_generation, 'Now available') FROM bloom_support.feature_shipment_subscriptions s WHERE s.feature_request_id = '%s' LIMIT 1$q$,
+  :'jeff', :'fr'
+), 'automation service required');
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', id, current_generation, 'Good news — this feature is now available.'
+)
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+   FROM bloom_support.messages
+   WHERE id IN (
+     SELECT notification_message_id FROM bloom_support.feature_shipment_subscriptions
+     WHERE feature_request_id = :'fr'
+   ) AND author_kind = 'bloom' AND visibility = 'public'
+     AND purpose = 'feature_decision' AND meaningful)
+  AND (SELECT count(*) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email' AND payload ? 'feature_shipment_subscription_id'),
+  'delivery creates one substantive Bloom message and one email job per subscription');
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', id, current_generation, 'Good news — this feature is now available.'
+)
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2
+   FROM bloom_support.messages
+   WHERE id IN (
+     SELECT notification_message_id FROM bloom_support.feature_shipment_subscriptions
+     WHERE feature_request_id = :'fr'
+   ))
+  AND (SELECT count(*) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email' AND payload ? 'feature_shipment_subscription_id'),
+  'retries reuse the shipment message and email job');
+SELECT id AS human_shipment_message
+FROM bloom_support.messages
+WHERE ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+  AND id IN (
+    SELECT notification_message_id FROM bloom_support.feature_shipment_subscriptions
+    WHERE feature_request_id = :'fr'
+  ) \gset
+SELECT bloom_support.queue_outbound_email(jsonb_build_object(
+  'ticket_id', ((:'t4_feature_peer'::jsonb)->>'ticket_id'),
+  'message_id', :'human_shipment_message',
+  'purpose', 'feature_decision',
+  'to', 'gail@greenleaf.test',
+  'subject', '[Bloom] Feature available',
+  'body', 'Good news — this feature is now available.',
+  'rfc_message_id', '<feature-shipment-human@bloom.test>',
+  'idempotency_key', 'feature-shipment-human-ledger',
+  'bloom_initiated', true,
+  'covered_message_ids', '[]'::jsonb,
+  'cc', '[]'::jsonb
+))->>'status' AS human_shipment_email_status \gset
+SELECT pg_temp.assert(:'human_shipment_email_status' = 'queued',
+  'the relationally-authorized shipment email survives human takeover');
+SELECT id AS human_shipment_email
+FROM bloom_support.outbound_emails
+WHERE idempotency_key = 'feature-shipment-human-ledger' \gset
+SELECT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email') AS human_shipment_claimed \gset
+SELECT pg_temp.assert(
+  :'human_shipment_claimed'::boolean
+  AND (SELECT status = 'uncertain' FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email')
+  AND (SELECT delivery = 'uncertain' FROM bloom_support.messages WHERE id = :'human_shipment_message')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE notification_message_id = :'human_shipment_message')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE notification_message_id = :'human_shipment_message'),
+  'the final provider gate records a valid shipment as in flight before dispatch');
+SELECT pg_temp.assert(
+  NOT EXISTS (
+    SELECT 1
+    FROM bloom_support.tickets current
+    JOIN feature_shipment_ticket_state before USING (id)
+    WHERE current.status IS DISTINCT FROM before.status
+       OR current.stage IS DISTINCT FROM before.stage
+       OR current.automation IS DISTINCT FROM before.automation
+       OR current.executor IS DISTINCT FROM before.executor
+       OR current.executor_id IS DISTINCT FROM before.executor_id
+       OR current.owner_id IS DISTINCT FROM before.owner_id
+       OR current.next_action IS DISTINCT FROM before.next_action
+       OR current.resolved_at IS DISTINCT FROM before.resolved_at
+       OR current.version IS DISTINCT FROM before.version
+  ),
+  'creating shipment messages and email work leaves ticket workflow untouched');
+
+-- A rollback after rendering withdraws queued work without inventing certainty
+-- about a provider dispatch that already started. The immutable generation can
+-- never be delivered again, while a later real shipment gets a fresh attempt.
+SELECT id AS lifecycle_subscription, current_generation AS lifecycle_generation_one,
+       notification_message_id AS lifecycle_message_one
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid \gset
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned',
+  'note', 'Rolled back before provider confirmation'
+));
+SELECT pg_temp.assert(
+  (SELECT retracted_at IS NOT NULL
+          AND retraction_reason = 'feature changed from shipped to planned'
+   FROM bloom_support.feature_shipment_deliveries
+   WHERE subscription_id = :'lifecycle_subscription'
+     AND generation = :'lifecycle_generation_one')
+  AND (SELECT delivery = 'uncertain' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'lifecycle_message_one')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'lifecycle_subscription'
+         AND generation = :'lifecycle_generation_one')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE id = :'lifecycle_subscription')
+  AND (SELECT status = 'uncertain'
+       FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email')
+  AND NOT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email'),
+  'a rollback withdraws the rendered generation but preserves an in-flight provider outcome and prevents retry');
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', :'lifecycle_subscription', :'lifecycle_generation_one',
+  'This stale generation must never be recreated.'
+)->>'delivered' AS stale_generation_delivered \gset
+SELECT pg_temp.assert(NOT :'stale_generation_delivered'::boolean,
+  'a retracted shipment generation cannot be delivered again');
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Available again'
+));
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 2)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE generation = 2
+         AND subscription_id IN (
+           SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         ))
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'
+         AND payload->>'generation' = '2'),
+  'a real re-shipment creates exactly one second generation and answer job per subscription');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'declined',
+  'note', 'Withdrawn before the second generation was rendered'
+));
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 AND bool_and(retracted_at IS NOT NULL AND delivery_status = 'suppressed')
+   FROM bloom_support.feature_shipment_deliveries
+   WHERE generation = 2
+     AND subscription_id IN (
+       SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+     ))
+  AND (SELECT count(*) = 2 AND bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'
+         AND payload->>'generation' = '2')
+  AND NOT EXISTS (
+    SELECT 1 FROM bloom_support.feature_shipment_deliveries
+    WHERE generation = 2 AND notification_message_id IS NOT NULL
+      AND subscription_id IN (
+        SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+      )
+  ),
+  'declining before the answer worker runs cancels generation two without creating a message');
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Finally available'
+));
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', id, current_generation, 'Good news — this feature is finally available.'
+)
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 3)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2 AND count(DISTINCT notification_message_id) = 2
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE generation = 3 AND notification_message_id IS NOT NULL
+         AND subscription_id IN (
+           SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         ))
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email'
+         AND payload->>'feature_shipment_generation' = '3'
+         AND payload->>'feature_shipment_subscription_id' IN (
+           SELECT id::text FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         )),
+  'the later shipment creates exactly one new message and email job per subscription');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Copy edit only'
+));
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 3)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 6
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id IN (
+         SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+       ))
+  AND (SELECT count(*) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email'
+         AND payload->>'feature_shipment_generation' = '3'
+         AND payload->>'feature_shipment_subscription_id' IN (
+           SELECT id::text FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         )),
+  'repeating shipped does not increment the generation or duplicate its email work');
+
+SELECT id AS in_product_subscription, notification_message_id AS in_product_message,
+       current_generation AS in_product_generation
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id <> ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+LIMIT 1 \gset
+SELECT public.bloom_support_mark_feature_shipment_in_product_only(
+  :'in_product_message'
+) AS in_product_terminalized \gset
+SELECT pg_temp.assert(
+  :'in_product_terminalized'::boolean
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NULL
+       FROM bloom_support.messages WHERE id = :'in_product_message')
+  AND (SELECT delivery_status = 'suppressed' AND retracted_at IS NULL
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'in_product_subscription'
+         AND generation = :'in_product_generation')
+  AND (SELECT delivery_status = 'suppressed'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE id = :'in_product_subscription'),
+  'a shipment without requester email remains visible in-product and reaches a terminal delivery state');
+
+SELECT id AS terminal_subscription, notification_message_id AS terminal_message,
+       current_generation AS terminal_generation
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid \gset
+SELECT pg_temp.rpc('set_spam', jsonb_build_object(
+  'actor', :'sam',
+  'ticket_id', ((:'t4_feature_peer'::jsonb)->>'ticket_id'),
+  'spam', true
+));
+SELECT pg_temp.assert(
+  (SELECT cancelled_at IS NOT NULL AND cancellation_reason = 'ticket marked as spam'
+   FROM bloom_support.feature_shipment_subscriptions WHERE id = :'terminal_subscription')
+  AND (SELECT retracted_at IS NOT NULL AND retraction_reason = 'ticket marked as spam'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'terminal_subscription' AND generation = :'terminal_generation')
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'terminal_message')
+  AND (SELECT count(*) = 2 AND bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+         AND coalesce(payload->>'subscription_id', payload->>'feature_shipment_subscription_id') = :'terminal_subscription'
+         AND coalesce(payload->>'generation', payload->>'feature_shipment_generation') = :'terminal_generation'),
+  'marking a ticket as spam terminalizes its current shipment attempt and all unsent work');
+
 -- 11. Email sender resolution never grants staff authority; domain match stays unverified.
 UPDATE bloom_support.accounts SET email_domains = '{greenleaf.test}' WHERE id = :'greenleaf';
 SELECT pg_temp.rpc('resolve_email_sender', '{"email":"jon@example.test","name":"Spoof"}'::jsonb) AS spoof \gset
@@ -708,7 +1065,16 @@ INSERT INTO bloom_support.knowledge(product, title, body, audience, approved) VA
   ('crm','Scheduling campaigns','Open the campaign and choose Schedule to pick a send time.','client', true),
   ('crm','Scheduling internals','Campaign scheduling uses claim_scheduled_campaigns internally.','internal', true),
   ('crm','Scheduling draft','Unreviewed scheduling notes.','client', false);
-SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('search_knowledge', '{"product":"crm","q":"scheduling"}'::jsonb)) = 1, 'internal and unapproved articles never used for answers');
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('search_knowledge', '{"product":"crm","q":"scheduling"}'::jsonb)) article
+    WHERE article->>'title' = 'Scheduling campaigns'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('search_knowledge', '{"product":"crm","q":"scheduling"}'::jsonb)) article
+    WHERE article->>'title' IN ('Scheduling internals', 'Scheduling draft')
+  ),
+  'approved client article is searchable while internal and unapproved articles stay excluded');
 
 -- 17. OAuth: staff only, single-use codes, rotating refresh.
 SELECT pg_temp.rpc('oauth_register_client', '{"client_name":"ChatGPT","redirect_uris":["https://chatgpt.com/connector_platform_oauth_redirect"]}'::jsonb)#>>'{}' AS cid \gset
@@ -905,9 +1271,41 @@ ROLLBACK;
 SELECT pg_temp.assert(NOT has_function_privilege('anon','public.bloom_support_public_knowledge(text)','execute')
   AND NOT has_function_privilege('authenticated','public.bloom_support_public_knowledge(text)','execute')
   AND has_function_privilege('service_role','public.bloom_support_public_knowledge(text)','execute'), 'help projection is service-role only');
-SELECT pg_temp.assert(jsonb_array_length(public.bloom_support_public_knowledge('crm')) = 1, 'public help excludes internal and draft articles');
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1 FROM jsonb_array_elements(public.bloom_support_public_knowledge('crm')) article
+    WHERE article->>'title' = 'Scheduling campaigns'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(public.bloom_support_public_knowledge('crm')) article
+    WHERE article->>'title' IN ('Scheduling internals', 'Scheduling draft')
+  ),
+  'public help includes approved client articles and excludes internal and draft articles');
 SELECT pg_temp.assert(NOT ((public.bloom_support_public_knowledge('crm')->0) ? 'approved_by'), 'public help omits the approver identity');
-SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','Could you explain scheduling with pineapple?',5)) = 1, 'natural questions retrieve a matching approved answer even with unmatched words');
+SELECT pg_temp.assert(
+  (SELECT count(*) = 9 AND count(*) FILTER (WHERE product = 'crm') = 3
+          AND count(*) FILTER (WHERE product = 'cms') = 3
+          AND count(*) FILTER (WHERE product = 'pos') = 3
+          AND bool_and(jsonb_array_length(source_refs) > 0)
+   FROM bloom_support.knowledge
+   WHERE id::text LIKE '6f76e09a-38d1-4db2-a231-c01e79ce%'),
+  'the reviewed starter knowledge set has three source-grounded articles per product');
+SELECT pg_temp.assert(
+  NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(public.bloom_support_public_knowledge(NULL)) article
+    WHERE article ? 'source_refs'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(bloom_support.search_knowledge('crm','import customers csv',5)) article
+    WHERE article ? 'source_refs'
+  ),
+  'private repository provenance is absent from public help and Bloom answer search');
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1 FROM jsonb_array_elements(bloom_support.search_knowledge('crm','Could you explain scheduling with pineapple?',5)) article
+    WHERE article->>'title' = 'Scheduling campaigns'
+  ),
+  'natural questions retrieve a matching approved answer even with unmatched words');
 SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('pos','scheduling',5)) = 0, 'knowledge search stays product-scoped');
 SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','and the or',5)) = 0, 'stopword-only questions return no answer');
 BEGIN;
