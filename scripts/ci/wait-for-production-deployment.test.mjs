@@ -12,10 +12,10 @@ const DEPLOYMENT_URL =
   "https://brandsinblooms-1sx02rtd4-brands-in-blooms.vercel.app";
 const silentLogger = { log() {} };
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
   });
 }
 
@@ -159,7 +159,7 @@ test("waitForProductionDeployment fails on a terminal deployment state", async (
   );
 });
 
-test("waitForProductionDeployment times out instead of accepting another commit", async () => {
+test("waitForProductionDeployment expires instead of accepting another commit", async () => {
   const fetchImpl = async () =>
     jsonResponse([
       {
@@ -180,7 +180,7 @@ test("waitForProductionDeployment times out instead of accepting another commit"
       timeoutMs: 0,
       logger: silentLogger,
     }),
-    /deployment not created/,
+    /request deadline expired/,
   );
 });
 
@@ -224,6 +224,44 @@ test("waitForProductionDeployment retries a transient GitHub API response", asyn
   assert.equal(result.deployment.id, 210);
   assert.equal(deploymentRequests, 2);
   assert.deepEqual(delays, [25]);
+});
+
+test("waitForProductionDeployment accepts Retry-After zero as an immediate retry", async () => {
+  let deploymentRequests = 0;
+  const fetchImpl = async (url) => {
+    if (String(url).includes("/statuses")) {
+      return jsonResponse([successfulStatus()]);
+    }
+    deploymentRequests += 1;
+    if (deploymentRequests === 1) {
+      return jsonResponse({ message: "temporary" }, 429, {
+        "retry-after": "0",
+      });
+    }
+    return jsonResponse([
+      {
+        id: 211,
+        sha: SHA,
+        environment: "Production",
+        creator: { login: "vercel[bot]" },
+        created_at: "2026-11-06T12:00:00Z",
+      },
+    ]);
+  };
+
+  const result = await waitForProductionDeployment({
+    repository: REPOSITORY,
+    sha: SHA,
+    token: "test-token",
+    fetchImpl,
+    sleep: async () => {
+      throw new Error("Retry-After zero must not sleep");
+    },
+    logger: silentLogger,
+  });
+
+  assert.equal(result.deployment.id, 211);
+  assert.equal(deploymentRequests, 2);
 });
 
 test("waitForProductionDeployment bounds each GitHub API request", async () => {

@@ -132,19 +132,20 @@ async function requestJson(
     }
     clearTimeout(timeout);
 
-    const delayMs = Math.min(
-      retryAfterMs(response ?? {}, now) ?? retryDelayMs * 2 ** (attempt - 1),
-      Math.max(0, remainingMs()),
-    );
-    if (delayMs <= 0) {
+    const retryWindowMs = remainingMs();
+    if (retryWindowMs <= 0) {
       throw new Error(
         `GitHub deployments API request deadline expired (${lastFailure})`,
       );
     }
+    const delayMs = Math.min(
+      retryAfterMs(response ?? {}, now) ?? retryDelayMs * 2 ** (attempt - 1),
+      retryWindowMs,
+    );
     logger.log(
       `Retrying GitHub deployments API after ${lastFailure} (attempt ${attempt + 1}/${requestAttempts}).`,
     );
-    await sleep(delayMs);
+    if (delayMs > 0) await sleep(delayMs);
   }
 
   throw new Error(`GitHub deployments API request failed (${lastFailure})`);
@@ -236,7 +237,7 @@ export async function waitForProductionDeployment({
     `&environment=${encodeURIComponent(environment)}&per_page=100`;
   const startedAt = now();
   const deadlineAt = startedAt + timeoutMs;
-  const remainingMs = () => Math.max(1, deadlineAt - now());
+  const remainingMs = () => deadlineAt - now();
   const requestOptions = {
     requestTimeoutMs,
     requestAttempts,
@@ -296,7 +297,9 @@ export async function waitForProductionDeployment({
     }
 
     logger.log(`Waiting for commit ${sha.slice(0, 12)}: ${lastObservation}.`);
-    await sleep(Math.min(pollIntervalMs, Math.max(1, deadlineAt - now())));
+    const availableMs = remainingMs();
+    if (availableMs <= 0) break;
+    await sleep(Math.min(pollIntervalMs, availableMs));
   }
 
   throw new Error(

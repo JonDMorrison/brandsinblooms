@@ -6,8 +6,8 @@ const BASE_URL =
 /**
  * Playwright config for running E2E tests against the live production site by
  * default. PLAYWRIGHT_BASE_URL may be supplied by CI to certify a built QA
- * artifact before it is merged; the post-merge workflow leaves it unset and
- * therefore still verifies https://www.bloomsuite.app.
+ * artifact before it is merged. The post-merge workflow supplies the immutable
+ * Vercel deployment URL for the exact commit that triggered the run.
  *
  * The authenticated release suites share one persisted master-admin tenant
  * context. Keep execution serial so one spec cannot restore/clear that context

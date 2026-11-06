@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -12,6 +12,10 @@ import {
 
 const EMAIL = "e2e@example.test";
 const MARKER = "bloom-e2e-12345-1";
+const E2E_WORKFLOW = readFileSync(
+  new URL("../../.github/workflows/e2e-tests.yml", import.meta.url),
+  "utf8",
+);
 
 function fakeSupabase() {
   const state = {
@@ -130,6 +134,37 @@ test("validateArtifactMarker rejects a broad or unscoped cleanup key", () => {
   assert.equal(validateArtifactMarker(MARKER), MARKER);
   assert.throws(() => validateArtifactMarker("newsletter"), /bloom-e2e/);
   assert.throws(() => validateArtifactMarker("bloom-e2e-%"), /bloom-e2e/);
+});
+
+test("workflow serializes the shared admin and always restores its context", () => {
+  assert.match(E2E_WORKFLOW, /group: e2e-tests-shared-admin/);
+  assert.match(E2E_WORKFLOW, /cancel-in-progress: false/);
+  assert.match(E2E_WORKFLOW, /jobs:\n  test:\n(?:.|\n)*?if: \$\{\{ always\(\) \}\}/);
+  assert.match(
+    E2E_WORKFLOW,
+    /- name: Restore E2E tenant and remove test drafts\n      if: always\(\)/,
+  );
+});
+
+test("workflow gives only the exact deployment test step the Vercel bypass", () => {
+  const testStep = E2E_WORKFLOW.match(
+    /- name: Verify CRM release against production after merge[\s\S]*?(?=\n    - name:)/,
+  )?.[0];
+  assert.ok(testStep, "production verification step is missing");
+  assert.match(
+    testStep,
+    /PLAYWRIGHT_BASE_URL: \$\{\{ steps\.production-deployment\.outputs\.url \}\}/,
+  );
+  assert.match(
+    testStep,
+    /VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.VERCEL_AUTOMATION_BYPASS_SECRET \}\}/,
+  );
+  assert.equal(
+    E2E_WORKFLOW.replace(testStep, "").includes(
+      "VERCEL_AUTOMATION_BYPASS_SECRET",
+    ),
+    false,
+  );
 });
 
 test("prepare and cleanup restore tenant context after an interrupted run", async () => {
