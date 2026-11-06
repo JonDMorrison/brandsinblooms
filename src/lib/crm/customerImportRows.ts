@@ -28,6 +28,24 @@ export const EXTRA_IMPORT_FIELDS = [
 export const IMPORT_FIELD_ALIASES: Record<string, string> = {
   email_address: "email",
   e_mail: "email",
+  e_mail_address: "email",
+  emailaddress: "email",
+  email_addr: "email",
+  primary_email: "email",
+  contact_email: "email",
+  customer_email: "email",
+  given_name: "first_name",
+  surname: "last_name",
+  family_name: "last_name",
+  mobile_phone: "phone",
+  mobile_number: "phone",
+  cell: "phone",
+  cell_phone: "phone",
+  telephone: "phone",
+  phone_1: "phone",
+  zip: "postal_code",
+  zip_code: "postal_code",
+  postcode: "postal_code",
   firstname: "first_name",
   first: "first_name",
   lastname: "last_name",
@@ -203,9 +221,10 @@ export function buildImportCustomers(
     for (const [key, value] of Object.entries(customer)) {
       if (value === null || value === undefined || value === "") continue;
       if (key === "custom_fields" && typeof value === "object") {
+        // Same rule as the other fields: the first row wins, later rows only fill blanks.
         existing.custom_fields = {
-          ...((existing.custom_fields as Record<string, unknown>) || {}),
           ...(value as Record<string, unknown>),
+          ...((existing.custom_fields as Record<string, unknown>) || {}),
         };
       } else if (
         existing[key] === null ||

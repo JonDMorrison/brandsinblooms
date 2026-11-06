@@ -129,3 +129,24 @@ describe("list import approval card", () => {
     expect(resolved.isReversible).toBe(false);
   });
 });
+
+describe("duplicate rows keep the first row's values", () => {
+  it("does not let a later copy overwrite the first row's custom fields", () => {
+    const mappings = [
+      { csvHeader: "Email", databaseField: "email", sampleData: [], sourceIndex: 0 },
+      { csvHeader: "First", databaseField: "first_name", sampleData: [], sourceIndex: 1 },
+      { csvHeader: "Notes", databaseField: "custom:notes", sampleData: [], sourceIndex: 2 },
+      { csvHeader: "Store", databaseField: "custom:store", sampleData: [], sourceIndex: 3 },
+    ];
+    const built = buildImportCustomers(
+      [
+        ["a@example.com", "Alice", "Loves tulips", ""],
+        ["a@example.com", "Alicia", "duplicate row", "Main St"],
+      ],
+      mappings,
+    );
+    expect(built.customers).toHaveLength(1);
+    expect(built.customers[0].first_name).toBe("Alice");
+    expect(built.customers[0].custom_fields).toEqual({ notes: "Loves tulips", store: "Main St" });
+  });
+});
