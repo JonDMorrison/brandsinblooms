@@ -133,11 +133,11 @@ export interface Classification {
   source: "rules" | "model";
 }
 
-const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|doesn'?t work|won'?t|can'?t|cannot|stuck|blank|500|404|wrong|missing|disappeared|frozen|spinning|offline)\b/i;
+const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|doesn'?t work|won'?t|can'?t|cannot|stuck|blank|500|404|wrong|missing|disappeared|frozen|spinning|offline|down|outage)\b/i;
 const FEATURE = /\b(feature request|would be (nice|great)|could you add|can you add|wish|suggest(ion)?|it would help if|please add|roadmap|ability to)\b/i;
 const QUESTION = /(\?\s*$|\b(how (do|can|to)|where (is|do|can)|what (is|does)|is it possible|can i)\b)/im;
 const REQUEST = /\b(please (update|change|create|publish|send|schedule|set up|add|remove)|can you (update|change|create|publish|send|schedule|set up)|need (you )?to (update|change|publish))\b/i;
-const URGENT = /\b(urgent|asap|emergency|down for everyone|site is down|can'?t take payments?|cannot (take|process) (payments?|sales)|checkout (is )?(broken|down)|lost (orders|sales))\b/i;
+const URGENT = /\b(urgent|asap|emergency|outage|down for everyone|(site|system|platform|store) is down|can'?t take payments?|cannot (take|process) (payments?|sales)|checkout (is )?(broken|down)|lost (orders|sales))\b/i;
 const HIGH = /\b(today|before (the )?(weekend|event|sale)|customers? (can'?t|cannot)|all (our )?(customers|staff))\b/i;
 const ACCOUNT = /\b(password|log ?in|sign ?in|locked out|invite|access|2fa|mfa|billing|invoice|subscription|cancel my)\b/i;
 
@@ -163,7 +163,7 @@ export function classify(subject: string, body: string, product: Product): Class
   else if (QUESTION.test(text)) kind = "question";
 
   const priority: Priority = URGENT.test(text) ? "urgent" : HIGH.test(text) ? "high" : "normal";
-  if (kind === "bug" && priority === "urgent" && /\b(down|everyone|all (our )?customers|can'?t take payments?)\b/i.test(text)) kind = "incident";
+  if (kind === "bug" && priority === "urgent" && /\b(down|outage|everyone|all (our )?customers|can'?t take payments?)\b/i.test(text)) kind = "incident";
   const category = CATEGORIES.find(([re]) => re.test(text))?.[1] ?? "general";
   const missing: string[] = [];
   if (kind === "bug") {
@@ -194,8 +194,13 @@ export function mergeModelClassification(rules: Classification, model: unknown):
   // Urgency floor: the model may raise priority but never lower an explicit outage signal.
   const order = { low: 0, normal: 1, high: 2, urgent: 3 } as const;
   const priority = order[m.priority as Priority] >= order[rules.priority] ? (m.priority as Priority) : rules.priority;
+  // Incident routing pages people and opens engineering work. Require the
+  // deterministic outage signals above instead of letting a model invent or
+  // downgrade that high-impact branch from otherwise harmless wording.
+  const modelKind = m.kind as Kind;
+  const kind: Kind = rules.kind === "incident" ? "incident" : modelKind === "incident" ? rules.kind : modelKind;
   return {
-    kind: m.kind as Kind,
+    kind,
     priority,
     impact: impacts.includes(String(m.impact)) ? (m.impact as Classification["impact"]) : rules.impact,
     category: typeof m.category === "string" && /^[a-z-]{2,30}$/.test(m.category) ? m.category : rules.category,

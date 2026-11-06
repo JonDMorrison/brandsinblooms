@@ -52,8 +52,30 @@ Deno.test("classify routes without requiring the user to choose", () => {
 
 Deno.test("model classification cannot lower an outage priority or invent vocabulary", () => {
   const rules = classify("Down", "site is down", "cms");
-  assertEquals(mergeModelClassification(rules, { kind: "question", priority: "low", impact: "account", category: "website", missing: [], confidence: 0.9 }).priority, "urgent");
+  const merged = mergeModelClassification(rules, { kind: "question", priority: "low", impact: "account", category: "website", missing: [], confidence: 0.9 });
+  assertEquals(rules.kind, "incident");
+  assertEquals(merged.kind, "incident");
+  assertEquals(merged.priority, "urgent");
   assertEquals(mergeModelClassification(rules, { kind: "delete-everything", priority: "low" }), rules);
+});
+
+Deno.test("model classification cannot turn a harmless routing check into an incident", () => {
+  const rules = classify(
+    "Support-subdomain fallback check",
+    "Please confirm the established address reaches the same support pipeline. No staff action is required.",
+    "unknown",
+  );
+  const merged = mergeModelClassification(rules, {
+    kind: "incident",
+    priority: "normal",
+    impact: "platform",
+    category: "support",
+    missing: [],
+    confidence: 0.92,
+  });
+  assertEquals(rules.kind, "unknown");
+  assertEquals(merged.kind, "unknown");
+  assertEquals(merged.priority, "normal");
 });
 
 Deno.test("automated mail and loops are detected", () => {
