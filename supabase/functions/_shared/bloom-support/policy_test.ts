@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
 import {
   classify, DEFAULT_RELEASE_POLICY, evaluateRelease, indicatesStillBroken, isAutomatedEmail, matchesAny, mergeModelClassification,
-  parseReferences, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
+  parseReferences, redactForEngineering, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
 } from "./policy.ts";
 import { signIntake, verifyIntakeSignature, verifySvix, hmacSha256 } from "./crypto.ts";
 import { isProductionEnvironment, productionCommitForRepair } from "./github.ts";
@@ -27,6 +27,17 @@ Deno.test("redactText masks valid card numbers and keys, keeps ordinary numbers"
   assertEquals(redactText("card 4242 4242 4242 4242 ok"), "card [redacted card] ok");
   assertEquals(redactText("order 1234567890123 shipped"), "order 1234567890123 shipped");
   assertEquals(redactText("key sk_live_abcdefghijkl"), "key [redacted key]");
+});
+
+Deno.test("engineering redaction removes contact details and customer identifiers only at the outbound boundary", () => {
+  const privateSupportText = "Email jane.doe+orders@example.com or call +1 (604) 555-0123. Customer ID cust_4G8Q2. Site ID 5e7d2797-4169-46ae-b2d2-db3cb6990b7a. Order 1234567890123.";
+  assertEquals(redactText(privateSupportText), privateSupportText, "the private desk keeps contact details available to staff");
+  assertEquals(
+    redactForEngineering(privateSupportText),
+    "Email [redacted email] or call [redacted phone]. Customer ID: [redacted customer id]. Site ID: [redacted customer id]. Order 1234567890123.",
+  );
+  assertEquals(redactForEngineering("released 2026-11-05 in build 12345678"), "released 2026-11-05 in build 12345678", "dates and ordinary build numbers are not mistaken for phone numbers");
+  assertEquals(redactForEngineering("Phone: 6045550123"), "Phone: [redacted phone]");
 });
 
 Deno.test("classify routes without requiring the user to choose", () => {

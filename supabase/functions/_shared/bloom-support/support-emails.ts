@@ -6,13 +6,14 @@
 // emails never show internal routing labels.
 import {
   botanicalEmailButton, botanicalEmailClientLine, botanicalEmailFacts, botanicalEmailLinks, botanicalEmailList, botanicalEmailParagraph,
-  botanicalEmailQuote, botanicalEmailSection, type BotanicalEmailFact, type ClientBrand, clientWebsite, PREMIUM_BOTANICAL_EMAIL, renderBotanicalEmail,
+  botanicalEmailQuote, botanicalEmailSection, type BotanicalEmailFact, type ClientBrand, clientWebsite, renderBotanicalEmail,
 } from "./botanical-email.ts";
 import { asSentence, humanizeStaffNote } from "./notes.ts";
 import {
   DECISION_ACTIONS, type EngineeringFacts, liveNextStep, type NextAction, type NextStep, nextStepFor, nextStepForReason, type ResolutionPlan,
   resolutionPlan, supportLink,
 } from "./next-step.ts";
+import { BLOOM_ROLE_DISCLOSURE, BLOOM_SIGNATURE } from "./voice.ts";
 
 export interface RenderedEmail {
   subject: string;
@@ -97,6 +98,10 @@ export function customerStatusLabel(status: string, waitingReason?: string | nul
     case "waiting": return waitingReason === "customer" ? "Waiting for your reply" : "In progress";
     case "needs_owner": return "With our team";
     case "resolved": return "Resolved";
+    // Client reads of the ticket API already arrive projected (bloom_support.client_status).
+    case "received": return "Received";
+    case "in_progress": return "In progress";
+    case "waiting_on_you": return "Waiting for your reply";
     default: return "In progress";
   }
 }
@@ -158,7 +163,69 @@ export function coalesceOutgoing(messages: OutgoingMessage[], anchorId: string, 
 // ---------------------------------------------------------------------------
 // Customer emails
 // ---------------------------------------------------------------------------
-const CUSTOMER_FOOTER = "Bloom Support for BloomSites, BloomSuite CRM and BloomSuite POS. Reply to this email to add anything; it goes straight to your request.";
+const CUSTOMER_FOOTER = "Bloom Support for BloomSites, BloomSuite CRM and BloomSuite POS. Reply to this email at any time; your message stays with this request.";
+
+function customerFirstName(value: string | null | undefined): string | null {
+  const clean = [...String(value ?? "")]
+    .map((character) => {
+      const point = character.codePointAt(0) ?? 0;
+      return point < 32 || point === 127 ? " " : character;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean || clean.includes("@")) return null;
+  return clean.split(" ")[0].slice(0, 40) || null;
+}
+
+function customerEmailMoment(input: { purpose: string; status: string; body: string; fromBloom: boolean }) {
+  const resolved = input.purpose === "resolution" || input.status === "resolved";
+  const ack = input.purpose === "acknowledgement";
+  const clarify = input.purpose === "clarification";
+  const feature = input.purpose === "feature_decision" || /product team (?:has accepted|plans to build|reviewed)|feature is now available/i.test(input.body);
+  const handoff = /hand(?:ing|ed) this to a person|person on our support team/i.test(input.body);
+  const investigation = /started (?:the |an )?investigation|possible incident|possible product problem/i.test(input.body);
+  if (!input.fromBloom) return {
+    eyebrow: "A reply from our team", title: "Our support team replied", icon: "mail" as const,
+    intro: "A person from Brands in Blooms Support has replied to your request.",
+    next: "Reply to this email if you need anything else. Your response will stay in the same conversation.",
+  };
+  if (resolved) return {
+    eyebrow: "Request resolved", title: "Good news: this is sorted", icon: "check" as const,
+    intro: "The result has been recorded on your request.",
+    next: "If anything still isn't right, reply to this email. I'll reopen the request and continue from here.",
+  };
+  if (clarify) return {
+    eyebrow: "One quick question", title: "A little more detail will help", icon: "alert" as const,
+    intro: "Once you reply, I'll pick this up from the same place.",
+    next: "Reply with the detail below. You don't need to repeat anything you've already shared.",
+  };
+  if (feature) return {
+    eyebrow: "Feature update", title: "An update on your idea", icon: "leaf" as const,
+    intro: "Your idea has been reviewed by our product team.",
+    next: "Reply if you'd like help with an alternative or with using what is now available.",
+  };
+  if (handoff) return {
+    eyebrow: "With our support team", title: "I've handed this over", icon: "mail" as const,
+    intro: "A person has the request and the context already gathered.",
+    next: "Our support team will continue in this same conversation. You can reply here at any time.",
+  };
+  if (investigation) return {
+    eyebrow: "Investigation started", title: "I'm looking into this", icon: "leaf" as const,
+    intro: "Your request is tied to the investigation, so the history stays together.",
+    next: "No action is needed unless I ask a question. If a person is needed, I'll hand over the full context.",
+  };
+  if (ack) return {
+    eyebrow: "Request received", title: "I've got your request", icon: "leaf" as const,
+    intro: "I'll take the first look and keep the work connected to this conversation.",
+    next: "I'll use approved guidance where it fits. If this needs a person, I'll hand it over with the context already gathered.",
+  };
+  return {
+    eyebrow: "Update on your request", title: "Here's the latest", icon: "mail" as const,
+    intro: "I've added an update to your request.",
+    next: "Reply if this doesn't answer what you need. I'll keep the conversation moving from here.",
+  };
+}
 
 export function renderCustomerEmail(input: {
   number: number;
@@ -168,37 +235,50 @@ export function renderCustomerEmail(input: {
   purpose: string;
   bodies: string[];
   trackUrl: string;
+  /** Trusted display name from the requester's principal. Only the first name is shown. */
+  requesterName?: string | null;
+  /** A public message written by staff must never be presented as if Bloom wrote it. */
+  sender?: "bloom" | "team";
   /** The client company, from the ticket's account. Its website and logo show only when validated. */
   client?: ClientBrand | null;
 }): Omit<RenderedEmail, "subject"> {
   const status = customerStatusLabel(input.status, input.waitingReason);
   const body = input.bodies.map((b) => b.trim()).filter(Boolean).join("\n\n");
+  const fromBloom = input.sender !== "team";
+  const moment = customerEmailMoment({ purpose: input.purpose, status: input.status, body, fromBloom });
   const resolved = input.purpose === "resolution" || input.status === "resolved";
-  const ack = input.purpose === "acknowledgement";
-  const clarify = input.purpose === "clarification";
-  const eyebrow = resolved ? "Request resolved" : ack ? "Request received" : clarify ? "A quick question" : "Update on your request";
-  const title = resolved ? "Good news: this is sorted" : ack ? "We've got your request" : clarify ? "Can you help us with a detail?" : "An update on your request";
-  const icon = resolved ? "check" as const : clarify ? "alert" as const : ack ? "leaf" as const : "mail" as const;
+  const firstName = customerFirstName(input.requesterName);
+  const greeting = `Hi ${firstName ?? "there"},`;
   const facts: BotanicalEmailFact[] = [
     { icon: "leaf", label: "Request", value: `#${input.number} ${clip(cleanSubject(input.subject), 90)}` },
     { icon: resolved ? "check" : "calendar", label: "Status", value: status },
   ];
   const client = input.client?.name?.trim() ? { ...input.client, name: input.client.name.trim() } : null;
   const site = client ? clientWebsite(client.website) : null;
+  const signature = fromBloom ? BLOOM_SIGNATURE : "Brands in Blooms Support";
+  const actionLabel = resolved ? "Confirm or reopen" : "View your request";
+  const roleLine = fromBloom && input.purpose === "acknowledgement" && !body.includes(BLOOM_ROLE_DISCLOSURE)
+    ? botanicalEmailParagraph(BLOOM_ROLE_DISCLOSURE, { muted: true, size: 14, margin: "0 0 14px" })
+    : "";
   const html = renderBotanicalEmail({
     header: "Bloom Support",
-    eyebrow,
-    title,
-    preheader: clip(body.replace(/\s+/g, " "), 140),
-    icon,
-    bodyHtml: (client ? botanicalEmailClientLine(client) : "") + body.split(/\n{2,}/).map((p) => botanicalEmailParagraph(p, { margin: "0 0 14px" })).join("") +
+    eyebrow: moment.eyebrow,
+    title: moment.title,
+    intro: moment.intro,
+    preheader: clip(body.replace(/\s+/g, " "), 100),
+    icon: moment.icon,
+    bodyHtml: (client ? botanicalEmailClientLine(client) : "") +
+      botanicalEmailParagraph(greeting, { margin: "0 0 14px" }) + roleLine +
+      body.split(/\n{2,}/).map((p) => botanicalEmailParagraph(p, { margin: "0 0 14px" })).join("") +
+      botanicalEmailParagraph(signature, { size: 14, margin: "18px 0 6px" }) +
+      botanicalEmailSection("What happens next", botanicalEmailParagraph(moment.next, { size: 15, margin: "0" }), resolved ? "check" : "leaf") +
       botanicalEmailFacts(facts) +
-      botanicalEmailButton("Track your request", input.trackUrl) +
-      botanicalEmailParagraph("You can reply to this email at any time.", { muted: true, size: 13, margin: "6px 0 0" }),
+      botanicalEmailButton(actionLabel, input.trackUrl) +
+      botanicalEmailParagraph("Reply to this email at any time — it goes straight to this request.", { muted: true, size: 13, margin: "6px 0 0" }),
     footer: CUSTOMER_FOOTER,
   });
   const forLine = client ? `\nRequest for ${client.name}${site ? ` · ${site.href}` : ""}` : "";
-  const text = `${body}\n\n—\nBloom Support · Request #${input.number} · ${status}${forLine}\nTrack this request: ${input.trackUrl}\nBloomSuite · https://bloomsuite.app/`;
+  const text = `${greeting}\n\n${fromBloom && input.purpose === "acknowledgement" && !body.includes(BLOOM_ROLE_DISCLOSURE) ? `${BLOOM_ROLE_DISCLOSURE}\n\n` : ""}${body}\n\n${signature}\n\nWhat happens next\n${moment.next}\n\n—\nBloom Support · Request #${input.number} · ${status}${forLine}\n${actionLabel}: ${input.trackUrl}\nReply to this email at any time.\nBloomSuite · https://bloomsuite.app/`;
   return { text, html };
 }
 
@@ -434,9 +514,6 @@ function needsYouCopy(x: EscalationFacts, t: StaffTicket, step: NextStep, plan: 
   return { headline: escalationHeadline(x, t, now), why: reasonSentence(x.reason, x.detail), findings: repair ? [repair] : [] };
 }
 
-const HTML_DETAILS_OPEN = '<details style="margin:18px 0 0"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:' +
-  PREMIUM_BOTANICAL_EMAIL.sage + '">';
-
 export function renderEscalationEmail(input: {
   escalation: EscalationFacts;
   ticket: StaffTicket;
@@ -487,7 +564,6 @@ export function renderEscalationEmail(input: {
     botanicalEmailParagraph(`${recommendation} The button opens BloomSuite; nothing happens until you confirm there.`, { muted: true, size: 13, margin: "0 0 14px" }) +
     (draft ? botanicalEmailParagraph("The reply Bloom drafted", { size: 13, margin: "4px 0 0" }) + botanicalEmailQuote(draft, `To ${client} · you can edit it before sending`) : "") +
     botanicalEmailFacts(facts) +
-    HTML_DETAILS_OPEN + "Details: what Bloom found, did and told the client</summary>" +
     (findings.length ? botanicalEmailSection("What Bloom found", botanicalEmailList(findings), "check") : "") +
     botanicalEmailSection("The request", summaryLines.map((l) => botanicalEmailParagraph(l, { size: 14, margin: "0 0 8px" })).join(""), "alert") +
     (told.length || fromClient
@@ -499,8 +575,7 @@ export function renderEscalationEmail(input: {
         "mail")
       : "") +
     (timeline.length ? botanicalEmailSection("What Bloom did", botanicalEmailList(timeline), "leaf") : "") +
-    botanicalEmailLinks(secondary) +
-    "</details>";
+    botanicalEmailLinks(secondary);
 
   const html = renderBotanicalEmail({
     header: "Bloom Support",

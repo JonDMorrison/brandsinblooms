@@ -65,6 +65,7 @@ vi.mock("../../supabase/functions/_shared/bloom-support/runtime.ts", () => {
     db: vi.fn(),
     directRpc: vi.fn(),
     env: (...args: unknown[]) => releaseMocks.env(...args),
+    mutationRpc: (_caller: unknown, fn: unknown, args: unknown) => releaseMocks.rpc(fn, args),
     readResponseText: async (response: globalThis.Response, limit: number) => {
       const reader = response.body?.getReader();
       if (!reader) return "";

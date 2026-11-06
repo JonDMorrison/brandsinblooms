@@ -66,12 +66,25 @@ export interface SendResult {
   reason?: string;
 }
 
+/** Only expose controlled delivery reasons, never a raw provider/database error. */
+export function safeSuppressionReason(value: unknown): string {
+  switch (value) {
+    case "recipient bounced or complained":
+    case "ticket under human control":
+    case "client_email_enabled is off":
+    case "recipient or CC not in BLOOM_SUPPORT_EMAIL_ALLOWLIST":
+      return value;
+    default:
+      return "delivery suppressed";
+  }
+}
+
 export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   const cfg = emailConfig();
   const rfcId = newMessageId(cfg.replyDomain);
   const queued = await rpc<{
     id: string; status: string; duplicate: boolean; rfc_message_id: string; provider_id: string | null;
-    to_email: string; subject: string; body: string; html?: string | null; in_reply_to: string | null; cc: string[] | null;
+    to_email: string; subject: string; body: string; html?: string | null; in_reply_to: string | null; cc: string[] | null; error?: string | null;
   }>("queue_outbound_email", {
     email: {
       ticket_id: req.ticketId, message_id: req.messageId ?? null, purpose: req.purpose, to: req.to, subject: req.subject, body: req.text,
@@ -84,8 +97,10 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   // is retried with the SAME provider idempotency key and Message-ID: Resend deduplicates within
   // 24 hours, so the client does not get two copies. Sent and suppressed entries are never resent.
   const retry = queued.duplicate && ["uncertain", "queued", "failed", "not_configured"].includes(queued.status) && !queued.provider_id;
+  if (queued.status === "suppressed") {
+    return { id: queued.id, status: "suppressed", duplicate: queued.duplicate, reason: safeSuppressionReason(queued.error) };
+  }
   if (queued.duplicate && !retry) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true };
-  if (queued.status === "suppressed") return { id: queued.id, status: "suppressed", duplicate: false, reason: "ticket under human control" };
   // A retry sends exactly what the first attempt recorded. Rebuilding the email (for example with a
   // fresh tracking link) would change the payload under the same idempotency key, which the provider
   // rejects, so the stored ledger copy is authoritative.
@@ -103,7 +118,12 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
     const recipients = [req.to, ...(req.cc ?? [])].map((address) => address.trim().toLowerCase());
     if (cfg.allowlist.length && recipients.some((address) => !cfg.allowlist.includes(address))) {
       await rpc("mark_outbound_email", { id: queued.id, status: "suppressed", error: "recipient or CC not in BLOOM_SUPPORT_EMAIL_ALLOWLIST" });
-      return { id: queued.id, status: "suppressed", duplicate: false, reason: "recipient or CC not in test allowlist" };
+      return {
+        id: queued.id,
+        status: "suppressed",
+        duplicate: false,
+        reason: safeSuppressionReason("recipient or CC not in BLOOM_SUPPORT_EMAIL_ALLOWLIST"),
+      };
     }
   }
   if (!cfg.configured) {

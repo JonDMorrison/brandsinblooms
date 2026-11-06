@@ -18,6 +18,7 @@ import {
 } from "../_shared/bloom-support/attachments.ts";
 import { emailConfig } from "../_shared/bloom-support/email.ts";
 import { alignedWith, binaryString, rawFromAddress, verifiedDkimDomains } from "../_shared/bloom-support/dkim.ts";
+import { bloomAttachmentRejection } from "../_shared/bloom-support/voice.ts";
 import { relayIdempotencyKey } from "../_shared/bloom-support/relay-key.ts";
 
 interface ReceivedEmail {
@@ -411,9 +412,10 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       actor: automation.principalId,
       ticket_id: ticketId,
       message: {
-        body: `Bloom could not accept these email attachments:\n${preparedAttachments.rejected.map((line) => `- ${line}`).join("\n")}\nPlease reply with a supported file if it is still needed.`,
+        body: bloomAttachmentRejection(preparedAttachments.rejected),
         visibility: "public",
-        notify_client: false,
+        purpose: "clarification",
+        notify_client: true,
         idempotency_key: `email-attachment-rejections:${messageId}`,
       },
     });

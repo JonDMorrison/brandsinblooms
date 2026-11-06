@@ -31,7 +31,7 @@ Deno.test("every support email header carries the BloomSuite logo with alt text 
   for (const html of mails) {
     const logo = imgs(html).find((i) => i.includes(BLOOMSUITE_LOGO_URL));
     assert(logo, "header logo present");
-    assertMatch(logo, /alt="BloomSuite"/);
+    assertMatch(logo, /alt="Open BloomSuite"/);
     assertMatch(logo, /width="44"/);
     assertMatch(logo, /height="44"/);
     assert(hrefs(html).includes("https://bloomsuite.app/"), "links to bloomsuite.app");

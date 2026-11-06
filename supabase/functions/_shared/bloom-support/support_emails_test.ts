@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse, assertMatch, assertNotMatch } from "@std/assert";
-import { botanicalEmailIcon, PREMIUM_BOTANICAL_EMAIL, renderBotanicalEmail } from "./botanical-email.ts";
+import { botanicalEmailIcon, botanicalEmailSection, PREMIUM_BOTANICAL_EMAIL, renderBotanicalEmail } from "./botanical-email.ts";
 import {
   type AlertFinding, cleanStaffText, coalesceOutgoing, customerStatusLabel, type DigestReport, groupAlertFindings, type OutgoingMessage,
   reasonSentence, renderAlertEmail, renderCustomerEmail, renderDigestEmail, renderEscalationEmail, type StaffTicket, threadingHeaders,
@@ -81,6 +81,7 @@ for (const reason of ["ticket_overdue", "engineering_failed", "engineering_start
     assert(mail.html.includes("we&#39;ve received your request"));
     assert(mail.html.includes("What Bloom did"));
     assert(mail.html.includes(mail.step.recommendation.replace(/'/g, "&#39;")));
+    assertNotMatch(mail.html, /<(details|summary)\b/i);
     // One primary button, deep-linked to the ticket with the recommended action.
     assertEquals(mail.html.match(/bgcolor="#1B3049" style="border-radius:8px/g)?.length, 1);
     assert(mail.html.includes(`href="${supportLink(APP, ticket1011.id, mail.step.action).replace(/&/g, "&amp;")}"`));
@@ -98,14 +99,21 @@ Deno.test("customer emails never show internal status labels", () => {
   for (const status of ["new", "working", "waiting", "needs_owner", "resolved", "something_else"]) {
     const label = customerStatusLabel(status, "internal");
     assertNotMatch(label, /Jon|Jeff|needs|owner|_/i);
-    const mail = renderCustomerEmail({ number: 1015, subject: "Import past orders", status, purpose: "progress", bodies: ["Thanks for the suggestion."], trackUrl: "https://bloomsuite.app/support/track/abc" });
+    const mail = renderCustomerEmail({ number: 1015, subject: "Import past orders", status, purpose: "progress", bodies: ["Thanks for the suggestion."], trackUrl: "https://bloomsuite.app/support/track/abc", requesterName: "Avery Smith" });
     assertNotMatch(mail.text, /Needs Jon\/Jeff|Jon|Jeff/);
     assertNotMatch(mail.html, /Needs Jon\/Jeff|Jon\/Jeff/);
-    assert(mail.text.includes("Track this request: https://bloomsuite.app/support/track/abc"));
+    assert(mail.text.includes(`${status === "resolved" ? "Confirm or reopen" : "View your request"}: https://bloomsuite.app/support/track/abc`));
     assert(mail.html.includes('href="https://bloomsuite.app/support/track/abc"'));
+    assert(mail.text.startsWith("Hi Avery,"));
+    assert(mail.text.includes("BloomSuite support agent"));
+    assertNotMatch(mail.text, /Brands in Blooms support agent/);
+    assert(mail.text.includes("What happens next"));
   }
   assertEquals(customerStatusLabel("needs_owner"), "With our team");
   assertEquals(customerStatusLabel("waiting", "customer"), "Waiting for your reply");
+  assertEquals(customerStatusLabel("received"), "Received");
+  assertEquals(customerStatusLabel("in_progress"), "In progress");
+  assertEquals(customerStatusLabel("waiting_on_you"), "Waiting for your reply");
 });
 
 Deno.test("threading: a stable per-ticket root, then In-Reply-To and References to it", () => {
@@ -205,10 +213,36 @@ Deno.test("botanical palette and icon host match BloomSites premium-botanical.ts
     assert(img.includes(`src="https://bloomsites.app/email/premium-icons/${icon}.png"`), icon);
     assert(img.includes('alt=""'), icon);
   }
-  const html = renderBotanicalEmail({ header: "Bloom Support", eyebrow: "x", title: "<b>t</b>", preheader: "p", bodyHtml: "", footer: "f" });
+  const html = renderBotanicalEmail({
+    header: "Bloom Support",
+    eyebrow: "x",
+    title: "<b>t</b>",
+    preheader: "p",
+    bodyHtml: botanicalEmailSection("Next step", "Safe body"),
+    footer: "f",
+  });
   assert(html.includes('width="600"'));
   assert(html.includes("&lt;b&gt;t&lt;/b&gt;"));
+  assertMatch(html, /<html lang="en" dir="ltr">/);
+  assertMatch(html, /<body lang="en" dir="ltr"/);
+  assertEquals((html.match(/<h1\b/g) ?? []).length, 1);
+  assertEquals((html.match(/<h2\b/g) ?? []).length, 1);
+  assertEquals((html.match(/<table\b/g) ?? []).length, (html.match(/<table role="presentation"/g) ?? []).length);
+  assert((html.match(/<img\b[^>]*>/g) ?? []).every((image) => /\balt="[^"]*"/.test(image)));
+  assert(new TextEncoder().encode(html).byteLength < 102_400, "email HTML stays below Gmail's clipping threshold");
   assertFalse(/<script|<svg|@import|font-face/i.test(html));
+  assertNotMatch(html, /<(details|summary)\b/i);
+});
+
+Deno.test("customer lifecycle variants keep the same personal support shell", () => {
+  const base = { number: 1015, subject: "Import past orders", status: "working", bodies: ["A useful update."], trackUrl: "https://bloomsuite.app/support/track/abc", requesterName: "Avery" };
+  const feature = renderCustomerEmail({ ...base, purpose: "feature_decision" });
+  assertMatch(feature.html, /Feature update/);
+  assertMatch(feature.html, /An update on your idea/);
+  const staff = renderCustomerEmail({ ...base, purpose: "reply", sender: "team" });
+  assertMatch(staff.html, /Our support team replied/);
+  assertNotMatch(staff.text, /I'm Bloom/);
+  assertMatch(staff.text, /Brands in Blooms Support/);
 });
 
 Deno.test("digest renders alerts whose detail has no condition (escalation_unanswered from the live report)", () => {

@@ -22,7 +22,7 @@ import AccordionSummary from "@mui/joy/AccordionSummary";
 import { Bot, Lock, Paperclip, User, Wrench } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
-  bloomSupport, KIND_LABEL, PRODUCT_LABEL, readBloomDiagnostics, STATUS_LABEL, WAITING_LABEL,
+  bloomSupport, KIND_LABEL, PRODUCT_LABEL, readBloomDiagnostics, STATUS_LABEL, statusLabel, WAITING_LABEL,
   type BloomDiagnostics, type SupportStatus, type TicketDetail, type TicketMessage, type WaitingReason, type Whoami,
 } from "@/lib/bloomSupport/api";
 import { StatusChip, PriorityChip, AutomationChip } from "./chips";
@@ -197,18 +197,19 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
   };
 
   return (
-    <Stack sx={{ height: "100%", minHeight: 0 }}>
+    <Stack sx={{ height: "100%", minWidth: 0, maxWidth: "100%", minHeight: 0 }}>
       {dialog}
       {/* Header: client identity, status, owner, next action, automation */}
-      <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+      <Box sx={{ p: 2, minWidth: 0, maxWidth: "100%", borderBottom: "1px solid", borderColor: "divider" }}>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Typography level="body-sm" textColor="text.tertiary">#{t.number}</Typography>
-          <StatusChip status={t.status} />
+          <StatusChip status={t.status} audience={staff ? "staff" : "client"} />
           <PriorityChip priority={t.priority} />
           <Chip size="sm" variant="outlined">{PRODUCT_LABEL[t.product] ?? t.product}</Chip>
           {t.kind !== "unknown" && <Chip size="sm" variant="plain">{t.kind}</Chip>}
           {staff && t.automation && <AutomationChip mode={t.automation} />}
-          {t.waiting_reason && <Chip size="sm" variant="soft" color="warning">{WAITING_LABEL[t.waiting_reason]}</Chip>}
+          {/* Clients read waiting state from the status chip ("Waiting for your reply"); the reason is staff routing detail. */}
+          {staff && t.waiting_reason && <Chip size="sm" variant="soft" color="warning">{WAITING_LABEL[t.waiting_reason]}</Chip>}
           {staff && t.flags?.overdue && <Chip size="sm" color="danger" variant="solid">Overdue</Chip>}
           {staff && !t.flags?.overdue && t.flags?.due_soon && <Chip size="sm" color="warning">Due soon</Chip>}
           {staff && t.flags?.stalled && <Chip size="sm" color="warning" variant="outlined">Stalled</Chip>}
@@ -255,12 +256,12 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           </Stack>
         )}
         {staff && (
-          <Stack direction="row" spacing={1} sx={{ mt: 1 }} alignItems="center">
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1, minWidth: 0 }} alignItems={{ xs: "stretch", sm: "center" }}>
             <Typography level="body-xs" fontWeight="lg" sx={{ whiteSpace: "nowrap" }}>Next action</Typography>
-            <Input size="sm" type="datetime-local" sx={{ width: 210 }} aria-label="Next action due"
+            <Input size="sm" type="datetime-local" sx={{ width: { xs: "100%", sm: 210 }, flex: { sm: "0 0 auto" } }} aria-label="Next action due"
               defaultValue={t.next_action_due_at ? t.next_action_due_at.slice(0, 16) : ""}
               onBlur={(e) => { const v = e.target.value; if (v !== (t.next_action_due_at ?? "").slice(0, 16)) run.mutate(() => bloomSupport.updateTicket(t.id, { version: t.version, next_action_due_at: v ? new Date(v).toISOString() : null })); }} />
-            <Input size="sm" sx={{ flex: 1 }} value={nextAction ?? (t.next_action ? humanizeNextAction(t.next_action) : "")} placeholder="Who does what next"
+            <Input size="sm" sx={{ flex: 1, minWidth: 0, width: "100%" }} value={nextAction ?? (t.next_action ? humanizeNextAction(t.next_action) : "")} placeholder="Who does what next"
               onChange={(e) => setNextAction(e.target.value)}
               onBlur={() => nextAction !== null && nextAction !== (t.next_action ?? "") && run.mutate(async () => { await bloomSupport.updateTicket(t.id, { version: t.version, next_action: nextAction }); setNextAction(null); })} />
           </Stack>
@@ -289,12 +290,12 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
         {error && <Alert color="danger" variant="soft" sx={{ mt: 1 }}>{error}</Alert>}
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, overflow: { xs: "auto", lg: "hidden" }, display: "grid", gridTemplateColumns: { xs: "1fr", lg: staff ? "minmax(0,1fr) 300px" : "1fr" } }}>
+      <Box sx={{ flex: 1, minWidth: 0, maxWidth: "100%", minHeight: 0, overflow: { xs: "auto", lg: "hidden" }, display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: staff ? "minmax(0,1fr) 300px" : "minmax(0, 1fr)" } }}>
         {/* Conversation */}
-        <Stack spacing={1.25} sx={{ p: 2, minHeight: 0, overflowY: { xs: "visible", lg: "auto" } }}>
+        <Stack spacing={1.25} sx={{ p: 2, minWidth: 0, maxWidth: "100%", minHeight: 0, overflowY: { xs: "visible", lg: "auto" } }}>
           {t.conversation_tickets.length > 0 && (
             <Alert size="sm" variant="soft" color="primary">
-              Same conversation: {t.conversation_tickets.map((c) => <Link key={c.id} component="button" onClick={() => onOpenTicket(c.id)} sx={{ mx: 0.5 }}>#{c.number} {c.subject} ({STATUS_LABEL[c.status]})</Link>)}
+              Same conversation: {t.conversation_tickets.map((c) => <Link key={c.id} component="button" onClick={() => onOpenTicket(c.id)} sx={{ mx: 0.5 }}>#{c.number} {c.subject} ({statusLabel(c.status, staff ? "staff" : "client")})</Link>)}
             </Alert>
           )}
           {t.messages.map((m) => (
@@ -306,7 +307,8 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket }: { ticketId: str
           {t.attachments.length > 0 && (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {t.attachments.map((a) => (
-                <Chip key={a.id} variant="outlined" startDecorator={<Paperclip size={12} />} color="neutral"
+                <Chip key={a.id} variant="outlined" startDecorator={<Paperclip size={12} />} color="neutral" title={a.file_name}
+                  sx={{ maxWidth: "100%", "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}
                   onClick={async () => { const { url } = await bloomSupport.attachmentUrl(a.id); window.open(url, "_blank", "noopener"); }}>
                   {a.file_name}
                 </Chip>

@@ -18,7 +18,7 @@ const ALLOWED_CONTEXT_KEYS = new Set([
   "register_id", "store_id", "screen", "site_id", "site_domain", "tenant_id", "product_area", "steps", "expected", "actual",
 ]);
 
-/** Masks card numbers, bearer tokens, JWTs, API keys and emails embedded in free text. */
+/** Masks secrets that must never be stored in support text. */
 export function redactText(input: string): string {
   return input
     // Payment card numbers (13–19 digits, optional separators) that pass Luhn.
@@ -27,6 +27,35 @@ export function redactText(input: string): string {
     .replace(/\b(?:sk|pk|rk|sb_secret|sb_publishable|ghp|gho|ghs|github_pat|xox[abp]|re|bsk)_[A-Za-z0-9_-]{8,}\b/g, "[redacted key]")
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, "Bearer [redacted]")
     .replace(/([?&](?:token|key|code|secret|signature|sig|password|access_token|refresh_token)=)[^&\s#]+/gi, "$1[redacted]");
+}
+
+/**
+ * A stricter boundary for evidence leaving Bloom Support for an engineering
+ * system. Support conversations may legitimately contain contact details,
+ * but GitHub issues and coding-agent prompts must not.
+ *
+ * Keep this separate from redactText: masking an email inside the private
+ * support desk would make it harder for staff to help the person who wrote in.
+ */
+export function redactForEngineering(input: string): string {
+  return redactText(input)
+    .replace(
+      /\b[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+\b/gi,
+      "[redacted email]",
+    )
+    .replace(
+      /\b((?:phone|mobile|telephone|tel|call)\s*(?:number)?\s*[:=#-]?\s*)\+?\d{10,15}\b/gi,
+      "$1[redacted phone]",
+    )
+    .replace(/(?<![\p{L}\p{N}])\+?\d[\d().\s-]{7,}\d(?![\p{L}\p{N}])/gu, (candidate) => {
+      const digits = candidate.replace(/\D/g, "");
+      const formattedLikePhone = candidate.startsWith("+") || /[().\s-]/.test(candidate);
+      return formattedLikePhone && digits.length >= 10 && digits.length <= 15 ? "[redacted phone]" : candidate;
+    })
+    .replace(
+      /\b((?:(?:external\s+)?(?:customer|client|account|contact|organisation|organization|register|site|store|tenant|user|workspace))\s*(?:id|number|no\.?|#|ref(?:erence)?))\s*[:=#-]?\s*[A-Z0-9][A-Z0-9._:-]{2,}\b/gi,
+      "$1: [redacted customer id]",
+    );
 }
 
 function luhn(digits: string): boolean {

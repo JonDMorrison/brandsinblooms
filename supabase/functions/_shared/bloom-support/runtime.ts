@@ -45,6 +45,116 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
   return data as T;
 }
 
+export interface McpMutationContext {
+  /** Opaque SHA-256 key for one authenticated MCP mutation request. */
+  requestKey: string;
+  /** Tool and argument hash are persisted beside the key to detect misuse. */
+  tool: string;
+  argumentsHash: string;
+}
+
+/**
+ * Runs an MCP mutation and its idempotency receipt in one database transaction.
+ * Non-MCP callers keep using the ordinary allow-listed gateway.
+ */
+export async function mutationRpc<T = unknown>(
+  caller: Caller,
+  fn: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  if (!caller.mcpMutation) return await rpc<T>(fn, args);
+  const { data, error } = await db().rpc("bloom_support_mcp_mutation", {
+    p_actor: caller.principalId,
+    p_fn: fn,
+    p: args,
+    p_request_key: caller.mcpMutation.requestKey,
+    p_tool: caller.mcpMutation.tool,
+    p_arguments_hash: caller.mcpMutation.argumentsHash,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function claimMcpOperation<T = unknown>(
+  caller: Caller,
+  operationId: string,
+  action: "execute" | "undo",
+): Promise<T> {
+  if (!caller.mcpMutation) {
+    if (action === "execute") return await rpc<T>("claim_operation", { actor: caller.principalId, operation_id: operationId });
+    const { data, error } = await db().rpc("bloom_support_claim_operation_undo", { p_actor: caller.principalId, p_operation: operationId });
+    if (error) throw mapDbError(error);
+    return data as T;
+  }
+  const { data, error } = await db().rpc("bloom_support_mcp_claim_operation", {
+    p_actor: caller.principalId,
+    p_operation: operationId,
+    p_action: action,
+    p_request_key: caller.mcpMutation.requestKey,
+    p_tool: caller.mcpMutation.tool,
+    p_arguments_hash: caller.mcpMutation.argumentsHash,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function completeMcpOperation(
+  caller: Caller,
+  operationId: string,
+  result: Record<string, unknown>,
+): Promise<void> {
+  if (!caller.mcpMutation) return;
+  const { error } = await db().rpc("bloom_support_mcp_complete_operation", {
+    p_actor: caller.principalId,
+    p_operation: operationId,
+    p_request_key: caller.mcpMutation.requestKey,
+    p_tool: caller.mcpMutation.tool,
+    p_arguments_hash: caller.mcpMutation.argumentsHash,
+    p_result: result,
+  });
+  if (error) throw mapDbError(error);
+}
+
+export async function failOperationUndo<T = unknown>(actor: string, operationId: string, errorMessage: string): Promise<T> {
+  const { data, error } = await db().rpc("bloom_support_fail_operation_undo", {
+    p_actor: actor,
+    p_operation: operationId,
+    p_error: errorMessage,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function markOperationReconciliation<T = unknown>(
+  actor: string,
+  operationId: string,
+  action: "execute" | "undo",
+): Promise<T> {
+  const { data, error } = await db().rpc("bloom_support_mark_operation_reconciliation", {
+    p_actor: actor,
+    p_operation: operationId,
+    p_action: action,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function openMcpSession(actor: string, session: string): Promise<void> {
+  const { error } = await db().rpc("bloom_support_mcp_open_session", { p_actor: actor, p_session: session });
+  if (error) throw mapDbError(error);
+}
+
+export async function touchMcpSession(actor: string, session: string): Promise<boolean> {
+  const { data, error } = await db().rpc("bloom_support_mcp_touch_session", { p_actor: actor, p_session: session });
+  if (error) throw mapDbError(error);
+  return data === true;
+}
+
+export async function closeMcpSession(actor: string, session: string): Promise<void> {
+  const { error } = await db().rpc("bloom_support_mcp_close_session", { p_actor: actor, p_session: session });
+  if (error) throw mapDbError(error);
+}
+
 /** A service-role-only public function that authorizes p_actor itself (not routed through the gateway). */
 export async function directRpc<T = unknown>(fn: "bloom_chat_spend_overview" | "bloom_chat_spend_set_cap" | "bloom_support_client_suite_read" | "bloom_support_confirm_attachment" | "bloom_support_consume_email_usage" | "bloom_support_digest_report" | "bloom_support_enqueue_engineering_recoveries", args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(fn, args);
@@ -62,6 +172,8 @@ export interface Caller {
   name?: string | null;
   /** API-key scope narrowing (empty = full principal authority). */
   scopes: string[];
+  /** Present only while an authenticated MCP write tool is running. */
+  mcpMutation?: McpMutationContext;
 }
 
 export const SERVICE_IDENTITIES = ["intake", "operations", "automation", "investigation", "release"] as const;
@@ -210,6 +322,7 @@ export function cors(req: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bloom-product, x-bloom-timestamp, x-bloom-signature, mcp-session-id, mcp-protocol-version",
+    "Access-Control-Expose-Headers": "Mcp-Session-Id",
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     Vary: "Origin",
   };

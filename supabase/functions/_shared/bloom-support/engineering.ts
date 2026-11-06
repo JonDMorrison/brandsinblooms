@@ -11,7 +11,7 @@
 // The repair side never holds merge credentials and cannot write eligibility.
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
 import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
-import { evaluateRelease, PRODUCT_REPOSITORIES, redactText, resolvePolicy, type Product } from "./policy.ts";
+import { evaluateRelease, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Product } from "./policy.ts";
 import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts } from "./github.ts";
 
 export interface EngineeringIssue {
@@ -178,6 +178,58 @@ function repoFor(issue: EngineeringIssue): { repository: string; base: string } 
   return m ? { repository: m.repository, base: m.base } : null;
 }
 
+function engineeringPagePath(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const url = new URL(value);
+    return url.pathname
+      .split("/")
+      .map((part) => /^[0-9a-f-]{32,}$/i.test(part) || /^\d{7,}$/.test(part) ? "[record]" : part)
+      .join("/")
+      .slice(0, 1000);
+  } catch {
+    return redactForEngineering(value).split(/[?#]/, 1)[0].slice(0, 1000);
+  }
+}
+
+function engineeringContext(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    page_path: engineeringPagePath(raw.page_url),
+    app_version: raw.app_version ?? raw.release,
+    browser: typeof (raw.browser ?? raw.user_agent) === "string"
+      ? redactForEngineering(String(raw.browser ?? raw.user_agent)).slice(0, 500)
+      : null,
+    error_ids: raw.error_ids,
+    trace_ids: raw.trace_ids,
+  };
+}
+
+export function engineeringIssuePayload(input: {
+  issueId: string;
+  title: string;
+  branch: string;
+  base: string;
+  evidence: string;
+}): { title: string; body: string; labels: string[] } {
+  const body = [
+    `Bloom engineering issue \`${input.issueId}\`. Fix branch: \`${input.branch}\` → \`${input.base}\`.`,
+    "",
+    "Reports (sanitized; client contact details removed):",
+    "",
+    input.evidence,
+    "",
+    "Repair rules: reproduce first with a focused failing test, fix the root cause, never weaken or delete existing tests,",
+    "never edit workflows, release policy, migrations, auth, payments or secrets. If the fix needs any of those, stop and say so.",
+  ].join("\n");
+  // Final defence at the exact outbound boundary. Even if a future evidence
+  // collector forgets to sanitize one field, GitHub never receives it.
+  return {
+    title: `[Bloom] ${redactForEngineering(input.title)}`.slice(0, 250),
+    body: redactForEngineering(body),
+    labels: ["bloom-repair"],
+  };
+}
+
 /** Evidence for the coding agent: sanitized summaries only, no client contact data. */
 async function evidenceFor(automation: Caller, issue: EngineeringIssue): Promise<string> {
   const parts: string[] = [];
@@ -185,9 +237,9 @@ async function evidenceFor(automation: Caller, issue: EngineeringIssue): Promise
     const full = await rpc<Record<string, unknown>>("get_ticket", { actor: automation.principalId, ticket_id: t.id });
     const ctx = (full.context ?? {}) as Record<string, unknown>;
     parts.push([
-      `### Report #${t.number}: ${redactText(String(full.subject ?? ""))}`,
-      redactText(String(full.summary ?? "")).slice(0, 3000),
-      `Context: ${JSON.stringify({ page_url: ctx.page_url, app_version: ctx.app_version ?? ctx.release, browser: ctx.browser ?? ctx.user_agent, error_ids: ctx.error_ids, trace_ids: ctx.trace_ids, record_refs: ctx.record_refs }).slice(0, 1500)}`,
+      `### Report #${t.number}: ${redactForEngineering(String(full.subject ?? ""))}`,
+      redactForEngineering(String(full.summary ?? "")).slice(0, 3000),
+      `Context: ${JSON.stringify(engineeringContext(ctx)).slice(0, 1500)}`,
     ].join("\n"));
   }
   return parts.join("\n\n");
@@ -235,20 +287,12 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
   const evidence = await evidenceFor(automation, issue);
   let ghIssue = (issue.evidence?.github_issue as { number: number; url: string } | undefined) ?? null;
   if (!ghIssue) {
-    const created = await gh<{ number: number; html_url: string }>("repair", "POST", `/repos/${target.repository}/issues`, {
-      title: `[Bloom] ${issue.title}`.slice(0, 250),
-      body: [
-        `Bloom engineering issue \`${issue.id}\`. Fix branch: \`${branch}\` → \`${target.base}\`.`,
-        "",
-        "Reports (sanitized; client contact details removed):",
-        "",
-        evidence,
-        "",
-        "Repair rules: reproduce first with a focused failing test, fix the root cause, never weaken or delete existing tests,",
-        "never edit workflows, release policy, migrations, auth, payments or secrets. If the fix needs any of those, stop and say so.",
-      ].join("\n"),
-      labels: ["bloom-repair"],
-    });
+    const created = await gh<{ number: number; html_url: string }>(
+      "repair",
+      "POST",
+      `/repos/${target.repository}/issues`,
+      engineeringIssuePayload({ issueId: issue.id, title: issue.title, branch, base: target.base, evidence }),
+    );
     ghIssue = { number: created.number, url: created.html_url };
   }
   await update(repair, issue, "investigating", { repository: target.repository, branch, evidence: { github_issue: ghIssue, dispatches: cap.attempts + 1 } }, `GitHub issue #${ghIssue.number} (attempt ${cap.attempts + 1}/${cap.max_attempts})`);

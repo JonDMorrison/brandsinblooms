@@ -159,15 +159,15 @@ export default function BloomSupportPage() {
         )
       )}
       {view === "queue" && (
-        <Sheet variant="outlined" sx={{ borderRadius: "lg", flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(300px, 380px) minmax(0, 1fr)" }, overflow: "hidden" }}>
-          <Box sx={{ borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, minHeight: 0, display: { xs: ticketId ? "none" : "block", md: "block" } }}>
+        <Sheet variant="outlined" sx={{ borderRadius: "lg", flex: 1, minWidth: 0, maxWidth: "100%", minHeight: 0, display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(300px, 380px) minmax(0, 1fr)" }, overflow: "hidden" }}>
+          <Box sx={{ borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, minWidth: 0, minHeight: 0, display: { xs: ticketId ? "none" : "block", md: "block" } }}>
             <QueueList me={me.data!} selectedId={ticketId} onOpen={openTicket} />
           </Box>
-          <Box sx={{ minHeight: 0, display: { xs: ticketId ? "block" : "none", md: "block" } }}>
+          <Box sx={{ minWidth: 0, maxWidth: "100%", minHeight: 0, display: { xs: ticketId ? "block" : "none", md: "block" } }}>
             {ticketId ? (
-              <Stack sx={{ height: "100%" }}>
+              <Stack sx={{ height: "100%", minWidth: 0, maxWidth: "100%" }}>
                 <Box sx={{ display: { md: "none" }, p: 1 }}><IconButton size="sm" aria-label="Back to list" onClick={() => go({ ticket: null })}><ArrowLeft size={16} /></IconButton></Box>
-                <Box sx={{ flex: 1, minHeight: 0 }}><TicketDetailPane key={ticketId} ticketId={ticketId} me={me.data!} onOpenTicket={openTicket} /></Box>
+                <Box sx={{ flex: 1, minWidth: 0, maxWidth: "100%", minHeight: 0 }}><TicketDetailPane key={ticketId} ticketId={ticketId} me={me.data!} onOpenTicket={openTicket} /></Box>
               </Stack>
             ) : (
               <Box sx={{ p: 4 }}><JoyEmptyState icon={<Inbox size={28} />} title="Select a ticket" description="The conversation, client, owner, next action and Bloom's automation status appear here." /></Box>

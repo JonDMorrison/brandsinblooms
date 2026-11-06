@@ -14,7 +14,7 @@
 export type TrackStatus = "received" | "in_progress" | "waiting_on_you" | "resolved";
 export type TrackKind = "fix" | "help" | "idea";
 export type TrackAuthor = "customer" | "team" | "system";
-export type TrackPurpose = "acknowledgement" | "progress" | "reply" | "clarification" | "resolution" | "notification";
+export type TrackPurpose = "acknowledgement" | "progress" | "reply" | "clarification" | "resolution" | "feature_decision" | "notification";
 
 export interface TrackAttachment {
   id: string;
@@ -97,7 +97,7 @@ export const isTrackToken = (token: unknown): token is string => typeof token ==
 const STATUSES: readonly TrackStatus[] = ["received", "in_progress", "waiting_on_you", "resolved"];
 const KINDS: readonly TrackKind[] = ["fix", "help", "idea"];
 const AUTHORS: readonly TrackAuthor[] = ["customer", "team", "system"];
-const PURPOSES: readonly TrackPurpose[] = ["acknowledgement", "progress", "reply", "clarification", "resolution", "notification"];
+const PURPOSES: readonly TrackPurpose[] = ["acknowledgement", "progress", "reply", "clarification", "resolution", "feature_decision", "notification"];
 const PRODUCTS = new Set(["cms", "crm", "pos", "platform", "unknown"]);
 
 type Json = Record<string, unknown>;
