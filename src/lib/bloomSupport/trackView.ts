@@ -10,7 +10,7 @@
  * so a database change that adds a field (an internal note, a staff name, an
  * internal status) cannot reach the public page without a change here too.
  */
-import { clientSystemText } from "./clientWording.ts";
+import { clientResolutionText, clientSystemText } from "./clientWording.ts";
 
 export type TrackStatus = "received" | "in_progress" | "waiting_on_you" | "resolved";
 export type TrackKind = "fix" | "help" | "idea";
@@ -225,7 +225,8 @@ export function sanitizeTrackView(raw: unknown): TrackResponse | null {
     created_at: createdAt,
     last_activity_at: isoDate(raw.last_activity_at) ?? createdAt,
     resolved_at: resolved ? isoDate(raw.resolved_at) : null,
-    resolution_summary: resolved ? text(raw.resolution_summary, 5000) : null,
+    // Written for the client: technical staff notes are replaced with a plain line.
+    resolution_summary: resolved ? clientResolutionText(text(raw.resolution_summary, 5000)) : null,
     confirmed: resolved && bool(raw.confirmed),
     merged_into_number: typeof raw.merged_into_number === "number" && Number.isInteger(raw.merged_into_number) ? raw.merged_into_number : null,
     requester_name: text(raw.requester_name, 80)?.trim() || null,
