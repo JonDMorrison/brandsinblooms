@@ -25,6 +25,10 @@ import { redactText, sanitizeContext } from "../_shared/bloom-support/policy.ts"
 interface Upload { file_name?: string; content_type?: string; data_base64?: string }
 interface PreparedAttachment extends AttachmentFile { digest: string }
 const MAX_REPORT_JSON_BYTES = 17 * 1024 * 1024;
+// Everything in a public request except its files stays within 64 KB. Files may use the same budget as a
+// signed-in report (5 files, 8 MB each, 12 MB total, as base64, inside MAX_REPORT_JSON_BYTES). Abuse
+// controls are unchanged: the honeypot answers before any file is decoded, and nothing is stored until
+// create_ticket has consumed the per-email and per-IP quota.
 const MAX_PUBLIC_JSON_BYTES = 64 * 1024;
 const MAX_REPORT_BODY_LENGTH = 20_000;
 const MAX_PUBLIC_BODY_LENGTH = 10_000;
@@ -209,7 +213,11 @@ async function report(req: Request): Promise<unknown> {
 }
 
 async function publicRequest(req: Request): Promise<unknown> {
-  const b = await readJson(req, MAX_PUBLIC_JSON_BYTES);
+  const b = await readJson(req, MAX_REPORT_JSON_BYTES);
+  const { attachments: _files, ...envelope } = b;
+  if (new TextEncoder().encode(JSON.stringify(envelope)).byteLength > MAX_PUBLIC_JSON_BYTES) {
+    throw new BloomError(413, "too_large", "Request is too large");
+  }
   // Honeypot: real forms leave "website" empty.
   // Keep the fake receipt contract-shaped so automated callers cannot discover
   // the trap by comparing it with a real 2xx response.

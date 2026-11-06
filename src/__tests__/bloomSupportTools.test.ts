@@ -521,6 +521,10 @@ describe("Bloom Support intake and attachment contracts", () => {
       .toThrow("did not confirm");
     expect(parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "pending" }))
       .toMatchObject({ number: 42, email_delivery: "pending" });
+    expect(parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "pending", attachments: { stored: 1, failed: ["b.png: could not be stored; attach it to your reply"] } }))
+      .toMatchObject({ number: 42, attachments: { stored: 1, failed: ["b.png: could not be stored; attach it to your reply"] } });
+    expect(parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "pending", attachments: { stored: "1", failed: [] } }))
+      .not.toHaveProperty("attachments");
     expect(parseSupportMessageResult({ message_id: ticketId, duplicate: false }))
       .toEqual({ message_id: ticketId, duplicate: false });
     expect(() => parseSupportMessageResult({ ok: true })).toThrow("did not confirm your reply");
