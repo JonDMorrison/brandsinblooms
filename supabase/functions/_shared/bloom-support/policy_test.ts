@@ -67,6 +67,9 @@ Deno.test("deterministic outage evidence covers varied current high-impact failu
     ["Platform disruption", "We are experiencing a current service outage."],
     ["POS outage", "No one can use the tills; all stores see 503 errors."],
     ["Cannot access the platform", "Customers cannot access the platform."],
+    ["BloomSites unavailable", "BloomSites is unavailable across multiple sites."],
+    ["Login failure", "No one can log in to the CRM."],
+    ["App crash", "The app crashes for every user."],
   ];
   for (const [subject, body] of cases) {
     const rules = classify(subject, body, "cms");
