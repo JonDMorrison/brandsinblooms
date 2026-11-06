@@ -14,6 +14,7 @@ import remarkGfm from "remark-gfm";
 import { FileText, Paperclip } from "lucide-react";
 import { FONT, focusRing, fullDate, outlineButton, shortDate, srOnly, T } from "./trackTheme";
 import type { TrackAttachment, TrackMessage, TimelineItem } from "@/lib/bloomSupport/trackView";
+import { forwardedParts } from "@/lib/bloomSupport/clientWording";
 
 export type BotanicalIcon = "leaf" | "check" | "mail" | "calendar" | "alert" | "sun" | "water" | "soil" | "truck";
 const ICONS = "https://bloomsites.app/email/premium-icons/";
@@ -261,6 +262,8 @@ export function MessageRow({
 }: { m: TrackMessage; isRequest: boolean; onOpenFile: (f: TrackAttachment) => void; busyFileId: string | null; extraFiles?: TrackAttachment[] }) {
   const customer = m.author === "customer";
   const bg = customer ? T.white : T.panel;
+  // A forwarded email shows the message itself, not the email header block.
+  const forwarded = customer ? forwardedParts(m.body) : null;
   return (
     <Box component="li" sx={{ listStyle: "none", display: "flex", gap: { xs: 1.25, sm: 1.75 }, alignItems: "flex-start" }}>
       <Avatar author={m.author} name={m.name} />
@@ -274,13 +277,18 @@ export function MessageRow({
             {customer ? m.name : "Bloom Support"}
             {isRequest && (
               <Box component="span" sx={{ ml: 0.75, fontSize: "11px", fontWeight: 600, letterSpacing: "1px", color: T.accent, bgcolor: T.accentSoft, px: 1, py: 0.375, borderRadius: "6px", whiteSpace: "nowrap" }}>
-                ORIGINAL REQUEST
+                YOUR REQUEST
               </Box>
             )}
           </Typography>
           <Typography component="span" sx={{ fontSize: "13px", color: T.muted }}><Time iso={m.created_at}>{shortDate(m.created_at)}</Time></Typography>
         </Stack>
-        <Collapsible body={m.body} background={bg} />
+        {forwarded && (
+          <Typography component="p" sx={{ m: 0, fontSize: "13px", color: T.muted, overflowWrap: "anywhere" }}>
+            {forwarded.from ? `Forwarded from ${forwarded.from}` : "Forwarded email"}
+          </Typography>
+        )}
+        <Collapsible body={forwarded ? forwarded.body : m.body} background={bg} />
         <Attachments files={[...extraFiles, ...m.attachments]} onOpen={onOpenFile} busyId={busyFileId} />
       </Box>
     </Box>

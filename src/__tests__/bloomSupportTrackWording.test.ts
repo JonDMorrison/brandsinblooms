@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientSystemText } from "@/lib/bloomSupport/clientWording";
+import { clientResolutionText, clientSystemText, forwardedParts, PLAIN_RESOLUTION } from "@/lib/bloomSupport/clientWording";
 import { sanitizeTrackView, type TrackView } from "@/lib/bloomSupport/trackView";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -47,5 +47,37 @@ describe("client projection: Bloom's automatic copy never names staff", () => {
 
   it("capitalises only at the start of a sentence or line", () => {
     expect(clientSystemText("Jon decides.\nJeff reviews. Ask Jon or Jeff.")).toBe("Our team decides.\nOur team reviews. Ask our team.");
+  });
+});
+
+describe("clientResolutionText", () => {
+  it("keeps a plain summary written for the client", () => {
+    expect(clientResolutionText("You can upload photos to your gallery again.")).toBe("You can upload photos to your gallery again.");
+  });
+  it("replaces staff notes with the plain line", () => {
+    expect(clientResolutionText("Authorized fallback-route canary completed; the established support-subdomain address still reaches Bloom Support.")).toBe(PLAIN_RESOLUTION);
+    expect(clientResolutionText("Fixed in PR #412, deployed to production after verification of the RLS policy.")).toBe(PLAIN_RESOLUTION);
+    expect(clientResolutionText(null)).toBe(PLAIN_RESOLUTION);
+  });
+  it("rewords staff names", () => {
+    expect(clientResolutionText("Jon updated your hours.")).toBe("Our team updated your hours.");
+  });
+});
+
+describe("forwardedParts", () => {
+  const gmail = "---------- Forwarded message ---------\nFrom: Jon Morrison <jon@example.com>\nDate: Fri, Nov 6, 2026 at 3:24 AM\nSubject: Photos not uploading\nTo: Bloom Support <bloom@bloomsuite.app>\n\nMy gallery photos won't upload.\nCan you help?";
+  it("drops the Gmail header block and names the sender", () => {
+    expect(forwardedParts(gmail)).toEqual({ from: "Jon Morrison", body: "My gallery photos won't upload.\nCan you help?" });
+  });
+  it("keeps the forwarder's own note above the forward", () => {
+    expect(forwardedParts(`See below, thanks\n\n${gmail}`)?.body).toBe("See below, thanks\n\nMy gallery photos won't upload.\nCan you help?");
+  });
+  it("reads Outlook's Original Message header", () => {
+    const outlook = "-----Original Message-----\nFrom: sam@shop.ca\nSent: Thursday, November 5, 2026 9:00 AM\nTo: bloom@bloomsuite.app\nSubject: Hours\n\nPlease update our hours.";
+    expect(forwardedParts(outlook)).toEqual({ from: "sam@shop.ca", body: "Please update our hours." });
+  });
+  it("leaves ordinary messages alone", () => {
+    expect(forwardedParts("From: the garden centre\nHello")).toBeNull();
+    expect(forwardedParts("Just a normal question.")).toBeNull();
   });
 });
