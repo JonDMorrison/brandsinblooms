@@ -28,6 +28,7 @@ export type ReviewDecision = {
   ownerId: string;
 };
 export interface DecisionApi {
+  getTicket(id: string): Promise<{ status: string; merged_into?: string | null; version?: number }>;
   setAutomation(id: string, mode: "human", reason: string): Promise<unknown>;
   resolveEscalation(id: string, decision: string): Promise<unknown>;
   updateTicket(id: string, patch: Record<string, unknown>): Promise<unknown>;
@@ -41,17 +42,30 @@ export async function recordReviewDecision(
   const decision = choice === "do" ? `Accepted: ${input.recommendation}`
     : choice === "reject" ? `Rejected: ${input.recommendation}. Do not repeat this recommendation; an alternative needs review.`
     : `Alternative requested: ${alternative.trim()}`;
+  const activeTickets = new Set<string>();
+  for (const id of [...new Set(input.ticketIds)]) {
+    const ticket = await api.getTicket(id);
+    if (ticket.status === "resolved" || ticket.merged_into) continue;
+    if (!Number.isSafeInteger(ticket.version)) throw new Error("Refresh the request before recording this decision.");
+    activeTickets.add(id);
+  }
   // Hold automation first. If a later write fails, no automatic retry or
   // release is enabled; the visible error lets the person retry the recording.
-  for (const id of [...new Set(input.ticketIds)]) await api.setAutomation(id, "human", decision);
+  for (const id of activeTickets) await api.setAutomation(id, "human", decision);
   for (const item of input.escalations) {
+    if (item.ticket_id && !activeTickets.has(String(item.ticket_id))) continue;
     if (["open", "acknowledged"].includes(String(item.status))) await api.resolveEscalation(String(item.id), decision);
   }
-  for (const id of [...new Set(input.ticketIds)]) await api.updateTicket(id, {
-    status: "working", owner_id: input.ownerId, next_action: decision,
-    next_action_due_at: new Date(Date.now() + 24 * 3600e3).toISOString(),
-    reason: decision,
-  });
+  for (const id of activeTickets) {
+    const ticket = await api.getTicket(id);
+    if (ticket.status === "resolved" || ticket.merged_into) continue;
+    if (!Number.isSafeInteger(ticket.version)) throw new Error("Refresh the request before recording this decision.");
+    await api.updateTicket(id, {
+      version: ticket.version, status: "working", owner_id: input.ownerId, next_action: decision,
+      next_action_due_at: new Date(Date.now() + 24 * 3600e3).toISOString(),
+      reason: decision,
+    });
+  }
 }
 
 export function escalationExplanation(reason: unknown): string {

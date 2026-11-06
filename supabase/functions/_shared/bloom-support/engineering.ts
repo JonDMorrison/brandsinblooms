@@ -44,6 +44,20 @@ async function update(actor: Caller, issue: EngineeringIssue, status: string | n
   return await rpc("update_engineering_issue", { actor: actor.principalId, issue_id: issue.id, update: { ...(status ? { status } : {}), patch, note } });
 }
 
+async function updateVersioned(
+  actor: Caller,
+  issue: EngineeringIssue,
+  status: string | null,
+  patch: Record<string, unknown>,
+  note?: string,
+) {
+  return await rpc("update_engineering_issue", {
+    actor: actor.principalId,
+    issue_id: issue.id,
+    update: { version: issue.version, ...(status ? { status } : {}), patch, note },
+  });
+}
+
 export function branchFor(issueId: string): string {
   return `bloom/fix-${issueId.slice(0, 8)}`;
 }
@@ -249,10 +263,29 @@ async function evidenceFor(automation: Caller, issue: EngineeringIssue): Promise
  * Starts the repair workflow. A GitHub-side error (5xx) is retried once, but only after
  * confirming GitHub did not start a run anyway, so a glitch never produces two repairs.
  */
-async function dispatchWithRetry(repository: string, workflow: string, payload: { ref: string; inputs: Record<string, string> }): Promise<void> {
+async function repairWorkflowRunExists(
+  repository: string,
+  workflow: string,
+  issueId: string,
+  startedAt: string,
+): Promise<boolean> {
+  const runs = await gh<{ workflow_runs?: Array<{ display_title?: string }> }>(
+    "repair",
+    "GET",
+    `/repos/${repository}/actions/workflows/${workflow}/runs?event=workflow_dispatch&per_page=100&created=${encodeURIComponent(`>=${startedAt}`)}`,
+  );
+  return (runs.workflow_runs ?? []).some((run) => (run.display_title ?? "").includes(issueId));
+}
+
+async function dispatchWithRetry(
+  repository: string,
+  workflow: string,
+  payload: { ref: string; inputs: Record<string, string> },
+  startedAt: string,
+): Promise<void> {
   const issueId = payload.inputs.engineering_issue_id;
   const path = `/repos/${repository}/actions/workflows/${workflow}/dispatches`;
-  const since = new Date(Date.now() - 10_000).toISOString();
+  if (await repairWorkflowRunExists(repository, workflow, issueId, startedAt)) return;
   try {
     await gh("repair", "POST", path, payload);
     return;
@@ -260,17 +293,38 @@ async function dispatchWithRetry(repository: string, workflow: string, payload: 
     if (!(e instanceof GitHubError) || e.upstream < 500) throw e;
   }
   await new Promise((r) => setTimeout(r, Number(env("BLOOM_GITHUB_RETRY_DELAY_MS") ?? 5000)));
-  // The workflow's run-name carries the engineering issue id, so only this repair's own run counts.
-  const runs = await gh<{ workflow_runs?: Array<{ created_at: string; display_title?: string }> }>(
-    "repair", "GET", `/repos/${repository}/actions/workflows/${workflow}/runs?event=workflow_dispatch&per_page=10&created=${encodeURIComponent(`>=${since}`)}`,
-  );
-  if ((runs.workflow_runs ?? []).some((r) => (r.display_title ?? "").includes(issueId))) return;
+  if (await repairWorkflowRunExists(repository, workflow, issueId, startedAt)) return;
   await gh("repair", "POST", path, payload);
 }
 
 export async function investigate(repair: Caller, automation: Caller, issueId: string): Promise<StepResult> {
-  const issue = await loadIssue(repair, issueId);
-  // A queued duplicate observes the existing run; it never spends another attempt.
+  let issue = await loadIssue(repair, issueId);
+  const workflow = env("BLOOM_REPAIR_WORKFLOW") ?? "bloom-repair.yml";
+  const dispatchLeaseMs = 20 * 60 * 1000;
+  const dispatchClaimUntil = (now = Date.now()) => new Date(now + dispatchLeaseMs).toISOString();
+  const pendingDispatch = issue.status === "investigating" && issue.evidence?.dispatch_pending === true;
+  if (pendingDispatch) {
+    const leaseUntil = Date.parse(String(issue.evidence.dispatch_claim_until ?? ""));
+    if (Number.isFinite(leaseUntil) && leaseUntil > Date.now()) {
+      return {
+        next: { step: "investigate", delaySeconds: Math.ceil((leaseUntil - Date.now()) / 1000) },
+        note: "repair dispatch is claimed; waiting to reconcile it",
+      };
+    }
+    const startedAt = typeof issue.evidence.dispatch_started_at === "string"
+      ? issue.evidence.dispatch_started_at
+      : new Date(Date.now() - 120_000).toISOString();
+    await updateVersioned(repair, issue, null, { evidence: { dispatch_claim_until: dispatchClaimUntil() } });
+    issue = await loadIssue(repair, issueId);
+    const target = repoFor(issue);
+    if (!target) {
+      await update(repair, issue, "escalated", {}, "Product unknown: Bloom cannot map this report to a repository");
+      return { note: "escalated: unknown product" };
+    }
+    return await continueRepairDispatch(repair, automation, issue, target, workflow, startedAt);
+  }
+  // A queued duplicate observes an existing dispatch or repair run; it never
+  // spends another attempt. Pending dispatches above are reconciled explicitly.
   if (["investigating", "reproduced", "fixing"].includes(issue.status)) {
     return { next: { step: "poll", delaySeconds: 300 }, note: "repair already running; observing existing run" };
   }
@@ -292,35 +346,70 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
   }
   if (cap.active >= cap.max_active) return { next: { step: "investigate", delaySeconds: 1800 }, note: `waiting for repair capacity (${cap.active}/${cap.max_active} active)` };
   const branch = branchFor(issue.id);
-  // Claim the issue with its database version before any GitHub mutation.
-  // The losing concurrent job retries against the persisted investigating state.
-  await rpc("update_engineering_issue", {
-    actor: repair.principalId, issue_id: issue.id,
-    update: { version: issue.version, status: "investigating", patch: {
-      repository: target.repository, branch, evidence: { dispatches: cap.attempts + 1 },
-    }, note: `Starting repair attempt ${cap.attempts + 1}/${cap.max_attempts}` },
-  });
-  const workflow = env("BLOOM_REPAIR_WORKFLOW") ?? "bloom-repair.yml";
+  // Claim the issue and the dispatch phase with its database version before
+  // any GitHub mutation. A reclaimed job can reconcile workflow-run evidence.
+  const startedAt = new Date().toISOString();
+  await updateVersioned(repair, issue, "investigating", {
+    repository: target.repository,
+    branch,
+    evidence: {
+      dispatches: cap.attempts + 1,
+      dispatch_pending: true,
+      dispatch_started_at: startedAt,
+      dispatch_claim_until: dispatchClaimUntil(),
+    },
+  }, `Starting repair attempt ${cap.attempts + 1}/${cap.max_attempts}`);
+  issue = await loadIssue(repair, issueId);
+  return await continueRepairDispatch(repair, automation, issue, target, workflow, startedAt);
+}
+
+async function continueRepairDispatch(
+  repair: Caller,
+  automation: Caller,
+  issue: EngineeringIssue,
+  target: { repository: string; base: string },
+  workflow: string,
+  startedAt: string,
+): Promise<StepResult> {
   try {
+    if (await repairWorkflowRunExists(target.repository, workflow, issue.id, startedAt)) {
+      await updateVersioned(repair, issue, null, {
+        evidence: { dispatch_pending: false, dispatch_claim_until: null, dispatched_at: new Date().toISOString() },
+      }, "Existing repair workflow run reconciled");
+      return { next: { step: "poll", delaySeconds: 300 }, note: "existing repair workflow run found; observing it" };
+    }
+
     const evidence = await evidenceFor(automation, issue);
     let ghIssue = (issue.evidence?.github_issue as { number: number; url: string } | undefined) ?? null;
     if (!ghIssue) {
       const created = await gh<{ number: number; html_url: string }>(
         "repair", "POST", `/repos/${target.repository}/issues`,
-        engineeringIssuePayload({ issueId: issue.id, title: issue.title, branch, base: target.base, evidence }),
+        engineeringIssuePayload({ issueId: issue.id, title: issue.title, branch: issue.branch ?? branchFor(issue.id), base: target.base, evidence }),
       );
       ghIssue = { number: created.number, url: created.html_url };
+      await updateVersioned(repair, issue, null, { evidence: { github_issue: ghIssue } }, `GitHub issue #${ghIssue.number}`);
+      issue = await loadIssue(repair, issue.id);
     }
-    await update(repair, issue, null, { evidence: { github_issue: ghIssue } }, `GitHub issue #${ghIssue.number}`);
     // The repair workflow only runs from the repository's default branch (it checks
     // github.ref). The fix still targets target.base, which travels as an input.
     const { default_branch } = await gh<{ default_branch: string }>("repair", "GET", `/repos/${target.repository}`);
     await dispatchWithRetry(target.repository, workflow, {
       ref: default_branch,
-      inputs: { github_issue: String(ghIssue.number), engineering_issue_id: issue.id, branch, base: target.base },
-    });
+      inputs: { github_issue: String(ghIssue.number), engineering_issue_id: issue.id, branch: issue.branch ?? branchFor(issue.id), base: target.base },
+    }, startedAt);
+    const latest = await loadIssue(repair, issue.id);
+    await updateVersioned(repair, latest, null, {
+      evidence: { dispatch_pending: false, dispatch_claim_until: null, dispatched_at: new Date().toISOString() },
+    }, "Repair workflow dispatch confirmed");
   } catch (e) {
-    await update(repair, issue, "escalated", {}, `Repair workflow could not start in ${target.repository}: ${e instanceof Error ? e.message : e}`);
+    if (e instanceof BloomError && e.code === "conflict") throw e;
+    const latest = await loadIssue(repair, issue.id);
+    if (latest.status !== "investigating" || latest.evidence?.dispatch_pending !== true) {
+      return { note: "repair state changed before workflow dispatch completed" };
+    }
+    await updateVersioned(repair, latest, "escalated", {
+      evidence: { dispatch_pending: false, dispatch_claim_until: null },
+    }, `Repair workflow could not start in ${target.repository}: ${e instanceof Error ? e.message : e}`);
     return { note: "escalated: workflow dispatch failed" };
   }
   return { next: { step: "poll", delaySeconds: 300 }, note: `dispatched ${workflow} on ${target.repository}` };
@@ -345,7 +434,11 @@ export async function poll(repair: Caller, issueId: string): Promise<StepResult>
   return { next: { step: "evaluate", delaySeconds: 600 }, note: `PR #${pr.number} in review` };
 }
 
-export async function evaluate(release: Caller, issueId: string): Promise<StepResult> {
+export async function evaluate(
+  release: Caller,
+  issueId: string,
+  options: { humanOwned?: boolean } = {},
+): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
   if (!issue.repository || !issue.pr_number) return { note: "no PR" };
   if (!["in_review", "approved", "awaiting_approval"].includes(issue.status)) return { note: `status ${issue.status}` };
@@ -388,6 +481,11 @@ export async function evaluate(release: Caller, issueId: string): Promise<StepRe
   if (pr.state === "closed") {
     await update(release, issue, "failed", {}, "Fix PR was closed without merging");
     return { note: "PR closed" };
+  }
+  // Under human ownership, evaluate only a permission-checked approval.
+  // Existing merges are handled above so deployment monitoring is never lost.
+  if (options.humanOwned && (issue.status !== "approved" || !issue.approved_head_sha)) {
+    return { note: "human owns engineering review; automatic release decision held" };
   }
   // A delayed repair report can arrive after polling has already moved the
   // issue into review. Never let its explicit human-review signal be bypassed

@@ -146,8 +146,34 @@ async function triage(job: Job): Promise<string> {
     schemaName: "triage", schema: CLASSIFY_SCHEMA, accountKey: t.account?.id ?? "none", images: vision.images,
   });
   const latest = (await context(t.id)).ticket;
-  if (latest.automation !== "auto" || latest.executor === "person" || latest.engineering_issue_id) {
-    return "skipped: ownership or engineering changed during triage";
+  if (latest.status === "resolved" || latest.merged_into) return "skipped: ticket is no longer active";
+  const linkedEngineeringStatus = String(latest.engineering?.status ?? "");
+  if (latest.engineering_issue_id) {
+    if (["verified", "closed"].includes(linkedEngineeringStatus) && latest.reopen_count > 0) {
+      const reason = "Follow-up after a completed fix";
+      await rpc("escalate", {
+        actor: bot.principalId, ticket_id: latest.id, audience: "both", reason,
+        detail: `This request was reopened after engineering issue ${latest.engineering_issue_id} was completed. Review whether a follow-up fix is needed.`,
+        dedupe_key: `engineering-followup:${latest.id}:${latest.reopen_count}`,
+      });
+      if (latest.automation === "auto" && latest.executor !== "person") {
+        await rpc("set_automation", {
+          actor: bot.principalId, ticket_id: latest.id, mode: "paused", reason,
+        });
+      }
+      await note(
+        latest,
+        "The request was reopened after its linked fix was completed. A person needs to review whether follow-up engineering work is needed.",
+        `engineering-followup-note:${latest.id}:${latest.reopen_count}`,
+      );
+      return "reopened after completed fix; follow-up review required";
+    }
+    return ["verified", "closed"].includes(linkedEngineeringStatus)
+      ? "skipped: completed engineering link is historical"
+      : "skipped: linked engineering work still owns the request";
+  }
+  if (latest.automation !== "auto" || latest.executor === "person") {
+    return "skipped: ownership changed during triage";
   }
   const c = model.ok ? mergeModelClassification(rules, model.value) : rules;
   const isFirst = job.payload.reason === "new_ticket";
@@ -155,6 +181,7 @@ async function triage(job: Job): Promise<string> {
   // Related history: a strong match with an open fix becomes a duplicate.
   const dup = ctx.related.find((r) => r.score >= 0.25 && r.engineering_issue_id && r.status !== "resolved" && r.id !== t.id);
   await patch(t, {
+    version: latest.version,
     kind: t.kind === "unknown" || isFirst ? c.kind : t.kind,
     priority: c.priority, impact: c.impact, category: c.category, stage: "triage",
     next_action: null, reason: `triage (${c.source}${model.ok ? "" : `; model: ${model.reason}`})`,
@@ -177,10 +204,20 @@ async function triage(job: Job): Promise<string> {
     return "asked for details";
   }
   switch (c.kind) {
-    case "feature":
-      await rpc("route_feature_request", { actor: bot.principalId, ticket_id: t.id, feature: { title: t.subject } });
+    case "feature": {
+      try {
+        await rpc("route_feature_request", {
+          actor: bot.principalId, ticket_id: t.id, feature: { title: t.subject },
+        });
+      } catch (e) {
+        if (e instanceof BloomError && e.code === "conflict") {
+          return "skipped: ticket state changed before feature routing";
+        }
+        throw e;
+      }
       await bloomSays(t, bloomFeatureReceived(), "progress", `feature-ack:${t.id}`);
       return "feature routed for an admin decision";
+    }
     case "question":
       await rpc("enqueue_job", { actor: bot.principalId, kind: "answer", ticket_id: t.id, lane: job.lane, payload: {}, idempotency_key: `answer:${t.id}:${t.reopen_count}:${lastClient?.id ?? "first"}` });
       await patch(t, { stage: "answering" });
@@ -503,11 +540,13 @@ async function escalateEmail(job: Job): Promise<string> {
 async function engineeringStep(job: Job): Promise<string> {
   const step = String(job.payload.step ?? "investigate");
   const id = job.engineering_issue_id!;
-  // A human decision holds pre-release automation. Continue observing a release
-  // already in progress so takeover never abandons verification or rollback.
+  let humanOwned = false;
+  // A human decision holds unattended repair and merge work. Evaluation still
+  // checks for a merge made outside Bloom and honors an explicitly approved PR.
   if (job.ticket_id && ["investigate", "poll", "evaluate"].includes(step)) {
     const ticket = (await context(job.ticket_id)).ticket;
-    if (ticket.automation !== "auto" || ticket.executor === "person") return "skipped: human owns engineering review";
+    humanOwned = ticket.automation !== "auto" || ticket.executor === "person";
+    if (humanOwned && ["investigate", "poll"].includes(step)) return "skipped: human owns engineering review";
   }
   let r: StepResult;
   if (step === "investigate" || step === "poll") {
@@ -515,7 +554,7 @@ async function engineeringStep(job: Job): Promise<string> {
     r = step === "investigate" ? await investigate(repair, bot, id) : await poll(repair, id);
   } else {
     if (!release) throw new BloomError(503, "not_configured", "BLOOM_SERVICE_KEY_RELEASE is not set");
-    r = step === "evaluate" ? await evaluate(release, id) : step === "deploy" ? await deploy(release, id) : await verify(release, id);
+    r = step === "evaluate" ? await evaluate(release, id, { humanOwned }) : step === "deploy" ? await deploy(release, id) : await verify(release, id);
   }
   if (r.next) {
     await rpc("enqueue_job", {

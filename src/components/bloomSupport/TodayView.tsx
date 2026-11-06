@@ -66,11 +66,10 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
 
   const engineering = useQuery({ queryKey: ["bloom-support", "engineering", "awaiting_approval", "today"], queryFn: async () => {
     const rows = await bloomSupport.engineering("awaiting_approval");
-    return await Promise.all(rows.map(async (row) => {
-      const tickets = (row.tickets as Array<{ id: string }>) ?? [];
-      const states = await Promise.all(tickets.map((ticket) => bloomSupport.getTicket(ticket.id)));
-      return { ...row, reviewOwned: states.length > 0 && states.every((ticket) => ticket.automation === "human") };
-    }));
+    return rows.map((row) => {
+      const tickets = (row.tickets as Array<{ id: string; automation?: string }>) ?? [];
+      return { ...row, reviewOwned: tickets.length > 0 && tickets.every((ticket) => ticket.automation === "human") };
+    });
   }, enabled: can("engineering.view"), refetchInterval: 30_000 });
   const features = useQuery({ queryKey: ["bloom-support", "features"], queryFn: () => bloomSupport.features(), enabled: can("features.view"), refetchInterval: 60_000 });
   const escalations = useQuery({ queryKey: ["bloom-support", "escalations"], queryFn: () => bloomSupport.escalations(), enabled: can("escalations.view"), refetchInterval: 30_000 });

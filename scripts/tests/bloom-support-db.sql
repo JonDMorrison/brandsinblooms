@@ -55,6 +55,7 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261106110933_bloom_support_feature_shipments_and_knowledge.sql
 BEGIN;
 \ir ../../supabase/migrations/20261106192402_bloom_support_engineering_handoff.sql
+\ir ../../supabase/migrations/20261106213000_bloom_support_review_safety.sql
 -- Match the release runner: migration and history stay in one transaction.
 DO $$ BEGIN
   IF current_setting('lock_timeout') <> '2s' THEN
@@ -2542,5 +2543,63 @@ SELECT pg_temp.assert(NOT has_function_privilege('authenticated','public.bloom_s
   AND has_function_privilege('service_role','public.bloom_support_mark_operation_reconciliation(uuid,uuid,text)','execute'),
   'MCP mutation and reconciliation gateways are service-role only');
 DROP FUNCTION public.bloom_support_test_mcp_call(uuid,text,jsonb,text,text,text);
+
+-- 41. Review safety: retries are idempotent, terminal tickets stay closed,
+-- linked ownership is visible in one engineering summary, and feature routing is guarded.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm', 'channel', 'crm', 'subject', 'Escalation retry',
+    'body', 'A decision may be retried after a later write fails.',
+    'account_id', :'greenleaf'
+  )
+))->>'ticket_id' AS escalation_retry_ticket \gset
+SELECT pg_temp.rpc('escalate', jsonb_build_object(
+  'actor', :'bot', 'ticket_id', :'escalation_retry_ticket',
+  'audience', 'both', 'reason', 'review retry fixture',
+  'dedupe_key', 'review-retry-escalation'
+))->>'escalation_id' AS escalation_retry_id \gset
+SELECT pg_temp.rpc('resolve_escalation', jsonb_build_object(
+  'actor', :'jeff', 'escalation_id', :'escalation_retry_id', 'decision', 'same recorded decision'
+));
+SELECT version AS escalation_retry_version
+FROM bloom_support.tickets WHERE id = :'escalation_retry_ticket' \gset
+SELECT pg_temp.rpc('resolve_escalation', jsonb_build_object(
+  'actor', :'jeff', 'escalation_id', :'escalation_retry_id', 'decision', 'same recorded decision'
+));
+SELECT pg_temp.assert(
+  (SELECT version = :'escalation_retry_version'::integer
+   FROM bloom_support.tickets WHERE id = :'escalation_retry_ticket'),
+  'same-decision escalation retries do not repeat ticket writes'
+);
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('resolve_escalation', '{"actor":"%s","escalation_id":"%s","decision":"different decision"}'::jsonb)$q$,
+  :'jeff', :'escalation_retry_id'
+), 'different decision');
+
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('set_automation', '{"actor":"%s","ticket_id":"%s","mode":"human"}'::jsonb)$q$,
+  :'jeff', :'resolved_invariant_ticket'
+), 'resolved or merged ticket');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('set_automation', '{"actor":"%s","ticket_id":"%s","mode":"human"}'::jsonb)$q$,
+  :'jeff', :'dupt'
+), 'resolved or merged ticket');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('route_feature_request', '{"actor":"%s","ticket_id":"%s","feature":{"title":"Must not overwrite engineering"}}'::jsonb)$q$,
+  :'bot', :'late_report_ticket'
+), 'linked engineering work requires review');
+SELECT pg_temp.assert(
+  NOT EXISTS (SELECT 1 FROM bloom_support.feature_requests WHERE title = 'Must not overwrite engineering'),
+  'a rejected feature route leaves no orphan feature request'
+);
+SELECT pg_temp.assert(EXISTS (
+  SELECT 1
+  FROM jsonb_array_elements(pg_temp.rpc('list_engineering', jsonb_build_object('actor', :'jeff'))) issue
+  CROSS JOIN LATERAL jsonb_array_elements(issue->'tickets') ticket
+  WHERE issue->>'id' = :'eng2'
+    AND ticket->>'id' = :'t1id'
+    AND ticket ? 'automation'
+), 'engineering summaries include ticket ownership without detail lookups');
 
 \echo 'bloom-support-db: all assertions passed'
