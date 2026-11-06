@@ -19,6 +19,7 @@ import {
 import { emailConfig } from "../_shared/bloom-support/email.ts";
 import { alignedWith, binaryString, rawFromAddress, verifiedDkimDomains } from "../_shared/bloom-support/dkim.ts";
 import { bloomAttachmentRejection } from "../_shared/bloom-support/voice.ts";
+import { relayIdempotencyKey } from "../_shared/bloom-support/relay-key.ts";
 
 interface ReceivedEmail {
   id: string;
@@ -300,8 +301,9 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
 
   // A BloomSites or BloomTill report that fell back to email carries the key the product already
   // used with Bloom. If that report reached Bloom, do not open a second ticket. Only an
-  // authenticated relay can use this; anyone else's key line is ignored.
-  const productKey = !trustedRelay ? null : rawText.match(/^Bloom-Idempotency-Key:\s*([A-Za-z0-9:_-]{8,200})\s*$/m)?.[1] ?? null;
+  // authenticated relay can use this, and only its own (last) key line counts: a key line in the
+  // reporter's words is ignored.
+  const productKey = relayIdempotencyKey(rawText, trustedRelay);
   if (productKey) {
     const existing = await rpc<string | null>("find_ticket_by_client_key", { actor: intake.principalId, key: productKey }).catch(() => null);
     if (existing) {
