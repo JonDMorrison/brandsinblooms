@@ -560,16 +560,19 @@ SELECT pg_temp.assert(
   ),
   'a customer reply cannot erase a promised shipment notification');
 SELECT pg_temp.assert(
-  NOT has_function_privilege('anon', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,text)', 'execute')
-  AND NOT has_function_privilege('authenticated', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,text)', 'execute')
-  AND has_function_privilege('service_role', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,text)', 'execute'),
+  NOT has_function_privilege('anon', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND NOT has_function_privilege('anon', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute'),
   'shipment delivery RPC is service-role only');
 SELECT pg_temp.expect_error(format(
-  $q$SELECT public.bloom_support_deliver_feature_shipment('%s', (SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = '%s' LIMIT 1), 'Now available')$q$,
+  $q$SELECT public.bloom_support_deliver_feature_shipment('%s', s.id, s.current_generation, 'Now available') FROM bloom_support.feature_shipment_subscriptions s WHERE s.feature_request_id = '%s' LIMIT 1$q$,
   :'jeff', :'fr'
 ), 'automation service required');
 SELECT public.bloom_support_deliver_feature_shipment(
-  :'bot', id, 'Good news — this feature is now available.'
+  :'bot', id, current_generation, 'Good news — this feature is now available.'
 )
 FROM bloom_support.feature_shipment_subscriptions
 WHERE feature_request_id = :'fr';
@@ -586,7 +589,7 @@ SELECT pg_temp.assert(
        WHERE kind = 'send_email' AND payload ? 'feature_shipment_subscription_id'),
   'delivery creates one substantive Bloom message and one email job per subscription');
 SELECT public.bloom_support_deliver_feature_shipment(
-  :'bot', id, 'Good news — this feature is now available.'
+  :'bot', id, current_generation, 'Good news — this feature is now available.'
 )
 FROM bloom_support.feature_shipment_subscriptions
 WHERE feature_request_id = :'fr';
@@ -623,6 +626,14 @@ SELECT bloom_support.queue_outbound_email(jsonb_build_object(
 ))->>'status' AS human_shipment_email_status \gset
 SELECT pg_temp.assert(:'human_shipment_email_status' = 'queued',
   'the relationally-authorized shipment email survives human takeover');
+SELECT id AS human_shipment_email
+FROM bloom_support.outbound_emails
+WHERE idempotency_key = 'feature-shipment-human-ledger' \gset
+SELECT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email') AS human_shipment_claimed \gset
+SELECT pg_temp.assert(
+  :'human_shipment_claimed'::boolean
+  AND (SELECT status = 'uncertain' FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email'),
+  'the final provider gate records a valid shipment as in flight before dispatch');
 SELECT pg_temp.assert(
   NOT EXISTS (
     SELECT 1
@@ -639,6 +650,153 @@ SELECT pg_temp.assert(
        OR current.version IS DISTINCT FROM before.version
   ),
   'creating shipment messages and email work leaves ticket workflow untouched');
+
+-- A rollback after rendering withdraws queued work without inventing certainty
+-- about a provider dispatch that already started. The immutable generation can
+-- never be delivered again, while a later real shipment gets a fresh attempt.
+SELECT id AS lifecycle_subscription, current_generation AS lifecycle_generation_one,
+       notification_message_id AS lifecycle_message_one
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid \gset
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned',
+  'note', 'Rolled back before provider confirmation'
+));
+SELECT pg_temp.assert(
+  (SELECT retracted_at IS NOT NULL
+          AND retraction_reason = 'feature changed from shipped to planned'
+   FROM bloom_support.feature_shipment_deliveries
+   WHERE subscription_id = :'lifecycle_subscription'
+     AND generation = :'lifecycle_generation_one')
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'lifecycle_message_one')
+  AND (SELECT status = 'uncertain'
+       FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email')
+  AND NOT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email'),
+  'a rollback withdraws the rendered generation but preserves an in-flight provider outcome and prevents retry');
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', :'lifecycle_subscription', :'lifecycle_generation_one',
+  'This stale generation must never be recreated.'
+)->>'delivered' AS stale_generation_delivered \gset
+SELECT pg_temp.assert(NOT :'stale_generation_delivered'::boolean,
+  'a retracted shipment generation cannot be delivered again');
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Available again'
+));
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 2)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE generation = 2
+         AND subscription_id IN (
+           SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         ))
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'
+         AND payload->>'generation' = '2'),
+  'a real re-shipment creates exactly one second generation and answer job per subscription');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'declined',
+  'note', 'Withdrawn before the second generation was rendered'
+));
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 AND bool_and(retracted_at IS NOT NULL AND delivery_status = 'suppressed')
+   FROM bloom_support.feature_shipment_deliveries
+   WHERE generation = 2
+     AND subscription_id IN (
+       SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+     ))
+  AND (SELECT count(*) = 2 AND bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'
+         AND payload->>'generation' = '2')
+  AND NOT EXISTS (
+    SELECT 1 FROM bloom_support.feature_shipment_deliveries
+    WHERE generation = 2 AND notification_message_id IS NOT NULL
+      AND subscription_id IN (
+        SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+      )
+  ),
+  'declining before the answer worker runs cancels generation two without creating a message');
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Finally available'
+));
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', id, current_generation, 'Good news — this feature is finally available.'
+)
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 3)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2 AND count(DISTINCT notification_message_id) = 2
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE generation = 3 AND notification_message_id IS NOT NULL
+         AND subscription_id IN (
+           SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         ))
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email'
+         AND payload->>'feature_shipment_generation' = '3'
+         AND payload->>'feature_shipment_subscription_id' IN (
+           SELECT id::text FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         )),
+  'the later shipment creates exactly one new message and email job per subscription');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Copy edit only'
+));
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 3)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 6
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id IN (
+         SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+       ))
+  AND (SELECT count(*) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email'
+         AND payload->>'feature_shipment_generation' = '3'
+         AND payload->>'feature_shipment_subscription_id' IN (
+           SELECT id::text FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         )),
+  'repeating shipped does not increment the generation or duplicate its email work');
+
+SELECT id AS terminal_subscription, notification_message_id AS terminal_message,
+       current_generation AS terminal_generation
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid \gset
+SELECT pg_temp.rpc('set_spam', jsonb_build_object(
+  'actor', :'sam',
+  'ticket_id', ((:'t4_feature_peer'::jsonb)->>'ticket_id'),
+  'spam', true
+));
+SELECT pg_temp.assert(
+  (SELECT cancelled_at IS NOT NULL AND cancellation_reason = 'ticket marked as spam'
+   FROM bloom_support.feature_shipment_subscriptions WHERE id = :'terminal_subscription')
+  AND (SELECT retracted_at IS NOT NULL AND retraction_reason = 'ticket marked as spam'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'terminal_subscription' AND generation = :'terminal_generation')
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'terminal_message')
+  AND (SELECT count(*) = 2 AND bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+         AND coalesce(payload->>'subscription_id', payload->>'feature_shipment_subscription_id') = :'terminal_subscription'
+         AND coalesce(payload->>'generation', payload->>'feature_shipment_generation') = :'terminal_generation'),
+  'marking a ticket as spam terminalizes its current shipment attempt and all unsent work');
 
 -- 11. Email sender resolution never grants staff authority; domain match stays unverified.
 UPDATE bloom_support.accounts SET email_domains = '{greenleaf.test}' WHERE id = :'greenleaf';

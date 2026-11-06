@@ -87,6 +87,7 @@ CREATE TABLE bloom_support.feature_shipment_subscriptions (
   ticket_id uuid NOT NULL REFERENCES bloom_support.tickets(id) ON DELETE CASCADE,
   account_id uuid REFERENCES bloom_support.accounts(id) ON DELETE SET NULL,
   requester_id uuid REFERENCES bloom_support.principals(id) ON DELETE SET NULL,
+  current_generation integer NOT NULL DEFAULT 0 CHECK (current_generation >= 0),
   notification_message_id uuid UNIQUE REFERENCES bloom_support.messages(id) ON DELETE SET NULL,
   delivery_status text NOT NULL DEFAULT 'pending' CHECK (delivery_status IN (
     'pending','queued','sent','delivered','bounced','complained','failed','suppressed','uncertain'
@@ -110,6 +111,33 @@ CREATE INDEX feature_shipment_subscriptions_requester
 ALTER TABLE bloom_support.feature_shipment_subscriptions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON bloom_support.feature_shipment_subscriptions FROM PUBLIC, anon, authenticated;
 
+-- One immutable row per real transition into shipped. Keeping every message
+-- linked here means a retracted or superseded generation can never be mistaken
+-- for an ordinary Bloom email, even after the subscription moves on.
+CREATE TABLE bloom_support.feature_shipment_deliveries (
+  subscription_id uuid NOT NULL REFERENCES bloom_support.feature_shipment_subscriptions(id) ON DELETE CASCADE,
+  generation integer NOT NULL CHECK (generation > 0),
+  notification_message_id uuid UNIQUE REFERENCES bloom_support.messages(id) ON DELETE SET NULL,
+  delivery_status text NOT NULL DEFAULT 'pending' CHECK (delivery_status IN (
+    'pending','queued','sent','delivered','bounced','complained','failed','suppressed','uncertain'
+  )),
+  notification_queued_at timestamptz,
+  notification_sent_at timestamptz,
+  notification_delivered_at timestamptz,
+  retracted_at timestamptz,
+  retraction_reason text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (subscription_id, generation),
+  CHECK ((retracted_at IS NULL) = (retraction_reason IS NULL))
+);
+CREATE INDEX feature_shipment_deliveries_message
+  ON bloom_support.feature_shipment_deliveries(notification_message_id)
+  WHERE notification_message_id IS NOT NULL;
+
+ALTER TABLE bloom_support.feature_shipment_deliveries ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON bloom_support.feature_shipment_deliveries FROM PUBLIC, anon, authenticated;
+
 INSERT INTO bloom_support.feature_shipment_subscriptions(
   feature_request_id, ticket_id, account_id, requester_id,
   cancelled_at, cancellation_reason
@@ -131,12 +159,36 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
+  initial_subscription bloom_support.feature_shipment_subscriptions;
   s bloom_support.feature_shipment_subscriptions;
   t bloom_support.tickets;
+  attempt bloom_support.feature_shipment_deliveries;
   feature_status text;
+  v_generation integer;
   job_id uuid;
   ticket_missing boolean;
 BEGIN
+  SELECT * INTO initial_subscription
+  FROM bloom_support.feature_shipment_subscriptions
+  WHERE id = p_subscription;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not_found: feature shipment subscription' USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT status INTO feature_status
+  FROM bloom_support.feature_requests
+  WHERE id = initial_subscription.feature_request_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not_found: feature request' USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT * INTO t
+  FROM bloom_support.tickets
+  WHERE id = initial_subscription.ticket_id
+  FOR UPDATE;
+  ticket_missing := NOT FOUND;
+
   SELECT * INTO s
   FROM bloom_support.feature_shipment_subscriptions
   WHERE id = p_subscription
@@ -144,16 +196,22 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'not_found: feature shipment subscription' USING ERRCODE = 'P0002';
   END IF;
-
-  SELECT status INTO feature_status
-  FROM bloom_support.feature_requests
-  WHERE id = s.feature_request_id;
+  IF s.feature_request_id IS DISTINCT FROM initial_subscription.feature_request_id
+     OR s.ticket_id IS DISTINCT FROM initial_subscription.ticket_id THEN
+    RAISE EXCEPTION 'conflict: feature shipment subscription changed' USING ERRCODE = '40001';
+  END IF;
   IF feature_status IS DISTINCT FROM 'shipped' OR s.cancelled_at IS NOT NULL THEN
     RETURN NULL;
   END IF;
+  v_generation := s.current_generation;
+  IF v_generation <= 0 THEN RETURN NULL; END IF;
 
-  SELECT * INTO t FROM bloom_support.tickets WHERE id = s.ticket_id;
-  ticket_missing := NOT FOUND;
+  SELECT * INTO attempt
+  FROM bloom_support.feature_shipment_deliveries d
+  WHERE d.subscription_id = s.id AND d.generation = v_generation
+  FOR UPDATE;
+  IF NOT FOUND OR attempt.retracted_at IS NOT NULL THEN RETURN NULL; END IF;
+
   IF ticket_missing OR t.spam OR t.redacted_at IS NOT NULL OR t.merged_into IS NOT NULL THEN
     UPDATE bloom_support.feature_shipment_subscriptions
     SET cancelled_at = coalesce(cancelled_at, now()),
@@ -168,10 +226,10 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  IF s.notification_message_id IS NOT NULL THEN
+  IF attempt.notification_message_id IS NOT NULL THEN
     SELECT id INTO job_id
     FROM bloom_support.jobs
-    WHERE idempotency_key = 'feature-shipment-email:' || s.id::text;
+    WHERE idempotency_key = 'feature-shipment-email:' || s.id::text || ':' || v_generation::text;
     RETURN job_id;
   END IF;
 
@@ -182,10 +240,17 @@ BEGIN
       'mode', 'feature_shipment',
       'decision', 'shipped',
       'feature_request_id', s.feature_request_id,
-      'subscription_id', s.id
+      'subscription_id', s.id,
+      'generation', v_generation
     ),
-    'feature-shipment:' || s.id::text
+    'feature-shipment:' || s.id::text || ':' || v_generation::text
   );
+
+  UPDATE bloom_support.feature_shipment_deliveries d
+  SET notification_queued_at = coalesce(d.notification_queued_at, now()),
+      delivery_status = CASE WHEN d.delivery_status = 'pending' THEN 'queued' ELSE d.delivery_status END,
+      updated_at = now()
+  WHERE d.subscription_id = s.id AND d.generation = v_generation;
 
   UPDATE bloom_support.feature_shipment_subscriptions
   SET notification_queued_at = coalesce(notification_queued_at, now()),
@@ -193,6 +258,231 @@ BEGIN
       updated_at = now()
   WHERE id = s.id;
   RETURN job_id;
+END
+$$;
+
+-- Starts one deterministic shipment generation. Routing an already-shipped
+-- feature uses only-if-never so retrying that action cannot create a second
+-- notice; a genuine transition back into shipped always increments.
+CREATE OR REPLACE FUNCTION bloom_support.begin_feature_shipment_generation(
+  p_subscription uuid,
+  p_only_if_never boolean DEFAULT false
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  initial_subscription bloom_support.feature_shipment_subscriptions;
+  s bloom_support.feature_shipment_subscriptions;
+  t bloom_support.tickets;
+  next_generation integer;
+  ticket_missing boolean;
+BEGIN
+  -- Establish feature -> subscription ordering even when this helper is called
+  -- directly by the migration or a service-role recovery.
+  SELECT * INTO initial_subscription
+  FROM bloom_support.feature_shipment_subscriptions
+  WHERE id = p_subscription;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not_found: feature shipment subscription' USING ERRCODE = 'P0002';
+  END IF;
+  PERFORM 1
+  FROM bloom_support.feature_requests f
+  WHERE f.id = initial_subscription.feature_request_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not_found: feature request' USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT * INTO t
+  FROM bloom_support.tickets
+  WHERE id = initial_subscription.ticket_id
+  FOR UPDATE;
+  ticket_missing := NOT FOUND;
+
+  SELECT * INTO s
+  FROM bloom_support.feature_shipment_subscriptions
+  WHERE id = p_subscription
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not_found: feature shipment subscription' USING ERRCODE = 'P0002';
+  END IF;
+  IF s.feature_request_id IS DISTINCT FROM initial_subscription.feature_request_id
+     OR s.ticket_id IS DISTINCT FROM initial_subscription.ticket_id THEN
+    RAISE EXCEPTION 'conflict: feature shipment subscription changed' USING ERRCODE = '40001';
+  END IF;
+  IF s.cancelled_at IS NOT NULL OR NOT EXISTS (
+    SELECT 1 FROM bloom_support.feature_requests f
+    WHERE f.id = s.feature_request_id AND f.status = 'shipped'
+  ) THEN
+    RETURN NULL;
+  END IF;
+
+  IF ticket_missing OR t.spam OR t.redacted_at IS NOT NULL OR t.merged_into IS NOT NULL THEN
+    UPDATE bloom_support.feature_shipment_subscriptions
+    SET cancelled_at = coalesce(cancelled_at, now()),
+        cancellation_reason = coalesce(cancellation_reason,
+          CASE WHEN ticket_missing THEN 'ticket no longer exists'
+               WHEN t.spam THEN 'ticket marked as spam'
+               WHEN t.redacted_at IS NOT NULL THEN 'ticket was redacted'
+               ELSE 'ticket was merged' END),
+        delivery_status = 'suppressed',
+        updated_at = now()
+    WHERE id = s.id;
+    RETURN NULL;
+  END IF;
+
+  IF p_only_if_never AND s.current_generation > 0 AND EXISTS (
+    SELECT 1
+    FROM bloom_support.feature_shipment_deliveries d
+    WHERE d.subscription_id = s.id
+      AND d.generation = s.current_generation
+      AND d.retracted_at IS NULL
+  ) THEN
+    RETURN bloom_support.enqueue_feature_shipment(s.id);
+  END IF;
+
+  next_generation := s.current_generation + 1;
+  INSERT INTO bloom_support.feature_shipment_deliveries(subscription_id, generation)
+  VALUES (s.id, next_generation)
+  ON CONFLICT (subscription_id, generation) DO NOTHING;
+
+  UPDATE bloom_support.feature_shipment_subscriptions
+  SET current_generation = next_generation,
+      notification_message_id = NULL,
+      notification_queued_at = NULL,
+      notification_sent_at = NULL,
+      notification_delivered_at = NULL,
+      delivery_status = 'pending',
+      updated_at = now()
+  WHERE id = s.id;
+
+  RETURN bloom_support.enqueue_feature_shipment(s.id);
+END
+$$;
+
+-- Retracting shipped stops every not-yet-accepted artifact for the current
+-- generation. Sent mail remains truthful history because it cannot be unsent;
+-- uncertain mail is withdrawn and never retried without pretending the
+-- provider outcome is known. A later shipped transition starts a fresh row.
+CREATE OR REPLACE FUNCTION bloom_support.retract_feature_shipment_generation(
+  p_feature uuid,
+  p_reason text
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  affected integer;
+  v_reason text := coalesce(nullif(btrim(p_reason), ''), 'feature shipment retracted');
+BEGIN
+  -- Decisions already hold this lock; taking it here also makes direct service
+  -- calls obey the feature -> ticket -> subscription ordering contract.
+  PERFORM 1
+  FROM bloom_support.feature_requests f
+  WHERE f.id = p_feature
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not_found: feature request' USING ERRCODE = 'P0002';
+  END IF;
+
+  PERFORM 1
+  FROM bloom_support.tickets t
+  JOIN bloom_support.feature_shipment_subscriptions s ON s.ticket_id = t.id
+  WHERE s.feature_request_id = p_feature
+  ORDER BY t.id
+  FOR UPDATE OF t;
+
+  PERFORM 1
+  FROM bloom_support.feature_shipment_subscriptions s
+  WHERE s.feature_request_id = p_feature
+  ORDER BY s.id
+  FOR UPDATE;
+
+  UPDATE bloom_support.jobs j
+  SET status = 'cancelled',
+      last_error = 'superseded: ' || left(v_reason, 500),
+      updated_at = now()
+  WHERE j.status = 'queued'
+    AND (
+      (j.kind = 'answer' AND j.payload->>'mode' = 'feature_shipment')
+      OR j.kind = 'send_email'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM bloom_support.feature_shipment_subscriptions s
+      WHERE s.feature_request_id = p_feature
+        AND s.id::text = coalesce(
+          j.payload->>'subscription_id',
+          j.payload->>'feature_shipment_subscription_id'
+        )
+        AND s.current_generation::text = coalesce(
+          j.payload->>'generation',
+          j.payload->>'feature_shipment_generation'
+        )
+    );
+
+  -- Provider-unaccepted rows are safe to suppress. An uncertain row may have
+  -- reached the provider, so leave that status truthful while cancelling its
+  -- retry job and withdrawing the visible message below.
+  UPDATE bloom_support.outbound_emails o
+  SET status = 'suppressed',
+      error = 'shipment retracted before provider acceptance'
+  WHERE o.provider_id IS NULL
+    AND o.status IN ('queued', 'failed', 'not_configured')
+    AND EXISTS (
+      SELECT 1
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = p_feature
+        AND d.generation = s.current_generation
+        AND d.notification_message_id = o.message_id
+    );
+
+  UPDATE bloom_support.messages m
+  SET delivery = CASE WHEN m.delivery IN ('queued','failed') THEN 'suppressed' ELSE m.delivery END,
+      withdrawn_at = CASE
+        WHEN m.delivery IN ('queued','failed','uncertain') THEN coalesce(m.withdrawn_at, now())
+        ELSE m.withdrawn_at
+      END
+  WHERE EXISTS (
+    SELECT 1
+    FROM bloom_support.feature_shipment_deliveries d
+    JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+    WHERE s.feature_request_id = p_feature
+      AND d.generation = s.current_generation
+      AND d.notification_message_id = m.id
+  );
+
+  UPDATE bloom_support.feature_shipment_deliveries d
+  SET retracted_at = coalesce(d.retracted_at, now()),
+      retraction_reason = coalesce(d.retraction_reason, left(v_reason, 500)),
+      delivery_status = CASE
+        WHEN d.delivery_status IN ('pending','queued','failed') THEN 'suppressed'
+        ELSE d.delivery_status
+      END,
+      updated_at = now()
+  FROM bloom_support.feature_shipment_subscriptions s
+  WHERE s.id = d.subscription_id
+    AND s.feature_request_id = p_feature
+    AND d.generation = s.current_generation;
+
+  UPDATE bloom_support.feature_shipment_subscriptions s
+  SET delivery_status = d.delivery_status,
+      notification_sent_at = d.notification_sent_at,
+      notification_delivered_at = d.notification_delivered_at,
+      updated_at = now()
+  FROM bloom_support.feature_shipment_deliveries d
+  WHERE s.feature_request_id = p_feature
+    AND s.current_generation > 0
+    AND d.subscription_id = s.id
+    AND d.generation = s.current_generation;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
 END
 $$;
 
@@ -219,7 +509,12 @@ BEGIN
     PERFORM bloom_support.notify_staff(t.id, 'feature.awaiting_decision', 'Feature decision: ' || left(coalesce(p->>'title', t.subject), 80), 'jon');
   END IF;
 
-  SELECT status INTO feature_status FROM bloom_support.feature_requests WHERE id = f;
+  -- Serialize routing with decisions so a ticket cannot miss the shipped
+  -- generation by observing an older feature status mid-transaction.
+  SELECT status INTO feature_status
+  FROM bloom_support.feature_requests
+  WHERE id = f
+  FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'not_found: feature request' USING ERRCODE = 'P0002'; END IF;
 
   INSERT INTO bloom_support.feature_evidence(feature_request_id, ticket_id, account_id, excerpt)
@@ -241,7 +536,7 @@ BEGIN
         version = version + 1,
         updated_at = now()
     WHERE id = t.id;
-    PERFORM bloom_support.enqueue_feature_shipment(subscription_id);
+    PERFORM bloom_support.begin_feature_shipment_generation(subscription_id, true);
   ELSE
     UPDATE bloom_support.tickets
     SET feature_request_id = f,
@@ -307,6 +602,13 @@ BEGIN
       resolved_at = now()
   WHERE feature_request_id = p_feature AND status <> 'resolved';
 
+  IF changed AND previous.status = 'shipped' AND p_decision <> 'shipped' THEN
+    PERFORM bloom_support.retract_feature_shipment_generation(
+      p_feature,
+      'feature changed from shipped to ' || p_decision
+    );
+  END IF;
+
   IF changed THEN
     -- A later decision supersedes any older decision that has not reached the
     -- provider. Prevent both the old answer job and an already-rendered old
@@ -370,7 +672,7 @@ BEGIN
       SELECT id FROM bloom_support.feature_shipment_subscriptions
       WHERE feature_request_id = p_feature AND cancelled_at IS NULL
     LOOP
-      PERFORM bloom_support.enqueue_feature_shipment(sub.id);
+      PERFORM bloom_support.begin_feature_shipment_generation(sub.id, false);
     END LOOP;
 
     FOR tk IN SELECT id, account_id FROM bloom_support.tickets WHERE feature_request_id = p_feature LOOP
@@ -424,6 +726,7 @@ $$;
 CREATE OR REPLACE FUNCTION bloom_support.deliver_feature_shipment(
   p_actor uuid,
   p_subscription uuid,
+  p_generation integer,
   p_body text
 )
 RETURNS jsonb
@@ -432,7 +735,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
+  initial_subscription bloom_support.feature_shipment_subscriptions;
   s bloom_support.feature_shipment_subscriptions;
+  attempt bloom_support.feature_shipment_deliveries;
   t bloom_support.tickets;
   m bloom_support.messages;
   message_was_new boolean := false;
@@ -449,15 +754,43 @@ BEGIN
   IF length(btrim(coalesce(p_body, ''))) NOT BETWEEN 1 AND 50000 THEN
     RAISE EXCEPTION 'invalid: shipment message required' USING ERRCODE = '22023';
   END IF;
+  IF coalesce(p_generation, 0) <= 0 THEN
+    RAISE EXCEPTION 'invalid: shipment generation required' USING ERRCODE = '22023';
+  END IF;
 
+  SELECT * INTO initial_subscription
+  FROM bloom_support.feature_shipment_subscriptions
+  WHERE id = p_subscription;
+  IF NOT FOUND THEN RAISE EXCEPTION 'not_found: feature shipment subscription' USING ERRCODE = 'P0002'; END IF;
+
+  -- Lock the mutable eligibility rows in the same feature -> ticket ->
+  -- subscription order used when decisions start or retract a generation.
+  PERFORM 1
+  FROM bloom_support.feature_requests f
+  WHERE f.id = initial_subscription.feature_request_id
+  FOR UPDATE;
+  SELECT * INTO t
+  FROM bloom_support.tickets
+  WHERE id = initial_subscription.ticket_id
+  FOR UPDATE;
+  ticket_missing := NOT FOUND;
   SELECT * INTO s
   FROM bloom_support.feature_shipment_subscriptions
   WHERE id = p_subscription
   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'not_found: feature shipment subscription' USING ERRCODE = 'P0002'; END IF;
+  IF s.feature_request_id IS DISTINCT FROM initial_subscription.feature_request_id
+     OR s.ticket_id IS DISTINCT FROM initial_subscription.ticket_id THEN
+    RAISE EXCEPTION 'conflict: feature shipment subscription changed' USING ERRCODE = '40001';
+  END IF;
 
-  SELECT * INTO t FROM bloom_support.tickets WHERE id = s.ticket_id;
-  ticket_missing := NOT FOUND;
+  SELECT * INTO attempt
+  FROM bloom_support.feature_shipment_deliveries d
+  WHERE d.subscription_id = s.id AND d.generation = p_generation
+  FOR UPDATE;
+  IF NOT FOUND OR p_generation <> s.current_generation OR attempt.retracted_at IS NOT NULL THEN
+    RETURN jsonb_build_object('delivered', false, 'reason', 'shipment generation is no longer current');
+  END IF;
+
   IF s.cancelled_at IS NOT NULL THEN
     RETURN jsonb_build_object('delivered', false, 'reason', s.cancellation_reason);
   END IF;
@@ -472,6 +805,12 @@ BEGIN
         delivery_status = 'suppressed',
         updated_at = now()
     WHERE id = s.id;
+    UPDATE bloom_support.feature_shipment_deliveries
+    SET retracted_at = coalesce(retracted_at, now()),
+        retraction_reason = coalesce(retraction_reason, 'ticket cannot receive a shipment notice'),
+        delivery_status = 'suppressed',
+        updated_at = now()
+    WHERE subscription_id = s.id AND generation = p_generation;
     RETURN jsonb_build_object('delivered', false, 'reason', 'ticket cannot receive a shipment notice');
   END IF;
   IF NOT EXISTS (
@@ -481,24 +820,33 @@ BEGIN
     RETURN jsonb_build_object('delivered', false, 'reason', 'feature is not shipped');
   END IF;
 
-  IF s.notification_message_id IS NOT NULL THEN
-    SELECT * INTO m FROM bloom_support.messages WHERE id = s.notification_message_id;
+  IF attempt.notification_message_id IS NOT NULL THEN
+    SELECT * INTO m FROM bloom_support.messages WHERE id = attempt.notification_message_id;
   ELSE
     INSERT INTO bloom_support.messages(
       conversation_id, ticket_id, author_id, author_kind, visibility, direction,
       body, idempotency_key, delivery, purpose, meaningful, notify_client
     ) VALUES (
       t.conversation_id, t.id, p_actor, 'bloom', 'public', 'outbound',
-      btrim(p_body), 'feature-shipment:' || s.id::text, 'queued',
+      btrim(p_body), 'feature-shipment:' || s.id::text || ':' || p_generation::text, 'queued',
       'feature_decision', true, true
     )
     ON CONFLICT (idempotency_key) DO NOTHING
     RETURNING * INTO m;
     IF FOUND THEN message_was_new := true; END IF;
     IF m.id IS NULL THEN
-      SELECT * INTO m FROM bloom_support.messages WHERE idempotency_key = 'feature-shipment:' || s.id::text;
+      SELECT * INTO m
+      FROM bloom_support.messages
+      WHERE idempotency_key = 'feature-shipment:' || s.id::text || ':' || p_generation::text;
     END IF;
   END IF;
+
+  UPDATE bloom_support.feature_shipment_deliveries
+  SET notification_message_id = m.id,
+      notification_queued_at = coalesce(notification_queued_at, now()),
+      delivery_status = CASE WHEN delivery_status = 'pending' THEN 'queued' ELSE delivery_status END,
+      updated_at = now()
+  WHERE subscription_id = s.id AND generation = p_generation;
 
   UPDATE bloom_support.feature_shipment_subscriptions
   SET notification_message_id = m.id,
@@ -512,18 +860,23 @@ BEGIN
     jsonb_build_object(
       'purpose', 'feature_decision',
       'message_id', m.id,
-      'feature_shipment_subscription_id', s.id
+      'feature_shipment_subscription_id', s.id,
+      'feature_shipment_generation', p_generation,
+      'subscription_id', s.id,
+      'generation', p_generation
     ),
-    'feature-shipment-email:' || s.id::text
+    'feature-shipment-email:' || s.id::text || ':' || p_generation::text
   );
 
   IF message_was_new THEN
     PERFORM bloom_support.log(t.id, t.account_id, p_actor, 'feature.shipment_notified',
-      jsonb_build_object('feature_request_id', s.feature_request_id, 'subscription_id', s.id, 'message_id', m.id));
+      jsonb_build_object('feature_request_id', s.feature_request_id, 'subscription_id', s.id,
+        'generation', p_generation, 'message_id', m.id));
   END IF;
   RETURN jsonb_build_object(
     'delivered', true,
     'duplicate', NOT message_was_new,
+    'generation', p_generation,
     'message_id', m.id,
     'email_job_id', email_job
   );
@@ -533,6 +886,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.bloom_support_deliver_feature_shipment(
   p_actor uuid,
   p_subscription uuid,
+  p_generation integer,
   p_body text
 )
 RETURNS jsonb
@@ -540,12 +894,129 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT bloom_support.deliver_feature_shipment(p_actor, p_subscription, p_body)
+  SELECT bloom_support.deliver_feature_shipment(p_actor, p_subscription, p_generation, p_body)
 $$;
-REVOKE ALL ON FUNCTION public.bloom_support_deliver_feature_shipment(uuid, uuid, text)
+REVOKE ALL ON FUNCTION public.bloom_support_deliver_feature_shipment(uuid, uuid, integer, text)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.bloom_support_deliver_feature_shipment(uuid, uuid, text)
+GRANT EXECUTE ON FUNCTION public.bloom_support_deliver_feature_shipment(uuid, uuid, integer, text)
   TO service_role;
+
+-- Spam, merge and redaction are permanent recipient invalidations. They can
+-- update the ticket through several functions, so enforce shipment withdrawal
+-- at the ticket boundary instead of relying on every caller to remember it.
+CREATE OR REPLACE FUNCTION bloom_support.invalidate_feature_shipment_ticket()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_reason text := CASE
+    WHEN NEW.spam THEN 'ticket marked as spam'
+    WHEN NEW.redacted_at IS NOT NULL THEN 'ticket was redacted'
+    ELSE 'ticket was merged'
+  END;
+BEGIN
+  UPDATE bloom_support.jobs j
+  SET status = 'cancelled',
+      last_error = 'invalidated: ' || v_reason,
+      updated_at = now()
+  WHERE j.status = 'queued'
+    AND j.ticket_id = NEW.id
+    AND EXISTS (
+      SELECT 1
+      FROM bloom_support.feature_shipment_subscriptions s
+      WHERE s.ticket_id = NEW.id
+        AND s.id::text = coalesce(
+          j.payload->>'subscription_id',
+          j.payload->>'feature_shipment_subscription_id'
+        )
+        AND s.current_generation::text = coalesce(
+          j.payload->>'generation',
+          j.payload->>'feature_shipment_generation'
+        )
+    );
+
+  UPDATE bloom_support.outbound_emails o
+  SET status = 'suppressed', error = v_reason
+  WHERE o.provider_id IS NULL
+    AND o.status IN ('queued', 'failed', 'not_configured')
+    AND EXISTS (
+      SELECT 1
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.ticket_id = NEW.id
+        AND d.generation = s.current_generation
+        AND d.notification_message_id = o.message_id
+    );
+
+  UPDATE bloom_support.messages m
+  SET delivery = CASE WHEN m.delivery IN ('queued','failed') THEN 'suppressed' ELSE m.delivery END,
+      withdrawn_at = CASE
+        WHEN m.delivery IN ('queued','failed','uncertain') THEN coalesce(m.withdrawn_at, now())
+        ELSE m.withdrawn_at
+      END
+  WHERE EXISTS (
+    SELECT 1
+    FROM bloom_support.feature_shipment_deliveries d
+    JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+    WHERE s.ticket_id = NEW.id
+      AND d.generation = s.current_generation
+      AND d.notification_message_id = m.id
+  );
+
+  UPDATE bloom_support.feature_shipment_deliveries d
+  SET retracted_at = coalesce(d.retracted_at, now()),
+      retraction_reason = coalesce(d.retraction_reason, v_reason),
+      delivery_status = CASE
+        WHEN d.delivery_status IN ('pending','queued','failed') THEN 'suppressed'
+        ELSE d.delivery_status
+      END,
+      updated_at = now()
+  FROM bloom_support.feature_shipment_subscriptions s
+  WHERE s.id = d.subscription_id
+    AND s.ticket_id = NEW.id
+    AND d.generation = s.current_generation;
+
+  UPDATE bloom_support.feature_shipment_subscriptions s
+  SET cancelled_at = coalesce(s.cancelled_at, now()),
+      cancellation_reason = coalesce(s.cancellation_reason, v_reason),
+      delivery_status = coalesce(d.delivery_status, s.delivery_status),
+      notification_sent_at = coalesce(d.notification_sent_at, s.notification_sent_at),
+      notification_delivered_at = coalesce(d.notification_delivered_at, s.notification_delivered_at),
+      updated_at = now()
+  FROM bloom_support.feature_shipment_deliveries d
+  WHERE s.ticket_id = NEW.id
+    AND d.subscription_id = s.id
+    AND d.generation = s.current_generation;
+
+  -- Planned features have no generation row yet, but the durable promise must
+  -- still be cancelled so a later ship decision cannot revive an invalid
+  -- recipient. This also idempotently covers rows updated above.
+  UPDATE bloom_support.feature_shipment_subscriptions s
+  SET cancelled_at = coalesce(s.cancelled_at, now()),
+      cancellation_reason = coalesce(s.cancellation_reason, v_reason),
+      delivery_status = CASE
+        WHEN s.current_generation = 0 AND s.delivery_status IN ('pending','queued','failed') THEN 'suppressed'
+        ELSE s.delivery_status
+      END,
+      updated_at = now()
+  WHERE s.ticket_id = NEW.id;
+
+  RETURN NEW;
+END
+$$;
+
+DROP TRIGGER IF EXISTS feature_shipment_ticket_invalidation ON bloom_support.tickets;
+CREATE TRIGGER feature_shipment_ticket_invalidation
+AFTER UPDATE OF spam, merged_into, redacted_at ON bloom_support.tickets
+FOR EACH ROW
+WHEN (
+  (NEW.spam AND NOT OLD.spam)
+  OR (NEW.merged_into IS NOT NULL AND OLD.merged_into IS NULL)
+  OR (NEW.redacted_at IS NOT NULL AND OLD.redacted_at IS NULL)
+)
+EXECUTE FUNCTION bloom_support.invalidate_feature_shipment_ticket();
 
 -- Customer and staff replies invalidate ordinary queued Bloom work, but an
 -- explicit shipment subscription survives. The shipment message and its email
@@ -559,8 +1030,15 @@ BEGIN
   WHERE m.ticket_id = p_ticket AND m.author_kind = 'bloom'
     AND m.visibility = 'public' AND m.delivery = 'queued'
     AND NOT EXISTS (
-      SELECT 1 FROM bloom_support.feature_shipment_subscriptions s
-      WHERE s.notification_message_id = m.id AND s.cancelled_at IS NULL
+      SELECT 1
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      JOIN bloom_support.feature_requests f ON f.id = s.feature_request_id
+      WHERE d.notification_message_id = m.id
+        AND d.generation = s.current_generation
+        AND d.retracted_at IS NULL
+        AND s.cancelled_at IS NULL
+        AND f.status = 'shipped'
     );
 
   UPDATE bloom_support.jobs j
@@ -568,7 +1046,22 @@ BEGIN
   WHERE j.ticket_id = p_ticket AND j.status = 'queued'
     AND (
       (j.kind IN ('answer','operate')
-        AND NOT (j.kind = 'answer' AND j.payload->>'mode' = 'feature_shipment'))
+        AND NOT (
+          j.kind = 'answer'
+          AND j.payload->>'mode' = 'feature_shipment'
+          AND EXISTS (
+            SELECT 1
+            FROM bloom_support.feature_shipment_subscriptions s
+            JOIN bloom_support.feature_shipment_deliveries d
+              ON d.subscription_id = s.id AND d.generation = s.current_generation
+            JOIN bloom_support.feature_requests f ON f.id = s.feature_request_id
+            WHERE s.id::text = j.payload->>'subscription_id'
+              AND s.current_generation::text = j.payload->>'generation'
+              AND s.cancelled_at IS NULL
+              AND d.retracted_at IS NULL
+              AND f.status = 'shipped'
+          )
+        ))
       OR (
         j.kind = 'send_email'
         AND EXISTS (
@@ -576,9 +1069,15 @@ BEGIN
           WHERE m.id = (j.payload->>'message_id')::uuid AND m.author_kind = 'bloom'
         )
         AND NOT EXISTS (
-          SELECT 1 FROM bloom_support.feature_shipment_subscriptions s
-          WHERE s.notification_message_id = (j.payload->>'message_id')::uuid
+          SELECT 1
+          FROM bloom_support.feature_shipment_deliveries d
+          JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+          JOIN bloom_support.feature_requests f ON f.id = s.feature_request_id
+          WHERE d.notification_message_id = (j.payload->>'message_id')::uuid
+            AND d.generation = s.current_generation
+            AND d.retracted_at IS NULL
             AND s.cancelled_at IS NULL
+            AND f.status = 'shipped'
         )
       )
     );
@@ -591,8 +1090,8 @@ END
 $$;
 
 -- A shipment notice is the one narrow Bloom-initiated email allowed to cross a
--- later human takeover. It is recognized only by the private subscription's
--- message foreign key; every other Bloom email keeps the takeover suppression.
+-- later human takeover. It is recognized only by the private generation
+-- ledger's message foreign key; every other Bloom email keeps suppression.
 CREATE OR REPLACE FUNCTION bloom_support.queue_outbound_email(p jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
@@ -602,6 +1101,13 @@ DECLARE
   v_rfc text := p->>'rfc_message_id';
   v_feature_shipment boolean := false;
   v_shipment_message boolean := false;
+  v_shipment_subscription uuid;
+  v_shipment_generation integer;
+  v_shipment_feature uuid;
+  v_shipment_ticket uuid;
+  v_subscription_locked boolean := false;
+  v_delivery_found boolean := false;
+  v_ticket_invalid boolean := false;
 BEGIN
   v_blocked := EXISTS (
     SELECT 1 FROM bloom_support.outbound_emails b
@@ -612,15 +1118,70 @@ BEGIN
     SELECT * INTO t FROM bloom_support.tickets WHERE id = (p->>'ticket_id')::uuid;
   END IF;
   IF p->>'message_id' IS NOT NULL THEN
-    v_shipment_message := EXISTS (
-      SELECT 1 FROM bloom_support.feature_shipment_subscriptions s
-      WHERE s.notification_message_id = (p->>'message_id')::uuid
-        AND s.ticket_id = (p->>'ticket_id')::uuid
-        AND s.cancelled_at IS NULL
+    -- Resolve immutable identity first, then hold the same feature -> ticket ->
+    -- subscription -> delivery lock order as decisions. A rollback can either
+    -- suppress this row after it commits or win first and prevent the queue.
+    SELECT d.subscription_id, d.generation, s.feature_request_id, s.ticket_id
+    INTO v_shipment_subscription, v_shipment_generation, v_shipment_feature, v_shipment_ticket
+    FROM bloom_support.feature_shipment_deliveries d
+    JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+    WHERE d.notification_message_id = (p->>'message_id')::uuid;
+    v_shipment_message := FOUND;
+
+    IF v_shipment_message THEN
+      PERFORM 1
+      FROM bloom_support.feature_requests f
+      WHERE f.id = v_shipment_feature
+      FOR UPDATE;
+
+      SELECT * INTO t
+      FROM bloom_support.tickets
+      WHERE id = v_shipment_ticket
+      FOR UPDATE;
+
+      PERFORM 1
+      FROM bloom_support.feature_shipment_subscriptions s
+      WHERE s.id = v_shipment_subscription
+        AND s.feature_request_id = v_shipment_feature
+        AND s.ticket_id = v_shipment_ticket
+      FOR UPDATE;
+      v_subscription_locked := FOUND;
+
+      IF v_subscription_locked THEN
+        SELECT EXISTS (
+          SELECT 1
+          FROM bloom_support.feature_shipment_deliveries d
+          WHERE d.subscription_id = v_shipment_subscription
+            AND d.generation = v_shipment_generation
+            AND d.notification_message_id = (p->>'message_id')::uuid
+        ) INTO v_delivery_found;
+      END IF;
+    END IF;
+
+    v_ticket_invalid := v_shipment_message AND (
+      t.id IS NULL OR t.id::text IS DISTINCT FROM p->>'ticket_id'
+      OR t.spam OR t.redacted_at IS NOT NULL OR t.merged_into IS NOT NULL
     );
     v_feature_shipment := v_shipment_message
-      AND t.id IS NOT NULL AND NOT t.spam
-      AND t.redacted_at IS NULL AND t.merged_into IS NULL;
+      AND v_subscription_locked
+      AND v_delivery_found
+      AND EXISTS (
+      SELECT 1
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      JOIN bloom_support.feature_requests f ON f.id = s.feature_request_id
+      JOIN bloom_support.messages m ON m.id = d.notification_message_id
+      WHERE d.subscription_id = v_shipment_subscription
+        AND d.generation = v_shipment_generation
+        AND d.generation = s.current_generation
+        AND d.retracted_at IS NULL
+        AND s.cancelled_at IS NULL
+        AND s.ticket_id = (p->>'ticket_id')::uuid
+        AND f.status = 'shipped'
+        AND t.id IS NOT NULL AND NOT t.spam
+        AND t.redacted_at IS NULL AND t.merged_into IS NULL
+        AND m.delivery <> 'suppressed' AND m.withdrawn_at IS NULL
+    );
     IF v_shipment_message AND NOT v_feature_shipment THEN
       UPDATE bloom_support.feature_shipment_subscriptions
       SET cancelled_at = coalesce(cancelled_at, now()),
@@ -631,7 +1192,7 @@ BEGIN
                  ELSE 'ticket was merged' END),
           delivery_status = 'suppressed',
           updated_at = now()
-      WHERE notification_message_id = (p->>'message_id')::uuid;
+      WHERE id = v_shipment_subscription AND v_ticket_invalid;
     END IF;
   END IF;
 
@@ -677,9 +1238,17 @@ BEGIN
                      WHEN v_shipment_message AND NOT v_feature_shipment THEN 'shipment subscription no longer eligible'
                      ELSE 'ticket under human control' END
     WHERE id = o.id RETURNING * INTO o;
-    IF NOT v_blocked AND o.message_id IS NOT NULL THEN
+    IF o.message_id IS NOT NULL THEN
       UPDATE bloom_support.messages
-      SET withdrawn_at = coalesce(withdrawn_at, now())
+      SET delivery = CASE
+            WHEN v_shipment_message AND delivery IN ('queued','failed') THEN 'suppressed'
+            ELSE delivery
+          END,
+          withdrawn_at = CASE
+            WHEN NOT v_blocked OR (v_shipment_message AND NOT v_feature_shipment)
+              THEN coalesce(withdrawn_at, now())
+            ELSE withdrawn_at
+          END
       WHERE (id = o.message_id OR id = ANY(o.covered_message_ids)) AND author_kind = 'bloom';
     END IF;
   END IF;
@@ -692,21 +1261,42 @@ BEGIN
          WHERE lower(b.to_email) = lower(o.to_email) AND b.id <> o.id
            AND (b.status = 'complained' OR (b.status = 'bounced' AND b.created_at > now() - interval '30 days'))
        ) THEN
-      UPDATE bloom_support.outbound_emails
-      SET status = 'suppressed', error = 'recipient bounced or complained'
-      WHERE id = o.id RETURNING * INTO o;
-      RETURN to_jsonb(o) || '{"duplicate":true}';
+      IF v_shipment_message AND o.status = 'uncertain' THEN
+        UPDATE bloom_support.outbound_emails
+        SET error = 'provider outcome remains unknown; shipment retry suppressed because recipient bounced or complained'
+        WHERE id = o.id RETURNING * INTO o;
+      ELSE
+        UPDATE bloom_support.outbound_emails
+        SET status = 'suppressed', error = 'recipient bounced or complained'
+        WHERE id = o.id RETURNING * INTO o;
+      END IF;
+      IF v_shipment_message AND o.message_id IS NOT NULL THEN
+        UPDATE bloom_support.messages
+        SET delivery = CASE WHEN delivery IN ('queued','failed') THEN 'suppressed' ELSE delivery END
+        WHERE id = o.message_id AND author_kind = 'bloom';
+      END IF;
+      RETURN to_jsonb(o) || jsonb_build_object(
+        'duplicate', true,
+        'status', CASE WHEN v_shipment_message THEN 'suppressed' ELSE o.status END
+      );
     END IF;
 
     IF o.provider_id IS NULL AND o.status IN ('queued','uncertain','failed','not_configured')
        AND v_shipment_message AND NOT v_feature_shipment THEN
-      UPDATE bloom_support.outbound_emails
-      SET status = 'suppressed', error = 'shipment subscription no longer eligible'
-      WHERE id = o.id RETURNING * INTO o;
+      IF o.status = 'uncertain' THEN
+        UPDATE bloom_support.outbound_emails
+        SET error = 'provider outcome remains unknown; shipment generation was retracted and will not retry'
+        WHERE id = o.id RETURNING * INTO o;
+      ELSE
+        UPDATE bloom_support.outbound_emails
+        SET status = 'suppressed', error = 'shipment subscription no longer eligible'
+        WHERE id = o.id RETURNING * INTO o;
+      END IF;
       UPDATE bloom_support.messages
-      SET withdrawn_at = coalesce(withdrawn_at, now())
+      SET delivery = CASE WHEN delivery IN ('queued','failed') THEN 'suppressed' ELSE delivery END,
+          withdrawn_at = coalesce(withdrawn_at, now())
       WHERE (id = o.message_id OR id = ANY(o.covered_message_ids)) AND author_kind = 'bloom';
-      RETURN to_jsonb(o) || '{"duplicate":true}';
+      RETURN to_jsonb(o) || '{"duplicate":true,"status":"suppressed"}';
     END IF;
 
     IF o.provider_id IS NULL AND o.status IN ('queued','uncertain','failed','not_configured')
@@ -725,6 +1315,132 @@ BEGIN
 END
 $$;
 
+-- Final provider-dispatch gate for shipment notices. Queueing and the external
+-- HTTP request cannot share a database transaction, so a valid notice is
+-- marked uncertain immediately before dispatch. If a rollback wins first this
+-- function suppresses the send; if it wins after, history truthfully records
+-- that the provider outcome may already be in flight and no retry is allowed.
+CREATE OR REPLACE FUNCTION public.bloom_support_claim_feature_shipment_email(p_email uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  outbound bloom_support.outbound_emails;
+  attempt bloom_support.feature_shipment_deliveries;
+  ticket bloom_support.tickets;
+  v_message uuid;
+  v_subscription uuid;
+  v_generation integer;
+  v_feature uuid;
+  v_ticket uuid;
+  v_subscription_locked boolean := false;
+  v_ticket_missing boolean := false;
+  v_valid boolean := false;
+BEGIN
+  SELECT o.message_id, d.subscription_id, d.generation, s.feature_request_id, s.ticket_id
+  INTO v_message, v_subscription, v_generation, v_feature, v_ticket
+  FROM bloom_support.outbound_emails o
+  JOIN bloom_support.feature_shipment_deliveries d ON d.notification_message_id = o.message_id
+  JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+  WHERE o.id = p_email;
+
+  -- Ordinary email is outside this narrow gate and keeps existing behaviour.
+  IF NOT FOUND THEN RETURN true; END IF;
+
+  PERFORM 1 FROM bloom_support.feature_requests f WHERE f.id = v_feature FOR UPDATE;
+  SELECT * INTO ticket FROM bloom_support.tickets WHERE id = v_ticket FOR UPDATE;
+  v_ticket_missing := NOT FOUND;
+
+  PERFORM 1
+  FROM bloom_support.feature_shipment_subscriptions s
+  WHERE s.id = v_subscription
+    AND s.feature_request_id = v_feature
+    AND s.ticket_id = v_ticket
+  FOR UPDATE;
+  v_subscription_locked := FOUND;
+
+  SELECT * INTO outbound
+  FROM bloom_support.outbound_emails o
+  WHERE o.id = p_email
+  FOR UPDATE;
+  IF NOT FOUND OR outbound.provider_id IS NOT NULL
+     OR outbound.status NOT IN ('queued','failed','not_configured','uncertain') THEN
+    RETURN false;
+  END IF;
+
+  IF v_subscription_locked THEN
+    SELECT * INTO attempt
+    FROM bloom_support.feature_shipment_deliveries d
+    WHERE d.subscription_id = v_subscription
+      AND d.generation = v_generation
+      AND d.notification_message_id = v_message
+    FOR UPDATE;
+  END IF;
+
+  v_valid := v_subscription_locked
+    AND attempt.subscription_id IS NOT NULL
+    AND attempt.retracted_at IS NULL
+    AND NOT v_ticket_missing
+    AND NOT ticket.spam
+    AND ticket.redacted_at IS NULL
+    AND ticket.merged_into IS NULL
+    AND outbound.ticket_id = v_ticket
+    AND EXISTS (
+      SELECT 1
+      FROM bloom_support.feature_shipment_subscriptions s
+      JOIN bloom_support.feature_requests f ON f.id = s.feature_request_id
+      JOIN bloom_support.messages m ON m.id = outbound.message_id
+      WHERE s.id = v_subscription
+        AND s.current_generation = v_generation
+        AND s.cancelled_at IS NULL
+        AND f.status = 'shipped'
+        AND m.delivery <> 'suppressed'
+        AND m.withdrawn_at IS NULL
+    );
+
+  IF NOT v_valid THEN
+    UPDATE bloom_support.feature_shipment_deliveries
+    SET retracted_at = coalesce(retracted_at, now()),
+        retraction_reason = coalesce(retraction_reason, 'shipment generation no longer eligible before dispatch'),
+        delivery_status = CASE
+          WHEN delivery_status IN ('pending','queued','failed') THEN 'suppressed'
+          ELSE delivery_status
+        END,
+        updated_at = now()
+    WHERE subscription_id = v_subscription AND generation = v_generation;
+
+    IF outbound.status <> 'uncertain' THEN
+      UPDATE bloom_support.outbound_emails
+      SET status = 'suppressed', error = 'shipment subscription no longer eligible'
+      WHERE id = outbound.id;
+    ELSE
+      UPDATE bloom_support.outbound_emails
+      SET error = 'provider outcome remains unknown; shipment generation was retracted and will not retry'
+      WHERE id = outbound.id;
+    END IF;
+
+    UPDATE bloom_support.messages
+    SET delivery = CASE WHEN delivery IN ('queued','failed') THEN 'suppressed' ELSE delivery END,
+        withdrawn_at = coalesce(withdrawn_at, now())
+    WHERE id = outbound.message_id AND author_kind = 'bloom';
+    RETURN false;
+  END IF;
+
+  UPDATE bloom_support.outbound_emails
+  SET status = 'uncertain',
+      error = 'provider dispatch started; outcome not yet known'
+  WHERE id = outbound.id;
+  RETURN true;
+END
+$$;
+
+REVOKE ALL ON FUNCTION public.bloom_support_claim_feature_shipment_email(uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bloom_support_claim_feature_shipment_email(uuid)
+  TO service_role;
+
 CREATE OR REPLACE FUNCTION bloom_support.sync_feature_shipment_delivery()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -733,7 +1449,7 @@ SET search_path = ''
 AS $$
 BEGIN
   IF NEW.delivery IS NOT DISTINCT FROM OLD.delivery THEN RETURN NEW; END IF;
-  UPDATE bloom_support.feature_shipment_subscriptions
+  UPDATE bloom_support.feature_shipment_deliveries
   SET delivery_status = CASE NEW.delivery
         WHEN 'none' THEN delivery_status
         ELSE NEW.delivery
@@ -749,6 +1465,27 @@ BEGIN
       END,
       updated_at = now()
   WHERE notification_message_id = NEW.id;
+
+  -- A provider event for an older generation is still valuable history, but
+  -- it must never overwrite the summary for a later re-shipment.
+  WITH unlocked_subscription AS (
+    SELECT s.id
+    FROM bloom_support.feature_shipment_subscriptions s
+    JOIN bloom_support.feature_shipment_deliveries d
+      ON d.subscription_id = s.id AND d.generation = s.current_generation
+    WHERE d.notification_message_id = NEW.id
+    FOR UPDATE OF s SKIP LOCKED
+  )
+  UPDATE bloom_support.feature_shipment_subscriptions s
+  SET delivery_status = d.delivery_status,
+      notification_sent_at = d.notification_sent_at,
+      notification_delivered_at = d.notification_delivered_at,
+      updated_at = now()
+  FROM bloom_support.feature_shipment_deliveries d, unlocked_subscription unlocked
+  WHERE d.notification_message_id = NEW.id
+    AND d.subscription_id = s.id
+    AND d.generation = s.current_generation
+    AND unlocked.id = s.id;
   RETURN NEW;
 END
 $$;
@@ -759,11 +1496,14 @@ AFTER UPDATE OF delivery ON bloom_support.messages
 FOR EACH ROW EXECUTE FUNCTION bloom_support.sync_feature_shipment_delivery();
 
 REVOKE ALL ON FUNCTION bloom_support.enqueue_feature_shipment(uuid),
-  bloom_support.deliver_feature_shipment(uuid, uuid, text),
+  bloom_support.begin_feature_shipment_generation(uuid, boolean),
+  bloom_support.retract_feature_shipment_generation(uuid, text),
+  bloom_support.deliver_feature_shipment(uuid, uuid, integer, text),
+  bloom_support.invalidate_feature_shipment_ticket(),
   bloom_support.sync_feature_shipment_delivery()
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION bloom_support.enqueue_feature_shipment(uuid),
-  bloom_support.deliver_feature_shipment(uuid, uuid, text),
+  bloom_support.deliver_feature_shipment(uuid, uuid, integer, text),
   bloom_support.sync_feature_shipment_delivery()
   TO service_role;
 
@@ -778,7 +1518,7 @@ BEGIN
     JOIN bloom_support.feature_requests feature ON feature.id = subscription.feature_request_id
     WHERE feature.status = 'shipped' AND subscription.cancelled_at IS NULL
   LOOP
-    PERFORM bloom_support.enqueue_feature_shipment(s.id);
+    PERFORM bloom_support.begin_feature_shipment_generation(s.id, true);
   END LOOP;
 END
 $$;

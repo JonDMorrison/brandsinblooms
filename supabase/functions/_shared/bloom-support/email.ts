@@ -1,5 +1,5 @@
 // Bloom Support — outbound email through the existing Resend account.
-import { env, rpc } from "./runtime.ts";
+import { directRpc, env, rpc } from "./runtime.ts";
 import { randomToken, sha256Hex } from "./crypto.ts";
 import { threadingHeaders } from "./support-emails.ts";
 
@@ -129,6 +129,18 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   if (!cfg.configured) {
     await rpc("mark_outbound_email", { id: queued.id, status: "not_configured", error: `missing ${cfg.missing.join(", ")}` });
     return { id: queued.id, status: "not_configured", duplicate: false, reason: `missing ${cfg.missing.join(", ")}` };
+  }
+
+  // A shipment may be rolled back after its email is rendered. Re-check its
+  // immutable generation immediately before provider dispatch; ordinary mail
+  // passes through unchanged. The database keeps an in-flight outcome
+  // uncertain so a concurrent rollback never invents proof that it was unsent.
+  const shipmentDispatchAllowed = await directRpc<boolean>(
+    "bloom_support_claim_feature_shipment_email",
+    { p_email: queued.id },
+  );
+  if (!shipmentDispatchAllowed) {
+    return { id: queued.id, status: "suppressed", duplicate: queued.duplicate, reason: "delivery suppressed" };
   }
 
   const messageId = queued.rfc_message_id ?? rfcId;

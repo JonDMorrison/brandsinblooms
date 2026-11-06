@@ -234,12 +234,15 @@ async function proposeOperation(t: TicketView, vision: VisionInput = NO_VISION):
 async function answer(job: Job): Promise<string> {
   if (job.payload.mode === "feature_shipment") {
     const subscriptionId = String(job.payload.subscription_id ?? "");
+    const generation = Number(job.payload.generation);
     if (!subscriptionId) return "skipped: shipment subscription missing";
+    if (!Number.isSafeInteger(generation) || generation <= 0) return "skipped: shipment generation missing";
     const delivered = await directRpc<{ delivered: boolean; duplicate?: boolean; reason?: string }>(
       "bloom_support_deliver_feature_shipment",
       {
         p_actor: bot.principalId,
         p_subscription: subscriptionId,
+        p_generation: generation,
         p_body: bloomFeatureDecision("shipped"),
       },
     );
