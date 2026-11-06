@@ -1,7 +1,7 @@
 /**
  * Presentational pieces of the public tracking page (/support/track/:token).
- * Botanical visual language shared with Bloom Support emails: navy ink, sage
- * accents, ivory page, soft panels and the first-party premium icons.
+ * BloomSuite visual language: navy band, deep-teal actions, teal progress,
+ * indigo accents on a cool page tint, Quicksand headings over Inter text.
  */
 import { useId, useState, type ReactNode } from "react";
 import Box from "@mui/joy/Box";
@@ -12,7 +12,7 @@ import Link from "@mui/joy/Link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { FileText, Paperclip } from "lucide-react";
-import { focusRing, fullDate, shortDate, T } from "./trackTheme";
+import { FONT, focusRing, fullDate, outlineButton, shortDate, srOnly, T } from "./trackTheme";
 import type { TrackAttachment, TrackMessage, TimelineItem } from "@/lib/bloomSupport/trackView";
 
 export type BotanicalIcon = "leaf" | "check" | "mail" | "calendar" | "alert" | "sun" | "water" | "soil" | "truck";
@@ -34,7 +34,8 @@ export function Botanical({ name, size = 40 }: { name: BotanicalIcon; size?: num
   );
 }
 
-export function Card({ children, sx, component = "section", ...rest }: { children: ReactNode; sx?: Record<string, unknown>; component?: "section" | "div" | "aside"; "aria-labelledby"?: string; id?: string }) {
+
+export function Card({ children, sx, component = "section", ...rest }: { children: ReactNode; sx?: Record<string, unknown>; component?: "section" | "div" | "aside"; "aria-labelledby"?: string; "aria-busy"?: "true"; id?: string }) {
   return (
     <Box
       component={component}
@@ -42,8 +43,7 @@ export function Card({ children, sx, component = "section", ...rest }: { childre
       sx={{
         bgcolor: T.white,
         border: `1px solid ${T.border}`,
-        borderRadius: { xs: "16px", sm: "20px" },
-        boxShadow: "0 1px 2px rgba(27,48,73,0.04), 0 8px 24px rgba(27,48,73,0.05)",
+        borderRadius: "20px",
         "@media print": { boxShadow: "none", breakInside: "avoid" },
         ...sx,
       }}
@@ -53,38 +53,65 @@ export function Card({ children, sx, component = "section", ...rest }: { childre
   );
 }
 
+/** Section heading in the page's display face. */
+export function Heading({ id, children, size = 22, color = T.navy, component = "h2", lineHeight = 1.25 }: { id?: string; children: ReactNode; size?: number | { xs: string; sm: string }; color?: string; component?: "h1" | "h2"; lineHeight?: number }) {
+  return (
+    <Typography id={id} component={component} sx={{ m: 0, fontFamily: FONT.heading, fontWeight: 700, fontSize: typeof size === "number" ? `${size}px` : size, lineHeight, color }}>
+      {children}
+    </Typography>
+  );
+}
+
 export function Time({ iso, children }: { iso: string; children: ReactNode }) {
   return <time dateTime={iso} title={fullDate(iso)}>{children}</time>;
 }
 
+
+const Check = ({ size = 14, width = 3 }: { size?: number; width?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12l5 5L20 7" />
+  </svg>
+);
+
 // ---------------------------------------------------------------------------
-// Progress stepper
+// Numbered progress stepper
 // ---------------------------------------------------------------------------
-export function Stepper({ steps, current, tone }: { steps: readonly string[]; current: number; tone: "neutral" | "progress" | "action" | "success" }) {
-  const accent = tone === "action" ? T.amber : T.sage;
+export function Stepper({ steps, current, dates }: { steps: readonly string[]; current: number; dates: ReadonlyArray<ReactNode | null> }) {
   return (
     <Box
       component="ol"
       aria-label="Progress"
-      sx={{ listStyle: "none", m: 0, p: 0, display: "grid", gridTemplateColumns: `repeat(${steps.length}, 1fr)`, gap: { xs: 0.5, sm: 1 } }}
+      sx={{ listStyle: "none", m: 0, p: 0, display: "grid", gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))`, gap: { xs: 0.75, sm: 1 } }}
     >
       {steps.map((label, i) => {
         const n = i + 1;
         const done = n < current || (n === current && n === steps.length);
         const active = n === current && !done;
+        const last = n === steps.length;
+        const date = dates[i];
         return (
-          <Box component="li" key={label} aria-current={n === current ? "step" : undefined} sx={{ minWidth: 0 }}>
-            <Box sx={{ height: 6, borderRadius: 99, bgcolor: n <= current ? accent : T.border, mb: 1, position: "relative", overflow: "hidden",
-              ...(active ? { "&::after": { content: '""', position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent)", animation: "bloomTrackShimmer 2.4s ease-in-out infinite" },
-                "@media (prefers-reduced-motion: reduce)": { "&::after": { animation: "none" } } } : {}) }} />
-            <Typography
-              level="body-xs"
-              sx={{ color: n <= current ? T.navy : T.muted, fontWeight: n === current ? 700 : 500, lineHeight: 1.3, fontSize: { xs: "11px", sm: "13px" } }}
-            >
-              <Box component="span" sx={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>
-                {done ? "Done: " : active ? "Current step: " : "Next: "}
+          <Box component="li" key={label} aria-current={n === current ? "step" : undefined} sx={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1.25 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box
+                aria-hidden
+                sx={{
+                  width: 28, height: 28, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 13, fontWeight: 600, boxSizing: "border-box",
+                  ...(done
+                    ? { bgcolor: T.primary, color: T.white }
+                    : active
+                    ? { bgcolor: T.secondary, color: T.white, boxShadow: `0 0 0 5px ${T.halo}` }
+                    : { bgcolor: T.white, color: T.muted, border: `2px solid ${T.outline}` }),
+                }}
+              >
+                {done ? <Check /> : n}
               </Box>
+              {!last && <Box aria-hidden sx={{ height: 3, flex: 1, borderRadius: 3, bgcolor: n < current ? T.primary : T.border }} />}
+            </Box>
+            <Typography component="span" sx={{ fontSize: { xs: "12px", sm: "14px" }, lineHeight: 1.35, color: active ? T.primary : done ? T.ink : T.muted, fontWeight: active ? 700 : 400, overflowWrap: "anywhere" }}>
+              <Box component="span" sx={srOnly}>{done ? "Done: " : active ? "Current step: " : "Next: "}</Box>
               {label}
+              {date && <Box component="span" sx={{ display: "block", fontSize: "12px", fontWeight: 400, color: T.muted, mt: 0.25 }}>{date}</Box>}
             </Typography>
           </Box>
         );
@@ -106,16 +133,16 @@ const safeHref = (href: string | undefined): string | null => {
   }
 };
 
-export function MessageBody({ body }: { body: string }) {
+export function MessageBody({ body, color = T.body }: { body: string; color?: string }) {
   return (
     <Box
       sx={{
-        color: T.ink, fontSize: "15px", lineHeight: 1.65, overflowWrap: "anywhere",
+        color, fontSize: "15px", lineHeight: 1.65, overflowWrap: "anywhere",
         "& p": { m: 0, mb: 1.25 }, "& p:last-child": { mb: 0 },
         "& ul, & ol": { m: 0, mb: 1.25, pl: 3 }, "& ul": { listStyle: "disc" }, "& ol": { listStyle: "decimal" }, "& li": { mb: 0.5, listStyle: "inherit" },
         "& code": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "0.88em", bgcolor: T.panel, border: `1px solid ${T.border}`, borderRadius: "6px", px: 0.5 },
         "& pre": { bgcolor: T.panel, border: `1px solid ${T.border}`, borderRadius: "10px", p: 1.5, overflowX: "auto", "& code": { border: 0, p: 0 } },
-        "& blockquote": { m: 0, mb: 1.25, pl: 1.5, borderLeft: `3px solid ${T.border}`, color: T.body },
+        "& blockquote": { m: 0, mb: 1.25, pl: 1.5, borderLeft: `3px solid ${T.border}`, color: T.muted },
         "& h1, & h2, & h3, & h4": { fontSize: "16px", fontWeight: 700, color: T.navy, m: 0, mb: 1 },
       }}
     >
@@ -128,7 +155,7 @@ export function MessageBody({ body }: { body: string }) {
           a: ({ href, children }) => {
             const safe = safeHref(href);
             return safe
-              ? <Link href={safe} target="_blank" rel="noopener noreferrer nofollow ugc" sx={{ color: T.sage, fontWeight: 600, textDecorationColor: "currentColor", ...focusRing }}>{children}</Link>
+              ? <Link href={safe} target="_blank" rel="noopener noreferrer nofollow ugc" sx={{ color: T.primary, fontWeight: 600, textDecorationColor: "currentColor", ...focusRing }}>{children}</Link>
               : <span>{children}</span>;
           },
         }}
@@ -139,21 +166,21 @@ export function MessageBody({ body }: { body: string }) {
   );
 }
 
-const LONG = 700;
+const LONG = 420;
 
 /** Long messages open collapsed with a fade and a real button to expand. */
-export function Collapsible({ body }: { body: string }) {
+export function Collapsible({ body, background = T.white }: { body: string; background?: string }) {
   const [open, setOpen] = useState(false);
   const id = useId();
-  const long = body.length > LONG || body.split("\n").length > 14;
+  const long = body.length > LONG || body.split("\n").length > 8;
   if (!long) return <MessageBody body={body} />;
   return (
     <Box>
       <Box
         id={id}
         sx={{
-          position: "relative", maxHeight: open ? "none" : 220, overflow: "hidden",
-          ...(open ? {} : { "&::after": { content: '""', position: "absolute", left: 0, right: 0, bottom: 0, height: 72, background: `linear-gradient(rgba(255,255,255,0), ${T.white})` } }),
+          position: "relative", maxHeight: open ? "none" : 132, overflow: "hidden",
+          ...(open ? {} : { "&::after": { content: '""', position: "absolute", left: 0, right: 0, bottom: 0, height: 56, background: `linear-gradient(rgba(255,255,255,0), ${background})` } }),
           "@media print": { maxHeight: "none", "&::after": { display: "none" } },
         }}
       >
@@ -161,11 +188,10 @@ export function Collapsible({ body }: { body: string }) {
       </Box>
       <Button
         variant="plain"
-        size="sm"
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((v) => !v)}
-        sx={{ mt: 0.5, px: 0.75, ml: -0.75, color: T.sage, fontWeight: 700, "&:hover": { bgcolor: T.sageSoft }, ...focusRing, "@media print": { display: "none" } }}
+        sx={{ minHeight: 44, px: 0, color: T.primary, fontWeight: 600, fontSize: "14px", "&:hover": { bgcolor: "transparent", textDecoration: "underline" }, ...focusRing, "@media print": { display: "none" } }}
       >
         {open ? "Show less" : "Show more"}
       </Button>
@@ -181,17 +207,16 @@ const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} M
 export function Attachments({ files, onOpen, busyId }: { files: TrackAttachment[]; onOpen: (f: TrackAttachment) => void; busyId: string | null }) {
   if (!files.length) return null;
   return (
-    <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} sx={{ mt: 1.5 }} aria-label="Attachments">
+    <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} sx={{ mt: 0.5 }} aria-label="Attachments">
       {files.map((f) => (
         <Button
           key={f.id}
-          size="sm"
           variant="outlined"
           color="neutral"
           loading={busyId === f.id}
           onClick={() => onOpen(f)}
           startDecorator={f.content_type.startsWith("image/") ? <Paperclip size={14} aria-hidden /> : <FileText size={14} aria-hidden />}
-          sx={{ borderColor: T.border, color: T.navy, bgcolor: T.panel, borderRadius: "10px", fontWeight: 600, maxWidth: "100%", ...focusRing }}
+          sx={{ ...outlineButton, bgcolor: T.panel, fontWeight: 600, maxWidth: "100%" }}
         >
           <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>{f.file_name}</Box>
           <Box component="span" sx={{ color: T.muted, fontWeight: 500, ml: 0.75 }}>{kb(f.size_bytes)}</Box>
@@ -212,14 +237,14 @@ function initials(name: string): string {
 function Avatar({ author, name }: { author: TrackMessage["author"]; name: string }) {
   if (author === "customer") {
     return (
-      <Box aria-hidden sx={{ width: 40, height: 40, borderRadius: "50%", bgcolor: T.sageSoft, color: T.sage, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 14, flex: "0 0 auto" }}>
+      <Box aria-hidden sx={{ width: 40, height: 40, borderRadius: 999, bgcolor: "#E1E9EF", color: T.accent, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, flex: "none" }}>
         {initials(name)}
       </Box>
     );
   }
   return (
-    <Box aria-hidden sx={{ width: 40, height: 40, borderRadius: "50%", bgcolor: T.panel, border: `1px solid ${T.border}`, display: "grid", placeItems: "center", flex: "0 0 auto" }}>
-      <Botanical name="leaf" size={26} />
+    <Box aria-hidden sx={{ width: 40, height: 40, borderRadius: 999, bgcolor: T.tint, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+      <Botanical name="leaf" size={24} />
     </Box>
   );
 }
@@ -235,45 +260,47 @@ export function MessageRow({
   m, isRequest, onOpenFile, busyFileId, extraFiles = [],
 }: { m: TrackMessage; isRequest: boolean; onOpenFile: (f: TrackAttachment) => void; busyFileId: string | null; extraFiles?: TrackAttachment[] }) {
   const customer = m.author === "customer";
+  const bg = customer ? T.white : T.panel;
   return (
     <Box component="li" sx={{ listStyle: "none", display: "flex", gap: { xs: 1.25, sm: 1.75 }, alignItems: "flex-start" }}>
       <Avatar author={m.author} name={m.name} />
       <Box
         component="article"
         aria-label={`${customer ? m.name : "Bloom Support"}, ${fullDate(m.created_at)}`}
-        sx={{
-          flex: 1, minWidth: 0, borderRadius: "14px", p: { xs: 1.75, sm: 2.25 },
-          bgcolor: customer ? T.white : T.panel,
-          border: `1px solid ${customer ? T.border : "#E3EAE5"}`,
-        }}
+        sx={{ flex: 1, minWidth: 0, borderRadius: "16px", px: { xs: 1.75, sm: 2.5 }, py: 2, bgcolor: bg, border: `1px solid ${T.border}`, display: "flex", flexDirection: "column", gap: 1.25 }}
       >
-        <Stack direction="row" spacing={1} alignItems="baseline" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
-          <Typography level="title-sm" sx={{ color: T.navy, fontWeight: 700 }}>{customer ? m.name : "Bloom Support"}</Typography>
-          {isRequest && (
-            <Typography level="body-xs" sx={{ color: T.sage, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", fontSize: "10.5px" }}>Original request</Typography>
-          )}
-          <Typography level="body-xs" sx={{ color: T.muted, ml: "auto !important" }}><Time iso={m.created_at}>{shortDate(m.created_at)}</Time></Typography>
+        <Stack direction="row" spacing={1} alignItems="baseline" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+          <Typography component="span" sx={{ color: T.navy, fontWeight: 600, fontSize: "15px", overflowWrap: "anywhere" }}>
+            {customer ? m.name : "Bloom Support"}
+            {isRequest && (
+              <Box component="span" sx={{ ml: 0.75, fontSize: "11px", fontWeight: 600, letterSpacing: "1px", color: T.accent, bgcolor: T.accentSoft, px: 1, py: 0.375, borderRadius: "6px", whiteSpace: "nowrap" }}>
+                ORIGINAL REQUEST
+              </Box>
+            )}
+          </Typography>
+          <Typography component="span" sx={{ fontSize: "13px", color: T.muted }}><Time iso={m.created_at}>{shortDate(m.created_at)}</Time></Typography>
         </Stack>
-        <Collapsible body={m.body} />
+        <Collapsible body={m.body} background={bg} />
         <Attachments files={[...extraFiles, ...m.attachments]} onOpen={onOpenFile} busyId={busyFileId} />
       </Box>
     </Box>
   );
 }
 
+/** Bloom's automatic notes: a compact check row instead of a full message. */
 export function EventRow({ item }: { item: Extract<TimelineItem, { type: "event" }> }) {
   return (
-    <Box component="li" sx={{ listStyle: "none", display: "flex", gap: { xs: 1.25, sm: 1.75 }, alignItems: "flex-start" }}>
-      <Box aria-hidden sx={{ width: 40, display: "grid", placeItems: "center", flex: "0 0 auto", pt: 0.25 }}>
-        <Botanical name="check" size={28} />
+    <Box component="li" sx={{ listStyle: "none", display: "flex", gap: 1.75, alignItems: "flex-start", pl: 1 }}>
+      <Box aria-hidden sx={{ width: 24, height: 24, borderRadius: 999, bgcolor: T.tint, color: T.primary, display: "flex", alignItems: "center", justifyContent: "center", flex: "none", mt: "2px" }}>
+        <Check size={12} />
       </Box>
-      <Box sx={{ flex: 1, minWidth: 0, py: 0.5 }}>
-        <Typography level="body-sm" sx={{ color: T.navy, fontWeight: 700 }}>
-          {item.title}
-          <Typography component="span" level="body-xs" sx={{ color: T.muted, fontWeight: 500, ml: 1 }}><Time iso={item.at}>{shortDate(item.at)}</Time></Typography>
+      <Box sx={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 0.5 }}>
+        <Typography component="span" sx={{ fontSize: "14px", color: T.navy }}>
+          <Box component="strong" sx={{ fontWeight: 600 }}>{item.title}</Box>
+          <Box component="span" sx={{ color: T.muted }}> · <Time iso={item.at}>{shortDate(item.at)}</Time></Box>
         </Typography>
         {item.details.map((d) => (
-          <Typography key={d} level="body-sm" sx={{ color: T.body, mt: 0.25, lineHeight: 1.55 }}>{d}</Typography>
+          <Typography key={d} component="span" sx={{ fontSize: "14px", lineHeight: 1.55, color: "#4A5B6B", overflowWrap: "anywhere" }}>{d}</Typography>
         ))}
       </Box>
     </Box>
@@ -285,15 +312,15 @@ export function PendingRow({ p, name }: { p: PendingMessage; name: string }) {
     <Box component="li" sx={{ listStyle: "none", display: "flex", gap: { xs: 1.25, sm: 1.75 }, alignItems: "flex-start", opacity: p.state === "sending" ? 0.75 : 1 }}>
       <Avatar author="customer" name={name} />
       <Box component="article" aria-label={`${name}, ${p.state === "sending" ? "sending" : p.state === "sent" ? "sent" : "not sent"}`}
-        sx={{ flex: 1, minWidth: 0, borderRadius: "14px", p: { xs: 1.75, sm: 2.25 }, bgcolor: T.white, border: `1px ${p.state === "failed" ? "solid #C2410C" : `dashed ${T.border}`}` }}>
+        sx={{ flex: 1, minWidth: 0, borderRadius: "16px", px: { xs: 1.75, sm: 2.5 }, py: 2, bgcolor: T.white, border: `1px ${p.state === "failed" ? "solid #C2410C" : `dashed ${T.outline}`}` }}>
         <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mb: 0.75 }}>
-          <Typography level="title-sm" sx={{ color: T.navy, fontWeight: 700 }}>{name}</Typography>
-          <Typography level="body-xs" sx={{ color: p.state === "failed" ? "#9A3412" : T.muted, ml: "auto !important" }}>
+          <Typography component="span" sx={{ color: T.navy, fontWeight: 600, fontSize: "15px" }}>{name}</Typography>
+          <Typography component="span" sx={{ fontSize: "13px", color: p.state === "failed" ? T.danger : T.muted, ml: "auto !important" }}>
             {p.state === "sending" ? "Sending…" : p.state === "sent" ? "Sent just now" : "Not sent"}
           </Typography>
         </Stack>
         <MessageBody body={p.body} />
-        {p.files.length > 0 && <Typography level="body-xs" sx={{ color: T.muted, mt: 1 }}>Attaching {p.files.join(", ")}</Typography>}
+        {p.files.length > 0 && <Typography sx={{ fontSize: "13px", color: T.muted, mt: 1 }}>Attaching {p.files.join(", ")}</Typography>}
       </Box>
     </Box>
   );
@@ -313,11 +340,11 @@ export function PlainTextarea(props: { id: string; value: string; onChange: (v: 
       aria-describedby={props.describedBy}
       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => props.onChange(e.target.value)}
       sx={{
-        display: "block", width: "100%", boxSizing: "border-box", resize: "vertical", minHeight: 96, maxHeight: 480,
-        p: 1.5, font: "inherit", fontSize: "15px", lineHeight: 1.55, color: T.ink, bgcolor: T.white,
-        border: `1px solid ${T.border}`, borderRadius: "12px", outline: "none",
-        "&::placeholder": { color: "#8A97A3" },
-        "&:focus-visible": { borderColor: T.focus, boxShadow: `0 0 0 3px ${T.sageSoft}` },
+        display: "block", width: "100%", boxSizing: "border-box", resize: "vertical", minHeight: 88, maxHeight: 480,
+        px: 1.75, py: 1.5, font: "inherit", fontSize: "15px", lineHeight: 1.5, color: T.ink, bgcolor: T.white,
+        border: `1px solid ${T.outline}`, borderRadius: "12px", outline: "none",
+        "&::placeholder": { color: T.muted },
+        "&:focus-visible": { borderColor: T.primary, boxShadow: `0 0 0 3px ${T.halo}` },
         "&:disabled": { opacity: 0.7 },
       }}
     />

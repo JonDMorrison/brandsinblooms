@@ -10,6 +10,7 @@
  * so a database change that adds a field (an internal note, a staff name, an
  * internal status) cannot reach the public page without a change here too.
  */
+import { clientSystemText } from "./clientWording.ts";
 
 export type TrackStatus = "received" | "in_progress" | "waiting_on_you" | "resolved";
 export type TrackKind = "fix" | "help" | "idea";
@@ -140,14 +141,16 @@ function sanitizeMessage(m: unknown): TrackMessage | null {
   const createdAt = isoDate(m.created_at);
   if (!id || body === null || !createdAt) return null;
   const author = m.author as TrackAuthor;
+  const automatic = author !== "customer" && bool(m.automatic);
   return {
     id,
     author,
     // Team members are always "Bloom Support" on this page, whatever the source says.
     name: author === "team" ? "Bloom Support" : author === "system" ? "Bloom" : (text(m.name, 80)?.trim() || "You"),
-    automatic: author !== "customer" && bool(m.automatic),
+    automatic,
     purpose: author === "customer" ? null : (PURPOSES as readonly unknown[]).includes(m.purpose) ? (m.purpose as TrackPurpose) : null,
-    body,
+    // Bloom's own automatic copy never names staff; anything a person wrote is shown as written.
+    body: automatic || author === "system" ? clientSystemText(body) : body,
     created_at: createdAt,
     attachments: sanitizeAttachments(m.attachments),
   };
