@@ -1,4 +1,5 @@
 import { test, expect, type Browser, type Page, type Response } from '@playwright/test';
+import { expectRouteSettled } from '../utils/route-settled';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'https://www.bloomsuite.app';
 const DEMO_TENANT = 'Greenfield Garden Centre';
@@ -122,13 +123,12 @@ async function clearTenant(page: Page) {
 }
 
 async function assertHealthyPage(page: Page, expectedPath: string, sourcePath = expectedPath) {
-  const accessCheck = page.getByRole('status', { name: 'Checking workspace access' });
-  await accessCheck.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+  await expectRouteSettled(page, expectedPath, sourcePath);
+  // Observation window, not synchronisation: keep listening for the rendered
+  // page's first data requests so watchForFailures can see their 403/404/5xx.
   await page.waitForTimeout(500);
   await expect(page).not.toHaveURL(/\/auth(?:$|\?)/);
-  expect(new URL(page.url()).pathname, `unexpected redirect from ${sourcePath}`).toBe(expectedPath);
   await expect(page.locator('body')).not.toContainText(/Something went wrong|Application error|Security Violation/i);
-  await expect(accessCheck, `workspace access never resolved on ${sourcePath}`).toBeHidden({ timeout: 2_000 });
 }
 
 function watchForFailures(page: Page) {

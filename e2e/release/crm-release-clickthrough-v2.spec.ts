@@ -1,4 +1,5 @@
 import { test, expect, type Browser, type Page, type Response } from '@playwright/test';
+import { expectRouteSettled } from '../utils/route-settled';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'https://www.bloomsuite.app';
 const DEMO_TENANT = 'Greenfield Garden Centre';
@@ -143,15 +144,14 @@ for (const route of routes) {
     });
 
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    const accessCheck = page.getByRole('status', { name: 'Checking workspace access' });
-    await accessCheck.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+    await expectRouteSettled(page, route);
+    // Observation window, not synchronisation: keep listening for the rendered
+    // page's first data requests before the tab and button sweep below.
     await page.waitForTimeout(650);
 
     await expect(page.locator('body')).toBeVisible();
     await expect(page).not.toHaveURL(/\/auth(?:$|\?)/);
-    expect(new URL(page.url()).pathname, `unexpected redirect from ${route}`).toBe(route);
     await expect(page.locator('body')).not.toContainText(/Something went wrong|Application error|Security Violation/i);
-    await expect(accessCheck, `workspace access never resolved on ${route}`).toBeHidden({ timeout: 2_000 });
 
     const tabs = page.getByRole('tab');
     const tabCount = await tabs.count();
