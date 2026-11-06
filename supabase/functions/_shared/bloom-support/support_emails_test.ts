@@ -242,7 +242,9 @@ Deno.test("customer lifecycle variants keep the same personal support shell", ()
   const staff = renderCustomerEmail({ ...base, purpose: "reply", sender: "team" });
   assertMatch(staff.html, /Our support team replied/);
   assertNotMatch(staff.text, /I'm Bloom/);
-  assertMatch(staff.text, /Brands in Blooms Support/);
+  assertMatch(staff.html, /A person from BloomSuite Support has replied/);
+  assertMatch(staff.text, /BloomSuite Support/);
+  assertNotMatch(staff.html + staff.text, /Brands in Blooms Support/);
 });
 
 Deno.test("digest renders alerts whose detail has no condition (escalation_unanswered from the live report)", () => {

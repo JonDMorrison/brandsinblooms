@@ -55,6 +55,8 @@ export interface SendRequest {
   cc?: string[];
   /** True when Bloom (not a person) decided to send; suppressed after human takeover. */
   bloomInitiated: boolean;
+  /** True only when a person authored the outbound message. Automated notices and replies leave this unset. */
+  humanAuthored?: boolean;
   /** Client-bound (vs. staff notification). Client mail obeys the client_email_enabled switch. */
   toClient: boolean;
 }
@@ -77,6 +79,30 @@ export function safeSuppressionReason(value: unknown): string {
     default:
       return "delivery suppressed";
   }
+}
+
+export function supportEmailHeaders(input: {
+  messageId: string;
+  humanAuthored?: boolean;
+  threadRoot?: string | null;
+  inReplyTo?: string | null;
+  references?: string[];
+}): Record<string, string> {
+  const headers: Record<string, string> = { "Message-ID": input.messageId, "X-Bloom-Support": "1" };
+  // RFC 3834 says manually submitted messages should not carry Auto-Submitted;
+  // Bloom's automatic replies keep the marker so other responders do not loop.
+  if (!input.humanAuthored) headers["Auto-Submitted"] = "auto-replied";
+  if (input.threadRoot) {
+    Object.assign(headers, threadingHeaders(input.messageId, {
+      root: input.threadRoot,
+      inReplyTo: input.inReplyTo,
+      references: input.references,
+    }));
+  } else if (input.inReplyTo) {
+    headers["In-Reply-To"] = input.inReplyTo;
+    headers.References = [...new Set([...(input.references ?? []), input.inReplyTo])].join(" ");
+  }
+  return headers;
 }
 
 export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
@@ -132,13 +158,13 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   }
 
   const messageId = queued.rfc_message_id ?? rfcId;
-  const headers: Record<string, string> = { "Message-ID": messageId, "X-Bloom-Support": "1", "Auto-Submitted": "auto-replied" };
-  if (req.threadRoot) {
-    Object.assign(headers, threadingHeaders(messageId, { root: req.threadRoot, inReplyTo: req.inReplyTo, references: req.references }));
-  } else if (req.inReplyTo) {
-    headers["In-Reply-To"] = req.inReplyTo;
-    headers["References"] = [...new Set([...(req.references ?? []), req.inReplyTo])].join(" ");
-  }
+  const headers = supportEmailHeaders({
+    messageId,
+    humanAuthored: req.humanAuthored,
+    threadRoot: req.threadRoot,
+    inReplyTo: req.inReplyTo,
+    references: req.references,
+  });
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
