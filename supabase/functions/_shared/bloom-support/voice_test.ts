@@ -35,7 +35,7 @@ Deno.test("a handoff promise is gated by durable active routing", async () => {
   await assertRejects(
     () => announceAfterActiveHandoff(
       () => Promise.reject(new Error("routing unavailable")),
-      async () => { announcements++; },
+      () => Promise.resolve(++announcements),
     ),
     Error,
     "routing unavailable",
@@ -43,14 +43,14 @@ Deno.test("a handoff promise is gated by durable active routing", async () => {
   assertEquals(announcements, 0, "routing failure cannot publish a takeover promise");
 
   assertEquals(await announceAfterActiveHandoff(
-    async () => ({ status: "resolved" }),
-    async () => { announcements++; },
+    () => Promise.resolve({ status: "resolved" }),
+    () => Promise.resolve(++announcements),
   ), false);
   assertEquals(announcements, 0, "a resolved duplicate cannot publish a new takeover promise");
 
   assertEquals(await announceAfterActiveHandoff(
-    async () => ({ status: "open" }),
-    async () => { announcements++; },
+    () => Promise.resolve({ status: "open" }),
+    () => Promise.resolve(++announcements),
   ), true);
   assertEquals(announcements, 1, "an active escalation permits exactly one announcement callback");
 });
