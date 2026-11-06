@@ -2105,6 +2105,11 @@ function injectImplicitResourceFocusArguments(
   };
 }
 
+// Tools whose approval must show a server-computed preview (and, for a list
+// import, the consent statement being recorded) go through the task-plan card,
+// never the one-click inline action card.
+const PREVIEW_FIRST_TOOLS = new Set(["import_customer_list"]);
+
 function createMutationActionCard(
   toolName: string,
   toolArgs: JsonObject,
@@ -2112,6 +2117,7 @@ function createMutationActionCard(
 ): JsonObject | null {
   const toolDefinition = getRegisteredTool(toolName);
   if (
+    PREVIEW_FIRST_TOOLS.has(toolName) ||
     request.session_type !== "resource_focused" ||
     !request.resource_focus ||
     !toolDefinition ||

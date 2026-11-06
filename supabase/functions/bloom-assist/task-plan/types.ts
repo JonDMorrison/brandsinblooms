@@ -96,6 +96,13 @@ export type ValidationAnnotation = {
   resolution_options: ValidationResolutionOption[];
 };
 
+/** A statement the person agrees to by approving this task, shown in full on the card. */
+export type TaskPlanNotice = {
+  title: string;
+  body: string;
+  detail: string | null;
+};
+
 export type TaskPlanItem = {
   task_id: string;
   action: TaskPlanAction;
@@ -111,6 +118,7 @@ export type TaskPlanItem = {
   editable_fields: string[];
   editable_field_metadata?: EditableFieldMetadata[];
   validation_annotations: ValidationAnnotation[];
+  notice?: TaskPlanNotice | null;
   status: TaskPlanItemStatus;
   error_message: string | null;
 };
@@ -258,6 +266,9 @@ export function taskPlanToJson(plan: TaskPlan): JsonObject {
           description: option.description ?? null,
         })),
       })),
+      notice: task.notice
+        ? { title: task.notice.title, body: task.notice.body, detail: task.notice.detail }
+        : null,
       status: task.status,
       error_message: task.error_message,
     })),
