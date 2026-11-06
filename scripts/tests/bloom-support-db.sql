@@ -48,6 +48,10 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261105230000_bloom_support_admin_wording.sql
 \ir ../../supabase/migrations/20261105235000_bloom_support_staff_job_failures.sql
 \ir ../../supabase/migrations/20261106010000_bloom_support_mcp_mutation_idempotency.sql
+\ir ../../supabase/migrations/20261106020000_bloom_support_email_delivery_lifecycle.sql
+\ir ../../supabase/migrations/20261106030000_bloom_support_feature_decision_followup.sql
+\ir ../../supabase/migrations/20261106040000_bloom_support_engineering_progress_email.sql
+\ir ../../supabase/migrations/20261106050000_bloom_support_feature_decision_messages.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -370,7 +374,28 @@ SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jef
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='investigate' AND engineering_issue_id = :'eng2'), 'Jeff started the repair');
 SELECT pg_temp.assert((SELECT repair_started_by FROM bloom_support.engineering_issues WHERE id = :'eng2') = :'jeff'::uuid, 'repair start recorded against Jeff');
 SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND reason='engineering_start_requested' AND status='open'), 'start request closed');
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"investigating"}'::jsonb));
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1
+    FROM bloom_support.jobs
+    WHERE kind = 'answer'
+      AND ticket_id = :'t1id'
+      AND engineering_issue_id = :'eng2'
+      AND payload @> '{"mode":"engineering_progress","status":"investigating"}'::jsonb
+  ),
+  'the approved investigation start durably queues a distinct client update');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"in_review","patch":{"pr_number":43,"head_sha":"h1"}}'::jsonb));
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1
+    FROM bloom_support.jobs
+    WHERE kind = 'answer'
+      AND ticket_id = :'t1id'
+      AND engineering_issue_id = :'eng2'
+      AND payload @> '{"mode":"engineering_progress","status":"in_review"}'::jsonb
+  ),
+  'a meaningful repair state durably queues a client progress update');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"awaiting_approval","note":"touches payment amounts"}'::jsonb));
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND audience='jon' AND reason='engineering_awaiting_approval'), 'sensitive fix escalated to Jon');
 SELECT pg_temp.assert((SELECT status FROM bloom_support.tickets WHERE id = :'t1id') = 'needs_owner', 'ticket shows Needs admin');
@@ -394,9 +419,66 @@ SELECT pg_temp.assert((SELECT status = 'working' AND reopen_count = 1 AND NOT re
 -- 10. Feature requests go to Jon with evidence; only Jon decides.
 SELECT pg_temp.rpc('route_feature_request', jsonb_build_object('actor', :'bot', 'ticket_id', ((:'t4'::jsonb)->>'ticket_id'), 'feature', '{"title":"Multi-location accounts"}'::jsonb))->>'feature_request_id' AS fr \gset
 SELECT pg_temp.assert((SELECT next_action FROM bloom_support.tickets WHERE id = ((:'t4'::jsonb)->>'ticket_id')::uuid) = 'Admin decides on the feature request', 'feature request next action names the role');
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm',
+    'channel', 'crm',
+    'body', 'Our second location needs the same account feature.',
+    'account_id', :'greenleaf'
+  )
+)) AS t4_feature_peer \gset
+SELECT pg_temp.rpc('route_feature_request', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', ((:'t4_feature_peer'::jsonb)->>'ticket_id'),
+  'feature', jsonb_build_object('feature_request_id', :'fr', 'excerpt', 'A second client request for the same feature.')
+));
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('decide_feature_request', '{"actor":"%s","feature_request_id":"%s","decision":"accepted"}'::jsonb)$q$, :'jeff', :'fr'), 'features.decide');
 SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object('actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned', 'note', 'Q1'));
-SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_features', jsonb_build_object('actor', :'jeff'))->0->'evidence') = 1, 'feature evidence linked');
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2
+          AND count(DISTINCT idempotency_key) = 2
+          AND count(*) FILTER (WHERE ticket_id = ((:'t4'::jsonb)->>'ticket_id')::uuid) = 1
+          AND count(*) FILTER (WHERE ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid) = 1
+   FROM bloom_support.jobs
+   WHERE kind = 'answer'
+     AND payload @> '{"mode":"feature_decision","decision":"planned"}'::jsonb),
+  'a feature decision durably queues one promised follow-up for every linked ticket');
+UPDATE bloom_support.tickets
+SET status = 'waiting', waiting_reason = 'customer', stage = 'awaiting_client', next_action = 'Waiting for the client'
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object('actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned', 'note', 'Updated internal note'));
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2
+   FROM bloom_support.jobs
+   WHERE kind = 'answer'
+     AND payload->>'mode' = 'feature_decision'),
+  'repeating the same feature decision does not send clients another update');
+SELECT pg_temp.assert(
+  (SELECT bool_and(status = 'waiting' AND waiting_reason = 'customer' AND stage = 'awaiting_client' AND next_action = 'Waiting for the client')
+   FROM bloom_support.tickets
+   WHERE feature_request_id = :'fr'),
+  'editing the note on the same feature decision does not reopen client workflows');
+SELECT pg_temp.rpc('add_message', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', ((:'t4'::jsonb)->>'ticket_id'),
+  'message', jsonb_build_object(
+    'body', 'The product team plans to build this feature.',
+    'visibility', 'public',
+    'purpose', 'feature_decision',
+    'notify_client', false,
+    'idempotency_key', 'feature-decision-message-contract'
+  )
+))->>'message_id' AS feature_decision_message \gset
+SELECT pg_temp.assert(
+  (SELECT purpose = 'feature_decision' AND meaningful
+   FROM bloom_support.messages
+   WHERE id = :'feature_decision_message')
+  AND (SELECT first_response_at IS NOT NULL
+       FROM bloom_support.tickets
+       WHERE id = ((:'t4'::jsonb)->>'ticket_id')::uuid),
+  'a feature decision remains typed and counts as a substantive response');
+SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_features', jsonb_build_object('actor', :'jeff'))->0->'evidence') = 2, 'feature evidence links every requester');
 
 -- 11. Email sender resolution never grants staff authority; domain match stays unverified.
 UPDATE bloom_support.accounts SET email_domains = '{greenleaf.test}' WHERE id = :'greenleaf';
@@ -1452,12 +1534,84 @@ SELECT pg_temp.assert((SELECT rfc_message_id = '<bloom-ticket.' || :'t1id' || '@
 SELECT pg_temp.rpc('mark_outbound_email', jsonb_build_object('id', :'design_email', 'status', 'sent', 'provider_id', 'prov-design-1'));
 SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.messages WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002') AND delivery = 'sent') = 2,
   'a coalesced email marks every message it delivered as sent');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivery_delayed"}'::jsonb) AS delayed_delivery \gset
+SELECT pg_temp.assert(
+  (:'delayed_delivery'::jsonb)->>'status' = 'sent'
+  AND ((:'delayed_delivery'::jsonb)->>'delivery_delayed')::boolean
+  AND (SELECT status = 'sent' AND provider_events @> '[{"type":"email.delivery_delayed"}]'::jsonb
+         FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'sent') = 2,
+  'a delivery delay is recorded without pretending the coalesced messages delivered or failed');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivery_delayed"}'::jsonb);
+SELECT pg_temp.assert(
+  EXISTS (SELECT 1 FROM bloom_support.activity
+          WHERE ticket_id = :'t1id' AND action = 'email.delivery_delayed'
+            AND detail->>'provider_id' = 'prov-design-1')
+  AND EXISTS (SELECT 1 FROM bloom_support.notifications
+              WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed'
+                AND dedupe_key LIKE 'email-delivery-delayed:' || :'design_email' || ':%')
+  AND (SELECT count(*) = count(DISTINCT principal_id) AND count(*) > 0
+       FROM bloom_support.notifications
+       WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed'
+         AND dedupe_key LIKE 'email-delivery-delayed:' || :'design_email' || ':%'),
+  'a delivery delay gives staff an actionable, deduplicated signal');
 SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'purpose', 'progress', 'to', 'client@greenleaf.test',
   'subject', '[Bloom #1] s', 'body', 'later', 'rfc_message_id', '<bloom.random2@bloom.test>', 'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>',
   'idempotency_key', 'design-2'))))->>'rfc_message_id' = '<bloom.random2@bloom.test>', 'later emails keep their own Message-ID');
 SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'message_id', 'e1000000-0000-4000-8000-000000000001',
   'purpose', 'acknowledgement', 'to', 'client@greenleaf.test', 'subject', '[Bloom #1] s', 'body', 'both', 'rfc_message_id', '<bloom.random3@bloom.test>',
   'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>', 'idempotency_key', 'design-1'))))->>'duplicate' = 'true', 'a retry is a duplicate of the recorded email');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivered"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'delivered' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'delivered') = 2,
+  'a delivered event reaches every message represented by the coalesced email');
+SELECT count(*) AS delayed_alerts_before_terminal_event
+FROM bloom_support.notifications
+WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed' \gset
+SELECT count(*) AS delayed_logs_before_terminal_event
+FROM bloom_support.activity
+WHERE ticket_id = :'t1id' AND action = 'email.delivery_delayed' \gset
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivery_delayed"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'delivered'
+          AND (SELECT count(*) FROM jsonb_array_elements(provider_events) event
+               WHERE event->>'type' = 'email.delivery_delayed') = 3
+   FROM bloom_support.outbound_emails
+   WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.notifications
+       WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed') = :'delayed_alerts_before_terminal_event'::bigint
+  AND (SELECT count(*) FROM bloom_support.activity
+       WHERE ticket_id = :'t1id' AND action = 'email.delivery_delayed') = :'delayed_logs_before_terminal_event'::bigint,
+  'a late delivery-delay event is retained without raising a false alert after confirmed delivery');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.sent"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'delivered' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'delivered') = 2,
+  'an out-of-order sent event cannot roll delivered mail backward');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.bounced"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'bounced' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'bounced') = 2,
+  'a bounce reaches every message represented by the coalesced email');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivered"}'::jsonb);
+SELECT pg_temp.assert((SELECT status = 'bounced' FROM bloom_support.outbound_emails WHERE id = :'design_email'),
+  'an out-of-order delivered event cannot hide a bounce');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.complained"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'complained' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'complained') = 2,
+  'a complaint supersedes a bounce and reaches every coalesced message');
 SELECT pg_temp.assert(jsonb_typeof(public.bloom_support_digest_report(now() - interval '1 day')->'needs_you') = 'array', 'digest report runs');
 SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'public.bloom_support_digest_report(timestamptz)', 'execute')
   AND has_function_privilege('service_role', 'public.bloom_support_digest_report(timestamptz)', 'execute'), 'digest report is service-role only');

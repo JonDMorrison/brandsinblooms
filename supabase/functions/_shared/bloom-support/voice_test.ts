@@ -3,8 +3,17 @@ import {
   announceAfterActiveHandoff,
   BLOOM_ANSWER_SYSTEM_PROMPT,
   BLOOM_ROLE_DISCLOSURE,
+  BLOOM_SIGNATURE,
   bloomAcknowledgement,
+  bloomAttachmentRejection,
+  bloomClarification,
+  bloomEngineeringProgress,
+  bloomFeatureDecision,
+  bloomFeatureReceived,
   bloomHandoff,
+  bloomInvestigationStarted,
+  bloomReopened,
+  bloomResolution,
 } from "./voice.ts";
 
 Deno.test("Bloom identifies its support role once in the deterministic first reply", () => {
@@ -28,6 +37,23 @@ Deno.test("the answer prompt centralizes identity, uncertainty and approved-know
   for (const phrase of ["AI support agent, not a human", "ONLY the approved articles", "Never invent", "say so clearly"]) {
     assert(BLOOM_ANSWER_SYSTEM_PROMPT.includes(phrase), `missing voice rule: ${phrase}`);
   }
+});
+
+Deno.test("Bloom's lifecycle copy keeps one calm, honest voice", () => {
+  assertStringIncludes(bloomClarification(["Which page were you on?"]), "Reply here and I'll pick it up");
+  assertStringIncludes(bloomFeatureReceived(), "can't promise it will be built");
+  assertStringIncludes(bloomInvestigationStarted("bug"), "sent the evidence");
+  assertFalse(/started (?:the |an )?investigation/i.test(bloomInvestigationStarted("bug")));
+  assertStringIncludes(bloomInvestigationStarted("incident"), "alerted our support team");
+  assertStringIncludes(bloomEngineeringProgress("verifying") ?? "", "won't mark this resolved");
+  assertStringIncludes(bloomEngineeringProgress("rolled_back") ?? "", "rolled back");
+  assertEquals(bloomEngineeringProgress("open"), null);
+  assertStringIncludes(bloomFeatureDecision("planned"), "date I can promise");
+  assertStringIncludes(bloomFeatureDecision("declined"), "another way");
+  assertStringIncludes(bloomResolution("I verified the affected flow."), "reply to this email");
+  assertStringIncludes(bloomReopened(), "don't need to start over");
+  assertStringIncludes(bloomAttachmentRejection(["photo.tiff: unsupported attachment name or type"]), "request is already open");
+  assertEquals(BLOOM_SIGNATURE, "Bloom\nBrands in Blooms support agent");
 });
 
 Deno.test("a handoff promise is gated by durable active routing", async () => {

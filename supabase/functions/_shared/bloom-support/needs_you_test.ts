@@ -65,12 +65,12 @@ const ticket: StaffTicket = {
 const fresh: StaffTicket = { ...ticket, engineering: null, escalations: [], status: "working", stage: "investigating" };
 const overdue: EscalationFacts = { reason: "ticket_overdue", detail: "#1011 When I add a logo…", created_at: "2026-11-03T17:28:01Z" };
 
-/** The one primary button (the bulletproof table) and where the facts start. */
+/** The one primary button (the bulletproof table) and where the always-visible facts start. */
 function layout(html: string) {
   const buttons = html.match(/class="bs-button"/g)?.length ?? 0;
   const button = html.indexOf('class="bs-button"');
   const facts = html.indexOf(">Client</strong>");
-  const details = html.indexOf("<details");
+  const details = html.indexOf(">The request</h2>");
   return { buttons, button, facts, details };
 }
 

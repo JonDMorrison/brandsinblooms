@@ -143,6 +143,14 @@ describe("timeline", () => {
     expect(items.map((i) => i.type)).toEqual(["event", "message", "message", "event"]);
     expect(items[3]).toMatchObject({ title: "Update from Bloom Support", details: ["Still on it"], count: 2 });
   });
+
+  it("keeps a product decision typed and visible as a full message", () => {
+    const view = ok(rawView({
+      messages: [message(1, { automatic: true, purpose: "feature_decision", body: "A decision written in different words." })],
+    }));
+    expect(view.messages[0]).toMatchObject({ purpose: "feature_decision", body: "A decision written in different words." });
+    expect(buildTimeline(view.messages)).toEqual([{ type: "message", message: view.messages[0] }]);
+  });
 });
 
 describe("plain-language status", () => {

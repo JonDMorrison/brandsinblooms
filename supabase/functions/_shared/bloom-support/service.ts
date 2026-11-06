@@ -15,6 +15,7 @@ const MESSAGE_PURPOSES = new Set([
   "resolution",
   "acknowledgement",
   "progress",
+  "feature_decision",
   "notification",
 ]);
 const MAX_TICKET_BODY_LENGTH = 20_000;

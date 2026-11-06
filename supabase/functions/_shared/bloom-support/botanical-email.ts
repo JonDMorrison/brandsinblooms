@@ -227,8 +227,8 @@ export function botanicalEmailSection(title: string, html: string, icon: Botanic
     ';border-radius:14px"><tr><td style="padding:18px">' +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 6px"><tr>' +
     '<td width="51" valign="middle" style="width:51px;vertical-align:middle">' + botanicalEmailIcon(icon, 38) + "</td>" +
-    '<td valign="middle" style="vertical-align:middle;font-size:18px;line-height:1.35;font-weight:700;color:' + t.navy + '">' +
-    esc(title) + '</td></tr></table><div style="color:' + t.body + ';font-size:14px;line-height:1.65">' +
+    '<td valign="middle" style="vertical-align:middle"><h2 style="margin:0;font-size:18px;line-height:1.35;font-weight:700;color:' + t.navy + '">' +
+    esc(title) + '</h2></td></tr></table><div style="color:' + t.body + ';font-size:15px;line-height:1.65">' +
     html + "</div></td></tr></table>";
 }
 
@@ -236,7 +236,7 @@ export function botanicalEmailSection(title: string, html: string, icon: Botanic
 export function botanicalEmailParagraph(text: string, opts: { muted?: boolean; size?: number; margin?: string } = {}): string {
   const t = PREMIUM_BOTANICAL_EMAIL;
   return '<p style="margin:' + (opts.margin ?? "0 0 10px") + ";color:" + (opts.muted ? t.muted : t.body) +
-    ";font-size:" + (opts.size ?? 15) + 'px;line-height:1.65">' +
+    ";font-size:" + (opts.size ?? 16) + 'px;line-height:1.65">' +
     esc(text).replace(/\n/g, "<br />") + "</p>";
 }
 
@@ -248,7 +248,7 @@ export function botanicalEmailList(items: string[]): string {
     items.map((item) =>
       '<tr><td width="18" valign="top" style="width:18px;vertical-align:top;padding:2px 0 6px;color:' + t.sage +
       ';font-size:15px;line-height:1.6;font-weight:700">&#8226;</td><td valign="top" style="vertical-align:top;padding:2px 0 6px;color:' +
-      t.body + ';font-size:14px;line-height:1.6">' + esc(item) + "</td></tr>"
+      t.body + ';font-size:15px;line-height:1.6">' + esc(item) + "</td></tr>"
     ).join("") + "</table>";
 }
 
@@ -257,7 +257,7 @@ export function botanicalEmailQuote(text: string, meta?: string): string {
   const t = PREMIUM_BOTANICAL_EMAIL;
   return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 10px"><tr>' +
     '<td style="padding:12px 14px;background:' + t.white + ";border:1px solid " + t.border + ";border-left:3px solid " + t.sage +
-    ';border-radius:10px;color:' + t.ink + ';font-size:14px;line-height:1.6">' +
+    ';border-radius:10px;color:' + t.ink + ';font-size:15px;line-height:1.6">' +
     (meta ? '<div style="margin:0 0 4px;color:' + t.muted + ';font-size:12px;line-height:1.4">' + esc(meta) + "</div>" : "") +
     esc(text).replace(/\n/g, "<br />") + "</td></tr></table>";
 }
@@ -300,14 +300,14 @@ export function renderBotanicalEmail(args: {
   footer: string;
 }): string {
   const t = PREMIUM_BOTANICAL_EMAIL;
-  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" />' +
+  return '<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8" />' +
     '<meta name="viewport" content="width=device-width,initial-scale=1" />' +
     '<meta name="x-apple-disable-message-reformatting" />' +
     '<meta name="color-scheme" content="light only" /><meta name="supported-color-schemes" content="light only" />' +
     "<title>" + esc(args.title) + "</title>" +
     "<style>@media only screen and (max-width:480px){.bs-pad{padding:20px 16px!important}.bs-title{font-size:24px!important}.bs-button a{display:block!important;text-align:center}}</style>" +
     "</head>" +
-    '<body style="margin:0;padding:0;background:' + t.page + ";font-family:Arial,Helvetica,sans-serif;color:" + t.ink + '">' +
+    '<body lang="en" dir="ltr" style="margin:0;padding:0;background:' + t.page + ";font-family:Arial,Helvetica,sans-serif;color:" + t.ink + '">' +
     '<div style="display:none;max-width:0;max-height:0;overflow:hidden;opacity:0;mso-hide:all">' + esc(args.preheader) + "</div>" +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="' + t.page + '" style="background:' + t.page + '">' +
     '<tr><td align="center" style="padding:24px 12px">' +
@@ -317,13 +317,13 @@ export function renderBotanicalEmail(args: {
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' +
     '<td width="44" valign="middle" style="width:44px;vertical-align:middle;padding-right:12px">' +
     '<a href="' + BLOOMSUITE_SITE_URL + '" style="text-decoration:none;color:#FFFFFF">' +
-    '<img src="' + BLOOMSUITE_LOGO_URL + '" width="44" height="44" alt="BloomSuite" ' +
+    '<img src="' + BLOOMSUITE_LOGO_URL + '" width="44" height="44" alt="Open BloomSuite" ' +
     'style="display:block;width:44px;height:44px;border:0;outline:none;color:#FFFFFF;font-size:11px;font-weight:700;line-height:44px" /></a></td>' +
     '<td valign="middle" style="vertical-align:middle;color:#FFFFFF;font-size:21px;line-height:1.3;font-weight:700">' + esc(args.header) +
     "</td></tr></table></td></tr>" +
     '<tr><td class="bs-pad" style="padding:24px 24px 26px">' +
     botanicalEmailHero(args.eyebrow, args.title, args.intro, args.icon ?? "leaf") +
-    '<div style="font-size:15px;line-height:1.65;color:' + t.body + '">' + args.bodyHtml + "</div></td></tr>" +
+    '<div style="font-size:16px;line-height:1.65;color:' + t.body + '">' + args.bodyHtml + "</div></td></tr>" +
     '<tr><td class="bs-pad" style="padding:17px 24px;background:' + t.panel + ";border-top:1px solid " + t.border +
     ";font-size:12px;line-height:1.5;color:" + t.muted + '">' + esc(args.footer) +
     '<br />BloomSuite · <a href="' + BLOOMSUITE_SITE_URL + '" style="color:' + t.sage +

@@ -2000,6 +2000,125 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   });
 
 
+  await t.step("feature decisions reach every active requester and never reopen stale tickets", async () => {
+    const first = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Shared feature decision A", body: "Please add a shared feature decision fixture.", idempotency_key: "e2e-feature-followup-a" },
+    });
+    const second = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Shared feature decision B", body: "I need the same feature too.", idempotency_key: "e2e-feature-followup-b" },
+    });
+    assertEquals(first.status, 201, JSON.stringify(first.json));
+    assertEquals(second.status, 201, JSON.stringify(second.json));
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE kind = 'triage' AND ticket_id IN (${first.json.ticket_id}, ${second.json.ticket_id})`;
+
+    const routed = await api("POST", `/tickets/${first.json.ticket_id}/feature`, tok(U.jon), { title: "Shared feature decision fixture" });
+    assertEquals(routed.status, 200, JSON.stringify(routed.json));
+    const featureId = String(routed.json.feature_request_id);
+    const linked = await api("POST", `/tickets/${second.json.ticket_id}/feature`, tok(U.jon), {
+      feature_request_id: featureId,
+      excerpt: "A second requester needs the same feature.",
+    });
+    assertEquals(linked.status, 200, JSON.stringify(linked.json));
+    const decision = await api("POST", `/features/${featureId}/decision`, tok(U.jon), { decision: "planned", note: "Approved for planning" });
+    assertEquals(decision.status, 200, JSON.stringify(decision.json));
+
+    const queued = await sql!`
+      SELECT ticket_id, idempotency_key
+      FROM bloom_support.jobs
+      WHERE kind = 'answer'
+        AND payload @> '{"mode":"feature_decision","decision":"planned"}'::jsonb
+        AND ticket_id IN (${first.json.ticket_id}, ${second.json.ticket_id})
+    `;
+    assertEquals(queued.length, 2, "every linked requester gets a durable follow-up job");
+    assertEquals(new Set(queued.map((job) => job.idempotency_key)).size, 2, "each ticket has its own idempotency key");
+
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now()
+      WHERE id = ${second.json.ticket_id}
+    `;
+    await runWorkerUntilIdle(10);
+
+    const active = await ticketRow(first.json.ticket_id);
+    const stale = await ticketRow(second.json.ticket_id);
+    assertEquals([active.status, active.stage, active.waiting_reason], ["waiting", "awaiting_client", "customer"]);
+    assertExists(active.first_response_at, "the product decision counts as a substantive first response");
+    assertEquals([stale.status, stale.stage], ["resolved", "resolved"], "a stale decision job cannot reopen a resolved request");
+    const activeFeatureMessage = (await sql!`
+      SELECT purpose, meaningful
+      FROM bloom_support.messages
+      WHERE ticket_id = ${first.json.ticket_id}
+        AND author_kind = 'bloom'
+        AND purpose = 'feature_decision'
+    `)[0];
+    assertEquals([activeFeatureMessage?.purpose, activeFeatureMessage?.meaningful], ["feature_decision", true],
+      "the active requester receives one substantive, typed feature-decision message");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.messages
+      WHERE ticket_id = ${second.json.ticket_id}
+        AND purpose = 'feature_decision'
+    `)[0].n), 0, "the resolved requester receives no stale follow-up");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE ticket_id = ${first.json.ticket_id}
+        AND purpose = 'feature_decision'
+    `)[0].n), 1, "the email ledger retains the feature-decision lifecycle type");
+  });
+
+  await t.step("an inconclusive repair is handed to a person before Bloom says so", async () => {
+    const report = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Inconclusive repair handoff", body: "A product problem that cannot be reproduced reliably.", idempotency_key: "e2e-not-reproduced-handoff" },
+    });
+    assertEquals(report.status, 201, JSON.stringify(report.json));
+    const ticketId = String(report.json.ticket_id);
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE kind = 'triage' AND ticket_id = ${ticketId}`;
+    const opened = await api("POST", `/tickets/${ticketId}/investigate`, tok(U.sam), { title: "Inconclusive repair handoff" });
+    assertEquals(opened.status, 200, JSON.stringify(opened.json));
+    const issueId = String(opened.json.engineering_issue_id);
+    await sql!`
+      UPDATE bloom_support.escalations
+      SET status = 'resolved', resolved_at = now()
+      WHERE engineering_issue_id = ${issueId}
+        AND reason = 'engineering_start_requested'
+    `;
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'working', stage = 'investigating', next_action = NULL
+      WHERE id = ${ticketId}
+    `;
+    await sql!`
+      INSERT INTO bloom_support.jobs(kind, ticket_id, engineering_issue_id, lane, payload, idempotency_key)
+      VALUES (
+        'answer', ${ticketId}, ${issueId}, ${"account:not-reproduced:" + ticketId},
+        '{"mode":"engineering_progress","status":"not_reproduced"}'::jsonb,
+        ${"e2e-not-reproduced-progress:" + ticketId}
+      )
+    `;
+    await runWorkerUntilIdle(10);
+
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.escalations
+      WHERE ticket_id = ${ticketId}
+        AND status IN ('open', 'acknowledged')
+        AND reason = 'Engineering review needed'
+    `)[0].n), 1, "a person owns the request durably");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.messages
+      WHERE ticket_id = ${ticketId}
+        AND author_kind = 'bloom'
+        AND visibility = 'public'
+        AND body LIKE '%handed the evidence to a person%'
+    `)[0].n), 1, "Bloom announces the handoff only after routing succeeds");
+  });
+
+
   await t.step("approved help is public; drafts, internal articles and stale approvals stay private", async () => {
     const draft = await api("POST", "/knowledge", tok(U.sam), { product: "platform", title: "Track support requests", body: "Use the tracking link in your support email.", audience: "client", approved: true });
     assertEquals(draft.status, 200);
