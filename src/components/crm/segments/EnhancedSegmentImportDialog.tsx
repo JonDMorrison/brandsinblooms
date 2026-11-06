@@ -44,8 +44,6 @@ import type {
 } from "@/types/import";
 import {
   CUSTOMER_FIELDS,
-  applyCustomImportField,
-  applyField,
   inferCustomFieldType,
   normalizeCustomFieldKey,
   parseValue,
@@ -62,6 +60,10 @@ import {
 } from "@/lib/crm/importConsent";
 import { ImportConsentAttestationStep } from "@/components/crm/segments/ImportConsentAttestationStep";
 
+import {
+  buildImportCustomers,
+  getDefaultImportField as getSharedDefaultImportField,
+} from "@/lib/crm/customerImportRows";
 import { CUSTOMER_IMPORT_BATCH_SIZE, importCustomerBatch, getCustomerImportOutcome } from "@/lib/crm/customerImportBatch";
 
 interface EnhancedSegmentImportDialogProps {
@@ -83,33 +85,8 @@ interface BeginCustomerImportResponse {
   tenantId: string;
 }
 
-const IMPORT_FIELD_ALIASES: Record<string, DatabaseField> = {
-  email_address: "email",
-  e_mail: "email",
-  firstname: "first_name",
-  first: "first_name",
-  lastname: "last_name",
-  last: "last_name",
-  mobile: "phone",
-  phone_number: "phone",
-  interests: "tags",
-  labels: "tags",
-  text_opt_in: "sms_opt_in",
-  sms_consent: "sms_opt_in",
-};
-
 function getDefaultImportField(header: string): DatabaseField {
-  const key = normalizeCustomFieldKey(header);
-  const known = CUSTOMER_FIELDS.find(
-    (field) =>
-      field.key === key || normalizeCustomFieldKey(field.label) === key,
-  );
-
-  return (
-    (known?.key as DatabaseField) ||
-    IMPORT_FIELD_ALIASES[key] ||
-    `custom:${key}`
-  );
+  return getSharedDefaultImportField(header) as DatabaseField;
 }
 
 function getImportErrorMessage(error: unknown): string {
@@ -414,130 +391,12 @@ export const EnhancedSegmentImportDialog: React.FC<
 
     const userId = user.user.id;
 
-    // Build customers using applyField from shared schema
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const customers: any[] = [];
-    let skippedNoEmail = 0;
-
-    for (const row of dataRows) {
-      // Find email mapping
-      const emailMappingIndex = columnMappings.findIndex(
-        (m) => m.databaseField === "email",
-      );
-      const emailMapping = columnMappings[emailMappingIndex];
-      const rawEmail = emailMapping
-        ? row[emailMapping.sourceIndex ?? emailMappingIndex]
-        : null;
-      const email = rawEmail ? String(rawEmail).trim().toLowerCase() : "";
-
-      if (!email || !isValidEmail(email)) {
-        skippedNoEmail++;
-        continue;
-      }
-
-      const customer: Record<string, unknown> = {
-        email,
-        custom_fields: {},
-      };
-
-      // Apply all mapped fields using the shared schema
-      columnMappings.forEach((mapping, index) => {
-        const raw = row[mapping.sourceIndex ?? index];
-        const fieldKey = mapping.databaseField;
-
-        if (fieldKey === "skip" || fieldKey === "email") {
-          // Skip already handled or explicitly skipped
-          return;
-        }
-
-        if (fieldKey.startsWith("custom:")) {
-          applyCustomImportField(
-            customer,
-            fieldKey.slice("custom:".length),
-            raw,
-            inferCustomFieldType(mapping.csvHeader, mapping.sampleData),
-          );
-          return;
-        }
-
-        // Use applyField for schema-defined fields
-        applyField(customer, fieldKey, raw);
-
-        // Handle fields not in schema (phone, tags, persona, sms_opt_in, notes)
-        const value = raw ? String(raw).trim() : "";
-        if (!value) return;
-
-        if (fieldKey === "email_opt_in") {
-          customer.email_opt_in_explicit = true;
-        }
-
-        switch (fieldKey) {
-          case "phone":
-            customer.phone = value.replace(/\D/g, "");
-            break;
-          case "tags":
-            customer.tags = value
-              .split(",")
-              .map((t) => t.trim())
-              .filter(Boolean);
-            break;
-          case "persona":
-            customer.persona = value;
-            break;
-          case "sms_opt_in":
-            customer.sms_opt_in = [
-              "true",
-              "1",
-              "yes",
-              "y",
-              "subscribed",
-              "opted-in",
-              "opted_in",
-            ].includes(value.toLowerCase());
-            customer.sms_opt_in_explicit = true;
-            break;
-          case "notes":
-            (customer.custom_fields as Record<string, unknown>).notes = value;
-            break;
-        }
-      });
-
-      customers.push(customer);
-    }
-    // Deduplicate by email and merge data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const customerMap = new Map<string, any>();
-    for (const customer of customers) {
-      const email = String(customer.email).toLowerCase();
-      const existing = customerMap.get(email);
-      if (!existing) {
-        customerMap.set(email, customer);
-      } else {
-        // Merge non-empty values
-        for (const [key, value] of Object.entries(customer)) {
-          if (value === null || value === undefined || value === "") continue;
-          if (
-            key === "custom_fields" &&
-            typeof value === "object" &&
-            value !== null
-          ) {
-            existing.custom_fields = {
-              ...(existing.custom_fields || {}),
-              ...(value as Record<string, unknown>),
-            };
-          } else if (
-            existing[key] === null ||
-            existing[key] === undefined ||
-            existing[key] === ""
-          ) {
-            existing[key] = value;
-          }
-        }
-      }
-    }
-
-    const deduplicatedCustomers = Array.from(customerMap.values());
-    const duplicatesMerged = customers.length - deduplicatedCustomers.length;
+    // Row rules (email check, field mapping, in-file de-duplication) are
+    // shared with Bloom chat's server-side import.
+    const built = buildImportCustomers(dataRows, columnMappings);
+    const deduplicatedCustomers = built.customers;
+    const duplicatesMerged = built.duplicatesMerged;
+    const skippedNoEmail = built.invalidEmailRows.length;
     const BATCH_SIZE = CUSTOMER_IMPORT_BATCH_SIZE;
     const totalBatches = Math.ceil(deduplicatedCustomers.length / BATCH_SIZE);
     const results: ImportResult = {

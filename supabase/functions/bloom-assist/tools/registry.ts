@@ -857,6 +857,7 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     description:
       "Create a new campaign, newsletter, email, SMS blast, promotion, announcement, or marketing message draft. Use when the user wants a campaign record created, not just content generated.",
     parameters: objectSchema({ ...campaignWriteFields,
+      photo_upload_id: stringSchema("A png or jpeg photo the user uploaded to this chat, by its attachment reference (or \"latest\" for the most recent photo). Bloom copies it into campaign images and uses it as the email's main photo. Never pass an uploaded file as an image URL.", { maxLength: 400 }),
       template_id: stringSchema("Reusable editable newsletter design. Use Botanical Editorial for workshop invitations.", { enum: ["botanical-editorial", "botanical-seasonal", "botanical-product", "botanical-events"] }),
       newsletter_brief: newsletterBriefSchema,
     }, ["name", "delivery_method"]),
@@ -1045,6 +1046,20 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
       },
       ["tag_id", "customer_ids", "action"],
     ),
+    category: "mutation",
+    riskLevel: "medium",
+    requiresConfirmation: true,
+    allowedRoles: STAFF_PLUS,
+    allowedModes: STANDARD_REASONING,
+  }),
+  defineTool({
+    name: "import_customer_list",
+    description:
+      "Import the contacts in a CSV or Excel file the user uploaded to this chat as CRM customers. Use when the user asks to import, add or upload an attached list of contacts or customers. Returns a preview (new, updated and skipped rows) for the user to approve; nothing is written before approval.",
+    parameters: objectSchema({
+      upload_id: stringSchema("The spreadsheet's attachment reference from this conversation. Omit to use the most recent spreadsheet the user uploaded here.", { maxLength: 400 }),
+      column_mapping: jsonObjectSchema("Optional. Only when a column's purpose is unclear from its header: map the exact column header to a customer field (email, first_name, last_name, phone, tags, persona, sms_opt_in, email_opt_in, lifetime_value, first_purchase_date, last_purchase_date, external_id, city, state, postal_code, company_name, notes, skip, or custom:<name>). Headers are matched automatically otherwise."),
+    }),
     category: "mutation",
     riskLevel: "medium",
     requiresConfirmation: true,
