@@ -12,7 +12,7 @@
 // deno-lint-ignore no-import-prefix -- test-only driver, pinned here rather than in the shared import map
 import postgres from "npm:postgres@3.4.4";
 import { assert, assertEquals, assertExists, assertNotEquals } from "@std/assert";
-import { signIntake, hmacSha256 } from "./crypto.ts";
+import { signIntake, hmacSha256, sha256Hex } from "./crypto.ts";
 
 const DB_URL = Deno.env.get("BLOOM_E2E_DATABASE_URL");
 const SB = "http://supabase.test";
@@ -821,6 +821,42 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       }),
     });
     assertEquals(oversizedPublicEnvelopeWithFile.status, 413, "attaching a file does not lift the public text bound");
+    // Anonymous size and per-IP limits apply before the body is read: a stream that is never pulled proves it.
+    const unreadPublic = (ip: string, headers: Record<string, string> = {}) => {
+      const state = { pulled: false };
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          state.pulled = true;
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({ email: "limited@example.org", body: "A request that must never be read." })));
+          controller.close();
+        },
+      }, { highWaterMark: 0 });
+      const request = new Request(`${SB}/functions/v1/bloom-support-intake/public`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": ip, ...headers },
+        body,
+        duplex: "half",
+      } as RequestInit);
+      return { state, response: H["bloom-support-intake"](request) };
+    };
+    const declaredHuge = unreadPublic("203.0.113.76", { "content-length": String(17 * 1024 * 1024 + 1) });
+    assertEquals((await declaredHuge.response).status, 413, "a declared oversize public body is refused");
+    assert(!declaredHuge.state.pulled, "a declared oversize public body is never read");
+    const limitedIp = "203.0.113.77";
+    const limitedSubject = await sha256Hex(limitedIp);
+    const thisHour = new Date();
+    for (const at of [thisHour, new Date(thisHour.getTime() + 60 * 60 * 1000)]) {
+      await sql!`INSERT INTO bloom_support.usage_counters(bucket, subject, count) VALUES (${`public-ip-attempt:${at.toISOString().slice(0, 13)}`}, ${limitedSubject}, 40) ON CONFLICT (bucket, subject) DO UPDATE SET count = 40`;
+    }
+    const ticketsBeforeLimited = Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n);
+    const limited = unreadPublic(limitedIp);
+    const limitedResponse = await limited.response;
+    assertEquals(limitedResponse.status, 429, "an IP over its hourly public attempt budget is refused");
+    assert(!limited.state.pulled, "a rate-limited public request is refused before its body is read");
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n), ticketsBeforeLimited);
+    const otherIp = unreadPublic("203.0.113.78");
+    assertEquals((await otherIp.response).status, 201, "another network is unaffected");
+    assert(otherIp.state.pulled);
     const longSignedMessage = await call("bloom-support-intake", "POST", "/report", {
       token: tok(U.gail),
       body: { body: "x".repeat(20_001) },
