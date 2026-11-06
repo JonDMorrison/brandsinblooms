@@ -9,7 +9,7 @@ cd "$(dirname "$0")/../.."
 dropdb --if-exists bloom_support_test && createdb --template=template0 --encoding=UTF8 bloom_support_test
 psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-db.sql > /tmp/bloom-support-db.log 2>&1 || { cat /tmp/bloom-support-db.log | tail -30; exit 1; }
 grep -q "all assertions passed" /tmp/bloom-support-db.log && echo "SQL contract: passed"
-(cd supabase/functions && deno test -A _shared/bloom-support/policy_test.ts _shared/bloom-support/dkim_test.ts _shared/bloom-support/support_emails_test.ts _shared/bloom-support/support_emails_brand_test.ts _shared/bloom-support/needs_you_test.ts)
+(cd supabase/functions && deno test -A _shared/bloom-support/policy_test.ts _shared/bloom-support/dkim_test.ts _shared/bloom-support/support_emails_test.ts _shared/bloom-support/support_emails_brand_test.ts _shared/bloom-support/needs_you_test.ts _shared/bloom-support/vision_test.ts)
 # Chat spending cap: contract test, then 30 parallel reservations against a 25 USD cap
 # (1 USD each) must admit exactly 25 — the row lock keeps parallel calls from overshooting.
 dropdb --if-exists bloom_support_spend_test && createdb --template=template0 --encoding=UTF8 bloom_support_spend_test

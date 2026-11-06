@@ -2,6 +2,7 @@
 // validate every field and fall back to deterministic rules when the model is
 // unavailable, over budget, or returns anything out of vocabulary.
 import { env, rpc } from "./runtime.ts";
+import type { OpenAIImageContentPart, OpenAITextContentPart } from "../../bloom-assist/types.ts";
 
 export interface AiConfig {
   provider: "openai" | "none";
@@ -36,6 +37,15 @@ export interface JsonCall {
   schema: Record<string, unknown>;
   accountKey: string;
   timeoutMs?: number;
+  /** Client screenshots as chat-completions image parts (see vision.ts). */
+  images?: OpenAIImageContentPart[];
+}
+
+type UserContent = string | Array<OpenAITextContentPart | OpenAIImageContentPart>;
+
+/** The chat-completions user turn: plain text, or text followed by image parts. */
+export function userContent(text: string, images: OpenAIImageContentPart[] = []): UserContent {
+  return images.length ? [{ type: "text", text }, ...images] : text;
 }
 
 export type AiResult<T> = { ok: true; value: T; model: string } | { ok: false; reason: string };
@@ -48,23 +58,35 @@ export async function completeJson<T>(call: JsonCall): Promise<AiResult<T>> {
   if (!total) return { ok: false, reason: "daily model budget for Bloom reached (limits.ai_calls_per_day_total)" };
   const allowed = await rpc<boolean>("consume_usage", { bucket: `ai:${day}`, subject: call.accountKey, limit: cfg.maxCallsPerAccountPerDay });
   if (!allowed) return { ok: false, reason: "daily model budget for this account reached" };
-  try {
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+  const request = (content: UserContent) =>
+    fetch(`${cfg.baseUrl}/chat/completions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${env("OPENAI_API_KEY")}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: cfg.model,
-        messages: [{ role: "system", content: call.system }, { role: "user", content: call.user }],
+        messages: [{ role: "system", content: call.system }, { role: "user", content }],
         response_format: { type: "json_schema", json_schema: { name: call.schemaName, strict: true, schema: call.schema } },
       }),
       signal: AbortSignal.timeout(call.timeoutMs ?? 30000),
     });
+  try {
+    const images = call.images ?? [];
+    let res = await request(userContent(call.user, images));
+    let withImages = images.length;
+    // A rejected image (unsupported by the configured model, unreadable) must
+    // not cost the whole recommendation: retry once with the text alone.
+    if (!res.ok && images.length && res.status >= 400 && res.status < 500 && res.status !== 429) {
+      console.error(`bloom-support ai: ${call.schemaName} with ${images.length} image(s) refused (http ${res.status}); retrying text-only`);
+      await res.body?.cancel();
+      res = await request(call.user);
+      withImages = 0;
+    }
     if (!res.ok) return { ok: false, reason: `model http ${res.status}` };
     const body = await res.json();
     const content = body?.choices?.[0]?.message?.content;
     if (typeof content !== "string") return { ok: false, reason: "model returned no content" };
     // Usage is billed to the OpenAI API account (not a ChatGPT subscription); record it.
-    await rpc("log_usage", { detail: { model: cfg.model, schema: call.schemaName, account: call.accountKey, usage: body?.usage ?? null } }).catch(() => undefined);
+    await rpc("log_usage", { detail: { model: cfg.model, schema: call.schemaName, account: call.accountKey, images: withImages, usage: body?.usage ?? null } }).catch(() => undefined);
     return { ok: true, value: JSON.parse(content) as T, model: cfg.model };
   } catch (e) {
     return { ok: false, reason: `model error: ${String(e).slice(0, 200)}` };
