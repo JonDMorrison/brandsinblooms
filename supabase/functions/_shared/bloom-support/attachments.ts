@@ -226,12 +226,9 @@ export async function attachmentUrl(actor: string, attachmentId: string): Promis
 
 export function decodeBase64File(b64: string): Uint8Array {
   const clean = b64.replace(/^data:[^,]*;base64,/i, "");
-  if (
-    !clean ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
-      clean,
-    )
-  ) {
+  // Linear check. A grouped repetition such as (?:[A-Za-z0-9+/]{4})* overflows the
+  // regex stack on files over about 3.5 MB, which rejected ordinary screenshots.
+  if (!clean || clean.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(clean)) {
     throw new BloomError(400, "invalid", "Attachment data must be valid base64");
   }
   try {
