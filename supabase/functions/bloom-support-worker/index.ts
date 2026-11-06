@@ -2,6 +2,7 @@
 // Claims leased jobs, runs them with a timeout, and records success or a
 // bounded retry. Survives restarts: an expired lease is re-queued by
 // claim_jobs, and every handler is idempotent.
+import { clientResolutionText } from "../../../src/lib/bloomSupport/clientWording.ts";
 import { BloomError, type Caller, db, directRpc, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { classify, indicatesStillBroken, mergeModelClassification, type Product } from "../_shared/bloom-support/policy.ts";
@@ -332,7 +333,7 @@ async function sendEmail(job: Job): Promise<string> {
   } else if (purpose === "resolution") {
     // "Send this reply and mark solved": the person's reply already told the client.
     if (resolutionAlreadyTold(t.resolution_evidence, t.messages)) return "client already told in the person's reply; no separate resolution email";
-    bodies = [bloomResolution(t.resolution_summary)];
+    bodies = [bloomResolution(clientResolutionText(t.resolution_summary))];
   } else {
     return `nothing to send for ${purpose}`;
   }
@@ -395,7 +396,7 @@ async function verifyResolution(job: Job): Promise<string> {
   // production deployment and a passing user-flow verification.
   await patch(t, {
     status: "resolved", resolution_verified: true,
-    resolution_summary: "We released a fix and confirmed the affected steps work on the live site/app.",
+    resolution_summary: "It's fixed, and we checked it ourselves. You can go ahead and use it as normal again.",
     resolution_evidence: { engineering_issue_id: issue.id, pr_url: issue.pr_url, merge_sha: issue.merge_sha, deployment: issue.deployment, verification: issue.verification, affected_flow: affectedHost ?? t.product },
   });
   return "resolved after verification";
