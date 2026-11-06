@@ -134,6 +134,7 @@ export const EnhancedSegmentImportDialog: React.FC<
     { value: "tags", label: "Tags (comma-separated)" },
     { value: "persona", label: "Persona" },
     { value: "notes", label: "Notes/Memo" },
+    { value: "full_name", label: "Full name (fills first and last name)" },
   ];
 
   const getFieldOptions = (mapping: ColumnMapping) => [

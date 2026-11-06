@@ -178,7 +178,7 @@ Deno.test("a model-proposed mapping is validated: unknown headers and fields are
     Missing: "first_name",
   });
   assertEquals(mapping.error, null);
-  assertEquals(mapping.mappings.map((m) => m.databaseField), ["email", "custom:name"]);
+  assertEquals(mapping.mappings.map((m) => m.databaseField), ["email", "full_name"]);
   assertEquals(mapping.ignored.length, 2);
 });
 

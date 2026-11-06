@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildImportCustomers,
+  splitFullName,
   getDefaultImportField,
   isAllowedImportField,
 } from "@/lib/crm/customerImportRows";
@@ -148,5 +149,39 @@ describe("duplicate rows keep the first row's values", () => {
     expect(built.customers).toHaveLength(1);
     expect(built.customers[0].first_name).toBe("Alice");
     expect(built.customers[0].custom_fields).toEqual({ notes: "Loves tulips", store: "Main St" });
+  });
+});
+
+describe("full name column", () => {
+  it("splits common name shapes", () => {
+    expect(splitFullName("Ann Lee")).toEqual({ first: "Ann", last: "Lee" });
+    expect(splitFullName("Ann Marie van der Berg")).toEqual({ first: "Ann", last: "Marie van der Berg" });
+    expect(splitFullName("Lee, Ann")).toEqual({ first: "Ann", last: "Lee" });
+    expect(splitFullName("Cher")).toEqual({ first: "Cher", last: null });
+    expect(splitFullName("  Bob   Singh (Main St) ")).toEqual({ first: "Bob", last: "Singh" });
+    expect(splitFullName("Dee Park <dee@example.com>")).toEqual({ first: "Dee", last: "Park" });
+    expect(splitFullName("   ")).toEqual({ first: null, last: null });
+  });
+
+  it("maps Name / Full Name / Customer Name headers, but not a bare Customer column", () => {
+    expect(getDefaultImportField("Name")).toBe("full_name");
+    expect(getDefaultImportField("Full Name")).toBe("full_name");
+    expect(getDefaultImportField("Customer Name")).toBe("full_name");
+    expect(getDefaultImportField("Customer")).toBe("custom:customer");
+    expect(isAllowedImportField("full_name")).toBe(true);
+  });
+
+  it("fills first and last name, and separate first/last columns win", () => {
+    const m = (h: string, f: string, i: number) => ({ csvHeader: h, databaseField: f, sampleData: [], sourceIndex: i });
+    const built = buildImportCustomers(
+      [
+        ["Ann Lee", "a@example.com", ""],
+        ["Bob Singh", "b@example.com", "Robert"],
+      ],
+      [m("Name", "full_name", 0), m("Email", "email", 1), m("First", "first_name", 2)],
+    );
+    expect(built.customers[0]).toMatchObject({ first_name: "Ann", last_name: "Lee" });
+    expect(built.customers[1]).toMatchObject({ first_name: "Robert", last_name: "Singh" });
+    expect(built.customers[0]).not.toHaveProperty("full_name");
   });
 });
