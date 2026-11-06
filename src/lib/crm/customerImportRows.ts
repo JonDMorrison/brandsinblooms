@@ -23,6 +23,7 @@ export const EXTRA_IMPORT_FIELDS = [
   "tags",
   "persona",
   "notes",
+  "full_name",
 ] as const;
 
 export const IMPORT_FIELD_ALIASES: Record<string, string> = {
@@ -43,6 +44,11 @@ export const IMPORT_FIELD_ALIASES: Record<string, string> = {
   cell_phone: "phone",
   telephone: "phone",
   phone_1: "phone",
+  name: "full_name",
+  full_name: "full_name",
+  customer_name: "full_name",
+  contact_name: "full_name",
+  client_name: "full_name",
   zip: "postal_code",
   zip_code: "postal_code",
   postcode: "postal_code",
@@ -114,6 +120,28 @@ export interface BuiltImportCustomers {
   duplicateEmails: string[];
 }
 
+/**
+ * Splits "Ann Lee", "Ann Marie van der Berg" or "Lee, Ann" into first and last
+ * name. One word is a first name. Text in brackets or a trailing email is dropped.
+ */
+export function splitFullName(raw: string): { first: string | null; last: string | null } {
+  const clean = raw
+    .replace(/[<([].*?[>)\]]/g, " ")
+    .replace(/\S+@\S+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return { first: null, last: null };
+  const comma = clean.indexOf(",");
+  if (comma > 0) {
+    const last = clean.slice(0, comma).trim();
+    const first = clean.slice(comma + 1).trim();
+    return { first: first || null, last: last || null };
+  }
+  const parts = clean.split(" ");
+  if (parts.length === 1) return { first: parts[0], last: null };
+  return { first: parts[0], last: parts.slice(1).join(" ") };
+}
+
 export function buildImportCustomers(
   dataRows: unknown[][],
   columnMappings: ImportColumnMapping[],
@@ -143,6 +171,7 @@ export function buildImportCustomers(
       email,
       custom_fields: {},
     };
+    let fullName: string | null = null;
 
     columnMappings.forEach((mapping, index) => {
       const raw = row[mapping.sourceIndex ?? index];
@@ -201,8 +230,19 @@ export function buildImportCustomers(
         case "notes":
           (customer.custom_fields as Record<string, unknown>).notes = value;
           break;
+        case "full_name":
+          if (fullName === null) fullName = value;
+          break;
       }
     });
+
+    // A single name column fills first/last name only where no separate
+    // first/last column supplied a value.
+    if (fullName !== null) {
+      const { first, last } = splitFullName(fullName);
+      if (first && !customer.first_name) customer.first_name = first;
+      if (last && !customer.last_name) customer.last_name = last;
+    }
 
     customers.push(customer);
   });
