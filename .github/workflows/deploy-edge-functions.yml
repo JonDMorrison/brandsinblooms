@@ -17,7 +17,7 @@ on:
       - "src/components/crm/pos/adapters/**"
       - "src/hooks/useCompanyInfo.ts"
       - "src/integrations/supabase/types.ts"
-      - "src/lib/bloomSupport/trackView.ts"
+      - "src/lib/bloomSupport/**"
   # Re-run a deploy that failed after merge, for the named functions only.
   workflow_dispatch:
     inputs:

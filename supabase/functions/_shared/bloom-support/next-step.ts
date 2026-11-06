@@ -232,7 +232,7 @@ export function resolutionPlan(input: {
     return {
       outcome,
       findings: ["Bloom's fix is live and its check on the live site passed."],
-      draft: `${hello}\n\nGood news: we released a fix for this and checked it on the live site, and it's working now.\n\nIf anything still isn't right, just reply to this email and we'll pick it straight back up.`,
+      draft: `${hello}\n\nGood news: this is fixed, and we checked it ourselves. You can go ahead and use it as normal again.\n\nIf anything still isn't right, just reply to this email and we'll pick it straight back up.`,
       summary: "We released a fix and checked it on the live site.",
       checked: "The released fix passed its check on the live site.",
       noDeployReason: null,

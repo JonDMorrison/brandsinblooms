@@ -195,7 +195,7 @@ function StatusCard({ view, p }: { view: TrackView; p: StatusPresentation }) {
       {view.merged_into_number === null && <Stepper steps={p.steps} current={view.step} dates={dates} />}
       {resolved && view.resolution_summary && (
         <Box sx={{ p: 2.25, borderRadius: "14px", bgcolor: T.tint }}>
-          <Typography component="h2" sx={{ m: 0, mb: 0.75, fontFamily: FONT.heading, fontWeight: 700, fontSize: "16px", color: T.primary }}>What we did</Typography>
+          <Typography component="h2" sx={{ m: 0, mb: 0.75, fontFamily: FONT.heading, fontWeight: 700, fontSize: "16px", color: T.primary }}>You're all set</Typography>
           <MessageBody body={view.resolution_summary} color={T.ink} />
         </Box>
       )}

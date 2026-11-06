@@ -188,7 +188,7 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
                 return;
               }
               if (v === "resolved") {
-                const r = await ask({ title: "Mark as solved", description: "This message is sent to each client.", fields: [{ name: "summary", label: "What fixed it?", kind: "textarea", required: true }], confirmLabel: "Continue" });
+                const r = await ask({ title: "Mark as solved", description: "This message is sent to each client.", fields: [{ name: "summary", label: "What can the client do now?", kind: "textarea", required: true, helper: "Plain words, no technical terms. For example: \"You can upload photos to your gallery again.\"" }], confirmLabel: "Continue" });
                 if (r) runBulk({ patch: { status: "resolved", resolution_summary: String(r.summary).trim() } }, true);
                 return;
               }

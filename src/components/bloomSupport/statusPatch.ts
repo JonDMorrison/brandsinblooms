@@ -35,7 +35,7 @@ export async function statusPatch(ask: Ask, t: TicketDetail, v: SupportStatus, a
   }
   if (v === "resolved") {
     const fields: AskField[] = [
-      { name: "summary", label: t.kind === "feature" ? "What should the client know?" : "What fixed it?", kind: "textarea", required: true, helper: t.kind === "feature" ? "It was passed on for a product decision, not built yet." : "This is sent to the client." },
+      { name: "summary", label: t.kind === "feature" ? "What should the client know?" : "What can the client do now?", kind: "textarea", required: true, helper: t.kind === "feature" ? "It was passed on for a product decision, not built yet." : "Sent to the client. Plain words, no technical terms. For example: \"You can upload photos to your gallery again.\"" },
     ];
     if (t.kind === "change") fields.push({ name: "verified", label: "How did you check the change is saved?", kind: "text", required: true, placeholder: "e.g. Checked the live page" });
     if (t.kind === "bug" || t.kind === "incident") {
