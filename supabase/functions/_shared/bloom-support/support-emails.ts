@@ -703,7 +703,7 @@ export interface AlertFinding {
   condition: string;
   summary?: string;
   tools?: Array<{ tenant_id?: string | null; tenant_name?: string | null; tool_name: string; calls?: number; failed?: number; timeouts?: number }>;
-  tenants?: Array<{ tenant_id?: string | null; tenant_name?: string | null; errors?: number; access_denied?: number; answers?: number }>;
+  tenants?: Array<{ tenant_id?: string | null; tenant_name?: string | null; errors?: number; access_denied?: number; answers?: number; score?: number }>;
   [key: string]: unknown;
 }
 
@@ -834,6 +834,12 @@ const ALERT_COPY: Record<string, Omit<AlertCopy, "lines"> & { line?: (f: AlertFi
     doing: "At each missed deadline Bloom moves it to the other owner and reminds you both.", button: "Open Support", path: "/support",
     line: (f) => (typeof f.reason === "string" && f.reason ? reasonSentence(f.reason) : ""),
   },
+  email_reputation_low: {
+    headline: "A business's email reputation has dropped",
+    impact: "Repeated bounces or complaints can get their emails sent to spam.",
+    doing: "Scores are watched only: sending is not throttled or paused, and the business has not been emailed.",
+    button: "See the companies", path: "/admin/tenants",
+  },
   possible_incident: {
     headline: "Several clients are reporting the same problem", impact: "This may be an outage.",
     doing: "Bloom grouped the reports into one incident.", button: "Open the incident", path: "/admin/bloom-support?view=queue",
@@ -870,6 +876,7 @@ function alertCopy(g: AlertGroup): AlertCopy {
     const name = t.tenant_name?.trim() || "an unnamed company";
     if (f.condition === "bloom_request_errors") return `${name}: ${t.errors ?? 0} failed requests${t.access_denied ? `, ${t.access_denied} refused access` : ""} in the last hour`;
     if (f.condition === "bloom_negative_feedback") return `${name}: ${t.answers ?? 0} answers marked unhelpful`;
+    if (f.condition === "email_reputation_low") return `${name}: reputation score ${Number(t.score ?? 0)} of 100`;
     return name;
   });
   const lines = [c.line ? c.line(f) : "", ...tenantLines].filter(Boolean);
