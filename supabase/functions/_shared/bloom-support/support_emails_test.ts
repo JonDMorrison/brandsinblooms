@@ -105,7 +105,8 @@ Deno.test("customer emails never show internal status labels", () => {
     assert(mail.text.includes(`${status === "resolved" ? "Confirm or reopen" : "View your request"}: https://bloomsuite.app/support/track/abc`));
     assert(mail.html.includes('href="https://bloomsuite.app/support/track/abc"'));
     assert(mail.text.startsWith("Hi Avery,"));
-    assert(mail.text.includes("Brands in Blooms support agent"));
+    assert(mail.text.includes("BloomSuite support agent"));
+    assertNotMatch(mail.text, /Brands in Blooms support agent/);
     assert(mail.text.includes("What happens next"));
   }
   assertEquals(customerStatusLabel("needs_owner"), "With our team");

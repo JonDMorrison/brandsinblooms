@@ -20,7 +20,7 @@ Deno.test("Bloom identifies its support role once in the deterministic first rep
   const message = bloomAcknowledgement(1011);
   assertEquals(
     message,
-    "I'm Bloom, the Brands in Blooms support agent. I've received your request (#1011). I'll take the first look. If this needs a person, I'll hand it over.",
+    "I'm Bloom, the BloomSuite support agent. I've received your request (#1011). I'll take the first look. If this needs a person, I'll hand it over.",
   );
   assertStringIncludes(message, BLOOM_ROLE_DISCLOSURE);
   assertFalse(/I(?:'m| am) (?:a )?(?:human|person)/i.test(message));
@@ -34,9 +34,10 @@ Deno.test("Bloom hands off honestly instead of bluffing", () => {
 });
 
 Deno.test("the answer prompt centralizes identity, uncertainty and approved-knowledge rules", () => {
-  for (const phrase of ["AI support agent, not a human", "ONLY the approved articles", "Never invent", "say so clearly"]) {
+  for (const phrase of ["BloomSuite support agent", "AI support agent, not a human", "ONLY the approved articles", "Never invent", "say so clearly"]) {
     assert(BLOOM_ANSWER_SYSTEM_PROMPT.includes(phrase), `missing voice rule: ${phrase}`);
   }
+  assertFalse(BLOOM_ANSWER_SYSTEM_PROMPT.includes("Brands in Blooms support agent"));
 });
 
 Deno.test("Bloom's lifecycle copy keeps one calm, honest voice", () => {
@@ -53,7 +54,7 @@ Deno.test("Bloom's lifecycle copy keeps one calm, honest voice", () => {
   assertStringIncludes(bloomResolution("I verified the affected flow."), "reply to this email");
   assertStringIncludes(bloomReopened(), "don't need to start over");
   assertStringIncludes(bloomAttachmentRejection(["photo.tiff: unsupported attachment name or type"]), "request is already open");
-  assertEquals(BLOOM_SIGNATURE, "Bloom\nBrands in Blooms support agent");
+  assertEquals(BLOOM_SIGNATURE, "Bloom\nBloomSuite support agent");
 });
 
 Deno.test("a handoff promise is gated by durable active routing", async () => {
