@@ -26,7 +26,7 @@ describe("Bloom Support clients never see an internal routing status", () => {
   it("client labels name no person or internal state", () => {
     for (const status of ALL_STATUSES) expect(statusLabel(status, "client")).not.toMatch(INTERNAL);
     expect(statusLabel("needs_owner", "client")).toBe(CLIENT_STATUS_LABEL.in_progress);
-    expect(statusLabel("needs_owner", "staff")).toBe("Needs Jon/Jeff");
+    expect(statusLabel("needs_owner", "staff")).toBe("Needs admin");
   });
 
   it("StatusChip renders client labels for a client, even for a raw needs_owner", () => {
@@ -43,7 +43,7 @@ describe("Bloom Support clients never see an internal routing status", () => {
 
   it("staff still see the routing label", () => {
     render(<StatusChip status="needs_owner" />);
-    expect(screen.getByText("Needs Jon/Jeff")).toBeTruthy();
+    expect(screen.getByText("Needs admin")).toBeTruthy();
   });
 
   it("the client support surfaces pass the client audience", () => {

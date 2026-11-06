@@ -15,6 +15,7 @@ import { formatDistanceToNow, isToday } from "date-fns";
 import { plainSummary } from "@/components/admin/readableFormat";
 import { humanizeNextAction } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { bloomSupport, STATUS_LABEL, WAITING_LABEL, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
+import { groupOpenEscalations, type TodayEscalation } from "./todayActions";
 
 /**
  * Bloom Support "Today": one calm screen that answers "does anything need me?".
@@ -106,19 +107,29 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       open: evidence[0] ? { label: "Open request", onClick: () => onOpenTicket(evidence[0].ticket_id) } : undefined,
     });
   }
-  for (const x of ((escalations.data ?? []) as Row[]).filter((r) => String(r.status) === "open")) {
+  const escalationGroups = groupOpenEscalations((escalations.data ?? []) as TodayEscalation[]);
+  for (const group of escalationGroups) {
+    const x = group[0] as Row;
     const t = x.ticket as { number: number; subject: string } | null;
+    const groupedReasons = Array.from(new Set(group.map((item) => String(item.reason ?? "needs attention").replace(/_/g, " "))));
     decisions.push({
-      key: `esc:${x.id}`,
+      key: `esc:${String(x.ticket_id ?? x.id)}`,
       who: t ? `#${t.number} ${t.subject}` : "Escalation",
       when: ago(x.created_at),
       text: x.detail ? String(x.detail) : `Bloom needs a person: ${String(x.reason).replace(/_/g, " ")}.`,
-      primary: can("escalations.resolve") ? { label: "I'll take it", run: () => bloomSupport.acknowledgeEscalation(String(x.id)), done: "It's yours. Bloom has stepped back." } : undefined,
+      detail: group.length > 1 ? `${group.length} open items grouped here: ${groupedReasons.join("; ")}.` : undefined,
+      primary: can("escalations.resolve") ? {
+        label: "I'll take it",
+        run: async () => {
+          for (const item of group) await bloomSupport.acknowledgeEscalation(String(item.id));
+        },
+        done: group.length > 1 ? "All open items for this request are yours. Bloom has stepped back." : "It's yours. Bloom has stepped back.",
+      } : undefined,
       open: x.ticket_id ? { label: "Open ticket", onClick: () => onOpenTicket(String(x.ticket_id)) } : undefined,
     });
   }
   // Only an escalation still shown as a card stands in for its ticket; once taken, the ticket shows on its own until resolved.
-  const escalatedTickets = new Set(((escalations.data ?? []) as Row[]).filter((x) => String(x.status) === "open").map((x) => String(x.ticket_id)));
+  const escalatedTickets = new Set(escalationGroups.flatMap((group) => group.map((x) => String(x.ticket_id))));
   for (const t of needsOwner.data?.items ?? []) {
     if (escalatedTickets.has(t.id)) continue;
     decisions.push({

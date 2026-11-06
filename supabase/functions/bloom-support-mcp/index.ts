@@ -11,6 +11,7 @@ import { authenticate, BloomError, type Caller, cors, json } from "../_shared/bl
 import { actions } from "../_shared/bloom-support/service.ts";
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { authorizationServerMetadata, mcpBase, protectedResourceMetadata } from "../_shared/bloom-support/oauth.ts";
+import { legacyMcpRequestScope, normalizeMcpSessionId, withMcpIdempotency } from "../_shared/bloom-support/mcp-idempotency.ts";
 
 type Schema = Record<string, unknown>;
 interface Tool { name: string; description: string; inputSchema: Schema; readOnly: boolean; run: (c: Caller, a: Record<string, unknown>) => Promise<unknown> | unknown }
@@ -116,7 +117,7 @@ function rpcError(idv: unknown, code: number, message: string) {
   return { jsonrpc: "2.0", id: idv, error: { code, message } };
 }
 
-async function handleMessage(caller: Caller, msg: Record<string, unknown>) {
+async function handleMessage(caller: Caller, msg: Record<string, unknown>, requestScope: string) {
   const method = String(msg.method ?? "");
   const idv = msg.id;
   if (idv === undefined) return null; // notification
@@ -146,7 +147,14 @@ async function handleMessage(caller: Caller, msg: Record<string, unknown>) {
         return rpcResult(idv, { content: [{ type: "text", text: "forbidden: This API key is read-only" }], isError: true });
       }
       try {
-        const out = await tool.run(caller, p.arguments ?? {});
+        const args = await withMcpIdempotency({
+          callerId: caller.principalId,
+          requestScope,
+          requestId: idv,
+          toolName: tool.name,
+          arguments: p.arguments ?? {},
+        });
+        const out = await tool.run(caller, args);
         return rpcResult(idv, { content: [{ type: "text", text: JSON.stringify(out ?? { ok: true }, null, 2) }], structuredContent: typeof out === "object" && out !== null && !Array.isArray(out) ? out : { result: out } });
       } catch (e) {
         const message = e instanceof BloomError ? `${e.code}: ${e.message}` : "Unexpected error";
@@ -179,10 +187,19 @@ Deno.serve(async (req) => {
   } catch {
     return json(req, rpcError(null, -32700, "Parse error"), 400);
   }
+  const messages = Array.isArray(body) ? body : [body];
+  const incomingSession = normalizeMcpSessionId(req.headers.get("mcp-session-id"));
+  const initializes = messages.some((m) => m && typeof m === "object" && (m as Record<string, unknown>).method === "initialize");
+  const session = incomingSession ?? (initializes ? crypto.randomUUID() : null);
+  const requestScope = session ?? await legacyMcpRequestScope(
+    req.headers.get("authorization") ?? "",
+    req.headers.get("user-agent") ?? "",
+  );
+  const responseHeaders: Record<string, string> = !incomingSession && session ? { "Mcp-Session-Id": session } : {};
   if (Array.isArray(body)) {
-    const out = (await Promise.all(body.map((m) => handleMessage(caller, m)))).filter(Boolean);
-    return out.length ? json(req, out) : new Response(null, { status: 202, headers: cors(req) });
+    const out = (await Promise.all(body.map((m) => handleMessage(caller, m, requestScope)))).filter(Boolean);
+    return out.length ? json(req, out, 200, responseHeaders) : new Response(null, { status: 202, headers: { ...cors(req), ...responseHeaders } });
   }
-  const out = await handleMessage(caller, body as Record<string, unknown>);
-  return out ? json(req, out) : new Response(null, { status: 202, headers: cors(req) });
+  const out = await handleMessage(caller, body as Record<string, unknown>, requestScope);
+  return out ? json(req, out, 200, responseHeaders) : new Response(null, { status: 202, headers: { ...cors(req), ...responseHeaders } });
 });

@@ -573,6 +573,26 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       body: "x".repeat(20_001),
     })).isError, true, "MCP schema rejects an overlong ticket body");
 
+    // Older OAuth clients do not know about Bloom's idempotency_key field. A
+    // timeout after the first write followed by the same JSON-RPC retry must
+    // still resolve to the one ticket/message that was already committed.
+    const implicitRequest = {
+      subject: "MCP transport retry without an explicit key",
+      body: "The client lost the first response and retried this exact call.",
+      product: "crm",
+    };
+    const implicitFirst = await mcp(keys.jeff, "create_ticket", implicitRequest);
+    const implicitRetry = await mcp(keys.jeff, "create_ticket", implicitRequest);
+    assertEquals(implicitRetry.structuredContent?.ticket_id, implicitFirst.structuredContent?.ticket_id);
+    assertEquals(implicitRetry.structuredContent?.duplicate_delivery, true);
+    assertEquals((await sql!`SELECT count(*)::int AS n FROM bloom_support.tickets WHERE id = ${implicitFirst.structuredContent?.ticket_id}`)[0].n, 1);
+    const implicitReply = { ticket_id: implicitFirst.structuredContent?.ticket_id, body: "One internal retry-safe note.", visibility: "internal" };
+    const replyFirst = await mcp(keys.jeff, "reply_to_ticket", implicitReply);
+    const replyRetry = await mcp(keys.jeff, "reply_to_ticket", implicitReply);
+    assertEquals(replyRetry.structuredContent?.message_id, replyFirst.structuredContent?.message_id);
+    assertEquals(replyRetry.structuredContent?.duplicate, true);
+    assertEquals((await sql!`SELECT count(*)::int AS n FROM bloom_support.messages WHERE id = ${replyFirst.structuredContent?.message_id}`)[0].n, 1);
+
     const forged = await call("bloom-support-intake", "POST", "/report", { raw: "{}", headers: { "x-bloom-product": "cms", "x-bloom-timestamp": String(Math.floor(Date.now() / 1000)), "x-bloom-signature": "00" } });
     assertEquals(forged.status, 401, "unsigned product intake rejected");
     const malformedJwt = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), raw: "{" });

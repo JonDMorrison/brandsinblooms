@@ -15,7 +15,7 @@ import Dropdown from "@mui/joy/Dropdown";
 import MenuButton from "@mui/joy/MenuButton";
 import Menu from "@mui/joy/Menu";
 import MenuItem from "@mui/joy/MenuItem";
-import { Search } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, KIND_LABEL, PRODUCT_LABEL, QUEUE_VIEWS, STATUS_LABEL, WAITING_LABEL, type SupportStatus, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
 import { AutomationChip, PriorityChip, StatusChip } from "./chips";
@@ -41,6 +41,7 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
   const qc = useQueryClient();
   const [filters, setFilters] = useState<Filters>({ view: "needs_attention", sort: "priority" });
   const [search, setSearch] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<{ color: "success" | "danger" | "warning"; text: string } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -88,6 +89,7 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
   };
 
   const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
+  const activeFilterCount = [filters.product, filters.priority, filters.kind, filters.owner, filters.age_days_min].filter(Boolean).length;
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     const idx = items.findIndex((t) => t.id === selectedId);
@@ -110,30 +112,18 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
           ))}
         </Stack>
         <Input size="sm" startDecorator={<Search size={14} />} placeholder="Search #number, client, requester or text" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search tickets" />
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-          <Select size="sm" placeholder="Product" value={filters.product ?? null} onChange={(_, v) => set({ product: v ?? undefined })} sx={{ minWidth: 110 }} aria-label="Product">
-            <Option value={null as unknown as string}>All products</Option>
-            {["cms", "crm", "pos", "unknown"].map((p) => <Option key={p} value={p}>{PRODUCT_LABEL[p]}</Option>)}
-          </Select>
-          <Select size="sm" placeholder="Priority" value={filters.priority ?? null} onChange={(_, v) => set({ priority: v ?? undefined })} sx={{ minWidth: 100 }} aria-label="Priority">
-            <Option value={null as unknown as string}>Any priority</Option>
-            {["urgent", "high", "normal", "low"].map((p) => <Option key={p} value={p}>{p}</Option>)}
-          </Select>
-          <Select size="sm" placeholder="Type" value={filters.kind ?? null} onChange={(_, v) => set({ kind: v ?? undefined })} sx={{ minWidth: 110 }} aria-label="Type">
-            <Option value={null as unknown as string}>Any type</Option>
-            {Object.entries(KIND_LABEL).map(([k, l]) => <Option key={k} value={k}>{l}</Option>)}
-          </Select>
-          <Select size="sm" placeholder="Owner" value={filters.owner ?? null} onChange={(_, v) => set({ owner: v ?? undefined })} sx={{ minWidth: 100 }} aria-label="Owner">
-            <Option value={null as unknown as string}>Any owner</Option>
-            <Option value="me">Me</Option>
-            <Option value="none">Unassigned</Option>
-          </Select>
-          <Select size="sm" value={filters.age_days_min ?? null} placeholder="Age" onChange={(_, v) => set({ age_days_min: v ?? undefined })} sx={{ minWidth: 90 }} aria-label="Age">
-            <Option value={null as unknown as string}>Any age</Option>
-            <Option value="1">&gt; 1 day</Option>
-            <Option value="7">&gt; 7 days</Option>
-            <Option value="30">&gt; 30 days</Option>
-          </Select>
+        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+          <Button
+            size="sm"
+            variant={filtersOpen || activeFilterCount ? "soft" : "outlined"}
+            color="neutral"
+            startDecorator={<SlidersHorizontal size={14} aria-hidden />}
+            aria-expanded={filtersOpen}
+            aria-controls="bloom-queue-filters"
+            onClick={() => setFiltersOpen((value) => !value)}
+          >
+            Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
+          </Button>
           <Select size="sm" value={filters.sort} onChange={(_, v) => v && set({ sort: v })} sx={{ minWidth: 110 }} aria-label="Sort">
             <Option value="priority">Priority</Option>
             <Option value="due">Due first</Option>
@@ -151,6 +141,40 @@ export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: 
             </Menu>
           </Dropdown>
         </Stack>
+        {filtersOpen && (
+          <Sheet id="bloom-queue-filters" variant="soft" color="neutral" sx={{ p: 1, borderRadius: "md" }}>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+              <Select size="sm" placeholder="Product" value={filters.product ?? null} onChange={(_, v) => set({ product: v ?? undefined })} sx={{ minWidth: 110, flex: { xs: "1 1 45%", sm: "0 0 auto" } }} aria-label="Product">
+                <Option value={null as unknown as string}>All products</Option>
+                {["cms", "crm", "pos", "unknown"].map((p) => <Option key={p} value={p}>{PRODUCT_LABEL[p]}</Option>)}
+              </Select>
+              <Select size="sm" placeholder="Priority" value={filters.priority ?? null} onChange={(_, v) => set({ priority: v ?? undefined })} sx={{ minWidth: 100, flex: { xs: "1 1 45%", sm: "0 0 auto" } }} aria-label="Priority">
+                <Option value={null as unknown as string}>Any priority</Option>
+                {["urgent", "high", "normal", "low"].map((p) => <Option key={p} value={p}>{p}</Option>)}
+              </Select>
+              <Select size="sm" placeholder="Type" value={filters.kind ?? null} onChange={(_, v) => set({ kind: v ?? undefined })} sx={{ minWidth: 110, flex: { xs: "1 1 45%", sm: "0 0 auto" } }} aria-label="Type">
+                <Option value={null as unknown as string}>Any type</Option>
+                {Object.entries(KIND_LABEL).map(([k, l]) => <Option key={k} value={k}>{l}</Option>)}
+              </Select>
+              <Select size="sm" placeholder="Owner" value={filters.owner ?? null} onChange={(_, v) => set({ owner: v ?? undefined })} sx={{ minWidth: 100, flex: { xs: "1 1 45%", sm: "0 0 auto" } }} aria-label="Owner">
+                <Option value={null as unknown as string}>Any owner</Option>
+                <Option value="me">Me</Option>
+                <Option value="none">Unassigned</Option>
+              </Select>
+              <Select size="sm" value={filters.age_days_min ?? null} placeholder="Age" onChange={(_, v) => set({ age_days_min: v ?? undefined })} sx={{ minWidth: 90, flex: { xs: "1 1 45%", sm: "0 0 auto" } }} aria-label="Age">
+                <Option value={null as unknown as string}>Any age</Option>
+                <Option value="1">&gt; 1 day</Option>
+                <Option value="7">&gt; 7 days</Option>
+                <Option value="30">&gt; 30 days</Option>
+              </Select>
+              {activeFilterCount > 0 && (
+                <Button size="sm" variant="plain" color="neutral" onClick={() => set({ product: undefined, priority: undefined, kind: undefined, owner: undefined, age_days_min: undefined })}>
+                  Clear filters
+                </Button>
+              )}
+            </Stack>
+          </Sheet>
+        )}
         {checked.size > 0 && (
           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
             <Typography level="body-xs">{checked.size} selected</Typography>
