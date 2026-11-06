@@ -278,6 +278,7 @@ export async function previewOperation(caller: Caller, req: OperationRequest): P
       if (!guard || guard.expected_account_id !== account.id || !siteUuid(guard.expected_creator_id)
           || typeof guard.expected_creator_email !== "string"
           || !Object.hasOwn(guard, "expected_tenant_id") || !Object.hasOwn(guard, "expected_anchor_site_id")
+          || (guard.expected_tenant_id !== null && !siteUuid(guard.expected_tenant_id))
           || guard.expected_anchor_site_id !== site_id) {
         throw new BloomError(502, "verification_failed", "BloomSites did not return a valid client and creator preview");
       }
@@ -485,6 +486,7 @@ async function perform(
       const verification = response.verification as Record<string, unknown> | undefined;
       if (!result?.site || !siteUuid(result.site.id) || !siteUuid(result.site.tenant_id)
           || result.account_id !== account.id || verification?.passed !== true || verification.account_id !== account.id
+          || (inputs.expected_tenant_id !== null && result.site.tenant_id !== inputs.expected_tenant_id)
           || result.site.created_by !== inputs.expected_creator_id || result.site.is_published !== false || result.site.commerce_enabled !== false) {
         throw new BloomError(502, "verification_failed", "The new client draft could not be verified");
       }

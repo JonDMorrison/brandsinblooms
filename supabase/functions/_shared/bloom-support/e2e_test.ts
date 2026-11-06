@@ -146,6 +146,7 @@ const cmsOperationCalls: Array<Record<string, unknown>> = [];
 let cmsLoseCreatedResponse = false;
 let cmsFailBeforeCreation = false;
 let cmsBadPreviewAccount = false;
+let cmsWrongTenantNext = false;
 let opsLoseResponseAfterCommit: "campaign_schedule" | "campaign_unschedule" | null = null;
 let opsFalseVerificationNext = false;
 const opsMutationCalls: string[] = [];
@@ -182,9 +183,13 @@ async function cmsOperationsStub(req: Request, raw: string): Promise<Response> {
       cmsFailBeforeCreation = false;
       return Response.json({ error: "invalid", message: "CMS rejected the request before creation" }, { status: 400 });
     }
+    const tenantId = cmsWrongTenantNext
+      ? "ffffffff-ffff-4fff-8fff-fffffffffff0"
+      : String(inputs.expected_tenant_id ?? crypto.randomUUID());
+    cmsWrongTenantNext = false;
     prior = { parameters, result: { account_id: String(body.account_id), site: {
       id: crypto.randomUUID(), name: String(inputs.name), subdomain: String(inputs.subdomain),
-      tenant_id: String(inputs.expected_tenant_id ?? crypto.randomUUID()), created_by: String(inputs.expected_creator_id),
+      tenant_id: tenantId, created_by: String(inputs.expected_creator_id),
       is_published: false, commerce_enabled: false,
     } } };
     cmsDrafts.set(request, prior);
@@ -1053,6 +1058,28 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       assert(!healedCreationReceipt.isError && healedCreationReceipt.structuredContent.status === "succeeded" && healedCreationReceipt.structuredContent.already,
         "site verification heals the original lost-response receipt");
 
+      // A signed CMS response for the wrong tenant is an uncertain remote
+      // effect, never a successful client link. Retries must not create again.
+      const tenantMismatchPreview = await mcp(keys.jeff, "preview_change", { kind: "site.create_draft", account_id: account,
+        inputs: { name: "Wrong tenant draft", subdomain: "wrong-tenant-draft" } });
+      const tenantMismatchId = String(tenantMismatchPreview.structuredContent.id);
+      const expectedTenant = String(tenantMismatchPreview.structuredContent.inputs.expected_tenant_id);
+      assertEquals(expectedTenant, cmsDrafts.get(id)!.result.site.tenant_id);
+      const mismatchLinksBefore = await linkCount();
+      const mismatchCallsBefore = cmsOperationCalls.length;
+      cmsWrongTenantNext = true;
+      const tenantMismatch = await mcp(keys.jeff, "execute_change", { operation_id: tenantMismatchId }, 7136);
+      assert(tenantMismatch.isError && tenantMismatch.content[0].text.includes("operation_reconciliation_needed"), tenantMismatch.content[0].text);
+      const tenantMismatchDraft = cmsDrafts.get(tenantMismatchId)!;
+      assertNotEquals(tenantMismatchDraft.result.site.tenant_id, expectedTenant);
+      assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [tenantMismatchId]))[0].status, "reconciliation_needed");
+      assertEquals(await linkCount(tenantMismatchDraft.result.site.id), 0, "wrong-tenant draft is never linked to the client");
+      assertEquals(await linkCount(), mismatchLinksBefore, "tenant mismatch creates no client link");
+      const tenantMismatchReplay = await mcp(keys.jeff, "execute_change", { operation_id: tenantMismatchId }, 7136);
+      const tenantMismatchNewKey = await mcp(keys.jeff, "execute_change", { operation_id: tenantMismatchId }, 7137);
+      assert(tenantMismatchReplay.isError && tenantMismatchNewKey.isError, "wrong-tenant effect remains reconciliation-only");
+      assertEquals(cmsOperationCalls.length, mismatchCallsBefore + 1, "wrong-tenant effect is never sent twice");
+
       // Simulate a process dying after recording the product-effect claim but
       // before it can record uncertainty. A later request must transition the
       // stale row to reconciliation without sending site.create_draft.
@@ -1084,7 +1111,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [nextId]))[0].status, "failed");
       await sql!.unsafe("UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=$1", [nextId]);
       assert((await mcp(keys.jeff, "execute_change", { operation_id: nextId })).isError, "expired uncreated request needs a new preview");
-      assertEquals(cmsDrafts.size, 1, "expired preview creates no replacement");
+      assertEquals(cmsDrafts.size, 2, "expired preview creates no replacement");
     } finally {
       Deno.env.delete("BLOOM_OPS_URL_CMS");
       Deno.env.delete("BLOOM_OPS_SECRET_CMS");
