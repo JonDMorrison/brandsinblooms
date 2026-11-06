@@ -22,13 +22,12 @@ const ENV: Record<string, string> = {
   BLOOM_SUPPORT_PUBLIC_URL: "https://bloomsuite.test", RESEND_INBOUND_WEBHOOK_SECRET: "whsec_" + btoa(String.fromCharCode(...WHSEC_BYTES)),
   BLOOM_INTAKE_SECRET_CMS: "cms-intake-secret", BLOOM_INTAKE_SECRET_POS: "pos-intake-secret",
   BLOOM_GITHUB_REPAIR_TOKEN: "gh-repair", BLOOM_GITHUB_RELEASE_TOKEN: "gh-release", BLOOM_GITHUB_REPAIR_LOGINS: "bloom-repair[bot]",
-  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test,buyer@greenleaf.test",
+  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,rosa@rosehill.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test,buyer@greenleaf.test",
   BLOOM_SUPPORT_INBOUND_ADDRESSES: "forward@inbound.test",
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 // deno-lint-ignore no-explicit-any
-type Any = any;
+type Any = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 const sql = DB_URL ? postgres(DB_URL, { max: 4, onnotice: () => {} }) : null;
 
 // ---------------------------------------------------------------------------
@@ -2141,6 +2140,138 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     `)[0].n), 1, "the email ledger retains the feature-decision lifecycle type");
   });
 
+  await t.step("feature shipment subscriptions notify resolved and human-owned requesters once without taking over", async () => {
+    const resolvedRequest = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Shipment subscriber A", body: "Please let me know when shared wishlists ship.", idempotency_key: "e2e-feature-shipment-a" },
+    });
+    const humanRequest = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.rosa),
+      body: { subject: "Shipment subscriber B", body: "Please tell me when shared wishlists are available.", idempotency_key: "e2e-feature-shipment-b" },
+    });
+    assertEquals(resolvedRequest.status, 201, JSON.stringify(resolvedRequest.json));
+    assertEquals(humanRequest.status, 201, JSON.stringify(humanRequest.json));
+    const resolvedId = String(resolvedRequest.json.ticket_id);
+    const humanId = String(humanRequest.json.ticket_id);
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE kind = 'triage' AND ticket_id IN (${resolvedId}, ${humanId})`;
+
+    const routed = await api("POST", `/tickets/${resolvedId}/feature`, tok(U.jon), { title: "Shared wishlists" });
+    assertEquals(routed.status, 200, JSON.stringify(routed.json));
+    const featureId = String(routed.json.feature_request_id);
+    const linked = await api("POST", `/tickets/${humanId}/feature`, tok(U.jon), {
+      feature_request_id: featureId,
+      excerpt: "A second customer asked for the same feature.",
+    });
+    assertEquals(linked.status, 200, JSON.stringify(linked.json));
+
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now(),
+          waiting_reason = NULL, waiting_since = NULL
+      WHERE id = ${resolvedId}
+    `;
+    const takeover = await api("POST", `/tickets/${humanId}/automation`, tok(U.jon), {
+      mode: "human",
+      reason: "Support is handling the conversation",
+    });
+    assertEquals(takeover.status, 200, JSON.stringify(takeover.json));
+
+    const before = await sql!`
+      SELECT id, status, stage, automation, executor, executor_id, owner_id,
+             next_action, resolved_at, version
+      FROM bloom_support.tickets
+      WHERE id IN (${resolvedId}, ${humanId})
+      ORDER BY id
+    `;
+    const shipped = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Available in production",
+    });
+    assertEquals(shipped.status, 200, JSON.stringify(shipped.json));
+
+    const shipmentJobs = await sql!`
+      SELECT id, ticket_id, status
+      FROM bloom_support.jobs
+      WHERE kind = 'answer'
+        AND payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+    `;
+    assertEquals(shipmentJobs.length, 2, "each subscription has one durable shipment job");
+    await sql!`SELECT bloom_support.invalidate_planned(${resolvedId}::uuid, 'customer reply before worker')`;
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.jobs
+      WHERE payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND status = 'queued'
+    `)[0].n), 2, "ordinary invalidation preserves both shipment promises");
+
+    await runWorkerUntilIdle(10);
+    const messages = await sql!`
+      SELECT ticket_id, id, delivery, purpose, meaningful
+      FROM bloom_support.messages
+      WHERE id IN (
+        SELECT notification_message_id
+        FROM bloom_support.feature_shipment_subscriptions
+        WHERE feature_request_id = ${featureId}
+      )
+      ORDER BY ticket_id
+    `;
+    assertEquals(messages.length, 2);
+    assert(messages.every((message) => message.purpose === "feature_decision" && message.meaningful === true),
+      "both requesters receive a substantive, typed shipment message");
+    assert(messages.every((message) => ["sent", "delivered"].includes(String(message.delivery))),
+      "both shipment messages reach the email ledger/provider path");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE message_id IN (${messages[0].id}, ${messages[1].id})
+        AND purpose = 'feature_decision'
+    `)[0].n), 2, "human takeover does not suppress the explicitly subscribed shipment email");
+
+    const after = await sql!`
+      SELECT id, status, stage, automation, executor, executor_id, owner_id,
+             next_action, resolved_at, version
+      FROM bloom_support.tickets
+      WHERE id IN (${resolvedId}, ${humanId})
+      ORDER BY id
+    `;
+    const workflowState = (rows: Any[]) => rows.map((row) => ({
+      id: String(row.id),
+      status: String(row.status),
+      stage: String(row.stage),
+      automation: String(row.automation),
+      executor: String(row.executor),
+      executor_id: row.executor_id ? String(row.executor_id) : null,
+      owner_id: row.owner_id ? String(row.owner_id) : null,
+      next_action: row.next_action ? String(row.next_action) : null,
+      resolved_at: row.resolved_at ? new Date(row.resolved_at).toISOString() : null,
+      version: Number(row.version),
+    }));
+    assertEquals(workflowState(after), workflowState(before),
+      "shipment delivery does not reopen, reassign, or alter ticket workflow");
+
+    const repeated = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Copy edit only",
+    });
+    assertEquals(repeated.status, 200, JSON.stringify(repeated.json));
+    await runWorkerUntilIdle(4);
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.messages
+      WHERE id IN (
+        SELECT notification_message_id
+        FROM bloom_support.feature_shipment_subscriptions
+        WHERE feature_request_id = ${featureId}
+      )
+    `)[0].n), 2, "repeating the shipped decision never creates another customer message");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE message_id IN (${messages[0].id}, ${messages[1].id})
+    `)[0].n), 2, "repeating the shipped decision never sends another email");
+  });
+
   await t.step("an inconclusive repair is handed to a person before Bloom says so", async () => {
     const report = await call("bloom-support-intake", "POST", "/report", {
       token: tok(U.gail),
@@ -2195,17 +2326,20 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const draft = await api("POST", "/knowledge", tok(U.sam), { product: "platform", title: "Track support requests", body: "Use the tracking link in your support email.", audience: "client", approved: true });
     assertEquals(draft.status, 200);
     assertEquals(draft.json.approved, false, "Support cannot approve its own draft");
-    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0);
+    const starterHelp = await call("bloom-support-api", "GET", "/help");
+    assertEquals(starterHelp.json.length, 9, "the reviewed starter set publishes three articles per product");
+    assert(starterHelp.json.every((article: Any) => !("source_refs" in article)), "repository provenance remains private");
     const approved = await api("POST", "/knowledge", tok(U.jeff), { id: draft.json.id, expected_updated_at: draft.json.updated_at, approved: true });
     assertEquals(approved.status, 200);
     assertEquals(approved.json.approved, true);
     await api("POST", "/knowledge", tok(U.jeff), { product: "crm", title: "Internal operational note", body: "INTERNAL-ARTICLE-PRIVATE", audience: "internal", approved: true });
     const help = await call("bloom-support-api", "GET", "/help?product=pos");
     assertEquals(help.status, 200);
-    assertEquals(help.json.length, 1, "platform guidance is available for every product");
-    assertEquals(help.json[0].id, draft.json.id);
+    assertEquals(help.json.length, 4, "POS guidance includes its three reviewed articles and platform guidance");
+    assert(help.json.some((article: Any) => article.id === draft.json.id), "platform guidance is available for every product");
     assert(!JSON.stringify(help.json).includes("INTERNAL-ARTICLE-PRIVATE"));
-    assert(!("approved_by" in help.json[0]), "approval identity remains private");
+    assert(help.json.every((article: Any) => !("approved_by" in article) && !("source_refs" in article)),
+      "approval identity and repository provenance remain private");
     assertEquals((await call("bloom-support-api", "GET", "/knowledge")).status, 401);
     assertEquals((await call("bloom-support-api", "GET", "/help?product=invalid")).status, 400);
     assertEquals((await api("POST", "/knowledge", keys.automation, { product: "platform", title: "Untrusted draft", body: "x", approved: true })).status, 403);
@@ -2214,7 +2348,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(edited.json.approved, false);
     const stale = await api("POST", "/knowledge", tok(U.jeff), { id: approved.json.id, expected_updated_at: approved.json.updated_at, approved: true });
     assertEquals(stale.status, 409, "a stale review cannot approve content edited by another person");
-    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0, "withdrawn approvals disappear from public help");
+    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 9,
+      "withdrawn approvals disappear while the reviewed starter guidance remains public");
   });
 
   await t.step("kill switch and health", async () => {

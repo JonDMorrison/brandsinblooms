@@ -232,6 +232,20 @@ async function proposeOperation(t: TicketView, vision: VisionInput = NO_VISION):
 }
 
 async function answer(job: Job): Promise<string> {
+  if (job.payload.mode === "feature_shipment") {
+    const subscriptionId = String(job.payload.subscription_id ?? "");
+    if (!subscriptionId) return "skipped: shipment subscription missing";
+    const delivered = await directRpc<{ delivered: boolean; duplicate?: boolean; reason?: string }>(
+      "bloom_support_deliver_feature_shipment",
+      {
+        p_actor: bot.principalId,
+        p_subscription: subscriptionId,
+        p_body: bloomFeatureDecision("shipped"),
+      },
+    );
+    if (!delivered.delivered) return `skipped: ${delivered.reason ?? "shipment no longer eligible"}`;
+    return delivered.duplicate ? "feature shipment already shared" : "feature shipment shared";
+  }
   const ctx = await context(job.ticket_id!);
   const t = ctx.ticket;
   if (t.automation !== "auto" || t.executor === "person") return "skipped: under human control";
@@ -325,7 +339,12 @@ async function sendEmail(job: Job): Promise<string> {
     // Already delivered, on its own or folded into an earlier email of the same ticket.
     if (m.delivery === "sent" || m.delivery === "delivered") return "already emailed";
     // Messages Bloom queued together go out as one email, not two in the same second.
-    const group = coalesceOutgoing(t.messages, m.id, 120_000, t.id);
+    // A promised feature-shipment update is one durable lifecycle event. Do
+    // not fold unrelated queued replies into that email, especially when a
+    // person owns the rest of the conversation.
+    const group = job.payload.feature_shipment_subscription_id
+      ? [m]
+      : coalesceOutgoing(t.messages, m.id, 120_000, t.id);
     bodies = group.map((x) => x.body);
     covered = group.filter((x) => x.id !== m.id).map((x) => x.id);
     design = group.some((x) => x.purpose === "resolution") ? "resolution" : (m.purpose ?? purpose);
