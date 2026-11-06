@@ -13,7 +13,7 @@ function event(id: string, customer: string, items: Item[]): PeriodSummaryEvent 
     raw_data: {kind: 'purchase_summary', currency: 'CAD', period_start: '2025-01-01', period_end: '2025-12-31', source_sha256: 'sha', items}};
 }
 const events = [
-  event('e1', 'buyer', [['S1', 'Sea Soil 1cuft', '901    Bagged Outdoor Soil', 2, 25.5, 1], ['P1', 'Petunia 4in', '101    Annuals', 6, 18, 2]]),
+  event('e1', 'buyer', [['S1', 'Sea Soil 1cuft', '901    Bagged Outdoor Soil', 2, 25.5, 1], ['P1', 'Petunia 4in', '101    Annuals', 6, 18, 2], ['E1','Eucalyptus bunch','Floral',2,12,8], ['W1','Wreath','Holiday',1,20,9]]),
   event('e2', 'other', [['M1', 'Monstera 6in', '1,501    Tropicals', 1, 40, 3]]),
   event('e3', 'blank', [['', ' ', '', 1, 5, 4], ['H1', 'Basil', '102    Herbs', 1, 4, 5]]),
   event('e4', 'both', [['F1', 'Fern 8in', '1,501    Tropicals', 1, 30, 6], ['S2', 'SEA SOIL Potting', '902    Bagged Indoor Soil', 1, 20, 7]]),
@@ -30,7 +30,10 @@ function serverCandidates(terms: string[]) {
   });
 }
 function fakeClient(candidates: unknown, scope: unknown = {customer_ids: ['buyer', 'other', 'blank', 'both'], rows: 4, invalid_rows: 0}, rows: unknown[] = events) {
-  const rpc = vi.fn(async (name: string) => ({data: name === 'bloom_summary_evidence_scope' ? scope : name === 'bloom_summary_product_candidates' ? candidates : null, error: null}));
+  const rpc = vi.fn(async () => {
+    const evidence = scope as {customer_ids:string[];invalid_rows:number};
+    return evidence.invalid_rows ? {data:null,error:{message:'Report facts do not match their completed source ledger.'}} : {data:{scanned:rows.length,last_id:'e4',customer_ids:evidence.customer_ids,candidates,provenance:rows},error:null};
+  });
   const neqCalls: Array<{table: string; column: string; value: unknown}> = [];
   const from = (table: string) => {
     const data = table === 'customer_intelligence_imports' ? [report] : table === 'customer_intelligence_source_events' ? rows : [];
@@ -72,6 +75,9 @@ describe('which searches the database may narrow', () => {
 
 describe('narrowed search gives the same answer as the full scan', () => {
   const rules: PurchaseRule[] = [
+    {mode: 'purchased', product: 'eucalyptus', start_date:'2025-01-01', end_date:'2025-12-31'},
+    {mode: 'purchased', product: 'eucalyptus bunch'},
+    {mode: 'purchased', product: 'wreath'},
     {mode: 'purchased', product: 'sea soil'},
     {mode: 'not_purchased', product: 'sea soil'},
     {mode: 'purchased', product: 'sea soil', start_date: '2025-01-01', end_date: '2025-12-31'},
@@ -112,8 +118,13 @@ describe('narrowed report rows are still checked', () => {
     const tampered = serverCandidates(['sea soil']).map(e => ({...e, raw_data: {...(e.raw_data as object), source_sha256: 'other'}}));
     await expect(loadProductSearchFacts(fakeClient(tampered), T, '2026-11-03T00:00:00Z', rule, store)).rejects.toThrow('ledger');
   });
-  it('rejects the search when any report row disagrees with its import', async () => {
-    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), {customer_ids: [], rows: 4, invalid_rows: 1}), T, '2026-11-03T00:00:00Z', rule, store)).rejects.toThrow('ledger');
+  it('validates nonmatching-row provenance even when the full-snapshot fingerprint is cached', async () => {
+    const bad=events.map(e=>e.id==='e2'?{...e,raw_data:{...(e.raw_data as object),source_sha256:'other'}}:e);
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']),undefined,bad),T,'2026-11-03T00:00:00Z',rule,store)).rejects.toThrow('ledger');
+  });
+  it('rejects a concurrent source mutation after cached verification and paged reads',async()=>{
+    const fingerprint=vi.fn().mockResolvedValueOnce('fp').mockResolvedValueOnce('changed');
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil'])),T,'2026-11-03T00:00:00Z',rule,{...store,fingerprint})).rejects.toThrow('changed during');
   });
   it('rejects line positions that do not line up with the lines', () => {
     const bad = {...serverCandidates(['sea soil'])[0], item_indexes: [0, 1]};
@@ -122,7 +133,7 @@ describe('narrowed report rows are still checked', () => {
   it('asks the database only for matching lines, never every report row', async () => {
     const client = fakeClient(serverCandidates(['sea soil']));
     await loadProductSearchFacts(client, T, '2026-11-03T00:00:00Z', rule, store);
-    expect(client.rpc).toHaveBeenCalledWith('bloom_summary_product_candidates', expect.objectContaining({p_terms: ['sea soil'], p_import_ids: ['r2025']}));
+    expect(client.rpc).toHaveBeenCalledWith('bloom_summary_search_page', expect.objectContaining({p_term: 'sea soil', p_import_id: 'r2025', p_after:null}));
   });
   it('never pages through stored IdealPOS journal lines, which Bloom does not use', async () => {
     const client = fakeClient(serverCandidates(['sea soil']));

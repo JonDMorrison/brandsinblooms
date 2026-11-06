@@ -1,3 +1,4 @@
+import {readProductSearchPages} from './bounded-search.ts';
 import type {PersistenceClient} from '../../bloom-assist/types.ts';
 import type {PurchaseFact, PurchaseRule} from './purchase-exploration.ts';
 import {loadEligibleDatedFacts} from './load-analysis-facts.ts';
@@ -92,6 +93,7 @@ export async function loadProductSearchFacts(
   const active = currentSummaryImports(ledger);
   const parents = active.map(row => ledger.find(entry => entry.id === row.id)!);
   const legacy = new Map(parents.flatMap(parent => {const certificate = legacySummaryCertificate(parent); return certificate ? [[parent.id, certificate] as const] : [];}));
+  const generations = new Map<string,string>();
 
   // Each active import is verified in full once, then again only when its fingerprint changes.
   // Returns false when the import has blank product lines, which only the full scan classifies exactly.
@@ -99,6 +101,7 @@ export async function loadProductSearchFacts(
     let searchable = true;
     for (const parent of parents) {
       const before = await store.fingerprint(parent.id);
+      generations.set(parent.id,before);
       if (before && (await store.get(parent.id)) === before) continue;
       const rows = (await loadSummaryRows(client, tenantId, cutoff, parent.id)).filter(row => row.import_id === parent.id);
       const certificate = legacy.get(parent.id);
@@ -126,23 +129,21 @@ export async function loadProductSearchFacts(
   };
 
   const importIds = parents.map(parent => parent.id);
-  const [searchable, dated, scopeResult, candidateResult] = await Promise.all([
-    verifyImports(),
+  // Establish the verified generation BEFORE any paged candidate reads.
+  const searchable = await verifyImports();
+  const [dated, pageResult] = await Promise.all([
     loadEligibleDatedFacts(client, tenantId, cutoff),
-    importIds.length ? retryOnceOnTimeout(() => client.rpc('bloom_summary_evidence_scope', {
-      p_tenant_id: tenantId, p_cutoff: cutoff,
-      p_imports: parents.map(parent => ({id: parent.id, sha: parent.source_sha256, start: parent.source_period_start, end: parent.source_period_end, legacy: legacy.has(parent.id)})),
-    })) : Promise.resolve({data: {customer_ids: [], rows: 0, invalid_rows: 0}, error: null}),
-    importIds.length ? retryOnceOnTimeout(() => client.rpc('bloom_summary_product_candidates', {p_tenant_id: tenantId, p_import_ids: importIds, p_terms: terms, p_cutoff: cutoff}))
-      : Promise.resolve({data: [], error: null}),
+    readProductSearchPages(client,tenantId,cutoff,importIds,terms,row=>{
+      const parent=parents.find(p=>p.id===row.import_id);
+      checkRowAgainstLedger(row,parent,Boolean(parent && legacy.has(parent.id)));
+    }),
   ]);
-  if (scopeResult.error) throw new Error(scopeResult.error.message);
-  if (candidateResult.error) throw new Error(candidateResult.error.message);
-  const scope = scopeResult.data as {customer_ids?: unknown; invalid_rows?: unknown} | null;
-  if (!scope || !Array.isArray(scope.customer_ids) || typeof scope.invalid_rows !== 'number') throw Error('The report evidence scope could not be read.');
-  if (scope.invalid_rows !== 0) throw Error('Report facts do not match their completed source ledger.');
-  const candidates = candidateResult.data as CandidateEvent[] | null;
-  if (!Array.isArray(candidates)) throw Error('The report evidence could not be read.');
+  for(const parent of parents)if(await store.fingerprint(parent.id)!==generations.get(parent.id))
+    throw Error('The report changed during the search. No partial audience was returned.');
+  if(JSON.stringify(await loadReportLedger(client,tenantId,cutoff))!==JSON.stringify(ledger))
+    throw Error('The source ledger changed during the search. No partial audience was returned.');
+  const candidates = pageResult.candidates as CandidateEvent[];
+  const scope = {customer_ids:pageResult.customer_ids};
 
   if (!searchable) return null;
   for (const row of candidates) {
