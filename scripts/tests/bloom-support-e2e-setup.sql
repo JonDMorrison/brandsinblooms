@@ -51,5 +51,13 @@ GRANT EXECUTE ON FUNCTION public.is_master_admin(uuid) TO service_role;
 \ir ../../supabase/migrations/20261106040000_bloom_support_engineering_progress_email.sql
 \ir ../../supabase/migrations/20261106050000_bloom_support_feature_decision_messages.sql
 \ir ../../supabase/migrations/20261106110933_bloom_support_feature_shipments_and_knowledge.sql
+BEGIN;
 \ir ../../supabase/migrations/20261106192402_bloom_support_engineering_handoff.sql
+-- Match the release runner: migration and history stay in one transaction.
+DO $$ BEGIN
+  IF current_setting('lock_timeout') <> '2s' THEN
+    RAISE EXCEPTION 'migration must not commit the runner transaction';
+  END IF;
+END $$;
+COMMIT;
 \echo 'bloom-support e2e database ready'

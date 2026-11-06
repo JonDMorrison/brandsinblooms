@@ -23,10 +23,16 @@ Investigation uses an optimistic database version claim before any GitHub mutati
 
 ## Release and rollback
 
-Apply `20261106192402_bloom_support_engineering_handoff.sql` with the worker/frontend change after staging validation and independent review. The migration replaces two existing functions, preserves their permission checks and grants, and changes no table schema or existing customer rows. Its transaction has bounded lock/statement timeouts. Main pushes automatically deploy code, so release ordering must be reviewed before merge. Repository database guidance requires staging and a maintenance window. Main branch protection requires one approving review.
+Apply `20261106192402_bloom_support_engineering_handoff.sql` with the worker/frontend change after staging validation and independent review. The migration replaces two existing functions, preserves their permission checks and grants, and changes no table schema or existing customer rows. The release runner owns the transaction, including the migration-history record; the migration sets bounded local lock/statement timeouts without committing that transaction. Main pushes automatically deploy code, so release ordering must be reviewed before merge. Repository database guidance requires staging and a maintenance window. Main branch protection requires one approving review.
 
 For rollback restore the worker/frontend revision, then restore `decide_feature_request` from migration `20261106110933` and `update_engineering_issue` from `20261105230000`. Do not remove feature shipment history or undo recorded human decisions. No customer reply or resolution should be sent until the actual affected workflow is verified.
 
 ## Limits and remaining operations
 
 This change does not backfill ticket #1019, claim the checkout is complete, link its active PR into release automation, or contact Kate. Human multi-step decisions use existing endpoints; failures hold automation first and show an error, but the overall sequence is not one database transaction. Staging/browser acceptance and hosted checks are release gates. The Today view is the simplified entry point; advanced engineering and escalation panels remain available in the full desk. Cross-channel staff conversations and the original Kate email were outside this delegated code audit.
+
+## Release preflight follow-up
+
+Independent review requested from repository collaborators `danbuhler` and `charliex311`; no approval received at preflight. Hosted Bloom Support, security verification, Edge Function verification and Vercel preview checks passed on the initial head. Full local database/worker suite also passes with the runner-owned transaction regression.
+
+No CRM staging database or branch was found in connected project inventory (the CMS staging projects belong to a different application). The preview browser stops at Vercel authentication; authenticated Today-view acceptance remains unverified. No approved maintenance-window time or completed advance notice was established. These are release blockers; do not merge or deploy until they are satisfied.

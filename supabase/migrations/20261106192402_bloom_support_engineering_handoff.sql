@@ -3,7 +3,7 @@
 -- Rollback: restore decide_feature_request from 20261106110933 after rolling
 -- back the worker; restore update_engineering_issue from 20261105230000.
 -- Existing feature shipment generations remain untouched.
-BEGIN;
+-- The migration runner owns the transaction, including its history record.
 SET LOCAL lock_timeout = '2s';
 SET LOCAL statement_timeout = '10s';
 CREATE OR REPLACE FUNCTION bloom_support.decide_feature_request(
@@ -344,5 +344,3 @@ BEGIN
   END IF;
   RETURN to_jsonb(n);
 END $$;
-
-COMMIT;
