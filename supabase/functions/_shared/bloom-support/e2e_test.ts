@@ -2624,13 +2624,16 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       SET status = 'working', stage = 'investigating', next_action = NULL
       WHERE id = ${ticketId}
     `;
+    // Advance the real engineering record. The progress trigger is the single
+    // production path that queues this customer update; a fabricated job with
+    // a status that disagrees with the issue must be rejected as stale.
     await sql!`
-      INSERT INTO bloom_support.jobs(kind, ticket_id, engineering_issue_id, lane, payload, idempotency_key)
-      VALUES (
-        'answer', ${ticketId}, ${issueId}, ${"account:not-reproduced:" + ticketId},
-        '{"mode":"engineering_progress","status":"not_reproduced"}'::jsonb,
-        ${"e2e-not-reproduced-progress:" + ticketId}
-      )
+      UPDATE bloom_support.engineering_issues
+      SET status = 'not_reproduced',
+          reproduction = '{"result":"not_reproduced","checked_at":"2026-11-07T00:00:00Z"}'::jsonb,
+          version = version + 1,
+          updated_at = now()
+      WHERE id = ${issueId}
     `;
     await runWorkerUntilIdle(10);
 
