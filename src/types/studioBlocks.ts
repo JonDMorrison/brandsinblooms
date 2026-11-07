@@ -136,6 +136,19 @@ export interface StudioBlock {
   headerBannerUrl?: string;
   newsletterSettings?: NewsletterSettings;
 
+  /** Stable CMS publication provenance for website-to-campaign traceability. */
+  connectedContent?: {
+    siteId: string;
+    itemId: string;
+    type: "event"|"page"|"product"|"blog"|"fundraiser";
+    updatedAt: string;
+    publicUrl: string;
+    startAt?: string | null;
+    sourceTitle?: string;
+    sourceDescription?: string;
+    sourceImageUrl?: string | null;
+    upcomingDateCount?: number;
+  };
   id: string;
   type: BlockType;
   label: string;

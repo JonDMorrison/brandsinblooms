@@ -3,13 +3,15 @@ import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { ZoomIn, ZoomOut } from "lucide-react";
+import { Globe2, ZoomIn, ZoomOut } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
 
 type StudioBottomBarProps = {
   blockCount: number;
   wordCountEstimate: number;
   canvasWidth: number;
   dropLabel: string | null;
+  onInsertWebsiteContent?:()=>void;
 };
 
 const bottomTextSx = {
@@ -28,6 +30,7 @@ export default function StudioBottomBar({
   wordCountEstimate,
   canvasWidth,
   dropLabel,
+  onInsertWebsiteContent,
 }: StudioBottomBarProps) {
   const blockCountLabel = blockCount === 1 ? "1 block" : `${blockCount} blocks`;
 
@@ -50,11 +53,21 @@ export default function StudioBottomBar({
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1}>
-          <Typography level="body-xs" sx={bottomTextSx}>
+          {onInsertWebsiteContent?(
+            <Box sx={{display:{xs:"block",md:"none"}}}>
+              <JoyButton size="sm" color="neutral" variant="soft"
+                onClick={onInsertWebsiteContent}
+                startDecorator={<Globe2 size={14} aria-hidden="true"/>}
+                sx={{minHeight:32,whiteSpace:"nowrap",px:1.2}}>
+                Website
+              </JoyButton>
+            </Box>
+          ):null}
+          <Typography level="body-xs" sx={{...bottomTextSx,display:{xs:"none",md:"block"}}}>
             {blockCountLabel}
           </Typography>
-          <Box sx={bottomDividerSx} />
-          <Typography level="body-xs" sx={bottomTextSx}>
+          <Box sx={{...bottomDividerSx,display:{xs:"none",md:"block"}}} />
+          <Typography level="body-xs" sx={{...bottomTextSx,display:{xs:"none",md:"block"}}}>
             ~{wordCountEstimate} words
           </Typography>
         </Stack>
