@@ -154,3 +154,44 @@ The repair workflow still holds no merge rights. Its `publish` job has `contents
 - **CMS repairs never reach "verified".** For base `dev`, the deploy step stays at `awaiting_production_release` and re-polls hourly. Nothing marks the issue done after the targeted main release. A person closes it.
 - **ChatGPT per-user connection:** OAuth works. Each person still has to connect their own account. No shared key is handed out.
 - **CMS Playwright CI job** fails on GitHub's ubuntu-26.04 runner (Playwright 1.57 can't install Chromium). This is not caused by Bloom work, and it affects every CMS PR.
+
+## G. Catalogue category audit and repair (2026-11-07)
+
+The Support desk/MCP operation path now exposes `site.catalogue.audit` and
+`site.catalogue.assign_categories`. This entry describes the contract, not a claim
+that a particular customer repair or production deployment has been verified.
+Both CRM and CMS releases must be deployed before use.
+
+1. Find the verified Support account and its linked CMS site. Use `product_operations`
+   to check availability, then `read_product` with `kind: site.catalogue.audit`, the
+   account ID, and optional inputs `site_id`, `category_id`, `cursor`, `category_cursor`, `limit`.
+   Follow `next_cursor` for products and `next_category_cursor` for categories independently; do not mistake a page count for a whole-catalogue total.
+2. Use the returned category hierarchy, assignment evidence and product identifiers
+   to distinguish existing memberships, missing memberships and genuinely empty
+   categories. Check descendants rather than hardcoding child categories. A visible
+   empty section alone does not establish a missing product assignment.
+3. Establish the exact products from a verified supplier/category mapping, SKU list
+   or reviewed product records. Names and keywords alone are not sufficient evidence.
+   Record where the evidence came from and why each selected set belongs in the category.
+4. Call `preview_change` with `kind: site.catalogue.assign_categories`, account ID,
+   optional linked `site_id`, and `inputs: {category_id, product_ids, evidence: {source, reason}}`.
+   Supply 1–500 explicit product UUIDs per batch, never an implicit whole-site selection.
+   Review the returned scoped products/counts before confirming. The CMS fingerprint
+   and resolved site are stored with the operation; the caller cannot replace them.
+5. A permitted person calls `execute_change` with the stored operation ID. This is
+   add-only category membership: existing memberships, primary category, product fields,
+   prices and stock stay intact. A stale-state conflict requires a new audit/preview.
+   Service principals may still only preview; no client permissions were added.
+6. Inspect `verify_outcome`, then repeat the category audit and verify the affected
+   storefront category, including descendants. Record selected, added and already-present
+   counts, operation ID, source/reason and verification in the ticket before resolving it.
+   A response marked `reconciliation_needed` is not a success: check the product and
+   operation outcome before any new write. There is no automatic undo; do not remove
+   memberships speculatively to reverse a batch.
+
+Authorization remains `ops.site.read` for audit and `ops.site.edit` for assignments,
+with the existing database permission/account checks and operation ledger. No role,
+service-execution or client-read grant and no CRM schema migration is required.
+Regression coverage: `src/__tests__/bloomCatalogueOperations.test.ts` tests permission
+boundaries, linked-site isolation, bounded/evidenced inputs, fingerprint storage,
+execution verification, stale-state rejection and reconciliation.
