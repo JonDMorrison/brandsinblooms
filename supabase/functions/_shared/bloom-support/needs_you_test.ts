@@ -182,3 +182,12 @@ Deno.test("send-and-solve sends the client one email, not a reply plus a resolut
   assertFalse(resolutionAlreadyTold({ via: "send-and-solve", reply_message_id: "missing" }, msgs));
   assertFalse(resolutionAlreadyTold({ via: "send-and-solve", reply_message_id: "r1" }, msgs.map((m) => (m.id === "r1" ? { ...m, delivery: "suppressed" } : m))));
 });
+
+Deno.test("a feature decision closes the support request without a duplicate resolution email", () => {
+  const messages = [...(ticket.messages ?? []), {
+    id: "feature-1", author_kind: "bloom", visibility: "public", purpose: "feature_decision",
+    body: "Our product team plans to build this.", created_at: NOW.toISOString(), delivery: "queued",
+  }];
+  assert(resolutionAlreadyTold({ feature_decision_message_id: "feature-1", product_decision: "planned" }, messages));
+  assertFalse(resolutionAlreadyTold({ feature_decision_message_id: "missing" }, messages));
+});

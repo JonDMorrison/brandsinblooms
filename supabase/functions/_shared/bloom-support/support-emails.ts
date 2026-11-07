@@ -637,16 +637,18 @@ export function needsYouDelivery(input: { step: NextStep | null; ticket: StaffTi
 }
 
 /**
- * The automatic "this is resolved" email is skipped when the person resolved
- * the request with "Send this reply and mark solved": their reply already told
- * the client, so the client gets one email, not two. Only that flow records
- * the reply it sent in the resolution evidence; an ordinary "Mark solved"
- * still sends the resolution email with the summary the person wrote.
+ * The automatic "this is resolved" email is skipped when a typed public
+ * message already delivered the closing outcome. This covers a person's
+ * "Send this reply and mark solved" and Bloom's deterministic feature-decision
+ * message. An ordinary "Mark solved" still sends the resolution summary.
  */
 export function resolutionAlreadyTold(evidence: unknown, messages: OutgoingMessage[]): boolean {
   const ev = evidence && typeof evidence === "object" ? evidence as Record<string, unknown> : null;
-  if (ev?.via !== "send-and-solve" || typeof ev.reply_message_id !== "string") return false;
-  const reply = messages.find((m) => m.id === ev.reply_message_id);
+  const messageId = ev?.via === "send-and-solve" && typeof ev.reply_message_id === "string"
+    ? ev.reply_message_id
+    : typeof ev?.feature_decision_message_id === "string" ? ev.feature_decision_message_id : null;
+  if (!messageId) return false;
+  const reply = messages.find((m) => m.id === messageId);
   return !!reply && reply.visibility === "public" && reply.author_kind !== "client" && reply.delivery !== "suppressed";
 }
 

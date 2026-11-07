@@ -2130,7 +2130,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
 
     const active = await ticketRow(first.json.ticket_id);
     const stale = await ticketRow(second.json.ticket_id);
-    assertEquals([active.status, active.stage, active.waiting_reason], ["waiting", "awaiting_client", "customer"]);
+    assertEquals([active.status, active.stage, active.waiting_reason], ["resolved", "resolved", null],
+      "a product decision closes the support request without pretending the client owes a reply");
     assertExists(active.first_response_at, "the product decision counts as a substantive first response");
     assertEquals([stale.status, stale.stage], ["resolved", "resolved"], "a stale decision job cannot reopen a resolved request");
     const activeFeatureMessage = (await sql!`

@@ -284,3 +284,114 @@ REVOKE ALL ON FUNCTION bloom_support.add_message(uuid, uuid, jsonb)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION bloom_support.add_message(uuid, uuid, jsonb)
   TO service_role;
+
+-- Rapid engineering transitions are one client story, not a burst of stale
+-- emails. Supersede work the provider has not accepted; the worker also checks
+-- the issue's live status before it writes a message.
+CREATE OR REPLACE FUNCTION bloom_support.queue_engineering_progress_email()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  ticket record;
+BEGIN
+  IF NEW.status IS NOT DISTINCT FROM OLD.status
+     OR NEW.status NOT IN (
+       'investigating',
+       'reproduced',
+       'not_reproduced',
+       'in_review',
+       'deploying',
+       'verifying',
+       'failed',
+       'rolled_back',
+       'escalated'
+     ) THEN
+    RETURN NEW;
+  END IF;
+
+  FOR ticket IN
+    SELECT id, account_id
+    FROM bloom_support.tickets
+    WHERE engineering_issue_id = NEW.id
+      AND status <> 'resolved'
+      AND merged_into IS NULL
+  LOOP
+    UPDATE bloom_support.messages m
+       SET delivery = 'suppressed', withdrawn_at = coalesce(withdrawn_at, now())
+     WHERE m.delivery IN ('queued', 'failed')
+       AND EXISTS (
+         SELECT 1
+         FROM bloom_support.jobs old_progress
+         WHERE old_progress.ticket_id = ticket.id
+           AND old_progress.engineering_issue_id = NEW.id
+           AND old_progress.kind = 'answer'
+           AND old_progress.payload->>'mode' = 'engineering_progress'
+           AND old_progress.payload->>'status' IS DISTINCT FROM NEW.status
+           AND m.idempotency_key = 'engineering-progress:' || old_progress.id::text
+       );
+
+    UPDATE bloom_support.jobs email_job
+       SET status = 'cancelled', last_error = 'superseded by newer engineering progress', updated_at = now()
+     WHERE email_job.kind = 'send_email'
+       AND email_job.status = 'queued'
+       AND EXISTS (
+         SELECT 1
+         FROM bloom_support.messages m
+         JOIN bloom_support.jobs old_progress
+           ON m.idempotency_key = 'engineering-progress:' || old_progress.id::text
+         WHERE old_progress.ticket_id = ticket.id
+           AND old_progress.engineering_issue_id = NEW.id
+           AND old_progress.kind = 'answer'
+           AND old_progress.payload->>'mode' = 'engineering_progress'
+           AND old_progress.payload->>'status' IS DISTINCT FROM NEW.status
+           AND m.id::text = email_job.payload->>'message_id'
+       );
+
+    UPDATE bloom_support.outbound_emails outbound
+       SET status = 'suppressed', error = 'superseded by newer engineering progress'
+     WHERE outbound.ticket_id = ticket.id
+       AND outbound.provider_id IS NULL
+       AND outbound.status IN ('queued', 'failed', 'not_configured')
+       AND EXISTS (
+         SELECT 1
+         FROM bloom_support.messages m
+         JOIN bloom_support.jobs old_progress
+           ON m.idempotency_key = 'engineering-progress:' || old_progress.id::text
+         WHERE old_progress.ticket_id = ticket.id
+           AND old_progress.engineering_issue_id = NEW.id
+           AND old_progress.kind = 'answer'
+           AND old_progress.payload->>'mode' = 'engineering_progress'
+           AND old_progress.payload->>'status' IS DISTINCT FROM NEW.status
+           AND m.id = outbound.message_id
+       );
+
+    UPDATE bloom_support.jobs old_progress
+       SET status = 'cancelled', last_error = 'superseded by newer engineering progress', updated_at = now()
+     WHERE old_progress.ticket_id = ticket.id
+       AND old_progress.engineering_issue_id = NEW.id
+       AND old_progress.kind = 'answer'
+       AND old_progress.status = 'queued'
+       AND old_progress.payload->>'mode' = 'engineering_progress'
+       AND old_progress.payload->>'status' IS DISTINCT FROM NEW.status;
+
+    PERFORM bloom_support.enqueue_job(
+      'answer',
+      ticket.id,
+      NEW.id,
+      'account:' || coalesce(ticket.account_id::text, 'none:' || ticket.id::text),
+      jsonb_build_object('mode', 'engineering_progress', 'status', NEW.status),
+      'engineering-progress:' || NEW.id::text || ':' || ticket.id::text || ':' || NEW.status || ':' || NEW.version::text
+    );
+  END LOOP;
+
+  RETURN NEW;
+END
+$$;
+
+REVOKE ALL ON FUNCTION bloom_support.queue_engineering_progress_email()
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION bloom_support.queue_engineering_progress_email()
+  TO service_role;

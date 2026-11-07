@@ -255,6 +255,8 @@ async function answer(job: Job): Promise<string> {
   if (job.payload.mode === "engineering_progress") {
     if (t.status === "resolved" || t.merged_into) return "skipped: ticket already resolved or merged";
     const status = String(job.payload.status ?? "");
+    const currentStatus = typeof t.engineering?.status === "string" ? t.engineering.status : null;
+    if (currentStatus && currentStatus !== status) return `skipped: superseded engineering progress (${status} -> ${currentStatus})`;
     const body = bloomEngineeringProgress(status);
     if (!body) return `skipped: no customer update for engineering status ${status}`;
     const needsPerson = ["not_reproduced", "failed", "escalated", "rolled_back"].includes(status);
@@ -280,12 +282,17 @@ async function answer(job: Job): Promise<string> {
     if (t.status === "resolved" || t.merged_into) return "skipped: ticket already resolved or merged";
     const decision = String(job.payload.decision ?? "");
     if (!["accepted", "declined", "planned", "shipped"].includes(decision)) return "skipped: invalid feature decision";
-    await bloomSays(t, bloomFeatureDecision(decision), "feature_decision", `feature-decision:${job.id}`);
+    const message = await bloomSays(t, bloomFeatureDecision(decision), "feature_decision", `feature-decision:${job.id}`) as { message_id?: string };
+    // A product decision answers this support request. Close the conversation
+    // without pretending we need another client reply; its durable shipment
+    // subscription will still notify this requester when the feature ships.
     await patch(t, {
-      status: "waiting",
-      waiting_reason: "customer",
-      stage: "awaiting_client",
-      next_action: "Waiting to hear whether the client needs anything else",
+      status: "resolved",
+      stage: "resolved",
+      resolution_summary: `Product decision shared: ${decision}`,
+      resolution_verified: true,
+      resolution_evidence: { product_decision: decision, feature_decision_message_id: message.message_id ?? null },
+      next_action: null,
       next_action_due_at: null,
     });
     return `feature decision shared: ${decision}`;
