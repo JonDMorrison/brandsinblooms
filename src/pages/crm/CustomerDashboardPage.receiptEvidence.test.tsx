@@ -33,6 +33,7 @@ vi.mock('@/components/crm/customer-dashboard/CustomerProfileAttributesCard',()=>
 vi.mock('@/components/crm/customer-dashboard/ImportedCustomerSummary',()=>({ImportedCustomerSummary:()=> <div>ImportedCustomerSummary</div>}));
 vi.mock('@/components/crm/customer-dashboard/CustomerQuickStats',()=>({CustomerQuickStats:()=> <div>CustomerQuickStats</div>}));
 vi.mock('@/components/crm/customer-dashboard/CustomerSegmentsCard',()=>({CustomerSegmentsCard:()=> <div>CustomerSegmentsCard</div>}));
+vi.mock('@/components/crm/customer-dashboard/CustomerTagsCard',()=>({CustomerTagsCard:()=> <div>CustomerTagsCard</div>}));
 vi.mock('@/components/crm/customer-dashboard/CustomerSnapshot',()=>({CustomerSnapshot:()=> <div>CustomerSnapshot</div>}));
 vi.mock('@/components/crm/customer-dashboard/EditCustomerDialog',()=>({EditCustomerDialog:()=> <div>EditCustomerDialog</div>}));
 vi.mock('@/components/crm/customer-dashboard/EngagementHealthOverview',()=>({EngagementHealthOverview:()=> <div>EngagementHealthOverview</div>}));
