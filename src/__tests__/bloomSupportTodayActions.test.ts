@@ -15,6 +15,53 @@ describe("Bloom Support Today actions", () => {
   });
 });
 
+import { vi } from "vitest";
+import { recordReviewDecision, escalationExplanation } from "@/components/bloomSupport/todayActions";
+
+describe("review decision persistence", () => {
+  const recommendation = "Assign this request to me for review and keep automatic work paused.";
+  const input = { ownerId: "admin-1", ticketIds: ["ticket-1", "ticket-1"], escalations: [{ id: "e1", ticket_id: "ticket-1", status: "open" }], recommendation };
+  const api = () => ({
+    getTicket: vi.fn().mockResolvedValue({ status: "working", version: 3 }),
+    setAutomation: vi.fn().mockResolvedValue({}),
+    resolveEscalation: vi.fn().mockResolvedValue({}),
+    updateTicket: vi.fn().mockResolvedValue({}),
+  });
+  it.each(["do", "reject", "other"] as const)("records %s durably with an owner and follow-up", async (choice) => {
+    const client = api();
+    await recordReviewDecision(client, input, choice, "Please investigate the existing work first.");
+    expect(client.setAutomation).toHaveBeenCalledTimes(1);
+    expect(client.setAutomation).toHaveBeenCalledWith("ticket-1", "human", expect.any(String));
+    expect(client.resolveEscalation).toHaveBeenCalledWith("e1", expect.stringContaining(choice === "do" ? "Accepted:" : choice === "reject" ? "Rejected:" : "Alternative requested:"));
+    expect(client.updateTicket).toHaveBeenCalledWith("ticket-1", expect.objectContaining({ version: 3, status: "working", owner_id: "admin-1", next_action_due_at: expect.any(String) }));
+    expect(client.setAutomation.mock.invocationCallOrder[0]).toBeLessThan(client.resolveEscalation.mock.invocationCallOrder[0]);
+    if (choice === "reject") expect(client.updateTicket.mock.calls[0][1].next_action).toContain("Do not repeat this recommendation");
+  });
+  it.each([
+    { status: "resolved", merged_into: null, version: 3 },
+    { status: "working", merged_into: "target-ticket", version: 3 },
+  ])("does not take over a $status or merged ticket", async (state) => {
+    const client = api();
+    client.getTicket.mockResolvedValue(state);
+    await recordReviewDecision(client, input, "do");
+    expect(client.setAutomation).not.toHaveBeenCalled();
+    expect(client.resolveEscalation).not.toHaveBeenCalled();
+    expect(client.updateTicket).not.toHaveBeenCalled();
+  });
+  it("cannot record a blank alternative or continue after takeover fails", async () => {
+    const client = api();
+    await expect(recordReviewDecision(client, input, "other", "  ")).rejects.toThrow("Tell us");
+    expect(client.setAutomation).not.toHaveBeenCalled();
+    client.setAutomation.mockRejectedValue(new Error("conflict"));
+    await expect(recordReviewDecision(client, input, "do")).rejects.toThrow("conflict");
+    expect(client.resolveEscalation).not.toHaveBeenCalled();
+    expect(client.updateTicket).not.toHaveBeenCalled();
+  });
+  it("explains a stopped repair without exposing raw technical details", () => {
+    expect(escalationExplanation("engineering_escalated")).toBe("The automatic fix cannot continue safely. A person needs to choose the next step.");
+  });
+});
+
 describe("Bloom Support Today ownership", () => {
   it("counts only active tickets that Bloom actually owns", () => {
     expect(isBloomHandlingTicket({ status: "working", automation: "auto", executor: "bloom" })).toBe(true);
