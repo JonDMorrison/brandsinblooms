@@ -223,6 +223,13 @@ function ticketFlowRulesForPolicy(
   return rules.sort((a, b) => b.pathPrefix.length - a.pathPrefix.length);
 }
 
+export function hasTicketFlowChecksForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+): boolean {
+  return ticketFlowRulesForPolicy(releasePolicy, repository) !== null;
+}
+
 /**
  * Select trusted affected-flow checks from a ticket's captured page URL.
  * The ticket contributes only an approved production origin and a canonical

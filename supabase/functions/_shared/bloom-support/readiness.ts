@@ -7,7 +7,10 @@
 import { type Caller, env, rpc } from "./runtime.ts";
 import { emailConfig } from "./email.ts";
 import { aiConfig } from "./ai.ts";
-import { verificationChecksForPolicy } from "./engineering.ts";
+import {
+  hasTicketFlowChecksForPolicy,
+  verificationChecksForPolicy,
+} from "./engineering.ts";
 
 interface Facts {
   settings: Record<string, unknown>;
@@ -20,6 +23,22 @@ interface Facts {
   staff: Array<{ name: string | null; email: string | null; role: string }>;
   open_alerts: unknown[];
   knowledge: { approved_client: number; internal: number };
+}
+
+interface OperationalTruth {
+  queued: number;
+  running: number;
+  oldest_ready_queued_at: string | null;
+  dead_jobs_24h: number;
+  failed_retrying: number;
+  test_jobs: number;
+  open_escalations: number;
+  acknowledged_escalations: number;
+  stale_effect_claims: number;
+  reconciliation_needed: number;
+  last_claim_reconciled_at: string | null;
+  last_repair_report_at: string | null;
+  last_ticket_flow_verified_at: string | null;
 }
 
 export interface Capability {
@@ -73,7 +92,10 @@ export function rollbackReadiness(
 }
 
 export async function readiness(caller: Caller) {
-  const f = await rpc<Facts>("readiness_facts", { actor: caller.principalId });
+  const [f, operational] = await Promise.all([
+    rpc<Facts>("readiness_facts", { actor: caller.principalId }),
+    rpc<OperationalTruth>("queue_summary", { actor: caller.principalId }),
+  ]);
   const s = f.settings ?? {};
   const ai = await aiConfig();
   const mail = emailConfig();
@@ -98,6 +120,9 @@ export async function readiness(caller: Caller) {
       ? [`settings.release_policy.verificationChecks.${repository}`]
       : [];
   });
+  const ticketFlowMissing = rollback.repositories.filter((repository) =>
+    !hasTicketFlowChecksForPolicy(releasePolicy, repository)
+  );
   const releaseMissing = [
     ...need("BLOOM_GITHUB_RELEASE_TOKEN"),
     ...(f.release_policy_set ? [] : ["settings.release_policy"]),
@@ -105,6 +130,8 @@ export async function readiness(caller: Caller) {
     ...verificationMissing,
   ];
   const workerLive = recent(f.worker.last_finished_at, 1 / 96);
+  const repairLive = recent(operational.last_repair_report_at, 90);
+  const ticketFlowLive = recent(operational.last_ticket_flow_verified_at, 90);
   const caps: Capability[] = [
     { key: "worker", label: "Background worker (no chat needed)", implemented: true, configured: f.cron.worker && f.vault.worker_token,
       missing: [...(f.cron.worker ? [] : ["cron job bloom-support-worker"]), ...(f.vault.worker_token ? [] : ["vault secret bloom_support_worker_token"])],
@@ -115,9 +142,9 @@ export async function readiness(caller: Caller) {
       tested: "SQL: watchdog, fallback alerts", enabled: true, live: null, note: f.vault.alert_resend_key ? undefined : "Alerts are recorded and shown in-app only until the Resend key is in Vault" },
     { key: "queue", label: "Job queue health", implemented: true, configured: true, missing: [],
       tested: "e2e: crash recovery, retries, scoped pauses", enabled: automation,
-      live: f.queue.oldest_ready_queued_at && Date.now() - Date.parse(f.queue.oldest_ready_queued_at) > 15 * 60_000 ? null : workerLive,
-      note: `${f.queue.queued} queued, ${f.queue.running} running, ${f.queue.failed_retrying} retrying, ${f.queue.dead_24h} failed in 24h` +
-        (f.queue.oldest_ready_queued_at ? `; oldest ready job waiting since ${f.queue.oldest_ready_queued_at}` : "") },
+      live: operational.oldest_ready_queued_at && Date.now() - Date.parse(operational.oldest_ready_queued_at) > 15 * 60_000 ? null : workerLive,
+      note: `${operational.queued} production queued, ${operational.running} running, ${operational.failed_retrying} retrying, ${operational.dead_jobs_24h} dead in 24h; ${operational.test_jobs} explicit test/preview jobs excluded` +
+        (operational.oldest_ready_queued_at ? `; oldest ready production job waiting since ${operational.oldest_ready_queued_at}` : "") },
     { key: "desk", label: "Support desk (works without AI)", implemented: true, configured: true, missing: [],
       tested: "SQL: transitions, timers, merge, notifications, metrics; e2e: views, client actions, CC, bounces",
       enabled: true, live: recent(f.last_seen.intake_crm ?? f.last_seen.intake_email, 30),
@@ -149,7 +176,15 @@ export async function readiness(caller: Caller) {
     { key: "ops_pos", label: "POS read-only operations", implemented: true, configured: !!(env("BLOOM_OPS_URL_POS") && env("BLOOM_OPS_SECRET_POS")), missing: need("BLOOM_OPS_URL_POS", "BLOOM_OPS_SECRET_POS"),
       tested: "SQL regression + signed handler tests: tenant guards, stock precision, completed sales and returns", enabled: true, live: recent(f.last_seen.operation_pos, 30), note: "Products, store inventory and sales summaries; dates use the store time zone" },
     { key: "repair", label: "Automatic investigation + repair PRs", implemented: true, configured: !!env("BLOOM_GITHUB_REPAIR_TOKEN"), missing: need("BLOOM_GITHUB_REPAIR_TOKEN"),
-      tested: "e2e with GitHub stubbed", enabled: automation, live: null, note: "Each repo also needs BLOOM_REPAIR_OPENAI_API_KEY, BLOOM_REPAIR_REPORT_KEY and the BLOOM_SUPPORT_API_URL variable" },
+      tested: "e2e with GitHub stubbed", enabled: automation, live: repairLive,
+      note: `${repairLive ? `Last accepted repair report: ${repairLive}` : "No successful repair report evidence in the last 90 days"}. Each repo also needs BLOOM_REPAIR_OPENAI_API_KEY, BLOOM_REPAIR_REPORT_KEY and the BLOOM_SUPPORT_API_URL variable` },
+    { key: "ticket_flow", label: "Affected-flow verification before automatic closure", implemented: true,
+      configured: ticketFlowMissing.length === 0, missing: ticketFlowMissing.map((repository) => `settings.release_policy.ticketFlowChecks.${repository}`),
+      tested: "unit: trusted route selection and ticket binding; e2e: unverified flow remains open", enabled: s.auto_release_enabled === true,
+      live: ticketFlowLive,
+      note: ticketFlowMissing.length
+        ? `No trusted flow rule for ${ticketFlowMissing.join(", ")}; releases may pass smoke checks, but affected tickets stay open for a person`
+        : (ticketFlowLive ? `Last verified affected flow: ${ticketFlowLive}` : "Configured, with no successful affected-flow evidence in the last 90 days") },
     { key: "release", label: "Automatic release of eligible fixes", implemented: true, configured: releaseMissing.length === 0,
       missing: releaseMissing, tested: "unit: policy; e2e: eligible, sensitive, failed deploy",
       enabled: s.auto_release_enabled === true, live: recent(f.last_seen.fix_verified, 90) },
@@ -170,6 +205,15 @@ export async function readiness(caller: Caller) {
       owners_configured: !!(owners.jon?.length && owners.jeff?.length),
       worker: f.worker,
       open_alerts: f.open_alerts,
+      escalations: {
+        open: operational.open_escalations,
+        acknowledged: operational.acknowledged_escalations,
+      },
+      operation_claims: {
+        stale: operational.stale_effect_claims,
+        reconciliation_needed: operational.reconciliation_needed,
+        last_reconciled_at: operational.last_claim_reconciled_at,
+      },
     },
     capabilities: caps,
   };
