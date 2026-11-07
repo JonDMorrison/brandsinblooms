@@ -33,6 +33,7 @@ import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboa
 import { ImportedCustomerSummary } from "@/components/crm/customer-dashboard/ImportedCustomerSummary";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
 import { CustomerSegmentsCard } from "@/components/crm/customer-dashboard/CustomerSegmentsCard";
+import { CustomerTagsCard } from "@/components/crm/customer-dashboard/CustomerTagsCard";
 import { CustomerSnapshot } from "@/components/crm/customer-dashboard/CustomerSnapshot";
 import { EditCustomerDialog } from "@/components/crm/customer-dashboard/EditCustomerDialog";
 import { EngagementHealthOverview } from "@/components/crm/customer-dashboard/EngagementHealthOverview";
@@ -95,10 +96,10 @@ const TAB_OPTIONS: Array<{
   label: string;
   icon: React.ElementType;
 }> = [
-  { value: "overview", label: "Overview", icon: UserCircle2 },
+  { value: "overview", label: "Profile", icon: UserCircle2 },
   { value: "activity", label: "Activity", icon: Activity },
-  { value: "engagement", label: "Engagement", icon: HeartPulse },
-  { value: "purchase", label: "Purchase", icon: ShoppingBag },
+  { value: "engagement", label: "Marketing", icon: HeartPulse },
+  { value: "purchase", label: "Purchases", icon: ShoppingBag },
   { value: "insights", label: "Insights", icon: Sparkles },
 ];
 
@@ -663,17 +664,16 @@ const CustomerDashboardPage: React.FC = () => {
                     phone: displayCustomer.phone,
                   }}
                   onCustomerPatched={handleCustomerPatched}
-                  onOpenBatchEdit={
-                    canEditCustomer
-                      ? () => setIsEditDialogOpen(true)
-                      : undefined
-                  }
-                  canEdit={canEditCustomer}
+                  canEdit={false}
                 />
                 <CustomerConsentCard
                   customer={displayCustomer}
                   customerLabel={customerName}
                   onCustomerPatched={handleCustomerPatched}
+                  canManage={canEditCustomer}
+                />
+                <CustomerTagsCard
+                  customerId={displayCustomer.id}
                   canManage={canEditCustomer}
                 />
                 <CustomerProfileAttributesCard customer={displayCustomer} />

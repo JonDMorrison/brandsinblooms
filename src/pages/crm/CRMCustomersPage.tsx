@@ -21,6 +21,7 @@ import {
   Download,
   Eye,
   GitMerge,
+  Layers3,
   Mail,
   MoreVertical,
   Phone,
@@ -437,6 +438,15 @@ export const CRMCustomersPage: React.FC = () => {
             justifyContent={{ xs: "flex-start", md: "flex-end" }}
             sx={{ flexShrink: 0 }}
           >
+            <Button
+              variant="outlined"
+              color="neutral"
+              size="sm"
+              startDecorator={<Layers3 size={16} />}
+              onClick={() => navigate("/crm/segments")}
+            >
+              Manage segments
+            </Button>
             {canImportCustomers && tenant?.id ? (
               <Button variant="outlined" color="neutral" size="sm"
                 aria-expanded={showPOSPreferences} aria-controls="pos-email-preference-review"
