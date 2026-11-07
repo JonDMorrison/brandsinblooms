@@ -2247,6 +2247,64 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     `)[0].n), 1, "the email ledger retains the feature-decision lifecycle type");
   });
 
+  await t.step("Horsford handoff: duplicate dispatch, human stop, feature news and stale progress", async () => {
+    const report = await call("bloom-support-intake", "POST", "/report", { token: tok(U.gail), body: { subject: "Protected feature handoff", body: "Please add multiple recipients.", idempotency_key: "handoff-regression" } });
+    const ticketId = String(report.json.ticket_id);
+    await sql!`UPDATE bloom_support.jobs SET status='cancelled' WHERE ticket_id=${ticketId} AND kind='triage'`;
+    const routed = await api("POST", `/tickets/${ticketId}/feature`, tok(U.jon), { title: "Protected feature handoff" });
+    const featureId = String(routed.json.feature_request_id);
+    const opened = await api("POST", `/tickets/${ticketId}/investigate`, tok(U.jon), {});
+    const issueId = String(opened.json.engineering_issue_id);
+    // Opening and explicitly starting before the worker drains creates two jobs.
+    assert(!(await mcp(keys.jon, "start_repair", { issue_id: issueId })).isError);
+    const before = githubCalls.filter((c) => c.path.endsWith("/dispatches")).length;
+    const { investigate } = await import("./engineering.ts");
+    const { servicePrincipal } = await import("./runtime.ts");
+    const repairActor = await servicePrincipal("investigation");
+    const automationActor = await servicePrincipal("automation");
+    const concurrent = await Promise.allSettled([
+      investigate(repairActor, automationActor, issueId),
+      investigate(repairActor, automationActor, issueId),
+    ]);
+    assert(concurrent.some((result) => result.status === "fulfilled"));
+    for (const result of concurrent) if (result.status === "rejected") assertEquals(result.reason.code, "conflict");
+    await runWorkerUntilIdle(8);
+    assertEquals(githubCalls.filter((c) => c.path.endsWith("/dispatches")).length - before, 1, "duplicate investigation does not consume attempt two");
+    assertEquals((await api("PATCH", `/engineering/${issueId}`, keys.investigation, { status: "escalated", patch: { reproduction: { needs_human: true, reason: "Protected checkout scope" } } })).status, 200);
+    assertEquals((await api("POST", `/features/${featureId}/decision`, tok(U.jon), { decision: "accepted", note: "Accepted for implementation" })).status, 200);
+    await runWorkerUntilIdle(8);
+    let row = await ticketRow(ticketId);
+    assertEquals(row.status, "needs_owner", "feature news preserves engineering handoff");
+    assertExists(row.owner_id, "stopped work has a named accountable owner");
+    assertExists(row.next_action_due_at, "stopped work has a follow-up deadline");
+    assert(String(row.next_action).includes("review the stopped repair"));
+    assertNotEquals(row.waiting_reason, "customer", "no customer response was requested");
+    const stopCount = async () => Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${ticketId} AND body LIKE 'The automatic repair has stopped.%'`)[0].n);
+    assertEquals(await stopCount(), 1);
+    assert((await mcp(keys.jon, "start_repair", { issue_id: issueId })).isError, "human stop is rejected before any retry is queued");
+    await runWorkerUntilIdle(8);
+    assertEquals(githubCalls.filter((c) => c.path.endsWith("/dispatches")).length - before, 1, "human stop survives Start repair");
+    await sql!`INSERT INTO bloom_support.jobs(kind,ticket_id,engineering_issue_id,lane,payload,idempotency_key) VALUES ('answer',${ticketId},${issueId},${"account:"+ticketId},'{"mode":"engineering_progress","status":"escalated"}', 'duplicate-handoff-stop')`;
+    await runWorkerUntilIdle(4);
+    assertEquals(await stopCount(), 1, "same stop does not generate repeated messages");
+    await sql!`INSERT INTO bloom_support.jobs(kind,ticket_id,engineering_issue_id,lane,payload,idempotency_key) VALUES ('answer',${ticketId},${issueId},${"account:"+ticketId},'{"mode":"engineering_progress","status":"investigating"}', 'stale-handoff-progress')`;
+    const messageCount = Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${ticketId}`)[0].n);
+    await runWorkerUntilIdle(4);
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${ticketId}`)[0].n), messageCount, "stale progress cannot claim investigation restarted");
+    await api("POST", `/tickets/${ticketId}/automation`, tok(U.jon), { mode: "human", reason: "Rejected the retry; review another route" });
+    assert((await mcp(keys.jon, "start_repair", { issue_id: issueId })).isError, "human stop is rejected before any retry is queued");
+    await runWorkerUntilIdle(4);
+    await sql!`INSERT INTO bloom_support.jobs(kind,ticket_id,engineering_issue_id,lane,payload,idempotency_key) VALUES ('investigate',${ticketId},${issueId},${"engineering:"+issueId},'{"step":"investigate"}', 'stale-human-investigation')`;
+    await runWorkerUntilIdle(4);
+    row = await ticketRow(ticketId);
+    assertEquals(row.automation, "human");
+    const ownedState = { status: row.status, next_action: row.next_action, owner_id: row.owner_id };
+    await api("PATCH", `/engineering/${issueId}`, keys.investigation, { status: "escalated", note: "Late report after human takeover" });
+    row = await ticketRow(ticketId);
+    assertEquals({ status: row.status, next_action: row.next_action, owner_id: row.owner_id }, ownedState, "late engineering updates preserve human workflow");
+    assertEquals(githubCalls.filter((c) => c.path.endsWith("/dispatches")).length - before, 1, "human ownership blocks queued dispatch");
+  });
+
   await t.step("feature shipment subscriptions notify resolved and human-owned requesters once without taking over", async () => {
     const resolvedRequest = await call("bloom-support-intake", "POST", "/report", {
       token: tok(U.gail),
