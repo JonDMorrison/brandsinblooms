@@ -468,6 +468,8 @@ export const PRODUCT_REPOSITORIES: Record<Exclude<Product, "unknown" | "platform
 export const OPERATION_PERMISSIONS: Record<string, string> = {
   "client.lookup": "accounts.read_all",
   "site.read": "ops.site.read",
+  "site.catalogue.audit": "ops.site.read",
+  "site.catalogue.assign_categories": "ops.site.edit",
   "site.page.update": "ops.site.edit",
   "site.section.update": "ops.site.edit",
   "site.section.reorder": "ops.site.edit",
