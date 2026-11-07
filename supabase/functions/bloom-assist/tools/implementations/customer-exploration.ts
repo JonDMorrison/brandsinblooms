@@ -1,3 +1,4 @@
+import {readLiveCustomerIds} from '../../../_shared/customer-intelligence/bounded-search.ts';
 import {loadReportLedger,loadReportedEvidence} from '../../../_shared/customer-intelligence/load-reported-evidence.ts';
 import {loadCompanyAnalysisFacts} from '../../../_shared/customer-intelligence/load-analysis-facts.ts';
 import {loadProductSearchFacts,type VerifiedSnapshotStore} from '../../../_shared/customer-intelligence/load-product-search-facts.ts';
@@ -35,13 +36,10 @@ export async function loadAnalysisFacts(context: ToolExecutionContext, cutoff = 
   return loadCompanyAnalysisFacts(client,context.tenantId,cutoff);
 }
 
-/** Every live customer ID visible to this user, in one call. */
+/** Every live customer ID visible to this user, in bounded cursor pages. */
 export async function loadAnalysisPopulation(context: ToolExecutionContext, cutoff = new Date().toISOString()): Promise<string[]> {
   const client = await requireAnalysisAccess(context);
-  const {data,error} = await client.rpc('bloom_live_customer_ids',{p_tenant_id:context.tenantId,p_cutoff:cutoff});
-  if (error) throw new Error(error.message);
-  if (!Array.isArray(data) || data.some(id=>typeof id!=='string')) throw new Error('The customer list could not be read.');
-  return data as string[];
+  return readLiveCustomerIds(client,context.tenantId,cutoff);
 }
 /** Display names for the customers actually shown. */
 export async function loadCustomerNames(context: ToolExecutionContext, ids: string[]): Promise<Map<string,string>> {
