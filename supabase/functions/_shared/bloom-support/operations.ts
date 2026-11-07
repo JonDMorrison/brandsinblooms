@@ -24,10 +24,11 @@ import { campaignMutationImplementation } from "../../bloom-assist/tools/impleme
 import type { ToolExecutionContext } from "../../bloom-assist/tools/types.ts";
 
 export const READ_OPERATIONS = new Set([
-  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history", "site.preview_link",
+  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history", "site.preview_link", "site.catalogue.audit",
 ]);
 export const WRITE_OPERATIONS = new Set([
   "campaign.create_draft", "campaign.update_draft", "campaign.schedule", "campaign.unschedule",
+  "site.catalogue.assign_categories",
   "site.page.update", "site.create_draft", "site.publish", "event.update",
   "site.section.update", "site.section.reorder", "site.section.visibility",
   "site.theme.update", "site.theme.publish", "site.theme.discard",
@@ -182,6 +183,7 @@ export async function runRead(caller: Caller, req: OperationRequest): Promise<un
     case "campaign.read":
       result = await opsRpc("campaign_facts", { actor: caller.principalId, account_id: account.id, campaign_id: inputs.campaign_id });
       break;
+    case "site.catalogue.audit":
     case "site.read":
     case "site.pages":
     case "event.list":
@@ -264,6 +266,19 @@ export async function previewOperation(caller: Caller, req: OperationRequest): P
     throw new BloomError(403, "forbidden", `${permission} required`);
   }
   const inputs = { ...(req.inputs ?? {}) };
+  if (req.kind === "site.catalogue.assign_categories") {
+    const evidence = inputs.evidence as Record<string, unknown> | undefined;
+    if (!siteUuid(inputs.category_id) || !Array.isArray(inputs.product_ids)
+        || inputs.product_ids.length === 0 || inputs.product_ids.length > 500
+        || !inputs.product_ids.every(siteUuid)
+        || !evidence || typeof evidence !== "object" || Array.isArray(evidence)
+        || typeof evidence.source !== "string" || !evidence.source.trim()
+        || typeof evidence.reason !== "string" || !evidence.reason.trim()) {
+      throw new BloomError(400, "invalid", "category_id, 1–500 product_ids and evidence {source, reason} are required");
+    }
+    // A fingerprint is always supplied by the product preview, never the caller.
+    delete inputs.expected_fingerprint;
+  }
   const account = await loadAccount(caller, req.account_id);
   let preview: Record<string, unknown>;
   switch (req.kind) {
@@ -329,6 +344,18 @@ export async function previewOperation(caller: Caller, req: OperationRequest): P
       // The product returns the state the person reviewed (e.g. the page version). It is stored with the
       // operation and overrides any caller-supplied value, so execution refuses if that state changed.
       const guard = (r as { guard?: unknown } | null)?.guard;
+      if (req.kind === "site.catalogue.assign_categories") {
+        const fingerprint = guard && typeof guard === "object" && !Array.isArray(guard)
+          ? (guard as Record<string, unknown>).expected_fingerprint : null;
+        if (typeof fingerprint !== "string" || !fingerprint.trim()) {
+          throw new BloomError(502, "verification_failed", "BloomSites did not return a catalogue preview fingerprint");
+        }
+        // Freeze the linked site and reviewed state without accepting extra guard fields.
+        inputs.site_id = site_id;
+        inputs.expected_fingerprint = fingerprint;
+        preview = r;
+        break;
+      }
       if (guard && typeof guard === "object" && !Array.isArray(guard)) Object.assign(inputs, guard);
       preview = r;
     }
@@ -544,7 +571,7 @@ async function perform(
       progress.started = true;
       const r = await callProduct("cms", op.kind, { site_id, inputs, actor: actorFacts(caller), operation_id: op.id });
       progress.acknowledged = true;
-      return { result: r.result ?? r, verification: r.verification ?? null, undo: r.undo ?? null };
+      return { result: r.result ?? r, verification: r.verification ?? null, undo: op.kind === "site.catalogue.assign_categories" ? null : r.undo ?? null };
     }
   }
 }
