@@ -124,18 +124,16 @@ interface VerificationCheck {
   not_contains?: string;
 }
 
-/** Release-owned, fully validated production checks; agent reports cannot add URLs. */
-export function verificationChecksForPolicy(
+interface TicketFlowRule {
+  pathPrefix: string;
+  checks: VerificationCheck[];
+}
+
+function validatedVerificationChecks(
   releasePolicy: unknown,
   repository: string,
+  raw: unknown,
 ): VerificationCheck[] | null {
-  const policy = releasePolicy && typeof releasePolicy === "object"
-    ? releasePolicy as Record<string, unknown>
-    : {};
-  const maps = policy.verificationChecks;
-  const raw = maps && typeof maps === "object"
-    ? (maps as Record<string, unknown>)[repository]
-    : null;
   if (!Array.isArray(raw) || raw.length < 1 || raw.length > 10) return null;
   const checks: VerificationCheck[] = [];
   for (const item of raw) {
@@ -167,6 +165,98 @@ export function verificationChecksForPolicy(
     });
   }
   return checks;
+}
+
+/** Release-owned, fully validated production checks; agent reports cannot add URLs. */
+export function verificationChecksForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+): VerificationCheck[] | null {
+  const policy = releasePolicy && typeof releasePolicy === "object"
+    ? releasePolicy as Record<string, unknown>
+    : {};
+  const maps = policy.verificationChecks;
+  const raw = maps && typeof maps === "object"
+    ? (maps as Record<string, unknown>)[repository]
+    : null;
+  return validatedVerificationChecks(releasePolicy, repository, raw);
+}
+
+function ticketFlowRulesForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+): TicketFlowRule[] | null {
+  const policy = releasePolicy && typeof releasePolicy === "object"
+    ? releasePolicy as Record<string, unknown>
+    : {};
+  const maps = policy.ticketFlowChecks;
+  const raw = maps && typeof maps === "object"
+    ? (maps as Record<string, unknown>)[repository]
+    : null;
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 20) return null;
+  const rules: TicketFlowRule[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const rule = item as Record<string, unknown>;
+    const pathPrefix = typeof rule.path_prefix === "string" ? rule.path_prefix : "";
+    if (
+      !pathPrefix.startsWith("/") || pathPrefix.length > 500 ||
+      pathPrefix.includes("?") || pathPrefix.includes("#") ||
+      pathPrefix.includes("\\") || pathPrefix.includes("//") ||
+      /(?:^|\/)\.\.?(?:\/|$)/.test(pathPrefix) ||
+      /%(?:2e|2f|5c)/i.test(pathPrefix)
+    ) return null;
+    const canonicalPrefix = pathPrefix.length > 1
+      ? pathPrefix.replace(/\/+$/, "")
+      : pathPrefix;
+    if (seen.has(canonicalPrefix)) return null;
+    seen.add(canonicalPrefix);
+    const checks = validatedVerificationChecks(
+      releasePolicy,
+      repository,
+      rule.checks,
+    );
+    if (!checks) return null;
+    rules.push({ pathPrefix: canonicalPrefix, checks });
+  }
+  return rules.sort((a, b) => b.pathPrefix.length - a.pathPrefix.length);
+}
+
+/**
+ * Select trusted affected-flow checks from a ticket's captured page URL.
+ * The ticket contributes only an approved production origin and a canonical
+ * pathname; every URL and assertion executed still comes from release policy.
+ */
+export function ticketFlowChecksForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+  affectedPageUrl: unknown,
+): { path: string; checks: VerificationCheck[] } | null {
+  if (typeof affectedPageUrl !== "string" || hasExplicitPort(affectedPageUrl)) return null;
+  let affected: URL;
+  try {
+    affected = new URL(affectedPageUrl);
+  } catch {
+    return null;
+  }
+  if (
+    affected.protocol !== "https:" || affected.username || affected.password ||
+    affected.port || /%(?:2e|2f|5c)/i.test(affected.pathname)
+  ) return null;
+  const approvedPath = approvedVerificationUrl(
+    releasePolicy,
+    repository,
+    `${affected.origin}${affected.pathname}`,
+  );
+  if (!approvedPath) return null;
+  const rules = ticketFlowRulesForPolicy(releasePolicy, repository);
+  if (!rules) return null;
+  const path = new URL(approvedPath).pathname;
+  const rule = rules.find(({ pathPrefix }) =>
+    pathPrefix === "/" || path === pathPrefix || path.startsWith(`${pathPrefix}/`)
+  );
+  return rule ? { path, checks: rule.checks } : null;
 }
 
 function repoFor(issue: EngineeringIssue): { repository: string; base: string } | null {
@@ -732,6 +822,89 @@ async function runProductionChecks(
   return results;
 }
 
+interface TicketFlowVerification {
+  attempted: boolean;
+  passed: boolean;
+  ticketIds: string[];
+  checks: Array<Record<string, unknown>>;
+  flows: Array<Record<string, unknown>>;
+}
+
+async function runTicketFlowVerification(
+  release: Caller,
+  issue: EngineeringIssue,
+  releasePolicy: unknown,
+): Promise<TicketFlowVerification> {
+  const verifiedTicketIds: string[] = [];
+  const flatChecks: Array<Record<string, unknown>> = [];
+  const flows: Array<Record<string, unknown>> = [];
+  const cached = new Map<string, Array<Record<string, unknown>>>();
+  let attempted = false;
+  let passed = true;
+  let checkBudget = 20;
+
+  // One issue can link many duplicate reports. Bound remote work and reuse an
+  // identical trusted flow check across every ticket on the same affected path.
+  for (const linked of issue.tickets.slice(0, 50)) {
+    let ticket: { id?: string; kind?: string; context?: { page_url?: unknown } };
+    try {
+      ticket = await rpc<typeof ticket>("get_ticket", {
+        actor: release.principalId,
+        ticket_id: linked.id,
+      });
+    } catch {
+      flows.push({ ticket_id: linked.id, passed: false, skipped: "ticket_unavailable" });
+      continue;
+    }
+    if (!ticket || !["bug", "incident"].includes(String(ticket.kind))) {
+      flows.push({ ticket_id: linked.id, passed: false, skipped: "not_bug_or_incident" });
+      continue;
+    }
+    const selected = ticketFlowChecksForPolicy(
+      releasePolicy,
+      issue.repository!,
+      ticket.context?.page_url,
+    );
+    if (!selected) {
+      flows.push({ ticket_id: linked.id, passed: false, skipped: "no_trusted_flow_check" });
+      continue;
+    }
+    const cacheKey = JSON.stringify(selected.checks);
+    let flowResults = cached.get(cacheKey);
+    if (!flowResults) {
+      if (selected.checks.length > checkBudget) {
+        flows.push({ ticket_id: linked.id, path: selected.path, passed: false, skipped: "verification_budget" });
+        continue;
+      }
+      checkBudget -= selected.checks.length;
+      flowResults = await runProductionChecks(
+        releasePolicy,
+        issue.repository!,
+        selected.checks,
+      ) as Array<Record<string, unknown>>;
+      cached.set(cacheKey, flowResults);
+    }
+    attempted = true;
+    const flowPassed = flowResults.every((result) => result.pass === true);
+    passed = passed && flowPassed;
+    if (flowPassed) verifiedTicketIds.push(linked.id);
+    const ticketChecks = flowResults.map((result) => ({
+      ...result,
+      ticket_id: linked.id,
+      flow_path: selected.path,
+      check_scope: "ticket_flow",
+    }));
+    flatChecks.push(...ticketChecks);
+    flows.push({
+      ticket_id: linked.id,
+      path: selected.path,
+      passed: flowPassed,
+      checks: ticketChecks,
+    });
+  }
+  return { attempted, passed, ticketIds: verifiedTicketIds, checks: flatChecks, flows };
+}
+
 type RollbackConfirmation =
   | { state: "pending"; polls: number }
   | { state: "failed"; reason: string; polls: number }
@@ -816,10 +989,7 @@ async function confirmVercelRollback(
   return { state: "confirmed", polls, aliases: aliases.aliases.length };
 }
 
-/**
- * Production verification. Checks come from the reproduction record written
- * during investigation: [{url, expect_status, contains?, not_contains?}].
- */
+/** Production verification from release-owned smoke and affected-flow policy. */
 export async function verify(release: Caller, issueId: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
   if (issue.status !== "verifying") return { note: `status ${issue.status}` };
@@ -899,24 +1069,29 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     }
   }
   const results = await runProductionChecks(releasePolicy, issue.repository!, checks);
-  const passed = results.every((r) => r.pass);
+  const smokePassed = results.every((r) => r.pass);
+  const ticketFlow = smokePassed
+    ? await runTicketFlowVerification(release, issue, releasePolicy)
+    : { attempted: false, passed: true, ticketIds: [], checks: [], flows: [] };
+  const passed = smokePassed && ticketFlow.passed;
+  const verification = {
+    passed,
+    scope: ticketFlow.attempted ? "ticket_flow" : "release_smoke",
+    ticket_ids: ticketFlow.ticketIds,
+    checks: [
+      ...results.map((result) => ({ ...result, check_scope: "release_smoke" })),
+      ...ticketFlow.checks,
+    ],
+    release_smoke: { passed: smokePassed, checks: results },
+    ticket_flows: ticketFlow.flows,
+    at: new Date().toISOString(),
+  };
   if (passed) {
     await update(release, issue, "verified", {
-      verification: {
-        passed: true,
-        scope: "release_smoke",
-        checks: results,
-        at: new Date().toISOString(),
-      },
+      verification,
     });
     return { note: "verified" };
   }
-  const verification = {
-    passed: false,
-    scope: "release_smoke",
-    checks: results,
-    at: new Date().toISOString(),
-  };
   // Supported rollback: Vercel instant rollback to the deployment recorded before the merge.
   if (target && previous) {
     try {
