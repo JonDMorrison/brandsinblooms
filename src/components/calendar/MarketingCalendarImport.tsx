@@ -141,6 +141,7 @@ export function CalendarImportWorksheet({
       if (active.current) {
         setSource(workbook);
         setSheet(workbook.sheets[0]);
+        setFormat(/\.xlsx?$/i.test(workbook.name) ? workbook.epoch : "iso");
         setHeaders([]);
         setRawRows([]);
         setMapping({

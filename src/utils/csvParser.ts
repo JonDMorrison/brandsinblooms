@@ -1,3 +1,8 @@
+import {
+  CUSTOMER_IMPORT_SPREADSHEET_LIMITS,
+  assertSpreadsheetFileSize,
+} from "@/lib/security/spreadsheetLimits";
+
 /**
  * Parses one CSV record. Full-file imports use parseCSVRecords below so quoted
  * newlines can be handled correctly as part of the same record.
@@ -74,7 +79,17 @@ export const detectDelimiter = (text: string): string => {
   return detectedDelimiter;
 };
 
-function parseCSVRecords(text: string, delimiter: string): string[][] {
+export interface DelimitedTextLimits {
+  label: string;
+  maxRows: number;
+  maxColumns: number;
+}
+
+function parseCSVRecords(
+  text: string,
+  delimiter: string,
+  limits?: DelimitedTextLimits,
+): string[][] {
   const records: string[][] = [];
   let record: string[] = [];
   let field = "";
@@ -83,10 +98,22 @@ function parseCSVRecords(text: string, delimiter: string): string[][] {
   const finishField = () => {
     record.push(field.trim());
     field = "";
+    if (limits && record.length > limits.maxColumns) {
+      throw new Error(
+        `The ${limits.label} may contain at most ${limits.maxColumns} columns. Nothing was imported.`,
+      );
+    }
   };
   const finishRecord = () => {
     finishField();
-    if (record.some((value) => value.length > 0)) records.push(record);
+    if (record.some((value) => value.length > 0)) {
+      if (limits && records.length >= limits.maxRows) {
+        throw new Error(
+          `The ${limits.label} may contain at most ${limits.maxRows.toLocaleString()} rows. Nothing was imported.`,
+        );
+      }
+      records.push(record);
+    }
     record = [];
   };
 
@@ -121,6 +148,29 @@ function parseCSVRecords(text: string, delimiter: string): string[][] {
   if (inQuotes) throw new Error("CSV contains an unclosed quoted value.");
   if (field.length > 0 || record.length > 0) finishRecord();
   return records;
+}
+
+export interface ParsedDelimitedText {
+  delimiter: string;
+  records: string[][];
+}
+
+/**
+ * Parses a complete RFC 4180-style delimited document, including quoted
+ * delimiters, escaped quotes, and quoted newlines. Optional limits are
+ * enforced while records are built so over-budget input is never accepted
+ * partially.
+ */
+export function parseDelimitedText(
+  text: string,
+  limits?: DelimitedTextLimits,
+): ParsedDelimitedText {
+  const normalizedText = text.replace(/^\uFEFF/, "");
+  const delimiter = detectDelimiter(normalizedText);
+  return {
+    delimiter,
+    records: parseCSVRecords(normalizedText, delimiter, limits),
+  };
 }
 
 export const isValidEmail = (email: string): boolean => {
@@ -170,9 +220,12 @@ export interface ParsedCSVData {
  * customer data is sent to the server.
  */
 export const parseCSVFile = async (file: File): Promise<ParsedCSVData> => {
-  const text = (await file.text()).replace(/^\uFEFF/, "");
-  const delimiter = detectDelimiter(text);
-  const records = parseCSVRecords(text, delimiter);
+  assertSpreadsheetFileSize(file, CUSTOMER_IMPORT_SPREADSHEET_LIMITS);
+  const { delimiter, records } = parseDelimitedText(await file.text(), {
+    label: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.label,
+    maxRows: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.maxRows,
+    maxColumns: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.maxColumns,
+  });
 
   if (records.length === 0) throw new Error("CSV file is empty.");
   if (records.length === 1) {

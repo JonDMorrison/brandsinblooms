@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as XLSX from "npm:xlsx@0.18.5";
 import { normalizeIdealRow, stableIdealFingerprint } from "../_shared/customer-intelligence/ideal-pos.ts";
 import { inspectIdealSource, assessIdealRows } from "../_shared/customer-intelligence/ideal-source-review.ts";
 import { sameIdealSourceEvent } from "../_shared/customer-intelligence/source-event-replay.ts";
@@ -8,7 +7,7 @@ import { queueCompletedCouponIssuance } from "../_shared/customer-intelligence/q
 import { completedIdealImportReplay } from "../_shared/customer-intelligence/import-replay.ts";
 import { requireUsableIdealDuplicateOwner } from "../_shared/customer-intelligence/duplicate-import-owner.ts";
 import { finishIdealImportPostprocessing } from "../_shared/customer-intelligence/import-postprocessing.ts";
-import { collectIdealWorkbookRows } from "../_shared/customer-intelligence/ideal-workbook.ts";
+import { parseIdealWorkbookRows } from "../_shared/customer-intelligence/ideal-workbook-parser.ts";
 import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
@@ -16,13 +15,6 @@ const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status
 async function sha256(value:string|Uint8Array){const bytes=typeof value==="string"?new TextEncoder().encode(value):value;const exact=new ArrayBuffer(bytes.length);new Uint8Array(exact).set(bytes);return [...new Uint8Array(await crypto.subtle.digest("SHA-256",exact))].map(b=>b.toString(16).padStart(2,"0")).join("");}
 function parseDate(v:string|null){if(!v)return null;const d=new Date(v);return Number.isNaN(d.getTime())?null:d.toISOString();}
 function profile(name:string|null){const p=String(name??"").trim().split(/\s+/).filter(Boolean);return {first_name:p[0]??null,last_name:p.length>1?p.slice(1).join(" "):null};}
-function parseRows(bytes:Uint8Array,name:string) {
- const wb=/\.xlsx?$/i.test(name)
-   ? XLSX.read(bytes,{type:"array",cellDates:false})
-   : XLSX.read(new TextDecoder("utf-8",{fatal:true}).decode(bytes),{type:"string",FS:/\.tsv$|\.txt$/i.test(name)?"\t":","});
- return collectIdealWorkbookRows(wb,120000);
-}
-
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS")return new Response(null,{headers:cors});
  if(req.method!=="POST")return reply({error:"Method not allowed"},405);
@@ -39,7 +31,7 @@ Deno.serve(async(req)=>{
   const form=await req.formData();const file=form.get("file");if(!(file instanceof File))return reply({error:"Ideal report file is required"},400);
   if(file.size>25*1024*1024)return reply({error:"File exceeds 25 MB limit"},413);
   if(!/\.(xlsx|xls|csv|txt)$/i.test(file.name))return reply({error:"Use XLSX, XLS, CSV, or TXT Ideal exports"},400);
-  const bytes=new Uint8Array(await file.arrayBuffer()),sourceSha=await sha256(bytes),sourceRows=parseRows(bytes,file.name);
+  const bytes=new Uint8Array(await file.arrayBuffer()),sourceSha=await sha256(bytes),sourceRows=parseIdealWorkbookRows(bytes,file.name);
   if(sourceRows.length>120000)return reply({error:"This export exceeds the 120,000-row reviewed import limit; split at a documented report boundary, not by removing rows."},413);
   const inspection=inspectIdealSource(file.name,Object.keys(sourceRows[0]??{}),sourceRows);
   const reportType=inspection.review.sourceType,rows=inspection.normalizedRows;

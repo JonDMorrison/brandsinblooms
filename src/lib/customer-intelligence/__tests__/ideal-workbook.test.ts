@@ -22,4 +22,13 @@ describe('all-worksheet Ideal source extraction',()=>{
   expect(()=>collectIdealWorkbookRows(workbook([[['Code','Code'],['1','2']]]))).toThrow('Duplicate');
  });
  it('rejects values under a missing heading',()=>expect(()=>collectIdealWorkbookRows(workbook([[['Code',''],['1','unmapped']]]))).toThrow('no column heading'));
+ it('rejects formulas instead of trusting their cached values',()=>{const wb=workbook([[['Code'],['cached']]]);wb.Sheets.Sheet1.A2.f='1+1';expect(()=>collectIdealWorkbookRows(wb)).toThrow('Formula cells are not accepted');});
+ it('rejects parser truncation and malformed or reversed worksheet ranges',()=>{
+  const truncated=workbook([[['Code'],['1']]]);truncated.Sheets.Sheet1['!fullref']='A1:A3';expect(()=>collectIdealWorkbookRows(truncated)).toThrow('truncated');
+  const malformed=workbook([[['Code']]]);malformed.Sheets.Sheet1['!ref']='not-a-range';expect(()=>collectIdealWorkbookRows(malformed)).toThrow('range is invalid');
+  const reversed=workbook([[['Code']]]);reversed.Sheets.Sheet1['!ref']='A3:A1';expect(()=>collectIdealWorkbookRows(reversed)).toThrow('range exceeds');
+  const reversedColumns=workbook([[['Code']]]);reversedColumns.Sheets.Sheet1['!ref']='Z1:A1';expect(()=>collectIdealWorkbookRows(reversedColumns)).toThrow('range exceeds');
+  const nonStringFullRef=workbook([[['Code']]]);nonStringFullRef.Sheets.Sheet1['!fullref']=42;expect(()=>collectIdealWorkbookRows(nonStringFullRef)).toThrow('range is invalid');
+ });
+ it('rejects excessive worksheet counts',()=>expect(()=>collectIdealWorkbookRows(workbook(Array.from({length:31},()=>[["Code"]])))).toThrow('at most 30 worksheets'));
 });
