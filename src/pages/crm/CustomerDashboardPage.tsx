@@ -95,10 +95,10 @@ const TAB_OPTIONS: Array<{
   label: string;
   icon: React.ElementType;
 }> = [
-  { value: "overview", label: "Overview", icon: UserCircle2 },
+  { value: "overview", label: "Profile", icon: UserCircle2 },
   { value: "activity", label: "Activity", icon: Activity },
-  { value: "engagement", label: "Engagement", icon: HeartPulse },
-  { value: "purchase", label: "Purchase", icon: ShoppingBag },
+  { value: "engagement", label: "Marketing", icon: HeartPulse },
+  { value: "purchase", label: "Purchases", icon: ShoppingBag },
   { value: "insights", label: "Insights", icon: Sparkles },
 ];
 
@@ -663,12 +663,8 @@ const CustomerDashboardPage: React.FC = () => {
                     phone: displayCustomer.phone,
                   }}
                   onCustomerPatched={handleCustomerPatched}
-                  onOpenBatchEdit={
-                    canEditCustomer
-                      ? () => setIsEditDialogOpen(true)
-                      : undefined
-                  }
-                  canEdit={canEditCustomer}
+                  // The page header owns the one primary Edit action.
+                  canEdit={false}
                 />
                 <CustomerConsentCard
                   customer={displayCustomer}
