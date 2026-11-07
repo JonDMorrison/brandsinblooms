@@ -185,7 +185,11 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
   const submitSearch = (e: FormEvent) => { e.preventDefault(); setQuery(search.trim()); };
 
   return (
-    <Stack spacing={4} sx={{ maxWidth: 840, mx: "auto", width: "100%", py: { xs: 1, md: 3 }, pb: 6 }}>
+    <Stack
+      data-testid="bloom-support-today-work-column"
+      spacing={4}
+      sx={{ maxWidth: 840, ml: "auto", mr: 0, width: "100%", textAlign: "left", py: { xs: 1, md: 3 }, pb: 6 }}
+    >
       {dialog}
       <Stack spacing={1}>
         {loading ? <Skeleton variant="text" level="h2" width="60%" /> : <Typography level="h2" component="h1" sx={{ letterSpacing: "-0.02em" }}>{headline}</Typography>}

@@ -180,6 +180,26 @@ describe("simple support decision card", () => {
   });
 });
 
+it("right-aligns the Today work column while keeping its content left-aligned", () => {
+  api.engineering.mockResolvedValue([]);
+  api.features.mockResolvedValue([]);
+  api.pageTickets.mockResolvedValue({ items: [], total: 0 });
+  api.escalations.mockResolvedValue([]);
+  const me = { id: "admin-1", permissions: [] } as unknown as Parameters<typeof TodayView>[0]["me"];
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <TodayView me={me} onOpenTicket={() => undefined} onOpenDesk={() => undefined} />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByTestId("bloom-support-today-work-column")).toHaveStyle({
+    marginLeft: "auto",
+    marginRight: "0px",
+    maxWidth: "840px",
+    width: "100%",
+    textAlign: "left",
+  });
+});
+
 
 it("Something else saves the alternative through the real Today dialog and ticket actions", async () => {
   api.engineering.mockResolvedValue([]);
