@@ -32,6 +32,7 @@ import { useEmailDomains } from "@/hooks/useEmailDomains";
 import { usePreviousCampaignRecipientCount } from "@/hooks/usePreviousCampaignRecipientCount";
 import { useTenantEmailHealthDashboard } from "@/hooks/useTenantEmailHealthDashboard";
 import { useTenant } from "@/hooks/useTenant";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   isUuidLike,
   resolveAudienceRecipientIds,
@@ -1090,6 +1091,8 @@ export function CampaignSendConfirmation({
   placeholderWarnings?: string[];
 }) {
   const { tenant } = useTenant();
+  const { hasPermission } = useUserRole();
+  const canSendCampaign = hasPermission("campaigns.send");
   const {
     audienceCount,
     sendImmediately,
@@ -1341,6 +1344,7 @@ export function CampaignSendConfirmation({
   const requiresPlaceholderAck =
     placeholderWarnings.length > 0 && !placeholderAcknowledged;
   const primaryActionDisabled =
+    !canSendCampaign ||
     isBusy ||
     hasBuilderBlockers ||
     requiresPlaceholderAck ||
@@ -1353,6 +1357,10 @@ export function CampaignSendConfirmation({
   }, [isBusy, onClose]);
 
   const proceedWithSend = React.useCallback(async () => {
+    if (!canSendCampaign) {
+      setInlineError("You need campaign sending permission to send this campaign.");
+      return;
+    }
     setInlineError(null);
     setIsSubmitting(true);
     try {
@@ -1385,6 +1393,7 @@ export function CampaignSendConfirmation({
   }, [
     acknowledgedWarnings,
     activate,
+    canSendCampaign,
     includeMissingConsent,
     includeSoftSuppressions,
     onClose,
