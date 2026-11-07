@@ -57,6 +57,14 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261107011102_enterprise_bloom_support_reliability_v2.sql
 \ir ../../supabase/migrations/20261107014000_bloom_support_operational_truth.sql
 
+-- resolve_crm_user now proves that each CRM identity exists in Auth before it
+-- records the durable principal link. These are the isolated fixture users.
+INSERT INTO auth.users(id, email) VALUES
+  ('20000000-0000-4000-8000-0000000000a1', 'owner@greenleaf.test'),
+  ('20000000-0000-4000-8000-0000000000a2', 'coworker@greenleaf.test'),
+  ('20000000-0000-4000-8000-0000000000f1', 'mal@other.test')
+ON CONFLICT (id) DO NOTHING;
+
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   EXECUTE p_sql;
