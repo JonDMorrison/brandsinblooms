@@ -1,6 +1,7 @@
 import {beforeAll,afterAll,describe,it,expect,vi} from 'vitest';
 import {webcrypto} from 'node:crypto';
-import {exploreCustomerReportedSpending} from '../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration';
+import {exploreCustomerReportedSpending,loadReportedSpendingEvents} from '../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration';
+import type {PersistenceClient} from '../../../../supabase/functions/bloom-assist/types';
 import type {ToolExecutionContext} from '../../../../supabase/functions/bloom-assist/tools/types';
 beforeAll(()=>vi.stubGlobal('crypto',webcrypto));afterAll(()=>vi.unstubAllGlobals());
 function fixture(){
@@ -33,4 +34,30 @@ describe('Reported spending audiences',()=>{
   await expect(exploreCustomerReportedSpending({scope:'all_customers',minimum_spend:-1},context)).rejects.toThrow('threshold');
   await expect(exploreCustomerReportedSpending({scope:'all_customers',minimum_transactions:1.5},context)).rejects.toThrow('whole transaction');
  });
+});
+
+describe('reported spending for an existing customer group',()=>{
+  it('queries only the saved members in bounded batches and preserves every result',async()=>{
+    const ids=Array.from({length:413},(_,i)=>'customer-'+i);
+    const chunks:string[][]=[];
+    const from=(table:string)=>{
+      expect(table).toBe('customer_intelligence_source_events');
+      let requested:string[]|null=null;
+      const q={select:()=>q,eq:()=>q,lte:()=>q,
+        in:(_column:string,selected:string[])=>{requested=selected;chunks.push(selected);return q;},
+        order:()=>q,range:async()=>({data:(requested??[]).map(id=>({id,customer_id:id,amount:1,raw_data:{}})),error:null})};
+      return q;
+    };
+    const result=await loadReportedSpendingEvents({from} as unknown as PersistenceClient,
+      'tenant','report','2026-11-07T00:00:00Z',ids);
+    expect(result).toHaveLength(413);
+    expect(chunks.map(chunk=>chunk.length)).toEqual([100,100,100,100,13]);
+    expect(new Set(result.map(row=>row.customer_id)).size).toBe(413);
+  });
+  it('does not query all records when a saved group is empty',async()=>{
+    const from=vi.fn();
+    expect(await loadReportedSpendingEvents({from} as unknown as PersistenceClient,
+      'tenant','report','2026-11-07T00:00:00Z',[])).toEqual([]);
+    expect(from).not.toHaveBeenCalled();
+  });
 });
