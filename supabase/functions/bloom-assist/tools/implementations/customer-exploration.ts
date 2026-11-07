@@ -321,13 +321,21 @@ export const exploreCustomerReportedSpending: ToolImplementation = async (params
   if(!/^[A-Z]{3}$/.test(currency) || moneyMinorUnits(minimum)===null) throw new Error('Choose one currency and a spending threshold with at most two decimal places.');
   const label=String(params.label??'Reported spending audience').trim();
   if(!label || label.length>180) throw new Error('Name the audience in up to 180 characters.');
-  const {data:report,error:reportError} = await client.from('customer_intelligence_imports')
+  const year=params.calendar_year;
+  if(year!==undefined && (typeof year!=='number'||!Number.isInteger(year)||year<1900||year>2100))
+    throw new Error('Choose a valid calendar year between 1900 and 2100.');
+  let reportQuery=client.from('customer_intelligence_imports')
     .select('id,source_filename,source_period_start,source_period_end').eq('tenant_id',context.tenantId)
-    // The most recent period, not whichever file happened to be imported last.
-    .eq('report_type','customer_spending').eq('status','completed').lte('completed_at',cutoff)
+    .eq('report_type','customer_spending').eq('status','completed').lte('completed_at',cutoff);
+  // Never silently use a different year when the question names one.
+  if(typeof year==='number') reportQuery=reportQuery
+    .gte('source_period_start',`${year}-01-01`).lte('source_period_end',`${year}-12-31`);
+  const {data:report,error:reportError}=await reportQuery
     .order('source_period_end',{ascending:false,nullsFirst:false}).order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(reportError) throw new Error(reportError.message);
-  if(!report) throw new Error('There is no reconciled customer spending report available.');
+  if(!report) throw new Error(typeof year==='number'
+    ? `There is no reconciled customer spending report for ${year}.`
+    : 'There is no reconciled customer spending report available.');
   await assertConversation(context);
   const everyone = await loadAnalysisPopulation(context,cutoff), visible = new Set(everyone);
   const previous = scope==='all_customers'?null:await loadCustomerSet(context,scope==='saved_result'?String(params.set_id):undefined);
