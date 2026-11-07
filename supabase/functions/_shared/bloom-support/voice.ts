@@ -55,7 +55,7 @@ export function bloomEngineeringProgress(status: string): string | null {
       return "I couldn't reproduce the problem reliably, so I've handed the evidence to a person on our support team for a closer look.";
     case "failed":
     case "escalated":
-      return "The automatic repair stopped safely, and a person on our support team has been alerted. Nothing unverified was released.";
+      return "The automatic repair has stopped. This request is in our support team's review queue. The next step is for an admin to choose how to continue; you don't need to submit it again.";
     case "rolled_back":
       return "The live check did not pass, so the change was rolled back. A person on our support team has been alerted, and the request remains open.";
     default:

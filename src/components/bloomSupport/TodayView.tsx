@@ -13,9 +13,9 @@ import Link from "@mui/joy/Link";
 import { ArrowRight, Check, Search, X } from "lucide-react";
 import { formatDistanceToNow, isToday } from "date-fns";
 import { plainSummary } from "@/components/admin/readableFormat";
-import { humanizeNextAction } from "../../../supabase/functions/_shared/bloom-support/notes";
+import { useAskDialog } from "./useAskDialog";
 import { bloomSupport, STATUS_LABEL, WAITING_LABEL, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
-import { groupOpenEscalations, isBloomHandlingTicket, type TodayEscalation } from "./todayActions";
+import { groupOpenEscalations, isBloomHandlingTicket, recordReviewDecision, escalationExplanation, type DecisionChoice, type TodayEscalation } from "./todayActions";
 
 /**
  * Bloom Support "Today": one calm screen that answers "does anything need me?".
@@ -29,8 +29,8 @@ type Decision = {
   when: string;
   text: string;
   detail?: string;
-  primary?: { label: string; run: () => Promise<unknown>; done: string };
-  secondary?: { label: string; run: () => Promise<unknown>; done: string };
+  recommendation: string;
+  decide?: (choice: DecisionChoice, alternative?: string) => Promise<unknown>;
   open?: { label: string; onClick?: () => void; href?: string };
 };
 
@@ -55,14 +55,22 @@ function ListCard({ children }: { children: ReactNode }) {
 
 export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpenTicket: (id: string) => void; onOpenDesk: () => void }) {
   const qc = useQueryClient();
+  const { ask, dialog } = useAskDialog();
   const can = (p: string) => me.permissions.includes(p);
   const [acted, setActed] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
 
-  const engineering = useQuery({ queryKey: ["bloom-support", "engineering", "awaiting_approval"], queryFn: () => bloomSupport.engineering("awaiting_approval"), enabled: can("engineering.view"), refetchInterval: 30_000 });
+  const engineering = useQuery({ queryKey: ["bloom-support", "engineering", "awaiting_approval", "today"], queryFn: async () => {
+    const rows = await bloomSupport.engineering("awaiting_approval");
+    return rows.map((row) => {
+      const tickets = (row.tickets as Array<{ id: string; automation?: string }>) ?? [];
+      return { ...row, reviewOwned: tickets.length > 0 && tickets.every((ticket) => ticket.automation === "human") };
+    });
+  }, enabled: can("engineering.view"), refetchInterval: 30_000 });
   const features = useQuery({ queryKey: ["bloom-support", "features"], queryFn: () => bloomSupport.features(), enabled: can("features.view"), refetchInterval: 60_000 });
   const escalations = useQuery({ queryKey: ["bloom-support", "escalations"], queryFn: () => bloomSupport.escalations(), enabled: can("escalations.view"), refetchInterval: 30_000 });
   const needsOwner = useQuery({ queryKey: ["bloom-support", "today", "needs_owner"], queryFn: () => bloomSupport.pageTickets({ view: "needs_owner", sort: "priority", limit: "20" }), refetchInterval: 30_000 });
@@ -72,25 +80,31 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
 
   const act = useMutation({
     mutationFn: async ({ run }: { key: string; run: () => Promise<unknown>; done: string }) => run(),
-    onMutate: ({ key }) => { setBusy(key); setError(null); },
-    onSuccess: (_d, { key, done }) => { setActed((a) => ({ ...a, [key]: done })); qc.invalidateQueries({ queryKey: ["bloom-support"] }); },
+    onMutate: ({ key }) => { setBusy(key); setError(null); setOutcome(null); },
+    onSuccess: (_d, { key, done }) => { setOutcome(done); setActed((a) => ({ ...a, [key]: done })); qc.invalidateQueries({ queryKey: ["bloom-support"] }); },
     onError: (e: Error) => setError(e.message),
     onSettled: () => setBusy(null),
   });
 
+  const review = (ticketIds: string[], recommendation: string, items: TodayEscalation[] = []) =>
+    can("tickets.write") && (!items.length || can("escalations.resolve"))
+      ? (choice: DecisionChoice, alternative?: string) => recordReviewDecision(bloomSupport, { ticketIds, recommendation, escalations: items, ownerId: me.id }, choice, alternative)
+      : undefined;
   const decisions: Decision[] = [];
   for (const e of (engineering.data ?? []) as Row[]) {
+    if (e.reviewOwned === true) continue;
     const tickets = (e.tickets as Array<{ id: string; number: number; subject: string }>) ?? [];
     decisions.push({
       key: `eng:${e.id}`,
       who: tickets[0]?.subject ? `Fix for #${tickets[0].number}` : String(e.product ?? "Engineering"),
       when: ago(e.updated_at),
-      text: `Bloom has a tested fix ready: ${String(e.title)}. Approve it to go live?`,
+      text: "A proposed fix needs a person to review it before it can go live.",
+      recommendation: "Assign the review to me and keep the release on hold.",
       detail: [
         e.risk ? `Risk: ${plainSummary(e.risk)}` : null,
         tickets.length ? `Fixes ${tickets.length} ticket${tickets.length === 1 ? "" : "s"}: ${tickets.map((t) => `#${t.number}`).join(", ")}` : null,
       ].filter(Boolean).join(" · ") || undefined,
-      primary: can("engineering.approve") ? { label: "Approve fix", run: () => bloomSupport.updateEngineering(String(e.id), { status: "approved", note: "Approved from Today" }), done: "Fix approved. Bloom will release it." } : undefined,
+      decide: tickets.length ? review(tickets.map((t) => t.id), "Assign the review to me and keep the release on hold.", ((escalations.data ?? []) as TodayEscalation[]).filter((x) => x.engineering_issue_id === e.id)) : undefined,
       open: e.pr_url ? { label: "See the change", href: String(e.pr_url) } : tickets[0] ? { label: "Open ticket", onClick: () => onOpenTicket(tickets[0].id) } : undefined,
     });
   }
@@ -101,30 +115,31 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       key: `feat:${f.id}`,
       who: asked[0] ? String(asked[0]) + (asked.length > 1 ? ` and ${asked.length - 1} more` : "") : "Feature request",
       when: ago(f.created_at),
-      text: `Asked for a new feature: ${String(f.title)}. Should we build it?`,
-      primary: can("features.decide") ? { label: "Yes, plan it", run: () => bloomSupport.decideFeature(String(f.id), "planned"), done: "Planned. Bloom will let the client know." } : undefined,
-      secondary: can("features.decide") ? { label: "Not now", run: () => bloomSupport.decideFeature(String(f.id), "declined"), done: "Declined. Bloom will let the client know." } : undefined,
+      text: `A customer wants: ${String(f.title)}.`,
+      recommendation: "Add this request to the product plan. The customer will receive the decision; no delivery date is promised.",
+      decide: can("features.decide") && can("tickets.write") ? async (choice, alternative) => {
+        if (choice === "other") {
+          if (!evidence.length) throw new Error("Open the full desk to add guidance to this feature.");
+          await recordReviewDecision(bloomSupport, { ticketIds: evidence.map((x) => x.ticket_id), escalations: [], ownerId: me.id, recommendation: "Review the feature plan" }, choice, alternative);
+        } else await bloomSupport.decideFeature(String(f.id), choice === "do" ? "planned" : "declined", choice === "do" ? "Add to the product plan; release still requires review." : "Rejected from Today; do not propose the same plan again without new information.");
+      } : undefined,
       open: evidence[0] ? { label: "Open request", onClick: () => onOpenTicket(evidence[0].ticket_id) } : undefined,
     });
   }
   const escalationGroups = groupOpenEscalations((escalations.data ?? []) as TodayEscalation[]);
   for (const group of escalationGroups) {
     const x = group[0] as Row;
+    if (group.some((item) => decisions.some((d) => d.key === `eng:${item.engineering_issue_id}`) || (features.data ?? []).some((f) => f.id === item.feature_request_id && f.status === "awaiting_decision"))) continue;
     const t = x.ticket as { number: number; subject: string } | null;
     const groupedReasons = Array.from(new Set(group.map((item) => String(item.reason ?? "needs attention").replace(/_/g, " "))));
     decisions.push({
       key: `esc:${String(x.ticket_id ?? x.id)}`,
       who: t ? `#${t.number} ${t.subject}` : "Escalation",
       when: ago(x.created_at),
-      text: x.detail ? String(x.detail) : `Bloom needs a person: ${String(x.reason).replace(/_/g, " ")}.`,
-      detail: group.length > 1 ? `${group.length} open items grouped here: ${groupedReasons.join("; ")}.` : undefined,
-      primary: can("escalations.resolve") ? {
-        label: "I'll take it",
-        run: async () => {
-          for (const item of group) await bloomSupport.acknowledgeEscalation(String(item.id));
-        },
-        done: group.length > 1 ? "All open items for this request are yours. Bloom has stepped back." : "It's yours. Bloom has stepped back.",
-      } : undefined,
+      text: escalationExplanation(x.reason),
+      recommendation: "Assign this request to me for review and keep automatic work paused.",
+      detail: [x.detail, group.length > 1 ? `${group.length} related items: ${groupedReasons.join("; ")}` : null].filter(Boolean).join("\n"),
+      decide: review(x.ticket_id ? [String(x.ticket_id)] : [], "Assign this request to me for review and keep automatic work paused.", group),
       open: x.ticket_id ? { label: "Open ticket", onClick: () => onOpenTicket(String(x.ticket_id)) } : undefined,
     });
   }
@@ -136,7 +151,10 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       key: `tkt:${t.id}`,
       who: clientName(t),
       when: ago(t.updated_at),
-      text: t.next_action ? `${t.subject}. ${humanizeNextAction(t.next_action)}` : t.subject,
+      text: "This request needs a person to choose the next step.",
+      recommendation: "Assign this request to me for review and keep automatic work paused.",
+      detail: [t.subject, t.next_action].filter(Boolean).join("\n"),
+      decide: review([t.id], "Assign this request to me for review and keep automatic work paused."),
       open: { label: "Open conversation", onClick: () => onOpenTicket(t.id) },
     });
   }
@@ -159,7 +177,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
   const needCount = pending.length + moreNeedsOwner;
   const headline = decisionsUnknown && needCount === 0
     ? "Bloom couldn't check everything."
-    : needCount === 0 ? "All quiet. Bloom has it handled." : needCount === 1 ? "1 thing needs you." : `${needCount} things need you.`;
+    : needCount === 0 ? "No decisions waiting." : needCount === 1 ? "1 thing needs you." : `${needCount} things need you.`;
   const subline = decisionsUnknown && needCount === 0
     ? "Some decisions may be waiting. Open the full desk to check."
     : `Bloom is handling ${open.data?.next_cursor ? "at least " : ""}${handlingTotal} other request${handlingTotal === 1 ? "" : "s"}${decided.length ? `. You've made ${decided.length} decision${decided.length === 1 ? "" : "s"} here` : ""}.`;
@@ -168,11 +186,13 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
 
   return (
     <Stack spacing={4} sx={{ maxWidth: 840, mx: "auto", width: "100%", py: { xs: 1, md: 3 }, pb: 6 }}>
+      {dialog}
       <Stack spacing={1}>
         {loading ? <Skeleton variant="text" level="h2" width="60%" /> : <Typography level="h2" component="h1" sx={{ letterSpacing: "-0.02em" }}>{headline}</Typography>}
         {!loading && <Typography level="body-lg" textColor="text.secondary">{subline}</Typography>}
       </Stack>
 
+      {outcome && <Alert role="status" color="success" variant="soft">{outcome}</Alert>}
       {(error || loadError) && <Alert color="danger" variant="soft">{error ?? loadError?.message}</Alert>}
 
       <form onSubmit={submitSearch} role="search">
@@ -202,7 +222,15 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       {needCount > 0 && (
         <Stack spacing={1.5} component="section" aria-label="Needs you">
           <Typography sx={sectionLabel} textColor="warning.700">Needs you</Typography>
-          {pending.map((d) => <DecisionCard key={d.key} d={d} busy={busy === d.key} onRun={(a) => act.mutate({ key: d.key, ...a })} />)}
+          {pending.map((d) => <DecisionCard key={d.key} d={d} busy={busy !== null} onChoose={async (choice) => {
+            let alternative: string | undefined;
+            if (choice === "other") {
+              const result = await ask({ title: "Something else", description: "Your guidance stays with this request for review. It does not execute a change or send a customer reply.", fields: [{ name: "alternative", label: "What would you like instead?", kind: "textarea", required: true }], confirmLabel: "Save guidance" });
+              if (!result) return;
+              alternative = String(result.alternative).trim();
+            }
+            act.mutate({ key: d.key, run: () => d.decide!(choice, alternative), done: choice === "do" ? "Recommendation recorded." : choice === "reject" ? "Recommendation rejected." : "Your alternative is recorded for review." });
+          }} />)}
           {moreNeedsOwner > 0 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>{moreNeedsOwner} more need an admin. See them in the full desk</Link>}
         </Stack>
       )}
@@ -228,8 +256,8 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
         </ListCard>
       )}
 
-      <Stack spacing={1.5} component="section" aria-label="Bloom is handling">
-        <Typography sx={sectionLabel} textColor="text.tertiary">Bloom is handling</Typography>
+      <Stack spacing={1.5} component="section" aria-label="Open requests">
+        <Typography sx={sectionLabel} textColor="text.tertiary">Open requests</Typography>
         {loading ? <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "lg" }} /> : handling.length ? (
           <ListCard>{handling.slice(0, 8).map((t) => <TicketRow key={t.id} t={t} onOpen={onOpenTicket} />)}</ListCard>
         ) : <Typography level="body-md" textColor="text.secondary">No open requests right now.</Typography>}
@@ -257,8 +285,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
   );
 }
 
-function DecisionCard({ d, busy, onRun }: { d: Decision; busy: boolean; onRun: (a: { run: () => Promise<unknown>; done: string }) => void }) {
-  const [more, setMore] = useState(false);
+export function DecisionCard({ d, busy, onChoose }: { d: Decision; busy: boolean; onChoose: (choice: DecisionChoice) => void }) {
   return (
     <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5, bgcolor: "background.surface", boxShadow: "xs" }}>
       <Stack direction="row" spacing={1.75} alignItems="flex-start">
@@ -269,15 +296,20 @@ function DecisionCard({ d, busy, onRun }: { d: Decision; busy: boolean; onRun: (
             <Typography level="body-sm" textColor="text.tertiary">{d.when}</Typography>
           </Stack>
           <Typography level="body-md" sx={{ lineHeight: 1.55 }}>{d.text}</Typography>
-          {more && d.detail && <Sheet variant="soft" color="neutral" sx={{ mt: 1, p: 1.5, borderRadius: "md" }}><Typography level="body-sm">{d.detail}</Typography></Sheet>}
+          <Typography level="body-md"><b>Recommendation:</b> {d.recommendation}</Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 1.5 }}>
-            {d.primary && <Button size="lg" loading={busy} onClick={() => onRun(d.primary!)} sx={{ borderRadius: "xl" }}>{d.primary.label}</Button>}
-            {d.secondary && <Button size="lg" variant="outlined" color="neutral" disabled={busy} onClick={() => onRun(d.secondary!)} sx={{ borderRadius: "xl" }}>{d.secondary.label}</Button>}
-            {d.open && (d.open.href
-              ? <Button size="lg" variant={d.primary ? "plain" : "solid"} component="a" href={d.open.href} target="_blank" rel="noopener" sx={{ borderRadius: "xl" }}>{d.open.label}</Button>
-              : <Button size="lg" variant={d.primary ? "plain" : "solid"} onClick={d.open.onClick} sx={{ borderRadius: "xl" }}>{d.open.label}</Button>)}
-            {d.detail && <Button size="lg" variant="plain" color="neutral" onClick={() => setMore((m) => !m)}>{more ? "Hide details" : "What did Bloom do?"}</Button>}
+            <Button size="lg" disabled={busy || !d.decide} onClick={() => onChoose("do")}>Do It</Button>
+            <Button size="lg" variant="outlined" color="neutral" disabled={busy || !d.decide} onClick={() => onChoose("reject")}>Reject it</Button>
+            <Button size="lg" variant="plain" color="neutral" disabled={busy || !d.decide} onClick={() => onChoose("other")}>Something else</Button>
           </Stack>
+          {!d.decide && <Typography level="body-sm">An authorized admin needs to make this decision.</Typography>}
+          <Box component="details" sx={{ pt: 1.5 }}>
+            <Box component="summary" sx={{ cursor: "pointer" }}>Technical evidence and history</Box>
+            {d.detail && <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{d.detail}</Typography>}
+            {d.open && (d.open.href
+              ? <Link href={d.open.href} target="_blank" rel="noopener">{d.open.label}</Link>
+              : <Link component="button" onClick={d.open.onClick}>{d.open.label}</Link>)}
+          </Box>
         </Stack>
       </Stack>
     </Sheet>

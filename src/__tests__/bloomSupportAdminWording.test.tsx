@@ -18,6 +18,8 @@ const api = vi.hoisted(() => ({
   escalations: vi.fn(),
   staff: vi.fn(),
   settings: vi.fn(),
+  engineering: vi.fn(), features: vi.fn(), pageTickets: vi.fn(),
+  setAutomation: vi.fn(), resolveEscalation: vi.fn(), updateTicket: vi.fn(),
 }));
 vi.mock("@/lib/bloomSupport/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/bloomSupport/api")>();
@@ -149,4 +151,53 @@ describe("Bloom Support names roles, never people", () => {
     expect(code).toContain("'Needs admin #'");
     expect(code).toContain("next_action = 'Admin: '");
   });
+});
+
+import { fireEvent, waitFor } from "@testing-library/react";
+import { DecisionCard, TodayView } from "@/components/bloomSupport/TodayView";
+
+describe("simple support decision card", () => {
+  const decision = { key: "repair", who: "Request #1019", when: "today", text: "The automatic fix cannot continue safely.", recommendation: "Assign this request to me for review.", detail: "Private technical evidence", decide: async () => undefined };
+  it("offers exactly three primary choices and puts evidence behind a disclosure", () => {
+    const choose = vi.fn();
+    const { container, unmount } = render(<DecisionCard d={decision} busy={false} onChoose={choose} />);
+    const buttons = Array.from(container.querySelectorAll("button"));
+    expect(buttons.map((b) => b.textContent)).toEqual(["Do It", "Reject it", "Something else"]);
+    buttons.forEach((button) => fireEvent.click(button));
+    expect(choose.mock.calls).toEqual([["do"], ["reject"], ["other"]]);
+    const details = container.querySelector("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("Private technical evidence");
+    unmount();
+  });
+  it("prevents repeated submission while busy and unauthorized decisions", () => {
+    const choose = vi.fn();
+    const { container, rerender, unmount } = render(<DecisionCard d={decision} busy onChoose={choose} />);
+    for (const button of container.querySelectorAll("button")) expect(button).toBeDisabled();
+    rerender(<DecisionCard d={{ ...decision, decide: undefined }} busy={false} onChoose={choose} />);
+    for (const button of container.querySelectorAll("button")) expect(button).toBeDisabled();
+    unmount();
+  });
+});
+
+
+it("Something else saves the alternative through the real Today dialog and ticket actions", async () => {
+  api.engineering.mockResolvedValue([]);
+  api.features.mockResolvedValue([]);
+  api.pageTickets.mockResolvedValue({ items: [], total: 0 });
+  api.escalations.mockResolvedValue([{ id: "review-1", status: "open", ticket_id: "ticket-1", reason: "engineering_escalated", created_at: new Date().toISOString(), ticket: { number: 1019, subject: "Recipient checkout" } }]);
+  api.setAutomation.mockResolvedValue({});
+  api.resolveEscalation.mockResolvedValue({});
+  api.updateTicket.mockResolvedValue({});
+  const me = { id: "admin-1", permissions: ["engineering.view", "features.view", "escalations.view", "escalations.resolve", "tickets.write"] } as Parameters<typeof TodayView>[0]["me"];
+  const { unmount } = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TodayView me={me} onOpenTicket={() => undefined} onOpenDesk={() => undefined} /></QueryClientProvider>);
+  fireEvent.click(await screen.findByRole("button", { name: "Something else" }));
+  const field = await screen.findByRole("textbox", { name: "What would you like instead?" });
+  expect(screen.getByRole("button", { name: "Save guidance" })).toBeDisabled();
+  fireEvent.change(field, { target: { value: "Check the work already in review before starting again." } });
+  fireEvent.click(screen.getByRole("button", { name: "Save guidance" }));
+  await waitFor(() => expect(api.updateTicket).toHaveBeenCalledWith("ticket-1", expect.objectContaining({ owner_id: "admin-1", next_action: "Alternative requested: Check the work already in review before starting again." })));
+  expect(api.setAutomation).toHaveBeenCalledWith("ticket-1", "human", "Alternative requested: Check the work already in review before starting again.");
+  expect(await screen.findByRole("status")).toHaveTextContent("Your alternative is recorded for review.");
+  unmount();
 });
