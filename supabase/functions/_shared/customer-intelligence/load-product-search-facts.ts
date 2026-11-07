@@ -128,16 +128,32 @@ export async function loadProductSearchFacts(
       throw Error('Report facts do not match their completed source ledger.');
   };
 
-  const importIds = parents.map(parent => parent.id);
+  // Ignore source periods that cannot contain the requested date. Keep their
+  // verified customer evidence for the exact same unknown/non-buyer classification.
+  // This avoids scanning eight years of report lines for a single-year question.
+  const relevant = parents.filter(parent =>
+    !(rule.start_date && parent.source_period_end && parent.source_period_end < rule.start_date)
+    && !(rule.end_date && parent.source_period_start && parent.source_period_start > rule.end_date));
+  const outOfPeriod = parents.filter(parent => !relevant.includes(parent));
+  const importIds = relevant.map(parent => parent.id);
   // Establish the verified generation BEFORE any paged candidate reads.
   const searchable = await verifyImports();
-  const [dated, pageResult] = await Promise.all([
+  const [dated, pageResult, outOfPeriodScope] = await Promise.all([
     loadEligibleDatedFacts(client, tenantId, cutoff),
     readProductSearchPages(client,tenantId,cutoff,importIds,terms,row=>{
       const parent=parents.find(p=>p.id===row.import_id);
       checkRowAgainstLedger(row,parent,Boolean(parent && legacy.has(parent.id)));
     }),
+    outOfPeriod.length
+      ? client.rpc('bloom_summary_evidence_scope',{
+          p_tenant_id:tenantId,p_imports:outOfPeriod.map(parent=>({id:parent.id})),p_cutoff:cutoff,
+        })
+      : Promise.resolve({data:{customer_ids:[],invalid_rows:0},error:null}),
   ]);
+  const outside = outOfPeriodScope.data as {customer_ids?:unknown;invalid_rows?:unknown}|null;
+  if(outOfPeriodScope.error || !outside || outside.invalid_rows!==0
+    || !Array.isArray(outside.customer_ids) || outside.customer_ids.some(id=>typeof id!=='string'))
+    throw Error(outOfPeriodScope.error?.message ?? 'Out-of-period report evidence could not be verified.');
   for(const parent of parents)if(await store.fingerprint(parent.id)!==generations.get(parent.id))
     throw Error('The report changed during the search. No partial audience was returned.');
   if(JSON.stringify(await loadReportLedger(client,tenantId,cutoff))!==JSON.stringify(ledger))
@@ -151,7 +167,7 @@ export async function loadProductSearchFacts(
     checkRowAgainstLedger(row, parent, Boolean(parent && legacy.has(parent.id)));
   }
 
-  const evidenceCustomerIds = new Set<string>(scope.customer_ids.filter((id): id is string => typeof id === 'string'));
+  const evidenceCustomerIds = new Set<string>([...scope.customer_ids,...(outside.customer_ids as string[])].filter((id): id is string => typeof id === 'string'));
   for (const fact of dated) if (fact.customer_id) evidenceCustomerIds.add(fact.customer_id);
   return {facts: [...dated, ...periodSummaryFacts(candidates, tenantId)], evidenceCustomerIds};
 }

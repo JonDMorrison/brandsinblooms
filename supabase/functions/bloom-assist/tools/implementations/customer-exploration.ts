@@ -288,6 +288,27 @@ export const saveCustomerSetSegment: ToolImplementation = async (params,context)
   return {success:true,error:null,data:data as JsonValue,count:1,message:'Saved the exact customer group as a static segment. No messages were sent.',block_type:'data_card',confirmation_required:false,confirmation_details:null};
 };
 
+type SpendingEvent = {id:string;customer_id:string|null;amount:number|string|null;raw_data:unknown};
+/** Read only the saved audience when it is small enough to use indexed customer IDs.
+ * This avoids loading a company's entire imported spending report to rank 413 people. */
+export async function loadReportedSpendingEvents(
+  client:PersistenceClient,tenantId:string,importId:string,cutoff:string,customerIds?:string[],
+):Promise<SpendingEvent[]> {
+  const query=()=>client.from('customer_intelligence_source_events')
+    .select('id,customer_id,amount,raw_data').eq('tenant_id',tenantId).eq('import_id',importId)
+    .eq('event_type','customer_spending').lte('created_at',cutoff);
+  if(customerIds && customerIds.length<=1000){
+    const events:SpendingEvent[]=[];
+    for(let i=0;i<customerIds.length;i+=100){
+      const ids=customerIds.slice(i,i+100);
+      events.push(...await readAllPages<SpendingEvent>((from,to)=>
+        query().in('customer_id',ids).order('id').range(from,to)));
+    }
+    return events;
+  }
+  return readAllPages<SpendingEvent>((from,to)=>query().order('id').range(from,to));
+}
+
 /** Select an exact audience from a reported spending period without relabelling it lifetime value. */
 export const exploreCustomerReportedSpending: ToolImplementation = async (params,context) => {
   const scope = requireScope(params), cutoff = new Date().toISOString(), client = await requireAnalysisAccess(context);
@@ -300,21 +321,28 @@ export const exploreCustomerReportedSpending: ToolImplementation = async (params
   if(!/^[A-Z]{3}$/.test(currency) || moneyMinorUnits(minimum)===null) throw new Error('Choose one currency and a spending threshold with at most two decimal places.');
   const label=String(params.label??'Reported spending audience').trim();
   if(!label || label.length>180) throw new Error('Name the audience in up to 180 characters.');
-  const {data:report,error:reportError} = await client.from('customer_intelligence_imports')
+  const year=params.calendar_year;
+  if(year!==undefined && (typeof year!=='number'||!Number.isInteger(year)||year<1900||year>2100))
+    throw new Error('Choose a valid calendar year between 1900 and 2100.');
+  let reportQuery=client.from('customer_intelligence_imports')
     .select('id,source_filename,source_period_start,source_period_end').eq('tenant_id',context.tenantId)
-    // The most recent period, not whichever file happened to be imported last.
-    .eq('report_type','customer_spending').eq('status','completed').lte('completed_at',cutoff)
+    .eq('report_type','customer_spending').eq('status','completed').lte('completed_at',cutoff);
+  // Never silently use a different year when the question names one.
+  if(typeof year==='number') reportQuery=reportQuery
+    .gte('source_period_start',`${year}-01-01`).lte('source_period_end',`${year}-12-31`);
+  const {data:report,error:reportError}=await reportQuery
     .order('source_period_end',{ascending:false,nullsFirst:false}).order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(reportError) throw new Error(reportError.message);
-  if(!report) throw new Error('There is no reconciled customer spending report available.');
+  if(!report) throw new Error(typeof year==='number'
+    ? `There is no reconciled customer spending report for ${year}.`
+    : 'There is no reconciled customer spending report available.');
   await assertConversation(context);
   const everyone = await loadAnalysisPopulation(context,cutoff), visible = new Set(everyone);
   const previous = scope==='all_customers'?null:await loadCustomerSet(context,scope==='saved_result'?String(params.set_id):undefined);
   if(previous) publicSetFrom(previous,visible,new Map());
-  const events = await readAllPages<{id:string;customer_id:string|null;amount:number|string|null;raw_data:unknown}>((from,to)=>client.from('customer_intelligence_source_events')
-    .select('id,customer_id,amount,raw_data').eq('tenant_id',context.tenantId).eq('import_id',report.id)
-    .eq('event_type','customer_spending').lte('created_at',cutoff).order('id').range(from,to));
   const population=previous?.included_ids??everyone, allowed=new Set(population);
+  const events=await loadReportedSpendingEvents(client,context.tenantId,report.id,cutoff,
+    previous?.included_ids);
   const values=new Map<string,{amount:number;transactions:number;id:string}>();
   for(const event of events){
     if(!event.customer_id||!allowed.has(event.customer_id)) continue;

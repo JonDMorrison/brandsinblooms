@@ -222,3 +222,34 @@ describe('a cold first search is retried once', () => {
     expect(slow).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('one-year queries exclude irrelevant report pages without losing historical evidence',()=>{
+  it('keeps historical customers classified as having evidence, and never scans old report lines',async()=>{
+    const old={...report,id:'r2024',source_period_start:'2024-01-01',source_period_end:'2024-12-31'};
+    const oldEvent={...event('older','previous-year', [['H1','Herb','Herbs',1,10,1]]),
+      import_id:'r2024',raw_data:{kind:'purchase_summary',currency:'CAD',period_start:'2024-01-01',
+      period_end:'2024-12-31',source_sha256:'sha',items:[['H1','Herb','Herbs',1,10,1]]}};
+    const rpc=vi.fn(async(name:string,args:Record<string,unknown>)=>{
+      if(name==='bloom_summary_evidence_scope'){
+        expect(args.p_imports).toEqual([{id:'r2024'}]);
+        return {data:{customer_ids:['previous-year'],rows:1,invalid_rows:0},error:null};
+      }
+      if(name!=='bloom_summary_search_page'||args.p_import_id!=='r2025')throw Error('Unexpected report page');
+      return {data:{scanned:4,last_id:'e4',customer_ids:['buyer','other','blank','both'],
+        candidates:serverCandidates(['sea soil']),provenance:events},error:null};
+    });
+    const from=(table:string)=>{
+      const rows=table==='customer_intelligence_imports'?[report,old]:
+        table==='customer_intelligence_source_events'?[...events,oldEvent]:[];
+      const q={select:()=>q,eq:()=>q,lte:()=>q,is:()=>q,neq:()=>q,order:()=>q,range:async()=>({data:rows,error:null})};
+      return q;
+    };
+    const client={rpc,from} as unknown as PersistenceClient;
+    const rule:PurchaseRule={mode:'purchased',product:'sea soil',start_date:'2025-01-01',end_date:'2025-12-31'};
+    const result=await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',rule,store);
+    expect(result!.evidenceCustomerIds.has('previous-year')).toBe(true);
+    expect(rpc.mock.calls.filter(([name])=>name==='bloom_summary_search_page')).toHaveLength(1);
+    expect(rpc).not.toHaveBeenCalledWith('bloom_summary_search_page',
+      expect.objectContaining({p_import_id:'r2024'}));
+  });
+});
