@@ -93,7 +93,7 @@ const TOOLS: Tool[] = [
   { name: "ticket_timers", readOnly: true, description: "Time accounting for a ticket: age, our clock (business and wall), customer/third-party waits, time per status, first response and resolution times.", inputSchema: S({ ticket_id: id() }, ["ticket_id"]), run: (c, a) => actions.timers(c, String(a.ticket_id)) },
   { name: "product_operations", readOnly: true, description: "Catalogue of product operations, their permissions, and whether BloomSites/POS operations are connected.", inputSchema: S({}), run: () => actions.operationsCatalog() },
   {
-    name: "read_product", readOnly: true, description: "Run a read-only product query for a client: client.lookup, campaign.list, campaign.read, site.read, site.pages, event.list, pos.products, pos.inventory, pos.sales_summary, pos.price_history (variant_id), site.preview_link (content_id), site.catalogue.audit (staff only; optional category_id, cursor, limit; follow pagination to inspect assignments and category scope).",
+    name: "read_product", readOnly: true, description: "Run a read-only product query for a client: client.lookup, campaign.list, campaign.read, site.read, site.pages, event.list, pos.products, pos.inventory, pos.sales_summary, pos.price_history (variant_id), site.preview_link (content_id), site.catalogue.audit (staff only; optional category_id, cursor, category_cursor, limit; follow next_cursor for products and next_category_cursor for categories to inspect assignments and category scope).",
     inputSchema: S({ kind: str("Read operation"), account_id: id(), ticket_id: id(), inputs: { type: "object", description: "Operation inputs, e.g. {campaign_id} or {site_id}" } }, ["kind", "account_id"]),
     run: (c, a) => actions.readOperation(c, a),
   },
