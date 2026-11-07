@@ -413,3 +413,102 @@ BEGIN
 END;
 $function$
 ;
+
+
+-- Existing tag policies are tenant-scoped but do not distinguish marketing
+-- and creative roles. Restrictive policies preserve existing roles while
+-- limiting the new specialist roles to the intended List Manager.
+CREATE POLICY crm_tags_specialist_insert_guard ON public.crm_tags
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role IN ('designer', 'list_manager', 'sender')
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role = 'list_manager'
+        AND app_user.tenant_id = crm_tags.tenant_id
+    )
+  );
+
+CREATE POLICY crm_tags_specialist_update_guard ON public.crm_tags
+  AS RESTRICTIVE FOR UPDATE TO authenticated
+  USING (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role IN ('designer', 'list_manager', 'sender')
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role = 'list_manager'
+        AND app_user.tenant_id = crm_tags.tenant_id
+    )
+  )
+  WITH CHECK (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role IN ('designer', 'list_manager', 'sender')
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role = 'list_manager'
+        AND app_user.tenant_id = crm_tags.tenant_id
+    )
+  );
+
+CREATE POLICY customer_tags_specialist_insert_guard ON public.customer_tags
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role IN ('designer', 'list_manager', 'sender')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.users app_user
+      JOIN public.crm_customers contact ON contact.tenant_id = app_user.tenant_id
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role = 'list_manager'
+        AND contact.id = customer_tags.contact_id
+    )
+  );
+
+CREATE POLICY customer_tags_specialist_delete_guard ON public.customer_tags
+  AS RESTRICTIVE FOR DELETE TO authenticated
+  USING (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role IN ('designer', 'list_manager', 'sender')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.users app_user
+      JOIN public.crm_customers contact ON contact.tenant_id = app_user.tenant_id
+      WHERE app_user.id = (SELECT auth.uid())
+        AND app_user.role = 'list_manager'
+        AND contact.id = customer_tags.contact_id
+    )
+  );
+
+-- A tag can never be attached to a contact belonging to another tenant,
+-- even if the caller knows both UUIDs.
+CREATE POLICY customer_tags_matching_tenant_guard ON public.customer_tags
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.crm_customers contact
+      JOIN public.crm_tags tag ON tag.tenant_id = contact.tenant_id
+      WHERE contact.id = customer_tags.contact_id
+        AND tag.id = customer_tags.tag_id
+    )
+  );
