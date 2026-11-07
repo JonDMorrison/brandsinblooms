@@ -496,9 +496,12 @@ export function ReadinessPanel() {
       <Alert color={r.summary.continuous_automation === "running" ? "success" : "warning"} variant="soft">
         Bloom's background work is <strong>{r.summary.continuous_automation === "running" ? "running" : labelFor(String(r.summary.continuous_automation)).toLowerCase()}</strong>. It runs on its own schedule; ChatGPT connections are only for people asking Bloom things.
       </Alert>
+      <Typography level="body-xs" textColor="text.tertiary">
+        {r.live_evidence ?? "Last observed success is real production evidence, not a deployment or health check. No recent evidence means no successful use was observed within that capability's window."}
+      </Typography>
       <Sheet variant="outlined" sx={{ borderRadius: "md", overflow: "auto" }}>
         <Table size="sm">
-          <thead><tr><th style={{ width: "26%" }}>What Bloom can do</th><th>Built</th><th>Set up</th><th>Switched on</th><th>Last seen working</th><th style={{ width: "28%" }}>Checked / still needed</th></tr></thead>
+          <thead><tr><th style={{ width: "26%" }}>What Bloom can do</th><th>Built</th><th>Set up</th><th>Switched on</th><th>Last observed success</th><th style={{ width: "28%" }}>Checked / still needed</th></tr></thead>
           <tbody>
             {r.capabilities.map((c) => (
               <tr key={c.key}>
@@ -506,7 +509,7 @@ export function ReadinessPanel() {
                 <td>{tick(c.implemented)}</td>
                 <td><Chip size="sm" variant="soft" color={c.configured ? "success" : "warning"}>{tick(c.configured)}</Chip></td>
                 <td>{tick(c.enabled)}</td>
-                <td><Typography level="body-xs">{c.live ? ago(c.live) : "not seen"}</Typography></td>
+                <td><Typography level="body-xs">{c.live ? ago(c.live) : "No recent evidence"}</Typography></td>
                 <td><Typography level="body-xs">{c.tested}</Typography>{c.missing.length ? <Typography level="body-xs" color="warning">Missing: {c.missing.join(", ")}</Typography> : null}</td>
               </tr>
             ))}

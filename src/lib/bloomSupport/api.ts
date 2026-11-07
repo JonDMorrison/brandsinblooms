@@ -441,7 +441,7 @@ export const bloomSupport = {
   updateEngineering: (id: string, update: Record<string, unknown>) => send("PATCH", `/engineering/${id}`, update),
   features: () => api<Array<Record<string, unknown>>>("/features"),
   decideFeature: (id: string, decision: string, note?: string) => send("POST", `/features/${id}/decision`, { decision, note }),
-  readiness: () => api<{ generated_at: string; summary: { continuous_automation: string; owners_configured: boolean; worker: Record<string, unknown>; open_alerts: Array<Record<string, unknown>>; staff: Array<{ name: string | null; email: string | null; role: string }> }; capabilities: Array<{ key: string; label: string; implemented: boolean; configured: boolean; missing: string[]; tested: string; enabled: boolean | null; live: string | null; note?: string }> }>("/readiness"),
+  readiness: () => api<{ generated_at: string; live_evidence?: string; summary: { continuous_automation: string; owners_configured: boolean; worker: Record<string, unknown>; open_alerts: Array<Record<string, unknown>>; staff: Array<{ name: string | null; email: string | null; role: string }> }; capabilities: Array<{ key: string; label: string; implemented: boolean; configured: boolean; missing: string[]; tested: string; enabled: boolean | null; live: string | null; note?: string }> }>("/readiness"),
   acknowledgeEscalation: (id: string, note?: string) => send("POST", `/escalations/${id}/acknowledge`, { note }),
   escalations: (all = false) => api<Array<Record<string, unknown>>>(`/escalations${all ? "?all=true" : ""}`),
   resolveEscalation: (id: string, decision: string) => send("POST", `/escalations/${id}/resolve`, { decision }),
