@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
+const pnpmLock = fs.readFileSync(path.join(root, "pnpm-lock.yaml"), "utf8");
 const workflows = fs.readdirSync(path.join(root, ".github/workflows"))
   .filter((name) => name.endsWith(".yml"))
   .map((name) => ({
@@ -15,9 +16,10 @@ const repair = workflows.find(({ name }) => name === "bloom-repair.yml")!.body;
 
 describe("production and CI runtime parity", () => {
   it("pins the package contract to Vercel's Node 24 runtime", () => {
-    expect(packageJson.packageManager).toBe("npm@11.6.2");
-    expect(packageJson.engines).toEqual({ node: "24.x", npm: "11.x" });
+    expect(packageJson.packageManager).toBe("pnpm@10.23.0");
+    expect(packageJson.engines).toEqual({ node: "24.x" });
     expect(lock.packages[""].engines).toEqual(packageJson.engines);
+    expect(pnpmLock).toMatch(/^lockfileVersion: '9\.0'$/m);
     expect(fs.readFileSync(path.join(root, ".nvmrc"), "utf8").trim()).toBe("24");
   });
 
