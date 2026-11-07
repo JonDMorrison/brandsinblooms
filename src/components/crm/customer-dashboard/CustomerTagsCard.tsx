@@ -49,8 +49,17 @@ export function CustomerTagsCard({ customerId, canManage }: CustomerTagsCardProp
   const assigned = tags.filter((tag) => assignedIds.has(tag.id));
 
   const assignTag = async (tagId: string) => {
-    // Only current-tenant definitions may be assigned to this contact.
-    if (!canManage || !tenant?.id || !tags.some((tag) => tag.id === tagId)) return;
+    // Re-read the tag in the active tenant. The local tag list can be stale
+    // immediately after creating a new definition.
+    if (!canManage || !tenant?.id || !tagId) return;
+    const { data: matchingTag, error: lookupError } = await supabase
+      .from("crm_tags")
+      .select("id")
+      .eq("id", tagId)
+      .eq("tenant_id", tenant.id)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!matchingTag) throw new Error("Tag is not available in this company.");
     const { error } = await supabase
       .from("customer_tags")
       .upsert(
