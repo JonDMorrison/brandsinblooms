@@ -438,12 +438,12 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   for (const [k, v] of Object.entries(ENV)) Deno.env.set(k, v);
   for (const f of ["bloom-support-api", "bloom-support-intake", "bloom-support-email", "bloom-support-worker", "bloom-support-mcp"]) await load(f);
 
-  const U = { jon: "a0000000-0000-4000-8000-000000000001", jeff: "a0000000-0000-4000-8000-000000000002", sam: "a0000000-0000-4000-8000-000000000003", gail: "a0000000-0000-4000-8000-000000000004", rosa: "a0000000-0000-4000-8000-000000000005" };
+  const U = { jon: "a0000000-0000-4000-8000-000000000001", jonAlias: "a0000000-0000-4000-8000-000000000006", jeff: "a0000000-0000-4000-8000-000000000002", sam: "a0000000-0000-4000-8000-000000000003", gail: "a0000000-0000-4000-8000-000000000004", rosa: "a0000000-0000-4000-8000-000000000005" };
   const T = { greenleaf: "b0000000-0000-4000-8000-000000000001", rosehill: "b0000000-0000-4000-8000-000000000002" };
-  await sql!`INSERT INTO auth.users(id, email) VALUES (${U.jon}, 'jon@bloom.test'), (${U.jeff}, 'jeff@bloom.test'), (${U.sam}, 'sam@bloom.test'), (${U.gail}, 'gail@greenleaf.test'), (${U.rosa}, 'rosa@rosehill.test')`;
+  await sql!`INSERT INTO auth.users(id, email) VALUES (${U.jon}, 'jon@bloom.test'), (${U.jonAlias}, 'jon+alias@bloom.test'), (${U.jeff}, 'jeff@bloom.test'), (${U.sam}, 'sam@bloom.test'), (${U.gail}, 'gail@greenleaf.test'), (${U.rosa}, 'rosa@rosehill.test')`;
   await sql!`INSERT INTO public.app_admin_emails(email) VALUES ('jon@bloom.test')`;
   await sql!`INSERT INTO public.tenants(id, name) VALUES (${T.greenleaf}, 'Greenleaf Garden Centre'), (${T.rosehill}, 'Rose Hill Nursery')`;
-  await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES (${U.gail}, ${T.greenleaf}, 'Gail Green', 'owner'), (${U.rosa}, ${T.rosehill}, 'Rosa Hill', 'owner'), (${U.jon}, NULL, 'Jon', NULL), (${U.jeff}, NULL, 'Jeff', NULL), (${U.sam}, NULL, 'Sam Support', NULL)`;
+  await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES (${U.gail}, ${T.greenleaf}, 'Gail Green', 'owner'), (${U.rosa}, ${T.rosehill}, 'Rosa Hill', 'owner'), (${U.jon}, NULL, 'Jon', NULL), (${U.jonAlias}, NULL, 'Jon Morrison', NULL), (${U.jeff}, NULL, 'Jeff', NULL), (${U.sam}, NULL, 'Sam Support', NULL)`;
   await sql!`INSERT INTO public.crm_segments(id, tenant_id, name) VALUES ('d0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Rose lovers')`;
   await sql!`INSERT INTO public.crm_campaigns(id, tenant_id, name, status, subject_line, content, segment_id, projected_recipient_count) VALUES ('c0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Spring sale', 'draft', 'Spring is here', '<p>Roses 20% off</p>', 'd0000000-0000-4000-8000-000000000001', 120)`;
   const tok = (u: string) => `jwt-${u}`;
@@ -452,6 +452,19 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   await t.step("roles: Jon bootstraps as administrator and assigns Jeff and Support", async () => {
     const me = await api("GET", "/me", tok(U.jon));
     assertEquals(me.json.role, "platform_admin");
+    const canonical = (await sql!`
+      SELECT id FROM bloom_support.principals WHERE auth_user_id = ${U.jon}
+    `)[0].id;
+    await sql!`
+      INSERT INTO bloom_support.principal_auth_identities(auth_user_id, principal_id, email)
+      VALUES (${U.jonAlias}, ${canonical}, 'jon+alias@bloom.test')
+    `;
+    const aliasMe = await api("GET", "/me", tok(U.jonAlias));
+    assertEquals(aliasMe.json.role, "platform_admin", "an explicitly linked CRM login keeps Jon's staff role");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.principals
+      WHERE auth_user_id IN (${U.jon}, ${U.jonAlias})
+    `)[0].n), 1, "an auth alias does not create a duplicate principal");
     for (const u of [U.jeff, U.sam, U.gail, U.rosa]) assertEquals((await api("GET", "/me", tok(u))).status, 200);
     assertEquals((await api("POST", "/staff/role", tok(U.jon), { email: "jeff@bloom.test", role: "platform_operator" })).json.role, "platform_operator");
     assertEquals((await api("POST", "/staff/role", tok(U.jon), { email: "sam@bloom.test", role: "support" })).json.role, "support");

@@ -395,3 +395,228 @@ REVOKE ALL ON FUNCTION bloom_support.queue_engineering_progress_email()
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION bloom_support.queue_engineering_progress_email()
   TO service_role;
+
+-- A person may authenticate with more than one verified CRM identity. Keep
+-- authorization on one principal so an email alias cannot accidentally create
+-- a second, client-only identity or acquire a role through an email/domain rule.
+CREATE TABLE IF NOT EXISTS bloom_support.principal_auth_identities (
+  auth_user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  principal_id uuid NOT NULL REFERENCES bloom_support.principals(id) ON DELETE CASCADE,
+  email text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS principal_auth_identities_principal
+  ON bloom_support.principal_auth_identities(principal_id);
+ALTER TABLE bloom_support.principal_auth_identities ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE bloom_support.principal_auth_identities
+  FROM PUBLIC, anon, authenticated;
+
+INSERT INTO bloom_support.principal_auth_identities(auth_user_id, principal_id, email)
+SELECT auth_user_id, id, lower(email)
+FROM bloom_support.principals
+WHERE auth_user_id IS NOT NULL
+ON CONFLICT (auth_user_id) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION bloom_support.resolve_crm_user(
+  p_auth_user uuid,
+  p_email text,
+  p_name text,
+  p_tenant uuid,
+  p_tenant_name text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  pid uuid;
+  acct uuid;
+  matched_alias boolean := false;
+BEGIN
+  IF p_auth_user IS NULL THEN
+    RAISE EXCEPTION 'unauthenticated' USING ERRCODE = '28000';
+  END IF;
+
+  SELECT identity.principal_id
+    INTO pid
+  FROM bloom_support.principal_auth_identities identity
+  JOIN bloom_support.principals principal
+    ON principal.id = identity.principal_id
+   AND principal.active
+  WHERE identity.auth_user_id = p_auth_user;
+  matched_alias := FOUND;
+
+  IF pid IS NULL THEN
+    SELECT id INTO pid
+    FROM bloom_support.principals
+    WHERE auth_user_id = p_auth_user
+      AND active;
+  END IF;
+
+  IF pid IS NULL THEN
+    INSERT INTO bloom_support.principals(kind, auth_user_id, product, email, display_name, role)
+    VALUES ('user', p_auth_user, 'crm', lower(p_email), p_name, 'client')
+    RETURNING id INTO pid;
+  ELSIF matched_alias THEN
+    -- An alias may refresh the person's name, but never replaces the canonical
+    -- address or role. Those remain explicit principal administration choices.
+    UPDATE bloom_support.principals
+       SET display_name = coalesce(p_name, display_name), updated_at = now()
+     WHERE id = pid;
+  ELSE
+    UPDATE bloom_support.principals
+       SET email = coalesce(lower(p_email), email),
+           display_name = coalesce(p_name, display_name),
+           updated_at = now()
+     WHERE id = pid;
+  END IF;
+
+  INSERT INTO bloom_support.principal_auth_identities(
+    auth_user_id, principal_id, email, last_seen_at
+  )
+  VALUES (p_auth_user, pid, lower(p_email), now())
+  ON CONFLICT (auth_user_id) DO UPDATE
+    SET email = EXCLUDED.email,
+        last_seen_at = EXCLUDED.last_seen_at
+  WHERE bloom_support.principal_auth_identities.principal_id = EXCLUDED.principal_id;
+
+  IF p_tenant IS NOT NULL THEN
+    SELECT id INTO acct
+    FROM bloom_support.accounts
+    WHERE crm_tenant_id = p_tenant;
+    IF acct IS NULL THEN
+      INSERT INTO bloom_support.accounts(name, crm_tenant_id)
+      VALUES (
+        coalesce(nullif(btrim(p_tenant_name), ''), 'CRM tenant ' || left(p_tenant::text, 8)),
+        p_tenant
+      )
+      ON CONFLICT (crm_tenant_id) DO NOTHING
+      RETURNING id INTO acct;
+      IF acct IS NULL THEN
+        SELECT id INTO acct
+        FROM bloom_support.accounts
+        WHERE crm_tenant_id = p_tenant;
+      END IF;
+      INSERT INTO bloom_support.account_links(account_id, product, external_id, label)
+      VALUES (acct, 'crm', p_tenant::text, p_tenant_name)
+      ON CONFLICT DO NOTHING;
+    END IF;
+    INSERT INTO bloom_support.account_members(account_id, principal_id, relationship, verified)
+    VALUES (acct, pid, 'member', true)
+    ON CONFLICT (account_id, principal_id) DO UPDATE SET verified = true;
+  END IF;
+
+  UPDATE bloom_support.account_members member
+     SET verified = false
+   WHERE member.principal_id = pid
+     AND member.verified
+     AND member.account_id IS DISTINCT FROM acct
+     AND EXISTS (
+       SELECT 1
+       FROM bloom_support.accounts account
+       WHERE account.id = member.account_id
+         AND account.crm_tenant_id IS NOT NULL
+     );
+  RETURN pid;
+END
+$$;
+
+REVOKE ALL ON FUNCTION bloom_support.resolve_crm_user(uuid, text, text, uuid, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION bloom_support.resolve_crm_user(uuid, text, text, uuid, text)
+  TO service_role;
+
+-- Jon's support/admin identity predates the Brands in Blooms CRM login. Link
+-- that exact verified auth.users row to the existing administrator principal.
+-- This intentionally is not a domain-wide staff rule.
+DO $$
+DECLARE
+  canonical_principal uuid;
+  alias_auth_user uuid;
+  duplicate_principal uuid;
+  duplicate_role text;
+BEGIN
+  SELECT id INTO canonical_principal
+  FROM bloom_support.principals
+  WHERE lower(email) = 'jon@getclear.ca'
+    AND role = 'platform_admin'
+    AND active
+  ORDER BY created_at
+  LIMIT 1;
+
+  SELECT id INTO alias_auth_user
+  FROM auth.users
+  WHERE lower(email) = 'jon@brandsinblooms.com'
+  ORDER BY created_at
+  LIMIT 1;
+
+  IF canonical_principal IS NULL OR alias_auth_user IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT id, role
+    INTO duplicate_principal, duplicate_role
+  FROM bloom_support.principals
+  WHERE auth_user_id = alias_auth_user
+    AND id <> canonical_principal
+  LIMIT 1;
+
+  IF duplicate_principal IS NOT NULL AND duplicate_role <> 'client' THEN
+    RAISE EXCEPTION 'refusing to merge a staff principal into the Jon auth alias';
+  END IF;
+
+  INSERT INTO bloom_support.principal_auth_identities(auth_user_id, principal_id, email)
+  VALUES (alias_auth_user, canonical_principal, 'jon@brandsinblooms.com')
+  ON CONFLICT (auth_user_id) DO UPDATE
+    SET principal_id = EXCLUDED.principal_id,
+        email = EXCLUDED.email,
+        last_seen_at = now();
+
+  IF duplicate_principal IS NOT NULL THEN
+    INSERT INTO bloom_support.account_members(
+      account_id, principal_id, relationship, verified, created_at
+    )
+    SELECT account_id, canonical_principal, relationship, verified, created_at
+    FROM bloom_support.account_members
+    WHERE principal_id = duplicate_principal
+    ON CONFLICT (account_id, principal_id) DO UPDATE
+      SET verified = bloom_support.account_members.verified OR EXCLUDED.verified;
+
+    UPDATE bloom_support.conversations
+       SET requester_id = canonical_principal
+     WHERE requester_id = duplicate_principal;
+    UPDATE bloom_support.tickets
+       SET requester_id = canonical_principal
+     WHERE requester_id = duplicate_principal;
+    UPDATE bloom_support.messages
+       SET author_id = canonical_principal
+     WHERE author_id = duplicate_principal
+       AND author_kind = 'client';
+    UPDATE bloom_support.feature_shipment_subscriptions
+       SET requester_id = canonical_principal
+     WHERE requester_id = duplicate_principal;
+    UPDATE bloom_support.notifications
+       SET principal_id = canonical_principal
+     WHERE principal_id = duplicate_principal;
+    DELETE FROM bloom_support.account_members
+     WHERE principal_id = duplicate_principal;
+    UPDATE bloom_support.principals
+       SET active = false, auth_user_id = NULL, updated_at = now()
+     WHERE id = duplicate_principal
+       AND role = 'client';
+  END IF;
+
+  PERFORM bloom_support.log(
+    NULL,
+    NULL,
+    canonical_principal,
+    'principal.auth_alias_linked',
+    jsonb_build_object(
+      'alias', 'jon@brandsinblooms.com',
+      'retired_duplicate_principal', duplicate_principal
+    )
+  );
+END
+$$;
