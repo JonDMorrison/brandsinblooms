@@ -663,7 +663,6 @@ const CustomerDashboardPage: React.FC = () => {
                     phone: displayCustomer.phone,
                   }}
                   onCustomerPatched={handleCustomerPatched}
-                  // The page header owns the one primary Edit action.
                   canEdit={false}
                 />
                 <CustomerConsentCard
