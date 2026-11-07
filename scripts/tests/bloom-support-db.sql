@@ -53,6 +53,7 @@ INSERT INTO bloom_support.tickets(
 \ir ../../supabase/migrations/20261106040000_bloom_support_engineering_progress_email.sql
 \ir ../../supabase/migrations/20261106050000_bloom_support_feature_decision_messages.sql
 \ir ../../supabase/migrations/20261106110933_bloom_support_feature_shipments_and_knowledge.sql
+\ir bloom-support-reliability-prerequisites.sql
 \ir ../../supabase/migrations/20261107011102_enterprise_bloom_support_reliability_v2.sql
 \ir ../../supabase/migrations/20261107014000_bloom_support_operational_truth.sql
 

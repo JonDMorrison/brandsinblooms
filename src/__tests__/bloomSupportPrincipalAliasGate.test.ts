@@ -38,7 +38,11 @@ describe("Bloom Support CRM identity aliases", () => {
       "scripts/tests/bloom-support-db.sql",
       "scripts/tests/bloom-support-e2e-setup.sql",
     ]) {
-      expect(readFileSync(fixture, "utf8")).toContain(migrationName);
+      const sql = readFileSync(fixture, "utf8");
+      expect(sql).toContain(migrationName);
+      expect(sql.indexOf("bloom-support-reliability-prerequisites.sql")).toBeLessThan(
+        sql.indexOf(migrationName),
+      );
     }
   });
 });
