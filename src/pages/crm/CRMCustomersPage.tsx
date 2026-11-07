@@ -59,6 +59,7 @@ import {
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoySearchInput } from "@/components/joy/JoySearchInput";
+import { JoySelect } from "@/components/joy/JoySelect";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import {
   JoyTable,
@@ -79,6 +80,7 @@ import { useCustomerExport } from "@/hooks/useCustomerExport";
 import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const CUSTOMER_CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -92,6 +94,8 @@ export const CRMCustomersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [bulkTagId, setBulkTagId] = useState("");
+  const [bulkTagging, setBulkTagging] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSyncFromCRM, setShowSyncFromCRM] = useState(false);
   const [showMergeReview, setShowMergeReview] = useState(false);
@@ -129,9 +133,38 @@ export const CRMCustomersPage: React.FC = () => {
   const selectedTag =
     availableTags.find((tag) => tag.id === selectedTagId) ?? null;
 
+  const applyBulkTag = async (action: "add" | "remove") => {
+    if (!canWriteCustomers || !tenant?.id || bulkTagging || selectedIds.size === 0) return;
+    const tag = availableTags.find((item) => item.id === bulkTagId);
+    if (!tag) return;
+    setBulkTagging(true);
+    try {
+      const customerIds = Array.from(selectedIds);
+      if (action === "add") {
+        const { error } = await supabase.from("customer_tags").upsert(
+          customerIds.map((customerId) => ({ contact_id: customerId, tag_id: tag.id })),
+          { onConflict: "contact_id,tag_id", ignoreDuplicates: true },
+        );
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("customer_tags")
+          .delete().eq("tag_id", tag.id).in("contact_id", customerIds);
+        if (error) throw error;
+      }
+      await invalidateCustomers();
+      clearSelection();
+      toast.success(`Tag ${action === "add" ? "assigned" : "removed"} for selected contacts`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update tags");
+    } finally {
+      setBulkTagging(false);
+    }
+  };
+
   // Never keep a tag filter after switching to a different company.
   useEffect(() => {
     setSelectedTagId(null);
+    setBulkTagId("");
     setCurrentPage(1);
     clearSelection();
   }, [tenant?.id, clearSelection]);
@@ -606,7 +639,7 @@ export const CRMCustomersPage: React.FC = () => {
                 justifyContent: { xs: "flex-start", lg: "flex-end" },
               }}
             >
-              {canDeleteCustomers && selectedIds.size > 0 ? (
+              {(canWriteCustomers || canDeleteCustomers) && selectedIds.size > 0 ? (
                 <Sheet
                   variant="soft"
                   color="warning"
@@ -623,14 +656,35 @@ export const CRMCustomersPage: React.FC = () => {
                   <Typography level="body-sm" sx={{ fontWeight: 600 }}>
                     {selectedIds.size} selected
                   </Typography>
-                  <JoyButton
-                    size="sm"
-                    bloomVariant="destructive"
-                    onClick={() => setBulkDeleteDialogOpen(true)}
-                    startDecorator={<Trash2 />}
-                  >
-                    Delete Selected
-                  </JoyButton>
+
+                  {canDeleteCustomers ? (
+                    <JoyButton
+                      size="sm"
+                      bloomVariant="destructive"
+                      onClick={() => setBulkDeleteDialogOpen(true)}
+                      startDecorator={<Trash2 />}
+                    >
+                      Delete Selected
+                    </JoyButton>
+                  ) : null}
+                  {canWriteCustomers && availableTags.length > 0 ? (
+                    <>
+                      <JoySelect
+                        value={bulkTagId}
+                        onValueChange={setBulkTagId}
+                        placeholder="Choose a tag"
+                        options={availableTags.map((tag) => ({ value: tag.id, label: tag.name }))}
+                        disabled={bulkTagging}
+                        formControlSx={{ width: 180 }}
+                      />
+                      <JoyButton size="sm" color="neutral" variant="outlined" disabled={!bulkTagId || bulkTagging} onClick={() => void applyBulkTag("add")}>
+                        Add tag
+                      </JoyButton>
+                      <JoyButton size="sm" color="neutral" variant="plain" disabled={!bulkTagId || bulkTagging} onClick={() => void applyBulkTag("remove")}>
+                        Remove tag
+                      </JoyButton>
+                    </>
+                  ) : null}
                   <JoyButton
                     size="sm"
                     variant="plain"
@@ -698,7 +752,7 @@ export const CRMCustomersPage: React.FC = () => {
             <JoyTable stickyHeader data-testid="customers-table">
               <JoyTableHead>
                 <JoyTableRow>
-                  {canDeleteCustomers ? <JoyTableHeaderCell sx={{ width: 56 }}>
+                  {(canWriteCustomers || canDeleteCustomers) ? <JoyTableHeaderCell sx={{ width: 56 }}>
                     <Checkbox
                       size="sm"
                       color="primary"
@@ -752,7 +806,7 @@ export const CRMCustomersPage: React.FC = () => {
                           : undefined
                       }
                     >
-                      {canDeleteCustomers ? <JoyTableCell
+                      {(canWriteCustomers || canDeleteCustomers) ? <JoyTableCell
                         onClick={(event) => event.stopPropagation()}
                       >
                         <Checkbox
