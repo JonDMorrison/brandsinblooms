@@ -1,3 +1,7 @@
+/// <reference lib="dom" />
+// DOM types: this module also runs under Deno (Bloom newsletter rendering),
+// where it falls back to sanitizeRichTextHtmlWithoutDom when no document exists.
+
 // HTML content helpers used by the campaign draft preview renderer
 // (src/lib/crm/campaignDraftPersistence.ts).
 //

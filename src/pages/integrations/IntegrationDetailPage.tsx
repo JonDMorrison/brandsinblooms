@@ -151,7 +151,7 @@ import { cn } from "@/lib/utils";
 import NotFound from "@/pages/NotFound";
 
 const REQUEST_INTEGRATION_MAILTO =
-  "mailto:bloom@support.bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
+  "mailto:bloom@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
 
 const SHOPIFY_DIAGNOSTICS_PATH = "/integrations/shopify/debug";
 

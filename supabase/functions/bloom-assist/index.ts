@@ -34,15 +34,23 @@ import {
   releaseRateLimitSlot,
 } from "./security/rate-limiter.ts";
 import { sanitizeInput } from "./security/sanitizer.ts";
+import {
+  createSpendMeter,
+  isSpendCapReached,
+  meteredModelFetch,
+  SPEND_CAP_MESSAGE,
+  type SpendMeter,
+} from "./security/spend-cap.ts";
 import { validateOutput } from "./security/output-validator.ts";
 import { processOpenAIStream } from "./stream-handler.ts";
-import { processApproval } from "./task-plan/executor.ts";
+import { processApproval, processCancel, processResume } from "./task-plan/executor.ts";
+import { PlanAccessError, PlanBusyError } from "./task-plan/durable-runner.ts";
 import {
   generateTaskPlan,
   prefillCampaignContent,
 } from "./task-plan/generator.ts";
 import { validateTaskPlan } from "./task-plan/validator.ts";
-import type { TaskPlanApprovalPayload } from "./task-plan/types.ts";
+import type { TaskPlanApprovalPayload, TaskProgressEmitter } from "./task-plan/types.ts";
 import { taskPlanSummaryToJson, taskPlanToJson } from "./task-plan/types.ts";
 import { executeTool } from "./tools/executor.ts";
 import { isSupportTool } from "./tools/implementations/support-tools.ts";
@@ -808,6 +816,11 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
     return { ok: false, message: "retry_task_id must be a task id" };
   }
 
+  const rawAction = source.plan_action ?? "approve";
+  if (rawAction !== "approve" && rawAction !== "resume" && rawAction !== "cancel") {
+    return { ok: false, message: "plan_action must be approve, resume or cancel" };
+  }
+
   const mode = isBloomMode(source.mode) ? source.mode : "standard";
   const timezone =
     typeof source.timezone === "string" && source.timezone.trim().length > 0
@@ -817,6 +830,7 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
   return {
     ok: true,
     value: {
+      action: rawAction,
       conversation_id: conversationId,
       plan_id: planId,
       approved_task_ids: approvedTaskIds.value,
@@ -1415,6 +1429,7 @@ function extractOpenAiTitle(payload: unknown): string | null {
 
 export async function generateConversationTitle(
   message: string,
+  meter: SpendMeter | null = null,
 ): Promise<string> {
   const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openAiApiKey) {
@@ -1422,7 +1437,7 @@ export async function generateConversationTitle(
   }
 
   try {
-    const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+    const response = await meteredModelFetch(meter, "title", OPENAI_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${openAiApiKey}`,
@@ -1681,13 +1696,14 @@ export async function persistUserMessage(
   attachments: JsonArray | null = null,
   sessionType: BloomSessionType = "standard",
   resourceFocus: BloomResourceFocus | null = null,
+  titleMeter: SpendMeter | null = null,
 ): Promise<PersistUserMessageResult> {
   let resolvedConversationId = conversationId;
   let title: string | null = null;
   const isNewConversation = !resolvedConversationId;
 
   if (!resolvedConversationId) {
-    title = await generateConversationTitle(message);
+    title = await generateConversationTitle(message, titleMeter);
 
     const { data, error } = await serviceClient
       .from("bloom_conversations")
@@ -1720,7 +1736,7 @@ export async function persistUserMessage(
       !existingConversation.title &&
       existingConversation.message_count === 0
     ) {
-      title = await generateConversationTitle(message);
+      title = await generateConversationTitle(message, titleMeter);
 
       const { error: updateError } = await serviceClient
         .from("bloom_conversations")
@@ -2089,6 +2105,11 @@ function injectImplicitResourceFocusArguments(
   };
 }
 
+// Tools whose approval must show a server-computed preview (and, for a list
+// import, the consent statement being recorded) go through the task-plan card,
+// never the one-click inline action card.
+const PREVIEW_FIRST_TOOLS = new Set(["import_customer_list"]);
+
 function createMutationActionCard(
   toolName: string,
   toolArgs: JsonObject,
@@ -2096,6 +2117,7 @@ function createMutationActionCard(
 ): JsonObject | null {
   const toolDefinition = getRegisteredTool(toolName);
   if (
+    PREVIEW_FIRST_TOOLS.has(toolName) ||
     request.session_type !== "resource_focused" ||
     !request.resource_focus ||
     !toolDefinition ||
@@ -2253,6 +2275,12 @@ function createBloomStreamResponse(
   let innerReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let streamCancelled = false;
   const toolExecutions: PostResponseToolExecution[] = [];
+  // Server-derived tenant only; nothing in the request body reaches the cap.
+  const spendMeter = createSpendMeter({
+    client: serviceClient,
+    tenantId: context.tenantId,
+    userId: context.userId,
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -2440,10 +2468,71 @@ function createBloomStreamResponse(
         };
       };
 
+      // Over this month's cap: answer with a plain message, make no model call.
+      const replyWithSpendCap = async () => {
+        const tokenCounts: TokenCounts = { tokens_input: 0, tokens_output: 0 };
+        if (conversationId) {
+          const assistantMessage = await persistAssistantResponse(
+            serviceClient,
+            context.tenantId,
+            conversationId,
+            SPEND_CAP_MESSAGE,
+            null,
+            {},
+            tokenCounts,
+            [],
+            effectiveBody.mode,
+            "none",
+            { spend_cap_reached: true },
+          );
+          assistantMessageId = assistantMessage.messageId;
+          pendingResponseAudit = {
+            assistantMessageId: assistantMessage.messageId,
+            model: "none",
+            tokenCounts,
+            eventData: { status: "spend_cap_reached", stage: "spend_cap" },
+          };
+        }
+        writeEvent({ event: "token", data: { text: SPEND_CAP_MESSAGE } });
+        writeEvent({
+          event: "done",
+          data: {
+            ...tokenCounts,
+            model: "none",
+            conversation_id: conversationId ?? "",
+            ...(assistantMessageId
+              ? { assistant_message_id: assistantMessageId }
+              : {}),
+            ...(conversationTitle ? { title: conversationTitle } : {}),
+            follow_up_chips: [],
+          },
+        });
+      };
+
       try {
+        if (await spendMeter.isOverCap()) {
+          const persisted = await persistUserMessage(
+            serviceClient,
+            context.tenantId,
+            context.userId,
+            body.conversation_id,
+            body.message,
+            body.mode,
+            preparePendingAttachments(body.attachments),
+            body.session_type,
+            body.resource_focus,
+            spendMeter,
+          );
+          conversationId = persisted.conversationId;
+          conversationTitle = persisted.title;
+          userMessageId = persisted.messageId;
+          await replyWithSpendCap();
+          return;
+        }
+
         const intentClassification = await classifyIntentWithComplexity(
           body.message,
-          { openAiApiKey },
+          { openAiApiKey, meter: spendMeter },
         );
         const { mode: effectiveMode, modeOverride: resolvedModeOverride } =
           resolveEffectiveMode(body.mode, intentClassification);
@@ -2462,6 +2551,7 @@ function createBloomStreamResponse(
           pendingAttachments,
           effectiveBody.session_type,
           effectiveBody.resource_focus,
+          spendMeter,
         );
 
         conversationId = persistedUserMessage.conversationId;
@@ -2476,6 +2566,7 @@ function createBloomStreamResponse(
           tenantId: context.tenantId,
           conversationId,
           openAiApiKey,
+          meter: spendMeter,
         });
 
         if (pendingAttachments && pendingAttachments.length > 0) {
@@ -2633,6 +2724,7 @@ function createBloomStreamResponse(
           inputSecurity,
           toolDefinitionProvider: ({ mode, userRole }) =>
             getToolDefinitionsForMode(mode, userRole, intentClassification),
+          meter: spendMeter,
         });
         latencyCapture.contextBuildCompletedAt = Date.now();
 
@@ -2692,7 +2784,7 @@ function createBloomStreamResponse(
         }
 
         latencyCapture.openAiRequestStartedAt = Date.now();
-        const openAiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+        const openAiResponse = await meteredModelFetch(spendMeter, "chat", OPENAI_CHAT_COMPLETIONS_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${openAiApiKey}`,
@@ -2716,6 +2808,7 @@ function createBloomStreamResponse(
           ),
           {
             openAiApiKey,
+            meter: spendMeter,
             model: selectedModel,
             mode: effectiveBody.mode,
             modeOverride,
@@ -2896,6 +2989,17 @@ function createBloomStreamResponse(
           controller.enqueue(value);
         }
       } catch (error) {
+        if (isSpendCapReached(error)) {
+          try {
+            await replyWithSpendCap();
+          } catch (replyError) {
+            console.error(
+              "[bloom-assist] Spend cap reply failed",
+              toErrorMessage(replyError),
+            );
+          }
+          return;
+        }
         const message = toErrorMessage(error);
         console.error("[bloom-assist] Stream pipeline failed", message);
 
@@ -2946,29 +3050,32 @@ function createTaskApprovalStreamResponse(
       };
 
       try {
-        const summary = await processApproval(
-          approval.plan_id,
-          approval.approved_task_ids,
-          approval.skipped_task_ids,
-          approval.edited_fields,
-          {
-            tenantId: context.tenantId,
-            userId: context.userId,
-            userRole: context.userRole,
-            userName: context.userName,
-            conversationId: approval.conversation_id,
-            messageId: approval.plan_id,
-            timezone: approval.timezone,
-            serviceClient,
-            dataClient,
-            clientContext: approval.client_context ?? null,
-            mode: approval.mode,
-            emitProgress: (progress) => {
-              writeEvent({ event: "task_progress", data: progress });
-            },
+        const executionContext = {
+          tenantId: context.tenantId,
+          userId: context.userId,
+          userRole: context.userRole,
+          userName: context.userName,
+          conversationId: approval.conversation_id,
+          messageId: approval.plan_id,
+          timezone: approval.timezone,
+          serviceClient,
+          dataClient,
+          clientContext: approval.client_context ?? null,
+          mode: approval.mode,
+          emitProgress: (progress: Parameters<TaskProgressEmitter>[0]) => {
+            writeEvent({ event: "task_progress", data: progress });
           },
-          approval.retry_task_id,
-        );
+        };
+        const summary = approval.action === "resume"
+          ? await processResume(approval.plan_id, executionContext)
+          : await processApproval(
+            approval.plan_id,
+            approval.approved_task_ids,
+            approval.skipped_task_ids,
+            approval.edited_fields,
+            executionContext,
+            approval.retry_task_id,
+          );
 
         const summaryJson = taskPlanSummaryToJson(summary);
         writeEvent({ event: "task_complete", data: summaryJson });
@@ -3041,7 +3148,14 @@ function createTaskApprovalStreamResponse(
         }
         writeEvent({
           event: "error",
-          data: { message, code: "task_approval_error" },
+          data: {
+            message,
+            code: error instanceof PlanBusyError
+              ? "task_plan_busy"
+              : error instanceof PlanAccessError
+              ? "task_plan_forbidden"
+              : "task_approval_error",
+          },
         });
       } finally {
         releaseRateLimitSlot(context.userId);
@@ -3056,6 +3170,48 @@ function createTaskApprovalStreamResponse(
   });
 
   return new Response(stream, { headers: createSseHeaders(req) });
+}
+
+/** Stops the plan's steps that have not started. Same checks as running the plan. */
+async function createTaskPlanCancelResponse(
+  req: Request,
+  serviceClient: PersistenceClient,
+  dataClient: PersistenceClient,
+  context: UserContext,
+  approval: TaskPlanApprovalPayload,
+): Promise<Response> {
+  try {
+    const outcome = await processCancel(approval.plan_id, {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      userRole: context.userRole,
+      userName: context.userName,
+      conversationId: approval.conversation_id,
+      messageId: approval.plan_id,
+      timezone: approval.timezone,
+      serviceClient,
+      dataClient,
+      clientContext: approval.client_context ?? null,
+      mode: approval.mode,
+      emitProgress: () => undefined,
+    });
+    return jsonResponse(req, outcome);
+  } catch (error) {
+    if (error instanceof PlanAccessError) {
+      await recordRequestRejection(serviceClient, context, {
+        stage: "access_denied",
+        status: 403,
+        reason: "task_plan_cancel_access_denied",
+        conversationId: approval.conversation_id,
+      });
+      return jsonResponse(req, { error: error.message }, 403);
+    }
+    const message = toErrorMessage(error);
+    if (message === "Task plan not found for this conversation.") {
+      return jsonResponse(req, { error: message }, 404);
+    }
+    throw error;
+  }
 }
 
 async function createExecuteActionResponse(
@@ -3329,6 +3485,16 @@ export async function handleRequest(req: Request): Promise<Response> {
           conversationId: parsedApproval.value.conversation_id,
         });
         return jsonResponse(req, { error: "Conversation access denied" }, 403);
+      }
+
+      if (parsedApproval.value.action === "cancel") {
+        return await createTaskPlanCancelResponse(
+          req,
+          serviceClient,
+          userClient,
+          { ...context, conversationId: parsedApproval.value.conversation_id },
+          parsedApproval.value,
+        );
       }
 
       const rateLimit = await checkRateLimit(

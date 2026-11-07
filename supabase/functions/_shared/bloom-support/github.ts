@@ -110,15 +110,115 @@ export interface DeploymentState {
   environment: string | null;
   url: string | null;
   deployment_id: number | null;
+  deployments?: Array<{ deployment_id: number; environment: string; state: "pending" | "success" | "failure"; url: string | null }>;
 }
 
-/** Production deployment for a commit, from GitHub Deployments (Vercel reports there). */
+/** Vercel uses both "Production" and product-qualified names such as "Production – BloomSuite". */
+export function isProductionEnvironment(deployment: { environment: string; production_environment?: boolean }): boolean {
+  const name = deployment.environment.trim();
+  // Vercel can mark demo/preview deployments with production_environment=true;
+  // the explicit non-production name wins over that provider flag.
+  if (/(?:^|[\s–—-])(preview|demo|staging|development|test)(?:[\s–—-]|$)/i.test(name)) return false;
+  if (deployment.production_environment === true) return true;
+  if (!/^production(?:\s|$|[-–—])/i.test(name)) return false;
+  return true;
+}
+
+/**
+ * Returns the current production-branch commit once `commit` is an ancestor of it.
+ * This only observes a person-authorised promotion; it never merges or changes a branch.
+ */
+export async function productionCommitContaining(repo: string, commit: string, productionBranch = "main"): Promise<string | null> {
+  if (!(await commitContains(repo, commit, productionBranch))) return null;
+  const branch = await gh<{ commit?: { sha?: string } }>(
+    "release",
+    "GET",
+    `/repos/${repo}/branches/${encodeURIComponent(productionBranch)}`,
+  );
+  const sha = branch.commit?.sha?.trim();
+  if (!sha) throw new BloomError(502, "github_error", `GitHub did not return the ${productionBranch} head commit`);
+  return sha;
+}
+
+/**
+ * Observe either an ancestry-preserving promotion or a merged source→main PR
+ * whose recorded head contains the fix and whose merge/squash commit is on
+ * main. Commit messages and file heuristics are never release evidence.
+ */
+export async function productionCommitForRepair(
+  repo: string,
+  repairCommit: string,
+  sourceBranch: string,
+  productionBranch = "main",
+): Promise<string | null> {
+  const direct = await productionCommitContaining(repo, repairCommit, productionBranch);
+  if (direct) return direct;
+  const owner = repo.split("/")[0];
+  const promotions = await gh<PullRequest[]>(
+    "release",
+    "GET",
+    `/repos/${repo}/pulls?state=closed&base=${encodeURIComponent(productionBranch)}&head=${encodeURIComponent(`${owner}:${sourceBranch}`)}&sort=updated&direction=desc&per_page=20`,
+  );
+  for (const promotion of promotions) {
+    const mergeSha = promotion.merge_commit_sha?.trim();
+    if (!promotion.merged || !mergeSha) continue;
+    if (!(await commitContains(repo, repairCommit, promotion.head.sha))) continue;
+    if (!(await commitContains(repo, mergeSha, productionBranch))) continue;
+    return mergeSha;
+  }
+  return null;
+}
+
+/** True only when GitHub proves candidate is the ancestor itself or a descendant. */
+export async function commitContains(
+  repo: string,
+  ancestor: string,
+  candidate: string,
+): Promise<boolean> {
+  const comparison = await gh<{ status: string }>(
+    "release",
+    "GET",
+    `/repos/${repo}/compare/${encodeURIComponent(ancestor)}...${encodeURIComponent(candidate)}`,
+  );
+  return new Set(["ahead", "identical"]).has(comparison.status);
+}
+
+/** Production deployments for a commit, from GitHub Deployments (Vercel reports there). */
 export async function productionDeployment(repo: string, sha: string): Promise<DeploymentState> {
   const deps = await gh<Array<{ id: number; environment: string; production_environment?: boolean }>>("release", "GET", `/repos/${repo}/deployments?sha=${sha}&per_page=20`);
-  const prod = deps.find((d) => d.production_environment || /^production$/i.test(d.environment));
-  if (!prod) return { state: "pending", environment: null, url: null, deployment_id: null };
-  const statuses = await gh<Array<{ state: string; environment_url?: string; target_url?: string }>>("release", "GET", `/repos/${repo}/deployments/${prod.id}/statuses?per_page=5`);
-  const s = statuses[0];
-  const state = !s ? "pending" : s.state === "success" ? "success" : ["failure", "error", "inactive"].includes(s.state) ? "failure" : "pending";
-  return { state, environment: prod.environment, url: s?.environment_url ?? s?.target_url ?? null, deployment_id: prod.id };
+  // GitHub returns newest deployments first. Track the newest deployment for
+  // each production environment so an inactive superseded record cannot mask
+  // the current release, while every affected production app must be green.
+  const latest = new Map<string, { id: number; environment: string; production_environment?: boolean }>();
+  for (const deployment of deps.filter(isProductionEnvironment)) {
+    const key = deployment.environment.trim().toLowerCase();
+    if (!latest.has(key)) latest.set(key, deployment);
+  }
+  if (!latest.size) return { state: "pending", environment: null, url: null, deployment_id: null, deployments: [] };
+  const deployments = await Promise.all([...latest.values()].map(async (deployment) => {
+    const statuses = await gh<Array<{ state: string; environment_url?: string; target_url?: string }>>(
+      "release", "GET", `/repos/${repo}/deployments/${deployment.id}/statuses?per_page=5`,
+    );
+    const status = statuses[0];
+    const state = !status ? "pending" as const
+      : status.state === "success" ? "success" as const
+      : ["failure", "error", "inactive"].includes(status.state) ? "failure" as const
+      : "pending" as const;
+    return {
+      deployment_id: deployment.id,
+      environment: deployment.environment,
+      state,
+      url: status?.environment_url ?? status?.target_url ?? null,
+    };
+  }));
+  const state = deployments.some((d) => d.state === "failure") ? "failure"
+    : deployments.every((d) => d.state === "success") ? "success"
+    : "pending";
+  return {
+    state,
+    environment: deployments.map((d) => d.environment).join(", "),
+    url: deployments.find((d) => d.url)?.url ?? null,
+    deployment_id: deployments[0]?.deployment_id ?? null,
+    deployments,
+  };
 }

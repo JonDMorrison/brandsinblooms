@@ -57,7 +57,7 @@ export function KnowledgePanel({ me }: { me: Whoami }) {
       {dialog}
       <div>
         <Typography level="title-lg">Approved answers</Typography>
-        <Typography level="body-sm" textColor="text.secondary">Support can draft answers. Jon and Jeff approve customer articles. Internal notes and drafts stay private.</Typography>
+        <Typography level="body-sm" textColor="text.secondary">Support can draft answers. Admins approve customer articles. Internal notes and drafts stay private.</Typography>
       </div>
       {notice && <Alert color="success" variant="soft">{notice}</Alert>}
       {save.error && <Alert color="danger">{save.error.message}</Alert>}
@@ -70,7 +70,7 @@ export function KnowledgePanel({ me }: { me: Whoami }) {
             save.mutate({ ...draft, ...(editing ? { id: editing.id, expected_updated_at: editing.updated_at } : {}), approved: false });
           }}>
             <Typography level="title-md">{editing ? "Edit article" : "Draft an answer"}</Typography>
-            {editing?.approved && <Alert color="warning" variant="soft">Saving an edit withdraws approval until Jon or Jeff reviews it again.</Alert>}
+            {editing?.approved && <Alert color="warning" variant="soft">Saving an edit withdraws approval until an admin reviews it again.</Alert>}
             <FormControl required><FormLabel>Question or title</FormLabel><Input value={draft.title} slotProps={{ input: { maxLength: 200 } }} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></FormControl>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <FormControl sx={{ flex: 1 }}><FormLabel>Product</FormLabel><Select value={draft.product} onChange={(_, product) => product && setDraft({ ...draft, product })}>{(["platform", "crm", "cms", "pos"] as const).map((product) => <Option key={product} value={product}>{product === "platform" ? "All products" : PRODUCT_LABEL[product]}</Option>)}</Select></FormControl>

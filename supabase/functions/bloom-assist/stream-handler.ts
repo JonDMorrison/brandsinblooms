@@ -24,6 +24,7 @@ import type {
   OutputValidationResult,
 } from "./security/output-validator.ts";
 import { sandboxToolResult } from "./security/tool-result-sandbox.ts";
+import { meteredModelFetch, type SpendMeter } from "./security/spend-cap.ts";
 import { correctFalseFailureReply, toolOutcomeFrom, type ToolOutcome } from "./reply-guard.ts";
 
 const OPENAI_CHAT_COMPLETIONS_URL =
@@ -38,6 +39,8 @@ const UUID_PATTERN =
 
 type StreamHandlerOptions = {
   openAiApiKey: string;
+  /** Tenant spending cap; every follow-up model call reserves against it. */
+  meter?: SpendMeter | null;
   model: string;
   mode: BloomMode;
   modeOverride?: BloomMode | null;
@@ -1034,6 +1037,7 @@ async function requestOpenAIStream(
   messages: OpenAIChatMessage[],
   tools: OpenAIToolDefinition[],
   forceTextOnly: boolean,
+  meter: SpendMeter | null | undefined,
 ): Promise<Response> {
   const body: Record<string, unknown> = {
     model,
@@ -1049,7 +1053,7 @@ async function requestOpenAIStream(
     body.tool_choice = forceTextOnly ? "none" : "auto";
   }
 
-  return fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+  return meteredModelFetch(meter, "chat", OPENAI_CHAT_COMPLETIONS_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${openAiApiKey}`,
@@ -1493,6 +1497,7 @@ export function processOpenAIStream(
               messages,
               options.tools,
               true,
+              options.meter,
             );
             continue;
           }
@@ -1569,6 +1574,7 @@ export function processOpenAIStream(
             messages,
             options.tools,
             false,
+            options.meter,
           );
         }
 

@@ -17,10 +17,13 @@ import Skeleton from "@mui/joy/Skeleton";
 import Box from "@mui/joy/Box";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
+import { ADMIN_INBOX_KEYS, adminAudienceLabel, adminInboxNames } from "@/lib/bloomSupport/adminLabels";
+import { useAdminInboxNames } from "./useAdminInboxNames";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { Inbox } from "lucide-react";
 import { splitList, useAskDialog } from "./useAskDialog";
 import { ClientPicker, type PickedClient } from "./ClientPicker";
+import { ChatSpendPanel } from "./ChatSpendPanel";
 import { ReadableData } from "@/components/admin/ReadableData";
 import { labelFor } from "@/components/admin/readableFormat";
 import { OPEN_BY, engineeringLabel, featureLabel, problemLabel, reasonLabel, ticketStatusLabel } from "./labels";
@@ -68,13 +71,16 @@ function Empty({ title, description }: { title: string; description: string }) {
 }
 const ago = (d: unknown) => (typeof d === "string" ? formatDistanceToNow(new Date(d), { addSuffix: true }) : "");
 
-export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => void }) {
+export function EscalationsPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: (id: string) => void }) {
   const q = useQuery({ queryKey: ["bloom-support", "escalations"], queryFn: () => bloomSupport.escalations() });
+  const adminNames = useAdminInboxNames(me);
+  const people = useQuery({ queryKey: ["bloom-support", "staff"], queryFn: () => bloomSupport.staff(), enabled: me.permissions.includes("tickets.read_all"), retry: false });
+  const ownerName = (id: unknown) => { const p = (people.data ?? []).find((x) => x.id === id); return p ? (p.name?.trim() || p.email) : null; };
   const { run, error } = useAction();
   const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
-  if (!q.data?.length) return <Empty title="Nothing waiting for Jon or Jeff" description="Escalations, approvals and failed automation show up here." />;
+  if (!q.data?.length) return <Empty title="Nothing waiting for an admin" description="Escalations, approvals and failed automation show up here." />;
   return (
     <Stack spacing={1}>
       {dialog}
@@ -86,7 +92,7 @@ export function EscalationsPanel({ onOpenTicket }: { onOpenTicket: (id: string) 
             <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
               <div>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="sm" color="danger" variant="soft">{String(x.audience) === "both" ? "Jon + Jeff" : String(x.audience) === "jon" ? "Jon" : "Jeff"}</Chip>
+                  <Chip size="sm" color="danger" variant="soft">{adminAudienceLabel(String(x.audience), adminNames, ownerName(x.owner_id))}</Chip>
                   <Typography level="title-sm">{reasonLabel(x.reason)}</Typography>
                   <Typography level="body-xs" textColor="text.tertiary">{ago(x.created_at)}</Typography>
                   {x.due_at ? <Chip size="sm" variant="outlined" color={Date.parse(String(x.due_at)) < Date.now() ? "danger" : "neutral"}>due {ago(x.due_at)}</Chip> : null}
@@ -147,7 +153,7 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
   const { ask, dialog } = useAskDialog();
   if (q.isLoading) return <Loading />;
   if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
-  if (!q.data?.length) return <Empty title="No feature requests" description="Requests Bloom recognises as new features are sent here for Jon's decision, with the customer evidence attached." />;
+  if (!q.data?.length) return <Empty title="No feature requests" description="Requests Bloom recognises as new features are sent here for an admin decision, with the customer evidence attached." />;
   const canDecide = me.permissions.includes("features.decide");
   return (
     <Stack spacing={1}>
@@ -251,6 +257,14 @@ const OPERATION_INFO: Record<string, { label: string; help: string; template?: R
   "site.theme.update": { label: "Change the website's colours, fonts, header or footer", help: "Saved as a theme draft. Nothing changes on the live site until the theme draft is published. Can be undone.", template: { patch: { colors: { primary: "#2F5D50" } } } },
   "site.theme.publish": { label: "Publish the theme draft", help: "Makes the prepared colours, fonts, header and footer live. Can be undone.", template: {} },
   "site.theme.discard": { label: "Throw away the theme draft", help: "Removes the prepared theme changes. The live site is not affected. Can be undone.", template: {} },
+  "site.blog.create": { label: "Write a draft blog post", help: "Creates an unpublished post with a private preview link. Nothing goes live until the post is published. Images must already be in the site's media. Can be undone.", template: { title: "Spring planting tips", excerpt: "", body: "First paragraph.\n\nSecond paragraph." } },
+  "site.blog.update": { label: "Edit a blog post", help: "The article text saves to the post's draft. Title, address, excerpt, tags and image can change only while the post is unpublished. Can be undone.", template: { post_id: "", body: "New article text." } },
+  "site.blog.publish": { label: "Publish a blog post", help: "Makes the post's draft live on the blog. Can be undone.", template: { post_id: "" } },
+  "site.seo.update": { label: "Change a page's search listing (SEO)", help: "Sets the title and description search engines show, and the share image. Saved straight to the live page, so it needs publish access. Can be undone.", template: { content_id: "", title: "", description: "" } },
+  "site.navigation.update": { label: "Change the website's menu", help: "List the whole menu in its new order. Keep an item's id to keep or rename it, leave id out to add one, and leave an item out to remove it. Links must be one of the site's own published pages or an https link. Saved as a menu draft. Nothing changes on the live site until the menu is published. Can be undone.", template: { items: [{ id: "home", label: "Home" }, { label: "Visit us", href: "/contact" }] } },
+  "site.navigation.publish": { label: "Publish the menu draft", help: "Makes the prepared menu live. It refuses if the owner has unpublished menu changes of their own. Can be undone.", template: {} },
+  "site.navigation.discard": { label: "Throw away the menu draft", help: "Removes the prepared menu. The live site is not affected. Can be undone.", template: {} },
+  "site.image.replace": { label: "Swap an image on a page", help: "Replaces one image, for example a hero background, with one already in this site's own media. Saves to the page draft only. Nothing goes live until the page is published. Can be undone.", template: { content_id: "", section_key: "hero", field: "backgroundImage", media_url: "" } },
   "site.preview_link": { label: "Get a page's preview link", help: "A private link to see draft changes before they're published.", template: { content_id: "" } },
   "event.list": { label: "List events", help: "Their upcoming and past events." },
   "event.update": { label: "Edit an event", help: "Changes an event. Can be undone." },
@@ -334,6 +348,7 @@ export function SettingsPanel({ me }: { me: Whoami }) {
   const { ask, dialog } = useAskDialog();
   const isAdmin = me.permissions.includes("admin.policy");
   const s = settings.data ?? {};
+  const inboxNames = adminInboxNames(s.owners, staff.data);
   const toggle = (key: string, label: string, help: string, allowed: boolean) => (
     <Stack direction="row" spacing={1.5} alignItems="center">
       <Switch checked={s[key] === true} disabled={!allowed} onChange={(e) => run(() => bloomSupport.setSetting(key, e.target.checked))} />
@@ -358,23 +373,24 @@ export function SettingsPanel({ me }: { me: Whoami }) {
       </Sheet>
       {isAdmin && (
         <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
-          <Typography level="title-sm">Where Jon and Jeff get alerts</Typography>
-          <Typography level="body-xs">Bloom emails these addresses when something needs one of you.</Typography>
-          {(["jon", "jeff"] as const).map((who) => (
+          <Typography level="title-sm">Where admins get alerts</Typography>
+          <Typography level="body-xs">Bloom emails these addresses when something needs an admin.</Typography>
+          {ADMIN_INBOX_KEYS.map((who) => (
             <Typography key={who} level="body-sm" sx={{ mt: 0.5 }}>
-              <strong>{who === "jon" ? "Jon" : "Jeff"}:</strong> {(((s.owners as Record<string, string[]>) ?? {})[who] ?? []).join(", ") || "not set"}
+              <strong>{adminAudienceLabel(who, inboxNames)}:</strong> {(((s.owners as Record<string, string[]>) ?? {})[who] ?? []).join(", ") || "not set"}
             </Typography>
           ))}
           <Button size="sm" variant="outlined" sx={{ mt: 1 }} onClick={async () => {
             const owners = (s.owners as { jon?: string[]; jeff?: string[] }) ?? {};
             const r = await ask({ title: "Alert addresses", fields: [
-              { name: "jon", label: "Jon's email", kind: "text", helper: "Separate several with commas.", initial: (owners.jon ?? []).join(", ") },
-              { name: "jeff", label: "Jeff's email", kind: "text", helper: "Separate several with commas.", initial: (owners.jeff ?? []).join(", ") },
+              { name: "jon", label: `${adminAudienceLabel("jon", inboxNames)}: email`, kind: "text", helper: "Separate several with commas.", initial: (owners.jon ?? []).join(", ") },
+              { name: "jeff", label: `${adminAudienceLabel("jeff", inboxNames)}: email`, kind: "text", helper: "Separate several with commas.", initial: (owners.jeff ?? []).join(", ") },
             ], confirmLabel: "Save" });
             if (r) run(() => bloomSupport.setSetting("owners", { jon: splitList(r.jon), jeff: splitList(r.jeff) }));
           }}>Edit</Button>
         </Sheet>
       )}
+      {isAdmin && <ChatSpendPanel />}
       <Typography level="title-md">Support configuration</Typography>
       <SupportConfigPanel me={me} />
       <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
@@ -430,6 +446,15 @@ export function SettingsPanel({ me }: { me: Whoami }) {
         <Stack direction="row" spacing={1} sx={{ my: 1 }}>
           <Button size="sm" onClick={() => run(async () => setNewKey((await bloomSupport.createKey({ label: "ChatGPT", scopes: ["*"] })).token))}>New full key</Button>
           <Button size="sm" variant="outlined" onClick={() => run(async () => setNewKey((await bloomSupport.createKey({ label: "ChatGPT (read-only)", scopes: ["read"] })).token))}>New read-only key</Button>
+          {me.permissions.includes("admin.roles") && (
+            <Button size="sm" variant="outlined" onClick={() => run(async () => {
+              // A dedicated service identity that can only record repair outcomes
+              // (engineering.report). This is the key the repair workflow's
+              // BLOOM_REPAIR_REPORT_KEY secret should hold, never a person's key.
+              const principalId = await bloomSupport.createServiceIdentity("Bloom repair report", "repair_report");
+              setNewKey((await bloomSupport.createKey({ label: "Bloom repair report", principal_id: principalId })).token);
+            })}>New repair report key</Button>
+          )}
         </Stack>
         {newKey && <Alert color="success" variant="soft" sx={{ wordBreak: "break-all" }}>Copy now — shown once: {newKey}</Alert>}
         {(keys.data ?? []).map((k) => (
@@ -471,9 +496,12 @@ export function ReadinessPanel() {
       <Alert color={r.summary.continuous_automation === "running" ? "success" : "warning"} variant="soft">
         Bloom's background work is <strong>{r.summary.continuous_automation === "running" ? "running" : labelFor(String(r.summary.continuous_automation)).toLowerCase()}</strong>. It runs on its own schedule; ChatGPT connections are only for people asking Bloom things.
       </Alert>
+      <Typography level="body-xs" textColor="text.tertiary">
+        {r.live_evidence ?? "Last observed success is real production evidence, not a deployment or health check. No recent evidence means no successful use was observed within that capability's window."}
+      </Typography>
       <Sheet variant="outlined" sx={{ borderRadius: "md", overflow: "auto" }}>
         <Table size="sm">
-          <thead><tr><th style={{ width: "26%" }}>What Bloom can do</th><th>Built</th><th>Set up</th><th>Switched on</th><th>Last seen working</th><th style={{ width: "28%" }}>Checked / still needed</th></tr></thead>
+          <thead><tr><th style={{ width: "26%" }}>What Bloom can do</th><th>Built</th><th>Set up</th><th>Switched on</th><th>Last observed success</th><th style={{ width: "28%" }}>Checked / still needed</th></tr></thead>
           <tbody>
             {r.capabilities.map((c) => (
               <tr key={c.key}>
@@ -481,7 +509,7 @@ export function ReadinessPanel() {
                 <td>{tick(c.implemented)}</td>
                 <td><Chip size="sm" variant="soft" color={c.configured ? "success" : "warning"}>{tick(c.configured)}</Chip></td>
                 <td>{tick(c.enabled)}</td>
-                <td><Typography level="body-xs">{c.live ? ago(c.live) : "not seen"}</Typography></td>
+                <td><Typography level="body-xs">{c.live ? ago(c.live) : "No recent evidence"}</Typography></td>
                 <td><Typography level="body-xs">{c.tested}</Typography>{c.missing.length ? <Typography level="body-xs" color="warning">Missing: {c.missing.join(", ")}</Typography> : null}</td>
               </tr>
             ))}
@@ -630,7 +658,7 @@ const CONFIG_KEYS: Array<{ key: string; label: string; help: string }> = [
   { key: "automation_scopes", label: "Automation scopes", help: "Pause triage, answer, email, operations or engineering separately. Intake always continues." },
   { key: "limits", label: "Usage limits", help: "Model calls, tickets per client, repair attempts and concurrency." },
   { key: "ai", label: "Model", help: "OpenAI API model id and per-client budget (billed to the API account)." },
-  { key: "support", label: "Accountability", help: "default_owner_email: who is accountable for unassigned tickets (defaults to Jon)." },
+  { key: "support", label: "Accountability", help: "default_owner_email: who is accountable for unassigned tickets (defaults to the admin on inbox 1)." },
 ];
 
 export function SupportConfigPanel({ me }: { me: Whoami }) {

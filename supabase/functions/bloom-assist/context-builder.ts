@@ -1,5 +1,6 @@
 import { BASE_SYSTEM_PROMPT } from "./prompts/base-system-prompt.ts";
 import { getContextWithCompaction } from "./compaction.ts";
+import type { SpendMeter } from "./security/spend-cap.ts";
 import { buildPurchaseDataLine } from "./purchase-data-summary.ts";
 import {
   detectRecallTrigger,
@@ -137,6 +138,8 @@ type BuildContextLayersArgs = {
   currentMessageId?: string;
   inputSecurity?: InputSecurityAssessment;
   toolDefinitionProvider?: ToolDefinitionProvider;
+  /** Tenant spending cap for any compaction summary call. */
+  meter?: SpendMeter | null;
 };
 
 const tenantProfileCache = new Map<string, TenantCacheEntry>();
@@ -1214,6 +1217,7 @@ export async function buildContextLayers({
   currentMessageId,
   inputSecurity,
   toolDefinitionProvider,
+  meter,
 }: BuildContextLayersArgs): Promise<ContextBuildResult> {
   const historyContextPromise = context.conversationId
     ? getContextWithCompaction(
@@ -1224,6 +1228,7 @@ export async function buildContextLayers({
           tenantId: context.tenantId,
           userId: context.userId,
           currentMessageId,
+          meter,
         },
       )
     : Promise.resolve({
@@ -1289,6 +1294,7 @@ export async function buildContextLayers({
         userId: context.userId,
         currentMessageId,
         forceTrigger: "emergency",
+        meter,
       },
     );
     historyLayerMessages = insertRecalledContextMessage(

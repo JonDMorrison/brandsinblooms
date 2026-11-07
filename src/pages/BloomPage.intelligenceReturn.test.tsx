@@ -63,6 +63,7 @@ function mount(path: string) {
           <Route path="/bloom" element={<BloomPage />} />
         </Route>
         <Route path="/crm/intelligence" element={<LocationEcho />} />
+        <Route path="/dashboard" element={<LocationEcho />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -82,6 +83,7 @@ describe("Bloom return path from Intelligence", () => {
       ),
     );
     expect(mocks.sendMessage).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Back to Dashboard" })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Back to Intelligence" }),
     ).toBeVisible();
@@ -92,11 +94,15 @@ describe("Bloom return path from Intelligence", () => {
       "/crm/intelligence?view=growth",
     );
   });
-  it("does not show a return control for unrelated Bloom visits", () => {
+  it("offers a clear dashboard exit for ordinary Bloom visits", () => {
     mount("/bloom");
     expect(
       screen.queryByRole("button", { name: "Back to Intelligence" }),
     ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Back to Dashboard" }),
+    );
+    expect(screen.getByTestId("target-path")).toHaveTextContent("/dashboard");
   });
   it("never follows an unsafe or unknown return destination", () => {
     mount("/bloom?origin=intelligence&returnView=%2F%2Fevil.example");

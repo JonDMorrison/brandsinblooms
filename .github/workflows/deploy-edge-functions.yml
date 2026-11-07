@@ -17,6 +17,7 @@ on:
       - "src/components/crm/pos/adapters/**"
       - "src/hooks/useCompanyInfo.ts"
       - "src/integrations/supabase/types.ts"
+      - "src/lib/bloomSupport/**"
   # Re-run a deploy that failed after merge, for the named functions only.
   workflow_dispatch:
     inputs:
@@ -28,6 +29,18 @@ on:
 permissions:
   contents: read
   issues: write
+  # Read the Bloom Support release run for this commit (see the wait step).
+  actions: read
+
+# Deploys run one at a time, in push order. Without this an older push whose
+# deploy waited for Bloom Support migrations could finish after a newer push
+# and overwrite its functions (seen 2026-11-06: #377 overwrote #381's
+# bloom-support-api). If GitHub drops a queued run because a newer one was
+# queued behind it, the newer run diffs from the last successful deploy, so
+# no commit's functions are skipped.
+concurrency:
+  group: deploy-edge-functions
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -37,12 +50,72 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
+
+      # The diff base: the commit of the last successful push deploy, so a
+      # queued run GitHub dropped never loses its functions. Falls back to
+      # HEAD~1 when there is none or it is not an ancestor of this commit.
+      - name: Find deploy base
+        id: base
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          base="$(gh api "repos/$REPO/actions/workflows/deploy-edge-functions.yml/runs?branch=main&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty' || true)"
+          if [[ -z "$base" ]] || ! git merge-base --is-ancestor "$base" HEAD 2>/dev/null || [[ "$base" == "$(git rev-parse HEAD)" ]]; then
+            base="$(git rev-parse HEAD~1)"
+          fi
+          echo "Deploy base: $base"
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+
+      # bloom-support-release.yml applies Bloom Support migrations on the same
+      # push. Both workflows start together, so new function code could go
+      # live before the schema it calls (new RPCs, tables, statuses) exists,
+      # or stay live against the old schema if the release fails. When this
+      # commit changes a Bloom Support migration, deploy only after that
+      # release run for the same commit has succeeded. Manual redeploys
+      # (workflow_dispatch) are never gated.
+      - name: Wait for Bloom Support migrations
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ steps.base.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$BASE" HEAD -- 'supabase/migrations/*bloom_support*'; then
+            echo "No Bloom Support migration since the last deploy; nothing to wait for."
+            exit 0
+          fi
+          # Wait until no Bloom Support release on main is queued or running,
+          # then require the most recent one to have succeeded.
+          for i in $(seq 1 60); do
+            busy="$(gh api "repos/$REPO/actions/workflows/bloom-support-release.yml/runs?branch=main&event=push&per_page=10" \
+              --jq '[.workflow_runs[] | select(.status != "completed")] | length')"
+            if [[ "$busy" == "0" ]]; then
+              conclusion="$(gh api "repos/$REPO/actions/workflows/bloom-support-release.yml/runs?branch=main&event=push&per_page=1" \
+                --jq '.workflow_runs[0].conclusion // "missing"')"
+              if [[ "$conclusion" == "success" ]]; then
+                echo "Bloom Support migrations applied; deploying."
+                exit 0
+              fi
+              echo "::error title=Bloom Support release did not succeed::conclusion=$conclusion. Functions were NOT deployed; fix the release, then re-run this workflow."
+              exit 1
+            fi
+            echo "Waiting for Bloom Support release ($busy running) $i/60…"
+            sleep 30
+          done
+          echo "::error title=Bloom Support release timed out::A release was still running after 30 minutes. Functions were NOT deployed."
+          exit 1
 
       - name: Detect changed functions
         id: changed
         env:
           REQUESTED_FUNCTIONS: ${{ github.event.inputs.functions }}
+          BASE: ${{ steps.base.outputs.sha }}
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             for fn in $REQUESTED_FUNCTIONS; do
@@ -58,15 +131,16 @@ jobs:
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed_paths="$(git diff --name-only HEAD~1 HEAD | grep -v '^supabase/config.toml$' || true)"
+          changed_paths="$(git diff --name-only "$BASE" HEAD | grep -v '^supabase/config.toml$' || true)"
           config_function_paths=""
-          if ! git diff --quiet HEAD~1 HEAD -- supabase/config.toml; then
+          if ! git diff --quiet "$BASE" HEAD -- supabase/config.toml; then
             config_function_paths="$(python3 - <<'PY'
+          import os
           import subprocess
           import tomllib
 
           old = tomllib.loads(subprocess.check_output(
-              ["git", "show", "HEAD~1:supabase/config.toml"], text=True
+              ["git", "show", os.environ["BASE"] + ":supabase/config.toml"], text=True
           ))
           with open("supabase/config.toml", "rb") as source:
               new = tomllib.load(source)

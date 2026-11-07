@@ -15,6 +15,7 @@ import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
+  AlertCircle,
   ChevronDown,
   DollarSign,
   Download,
@@ -57,6 +58,7 @@ import {
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoySearchInput } from "@/components/joy/JoySearchInput";
+import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import {
   JoyTable,
   JoyTableBody,
@@ -70,6 +72,7 @@ import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { useAllSegments } from "@/hooks/useAllSegments";
 import { useBulkCustomerOperations } from "@/hooks/useBulkCustomerOperations";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useCRMTags } from "@/hooks/useCRMTags";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
 import { useCustomerExport } from "@/hooks/useCustomerExport";
 import { useTenant } from "@/hooks/useTenant";
@@ -87,6 +90,7 @@ export const CRMCustomersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSyncFromCRM, setShowSyncFromCRM] = useState(false);
   const [showMergeReview, setShowMergeReview] = useState(false);
@@ -120,14 +124,26 @@ export const CRMCustomersPage: React.FC = () => {
   const canExportCustomers = crmRole === "owner_admin";
   const canManageIntegrations = hasPermission("integrations.manage");
   const canDeleteCustomers = crmRole === "owner_admin";
+  const { tags: availableTags, loading: tagsLoading } = useCRMTags();
+  const selectedTag =
+    availableTags.find((tag) => tag.id === selectedTagId) ?? null;
+
+  // Never keep a tag filter after switching to a different company.
+  useEffect(() => {
+    setSelectedTagId(null);
+    setCurrentPage(1);
+    clearSelection();
+  }, [tenant?.id, clearSelection]);
 
   const {
     data: customers = [],
     totalCount = 0,
     isLoading,
+    error: customersError,
     invalidateCustomers,
   } = useCustomers({
     search: searchQuery,
+    tagId: selectedTag?.id ?? null,
     page: currentPage,
     pageSize,
     tenantId: tenant?.id,
@@ -374,6 +390,12 @@ export const CRMCustomersPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  const handleTagChange = useCallback((tagId: string | null) => {
+    setSelectedTagId(tagId);
+    setCurrentPage(1);
+    clearSelection();
+  }, [clearSelection]);
+
   const handleClearSearch = useCallback(() => {
     setSearchInput("");
     setSearchQuery("");
@@ -540,7 +562,7 @@ export const CRMCustomersPage: React.FC = () => {
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                lg: "minmax(300px, 420px) minmax(0, 1fr)",
+                lg: "minmax(260px, 420px) minmax(190px, 250px) minmax(0, 1fr)",
               },
               gap: 1.5,
               alignItems: "start",
@@ -552,6 +574,19 @@ export const CRMCustomersPage: React.FC = () => {
               onClear={handleClearSearch}
               placeholder="Search by name, email, or phone..."
               sx={{ width: "100%", minWidth: 0 }}
+            />
+
+            <JoyAutocomplete
+              label="Filter by CRM tag"
+              placeholder="All tags"
+              options={availableTags}
+              value={selectedTag}
+              loading={tagsLoading}
+              getOptionLabel={(tag) => tag.name}
+              isOptionEqualToValue={(option, current) => option.id === current.id}
+              onValueChange={(tag) => handleTagChange(tag?.id ?? null)}
+              noOptionsText="No tags found"
+              formControlSx={{ minWidth: 0 }}
             />
 
             <Box
@@ -601,7 +636,18 @@ export const CRMCustomersPage: React.FC = () => {
         </Stack>
 
         <JoyDataSectionCard bodySx={{ p: 0 }}>
-        {isLoading ? (
+        {customersError ? (
+          <JoyEmptyState
+            icon={<AlertCircle />}
+            title="Couldn't load contacts"
+            description="Your contacts couldn't be loaded. Please try again."
+            primaryAction={{
+              label: "Retry",
+              size: "sm",
+              onClick: invalidateCustomers,
+            }}
+          />
+        ) : isLoading ? (
           <Stack
             direction="row"
             spacing={1.5}
@@ -616,12 +662,18 @@ export const CRMCustomersPage: React.FC = () => {
             icon={<Users />}
             title="No customers found"
             description={
-              searchQuery
-                ? "Try adjusting your search or add a new customer record."
+              searchQuery || selectedTag
+                ? "Try a different search or clear the tag filter."
                 : "Add your first customer or import a list to start building segments and personas."
             }
             primaryAction={
-              canWriteCustomers
+              selectedTag
+                ? {
+                    label: "Clear tag filter",
+                    size: "sm",
+                    onClick: () => handleTagChange(null),
+                  }
+                : canWriteCustomers
                 ? {
                     label: "Add Customer",
                     size: "sm",

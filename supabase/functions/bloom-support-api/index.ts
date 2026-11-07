@@ -7,6 +7,7 @@ import { actions, requireWriteScope } from "../_shared/bloom-support/service.ts"
 import { attachmentUrl, decodeBase64File, storeAttachment } from "../_shared/bloom-support/attachments.ts";
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { approve, authorizationServerMetadata, authorize, register, token } from "../_shared/bloom-support/oauth.ts";
+import { actOnTicket, attachmentLink, renewLink, replyToTicket, TRACK_HEADERS, viewTicket } from "../_shared/bloom-support/track.ts";
 
 type Handler = (req: Request, params: string[], url: URL) => Promise<unknown>;
 const routes: Array<[string, RegExp, Handler]> = [];
@@ -98,16 +99,14 @@ on("POST", "/tickets/:id/feature", async (req, [id]) => actions.routeFeature(awa
 on("POST", "/tickets/:id/escalate", async (req, [id]) => actions.escalate(await caller(req), id, await readJson(req)));
 on("POST", "/tickets/:id/attachments", async (req, [id]) => {
   const c = await caller(req);
-  const type = req.headers.get("content-type") ?? "";
-  if (type.startsWith("multipart/form-data")) {
-    const form = await req.formData();
-    const out = [];
-    for (const v of form.getAll("file")) {
-      if (v instanceof File) out.push(await storeAttachment(c.principalId, id, { name: v.name, type: v.type, bytes: new Uint8Array(await v.arrayBuffer()) }, { visibility: form.get("visibility") === "internal" ? "internal" : "public" }));
-    }
-    return out;
+  const type = req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (type !== "application/json") {
+    throw new BloomError(415, "unsupported_media_type", "Attachment uploads require application/json");
   }
-  const b = await readJson(req, 22_000_000);
+  // One 8 MiB file is about 10.7 MiB as base64. Bound the JSON envelope before
+  // parsing so chunked and dishonest Content-Length requests cannot make the
+  // Edge runtime allocate an unbounded multipart/File body.
+  const b = await readJson(req, 12 * 1024 * 1024);
   return storeAttachment(c.principalId, id, { name: String(b.file_name ?? "file"), type: String(b.content_type ?? ""), bytes: decodeBase64File(String(b.data_base64 ?? "")) }, { visibility: b.visibility === "internal" ? "internal" : "public" });
 });
 on("GET", "/attachments/:id", async (req, [id]) => attachmentUrl((await caller(req)).principalId, id));
@@ -147,6 +146,11 @@ on("POST", "/jobs/:id/:action", async (req, [id, action]) => actions.controlJob(
 
 on("GET", "/settings", async (req) => actions.getSettings(await caller(req)));
 on("PUT", "/settings/:key", async (req, [key]) => actions.setSetting(await caller(req), key, (await readJson(req)).value));
+on("GET", "/chat-spend", async (req) => actions.chatSpend(await caller(req)));
+on("PUT", "/chat-spend/:tenant", async (req, [tenant]) => {
+  const b = await readJson(req);
+  return actions.setChatSpendCap(await caller(req), tenant, b.cap_usd ?? null, str(b.note, 500));
+});
 on("GET", "/staff", async (req) => actions.listStaff(await caller(req)));
 on("POST", "/staff/role", async (req) => actions.setRole(await caller(req), await readJson(req)));
 on("GET", "/keys", async (req) => actions.listKeys(await caller(req)));
@@ -170,23 +174,31 @@ on("GET", "/help", async (_req, _p, url) => {
   return data;
 });
 
-// Public, unauthenticated: one ticket's public thread via its tracking link.
-on("GET", "/track/:token", (_req, [token]) => actions.track(token));
+// Public, unauthenticated: one ticket's client view via its tracking link. The token is
+// the credential; see _shared/bloom-support/track.ts for what it can and cannot do.
+on("GET", "/track/:token", (_req, [token]) => viewTicket(token));
+on("POST", "/track/:token/reply", (req, [token]) => replyToTicket(req, token));
+on("POST", "/track/:token/action", (req, [token]) => actOnTicket(req, token));
+on("GET", "/track/:token/attachments/:id", (_req, [token, id]) => attachmentLink(token, id));
+on("POST", "/track/:token/renew", (req, [token]) => renewLink(req, token));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/bloom-support-api/, "") || "/";
+  const extra = path.startsWith("/track/") ? TRACK_HEADERS : {};
   try {
     if (req.method === "GET" && path === "/oauth/authorize") return await authorize(url);
     if (req.method === "POST" && path === "/oauth/token") return await token(req);
     for (const [method, re, h] of routes) {
       if (method !== req.method) continue;
       const m = path.match(re);
-      if (m) return json(req, await h(req, m.slice(1).map(decodeURIComponent), url));
+      if (m) return json(req, await h(req, m.slice(1).map(decodeURIComponent), url), 200, extra);
     }
     throw new BloomError(404, "not_found", `No route ${req.method} ${path}`);
   } catch (e) {
-    return errorResponse(req, e);
+    const res = errorResponse(req, e);
+    for (const [k, v] of Object.entries(extra)) res.headers.set(k, v);
+    return res;
   }
 });

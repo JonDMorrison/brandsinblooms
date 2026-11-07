@@ -7,6 +7,7 @@ import type {
   OpenAITextContentPart,
   PersistenceClient,
 } from "./types.ts";
+import { meteredModelFetch, type SpendMeter } from "./security/spend-cap.ts";
 
 type XlsxModule = typeof import("npm:xlsx@0.18.5");
 
@@ -21,30 +22,13 @@ const MAX_ATTACHMENT_NAME_CHARS = 180;
 
 let xlsxModulePromise: Promise<XlsxModule> | null = null;
 
-const CSV_MIME_TYPES = new Set([
-  "text/csv",
-  "application/csv",
-  "text/comma-separated-values",
-]);
+import {
+  ALLOWED_MIME_TYPES,
+  type AttachmentKind,
+  fileKind,
+} from "./attachment-kinds.ts";
 
-const EXCEL_MIME_TYPES = new Set([
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-excel",
-]);
-
-const TEXT_MIME_TYPES = new Set(["text/plain"]);
-const PDF_MIME_TYPES = new Set(["application/pdf"]);
-const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
-
-const ALLOWED_MIME_TYPES = new Set([
-  ...CSV_MIME_TYPES,
-  ...EXCEL_MIME_TYPES,
-  ...TEXT_MIME_TYPES,
-  ...PDF_MIME_TYPES,
-  ...IMAGE_MIME_TYPES,
-]);
-
-type AttachmentKind = "csv" | "excel" | "pdf" | "text" | "image";
+export { type AttachmentKind, fileKind };
 
 type NormalizedAttachment = {
   filename: string;
@@ -57,6 +41,7 @@ type ProcessAttachmentOptions = {
   conversationId: string;
   dataClient: PersistenceClient;
   openAiApiKey: string;
+  meter?: SpendMeter | null;
 };
 
 export type ProcessAttachmentResult = {
@@ -226,30 +211,6 @@ function normalizeAttachment(value: JsonValue): NormalizedAttachment | null {
   return { filename, mimeType, size, storagePath };
 }
 
-function fileKind(mimeType: string): AttachmentKind | null {
-  if (CSV_MIME_TYPES.has(mimeType)) {
-    return "csv";
-  }
-
-  if (EXCEL_MIME_TYPES.has(mimeType)) {
-    return "excel";
-  }
-
-  if (PDF_MIME_TYPES.has(mimeType)) {
-    return "pdf";
-  }
-
-  if (TEXT_MIME_TYPES.has(mimeType)) {
-    return "text";
-  }
-
-  if (IMAGE_MIME_TYPES.has(mimeType)) {
-    return "image";
-  }
-
-  return null;
-}
-
 function attachmentBase(attachment: NormalizedAttachment): JsonObject {
   return {
     original_filename: attachment.filename,
@@ -336,7 +297,7 @@ function validationError(
   return validateStoragePath(attachment.storagePath, tenantId, conversationId);
 }
 
-async function downloadAttachmentBytes(
+export async function downloadAttachmentBytes(
   storageClient: PersistenceClient,
   storagePath: string,
 ): Promise<Uint8Array> {
@@ -441,6 +402,20 @@ function normalizeSheetRows(rawRows: unknown): string[][] {
       ),
     )
     .filter((row) => row.some((cell) => cell.length > 0));
+}
+
+/**
+ * Every row of an uploaded CSV/XLSX, header first, using the same parsers the
+ * chat attachment summary uses.
+ */
+export async function parseSpreadsheetRows(
+  bytes: Uint8Array,
+  kind: "csv" | "excel",
+): Promise<string[][]> {
+  const profile = kind === "csv"
+    ? parseCsvText(decodeText(bytes))
+    : await parseExcelBytes(bytes);
+  return profile.rows;
 }
 
 async function parseExcelBytes(bytes: Uint8Array): Promise<CsvDataProfile> {
@@ -664,6 +639,7 @@ function buildCsvAnalysisResult(
 
 function csvContextInjection(
   filename: string,
+  storagePath: string,
   analysisResult: JsonObject,
 ): string {
   const columns = Array.isArray(analysisResult.columns)
@@ -685,6 +661,7 @@ function csvContextInjection(
     qualityIssues.length > 0
       ? `Analysis issues: ${qualityIssues.slice(0, 5).join("; ")}.`
       : "Analysis issues: none detected in the sample.",
+    `Attachment reference: ${storagePath}. To add these contacts as customers, call import_customer_list with this upload_id.`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -941,6 +918,7 @@ function parseOpenAiTextResponse(payload: unknown): string | null {
 
 async function describeImage(args: {
   openAiApiKey: string;
+  meter?: SpendMeter | null;
   filename: string;
   dataUrl: string;
 }): Promise<string> {
@@ -955,7 +933,7 @@ async function describeImage(args: {
     },
   ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await meteredModelFetch(args.meter, "image_description", "https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${args.openAiApiKey}`,
@@ -1064,6 +1042,7 @@ async function processSpreadsheetAttachment(args: {
     analysisResult,
     contextInjection: csvContextInjection(
       args.attachment.filename,
+      args.attachment.storagePath,
       analysisResult,
     ),
   };
@@ -1100,6 +1079,7 @@ async function processImageAttachment(args: {
   attachment: NormalizedAttachment;
   bytes: Uint8Array;
   openAiApiKey: string;
+  meter?: SpendMeter | null;
 }): Promise<{
   analysisResult: JsonObject;
   contextInjection: string;
@@ -1110,6 +1090,7 @@ async function processImageAttachment(args: {
   const dimensions = imageDimensions(args.bytes, args.attachment.mimeType);
   const description = await describeImage({
     openAiApiKey: args.openAiApiKey,
+    meter: args.meter,
     filename: args.attachment.filename,
     dataUrl,
   });
@@ -1122,7 +1103,7 @@ async function processImageAttachment(args: {
 
   return {
     analysisResult,
-    contextInjection: `Uploaded image "${args.attachment.filename}" (${format}) analysis: ${description}`,
+    contextInjection: `Uploaded image "${args.attachment.filename}" (${format}) analysis: ${description} Attachment reference: ${args.attachment.storagePath}. To use this photo in an email campaign draft, pass it to create_campaign as photo_upload_id.`,
     imagePart: {
       type: "image_url",
       image_url: { url: dataUrl, detail: "low" },
@@ -1213,6 +1194,7 @@ export async function processAttachment(
       attachment: normalized,
       bytes,
       openAiApiKey: options.openAiApiKey,
+      meter: options.meter,
     });
     return {
       attachment: readyAttachment(normalized, result.analysisResult),
@@ -1239,6 +1221,7 @@ export async function processAttachments(args: {
   tenantId: string;
   conversationId: string;
   openAiApiKey: string;
+  meter?: SpendMeter | null;
 }): Promise<ProcessAttachmentsResult> {
   if (!args.attachments || args.attachments.length === 0) {
     return {
@@ -1260,6 +1243,7 @@ export async function processAttachments(args: {
           conversationId: args.conversationId,
           dataClient: args.dataClient,
           openAiApiKey: args.openAiApiKey,
+          meter: args.meter,
         },
       ),
     ),

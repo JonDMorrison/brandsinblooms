@@ -788,6 +788,7 @@ const buildTaskPlanFromDetectedTextPlan = (
       editableFields: [],
       editableFieldMetadata: [],
       validationAnnotations: [],
+      notice: null,
       status: "pending" as const,
       errorMessage: null,
     };

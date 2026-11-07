@@ -66,10 +66,7 @@ const PublicSupportContact = lazyNamed(
   () => import("@/pages/PublicSupportPage"),
   "PublicSupportContact",
 );
-const PublicSupportTrack = lazyNamed(
-  () => import("@/pages/PublicSupportPage"),
-  "PublicSupportTrack",
-);
+const PublicSupportTrack = lazyRetry(() => import("@/pages/PublicSupportTrackPage"));
 const ReportedProblemDetailPage = lazyRetry(
   () => import("@/pages/admin/ReportedProblemDetailPage"),
 );

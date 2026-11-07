@@ -1,7 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/config";
+import { checkAttachments, safeSupportTrackingUrl } from "@/lib/bloomSupport/constants";
+import type { TrackReplyInput, TrackResponse, TrackView } from "@/lib/bloomSupport/trackView";
 
 export type SupportStatus = "new" | "working" | "waiting" | "needs_owner" | "resolved";
+/**
+ * What a client sees. The server (bloom_support.client_status) projects every
+ * non-staff ticket read to these four states, so routing states such as
+ * needs_owner never reach a client.
+ */
+export type ClientStatus = "received" | "in_progress" | "waiting_on_you" | "resolved";
+/** A ticket status as returned by the API: raw for staff, projected for clients. */
+export type TicketStatus = SupportStatus | ClientStatus;
 
 export type KnowledgeProduct = "platform" | "crm" | "cms" | "pos";
 export interface PublicKnowledgeArticle {
@@ -30,9 +40,40 @@ export const STATUS_LABEL: Record<SupportStatus, string> = {
   new: "New",
   working: "Working",
   waiting: "Waiting",
-  needs_owner: "Needs Jon/Jeff",
+  needs_owner: "Needs admin",
   resolved: "Resolved",
 };
+
+/** Client-facing labels; match customerStatusLabel in the support emails. */
+export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
+  received: "Received",
+  in_progress: "In progress",
+  waiting_on_you: "Waiting for your reply",
+  resolved: "Resolved",
+};
+
+const CLIENT_STATUSES = new Set<string>(Object.keys(CLIENT_STATUS_LABEL));
+
+export function isClientStatus(status: string): status is ClientStatus {
+  return CLIENT_STATUSES.has(status);
+}
+
+/**
+ * The client view of any status. The server already projects client reads;
+ * this keeps a client surface safe if it is ever handed a raw status.
+ */
+export function clientStatusOf(status: string, waitingReason?: string | null): ClientStatus {
+  if (isClientStatus(status)) return status;
+  if (status === "new") return "received";
+  if (status === "waiting" && waitingReason === "customer") return "waiting_on_you";
+  return "in_progress";
+}
+
+/** Staff label for a raw status; client label otherwise. */
+export function statusLabel(status: TicketStatus, audience: "staff" | "client" = "staff"): string {
+  if (audience === "client") return CLIENT_STATUS_LABEL[clientStatusOf(status)];
+  return (STATUS_LABEL as Record<string, string>)[status] ?? CLIENT_STATUS_LABEL[status as ClientStatus] ?? status;
+}
 
 export const PRODUCT_LABEL: Record<string, string> = {
   cms: "BloomSites",
@@ -46,7 +87,7 @@ export interface TicketSummary {
   id: string;
   number: number;
   subject: string;
-  status: SupportStatus;
+  status: TicketStatus;
   product: string;
   kind: string;
   priority: "low" | "normal" | "high" | "urgent";
@@ -112,7 +153,7 @@ export const QUEUE_VIEWS: Array<{ key: string; label: string }> = [
   { key: "due_soon", label: "Due soon" },
   { key: "overdue", label: "Overdue" },
   { key: "waiting_customer", label: "Waiting on customer" },
-  { key: "needs_owner", label: "Needs Jon/Jeff" },
+  { key: "needs_owner", label: "Needs admin" },
   { key: "recently_resolved", label: "Recently resolved" },
 ];
 export interface TicketPage { items: TicketSummary[]; total: number; next_cursor: string | null }
@@ -133,7 +174,7 @@ export interface TicketDetail extends TicketSummary {
   summary: string;
   messages: TicketMessage[];
   attachments: Array<{ id: string; file_name: string; content_type: string; size_bytes: number; visibility: string; created_at: string }>;
-  conversation_tickets: Array<{ id: string; number: number; subject: string; status: SupportStatus }>;
+  conversation_tickets: Array<{ id: string; number: number; subject: string; status: TicketStatus }>;
   context?: Record<string, unknown>;
   links?: Array<{ ticket_id: string; kind: string; number: number; subject: string; status: SupportStatus }>;
   activity?: Array<{ action: string; detail: Record<string, unknown>; created_at: string; actor: string | null }>;
@@ -167,18 +208,174 @@ export class BloomSupportError extends Error {
   }
 }
 
+export interface SignedSupportIntakeResult {
+  received: true;
+  duplicate_delivery: boolean;
+  ticket_id: string;
+  number: number;
+  tracking_url?: string;
+  attachments: { stored: number; failed: string[] };
+}
+
+export interface PublicSupportIntakeResult {
+  received: true;
+  duplicate_delivery: boolean;
+  number: number;
+  email_delivery: "pending";
+  /** What happened to attached files. Absent only from a server that predates public attachments. */
+  attachments?: { stored: number; failed: string[] };
+}
+
+export interface SupportMessageResult {
+  message_id: string;
+  duplicate: boolean;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const positiveRequestNumber = (value: unknown): value is number =>
+  Number.isSafeInteger(value) && (value as number) > 0;
+
+function invalidIntakeResponse(): never {
+  throw new BloomSupportError(
+    502,
+    "invalid_response",
+    "Bloom Support did not confirm your request. Please try again.",
+  );
+}
+
+function invalidMessageResponse(): never {
+  throw new BloomSupportError(
+    502,
+    "invalid_response",
+    "Bloom Support did not confirm your reply. Please try again.",
+  );
+}
+
+/** A 2xx response is successful only when intake confirms a saved request. */
+export function parseSignedSupportIntake(
+  value: unknown,
+): SignedSupportIntakeResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return invalidIntakeResponse();
+  }
+  const body = value as Record<string, unknown>;
+  if (
+    body.received !== true ||
+    typeof body.duplicate_delivery !== "boolean" ||
+    !positiveRequestNumber(body.number) ||
+    typeof body.ticket_id !== "string" ||
+    !UUID_PATTERN.test(body.ticket_id)
+  ) {
+    return invalidIntakeResponse();
+  }
+
+  const attachments = parseAttachmentFacts(body.attachments);
+  if (!attachments) return invalidIntakeResponse();
+  const trackingUrl = safeSupportTrackingUrl(body.tracking_url);
+
+  return {
+    received: true,
+    duplicate_delivery: body.duplicate_delivery,
+    ticket_id: body.ticket_id,
+    number: body.number,
+    ...(trackingUrl ? { tracking_url: trackingUrl } : {}),
+    attachments,
+  };
+}
+
+/** The intake's per-file outcome: how many were stored, and a line for each one that was not. */
+function parseAttachmentFacts(value: unknown): { stored: number; failed: string[] } | null {
+  const facts = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const stored = facts?.stored;
+  const failed = facts?.failed;
+  return Number.isSafeInteger(stored) && (stored as number) >= 0 &&
+      Array.isArray(failed) && failed.every((item) => typeof item === "string")
+    ? { stored: stored as number, failed: failed as string[] }
+    : null;
+}
+
+/** Public intake never exposes a ticket id, but must confirm a real request number. */
+export function parsePublicSupportIntake(
+  value: unknown,
+): PublicSupportIntakeResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return invalidIntakeResponse();
+  }
+  const body = value as Record<string, unknown>;
+  if (
+    body.received !== true ||
+    typeof body.duplicate_delivery !== "boolean" ||
+    !positiveRequestNumber(body.number) ||
+    body.email_delivery !== "pending"
+  ) {
+    return invalidIntakeResponse();
+  }
+  const attachments = parseAttachmentFacts(body.attachments);
+  return {
+    received: true,
+    duplicate_delivery: body.duplicate_delivery,
+    number: body.number,
+    email_delivery: "pending",
+    ...(attachments ? { attachments } : {}),
+  };
+}
+
+/** A reply is complete only after the API confirms its durable message receipt. */
+export function parseSupportMessageResult(
+  value: unknown,
+): SupportMessageResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return invalidMessageResponse();
+  }
+  const body = value as Record<string, unknown>;
+  if (
+    typeof body.message_id !== "string" ||
+    !UUID_PATTERN.test(body.message_id) ||
+    typeof body.duplicate !== "boolean"
+  ) {
+    return invalidMessageResponse();
+  }
+  return {
+    message_id: body.message_id,
+    duplicate: body.duplicate,
+  };
+}
+
+/** Bloom chat month-to-date model spend per company (micro-USD: 1 USD = 1,000,000). */
+export interface ChatSpendRow {
+  tenant_id: string;
+  tenant_name: string | null;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  settled_micros: number;
+  in_flight_micros: number;
+  committed_micros: number;
+  cap_micros: number;
+  override: boolean;
+  override_note: string | null;
+}
+export interface ChatSpendOverview { month: string; default_cap_micros: number; tenants: ChatSpendRow[] }
+
 async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function call<T>(fn: "bloom-support-api" | "bloom-support-intake", path: string, init: RequestInit = {}, auth = true): Promise<T> {
+async function call<T>(
+  fn: "bloom-support-api" | "bloom-support-intake",
+  path: string,
+  init: RequestInit = {},
+  auth = true,
+  validate?: (body: unknown) => T,
+): Promise<T> {
   const headers: Record<string, string> = { ...(auth ? await authHeader() : {}), ...(init.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}) };
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) } });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new BloomSupportError(res.status, body?.error ?? "error", body?.message ?? `Request failed (${res.status})`);
-  return body as T;
+  return validate ? validate(body) : body as T;
 }
 
 const api = <T,>(path: string, init?: RequestInit) => call<T>("bloom-support-api", path, init);
@@ -210,7 +407,14 @@ export const bloomSupport = {
   deleteView: (id: string) => send("DELETE", `/views/${id}`),
   metrics: (from?: string, to?: string) => api<Record<string, unknown>>(`/reports/metrics${from || to ? `?${new URLSearchParams(Object.entries({ from, to }).filter(([, v]) => v) as Array<[string, string]>)}` : ""}`),
   createTicket: (input: Record<string, unknown>) => send<{ ticket_id: string; number: number }>("POST", "/tickets", input),
-  addMessage: (id: string, input: { body: string; visibility: "public" | "internal"; idempotency_key?: string }) => send("POST", `/tickets/${id}/messages`, input),
+  addMessage: (id: string, input: { body: string; visibility: "public" | "internal"; idempotency_key?: string }) =>
+    call(
+      "bloom-support-api",
+      `/tickets/${id}/messages`,
+      { method: "POST", body: JSON.stringify(input) },
+      true,
+      parseSupportMessageResult,
+    ),
   updateTicket: (id: string, patch: Record<string, unknown>) => send<TicketSummary>("PATCH", `/tickets/${id}`, patch),
   setAutomation: (id: string, mode: "human" | "auto" | "paused", reason?: string) => send("POST", `/tickets/${id}/automation`, { mode, reason }),
   link: (id: string, to: string, kind: string) => send("POST", `/tickets/${id}/link`, { to, kind }),
@@ -220,10 +424,15 @@ export const bloomSupport = {
   escalate: (id: string, audience: "jon" | "jeff" | "both", reason: string) => send("POST", `/tickets/${id}/escalate`, { audience, reason }),
   attachmentUrl: (id: string) => api<{ url: string; file_name: string }>(`/attachments/${id}`),
   uploadAttachment: async (ticketId: string, file: File, visibility: "public" | "internal" = "public") => {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("visibility", visibility);
-    return api(`/tickets/${ticketId}/attachments`, { method: "POST", body: form });
+    const checked = checkAttachments([file]);
+    if (checked.rejected.length || checked.accepted.length !== 1) {
+      throw new BloomSupportError(400, "invalid_attachment", checked.rejected[0] ?? "This file cannot be attached");
+    }
+    const upload = await fileToUpload(file);
+    return api(`/tickets/${ticketId}/attachments`, {
+      method: "POST",
+      body: JSON.stringify({ ...upload, visibility }),
+    });
   },
   listAccounts: (q?: string) => api<Array<{ id: string; name: string; needs_review: boolean; open_tickets: number; links: Array<{ product: string; external_id: string; label: string | null }> }>>(`/accounts${q ? `?q=${encodeURIComponent(q)}` : ""}`),
   getAccount: (id: string) => api<Record<string, unknown>>(`/accounts/${id}`),
@@ -232,7 +441,7 @@ export const bloomSupport = {
   updateEngineering: (id: string, update: Record<string, unknown>) => send("PATCH", `/engineering/${id}`, update),
   features: () => api<Array<Record<string, unknown>>>("/features"),
   decideFeature: (id: string, decision: string, note?: string) => send("POST", `/features/${id}/decision`, { decision, note }),
-  readiness: () => api<{ generated_at: string; summary: { continuous_automation: string; owners_configured: boolean; worker: Record<string, unknown>; open_alerts: Array<Record<string, unknown>>; staff: Array<{ name: string | null; email: string | null; role: string }> }; capabilities: Array<{ key: string; label: string; implemented: boolean; configured: boolean; missing: string[]; tested: string; enabled: boolean | null; live: string | null; note?: string }> }>("/readiness"),
+  readiness: () => api<{ generated_at: string; live_evidence?: string; summary: { continuous_automation: string; owners_configured: boolean; worker: Record<string, unknown>; open_alerts: Array<Record<string, unknown>>; staff: Array<{ name: string | null; email: string | null; role: string }> }; capabilities: Array<{ key: string; label: string; implemented: boolean; configured: boolean; missing: string[]; tested: string; enabled: boolean | null; live: string | null; note?: string }> }>("/readiness"),
   acknowledgeEscalation: (id: string, note?: string) => send("POST", `/escalations/${id}/acknowledge`, { note }),
   escalations: (all = false) => api<Array<Record<string, unknown>>>(`/escalations${all ? "?all=true" : ""}`),
   resolveEscalation: (id: string, decision: string) => send("POST", `/escalations/${id}/resolve`, { decision }),
@@ -245,6 +454,8 @@ export const bloomSupport = {
   controlJob: (id: string, action: "retry" | "cancel") => send("POST", `/jobs/${id}/${action}`),
   settings: () => api<Record<string, unknown>>("/settings"),
   setSetting: (key: string, value: unknown) => send("PUT", `/settings/${key}`, { value }),
+  chatSpend: () => api<ChatSpendOverview>("/chat-spend"),
+  setChatSpendCap: (tenantId: string, capUsd: number | null, note?: string) => send("PUT", `/chat-spend/${tenantId}`, { cap_usd: capUsd, note }),
   staff: () => api<Array<{ id: string; name: string | null; email: string | null; role: string; grants: string[]; kind: string; active: boolean }>>("/staff"),
   setRole: (principal: Record<string, unknown>) => send("POST", "/staff/role", principal),
   keys: () => api<Array<Record<string, unknown>>>("/keys"),
@@ -258,18 +469,38 @@ export const bloomSupport = {
 
   /** Intake: the signed-in CRM user reports a problem or asks for help. */
   report: (input: { body: string; subject?: string; product?: string; context?: Record<string, unknown>; attachments?: Array<{ file_name: string; content_type: string; data_base64: string }>; idempotency_key?: string; conversation_id?: string }) =>
-    call<{ received: boolean; ticket_id: string; number: number; tracking_url?: string; attachments?: { stored: number; failed: string[] } }>("bloom-support-intake", "/report", { method: "POST", body: JSON.stringify(input) }),
+    call("bloom-support-intake", "/report", { method: "POST", body: JSON.stringify(input) }, true, parseSignedSupportIntake),
   /** Intake for people who cannot sign in. */
-  publicRequest: (input: Record<string, unknown>) => call<{ received: boolean; number?: number; emailed?: boolean }>("bloom-support-intake", "/public", { method: "POST", body: JSON.stringify(input) }, false),
-  track: (token: string) => call<{ number: number; subject: string; status: SupportStatus; created_at: string; updated_at: string; resolution_summary: string | null; messages: Array<{ from: string; body: string; created_at: string }> }>("bloom-support-api", `/track/${token}`, {}, false),
+  publicRequest: (input: Record<string, unknown>) =>
+    call("bloom-support-intake", "/public", { method: "POST", body: JSON.stringify(input) }, false, parsePublicSupportIntake),
+
+  /** Public tracking page: the link in every support email is the only credential. */
+  track: (token: string) => call<TrackResponse>("bloom-support-api", `/track/${encodeURIComponent(token)}`, {}, false),
+  trackReply: (token: string, input: TrackReplyInput) =>
+    call<{ message_id: string; duplicate: boolean; attachments: number; view: TrackView | null }>("bloom-support-api", `/track/${encodeURIComponent(token)}/reply`, { method: "POST", body: JSON.stringify(input) }, false),
+  trackAction: (token: string, action: "confirm_resolved" | "still_broken", message?: string) =>
+    call<{ ok: true; view: TrackView | null }>("bloom-support-api", `/track/${encodeURIComponent(token)}/action`, { method: "POST", body: JSON.stringify({ action, message }) }, false),
+  trackAttachment: (token: string, attachmentId: string) =>
+    call<{ url: string; file_name: string }>("bloom-support-api", `/track/${encodeURIComponent(token)}/attachments/${encodeURIComponent(attachmentId)}`, {}, false),
+  trackRenew: (token: string) => call<{ ok: true }>("bloom-support-api", `/track/${encodeURIComponent(token)}/renew`, { method: "POST", body: "{}" }, false),
 };
+
+/** The current page without query/hash credentials such as reset or OAuth tokens. */
+export function safeClientPageUrl(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return `${window.location.origin}${window.location.pathname}`;
+}
 
 /** Context captured automatically with a report. Browser globals are read only when called. */
 export function captureClientContext(extra: Record<string, unknown> = {}): Record<string, unknown> {
   if (typeof window === "undefined") return extra;
   const nav = window.navigator;
   return {
-    page_url: window.location.href,
+    ...extra,
+    // Query strings and fragments can contain reset, invite or OAuth tokens. The
+    // route is enough to reproduce a UI problem, so never send those values to
+    // the support desk as diagnostics.
+    page_url: safeClientPageUrl(),
     route: window.location.pathname,
     user_agent: nav.userAgent.slice(0, 300),
     viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -277,7 +508,6 @@ export function captureClientContext(extra: Record<string, unknown> = {}): Recor
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     online: nav.onLine,
     app_version: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? (import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA as string | undefined) ?? null,
-    ...extra,
   };
 }
 

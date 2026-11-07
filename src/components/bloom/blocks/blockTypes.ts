@@ -85,6 +85,8 @@ export type ConfirmationResultStatus =
   | "failed"
   | "skipped"
   | "blocked"
+  | "cancelled"
+  | "unknown"
   | "pending";
 
 export type ConfirmationResultItem = {

@@ -45,6 +45,148 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
   return data as T;
 }
 
+/** Exactly-once continuation of a signed CMS/POS support request by number. */
+export async function productClientAction<T = unknown>(args: {
+  actor: string;
+  product: "cms" | "pos";
+  account: string;
+  ticketNumber: number;
+  action: "still_needs_help" | "confirm_resolved";
+  message: string;
+  idempotencyKey: string;
+  fingerprint: string;
+}): Promise<T> {
+  const { data, error } = await db().rpc("bloom_support_product_client_action", {
+    p_actor: args.actor,
+    p_product: args.product,
+    p_account: args.account,
+    p_ticket_number: args.ticketNumber,
+    p_action: args.action,
+    p_message: args.message,
+    p_idempotency_key: args.idempotencyKey,
+    p_fingerprint: args.fingerprint,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export interface McpMutationContext {
+  /** Opaque SHA-256 key for one authenticated MCP mutation request. */
+  requestKey: string;
+  /** Tool and argument hash are persisted beside the key to detect misuse. */
+  tool: string;
+  argumentsHash: string;
+}
+
+/**
+ * Runs an MCP mutation and its idempotency receipt in one database transaction.
+ * Non-MCP callers keep using the ordinary allow-listed gateway.
+ */
+export async function mutationRpc<T = unknown>(
+  caller: Caller,
+  fn: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  if (!caller.mcpMutation) return await rpc<T>(fn, args);
+  const { data, error } = await db().rpc("bloom_support_mcp_mutation", {
+    p_actor: caller.principalId,
+    p_fn: fn,
+    p: args,
+    p_request_key: caller.mcpMutation.requestKey,
+    p_tool: caller.mcpMutation.tool,
+    p_arguments_hash: caller.mcpMutation.argumentsHash,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function claimMcpOperation<T = unknown>(
+  caller: Caller,
+  operationId: string,
+  action: "execute" | "undo",
+): Promise<T> {
+  if (!caller.mcpMutation) {
+    if (action === "execute") return await rpc<T>("claim_operation", { actor: caller.principalId, operation_id: operationId });
+    const { data, error } = await db().rpc("bloom_support_claim_operation_undo", { p_actor: caller.principalId, p_operation: operationId });
+    if (error) throw mapDbError(error);
+    return data as T;
+  }
+  const { data, error } = await db().rpc("bloom_support_mcp_claim_operation", {
+    p_actor: caller.principalId,
+    p_operation: operationId,
+    p_action: action,
+    p_request_key: caller.mcpMutation.requestKey,
+    p_tool: caller.mcpMutation.tool,
+    p_arguments_hash: caller.mcpMutation.argumentsHash,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function completeMcpOperation(
+  caller: Caller,
+  operationId: string,
+  result: Record<string, unknown>,
+): Promise<void> {
+  if (!caller.mcpMutation) return;
+  const { error } = await db().rpc("bloom_support_mcp_complete_operation", {
+    p_actor: caller.principalId,
+    p_operation: operationId,
+    p_request_key: caller.mcpMutation.requestKey,
+    p_tool: caller.mcpMutation.tool,
+    p_arguments_hash: caller.mcpMutation.argumentsHash,
+    p_result: result,
+  });
+  if (error) throw mapDbError(error);
+}
+
+export async function failOperationUndo<T = unknown>(actor: string, operationId: string, errorMessage: string): Promise<T> {
+  const { data, error } = await db().rpc("bloom_support_fail_operation_undo", {
+    p_actor: actor,
+    p_operation: operationId,
+    p_error: errorMessage,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function markOperationReconciliation<T = unknown>(
+  actor: string,
+  operationId: string,
+  action: "execute" | "undo",
+): Promise<T> {
+  const { data, error } = await db().rpc("bloom_support_mark_operation_reconciliation", {
+    p_actor: actor,
+    p_operation: operationId,
+    p_action: action,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
+export async function openMcpSession(actor: string, session: string): Promise<void> {
+  const { error } = await db().rpc("bloom_support_mcp_open_session", { p_actor: actor, p_session: session });
+  if (error) throw mapDbError(error);
+}
+
+export async function touchMcpSession(actor: string, session: string): Promise<boolean> {
+  const { data, error } = await db().rpc("bloom_support_mcp_touch_session", { p_actor: actor, p_session: session });
+  if (error) throw mapDbError(error);
+  return data === true;
+}
+
+export async function closeMcpSession(actor: string, session: string): Promise<void> {
+  const { error } = await db().rpc("bloom_support_mcp_close_session", { p_actor: actor, p_session: session });
+  if (error) throw mapDbError(error);
+}
+
+/** A service-role-only public function that authorizes p_actor itself (not routed through the gateway). */
+export async function directRpc<T = unknown>(fn: "bloom_chat_spend_overview" | "bloom_chat_spend_set_cap" | "bloom_support_claim_feature_shipment_email" | "bloom_support_client_suite_read" | "bloom_support_confirm_attachment" | "bloom_support_consume_email_usage" | "bloom_support_deliver_feature_shipment" | "bloom_support_digest_report" | "bloom_support_enqueue_engineering_recoveries" | "bloom_support_mark_feature_shipment_in_product_only", args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await db().rpc(fn, args);
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
 // ---------------------------------------------------------------------------
 // Callers
 // ---------------------------------------------------------------------------
@@ -55,6 +197,8 @@ export interface Caller {
   name?: string | null;
   /** API-key scope narrowing (empty = full principal authority). */
   scopes: string[];
+  /** Present only while an authenticated MCP write tool is running. */
+  mcpMutation?: McpMutationContext;
 }
 
 export const SERVICE_IDENTITIES = ["intake", "operations", "automation", "investigation", "release"] as const;
@@ -143,24 +287,46 @@ export interface ProductIdentity {
   account_name?: string | null;
 }
 
+/** Reject obviously unauthenticated product traffic before buffering its body. */
+export function preflightProductAuthentication(
+  req: Request,
+): { product: "cms" | "pos"; secret: string } {
+  const product = req.headers.get("x-bloom-product");
+  if (product !== "cms" && product !== "pos") {
+    throw new BloomError(401, "unauthenticated", "Unknown product");
+  }
+  const secret = env(`BLOOM_INTAKE_SECRET_${product.toUpperCase()}`);
+  if (!secret) {
+    throw new BloomError(
+      503,
+      "not_configured",
+      `BLOOM_INTAKE_SECRET_${product.toUpperCase()} is not set`,
+    );
+  }
+  const timestamp = req.headers.get("x-bloom-timestamp");
+  const signature = req.headers.get("x-bloom-signature") ?? "";
+  const seconds = Number(timestamp);
+  if (
+    !timestamp ||
+    !Number.isFinite(seconds) ||
+    Math.abs(Date.now() / 1000 - seconds) > 300 ||
+    !/^(?:sha256=)?[0-9a-f]{64}$/i.test(signature)
+  ) {
+    throw new BloomError(401, "unauthenticated", "Invalid product signature");
+  }
+  return { product, secret };
+}
+
 /**
  * Signed product intake: the BloomSites or POS server authenticated the person
  * and derived their site/tenant, then signs the request body with its own
  * per-product secret. Bloom trusts the identity only when the signature checks.
  */
 export async function authenticateProduct(req: Request, rawBody: string): Promise<{ product: "cms" | "pos"; payload: Record<string, unknown> }> {
-  const product = req.headers.get("x-bloom-product");
-  if (product !== "cms" && product !== "pos") throw new BloomError(401, "unauthenticated", "Unknown product");
-  const secret = env(`BLOOM_INTAKE_SECRET_${product.toUpperCase()}`);
-  if (!secret) throw new BloomError(503, "not_configured", `BLOOM_INTAKE_SECRET_${product.toUpperCase()} is not set`);
+  const { product, secret } = preflightProductAuthentication(req);
   const ok = await verifyIntakeSignature(secret, req.headers.get("x-bloom-timestamp"), req.headers.get("x-bloom-signature"), rawBody);
   if (!ok) throw new BloomError(401, "unauthenticated", "Invalid product signature");
-  let payload: Record<string, unknown>;
-  try {
-    payload = JSON.parse(rawBody);
-  } catch {
-    throw new BloomError(400, "invalid", "Body must be JSON");
-  }
+  const payload = parseJsonObject(rawBody);
   return { product, payload };
 }
 
@@ -181,6 +347,7 @@ export function cors(req: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bloom-product, x-bloom-timestamp, x-bloom-signature, mcp-session-id, mcp-protocol-version",
+    "Access-Control-Expose-Headers": "Mcp-Session-Id",
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     Vary: "Origin",
   };
@@ -196,10 +363,98 @@ export function errorResponse(req: Request, e: unknown): Response {
   return json(req, { error: "internal", message: "Unexpected error" }, 500);
 }
 
-export async function readJson(req: Request, limit = 1_000_000): Promise<Record<string, unknown>> {
-  const text = await req.text();
-  if (text.length > limit) throw new BloomError(413, "too_large", "Request too large");
+async function readBoundedBytes(
+  body: ReadableStream<Uint8Array> | null,
+  declared: string | null,
+  limitBytes: number,
+  tooLargeMessage: string,
+): Promise<Uint8Array> {
+  if (declared && /^\d+$/.test(declared) && Number(declared) > limitBytes) {
+    throw new BloomError(413, "too_large", tooLargeMessage);
+  }
+  if (!body) return new Uint8Array();
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limitBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new BloomError(413, "too_large", tooLargeMessage);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+async function readBoundedText(
+  body: ReadableStream<Uint8Array> | null,
+  declared: string | null,
+  limitBytes: number,
+): Promise<string> {
+  const bytes = await readBoundedBytes(
+    body,
+    declared,
+    limitBytes,
+    "Request too large",
+  );
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new BloomError(400, "invalid", "Body must be valid UTF-8");
+  }
+}
+
+/** Read a request body with a real UTF-8 byte ceiling, including chunked bodies. */
+export async function readBodyText(req: Request, limitBytes = 1_000_000): Promise<string> {
+  return await readBoundedText(
+    req.body,
+    req.headers.get("content-length"),
+    limitBytes,
+  );
+}
+
+/** Apply the same allocation bound to an upstream response body. */
+export async function readResponseText(
+  response: Response,
+  limitBytes = 1_000_000,
+): Promise<string> {
+  return await readBoundedText(
+    response.body,
+    response.headers.get("content-length"),
+    limitBytes,
+  );
+}
+
+/** Read an upstream response without trusting Content-Length or buffering past the cap. */
+export async function readResponseBytes(
+  response: Response,
+  limitBytes: number,
+): Promise<Uint8Array> {
+  return await readBoundedBytes(
+    response.body,
+    response.headers.get("content-length"),
+    limitBytes,
+    "Upstream response too large",
+  );
+}
+
+export async function readJson(req: Request, limitBytes = 1_000_000): Promise<Record<string, unknown>> {
+  const text = await readBodyText(req, limitBytes);
   if (!text) return {};
+  return parseJsonObject(text);
+}
+
+export function parseJsonObject(text: string): Record<string, unknown> {
   try {
     const v = JSON.parse(text);
     if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error();

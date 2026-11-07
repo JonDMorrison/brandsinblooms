@@ -33,7 +33,7 @@ export const SYSTEM_SEGMENT_PRESENTATIONS: SystemSegmentPresentation[] = [
     id: "lapsed-customers",
     name: "Lapsed Customers",
     description:
-      "Previously active customers who haven't engaged or purchased in over 60 days, ideal for re-engagement campaigns.",
+      "Customers whose last recorded purchase was more than 90 days ago, ideal for re-engagement campaigns. Imported customers without a last purchase date are not counted.",
     icon: "😴",
   },
   {

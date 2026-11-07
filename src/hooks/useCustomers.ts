@@ -32,6 +32,8 @@ interface UseCustomersOptions {
   pageSize?: number;
   enabled?: boolean;
   tenantId?: string | null;
+  /** ID of a tag belonging to the active CRM tenant. */
+  tagId?: string | null;
 }
 
 export const useCustomers = (options: UseCustomersOptions = {}) => {
@@ -40,7 +42,7 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
   const { page = 1, pageSize = 50 } = options;
 
   const query = useQuery({
-    queryKey: ["customers", options.tenantId, options.search, page, pageSize],
+    queryKey: ["customers", options.tenantId, options.search, options.tagId, page, pageSize],
     enabled: options.enabled ?? true,
     queryFn: async () => {
       const { data: user } = await supabase.auth.getUser();
@@ -64,19 +66,20 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
+      // Apply the tag join before pagination and count, so filtering covers
+      // every customer rather than just those on the visible page.
+      const tagAssociation = options.tagId
+        ? ["customer_tags!inner(tag_id)"]
+        : [];
       let query = supabase
         .from("crm_customers")
         .select(
-          `
-          *,
-          customer_personas (
-            persona_id,
-            predefined_persona_id
-          ),
-          customer_segments (
-            segment_id
-          )
-        `,
+          [
+            "*",
+            "customer_personas(persona_id,predefined_persona_id)",
+            "customer_segments(segment_id)",
+            ...tagAssociation,
+          ].join(","),
           { count: "exact" },
         )
         .eq("tenant_id", effectiveTenantId)
@@ -84,6 +87,10 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
         .is("merged_into_customer_id", null)
         .order("created_at", { ascending: false })
         .range(from, to);
+
+      if (options.tagId) {
+        query = query.eq("customer_tags.tag_id", options.tagId);
+      }
 
       const rawSearch = options.search?.trim();
       if (rawSearch) {

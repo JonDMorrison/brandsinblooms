@@ -250,6 +250,28 @@ describe("Website section edits are registered as draft-only Support changes", (
   });
 });
 
+describe("Navigation drafts and image swaps are registered as Support changes", () => {
+  const read = (p: string) => fs.readFileSync(path.resolve(__dirname, "../../supabase/functions/_shared/bloom-support", p), "utf8");
+  it("menu drafting and image swaps need ops.site.edit, publishing the menu needs ops.site.publish, all undoable", () => {
+    const policy = read("policy.ts");
+    const ops = read("operations.ts");
+    expect(policy).toContain('"site.navigation.update": "ops.site.edit"');
+    expect(policy).toContain('"site.navigation.discard": "ops.site.edit"');
+    expect(policy).toContain('"site.navigation.publish": "ops.site.publish"');
+    expect(policy).toContain('"site.image.replace": "ops.site.edit"');
+    for (const kind of ["site.navigation.update", "site.navigation.publish", "site.navigation.discard", "site.image.replace"]) {
+      expect(ops.slice(ops.indexOf("WRITE_OPERATIONS"), ops.indexOf("const PERMISSION"))).toContain(`"${kind}"`);
+      expect(ops.slice(ops.indexOf("const UNDOABLE"))).toContain(`"${kind}"`);
+    }
+  });
+  it("has an operator label for each kind", () => {
+    const panels = fs.readFileSync(path.resolve(__dirname, "../components/bloomSupport/AdminPanels.tsx"), "utf8");
+    for (const kind of ["site.navigation.update", "site.navigation.publish", "site.navigation.discard", "site.image.replace"]) {
+      expect(panels).toContain(`"${kind}": { label:`);
+    }
+  });
+});
+
 describe("Theme drafts are registered as Support changes", () => {
   const read = (p: string) => fs.readFileSync(path.resolve(__dirname, "../../supabase/functions/_shared/bloom-support", p), "utf8");
   it("drafting needs ops.site.edit, publishing needs ops.site.publish, all undoable", () => {
@@ -265,3 +287,26 @@ describe("Theme drafts are registered as Support changes", () => {
   });
 });
 
+describe("Blog posts and SEO are registered as Support changes", () => {
+  const read = (p: string) => fs.readFileSync(path.resolve(__dirname, "../../supabase/functions/_shared/bloom-support", p), "utf8");
+  it("drafting a post needs ops.site.edit; publishing a post and live SEO need ops.site.publish; all undoable", () => {
+    const policy = read("policy.ts");
+    const ops = read("operations.ts");
+    expect(policy).toContain('"site.blog.create": "ops.site.edit"');
+    expect(policy).toContain('"site.blog.update": "ops.site.edit"');
+    expect(policy).toContain('"site.blog.publish": "ops.site.publish"');
+    expect(policy).toContain('"site.seo.update": "ops.site.publish"');
+    for (const kind of ["site.blog.create", "site.blog.update", "site.blog.publish", "site.seo.update"]) {
+      expect(ops.slice(ops.indexOf("WRITE_OPERATIONS"), ops.indexOf("const PERMISSION"))).toContain(`"${kind}"`);
+      expect(ops.slice(ops.indexOf("const UNDOABLE"))).toContain(`"${kind}"`);
+      expect(ops.slice(ops.indexOf("READ_OPERATIONS"), ops.indexOf("WRITE_OPERATIONS"))).not.toContain(`"${kind}"`);
+    }
+  });
+  it("the admin panel labels each kind and says SEO is live", () => {
+    const panels = fs.readFileSync(path.resolve(__dirname, "../components/bloomSupport/AdminPanels.tsx"), "utf8");
+    for (const kind of ["site.blog.create", "site.blog.update", "site.blog.publish", "site.seo.update"]) {
+      expect(panels).toContain(`"${kind}": { label:`);
+    }
+    expect(panels).toMatch(/"site\.seo\.update": \{[^\n]*live page/);
+  });
+});

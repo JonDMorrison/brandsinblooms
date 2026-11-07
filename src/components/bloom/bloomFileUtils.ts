@@ -271,3 +271,40 @@ export function getBloomAttachmentSize(attachment: Json): number | null {
     "fileSize",
   ]);
 }
+
+export const BLOOM_SPREADSHEET_HINT =
+  "Bloom can import this contact list into your customers. You'll see how many are new, updated or skipped before anything is saved.";
+export const BLOOM_PHOTO_HINT =
+  "Bloom can use this photo in an email campaign draft. Drafts are never sent or scheduled without you.";
+
+/**
+ * What Bloom can do with the attached files, for the hint under the
+ * attachment chips. Only PNG/JPEG photos can go into campaign drafts.
+ */
+export function getBloomAttachmentHints(
+  files: Array<{ mimeType: string | null; filename: string }>,
+): string[] {
+  const hints: string[] = [];
+  const kinds = files.map((file) => ({
+    kind: getBloomAttachmentKind(file.mimeType, file.filename),
+    file,
+  }));
+  if (kinds.some(({ kind }) => kind === "spreadsheet")) {
+    hints.push(BLOOM_SPREADSHEET_HINT);
+  }
+  if (
+    kinds.some(({ kind, file }) => {
+      if (kind !== "image") return false;
+      const mime = file.mimeType?.toLowerCase() ?? "";
+      const extension = getBloomFileExtension(file.filename);
+      return (
+        mime === "image/png" ||
+        mime === "image/jpeg" ||
+        ["png", "jpg", "jpeg"].includes(extension)
+      );
+    })
+  ) {
+    hints.push(BLOOM_PHOTO_HINT);
+  }
+  return hints;
+}

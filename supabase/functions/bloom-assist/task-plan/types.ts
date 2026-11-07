@@ -35,6 +35,10 @@ export const TASK_PLAN_ITEM_STATUSES = [
   "completed",
   "failed",
   "blocked",
+  // The person cancelled the plan before this step started.
+  "cancelled",
+  // The step started but its result was never recorded (the request died).
+  "unknown",
 ] as const;
 
 export const VALIDATION_ANNOTATION_TYPES = [
@@ -92,6 +96,13 @@ export type ValidationAnnotation = {
   resolution_options: ValidationResolutionOption[];
 };
 
+/** A statement the person agrees to by approving this task, shown in full on the card. */
+export type TaskPlanNotice = {
+  title: string;
+  body: string;
+  detail: string | null;
+};
+
 export type TaskPlanItem = {
   task_id: string;
   action: TaskPlanAction;
@@ -107,6 +118,7 @@ export type TaskPlanItem = {
   editable_fields: string[];
   editable_field_metadata?: EditableFieldMetadata[];
   validation_annotations: ValidationAnnotation[];
+  notice?: TaskPlanNotice | null;
   status: TaskPlanItemStatus;
   error_message: string | null;
 };
@@ -150,7 +162,10 @@ export type TaskPlanGenerationContext = {
   timezone: string;
 };
 
+export type TaskPlanRequestAction = "approve" | "resume" | "cancel";
+
 export type TaskPlanApprovalPayload = {
+  action: TaskPlanRequestAction;
   conversation_id: string;
   plan_id: string;
   approved_task_ids: string[];
@@ -184,6 +199,8 @@ export type TaskPlanCompletionSummary = {
   skipped_count: number;
   failed_count: number;
   blocked_count: number;
+  cancelled_count: number;
+  unknown_count: number;
   results: TaskExecutionResult[];
 };
 
@@ -249,6 +266,9 @@ export function taskPlanToJson(plan: TaskPlan): JsonObject {
           description: option.description ?? null,
         })),
       })),
+      notice: task.notice
+        ? { title: task.notice.title, body: task.notice.body, detail: task.notice.detail }
+        : null,
       status: task.status,
       error_message: task.error_message,
     })),
@@ -265,6 +285,8 @@ export function taskPlanSummaryToJson(
     skipped_count: summary.skipped_count,
     failed_count: summary.failed_count,
     blocked_count: summary.blocked_count,
+    cancelled_count: summary.cancelled_count,
+    unknown_count: summary.unknown_count,
     results: summary.results.map((result) => ({
       task_id: result.task_id,
       tool_name: result.tool_name,

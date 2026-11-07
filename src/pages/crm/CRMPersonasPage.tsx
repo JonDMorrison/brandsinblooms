@@ -1,4 +1,6 @@
 import * as React from "react";
+import { CatalogViewToggle, type CatalogLayout } from "@/components/crm/catalog/CatalogViewToggle";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Box from "@mui/joy/Box";
 import Divider from "@mui/joy/Divider";
 import IconButton from "@mui/joy/IconButton";
@@ -148,6 +150,8 @@ export const CRMPersonasPage = () => {
     loading: metricsLoading,
   } = usePersonaCustomerCounts();
   const [query, setQuery] = React.useState("");
+  const [storedLayout, setLayout] = useLocalStorage<CatalogLayout>("crm:personas:layout", "grid");
+  const layout: CatalogLayout = storedLayout === "list" ? "list" : "grid";
   const [view, setView] = React.useState<PersonaViewFilter>("all");
   const [sort, setSort] = React.useState<PersonaSortOption>("customers-desc");
   const [editorState, setEditorState] = React.useState<EditorState>(null);
@@ -325,6 +329,7 @@ export const CRMPersonasPage = () => {
           description="Types of customers — like brand new to gardening, regular customer, or master gardener. Personas shape what you say; segments decide who hears it."
           actions={
             <>
+              <CatalogViewToggle value={layout} onChange={setLayout} label="Personas view" />
               <JoyTooltip title="Refresh personas">
                 <IconButton
                   variant="plain"
@@ -421,12 +426,13 @@ export const CRMPersonasPage = () => {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: PERSONA_GRID_COLUMNS,
+                    gridTemplateColumns: layout === "list" ? "minmax(0, 1fr)" : PERSONA_GRID_COLUMNS,
                     gap: 2,
                   }}
                 >
                   {visibleSystemPersonas.map((persona) => (
                     <PersonaCard
+                      layout={layout}
                       key={persona.id}
                       persona={persona}
                       metrics={statsByPersona[persona.id]}
@@ -459,13 +465,14 @@ export const CRMPersonasPage = () => {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: PERSONA_GRID_COLUMNS,
+                    gridTemplateColumns: layout === "list" ? "minmax(0, 1fr)" : PERSONA_GRID_COLUMNS,
                     gap: 2,
                   }}
                 >
-                  <CreatePersonaCard onClick={openCreateEditor} />
+                  {layout === "grid" ? <CreatePersonaCard onClick={openCreateEditor} /> : null}
                   {visibleCustomPersonas.map((persona) => (
                     <PersonaCard
+                      layout={layout}
                       key={persona.id}
                       persona={persona}
                       metrics={statsByPersona[persona.id]}

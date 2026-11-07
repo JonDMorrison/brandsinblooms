@@ -1,4 +1,5 @@
 import { test, expect, type Browser, type Page, type Response } from '@playwright/test';
+import { expectRouteSettled } from '../utils/route-settled';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'https://www.bloomsuite.app';
 const DEMO_TENANT = 'Greenfield Garden Centre';
@@ -7,17 +8,15 @@ let previousTenantLabel: string | null = null;
 const primaryNavigation = [
   ['Dashboard', '/dashboard'],
   ['Bloom', '/bloom'],
-  ['Analytics', '/analytics'],
+  ['Reports', '/analytics'],
   ['Activity Center', '/activity'],
   ['Calendar', '/calendar'],
-  ['Customers', '/crm/customers'],
+  ['Contacts', '/crm/customers'],
   ['Segments', '/crm/segments'],
   ['Personas', '/crm/personas'],
   ['Forms', '/crm/forms'],
   ['Campaigns', '/crm/campaigns'],
   ['Automations', '/crm/automations'],
-  ['Newsletter', '/newsletters'],
-  ['SMS Campaigns', '/sms'],
   ['Products', '/products'],
   ['Manage Domains', '/domains'],
   ['Integrations', '/integrations'],
@@ -38,10 +37,6 @@ const sidebarBranchForLink: Record<string, string> = {
   Calendar: 'Marketing tools',
   Segments: 'Audience tools',
   Personas: 'Audience tools',
-  Forms: 'Audience tools',
-  Automations: 'Marketing tools',
-  Newsletter: 'Marketing tools',
-  'SMS Campaigns': 'Marketing tools',
   Products: 'Store & integrations',
   'Manage Domains': 'Store & integrations',
   Integrations: 'Store & integrations',
@@ -56,6 +51,10 @@ const secondaryReadOnlyRoutes = [
   ['/crm/campaigns/blocks', '/crm/campaigns/blocks'],
   ['/settings/usage', '/settings/usage'],
   ['/account-setup', '/account-setup'],
+  // Newsletter and SMS left the sidebar when campaign creation moved to one
+  // entry point (#326); their routes stay live for bookmarks and deep links.
+  ['/newsletters', '/newsletters'],
+  ['/sms', '/sms'],
   // These legacy routes have explicit RedirectWithQuery entries in App.tsx.
   ['/plan', '/calendar'],
   ['/helpdesk', '/helpdesk'],
@@ -124,13 +123,12 @@ async function clearTenant(page: Page) {
 }
 
 async function assertHealthyPage(page: Page, expectedPath: string, sourcePath = expectedPath) {
-  const accessCheck = page.getByRole('status', { name: 'Checking workspace access' });
-  await accessCheck.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+  await expectRouteSettled(page, expectedPath, sourcePath);
+  // Observation window, not synchronisation: keep listening for the rendered
+  // page's first data requests so watchForFailures can see their 403/404/5xx.
   await page.waitForTimeout(500);
   await expect(page).not.toHaveURL(/\/auth(?:$|\?)/);
-  expect(new URL(page.url()).pathname, `unexpected redirect from ${sourcePath}`).toBe(expectedPath);
   await expect(page.locator('body')).not.toContainText(/Something went wrong|Application error|Security Violation/i);
-  await expect(accessCheck, `workspace access never resolved on ${sourcePath}`).toBeHidden({ timeout: 2_000 });
 }
 
 function watchForFailures(page: Page) {

@@ -186,6 +186,23 @@ describe("3. Bloom knows which purchase data the company has", () => {
     expect(client.calls.filter((call) => call.method === "eq" && call.args[0] === "tenant_id").every((call) => call.args[1] === "tenant")).toBe(true);
   });
 
+  it("lists every retained year, even when newer imports finished later", () => {
+    const years = [2021, 2022, 2023, 2024, 2025];
+    const line = formatPurchaseDataLine({
+      hasDatedOrders: false,
+      idealPeriods: [
+        ...years.map((y) => ({ report_type: "journal", source_period_start: `${y}-01-01`, source_period_end: `${y}-12-31` })),
+        ...years.map((y) => ({ report_type: "customer_sales_summary", source_period_start: `${y}-01-01`, source_period_end: `${y}-12-31` })),
+        { report_type: "customer_sales_summary", source_period_start: "2025-01-01", source_period_end: "2025-12-31" },
+      ],
+    });
+    expect(line).toContain(
+      "customer sales summary 2021-01-01 to 2021-12-31, 2022-01-01 to 2022-12-31, 2023-01-01 to 2023-12-31, 2024-01-01 to 2024-12-31, 2025-01-01 to 2025-12-31",
+    );
+    expect(line).not.toContain("journal");
+    expect(line).toContain("Do not say a listed period is unavailable");
+  });
+
   it("never blocks: a hanging lookup resolves to not checked within the budget", async () => {
     const hanging = { from: () => { const b: Record<string, unknown> = {}; for (const m of ["select", "eq", "not", "order"]) b[m] = () => b; b.limit = () => new Promise(() => undefined); return b; } };
     const started = Date.now();

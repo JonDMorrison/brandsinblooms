@@ -1,299 +1,137 @@
-import { useState, useCallback } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Box from "@mui/joy/Box";
-import IconButton from "@mui/joy/IconButton";
-import Typography from "@mui/joy/Typography";
-import Sheet from "@mui/joy/Sheet";
-import Input from "@mui/joy/Input";
-import Textarea from "@mui/joy/Textarea";
 import Button from "@mui/joy/Button";
-import CircularProgress from "@mui/joy/CircularProgress";
-import Alert from "@mui/joy/Alert";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { BookOpen, LifeBuoy, MessageCircle, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useTenant } from "@/hooks/useTenant";
-import { HELP_CENTRE_PATH, SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
+import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
+import { HELP_CENTRE_PATH } from "@/lib/bloomSupport/constants";
 
-type View = "menu" | "form" | "success";
+const PANEL_ID = "bloom-help-menu";
 
+/**
+ * A lightweight launcher for the same Bloom Support journey used everywhere
+ * else. It intentionally contains no second form or legacy intake endpoint.
+ */
 export function HelpWidget() {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<View>("menu");
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [ticketNumber, setTicketNumber] = useState<number | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement | null>(null);
+  const firstAction = useRef<HTMLButtonElement | null>(null);
   const navigate = useNavigate();
 
-  const { user } = useAuth();
-  const { tenant } = useTenant();
+  useLayoutEffect(() => {
+    if (open) firstAction.current?.focus();
+  }, [open]);
 
-  const userName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split("@")[0] ||
-    "User";
-  const userEmail = user?.email || "";
-
-  const handleToggle = useCallback(() => {
-    setOpen((v) => {
-      if (v) {
-        setView("menu");
-        setSubject("");
-        setMessage("");
-        setError(null);
-        setTicketNumber(null);
-      }
-      return !v;
-    });
-  }, []);
-
-  const handleSubmit = useCallback(async () => {
-    if (!subject.trim() || !message.trim() || submitting) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke<{ number?: number }>(
-        "submit-support-request",
-        {
-          body: {
-            subject: subject.trim(),
-            message: message.trim(),
-            user_name: userName,
-            user_email: userEmail,
-            tenant_id: tenant?.id || null,
-          },
-        },
-      );
-      if (error) throw error;
-      setTicketNumber(typeof data?.number === "number" ? data.number : null);
-      setView("success");
-      setSubject("");
-      setMessage("");
-    } catch (err) {
-      // Keep the person's text so they can retry or copy it elsewhere.
-      console.error("Support request failed:", err);
-      setError(`Your message wasn't sent. It's still here — try again, or email ${SUPPORT_EMAIL}.`);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [subject, message, submitting, userName, userEmail, tenant?.id]);
+  const closeMenu = (restoreFocus = false) => {
+    setOpen(false);
+    if (restoreFocus) trigger.current?.focus();
+  };
 
   return (
-    <Box
-      sx={{
-        position: "absolute",
-        bottom: 24,
-        right: 24,
-        zIndex: 1400,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-end",
-        gap: 1.5,
-      }}
-    >
-      {/* Panel */}
-      {open && (
-        <Sheet
-          variant="outlined"
-          sx={{
-            width: 320,
-            borderRadius: "lg",
-            boxShadow: "lg",
-            overflow: "hidden",
-          }}
-        >
-          {/* Header */}
-          <Box
-            sx={{
-              px: 2.5,
-              py: 2,
-              background: "linear-gradient(135deg, #68BEB9 0%, #4FA8A3 100%)",
-            }}
-          >
-            <Typography
-              level="title-md"
-              sx={{ color: "#fff", fontWeight: 700 }}
-            >
-              How can we help?
-            </Typography>
-          </Box>
-
-          {/* Body */}
-          <Box sx={{ p: 2 }}>
-            {view === "menu" && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                <MenuRow
-                  emoji="📚"
-                  title="Browse Help Center"
-                  subtitle="Guides, how-tos, and troubleshooting"
-                  onClick={() => navigate(HELP_CENTRE_PATH)}
-                />
-                <MenuRow
-                  emoji="✉️"
-                  title="Ask a Question"
-                  subtitle="Get a response within 1 business day"
-                  onClick={() => setView("form")}
-                />
-                <MenuRow
-                  emoji="📅"
-                  title="Book a Call"
-                  subtitle="Schedule time with Jon or Jeff"
-                  onClick={() =>
-                    window.open("https://calendly.com/brandsinblooms", "_blank")
-                  }
-                />
-              </Box>
-            )}
-
-            {view === "form" && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                <Button
-                  variant="plain"
-                  size="sm"
-                  sx={{ alignSelf: "flex-start", px: 0, minHeight: 0 }}
-                  onClick={() => setView("menu")}
-                >
-                  ← Back
-                </Button>
-                <Input
-                  placeholder="Subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  size="sm"
-                />
-                <Textarea
-                  placeholder="How can we help?"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  minRows={3}
-                  maxRows={6}
-                  size="sm"
-                />
-                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                  Sending as {userEmail}
-                </Typography>
-                {error && (
-                  <Alert color="danger" variant="soft" size="sm">
-                    {error}
-                  </Alert>
-                )}
-                <Button
-                  size="sm"
-                  disabled={!subject.trim() || !message.trim() || submitting}
-                  onClick={handleSubmit}
-                  sx={{
-                    backgroundColor: "#68BEB9",
-                    "&:hover": { backgroundColor: "#4FA8A3" },
-                  }}
-                >
-                  {submitting ? (
-                    <CircularProgress size="sm" sx={{ color: "#fff" }} />
-                  ) : (
-                    "Send Message"
-                  )}
-                </Button>
-              </Box>
-            )}
-
-            {view === "success" && (
-              <Box sx={{ textAlign: "center", py: 2 }}>
-                <Typography level="title-sm" sx={{ mb: 1 }}>
-                  {ticketNumber !== null
-                    ? `Thanks! Request #${ticketNumber} is with Bloom Support.`
-                    : "Thanks! We'll be in touch soon."}
-                </Typography>
-                <Typography level="body-sm" sx={{ color: "neutral.500" }}>
-                  Check your email for a confirmation.
-                </Typography>
-                <Button
-                  variant="plain"
-                  size="sm"
-                  sx={{ mt: 2 }}
-                  onClick={() => setView("menu")}
-                >
-                  ← Back to Help
-                </Button>
-              </Box>
-            )}
-          </Box>
-
-          {/* Footer */}
-          <Box
-            sx={{
-              px: 2.5,
-              py: 1.5,
-              borderTop: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Typography
-              level="body-xs"
-              sx={{ color: "neutral.400", textAlign: "center" }}
-            >
-              BloomSuite Support · {SUPPORT_EMAIL}
-            </Typography>
-          </Box>
-        </Sheet>
-      )}
-
-      {/* Floating Button */}
-      <IconButton
-        onClick={handleToggle}
+    <>
+      <Box
         sx={{
-          width: 48,
-          height: 48,
-          borderRadius: "50%",
-          backgroundColor: open ? "#4FA8A3" : "#68BEB9",
-          color: "#fff",
-          boxShadow: "lg",
-          fontSize: "1.25rem",
-          fontWeight: 700,
-          "&:hover": { backgroundColor: "#4FA8A3" },
+          position: "fixed",
+          right: { xs: 16, sm: 24 },
+          bottom: { xs: 16, sm: 24 },
+          zIndex: 1400,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 1.25,
+          maxWidth: "calc(100vw - 32px)",
         }}
       >
-        {open ? "✕" : "?"}
-      </IconButton>
-    </Box>
-  );
-}
+        {open && (
+          <Sheet
+            id={PANEL_ID}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="bloom-help-title"
+            variant="outlined"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closeMenu(true);
+              }
+            }}
+            sx={{
+              width: "min(360px, calc(100vw - 32px))",
+              p: 2,
+              borderRadius: "xl",
+              boxShadow: "lg",
+              bgcolor: "background.surface",
+            }}
+          >
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography id="bloom-help-title" level="title-lg">How can Bloom help?</Typography>
+                <Typography level="body-sm" textColor="text.secondary">
+                  Send one request, follow the conversation, or find a quick answer.
+                </Typography>
+              </Box>
+              <Stack spacing={0.75}>
+                <Button
+                  ref={firstAction}
+                  variant="soft"
+                  color="primary"
+                  startDecorator={<MessageCircle size={18} aria-hidden />}
+                  onClick={() => {
+                    closeMenu();
+                    setReportOpen(true);
+                  }}
+                  sx={{ justifyContent: "flex-start", minHeight: 44 }}
+                >
+                  Start a support request
+                </Button>
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  startDecorator={<LifeBuoy size={18} aria-hidden />}
+                  onClick={() => {
+                    closeMenu();
+                    navigate("/support");
+                  }}
+                  sx={{ justifyContent: "flex-start", minHeight: 44 }}
+                >
+                  Open Help &amp; Support
+                </Button>
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  startDecorator={<BookOpen size={18} aria-hidden />}
+                  onClick={() => {
+                    closeMenu();
+                    navigate(HELP_CENTRE_PATH);
+                  }}
+                  sx={{ justifyContent: "flex-start", minHeight: 44 }}
+                >
+                  Browse the help centre
+                </Button>
+              </Stack>
+            </Stack>
+          </Sheet>
+        )}
 
-function MenuRow({
-  emoji,
-  title,
-  subtitle,
-  onClick,
-}: {
-  emoji: string;
-  title: string;
-  subtitle: string;
-  onClick: () => void;
-}) {
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1.5,
-        px: 1.5,
-        py: 1.5,
-        borderRadius: "md",
-        cursor: "pointer",
-        transition: "background 0.15s",
-        "&:hover": { backgroundColor: "neutral.100" },
-      }}
-    >
-      <Typography sx={{ fontSize: "1.25rem", lineHeight: 1 }}>
-        {emoji}
-      </Typography>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography level="title-sm">{title}</Typography>
-        <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-          {subtitle}
-        </Typography>
+        <IconButton
+          ref={trigger}
+          color="primary"
+          variant="solid"
+          aria-label={open ? "Close help and support" : "Open help and support"}
+          aria-expanded={open}
+          aria-controls={open ? PANEL_ID : undefined}
+          onClick={() => setOpen((value) => !value)}
+          sx={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "lg" }}
+        >
+          {open ? <X size={21} aria-hidden /> : <LifeBuoy size={21} aria-hidden />}
+        </IconButton>
       </Box>
-    </Box>
+      <ReportProblemDialog open={reportOpen} onClose={() => setReportOpen(false)} />
+    </>
   );
 }

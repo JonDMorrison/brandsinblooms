@@ -2167,7 +2167,9 @@ export function renderNewsletterBlock(
       ? { textColor: appearance.text.body.color }
       : {}),
   };
-  const brandButtonTypes = new Set<StudioBlock["type"]>([
+  // string, not BlockType: saved newsletters can still carry legacy types
+  // ("product", "cta", "button") that are no longer in the BlockType union.
+  const brandButtonTypes = new Set<string>([
     "event",
     "blog",
     "announcement",
@@ -2303,7 +2305,7 @@ export function renderStudioBlocksToEmailHtml(
 
       if (
         nextBlock &&
-        normalizeNewsletterSettings(settings).blockGap > 0 &&
+        (normalizeNewsletterSettings(settings).blockGap ?? 0) > 0 &&
         !isSelfSpacingBlock(block) &&
         !isSelfSpacingBlock(nextBlock)
       ) {

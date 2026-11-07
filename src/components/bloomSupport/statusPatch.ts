@@ -1,5 +1,6 @@
 import type { SupportStatus, TicketDetail } from "@/lib/bloomSupport/api";
 import type { AskField, AskOptions, AskValues } from "./useAskDialog";
+import { adminAudienceOptions, type AdminInboxNames } from "@/lib/bloomSupport/adminLabels";
 
 type Ask = (opts: AskOptions) => Promise<AskValues | null>;
 
@@ -14,17 +15,17 @@ export const WAITING_OPTIONS = [
 const str = (v: unknown) => String(v ?? "").trim();
 
 /** Collects what each status needs in one friendly form; resolves null if the person cancels. */
-export async function statusPatch(ask: Ask, t: TicketDetail, v: SupportStatus): Promise<Record<string, unknown> | null> {
+export async function statusPatch(ask: Ask, t: TicketDetail, v: SupportStatus, adminNames?: Partial<AdminInboxNames>): Promise<Record<string, unknown> | null> {
   if (v === "waiting") {
     const r = await ask({ title: "Waiting on whom?", fields: [{ name: "reason", label: "Waiting on", kind: "select", required: true, initial: "customer", options: WAITING_OPTIONS }], confirmLabel: "Set to waiting" });
     return r ? { status: "waiting", waiting_reason: str(r.reason) } : null;
   }
   if (v === "needs_owner") {
     const r = await ask({
-      title: "Ask Jon or Jeff to decide",
+      title: "Escalate to an admin",
       fields: [
         { name: "decision", label: "What needs deciding?", kind: "textarea", required: true },
-        { name: "who", label: "Who decides?", kind: "select", required: true, initial: "both", options: [{ value: "jon", label: "Jon" }, { value: "jeff", label: "Jeff" }, { value: "both", label: "Either of them" }] },
+        { name: "who", label: "Who decides?", kind: "select", required: true, initial: "both", options: adminAudienceOptions(adminNames) },
         { name: "rec", label: "What do you recommend? (optional)", kind: "textarea" },
       ],
       confirmLabel: "Send for a decision",
@@ -34,7 +35,7 @@ export async function statusPatch(ask: Ask, t: TicketDetail, v: SupportStatus): 
   }
   if (v === "resolved") {
     const fields: AskField[] = [
-      { name: "summary", label: t.kind === "feature" ? "What should the client know?" : "What fixed it?", kind: "textarea", required: true, helper: t.kind === "feature" ? "It was passed on for a product decision, not built yet." : "This is sent to the client." },
+      { name: "summary", label: t.kind === "feature" ? "What should the client know?" : "What can the client do now?", kind: "textarea", required: true, helper: t.kind === "feature" ? "It was passed on for a product decision, not built yet." : "Sent to the client. Plain words, no technical terms. For example: \"You can upload photos to your gallery again.\"" },
     ];
     if (t.kind === "change") fields.push({ name: "verified", label: "How did you check the change is saved?", kind: "text", required: true, placeholder: "e.g. Checked the live page" });
     if (t.kind === "bug" || t.kind === "incident") {

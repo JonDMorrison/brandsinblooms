@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
@@ -8,15 +8,28 @@ import IconButton from "@mui/joy/IconButton";
 import Textarea from "@mui/joy/Textarea";
 import Sheet from "@mui/joy/Sheet";
 import Chip from "@mui/joy/Chip";
+import Avatar from "@mui/joy/Avatar";
+import Divider from "@mui/joy/Divider";
+import Tooltip from "@mui/joy/Tooltip";
+import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
 import Alert from "@mui/joy/Alert";
 import Skeleton from "@mui/joy/Skeleton";
 import Link from "@mui/joy/Link";
-import { ArrowLeft, Check, Lock, Paperclip, Sprout } from "lucide-react";
+import Dropdown from "@mui/joy/Dropdown";
+import MenuButton from "@mui/joy/MenuButton";
+import Menu from "@mui/joy/Menu";
+import MenuItem from "@mui/joy/MenuItem";
+import { ArrowLeft, Bot, Check, Hand, Lock, Paperclip, SendHorizontal, Sprout } from "lucide-react";
 import { format, formatDistanceToNow, isToday } from "date-fns";
 import { bloomSupport, PRODUCT_LABEL, WAITING_LABEL, type TicketDetail, type TicketMessage, type Whoami } from "@/lib/bloomSupport/api";
 import { statusPatch } from "./statusPatch";
-import { ENGINEERING_TEXT } from "./labels";
+import { engineeringLabel, fixStage } from "./labels";
+import { StatusChip } from "./chips";
+import { asSentence, humanizeNextAction, humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { useAskDialog } from "./useAskDialog";
+import { BloomRecommends } from "./BloomRecommends";
+import type { NextAction } from "../../../supabase/functions/_shared/bloom-support/next-step";
+import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
 
 /**
  * Bloom Support conversation: one ticket read as a chat, with the single thing it needs
@@ -26,32 +39,34 @@ import { useAskDialog } from "./useAskDialog";
 
 type Tone = "warning" | "primary" | "success" | "neutral";
 type Banner = { tone: Tone; text: string };
+type ReplyPayload = Parameters<typeof bloomSupport.addMessage>[1];
+type Visibility = "public" | "internal";
 
 const STAGE_TEXT: Record<string, string> = {
-  intake: "Bloom has the request and is reading it.",
-  triage: "Bloom is working out what this needs.",
-  answering: "Bloom is answering.",
-  operating: "Bloom is making the change.",
-  investigating: "Bloom is investigating.",
-  fixing: "Bloom is preparing a fix.",
-  releasing: "Releasing the fix.",
-  verifying: "Checking the fix on the live site.",
-  needs_info: "Waiting on the client for more detail.",
-  awaiting_client: "Waiting on the client.",
+  intake: "Bloom has the request and is reading it",
+  triage: "Bloom is working out what this needs",
+  answering: "Bloom is answering",
+  operating: "Bloom is making the change",
+  investigating: "Bloom is investigating",
+  fixing: "Bloom is preparing a fix",
+  releasing: "Releasing the fix",
+  verifying: "Checking the fix on the live site",
+  needs_info: "Waiting on the client for more detail",
+  awaiting_client: "Waiting on the client",
 };
-
 
 function banner(t: TicketDetail): Banner {
   const eng = t.engineering as { status?: string } | null | undefined;
   // A reply after resolution needs a decision, so it outranks "Solved".
-  if (t.pending_review === "reply_after_resolution") return { tone: "warning", text: "Waiting on you: the client replied after this was solved." };
-  if (t.status === "resolved") return { tone: "success", text: t.resolved_at ? `Solved ${formatDistanceToNow(new Date(t.resolved_at), { addSuffix: true })}.` : "Solved." };
-  if (eng?.status === "awaiting_approval") return { tone: "warning", text: "Waiting on you: approve the fix." };
-  if (t.status === "needs_owner") return { tone: "warning", text: `Waiting on you: ${t.next_action ?? "a decision from Jon or Jeff"}` };
-  if (t.automation === "human") return { tone: "neutral", text: `${t.taken_over_by?.name ?? "A person"} is handling this. Bloom has stepped back.` };
-  if (t.automation === "paused") return { tone: "neutral", text: "Bloom is paused here and will only suggest, not act." };
-  if (t.status === "waiting" && t.waiting_reason) return { tone: "primary", text: `${WAITING_LABEL[t.waiting_reason]}.` };
-  return { tone: "primary", text: (t.stage && STAGE_TEXT[t.stage]) ?? "Bloom is working on this." };
+  if (t.pending_review === "reply_after_resolution") return { tone: "warning", text: "Waiting on you: the client replied after this was solved" };
+  if (t.pending_review === "client_reply_human") return { tone: "warning", text: "Waiting on you: the client replied to your conversation" };
+  if (t.status === "resolved") return { tone: "success", text: t.resolved_at ? `Solved ${formatDistanceToNow(new Date(t.resolved_at), { addSuffix: true })}` : "Solved" };
+  if (eng?.status === "awaiting_approval") return { tone: "warning", text: "Waiting on you: approve the fix" };
+  if (t.status === "needs_owner") return { tone: "warning", text: `Waiting on you: ${t.next_action ? humanizeNextAction(t.next_action) : "an admin decision"}` };
+  if (t.automation === "human") return { tone: "neutral", text: `${t.taken_over_by?.name ?? "A person"} is handling this. Bloom has stepped back` };
+  if (t.automation === "paused") return { tone: "neutral", text: "Bloom is paused here and will only suggest, not act" };
+  if (t.status === "waiting" && t.waiting_reason) return { tone: "primary", text: WAITING_LABEL[t.waiting_reason] };
+  return { tone: "primary", text: (t.stage && STAGE_TEXT[t.stage]) ?? "Bloom is working on this" };
 }
 
 const when = (d: string) => {
@@ -60,49 +75,108 @@ const when = (d: string) => {
 };
 const initials = (name: string) =>
   name.replace(/[^\p{L}\p{N} ]/gu, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+const deliveryText = (delivery: string) => `Email ${delivery.replace(/_/g, " ")}`;
+
+const segmentSx = {
+  borderRadius: "sm",
+  color: "text.tertiary",
+  "&[aria-pressed='true']": { bgcolor: "background.surface", color: "text.primary", boxShadow: "sm", fontWeight: "lg" },
+  "&:hover:not([aria-pressed='true'])": { bgcolor: "transparent", color: "text.primary" },
+} as const;
+/** On phones the ticket actions keep their icon and accessible name, and drop the visible label. */
+const wideOnly = { display: { xs: "none", sm: "inline" } } as const;
+const actionSx = { borderRadius: "md", "& .MuiButton-startDecorator": { mr: { xs: 0, sm: 0.75 } } } as const;
+
+/** Readable text width for every bubble and note, so the thread keeps one calm column. */
+const BUBBLE_MAX = "min(70ch, 85%)";
 
 function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: string; onRequest?: string }) {
   const fromClient = m.author_kind === "client";
   const internal = m.visibility === "internal";
-  const who = m.author_kind === "bloom" ? "Bloom" : m.author_kind === "system" ? "System" : m.author?.name ?? (fromClient ? clientName : "Staff");
-  const meta = [onRequest, who, when(m.created_at), !internal && !fromClient && m.delivery && m.delivery !== "none" ? `email ${m.delivery}` : null].filter(Boolean).join(" · ");
+  const bloom = m.author_kind === "bloom";
+  const who = bloom ? "Bloom" : m.author_kind === "system" ? "System" : m.author?.name ?? (fromClient ? clientName : "Staff");
+  const meta = [onRequest, when(m.created_at), !internal && !fromClient && m.delivery && m.delivery !== "none" ? deliveryText(m.delivery) : null].filter(Boolean).join(" · ");
+  const body = internal && bloom ? humanizeStaffNote(m.body) : m.body;
 
   if (internal) {
     return (
-      <Sheet variant="soft" color="primary" sx={{ p: 2, borderRadius: "lg", display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-        <Box sx={{ flex: "0 0 auto", width: 32, height: 32, borderRadius: "50%", bgcolor: m.author_kind === "bloom" ? "primary.solidBg" : "neutral.500", color: "common.white", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {m.author_kind === "bloom" ? <Sprout size={16} aria-hidden /> : <Lock size={14} aria-hidden />}
-        </Box>
-        <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-          <Typography level="body-sm" textColor="text.tertiary"><Typography fontWeight="lg" textColor="text.primary">{m.author_kind === "bloom" ? "What Bloom found" : "Private note"}</Typography> · {meta} · only staff can see this</Typography>
-          <Typography level="body-md" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.55 }}>{m.body}</Typography>
+      <Sheet
+        variant="soft"
+        color="warning"
+        sx={{ maxWidth: BUBBLE_MAX, mx: "auto", px: 2, py: 1.5, borderRadius: "lg", border: "1px dashed", borderColor: "warning.outlinedBorder" }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
+          <Chip size="sm" variant="outlined" color="warning" startDecorator={<Lock size={12} aria-hidden />} sx={{ bgcolor: "background.surface" }}>Internal</Chip>
+          <Typography level="title-sm" textColor="text.primary" startDecorator={bloom ? <Sprout size={14} aria-hidden /> : undefined}>{bloom ? "What Bloom found" : who}</Typography>
+          <Typography level="body-xs" textColor="text.tertiary">{meta} · only staff can see this</Typography>
         </Stack>
+        <Typography level="body-sm" textColor="text.primary" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
       </Sheet>
     );
   }
   return (
-    <Stack spacing={0.5} sx={{ alignItems: fromClient ? "flex-start" : "flex-end" }}>
-      <Typography level="body-xs" textColor="text.tertiary">{meta}</Typography>
-      <Sheet
-        variant={fromClient ? "outlined" : "solid"}
+    <Stack direction={fromClient ? "row" : "row-reverse"} spacing={1.25} alignItems="flex-end">
+      <Avatar
+        size="sm"
+        variant={fromClient ? "soft" : "solid"}
         color={fromClient ? "neutral" : "primary"}
-        sx={{ maxWidth: "88%", px: 2, py: 1.5, borderRadius: "18px", borderTopLeftRadius: fromClient ? "4px" : "18px", borderTopRightRadius: fromClient ? "18px" : "4px", bgcolor: fromClient ? "background.surface" : undefined }}
+        aria-hidden
+        sx={{ flex: "0 0 auto", "--Avatar-size": "28px", fontSize: "xs" }}
       >
-        <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.55 }}>{m.body}</Typography>
-      </Sheet>
+        {bloom ? <Sprout size={14} /> : initials(who)}
+      </Avatar>
+      <Stack spacing={0.5} sx={{ minWidth: 0, maxWidth: BUBBLE_MAX, alignItems: fromClient ? "flex-start" : "flex-end" }}>
+        <Typography level="body-xs" textColor="text.tertiary" sx={{ px: 0.5 }}>
+          <Typography fontWeight="lg" textColor="text.secondary">{who}</Typography>{meta ? ` · ${meta}` : ""}
+        </Typography>
+        <Box
+          sx={{
+            px: 2,
+            py: 1.25,
+            borderRadius: "xl",
+            borderBottomLeftRadius: fromClient ? "sm" : "xl",
+            borderBottomRightRadius: fromClient ? "xl" : "sm",
+            bgcolor: fromClient ? "neutral.softBg" : "primary.softBg",
+            color: "text.primary",
+          }}
+        >
+          <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
+        </Box>
+      </Stack>
     </Stack>
   );
 }
 
-export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket }: { ticketId: string; me: Whoami; onBack: () => void; onShowDetails: () => void; onOpenTicket: (id: string) => void }) {
+export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket, backOn = "always", actionHint = null }: {
+  ticketId: string;
+  me: Whoami;
+  onBack: () => void;
+  onShowDetails: () => void;
+  onOpenTicket: (id: string) => void;
+  /** "compact" shows Back only on narrow screens, where the request list is hidden behind the conversation. */
+  backOn?: "always" | "compact";
+  /** Action pre-selected by a staff email link; the live ticket decides whether it still applies. */
+  actionHint?: NextAction | null;
+}) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["bloom-support", "ticket", ticketId], queryFn: () => bloomSupport.getTicket(ticketId), refetchInterval: 20_000 });
   const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState<Visibility>("public");
   const [error, setError] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [macKeys, setMacKeys] = useState(false);
   const replyKey = useRef(crypto.randomUUID());
+  const pendingReply = useRef<ReplyPayload | null>(null);
+  const replyInput = useRef<HTMLTextAreaElement | null>(null);
+  const publicAttachmentInput = useRef<HTMLInputElement | null>(null);
+  const privateAttachmentInput = useRef<HTMLInputElement | null>(null);
   const { ask, dialog } = useAskDialog();
   const can = (p: string) => me.permissions.includes(p);
+
+  useEffect(() => {
+    setMacKeys(/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent));
+  }, []);
 
   const run = useMutation({
     mutationFn: async ({ fn }: { fn: () => Promise<unknown>; done?: string }) => fn(),
@@ -115,9 +189,31 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
     },
     onError: (e: Error) => setError(e.message),
   });
+  const replyRun = useMutation({
+    mutationFn: (payload: ReplyPayload) => bloomSupport.addMessage(ticketId, payload),
+    onSuccess: async () => {
+      const sentVisibility = pendingReply.current?.visibility;
+      pendingReply.current = null;
+      replyKey.current = crypto.randomUUID();
+      setDraft("");
+      setReplyError(null);
+      setNotice(sentVisibility === "internal" ? "Internal note added." : "Reply sent to the client.");
+      try {
+        const fresh = await bloomSupport.getTicket(ticketId);
+        qc.setQueryData<TicketDetail>(["bloom-support", "ticket", ticketId], fresh);
+        void qc.invalidateQueries({ queryKey: ["bloom-support"], predicate: (x) => x.queryKey[1] !== "ticket" });
+      } catch {
+        void qc.invalidateQueries({ queryKey: ["bloom-support", "ticket", ticketId] });
+      }
+    },
+    onError: (e: Error) => {
+      setNotice(null);
+      setReplyError(e.message);
+    },
+  });
 
   const t = q.data;
-  if (q.isLoading) return <Stack spacing={2} sx={{ maxWidth: 760, mx: "auto", p: 2 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
+  if (q.isLoading) return <Stack spacing={2} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", p: 3 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
 
@@ -126,70 +222,159 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   const clientName = t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client";
   const b = banner(t);
   const eng = t.engineering as { id?: string; title?: string; status?: string; pr_url?: string | null; pr_number?: number | null; eligibility?: { eligible?: boolean; reasons?: string[] } | null } | null | undefined;
+  const fix = eng?.status ? fixStage(eng.status) : null;
   const lastClientId = [...t.messages].reverse().find((m) => m.author_kind === "client")?.id;
   const canWrite = can("tickets.write");
   const closed = !!t.merged_into;
+  const retryLocked = pendingReply.current !== null && replyError !== null;
+  const replyLocked = replyRun.isPending || retryLocked;
+  const product = PRODUCT_LABEL[t.product] ?? t.product;
+  const overLimit = draft.length > MAX_SUPPORT_BODY_LENGTH;
+  const canSend = !pendingReply.current && !!draft.trim() && !overLimit && !replyRun.isPending;
+  const internalMode = mode === "internal";
 
-  const send = (visibility: "public" | "internal") =>
+  const send = (visibility: Visibility) => {
+    const payload = pendingReply.current ?? {
+      body: draft.trim(),
+      visibility,
+      idempotency_key: replyKey.current,
+    };
+    pendingReply.current = payload;
+    setError(null);
+    setReplyError(null);
+    setNotice(null);
+    replyRun.mutate(payload);
+  };
+
+  const editAsNewReply = () => {
+    pendingReply.current = null;
+    replyKey.current = crypto.randomUUID();
+    setReplyError(null);
+    setNotice(null);
+    replyRun.reset();
+    window.requestAnimationFrame(() => replyInput.current?.focus());
+  };
+
+  const attach = (visibility: Visibility, files: FileList | null) => {
+    const { accepted, rejected } = checkAttachments(Array.from(files ?? []));
+    if (rejected.length) {
+      setError(`${rejected.join(" ")} No file was attached; choose a valid file and try again.`);
+      return;
+    }
+    if (!accepted.length) return;
     run.mutate({
-      fn: async () => {
-        await bloomSupport.addMessage(t.id, { body: draft, visibility, idempotency_key: replyKey.current });
-        setDraft("");
-        replyKey.current = crypto.randomUUID();
-      },
-      done: visibility === "public" ? `Sent to ${t.requester?.name ?? clientName}.` : "Private note added.",
+      fn: () => bloomSupport.uploadAttachment(t.id, accepted[0], visibility),
+      done: visibility === "internal" ? "Private file attached." : "File attached for the client.",
     });
+  };
 
   const markSolved = async () => {
     const patch = await statusPatch(ask, t, "resolved");
     if (patch) run.mutate({ fn: () => bloomSupport.updateTicket(t.id, { version: t.version, ...patch }), done: "Marked solved. Bloom will let the client know." });
   };
 
-  const bannerColors: Record<Tone, { bg: string; fg: string }> = {
-    warning: { bg: "warning.50", fg: "warning.800" },
-    primary: { bg: "primary.50", fg: "primary.800" },
-    success: { bg: "success.50", fg: "success.700" },
-    neutral: { bg: "neutral.100", fg: "neutral.700" },
-  };
+  const toneDot: Record<Tone, string> = { warning: "warning.500", primary: "primary.500", success: "success.500", neutral: "neutral.400" };
+  const fixDetail = eng?.status === "open"
+    ? "Logged for engineering. Work hasn't started yet."
+    : eng?.status ? asSentence(engineeringLabel(eng.status)) : "";
 
   return (
-    <Stack sx={{ height: "100%", minHeight: 0, bgcolor: "background.body" }}>
+    <Stack sx={{ width: "100%", maxWidth: "100%", minWidth: 0, height: "100%", minHeight: 0, overflowWrap: "anywhere", bgcolor: "background.surface" }}>
       {dialog}
-      <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-        <Stack spacing={3} sx={{ maxWidth: 760, mx: "auto", px: { xs: 2, md: 3 }, py: 3 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <IconButton variant="outlined" color="neutral" aria-label="Back" onClick={onBack} sx={{ borderRadius: "50%", "--IconButton-size": "44px", flex: "0 0 auto" }}><ArrowLeft size={18} /></IconButton>
-            <Box aria-hidden sx={{ flex: "0 0 auto", width: 44, height: 44, borderRadius: "50%", bgcolor: "primary.100", color: "primary.900", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "display", fontWeight: 600 }}>{initials(clientName)}</Box>
-            <Stack sx={{ minWidth: 0, flex: 1 }}>
-              <Typography level="title-lg" sx={{ fontFamily: "display" }}>{clientName}</Typography>
-              <Typography level="body-sm" textColor="text.secondary" noWrap>
-                {PRODUCT_LABEL[t.product] ?? t.product} · #{t.number} {t.subject}{t.requester?.name ? ` · ${t.requester.name}` : ""}
-              </Typography>
-            </Stack>
-            <Button variant="plain" color="neutral" onClick={onShowDetails} sx={{ flex: "0 0 auto" }}>Details</Button>
-          </Stack>
 
-          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ px: 2, py: 1.5, borderRadius: "md", bgcolor: bannerColors[b.tone].bg, color: bannerColors[b.tone].fg }} role="status">
-            <Box aria-hidden sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "currentColor", flex: "0 0 auto" }} />
-            <Typography level="title-sm" textColor="inherit">{b.text}</Typography>
-          </Stack>
+      {/* Header: stays put while the thread scrolls. */}
+      <Stack
+        direction="row"
+        spacing={1.5}
+        alignItems="center"
+        sx={{ flex: "0 0 auto", px: { xs: 2, md: 3 }, py: 2, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.surface", minWidth: 0 }}
+      >
+        <IconButton
+          variant="plain"
+          color="neutral"
+          size="sm"
+          aria-label="Back"
+          onClick={onBack}
+          sx={{ flex: "0 0 auto", borderRadius: "md", "--IconButton-size": "36px", ml: -0.5, display: backOn === "compact" ? { xs: "inline-flex", md: "none" } : "inline-flex" }}
+        >
+          <ArrowLeft size={18} />
+        </IconButton>
+        <Avatar color="primary" variant="soft" aria-hidden sx={{ flex: "0 0 auto", "--Avatar-size": "40px", fontWeight: "lg", fontSize: "sm" }}>{initials(clientName)}</Avatar>
+        <Stack sx={{ minWidth: 0, flex: 1 }} spacing={0.25}>
+          <Typography level="title-md" noWrap>{clientName}</Typography>
+          <Tooltip title={`#${t.number} ${t.subject}${t.requester?.name ? ` · from ${t.requester.name}` : ""}`} placement="bottom-start" variant="soft" enterDelay={400}>
+            <Typography level="body-sm" textColor="text.tertiary" noWrap tabIndex={0} sx={{ outline: "none", "&:focus-visible": { textDecoration: "underline" } }}>
+              {product} · #{t.number} · {t.subject}
+            </Typography>
+          </Tooltip>
+        </Stack>
+        <Box sx={{ flex: "0 0 auto", display: { xs: "none", sm: "block" } }}><StatusChip status={t.status} /></Box>
+        <Button variant="outlined" color="neutral" size="sm" onClick={onShowDetails} sx={{ flex: "0 0 auto", borderRadius: "md" }}>Details</Button>
+      </Stack>
+
+      <Box sx={{ flex: 1, maxWidth: "100%", minWidth: 0, minHeight: 0, overflow: "auto" }}>
+        <Stack spacing={3} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", px: { xs: 2, md: 4 }, py: 3 }}>
+          {/* Status: what Bloom is doing, and where the fix stands. */}
+          <Sheet variant="outlined" sx={{ borderRadius: "lg", bgcolor: "background.surface", overflow: "hidden", boxShadow: "xs" }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ px: 2, py: 1.5 }} role="status">
+              <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: toneDot[b.tone], flex: "0 0 auto", boxShadow: "0 0 0 4px var(--joy-palette-background-level1)" }} />
+              <Typography level="title-sm" sx={{ minWidth: 0 }}>{b.text}</Typography>
+            </Stack>
+            {eng?.status && fix ? (
+              <>
+                <Divider />
+                <Stack spacing={1} sx={{ px: 2, py: 1.5 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography level="title-sm" startDecorator={<Sprout size={16} aria-hidden />}>The fix</Typography>
+                    <Chip size="sm" variant="soft" color={fix.tone}>{fix.label}</Chip>
+                  </Stack>
+                  <Typography level="body-sm" textColor="text.secondary">{fixDetail}</Typography>
+                  {eng.title && eng.title.trim() !== t.subject.trim() ? <Typography level="body-xs" textColor="text.tertiary">{asSentence(eng.title)}</Typography> : null}
+                  {eng.eligibility?.reasons?.length ? <Typography level="body-xs" textColor="text.secondary">{asSentence(`Needs a person because: ${eng.eligibility.reasons.slice(0, 3).join("; ")}`)}</Typography> : null}
+                  {(eng.status === "awaiting_approval" && eng.id && can("engineering.approve")) || eng.pr_url ? (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 0.5 }}>
+                      {eng.status === "awaiting_approval" && eng.id && can("engineering.approve") && (
+                        <Button size="sm" loading={run.isPending}
+                          onClick={() => run.mutate({ fn: () => bloomSupport.updateEngineering(eng.id!, { status: "approved", note: `Approved from ticket #${t.number}` }), done: "Fix approved. Bloom will release it and tell the client." })}>
+                          Approve fix
+                        </Button>
+                      )}
+                      {eng.pr_url && <Button size="sm" variant="plain" color="neutral" component="a" href={eng.pr_url} target="_blank" rel="noopener">See the change{eng.pr_number ? ` (#${eng.pr_number})` : ""}</Button>}
+                    </Stack>
+                  ) : null}
+                </Stack>
+              </>
+            ) : null}
+          </Sheet>
+
+          {canWrite ? (
+            <BloomRecommends
+              t={t}
+              me={me}
+              hint={actionHint}
+              busy={run.isPending}
+              run={(fn, done) => run.mutate({ fn, done })}
+              onReply={() => { setMode("public"); window.requestAnimationFrame(() => replyInput.current?.focus()); }}
+            />
+          ) : null}
 
           {t.merged_into && <Alert color="neutral" variant="soft">This continues in <Link component="button" onClick={() => onOpenTicket(t.merged_into!)}>#{t.merged_into_number}</Link>.</Alert>}
           {t.status === "resolved" && t.resolution_summary && (
-            <Sheet variant="soft" color="success" sx={{ p: 2, borderRadius: "lg" }}>
+            <Sheet variant="soft" color="success" sx={{ px: 2, py: 1.5, borderRadius: "lg" }}>
               <Typography level="title-sm" startDecorator={<Check size={16} />}>How it was solved</Typography>
-              <Typography level="body-md" sx={{ mt: 0.5 }}>{t.resolution_summary}</Typography>
+              <Typography level="body-sm" sx={{ mt: 0.5 }}>{t.resolution_summary}</Typography>
             </Sheet>
           )}
 
-          <Stack spacing={2.5} component="ol" sx={{ listStyle: "none", m: 0, p: 0 }}>
+          <Stack spacing={3} component="ol" aria-label="Conversation" sx={{ listStyle: "none", m: 0, p: 0 }}>
             {t.messages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} /></Box>)}
           </Stack>
 
           {t.attachments.length > 0 && (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {t.attachments.map((a) => (
-                <Chip key={a.id} variant="outlined" size="lg" startDecorator={<Paperclip size={14} />}
+                <Chip key={a.id} variant="outlined" color="neutral" startDecorator={<Paperclip size={14} />} title={`${a.file_name}${a.visibility === "internal" ? " (private)" : ""}`}
+                  sx={{ maxWidth: "100%", "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}
                   onClick={() => run.mutate({ fn: async () => { const { url } = await bloomSupport.attachmentUrl(a.id); window.open(url, "_blank", "noopener"); } })}>
                   {a.file_name}{a.visibility === "internal" ? " (private)" : ""}
                 </Chip>
@@ -197,32 +382,13 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
             </Stack>
           )}
 
-          {eng?.status && (
-            <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", bgcolor: "background.surface" }}>
-              <Stack spacing={1}>
-                <Typography level="title-sm" startDecorator={<Sprout size={16} />}>The fix</Typography>
-                <Typography level="body-md">{eng.title ? `${eng.title}. ` : ""}{ENGINEERING_TEXT[eng.status] ?? eng.status.replace(/_/g, " ")}.</Typography>
-                {eng.eligibility?.reasons?.length ? <Typography level="body-sm" textColor="text.secondary">Needs a person because: {eng.eligibility.reasons.slice(0, 3).join("; ")}</Typography> : null}
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 0.5 }}>
-                  {eng.status === "awaiting_approval" && eng.id && can("engineering.approve") && (
-                    <Button size="lg" sx={{ borderRadius: "xl" }} loading={run.isPending}
-                      onClick={() => run.mutate({ fn: () => bloomSupport.updateEngineering(eng.id!, { status: "approved", note: `Approved from ticket #${t.number}` }), done: "Fix approved. Bloom will release it and tell the client." })}>
-                      Approve fix
-                    </Button>
-                  )}
-                  {eng.pr_url && <Button size="lg" variant="plain" component="a" href={eng.pr_url} target="_blank" rel="noopener">See the change{eng.pr_number ? ` (#${eng.pr_number})` : ""}</Button>}
-                </Stack>
-              </Stack>
-            </Sheet>
-          )}
-
           {t.pending_review === "reply_after_resolution" && canWrite && (
-            <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", bgcolor: "background.surface" }}>
+            <Sheet variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: "lg", bgcolor: "background.surface" }}>
               <Typography level="title-sm">The client wrote again after this was solved. What is it?</Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 1.5 }}>
-                <Button size="lg" sx={{ borderRadius: "xl" }} onClick={() => run.mutate({ fn: () => bloomSupport.postReply(t.id, "reopen", lastClientId), done: "Reopened." })}>Still broken, reopen</Button>
-                <Button size="lg" variant="outlined" color="neutral" sx={{ borderRadius: "xl" }} onClick={() => run.mutate({ fn: () => bloomSupport.postReply(t.id, "new_ticket", lastClientId), done: "Opened as a new request." })}>Something new</Button>
-                <Button size="lg" variant="plain" color="neutral" onClick={() => run.mutate({ fn: () => bloomSupport.postReply(t.id, "dismiss", lastClientId), done: "Kept as solved." })}>Just a thank you</Button>
+                <Button size="sm" onClick={() => run.mutate({ fn: () => bloomSupport.postReply(t.id, "reopen", lastClientId), done: "Reopened." })}>Still broken, reopen</Button>
+                <Button size="sm" variant="outlined" color="neutral" onClick={() => run.mutate({ fn: () => bloomSupport.postReply(t.id, "new_ticket", lastClientId), done: "Opened as a new request." })}>Something new</Button>
+                <Button size="sm" variant="plain" color="neutral" onClick={() => run.mutate({ fn: () => bloomSupport.postReply(t.id, "dismiss", lastClientId), done: "Kept as solved." })}>Just a thank you</Button>
               </Stack>
             </Sheet>
           )}
@@ -230,25 +396,153 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       </Box>
 
       {canWrite && !closed && (
-        <Box sx={{ borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 3 }, py: 2 }}>
-          <Stack spacing={1.25} sx={{ maxWidth: 760, mx: "auto" }}>
-            {(error || notice) && <Alert size="sm" variant="soft" color={error ? "danger" : "success"}>{error ?? notice}</Alert>}
-            <Textarea
-              minRows={2} maxRows={8} value={draft} onChange={(e) => setDraft(e.target.value)}
-              placeholder={`Write to ${t.requester?.name ?? clientName}, or add a private note`}
-              slotProps={{ textarea: { "aria-label": "Message" } }}
-              sx={{ borderRadius: "lg", fontSize: "md" }}
-            />
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-              <Button size="lg" disabled={!draft.trim()} loading={run.isPending} onClick={() => send("public")} sx={{ borderRadius: "xl" }}>Send to client</Button>
-              <Button size="lg" variant="outlined" color="neutral" disabled={!draft.trim() || run.isPending} onClick={() => send("internal")} startDecorator={<Lock size={14} />} sx={{ borderRadius: "xl" }}>Private note</Button>
+        <Box sx={{ flex: "0 0 auto", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
+          <Stack spacing={1} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto" }}>
+            {error ? <Alert role="alert" size="sm" variant="soft" color="danger">{error}</Alert> : null}
+            {replyError ? (
+              <Alert id="conversation-reply-error" role="alert" size="sm" variant="soft" color="danger">
+                <Stack spacing={0.5}>
+                  <Typography level="body-sm">{replyError}</Typography>
+                  <Typography level="body-xs">Your message is unchanged. Retry it exactly, or choose edit and send as new before changing anything.</Typography>
+                </Stack>
+              </Alert>
+            ) : null}
+            {notice ? <Alert role="status" aria-live="polite" size="sm" variant="soft" color="success">{notice}</Alert> : null}
+
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <ToggleButtonGroup
+                size="sm"
+                variant="plain"
+                value={mode}
+                onChange={(_, v) => { if (v === "public" || v === "internal") setMode(v); }}
+                aria-label="Message type"
+                sx={{ "--ButtonGroup-separatorSize": "0px", bgcolor: "neutral.softBg", p: 0.375, borderRadius: "md", gap: 0.25 }}
+              >
+                <Button value="public" disabled={replyLocked} sx={segmentSx}>Reply</Button>
+                <Button value="internal" disabled={replyLocked} startDecorator={<Lock size={13} aria-hidden />} sx={segmentSx}>Internal note</Button>
+              </ToggleButtonGroup>
               <Box sx={{ flex: 1 }} />
               {t.automation === "auto"
-                ? <Button variant="plain" color="neutral" disabled={run.isPending} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "human", "Taken over from conversation"), done: "It's yours. Bloom won't message the client." })}>I'll take it from here</Button>
-                : <Button variant="plain" color="primary" disabled={run.isPending} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "auto"), done: "Handed back to Bloom." })}>Hand back to Bloom</Button>}
-              {t.status !== "resolved" && <Button variant="plain" color="success" disabled={run.isPending} startDecorator={<Check size={16} />} onClick={markSolved}>Mark solved</Button>}
+                ? <Button size="sm" variant="plain" color="neutral" aria-label="Take over" startDecorator={<Hand size={14} aria-hidden />} disabled={run.isPending || replyLocked} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "human", "Taken over from conversation"), done: "It's yours. Bloom won't message the client." })} sx={actionSx}><Box component="span" sx={wideOnly}>Take over</Box></Button>
+                : <Button size="sm" variant="plain" color="neutral" aria-label="Hand back to Bloom" startDecorator={<Bot size={14} aria-hidden />} disabled={run.isPending || replyLocked} onClick={() => run.mutate({ fn: () => bloomSupport.setAutomation(t.id, "auto"), done: "Handed back to Bloom." })} sx={actionSx}><Box component="span" sx={wideOnly}>Hand back to Bloom</Box></Button>}
+              {t.status !== "resolved" ? <Button size="sm" variant="plain" color="neutral" aria-label="Mark solved" disabled={run.isPending || replyLocked} startDecorator={<Check size={14} aria-hidden />} onClick={markSolved} sx={actionSx}><Box component="span" sx={wideOnly}>Mark solved</Box></Button> : null}
             </Stack>
-            {t.automation === "auto" && draft.trim() && <Typography level="body-xs" textColor="text.tertiary">Sending to the client takes this over from Bloom.</Typography>}
+
+            <Sheet
+              variant="outlined"
+              sx={{
+                borderRadius: "lg",
+                overflow: "hidden",
+                bgcolor: internalMode ? "warning.softBg" : "background.surface",
+                borderColor: internalMode ? "warning.outlinedBorder" : "neutral.outlinedBorder",
+                borderStyle: internalMode ? "dashed" : "solid",
+                transition: "border-color 120ms ease, box-shadow 120ms ease",
+                "&:focus-within": { borderColor: internalMode ? "warning.400" : "primary.400", boxShadow: "sm" },
+              }}
+            >
+              <Textarea
+                variant="plain"
+                minRows={3}
+                maxRows={10}
+                value={draft}
+                disabled={replyLocked}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={internalMode ? "Add an internal note. Only staff will see this." : `Reply to ${t.requester?.name ?? clientName}…`}
+                slotProps={{
+                  textarea: {
+                    ref: replyInput,
+                    disabled: replyLocked,
+                    maxLength: MAX_SUPPORT_BODY_LENGTH,
+                    "aria-label": "Message",
+                    "aria-describedby": replyError ? "conversation-reply-count conversation-reply-error" : "conversation-reply-count",
+                    onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        if (canSend) send(mode);
+                      }
+                    },
+                  },
+                }}
+                sx={{
+                  width: "100%",
+                  minWidth: 0,
+                  bgcolor: "transparent",
+                  border: 0,
+                  boxShadow: "none",
+                  fontSize: "md",
+                  px: 1.5,
+                  pt: 1.25,
+                  pb: 0.5,
+                  "--Textarea-focusedHighlight": "transparent",
+                  "&:hover:not([data-disabled='true'])": { bgcolor: "transparent" },
+                  "&:focus-within": { borderColor: "transparent" },
+                  "&[data-disabled='true']": { bgcolor: "transparent" },
+                  // The theme gives textareas an 80px floor; the composer sizes by rows instead.
+                  minHeight: 0,
+                  "--Textarea-paddingInline": "12px",
+                  "--Textarea-paddingBlock": "10px",
+                  "& .MuiTextarea-textarea": { minHeight: 0, lineHeight: 1.6, resize: "none" },
+                }}
+              />
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ px: 1, pb: 1, pt: 0.5 }}>
+                <Dropdown>
+                  <MenuButton
+                    size="sm"
+                    variant="plain"
+                    color="neutral"
+                    disabled={replyLocked || run.isPending}
+                    aria-label="Attach"
+                    startDecorator={<Paperclip size={14} />}
+                    sx={actionSx}
+                  >
+                    <Box component="span" sx={wideOnly}>Attach</Box>
+                  </MenuButton>
+                  <Menu placement="top-start" size="sm">
+                    <MenuItem onClick={() => publicAttachmentInput.current?.click()}>For the client</MenuItem>
+                    <MenuItem onClick={() => privateAttachmentInput.current?.click()}>Private for staff</MenuItem>
+                  </Menu>
+                </Dropdown>
+                <input ref={publicAttachmentInput} hidden type="file" aria-label="Attach a file for the client" disabled={replyLocked || run.isPending} accept={ATTACHMENT_ACCEPT} onChange={(e) => { attach("public", e.target.files); e.target.value = ""; }} />
+                <input ref={privateAttachmentInput} hidden type="file" aria-label="Attach a private file" disabled={replyLocked || run.isPending} accept={ATTACHMENT_ACCEPT} onChange={(e) => { attach("internal", e.target.files); e.target.value = ""; }} />
+                <Typography id="conversation-reply-count" level="body-xs" color={overLimit ? "danger" : undefined} textColor={overLimit ? undefined : "text.tertiary"}>
+                  {draft.length.toLocaleString()} / {MAX_SUPPORT_BODY_LENGTH.toLocaleString()} characters
+                </Typography>
+                <Box sx={{ flex: 1 }} />
+                {pendingReply.current ? (
+                  <>
+                    {retryLocked ? <Button size="sm" variant="plain" color="neutral" onClick={editAsNewReply}>Edit and send as new</Button> : null}
+                    <Button
+                      size="sm"
+                      disabled={!retryLocked || replyRun.isPending}
+                      loading={replyRun.isPending}
+                      onClick={() => send(pendingReply.current?.visibility ?? "public")}
+                      sx={{ borderRadius: "md", px: 2 }}
+                    >
+                      {retryLocked ? `Retry same ${pendingReply.current.visibility === "internal" ? "note" : "reply"}` : "Sending…"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Typography level="body-xs" textColor="text.tertiary" aria-hidden sx={{ display: { xs: "none", sm: "block" } }}>
+                      {macKeys ? "⌘" : "Ctrl"} ↵ to send
+                    </Typography>
+                    <Button
+                      size="sm"
+                      color={internalMode ? "neutral" : "primary"}
+                      disabled={!canSend}
+                      loading={replyRun.isPending}
+                      onClick={() => send(mode)}
+                      endDecorator={internalMode ? <Lock size={14} aria-hidden /> : <SendHorizontal size={14} aria-hidden />}
+                      aria-keyshortcuts={macKeys ? "Meta+Enter" : "Control+Enter"}
+                      sx={{ borderRadius: "md", px: 2, ml: "auto !important" }}
+                    >
+                      {internalMode ? "Add note" : "Send to client"}
+                    </Button>
+                  </>
+                )}
+              </Stack>
+            </Sheet>
+            {t.automation === "auto" && draft.trim() && !internalMode ? <Typography level="body-xs" textColor="text.tertiary">Sending to the client takes this over from Bloom.</Typography> : null}
           </Stack>
         </Box>
       )}

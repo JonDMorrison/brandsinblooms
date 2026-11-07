@@ -108,7 +108,7 @@ export default function BloomSupportPage() {
             <Chip size="sm" variant="soft">{counts.new ?? 0} new</Chip>
             <Chip size="sm" variant="soft">{counts.working ?? 0} being handled</Chip>
             <Chip size="sm" variant="soft">{counts.waiting ?? 0} waiting on someone</Chip>
-            <Chip size="sm" variant="soft" color={(counts.needs_owner ?? 0) > 0 ? "warning" : "neutral"}>{counts.needs_owner ?? 0} need Jon or Jeff</Chip>
+            <Chip size="sm" variant="soft" color={(counts.needs_owner ?? 0) > 0 ? "warning" : "neutral"}>{counts.needs_owner ?? 0} need an admin</Chip>
             {s.automation_enabled === false && <Chip size="sm" color="danger">Bloom is paused</Chip>}
             {Number(s.dead_jobs ?? 0) > 0 && <Chip size="sm" color="danger" variant="soft">{String(s.dead_jobs)} automatic steps failed</Chip>}
           </Stack>
@@ -159,15 +159,15 @@ export default function BloomSupportPage() {
         )
       )}
       {view === "queue" && (
-        <Sheet variant="outlined" sx={{ borderRadius: "lg", flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(300px, 380px) minmax(0, 1fr)" }, overflow: "hidden" }}>
-          <Box sx={{ borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, minHeight: 0, display: { xs: ticketId ? "none" : "block", md: "block" } }}>
+        <Sheet variant="outlined" sx={{ borderRadius: "lg", flex: 1, minWidth: 0, maxWidth: "100%", minHeight: 0, display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(300px, 380px) minmax(0, 1fr)" }, overflow: "hidden" }}>
+          <Box sx={{ borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, minWidth: 0, minHeight: 0, display: { xs: ticketId ? "none" : "block", md: "block" } }}>
             <QueueList me={me.data!} selectedId={ticketId} onOpen={openTicket} />
           </Box>
-          <Box sx={{ minHeight: 0, display: { xs: ticketId ? "block" : "none", md: "block" } }}>
+          <Box sx={{ minWidth: 0, maxWidth: "100%", minHeight: 0, display: { xs: ticketId ? "block" : "none", md: "block" } }}>
             {ticketId ? (
-              <Stack sx={{ height: "100%" }}>
+              <Stack sx={{ height: "100%", minWidth: 0, maxWidth: "100%" }}>
                 <Box sx={{ display: { md: "none" }, p: 1 }}><IconButton size="sm" aria-label="Back to list" onClick={() => go({ ticket: null })}><ArrowLeft size={16} /></IconButton></Box>
-                <Box sx={{ flex: 1, minHeight: 0 }}><TicketDetailPane key={ticketId} ticketId={ticketId} me={me.data!} onOpenTicket={openTicket} /></Box>
+                <Box sx={{ flex: 1, minWidth: 0, maxWidth: "100%", minHeight: 0 }}><TicketDetailPane key={ticketId} ticketId={ticketId} me={me.data!} onOpenTicket={openTicket} /></Box>
               </Stack>
             ) : (
               <Box sx={{ p: 4 }}><JoyEmptyState icon={<Inbox size={28} />} title="Select a ticket" description="The conversation, client, owner, next action and Bloom's automation status appear here." /></Box>
@@ -176,7 +176,7 @@ export default function BloomSupportPage() {
         </Sheet>
       )}
       <Box sx={{ overflow: "auto", display: view === "queue" || view === "today" ? "none" : "block" }}>
-        {view === "escalations" && <EscalationsPanel onOpenTicket={openTicket} />}
+        {view === "escalations" && <EscalationsPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "engineering" && <EngineeringPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "features" && <FeaturesPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "clients" && <ClientsPanel onOpenTicket={openTicket} />}

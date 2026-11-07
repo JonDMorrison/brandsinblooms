@@ -31,6 +31,8 @@ import { getProductDetail } from "./implementations/get-product-detail.ts";
 import { getSegmentMembers } from "./implementations/get-segment-members.ts";
 import { exportDataImplementation } from "./implementations/export-data.ts";
 import { executeGenerateImage } from "./implementations/image-tools.ts";
+import { importCustomerList, prepareCustomerListImport } from "./implementations/customer-list-import.ts";
+import { readPhotoReference, withCampaignPhotoPreview } from "./implementations/campaign-photo.ts";
 import { navigateToImplementation } from "./implementations/navigate-to.ts";
 import { campaignMutationImplementation } from "./implementations/campaign-mutations.ts";
 import { customerMutationImplementation } from "./implementations/customer-mutations.ts";
@@ -593,6 +595,8 @@ const TOOL_ACTION_FORMATTERS: Record<string, ToolActionFormatter> = {
         : "Apply a tag to";
     return `${action} ${customerCountLabel(params)}`;
   },
+  import_customer_list: () =>
+    "Import the contacts from the uploaded list as customers",
   manage_consent: (params) => {
     const channel =
       readParamString(params, "channel")?.toUpperCase() ?? "communication";
@@ -649,6 +653,7 @@ function isLikelyReversible(toolName: ToolName): boolean {
     case "delete_customer":
     case "send_campaign":
     case "bulk_tag_customers":
+    case "import_customer_list":
     case "manage_consent":
     case "report_support_problem":
       return false;
@@ -663,6 +668,7 @@ function mutationEntityType(toolName: ToolName): string | null {
     case "update_customer":
     case "delete_customer":
     case "bulk_tag_customers":
+    case "import_customer_list":
     case "manage_consent":
       return "customer";
     case "create_campaign":
@@ -944,6 +950,8 @@ function getToolImplementation(toolName: ToolName): ToolImplementation {
       return generateContent;
     case "generate_image":
       return executeGenerateImage;
+    case "import_customer_list":
+      return importCustomerList;
     default:
       return () => Promise.resolve(notImplementedResult(toolName));
   }
@@ -1028,8 +1036,13 @@ export async function executeTool(
 
   if (tool.requires_confirmation && context.approved !== true) {
     try {
+      // Tools whose approval card needs a server-computed preview.
       result = tool.function.name === "save_customer_set_segment"
         ? await prepareCustomerSetSave(validation.value, context)
+        : tool.function.name === "import_customer_list"
+        ? await prepareCustomerListImport(validation.value, context)
+        : tool.function.name === "create_campaign" && readPhotoReference(validation.value)
+        ? await withCampaignPhotoPreview(createConfirmationResult(tool, validation.value), validation.value, context)
         : createConfirmationResult(tool, validation.value);
     } catch (error) {
       result = createResult({ success: false, message: error instanceof Error ? error.message : "Unable to prepare the audience.", error: "analysis_confirmation_failed", blockType: "text" });
