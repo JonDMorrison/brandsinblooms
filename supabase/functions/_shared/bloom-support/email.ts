@@ -7,7 +7,10 @@ export interface EmailConfig {
   configured: boolean;
   missing: string[];
   from: string;
-  supportAddress: string | null;
+  /** Verified dedicated sending/inbound identity (deliverability domain). */
+  sendingAddress: string | null;
+  /** Address clients see, use and reply to. */
+  publicAddress: string;
   replyDomain: string;
   publicBaseUrl: string;
   allowlist: string[];
@@ -16,15 +19,17 @@ export interface EmailConfig {
 export function emailConfig(): EmailConfig {
   const missing: string[] = [];
   if (!env("RESEND_API_KEY")) missing.push("RESEND_API_KEY");
-  const supportAddress = env("BLOOM_SUPPORT_INBOX") ?? null;
-  if (!supportAddress) missing.push("BLOOM_SUPPORT_INBOX");
-  const from = env("BLOOM_SUPPORT_FROM") ?? (supportAddress ? `Bloom Support <${supportAddress}>` : "Bloom Support <support@bloomsuite.app>");
+  const sendingAddress = env("BLOOM_SUPPORT_INBOX") ?? null;
+  if (!sendingAddress) missing.push("BLOOM_SUPPORT_INBOX");
+  const publicAddress = env("BLOOM_SUPPORT_PUBLIC_INBOX") ?? "bloom@bloomsuite.app";
+  const from = env("BLOOM_SUPPORT_FROM") ?? (sendingAddress ? `Bloom Support <${sendingAddress}>` : "Bloom Support <support@bloomsuite.app>");
   return {
     configured: missing.length === 0,
     missing,
     from,
-    supportAddress,
-    replyDomain: (supportAddress?.split("@")[1]) ?? "bloomsuite.app",
+    sendingAddress,
+    publicAddress,
+    replyDomain: (sendingAddress?.split("@")[1]) ?? "bloomsuite.app",
     publicBaseUrl: env("BLOOM_SUPPORT_PUBLIC_URL") ?? "https://bloomsuite.app",
     // When set, client email is delivered only to these addresses (test mode).
     allowlist: (env("BLOOM_SUPPORT_EMAIL_ALLOWLIST") ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
@@ -199,7 +204,7 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
         from: cfg.from,
         to: [req.to],
         cc: req.cc?.length ? [...new Set(req.cc.map((c) => c.toLowerCase()))].filter((c) => c !== req.to.toLowerCase()).slice(0, 10) : undefined,
-        reply_to: cfg.supportAddress ?? undefined,
+        reply_to: cfg.publicAddress,
         subject: req.subject,
         text: req.text,
         html: req.html ?? undefined,

@@ -351,6 +351,17 @@ export const actions = {
       ...(env("BLOOM_GITHUB_REPAIR_TOKEN") ? [] : ["BLOOM_GITHUB_REPAIR_TOKEN"]),
       ...(env("BLOOM_GITHUB_RELEASE_TOKEN") ? [] : ["BLOOM_GITHUB_RELEASE_TOKEN"]),
     ];
-    return { ok: true, missing_configuration: [...new Set(missing)], email: { configured: email.configured, inbox: email.supportAddress }, ai: { provider: ai.provider, model: ai.model }, operations: ops, statuses: STATUS_LABEL };
+    return {
+      ok: true,
+      missing_configuration: [...new Set(missing)],
+      email: {
+        configured: email.configured,
+        sending_inbox: email.sendingAddress,
+        public_inbox: email.publicAddress,
+      },
+      ai: { provider: ai.provider, model: ai.model },
+      operations: ops,
+      statuses: STATUS_LABEL,
+    };
   },
 };

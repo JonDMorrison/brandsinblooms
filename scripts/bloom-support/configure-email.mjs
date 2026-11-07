@@ -23,6 +23,7 @@ export async function configureEmail({ token, request = fetch }) {
   await management('/secrets', [
     { name: 'RESEND_INBOUND_WEBHOOK_SECRET', value: secret },
     { name: 'BLOOM_SUPPORT_INBOX', value: 'bloom@support.bloomsuite.app' },
+    { name: 'BLOOM_SUPPORT_PUBLIC_INBOX', value: 'bloom@bloomsuite.app' },
     // Keep the provider address as a recovery route while the root-domain
     // address offers customers a short, memorable way to reach Bloom.
     { name: 'BLOOM_SUPPORT_INBOUND_ADDRESSES', value: '0dc2823a@eeuntaiurk.resend.app,bloom@bloomsuite.app' },

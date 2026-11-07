@@ -1,5 +1,5 @@
-/** The one Brands in Blooms support address. Mail sent here reaches the Bloom support desk. */
-export const SUPPORT_EMAIL = "bloom@support.bloomsuite.app";
+/** The public BloomSuite support address. Mail sent here reaches the Bloom support desk. */
+export const SUPPORT_EMAIL = "bloom@bloomsuite.app";
 /** Public help centre (approved Bloom answers). */
 export const HELP_CENTRE_PATH = "/knowledge-base";
 

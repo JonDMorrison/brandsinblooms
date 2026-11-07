@@ -133,7 +133,10 @@ export async function readiness(caller: Caller) {
       tested: "e2e: threading, duplicates, autoresponders, reopen", enabled: true, live: recent(f.last_seen.intake_email, 30), note: "Needs a Resend receiving address and the email.received webhook" },
     { key: "email_out", label: "Email to clients", implemented: true, configured: mail.configured, missing: mail.missing, tested: "e2e: acknowledgement, replies, resolution, takeover suppression",
       enabled: s.client_email_enabled === true, live: recent(f.last_seen.email_sent, 30),
-      note: mail.allowlist.length ? `Delivery restricted to verification recipients: ${mail.allowlist.join(", ")}` : undefined },
+      note: [
+        `Sends from ${mail.sendingAddress ?? "an unconfigured sending inbox"}; public replies go to ${mail.publicAddress}`,
+        mail.allowlist.length ? `delivery restricted to verification recipients: ${mail.allowlist.join(", ")}` : null,
+      ].filter(Boolean).join("; ") },
     { key: "ai", label: `Model (${ai.provider === "none" ? "rules only" : `${ai.model} via OpenAI API`})`, implemented: true, configured: ai.provider !== "none", missing: ai.missing,
       tested: "unit: classification merge; e2e runs the rules fallback", enabled: ai.provider !== "none", live: recent(f.last_seen.model_call, 7),
       note: "Billed to the OpenAI API account, not a ChatGPT subscription. Budgets: settings.limits.ai_calls_per_day_total and ai.max_calls_per_account_per_day" },

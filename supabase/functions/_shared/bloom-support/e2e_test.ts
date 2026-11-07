@@ -18,7 +18,8 @@ const DB_URL = Deno.env.get("BLOOM_E2E_DATABASE_URL");
 const SB = "http://supabase.test";
 const WHSEC_BYTES = new TextEncoder().encode("e2e-webhook-secret-0123456789abc");
 const ENV: Record<string, string> = {
-  SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: "service-key", RESEND_API_KEY: "re_test", BLOOM_SUPPORT_INBOX: "support@bloom.test",
+  SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: "service-key", RESEND_API_KEY: "re_test", BLOOM_SUPPORT_INBOX: "sender@support.bloom.test",
+  BLOOM_SUPPORT_PUBLIC_INBOX: "support@bloom.test",
   BLOOM_SUPPORT_PUBLIC_URL: "https://bloomsuite.test", RESEND_INBOUND_WEBHOOK_SECRET: "whsec_" + btoa(String.fromCharCode(...WHSEC_BYTES)),
   BLOOM_INTAKE_SECRET_CMS: "cms-intake-secret", BLOOM_INTAKE_SECRET_POS: "pos-intake-secret",
   BLOOM_GITHUB_REPAIR_TOKEN: "gh-repair", BLOOM_GITHUB_RELEASE_TOKEN: "gh-release", BLOOM_GITHUB_REPAIR_LOGINS: "bloom-repair[bot]",
@@ -73,7 +74,7 @@ async function tableSelect(table: string, url: URL, accept: string) {
 // ---------------------------------------------------------------------------
 // External stubs
 // ---------------------------------------------------------------------------
-const resendSent: Array<{ to: string[]; cc?: string[]; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
+const resendSent: Array<{ to: string[]; cc?: string[]; reply_to?: string; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
 const resendReceived = new Map<string, Record<string, unknown>>();
 const attachmentDownloads = new Map<string, Uint8Array>();
 let resendFailNext = 0;
@@ -250,10 +251,10 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     const b = JSON.parse(bodyText);
     if (resendFailNext > 0) {
       resendFailNext--;
-      resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
+      resendSent.push({ to: b.to, cc: b.cc, reply_to: b.reply_to, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
       throw new Error("connection reset after request was sent");
     }
-    resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
+    resendSent.push({ to: b.to, cc: b.cc, reply_to: b.reply_to, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
     return new Response(JSON.stringify({ id: `re_${resendSent.length}` }), { status: 200 });
   }
   if (url.hostname === "api.vercel.com") {
@@ -1280,6 +1281,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertExists(crm.engineering_issue_id);
     const ack = resendSent.find((m) => m.to[0] === "gail@greenleaf.test");
     assertExists(ack, "acknowledgement emailed");
+    assertEquals(ack!.reply_to, "support@bloom.test", "customer mail replies to the public inbox, not the sending domain");
     assert(ack!.subject.startsWith(`[Bloom #${crm.number}]`));
     assertEquals(ack!.headers["Auto-Submitted"], "auto-replied", "Bloom's acknowledgement prevents automatic response loops");
     // The first email of a ticket carries the ticket's stable thread root, so every later email threads under it.

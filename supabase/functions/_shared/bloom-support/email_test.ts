@@ -1,5 +1,27 @@
 import { assertEquals } from "@std/assert";
-import { retryableLedgerFailure, retryableProviderStatus, safeSuppressionReason, supportEmailHeaders } from "./email.ts";
+import { emailConfig, retryableLedgerFailure, retryableProviderStatus, safeSuppressionReason, supportEmailHeaders } from "./email.ts";
+
+Deno.test("dedicated sending identity keeps the public BloomSuite reply address", () => {
+  const names = ["RESEND_API_KEY", "BLOOM_SUPPORT_INBOX", "BLOOM_SUPPORT_PUBLIC_INBOX", "BLOOM_SUPPORT_FROM"];
+  const original = new Map(names.map((name) => [name, Deno.env.get(name)]));
+  try {
+    Deno.env.set("RESEND_API_KEY", "re_test");
+    Deno.env.set("BLOOM_SUPPORT_INBOX", "bloom@support.bloomsuite.app");
+    Deno.env.delete("BLOOM_SUPPORT_PUBLIC_INBOX");
+    Deno.env.delete("BLOOM_SUPPORT_FROM");
+    const config = emailConfig();
+    assertEquals(config.sendingAddress, "bloom@support.bloomsuite.app");
+    assertEquals(config.publicAddress, "bloom@bloomsuite.app");
+    assertEquals(config.from, "Bloom Support <bloom@support.bloomsuite.app>");
+    assertEquals(config.replyDomain, "support.bloomsuite.app");
+    assertEquals(config.configured, true);
+  } finally {
+    for (const [name, value] of original) {
+      if (value === undefined) Deno.env.delete(name);
+      else Deno.env.set(name, value);
+    }
+  }
+});
 
 Deno.test("suppressed email reports the real controlled cause", () => {
   assertEquals(safeSuppressionReason("recipient bounced or complained"), "recipient bounced or complained");

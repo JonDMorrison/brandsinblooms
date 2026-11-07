@@ -46,11 +46,11 @@ an end-to-end OAuth login, or a repaired production bug.
    Use the actual CMS deployed origin plus /api/internal/bloom/ops.
    Add client product links only from verified IDs; no reviewed storefront links currently exist in
    public.crm_storefront_tenant_links.
-4. **Activate email.** Forward bloom@brandsinblooms.com from the existing mail provider to
-   **0dc2823a@eeuntaiurk.resend.app**; receiving is not live until this is done.
-   Verify that the inbox's received-event payload matches bloom-support-email before enabling delivery.
-   Configure the receiving webhook and RESEND_INBOUND_WEBHOOK_SECRET. Set BLOOM_SUPPORT_INBOX to
-   bloom@brandsinblooms.com. Existing CRM RESEND_API_KEY is present. Add the independent alert key to
+4. **Activate email.** Keep `bloom@support.bloomsuite.app` as the verified sending identity and
+   `bloom@bloomsuite.app` as the public address clients use and reply to. Verify that both addresses'
+   received-event payloads match bloom-support-email before enabling delivery. Configure the receiving
+   webhook and RESEND_INBOUND_WEBHOOK_SECRET. Set BLOOM_SUPPORT_INBOX to the dedicated sending identity;
+   BLOOM_SUPPORT_PUBLIC_INBOX defaults safely to the public root alias. Existing CRM RESEND_API_KEY is present. Add the independent alert key to
    Vault as bloom_support_alert_resend_key. Test acknowledgement, reply threading, duplicate delivery,
    reopen, human takeover and bounce handling with owner addresses before enabling client_email_enabled.
 5. **Release the website integration.** The main...dev comparison is diverged (139 ahead / 550 behind),
@@ -247,6 +247,8 @@ Different clients link to a **shared problem** instead: one investigation, priva
 Attachment failures during intake are reported in the response and logged.
 
 **Email.**
+- Mail sends from the dedicated verified `bloom@support.bloomsuite.app` identity for deliverability,
+  while every customer-facing Reply-To and public contact point uses `bloom@bloomsuite.app`.
 - Threading uses Message-ID, In-Reply-To, References and the `[Bloom #N]` subject tag.
 - Attachments are kept.
 - CC is kept only for **verified contacts of the same client**. Nobody is added because an email asked.
@@ -366,7 +368,8 @@ CRM Edge Function secrets (`supabase secrets set …`, or Dashboard → Edge Fun
 | --- | --- | --- |
 | `OPENAI_API_KEY` | model (already set for `bloom-assist`; confirm in Readiness) | for model features |
 | `RESEND_API_KEY` | email (already used by CRM functions) | for email |
-| `BLOOM_SUPPORT_INBOX` | the address clients reply to | for email |
+| `BLOOM_SUPPORT_INBOX` | verified sending/inbound identity (`bloom@support.bloomsuite.app`) | for email |
+| `BLOOM_SUPPORT_PUBLIC_INBOX` | public Reply-To/inbound alias (default `bloom@bloomsuite.app`) | no |
 | `BLOOM_SUPPORT_FROM` | sender display (optional) | no |
 | `BLOOM_SUPPORT_PUBLIC_URL` | links (default `https://bloomsuite.app`) | no |
 | `RESEND_INBOUND_WEBHOOK_SECRET` | inbound email webhook | for email intake |

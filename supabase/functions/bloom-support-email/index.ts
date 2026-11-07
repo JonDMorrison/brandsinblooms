@@ -212,7 +212,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   const data = (evt.data ?? {}) as Record<string, unknown>;
   const cfg = emailConfig();
   const aliases = (env("BLOOM_SUPPORT_INBOUND_ADDRESSES") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  const allowedRecipients = [cfg.supportAddress, ...aliases].filter((s): s is string => !!s).map((s) => parseAddress(s).email);
+  const allowedRecipients = [cfg.publicAddress, cfg.sendingAddress, ...aliases].filter((s): s is string => !!s).map((s) => parseAddress(s).email);
   if (!allowedRecipients.length) throw new BloomError(503, "not_configured", "Bloom Support receiving addresses are not configured");
   // The account webhook includes mail for every receiving domain. Route only
   // Bloom's own mailbox. received_for is the provider's SMTP delivery target;
@@ -231,7 +231,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   const inReplyTo = headers["in-reply-to"]?.trim() || null;
   const fromAddress = parseAddress(cfg.from).email;
   // Bloom's own addresses (plus optional extra addresses or "@domain" entries used only by Bloom).
-  const own = [cfg.supportAddress, fromAddress, ...aliases, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
+  const own = [cfg.publicAddress, cfg.sendingAddress, fromAddress, ...aliases, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
   const sender = parseAddress(mail.from);
   // Provider spam verdicts are respected; spam never opens a ticket.
   if (/^\s*yes/i.test(headers["x-spam-flag"] ?? "") || /^\s*yes/i.test(headers["x-spam-status"] ?? "")) {

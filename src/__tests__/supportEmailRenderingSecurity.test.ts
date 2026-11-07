@@ -84,7 +84,7 @@ describe("all support entry points reach Bloom", () => {
       const response = await handler(requestFor(form));
       expect(response.status).toBe(200);
       expect(messages).toHaveLength(1);
-      expect(Array.from(messages[0].to as string[])).toEqual(["bloom@support.bloomsuite.app"]);
+      expect(Array.from(messages[0].to as string[])).toEqual(["bloom@bloomsuite.app"]);
       expect(messages[0].replyTo).toBe(form.email);
       expect(String(messages[0].text)).toContain("Forwarded message ---------\nFrom: " + form.email);
       expect(String(messages[0].text)).toContain("not identity verification");

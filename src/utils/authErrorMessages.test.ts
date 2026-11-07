@@ -87,7 +87,7 @@ describe("getAuthErrorMessage", () => {
     it("maps user_banned by code", () => {
       const result = getAuthErrorMessage({ code: "user_banned" }, "signIn");
       expect(result.code).toBe("user_banned");
-      expect(result.message).toContain("bloom@support.bloomsuite.app");
+      expect(result.message).toContain("bloom@bloomsuite.app");
       expect(result.retryable).toBe(false);
     });
 
