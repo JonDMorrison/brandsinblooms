@@ -23,6 +23,7 @@ import {
 import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
+import { canQueueCampaignForTenant } from "../../../src/lib/auth/crmAccess.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -683,15 +684,9 @@ serve(async (req: Request) => {
       });
       const { data: requesterAccess, error: requesterAccessError } =
         await requesterClient.rpc("get_current_crm_access");
-      const permissionList = requesterAccess && typeof requesterAccess === "object"
-        && !Array.isArray(requesterAccess) && Array.isArray(requesterAccess.permissions)
-        ? requesterAccess.permissions
-        : [];
       if (
         requesterAccessError ||
-        !requestedTenantId ||
-        requesterAccess?.tenantId !== requestedTenantId ||
-        !permissionList.includes("campaigns.send")
+        !canQueueCampaignForTenant(requesterAccess, requestedTenantId)
       ) {
         return new Response(JSON.stringify({ error: "Campaign send permission denied" }), {
           status: 403,
