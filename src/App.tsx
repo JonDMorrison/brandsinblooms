@@ -284,6 +284,9 @@ const CRMCampaignEditorPage = lazyRetry(
 const CampaignStudioPage = lazyRetry(
   () => import("@/pages/crm/CampaignStudioPage"),
 );
+const ConnectedContentPage = lazyRetry(
+  () => import("@/pages/crm/ConnectedContentPage"),
+);
 const SavedBlocksPage = lazyNamed(
   () => import("@/pages/crm/SavedBlocksPage"),
   "SavedBlocksPage",
@@ -788,6 +791,14 @@ function App() {
                 <CustomerDashboardPage />,
                 "form",
                 "customers.read",
+              )}
+            />
+            <Route
+              path="/crm/connected-content"
+              element={renderProtectedSidebarLazyPage(
+                <ConnectedContentPage />,
+                "full",
+                "campaigns.write",
               )}
             />
             <Route

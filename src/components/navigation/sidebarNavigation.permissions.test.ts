@@ -111,9 +111,9 @@ describe("tenant sidebar permissions", () => {
       "content.design",
     ]);
 
-    expect(items).toHaveLength(19);
+    expect(items).toHaveLength(20);
     expect(items).toEqual(
-      expect.arrayContaining(["customer-intelligence", "integrations", "settings", "campaigns", "forms"]),
+      expect.arrayContaining(["customer-intelligence", "integrations", "connected-content", "settings", "campaigns", "forms"]),
     );
   });
 });

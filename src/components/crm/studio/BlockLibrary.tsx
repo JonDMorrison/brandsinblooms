@@ -2,6 +2,7 @@ import DataImportDialog from "./newsletter/DataImportDialog";
 import * as React from "react";
 import { useDraggable } from "@dnd-kit/core";
 import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
 import Input from "@mui/joy/Input";
 import Sheet from "@mui/joy/Sheet";
@@ -11,6 +12,7 @@ import Modal from "@mui/joy/Modal";
 import ModalDialog from "@mui/joy/ModalDialog";
 import {
   Search,
+  Globe2,
   Heart,
   Pencil,
   Trash2,
@@ -36,6 +38,7 @@ type Props = {
   blocks: StudioBlock[];
   onAddBlock: (type: StudioBlockType) => void;
   onSelectBlock: (id: string) => void;
+  onInsertWebsiteContent?: () => void;
   onInsertSavedBlock: (block: StudioBlock) => void;
   onInsertImportedBlocks?: (blocks: StudioBlock[]) => void;
   onDuplicateBlock?: (id: string) => void;
@@ -129,6 +132,7 @@ export default function BlockLibrary({
   blocks,
   onAddBlock,
   onSelectBlock,
+  onInsertWebsiteContent,
   onInsertSavedBlock,
   onInsertImportedBlocks,
   onDuplicateBlock,
@@ -257,6 +261,7 @@ export default function BlockLibrary({
           }}
         />
       </Box>
+      {onInsertWebsiteContent && <Button variant="outlined" color="neutral" startDecorator={<Globe2 size={16} />} onClick={onInsertWebsiteContent} sx={{ mx: 2, mb: 1 }}>From my website</Button>}
       <Box sx={{ overflowY: "auto", minHeight: 0, p: 2, flex: 1 }}>
         {tab === "blocks" && (
           <>
