@@ -633,7 +633,11 @@ serve(async (req: Request) => {
     // interactive callers must have this tenant's campaigns.send permission.
     // verify_jwt is disabled for internal worker compatibility, so this
     // check is the primary edge authorization boundary.
-    const isInternalServiceRequest = requesterJwt === supabaseServiceKey;
+    // Modern sb_secret_ service keys are sent as the apikey header.
+    // Do not require legacy JWT comparison for scheduled workers.
+    const isInternalServiceRequest =
+      req.headers.get("apikey") === supabaseServiceKey ||
+      requesterJwt === supabaseServiceKey;
     if (!isInternalServiceRequest) {
       if (!requesterJwt) {
         return new Response(JSON.stringify({ error: "Authentication required" }), {
