@@ -619,3 +619,6 @@ verify_jwt = false
 
 [functions.bloom-support-mcp]
 verify_jwt = false
+
+[functions.connected-content]
+verify_jwt = true
