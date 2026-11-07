@@ -5,6 +5,8 @@ const migration = readFileSync(
   "supabase/migrations/20261107011102_enterprise_bloom_support_reliability_v2.sql",
   "utf8",
 );
+const migrationName =
+  "20261107011102_enterprise_bloom_support_reliability_v2.sql";
 
 describe("Bloom Support CRM identity aliases", () => {
   it("resolves an explicitly linked auth identity before it can create a client principal", () => {
@@ -29,5 +31,14 @@ describe("Bloom Support CRM identity aliases", () => {
     expect(migration).toContain("principal.auth_alias_linked");
     expect(migration).not.toContain("@brandsinblooms.com%'");
     expect(migration).not.toMatch(/email_domains[\s\S]{0,100}platform_admin/);
+  });
+
+  it("replays the reliability migration in both disposable database suites", () => {
+    for (const fixture of [
+      "scripts/tests/bloom-support-db.sql",
+      "scripts/tests/bloom-support-e2e-setup.sql",
+    ]) {
+      expect(readFileSync(fixture, "utf8")).toContain(migrationName);
+    }
   });
 });
