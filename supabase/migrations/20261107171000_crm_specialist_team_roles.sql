@@ -512,3 +512,33 @@ CREATE POLICY customer_tags_matching_tenant_guard ON public.customer_tags
         AND tag.id = customer_tags.tag_id
     )
   );
+
+-- A Designer may build drafts but must not create or promote a campaign
+-- into a scheduled/queued state through the Data API. Scheduled workers run
+-- with service credentials, so stopping the status transition is essential.
+CREATE POLICY crm_campaigns_designer_draft_only_insert ON public.crm_campaigns
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid()) AND app_user.role = 'designer'
+    )
+    OR status = 'draft'
+  );
+
+CREATE POLICY crm_campaigns_designer_draft_only_update ON public.crm_campaigns
+  AS RESTRICTIVE FOR UPDATE TO authenticated
+  USING (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid()) AND app_user.role = 'designer'
+    )
+    OR status = 'draft'
+  )
+  WITH CHECK (
+    NOT EXISTS (
+      SELECT 1 FROM public.users app_user
+      WHERE app_user.id = (SELECT auth.uid()) AND app_user.role = 'designer'
+    )
+    OR status = 'draft'
+  );
