@@ -628,6 +628,74 @@ serve(async (req: Request) => {
       }
     };
 
+    // Explicit authorization is required before the privileged service-role
+    // queue mutation. Scheduled workers invoke with the service-role token;
+    // interactive callers must have this tenant's campaigns.send permission.
+    // verify_jwt is disabled for internal worker compatibility, so this
+    // check is the primary edge authorization boundary.
+    const isInternalServiceRequest = requesterJwt === supabaseServiceKey;
+    if (!isInternalServiceRequest) {
+      if (!requesterJwt) {
+        return new Response(JSON.stringify({ error: "Authentication required" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: requester, error: requesterError } =
+        await supabase.auth.getUser(requesterJwt);
+      if (requesterError || !requester?.user?.id) {
+        return new Response(JSON.stringify({ error: "Invalid session" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: requestedCampaign, error: requestedCampaignError } =
+        await supabase
+          .from("crm_campaigns")
+          .select("id,tenant_id,user_id")
+          .eq("id", campaignId)
+          .maybeSingle();
+      if (requestedCampaignError || !requestedCampaign) {
+        return new Response(JSON.stringify({ error: "Campaign not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const requestedTenantId = await resolveCampaignTenantId(supabase, requestedCampaign);
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (!anonKey) {
+        console.error("Missing Supabase public key for role verification");
+        return new Response(JSON.stringify({ error: "Authorization unavailable" }), {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const requesterClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${requesterJwt}` } },
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: requesterAccess, error: requesterAccessError } =
+        await requesterClient.rpc("get_current_crm_access");
+      const permissionList = requesterAccess && typeof requesterAccess === "object"
+        && !Array.isArray(requesterAccess) && Array.isArray(requesterAccess.permissions)
+        ? requesterAccess.permissions
+        : [];
+      if (
+        requesterAccessError ||
+        !requestedTenantId ||
+        requesterAccess?.tenantId !== requestedTenantId ||
+        !permissionList.includes("campaigns.send")
+      ) {
+        return new Response(JSON.stringify({ error: "Campaign send permission denied" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("Missing Resend API key");
