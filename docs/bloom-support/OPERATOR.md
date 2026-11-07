@@ -164,8 +164,8 @@ Both CRM and CMS releases must be deployed before use.
 
 1. Find the verified Support account and its linked CMS site. Use `product_operations`
    to check availability, then `read_product` with `kind: site.catalogue.audit`, the
-   account ID, and optional inputs `site_id`, `category_id`, `cursor`, `limit`.
-   Follow every returned cursor; do not mistake a page count for a whole-catalogue total.
+   account ID, and optional inputs `site_id`, `category_id`, `cursor`, `category_cursor`, `limit`.
+   Follow `next_cursor` for products and `next_category_cursor` for categories independently; do not mistake a page count for a whole-catalogue total.
 2. Use the returned category hierarchy, assignment evidence and product identifiers
    to distinguish existing memberships, missing memberships and genuinely empty
    categories. Check descendants rather than hardcoding child categories. A visible
