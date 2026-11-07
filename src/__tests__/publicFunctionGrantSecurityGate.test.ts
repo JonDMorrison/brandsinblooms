@@ -3,13 +3,9 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(
-  resolve(
-    process.cwd(),
-    "supabase/migrations/20261107010156_harden_public_function_execute_grants.sql",
-  ),
-  "utf8",
-).toLowerCase();
+const migrationPath =
+  "supabase/migrations/20261107010156_bloom_support_harden_public_function_execute_grants.sql";
+const migration = readFileSync(resolve(process.cwd(), migrationPath), "utf8").toLowerCase();
 
 const expectServiceRoleOnly = (signature: string) => {
   expect(migration).toContain(
@@ -21,6 +17,10 @@ const expectServiceRoleOnly = (signature: string) => {
 };
 
 describe("public function grant security gate", () => {
+  it("is included by the production Bloom Support migration release", () => {
+    expect(migrationPath).toContain("bloom_support");
+  });
+
   it("keeps privileged trigger and consent functions off public API roles", () => {
     expectServiceRoleOnly("public.apply_pos_checkout_sms_consent()");
     expectServiceRoleOnly(
