@@ -13,7 +13,7 @@
 // text-decoration). Hyperlink schemes are restricted to http, https,
 // mailto. Anything outside the allowlist is stripped.
 
-import type { IOptions } from "npm:sanitize-html@2.17.3";
+import type { IOptions } from "npm:sanitize-html@2.18.1";
 
 const HEX_OR_RGB =
   /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$|^rgba?\([^)]+\)$|^[a-z]+$/i;

@@ -379,6 +379,64 @@ async function choose(label: string, value: string) {
   fireEvent.click(option);
 }
 describe("calendar review and commit", () => {
+  it("uses the detected 1904 workbook epoch for preview by default", async () => {
+    mocks.workbook.mockResolvedValue({
+      name: "calendar.xlsx",
+      sheets: ["Plan"],
+      epoch: "excel_1904",
+      bytes: new Uint8Array(),
+    });
+    mocks.rows.mockResolvedValue({
+      headers: ["Title", "Date"],
+      rows: [{ Title: "Spring", Date: 45_000 }],
+    });
+    mocks.command.mockImplementation(async (_tenant, command) => {
+      if (command.action === "calendar_history") return { batches: [] };
+      if (command.action === "calendar_preview") {
+        return {
+          previewId: "preview",
+          digest: "a".repeat(64),
+          expiresAt: "2099-01-01",
+          preview: {
+            counts: { accepted: 1, rejected: 0, duplicate: 0, source: 1 },
+            rows: [],
+          },
+        };
+      }
+      throw new Error(command.action);
+    });
+
+    wrap(
+      <CalendarImportWorksheet
+        tenantId="tenant-a"
+        timezone="America/Vancouver"
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Import your marketing calendar/ }),
+    );
+    fireEvent.change(screen.getByLabelText("Marketing calendar file"), {
+      target: { files: [new File(["xlsx"], "calendar.xlsx")] },
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Read selected sheet" }),
+    );
+    await screen.findByText("Map 1 source rows");
+    await choose("Title column (required)", "Title");
+    await choose("Date column (required)", "Date");
+    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+
+    await waitFor(() =>
+      expect(mocks.command).toHaveBeenCalledWith(
+        "tenant-a",
+        expect.objectContaining({
+          action: "calendar_preview",
+          options: expect.objectContaining({ dateFormat: "excel_1904" }),
+        }),
+      ),
+    );
+  });
+
   it("requires reject acknowledgement and explicit planned-only approval", async () => {
     const raw = { Title: "Spring", Date: "2027-03-01" };
     mocks.workbook.mockResolvedValue({

@@ -1,13 +1,14 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import * as XLSX from "xlsx";
 import {
   createProgrammeHandler,
   executeProgrammeCommand,
   type ProgrammeContext,
 } from "../../../../supabase/functions/_shared/loyalty/programme-service";
 import { createProgrammeDraft } from "../../../../supabase/functions/_shared/loyalty/programme-templates";
-import { calendarWorkbookRows } from "../calendarWorkbook";
+import { calendarWorkbookRows, openCalendarWorkbook } from "../calendarWorkbook";
 import type { WorkbookSource } from "../calendarWorkbook";
 import { programmeFormFromDraft, parseProgrammeForm } from "../programmeForm";
 import { programmeResultCsv } from "../programmeApi";
@@ -327,11 +328,174 @@ describe("existing programme form round trip", () => {
   });
 });
 describe("literal workbook ingestion", () => {
+  const serializedWorkbook = (
+    sheets: Record<string, Record<string, unknown>>,
+    date1904 = false,
+    bookType: "xlsx" | "biff8" | "xlml" | "ods" | "fods" = "xlsx",
+  ): Uint8Array => {
+    const output = XLSX.write(
+      {
+        SheetNames: Object.keys(sheets),
+        Sheets: sheets,
+        Workbook: { WBProps: { date1904 } },
+      },
+      { type: "array", bookType },
+    );
+    return output instanceof Uint8Array ? output : new Uint8Array(output);
+  };
   const workbook = (sheet: Record<string, unknown>): WorkbookSource => ({
     name: "calendar.xlsx",
     epoch: "excel_1900",
     sheets: ["Plan"],
-    workbook: { SheetNames: ["Plan"], Sheets: { Plan: sheet } },
+    bytes: serializedWorkbook({ Plan: sheet }),
+  });
+  const uploadedFile = (bytes: Uint8Array, name: string): File =>
+    ({
+      name,
+      size: bytes.byteLength,
+      arrayBuffer: async () => bytes.slice().buffer,
+    }) as File;
+
+  it("preflights sheet metadata without losing the workbook date system", async () => {
+    const bytes = serializedWorkbook(
+      { Plan: { "!ref": "A1", A1: { v: "Title" } } },
+      true,
+    );
+    const source = await openCalendarWorkbook(uploadedFile(bytes, "calendar.xlsx"));
+    expect(source.sheets).toEqual(["Plan"]);
+    expect(source.epoch).toBe("excel_1904");
+
+    const defaultEpoch = await openCalendarWorkbook(
+      uploadedFile(
+        serializedWorkbook({
+          Plan: { "!ref": "A1", A1: { v: "Title" } },
+        }),
+        "calendar.xlsx",
+      ),
+    );
+    expect(defaultEpoch.epoch).toBe("excel_1900");
+  });
+
+  it("opens delimited calendars without an unbounded metadata parse", async () => {
+    const source = await openCalendarWorkbook(
+      uploadedFile(
+        new TextEncoder().encode('Title,Notes\nSpring,"Email, SMS"'),
+        "calendar.csv",
+      ),
+    );
+    expect(source.sheets).toEqual(["Sheet1"]);
+    expect(source.epoch).toBe("excel_1900");
+    await expect(
+      calendarWorkbookRows(source, "Sheet1", 1),
+    ).resolves.toMatchObject({
+      headers: ["Title", "Notes"],
+      rows: [{ Title: "Spring", Notes: "Email, SMS" }],
+    });
+  });
+
+  it("rejects excessive sheet counts during metadata preflight", async () => {
+    const sheets = Object.fromEntries(
+      Array.from({ length: 31 }, (_, index) => [
+        `Plan ${index + 1}`,
+        { "!ref": "A1", A1: { v: "Title" } },
+      ]),
+    );
+    const bytes = serializedWorkbook(sheets);
+    await expect(
+      openCalendarWorkbook(uploadedFile(bytes, "calendar.xlsx")),
+    ).rejects.toThrow("1 to 30 worksheets");
+  });
+
+  it("rejects multi-sheet legacy XLS renamed as XLSX before selected-sheet parsing", async () => {
+    const bytes = serializedWorkbook(
+      {
+        Plan: { "!ref": "A1", A1: { v: "Title" } },
+        More: { "!ref": "A1", A1: { v: "Title" } },
+      },
+      false,
+      "biff8",
+    );
+    await expect(
+      openCalendarWorkbook(uploadedFile(bytes, "calendar.xlsx")),
+    ).rejects.toThrow("converted to XLSX");
+  });
+
+  it.each(["xlml", "ods", "fods"] as const)(
+    "rejects multi-sheet %s content renamed as XLSX before selected-sheet parsing",
+    async (bookType) => {
+      const bytes = serializedWorkbook(
+        {
+          Plan: { "!ref": "A1", A1: { v: "Title" } },
+          More: { "!ref": "A1", A1: { v: "Title" } },
+        },
+        false,
+        bookType,
+      );
+      await expect(
+        openCalendarWorkbook(uploadedFile(bytes, "calendar.xlsx")),
+      ).rejects.toThrow("cannot be bounded safely");
+    },
+  );
+
+  it.each(["ods", "fods"] as const)(
+    "rejects unsupported single-sheet %s content renamed as XLSX",
+    async (bookType) => {
+      const bytes = serializedWorkbook(
+        { Plan: { "!ref": "A1", A1: { t: "s", v: "Title" } } },
+        false,
+        bookType,
+      );
+      await expect(
+        openCalendarWorkbook(uploadedFile(bytes, "calendar.xlsx")),
+      ).rejects.toThrow("cannot be bounded safely");
+    },
+  );
+
+  it("rejects legacy XLS bytes disguised as delimited text", async () => {
+    const bytes = serializedWorkbook(
+      {
+        Plan: { "!ref": "A1", A1: { v: "Title" } },
+        More: { "!ref": "A1", A1: { v: "Title" } },
+      },
+      false,
+      "biff8",
+    );
+    await expect(
+      openCalendarWorkbook(uploadedFile(bytes, "calendar.csv")),
+    ).rejects.toThrow("not renamed as CSV or text");
+  });
+
+  it.each(["ods", "xlml"] as const)(
+    "rejects %s workbook bytes disguised as delimited text",
+    async (bookType) => {
+      const bytes = serializedWorkbook(
+        { Plan: { "!ref": "A1", A1: { v: "Title" } } },
+        false,
+        bookType,
+      );
+      const disguised =
+        bookType === "xlml"
+          ? new Uint8Array(bytes.length + 2048)
+          : bytes;
+      if (bookType === "xlml") {
+        disguised.fill(0x20, 0, 2048);
+        disguised.set(bytes, 2048);
+      }
+      await expect(
+        openCalendarWorkbook(uploadedFile(disguised, "calendar.csv")),
+      ).rejects.toThrow("not renamed as CSV or text");
+    },
+  );
+
+  it("rejects a real offset worksheet instead of accepting truncated rows", async () => {
+    const source = workbook({
+      "!ref": "A3:A2102",
+      A3: { v: "Title" },
+      A2102: { v: "last source row" },
+    });
+    await expect(calendarWorkbookRows(source, "Plan", 3)).rejects.toThrow(
+      "Nothing was imported or truncated",
+    );
   });
   it("preserves a formula as reviewable original data, never its invented result", async () => {
     const source = workbook({
@@ -339,7 +503,7 @@ describe("literal workbook ingestion", () => {
       A1: { v: "Title" },
       B1: { v: "Date" },
       A2: { v: "Spring" },
-      B2: { v: 45000, f: "TODAY()" },
+      B2: { t: "n", v: 45000, f: "TODAY()" },
       A3: { v: "Fall" },
       B3: { v: "2026-10-15" },
     });
@@ -373,6 +537,6 @@ describe("literal workbook ingestion", () => {
     ).rejects.toThrow("distinct");
     await expect(
       calendarWorkbookRows(workbook({ "!ref": "A1:B3000" }), "Plan", 1),
-    ).rejects.toThrow("Nothing was truncated");
+    ).rejects.toThrow(/Nothing was .*truncated/);
   });
 });

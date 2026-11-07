@@ -27,7 +27,7 @@ const consentFormSchema = z.object({
       return cleaned.length >= 10 && cleaned.length <= 15;
     }, 'Please enter a valid 10-digit phone number'),
   consent: z.literal(true, {
-    errorMap: () => ({ message: 'You must agree to receive SMS messages to subscribe' }),
+    error: 'You must agree to receive SMS messages to subscribe',
   }),
 });
 

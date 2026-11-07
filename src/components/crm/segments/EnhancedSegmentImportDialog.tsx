@@ -149,7 +149,7 @@ export const EnhancedSegmentImportDialog: React.FC<
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    // Only validate file type, no size or format restrictions
+    // Shape and byte limits are enforced before the file is decoded.
     if (!selectedFile.name.endsWith(".csv")) {
       toast({
         title: "Invalid file type",
@@ -677,7 +677,7 @@ export const EnhancedSegmentImportDialog: React.FC<
                     Drag & drop your customer file here, or click to browse
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Supports CSV files with any delimiter
+                    CSV up to 5 MB, 10,000 customer rows, and 50 columns
                   </p>
 
                   {file && (
