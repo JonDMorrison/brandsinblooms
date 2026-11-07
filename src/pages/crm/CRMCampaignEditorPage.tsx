@@ -105,6 +105,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useCampaignAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -536,6 +537,8 @@ function CampaignEditorScreen() {
   const [processParams, setProcessParams] = useSearchParams();
   const reviewingNewsletter = processParams.get("step") === "review";
   const { tenant } = useTenant();
+  const { hasPermission } = useUserRole();
+  const canSendCampaign = hasPermission("campaigns.send");
   const {
     emailDomains,
     loading: emailDomainsLoading,
@@ -1137,6 +1140,7 @@ function CampaignEditorScreen() {
   );
 
   const sendButtonDisabled =
+    !canSendCampaign ||
     sendBlockerLines.length > 0 ||
     isLocked ||
     isAudienceLoading ||
@@ -2655,7 +2659,7 @@ function CampaignEditorScreen() {
           updateSchedule({ sendImmediately: false, sendAt: scheduledDateTime });
           openSendConfirmation();
         }}
-        canConfirm={!isLocked}
+        canConfirm={!isLocked && canSendCampaign}
       />
       <CampaignSendConfirmation
         open={sendConfirmOpen}
