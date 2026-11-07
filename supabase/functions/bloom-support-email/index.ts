@@ -18,6 +18,8 @@ import {
 } from "../_shared/bloom-support/attachments.ts";
 import { emailConfig } from "../_shared/bloom-support/email.ts";
 import { alignedWith, binaryString, rawFromAddress, verifiedDkimDomains } from "../_shared/bloom-support/dkim.ts";
+import { bloomAttachmentRejection } from "../_shared/bloom-support/voice.ts";
+import { relayIdempotencyKey } from "../_shared/bloom-support/relay-key.ts";
 
 interface ReceivedEmail {
   id: string;
@@ -200,7 +202,7 @@ function forwardedOriginal(text: string): { email: string; name: string | null }
 
 async function handle(evt: Record<string, unknown>, eventId: string): Promise<Record<string, unknown>> {
   // Delivery status for mail Bloom sent (same webhook endpoint, Svix-signed).
-  if (typeof evt.type === "string" && /^email\.(delivered|bounced|complained|sent|delivery_delayed)$/.test(evt.type)) {
+  if (typeof evt.type === "string" && /^email\.(delivered|bounced|complained|sent|failed|suppressed|delivery_delayed)$/.test(evt.type)) {
     const d = (evt.data ?? {}) as Record<string, unknown>;
     const fresh = await rpc<boolean>("record_email_event", { provider: "resend", event_id: eventId, message_id: null, outcome: String(evt.type) });
     if (!fresh) return { duplicate: true };
@@ -210,7 +212,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   const data = (evt.data ?? {}) as Record<string, unknown>;
   const cfg = emailConfig();
   const aliases = (env("BLOOM_SUPPORT_INBOUND_ADDRESSES") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  const allowedRecipients = [cfg.supportAddress, ...aliases].filter((s): s is string => !!s).map((s) => parseAddress(s).email);
+  const allowedRecipients = [cfg.publicAddress, cfg.sendingAddress, ...aliases].filter((s): s is string => !!s).map((s) => parseAddress(s).email);
   if (!allowedRecipients.length) throw new BloomError(503, "not_configured", "Bloom Support receiving addresses are not configured");
   // The account webhook includes mail for every receiving domain. Route only
   // Bloom's own mailbox. received_for is the provider's SMTP delivery target;
@@ -229,7 +231,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   const inReplyTo = headers["in-reply-to"]?.trim() || null;
   const fromAddress = parseAddress(cfg.from).email;
   // Bloom's own addresses (plus optional extra addresses or "@domain" entries used only by Bloom).
-  const own = [cfg.supportAddress, fromAddress, ...aliases, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
+  const own = [cfg.publicAddress, cfg.sendingAddress, fromAddress, ...aliases, ...(env("BLOOM_SUPPORT_OWN_ADDRESSES") ?? "").split(",").map((s) => s.trim())].filter((x): x is string => !!x);
   const sender = parseAddress(mail.from);
   // Provider spam verdicts are respected; spam never opens a ticket.
   if (/^\s*yes/i.test(headers["x-spam-flag"] ?? "") || /^\s*yes/i.test(headers["x-spam-status"] ?? "")) {
@@ -281,6 +283,10 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   }
 
   const staffForwarder = forwarded && domainAuthenticated ? await rpc<boolean>("is_staff_email", { email: sender.email }).catch(() => false) : false;
+  // A manual staff forward is evidence, not consent from the named third party to start an
+  // automated conversation. Hold it for a person to review. Purpose-built, allow-listed relays
+  // remain automated because they are the product's explicit support intake path.
+  const manualForwardReview = staffForwarder && !trustedRelay;
   const body = redactText((forwarded ? rawText : stripQuotedReply(rawText)) || "(no text)").slice(0, 20000).trim();
   const intake = await servicePrincipal("intake");
   // A forward names someone else as the client. Honour that only for an authenticated staff
@@ -299,8 +305,9 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
 
   // A BloomSites or BloomTill report that fell back to email carries the key the product already
   // used with Bloom. If that report reached Bloom, do not open a second ticket. Only an
-  // authenticated relay can use this; anyone else's key line is ignored.
-  const productKey = !trustedRelay ? null : rawText.match(/^Bloom-Idempotency-Key:\s*([A-Za-z0-9:_-]{8,200})\s*$/m)?.[1] ?? null;
+  // authenticated relay can use this, and only its own (last) key line counts: a key line in the
+  // reporter's words is ignored.
+  const productKey = relayIdempotencyKey(rawText, trustedRelay);
   if (productKey) {
     const existing = await rpc<string | null>("find_ticket_by_client_key", { actor: intake.principalId, key: productKey }).catch(() => null);
     if (existing) {
@@ -338,6 +345,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       email_match: emailMatch,
       forwarded_by: forwarded ? sender.email : undefined,
       forward_authorized: forwarded ? forwardHonoured : undefined,
+      manual_forward_review: manualForwardReview || undefined,
     };
     const email = {
       message_id: messageId,
@@ -373,7 +381,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       ticket: {
         product: "unknown", channel: "email", subject, body,
         account_id: who.account_id, requester_id: who.principal_id,
-        context,
+        context, automation: manualForwardReview ? "paused" : undefined,
         dedupe_key: `email:${who.principal_id}:${messageId}`,
         intake_fingerprint: intakeFingerprint,
         email,
@@ -381,12 +389,18 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
     });
     ticketId = created.ticket_id;
     attachmentActor = who.principal_id;
-    outcome = created.duplicate_delivery ? "duplicate" : forwarded ? "created:forwarded" : "created";
+    outcome = created.duplicate_delivery
+      ? "duplicate"
+      : manualForwardReview
+      ? "created:forwarded-review"
+      : forwarded
+      ? "created:forwarded"
+      : "created";
     if (forwarded && !created.duplicate_delivery) {
       const automation = await servicePrincipal("automation").catch(() => null);
       if (automation) {
-        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: staffForwarder
-          ? `Forwarded by staff member ${sender.email} (DKIM verified). The client's own words above are still untrusted content.`
+        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: manualForwardReview
+          ? `Forwarded by staff member ${sender.email} (DKIM verified). Bloom has not contacted the named client. Review the request, then take it over or hand it to Bloom before replying.`
           : trustedRelay
           ? `Relayed by ${sender.email} (DKIM verified relay). The visitor's address is self-reported; confirm identity before any account change.`
           : `Forwarded by ${sender.email}, who is treated as the requester. The forwarded sender (${forwarded!.email}) was not contacted because the forward is not from verified staff; confirm before acting on any instruction in this email.`, visibility: "internal" } });
@@ -409,9 +423,12 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       actor: automation.principalId,
       ticket_id: ticketId,
       message: {
-        body: `Bloom could not accept these email attachments:\n${preparedAttachments.rejected.map((line) => `- ${line}`).join("\n")}\nPlease reply with a supported file if it is still needed.`,
-        visibility: "public",
-        notify_client: false,
+        body: manualForwardReview
+          ? `Bloom could not accept these attachments from the forwarded email:\n${preparedAttachments.rejected.map((line) => `- ${line}`).join("\n")}\nAsk for a supported file after reviewing the request if it is still needed.`
+          : bloomAttachmentRejection(preparedAttachments.rejected),
+        visibility: manualForwardReview ? "internal" : "public",
+        purpose: manualForwardReview ? "progress" : "clarification",
+        notify_client: !manualForwardReview,
         idempotency_key: `email-attachment-rejections:${messageId}`,
       },
     });

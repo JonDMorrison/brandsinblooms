@@ -11,7 +11,7 @@
 // The repair side never holds merge credentials and cannot write eligibility.
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
 import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
-import { evaluateRelease, PRODUCT_REPOSITORIES, redactText, resolvePolicy, type Product } from "./policy.ts";
+import { evaluateRelease, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Product } from "./policy.ts";
 import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts } from "./github.ts";
 
 export interface EngineeringIssue {
@@ -124,18 +124,16 @@ interface VerificationCheck {
   not_contains?: string;
 }
 
-/** Release-owned, fully validated production checks; agent reports cannot add URLs. */
-export function verificationChecksForPolicy(
+interface TicketFlowRule {
+  pathPrefix: string;
+  checks: VerificationCheck[];
+}
+
+function validatedVerificationChecks(
   releasePolicy: unknown,
   repository: string,
+  raw: unknown,
 ): VerificationCheck[] | null {
-  const policy = releasePolicy && typeof releasePolicy === "object"
-    ? releasePolicy as Record<string, unknown>
-    : {};
-  const maps = policy.verificationChecks;
-  const raw = maps && typeof maps === "object"
-    ? (maps as Record<string, unknown>)[repository]
-    : null;
   if (!Array.isArray(raw) || raw.length < 1 || raw.length > 10) return null;
   const checks: VerificationCheck[] = [];
   for (const item of raw) {
@@ -169,6 +167,105 @@ export function verificationChecksForPolicy(
   return checks;
 }
 
+/** Release-owned, fully validated production checks; agent reports cannot add URLs. */
+export function verificationChecksForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+): VerificationCheck[] | null {
+  const policy = releasePolicy && typeof releasePolicy === "object"
+    ? releasePolicy as Record<string, unknown>
+    : {};
+  const maps = policy.verificationChecks;
+  const raw = maps && typeof maps === "object"
+    ? (maps as Record<string, unknown>)[repository]
+    : null;
+  return validatedVerificationChecks(releasePolicy, repository, raw);
+}
+
+function ticketFlowRulesForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+): TicketFlowRule[] | null {
+  const policy = releasePolicy && typeof releasePolicy === "object"
+    ? releasePolicy as Record<string, unknown>
+    : {};
+  const maps = policy.ticketFlowChecks;
+  const raw = maps && typeof maps === "object"
+    ? (maps as Record<string, unknown>)[repository]
+    : null;
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 20) return null;
+  const rules: TicketFlowRule[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const rule = item as Record<string, unknown>;
+    const pathPrefix = typeof rule.path_prefix === "string" ? rule.path_prefix : "";
+    if (
+      !pathPrefix.startsWith("/") || pathPrefix.length > 500 ||
+      pathPrefix.includes("?") || pathPrefix.includes("#") ||
+      pathPrefix.includes("\\") || pathPrefix.includes("//") ||
+      /(?:^|\/)\.\.?(?:\/|$)/.test(pathPrefix) ||
+      /%(?:2e|2f|5c)/i.test(pathPrefix)
+    ) return null;
+    const canonicalPrefix = pathPrefix.length > 1
+      ? pathPrefix.replace(/\/+$/, "")
+      : pathPrefix;
+    if (seen.has(canonicalPrefix)) return null;
+    seen.add(canonicalPrefix);
+    const checks = validatedVerificationChecks(
+      releasePolicy,
+      repository,
+      rule.checks,
+    );
+    if (!checks) return null;
+    rules.push({ pathPrefix: canonicalPrefix, checks });
+  }
+  return rules.sort((a, b) => b.pathPrefix.length - a.pathPrefix.length);
+}
+
+export function hasTicketFlowChecksForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+): boolean {
+  return ticketFlowRulesForPolicy(releasePolicy, repository) !== null;
+}
+
+/**
+ * Select trusted affected-flow checks from a ticket's captured page URL.
+ * The ticket contributes only an approved production origin and a canonical
+ * pathname; every URL and assertion executed still comes from release policy.
+ */
+export function ticketFlowChecksForPolicy(
+  releasePolicy: unknown,
+  repository: string,
+  affectedPageUrl: unknown,
+): { path: string; checks: VerificationCheck[] } | null {
+  if (typeof affectedPageUrl !== "string" || hasExplicitPort(affectedPageUrl)) return null;
+  let affected: URL;
+  try {
+    affected = new URL(affectedPageUrl);
+  } catch {
+    return null;
+  }
+  if (
+    affected.protocol !== "https:" || affected.username || affected.password ||
+    affected.port || /%(?:2e|2f|5c)/i.test(affected.pathname)
+  ) return null;
+  const approvedPath = approvedVerificationUrl(
+    releasePolicy,
+    repository,
+    `${affected.origin}${affected.pathname}`,
+  );
+  if (!approvedPath) return null;
+  const rules = ticketFlowRulesForPolicy(releasePolicy, repository);
+  if (!rules) return null;
+  const path = new URL(approvedPath).pathname;
+  const rule = rules.find(({ pathPrefix }) =>
+    pathPrefix === "/" || path === pathPrefix || path.startsWith(`${pathPrefix}/`)
+  );
+  return rule ? { path, checks: rule.checks } : null;
+}
+
 function repoFor(issue: EngineeringIssue): { repository: string; base: string } | null {
   if (issue.repository) {
     const known = Object.values(PRODUCT_REPOSITORIES).find((r) => r.repository.toLowerCase() === issue.repository!.toLowerCase());
@@ -178,6 +275,58 @@ function repoFor(issue: EngineeringIssue): { repository: string; base: string } 
   return m ? { repository: m.repository, base: m.base } : null;
 }
 
+function engineeringPagePath(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const url = new URL(value);
+    return url.pathname
+      .split("/")
+      .map((part) => /^[0-9a-f-]{32,}$/i.test(part) || /^\d{7,}$/.test(part) ? "[record]" : part)
+      .join("/")
+      .slice(0, 1000);
+  } catch {
+    return redactForEngineering(value).split(/[?#]/, 1)[0].slice(0, 1000);
+  }
+}
+
+function engineeringContext(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    page_path: engineeringPagePath(raw.page_url),
+    app_version: raw.app_version ?? raw.release,
+    browser: typeof (raw.browser ?? raw.user_agent) === "string"
+      ? redactForEngineering(String(raw.browser ?? raw.user_agent)).slice(0, 500)
+      : null,
+    error_ids: raw.error_ids,
+    trace_ids: raw.trace_ids,
+  };
+}
+
+export function engineeringIssuePayload(input: {
+  issueId: string;
+  title: string;
+  branch: string;
+  base: string;
+  evidence: string;
+}): { title: string; body: string; labels: string[] } {
+  const body = [
+    `Bloom engineering issue \`${input.issueId}\`. Fix branch: \`${input.branch}\` → \`${input.base}\`.`,
+    "",
+    "Reports (sanitized; client contact details removed):",
+    "",
+    input.evidence,
+    "",
+    "Repair rules: reproduce first with a focused failing test, fix the root cause, never weaken or delete existing tests,",
+    "never edit workflows, release policy, migrations, auth, payments or secrets. If the fix needs any of those, stop and say so.",
+  ].join("\n");
+  // Final defence at the exact outbound boundary. Even if a future evidence
+  // collector forgets to sanitize one field, GitHub never receives it.
+  return {
+    title: `[Bloom] ${redactForEngineering(input.title)}`.slice(0, 250),
+    body: redactForEngineering(body),
+    labels: ["bloom-repair"],
+  };
+}
+
 /** Evidence for the coding agent: sanitized summaries only, no client contact data. */
 async function evidenceFor(automation: Caller, issue: EngineeringIssue): Promise<string> {
   const parts: string[] = [];
@@ -185,9 +334,9 @@ async function evidenceFor(automation: Caller, issue: EngineeringIssue): Promise
     const full = await rpc<Record<string, unknown>>("get_ticket", { actor: automation.principalId, ticket_id: t.id });
     const ctx = (full.context ?? {}) as Record<string, unknown>;
     parts.push([
-      `### Report #${t.number}: ${redactText(String(full.subject ?? ""))}`,
-      redactText(String(full.summary ?? "")).slice(0, 3000),
-      `Context: ${JSON.stringify({ page_url: ctx.page_url, app_version: ctx.app_version ?? ctx.release, browser: ctx.browser ?? ctx.user_agent, error_ids: ctx.error_ids, trace_ids: ctx.trace_ids, record_refs: ctx.record_refs }).slice(0, 1500)}`,
+      `### Report #${t.number}: ${redactForEngineering(String(full.subject ?? ""))}`,
+      redactForEngineering(String(full.summary ?? "")).slice(0, 3000),
+      `Context: ${JSON.stringify(engineeringContext(ctx)).slice(0, 1500)}`,
     ].join("\n"));
   }
   return parts.join("\n\n");
@@ -235,20 +384,12 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
   const evidence = await evidenceFor(automation, issue);
   let ghIssue = (issue.evidence?.github_issue as { number: number; url: string } | undefined) ?? null;
   if (!ghIssue) {
-    const created = await gh<{ number: number; html_url: string }>("repair", "POST", `/repos/${target.repository}/issues`, {
-      title: `[Bloom] ${issue.title}`.slice(0, 250),
-      body: [
-        `Bloom engineering issue \`${issue.id}\`. Fix branch: \`${branch}\` → \`${target.base}\`.`,
-        "",
-        "Reports (sanitized; client contact details removed):",
-        "",
-        evidence,
-        "",
-        "Repair rules: reproduce first with a focused failing test, fix the root cause, never weaken or delete existing tests,",
-        "never edit workflows, release policy, migrations, auth, payments or secrets. If the fix needs any of those, stop and say so.",
-      ].join("\n"),
-      labels: ["bloom-repair"],
-    });
+    const created = await gh<{ number: number; html_url: string }>(
+      "repair",
+      "POST",
+      `/repos/${target.repository}/issues`,
+      engineeringIssuePayload({ issueId: issue.id, title: issue.title, branch, base: target.base, evidence }),
+    );
     ghIssue = { number: created.number, url: created.html_url };
   }
   await update(repair, issue, "investigating", { repository: target.repository, branch, evidence: { github_issue: ghIssue, dispatches: cap.attempts + 1 } }, `GitHub issue #${ghIssue.number} (attempt ${cap.attempts + 1}/${cap.max_attempts})`);
@@ -688,6 +829,89 @@ async function runProductionChecks(
   return results;
 }
 
+interface TicketFlowVerification {
+  attempted: boolean;
+  passed: boolean;
+  ticketIds: string[];
+  checks: Array<Record<string, unknown>>;
+  flows: Array<Record<string, unknown>>;
+}
+
+async function runTicketFlowVerification(
+  release: Caller,
+  issue: EngineeringIssue,
+  releasePolicy: unknown,
+): Promise<TicketFlowVerification> {
+  const verifiedTicketIds: string[] = [];
+  const flatChecks: Array<Record<string, unknown>> = [];
+  const flows: Array<Record<string, unknown>> = [];
+  const cached = new Map<string, Array<Record<string, unknown>>>();
+  let attempted = false;
+  let passed = true;
+  let checkBudget = 20;
+
+  // One issue can link many duplicate reports. Bound remote work and reuse an
+  // identical trusted flow check across every ticket on the same affected path.
+  for (const linked of issue.tickets.slice(0, 50)) {
+    let ticket: { id?: string; kind?: string; context?: { page_url?: unknown } };
+    try {
+      ticket = await rpc<typeof ticket>("get_ticket", {
+        actor: release.principalId,
+        ticket_id: linked.id,
+      });
+    } catch {
+      flows.push({ ticket_id: linked.id, passed: false, skipped: "ticket_unavailable" });
+      continue;
+    }
+    if (!ticket || !["bug", "incident"].includes(String(ticket.kind))) {
+      flows.push({ ticket_id: linked.id, passed: false, skipped: "not_bug_or_incident" });
+      continue;
+    }
+    const selected = ticketFlowChecksForPolicy(
+      releasePolicy,
+      issue.repository!,
+      ticket.context?.page_url,
+    );
+    if (!selected) {
+      flows.push({ ticket_id: linked.id, passed: false, skipped: "no_trusted_flow_check" });
+      continue;
+    }
+    const cacheKey = JSON.stringify(selected.checks);
+    let flowResults = cached.get(cacheKey);
+    if (!flowResults) {
+      if (selected.checks.length > checkBudget) {
+        flows.push({ ticket_id: linked.id, path: selected.path, passed: false, skipped: "verification_budget" });
+        continue;
+      }
+      checkBudget -= selected.checks.length;
+      flowResults = await runProductionChecks(
+        releasePolicy,
+        issue.repository!,
+        selected.checks,
+      ) as Array<Record<string, unknown>>;
+      cached.set(cacheKey, flowResults);
+    }
+    attempted = true;
+    const flowPassed = flowResults.every((result) => result.pass === true);
+    passed = passed && flowPassed;
+    if (flowPassed) verifiedTicketIds.push(linked.id);
+    const ticketChecks = flowResults.map((result) => ({
+      ...result,
+      ticket_id: linked.id,
+      flow_path: selected.path,
+      check_scope: "ticket_flow",
+    }));
+    flatChecks.push(...ticketChecks);
+    flows.push({
+      ticket_id: linked.id,
+      path: selected.path,
+      passed: flowPassed,
+      checks: ticketChecks,
+    });
+  }
+  return { attempted, passed, ticketIds: verifiedTicketIds, checks: flatChecks, flows };
+}
+
 type RollbackConfirmation =
   | { state: "pending"; polls: number }
   | { state: "failed"; reason: string; polls: number }
@@ -772,10 +996,7 @@ async function confirmVercelRollback(
   return { state: "confirmed", polls, aliases: aliases.aliases.length };
 }
 
-/**
- * Production verification. Checks come from the reproduction record written
- * during investigation: [{url, expect_status, contains?, not_contains?}].
- */
+/** Production verification from release-owned smoke and affected-flow policy. */
 export async function verify(release: Caller, issueId: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
   if (issue.status !== "verifying") return { note: `status ${issue.status}` };
@@ -855,24 +1076,29 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     }
   }
   const results = await runProductionChecks(releasePolicy, issue.repository!, checks);
-  const passed = results.every((r) => r.pass);
+  const smokePassed = results.every((r) => r.pass);
+  const ticketFlow = smokePassed
+    ? await runTicketFlowVerification(release, issue, releasePolicy)
+    : { attempted: false, passed: true, ticketIds: [], checks: [], flows: [] };
+  const passed = smokePassed && ticketFlow.passed;
+  const verification = {
+    passed,
+    scope: ticketFlow.attempted ? "ticket_flow" : "release_smoke",
+    ticket_ids: ticketFlow.ticketIds,
+    checks: [
+      ...results.map((result) => ({ ...result, check_scope: "release_smoke" })),
+      ...ticketFlow.checks,
+    ],
+    release_smoke: { passed: smokePassed, checks: results },
+    ticket_flows: ticketFlow.flows,
+    at: new Date().toISOString(),
+  };
   if (passed) {
     await update(release, issue, "verified", {
-      verification: {
-        passed: true,
-        scope: "release_smoke",
-        checks: results,
-        at: new Date().toISOString(),
-      },
+      verification,
     });
     return { note: "verified" };
   }
-  const verification = {
-    passed: false,
-    scope: "release_smoke",
-    checks: results,
-    at: new Date().toISOString(),
-  };
   // Supported rollback: Vercel instant rollback to the deployment recorded before the merge.
   if (target && previous) {
     try {

@@ -43,6 +43,27 @@ INSERT INTO bloom_support.tickets(
 );
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
+\ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
+\ir ../../supabase/migrations/20261105220000_bloom_support_client_status.sql
+\ir ../../supabase/migrations/20261105230000_bloom_support_admin_wording.sql
+\ir ../../supabase/migrations/20261105235000_bloom_support_staff_job_failures.sql
+\ir ../../supabase/migrations/20261106010000_bloom_support_mcp_mutation_idempotency.sql
+\ir ../../supabase/migrations/20261106020000_bloom_support_email_delivery_lifecycle.sql
+\ir ../../supabase/migrations/20261106030000_bloom_support_feature_decision_followup.sql
+\ir ../../supabase/migrations/20261106040000_bloom_support_engineering_progress_email.sql
+\ir ../../supabase/migrations/20261106050000_bloom_support_feature_decision_messages.sql
+\ir ../../supabase/migrations/20261106110933_bloom_support_feature_shipments_and_knowledge.sql
+\ir bloom-support-reliability-prerequisites.sql
+\ir ../../supabase/migrations/20261107011102_enterprise_bloom_support_reliability_v2.sql
+\ir ../../supabase/migrations/20261107014000_bloom_support_operational_truth.sql
+
+-- resolve_crm_user now proves that each CRM identity exists in Auth before it
+-- records the durable principal link. These are the isolated fixture users.
+INSERT INTO auth.users(id, email) VALUES
+  ('20000000-0000-4000-8000-0000000000a1', 'owner@greenleaf.test'),
+  ('20000000-0000-4000-8000-0000000000a2', 'coworker@greenleaf.test'),
+  ('20000000-0000-4000-8000-0000000000f1', 'mal@other.test')
+ON CONFLICT (id) DO NOTHING;
 
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_fragment text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -207,6 +228,30 @@ SELECT pg_temp.assert((pg_temp.rpc('claim_operation', jsonb_build_object('actor'
 SELECT pg_temp.rpc('finish_operation', jsonb_build_object('actor', :'jeff', 'operation_id', :'opid', 'outcome', '{"status":"succeeded","result":{"scheduled":true},"verification":{"checked":true}}'::jsonb));
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('record_operation_preview', '{"actor":"%s","operation":{"account_id":"%s","kind":"site.publish","permission":"ops.site.publish","inputs":{}}}'::jsonb)$q$, :'rosa', :'rose'), 'ops.site.publish');
 
+-- Operation retry keys are caller-scoped and retain pre-migration rows.
+SELECT pg_temp.rpc('record_operation_preview', jsonb_build_object('actor', :'jeff', 'operation', jsonb_build_object(
+  'account_id', :'greenleaf', 'kind', 'site.publish', 'permission', 'ops.site.publish', 'inputs', '{"page":"home"}'::jsonb,
+  'preview', '{"summary":"Jeff preview"}'::jsonb, 'idempotency_key', 'shared-preview-key', 'idempotency_fingerprint', repeat('a',64)))) AS jeff_shared_preview \gset
+SELECT pg_temp.rpc('record_operation_preview', jsonb_build_object('actor', :'jon', 'operation', jsonb_build_object(
+  'account_id', :'greenleaf', 'kind', 'site.publish', 'permission', 'ops.site.publish', 'inputs', '{"page":"home"}'::jsonb,
+  'preview', '{"summary":"Jon preview"}'::jsonb, 'idempotency_key', 'shared-preview-key', 'idempotency_fingerprint', repeat('a',64)))) AS jon_shared_preview \gset
+SELECT pg_temp.assert((:'jeff_shared_preview'::jsonb)->>'id' <> (:'jon_shared_preview'::jsonb)->>'id'
+  AND (:'jeff_shared_preview'::jsonb)->>'actor_id' = :'jeff'
+  AND (:'jon_shared_preview'::jsonb)->>'actor_id' = :'jon', 'the same raw preview key cannot cross principals');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('record_operation_preview', jsonb_build_object('actor','%s','operation',jsonb_build_object(
+  'account_id','%s','kind','site.publish','permission','ops.site.publish','inputs','{"page":"changed"}'::jsonb,
+  'preview','{"summary":"changed"}'::jsonb,'idempotency_key','shared-preview-key','idempotency_fingerprint',repeat('b',64))))$q$,
+  :'jeff', :'greenleaf'), 'different operation preview');
+INSERT INTO bloom_support.operations(id, account_id, actor_id, kind, permission, inputs, preview, idempotency_key)
+VALUES ('f0000000-0000-4000-8000-0000000000f1', :'greenleaf', :'jeff', 'site.publish', 'ops.site.publish',
+  '{"page":"legacy"}', '{"summary":"stored before migration"}', 'legacy-preview-key');
+SELECT pg_temp.rpc('record_operation_preview', jsonb_build_object('actor', :'jeff', 'operation', jsonb_build_object(
+  'account_id', :'greenleaf', 'kind', 'site.publish', 'permission', 'ops.site.publish', 'inputs', '{"page":"legacy"}'::jsonb,
+  'preview', '{"summary":"volatile retry output"}'::jsonb, 'idempotency_key', 'legacy-preview-key', 'idempotency_fingerprint', repeat('c',64)))) AS legacy_preview_retry \gset
+SELECT pg_temp.assert((:'legacy_preview_retry'::jsonb)->>'id' = 'f0000000-0000-4000-8000-0000000000f1'
+  AND (SELECT idempotency_fingerprint = repeat('c',64) FROM bloom_support.operations WHERE id='f0000000-0000-4000-8000-0000000000f1'),
+  'a pre-migration raw key replays the stored preview and adopts the request fingerprint');
+
 -- 5. Multi-request conversation + linking.
 SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'gail', 'ticket', jsonb_build_object('product','crm','channel','crm','body','Also: can I add a second location?','account_id', :'greenleaf','conversation_id', (:'t1'::jsonb)->>'conversation_id'))) AS t4 \gset
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.ticket_links WHERE kind='same_conversation' AND from_ticket = ((:'t4'::jsonb)->>'ticket_id')::uuid), 'second request in same conversation linked');
@@ -262,6 +307,25 @@ SELECT pg_temp.expect_error(format($q$SELECT bloom_support.complete_job('%s','wo
 UPDATE bloom_support.jobs SET max_attempts = attempts WHERE id = :'jid';
 SELECT pg_temp.assert(bloom_support.fail_job(:'jid', 'worker-b', 'provider 500') = 'dead', 'retries are bounded');
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE dedupe_key = 'job-dead:' || :'jid'), 'dead job escalates');
+-- 7b. A preview or staff-only job that dies never escalates the client's request (the #1011 incident).
+SELECT status AS t2_status, version AS t2_version, coalesce(next_action, '') AS t2_next FROM bloom_support.tickets WHERE id = :'t2id' \gset
+SELECT count(*) AS t2_escalations FROM bloom_support.escalations WHERE ticket_id = :'t2id' \gset
+INSERT INTO bloom_support.jobs(kind, ticket_id, lane, payload, idempotency_key, status, attempts, max_attempts, locked_by, lease_until)
+VALUES ('notify', :'t2id', 'email:notify', '{"preview": true, "to": "jon@bloom.test"}', 'test:preview-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute'),
+       ('notify', :'t2id', 'email:notify', '{"kind": "job.dead", "title": "x"}', 'test:staff-notify-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute'),
+       ('digest', :'t2id', 'email:digest', '{}', 'test:digest-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute'),
+       ('escalate', :'t2id', 'email:escalation', '{}', 'test:escalate-dies', 'running', 1, 1, 'worker-p', now() + interval '1 minute');
+SELECT pg_temp.assert(bloom_support.fail_job(id, 'worker-p', 'Cannot read properties of undefined (reading ''replace'')') = 'dead', 'staff job dies after its retries')
+  FROM bloom_support.jobs WHERE idempotency_key LIKE 'test:%-dies';
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.escalations e JOIN bloom_support.jobs j ON e.dedupe_key = 'job-dead:' || j.id::text
+  WHERE j.idempotency_key LIKE 'test:%-dies'), 'preview and staff-only job failures never escalate');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.escalations WHERE ticket_id = :'t2id') = :t2_escalations, 'no escalation was added to the client request');
+SELECT pg_temp.assert((SELECT status = :'t2_status' AND version = :t2_version AND coalesce(next_action, '') = :'t2_next' FROM bloom_support.tickets WHERE id = :'t2id'),
+  'the client request is untouched by a staff job failure');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.activity a JOIN bloom_support.jobs j ON a.detail->>'job_id' = j.id::text
+  WHERE j.idempotency_key LIKE 'test:%-dies' AND a.action = 'job.dead' AND a.detail->>'escalated' = 'false') = 4, 'staff job failures are still recorded');
+SELECT pg_temp.assert((SELECT a.ticket_id IS NULL FROM bloom_support.activity a JOIN bloom_support.jobs j ON a.detail->>'job_id' = j.id::text
+  WHERE j.idempotency_key = 'test:preview-dies'), 'a preview failure stays off the borrowed ticket''s history');
 UPDATE bloom_support.settings SET value = 'false' WHERE key = 'automation_enabled';
 UPDATE bloom_support.jobs SET status='queued', run_after = now(), lease_until = NULL, locked_by = NULL WHERE status = 'running';
 SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.claim_jobs('worker-c', 10)) = 0, 'kill switch stops claiming');
@@ -317,15 +381,36 @@ SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='send_
 SELECT pg_temp.rpc('open_engineering_issue', jsonb_build_object('actor', :'sam', 'ticket_id', :'t1id', 'issue', '{}'))->>'engineering_issue_id' AS eng2 \gset
 SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='investigate' AND engineering_issue_id = :'eng2'), 'Support cannot start an automated repair');
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND reason='engineering_start_requested' AND status='open'), 'bug reported to Jon and Jeff for a start decision');
-SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"start_repair":true}}'::jsonb)$q$, :'sam', :'eng2'), 'only Jon or Jeff');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"start_repair":true}}'::jsonb)$q$, :'sam', :'eng2'), 'only an admin can start');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jeff', 'issue_id', :'eng2', 'update', '{"start_repair":true}'::jsonb));
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.jobs WHERE kind='investigate' AND engineering_issue_id = :'eng2'), 'Jeff started the repair');
 SELECT pg_temp.assert((SELECT repair_started_by FROM bloom_support.engineering_issues WHERE id = :'eng2') = :'jeff'::uuid, 'repair start recorded against Jeff');
 SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND reason='engineering_start_requested' AND status='open'), 'start request closed');
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"investigating"}'::jsonb));
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1
+    FROM bloom_support.jobs
+    WHERE kind = 'answer'
+      AND ticket_id = :'t1id'
+      AND engineering_issue_id = :'eng2'
+      AND payload @> '{"mode":"engineering_progress","status":"investigating"}'::jsonb
+  ),
+  'the approved investigation start durably queues a distinct client update');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"in_review","patch":{"pr_number":43,"head_sha":"h1"}}'::jsonb));
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1
+    FROM bloom_support.jobs
+    WHERE kind = 'answer'
+      AND ticket_id = :'t1id'
+      AND engineering_issue_id = :'eng2'
+      AND payload @> '{"mode":"engineering_progress","status":"in_review"}'::jsonb
+  ),
+  'a meaningful repair state durably queues a client progress update');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'repair', 'issue_id', :'eng2', 'update', '{"status":"awaiting_approval","note":"touches payment amounts"}'::jsonb));
 SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id = :'eng2' AND audience='jon' AND reason='engineering_awaiting_approval'), 'sensitive fix escalated to Jon');
-SELECT pg_temp.assert((SELECT status FROM bloom_support.tickets WHERE id = :'t1id') = 'needs_owner', 'ticket shows Needs Jon/Jeff');
+SELECT pg_temp.assert((SELECT status FROM bloom_support.tickets WHERE id = :'t1id') = 'needs_owner', 'ticket shows Needs admin');
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_engineering_issue', '{"actor":"%s","issue_id":"%s","update":{"status":"approved"}}'::jsonb)$q$, :'jeff', :'eng2'), 'engineering.approve');
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon', 'issue_id', :'eng2', 'update', '{"status":"approved"}'::jsonb));
 SELECT pg_temp.assert((SELECT approved_head_sha FROM bloom_support.engineering_issues WHERE id = :'eng2') = 'h1', 'approval pinned to the reviewed commit');
@@ -345,9 +430,423 @@ SELECT pg_temp.assert((SELECT status = 'working' AND reopen_count = 1 AND NOT re
 
 -- 10. Feature requests go to Jon with evidence; only Jon decides.
 SELECT pg_temp.rpc('route_feature_request', jsonb_build_object('actor', :'bot', 'ticket_id', ((:'t4'::jsonb)->>'ticket_id'), 'feature', '{"title":"Multi-location accounts"}'::jsonb))->>'feature_request_id' AS fr \gset
+SELECT pg_temp.assert((SELECT next_action FROM bloom_support.tickets WHERE id = ((:'t4'::jsonb)->>'ticket_id')::uuid) = 'Admin decides on the feature request', 'feature request next action names the role');
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object(
+  'actor', :'gail',
+  'ticket', jsonb_build_object(
+    'product', 'crm',
+    'channel', 'crm',
+    'body', 'Our second location needs the same account feature.',
+    'account_id', :'greenleaf'
+  )
+)) AS t4_feature_peer \gset
+SELECT pg_temp.rpc('route_feature_request', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', ((:'t4_feature_peer'::jsonb)->>'ticket_id'),
+  'feature', jsonb_build_object('feature_request_id', :'fr', 'excerpt', 'A second client request for the same feature.')
+));
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('decide_feature_request', '{"actor":"%s","feature_request_id":"%s","decision":"accepted"}'::jsonb)$q$, :'jeff', :'fr'), 'features.decide');
 SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object('actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned', 'note', 'Q1'));
-SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_features', jsonb_build_object('actor', :'jeff'))->0->'evidence') = 1, 'feature evidence linked');
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2
+          AND count(DISTINCT idempotency_key) = 2
+          AND count(*) FILTER (WHERE ticket_id = ((:'t4'::jsonb)->>'ticket_id')::uuid) = 1
+          AND count(*) FILTER (WHERE ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid) = 1
+   FROM bloom_support.jobs
+   WHERE kind = 'answer'
+     AND payload @> '{"mode":"feature_decision","decision":"planned"}'::jsonb),
+  'a feature decision durably queues one promised follow-up for every linked ticket');
+UPDATE bloom_support.tickets
+SET status = 'waiting', waiting_reason = 'customer', stage = 'awaiting_client', next_action = 'Waiting for the client'
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object('actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned', 'note', 'Updated internal note'));
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2
+   FROM bloom_support.jobs
+   WHERE kind = 'answer'
+     AND payload->>'mode' = 'feature_decision'),
+  'repeating the same feature decision does not send clients another update');
+SELECT pg_temp.assert(
+  (SELECT bool_and(status = 'waiting' AND waiting_reason = 'customer' AND stage = 'awaiting_client' AND next_action = 'Waiting for the client')
+   FROM bloom_support.tickets
+   WHERE feature_request_id = :'fr'),
+  'editing the note on the same feature decision does not reopen client workflows');
+SELECT pg_temp.rpc('add_message', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', ((:'t4'::jsonb)->>'ticket_id'),
+  'message', jsonb_build_object(
+    'body', 'The product team plans to build this feature.',
+    'visibility', 'public',
+    'purpose', 'feature_decision',
+    'notify_client', false,
+    'idempotency_key', 'feature-decision-message-contract'
+  )
+))->>'message_id' AS feature_decision_message \gset
+SELECT pg_temp.assert(
+  (SELECT purpose = 'feature_decision' AND meaningful
+   FROM bloom_support.messages
+   WHERE id = :'feature_decision_message')
+  AND (SELECT first_response_at IS NOT NULL
+       FROM bloom_support.tickets
+       WHERE id = ((:'t4'::jsonb)->>'ticket_id')::uuid),
+  'a feature decision remains typed and counts as a substantive response');
+SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('list_features', jsonb_build_object('actor', :'jeff'))->0->'evidence') = 2, 'feature evidence links every requester');
+
+-- Shipping is a separate, durable promise. It reaches resolved and
+-- human-owned requesters exactly once without changing their workflow state.
+SELECT id AS rendered_planned_job
+FROM bloom_support.jobs
+WHERE ticket_id = ((:'t4'::jsonb)->>'ticket_id')::uuid
+  AND payload @> '{"mode":"feature_decision","decision":"planned"}'::jsonb \gset
+SELECT pg_temp.rpc('add_message', jsonb_build_object(
+  'actor', :'bot',
+  'ticket_id', ((:'t4'::jsonb)->>'ticket_id'),
+  'message', jsonb_build_object(
+    'body', 'Our product team plans to build this.',
+    'visibility', 'public',
+    'purpose', 'feature_decision',
+    'idempotency_key', 'feature-decision:' || :'rendered_planned_job'
+  )
+))->>'message_id' AS rendered_planned_message \gset
+UPDATE bloom_support.tickets
+SET status = 'resolved', stage = 'resolved', resolved_at = now(),
+    waiting_reason = NULL, waiting_since = NULL
+WHERE id = ((:'t4'::jsonb)->>'ticket_id')::uuid;
+UPDATE bloom_support.tickets
+SET automation = 'human', executor = 'person', executor_id = :'sam',
+    owner_id = :'sam', taken_over_by = :'sam', taken_over_at = now()
+WHERE id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid;
+CREATE TEMP TABLE feature_shipment_ticket_state AS
+SELECT id, status, stage, automation, executor, executor_id, owner_id,
+       next_action, resolved_at, version
+FROM bloom_support.tickets
+WHERE feature_request_id = :'fr';
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Available now'
+));
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'),
+  'shipping queues one durable notification for every linked ticket');
+SELECT pg_temp.assert(
+  (SELECT bool_and(status = 'cancelled')
+   FROM bloom_support.jobs
+   WHERE kind = 'answer' AND payload->>'mode' = 'feature_decision'
+     AND ticket_id IN (
+       SELECT id FROM bloom_support.tickets WHERE feature_request_id = :'fr'
+     ))
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'rendered_planned_message')
+  AND (SELECT bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email' AND payload->>'message_id' = :'rendered_planned_message'),
+  'a shipped decision cancels older queued decision work and email copy');
+SELECT pg_temp.assert(
+  NOT EXISTS (
+    SELECT 1
+    FROM bloom_support.tickets current
+    JOIN feature_shipment_ticket_state before USING (id)
+    WHERE current.status IS DISTINCT FROM before.status
+       OR current.stage IS DISTINCT FROM before.stage
+       OR current.automation IS DISTINCT FROM before.automation
+       OR current.executor IS DISTINCT FROM before.executor
+       OR current.executor_id IS DISTINCT FROM before.executor_id
+       OR current.owner_id IS DISTINCT FROM before.owner_id
+       OR current.next_action IS DISTINCT FROM before.next_action
+       OR current.resolved_at IS DISTINCT FROM before.resolved_at
+       OR current.version IS DISTINCT FROM before.version
+  ),
+  'the shipped decision does not reopen or take over resolved and human-owned tickets');
+SELECT pg_temp.assert(
+  bloom_support.invalidate_planned((( :'t4'::jsonb)->>'ticket_id')::uuid, 'customer reply') >= 0
+  AND EXISTS (
+    SELECT 1 FROM bloom_support.jobs
+    WHERE ticket_id = ((:'t4'::jsonb)->>'ticket_id')::uuid
+      AND payload->>'mode' = 'feature_shipment' AND status = 'queued'
+  ),
+  'a customer reply cannot erase a promised shipment notification');
+SELECT pg_temp.assert(
+  NOT has_function_privilege('anon', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_deliver_feature_shipment(uuid,uuid,integer,text)', 'execute')
+  AND NOT has_function_privilege('anon', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_claim_feature_shipment_email(uuid)', 'execute')
+  AND NOT has_function_privilege('anon', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute')
+  AND NOT has_function_privilege('authenticated', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_mark_feature_shipment_in_product_only(uuid)', 'execute'),
+  'shipment delivery RPC is service-role only');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_deliver_feature_shipment('%s', s.id, s.current_generation, 'Now available') FROM bloom_support.feature_shipment_subscriptions s WHERE s.feature_request_id = '%s' LIMIT 1$q$,
+  :'jeff', :'fr'
+), 'automation service required');
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', id, current_generation, 'Good news — this feature is now available.'
+)
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+   FROM bloom_support.messages
+   WHERE id IN (
+     SELECT notification_message_id FROM bloom_support.feature_shipment_subscriptions
+     WHERE feature_request_id = :'fr'
+   ) AND author_kind = 'bloom' AND visibility = 'public'
+     AND purpose = 'feature_decision' AND meaningful)
+  AND (SELECT count(*) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email' AND payload ? 'feature_shipment_subscription_id'),
+  'delivery creates one substantive Bloom message and one email job per subscription');
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', id, current_generation, 'Good news — this feature is now available.'
+)
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2
+   FROM bloom_support.messages
+   WHERE id IN (
+     SELECT notification_message_id FROM bloom_support.feature_shipment_subscriptions
+     WHERE feature_request_id = :'fr'
+   ))
+  AND (SELECT count(*) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email' AND payload ? 'feature_shipment_subscription_id'),
+  'retries reuse the shipment message and email job');
+SELECT id AS human_shipment_message
+FROM bloom_support.messages
+WHERE ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+  AND id IN (
+    SELECT notification_message_id FROM bloom_support.feature_shipment_subscriptions
+    WHERE feature_request_id = :'fr'
+  ) \gset
+SELECT bloom_support.queue_outbound_email(jsonb_build_object(
+  'ticket_id', ((:'t4_feature_peer'::jsonb)->>'ticket_id'),
+  'message_id', :'human_shipment_message',
+  'purpose', 'feature_decision',
+  'to', 'gail@greenleaf.test',
+  'subject', '[Bloom] Feature available',
+  'body', 'Good news — this feature is now available.',
+  'rfc_message_id', '<feature-shipment-human@bloom.test>',
+  'idempotency_key', 'feature-shipment-human-ledger',
+  'bloom_initiated', true,
+  'covered_message_ids', '[]'::jsonb,
+  'cc', '[]'::jsonb
+))->>'status' AS human_shipment_email_status \gset
+SELECT pg_temp.assert(:'human_shipment_email_status' = 'queued',
+  'the relationally-authorized shipment email survives human takeover');
+SELECT id AS human_shipment_email
+FROM bloom_support.outbound_emails
+WHERE idempotency_key = 'feature-shipment-human-ledger' \gset
+SELECT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email') AS human_shipment_claimed \gset
+SELECT pg_temp.assert(
+  :'human_shipment_claimed'::boolean
+  AND (SELECT status = 'uncertain' FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email')
+  AND (SELECT delivery = 'uncertain' FROM bloom_support.messages WHERE id = :'human_shipment_message')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE notification_message_id = :'human_shipment_message')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE notification_message_id = :'human_shipment_message'),
+  'the final provider gate records a valid shipment as in flight before dispatch');
+SELECT pg_temp.assert(
+  NOT EXISTS (
+    SELECT 1
+    FROM bloom_support.tickets current
+    JOIN feature_shipment_ticket_state before USING (id)
+    WHERE current.status IS DISTINCT FROM before.status
+       OR current.stage IS DISTINCT FROM before.stage
+       OR current.automation IS DISTINCT FROM before.automation
+       OR current.executor IS DISTINCT FROM before.executor
+       OR current.executor_id IS DISTINCT FROM before.executor_id
+       OR current.owner_id IS DISTINCT FROM before.owner_id
+       OR current.next_action IS DISTINCT FROM before.next_action
+       OR current.resolved_at IS DISTINCT FROM before.resolved_at
+       OR current.version IS DISTINCT FROM before.version
+  ),
+  'creating shipment messages and email work leaves ticket workflow untouched');
+
+-- A rollback after rendering withdraws queued work without inventing certainty
+-- about a provider dispatch that already started. The immutable generation can
+-- never be delivered again, while a later real shipment gets a fresh attempt.
+SELECT id AS lifecycle_subscription, current_generation AS lifecycle_generation_one,
+       notification_message_id AS lifecycle_message_one
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid \gset
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'planned',
+  'note', 'Rolled back before provider confirmation'
+));
+SELECT pg_temp.assert(
+  (SELECT retracted_at IS NOT NULL
+          AND retraction_reason = 'feature changed from shipped to planned'
+   FROM bloom_support.feature_shipment_deliveries
+   WHERE subscription_id = :'lifecycle_subscription'
+     AND generation = :'lifecycle_generation_one')
+  AND (SELECT delivery = 'uncertain' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'lifecycle_message_one')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'lifecycle_subscription'
+         AND generation = :'lifecycle_generation_one')
+  AND (SELECT delivery_status = 'uncertain'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE id = :'lifecycle_subscription')
+  AND (SELECT status = 'uncertain'
+       FROM bloom_support.outbound_emails WHERE id = :'human_shipment_email')
+  AND NOT public.bloom_support_claim_feature_shipment_email(:'human_shipment_email'),
+  'a rollback withdraws the rendered generation but preserves an in-flight provider outcome and prevents retry');
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', :'lifecycle_subscription', :'lifecycle_generation_one',
+  'This stale generation must never be recreated.'
+)->>'delivered' AS stale_generation_delivered \gset
+SELECT pg_temp.assert(NOT :'stale_generation_delivered'::boolean,
+  'a retracted shipment generation cannot be delivered again');
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Available again'
+));
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 2)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE generation = 2
+         AND subscription_id IN (
+           SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         ))
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'
+         AND payload->>'generation' = '2'),
+  'a real re-shipment creates exactly one second generation and answer job per subscription');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'declined',
+  'note', 'Withdrawn before the second generation was rendered'
+));
+SELECT pg_temp.assert(
+  (SELECT count(*) = 2 AND bool_and(retracted_at IS NOT NULL AND delivery_status = 'suppressed')
+   FROM bloom_support.feature_shipment_deliveries
+   WHERE generation = 2
+     AND subscription_id IN (
+       SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+     ))
+  AND (SELECT count(*) = 2 AND bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE kind = 'answer' AND payload->>'mode' = 'feature_shipment'
+         AND payload->>'feature_request_id' = :'fr'
+         AND payload->>'generation' = '2')
+  AND NOT EXISTS (
+    SELECT 1 FROM bloom_support.feature_shipment_deliveries
+    WHERE generation = 2 AND notification_message_id IS NOT NULL
+      AND subscription_id IN (
+        SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+      )
+  ),
+  'declining before the answer worker runs cancels generation two without creating a message');
+
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Finally available'
+));
+SELECT public.bloom_support_deliver_feature_shipment(
+  :'bot', id, current_generation, 'Good news — this feature is finally available.'
+)
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr';
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 3)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 2 AND count(DISTINCT notification_message_id) = 2
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE generation = 3 AND notification_message_id IS NOT NULL
+         AND subscription_id IN (
+           SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         ))
+  AND (SELECT count(*) = 2 AND count(DISTINCT idempotency_key) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email'
+         AND payload->>'feature_shipment_generation' = '3'
+         AND payload->>'feature_shipment_subscription_id' IN (
+           SELECT id::text FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         )),
+  'the later shipment creates exactly one new message and email job per subscription');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'fr', 'decision', 'shipped',
+  'note', 'Copy edit only'
+));
+SELECT pg_temp.assert(
+  (SELECT bool_and(current_generation = 3)
+   FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr')
+  AND (SELECT count(*) = 6
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id IN (
+         SELECT id FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+       ))
+  AND (SELECT count(*) = 2
+       FROM bloom_support.jobs
+       WHERE kind = 'send_email'
+         AND payload->>'feature_shipment_generation' = '3'
+         AND payload->>'feature_shipment_subscription_id' IN (
+           SELECT id::text FROM bloom_support.feature_shipment_subscriptions WHERE feature_request_id = :'fr'
+         )),
+  'repeating shipped does not increment the generation or duplicate its email work');
+
+SELECT id AS in_product_subscription, notification_message_id AS in_product_message,
+       current_generation AS in_product_generation
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id <> ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+LIMIT 1 \gset
+SELECT public.bloom_support_mark_feature_shipment_in_product_only(
+  :'in_product_message'
+) AS in_product_terminalized \gset
+SELECT pg_temp.assert(
+  :'in_product_terminalized'::boolean
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NULL
+       FROM bloom_support.messages WHERE id = :'in_product_message')
+  AND (SELECT delivery_status = 'suppressed' AND retracted_at IS NULL
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'in_product_subscription'
+         AND generation = :'in_product_generation')
+  AND (SELECT delivery_status = 'suppressed'
+       FROM bloom_support.feature_shipment_subscriptions
+       WHERE id = :'in_product_subscription'),
+  'a shipment without requester email remains visible in-product and reaches a terminal delivery state');
+
+SELECT id AS terminal_subscription, notification_message_id AS terminal_message,
+       current_generation AS terminal_generation
+FROM bloom_support.feature_shipment_subscriptions
+WHERE feature_request_id = :'fr'
+  AND ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid \gset
+SELECT pg_temp.rpc('set_spam', jsonb_build_object(
+  'actor', :'sam',
+  'ticket_id', ((:'t4_feature_peer'::jsonb)->>'ticket_id'),
+  'spam', true
+));
+SELECT pg_temp.assert(
+  (SELECT cancelled_at IS NOT NULL AND cancellation_reason = 'ticket marked as spam'
+   FROM bloom_support.feature_shipment_subscriptions WHERE id = :'terminal_subscription')
+  AND (SELECT retracted_at IS NOT NULL AND retraction_reason = 'ticket marked as spam'
+       FROM bloom_support.feature_shipment_deliveries
+       WHERE subscription_id = :'terminal_subscription' AND generation = :'terminal_generation')
+  AND (SELECT delivery = 'suppressed' AND withdrawn_at IS NOT NULL
+       FROM bloom_support.messages WHERE id = :'terminal_message')
+  AND (SELECT count(*) = 2 AND bool_and(status = 'cancelled')
+       FROM bloom_support.jobs
+       WHERE ticket_id = ((:'t4_feature_peer'::jsonb)->>'ticket_id')::uuid
+         AND coalesce(payload->>'subscription_id', payload->>'feature_shipment_subscription_id') = :'terminal_subscription'
+         AND coalesce(payload->>'generation', payload->>'feature_shipment_generation') = :'terminal_generation'),
+  'marking a ticket as spam terminalizes its current shipment attempt and all unsent work');
 
 -- 11. Email sender resolution never grants staff authority; domain match stays unverified.
 UPDATE bloom_support.accounts SET email_domains = '{greenleaf.test}' WHERE id = :'greenleaf';
@@ -577,7 +1076,16 @@ INSERT INTO bloom_support.knowledge(product, title, body, audience, approved) VA
   ('crm','Scheduling campaigns','Open the campaign and choose Schedule to pick a send time.','client', true),
   ('crm','Scheduling internals','Campaign scheduling uses claim_scheduled_campaigns internally.','internal', true),
   ('crm','Scheduling draft','Unreviewed scheduling notes.','client', false);
-SELECT pg_temp.assert(jsonb_array_length(pg_temp.rpc('search_knowledge', '{"product":"crm","q":"scheduling"}'::jsonb)) = 1, 'internal and unapproved articles never used for answers');
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('search_knowledge', '{"product":"crm","q":"scheduling"}'::jsonb)) article
+    WHERE article->>'title' = 'Scheduling campaigns'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('search_knowledge', '{"product":"crm","q":"scheduling"}'::jsonb)) article
+    WHERE article->>'title' IN ('Scheduling internals', 'Scheduling draft')
+  ),
+  'approved client article is searchable while internal and unapproved articles stay excluded');
 
 -- 17. OAuth: staff only, single-use codes, rotating refresh.
 SELECT pg_temp.rpc('oauth_register_client', '{"client_name":"ChatGPT","redirect_uris":["https://chatgpt.com/connector_platform_oauth_redirect"]}'::jsonb)#>>'{}' AS cid \gset
@@ -595,15 +1103,17 @@ SELECT id AS oauthkey FROM bloom_support.api_keys WHERE key_hash = 'a2' \gset
 SELECT pg_temp.rpc('revoke_api_key', jsonb_build_object('actor', :'jeff', 'key_id', :'oauthkey'));
 SELECT pg_temp.assert(pg_temp.rpc('oauth_refresh_lookup', '{"refresh_hash":"r2"}'::jsonb) IS NULL, 'revoking the OAuth key revokes the refresh token');
 
--- 18. Status rules: valid transitions, waiting reasons, Needs Jon/Jeff as an escalation, history.
+-- 18. Status rules: valid transitions, waiting reasons, Needs admin as an escalation, history.
 SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'sam', 'ticket', jsonb_build_object('product','crm','channel','staff','subject','How do I export customers?','body','Client asked by phone how to export customers to CSV.','account_id', :'greenleaf','kind_hint','question'))) ->>'ticket_id' AS q1 \gset
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"waiting","waiting_reason":"lunch"}}'::jsonb)$q$, :'sam', :'q1'), 'waiting requires a reason');
 SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"waiting","waiting_reason":"third_party"}'::jsonb));
 SELECT pg_temp.assert((SELECT waiting_reason = 'third_party' AND waiting_since IS NOT NULL FROM bloom_support.tickets WHERE id = :'q1'), 'waiting reason and since recorded');
-SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"needs_owner"}}'::jsonb)$q$, :'sam', :'q1'), 'decision_needed');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"needs_owner"}}'::jsonb)$q$, :'sam', :'q1'), 'Needs admin requires decision_needed');
 SELECT pg_temp.rpc('update_ticket', jsonb_build_object('actor', :'sam', 'ticket_id', :'q1', 'patch', '{"status":"needs_owner","decision_needed":"Can we give this client a custom export?","accountable":"jeff","recommendation":"Offer the standard CSV export","decision_due_at":"2099-01-01T00:00:00Z"}'::jsonb));
 SELECT pg_temp.assert((SELECT owner_id = :'jeff' AND recommendation IS NOT NULL AND due_at = '2099-01-01T00:00:00Z' FROM bloom_support.escalations WHERE ticket_id = :'q1' AND reason = 'decision_needed'), 'Needs Jon/Jeff records decision, accountable person, recommendation, due');
 SELECT pg_temp.assert((SELECT waiting_reason IS NULL FROM bloom_support.tickets WHERE id = :'q1'), 'no contradictory waiting reason outside Waiting');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM bloom_support.notifications WHERE ticket_id = :'q1' AND kind = 'ticket.needs_owner' AND title LIKE 'Needs admin #%')
+  AND NOT EXISTS (SELECT 1 FROM bloom_support.notifications WHERE ticket_id = :'q1' AND title ~ '\m(Jon|Jeff)\M'), 'Needs admin notification names the role, not a person');
 
 -- 19. Resolution evidence per type; meaningful responses vs acknowledgements.
 SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"status":"resolved","resolution_summary":"done"}}'::jsonb)$q$, :'sam', :'q1'), 'answer the question');
@@ -772,9 +1282,41 @@ ROLLBACK;
 SELECT pg_temp.assert(NOT has_function_privilege('anon','public.bloom_support_public_knowledge(text)','execute')
   AND NOT has_function_privilege('authenticated','public.bloom_support_public_knowledge(text)','execute')
   AND has_function_privilege('service_role','public.bloom_support_public_knowledge(text)','execute'), 'help projection is service-role only');
-SELECT pg_temp.assert(jsonb_array_length(public.bloom_support_public_knowledge('crm')) = 1, 'public help excludes internal and draft articles');
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1 FROM jsonb_array_elements(public.bloom_support_public_knowledge('crm')) article
+    WHERE article->>'title' = 'Scheduling campaigns'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(public.bloom_support_public_knowledge('crm')) article
+    WHERE article->>'title' IN ('Scheduling internals', 'Scheduling draft')
+  ),
+  'public help includes approved client articles and excludes internal and draft articles');
 SELECT pg_temp.assert(NOT ((public.bloom_support_public_knowledge('crm')->0) ? 'approved_by'), 'public help omits the approver identity');
-SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','Could you explain scheduling with pineapple?',5)) = 1, 'natural questions retrieve a matching approved answer even with unmatched words');
+SELECT pg_temp.assert(
+  (SELECT count(*) = 9 AND count(*) FILTER (WHERE product = 'crm') = 3
+          AND count(*) FILTER (WHERE product = 'cms') = 3
+          AND count(*) FILTER (WHERE product = 'pos') = 3
+          AND bool_and(jsonb_array_length(source_refs) > 0)
+   FROM bloom_support.knowledge
+   WHERE id::text LIKE '6f76e09a-38d1-4db2-a231-c01e79ce%'),
+  'the reviewed starter knowledge set has three source-grounded articles per product');
+SELECT pg_temp.assert(
+  NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(public.bloom_support_public_knowledge(NULL)) article
+    WHERE article ? 'source_refs'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(bloom_support.search_knowledge('crm','import customers csv',5)) article
+    WHERE article ? 'source_refs'
+  ),
+  'private repository provenance is absent from public help and Bloom answer search');
+SELECT pg_temp.assert(
+  EXISTS (
+    SELECT 1 FROM jsonb_array_elements(bloom_support.search_knowledge('crm','Could you explain scheduling with pineapple?',5)) article
+    WHERE article->>'title' = 'Scheduling campaigns'
+  ),
+  'natural questions retrieve a matching approved answer even with unmatched words');
 SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('pos','scheduling',5)) = 0, 'knowledge search stays product-scoped');
 SELECT pg_temp.assert(jsonb_array_length(bloom_support.search_knowledge('crm','and the or',5)) = 0, 'stopword-only questions return no answer');
 BEGIN;
@@ -794,7 +1336,7 @@ SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s'
 SELECT pg_temp.expect_error(format($q$SELECT bloom_support.upsert_knowledge('%s','{"product":"platform","title":"  ","body":"x"}'::jsonb)$q$, :'jeff'), 'title');
 
 
--- 33. Person-confirmed, idempotent site creation can recover after a lost response.
+-- 33. Person-confirmed site creation never retries an uncertain product call.
 SELECT pg_temp.rpc('record_operation_preview',jsonb_build_object('actor',:'jeff','operation',jsonb_build_object(
   'account_id',:'greenleaf','kind','site.create_draft','permission','ops.site.create','idempotency_key','site-recovery-contract',
   'inputs',jsonb_build_object('expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001',
@@ -803,15 +1345,17 @@ SELECT pg_temp.rpc('record_operation_preview',jsonb_build_object('actor',:'jeff'
 SELECT (:'site_op'::jsonb)->>'id' AS site_op_id \gset
 SELECT pg_temp.assert(pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'status'='executing','person claims site creation');
 SELECT pg_temp.assert((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'already')::boolean,'active creation is not claimed concurrently');
-SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id','outcome',jsonb_build_object('status','failed','error','response lost after CMS committed')));
-SELECT pg_temp.assert(pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'status'='executing','failed site creation recovers with same operation id');
 UPDATE bloom_support.operations SET updated_at=now()-interval '6 minutes' WHERE id=:'site_op_id';
-SELECT pg_temp.assert(NOT coalesce((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'already')::boolean,false),'stale executing creation can recover');
-SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id','outcome',jsonb_build_object('status','failed','error','interrupted')));
-UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=:'site_op_id';
-SELECT pg_temp.assert(pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'status'='executing','previously confirmed expired creation resumes only');
-SELECT pg_temp.rpc('finish_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id','outcome',jsonb_build_object('status','succeeded','verification',jsonb_build_object('passed',true))));
-SELECT pg_temp.assert((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'already')::boolean,'completed site creation remains exactly once');
+SELECT pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id')) AS stale_site_claim \gset
+SELECT pg_temp.assert(
+  :'stale_site_claim'::jsonb->>'status'='reconciliation_needed'
+  AND :'stale_site_claim'::jsonb->'reconciliation'->>'action'='execute',
+  'stale site creation becomes reconciliation_needed instead of being resent');
+SELECT pg_temp.assert((pg_temp.rpc('claim_operation',jsonb_build_object('actor',:'jeff','operation_id',:'site_op_id'))->>'already')::boolean,
+  'uncertain site creation remains blocked until person verification');
+SELECT bloom_support.reconcile_operation(:'jeff',:'site_op_id','not_applied','{"passed":true,"checked":"CMS operation log"}'::jsonb,'No site exists for this operation id');
+SELECT pg_temp.assert((SELECT status='failed' AND reconciliation IS NULL FROM bloom_support.operations WHERE id=:'site_op_id'),
+  'person verification can record that the uncertain site change was not applied');
 SELECT pg_temp.expect_error(format($q$SELECT bloom_support.claim_operation('%s','%s')$q$,:'sam',:'site_op_id'),'ops.site.create');
 
 SELECT pg_temp.rpc('record_operation_preview',jsonb_build_object('actor',:'jeff','operation',jsonb_build_object(
@@ -1380,5 +1924,625 @@ SELECT pg_temp.expect_error(
   format($q$SELECT public.bloom_support_enqueue_engineering_recoveries('%s')$q$, :'bot'),
   'engineering.release'
 );
+
+
+-- Email design: one conversation per ticket, coalesced Bloom messages, HTML kept for retries.
+UPDATE bloom_support.tickets SET automation = 'auto' WHERE id = :'t1id';
+INSERT INTO bloom_support.messages(id, conversation_id, ticket_id, author_kind, visibility, direction, body, delivery, purpose)
+SELECT x.id, t.conversation_id, t.id, 'bloom', 'public', 'outbound', x.body, 'queued', x.purpose
+  FROM bloom_support.tickets t, (VALUES ('e1000000-0000-4000-8000-000000000001'::uuid, 'We have your request.', 'acknowledgement'),
+                                        ('e1000000-0000-4000-8000-000000000002'::uuid, 'We passed it on.', 'progress')) x(id, body, purpose)
+ WHERE t.id = :'t1id';
+SELECT pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'message_id', 'e1000000-0000-4000-8000-000000000001',
+  'purpose', 'acknowledgement', 'to', 'client@greenleaf.test', 'subject', '[Bloom #1] s', 'body', 'both', 'html', '<p>both</p>',
+  'rfc_message_id', '<bloom.random1@bloom.test>', 'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>', 'idempotency_key', 'design-1',
+  'covered_message_ids', jsonb_build_array('e1000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000099'))))->>'id' AS design_email \gset
+SELECT pg_temp.assert((SELECT rfc_message_id = '<bloom-ticket.' || :'t1id' || '@bloom.test>' AND html = '<p>both</p>'
+                         AND covered_message_ids = ARRAY['e1000000-0000-4000-8000-000000000002'::uuid]
+                         FROM bloom_support.outbound_emails WHERE id = :'design_email'), 'first email takes the ticket thread root and keeps its HTML; only same-ticket messages are covered');
+SELECT pg_temp.rpc('mark_outbound_email', jsonb_build_object('id', :'design_email', 'status', 'sent', 'provider_id', 'prov-design-1'));
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.messages WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002') AND delivery = 'sent') = 2,
+  'a coalesced email marks every message it delivered as sent');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivery_delayed"}'::jsonb) AS delayed_delivery \gset
+SELECT pg_temp.assert(
+  (:'delayed_delivery'::jsonb)->>'status' = 'sent'
+  AND ((:'delayed_delivery'::jsonb)->>'delivery_delayed')::boolean
+  AND (SELECT status = 'sent' AND provider_events @> '[{"type":"email.delivery_delayed"}]'::jsonb
+         FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'sent') = 2,
+  'a delivery delay is recorded without pretending the coalesced messages delivered or failed');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivery_delayed"}'::jsonb);
+SELECT pg_temp.assert(
+  EXISTS (SELECT 1 FROM bloom_support.activity
+          WHERE ticket_id = :'t1id' AND action = 'email.delivery_delayed'
+            AND detail->>'provider_id' = 'prov-design-1')
+  AND EXISTS (SELECT 1 FROM bloom_support.notifications
+              WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed'
+                AND dedupe_key LIKE 'email-delivery-delayed:' || :'design_email' || ':%')
+  AND (SELECT count(*) = count(DISTINCT principal_id) AND count(*) > 0
+       FROM bloom_support.notifications
+       WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed'
+         AND dedupe_key LIKE 'email-delivery-delayed:' || :'design_email' || ':%'),
+  'a delivery delay gives staff an actionable, deduplicated signal');
+SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'purpose', 'progress', 'to', 'client@greenleaf.test',
+  'subject', '[Bloom #1] s', 'body', 'later', 'rfc_message_id', '<bloom.random2@bloom.test>', 'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>',
+  'idempotency_key', 'design-2'))))->>'rfc_message_id' = '<bloom.random2@bloom.test>', 'later emails keep their own Message-ID');
+SELECT pg_temp.assert((pg_temp.rpc('queue_outbound_email', jsonb_build_object('email', jsonb_build_object('ticket_id', :'t1id', 'message_id', 'e1000000-0000-4000-8000-000000000001',
+  'purpose', 'acknowledgement', 'to', 'client@greenleaf.test', 'subject', '[Bloom #1] s', 'body', 'both', 'rfc_message_id', '<bloom.random3@bloom.test>',
+  'thread_root', '<bloom-ticket.' || :'t1id' || '@bloom.test>', 'idempotency_key', 'design-1'))))->>'duplicate' = 'true', 'a retry is a duplicate of the recorded email');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivered"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'delivered' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'delivered') = 2,
+  'a delivered event reaches every message represented by the coalesced email');
+SELECT count(*) AS delayed_alerts_before_terminal_event
+FROM bloom_support.notifications
+WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed' \gset
+SELECT count(*) AS delayed_logs_before_terminal_event
+FROM bloom_support.activity
+WHERE ticket_id = :'t1id' AND action = 'email.delivery_delayed' \gset
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivery_delayed"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'delivered'
+          AND (SELECT count(*) FROM jsonb_array_elements(provider_events) event
+               WHERE event->>'type' = 'email.delivery_delayed') = 3
+   FROM bloom_support.outbound_emails
+   WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.notifications
+       WHERE ticket_id = :'t1id' AND kind = 'email.delivery_delayed') = :'delayed_alerts_before_terminal_event'::bigint
+  AND (SELECT count(*) FROM bloom_support.activity
+       WHERE ticket_id = :'t1id' AND action = 'email.delivery_delayed') = :'delayed_logs_before_terminal_event'::bigint,
+  'a late delivery-delay event is retained without raising a false alert after confirmed delivery');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.sent"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'delivered' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'delivered') = 2,
+  'an out-of-order sent event cannot roll delivered mail backward');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.bounced"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'bounced' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'bounced') = 2,
+  'a bounce reaches every message represented by the coalesced email');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.delivered"}'::jsonb);
+SELECT pg_temp.assert((SELECT status = 'bounced' FROM bloom_support.outbound_emails WHERE id = :'design_email'),
+  'an out-of-order delivered event cannot hide a bounce');
+SELECT pg_temp.rpc('record_delivery_event', '{"provider_id":"prov-design-1","type":"email.complained"}'::jsonb);
+SELECT pg_temp.assert(
+  (SELECT status = 'complained' FROM bloom_support.outbound_emails WHERE id = :'design_email')
+  AND (SELECT count(*) FROM bloom_support.messages
+       WHERE id IN ('e1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002')
+         AND delivery = 'complained') = 2,
+  'a complaint supersedes a bounce and reaches every coalesced message');
+SELECT pg_temp.assert(jsonb_typeof(public.bloom_support_digest_report(now() - interval '1 day')->'needs_you') = 'array', 'digest report runs');
+SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'public.bloom_support_digest_report(timestamptz)', 'execute')
+  AND has_function_privilege('service_role', 'public.bloom_support_digest_report(timestamptz)', 'execute'), 'digest report is service-role only');
+SELECT pg_temp.assert(position('Bloom alert' IN bloom_support.botanical_alert_html('A <b>', ARRAY['x & y'], 'i', 'd', 'b', 'https://bloomsuite.app/x')) > 0
+  AND position('<b>' IN bloom_support.botanical_alert_html('A <b>', ARRAY['x & y'], 'i', 'd', 'b', 'https://bloomsuite.app/x')) = 0, 'alert html escapes text');
+
+-- Clients never see an internal routing status: non-staff get the four-state client model.
+DO $$
+DECLARE t bloom_support.tickets;
+BEGIN
+  SELECT * INTO t FROM bloom_support.tickets LIMIT 1;
+  t.status := 'new'; t.waiting_reason := NULL;
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'received', 'new -> received');
+  t.status := 'working';
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'in_progress', 'working -> in_progress');
+  t.status := 'needs_owner';
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'in_progress', 'needs_owner -> in_progress');
+  t.status := 'waiting'; t.waiting_reason := 'customer';
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'waiting_on_you', 'waiting on customer -> waiting_on_you');
+  FOREACH t.waiting_reason IN ARRAY ARRAY['internal','third_party','deployment','scheduled'] LOOP
+    PERFORM pg_temp.assert(bloom_support.client_status(t) = 'in_progress', 'waiting on ' || t.waiting_reason || ' -> in_progress');
+  END LOOP;
+  t.status := 'resolved'; t.waiting_reason := NULL;
+  PERFORM pg_temp.assert(bloom_support.client_status(t) = 'resolved', 'resolved -> resolved');
+END $$;
+SELECT pg_temp.assert(NOT has_function_privilege('authenticated', 'bloom_support.client_status(bloom_support.tickets)', 'execute')
+  AND NOT has_function_privilege('anon', 'bloom_support.client_status(bloom_support.tickets)', 'execute'), 'client_status is not callable by API roles');
+UPDATE bloom_support.tickets SET status = 'needs_owner', waiting_reason = NULL WHERE id = :'t1id';
+SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'gail', 'ticket_id', :'t1id'))->>'status' = 'in_progress', 'client sees needs_owner as in_progress');
+SELECT pg_temp.assert(position('needs_owner' IN pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'gail', 'ticket_id', :'t1id'))::text) = 0, 'client ticket payload never names needs_owner');
+SELECT pg_temp.assert(position('needs_owner' IN pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'gail'))::text) = 0, 'client ticket list never names needs_owner');
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'gail'))) e
+  WHERE e->>'status' NOT IN ('received','in_progress','waiting_on_you','resolved')), 'client list uses only the four client statuses');
+SELECT pg_temp.assert(pg_temp.rpc('get_ticket', jsonb_build_object('actor', :'jon', 'ticket_id', :'t1id'))->>'status' = 'needs_owner', 'staff still see needs_owner');
+SELECT pg_temp.assert(EXISTS (SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_tickets', jsonb_build_object('actor', :'jon'))) e
+  WHERE e->>'id' = :'t1id' AND e->>'status' = 'needs_owner'), 'staff list keeps the raw status');
+
+-- MCP writes: one durable receipt encloses each database mutation. The dblink
+-- helper starts two independent transactions before waiting for either result.
+CREATE OR REPLACE FUNCTION public.bloom_support_test_mcp_call(
+  p_actor uuid, p_fn text, p_payload jsonb, p_key text, p_tool text, p_hash text
+) RETURNS jsonb LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN jsonb_build_object('ok', true, 'result', public.bloom_support_mcp_mutation(p_actor, p_fn, p_payload, p_key, p_tool, p_hash));
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END $$;
+CREATE OR REPLACE FUNCTION pg_temp.concurrent_mcp(
+  p_actor uuid, p_fn text, p_payload jsonb, p_key text, p_tool text, p_hash text
+) RETURNS jsonb[] LANGUAGE plpgsql AS $$
+DECLARE q text; a jsonb; b jsonb;
+BEGIN
+  q := format($q$SELECT public.bloom_support_test_mcp_call(%L::uuid,%L,%L::jsonb,%L,%L,%L)$q$,
+    p_actor, p_fn, p_payload, p_key, p_tool, p_hash);
+  PERFORM dblink_connect('mcp_a', 'dbname=' || current_database());
+  PERFORM dblink_connect('mcp_b', 'dbname=' || current_database());
+  PERFORM dblink_send_query('mcp_a', q);
+  PERFORM dblink_send_query('mcp_b', q);
+  SELECT result INTO a FROM dblink_get_result('mcp_a') AS x(result jsonb);
+  SELECT result INTO b FROM dblink_get_result('mcp_b') AS x(result jsonb);
+  PERFORM dblink_disconnect('mcp_a');
+  PERFORM dblink_disconnect('mcp_b');
+  IF NOT coalesce((a->>'ok')::boolean, false) OR NOT coalesce((b->>'ok')::boolean, false) OR a->'result' IS DISTINCT FROM b->'result' THEN
+    RAISE EXCEPTION 'concurrent MCP mismatch: % / %', a, b;
+  END IF;
+  RETURN ARRAY[a,b];
+EXCEPTION WHEN OTHERS THEN
+  BEGIN PERFORM dblink_disconnect('mcp_a'); EXCEPTION WHEN OTHERS THEN NULL; END;
+  BEGIN PERFORM dblink_disconnect('mcp_b'); EXCEPTION WHEN OTHERS THEN NULL; END;
+  RAISE;
+END $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.concurrent_mcp_conflict(
+  p_actor uuid, p_fn text, p_payload_a jsonb, p_hash_a text,
+  p_payload_b jsonb, p_hash_b text, p_key text, p_tool text
+) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE qa text; qb text; a jsonb; b jsonb; ok_count integer;
+BEGIN
+  qa := format($q$SELECT public.bloom_support_test_mcp_call(%L::uuid,%L,%L::jsonb,%L,%L,%L)$q$,
+    p_actor, p_fn, p_payload_a, p_key, p_tool, p_hash_a);
+  qb := format($q$SELECT public.bloom_support_test_mcp_call(%L::uuid,%L,%L::jsonb,%L,%L,%L)$q$,
+    p_actor, p_fn, p_payload_b, p_key, p_tool, p_hash_b);
+  PERFORM dblink_connect('mcp_conflict_a', 'dbname=' || current_database());
+  PERFORM dblink_connect('mcp_conflict_b', 'dbname=' || current_database());
+  PERFORM dblink_send_query('mcp_conflict_a', qa);
+  PERFORM dblink_send_query('mcp_conflict_b', qb);
+  SELECT result INTO a FROM dblink_get_result('mcp_conflict_a') AS x(result jsonb);
+  SELECT result INTO b FROM dblink_get_result('mcp_conflict_b') AS x(result jsonb);
+  PERFORM dblink_disconnect('mcp_conflict_a');
+  PERFORM dblink_disconnect('mcp_conflict_b');
+  ok_count := coalesce((a->>'ok')::boolean, false)::integer + coalesce((b->>'ok')::boolean, false)::integer;
+  IF ok_count <> 1
+     OR (NOT coalesce((a->>'ok')::boolean, false) AND position('different MCP mutation' IN coalesce(a->>'error','')) = 0)
+     OR (NOT coalesce((b->>'ok')::boolean, false) AND position('different MCP mutation' IN coalesce(b->>'error','')) = 0) THEN
+    RAISE EXCEPTION 'concurrent MCP conflict was not fail-closed: % / %', a, b;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  BEGIN PERFORM dblink_disconnect('mcp_conflict_a'); EXCEPTION WHEN OTHERS THEN NULL; END;
+  BEGIN PERFORM dblink_disconnect('mcp_conflict_b'); EXCEPTION WHEN OTHERS THEN NULL; END;
+  RAISE;
+END $$;
+
+INSERT INTO bloom_support.conversations(id, channel, subject) VALUES
+ ('f1000000-0000-4000-8000-000000000001','crm','MCP escalation'),
+ ('f1000000-0000-4000-8000-000000000002','crm','MCP investigation sequential'),
+ ('f1000000-0000-4000-8000-000000000003','crm','MCP investigation concurrent'),
+ ('f1000000-0000-4000-8000-000000000004','crm','MCP feature sequential'),
+ ('f1000000-0000-4000-8000-000000000005','crm','MCP feature concurrent'),
+ ('f1000000-0000-4000-8000-000000000006','crm','MCP escalation concurrent');
+INSERT INTO bloom_support.tickets(id, conversation_id, product, channel, subject, summary) VALUES
+ ('f2000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001','crm','crm','MCP escalation','Needs one escalation'),
+ ('f2000000-0000-4000-8000-000000000002','f1000000-0000-4000-8000-000000000002','crm','crm','MCP investigation sequential','Needs one issue'),
+ ('f2000000-0000-4000-8000-000000000003','f1000000-0000-4000-8000-000000000003','crm','crm','MCP investigation concurrent','Needs one issue'),
+ ('f2000000-0000-4000-8000-000000000004','f1000000-0000-4000-8000-000000000004','crm','crm','MCP feature sequential','Needs one feature'),
+ ('f2000000-0000-4000-8000-000000000005','f1000000-0000-4000-8000-000000000005','crm','crm','MCP feature concurrent','Needs one feature'),
+ ('f2000000-0000-4000-8000-000000000006','f1000000-0000-4000-8000-000000000006','crm','crm','MCP escalation concurrent','Needs one escalation');
+
+-- create_problem: sequential and concurrent lost responses create one row.
+SELECT public.bloom_support_mcp_mutation(:'jon','create_problem',jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','MCP problem sequential')),
+  'mcp:'||repeat('1',64),'create_problem',repeat('a',64)) AS mcp_problem_first \gset
+SELECT pg_temp.assert(public.bloom_support_mcp_mutation(:'jon','create_problem',jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','MCP problem sequential')),
+  'mcp:'||repeat('1',64),'create_problem',repeat('a',64)) = :'mcp_problem_first'::jsonb, 'create_problem sequential retry replays one result');
+SELECT pg_temp.concurrent_mcp(:'jon','create_problem',jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','MCP problem concurrent')),
+  'mcp:'||repeat('2',64),'create_problem',repeat('b',64));
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.problems WHERE title IN ('MCP problem sequential','MCP problem concurrent')) = 2,
+  'create_problem has one row per logical request');
+
+-- escalate_ticket: no caller dedupe key is needed; receipt encloses escalation,
+-- notification and job creation.
+SELECT public.bloom_support_mcp_mutation(:'jon','escalate',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000001','audience','both','reason','MCP escalation sequential'),
+  'mcp:'||repeat('3',64),'escalate_ticket',repeat('c',64)) AS mcp_escalate_first \gset
+SELECT pg_temp.assert(public.bloom_support_mcp_mutation(:'jon','escalate',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000001','audience','both','reason','MCP escalation sequential'),
+  'mcp:'||repeat('3',64),'escalate_ticket',repeat('c',64)) = :'mcp_escalate_first'::jsonb, 'escalate sequential retry replays one result');
+SELECT pg_temp.concurrent_mcp(:'jon','escalate',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000006','audience','both','reason','MCP escalation concurrent'),
+  'mcp:'||repeat('4',64),'escalate_ticket',repeat('d',64));
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.escalations WHERE reason IN ('MCP escalation sequential','MCP escalation concurrent')) = 2,
+  'escalate retry creates one escalation per logical request');
+
+-- start_investigation and route_feature_request: their multi-row database work
+-- is atomic under the same receipt, including concurrent first calls.
+SELECT public.bloom_support_mcp_mutation(:'jon','open_engineering_issue',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000002','issue','{}'::jsonb),
+  'mcp:'||repeat('5',64),'start_investigation',repeat('e',64)) AS mcp_investigate_first \gset
+SELECT pg_temp.assert(public.bloom_support_mcp_mutation(:'jon','open_engineering_issue',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000002','issue','{}'::jsonb),
+  'mcp:'||repeat('5',64),'start_investigation',repeat('e',64)) = :'mcp_investigate_first'::jsonb, 'start_investigation sequential retry replays one result');
+SELECT pg_temp.concurrent_mcp(:'jon','open_engineering_issue',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000003','issue','{}'::jsonb),
+  'mcp:'||repeat('6',64),'start_investigation',repeat('f',64));
+SELECT pg_temp.assert((SELECT count(DISTINCT engineering_issue_id) FROM bloom_support.tickets WHERE id IN ('f2000000-0000-4000-8000-000000000002','f2000000-0000-4000-8000-000000000003')) = 2,
+  'each investigation request creates exactly one issue');
+
+SELECT public.bloom_support_mcp_mutation(:'jon','route_feature_request',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000004','feature',jsonb_build_object('title','MCP feature sequential')),
+  'mcp:'||repeat('7',64),'route_feature_request',repeat('1',64)) AS mcp_feature_first \gset
+SELECT pg_temp.assert(public.bloom_support_mcp_mutation(:'jon','route_feature_request',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000004','feature',jsonb_build_object('title','MCP feature sequential')),
+  'mcp:'||repeat('7',64),'route_feature_request',repeat('1',64)) = :'mcp_feature_first'::jsonb, 'route_feature sequential retry replays one result');
+SELECT pg_temp.concurrent_mcp(:'jon','route_feature_request',jsonb_build_object('actor',:'jon','ticket_id','f2000000-0000-4000-8000-000000000005','feature',jsonb_build_object('title','MCP feature concurrent')),
+  'mcp:'||repeat('8',64),'route_feature_request',repeat('2',64));
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.feature_requests WHERE title IN ('MCP feature sequential','MCP feature concurrent')) = 2,
+  'route_feature retry creates one feature per logical request');
+
+-- start_repair: repeated approval cannot increment the issue version or enqueue
+-- a second investigate job.
+INSERT INTO bloom_support.engineering_issues(id,title,product,status,created_by) VALUES
+ ('f3000000-0000-4000-8000-000000000001','MCP repair sequential','crm','open',:'jon'),
+ ('f3000000-0000-4000-8000-000000000002','MCP repair concurrent','crm','open',:'jon');
+SELECT public.bloom_support_mcp_mutation(:'jon','update_engineering_issue',jsonb_build_object('actor',:'jon','issue_id','f3000000-0000-4000-8000-000000000001','update',jsonb_build_object('start_repair',true)),
+  'mcp:'||repeat('9',64),'start_repair',repeat('3',64)) AS mcp_repair_first \gset
+SELECT pg_temp.assert(public.bloom_support_mcp_mutation(:'jon','update_engineering_issue',jsonb_build_object('actor',:'jon','issue_id','f3000000-0000-4000-8000-000000000001','update',jsonb_build_object('start_repair',true)),
+  'mcp:'||repeat('9',64),'start_repair',repeat('3',64)) = :'mcp_repair_first'::jsonb, 'start_repair sequential retry replays one result');
+SELECT pg_temp.concurrent_mcp(:'jon','update_engineering_issue',jsonb_build_object('actor',:'jon','issue_id','f3000000-0000-4000-8000-000000000002','update',jsonb_build_object('start_repair',true)),
+  'mcp:'||repeat('a',64),'start_repair',repeat('4',64));
+SELECT pg_temp.assert((SELECT bool_and(version = 2) FROM bloom_support.engineering_issues WHERE id IN ('f3000000-0000-4000-8000-000000000001','f3000000-0000-4000-8000-000000000002')),
+  'start_repair increments each issue once');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id IN ('f3000000-0000-4000-8000-000000000001','f3000000-0000-4000-8000-000000000002') AND kind='investigate') = 2,
+  'start_repair enqueues one investigation per logical request');
+
+-- Same request identity with changed arguments is a conflict, never a fork.
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','create_problem','{"actor":"%s","problem":{"title":"changed"}}'::jsonb,'%s','create_problem','%s')$q$,
+  :'jon', :'jon', 'mcp:'||repeat('1',64), repeat('5',64)), 'different MCP mutation');
+
+-- A receipt is bound to the exact trusted database function as well as the
+-- public tool. A future tool remap must never expose an older function result.
+INSERT INTO bloom_support.mcp_mutation_receipts(
+  request_key,principal_id,tool,function_name,arguments_hash,result,completed_at
+) VALUES (
+  'mcp:'||md5('function-binding')||md5('function-binding'), :'jon',
+  'create_problem','legacy_create_problem',md5('function-binding-args')||md5('function-binding-args'),
+  '{"leaked":"old function result"}',now()
+);
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','create_problem','{"actor":"%s","problem":{"title":"Function binding"}}'::jsonb,'%s','create_problem','%s')$q$,
+  :'jon', :'jon', 'mcp:'||md5('function-binding')||md5('function-binding'), md5('function-binding-args')||md5('function-binding-args')),
+  'different MCP mutation');
+
+-- Explicit keys and implicit session/request identities share the same
+-- fail-closed receipt semantics, sequentially and under a first-call race.
+SELECT public.bloom_support_mcp_mutation(:'jon','create_problem',jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','Explicit mismatch winner')),
+  'mcp:'||repeat('d',64),'create_problem',repeat('8',64));
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','create_problem','{"actor":"%s","problem":{"title":"Explicit mismatch loser"}}'::jsonb,'%s','create_problem','%s')$q$,
+  :'jon', :'jon', 'mcp:'||repeat('d',64), repeat('9',64)), 'different MCP mutation');
+SELECT public.bloom_support_mcp_mutation(:'jon','create_problem',jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','Implicit mismatch winner')),
+  'mcp:'||repeat('e',64),'create_problem',repeat('a',64));
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','create_problem','{"actor":"%s","problem":{"title":"Implicit mismatch loser"}}'::jsonb,'%s','create_problem','%s')$q$,
+  :'jon', :'jon', 'mcp:'||repeat('e',64), repeat('b',64)), 'different MCP mutation');
+SELECT pg_temp.concurrent_mcp_conflict(:'jon','create_problem',
+  jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','Explicit concurrent A')),repeat('c',64),
+  jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','Explicit concurrent B')),repeat('d',64),
+  'mcp:'||repeat('f',64),'create_problem');
+SELECT pg_temp.concurrent_mcp_conflict(:'jon','create_problem',
+  jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','Implicit concurrent A')),repeat('e',64),
+  jsonb_build_object('actor',:'jon','problem',jsonb_build_object('title','Implicit concurrent B')),repeat('f',64),
+  'mcp:'||repeat('0',64),'create_problem');
+SELECT pg_temp.assert((SELECT count(*) FROM bloom_support.problems WHERE title IN ('Explicit concurrent A','Explicit concurrent B')) = 1
+  AND (SELECT count(*) FROM bloom_support.problems WHERE title IN ('Implicit concurrent A','Implicit concurrent B')) = 1,
+  'concurrent changed-payload reuse commits only one mutation');
+
+-- A cached result is never an authorization bypass. Replays re-check the
+-- trusted tool/function route and the caller's current role and resources.
+SELECT public.bloom_support_mcp_mutation(:'sam','create_problem',jsonb_build_object('actor',:'sam','problem',jsonb_build_object('title','Authorization replay fixture')),
+  'mcp:'||md5('auth-role')||md5('auth-role'),'create_problem',md5('auth-role-args')||md5('auth-role-args')) AS auth_role_first \gset
+UPDATE bloom_support.principals SET role='client' WHERE id=:'sam';
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','create_problem','{"actor":"%s","problem":{"title":"Authorization replay fixture"}}'::jsonb,'%s','create_problem','%s')$q$,
+  :'sam', :'sam', 'mcp:'||md5('auth-role')||md5('auth-role'), md5('auth-role-args')||md5('auth-role-args')), 'tickets.write');
+UPDATE bloom_support.principals SET role='support' WHERE id=:'sam';
+
+SELECT public.bloom_support_mcp_mutation(:'gail','create_ticket',jsonb_build_object('actor',:'gail','ticket',jsonb_build_object(
+  'product','crm','channel','crm','body','Authorization account replay fixture','account_id',:'greenleaf')),
+  'mcp:'||md5('auth-account')||md5('auth-account'),'create_ticket',md5('auth-account-args')||md5('auth-account-args')) AS auth_account_first \gset
+UPDATE bloom_support.account_members SET verified=false WHERE principal_id=:'gail' AND account_id=:'greenleaf';
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','create_ticket','{"actor":"%s","ticket":{"product":"crm","channel":"crm","body":"Authorization account replay fixture","account_id":"%s"}}'::jsonb,'%s','create_ticket','%s')$q$,
+  :'gail', :'gail', :'greenleaf', 'mcp:'||md5('auth-account')||md5('auth-account'), md5('auth-account-args')||md5('auth-account-args')), 'forbidden: account');
+UPDATE bloom_support.account_members SET verified=true WHERE principal_id=:'gail' AND account_id=:'greenleaf';
+
+INSERT INTO bloom_support.principals(id,kind,product,external_id,email,display_name,role)
+VALUES ('f4000000-0000-4000-8000-000000000001','external_user','crm','mcp-conversation-member','member@example.test','Conversation member','client');
+INSERT INTO bloom_support.account_members(account_id,principal_id,verified)
+VALUES (:'greenleaf','f4000000-0000-4000-8000-000000000001',true);
+SELECT conversation_id AS auth_conversation FROM bloom_support.tickets WHERE id=:'t1id' \gset
+SELECT public.bloom_support_mcp_mutation('f4000000-0000-4000-8000-000000000001','create_ticket',jsonb_build_object(
+  'actor','f4000000-0000-4000-8000-000000000001','ticket',jsonb_build_object('product','crm','channel','crm','body','Conversation replay fixture','conversation_id',:'auth_conversation')),
+  'mcp:'||md5('auth-conversation')||md5('auth-conversation'),'create_ticket',md5('auth-conversation-args')||md5('auth-conversation-args'));
+UPDATE bloom_support.account_members SET verified=false WHERE principal_id='f4000000-0000-4000-8000-000000000001';
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('f4000000-0000-4000-8000-000000000001','create_ticket','{"actor":"f4000000-0000-4000-8000-000000000001","ticket":{"product":"crm","channel":"crm","body":"Conversation replay fixture","conversation_id":"%s"}}'::jsonb,'%s','create_ticket','%s')$q$,
+  :'auth_conversation', 'mcp:'||md5('auth-conversation')||md5('auth-conversation'), md5('auth-conversation-args')||md5('auth-conversation-args')), 'forbidden: conversation');
+
+INSERT INTO bloom_support.operations(id,account_id,actor_id,kind,permission,inputs,status,expires_at)
+VALUES ('f5000000-0000-4000-8000-000000000001',:'greenleaf',:'sam','site.page.update','ops.site.edit','{}','previewed',now()+interval '30 minutes');
+SELECT public.bloom_support_mcp_claim_operation(:'sam','f5000000-0000-4000-8000-000000000001','execute',
+  'mcp:'||md5('auth-operation')||md5('auth-operation'),'execute_change',md5('auth-operation-args')||md5('auth-operation-args'));
+DELETE FROM bloom_support.role_permissions WHERE role='support' AND permission='accounts.read_all';
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_claim_operation('%s','f5000000-0000-4000-8000-000000000001','execute','%s','execute_change','%s')$q$,
+  :'sam', 'mcp:'||md5('auth-operation')||md5('auth-operation'), md5('auth-operation-args')||md5('auth-operation-args')), 'forbidden: account');
+INSERT INTO bloom_support.role_permissions(role,permission) VALUES ('support','accounts.read_all');
+DELETE FROM bloom_support.role_permissions WHERE role='support' AND permission='ops.site.edit';
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_claim_operation('%s','f5000000-0000-4000-8000-000000000001','execute','%s','execute_change','%s')$q$,
+  :'sam', 'mcp:'||md5('auth-operation')||md5('auth-operation'), md5('auth-operation-args')||md5('auth-operation-args')), 'ops.site.edit');
+INSERT INTO bloom_support.role_permissions(role,permission) VALUES ('support','ops.site.edit');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','create_problem','{"actor":"%s","problem":{"title":"Unknown route"}}'::jsonb,'%s','future_write_tool','%s')$q$,
+  :'jon', :'jon', 'mcp:'||md5('unknown-route')||md5('unknown-route'), md5('unknown-route-args')||md5('unknown-route-args')), 'unknown MCP mutation route');
+
+-- Stale product-effect claims are never resent. Both the original identity and
+-- a new request receive the durable reconciliation error.
+INSERT INTO bloom_support.operations(id,account_id,actor_id,kind,permission,inputs,status,confirmed_by,undo,updated_at) VALUES
+ ('f6000000-0000-4000-8000-000000000001',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test',
+   'expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'executing',:'jeff',NULL,now()-interval '6 minutes'),
+ ('f6000000-0000-4000-8000-000000000002',:'greenleaf',:'jeff','site.page.update','ops.site.edit','{}','executing',:'jeff',NULL,now()-interval '6 minutes'),
+ ('f6000000-0000-4000-8000-000000000003',:'greenleaf',:'jeff','campaign.schedule','ops.campaign.send','{}','undoing',:'jeff','{"kind":"campaign.unschedule","campaign_id":"c1"}',now()-interval '6 minutes');
+SELECT public.bloom_support_mcp_claim_operation(:'jeff','f6000000-0000-4000-8000-000000000001','execute',
+  'mcp:'||md5('stale-site')||md5('stale-site'),'execute_change',md5('stale-site-args')||md5('stale-site-args')) AS stale_site_result \gset
+SELECT pg_temp.assert(:'stale_site_result'::jsonb->'mcp_error'->>'code'='operation_reconciliation_needed'
+  AND :'stale_site_result'::jsonb->'operation'->'reconciliation'->>'action'='execute',
+  'stale site creation returns reconciliation instead of reclaiming the effect');
+SELECT pg_temp.assert(public.bloom_support_mcp_claim_operation(:'jeff','f6000000-0000-4000-8000-000000000001','execute',
+  'mcp:'||md5('stale-site')||md5('stale-site'),'execute_change',md5('stale-site-args')||md5('stale-site-args'))->'mcp_error'->>'code'='operation_reconciliation_needed',
+  'same stale site request replays reconciliation');
+SELECT pg_temp.assert(public.bloom_support_mcp_claim_operation(:'jeff','f6000000-0000-4000-8000-000000000001','execute',
+  'mcp:'||md5('stale-site-new')||md5('stale-site-new'),'execute_change',md5('stale-site-args')||md5('stale-site-args'))->'mcp_error'->>'code'='operation_reconciliation_needed',
+  'new stale site request remains blocked by reconciliation');
+SELECT pg_temp.assert(public.bloom_support_mcp_claim_operation(:'jeff','f6000000-0000-4000-8000-000000000002','execute',
+  'mcp:'||md5('stale-generic')||md5('stale-generic'),'execute_change',md5('stale-generic-args')||md5('stale-generic-args'))->'mcp_error'->>'code'='operation_reconciliation_needed',
+  'stale generic execute becomes reconciliation_needed');
+SELECT pg_temp.assert(public.bloom_support_mcp_claim_operation(:'jeff','f6000000-0000-4000-8000-000000000003','undo',
+  'mcp:'||md5('stale-undo')||md5('stale-undo'),'undo_change',md5('stale-undo-args')||md5('stale-undo-args'))->'mcp_error'->>'code'='operation_reconciliation_needed',
+  'stale undo becomes reconciliation_needed');
+
+-- Person-only reconciliation has its own durable MCP receipt, validates the
+-- pending action/evidence, heals prior execute/undo receipts, and preserves the
+-- original execution evidence when an undo was verified not to have happened.
+INSERT INTO bloom_support.operations(id,account_id,actor_id,kind,permission,inputs,status,result,verification,undo,reconciliation) VALUES
+ ('f6100000-0000-4000-8000-000000000001',:'greenleaf',:'jeff','campaign.schedule','ops.campaign.send','{"campaign_id":"c1"}','reconciliation_needed',NULL,NULL,NULL,'{"action":"execute","reason":"test"}'),
+ ('f6100000-0000-4000-8000-000000000002',:'greenleaf',:'jeff','site.page.update','ops.site.edit','{}','reconciliation_needed',NULL,NULL,NULL,'{"action":"execute","reason":"test"}'),
+ ('f6100000-0000-4000-8000-000000000003',:'greenleaf',:'jeff','campaign.schedule','ops.campaign.send','{"campaign_id":"c1"}','reconciliation_needed','{"scheduled":true}','{"passed":true,"execution_marker":"original"}','{"kind":"campaign.unschedule","campaign_id":"c1"}','{"action":"undo","reason":"test"}'),
+ ('f6100000-0000-4000-8000-000000000004',:'greenleaf',:'jeff','site.page.update','ops.site.edit','{}','reconciliation_needed',NULL,NULL,NULL,'{"action":"execute","reason":"test"}'),
+ ('f6100000-0000-4000-8000-000000000005',:'greenleaf',:'jeff','site.page.update','ops.site.edit','{}','reconciliation_needed',NULL,NULL,NULL,'{"action":"execute","reason":"test"}'),
+ ('f6100000-0000-4000-8000-000000000006',:'greenleaf',:'jeff','site.page.update','ops.site.edit','{}','reconciliation_needed',NULL,NULL,NULL,'{"action":"execute","reason":"test"}'),
+ ('f6100000-0000-4000-8000-000000000007',:'greenleaf',:'jeff','site.page.update','ops.site.edit','{}','reconciliation_needed',NULL,NULL,NULL,'{"action":"execute","reason":"test"}'),
+ ('f6100000-0000-4000-8000-000000000008',:'greenleaf',:'jeff','site.page.update','ops.site.edit','{}','reconciliation_needed',NULL,NULL,NULL,'{"action":"execute","reason":"test"}');
+INSERT INTO bloom_support.mcp_mutation_receipts(request_key,principal_id,tool,function_name,arguments_hash,result,completed_at)
+VALUES ('mcp:'||md5('old-execute-reconciliation')||md5('old-execute-reconciliation'),:'jeff','execute_change','claim_operation',
+  md5('old-execute-args')||md5('old-execute-args'),
+  '{"mcp_error":{"code":"operation_reconciliation_needed"},"operation":{"id":"f6100000-0000-4000-8000-000000000001","status":"reconciliation_needed"}}',now());
+SELECT public.bloom_support_mcp_mutation(:'jeff','reconcile_operation',jsonb_build_object(
+  'actor',:'jeff','operation_id','f6100000-0000-4000-8000-000000000001','outcome','applied',
+  'verification',jsonb_build_object('passed',true,'checked','campaign facts'),'note','Campaign is scheduled in CRM'),
+  'mcp:'||md5('reconcile-applied')||md5('reconcile-applied'),'record_reconciliation',md5('reconcile-applied-args')||md5('reconcile-applied-args')) AS reconciled_applied \gset
+SELECT pg_temp.assert(:'reconciled_applied'::jsonb->>'status'='succeeded'
+  AND :'reconciled_applied'::jsonb->'undo'->>'kind'='campaign.unschedule',
+  'verified applied execute becomes succeeded with server-derived undo');
+SELECT pg_temp.assert(public.bloom_support_mcp_mutation(:'jeff','reconcile_operation',jsonb_build_object(
+  'actor',:'jeff','operation_id','f6100000-0000-4000-8000-000000000001','outcome','applied',
+  'verification',jsonb_build_object('passed',true,'checked','campaign facts'),'note','Campaign is scheduled in CRM'),
+  'mcp:'||md5('reconcile-applied')||md5('reconcile-applied'),'record_reconciliation',md5('reconcile-applied-args')||md5('reconcile-applied-args'))=:'reconciled_applied'::jsonb,
+  'record_reconciliation same-key retry replays one terminal result');
+SELECT pg_temp.assert((SELECT NOT (result ? 'mcp_error') AND result->>'status'='succeeded'
+  FROM bloom_support.mcp_mutation_receipts WHERE request_key='mcp:'||md5('old-execute-reconciliation')||md5('old-execute-reconciliation')),
+  'person resolution heals the prior execute reconciliation receipt');
+
+SELECT public.bloom_support_mcp_mutation(:'jeff','reconcile_operation',jsonb_build_object(
+  'actor',:'jeff','operation_id','f6100000-0000-4000-8000-000000000002','outcome','not_applied',
+  'verification',jsonb_build_object('passed',true,'checked','page revision'),'note','The page revision did not change'),
+  'mcp:'||md5('reconcile-not-applied')||md5('reconcile-not-applied'),'record_reconciliation',md5('reconcile-not-applied-args')||md5('reconcile-not-applied-args')) AS reconciled_not_applied \gset
+SELECT pg_temp.assert(:'reconciled_not_applied'::jsonb->>'status'='failed' AND :'reconciled_not_applied'::jsonb->>'error' LIKE 'Person verified%',
+  'verified not_applied execute becomes failed');
+SELECT public.bloom_support_mcp_mutation(:'jeff','reconcile_operation',jsonb_build_object(
+  'actor',:'jeff','operation_id','f6100000-0000-4000-8000-000000000003','outcome','not_undone',
+  'verification',jsonb_build_object('passed',true,'checked','campaign still scheduled'),'note','Original schedule remains'),
+  'mcp:'||md5('reconcile-not-undone')||md5('reconcile-not-undone'),'record_reconciliation',md5('reconcile-not-undone-args')||md5('reconcile-not-undone-args')) AS reconciled_not_undone \gset
+SELECT pg_temp.assert(:'reconciled_not_undone'::jsonb->>'status'='succeeded'
+  AND :'reconciled_not_undone'::jsonb->'verification'->>'execution_marker'='original'
+  AND :'reconciled_not_undone'::jsonb->'verification'->'undo_reconciliation'->>'checked'='campaign still scheduled',
+  'not_undone preserves execution verification and adds undo evidence');
+
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','reconcile_operation','{"actor":"%s","operation_id":"f6100000-0000-4000-8000-000000000004","outcome":"undone","verification":{"passed":true},"note":"Wrong action"}'::jsonb,'%s','record_reconciliation','%s')$q$,
+  :'jeff',:'jeff','mcp:'||md5('reconcile-wrong-action')||md5('reconcile-wrong-action'),md5('reconcile-wrong-action-args')||md5('reconcile-wrong-action-args')),
+  'outcome does not match');
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','reconcile_operation','{"actor":"%s","operation_id":"f6100000-0000-4000-8000-000000000004","outcome":"applied","verification":{"passed":false},"note":"Bad evidence"}'::jsonb,'%s','record_reconciliation','%s')$q$,
+  :'jeff',:'jeff','mcp:'||md5('reconcile-bad-evidence')||md5('reconcile-bad-evidence'),md5('reconcile-bad-evidence-args')||md5('reconcile-bad-evidence-args')),
+  'passed=true');
+DELETE FROM bloom_support.role_permissions WHERE role='support' AND permission='accounts.read_all';
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','reconcile_operation','{"actor":"%s","operation_id":"f6100000-0000-4000-8000-000000000005","outcome":"not_applied","verification":{"passed":true},"note":"Account revoked"}'::jsonb,'%s','record_reconciliation','%s')$q$,
+  :'sam',:'sam','mcp:'||md5('reconcile-account-revoked')||md5('reconcile-account-revoked'),md5('reconcile-account-revoked-args')||md5('reconcile-account-revoked-args')),
+  'forbidden: account');
+INSERT INTO bloom_support.role_permissions(role,permission) VALUES ('support','accounts.read_all');
+SELECT pg_temp.rpc('create_service_principal',jsonb_build_object('actor',:'jon','name','MCP reconciliation service test','grants','["operations"]'::jsonb))#>>'{}' AS reconciliation_service \gset
+SELECT pg_temp.expect_error(format($q$SELECT public.bloom_support_mcp_mutation('%s','reconcile_operation','{"actor":"%s","operation_id":"f6100000-0000-4000-8000-000000000006","outcome":"not_applied","verification":{"passed":true},"note":"Service must not resolve"}'::jsonb,'%s','record_reconciliation','%s')$q$,
+  :'reconciliation_service',:'reconciliation_service','mcp:'||md5('reconcile-service')||md5('reconcile-service'),md5('reconcile-service-args')||md5('reconcile-service-args')),
+  'signed-in person');
+
+SELECT pg_temp.concurrent_mcp(:'jeff','reconcile_operation',jsonb_build_object(
+  'actor',:'jeff','operation_id','f6100000-0000-4000-8000-000000000007','outcome','not_applied',
+  'verification',jsonb_build_object('passed',true,'checked','concurrent same key'),'note','One verified outcome'),
+  'mcp:'||md5('reconcile-concurrent-same')||md5('reconcile-concurrent-same'),'record_reconciliation',
+  md5('reconcile-concurrent-same-args')||md5('reconcile-concurrent-same-args'));
+SELECT pg_temp.assert((SELECT count(*)=1 FROM bloom_support.activity
+  WHERE action='operation.reconciled' AND detail->>'operation_id'='f6100000-0000-4000-8000-000000000007'),
+  'concurrent same-key reconciliation records one resolution');
+
+DO $$
+DECLARE
+  payload jsonb := '{"actor":"00000000-0000-4000-8000-000000000002","operation_id":"f6100000-0000-4000-8000-000000000008","outcome":"not_applied","verification":{"passed":true,"checked":"distinct keys"},"note":"One distinct resolver wins"}'::jsonb;
+  qa text; qb text; a jsonb; b jsonb; ok_count integer;
+BEGIN
+  qa := format($q$SELECT public.bloom_support_test_mcp_call(%L::uuid,'reconcile_operation',%L::jsonb,%L,'record_reconciliation',%L)$q$,
+    '00000000-0000-4000-8000-000000000002',payload,
+    'mcp:'||md5('reconcile-distinct-a')||md5('reconcile-distinct-a'),md5('reconcile-distinct-args')||md5('reconcile-distinct-args'));
+  qb := format($q$SELECT public.bloom_support_test_mcp_call(%L::uuid,'reconcile_operation',%L::jsonb,%L,'record_reconciliation',%L)$q$,
+    '00000000-0000-4000-8000-000000000002',payload,
+    'mcp:'||md5('reconcile-distinct-b')||md5('reconcile-distinct-b'),md5('reconcile-distinct-args')||md5('reconcile-distinct-args'));
+  PERFORM dblink_connect('reconcile_distinct_a','dbname='||current_database());
+  PERFORM dblink_connect('reconcile_distinct_b','dbname='||current_database());
+  PERFORM dblink_send_query('reconcile_distinct_a',qa);
+  PERFORM dblink_send_query('reconcile_distinct_b',qb);
+  SELECT result INTO a FROM dblink_get_result('reconcile_distinct_a') AS x(result jsonb);
+  SELECT result INTO b FROM dblink_get_result('reconcile_distinct_b') AS x(result jsonb);
+  PERFORM dblink_disconnect('reconcile_distinct_a');
+  PERFORM dblink_disconnect('reconcile_distinct_b');
+  ok_count := coalesce((a->>'ok')::boolean,false)::integer + coalesce((b->>'ok')::boolean,false)::integer;
+  IF ok_count <> 1
+     OR (NOT coalesce((a->>'ok')::boolean,false) AND position('not awaiting reconciliation' IN coalesce(a->>'error',''))=0)
+     OR (NOT coalesce((b->>'ok')::boolean,false) AND position('not awaiting reconciliation' IN coalesce(b->>'error',''))=0) THEN
+    RAISE EXCEPTION 'distinct reconciliation race was not serialized: % / %',a,b;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  BEGIN PERFORM dblink_disconnect('reconcile_distinct_a'); EXCEPTION WHEN OTHERS THEN NULL; END;
+  BEGIN PERFORM dblink_disconnect('reconcile_distinct_b'); EXCEPTION WHEN OTHERS THEN NULL; END;
+  RAISE;
+END $$;
+
+-- Applied site creation reconciliation validates the same product facts as a
+-- live response and binds one exact site to one exact client.
+INSERT INTO bloom_support.operations(id,account_id,actor_id,kind,permission,inputs,status,reconciliation) VALUES
+ ('f6200000-0000-4000-8000-000000000001',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'name','Recovered draft','expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001',
+   'expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000002',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000003',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test','expected_tenant_id','92000000-0000-4000-8000-000000000001','expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000004',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000005',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000006',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000007',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000008',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_creator_email','jeff@example.test','expected_tenant_id',NULL,'expected_anchor_site_id',NULL),'reconciliation_needed','{"action":"execute"}'),
+ ('f6200000-0000-4000-8000-000000000009',:'greenleaf',:'jeff','site.create_draft','ops.site.create',jsonb_build_object(
+   'expected_account_id',:'greenleaf','expected_creator_id','90000000-0000-4000-8000-000000000001','expected_tenant_id',NULL),'reconciliation_needed','{"action":"execute"}');
+INSERT INTO bloom_support.account_links(account_id,product,external_id,label)
+VALUES (:'rose','cms','91000000-0000-4000-8000-000000000008','Other client site');
+
+SELECT public.bloom_support_mcp_mutation(:'jeff','reconcile_operation',jsonb_build_object(
+  'actor',:'jeff','operation_id','f6200000-0000-4000-8000-000000000001','outcome','applied','verification',jsonb_build_object(
+    'passed',true,'checked','CMS site record','result',jsonb_build_object('account_id',:'greenleaf','site',jsonb_build_object(
+      'id','91000000-0000-4000-8000-000000000001','tenant_id','92000000-0000-4000-8000-000000000001',
+      'created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',false))),
+  'note','Verified the unpublished draft in BloomSites'),
+  'mcp:'||md5('reconcile-site-applied')||md5('reconcile-site-applied'),'record_reconciliation',md5('reconcile-site-applied-args')||md5('reconcile-site-applied-args')) AS reconciled_site \gset
+SELECT pg_temp.assert(:'reconciled_site'::jsonb->>'status'='succeeded'
+  AND (SELECT count(*)=1 FROM bloom_support.account_links WHERE account_id=:'greenleaf' AND product='cms' AND external_id='91000000-0000-4000-8000-000000000001'),
+  'verified site reconciliation creates exactly one client link');
+SELECT public.bloom_support_mcp_mutation(:'jeff','reconcile_operation',jsonb_build_object(
+  'actor',:'jeff','operation_id','f6200000-0000-4000-8000-000000000001','outcome','applied','verification',jsonb_build_object(
+    'passed',true,'checked','CMS site record','result',jsonb_build_object('account_id',:'greenleaf','site',jsonb_build_object(
+      'id','91000000-0000-4000-8000-000000000001','tenant_id','92000000-0000-4000-8000-000000000001',
+      'created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',false))),
+  'note','Verified the unpublished draft in BloomSites'),
+  'mcp:'||md5('reconcile-site-applied')||md5('reconcile-site-applied'),'record_reconciliation',md5('reconcile-site-applied-args')||md5('reconcile-site-applied-args'));
+SELECT pg_temp.assert((SELECT count(*)=1 FROM bloom_support.account_links WHERE product='cms' AND external_id='91000000-0000-4000-8000-000000000001'),
+  'site reconciliation retry never duplicates its link');
+
+CREATE OR REPLACE FUNCTION pg_temp.expect_site_reconciliation_error(p_operation uuid,p_result jsonb,p_fragment text)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM bloom_support.reconcile_operation('00000000-0000-4000-8000-000000000002',p_operation,'applied',
+    jsonb_build_object('passed',true,'result',p_result),'Invalid site evidence test');
+  RAISE EXCEPTION 'expected site reconciliation error containing %',p_fragment;
+EXCEPTION WHEN OTHERS THEN
+  IF position(p_fragment IN SQLERRM)=0 THEN RAISE EXCEPTION 'expected %, got %',p_fragment,SQLERRM; END IF;
+END $$;
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000002',jsonb_build_object(
+  'account_id',:'greenleaf','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000002','created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',false)),
+  'does not match');
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000003',jsonb_build_object(
+  'account_id',:'greenleaf','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000003','tenant_id','92000000-0000-4000-8000-000000000002','created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',false)),
+  'does not match');
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000004',jsonb_build_object(
+  'account_id',:'rose','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000004','tenant_id','92000000-0000-4000-8000-000000000004','created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',false)),
+  'does not match');
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000005',jsonb_build_object(
+  'account_id',:'greenleaf','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000005','tenant_id','92000000-0000-4000-8000-000000000005','created_by','90000000-0000-4000-8000-000000000099','is_published',false,'commerce_enabled',false)),
+  'does not match');
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000006',jsonb_build_object(
+  'account_id',:'greenleaf','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000006','tenant_id','92000000-0000-4000-8000-000000000006','created_by','90000000-0000-4000-8000-000000000001','is_published',true,'commerce_enabled',false)),
+  'does not match');
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000007',jsonb_build_object(
+  'account_id',:'greenleaf','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000007','tenant_id','92000000-0000-4000-8000-000000000007','created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',true)),
+  'does not match');
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000008',jsonb_build_object(
+  'account_id',:'greenleaf','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000008','tenant_id','92000000-0000-4000-8000-000000000008','created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',false)),
+  'belongs to another client');
+SELECT pg_temp.expect_site_reconciliation_error('f6200000-0000-4000-8000-000000000009',jsonb_build_object(
+  'account_id',:'greenleaf','site',jsonb_build_object('id','91000000-0000-4000-8000-000000000009','tenant_id','92000000-0000-4000-8000-000000000009','created_by','90000000-0000-4000-8000-000000000001','is_published',false,'commerce_enabled',false)),
+  'does not match');
+SELECT pg_temp.assert((SELECT count(*)=8 FROM bloom_support.operations WHERE id::text LIKE 'f6200000-%' AND status='reconciliation_needed'),
+  'invalid site evidence leaves every unresolved operation awaiting reconciliation');
+
+-- Retention never removes active sessions or incomplete receipts.
+INSERT INTO bloom_support.operations(id,account_id,actor_id,kind,permission,inputs,status,undo,updated_at)
+VALUES ('f0000000-0000-4000-8000-0000000000f2',:'greenleaf',:'jon','site.publish','ops.site.publish','{}','executing',NULL,now()),
+       ('f0000000-0000-4000-8000-0000000000f3',:'greenleaf',:'jon','site.publish','ops.site.publish','{}','succeeded',NULL,now()),
+       ('f0000000-0000-4000-8000-0000000000f4',:'greenleaf',:'jon','site.publish','ops.site.publish','{}','reconciliation_needed',NULL,now()),
+       ('f0000000-0000-4000-8000-0000000000f5',:'greenleaf',:'jon','site.publish','ops.site.publish','{}','executing',NULL,now()-interval '6 minutes'),
+       ('f0000000-0000-4000-8000-0000000000f6',:'greenleaf',:'jon','campaign.schedule','ops.campaign.send','{}','undoing','{"kind":"campaign.unschedule","campaign_id":"c1"}',now()-interval '6 minutes');
+INSERT INTO bloom_support.mcp_sessions(session_id,principal_id,expires_at) VALUES
+ ('expired-session-1234567890',:'jon',now()-interval '1 minute'),
+ ('active-session-12345678901',:'jon',now()+interval '1 day');
+INSERT INTO bloom_support.mcp_mutation_receipts(request_key,principal_id,tool,function_name,arguments_hash,result,created_at,completed_at) VALUES
+ ('mcp:'||repeat('b',64),:'jon','old_complete','fixture',repeat('6',64),'{}',now()-interval '40 days',now()-interval '40 days'),
+ ('mcp:'||repeat('c',64),:'jon','old_incomplete','fixture',repeat('7',64),NULL,now()-interval '40 days',NULL),
+ ('mcp:'||repeat('1',63)||'b',:'jon','old_inflight','fixture',repeat('7',64),'{"id":"f0000000-0000-4000-8000-0000000000f2","status":"executing"}',now()-interval '40 days',now()-interval '40 days'),
+ ('mcp:'||repeat('1',63)||'e',:'jon','old_reconciliation','fixture',repeat('7',64),'{"mcp_error":{"code":"operation_reconciliation_needed"},"operation":{"id":"f0000000-0000-4000-8000-0000000000f4","status":"reconciliation_needed"}}',now()-interval '40 days',now()-interval '40 days'),
+ ('mcp:'||repeat('1',63)||'d',:'jon','old_stale_snapshot','fixture',repeat('7',64),'{"id":"f0000000-0000-4000-8000-0000000000f3","status":"executing"}',now()-interval '40 days',now()-interval '40 days'),
+ ('mcp:'||repeat('1',63)||'c',:'jon','inside_retry_window','fixture',repeat('7',64),'{}',now()-interval '29 days',now()-interval '29 days');
+INSERT INTO bloom_support.mcp_sessions(session_id,principal_id,expires_at)
+SELECT 'expired-batch-'||lpad(g::text,5,'0'), :'jon', now()-interval '41 days' FROM generate_series(1,260) g;
+INSERT INTO bloom_support.mcp_mutation_receipts(request_key,principal_id,tool,function_name,arguments_hash,result,created_at,completed_at)
+SELECT 'mcp:'||md5('cleanup-'||g)||md5('cleanup-'||g), :'jon', 'cleanup_batch', 'fixture', md5('hash-'||g)||md5('hash-'||g), '{}',
+  now()-interval '41 days', now()-interval '41 days' FROM generate_series(1,260) g;
+SELECT bloom_support.cleanup_mcp_idempotency() AS cleanup_first \gset
+SELECT pg_temp.assert((:'cleanup_first'::jsonb->>'operations')::int = 2
+  AND (:'cleanup_first'::jsonb->>'sessions')::int = 250
+  AND (:'cleanup_first'::jsonb->>'receipts')::int = 250
+  AND (SELECT count(*) FROM bloom_support.mcp_sessions WHERE session_id LIKE 'expired-batch-%') = 10
+  AND (SELECT count(*) FROM bloom_support.mcp_mutation_receipts WHERE tool='cleanup_batch') = 10,
+  'MCP cleanup is bounded to a modest batch per initialization');
+SELECT pg_temp.assert((SELECT status='executing' FROM bloom_support.operations WHERE id='f0000000-0000-4000-8000-0000000000f2')
+  AND (SELECT status='reconciliation_needed' AND reconciliation->>'action'='execute' FROM bloom_support.operations WHERE id='f0000000-0000-4000-8000-0000000000f5')
+  AND (SELECT status='reconciliation_needed' AND reconciliation->>'action'='undo' FROM bloom_support.operations WHERE id='f0000000-0000-4000-8000-0000000000f6'),
+  'bounded cleanup leaves active claims alone and reconciles stale execute and undo claims');
+SELECT bloom_support.cleanup_mcp_idempotency() AS cleanup_second \gset
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.mcp_sessions WHERE session_id LIKE 'expired-batch-%' OR session_id='expired-session-1234567890')
+  AND EXISTS (SELECT 1 FROM bloom_support.mcp_sessions WHERE session_id='active-session-12345678901'), 'MCP cleanup removes only expired sessions');
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.mcp_mutation_receipts WHERE tool IN ('old_complete','cleanup_batch'))
+  AND EXISTS (SELECT 1 FROM bloom_support.mcp_mutation_receipts WHERE tool='old_incomplete')
+  AND EXISTS (SELECT 1 FROM bloom_support.mcp_mutation_receipts WHERE tool='old_inflight')
+  AND EXISTS (SELECT 1 FROM bloom_support.mcp_mutation_receipts WHERE tool='old_reconciliation')
+  AND NOT EXISTS (SELECT 1 FROM bloom_support.mcp_mutation_receipts WHERE tool='old_stale_snapshot')
+  AND EXISTS (SELECT 1 FROM bloom_support.mcp_mutation_receipts WHERE tool='inside_retry_window'),
+  'MCP cleanup removes only old completed, non-active receipts outside the retry window');
+SELECT pg_temp.assert((SELECT bool_and(c.relrowsecurity) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='bloom_support' AND c.relname IN ('mcp_sessions','mcp_mutation_receipts'))
+  AND NOT has_table_privilege('authenticated','bloom_support.mcp_sessions','select')
+  AND NOT has_table_privilege('anon','bloom_support.mcp_mutation_receipts','select'),
+  'MCP session and receipt tables retain the schema RLS and privilege boundary');
+SELECT pg_temp.assert(NOT has_function_privilege('authenticated','public.bloom_support_mcp_mutation(uuid,text,jsonb,text,text,text)','execute')
+  AND NOT has_function_privilege('authenticated','public.bloom_support_mark_operation_reconciliation(uuid,uuid,text)','execute')
+  AND NOT has_function_privilege('authenticated','bloom_support.reconcile_operation(uuid,uuid,text,jsonb,text)','execute')
+  AND NOT has_function_privilege('anon','bloom_support.authorize_mcp_mutation(uuid,text,text,jsonb)','execute')
+  AND has_function_privilege('service_role','public.bloom_support_mcp_mutation(uuid,text,jsonb,text,text,text)','execute')
+  AND has_function_privilege('service_role','public.bloom_support_mark_operation_reconciliation(uuid,uuid,text)','execute'),
+  'MCP mutation and reconciliation gateways are service-role only');
+DROP FUNCTION public.bloom_support_test_mcp_call(uuid,text,jsonb,text,text,text);
 
 \echo 'bloom-support-db: all assertions passed'

@@ -17,9 +17,22 @@ on:
       - qa/crm-expanded-certification
       - main
 
+permissions:
+  contents: read
+  deployments: read
+
+concurrency:
+  # Every authenticated run uses the same persisted master-admin context.
+  # Serialize branches and manual runs so they cannot restore over one another.
+  group: e2e-tests-shared-admin
+  cancel-in-progress: false
+
 jobs:
   test:
-    timeout-minutes: 25
+    # Keep the job eligible for the always-run restoration step when Playwright
+    # is cancelled manually or one of its bounded steps times out.
+    if: ${{ always() }}
+    timeout-minutes: 50
     runs-on: ubuntu-latest
 
     steps:
@@ -27,11 +40,22 @@ jobs:
 
     - uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: 24
         cache: npm
 
     - name: Install dependencies
+      timeout-minutes: 5
       run: npm ci
+
+    - name: Wait for this commit's production deployment
+      id: production-deployment
+      if: github.event_name == 'push' && github.ref_name == 'main'
+      timeout-minutes: 15
+      run: node scripts/ci/wait-for-production-deployment.mjs
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_SHA: ${{ github.sha }}
 
     - name: Run admin tenant access regression tests
       if: github.event_name == 'push' && (github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')
@@ -56,7 +80,17 @@ jobs:
 
     - name: Install Playwright Chromium
       if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification'))
+      timeout-minutes: 5
       run: npx playwright install chromium --with-deps
+
+    - name: Prepare isolated E2E tenant
+      if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.project == 'chromium')
+      timeout-minutes: 2
+      run: node scripts/ci/production-e2e-state.mjs prepare
+      env:
+        E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+        E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        E2E_ARTIFACT_MARKER: bloom-e2e-${{ github.run_id }}-${{ github.run_attempt }}
 
     - name: Run expanded CRM click-through against QA build
       if: github.event_name == 'push' && (github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')
@@ -68,10 +102,23 @@ jobs:
 
     - name: Verify CRM release against production after merge
       if: github.event_name == 'push' && github.ref_name == 'main'
+      timeout-minutes: 10
       run: npx playwright test e2e/release/crm-release-clickthrough-v2.spec.ts e2e/release/crm-expanded-clickthrough.spec.ts e2e/release/newsletter-studio-blank-draft.spec.ts --config=playwright.prod.config.ts --project=chromium
+      env:
+        PLAYWRIGHT_BASE_URL: ${{ steps.production-deployment.outputs.url }}
+        E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+        E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        E2E_ARTIFACT_MARKER: bloom-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+        VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+    - name: Restore E2E tenant and remove test drafts
+      if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.project == 'chromium'))
+      timeout-minutes: 3
+      run: node scripts/ci/production-e2e-state.mjs cleanup
       env:
         E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
         E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        E2E_ARTIFACT_MARKER: bloom-e2e-${{ github.run_id }}-${{ github.run_attempt }}
 
     - name: Run requested E2E tests against production
       if: github.event_name == 'workflow_dispatch'
@@ -79,6 +126,7 @@ jobs:
       env:
         E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
         E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        E2E_ARTIFACT_MARKER: bloom-e2e-${{ github.run_id }}-${{ github.run_attempt }}
 
     - uses: actions/upload-artifact@v4
       if: always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')))

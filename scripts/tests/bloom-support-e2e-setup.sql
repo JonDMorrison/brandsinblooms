@@ -42,4 +42,16 @@ GRANT EXECUTE ON FUNCTION public.is_master_admin(uuid) TO service_role;
 \ir ../../supabase/migrations/20261101140000_bloom_support_audit_hardening.sql
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
+\ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
+\ir ../../supabase/migrations/20261105230000_bloom_support_admin_wording.sql
+\ir ../../supabase/migrations/20261105235000_bloom_support_staff_job_failures.sql
+\ir ../../supabase/migrations/20261106010000_bloom_support_mcp_mutation_idempotency.sql
+\ir ../../supabase/migrations/20261106020000_bloom_support_email_delivery_lifecycle.sql
+\ir ../../supabase/migrations/20261106030000_bloom_support_feature_decision_followup.sql
+\ir ../../supabase/migrations/20261106040000_bloom_support_engineering_progress_email.sql
+\ir ../../supabase/migrations/20261106050000_bloom_support_feature_decision_messages.sql
+\ir ../../supabase/migrations/20261106110933_bloom_support_feature_shipments_and_knowledge.sql
+\ir bloom-support-reliability-prerequisites.sql
+\ir ../../supabase/migrations/20261107011102_enterprise_bloom_support_reliability_v2.sql
+\ir ../../supabase/migrations/20261107014000_bloom_support_operational_truth.sql
 \echo 'bloom-support e2e database ready'

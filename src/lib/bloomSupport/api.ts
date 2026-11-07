@@ -1,8 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/config";
 import { checkAttachments, safeSupportTrackingUrl } from "@/lib/bloomSupport/constants";
+import type { TrackReplyInput, TrackResponse, TrackView } from "@/lib/bloomSupport/trackView";
 
 export type SupportStatus = "new" | "working" | "waiting" | "needs_owner" | "resolved";
+/**
+ * What a client sees. The server (bloom_support.client_status) projects every
+ * non-staff ticket read to these four states, so routing states such as
+ * needs_owner never reach a client.
+ */
+export type ClientStatus = "received" | "in_progress" | "waiting_on_you" | "resolved";
+/** A ticket status as returned by the API: raw for staff, projected for clients. */
+export type TicketStatus = SupportStatus | ClientStatus;
 
 export type KnowledgeProduct = "platform" | "crm" | "cms" | "pos";
 export interface PublicKnowledgeArticle {
@@ -31,9 +40,40 @@ export const STATUS_LABEL: Record<SupportStatus, string> = {
   new: "New",
   working: "Working",
   waiting: "Waiting",
-  needs_owner: "Needs Jon/Jeff",
+  needs_owner: "Needs admin",
   resolved: "Resolved",
 };
+
+/** Client-facing labels; match customerStatusLabel in the support emails. */
+export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
+  received: "Received",
+  in_progress: "In progress",
+  waiting_on_you: "Waiting for your reply",
+  resolved: "Resolved",
+};
+
+const CLIENT_STATUSES = new Set<string>(Object.keys(CLIENT_STATUS_LABEL));
+
+export function isClientStatus(status: string): status is ClientStatus {
+  return CLIENT_STATUSES.has(status);
+}
+
+/**
+ * The client view of any status. The server already projects client reads;
+ * this keeps a client surface safe if it is ever handed a raw status.
+ */
+export function clientStatusOf(status: string, waitingReason?: string | null): ClientStatus {
+  if (isClientStatus(status)) return status;
+  if (status === "new") return "received";
+  if (status === "waiting" && waitingReason === "customer") return "waiting_on_you";
+  return "in_progress";
+}
+
+/** Staff label for a raw status; client label otherwise. */
+export function statusLabel(status: TicketStatus, audience: "staff" | "client" = "staff"): string {
+  if (audience === "client") return CLIENT_STATUS_LABEL[clientStatusOf(status)];
+  return (STATUS_LABEL as Record<string, string>)[status] ?? CLIENT_STATUS_LABEL[status as ClientStatus] ?? status;
+}
 
 export const PRODUCT_LABEL: Record<string, string> = {
   cms: "BloomSites",
@@ -47,7 +87,7 @@ export interface TicketSummary {
   id: string;
   number: number;
   subject: string;
-  status: SupportStatus;
+  status: TicketStatus;
   product: string;
   kind: string;
   priority: "low" | "normal" | "high" | "urgent";
@@ -113,7 +153,7 @@ export const QUEUE_VIEWS: Array<{ key: string; label: string }> = [
   { key: "due_soon", label: "Due soon" },
   { key: "overdue", label: "Overdue" },
   { key: "waiting_customer", label: "Waiting on customer" },
-  { key: "needs_owner", label: "Needs Jon/Jeff" },
+  { key: "needs_owner", label: "Needs admin" },
   { key: "recently_resolved", label: "Recently resolved" },
 ];
 export interface TicketPage { items: TicketSummary[]; total: number; next_cursor: string | null }
@@ -134,7 +174,7 @@ export interface TicketDetail extends TicketSummary {
   summary: string;
   messages: TicketMessage[];
   attachments: Array<{ id: string; file_name: string; content_type: string; size_bytes: number; visibility: string; created_at: string }>;
-  conversation_tickets: Array<{ id: string; number: number; subject: string; status: SupportStatus }>;
+  conversation_tickets: Array<{ id: string; number: number; subject: string; status: TicketStatus }>;
   context?: Record<string, unknown>;
   links?: Array<{ ticket_id: string; kind: string; number: number; subject: string; status: SupportStatus }>;
   activity?: Array<{ action: string; detail: Record<string, unknown>; created_at: string; actor: string | null }>;
@@ -182,6 +222,8 @@ export interface PublicSupportIntakeResult {
   duplicate_delivery: boolean;
   number: number;
   email_delivery: "pending";
+  /** What happened to attached files. Absent only from a server that predates public attachments. */
+  attachments?: { stored: number; failed: string[] };
 }
 
 export interface SupportMessageResult {
@@ -228,21 +270,7 @@ export function parseSignedSupportIntake(
     return invalidIntakeResponse();
   }
 
-  const attachmentFacts =
-    body.attachments && typeof body.attachments === "object" &&
-      !Array.isArray(body.attachments)
-      ? body.attachments as Record<string, unknown>
-      : null;
-  const stored = attachmentFacts?.stored;
-  const failed = attachmentFacts?.failed;
-  const attachments =
-    Number.isSafeInteger(stored) && (stored as number) >= 0 &&
-      Array.isArray(failed) && failed.every((item) => typeof item === "string")
-      ? {
-        stored: stored as number,
-        failed: failed as string[],
-      }
-      : null;
+  const attachments = parseAttachmentFacts(body.attachments);
   if (!attachments) return invalidIntakeResponse();
   const trackingUrl = safeSupportTrackingUrl(body.tracking_url);
 
@@ -254,6 +282,17 @@ export function parseSignedSupportIntake(
     ...(trackingUrl ? { tracking_url: trackingUrl } : {}),
     attachments,
   };
+}
+
+/** The intake's per-file outcome: how many were stored, and a line for each one that was not. */
+function parseAttachmentFacts(value: unknown): { stored: number; failed: string[] } | null {
+  const facts = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const stored = facts?.stored;
+  const failed = facts?.failed;
+  return Number.isSafeInteger(stored) && (stored as number) >= 0 &&
+      Array.isArray(failed) && failed.every((item) => typeof item === "string")
+    ? { stored: stored as number, failed: failed as string[] }
+    : null;
 }
 
 /** Public intake never exposes a ticket id, but must confirm a real request number. */
@@ -272,11 +311,13 @@ export function parsePublicSupportIntake(
   ) {
     return invalidIntakeResponse();
   }
+  const attachments = parseAttachmentFacts(body.attachments);
   return {
     received: true,
     duplicate_delivery: body.duplicate_delivery,
     number: body.number,
     email_delivery: "pending",
+    ...(attachments ? { attachments } : {}),
   };
 }
 
@@ -400,7 +441,7 @@ export const bloomSupport = {
   updateEngineering: (id: string, update: Record<string, unknown>) => send("PATCH", `/engineering/${id}`, update),
   features: () => api<Array<Record<string, unknown>>>("/features"),
   decideFeature: (id: string, decision: string, note?: string) => send("POST", `/features/${id}/decision`, { decision, note }),
-  readiness: () => api<{ generated_at: string; summary: { continuous_automation: string; owners_configured: boolean; worker: Record<string, unknown>; open_alerts: Array<Record<string, unknown>>; staff: Array<{ name: string | null; email: string | null; role: string }> }; capabilities: Array<{ key: string; label: string; implemented: boolean; configured: boolean; missing: string[]; tested: string; enabled: boolean | null; live: string | null; note?: string }> }>("/readiness"),
+  readiness: () => api<{ generated_at: string; live_evidence?: string; summary: { continuous_automation: string; owners_configured: boolean; worker: Record<string, unknown>; open_alerts: Array<Record<string, unknown>>; staff: Array<{ name: string | null; email: string | null; role: string }> }; capabilities: Array<{ key: string; label: string; implemented: boolean; configured: boolean; missing: string[]; tested: string; enabled: boolean | null; live: string | null; note?: string }> }>("/readiness"),
   acknowledgeEscalation: (id: string, note?: string) => send("POST", `/escalations/${id}/acknowledge`, { note }),
   escalations: (all = false) => api<Array<Record<string, unknown>>>(`/escalations${all ? "?all=true" : ""}`),
   resolveEscalation: (id: string, decision: string) => send("POST", `/escalations/${id}/resolve`, { decision }),
@@ -432,7 +473,16 @@ export const bloomSupport = {
   /** Intake for people who cannot sign in. */
   publicRequest: (input: Record<string, unknown>) =>
     call("bloom-support-intake", "/public", { method: "POST", body: JSON.stringify(input) }, false, parsePublicSupportIntake),
-  track: (token: string) => call<{ number: number; subject: string; status: SupportStatus; created_at: string; updated_at: string; resolution_summary: string | null; messages: Array<{ from: string; body: string; created_at: string }> }>("bloom-support-api", `/track/${token}`, {}, false),
+
+  /** Public tracking page: the link in every support email is the only credential. */
+  track: (token: string) => call<TrackResponse>("bloom-support-api", `/track/${encodeURIComponent(token)}`, {}, false),
+  trackReply: (token: string, input: TrackReplyInput) =>
+    call<{ message_id: string; duplicate: boolean; attachments: number; view: TrackView | null }>("bloom-support-api", `/track/${encodeURIComponent(token)}/reply`, { method: "POST", body: JSON.stringify(input) }, false),
+  trackAction: (token: string, action: "confirm_resolved" | "still_broken", message?: string) =>
+    call<{ ok: true; view: TrackView | null }>("bloom-support-api", `/track/${encodeURIComponent(token)}/action`, { method: "POST", body: JSON.stringify({ action, message }) }, false),
+  trackAttachment: (token: string, attachmentId: string) =>
+    call<{ url: string; file_name: string }>("bloom-support-api", `/track/${encodeURIComponent(token)}/attachments/${encodeURIComponent(attachmentId)}`, {}, false),
+  trackRenew: (token: string) => call<{ ok: true }>("bloom-support-api", `/track/${encodeURIComponent(token)}/renew`, { method: "POST", body: "{}" }, false),
 };
 
 /** The current page without query/hash credentials such as reset or OAuth tokens. */

@@ -38,6 +38,7 @@ import {
   type ResourceFormSchema,
 } from "@/components/bloom/utils/resourceFormRegistry";
 import type { DetectedFormField } from "@/components/bloom/utils/contentGate";
+import { ApprovalPreviewExtras } from "@/components/bloom/ApprovalPreviewExtras";
 import type {
   BloomTaskPlan,
   BloomTaskPlanAction,
@@ -376,6 +377,7 @@ function ApprovalTaskRow({
       ) : null}
 
       <ResolvedRecordsPreview resolved={resolved} />
+      <ApprovalPreviewExtras resolved={resolved} indent={4.25} />
 
       {showRiskBanner && resolved.riskMessage ? (
         <Stack
@@ -1068,7 +1070,13 @@ function TaskPlanApprovalSection({ plan }: { plan: BloomTaskPlan }) {
       map.set(
         task.taskId,
         resolveApproval(
-          { toolName: task.toolName, params: task.toolParams },
+          {
+            toolName: task.toolName,
+            params: task.toolParams,
+            description: task.description,
+            fieldChanges: task.fieldChanges,
+            notice: task.notice,
+          },
           streamingBlocks,
         ),
       );

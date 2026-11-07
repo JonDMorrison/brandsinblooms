@@ -11,24 +11,24 @@
 //     deno test -A supabase/functions/_shared/bloom-support/e2e_test.ts
 // deno-lint-ignore no-import-prefix -- test-only driver, pinned here rather than in the shared import map
 import postgres from "npm:postgres@3.4.4";
-import { assert, assertEquals, assertExists } from "@std/assert";
-import { signIntake, hmacSha256 } from "./crypto.ts";
+import { assert, assertEquals, assertExists, assertNotEquals } from "@std/assert";
+import { signIntake, hmacSha256, sha256Hex } from "./crypto.ts";
 
 const DB_URL = Deno.env.get("BLOOM_E2E_DATABASE_URL");
 const SB = "http://supabase.test";
 const WHSEC_BYTES = new TextEncoder().encode("e2e-webhook-secret-0123456789abc");
 const ENV: Record<string, string> = {
-  SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: "service-key", RESEND_API_KEY: "re_test", BLOOM_SUPPORT_INBOX: "support@bloom.test",
+  SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: "service-key", RESEND_API_KEY: "re_test", BLOOM_SUPPORT_INBOX: "sender@support.bloom.test",
+  BLOOM_SUPPORT_PUBLIC_INBOX: "support@bloom.test",
   BLOOM_SUPPORT_PUBLIC_URL: "https://bloomsuite.test", RESEND_INBOUND_WEBHOOK_SECRET: "whsec_" + btoa(String.fromCharCode(...WHSEC_BYTES)),
   BLOOM_INTAKE_SECRET_CMS: "cms-intake-secret", BLOOM_INTAKE_SECRET_POS: "pos-intake-secret",
   BLOOM_GITHUB_REPAIR_TOKEN: "gh-repair", BLOOM_GITHUB_RELEASE_TOKEN: "gh-release", BLOOM_GITHUB_REPAIR_LOGINS: "bloom-repair[bot]",
-  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test,buyer@greenleaf.test",
+  BLOOM_SUPPORT_EMAIL_ALLOWLIST: "gail@greenleaf.test,rosa@rosehill.test,newperson@example.org,web@greenleaf.test,jon@bloom.test,jeff@bloom.test,buyer@greenleaf.test",
   BLOOM_SUPPORT_INBOUND_ADDRESSES: "forward@inbound.test",
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 // deno-lint-ignore no-explicit-any
-type Any = any;
+type Any = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 const sql = DB_URL ? postgres(DB_URL, { max: 4, onnotice: () => {} }) : null;
 
 // ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ async function tableSelect(table: string, url: URL, accept: string) {
 // ---------------------------------------------------------------------------
 // External stubs
 // ---------------------------------------------------------------------------
-const resendSent: Array<{ to: string[]; cc?: string[]; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
+const resendSent: Array<{ to: string[]; cc?: string[]; reply_to?: string; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
 const resendReceived = new Map<string, Record<string, unknown>>();
 const attachmentDownloads = new Map<string, Uint8Array>();
 let resendFailNext = 0;
@@ -146,6 +146,10 @@ const cmsOperationCalls: Array<Record<string, unknown>> = [];
 let cmsLoseCreatedResponse = false;
 let cmsFailBeforeCreation = false;
 let cmsBadPreviewAccount = false;
+let cmsWrongTenantNext = false;
+let opsLoseResponseAfterCommit: "campaign_schedule" | "campaign_unschedule" | null = null;
+let opsFalseVerificationNext = false;
+const opsMutationCalls: string[] = [];
 async function cmsOperationsStub(req: Request, raw: string): Promise<Response> {
   const timestamp = Number(req.headers.get("x-bloom-timestamp"));
   assertEquals(req.headers.get("x-bloom-signature"), await signIntake(Deno.env.get("BLOOM_OPS_SECRET_CMS")!, timestamp, raw), "CMS operations retain their real HMAC contract");
@@ -175,10 +179,17 @@ async function cmsOperationsStub(req: Request, raw: string): Promise<Response> {
   if (prior && prior.parameters !== parameters) return Response.json({ error: "conflict" }, { status: 409 });
   if (!prior) {
     if (body.resume_only) return Response.json({ error: "not_found", message: "No previously created draft" }, { status: 404 });
-    if (cmsFailBeforeCreation) { cmsFailBeforeCreation = false; throw new Error("CMS unavailable before commit"); }
+    if (cmsFailBeforeCreation) {
+      cmsFailBeforeCreation = false;
+      return Response.json({ error: "invalid", message: "CMS rejected the request before creation" }, { status: 400 });
+    }
+    const tenantId = cmsWrongTenantNext
+      ? "ffffffff-ffff-4fff-8fff-fffffffffff0"
+      : String(inputs.expected_tenant_id ?? crypto.randomUUID());
+    cmsWrongTenantNext = false;
     prior = { parameters, result: { account_id: String(body.account_id), site: {
       id: crypto.randomUUID(), name: String(inputs.name), subdomain: String(inputs.subdomain),
-      tenant_id: String(inputs.expected_tenant_id ?? crypto.randomUUID()), created_by: String(inputs.expected_creator_id),
+      tenant_id: tenantId, created_by: String(inputs.expected_creator_id),
       is_published: false, commerce_enabled: false,
     } } };
     cmsDrafts.set(request, prior);
@@ -195,7 +206,25 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
   const bodyText = req.method === "GET" || req.method === "HEAD" ? "" : await req.clone().text();
   if (url.hostname === "cms.test") return await cmsOperationsStub(req, bodyText);
   if (url.origin === SB) {
-    if (url.pathname.startsWith("/rest/v1/rpc/")) return await rpcCall(url.pathname.slice("/rest/v1/rpc/".length), bodyText ? JSON.parse(bodyText) : {});
+    if (url.pathname.startsWith("/rest/v1/rpc/")) {
+      const rpcName = url.pathname.slice("/rest/v1/rpc/".length);
+      const rpcArgs = bodyText ? JSON.parse(bodyText) as Record<string, unknown> : {};
+      const response = await rpcCall(rpcName, rpcArgs);
+      if (rpcName === "bloom_support_ops_rpc") {
+        const fn = String(rpcArgs.p_fn ?? "");
+        if (fn === "campaign_schedule" || fn === "campaign_unschedule") opsMutationCalls.push(fn);
+        if (opsLoseResponseAfterCommit === fn) {
+          opsLoseResponseAfterCommit = null;
+          throw new Error(`connection reset after ${fn} committed`);
+        }
+        if (opsFalseVerificationNext && fn === "campaign_facts") {
+          opsFalseVerificationNext = false;
+          const facts = await response.json() as Record<string, unknown>;
+          return Response.json({ ...facts, status: "draft" }, { status: response.status });
+        }
+      }
+      return response;
+    }
     if (url.pathname.startsWith("/rest/v1/")) return await tableSelect(url.pathname.slice("/rest/v1/".length), url, req.headers.get("accept") ?? "");
     if (url.pathname === "/auth/v1/user") {
       const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -222,10 +251,10 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     const b = JSON.parse(bodyText);
     if (resendFailNext > 0) {
       resendFailNext--;
-      resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
+      resendSent.push({ to: b.to, cc: b.cc, reply_to: b.reply_to, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
       throw new Error("connection reset after request was sent");
     }
-    resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
+    resendSent.push({ to: b.to, cc: b.cc, reply_to: b.reply_to, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
     return new Response(JSON.stringify({ id: `re_${resendSent.length}` }), { status: 200 });
   }
   if (url.hostname === "api.vercel.com") {
@@ -315,7 +344,7 @@ async function call(fn: string, method: string, path: string, opts: { token?: st
   const text = await res.text();
   let json: Any = null;
   try { json = JSON.parse(text); } catch { json = text; }
-  return { status: res.status, json };
+  return { status: res.status, json, headers: res.headers };
 }
 const api = (method: string, path: string, token: string, body?: unknown) => call("bloom-support-api", method, path, { token, body });
 const runWorker = () => call("bloom-support-worker", "POST", "", { headers: { apikey: "service-key" }, body: { source: "test" } });
@@ -327,9 +356,41 @@ async function runWorkerUntilIdle(rounds = 6) {
     if (r.json.processed === 0) return;
   }
 }
-async function mcp(token: string, tool: string, args: Record<string, unknown>) {
-  const r = await call("bloom-support-mcp", "POST", "", { token, body: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: args } } });
+const mcpSessions = new Map<string, string>();
+const mcpRequestIds = new Map<string, number>();
+async function mcp(token: string, tool: string, args: Record<string, unknown>, requestId?: number) {
+  let session = mcpSessions.get(token);
+  if (!session) {
+    const initialized = await call("bloom-support-mcp", "POST", "", {
+      token,
+      body: { jsonrpc: "2.0", id: 0, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "bloom-e2e", version: "1" } } },
+    });
+    assertEquals(initialized.status, 200, JSON.stringify(initialized.json));
+    session = initialized.headers.get("mcp-session-id") ?? undefined;
+    assertExists(session, "MCP initialize returns a session id");
+    mcpSessions.set(token, session);
+  }
+  const id = requestId ?? ((mcpRequestIds.get(token) ?? 0) + 1);
+  mcpRequestIds.set(token, Math.max(id, mcpRequestIds.get(token) ?? 0));
+  const r = await call("bloom-support-mcp", "POST", "", {
+    token,
+    headers: { "mcp-session-id": session },
+    body: { jsonrpc: "2.0", id, method: "tools/call", params: { name: tool, arguments: args } },
+  });
   return r.json.result as { isError?: boolean; content: Array<{ text: string }>; structuredContent?: Any };
+}
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+async function waitForOperationStatus(operationId: string, status: string) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const rows = await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [operationId]);
+    if (rows[0]?.status === status) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`operation ${operationId} never reached ${status}`);
 }
 async function signed(product: "cms" | "pos", payload: unknown) {
   const raw = JSON.stringify(payload);
@@ -373,15 +434,17 @@ const ticketRow = async (id: string) => (await sql!`SELECT * FROM bloom_support.
 
 // ---------------------------------------------------------------------------
 Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: false, sanitizeResources: false }, async (t) => {
+  const serverEncoding = (await sql!.unsafe("SHOW server_encoding"))[0]?.server_encoding;
+  assertEquals(serverEncoding, "UTF8", "Bloom Support E2E requires a UTF8 PostgreSQL database");
   for (const [k, v] of Object.entries(ENV)) Deno.env.set(k, v);
   for (const f of ["bloom-support-api", "bloom-support-intake", "bloom-support-email", "bloom-support-worker", "bloom-support-mcp"]) await load(f);
 
-  const U = { jon: "a0000000-0000-4000-8000-000000000001", jeff: "a0000000-0000-4000-8000-000000000002", sam: "a0000000-0000-4000-8000-000000000003", gail: "a0000000-0000-4000-8000-000000000004", rosa: "a0000000-0000-4000-8000-000000000005" };
+  const U = { jon: "a0000000-0000-4000-8000-000000000001", jonAlias: "a0000000-0000-4000-8000-000000000006", jeff: "a0000000-0000-4000-8000-000000000002", sam: "a0000000-0000-4000-8000-000000000003", gail: "a0000000-0000-4000-8000-000000000004", rosa: "a0000000-0000-4000-8000-000000000005" };
   const T = { greenleaf: "b0000000-0000-4000-8000-000000000001", rosehill: "b0000000-0000-4000-8000-000000000002" };
-  await sql!`INSERT INTO auth.users(id, email) VALUES (${U.jon}, 'jon@bloom.test'), (${U.jeff}, 'jeff@bloom.test'), (${U.sam}, 'sam@bloom.test'), (${U.gail}, 'gail@greenleaf.test'), (${U.rosa}, 'rosa@rosehill.test')`;
+  await sql!`INSERT INTO auth.users(id, email) VALUES (${U.jon}, 'jon@bloom.test'), (${U.jonAlias}, 'jon+alias@bloom.test'), (${U.jeff}, 'jeff@bloom.test'), (${U.sam}, 'sam@bloom.test'), (${U.gail}, 'gail@greenleaf.test'), (${U.rosa}, 'rosa@rosehill.test')`;
   await sql!`INSERT INTO public.app_admin_emails(email) VALUES ('jon@bloom.test')`;
   await sql!`INSERT INTO public.tenants(id, name) VALUES (${T.greenleaf}, 'Greenleaf Garden Centre'), (${T.rosehill}, 'Rose Hill Nursery')`;
-  await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES (${U.gail}, ${T.greenleaf}, 'Gail Green', 'owner'), (${U.rosa}, ${T.rosehill}, 'Rosa Hill', 'owner'), (${U.jon}, NULL, 'Jon', NULL), (${U.jeff}, NULL, 'Jeff', NULL), (${U.sam}, NULL, 'Sam Support', NULL)`;
+  await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES (${U.gail}, ${T.greenleaf}, 'Gail Green', 'owner'), (${U.rosa}, ${T.rosehill}, 'Rosa Hill', 'owner'), (${U.jon}, NULL, 'Jon', NULL), (${U.jonAlias}, NULL, 'Jon Morrison', NULL), (${U.jeff}, NULL, 'Jeff', NULL), (${U.sam}, NULL, 'Sam Support', NULL)`;
   await sql!`INSERT INTO public.crm_segments(id, tenant_id, name) VALUES ('d0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Rose lovers')`;
   await sql!`INSERT INTO public.crm_campaigns(id, tenant_id, name, status, subject_line, content, segment_id, projected_recipient_count) VALUES ('c0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Spring sale', 'draft', 'Spring is here', '<p>Roses 20% off</p>', 'd0000000-0000-4000-8000-000000000001', 120)`;
   const tok = (u: string) => `jwt-${u}`;
@@ -390,6 +453,19 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   await t.step("roles: Jon bootstraps as administrator and assigns Jeff and Support", async () => {
     const me = await api("GET", "/me", tok(U.jon));
     assertEquals(me.json.role, "platform_admin");
+    const canonical = (await sql!`
+      SELECT id FROM bloom_support.principals WHERE auth_user_id = ${U.jon}
+    `)[0].id;
+    await sql!`
+      INSERT INTO bloom_support.principal_auth_identities(auth_user_id, principal_id, email)
+      VALUES (${U.jonAlias}, ${canonical}, 'jon+alias@bloom.test')
+    `;
+    const aliasMe = await api("GET", "/me", tok(U.jonAlias));
+    assertEquals(aliasMe.json.role, "platform_admin", "an explicitly linked CRM login keeps Jon's staff role");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.principals
+      WHERE auth_user_id IN (${U.jon}, ${U.jonAlias})
+    `)[0].n), 1, "an auth alias does not create a duplicate principal");
     for (const u of [U.jeff, U.sam, U.gail, U.rosa]) assertEquals((await api("GET", "/me", tok(u))).status, 200);
     assertEquals((await api("POST", "/staff/role", tok(U.jon), { email: "jeff@bloom.test", role: "platform_operator" })).json.role, "platform_operator");
     assertEquals((await api("POST", "/staff/role", tok(U.jon), { email: "sam@bloom.test", role: "support" })).json.role, "support");
@@ -527,6 +603,77 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(pos.status, 201, JSON.stringify(pos.json));
     posTicket = pos.json.ticket_id;
 
+    const followUpBase = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { subject: "Follow-up fixture", body: "The drawer is not opening after a cash sale.", idempotency_key: "pos:follow-up-base" },
+    });
+    assertEquals(followUpBase.status, 201, JSON.stringify(followUpBase.json));
+    const followUpTicket = await ticketRow(String(followUpBase.json.ticket_id));
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'working', stage = 'investigating', automation = 'human', executor = 'person',
+          owner_id = (SELECT id FROM bloom_support.principals WHERE auth_user_id = ${U.sam})
+      WHERE id = ${followUpTicket.id}
+    `;
+    const followUpReport = {
+      body: "It happened again on the next cash sale; we still need help.",
+      append_to_ticket_number: Number(followUpTicket.number),
+      client_action: "still_needs_help",
+      idempotency_key: "pos:follow-up:still-needs-help:1",
+    };
+    const followUp = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: followUpReport,
+    });
+    assertEquals(followUp.status, 201, JSON.stringify(followUp.json));
+    assertEquals(followUp.json.ticket_id, followUpTicket.id, "POS continues the existing support thread");
+    assertEquals(followUp.json.duplicate_delivery, false);
+    assertEquals((await ticketRow(followUpTicket.id)).status, "needs_owner", "a human-owned follow-up becomes Needs You");
+    const exactFollowUp = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: followUpReport,
+    });
+    assertEquals(exactFollowUp.json.duplicate_delivery, true, "an exact product retry returns its durable receipt");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.messages
+      WHERE ticket_id = ${followUpTicket.id} AND body = ${followUpReport.body}
+    `)[0].n), 1, "an exact retry appends one client message");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { ...followUpReport, body: "Changed words must not reuse the receipt." },
+    })).status, 409, "a changed follow-up cannot reuse an idempotency key");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-other", email: "other@pos.test", external_account_id: "pos-tenant-other", account_name: "Another POS" },
+      report: { ...followUpReport, idempotency_key: "pos:follow-up:wrong-account:1" },
+    })).status, 404, "a signed user cannot append to another account's ticket number");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { body: "Missing its paired action is rejected.", append_to_ticket_number: Number(followUpTicket.number), idempotency_key: "pos:follow-up:missing-action" },
+    })).status, 400);
+
+    const resolvedBase = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { body: "Please confirm the training question is answered.", idempotency_key: "pos:follow-up-confirm-base" },
+    });
+    const resolvedTicket = await ticketRow(String(resolvedBase.json.ticket_id));
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now(), resolution_verified = true,
+          resolution_summary = 'Training answer supplied'
+      WHERE id = ${resolvedTicket.id}
+    `;
+    const confirmed = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: {
+        body: "That solved it, thank you.",
+        append_to_ticket_number: Number(resolvedTicket.number),
+        client_action: "confirm_resolved",
+        idempotency_key: "pos:follow-up:confirm-resolved:1",
+      },
+    });
+    assertEquals(confirmed.status, 201, JSON.stringify(confirmed.json));
+    assertExists((await ticketRow(resolvedTicket.id)).closed_at, "the same-thread confirmation closes the resolved request");
+
     const directApiRequest = {
       subject: "Direct API idempotency",
       body: "This exact direct API request can be retried safely.",
@@ -560,10 +707,20 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       product: "crm",
       idempotency_key: "mcp-create-idempotency",
     };
+    const statelessWrite = await call("bloom-support-mcp", "POST", "", {
+      token: keys.jeff,
+      body: { jsonrpc: "2.0", id: 6999, method: "tools/call", params: { name: "create_problem", arguments: { title: "Must not run without a session" } } },
+    });
+    assertEquals(statelessWrite.json.result.isError, true);
+    assert(statelessWrite.json.result.content[0].text.includes("session_required: Reinitialize the MCP connection"),
+      "a stateless client receives safe recovery guidance instead of an unexpected error");
     const mcpFirst = await mcp(keys.jeff, "create_ticket", mcpRequest);
     const mcpRetry = await mcp(keys.jeff, "create_ticket", mcpRequest);
     assertEquals(mcpRetry.structuredContent?.ticket_id, mcpFirst.structuredContent?.ticket_id);
-    assertEquals(mcpRetry.structuredContent?.duplicate_delivery, true);
+    assertEquals(mcpRetry.structuredContent, mcpFirst.structuredContent, "an explicit retry replays the original receipt");
+    const otherPrincipal = await mcp(keys.jon, "create_ticket", mcpRequest);
+    assertNotEquals(otherPrincipal.structuredContent?.ticket_id, mcpFirst.structuredContent?.ticket_id,
+      "the same explicit key cannot replay another principal's native ticket ledger");
     const mcpEdited = await mcp(keys.jeff, "create_ticket", {
       ...mcpRequest,
       body: "Changed MCP content cannot claim the original request was saved.",
@@ -572,6 +729,40 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals((await mcp(keys.jeff, "create_ticket", {
       body: "x".repeat(20_001),
     })).isError, true, "MCP schema rejects an overlong ticket body");
+
+    const scopeReplayArgs = { title: "Scope downgrade replay", idempotency_key: "scope-downgrade-replay" };
+    const scopeReplayFirst = await mcp(keys.jeff, "create_problem", scopeReplayArgs);
+    assert(!scopeReplayFirst.isError, scopeReplayFirst.content[0].text);
+    await sql!`UPDATE bloom_support.api_keys SET scopes=ARRAY['read']::text[] WHERE prefix=${keys.jeff.slice(0, 10)}`;
+    const scopeReplayDenied = await mcp(keys.jeff, "create_problem", scopeReplayArgs);
+    assert(scopeReplayDenied.isError && scopeReplayDenied.content[0].text.includes("read-only"),
+      "downgrading the live key scope blocks cached write-result replay");
+    await sql!`UPDATE bloom_support.api_keys SET scopes=ARRAY['*']::text[] WHERE prefix=${keys.jeff.slice(0, 10)}`;
+    const scopeReplayRestored = await mcp(keys.jeff, "create_problem", scopeReplayArgs);
+    assertEquals(scopeReplayRestored.structuredContent, scopeReplayFirst.structuredContent,
+      "restoring authority replays the one original result without another effect");
+
+    // Older OAuth clients do not know about Bloom's idempotency_key field. A
+    // timeout after the first write followed by the same JSON-RPC retry must
+    // still resolve to the one ticket/message that was already committed.
+    const implicitRequest = {
+      subject: "MCP transport retry without an explicit key",
+      body: "The client lost the first response and retried this exact call.",
+      product: "crm",
+    };
+    const implicitFirst = await mcp(keys.jeff, "create_ticket", implicitRequest, 7001);
+    const implicitRetry = await mcp(keys.jeff, "create_ticket", implicitRequest, 7001);
+    assertEquals(implicitRetry.structuredContent?.ticket_id, implicitFirst.structuredContent?.ticket_id);
+    assertEquals(implicitRetry.structuredContent, implicitFirst.structuredContent, "an implicit retry replays the original receipt");
+    assertEquals((await sql!`SELECT count(*)::int AS n FROM bloom_support.tickets WHERE id = ${implicitFirst.structuredContent?.ticket_id}`)[0].n, 1);
+    const implicitEdited = await mcp(keys.jeff, "create_ticket", { ...implicitRequest, body: "Changed under the same JSON-RPC id." }, 7001);
+    assert(implicitEdited.isError && implicitEdited.content[0].text.includes("different MCP mutation"), implicitEdited.content[0].text);
+    const implicitReply = { ticket_id: implicitFirst.structuredContent?.ticket_id, body: "One internal retry-safe note.", visibility: "internal" };
+    const replyFirst = await mcp(keys.jeff, "reply_to_ticket", implicitReply, 7002);
+    const replyRetry = await mcp(keys.jeff, "reply_to_ticket", implicitReply, 7002);
+    assertEquals(replyRetry.structuredContent?.message_id, replyFirst.structuredContent?.message_id);
+    assertEquals(replyRetry.structuredContent, replyFirst.structuredContent);
+    assertEquals((await sql!`SELECT count(*)::int AS n FROM bloom_support.messages WHERE id = ${replyFirst.structuredContent?.message_id}`)[0].n, 1);
 
     const forged = await call("bloom-support-intake", "POST", "/report", { raw: "{}", headers: { "x-bloom-product": "cms", "x-bloom-timestamp": String(Math.floor(Date.now() / 1000)), "x-bloom-signature": "00" } });
     assertEquals(forged.status, 401, "unsigned product intake rejected");
@@ -616,6 +807,33 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(!JSON.stringify(publicStored).includes("1234567890abcdef"), "public text is redacted server-side even for direct callers");
     assert(!JSON.stringify(publicStored).includes("4242 4242"), "public payment details are redacted server-side");
     assertEquals(publicStored.context.page_url, "https://bloomsuite.app/reset", "public page URLs never persist query or fragment secrets");
+    // People who cannot sign in can attach a real-sized screenshot (well over the old 64 KB form cap).
+    const screenshot = new Uint8Array(300 * 1024);
+    screenshot.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+    let screenshotBinary = "";
+    for (let i = 0; i < screenshot.length; i += 0x8000) screenshotBinary += String.fromCharCode(...screenshot.subarray(i, i + 0x8000));
+    const publicWithFiles = await call("bloom-support-intake", "POST", "/public", { body: {
+      email: "newperson@example.org",
+      body: "Sign-in page shows an error; screenshot attached.",
+      idempotency_key: "public-screenshot",
+      attachments: [
+        { file_name: "sign-in-error.png", content_type: "image/png", data_base64: btoa(screenshotBinary) },
+        { file_name: "steps.txt", content_type: "text/plain", data_base64: btoa("1. open sign-in 2. error") },
+      ],
+    } });
+    assertEquals(publicWithFiles.status, 201, JSON.stringify(publicWithFiles.json));
+    assertEquals(publicWithFiles.json.attachments, { stored: 2, failed: [] }, "public intake stores checked attachments");
+    const publicFiles = await sql!`SELECT a.file_name, a.content_type, a.size_bytes FROM bloom_support.attachments a JOIN bloom_support.tickets t ON t.id = a.ticket_id WHERE t.channel = 'public' AND t.summary LIKE 'Sign-in page shows an error%' ORDER BY a.file_name`;
+    assertEquals(publicFiles.map((f) => [f.file_name, f.content_type, Number(f.size_bytes)]), [["sign-in-error.png", "image/png", 300 * 1024], ["steps.txt", "text/plain", 24]]);
+    const publicSvg = await call("bloom-support-intake", "POST", "/public", { body: {
+      email: "newperson@example.org",
+      body: "An SVG must be refused before any ticket is created.",
+      attachments: [{ file_name: "logo.svg", content_type: "image/svg+xml", data_base64: btoa("<svg/>") }],
+    } });
+    assertEquals(publicSvg.status, 415, "public intake applies the same attachment type rules");
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets WHERE summary LIKE 'An SVG must be refused%'`)[0].n), 0);
+    const publicOversized = await call("bloom-support-intake", "POST", "/public", { raw: "x".repeat(17 * 1024 * 1024 + 1) });
+    assertEquals(publicOversized.status, 413, "public intake keeps a hard transport cap");
     const publicIdempotent = {
       email: "idempotent@example.org",
       body: "My original public support request is saved exactly once.",
@@ -668,7 +886,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const multibytePublicMessage = await call("bloom-support-intake", "POST", "/public", {
       body: { email: "multibyte@example.org", body: "漢".repeat(10_000) },
     });
-    assertEquals(multibytePublicMessage.status, 201, "the full 10,000-character UI contract fits the bounded UTF-8 envelope");
+    assertEquals(multibytePublicMessage.status, 201,
+      `the full 10,000-character UI contract fits the bounded UTF-8 envelope: ${JSON.stringify(multibytePublicMessage.json)}`);
     const oversizedPublicEnvelope = await call("bloom-support-intake", "POST", "/public", {
       raw: JSON.stringify({
         email: "newperson@example.org",
@@ -677,6 +896,51 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       }),
     });
     assertEquals(oversizedPublicEnvelope.status, 413, "public unauthenticated JSON stays tightly bounded");
+    const oversizedPublicEnvelopeWithFile = await call("bloom-support-intake", "POST", "/public", {
+      raw: JSON.stringify({
+        email: "newperson@example.org",
+        body: "A valid short support request.",
+        padding: "x".repeat(66_000),
+        attachments: [{ file_name: "steps.txt", content_type: "text/plain", data_base64: btoa("steps") }],
+      }),
+    });
+    assertEquals(oversizedPublicEnvelopeWithFile.status, 413, "attaching a file does not lift the public text bound");
+    // Anonymous size and per-IP limits apply before the body is read: a stream that is never pulled proves it.
+    const unreadPublic = (ip: string, headers: Record<string, string> = {}) => {
+      const state = { pulled: false };
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          state.pulled = true;
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({ email: "limited@example.org", body: "A request that must never be read." })));
+          controller.close();
+        },
+      }, { highWaterMark: 0 });
+      const request = new Request(`${SB}/functions/v1/bloom-support-intake/public`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": ip, ...headers },
+        body,
+        duplex: "half",
+      } as RequestInit);
+      return { state, response: H["bloom-support-intake"](request) };
+    };
+    const declaredHuge = unreadPublic("203.0.113.76", { "content-length": String(17 * 1024 * 1024 + 1) });
+    assertEquals((await declaredHuge.response).status, 413, "a declared oversize public body is refused");
+    assert(!declaredHuge.state.pulled, "a declared oversize public body is never read");
+    const limitedIp = "203.0.113.77";
+    const limitedSubject = await sha256Hex(limitedIp);
+    const thisHour = new Date();
+    for (const at of [thisHour, new Date(thisHour.getTime() + 60 * 60 * 1000)]) {
+      await sql!`INSERT INTO bloom_support.usage_counters(bucket, subject, count) VALUES (${`public-ip-attempt:${at.toISOString().slice(0, 13)}`}, ${limitedSubject}, 40) ON CONFLICT (bucket, subject) DO UPDATE SET count = 40`;
+    }
+    const ticketsBeforeLimited = Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n);
+    const limited = unreadPublic(limitedIp);
+    const limitedResponse = await limited.response;
+    assertEquals(limitedResponse.status, 429, "an IP over its hourly public attempt budget is refused");
+    assert(!limited.state.pulled, "a rate-limited public request is refused before its body is read");
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets`)[0].n), ticketsBeforeLimited);
+    const otherIp = unreadPublic("203.0.113.78");
+    assertEquals((await otherIp.response).status, 201, "another network is unaffected");
+    assert(otherIp.state.pulled);
     const longSignedMessage = await call("bloom-support-intake", "POST", "/report", {
       token: tok(U.gail),
       body: { body: "x".repeat(20_001) },
@@ -713,6 +977,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const acct = (await ticketRow(crmTicket)).account_id;
     const tools = await call("bloom-support-mcp", "POST", "", { token: keys.jeff, body: { jsonrpc: "2.0", id: 1, method: "tools/list" } });
     assert(tools.json.result.tools.some((x: Any) => x.name === "execute_change"));
+    assert(tools.json.result.tools.some((x: Any) => x.name === "record_reconciliation"));
     const p = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct, ticket_id: crmTicket, inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 86400e3).toISOString() } });
     assert(!p.isError, p.content[0].text);
     const pv = p.structuredContent.preview;
@@ -725,25 +990,179 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     // A change to the audience after the preview makes the preview stale.
     const p2 = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct, inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 86400e3).toISOString() } });
     await sql!`UPDATE public.crm_campaigns SET projected_recipient_count = 5000, include_all_customers = true`;
-    const stale = await mcp(keys.jeff, "execute_change", { operation_id: p2.structuredContent.id });
+    const stale = await mcp(keys.jeff, "execute_change", { operation_id: p2.structuredContent.id }, 7101);
     assert(stale.isError && stale.content[0].text.includes("changed after the preview"), stale.content[0].text);
+    const staleReplay = await mcp(keys.jeff, "execute_change", { operation_id: p2.structuredContent.id }, 7101);
+    assert(staleReplay.isError && staleReplay.content[0].text === stale.content[0].text,
+      "a same-key failed execute replays the safe error envelope");
+    const staleNewRequest = await mcp(keys.jeff, "execute_change", { operation_id: p2.structuredContent.id }, 7102);
+    assert(staleNewRequest.isError && staleNewRequest.content[0].text.includes("operation_failed"),
+      "a new request cannot turn a terminal failed operation into MCP success");
     await sql!`UPDATE public.crm_campaigns SET projected_recipient_count = 120, include_all_customers = NULL`;
-    const e = await mcp(keys.jeff, "execute_change", { operation_id: p.structuredContent.id });
+    const e = await mcp(keys.jeff, "execute_change", { operation_id: p.structuredContent.id }, 7103);
     assert(!e.isError, e.content[0].text);
     assertEquals(e.structuredContent.status, "succeeded");
     assertEquals(e.structuredContent.verification.passed, true);
     assertEquals((await sql!`SELECT status FROM public.crm_campaigns`)[0].status, "scheduled");
+    const eReplay = await mcp(keys.jeff, "execute_change", { operation_id: p.structuredContent.id }, 7103);
+    assert(!eReplay.isError && eReplay.structuredContent.status === "succeeded" && eReplay.structuredContent.already,
+      "a same-key retry after completion replays final execute success");
     const twice = await mcp(keys.jeff, "execute_change", { operation_id: p.structuredContent.id });
     assert(twice.structuredContent.already, "execute is exactly-once");
-    const u = await mcp(keys.jeff, "undo_change", { operation_id: p.structuredContent.id });
-    assert(!u.isError, u.content[0].text);
+
+    // Failed undo remains an error for the same request key, while the
+    // operation is restored to succeeded because its original effect remains.
+    await sql!`UPDATE public.crm_campaigns SET status='draft', scheduled_at=NULL`;
+    const undoFailed = await mcp(keys.jeff, "undo_change", { operation_id: p.structuredContent.id }, 7104);
+    assert(undoFailed.isError, "an invalid product undo is not reported as success");
+    const undoFailedReplay = await mcp(keys.jeff, "undo_change", { operation_id: p.structuredContent.id }, 7104);
+    assert(undoFailedReplay.isError && undoFailedReplay.content[0].text === undoFailed.content[0].text,
+      "a same-key failed undo replays its safe error envelope");
+    assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [p.structuredContent.id]))[0].status, "succeeded");
+    await sql!`UPDATE public.crm_campaigns SET status='scheduled', scheduled_at=${new Date(Date.now() + 86400e3).toISOString()}`;
+
+    // Hold the product row so the first undo is visibly in flight. A second
+    // request key must fail closed before it can reach the product.
+    const undoLockReady = deferred();
+    const releaseUndoLock = deferred();
+    const undoLock = sql!.begin(async (tx: Any) => {
+      await tx.unsafe("SELECT id FROM public.crm_campaigns WHERE id=$1 FOR UPDATE", ["c0000000-0000-4000-8000-000000000001"]);
+      undoLockReady.resolve();
+      await releaseUndoLock.promise;
+    });
+    await undoLockReady.promise;
+    const undoWinnerPromise = mcp(keys.jeff, "undo_change", { operation_id: p.structuredContent.id }, 7105);
+    await waitForOperationStatus(String(p.structuredContent.id), "undoing");
+    const undoLoser = await mcp(keys.jeff, "undo_change", { operation_id: p.structuredContent.id }, 7106);
+    assert(undoLoser.isError && undoLoser.content[0].text.includes("operation_in_progress"), undoLoser.content[0].text);
+    releaseUndoLock.resolve();
+    await undoLock;
+    const u = await undoWinnerPromise;
+    assert(!u.isError && u.structuredContent.status === "undone", u.content[0].text);
+    const undoWinnerReplay = await mcp(keys.jeff, "undo_change", { operation_id: p.structuredContent.id }, 7105);
+    assert(!undoWinnerReplay.isError && undoWinnerReplay.structuredContent.status === "undone" && undoWinnerReplay.structuredContent.already,
+      "a same-key retry after completion replays final undo success");
     assertEquals((await sql!`SELECT status FROM public.crm_campaigns`)[0].status, "draft");
+
+    // The same claim boundary protects two different execute request keys.
+    const racePreview = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct, inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 172800e3).toISOString() } });
+    const raceId = String(racePreview.structuredContent.id);
+    const executeLockReady = deferred();
+    const releaseExecuteLock = deferred();
+    const executeLock = sql!.begin(async (tx: Any) => {
+      await tx.unsafe("SELECT id FROM public.crm_campaigns WHERE id=$1 FOR UPDATE", ["c0000000-0000-4000-8000-000000000001"]);
+      executeLockReady.resolve();
+      await releaseExecuteLock.promise;
+    });
+    await executeLockReady.promise;
+    const executeWinnerPromise = mcp(keys.jeff, "execute_change", { operation_id: raceId }, 7110);
+    await waitForOperationStatus(raceId, "executing");
+    const executeLoser = await mcp(keys.jeff, "execute_change", { operation_id: raceId }, 7111);
+    assert(executeLoser.isError && executeLoser.content[0].text.includes("operation_in_progress"), executeLoser.content[0].text);
+    releaseExecuteLock.resolve();
+    await executeLock;
+    const executeWinner = await executeWinnerPromise;
+    assert(!executeWinner.isError && executeWinner.structuredContent.status === "succeeded", executeWinner.content[0].text);
+    const executeWinnerReplay = await mcp(keys.jeff, "execute_change", { operation_id: raceId }, 7110);
+    assert(!executeWinnerReplay.isError && executeWinnerReplay.structuredContent.status === "succeeded" && executeWinnerReplay.structuredContent.already,
+      "a same-key retry after the racing winner replays final execute success");
+    const raceUndo = await mcp(keys.jeff, "undo_change", { operation_id: raceId }, 7112);
+    assert(!raceUndo.isError && raceUndo.structuredContent.status === "undone", raceUndo.content[0].text);
+
+    // A product can commit and lose its HTTP response. That is not a definite
+    // failure: persist reconciliation_needed and never send the effect again.
+    const ambiguousPreview = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct,
+      inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 216000e3).toISOString() } });
+    const ambiguousId = String(ambiguousPreview.structuredContent.id);
+    const mutationCallsBefore = opsMutationCalls.length;
+    opsLoseResponseAfterCommit = "campaign_schedule";
+    const ambiguousExecute = await mcp(keys.jeff, "execute_change", { operation_id: ambiguousId }, 7120);
+    assert(ambiguousExecute.isError && ambiguousExecute.content[0].text.includes("operation_reconciliation_needed"), ambiguousExecute.content[0].text);
+    const ambiguousExecuteRow = (await sql!.unsafe("SELECT status, reconciliation, error FROM bloom_support.operations WHERE id=$1", [ambiguousId]))[0];
+    assertEquals(ambiguousExecuteRow.status, "reconciliation_needed");
+    assertEquals(ambiguousExecuteRow.reconciliation.action, "execute");
+    assertEquals((await sql!`SELECT status FROM public.crm_campaigns`)[0].status, "scheduled", "the remote effect committed before its response was lost");
+    const ambiguousExecuteReplay = await mcp(keys.jeff, "execute_change", { operation_id: ambiguousId }, 7120);
+    const ambiguousExecuteNewKey = await mcp(keys.jeff, "execute_change", { operation_id: ambiguousId }, 7121);
+    assert(ambiguousExecuteReplay.isError && ambiguousExecuteReplay.content[0].text === ambiguousExecute.content[0].text,
+      "the same key replays the reconciliation error");
+    assert(ambiguousExecuteNewKey.isError && ambiguousExecuteNewKey.content[0].text.includes("operation_reconciliation_needed"),
+      "a new key cannot reapply an uncertain effect");
+    assertEquals(opsMutationCalls.length, mutationCallsBefore + 1, "the uncertain execute reaches the product exactly once");
+
+    const reconciledExecute = await mcp(keys.jeff, "record_reconciliation", {
+      operation_id: ambiguousId,
+      outcome: "applied",
+      verification: { passed: true, checked: "campaign facts", status: "scheduled" },
+      note: "Verified the campaign is scheduled in CRM",
+    }, 7125);
+    assert(!reconciledExecute.isError && reconciledExecute.structuredContent.status === "succeeded", reconciledExecute.content[0].text);
+    assertEquals(reconciledExecute.structuredContent.undo.kind, "campaign.unschedule");
+    const healedExecuteReceipt = await mcp(keys.jeff, "execute_change", { operation_id: ambiguousId }, 7120);
+    assert(!healedExecuteReceipt.isError && healedExecuteReceipt.structuredContent.status === "succeeded" && healedExecuteReceipt.structuredContent.already,
+      "person verification heals the original execute receipt");
+    const undoCallsBefore = opsMutationCalls.length;
+    opsLoseResponseAfterCommit = "campaign_unschedule";
+    const ambiguousUndo = await mcp(keys.jeff, "undo_change", { operation_id: ambiguousId }, 7122);
+    assert(ambiguousUndo.isError && ambiguousUndo.content[0].text.includes("operation_reconciliation_needed"), ambiguousUndo.content[0].text);
+    const ambiguousUndoRow = (await sql!.unsafe("SELECT status, reconciliation, error FROM bloom_support.operations WHERE id=$1", [ambiguousId]))[0];
+    assertEquals(ambiguousUndoRow.status, "reconciliation_needed");
+    assertEquals(ambiguousUndoRow.reconciliation.action, "undo");
+    assertEquals((await sql!`SELECT status FROM public.crm_campaigns`)[0].status, "draft", "the undo committed before its response was lost");
+    const ambiguousUndoReplay = await mcp(keys.jeff, "undo_change", { operation_id: ambiguousId }, 7122);
+    const ambiguousUndoNewKey = await mcp(keys.jeff, "undo_change", { operation_id: ambiguousId }, 7123);
+    assert(ambiguousUndoReplay.isError && ambiguousUndoReplay.content[0].text === ambiguousUndo.content[0].text,
+      "the same key replays the uncertain undo error");
+    assert(ambiguousUndoNewKey.isError && ambiguousUndoNewKey.content[0].text.includes("operation_reconciliation_needed"),
+      "a new key cannot repeat an uncertain undo");
+    assertEquals(opsMutationCalls.length, undoCallsBefore + 1, "the uncertain undo reaches the product exactly once");
+    const reconciledUndo = await mcp(keys.jeff, "record_reconciliation", {
+      operation_id: ambiguousId,
+      outcome: "undone",
+      verification: { passed: true, checked: "campaign facts", status: "draft" },
+      note: "Verified the campaign is back in draft",
+    }, 7126);
+    assert(!reconciledUndo.isError && reconciledUndo.structuredContent.status === "undone", reconciledUndo.content[0].text);
+    const healedUndoReceipt = await mcp(keys.jeff, "undo_change", { operation_id: ambiguousId }, 7122);
+    assert(!healedUndoReceipt.isError && healedUndoReceipt.structuredContent.status === "undone" && healedUndoReceipt.structuredContent.already,
+      "person verification heals the original undo receipt");
+
+    // A 2xx mutation with a failed read-back is equally uncertain.
+    const falseVerificationPreview = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct,
+      inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 230000e3).toISOString() } });
+    const falseVerificationId = String(falseVerificationPreview.structuredContent.id);
+    const falseVerificationCalls = opsMutationCalls.length;
+    opsFalseVerificationNext = true;
+    const falseVerification = await mcp(keys.jeff, "execute_change", { operation_id: falseVerificationId }, 7124);
+    assert(falseVerification.isError && falseVerification.content[0].text.includes("operation_reconciliation_needed"), falseVerification.content[0].text);
+    assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [falseVerificationId]))[0].status, "reconciliation_needed");
+    assertEquals(opsMutationCalls.length, falseVerificationCalls + 1, "failed verification never repeats the mutation");
+    const reconciledFalseVerification = await mcp(keys.jeff, "record_reconciliation", {
+      operation_id: falseVerificationId,
+      outcome: "applied",
+      verification: { passed: true, checked: "fresh campaign facts", status: "scheduled" },
+      note: "A fresh read confirms the schedule was applied",
+    }, 7127);
+    assert(!reconciledFalseVerification.isError && reconciledFalseVerification.structuredContent.status === "succeeded",
+      reconciledFalseVerification.content[0].text);
+    const falseVerificationUndo = await mcp(keys.jeff, "undo_change", { operation_id: falseVerificationId }, 7128);
+    assert(!falseVerificationUndo.isError && falseVerificationUndo.structuredContent.status === "undone", falseVerificationUndo.content[0].text);
+
+    const expiredPreview = await mcp(keys.jeff, "preview_change", { kind: "campaign.schedule", account_id: acct, inputs: { campaign_id: "c0000000-0000-4000-8000-000000000001", scheduled_at: new Date(Date.now() + 259200e3).toISOString() } });
+    const expiredId = String(expiredPreview.structuredContent.id);
+    await sql!.unsafe("UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=$1", [expiredId]);
+    const expiredFirst = await mcp(keys.jeff, "execute_change", { operation_id: expiredId }, 7113);
+    const expiredReplay = await mcp(keys.jeff, "execute_change", { operation_id: expiredId }, 7113);
+    const expiredNewRequest = await mcp(keys.jeff, "execute_change", { operation_id: expiredId }, 7114);
+    assert(expiredFirst.isError && expiredReplay.isError && expiredNewRequest.isError
+      && expiredNewRequest.content[0].text.includes("operation_expired"),
+    "expired previews remain errors for both same-key and new-key retries");
     const cmsRead = await mcp(keys.jeff, "read_product", { kind: "site.pages", account_id: (await ticketRow(cmsTicket)).account_id });
     assert(cmsRead.isError && cmsRead.content[0].text.includes("BLOOM_OPS_URL_CMS"), "unconfigured CMS ops say exactly what is missing");
   });
 
 
-  await t.step("Jeff creates and links a first client draft; lost responses recover without duplicates", async () => {
+  await t.step("Jeff creates and links a first client draft; uncertain responses require reconciliation without duplicates", async () => {
     const rows = await sql!.unsafe("SELECT id FROM bloom_support.accounts WHERE crm_tenant_id=$1", [T.rosehill]);
     const account = String(rows[0].id);
     const linkCount = async (site?: string) => Number((await sql!.unsafe(
@@ -768,31 +1187,87 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       const id = String(preview.structuredContent.id);
       const service = await mcp(keys.operations, "execute_change", { operation_id: id });
       assert(service.isError, "service identity cannot execute site creation");
+      const creationCallsBefore = cmsOperationCalls.length;
       cmsLoseCreatedResponse = true;
-      const interrupted = await mcp(keys.jeff, "execute_change", { operation_id: id });
+      const interrupted = await mcp(keys.jeff, "execute_change", { operation_id: id }, 7130);
       assert(interrupted.isError, "lost response is not reported as success");
+      assert(interrupted.content[0].text.includes("operation_reconciliation_needed"), interrupted.content[0].text);
       assertEquals(cmsDrafts.size, 1, "remote draft committed exactly once");
-      assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [id]))[0].status, "failed");
-      await sql!.unsafe("UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=$1", [id]);
-      const recovered = await mcp(keys.jeff, "execute_change", { operation_id: id });
-      assert(!recovered.isError, recovered.content[0].text);
-      assertEquals(recovered.structuredContent.status, "succeeded");
-      assertEquals(recovered.structuredContent.verification.account_linked, true);
+      assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [id]))[0].status, "reconciliation_needed");
+      const sameKey = await mcp(keys.jeff, "execute_change", { operation_id: id }, 7130);
+      const newKey = await mcp(keys.jeff, "execute_change", { operation_id: id }, 7131);
+      assert(sameKey.isError && sameKey.content[0].text === interrupted.content[0].text, "same-key retry preserves the uncertain outcome");
+      assert(newKey.isError && newKey.content[0].text.includes("operation_reconciliation_needed"), "a new key cannot recreate an uncertain site draft");
+      assertEquals(cmsOperationCalls.length, creationCallsBefore + 1, "uncertain site creation is sent only once");
       assertEquals(cmsDrafts.size, 1);
-      assertEquals(cmsOperationCalls.at(-1)?.resume_only, true, "expired recovery cannot create a new draft");
+
       const site = String(cmsDrafts.get(id)!.result.site.id);
+      const reconciled = await mcp(keys.jeff, "record_reconciliation", {
+        operation_id: id,
+        outcome: "applied",
+        verification: { passed: true, checked: "BloomSites draft record", result: cmsDrafts.get(id)!.result },
+        note: "Verified the unpublished website-only draft and its client workspace",
+      }, 7132);
+      assert(!reconciled.isError && reconciled.structuredContent.status === "succeeded", reconciled.content[0].text);
       assertEquals(await linkCount(site), 1, "draft linked only to selected client");
-      const again = await mcp(keys.jeff, "execute_change", { operation_id: id });
-      assert(again.structuredContent.already, "completed creation remains exactly once");
+      const healedCreationReceipt = await mcp(keys.jeff, "execute_change", { operation_id: id }, 7130);
+      assert(!healedCreationReceipt.isError && healedCreationReceipt.structuredContent.status === "succeeded" && healedCreationReceipt.structuredContent.already,
+        "site verification heals the original lost-response receipt");
+
+      // A signed CMS response for the wrong tenant is an uncertain remote
+      // effect, never a successful client link. Retries must not create again.
+      const tenantMismatchPreview = await mcp(keys.jeff, "preview_change", { kind: "site.create_draft", account_id: account,
+        inputs: { name: "Wrong tenant draft", subdomain: "wrong-tenant-draft" } });
+      const tenantMismatchId = String(tenantMismatchPreview.structuredContent.id);
+      const expectedTenant = String(tenantMismatchPreview.structuredContent.inputs.expected_tenant_id);
+      assertEquals(expectedTenant, cmsDrafts.get(id)!.result.site.tenant_id);
+      const mismatchLinksBefore = await linkCount();
+      const mismatchCallsBefore = cmsOperationCalls.length;
+      cmsWrongTenantNext = true;
+      const tenantMismatch = await mcp(keys.jeff, "execute_change", { operation_id: tenantMismatchId }, 7136);
+      assert(tenantMismatch.isError && tenantMismatch.content[0].text.includes("operation_reconciliation_needed"), tenantMismatch.content[0].text);
+      const tenantMismatchDraft = cmsDrafts.get(tenantMismatchId)!;
+      assertNotEquals(tenantMismatchDraft.result.site.tenant_id, expectedTenant);
+      assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [tenantMismatchId]))[0].status, "reconciliation_needed");
+      assertEquals(await linkCount(tenantMismatchDraft.result.site.id), 0, "wrong-tenant draft is never linked to the client");
+      assertEquals(await linkCount(), mismatchLinksBefore, "tenant mismatch creates no client link");
+      const tenantMismatchReplay = await mcp(keys.jeff, "execute_change", { operation_id: tenantMismatchId }, 7136);
+      const tenantMismatchNewKey = await mcp(keys.jeff, "execute_change", { operation_id: tenantMismatchId }, 7137);
+      assert(tenantMismatchReplay.isError && tenantMismatchNewKey.isError, "wrong-tenant effect remains reconciliation-only");
+      assertEquals(cmsOperationCalls.length, mismatchCallsBefore + 1, "wrong-tenant effect is never sent twice");
+
+      // Simulate a process dying after recording the product-effect claim but
+      // before it can record uncertainty. A later request must transition the
+      // stale row to reconciliation without sending site.create_draft.
+      const stalePreview = await mcp(keys.jeff, "preview_change", { kind: "site.create_draft", account_id: account,
+        inputs: { name: "Stale claim draft", subdomain: "stale-claim-draft" } });
+      const staleId = String(stalePreview.structuredContent.id);
+      await sql!.unsafe("UPDATE bloom_support.operations SET status='executing', updated_at=now()-interval '6 minutes' WHERE id=$1", [staleId]);
+      const staleCallsBefore = cmsOperationCalls.length;
+      const staleClaim = await mcp(keys.jeff, "execute_change", { operation_id: staleId }, 7133);
+      assert(staleClaim.isError && staleClaim.content[0].text.includes("operation_reconciliation_needed"), staleClaim.content[0].text);
+      const staleNewKey = await mcp(keys.jeff, "execute_change", { operation_id: staleId }, 7134);
+      assert(staleNewKey.isError && staleNewKey.content[0].text.includes("operation_reconciliation_needed"), staleNewKey.content[0].text);
+      assertEquals(cmsOperationCalls.length, staleCallsBefore, "stale site claim never resends the remote effect");
+      const staleResolved = await mcp(keys.jeff, "record_reconciliation", {
+        operation_id: staleId,
+        outcome: "not_applied",
+        verification: { passed: true, checked: "BloomSites operation and site records" },
+        note: "No draft exists for this operation id",
+      }, 7135);
+      assert(!staleResolved.isError && staleResolved.structuredContent.status === "failed", staleResolved.content[0].text);
+
       const next = await mcp(keys.jeff, "preview_change", { kind: "site.create_draft", account_id: account, inputs: { name: "Another draft", subdomain: "another-draft" } });
       assert(!next.isError, next.content[0].text);
       assertEquals(next.structuredContent.preview.workspace.creates_new_workspace, false, "subsequent draft uses linked client workspace");
       const nextId = String(next.structuredContent.id);
       cmsFailBeforeCreation = true;
-      assert((await mcp(keys.jeff, "execute_change", { operation_id: nextId })).isError);
+      const rejected = await mcp(keys.jeff, "execute_change", { operation_id: nextId });
+      assert(rejected.isError && !rejected.content[0].text.includes("reconciliation_needed"), "an explicit pre-commit rejection is a definite failure");
+      assertEquals((await sql!.unsafe("SELECT status FROM bloom_support.operations WHERE id=$1", [nextId]))[0].status, "failed");
       await sql!.unsafe("UPDATE bloom_support.operations SET expires_at=now()-interval '1 minute' WHERE id=$1", [nextId]);
       assert((await mcp(keys.jeff, "execute_change", { operation_id: nextId })).isError, "expired uncreated request needs a new preview");
-      assertEquals(cmsDrafts.size, 1, "expired preview creates no replacement");
+      assertEquals(cmsDrafts.size, 2, "expired preview creates no replacement");
     } finally {
       Deno.env.delete("BLOOM_OPS_URL_CMS");
       Deno.env.delete("BLOOM_OPS_SECRET_CMS");
@@ -806,8 +1281,12 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertExists(crm.engineering_issue_id);
     const ack = resendSent.find((m) => m.to[0] === "gail@greenleaf.test");
     assertExists(ack, "acknowledgement emailed");
+    assertEquals(ack!.reply_to, "support@bloom.test", "customer mail replies to the public inbox, not the sending domain");
     assert(ack!.subject.startsWith(`[Bloom #${crm.number}]`));
-    assert(ack!.headers["Message-ID"].startsWith("<bloom."));
+    assertEquals(ack!.headers["Auto-Submitted"], "auto-replied", "Bloom's acknowledgement prevents automatic response loops");
+    // The first email of a ticket carries the ticket's stable thread root, so every later email threads under it.
+    assert(ack!.headers["Message-ID"].startsWith(`<bloom-ticket.${crmTicket}@`), ack!.headers["Message-ID"]);
+    assert(ack!.text.includes(`Request #${crm.number} · `), "plain-text body keeps the request line");
     assert(ack!.text.includes("https://bloomsuite.test/support/track/"), "tracking link included");
     assert(!githubCalls.some((c) => c.method === "POST" && c.path.endsWith("/dispatches")), "Bloom never starts a coding agent on its own");
     const startReq = await sql!`SELECT audience, status FROM bloom_support.escalations WHERE engineering_issue_id = ${crm.engineering_issue_id} AND reason = 'engineering_start_requested'`;
@@ -833,6 +1312,70 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(notStarted[0].n, 0, "a single GitHub server error does not stop a repair");
     const cms = await ticketRow(cmsTicket);
     assertEquals(cms.kind, "question");
+    const handoff = (await sql!`
+      SELECT id, audience, reason, detail, dedupe_key, status
+      FROM bloom_support.escalations
+      WHERE ticket_id = ${cmsTicket} AND reason = 'Support reply needed'
+      ORDER BY created_at DESC LIMIT 1
+    `)[0];
+    assert(handoff && ["open", "acknowledged"].includes(handoff.status),
+      "Bloom creates an active escalation before promising a person will continue");
+    const handoffMessagesBefore = Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.messages
+      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%I''m handing this to a person%'
+    `)[0].n);
+    assertEquals(handoffMessagesBefore, 1, "one public handoff follows the active escalation");
+    const resolved = await mcp(keys.jon, "record_decision", { escalation_id: handoff.id, decision: "Reviewed for resolved-retry regression" });
+    assert(!resolved.isError, resolved.content[0].text);
+    const duplicateHandoff = (await sql!.unsafe(
+      `SELECT bloom_support.escalate(
+        (SELECT id FROM bloom_support.principals WHERE auth_user_id=$1::uuid),
+        $2::uuid,$3::text,$4::text,$5::text,$6::text
+      ) AS result`,
+      [U.jon, cmsTicket, handoff.audience, handoff.reason, handoff.detail, handoff.dedupe_key],
+    ))[0].result;
+    assertEquals(duplicateHandoff.status, "resolved", "a resolved duplicate is not represented as an active handoff");
+    await sql!`
+      INSERT INTO bloom_support.jobs(kind, ticket_id, lane, payload, idempotency_key)
+      VALUES ('answer', ${cmsTicket}, ${"answer-retry:" + cmsTicket}, '{}', ${"answer-resolved-retry:" + cmsTicket})
+    `;
+    await runWorkerUntilIdle();
+    const handoffMessagesAfter = Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.messages
+      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%I''m handing this to a person%'
+    `)[0].n);
+    assertEquals(handoffMessagesAfter, handoffMessagesBefore,
+      "retrying after the escalation was resolved does not make a false new takeover promise");
+
+    // Force the routing call itself to fail by pre-seeding the exact next
+    // handoff key against another ticket. The worker must fail the job before
+    // it can publish any human-takeover language.
+    const failureMessageId = crypto.randomUUID();
+    await sql!`
+      INSERT INTO bloom_support.messages(id, conversation_id, ticket_id, author_id, author_kind, visibility, direction, body, idempotency_key)
+      SELECT ${failureMessageId}, conversation_id, id, requester_id, 'client', 'public', 'inbound',
+        'A new unanswered question for the routing-failure regression.', ${"handoff-failure-message:" + cmsTicket}
+      FROM bloom_support.tickets WHERE id = ${cmsTicket}
+    `;
+    const failureKey = `answer-handoff:${cmsTicket}:${cms.reopen_count}:${failureMessageId}`;
+    await sql!`
+      INSERT INTO bloom_support.escalations(ticket_id, audience, reason, detail, dedupe_key)
+      VALUES (${crmTicket}, 'both', 'Collision fixture', 'Must not be returned to the CMS ticket', ${failureKey})
+    `;
+    await sql!`
+      INSERT INTO bloom_support.jobs(kind, ticket_id, lane, payload, idempotency_key)
+      VALUES ('answer', ${cmsTicket}, ${"answer-routing-failure:" + cmsTicket}, '{}', ${"answer-routing-failure:" + cmsTicket})
+    `;
+    await runWorkerUntilIdle();
+    const handoffMessagesAfterFailure = Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.messages
+      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%I''m handing this to a person%'
+    `)[0].n);
+    assertEquals(handoffMessagesAfterFailure, handoffMessagesAfter,
+      "a failed escalation cannot publish a human-takeover promise");
+    await sql!`DELETE FROM bloom_support.jobs WHERE idempotency_key = ${"answer-routing-failure:" + cmsTicket}`;
+    await sql!`DELETE FROM bloom_support.escalations WHERE dedupe_key = ${failureKey}`;
+    await sql!`DELETE FROM bloom_support.messages WHERE id = ${failureMessageId}`;
     const pub = await sql!`
       SELECT o.status, o.error
       FROM bloom_support.outbound_emails o
@@ -860,7 +1403,9 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     resendReceived.set("forwarded-provider-email", { from: "Gail <gail@greenleaf.test>", to: ["another-visible-to@example.org"], subject: "How do I find support replies?", text: "How do I find the replies to my support request?", message_id: "<forward-route@greenleaf.test>", headers: {} });
     const forwardedRoute = await inbound("msg_forward_route", { email_id: "forwarded-provider-email", to: ["another-visible-to@example.org"], received_for: ["FORWARD@inbound.test"] });
     assertExists(forwardedRoute.json.ticket_id, JSON.stringify(forwardedRoute.json));
-    assertEquals((await ticketRow(forwardedRoute.json.ticket_id)).summary, "How do I find the replies to my support request?", "metadata-only webhook loads the body from the Receiving API");
+    const forwardedRouteTicket = await ticketRow(forwardedRoute.json.ticket_id);
+    assertEquals(forwardedRouteTicket.summary, "How do I find the replies to my support request?", "metadata-only webhook loads the body from the Receiving API");
+    assertEquals(forwardedRouteTicket.automation, "auto", "recipient routing preserves automation for mail the client sent directly to support");
     const crm = await ticketRow(crmTicket);
     ackId = resendSent.find((m) => m.to[0] === "gail@greenleaf.test")!.headers["Message-ID"];
     const reply = await inbound("msg_1", { email_id: "e1", from: "Gail Green <gail@greenleaf.test>", to: ["support@bloom.test"], subject: `Re: [Bloom #${crm.number}] Campaign preview button broken`, text: `It happens in Chrome too.\n\nOn Tue, Bloom wrote:\n> Thanks`, message_id: "<g1@greenleaf.test>", headers: { "In-Reply-To": ackId } });
@@ -981,6 +1526,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const sentNow = resendSent.slice(before).filter((m) => m.to[0] === "newperson@example.org");
     assertEquals(sentNow.length, 1, "only Jeff's own reply is emailed");
     assert(sentNow[0].text.includes("Jeff here"));
+    assertEquals(sentNow[0].headers["Auto-Submitted"], undefined, "a person's reply is not labelled as an automatic response");
     assertEquals(sentNow[0].headers["In-Reply-To"], "<n1@example.org>", "reply threads onto the client's email");
     const before2 = resendSent.length;
     await inbound("msg_4", { email_id: "e4", from: "newperson@example.org", subject: "Re: invoices", text: "Thanks! One more thing.", message_id: "<n2@example.org>", headers: { "In-Reply-To": sentNow[0].headers["Message-ID"] } });
@@ -1296,7 +1842,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(e.status, "awaiting_approval", JSON.stringify({ e, jobs: await sql!`SELECT kind, status, last_error, payload FROM bloom_support.jobs WHERE engineering_issue_id = ${eng}` }));
     assert(JSON.stringify(e.eligibility.reasons).includes("review-required paths"));
     assert(!githubCalls.some((c) => c.path.endsWith("/pulls/7/merge")), "sensitive fix not merged");
-    assertEquals((await ticketRow(posTicket)).status, "needs_owner", "ticket shows Needs Jon/Jeff");
+    assertEquals((await ticketRow(posTicket)).status, "needs_owner", "ticket shows Needs admin");
     const esc = await mcp(keys.jon, "list_escalations", {});
     assert(JSON.stringify(esc.structuredContent ?? esc.content[0].text).includes("engineering_awaiting_approval"));
     assert((await mcp(keys.jeff, "approve_fix", { issue_id: eng })).isError, "only Jon approves");
@@ -1326,6 +1872,10 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals((await call("bloom-support-worker", "POST", "", { body: {} })).status, 401, "unauthenticated worker call refused");
     const r = await mcp(keys.jon, "readiness", {});
     assert(!r.isError, r.content[0].text);
+    assert(
+      String(r.structuredContent.live_evidence).includes("not a deployment or health check"),
+      "readiness explains that live evidence is observed use, not a deployment or health result",
+    );
     const caps = r.structuredContent.capabilities as Array<{ key: string; configured: boolean; enabled: boolean | null; live: string | null; missing: string[] }>;
     const ai = caps.find((c) => c.key === "ai")!;
     assert(!ai.configured && ai.missing.includes("OPENAI_API_KEY"), "model honestly unconfigured");
@@ -1335,7 +1885,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertExists(esc?.due_at, "escalations carry a deadline");
     const ack = await mcp(keys.jeff, "acknowledge_escalation", { escalation_id: esc.id, note: "mine" });
     assert(!ack.isError, ack.content[0].text);
-    assert((await mcp(keys.sam, "acknowledge_escalation", { escalation_id: esc.id })).isError, "Support cannot take Jon/Jeff escalations");
+    assert((await mcp(keys.sam, "acknowledge_escalation", { escalation_id: esc.id })).isError, "Support cannot take admin escalations");
   });
 
   await t.step("ChatGPT OAuth: register → BloomSuite approval → PKCE token → MCP as that person → refresh", async () => {
@@ -1368,8 +1918,24 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const who = await mcp(tokRes.json.access_token, "whoami", {});
     assertEquals(who.structuredContent.role, "platform_operator", "ChatGPT acts as Jeff, with Jeff's permissions");
     assert((await mcp(tokRes.json.access_token, "decide_feature_request", { feature_request_id: crypto.randomUUID(), decision: "accepted" })).isError, "Jeff's connection cannot do Jon-only actions");
+    const oauthImplicitArgs = { title: "OAuth refresh lost-response receipt", kind: "problem", product: "crm" };
+    const oauthImplicitFirst = await mcp(tokRes.json.access_token, "create_problem", oauthImplicitArgs, 8800);
+    assert(!oauthImplicitFirst.isError, oauthImplicitFirst.content[0].text);
+    const oauthSession = mcpSessions.get(tokRes.json.access_token);
+    assertExists(oauthSession, "the OAuth MCP connection has a server session");
     const ref = await call("bloom-support-api", "POST", "/oauth/token", { raw: form({ grant_type: "refresh_token", refresh_token: tokRes.json.refresh_token, client_id: clientId }), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
     assert(ref.json.access_token && ref.json.refresh_token !== tokRes.json.refresh_token, "refresh rotates");
+    const oauthImplicitRetryResponse = await call("bloom-support-mcp", "POST", "", {
+      token: ref.json.access_token,
+      headers: { "mcp-session-id": oauthSession! },
+      body: { jsonrpc: "2.0", id: 8800, method: "tools/call", params: { name: "create_problem", arguments: oauthImplicitArgs } },
+    });
+    const oauthImplicitRetry = oauthImplicitRetryResponse.json.result;
+    assertEquals(oauthImplicitRetry.structuredContent, oauthImplicitFirst.structuredContent,
+      "an implicit write retry keeps its receipt across OAuth access-token rotation");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.problems WHERE title = 'OAuth refresh lost-response receipt'
+    `)[0].n), 1, "OAuth refresh retry creates one durable record");
     const reuse = await call("bloom-support-api", "POST", "/oauth/token", { raw: form({ grant_type: "refresh_token", refresh_token: tokRes.json.refresh_token, client_id: clientId }), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
     assertEquals(reuse.json.error, "invalid_grant", "old refresh token revoked");
   });
@@ -1502,14 +2068,25 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(attempts[0].subject, attempts[1].subject, "same subject on retry");
     assertEquals(JSON.stringify(attempts[0].cc ?? null), JSON.stringify(attempts[1].cc ?? null), "same cc on retry");
 
-    // Authorized forward: staff forwarder with passing DKIM/SPF; the client is the requester.
+    // Authorized forward: staff forwarder with valid DKIM; the client is the requester.
     const fwd = await inbound("msg_fwd", await dkimSigned("msg_fwd", { email_id: "efwd", from: "Jeff <jeff@bloom.test>", subject: "Fwd: website down?", message_id: "<fwd1@bloom.test>",
-      text: "FYI\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nOur website shows an error page." }));
+      text: "FYI\n\n---------- Forwarded message ---------\nFrom: Gail Green <gail@greenleaf.test>\nDate: today\n\nOur website shows an error page.",
+      attachments: [{ id: "unsafe-forward-file", filename: "unsafe.exe", content_type: "application/octet-stream", size: 4, download_url: "https://attachment.test/forward/unsafe.exe" }] }));
     assertExists(fwd.json.ticket_id, `forward filed: ${JSON.stringify(fwd.json)}`);
     const fr = await ticketRow(fwd.json.ticket_id);
     assertEquals(fr.context.forward_authorized, true);
+    assertEquals(fr.context.manual_forward_review, true);
+    assertEquals(fr.automation, "paused", "a manual staff forward waits for review before Bloom contacts the named client");
     const req = (await sql!`SELECT email FROM bloom_support.principals WHERE id = ${fr.requester_id}`)[0];
     assertEquals(req.email, "gail@greenleaf.test");
+    await runWorkerUntilIdle();
+    assertEquals(
+      Number((await sql!`SELECT count(*) AS n FROM bloom_support.outbound_emails WHERE ticket_id = ${fwd.json.ticket_id}`)[0].n),
+      0,
+      "a manual staff forward never triggers an acknowledgement before review",
+    );
+    const heldAttachment = (await sql!`SELECT visibility, notify_client FROM bloom_support.messages WHERE ticket_id = ${fwd.json.ticket_id} AND body LIKE 'Bloom could not accept these attachments from the forwarded email:%'`)[0];
+    assertEquals([heldAttachment.visibility, heldAttachment.notify_client], ["internal", false], "rejected forwarded attachments stay inside the review queue");
 
     // Unverified forward: the forwarder is the requester; the named third party is never emailed.
     await runWorkerUntilIdle();
@@ -1528,6 +2105,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       text: "---------- Forwarded message ---------\nFrom: Visitor <visitor@example.net>\n\nDo you integrate with my till?",
  }));
     const rr = await ticketRow(relay.json.ticket_id);
+    assertEquals(rr.automation, "auto", "an authenticated purpose-built support relay remains automated");
     // A forged relay: right sender address and a fake Authentication-Results header, but no valid
     // DKIM signature. The forward is not honoured; the third party is not the requester.
     const forgedRelay = await inbound("msg_forged_relay", { email_id: "eforged", from: "BloomSuite Contact <support@brandsinblooms.com>", subject: "Fwd: Contact form", message_id: "<forged1@x.test>",
@@ -1599,21 +2177,506 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   });
 
 
+  await t.step("feature decisions reach every active requester and never reopen stale tickets", async () => {
+    const first = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Shared feature decision A", body: "Please add a shared feature decision fixture.", idempotency_key: "e2e-feature-followup-a" },
+    });
+    const second = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Shared feature decision B", body: "I need the same feature too.", idempotency_key: "e2e-feature-followup-b" },
+    });
+    assertEquals(first.status, 201, JSON.stringify(first.json));
+    assertEquals(second.status, 201, JSON.stringify(second.json));
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE kind = 'triage' AND ticket_id IN (${first.json.ticket_id}, ${second.json.ticket_id})`;
+
+    const routed = await api("POST", `/tickets/${first.json.ticket_id}/feature`, tok(U.jon), { title: "Shared feature decision fixture" });
+    assertEquals(routed.status, 200, JSON.stringify(routed.json));
+    const featureId = String(routed.json.feature_request_id);
+    const linked = await api("POST", `/tickets/${second.json.ticket_id}/feature`, tok(U.jon), {
+      feature_request_id: featureId,
+      excerpt: "A second requester needs the same feature.",
+    });
+    assertEquals(linked.status, 200, JSON.stringify(linked.json));
+    const decision = await api("POST", `/features/${featureId}/decision`, tok(U.jon), { decision: "planned", note: "Approved for planning" });
+    assertEquals(decision.status, 200, JSON.stringify(decision.json));
+
+    const queued = await sql!`
+      SELECT ticket_id, idempotency_key
+      FROM bloom_support.jobs
+      WHERE kind = 'answer'
+        AND payload @> '{"mode":"feature_decision","decision":"planned"}'::jsonb
+        AND ticket_id IN (${first.json.ticket_id}, ${second.json.ticket_id})
+    `;
+    assertEquals(queued.length, 2, "every linked requester gets a durable follow-up job");
+    assertEquals(new Set(queued.map((job) => job.idempotency_key)).size, 2, "each ticket has its own idempotency key");
+
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now()
+      WHERE id = ${second.json.ticket_id}
+    `;
+    await runWorkerUntilIdle(10);
+
+    const active = await ticketRow(first.json.ticket_id);
+    const stale = await ticketRow(second.json.ticket_id);
+    assertEquals([active.status, active.stage, active.waiting_reason], ["resolved", "resolved", null],
+      "a product decision closes the support request without pretending the client owes a reply");
+    assertExists(active.first_response_at, "the product decision counts as a substantive first response");
+    assertEquals([stale.status, stale.stage], ["resolved", "resolved"], "a stale decision job cannot reopen a resolved request");
+    const activeFeatureMessage = (await sql!`
+      SELECT purpose, meaningful
+      FROM bloom_support.messages
+      WHERE ticket_id = ${first.json.ticket_id}
+        AND author_kind = 'bloom'
+        AND purpose = 'feature_decision'
+    `)[0];
+    assertEquals([activeFeatureMessage?.purpose, activeFeatureMessage?.meaningful], ["feature_decision", true],
+      "the active requester receives one substantive, typed feature-decision message");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.messages
+      WHERE ticket_id = ${second.json.ticket_id}
+        AND purpose = 'feature_decision'
+    `)[0].n), 0, "the resolved requester receives no stale follow-up");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE ticket_id = ${first.json.ticket_id}
+        AND purpose = 'feature_decision'
+    `)[0].n), 1, "the email ledger retains the feature-decision lifecycle type");
+  });
+
+  await t.step("feature shipment subscriptions notify resolved and human-owned requesters once without taking over", async () => {
+    const resolvedRequest = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Shipment subscriber A", body: "Please let me know when shared wishlists ship.", idempotency_key: "e2e-feature-shipment-a" },
+    });
+    const humanRequest = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.rosa),
+      body: { subject: "Shipment subscriber B", body: "Please tell me when shared wishlists are available.", idempotency_key: "e2e-feature-shipment-b" },
+    });
+    assertEquals(resolvedRequest.status, 201, JSON.stringify(resolvedRequest.json));
+    assertEquals(humanRequest.status, 201, JSON.stringify(humanRequest.json));
+    const resolvedId = String(resolvedRequest.json.ticket_id);
+    const humanId = String(humanRequest.json.ticket_id);
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE kind = 'triage' AND ticket_id IN (${resolvedId}, ${humanId})`;
+
+    const routed = await api("POST", `/tickets/${resolvedId}/feature`, tok(U.jon), { title: "Shared wishlists" });
+    assertEquals(routed.status, 200, JSON.stringify(routed.json));
+    const featureId = String(routed.json.feature_request_id);
+    const linked = await api("POST", `/tickets/${humanId}/feature`, tok(U.jon), {
+      feature_request_id: featureId,
+      excerpt: "A second customer asked for the same feature.",
+    });
+    assertEquals(linked.status, 200, JSON.stringify(linked.json));
+
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now(),
+          waiting_reason = NULL, waiting_since = NULL
+      WHERE id = ${resolvedId}
+    `;
+    const takeover = await api("POST", `/tickets/${humanId}/automation`, tok(U.jon), {
+      mode: "human",
+      reason: "Support is handling the conversation",
+    });
+    assertEquals(takeover.status, 200, JSON.stringify(takeover.json));
+
+    const before = await sql!`
+      SELECT id, status, stage, automation, executor, executor_id, owner_id,
+             next_action, resolved_at, version
+      FROM bloom_support.tickets
+      WHERE id IN (${resolvedId}, ${humanId})
+      ORDER BY id
+    `;
+    const shipmentEmailCount = () => resendSent.filter((message) => message.subject.includes("Shipment subscriber")).length;
+    const emailsBeforeShipment = shipmentEmailCount();
+    const shipped = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Available in production",
+    });
+    assertEquals(shipped.status, 200, JSON.stringify(shipped.json));
+
+    const shipmentJobs = await sql!`
+      SELECT id, ticket_id, status, payload
+      FROM bloom_support.jobs
+      WHERE kind = 'answer'
+        AND payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '1'
+    `;
+    assertEquals(shipmentJobs.length, 2, "each subscription has one durable shipment job");
+    assert(shipmentJobs.every((job) => Number(job.payload.generation) === 1), "the first shipment is generation one");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 1
+        AND d.delivery_status = 'queued'
+    `)[0].n), 2, "each subscription has one immutable generation-one delivery");
+    await sql!`SELECT bloom_support.invalidate_planned(${resolvedId}::uuid, 'customer reply before worker')`;
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.jobs
+      WHERE payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '1'
+        AND status = 'queued'
+    `)[0].n), 2, "ordinary invalidation preserves both shipment promises");
+
+    const planned = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "planned",
+      note: "Held before the notification worker ran",
+    });
+    assertEquals(planned.status, 200, JSON.stringify(planned.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 1
+        AND d.retracted_at IS NOT NULL
+        AND d.delivery_status = 'suppressed'
+        AND d.notification_message_id IS NULL
+    `)[0].n), 2, "planning after shipped retracts generation one before it renders");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.jobs
+      WHERE payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '1'
+        AND status = 'cancelled'
+    `)[0].n), 2, "the retracted generation-one answer jobs are cancelled");
+    await runWorkerUntilIdle(4);
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment, "a retracted pre-render generation sends no email");
+
+    const shippedAgain = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Available again",
+    });
+    assertEquals(shippedAgain.status, 200, JSON.stringify(shippedAgain.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions
+      WHERE feature_request_id = ${featureId} AND current_generation = 2
+    `)[0].n), 2, "the next real shipment starts generation two once per subscription");
+
+    const automationPrincipal = String((await sql!`
+      SELECT id
+      FROM bloom_support.principals
+      WHERE kind = 'service' AND role = 'service' AND 'automation' = ANY(grants)
+      LIMIT 1
+    `)[0].id);
+    await sql!`
+      SELECT public.bloom_support_deliver_feature_shipment(
+        ${automationPrincipal}::uuid,
+        subscription.id,
+        subscription.current_generation,
+        'Good news — the lifecycle fixture is now available.'
+      )
+      FROM bloom_support.feature_shipment_subscriptions subscription
+      WHERE subscription.feature_request_id = ${featureId}
+    `;
+    const generationTwoMessages = await sql!`
+      SELECT d.notification_message_id AS id
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 2
+        AND d.notification_message_id IS NOT NULL
+      ORDER BY d.notification_message_id
+    `;
+    assertEquals(generationTwoMessages.length, 2, "generation two renders exactly one message per subscription");
+
+    const declined = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "declined",
+      note: "Withdrawn before the email worker ran",
+    });
+    assertEquals(declined.status, 200, JSON.stringify(declined.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 2
+        AND d.retracted_at IS NOT NULL
+        AND d.delivery_status = 'suppressed'
+    `)[0].n), 2, "declining retracts both rendered generation-two deliveries");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.messages
+      WHERE id IN (${generationTwoMessages[0].id}, ${generationTwoMessages[1].id})
+        AND delivery = 'suppressed'
+        AND withdrawn_at IS NOT NULL
+    `)[0].n), 2, "rendered shipment messages are withdrawn before email dispatch");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.jobs
+      WHERE kind = 'send_email'
+        AND payload->>'feature_shipment_generation' = '2'
+        AND status = 'cancelled'
+    `)[0].n), 2, "the generation-two email jobs are cancelled before dispatch");
+    await runWorkerUntilIdle(4);
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment, "withdrawn rendered messages never reach the provider stub");
+
+    const staleAttempts = await sql!`
+      SELECT public.bloom_support_deliver_feature_shipment(
+        ${automationPrincipal}::uuid,
+        subscription.id,
+        stale.generation,
+        'A stale generation must not be recreated.'
+      ) AS result
+      FROM bloom_support.feature_shipment_subscriptions subscription
+      CROSS JOIN (VALUES (1), (2)) AS stale(generation)
+      WHERE subscription.feature_request_id = ${featureId}
+    `;
+    assert(staleAttempts.every((row) => row.result.delivered === false), "every retracted generation stays permanently undeliverable");
+
+    const shippedFinally = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Finally available",
+    });
+    assertEquals(shippedFinally.status, 200, JSON.stringify(shippedFinally.json));
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions
+      WHERE feature_request_id = ${featureId} AND current_generation = 3
+    `)[0].n), 2, "the later shipment creates generation three exactly once");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.jobs
+      WHERE kind = 'answer'
+        AND payload->>'mode' = 'feature_shipment'
+        AND payload->>'feature_request_id' = ${featureId}
+        AND payload->>'generation' = '3'
+    `)[0].n), 2, "generation three has one answer job per subscription");
+
+    await sql!`
+      UPDATE bloom_support.principals requester
+      SET email = NULL
+      FROM bloom_support.tickets ticket
+      WHERE ticket.id = ${humanId}
+        AND requester.id = ticket.requester_id
+    `;
+    await runWorkerUntilIdle(10);
+    const messages = await sql!`
+      SELECT m.ticket_id, m.id, m.delivery, m.purpose, m.meaningful
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      JOIN bloom_support.messages m ON m.id = d.notification_message_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 3
+      ORDER BY m.ticket_id
+    `;
+    assertEquals(messages.length, 2);
+    assert(messages.every((message) => message.purpose === "feature_decision" && message.meaningful === true),
+      "both requesters receive one substantive, typed message for the current generation");
+    const emailedMessage = messages.find((message) => String(message.ticket_id) === resolvedId);
+    const inProductMessage = messages.find((message) => String(message.ticket_id) === humanId);
+    assert(emailedMessage && ["sent", "delivered"].includes(String(emailedMessage.delivery)),
+      "the requester with email reaches the provider path");
+    assertEquals(inProductMessage?.delivery, "suppressed",
+      "the requester without email reaches a terminal in-product-only state");
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 1, "only the current emailable generation reaches the provider stub");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE message_id IN (${messages[0].id}, ${messages[1].id})
+        AND purpose = 'feature_decision'
+        AND status = 'sent'
+    `)[0].n), 1, "human takeover does not suppress the explicitly subscribed emailable shipment");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND s.ticket_id = ${humanId}
+        AND d.generation = 3
+        AND d.delivery_status = 'suppressed'
+        AND d.retracted_at IS NULL
+        AND s.delivery_status = 'suppressed'
+    `)[0].n), 1, "in-product-only delivery terminalizes both immutable and current summaries");
+    await sql!`
+      UPDATE bloom_support.principals requester
+      SET email = 'rosa@rosehill.test'
+      FROM bloom_support.tickets ticket
+      WHERE ticket.id = ${humanId}
+        AND requester.id = ticket.requester_id
+    `;
+
+    const resolvedShipment = (await sql!`
+      SELECT s.id AS subscription_id, d.notification_message_id AS message_id
+      FROM bloom_support.feature_shipment_subscriptions s
+      JOIN bloom_support.feature_shipment_deliveries d
+        ON d.subscription_id = s.id AND d.generation = s.current_generation
+      WHERE s.feature_request_id = ${featureId}
+        AND s.ticket_id = ${resolvedId}
+    `)[0];
+    await sql!`
+      UPDATE bloom_support.messages
+      SET delivery = 'sent'
+      WHERE id = ${resolvedShipment.message_id}
+    `;
+    const subscriptionLocked = deferred();
+    const providerCommitted = deferred();
+    const staleGenerationExit = sql!.begin(async (tx: Any) => {
+      await tx.unsafe(
+        "UPDATE bloom_support.feature_shipment_subscriptions SET delivery_status='queued' WHERE id=$1 RETURNING id",
+        [resolvedShipment.subscription_id],
+      );
+      subscriptionLocked.resolve();
+      await providerCommitted.promise;
+      const skippedSummary = await tx.unsafe(
+        "SELECT delivery_status FROM bloom_support.feature_shipment_subscriptions WHERE id=$1",
+        [resolvedShipment.subscription_id],
+      );
+      assertEquals(skippedSummary[0].delivery_status, "queued",
+        "the concurrent provider callback really did skip the locked subscription summary");
+      const stale = await tx.unsafe(
+        "SELECT public.bloom_support_deliver_feature_shipment($1::uuid, $2::uuid, 2, 'This stale generation must stay retired.') AS result",
+        [automationPrincipal, resolvedShipment.subscription_id],
+      );
+      assertEquals(stale[0].result.delivered, false, "the stale generation remains undeliverable");
+    });
+    await subscriptionLocked.promise;
+    await sql!`
+      UPDATE bloom_support.messages
+      SET delivery = 'delivered'
+      WHERE id = ${resolvedShipment.message_id}
+    `;
+    providerCommitted.resolve();
+    await staleGenerationExit;
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions s
+      JOIN bloom_support.feature_shipment_deliveries d
+        ON d.subscription_id = s.id AND d.generation = s.current_generation
+      WHERE s.id = ${resolvedShipment.subscription_id}
+        AND s.delivery_status = 'delivered'
+        AND d.delivery_status = 'delivered'
+    `)[0].n), 1,
+    "a provider callback skipped by a locked subscription is reconciled from the actual current generation before the early exit");
+
+    const after = await sql!`
+      SELECT id, status, stage, automation, executor, executor_id, owner_id,
+             next_action, resolved_at, version
+      FROM bloom_support.tickets
+      WHERE id IN (${resolvedId}, ${humanId})
+      ORDER BY id
+    `;
+    const workflowState = (rows: Any[]) => rows.map((row) => ({
+      id: String(row.id),
+      status: String(row.status),
+      stage: String(row.stage),
+      automation: String(row.automation),
+      executor: String(row.executor),
+      executor_id: row.executor_id ? String(row.executor_id) : null,
+      owner_id: row.owner_id ? String(row.owner_id) : null,
+      next_action: row.next_action ? String(row.next_action) : null,
+      resolved_at: row.resolved_at ? new Date(row.resolved_at).toISOString() : null,
+      version: Number(row.version),
+    }));
+    assertEquals(workflowState(after), workflowState(before),
+      "shipment delivery does not reopen, reassign, or alter ticket workflow");
+
+    const repeated = await api("POST", `/features/${featureId}/decision`, tok(U.jon), {
+      decision: "shipped",
+      note: "Copy edit only",
+    });
+    assertEquals(repeated.status, 200, JSON.stringify(repeated.json));
+    await runWorkerUntilIdle(4);
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_subscriptions
+      WHERE feature_request_id = ${featureId} AND current_generation = 3
+    `)[0].n), 2, "repeating shipped never increments the current generation");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.feature_shipment_deliveries d
+      JOIN bloom_support.feature_shipment_subscriptions s ON s.id = d.subscription_id
+      WHERE s.feature_request_id = ${featureId}
+        AND d.generation = 3
+        AND d.notification_message_id IS NOT NULL
+    `)[0].n), 2, "repeating the shipped decision never creates another customer message");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.outbound_emails
+      WHERE message_id IN (${messages[0].id}, ${messages[1].id})
+    `)[0].n), 1, "repeating the shipped decision never creates another email ledger row");
+    assertEquals(shipmentEmailCount(), emailsBeforeShipment + 1, "repeating shipped never sends another email");
+  });
+
+  await t.step("an inconclusive repair is handed to a person before Bloom says so", async () => {
+    const report = await call("bloom-support-intake", "POST", "/report", {
+      token: tok(U.gail),
+      body: { subject: "Inconclusive repair handoff", body: "A product problem that cannot be reproduced reliably.", idempotency_key: "e2e-not-reproduced-handoff" },
+    });
+    assertEquals(report.status, 201, JSON.stringify(report.json));
+    const ticketId = String(report.json.ticket_id);
+    await sql!`UPDATE bloom_support.jobs SET status = 'cancelled' WHERE kind = 'triage' AND ticket_id = ${ticketId}`;
+    const opened = await api("POST", `/tickets/${ticketId}/investigate`, tok(U.sam), { title: "Inconclusive repair handoff" });
+    assertEquals(opened.status, 200, JSON.stringify(opened.json));
+    const issueId = String(opened.json.engineering_issue_id);
+    await sql!`
+      UPDATE bloom_support.escalations
+      SET status = 'resolved', resolved_at = now()
+      WHERE engineering_issue_id = ${issueId}
+        AND reason = 'engineering_start_requested'
+    `;
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'working', stage = 'investigating', next_action = NULL
+      WHERE id = ${ticketId}
+    `;
+    // Advance the real engineering record. The progress trigger is the single
+    // production path that queues this customer update; a fabricated job with
+    // a status that disagrees with the issue must be rejected as stale.
+    await sql!`
+      UPDATE bloom_support.engineering_issues
+      SET status = 'not_reproduced',
+          reproduction = '{"result":"not_reproduced","checked_at":"2026-11-07T00:00:00Z"}'::jsonb,
+          version = version + 1,
+          updated_at = now()
+      WHERE id = ${issueId}
+    `;
+    await runWorkerUntilIdle(10);
+
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.escalations
+      WHERE ticket_id = ${ticketId}
+        AND status IN ('open', 'acknowledged')
+        AND reason = 'Engineering review needed'
+    `)[0].n), 1, "a person owns the request durably");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n
+      FROM bloom_support.messages
+      WHERE ticket_id = ${ticketId}
+        AND author_kind = 'bloom'
+        AND visibility = 'public'
+        AND body LIKE '%handed the evidence to a person%'
+    `)[0].n), 1, "Bloom announces the handoff only after routing succeeds");
+  });
+
+
   await t.step("approved help is public; drafts, internal articles and stale approvals stay private", async () => {
     const draft = await api("POST", "/knowledge", tok(U.sam), { product: "platform", title: "Track support requests", body: "Use the tracking link in your support email.", audience: "client", approved: true });
     assertEquals(draft.status, 200);
     assertEquals(draft.json.approved, false, "Support cannot approve its own draft");
-    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0);
+    const starterHelp = await call("bloom-support-api", "GET", "/help");
+    assertEquals(starterHelp.json.length, 9, "the reviewed starter set publishes three articles per product");
+    assert(starterHelp.json.every((article: Any) => !("source_refs" in article)), "repository provenance remains private");
     const approved = await api("POST", "/knowledge", tok(U.jeff), { id: draft.json.id, expected_updated_at: draft.json.updated_at, approved: true });
     assertEquals(approved.status, 200);
     assertEquals(approved.json.approved, true);
     await api("POST", "/knowledge", tok(U.jeff), { product: "crm", title: "Internal operational note", body: "INTERNAL-ARTICLE-PRIVATE", audience: "internal", approved: true });
     const help = await call("bloom-support-api", "GET", "/help?product=pos");
     assertEquals(help.status, 200);
-    assertEquals(help.json.length, 1, "platform guidance is available for every product");
-    assertEquals(help.json[0].id, draft.json.id);
+    assertEquals(help.json.length, 4, "POS guidance includes its three reviewed articles and platform guidance");
+    assert(help.json.some((article: Any) => article.id === draft.json.id), "platform guidance is available for every product");
     assert(!JSON.stringify(help.json).includes("INTERNAL-ARTICLE-PRIVATE"));
-    assert(!("approved_by" in help.json[0]), "approval identity remains private");
+    assert(help.json.every((article: Any) => !("approved_by" in article) && !("source_refs" in article)),
+      "approval identity and repository provenance remain private");
     assertEquals((await call("bloom-support-api", "GET", "/knowledge")).status, 401);
     assertEquals((await call("bloom-support-api", "GET", "/help?product=invalid")).status, 400);
     assertEquals((await api("POST", "/knowledge", keys.automation, { product: "platform", title: "Untrusted draft", body: "x", approved: true })).status, 403);
@@ -1622,7 +2685,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(edited.json.approved, false);
     const stale = await api("POST", "/knowledge", tok(U.jeff), { id: approved.json.id, expected_updated_at: approved.json.updated_at, approved: true });
     assertEquals(stale.status, 409, "a stale review cannot approve content edited by another person");
-    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 0, "withdrawn approvals disappear from public help");
+    assertEquals((await call("bloom-support-api", "GET", "/help")).json.length, 9,
+      "withdrawn approvals disappear while the reviewed starter guidance remains public");
   });
 
   await t.step("kill switch and health", async () => {

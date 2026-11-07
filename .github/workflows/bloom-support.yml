@@ -7,6 +7,7 @@ on:
       - 'supabase/functions/_shared/bloom-support/**'
       - 'scripts/tests/bloom-support-*'
       - 'scripts/tests/run-bloom-support-tests.sh'
+      - 'src/lib/bloomSupport/trackView.ts'
       - '.github/workflows/bloom-support.yml'
   push:
     branches: [main]
@@ -40,3 +41,10 @@ jobs:
       - name: SQL contract, unit and end-to-end tests
         env: { PGHOST: 127.0.0.1, PGHOSTADDR: 127.0.0.1, PGPORT: '5432', PGUSER: postgres }
         run: scripts/tests/run-bloom-support-tests.sh
+      - name: Tracking page contract (SQL and handlers)
+        env: { PGHOST: 127.0.0.1, PGHOSTADDR: 127.0.0.1, PGPORT: '5432', PGUSER: postgres }
+        run: |
+          dropdb --if-exists bloom_support_track_test && createdb bloom_support_track_test
+          psql -q -v ON_ERROR_STOP=1 -d bloom_support_track_test -f scripts/tests/bloom-support-track-db.sql > /tmp/bloom-support-track.log 2>&1 || { tail -30 /tmp/bloom-support-track.log; exit 1; }
+          grep -q "tracking page: all assertions passed" /tmp/bloom-support-track.log
+          (cd supabase/functions && deno test -A _shared/bloom-support/track_test.ts _shared/bloom-support/relay_key_test.ts)

@@ -1,4 +1,6 @@
 import { newsletterTemplateMetadata, validateNewsletterTemplate } from "./newsletter-template.ts";
+import { CampaignPhotoError, campaignParamsWithPhoto } from "./campaign-photo.ts";
+import { UploadAccessError } from "../../conversation-uploads.ts";
 import type { Database } from "../../../../../src/integrations/supabase/types.ts";
 import type { JsonArray, JsonObject, JsonValue } from "../../types.ts";
 import type {
@@ -996,10 +998,20 @@ function taskPlanAudience(audience: AudienceSelection): JsonObject {
 }
 
 async function createCampaignExecution(
-  params: JsonObject,
+  requestedParams: JsonObject,
   context: ToolExecutionContext,
 ): Promise<ToolResult> {
   const client = getServiceClient(context);
+  let params: JsonObject;
+  try {
+    // A photo uploaded to this chat is copied into campaign images first.
+    params = await campaignParamsWithPhoto(requestedParams, context);
+  } catch (error) {
+    if (error instanceof CampaignPhotoError || error instanceof UploadAccessError) {
+      return errorResult(error.message, error instanceof UploadAccessError ? "forbidden" : "validation_error");
+    }
+    throw error;
+  }
   const name = readString(params.name);
   if (!name) {
     return errorResult("Campaign name is required.", "validation_error");

@@ -228,6 +228,7 @@ export type ToolName =
   | "assign_segment"
   | "create_tag"
   | "bulk_tag_customers"
+  | "import_customer_list"
   | "manage_consent"
   | "get_dashboard_summary"
   | "get_revenue_analytics"

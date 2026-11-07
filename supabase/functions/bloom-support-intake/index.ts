@@ -6,7 +6,7 @@
 //
 // Users never classify their request: Bloom triages it in the background.
 import {
-  authenticate, authenticateProduct, BloomError, cors, errorResponse, json, parseJsonObject, preflightProductAuthentication, principalForProductUser, readBodyText, readJson, rpc,
+  authenticate, authenticateProduct, BloomError, cors, errorResponse, json, parseJsonObject, preflightProductAuthentication, principalForProductUser, productClientAction, readBodyText, readJson, rpc,
   servicePrincipal, str, type Caller,
 } from "../_shared/bloom-support/runtime.ts";
 import { actions } from "../_shared/bloom-support/service.ts";
@@ -25,7 +25,13 @@ import { redactText, sanitizeContext } from "../_shared/bloom-support/policy.ts"
 interface Upload { file_name?: string; content_type?: string; data_base64?: string }
 interface PreparedAttachment extends AttachmentFile { digest: string }
 const MAX_REPORT_JSON_BYTES = 17 * 1024 * 1024;
+// Everything in a public request except its files stays within 64 KB. Files may use the same budget as a
+// signed-in report (5 files, 8 MB each, 12 MB total, as base64, inside MAX_REPORT_JSON_BYTES). Abuse
+// controls: a declared oversize body and an IP over its hourly attempt budget are refused before the body
+// is read, the honeypot answers before any file is decoded, and nothing is stored until create_ticket
+// has consumed the per-email and per-IP ticket quota.
 const MAX_PUBLIC_JSON_BYTES = 64 * 1024;
+const PUBLIC_ATTEMPTS_PER_IP_PER_HOUR = 40;
 const MAX_REPORT_BODY_LENGTH = 20_000;
 const MAX_PUBLIC_BODY_LENGTH = 10_000;
 
@@ -177,6 +183,46 @@ async function report(req: Request): Promise<unknown> {
       product,
       attachments,
     );
+    const appendSupplied = r.append_to_ticket_number !== undefined;
+    const actionSupplied = r.client_action !== undefined;
+    if (appendSupplied || actionSupplied) {
+      if (!appendSupplied || !actionSupplied) {
+        throw new BloomError(400, "invalid", "append_to_ticket_number and client_action are required together");
+      }
+      const rawNumber = r.append_to_ticket_number;
+      const ticketNumber = typeof rawNumber === "number"
+        ? rawNumber
+        : typeof rawNumber === "string" && /^\d+$/.test(rawNumber) ? Number(rawNumber) : Number.NaN;
+      if (!Number.isSafeInteger(ticketNumber) || ticketNumber < 1) {
+        throw new BloomError(400, "invalid", "append_to_ticket_number must be a positive ticket number");
+      }
+      const clientAction = r.client_action;
+      if (clientAction !== "still_needs_help" && clientAction !== "confirm_resolved") {
+        throw new BloomError(400, "invalid", "client_action must be still_needs_help or confirm_resolved");
+      }
+      if (!who.account_id) {
+        throw new BloomError(403, "forbidden", "The signed product identity is not linked to an account");
+      }
+      const idempotencyKey = r.idempotency_key;
+      if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9:._-]{8,200}$/.test(idempotencyKey)) {
+        throw new BloomError(400, "invalid", "An idempotency_key is required for a ticket follow-up");
+      }
+      const message = typeof r.body === "string" ? r.body.trim() : "";
+      if (!message) {
+        throw new BloomError(400, "invalid", "A follow-up message is required");
+      }
+      const continued = await productClientAction<Record<string, unknown>>({
+        actor: caller.principalId,
+        product,
+        account: who.account_id,
+        ticketNumber,
+        action: clientAction,
+        message,
+        idempotencyKey,
+        fingerprint,
+      });
+      return await receipt(caller, continued, attachments);
+    }
     const created = await actions.createTicket(
       caller,
       { ...r, product, channel: product, account_id: who.account_id },
@@ -208,8 +254,41 @@ async function report(req: Request): Promise<unknown> {
   return await receipt(caller, created, attachments);
 }
 
+/** Caller-declared size, if any. A missing or malformed header is still bounded while streaming. */
+function declaredLength(req: Request): number | null {
+  const raw = req.headers.get("content-length");
+  return raw && /^\d+$/.test(raw) ? Number(raw) : null;
+}
+
+/**
+ * Anonymous callers are throttled per IP before their body is read, so nobody can make this function
+ * buffer and parse large requests repeatedly. Every attempt counts (unlike the ticket quota, which
+ * create_ticket consumes only for an accepted request), so the attempt budget is wider than the 20
+ * accepted requests per IP per hour.
+ */
+async function admitPublicAttempt(req: Request, ip: string): Promise<void> {
+  const declared = declaredLength(req);
+  if (declared !== null && declared > MAX_REPORT_JSON_BYTES) {
+    throw new BloomError(413, "too_large", "Request too large");
+  }
+  const admitted = await rpc<boolean>("consume_usage", {
+    bucket: `public-ip-attempt:${new Date().toISOString().slice(0, 13)}`,
+    subject: await sha256Hex(ip),
+    limit: PUBLIC_ATTEMPTS_PER_IP_PER_HOUR,
+  });
+  if (admitted !== true) {
+    throw new BloomError(429, "rate_limited", "Too many requests from this network. Please wait a little and try again.");
+  }
+}
+
 async function publicRequest(req: Request): Promise<unknown> {
-  const b = await readJson(req, MAX_PUBLIC_JSON_BYTES);
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+  await admitPublicAttempt(req, ip);
+  const b = await readJson(req, MAX_REPORT_JSON_BYTES);
+  const { attachments: _files, ...envelope } = b;
+  if (new TextEncoder().encode(JSON.stringify(envelope)).byteLength > MAX_PUBLIC_JSON_BYTES) {
+    throw new BloomError(413, "too_large", "Request is too large");
+  }
   // Honeypot: real forms leave "website" empty.
   // Keep the fake receipt contract-shaped so automated callers cannot discover
   // the trap by comparing it with a real 2xx response.
@@ -250,7 +329,6 @@ async function publicRequest(req: Request): Promise<unknown> {
     }
   }
   const attachments = await prepareAttachments(b.attachments);
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
   const day = new Date().toISOString().slice(0, 10);
   const hour = new Date().toISOString().slice(0, 13);
   const limits = (await rpc<Record<string, number> | null>("setting", { key: "limits" })) ?? {};

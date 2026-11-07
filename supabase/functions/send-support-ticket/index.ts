@@ -18,7 +18,7 @@ interface SupportTicketRequest {
   message: string;
 }
 
-const SUPPORT_INBOX = "bloom@support.bloomsuite.app";
+const SUPPORT_INBOX = "bloom@bloomsuite.app";
 
 const handler = async (req: Request): Promise<Response> => {
   const corsResponse = handleCorsPrelight(req);

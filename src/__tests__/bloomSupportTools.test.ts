@@ -40,6 +40,7 @@ import {
   deploy as deployEngineeringRelease,
   evaluate as evaluateEngineeringRelease,
   type EngineeringIssue,
+  ticketFlowChecksForPolicy,
   verify as verifyEngineeringRelease,
   verificationChecksForPolicy,
 } from "../../supabase/functions/_shared/bloom-support/engineering";
@@ -65,6 +66,7 @@ vi.mock("../../supabase/functions/_shared/bloom-support/runtime.ts", () => {
     db: vi.fn(),
     directRpc: vi.fn(),
     env: (...args: unknown[]) => releaseMocks.env(...args),
+    mutationRpc: (_caller: unknown, fn: unknown, args: unknown) => releaseMocks.rpc(fn, args),
     readResponseText: async (response: globalThis.Response, limit: number) => {
       const reader = response.body?.getReader();
       if (!reader) return "";
@@ -412,7 +414,8 @@ describe("check_support_request", () => {
     });
     const result = await checkSupportRequest({ ticket_number: 1042 }, context({ tenantId: OWN_TENANT }), rpc);
     expect(calls.find((c) => c.fn === "list_tickets")!.args).toMatchObject({ filters: { account_id: "account-client", q: "1042" } });
-    expect(result.data).toMatchObject({ request_number: 1042, status: "Needs Jon/Jeff", latest_reply_from_support: "We are looking into it." });
+    expect(result.data).toMatchObject({ request_number: 1042, status: "With our team", latest_reply_from_support: "We are looking into it." });
+    expect(JSON.stringify(result.data)).not.toMatch(/Jon|Jeff/);
   });
 });
 
@@ -519,6 +522,10 @@ describe("Bloom Support intake and attachment contracts", () => {
       .toThrow("did not confirm");
     expect(parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "pending" }))
       .toMatchObject({ number: 42, email_delivery: "pending" });
+    expect(parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "pending", attachments: { stored: 1, failed: ["b.png: could not be stored; attach it to your reply"] } }))
+      .toMatchObject({ number: 42, attachments: { stored: 1, failed: ["b.png: could not be stored; attach it to your reply"] } });
+    expect(parsePublicSupportIntake({ received: true, duplicate_delivery: false, number: 42, email_delivery: "pending", attachments: { stored: "1", failed: [] } }))
+      .not.toHaveProperty("attachments");
     expect(parseSupportMessageResult({ message_id: ticketId, duplicate: false }))
       .toEqual({ message_id: ticketId, duplicate: false });
     expect(() => parseSupportMessageResult({ ok: true })).toThrow("did not confirm your reply");
@@ -654,6 +661,12 @@ describe("Bloom engineering release recovery", () => {
       [repository]: [{ url: "https://bloomsuite.app/health", contains: "healthy" }],
       [cmsRepository]: [{ url: "https://winderberry.bloomsites.app/api/health", contains: "ok" }],
     },
+    ticketFlowChecks: {
+      [repository]: [{
+        path_prefix: "/campaigns",
+        checks: [{ url: "https://bloomsuite.app/campaigns/preview", contains: "preview works" }],
+      }],
+    },
   };
 
   const baseIssue = (): EngineeringIssue => ({
@@ -678,11 +691,20 @@ describe("Bloom engineering release recovery", () => {
     tickets: [],
   });
 
-  function wireIssue(initial: EngineeringIssue, releasePolicy: Record<string, unknown> = policy) {
+  function wireIssue(
+    initial: EngineeringIssue,
+    releasePolicy: Record<string, unknown> = policy,
+    tickets: Record<string, Record<string, unknown>> = {},
+  ) {
     let issue = structuredClone(initial);
     releaseMocks.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
       if (fn === "list_engineering") return [structuredClone(issue)];
       if (fn === "setting") return args.key === "release_policy" ? releasePolicy : null;
+      if (fn === "get_ticket") {
+        const ticket = tickets[String(args.ticket_id)];
+        if (!ticket) throw new Error("ticket unavailable");
+        return structuredClone(ticket);
+      }
       if (fn === "update_engineering_issue") {
         const update = args.update as { status?: string; patch?: Record<string, unknown> };
         issue = {
@@ -749,6 +771,66 @@ describe("Bloom engineering release recovery", () => {
       ...policy,
       verificationChecks: { [repository]: Array.from({ length: 11 }, () => ({ url: "https://bloomsuite.app/health" })) },
     }, repository)).toBeNull();
+    expect(ticketFlowChecksForPolicy(
+      policy,
+      repository,
+      "https://bloomsuite.app/campaigns/123?private=discarded",
+    )).toMatchObject({
+      path: "/campaigns/123",
+      checks: [{ url: "https://bloomsuite.app/campaigns/preview" }],
+    });
+    expect(ticketFlowChecksForPolicy(
+      policy,
+      repository,
+      "https://attacker.example/campaigns/123",
+    )).toBeNull();
+    expect(ticketFlowChecksForPolicy({
+      ...policy,
+      ticketFlowChecks: {
+        [repository]: [{ path_prefix: "/campaigns/%2e%2e/admin", checks: policy.verificationChecks[repository] }],
+      },
+    }, repository, "https://bloomsuite.app/campaigns/123")).toBeNull();
+  });
+
+  it("binds a trusted affected-flow check to the exact linked ticket", async () => {
+    const ticketId = "33333333-3333-4333-8333-333333333333";
+    const issue = {
+      ...baseIssue(),
+      status: "verifying",
+      merge_sha: "merge-sha",
+      tickets: [{
+        id: ticketId,
+        number: 1042,
+        subject: "Campaign preview broken",
+        account_id: "44444444-4444-4444-8444-444444444444",
+        status: "working",
+      }],
+    };
+    const current = wireIssue(issue, policy, {
+      [ticketId]: {
+        id: ticketId,
+        kind: "bug",
+        context: { page_url: "https://bloomsuite.app/campaigns/123?token=private" },
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return new Response("healthy", { status: 200 });
+      if (url.endsWith("/campaigns/preview")) return new Response("preview works", { status: 200 });
+      throw new Error(`unexpected check ${url}`);
+    }));
+
+    await expect(verifyEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({ note: "verified" });
+    expect(current()).toMatchObject({
+      status: "verified",
+      verification: {
+        passed: true,
+        scope: "ticket_flow",
+        ticket_ids: [ticketId],
+        ticket_flows: [{ ticket_id: ticketId, path: "/campaigns/123", passed: true }],
+      },
+    });
+    expect(JSON.stringify(current().verification)).not.toContain("token=private");
   });
 
   it("blocks verifier redirects and bounds streamed response evidence", async () => {

@@ -13,7 +13,9 @@ import Link from "@mui/joy/Link";
 import { ArrowRight, Check, Search, X } from "lucide-react";
 import { formatDistanceToNow, isToday } from "date-fns";
 import { plainSummary } from "@/components/admin/readableFormat";
+import { humanizeNextAction } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { bloomSupport, STATUS_LABEL, WAITING_LABEL, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
+import { groupOpenEscalations, isBloomHandlingTicket, type TodayEscalation } from "./todayActions";
 
 /**
  * Bloom Support "Today": one calm screen that answers "does anything need me?".
@@ -64,7 +66,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
   const features = useQuery({ queryKey: ["bloom-support", "features"], queryFn: () => bloomSupport.features(), enabled: can("features.view"), refetchInterval: 60_000 });
   const escalations = useQuery({ queryKey: ["bloom-support", "escalations"], queryFn: () => bloomSupport.escalations(), enabled: can("escalations.view"), refetchInterval: 30_000 });
   const needsOwner = useQuery({ queryKey: ["bloom-support", "today", "needs_owner"], queryFn: () => bloomSupport.pageTickets({ view: "needs_owner", sort: "priority", limit: "20" }), refetchInterval: 30_000 });
-  const open = useQuery({ queryKey: ["bloom-support", "today", "open"], queryFn: () => bloomSupport.pageTickets({ view: "open", sort: "updated", limit: "50" }), refetchInterval: 30_000 });
+  const open = useQuery({ queryKey: ["bloom-support", "today", "open", "bloom"], queryFn: () => bloomSupport.pageTickets({ view: "open", automation: "auto", sort: "updated", limit: "200" }), refetchInterval: 30_000 });
   const resolved = useQuery({ queryKey: ["bloom-support", "today", "resolved"], queryFn: () => bloomSupport.pageTickets({ view: "recently_resolved", limit: "50" }), refetchInterval: 60_000 });
   const results = useQuery({ queryKey: ["bloom-support", "today", "search", query], queryFn: () => bloomSupport.pageTickets({ q: query, limit: "8" }), enabled: query.length > 0 });
 
@@ -105,34 +107,46 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
       open: evidence[0] ? { label: "Open request", onClick: () => onOpenTicket(evidence[0].ticket_id) } : undefined,
     });
   }
-  for (const x of ((escalations.data ?? []) as Row[]).filter((r) => String(r.status) === "open")) {
+  const escalationGroups = groupOpenEscalations((escalations.data ?? []) as TodayEscalation[]);
+  for (const group of escalationGroups) {
+    const x = group[0] as Row;
     const t = x.ticket as { number: number; subject: string } | null;
+    const groupedReasons = Array.from(new Set(group.map((item) => String(item.reason ?? "needs attention").replace(/_/g, " "))));
     decisions.push({
-      key: `esc:${x.id}`,
+      key: `esc:${String(x.ticket_id ?? x.id)}`,
       who: t ? `#${t.number} ${t.subject}` : "Escalation",
       when: ago(x.created_at),
       text: x.detail ? String(x.detail) : `Bloom needs a person: ${String(x.reason).replace(/_/g, " ")}.`,
-      primary: can("escalations.resolve") ? { label: "I'll take it", run: () => bloomSupport.acknowledgeEscalation(String(x.id)), done: "It's yours. Bloom has stepped back." } : undefined,
+      detail: group.length > 1 ? `${group.length} open items grouped here: ${groupedReasons.join("; ")}.` : undefined,
+      primary: can("escalations.resolve") ? {
+        label: "I'll take it",
+        run: async () => {
+          for (const item of group) await bloomSupport.acknowledgeEscalation(String(item.id));
+        },
+        done: group.length > 1 ? "All open items for this request are yours. Bloom has stepped back." : "It's yours. Bloom has stepped back.",
+      } : undefined,
       open: x.ticket_id ? { label: "Open ticket", onClick: () => onOpenTicket(String(x.ticket_id)) } : undefined,
     });
   }
   // Only an escalation still shown as a card stands in for its ticket; once taken, the ticket shows on its own until resolved.
-  const escalatedTickets = new Set(((escalations.data ?? []) as Row[]).filter((x) => String(x.status) === "open").map((x) => String(x.ticket_id)));
+  const escalatedTickets = new Set(escalationGroups.flatMap((group) => group.map((x) => String(x.ticket_id))));
   for (const t of needsOwner.data?.items ?? []) {
     if (escalatedTickets.has(t.id)) continue;
     decisions.push({
       key: `tkt:${t.id}`,
       who: clientName(t),
       when: ago(t.updated_at),
-      text: t.next_action ? `${t.subject}. ${t.next_action}` : t.subject,
+      text: t.next_action ? `${t.subject}. ${humanizeNextAction(t.next_action)}` : t.subject,
       open: { label: "Open conversation", onClick: () => onOpenTicket(t.id) },
     });
   }
 
   const pending = decisions.filter((d) => !acted[d.key]);
   const decided = decisions.filter((d) => acted[d.key]);
-  const handling = (open.data?.items ?? []).filter((t) => t.status !== "needs_owner");
-  const handlingTotal = Math.max(handling.length, (open.data?.total ?? 0) - (needsOwner.data?.total ?? 0));
+  const handling = (open.data?.items ?? []).filter(isBloomHandlingTicket);
+  // Count only rows whose live ownership says Bloom. Subtracting Needs You
+  // from every open ticket also counted work already owned by a person.
+  const handlingTotal = handling.length;
   // Needs-owner tickets beyond the first page still need someone; count them and point to the desk.
   const moreNeedsOwner = Math.max(0, (needsOwner.data?.total ?? 0) - (needsOwner.data?.items.length ?? 0));
   const doneToday = (resolved.data?.items ?? []).filter((t) => t.resolved_at && isToday(new Date(t.resolved_at)));
@@ -148,7 +162,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
     : needCount === 0 ? "All quiet. Bloom has it handled." : needCount === 1 ? "1 thing needs you." : `${needCount} things need you.`;
   const subline = decisionsUnknown && needCount === 0
     ? "Some decisions may be waiting. Open the full desk to check."
-    : `Bloom is handling ${handlingTotal} other request${handlingTotal === 1 ? "" : "s"}${decided.length ? `. You've made ${decided.length} decision${decided.length === 1 ? "" : "s"} here` : ""}.`;
+    : `Bloom is handling ${open.data?.next_cursor ? "at least " : ""}${handlingTotal} other request${handlingTotal === 1 ? "" : "s"}${decided.length ? `. You've made ${decided.length} decision${decided.length === 1 ? "" : "s"} here` : ""}.`;
 
   const submitSearch = (e: FormEvent) => { e.preventDefault(); setQuery(search.trim()); };
 
@@ -189,7 +203,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
         <Stack spacing={1.5} component="section" aria-label="Needs you">
           <Typography sx={sectionLabel} textColor="warning.700">Needs you</Typography>
           {pending.map((d) => <DecisionCard key={d.key} d={d} busy={busy === d.key} onRun={(a) => act.mutate({ key: d.key, ...a })} />)}
-          {moreNeedsOwner > 0 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>{moreNeedsOwner} more need Jon/Jeff. See them in the full desk</Link>}
+          {moreNeedsOwner > 0 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>{moreNeedsOwner} more need an admin. See them in the full desk</Link>}
         </Stack>
       )}
 
@@ -219,7 +233,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
         {loading ? <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "lg" }} /> : handling.length ? (
           <ListCard>{handling.slice(0, 8).map((t) => <TicketRow key={t.id} t={t} onOpen={onOpenTicket} />)}</ListCard>
         ) : <Typography level="body-md" textColor="text.secondary">No open requests right now.</Typography>}
-        {handlingTotal > 8 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>See all {handlingTotal} in the full desk</Link>}
+        {handlingTotal > 8 && <Link component="button" level="body-md" onClick={onOpenDesk} sx={{ alignSelf: "flex-start" }}>See {open.data?.next_cursor ? "all Bloom-owned requests" : `all ${handlingTotal}`} in the full desk</Link>}
       </Stack>
 
       {doneToday.length > 0 && (
@@ -227,7 +241,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
           <Typography sx={sectionLabel} textColor="text.tertiary">Done today</Typography>
           <ListCard>
             {doneToday.map((t) => (
-              <Stack key={t.id} direction="row" spacing={1.5} alignItems="center" sx={{ px: 2.5, py: 1.75, cursor: "pointer", "&:hover": { bgcolor: "neutral.50" } }} onClick={() => onOpenTicket(t.id)}>
+              <Stack key={t.id} role="button" tabIndex={0} direction="row" spacing={1.5} alignItems="center" sx={{ px: 2.5, py: 1.75, cursor: "pointer", "&:hover": { bgcolor: "neutral.50" }, "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: -2 } }} onClick={() => onOpenTicket(t.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpenTicket(t.id); } }}>
                 <Box sx={{ color: "success.700", display: "flex" }}><Check size={16} /></Box>
                 <Typography level="body-md" sx={{ flex: 1, minWidth: 0 }}><b>{clientName(t)}</b> · {t.resolution_summary ?? t.subject}</Typography>
               </Stack>

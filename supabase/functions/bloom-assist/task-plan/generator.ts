@@ -7,6 +7,7 @@ import type {
   EditableFieldMetadata,
   FieldChange,
   TaskPlan,
+  TaskPlanNotice,
   TaskPlanAction,
   TaskPlanEntityType,
   TaskPlanGenerationContext,
@@ -24,6 +25,8 @@ const NON_EDITABLE_FIELD_PATTERNS = [
   /^user_id$/,
   /^deletion_mode$/,
   /^send_mode$/,
+  // A list import's mapping is fixed by the preview the person approves.
+  /^column_mapping$/,
 ];
 
 type CampaignPrefillContext = TaskPlanGenerationContext & {
@@ -142,6 +145,7 @@ function inferAction(toolName: ToolName): TaskPlanAction {
   if (toolName === "schedule_campaign") return "schedule";
   if (toolName === "assign_segment") return "assign";
   if (toolName === "bulk_tag_customers") return "tag";
+  if (toolName === "import_customer_list") return "create";
   if (toolName === "manage_consent") return "consent_change";
   return "update";
 }
@@ -165,6 +169,21 @@ function readConfirmationDetails(toolResult: JsonObject): JsonObject {
     asJsonObject(readToolOutputData(toolResult)?.confirmation_details) ??
     {}
   );
+}
+
+/**
+ * Parameters a preview pinned (for example the exact uploaded file it read).
+ * The approved run uses these instead of the model's arguments.
+ */
+function readPinnedToolParams(toolResult: JsonObject): JsonObject | null {
+  return asJsonObject(readToolOutputData(toolResult)?.pinned_tool_params);
+}
+
+function readNotice(taskPlan: JsonObject): TaskPlanNotice | null {
+  const notice = asJsonObject(taskPlan.notice);
+  const title = readString(notice?.title);
+  const body = readString(notice?.body);
+  return title && body ? { title, body, detail: readString(notice?.detail) } : null;
 }
 
 function readEmbeddedTaskPlan(toolResult: JsonObject): JsonObject {
@@ -709,30 +728,31 @@ export function generateTaskPlan(
       tool?.risk_level ?? "medium",
     );
     const entityType = inferEntityType(toolResult.tool_name);
+    const pinnedParams = readPinnedToolParams(toolResult.tool_result);
+    const toolParams = pinnedParams ?? toolResult.tool_params;
     const fieldChanges = inferFieldChanges(
       toolResult.tool_name,
-      toolResult.tool_params,
+      toolParams,
       taskPlan,
     );
-    const description = humanizeToolAction(
-      toolResult.tool_name,
-      toolResult.tool_params,
-    );
+    const description = (pinnedParams ? readString(details.action) : null) ??
+      humanizeToolAction(toolResult.tool_name, toolParams);
+    const notice = readNotice(taskPlan);
 
     overallRisk = maxRisk(overallRisk, riskLevel);
     tasks.push({
       task_id: `task_${index + 1}`,
       action: inferAction(toolResult.tool_name),
       entity_type: entityType,
-      entity_id: inferEntityId(entityType, toolResult.tool_params),
+      entity_id: inferEntityId(entityType, toolParams),
       entity_name: inferEntityName(
         toolResult.tool_name,
-        toolResult.tool_params,
+        toolParams,
         taskPlan,
         details,
       ),
       tool_name: toolResult.tool_name,
-      tool_params: toolResult.tool_params,
+      tool_params: toolParams,
       description,
       field_changes: fieldChanges,
       risk_level: riskLevel,
@@ -743,6 +763,7 @@ export function generateTaskPlan(
         ? editableFieldsFromSchema(tool.function.parameters)
         : [],
       validation_annotations: [],
+      ...(notice ? { notice } : {}),
       status: "pending",
       error_message: null,
     });

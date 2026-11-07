@@ -21,6 +21,7 @@ import { PublicSupportContact } from "@/pages/PublicSupportPage";
 import SupportPage, { SUPPORT_MOBILE_GRID_TRACK } from "@/pages/SupportPage";
 import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 import type { TicketDetail, Whoami } from "@/lib/bloomSupport/api";
+import { ATTACHMENT_ACCEPT } from "@/lib/bloomSupport/constants";
 
 const { signOutCompletelyMock } = vi.hoisted(() => ({
   signOutCompletelyMock: vi.fn().mockResolvedValue(undefined),
@@ -140,6 +141,9 @@ vi.mock("@/lib/bloomSupport/api", () => ({
   KIND_LABEL: {},
   PRODUCT_LABEL: {},
   STATUS_LABEL: {},
+  CLIENT_STATUS_LABEL: { received: "Received", in_progress: "In progress", waiting_on_you: "Waiting for your reply", resolved: "Resolved" },
+  clientStatusOf: () => "in_progress",
+  statusLabel: (status: string) => status,
   WAITING_LABEL: {},
   bloomSupport: {
     publicRequest: supportMocks.publicRequest,
@@ -677,6 +681,45 @@ describe("Bloom Support intake in the dashboard shell", () => {
     await user.click(screen.getByRole("button", { name: "Edit and send as a new request" }));
     expect(email).toBeEnabled();
     await waitFor(() => expect(email).toHaveFocus());
+  });
+
+  it("lets people who cannot sign in attach checked screenshots and resends the same files on retry", async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    supportMocks.publicRequest
+      .mockRejectedValueOnce(new Error("Response lost after commit"))
+      .mockResolvedValueOnce({ received: true, duplicate_delivery: true, number: 77, email_delivery: "pending", attachments: { stored: 1, failed: [] } });
+    render(<PublicSupportContact />);
+    await user.type(screen.getByRole("textbox", { name: "Your email" }), "jamie@example.com");
+    await user.type(screen.getByRole("textbox", { name: "How can we help?" }), "The sign-in page shows an error.");
+    const picker = screen.getByTestId("public-support-files") as HTMLInputElement;
+    expect(picker.accept).toBe(ATTACHMENT_ACCEPT);
+    await user.upload(picker, [
+      new File(["png"], "error.png", { type: "image/png" }),
+      new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" }),
+    ]);
+    expect(screen.getByRole("alert")).toHaveTextContent("logo.svg: this file type can't be attached");
+    expect(screen.getByText("error.png")).toBeInTheDocument();
+    expect(screen.queryByText("logo.svg", { selector: ".MuiChip-label" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.click(await screen.findByRole("button", { name: "Retry same request" }));
+    await waitFor(() => expect(supportMocks.publicRequest).toHaveBeenCalledTimes(2));
+    const [first] = supportMocks.publicRequest.mock.calls[0];
+    expect(first.attachments).toEqual([{ file_name: "error.png", content_type: "image/png", data_base64: "encoded" }]);
+    expect(supportMocks.publicRequest.mock.calls[1][0]).toBe(first);
+    expect(await screen.findByRole("status")).toHaveTextContent("#77");
+  });
+
+  it("does not report success when the server does not confirm the attached files", async () => {
+    const user = userEvent.setup();
+    supportMocks.publicRequest.mockResolvedValueOnce({ received: true, duplicate_delivery: false, number: 78, email_delivery: "pending" });
+    render(<PublicSupportContact />);
+    await user.type(screen.getByRole("textbox", { name: "Your email" }), "jamie@example.com");
+    await user.type(screen.getByRole("textbox", { name: "How can we help?" }), "The sign-in page shows an error.");
+    await user.upload(screen.getByTestId("public-support-files") as HTMLInputElement, new File(["png"], "error.png", { type: "image/png" }));
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not confirm every attached file");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("announces honest pending-email confirmation after public intake", async () => {

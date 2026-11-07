@@ -8,7 +8,9 @@ import {
 } from "@/components/bloom/content/cards/cardUtils";
 import type { BloomStreamingBlock } from "@/hooks/bloom/useBloomStreaming";
 import type {
+  BloomFieldChange,
   BloomTaskJsonObject,
+  BloomTaskPlanNotice,
   BloomTaskRiskLevel,
 } from "@/hooks/bloom/taskPlanTypes";
 
@@ -57,7 +59,37 @@ export interface ResolvedApproval {
   riskMessage?: string;
   isReversible: boolean;
   buttonLabel: string;
+  /** Server-computed preview lines (for example a list import's counts). */
+  details?: { label: string; value: string }[];
+  /** A statement the person agrees to by approving, shown in full. */
+  notice?: BloomTaskPlanNotice;
 }
+
+export interface ApprovalTaskInput {
+  toolName: string;
+  params: BloomTaskJsonObject;
+  /** The server's description of the task, when it has one. */
+  description?: string;
+  fieldChanges?: BloomFieldChange[];
+  notice?: BloomTaskPlanNotice | null;
+}
+
+const detailValue = (value: unknown): string => {
+  if (value === null || value === undefined) return "None";
+  if (typeof value === "string") return value.trim() || "None";
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+};
+
+const previewDetails = (
+  fieldChanges: BloomFieldChange[] | undefined,
+): { label: string; value: string }[] =>
+  (fieldChanges ?? []).map((change) => ({
+    label: change.field,
+    value: detailValue(change.newValue),
+  }));
 
 interface EntityLookup {
   customers: Map<string, ResolvedCustomer>;
@@ -281,13 +313,29 @@ const titleCase = (value: string): string =>
   value.replace(/\b\w/g, (character) => character.toUpperCase());
 
 export function resolveApproval(
-  task: { toolName: string; params: BloomTaskJsonObject },
+  task: ApprovalTaskInput,
   blocks: BloomStreamingBlock[],
 ): ResolvedApproval {
   const lookup = buildLookup(blocks);
   const p = task.params;
 
   switch (task.toolName) {
+    case "import_customer_list": {
+      return {
+        title:
+          task.description?.trim() || "Import contacts from the uploaded list",
+        description:
+          "Contacts are added to your customers. Existing customers with the same email are updated, not duplicated. Nothing is sent.",
+        details: previewDetails(task.fieldChanges),
+        notice: task.notice ?? undefined,
+        riskLevel: "medium",
+        riskMessage:
+          "Imported contacts are opted in to marketing email. Anyone already unsubscribed stays unsubscribed.",
+        isReversible: false,
+        buttonLabel: "Import Contacts",
+      };
+    }
+
     case "assign_segment": {
       const custIds = parseIds(p.customer_ids);
       const seg = lookup.segments.get(readParamString(p.segment_id) ?? "");
@@ -478,10 +526,15 @@ export function resolveApproval(
         readParamString(p.new_name) ??
         readParamString(p.name) ??
         "Unknown";
+      const withPhoto =
+        task.toolName === "create_campaign" &&
+        Boolean(readParamString(p.photo_upload_id));
       return {
         title: `${action} campaign "${name}"`,
-        description:
-          descriptionMap[task.toolName] ?? "The campaign will be updated.",
+        description: withPhoto
+          ? "A new campaign draft will be created with your uploaded photo. Nothing is sent or scheduled."
+          : (descriptionMap[task.toolName] ?? "The campaign will be updated."),
+        details: withPhoto ? previewDetails(task.fieldChanges) : undefined,
         campaigns: camp ? [camp] : undefined,
         riskLevel: riskMap[task.toolName] ?? "medium",
         isReversible: true,

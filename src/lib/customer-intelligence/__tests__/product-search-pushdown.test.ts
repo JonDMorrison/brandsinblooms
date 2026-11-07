@@ -31,12 +31,14 @@ function serverCandidates(terms: string[]) {
 }
 function fakeClient(candidates: unknown, scope: unknown = {customer_ids: ['buyer', 'other', 'blank', 'both'], rows: 4, invalid_rows: 0}, rows: unknown[] = events) {
   const rpc = vi.fn(async (name: string) => ({data: name === 'bloom_summary_evidence_scope' ? scope : name === 'bloom_summary_product_candidates' ? candidates : null, error: null}));
+  const neqCalls: Array<{table: string; column: string; value: unknown}> = [];
   const from = (table: string) => {
     const data = table === 'customer_intelligence_imports' ? [report] : table === 'customer_intelligence_source_events' ? rows : [];
-    const q = {select: () => q, eq: () => q, is: () => q, lte: () => q, gte: () => q, in: () => q, order: () => q, range: async () => ({data, error: null})};
+    const q = {select: () => q, eq: () => q, neq: (column: string, value: unknown) => {neqCalls.push({table, column, value}); return q;},
+      is: () => q, lte: () => q, gte: () => q, in: () => q, order: () => q, range: async () => ({data, error: null})};
     return q;
   };
-  return {rpc, from} as unknown as PersistenceClient & {rpc: typeof rpc};
+  return {rpc, from, neqCalls} as unknown as PersistenceClient & {rpc: typeof rpc; neqCalls: typeof neqCalls};
 }
 const store: VerifiedSnapshotStore = {fingerprint: async () => 'fp', get: async () => 'fp', set: async () => undefined};
 function run(rule: PurchaseRule, facts: PurchaseFact[], knownEvidence?: Set<string>) {
@@ -121,6 +123,11 @@ describe('narrowed report rows are still checked', () => {
     const client = fakeClient(serverCandidates(['sea soil']));
     await loadProductSearchFacts(client, T, '2026-11-03T00:00:00Z', rule, store);
     expect(client.rpc).toHaveBeenCalledWith('bloom_summary_product_candidates', expect.objectContaining({p_terms: ['sea soil'], p_import_ids: ['r2025']}));
+  });
+  it('never pages through stored IdealPOS journal lines, which Bloom does not use', async () => {
+    const client = fakeClient(serverCandidates(['sea soil']));
+    await loadProductSearchFacts(client, T, '2026-11-03T00:00:00Z', rule, store);
+    expect(client.neqCalls).toContainEqual({table: 'customer_purchase_line_items', column: 'source', value: 'ideal'});
   });
   it('falls back to the full scan for rules that need every line', async () => {
     expect(await loadProductSearchFacts(fakeClient([]), T, '2026-11-03T00:00:00Z', {mode: 'purchased', category: 'Plants'}, store)).toBeNull();

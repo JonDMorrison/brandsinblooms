@@ -88,7 +88,7 @@ Browser walks: not run.
 
 ### Round 2026-11-04: email intake and a full real repair
 
-**Email intake (level A).** One test email from jon@getclear.ca to `bloom@support.bloomsuite.app`, subject "[Bloom intake test] please ignore", 12:40 UTC.
+**Email intake (level A).** One test email from jon@getclear.ca to the public `bloom@bloomsuite.app` alias, subject "[Bloom intake test] please ignore", 12:40 UTC. The verified sending identity remains `bloom@support.bloomsuite.app`.
 
 | Check | Result |
 | --- | --- |

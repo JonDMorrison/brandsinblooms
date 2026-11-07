@@ -1,5 +1,5 @@
 // Bloom Support — high-level actions shared by the REST API and the MCP server.
-import { BloomError, type Caller, directRpc, rpc, str, uuid } from "./runtime.ts";
+import { BloomError, type Caller, directRpc, mutationRpc, rpc, str, uuid } from "./runtime.ts";
 import { sanitizeContext, redactText, STATUS_LABEL } from "./policy.ts";
 import { randomToken, sha256Hex } from "./crypto.ts";
 import { describeOperations, executeOperation, previewOperation, runRead, undoOperation } from "./operations.ts";
@@ -15,6 +15,7 @@ const MESSAGE_PURPOSES = new Set([
   "resolution",
   "acknowledgement",
   "progress",
+  "feature_decision",
   "notification",
 ]);
 const MAX_TICKET_BODY_LENGTH = 20_000;
@@ -63,53 +64,53 @@ export const actions = {
   listTickets: (c: Caller, filters: Record<string, unknown>) => rpc("list_tickets", { ...A(c), filters }),
   mergeTickets(c: Caller, source: string, target: string, reason?: string) {
     requireWriteScope(c);
-    return rpc("merge_tickets", { ...A(c), source_id: uuid(source, "source_id"), target_id: uuid(target, "target_id"), reason: reason ?? null });
+    return mutationRpc(c, "merge_tickets", { ...A(c), source_id: uuid(source, "source_id"), target_id: uuid(target, "target_id"), reason: reason ?? null });
   },
   setSpam(c: Caller, id: string, spam: boolean) {
     requireWriteScope(c);
-    return rpc("set_spam", { ...A(c), ticket_id: uuid(id, "ticket_id"), spam });
+    return mutationRpc(c, "set_spam", { ...A(c), ticket_id: uuid(id, "ticket_id"), spam });
   },
   bulkUpdate(c: Caller, ids: unknown, bulk: Record<string, unknown>) {
     requireWriteScope(c);
     const list = Array.isArray(ids) ? ids.map((x) => uuid(x, "ticket_ids[]")) : [];
-    return rpc("bulk_update", { ...A(c), ticket_ids: list, bulk });
+    return mutationRpc(c, "bulk_update", { ...A(c), ticket_ids: list, bulk });
   },
   clientAction(c: Caller, id: string, action: string, message?: string) {
     requireWriteScope(c);
-    return rpc("client_action", { ...A(c), ticket_id: uuid(id, "ticket_id"), action, message: message ?? null });
+    return mutationRpc(c, "client_action", { ...A(c), ticket_id: uuid(id, "ticket_id"), action, message: message ?? null });
   },
   decidePostReply(c: Caller, id: string, decision: string, messageId?: string, note?: string) {
     requireWriteScope(c);
-    return rpc("resolve_post_reply", { ...A(c), ticket_id: uuid(id, "ticket_id"), decision, message_id: messageId ?? null, note: note ?? null });
+    return mutationRpc(c, "resolve_post_reply", { ...A(c), ticket_id: uuid(id, "ticket_id"), decision, message_id: messageId ?? null, note: note ?? null });
   },
   timers: (c: Caller, id: string) => rpc("ticket_timers", { ...A(c), ticket_id: uuid(id, "ticket_id") }),
   listProblems: (c: Caller, status?: string) => rpc("list_problems", { ...A(c), status: status ?? null }),
   createProblem(c: Caller, problem: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("create_problem", { ...A(c), problem });
+    return mutationRpc(c, "create_problem", { ...A(c), problem });
   },
   linkProblem(c: Caller, ticket: string, problem: string) {
     requireWriteScope(c);
-    return rpc("link_problem", { ...A(c), ticket_id: uuid(ticket, "ticket_id"), problem_id: uuid(problem, "problem_id") });
+    return mutationRpc(c, "link_problem", { ...A(c), ticket_id: uuid(ticket, "ticket_id"), problem_id: uuid(problem, "problem_id") });
   },
   updateProblem(c: Caller, id: string, patch: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("update_problem", { ...A(c), problem_id: uuid(id, "problem_id"), patch });
+    return mutationRpc(c, "update_problem", { ...A(c), problem_id: uuid(id, "problem_id"), patch });
   },
   listViews: (c: Caller) => rpc("list_views", A(c)),
   saveView(c: Caller, name: string, filters: Record<string, unknown>, shared: boolean) {
     requireWriteScope(c);
-    return rpc("save_view", { ...A(c), name, filters, shared });
+    return mutationRpc(c, "save_view", { ...A(c), name, filters, shared });
   },
   deleteView(c: Caller, id: string) {
     requireWriteScope(c);
-    return rpc("delete_view", { ...A(c), view_id: uuid(id, "view_id") });
+    return mutationRpc(c, "delete_view", { ...A(c), view_id: uuid(id, "view_id") });
   },
   metrics: (c: Caller, from?: string, to?: string) => rpc("report_metrics", { ...A(c), from: from ?? null, to: to ?? null }),
   summary_report: (c: Caller, period: string) => rpc("summary_report", { ...A(c), period }),
   setAccountAutomation(c: Caller, id: string, paused: boolean) {
     requireWriteScope(c);
-    return rpc("set_account_automation", { ...A(c), account_id: uuid(id, "account_id"), paused });
+    return mutationRpc(c, "set_account_automation", { ...A(c), account_id: uuid(id, "account_id"), paused });
   },
   getTicket: (c: Caller, id: string) => rpc("get_ticket", { ...A(c), ticket_id: uuid(id, "ticket_id") }),
 
@@ -144,7 +145,7 @@ export const actions = {
     if (trusted && !/^[0-9a-f]{64}$/.test(trusted.intakeFingerprint)) {
       throw new BloomError(500, "invalid_fingerprint", "Internal intake fingerprint is invalid");
     }
-    return await rpc("create_ticket", {
+    return await mutationRpc(c, "create_ticket", {
       ...A(c),
       ticket: {
         ...ticket,
@@ -155,7 +156,7 @@ export const actions = {
 
   addMessage(c: Caller, id: string, input: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("add_message", {
+    return mutationRpc(c, "add_message", {
       ...A(c), ticket_id: uuid(id, "ticket_id"),
       message: {
         body: boundedString(input.body, "body", MAX_TICKET_BODY_LENGTH),
@@ -197,58 +198,58 @@ export const actions = {
         };
       }
     }
-    return rpc("update_ticket", { ...A(c), ticket_id: ticketId, patch: trustedPatch });
+    return mutationRpc(c, "update_ticket", { ...A(c), ticket_id: ticketId, patch: trustedPatch });
   },
   setAutomation(c: Caller, id: string, mode: string, reason?: string) {
     requireWriteScope(c);
-    return rpc("set_automation", { ...A(c), ticket_id: uuid(id, "ticket_id"), mode, reason: reason ?? null });
+    return mutationRpc(c, "set_automation", { ...A(c), ticket_id: uuid(id, "ticket_id"), mode, reason: reason ?? null });
   },
   linkTickets(c: Caller, from: string, to: string, kind: string) {
     requireWriteScope(c);
-    return rpc("link_tickets", { ...A(c), from: uuid(from, "ticket_id"), to: uuid(to, "to"), kind });
+    return mutationRpc(c, "link_tickets", { ...A(c), from: uuid(from, "ticket_id"), to: uuid(to, "to"), kind });
   },
   related: (c: Caller, id: string) => rpc("related_tickets", { ...A(c), ticket_id: uuid(id, "ticket_id") }),
   startInvestigation(c: Caller, id: string, input: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("open_engineering_issue", { ...A(c), ticket_id: uuid(id, "ticket_id"), issue: { title: str(input.title, 300), repository: str(input.repository, 200), existing_issue_id: str(input.existing_issue_id, 40), evidence: { requested_by: c.name ?? c.principalId, note: redactText(str(input.note, 4000) ?? "") } } });
+    return mutationRpc(c, "open_engineering_issue", { ...A(c), ticket_id: uuid(id, "ticket_id"), issue: { title: str(input.title, 300), repository: str(input.repository, 200), existing_issue_id: str(input.existing_issue_id, 40), evidence: { requested_by: c.name ?? c.principalId, note: redactText(str(input.note, 4000) ?? "") } } });
   },
   // Only Jon or Jeff, as themselves, can let a coding agent work on a bug Bloom or Support reported.
   startRepair(c: Caller, id: string, note?: string) {
     requireWriteScope(c);
-    return rpc("update_engineering_issue", { ...A(c), issue_id: uuid(id, "issue_id"), update: { start_repair: true, note: str(note, 2000) ?? null } });
+    return mutationRpc(c, "update_engineering_issue", { ...A(c), issue_id: uuid(id, "issue_id"), update: { start_repair: true, note: str(note, 2000) ?? null } });
   },
   routeFeature(c: Caller, id: string, input: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("route_feature_request", { ...A(c), ticket_id: uuid(id, "ticket_id"), feature: { title: str(input.title, 300), description: str(input.description, 5000), feature_request_id: str(input.feature_request_id, 40), excerpt: str(input.excerpt, 1000) } });
+    return mutationRpc(c, "route_feature_request", { ...A(c), ticket_id: uuid(id, "ticket_id"), feature: { title: str(input.title, 300), description: str(input.description, 5000), feature_request_id: str(input.feature_request_id, 40), excerpt: str(input.excerpt, 1000) } });
   },
   escalate(c: Caller, id: string, input: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("escalate", { ...A(c), ticket_id: uuid(id, "ticket_id"), audience: str(input.audience, 10) ?? "both", reason: str(input.reason, 500) ?? "Needs a decision", detail: str(input.detail, 4000) ?? null, dedupe_key: str(input.dedupe_key, 200) ?? null });
+    return mutationRpc(c, "escalate", { ...A(c), ticket_id: uuid(id, "ticket_id"), audience: str(input.audience, 10) ?? "both", reason: str(input.reason, 500) ?? "Needs a decision", detail: str(input.detail, 4000) ?? null, dedupe_key: str(input.dedupe_key, 200) ?? null });
   },
   listAccounts: (c: Caller, q?: string) => rpc("list_accounts", { ...A(c), q: q ?? null }),
   getAccount: (c: Caller, id: string) => rpc("get_account", { ...A(c), account_id: uuid(id, "account_id") }),
   updateAccount(c: Caller, id: string, patch: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("update_account", { ...A(c), account_id: uuid(id, "account_id"), patch });
+    return mutationRpc(c, "update_account", { ...A(c), account_id: uuid(id, "account_id"), patch });
   },
   listEngineering: (c: Caller, status?: string) => rpc("list_engineering", { ...A(c), status: status ?? null }),
   updateEngineering(c: Caller, id: string, update: Record<string, unknown>) {
     requireWriteScope(c);
-    return rpc("update_engineering_issue", { ...A(c), issue_id: uuid(id, "issue_id"), update });
+    return mutationRpc(c, "update_engineering_issue", { ...A(c), issue_id: uuid(id, "issue_id"), update });
   },
   listFeatures: (c: Caller, status?: string) => rpc("list_features", { ...A(c), status: status ?? null }),
   decideFeature(c: Caller, id: string, decision: string, note?: string) {
     requireWriteScope(c);
-    return rpc("decide_feature_request", { ...A(c), feature_request_id: uuid(id, "feature_request_id"), decision, note: note ?? null });
+    return mutationRpc(c, "decide_feature_request", { ...A(c), feature_request_id: uuid(id, "feature_request_id"), decision, note: note ?? null });
   },
   listEscalations: (c: Caller, openOnly = true) => rpc("list_escalations", { ...A(c), open_only: openOnly }),
   acknowledgeEscalation(c: Caller, id: string, note?: string) {
     requireWriteScope(c);
-    return rpc("acknowledge_escalation", { ...A(c), escalation_id: uuid(id, "escalation_id"), note: note ?? null });
+    return mutationRpc(c, "acknowledge_escalation", { ...A(c), escalation_id: uuid(id, "escalation_id"), note: note ?? null });
   },
   resolveEscalation(c: Caller, id: string, decision: string) {
     requireWriteScope(c);
-    return rpc("resolve_escalation", { ...A(c), escalation_id: uuid(id, "escalation_id"), decision });
+    return mutationRpc(c, "resolve_escalation", { ...A(c), escalation_id: uuid(id, "escalation_id"), decision });
   },
   operationsCatalog: () => describeOperations(),
   readOperation: (c: Caller, input: Record<string, unknown>) =>
@@ -265,16 +266,35 @@ export const actions = {
     requireWriteScope(c);
     return undoOperation(c, uuid(id, "operation_id"));
   },
+  recordReconciliation(c: Caller, id: string, outcome: unknown, verification: unknown, note: unknown) {
+    requireWriteScope(c);
+    const allowed = new Set(["applied", "not_applied", "undone", "not_undone"]);
+    if (typeof outcome !== "string" || !allowed.has(outcome)) {
+      throw new BloomError(400, "invalid", "Unsupported reconciliation outcome");
+    }
+    if (!verification || typeof verification !== "object" || Array.isArray(verification)) {
+      throw new BloomError(400, "invalid", "verification must be an object with passed=true and the evidence checked");
+    }
+    const boundedNote = boundedString(note, "note", 2_000);
+    if (!boundedNote?.trim()) throw new BloomError(400, "invalid", "note is required");
+    return mutationRpc(c, "reconcile_operation", {
+      ...A(c),
+      operation_id: uuid(id, "operation_id"),
+      outcome,
+      verification,
+      note: boundedNote,
+    });
+  },
   getOperation: (c: Caller, id: string) => rpc("get_operation", { ...A(c), operation_id: uuid(id, "operation_id") }),
   listJobs: (c: Caller, status?: string) => rpc("list_jobs", { ...A(c), status: status ?? null }),
   controlJob(c: Caller, id: string, action: string) {
     requireWriteScope(c);
-    return rpc("control_job", { ...A(c), job_id: uuid(id, "job_id"), action });
+    return mutationRpc(c, "control_job", { ...A(c), job_id: uuid(id, "job_id"), action });
   },
   getSettings: (c: Caller) => rpc("get_settings", A(c)),
   setSetting(c: Caller, key: string, value: unknown) {
     requireWriteScope(c);
-    return rpc("set_setting", { ...A(c), key, value });
+    return mutationRpc(c, "set_setting", { ...A(c), key, value });
   },
   listStaff: (c: Caller) => rpc("list_staff", A(c)),
   // Bloom chat spending cap (platform admins only; enforced in the database).
@@ -331,12 +351,17 @@ export const actions = {
       ...(env("BLOOM_GITHUB_REPAIR_TOKEN") ? [] : ["BLOOM_GITHUB_REPAIR_TOKEN"]),
       ...(env("BLOOM_GITHUB_RELEASE_TOKEN") ? [] : ["BLOOM_GITHUB_RELEASE_TOKEN"]),
     ];
-    return { ok: true, missing_configuration: [...new Set(missing)], email: { configured: email.configured, inbox: email.supportAddress }, ai: { provider: ai.provider, model: ai.model }, operations: ops, statuses: STATUS_LABEL };
-  },
-  async track(token: string) {
-    if (!/^[A-Za-z0-9_-]{20,80}$/.test(token)) throw new BloomError(404, "not_found", "Link not found");
-    const t = await rpc("ticket_by_tracking_token", { hash: await sha256Hex(token) });
-    if (!t) throw new BloomError(404, "not_found", "This link has expired or does not exist");
-    return t;
+    return {
+      ok: true,
+      missing_configuration: [...new Set(missing)],
+      email: {
+        configured: email.configured,
+        sending_inbox: email.sendingAddress,
+        public_inbox: email.publicAddress,
+      },
+      ai: { provider: ai.provider, model: ai.model },
+      operations: ops,
+      statuses: STATUS_LABEL,
+    };
   },
 };

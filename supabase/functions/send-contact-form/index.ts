@@ -74,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // All contact requests enter Bloom. It owns acknowledgements, answers and escalation.
-    const recipients = ["bloom@support.bloomsuite.app"];
+    const recipients = ["bloom@bloomsuite.app"];
 
     const emailResponse = await resend.emails.send({
       from: "BloomSuite Contact <support@brandsinblooms.com>",
