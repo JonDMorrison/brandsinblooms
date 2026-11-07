@@ -1531,10 +1531,13 @@ function CampaignEditorScreen() {
                     : isDirty
                       ? "Unsaved changes"
                       : lastSavedAt
-                        ? "All changes saved"
+                        ? `Last saved ${new Intl.DateTimeFormat(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }).format(lastSavedAt)}`
                         : campaignId
-                          ? "Saved"
-                          : "New draft"}
+                          ? "Saved · Timestamp unavailable"
+                          : "New draft · Not saved yet"}
               </Typography>
             </Stack>
           </Stack>
