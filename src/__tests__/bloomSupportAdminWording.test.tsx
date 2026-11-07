@@ -19,7 +19,7 @@ const api = vi.hoisted(() => ({
   staff: vi.fn(),
   settings: vi.fn(),
   engineering: vi.fn(), features: vi.fn(), pageTickets: vi.fn(),
-  setAutomation: vi.fn(), resolveEscalation: vi.fn(), updateTicket: vi.fn(),
+  getTicket: vi.fn(), setAutomation: vi.fn(), resolveEscalation: vi.fn(), updateTicket: vi.fn(),
 }));
 vi.mock("@/lib/bloomSupport/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/bloomSupport/api")>();
@@ -186,6 +186,7 @@ it("Something else saves the alternative through the real Today dialog and ticke
   api.features.mockResolvedValue([]);
   api.pageTickets.mockResolvedValue({ items: [], total: 0 });
   api.escalations.mockResolvedValue([{ id: "review-1", status: "open", ticket_id: "ticket-1", reason: "engineering_escalated", created_at: new Date().toISOString(), ticket: { number: 1019, subject: "Recipient checkout" } }]);
+  api.getTicket.mockResolvedValueOnce({ status: "working", version: 3 }).mockResolvedValueOnce({ status: "working", version: 5 });
   api.setAutomation.mockResolvedValue({});
   api.resolveEscalation.mockResolvedValue({});
   api.updateTicket.mockResolvedValue({});
@@ -196,7 +197,7 @@ it("Something else saves the alternative through the real Today dialog and ticke
   expect(screen.getByRole("button", { name: "Save guidance" })).toBeDisabled();
   fireEvent.change(field, { target: { value: "Check the work already in review before starting again." } });
   fireEvent.click(screen.getByRole("button", { name: "Save guidance" }));
-  await waitFor(() => expect(api.updateTicket).toHaveBeenCalledWith("ticket-1", expect.objectContaining({ owner_id: "admin-1", next_action: "Alternative requested: Check the work already in review before starting again." })));
+  await waitFor(() => expect(api.updateTicket).toHaveBeenCalledWith("ticket-1", expect.objectContaining({ version: 5, owner_id: "admin-1", next_action: "Alternative requested: Check the work already in review before starting again." })));
   expect(api.setAutomation).toHaveBeenCalledWith("ticket-1", "human", "Alternative requested: Check the work already in review before starting again.");
   expect(await screen.findByRole("status")).toHaveTextContent("Your alternative is recorded for review.");
   unmount();
