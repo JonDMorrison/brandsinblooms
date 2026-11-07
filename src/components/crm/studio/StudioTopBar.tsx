@@ -179,6 +179,12 @@ export default function StudioTopBar({
               ? "All changes saved"
               : saveMessage || "Ready";
 
+  const savedDate = lastSavedAt ? new Date(lastSavedAt) : null;
+  const savedAtLabel =
+    savedDate && !Number.isNaN(savedDate.getTime())
+      ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(savedDate)
+      : "Not saved yet";
+
   return (
     <Sheet
       sx={{
@@ -326,10 +332,12 @@ export default function StudioTopBar({
           <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)}>
             <ModalDialog
               sx={{
-                width: 360,
+                width: 500,
                 maxWidth: "calc(100vw - 32px)",
-                p: 2.5,
-                borderRadius: "12px",
+                maxHeight: "calc(100vh - 32px)",
+                overflowY: "auto",
+                p: { xs: 2, sm: 3 },
+                borderRadius: "14px",
                 boxShadow: "lg",
               }}
             >
@@ -338,7 +346,12 @@ export default function StudioTopBar({
                 alignItems="center"
                 justifyContent="space-between"
               >
-                <Typography level="title-sm">Campaign Settings</Typography>
+                <Stack spacing={0.25}>
+                  <Typography level="title-md">Campaign settings</Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    Edit inbox details and review save information.
+                  </Typography>
+                </Stack>
                 <IconButton
                   variant="plain"
                   color="neutral"
@@ -355,6 +368,24 @@ export default function StudioTopBar({
               </Stack>
               <Box sx={{ height: "1px", bgcolor: "neutral.100", my: 1.5 }} />
               <Stack spacing={1.5}>
+                <Sheet variant="soft" color="neutral" sx={{ p: 1.5, borderRadius: "md" }}>
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                    <Stack spacing={0.25}>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>Campaign status</Typography>
+                      <Chip variant="outlined" color={STATUS_COLOR[campaignStatus]} size="sm">
+                        {campaignStatus}
+                      </Chip>
+                    </Stack>
+                    <Stack spacing={0.25} alignItems="flex-end">
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>Last saved</Typography>
+                      <Typography level="body-sm" fontWeight="md">{savedAtLabel}</Typography>
+                      {hasUnsavedChanges ? (
+                        <Typography level="body-xs" sx={{ color: "neutral.600" }}>Unsaved changes</Typography>
+                      ) : null}
+                    </Stack>
+                  </Stack>
+                </Sheet>
+                <Typography level="title-sm">Inbox details</Typography>
                 <Stack spacing={0.5}>
                   <Typography
                     level="body-xs"
@@ -411,6 +442,8 @@ export default function StudioTopBar({
                   </Typography>
                 </Stack>
 
+                <Box sx={{ height: "1px", bgcolor: "neutral.100", my: 0.5 }} />
+                <Typography level="title-sm">Sender details</Typography>
                 <Stack spacing={0.5}>
                   <Typography
                     level="body-xs"
@@ -445,6 +478,21 @@ export default function StudioTopBar({
                     }
                     sx={metadataInputSx}
                   />
+                </Stack>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    Changes remain in this campaign until saved.
+                  </Typography>
+                  <Button
+                    color="primary"
+                    variant={hasUnsavedChanges ? "solid" : "outlined"}
+                    size="sm"
+                    loading={saveStatus === "saving"}
+                    onClick={onSave}
+                    disabled={!hasUnsavedChanges || saveStatus === "saving"}
+                  >
+                    Save changes
+                  </Button>
                 </Stack>
               </Stack>
             </ModalDialog>
