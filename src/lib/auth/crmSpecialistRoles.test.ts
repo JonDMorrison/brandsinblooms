@@ -4,6 +4,7 @@ import {
   CRM_ROLE_LABELS,
   CRM_ROLE_DESCRIPTIONS,
   normalizeCrmAccess,
+  canQueueCampaignForTenant,
 } from "@/lib/auth/crmAccess";
 
 describe("Mike at Arts specialist CRM role contracts", () => {
@@ -27,4 +28,21 @@ describe("Mike at Arts specialist CRM role contracts", () => {
     expect(access.permissions).toEqual(["campaigns.read", "campaigns.write", "content.design"]);
     expect(normalizeCrmAccess({ role: "custom_superuser", permissions: ["access.manage"] }).role).toBeNull();
   });
+  it("requires both an explicitly authorized sender role and a matching tenant", () => {
+    const access = (role: string, permissions: string[]) => ({
+      tenantId: "arts-nursery",
+      role,
+      locationIds: [],
+      permissions,
+    });
+    expect(canQueueCampaignForTenant(access("sender", ["campaigns.send"]), "arts-nursery")).toBe(true);
+    expect(canQueueCampaignForTenant(access("marketing", ["campaigns.send"]), "arts-nursery")).toBe(true);
+    expect(canQueueCampaignForTenant(access("owner_admin", ["campaigns.send"]), "arts-nursery")).toBe(true);
+    expect(canQueueCampaignForTenant(access("designer", ["campaigns.send"]), "arts-nursery")).toBe(false);
+    expect(canQueueCampaignForTenant(access("list_manager", ["campaigns.send"]), "arts-nursery")).toBe(false);
+    expect(canQueueCampaignForTenant(access("sender", []), "arts-nursery")).toBe(false);
+    expect(canQueueCampaignForTenant(access("sender", ["campaigns.send"]), "other-tenant")).toBe(false);
+    expect(canQueueCampaignForTenant(null, "arts-nursery")).toBe(false);
+  });
+
 });
