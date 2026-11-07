@@ -106,3 +106,23 @@ export function normalizeCrmAccess(value: unknown): CrmAccess {
     permissions,
   };
 }
+
+/**
+ * An authenticated send caller must have the explicit send capability in the
+ * same tenant as the campaign. This pure check is shared with the Edge send
+ * boundary; UI visibility alone must not authorize a send.
+ */
+export function canQueueCampaignForTenant(
+  untrustedAccess: unknown,
+  campaignTenantId: string | null,
+): boolean {
+  if (!campaignTenantId) return false;
+  const access = normalizeCrmAccess(untrustedAccess);
+  return (
+    access.tenantId === campaignTenantId &&
+    (access.role === "owner_admin" ||
+      access.role === "marketing" ||
+      access.role === "sender") &&
+    access.permissions.includes("campaigns.send")
+  );
+}
