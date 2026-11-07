@@ -1,6 +1,9 @@
 export const CRM_ROLES = [
   "owner_admin",
   "marketing",
+  "designer",
+  "list_manager",
+  "sender",
   "store_manager",
   "staff",
 ] as const;
@@ -27,6 +30,9 @@ export type CrmPermission = (typeof CRM_PERMISSIONS)[number];
 export const CRM_ROLE_LABELS: Record<CrmRole, string> = {
   owner_admin: "Owner / Admin",
   marketing: "Marketing",
+  designer: "Designer",
+  list_manager: "List Manager",
+  sender: "Sender",
   store_manager: "Store Manager",
   staff: "Staff",
 };
@@ -34,6 +40,9 @@ export const CRM_ROLE_LABELS: Record<CrmRole, string> = {
 export const CRM_ROLE_DESCRIPTIONS: Record<CrmRole, string> = {
   owner_admin: "Full company, billing, location, and team access.",
   marketing: "Company-wide campaigns, segments, customers, and reporting.",
+  designer: "Build campaign content and drafts. Cannot send or manage contacts.",
+  list_manager: "Manage customer records, tags, and segments. Cannot send campaigns.",
+  sender: "Review, schedule, and send campaigns. Cannot manage customer lists.",
   store_manager: "Campaign and customer access for assigned stores only.",
   staff: "Customer and loyalty lookup for assigned stores only.",
 };
