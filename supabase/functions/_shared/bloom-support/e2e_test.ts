@@ -1872,6 +1872,10 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals((await call("bloom-support-worker", "POST", "", { body: {} })).status, 401, "unauthenticated worker call refused");
     const r = await mcp(keys.jon, "readiness", {});
     assert(!r.isError, r.content[0].text);
+    assert(
+      String(r.structuredContent.live_evidence).includes("not a deployment or health check"),
+      "readiness explains that live evidence is observed use, not a deployment or health result",
+    );
     const caps = r.structuredContent.capabilities as Array<{ key: string; configured: boolean; enabled: boolean | null; live: string | null; missing: string[] }>;
     const ai = caps.find((c) => c.key === "ai")!;
     assert(!ai.configured && ai.missing.includes("OPENAI_API_KEY"), "model honestly unconfigured");

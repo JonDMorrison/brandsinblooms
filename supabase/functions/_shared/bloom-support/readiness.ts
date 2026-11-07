@@ -11,6 +11,10 @@ import {
   hasTicketFlowChecksForPolicy,
   verificationChecksForPolicy,
 } from "./engineering.ts";
+import {
+  intakeEvidenceNote,
+  LIVE_EVIDENCE_DESCRIPTION,
+} from "./readiness-evidence.ts";
 
 interface Facts {
   settings: Record<string, unknown>;
@@ -132,6 +136,13 @@ export async function readiness(caller: Caller) {
   const workerLive = recent(f.worker.last_finished_at, 1 / 96);
   const repairLive = recent(operational.last_repair_report_at, 90);
   const ticketFlowLive = recent(operational.last_ticket_flow_verified_at, 90);
+  const intakeCrmConfigured = true;
+  const intakeCmsConfigured = !!env("BLOOM_INTAKE_SECRET_CMS");
+  const intakePosConfigured = !!env("BLOOM_INTAKE_SECRET_POS");
+  const intakeCrmLive = recent(f.last_seen.intake_crm, 30);
+  const intakeCmsLive = recent(f.last_seen.intake_cms, 30);
+  const intakePosLive = recent(f.last_seen.intake_pos, 30);
+  const chatgptLive = recent(f.last_seen.mcp_or_api_key_used, 30);
   const caps: Capability[] = [
     { key: "worker", label: "Background worker (no chat needed)", implemented: true, configured: f.cron.worker && f.vault.worker_token,
       missing: [...(f.cron.worker ? [] : ["cron job bloom-support-worker"]), ...(f.vault.worker_token ? [] : ["vault secret bloom_support_worker_token"])],
@@ -149,12 +160,12 @@ export async function readiness(caller: Caller) {
       tested: "SQL: transitions, timers, merge, notifications, metrics; e2e: views, client actions, CC, bounces",
       enabled: true, live: recent(f.last_seen.intake_crm ?? f.last_seen.intake_email, 30),
       note: `Targets: ${JSON.stringify((s.sla as Record<string, unknown> | undefined)?.first_response_business_hours ?? {})} business hours (${(s.sla as Record<string, unknown> | undefined)?.contractual ? "contractual" : "internal"}); paused scopes: ${Object.entries((s.automation_scopes ?? {}) as Record<string, boolean>).filter(([, v]) => v === false).map(([k]) => k).join(", ") || "none"}` },
-    { key: "intake_crm", label: "CRM Get help / Support page", implemented: true, configured: true, missing: [], tested: "e2e: CRM intake + duplicate delivery", enabled: true,
-      live: recent(f.last_seen.intake_crm, 30), note: "Needs the CRM frontend deployed from the merged PR" },
-    { key: "intake_cms", label: "BloomSites Get help", implemented: true, configured: !!env("BLOOM_INTAKE_SECRET_CMS"), missing: need("BLOOM_INTAKE_SECRET_CMS"),
-      tested: "e2e: signed CMS intake", enabled: true, live: recent(f.last_seen.intake_cms, 30), note: "Also needs BLOOM_SUPPORT_INTAKE_URL + BLOOM_INTAKE_SECRET_CMS in BloomSites (Vercel) and the CMS PR released" },
-    { key: "intake_pos", label: "POS back office + till (offline queue)", implemented: true, configured: !!env("BLOOM_INTAKE_SECRET_POS"), missing: need("BLOOM_INTAKE_SECRET_POS"),
-      tested: "e2e: signed POS intake; vitest: till queue", enabled: true, live: recent(f.last_seen.intake_pos, 30), note: "Also needs the POS migration, functions and secrets deployed" },
+    { key: "intake_crm", label: "CRM Get help / Support page", implemented: true, configured: intakeCrmConfigured, missing: [], tested: "e2e: CRM intake + duplicate delivery", enabled: true,
+      live: intakeCrmLive, note: intakeEvidenceNote({ configured: intakeCrmConfigured, lastObservedAt: intakeCrmLive, sourceLabel: "CRM", missingConfigurationNote: "CRM support intake is not configured" }) },
+    { key: "intake_cms", label: "BloomSites Get help", implemented: true, configured: intakeCmsConfigured, missing: need("BLOOM_INTAKE_SECRET_CMS"),
+      tested: "e2e: signed CMS intake", enabled: true, live: intakeCmsLive, note: intakeEvidenceNote({ configured: intakeCmsConfigured, lastObservedAt: intakeCmsLive, sourceLabel: "BloomSites", missingConfigurationNote: "Bloom Support is missing BLOOM_INTAKE_SECRET_CMS; BloomSites must use BLOOM_SUPPORT_INTAKE_URL and the matching intake secret." }) },
+    { key: "intake_pos", label: "POS back office + till (offline queue)", implemented: true, configured: intakePosConfigured, missing: need("BLOOM_INTAKE_SECRET_POS"),
+      tested: "e2e: signed POS intake; vitest: till queue", enabled: true, live: intakePosLive, note: intakeEvidenceNote({ configured: intakePosConfigured, lastObservedAt: intakePosLive, sourceLabel: "POS", missingConfigurationNote: "Bloom Support is missing BLOOM_INTAKE_SECRET_POS; POS must use BLOOM_SUPPORT_INTAKE_URL and the matching intake secret." }) },
     { key: "intake_public", label: "Can't-sign-in contact form", implemented: true, configured: true, missing: [], tested: "e2e: public intake", enabled: true, live: recent(f.last_seen.intake_public, 30) },
     { key: "email_in", label: "Email intake (Resend inbound)", implemented: true, configured: !!env("RESEND_INBOUND_WEBHOOK_SECRET"), missing: need("RESEND_INBOUND_WEBHOOK_SECRET"),
       tested: "e2e: threading, duplicates, autoresponders, reopen", enabled: true, live: recent(f.last_seen.intake_email, 30), note: "Needs a Resend receiving address and the email.received webhook" },
@@ -195,10 +206,11 @@ export async function readiness(caller: Caller) {
         ? `Rollback targets cover ${rollback.repositories.length} auto-release ${rollback.repositories.length === 1 ? "repository" : "repositories"}`
         : "No repositories currently have auto-approved release paths" },
     { key: "chatgpt", label: "ChatGPT / MCP (per-person OAuth or key)", implemented: true, configured: true, missing: [], tested: "e2e: MCP tools with per-person keys; SQL: OAuth codes/tokens",
-      enabled: true, live: recent(f.last_seen.mcp_or_api_key_used, 30), note: "OAuth approval page needs the CRM frontend deployed; until then use a personal key" },
+      enabled: true, live: chatgptLive, note: chatgptLive ? "Connected access has been used successfully in this environment within the last 30 days." : "Configured; no OAuth or personal-key use has been observed in this environment within the last 30 days." },
   ];
   return {
     generated_at: new Date().toISOString(),
+    live_evidence: LIVE_EVIDENCE_DESCRIPTION,
     summary: {
       continuous_automation: automation && !!workerLive ? "running" : automation ? "enabled but worker not seen in 15 min" : "paused",
       staff: f.staff,
