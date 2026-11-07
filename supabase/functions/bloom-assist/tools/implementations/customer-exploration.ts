@@ -288,6 +288,27 @@ export const saveCustomerSetSegment: ToolImplementation = async (params,context)
   return {success:true,error:null,data:data as JsonValue,count:1,message:'Saved the exact customer group as a static segment. No messages were sent.',block_type:'data_card',confirmation_required:false,confirmation_details:null};
 };
 
+type SpendingEvent = {id:string;customer_id:string|null;amount:number|string|null;raw_data:unknown};
+/** Read only the saved audience when it is small enough to use indexed customer IDs.
+ * This avoids loading a company's entire imported spending report to rank 413 people. */
+export async function loadReportedSpendingEvents(
+  client:PersistenceClient,tenantId:string,importId:string,cutoff:string,customerIds?:string[],
+):Promise<SpendingEvent[]> {
+  const query=()=>client.from('customer_intelligence_source_events')
+    .select('id,customer_id,amount,raw_data').eq('tenant_id',tenantId).eq('import_id',importId)
+    .eq('event_type','customer_spending').lte('created_at',cutoff);
+  if(customerIds && customerIds.length<=1000){
+    const events:SpendingEvent[]=[];
+    for(let i=0;i<customerIds.length;i+=100){
+      const ids=customerIds.slice(i,i+100);
+      events.push(...await readAllPages<SpendingEvent>((from,to)=>
+        query().in('customer_id',ids).order('id').range(from,to)));
+    }
+    return events;
+  }
+  return readAllPages<SpendingEvent>((from,to)=>query().order('id').range(from,to));
+}
+
 /** Select an exact audience from a reported spending period without relabelling it lifetime value. */
 export const exploreCustomerReportedSpending: ToolImplementation = async (params,context) => {
   const scope = requireScope(params), cutoff = new Date().toISOString(), client = await requireAnalysisAccess(context);
@@ -311,10 +332,9 @@ export const exploreCustomerReportedSpending: ToolImplementation = async (params
   const everyone = await loadAnalysisPopulation(context,cutoff), visible = new Set(everyone);
   const previous = scope==='all_customers'?null:await loadCustomerSet(context,scope==='saved_result'?String(params.set_id):undefined);
   if(previous) publicSetFrom(previous,visible,new Map());
-  const events = await readAllPages<{id:string;customer_id:string|null;amount:number|string|null;raw_data:unknown}>((from,to)=>client.from('customer_intelligence_source_events')
-    .select('id,customer_id,amount,raw_data').eq('tenant_id',context.tenantId).eq('import_id',report.id)
-    .eq('event_type','customer_spending').lte('created_at',cutoff).order('id').range(from,to));
   const population=previous?.included_ids??everyone, allowed=new Set(population);
+  const events=await loadReportedSpendingEvents(client,context.tenantId,report.id,cutoff,
+    previous?.included_ids);
   const values=new Map<string,{amount:number;transactions:number;id:string}>();
   for(const event of events){
     if(!event.customer_id||!allowed.has(event.customer_id)) continue;
