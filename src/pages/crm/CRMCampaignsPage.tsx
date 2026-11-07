@@ -237,6 +237,7 @@ function getSortDate(campaign: CampaignCatalogItem) {
 
 export function normalizeFilter(value: string | null): StatusFilter {
   switch (value) {
+    case "all":
     case "sending":
     case "scheduled":
     case "draft":
