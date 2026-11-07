@@ -33,6 +33,7 @@ import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboa
 import { ImportedCustomerSummary } from "@/components/crm/customer-dashboard/ImportedCustomerSummary";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
 import { CustomerSegmentsCard } from "@/components/crm/customer-dashboard/CustomerSegmentsCard";
+import { CustomerTagsCard } from "@/components/crm/customer-dashboard/CustomerTagsCard";
 import { CustomerSnapshot } from "@/components/crm/customer-dashboard/CustomerSnapshot";
 import { EditCustomerDialog } from "@/components/crm/customer-dashboard/EditCustomerDialog";
 import { EngagementHealthOverview } from "@/components/crm/customer-dashboard/EngagementHealthOverview";
@@ -669,6 +670,10 @@ const CustomerDashboardPage: React.FC = () => {
                   customer={displayCustomer}
                   customerLabel={customerName}
                   onCustomerPatched={handleCustomerPatched}
+                  canManage={canEditCustomer}
+                />
+                <CustomerTagsCard
+                  customerId={displayCustomer.id}
                   canManage={canEditCustomer}
                 />
                 <CustomerProfileAttributesCard customer={displayCustomer} />
