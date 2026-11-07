@@ -7,7 +7,10 @@ export interface EmailConfig {
   configured: boolean;
   missing: string[];
   from: string;
-  supportAddress: string | null;
+  /** Verified dedicated sending/inbound identity (deliverability domain). */
+  sendingAddress: string | null;
+  /** Address clients see, use and reply to. */
+  publicAddress: string;
   replyDomain: string;
   publicBaseUrl: string;
   allowlist: string[];
@@ -16,15 +19,17 @@ export interface EmailConfig {
 export function emailConfig(): EmailConfig {
   const missing: string[] = [];
   if (!env("RESEND_API_KEY")) missing.push("RESEND_API_KEY");
-  const supportAddress = env("BLOOM_SUPPORT_INBOX") ?? null;
-  if (!supportAddress) missing.push("BLOOM_SUPPORT_INBOX");
-  const from = env("BLOOM_SUPPORT_FROM") ?? (supportAddress ? `Bloom Support <${supportAddress}>` : "Bloom Support <support@bloomsuite.app>");
+  const sendingAddress = env("BLOOM_SUPPORT_INBOX") ?? null;
+  if (!sendingAddress) missing.push("BLOOM_SUPPORT_INBOX");
+  const publicAddress = env("BLOOM_SUPPORT_PUBLIC_INBOX") ?? "bloom@bloomsuite.app";
+  const from = env("BLOOM_SUPPORT_FROM") ?? (sendingAddress ? `Bloom Support <${sendingAddress}>` : "Bloom Support <support@bloomsuite.app>");
   return {
     configured: missing.length === 0,
     missing,
     from,
-    supportAddress,
-    replyDomain: (supportAddress?.split("@")[1]) ?? "bloomsuite.app",
+    sendingAddress,
+    publicAddress,
+    replyDomain: (sendingAddress?.split("@")[1]) ?? "bloomsuite.app",
     publicBaseUrl: env("BLOOM_SUPPORT_PUBLIC_URL") ?? "https://bloomsuite.app",
     // When set, client email is delivered only to these addresses (test mode).
     allowlist: (env("BLOOM_SUPPORT_EMAIL_ALLOWLIST") ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
@@ -65,7 +70,20 @@ export interface SendResult {
   id: string;
   status: "sent" | "failed" | "suppressed" | "not_configured" | "queued" | "uncertain";
   duplicate: boolean;
+  /** True only when the same provider request is safe to try again. */
+  retryable: boolean;
   reason?: string;
+}
+
+/** Resend 429/5xx responses and transport ambiguity are the only retryable failures. */
+export function retryableProviderStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+/** Supports newly tagged failures and safe legacy 429/5xx ledger rows. */
+export function retryableLedgerFailure(status: string, error: string | null | undefined): boolean {
+  if (status === "queued" || status === "uncertain" || status === "not_configured") return true;
+  return status === "failed" && /^(?:retryable )?resend (?:429|5\d\d):/i.test(error ?? "");
 }
 
 /** Only expose controlled delivery reasons, never a raw provider/database error. */
@@ -122,11 +140,11 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
   // A previous attempt the provider never accepted (unknown outcome, rejected, or not yet configured)
   // is retried with the SAME provider idempotency key and Message-ID: Resend deduplicates within
   // 24 hours, so the client does not get two copies. Sent and suppressed entries are never resent.
-  const retry = queued.duplicate && ["uncertain", "queued", "failed", "not_configured"].includes(queued.status) && !queued.provider_id;
+  const retry = queued.duplicate && retryableLedgerFailure(queued.status, queued.error) && !queued.provider_id;
   if (queued.status === "suppressed") {
-    return { id: queued.id, status: "suppressed", duplicate: queued.duplicate, reason: safeSuppressionReason(queued.error) };
+    return { id: queued.id, status: "suppressed", duplicate: queued.duplicate, retryable: false, reason: safeSuppressionReason(queued.error) };
   }
-  if (queued.duplicate && !retry) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true };
+  if (queued.duplicate && !retry) return { id: queued.id, status: queued.status as SendResult["status"], duplicate: true, retryable: false };
   // A retry sends exactly what the first attempt recorded. Rebuilding the email (for example with a
   // fresh tracking link) would change the payload under the same idempotency key, which the provider
   // rejects, so the stored ledger copy is authoritative.
@@ -138,7 +156,7 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
     const enabled = await rpc<boolean>("setting", { key: "client_email_enabled" });
     if (enabled !== true) {
       await rpc("mark_outbound_email", { id: queued.id, status: "suppressed", error: "client_email_enabled is off" });
-      return { id: queued.id, status: "suppressed", duplicate: false, reason: "client_email_enabled is off" };
+      return { id: queued.id, status: "suppressed", duplicate: false, retryable: false, reason: "client_email_enabled is off" };
     }
     // A test-mode primary recipient must never carry a real customer on CC.
     const recipients = [req.to, ...(req.cc ?? [])].map((address) => address.trim().toLowerCase());
@@ -148,13 +166,14 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
         id: queued.id,
         status: "suppressed",
         duplicate: false,
+        retryable: false,
         reason: safeSuppressionReason("recipient or CC not in BLOOM_SUPPORT_EMAIL_ALLOWLIST"),
       };
     }
   }
   if (!cfg.configured) {
     await rpc("mark_outbound_email", { id: queued.id, status: "not_configured", error: `missing ${cfg.missing.join(", ")}` });
-    return { id: queued.id, status: "not_configured", duplicate: false, reason: `missing ${cfg.missing.join(", ")}` };
+    return { id: queued.id, status: "not_configured", duplicate: false, retryable: true, reason: `missing ${cfg.missing.join(", ")}` };
   }
 
   // A shipment may be rolled back after its email is rendered. Re-check its
@@ -166,7 +185,7 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
     { p_email: queued.id },
   );
   if (!shipmentDispatchAllowed) {
-    return { id: queued.id, status: "suppressed", duplicate: queued.duplicate, reason: "delivery suppressed" };
+    return { id: queued.id, status: "suppressed", duplicate: queued.duplicate, retryable: false, reason: "delivery suppressed" };
   }
 
   const messageId = queued.rfc_message_id ?? rfcId;
@@ -185,7 +204,7 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
         from: cfg.from,
         to: [req.to],
         cc: req.cc?.length ? [...new Set(req.cc.map((c) => c.toLowerCase()))].filter((c) => c !== req.to.toLowerCase()).slice(0, 10) : undefined,
-        reply_to: cfg.supportAddress ?? undefined,
+        reply_to: cfg.publicAddress,
         subject: req.subject,
         text: req.text,
         html: req.html ?? undefined,
@@ -195,15 +214,16 @@ export async function sendSupportEmail(req: SendRequest): Promise<SendResult> {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      await rpc("mark_outbound_email", { id: queued.id, status: "failed", error: `resend ${res.status}: ${JSON.stringify(body).slice(0, 300)}` });
-      return { id: queued.id, status: "failed", duplicate: false, reason: `resend ${res.status}` };
+      const retryable = retryableProviderStatus(res.status);
+      await rpc("mark_outbound_email", { id: queued.id, status: "failed", error: `${retryable ? "retryable" : "terminal"} resend ${res.status}: ${JSON.stringify(body).slice(0, 300)}` });
+      return { id: queued.id, status: "failed", duplicate: false, retryable, reason: `resend ${res.status}` };
     }
     await rpc("mark_outbound_email", { id: queued.id, status: "sent", provider_id: body?.id ?? null });
-    return { id: queued.id, status: "sent", duplicate: false };
+    return { id: queued.id, status: "sent", duplicate: false, retryable: false };
   } catch (e) {
     // Timeout or connection loss: the provider may or may not have accepted it.
     await rpc("mark_outbound_email", { id: queued.id, status: "uncertain", error: `outcome unknown: ${String(e).slice(0, 250)}` });
-    return { id: queued.id, status: "uncertain", duplicate: false, reason: "provider outcome unknown; will retry with the same idempotency key" };
+    return { id: queued.id, status: "uncertain", duplicate: false, retryable: true, reason: "provider outcome unknown; will retry with the same idempotency key" };
   }
 }
 

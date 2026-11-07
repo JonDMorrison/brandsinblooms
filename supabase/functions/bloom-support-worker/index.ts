@@ -11,7 +11,7 @@ import { triageNoteText } from "../_shared/bloom-support/notes.ts";
 import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
-import { emailConfig, sendSupportEmail, subjectFor, trackingLink } from "../_shared/bloom-support/email.ts";
+import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
 import {
   type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
   renderDigestEmail, renderEscalationEmail, renderStaffNotification, resolutionAlreadyTold, type StaffTicket, ticketThreadRoot,
@@ -255,6 +255,8 @@ async function answer(job: Job): Promise<string> {
   if (job.payload.mode === "engineering_progress") {
     if (t.status === "resolved" || t.merged_into) return "skipped: ticket already resolved or merged";
     const status = String(job.payload.status ?? "");
+    const currentStatus = typeof t.engineering?.status === "string" ? t.engineering.status : null;
+    if (currentStatus && currentStatus !== status) return `skipped: superseded engineering progress (${status} -> ${currentStatus})`;
     const body = bloomEngineeringProgress(status);
     if (!body) return `skipped: no customer update for engineering status ${status}`;
     const needsPerson = ["not_reproduced", "failed", "escalated", "rolled_back"].includes(status);
@@ -280,12 +282,17 @@ async function answer(job: Job): Promise<string> {
     if (t.status === "resolved" || t.merged_into) return "skipped: ticket already resolved or merged";
     const decision = String(job.payload.decision ?? "");
     if (!["accepted", "declined", "planned", "shipped"].includes(decision)) return "skipped: invalid feature decision";
-    await bloomSays(t, bloomFeatureDecision(decision), "feature_decision", `feature-decision:${job.id}`);
+    const message = await bloomSays(t, bloomFeatureDecision(decision), "feature_decision", `feature-decision:${job.id}`) as { message_id?: string };
+    // A product decision answers this support request. Close the conversation
+    // without pretending we need another client reply; its durable shipment
+    // subscription will still notify this requester when the feature ships.
     await patch(t, {
-      status: "waiting",
-      waiting_reason: "customer",
-      stage: "awaiting_client",
-      next_action: "Waiting to hear whether the client needs anything else",
+      status: "resolved",
+      stage: "resolved",
+      resolution_summary: `Product decision shared: ${decision}`,
+      resolution_verified: true,
+      resolution_evidence: { product_decision: decision, feature_decision_message_id: message.message_id ?? null },
+      next_action: null,
       next_action_due_at: null,
     });
     return `feature decision shared: ${decision}`;
@@ -323,6 +330,12 @@ const appUrl = () => emailConfig().publicBaseUrl;
 async function staffTimeZone(): Promise<string> {
   const bh = await rpc<{ timezone?: string } | null>("setting", { key: "business_hours" }).catch(() => null);
   return bh?.timezone ?? "America/Toronto";
+}
+
+function requireRetryableEmailOutcome(result: SendResult): void {
+  if (result.status === "not_configured") throw new BloomError(503, "not_configured", `email not configured: ${result.reason}`);
+  if (result.status === "uncertain" || result.retryable) throw new Error(`email ${result.status}: ${result.reason}`);
+  if (result.status === "failed") throw new BloomError(400, "email_rejected", `email permanently rejected: ${result.reason}`);
 }
 
 async function sendEmail(job: Job): Promise<string> {
@@ -382,7 +395,7 @@ async function sendEmail(job: Job): Promise<string> {
     cc: ctx.cc ?? [],
     idempotencyKey: `job:${job.id}`, bloomInitiated, humanAuthored, toClient: true,
   });
-  if (result.status === "failed" || result.status === "uncertain") throw new Error(`email ${result.status}: ${result.reason}`);
+  requireRetryableEmailOutcome(result);
   return `email ${result.status}${covered.length ? ` (with ${covered.length} more message${covered.length === 1 ? "" : "s"})` : ""}${result.reason ? ` (${result.reason})` : ""}`;
 }
 
@@ -474,6 +487,7 @@ async function escalateEmail(job: Job): Promise<string> {
       ticketId: job.ticket_id, purpose: "escalation", to: addr, toClient: false, bloomInitiated: true,
       subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `escalation:${x.id}:${addr}`,
     });
+    requireRetryableEmailOutcome(r);
     if (r.duplicate) counts.repeat++;
     else counts.sent++;
   }
@@ -560,8 +574,9 @@ async function digest(job: Job): Promise<string> {
   const mail = renderDigestEmail(report, { appUrl: appUrl(), date, timeZone: tz, period: period === "weekly" ? "weekly" : "daily" });
   if (!mail) return "nothing to report; digest skipped";
   for (const addr of to) {
-    await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
+    const result = await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
       subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `digest:${job.id}:${addr}` });
+    requireRetryableEmailOutcome(result);
   }
   return `digest sent to ${to.length}`;
 }
@@ -580,8 +595,9 @@ async function alertEmails(job: Job): Promise<string> {
   for (const g of groups) {
     const mail = renderAlertEmail(g, { appUrl: appUrl() });
     for (const addr of to) {
-      await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
+      const result = await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
         subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `alert:${job.id}:${g.key}:${addr}` });
+      requireRetryableEmailOutcome(result);
     }
   }
   return `${groups.length} alert email${groups.length === 1 ? "" : "s"} to ${to.length}`;
@@ -601,6 +617,7 @@ async function previewEmails(job: Job): Promise<string> {
   const send = async (kind: string, mail: { subject: string; text: string; html: string }) => {
     const r = await sendSupportEmail({ ticketId: null, purpose: "notification", to, toClient: false, bloomInitiated: false,
       subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `preview:${job.id}:${kind}` });
+    requireRetryableEmailOutcome(r);
     sent.push(`${kind} ${r.status}`);
   };
   if (job.ticket_id) {
@@ -644,8 +661,9 @@ async function notifyEmail(job: Job): Promise<string> {
   const to = await ownerEmails(String(job.payload.audience ?? "both"));
   const mail = renderStaffNotification({ title: String(job.payload.title ?? job.payload.kind ?? ""), ticketId: job.ticket_id, appUrl: appUrl() });
   for (const addr of to) {
-    await sendSupportEmail({ ticketId: job.ticket_id, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
+    const result = await sendSupportEmail({ ticketId: job.ticket_id, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
       subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `notify:${job.id}:${addr}` });
+    requireRetryableEmailOutcome(result);
   }
   return `notified ${to.length}`;
 }

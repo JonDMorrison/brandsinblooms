@@ -6,6 +6,18 @@ export type TodayEscalation = {
   [key: string]: unknown;
 };
 
+export type TodayTicketOwnership = {
+  status: unknown;
+  automation?: unknown;
+  executor?: unknown;
+};
+
+/** Today must never describe a person-owned or Needs You ticket as Bloom's work. */
+export function isBloomHandlingTicket(ticket: TodayTicketOwnership): boolean {
+  return ticket.status !== "resolved" && ticket.status !== "needs_owner" &&
+    ticket.automation === "auto" && ticket.executor === "bloom";
+}
+
 /** One client problem gets one Today card, even when several watchdog reasons are open. */
 export function groupOpenEscalations(rows: TodayEscalation[]): TodayEscalation[][] {
   const groups = new Map<string, TodayEscalation[]>();

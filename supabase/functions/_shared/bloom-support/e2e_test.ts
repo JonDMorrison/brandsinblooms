@@ -18,7 +18,8 @@ const DB_URL = Deno.env.get("BLOOM_E2E_DATABASE_URL");
 const SB = "http://supabase.test";
 const WHSEC_BYTES = new TextEncoder().encode("e2e-webhook-secret-0123456789abc");
 const ENV: Record<string, string> = {
-  SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: "service-key", RESEND_API_KEY: "re_test", BLOOM_SUPPORT_INBOX: "support@bloom.test",
+  SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: "service-key", RESEND_API_KEY: "re_test", BLOOM_SUPPORT_INBOX: "sender@support.bloom.test",
+  BLOOM_SUPPORT_PUBLIC_INBOX: "support@bloom.test",
   BLOOM_SUPPORT_PUBLIC_URL: "https://bloomsuite.test", RESEND_INBOUND_WEBHOOK_SECRET: "whsec_" + btoa(String.fromCharCode(...WHSEC_BYTES)),
   BLOOM_INTAKE_SECRET_CMS: "cms-intake-secret", BLOOM_INTAKE_SECRET_POS: "pos-intake-secret",
   BLOOM_GITHUB_REPAIR_TOKEN: "gh-repair", BLOOM_GITHUB_RELEASE_TOKEN: "gh-release", BLOOM_GITHUB_REPAIR_LOGINS: "bloom-repair[bot]",
@@ -73,7 +74,7 @@ async function tableSelect(table: string, url: URL, accept: string) {
 // ---------------------------------------------------------------------------
 // External stubs
 // ---------------------------------------------------------------------------
-const resendSent: Array<{ to: string[]; cc?: string[]; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
+const resendSent: Array<{ to: string[]; cc?: string[]; reply_to?: string; subject: string; text: string; headers: Record<string, string>; idem: string | null }> = [];
 const resendReceived = new Map<string, Record<string, unknown>>();
 const attachmentDownloads = new Map<string, Uint8Array>();
 let resendFailNext = 0;
@@ -250,10 +251,10 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     const b = JSON.parse(bodyText);
     if (resendFailNext > 0) {
       resendFailNext--;
-      resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
+      resendSent.push({ to: b.to, cc: b.cc, reply_to: b.reply_to, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
       throw new Error("connection reset after request was sent");
     }
-    resendSent.push({ to: b.to, cc: b.cc, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
+    resendSent.push({ to: b.to, cc: b.cc, reply_to: b.reply_to, subject: b.subject, text: b.text, headers: b.headers, idem: req.headers.get("idempotency-key") });
     return new Response(JSON.stringify({ id: `re_${resendSent.length}` }), { status: 200 });
   }
   if (url.hostname === "api.vercel.com") {
@@ -438,12 +439,12 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   for (const [k, v] of Object.entries(ENV)) Deno.env.set(k, v);
   for (const f of ["bloom-support-api", "bloom-support-intake", "bloom-support-email", "bloom-support-worker", "bloom-support-mcp"]) await load(f);
 
-  const U = { jon: "a0000000-0000-4000-8000-000000000001", jeff: "a0000000-0000-4000-8000-000000000002", sam: "a0000000-0000-4000-8000-000000000003", gail: "a0000000-0000-4000-8000-000000000004", rosa: "a0000000-0000-4000-8000-000000000005" };
+  const U = { jon: "a0000000-0000-4000-8000-000000000001", jonAlias: "a0000000-0000-4000-8000-000000000006", jeff: "a0000000-0000-4000-8000-000000000002", sam: "a0000000-0000-4000-8000-000000000003", gail: "a0000000-0000-4000-8000-000000000004", rosa: "a0000000-0000-4000-8000-000000000005" };
   const T = { greenleaf: "b0000000-0000-4000-8000-000000000001", rosehill: "b0000000-0000-4000-8000-000000000002" };
-  await sql!`INSERT INTO auth.users(id, email) VALUES (${U.jon}, 'jon@bloom.test'), (${U.jeff}, 'jeff@bloom.test'), (${U.sam}, 'sam@bloom.test'), (${U.gail}, 'gail@greenleaf.test'), (${U.rosa}, 'rosa@rosehill.test')`;
+  await sql!`INSERT INTO auth.users(id, email) VALUES (${U.jon}, 'jon@bloom.test'), (${U.jonAlias}, 'jon+alias@bloom.test'), (${U.jeff}, 'jeff@bloom.test'), (${U.sam}, 'sam@bloom.test'), (${U.gail}, 'gail@greenleaf.test'), (${U.rosa}, 'rosa@rosehill.test')`;
   await sql!`INSERT INTO public.app_admin_emails(email) VALUES ('jon@bloom.test')`;
   await sql!`INSERT INTO public.tenants(id, name) VALUES (${T.greenleaf}, 'Greenleaf Garden Centre'), (${T.rosehill}, 'Rose Hill Nursery')`;
-  await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES (${U.gail}, ${T.greenleaf}, 'Gail Green', 'owner'), (${U.rosa}, ${T.rosehill}, 'Rosa Hill', 'owner'), (${U.jon}, NULL, 'Jon', NULL), (${U.jeff}, NULL, 'Jeff', NULL), (${U.sam}, NULL, 'Sam Support', NULL)`;
+  await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES (${U.gail}, ${T.greenleaf}, 'Gail Green', 'owner'), (${U.rosa}, ${T.rosehill}, 'Rosa Hill', 'owner'), (${U.jon}, NULL, 'Jon', NULL), (${U.jonAlias}, NULL, 'Jon Morrison', NULL), (${U.jeff}, NULL, 'Jeff', NULL), (${U.sam}, NULL, 'Sam Support', NULL)`;
   await sql!`INSERT INTO public.crm_segments(id, tenant_id, name) VALUES ('d0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Rose lovers')`;
   await sql!`INSERT INTO public.crm_campaigns(id, tenant_id, name, status, subject_line, content, segment_id, projected_recipient_count) VALUES ('c0000000-0000-4000-8000-000000000001', ${T.greenleaf}, 'Spring sale', 'draft', 'Spring is here', '<p>Roses 20% off</p>', 'd0000000-0000-4000-8000-000000000001', 120)`;
   const tok = (u: string) => `jwt-${u}`;
@@ -452,6 +453,19 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   await t.step("roles: Jon bootstraps as administrator and assigns Jeff and Support", async () => {
     const me = await api("GET", "/me", tok(U.jon));
     assertEquals(me.json.role, "platform_admin");
+    const canonical = (await sql!`
+      SELECT id FROM bloom_support.principals WHERE auth_user_id = ${U.jon}
+    `)[0].id;
+    await sql!`
+      INSERT INTO bloom_support.principal_auth_identities(auth_user_id, principal_id, email)
+      VALUES (${U.jonAlias}, ${canonical}, 'jon+alias@bloom.test')
+    `;
+    const aliasMe = await api("GET", "/me", tok(U.jonAlias));
+    assertEquals(aliasMe.json.role, "platform_admin", "an explicitly linked CRM login keeps Jon's staff role");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.principals
+      WHERE auth_user_id IN (${U.jon}, ${U.jonAlias})
+    `)[0].n), 1, "an auth alias does not create a duplicate principal");
     for (const u of [U.jeff, U.sam, U.gail, U.rosa]) assertEquals((await api("GET", "/me", tok(u))).status, 200);
     assertEquals((await api("POST", "/staff/role", tok(U.jon), { email: "jeff@bloom.test", role: "platform_operator" })).json.role, "platform_operator");
     assertEquals((await api("POST", "/staff/role", tok(U.jon), { email: "sam@bloom.test", role: "support" })).json.role, "support");
@@ -588,6 +602,77 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     const pos = await signed("pos", { identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" }, report: { subject: "Receipt printer broken after update", body: "Receipt printer is broken since this morning's update: it prints nothing. Expected a receipt after each sale.", context: { screen: "sale", saved_locally_at: new Date().toISOString() }, idempotency_key: "pos:1" } });
     assertEquals(pos.status, 201, JSON.stringify(pos.json));
     posTicket = pos.json.ticket_id;
+
+    const followUpBase = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { subject: "Follow-up fixture", body: "The drawer is not opening after a cash sale.", idempotency_key: "pos:follow-up-base" },
+    });
+    assertEquals(followUpBase.status, 201, JSON.stringify(followUpBase.json));
+    const followUpTicket = await ticketRow(String(followUpBase.json.ticket_id));
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'working', stage = 'investigating', automation = 'human', executor = 'person',
+          owner_id = (SELECT id FROM bloom_support.principals WHERE auth_user_id = ${U.sam})
+      WHERE id = ${followUpTicket.id}
+    `;
+    const followUpReport = {
+      body: "It happened again on the next cash sale; we still need help.",
+      append_to_ticket_number: Number(followUpTicket.number),
+      client_action: "still_needs_help",
+      idempotency_key: "pos:follow-up:still-needs-help:1",
+    };
+    const followUp = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: followUpReport,
+    });
+    assertEquals(followUp.status, 201, JSON.stringify(followUp.json));
+    assertEquals(followUp.json.ticket_id, followUpTicket.id, "POS continues the existing support thread");
+    assertEquals(followUp.json.duplicate_delivery, false);
+    assertEquals((await ticketRow(followUpTicket.id)).status, "needs_owner", "a human-owned follow-up becomes Needs You");
+    const exactFollowUp = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: followUpReport,
+    });
+    assertEquals(exactFollowUp.json.duplicate_delivery, true, "an exact product retry returns its durable receipt");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.messages
+      WHERE ticket_id = ${followUpTicket.id} AND body = ${followUpReport.body}
+    `)[0].n), 1, "an exact retry appends one client message");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { ...followUpReport, body: "Changed words must not reuse the receipt." },
+    })).status, 409, "a changed follow-up cannot reuse an idempotency key");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-other", email: "other@pos.test", external_account_id: "pos-tenant-other", account_name: "Another POS" },
+      report: { ...followUpReport, idempotency_key: "pos:follow-up:wrong-account:1" },
+    })).status, 404, "a signed user cannot append to another account's ticket number");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { body: "Missing its paired action is rejected.", append_to_ticket_number: Number(followUpTicket.number), idempotency_key: "pos:follow-up:missing-action" },
+    })).status, 400);
+
+    const resolvedBase = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { body: "Please confirm the training question is answered.", idempotency_key: "pos:follow-up-confirm-base" },
+    });
+    const resolvedTicket = await ticketRow(String(resolvedBase.json.ticket_id));
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now(), resolution_verified = true,
+          resolution_summary = 'Training answer supplied'
+      WHERE id = ${resolvedTicket.id}
+    `;
+    const confirmed = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: {
+        body: "That solved it, thank you.",
+        append_to_ticket_number: Number(resolvedTicket.number),
+        client_action: "confirm_resolved",
+        idempotency_key: "pos:follow-up:confirm-resolved:1",
+      },
+    });
+    assertEquals(confirmed.status, 201, JSON.stringify(confirmed.json));
+    assertExists((await ticketRow(resolvedTicket.id)).closed_at, "the same-thread confirmation closes the resolved request");
 
     const directApiRequest = {
       subject: "Direct API idempotency",
@@ -1196,6 +1281,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertExists(crm.engineering_issue_id);
     const ack = resendSent.find((m) => m.to[0] === "gail@greenleaf.test");
     assertExists(ack, "acknowledgement emailed");
+    assertEquals(ack!.reply_to, "support@bloom.test", "customer mail replies to the public inbox, not the sending domain");
     assert(ack!.subject.startsWith(`[Bloom #${crm.number}]`));
     assertEquals(ack!.headers["Auto-Submitted"], "auto-replied", "Bloom's acknowledgement prevents automatic response loops");
     // The first email of a ticket carries the ticket's stable thread root, so every later email threads under it.
@@ -2130,7 +2216,8 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
 
     const active = await ticketRow(first.json.ticket_id);
     const stale = await ticketRow(second.json.ticket_id);
-    assertEquals([active.status, active.stage, active.waiting_reason], ["waiting", "awaiting_client", "customer"]);
+    assertEquals([active.status, active.stage, active.waiting_reason], ["resolved", "resolved", null],
+      "a product decision closes the support request without pretending the client owes a reply");
     assertExists(active.first_response_at, "the product decision counts as a substantive first response");
     assertEquals([stale.status, stale.stage], ["resolved", "resolved"], "a stale decision job cannot reopen a resolved request");
     const activeFeatureMessage = (await sql!`
@@ -2537,13 +2624,16 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       SET status = 'working', stage = 'investigating', next_action = NULL
       WHERE id = ${ticketId}
     `;
+    // Advance the real engineering record. The progress trigger is the single
+    // production path that queues this customer update; a fabricated job with
+    // a status that disagrees with the issue must be rejected as stale.
     await sql!`
-      INSERT INTO bloom_support.jobs(kind, ticket_id, engineering_issue_id, lane, payload, idempotency_key)
-      VALUES (
-        'answer', ${ticketId}, ${issueId}, ${"account:not-reproduced:" + ticketId},
-        '{"mode":"engineering_progress","status":"not_reproduced"}'::jsonb,
-        ${"e2e-not-reproduced-progress:" + ticketId}
-      )
+      UPDATE bloom_support.engineering_issues
+      SET status = 'not_reproduced',
+          reproduction = '{"result":"not_reproduced","checked_at":"2026-11-07T00:00:00Z"}'::jsonb,
+          version = version + 1,
+          updated_at = now()
+      WHERE id = ${issueId}
     `;
     await runWorkerUntilIdle(10);
 

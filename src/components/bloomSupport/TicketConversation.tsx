@@ -59,6 +59,7 @@ function banner(t: TicketDetail): Banner {
   const eng = t.engineering as { status?: string } | null | undefined;
   // A reply after resolution needs a decision, so it outranks "Solved".
   if (t.pending_review === "reply_after_resolution") return { tone: "warning", text: "Waiting on you: the client replied after this was solved" };
+  if (t.pending_review === "client_reply_human") return { tone: "warning", text: "Waiting on you: the client replied to your conversation" };
   if (t.status === "resolved") return { tone: "success", text: t.resolved_at ? `Solved ${formatDistanceToNow(new Date(t.resolved_at), { addSuffix: true })}` : "Solved" };
   if (eng?.status === "awaiting_approval") return { tone: "warning", text: "Waiting on you: approve the fix" };
   if (t.status === "needs_owner") return { tone: "warning", text: `Waiting on you: ${t.next_action ? humanizeNextAction(t.next_action) : "an admin decision"}` };

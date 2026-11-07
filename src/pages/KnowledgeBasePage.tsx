@@ -44,7 +44,7 @@ export const KnowledgeBasePage = () => {
           </div>
         </div>
         <section className="mt-10 flex flex-col justify-between gap-5 rounded-2xl border border-slate-200 bg-white p-6 sm:flex-row sm:items-center">
-          <div><h2 className="text-lg font-semibold">Still need help?</h2><p className="mt-1 text-sm text-slate-600">Report a problem, ask a question, or request a change.</p><a className="mt-2 inline-block break-all text-sm underline underline-offset-4" href="mailto:bloom@support.bloomsuite.app">bloom@support.bloomsuite.app</a></div>
+          <div><h2 className="text-lg font-semibold">Still need help?</h2><p className="mt-1 text-sm text-slate-600">Report a problem, ask a question, or request a change.</p><a className="mt-2 inline-block break-all text-sm underline underline-offset-4" href="mailto:bloom@bloomsuite.app">bloom@bloomsuite.app</a></div>
           <Link to="/support/contact" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-700">Contact support <ArrowRight size={16} aria-hidden="true" /></Link>
         </section>
       </main>

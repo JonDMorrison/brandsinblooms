@@ -76,7 +76,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: evidence, path: .bloom }
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 24 }
       - name: Install dependencies (no secrets present)
         run: |
           corepack enable || true
@@ -118,26 +118,13 @@ jobs:
             echo "::error::The agent changed git history; only working-tree changes are accepted"; exit 1
           fi
           git add -A ':!.bloom'
-          CHANGED=$(git diff --cached --name-status "origin/$IN_BASE")
-          echo "$CHANGED"
-          if [ -z "$CHANGED" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
-          bash -c "$GUARD" <<< "$CHANGED"
+          if git diff --cached --quiet "origin/$IN_BASE"; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # Run the NUL-safe validator from the trusted base commit, never from
+          # the agent-controlled working tree.
+          git show "origin/$IN_BASE:.github/scripts/bloom-repair-path-guard.mjs" > "$RUNNER_TEMP/bloom-repair-path-guard.mjs"
+          node "$RUNNER_TEMP/bloom-repair-path-guard.mjs" --base "origin/$IN_BASE"
           git diff --cached --binary "origin/$IN_BASE" > .bloom/fix.patch
           echo "changed=true" >> "$GITHUB_OUTPUT"
-        env:
-          GUARD: |
-            set -euo pipefail
-            CHANGED=$(cat)
-            FILES=$(echo "$CHANGED" | awk '{print $NF}')
-            if echo "$FILES" | grep -E '^\.github/|migrations/|\.sql$|^supabase/functions/|(^|/)\.env|package(-lock)?\.json$|pnpm-lock\.yaml$|bun\.lock|(^|/)(auth|payments?|checkout|stripe|billing|tax|payout)s?/|release-policy|bloom-support/policy\.ts$|CODEOWNERS|(^|/)\.git'; then
-              echo "::error::Repair touched a review-only path; aborting"; exit 1
-            fi
-            if echo "$CHANGED" | grep -E '^(M|D|R[0-9]*|C[0-9]*)\s' | awk '{print $NF}' | grep -E '(__tests__|/tests?/|e2e/|\.(test|spec)\.[cm]?[jt]sx?$)'; then
-              echo "::error::Repair modified or deleted an existing test; aborting"; exit 1
-            fi
-            ADDED_TESTS=$(echo "$CHANGED" | grep -E '^A\s' | awk '{print $NF}' | grep -cE '(__tests__|/tests?/|\.(test|spec)\.[cm]?[jt]sx?$)' || true)
-            [ "$ADDED_TESTS" -ge 1 ] || { echo "::error::A fix must add a new regression test"; exit 1; }
-            [ "$(echo "$FILES" | wc -l)" -le 6 ] || { echo "::error::Too many files for an automated repair"; exit 1; }
       - name: Repository checks (no secrets present)
         if: steps.guard.outputs.changed == 'true'
         run: |
@@ -220,21 +207,27 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: result, path: ../bloom-result }
       - name: Apply and re-check the patch (trusted code only)
+        id: patch
+        run: |
+          git show "HEAD:.github/scripts/bloom-repair-path-guard.mjs" > "$RUNNER_TEMP/bloom-repair-path-guard.mjs"
+          git apply --index ../bloom-result/fix.patch
+          node "$RUNNER_TEMP/bloom-repair-path-guard.mjs" --base HEAD
+          EXPECTED_TREE=$(git write-tree)
+          if git fetch --no-tags origin "refs/heads/$IN_BRANCH:refs/remotes/origin/$IN_BRANCH" 2>/dev/null; then
+            REMOTE_TREE=$(git rev-parse "refs/remotes/origin/$IN_BRANCH^{tree}")
+            [ "$REMOTE_TREE" = "$EXPECTED_TREE" ] || { echo "::error::The repair branch already exists with different contents"; exit 1; }
+            REMOTE_MESSAGE=$(git log -1 --format=%B "refs/remotes/origin/$IN_BRANCH")
+            grep -Fq "Bloom-Engineering-Issue: $IN_ID" <<< "$REMOTE_MESSAGE" || {
+              echo "::error::The existing repair branch is not owned by this engineering issue"; exit 1;
+            }
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit and push the fix branch
+        if: steps.patch.outputs.push == 'true'
         run: |
           git switch -c "$IN_BRANCH"
-          git apply --index ../bloom-result/fix.patch
-          CHANGED=$(git diff --cached --name-status HEAD)
-          echo "$CHANGED"
-          FILES=$(echo "$CHANGED" | awk '{print $NF}')
-          if echo "$FILES" | grep -E '^\.github/|migrations/|\.sql$|^supabase/functions/|(^|/)\.env|package(-lock)?\.json$|pnpm-lock\.yaml$|bun\.lock|(^|/)(auth|payments?|checkout|stripe|billing|tax|payout)s?/|release-policy|bloom-support/policy\.ts$|CODEOWNERS|(^|/)\.git'; then
-            echo "::error::Patch touches a review-only path"; exit 1
-          fi
-          if echo "$CHANGED" | grep -E '^(M|D|R[0-9]*|C[0-9]*)\s' | awk '{print $NF}' | grep -E '(__tests__|/tests?/|e2e/|\.(test|spec)\.[cm]?[jt]sx?$)'; then
-            echo "::error::Patch modifies an existing test"; exit 1
-          fi
-          [ "$(echo "$FILES" | wc -l)" -le 6 ] || { echo "::error::Too many files"; exit 1; }
-      - name: Commit and push the fix branch
-        run: |
           git config user.name "bloom-repair[bot]"
           git config user.email "bloom-repair@users.noreply.github.com"
           git commit -q -m "fix: Bloom repair for #$IN_ISSUE" -m "Bloom-Engineering-Issue: $IN_ID"
@@ -262,8 +255,13 @@ jobs:
             echo
             echo "This PR needs passing required checks and an independent review. Nothing merges unless Bloom's release policy marks it eligible or Jon approves the exact head commit."
           } > ../pr.md
-          gh pr create --base "$IN_BASE" --head "$IN_BRANCH" --title "fix: Bloom repair for #$IN_ISSUE" --body-file ../pr.md --label bloom-repair || \
-          gh pr create --base "$IN_BASE" --head "$IN_BRANCH" --title "fix: Bloom repair for #$IN_ISSUE" --body-file ../pr.md
+          EXISTING=$(gh pr list --state open --base "$IN_BASE" --head "$IN_BRANCH" --json url --jq '.[0].url // ""')
+          if [ -n "$EXISTING" ]; then
+            echo "Repair pull request already exists: $EXISTING"
+          else
+            gh pr create --base "$IN_BASE" --head "$IN_BRANCH" --title "fix: Bloom repair for #$IN_ISSUE" --body-file ../pr.md --label bloom-repair || \
+            gh pr create --base "$IN_BASE" --head "$IN_BRANCH" --title "fix: Bloom repair for #$IN_ISSUE" --body-file ../pr.md
+          fi
 
   report:
     needs: [prepare, agent, publish]

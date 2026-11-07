@@ -6,7 +6,7 @@
 //
 // Users never classify their request: Bloom triages it in the background.
 import {
-  authenticate, authenticateProduct, BloomError, cors, errorResponse, json, parseJsonObject, preflightProductAuthentication, principalForProductUser, readBodyText, readJson, rpc,
+  authenticate, authenticateProduct, BloomError, cors, errorResponse, json, parseJsonObject, preflightProductAuthentication, principalForProductUser, productClientAction, readBodyText, readJson, rpc,
   servicePrincipal, str, type Caller,
 } from "../_shared/bloom-support/runtime.ts";
 import { actions } from "../_shared/bloom-support/service.ts";
@@ -183,6 +183,46 @@ async function report(req: Request): Promise<unknown> {
       product,
       attachments,
     );
+    const appendSupplied = r.append_to_ticket_number !== undefined;
+    const actionSupplied = r.client_action !== undefined;
+    if (appendSupplied || actionSupplied) {
+      if (!appendSupplied || !actionSupplied) {
+        throw new BloomError(400, "invalid", "append_to_ticket_number and client_action are required together");
+      }
+      const rawNumber = r.append_to_ticket_number;
+      const ticketNumber = typeof rawNumber === "number"
+        ? rawNumber
+        : typeof rawNumber === "string" && /^\d+$/.test(rawNumber) ? Number(rawNumber) : Number.NaN;
+      if (!Number.isSafeInteger(ticketNumber) || ticketNumber < 1) {
+        throw new BloomError(400, "invalid", "append_to_ticket_number must be a positive ticket number");
+      }
+      const clientAction = r.client_action;
+      if (clientAction !== "still_needs_help" && clientAction !== "confirm_resolved") {
+        throw new BloomError(400, "invalid", "client_action must be still_needs_help or confirm_resolved");
+      }
+      if (!who.account_id) {
+        throw new BloomError(403, "forbidden", "The signed product identity is not linked to an account");
+      }
+      const idempotencyKey = r.idempotency_key;
+      if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9:._-]{8,200}$/.test(idempotencyKey)) {
+        throw new BloomError(400, "invalid", "An idempotency_key is required for a ticket follow-up");
+      }
+      const message = typeof r.body === "string" ? r.body.trim() : "";
+      if (!message) {
+        throw new BloomError(400, "invalid", "A follow-up message is required");
+      }
+      const continued = await productClientAction<Record<string, unknown>>({
+        actor: caller.principalId,
+        product,
+        account: who.account_id,
+        ticketNumber,
+        action: clientAction,
+        message,
+        idempotencyKey,
+        fingerprint,
+      });
+      return await receipt(caller, continued, attachments);
+    }
     const created = await actions.createTicket(
       caller,
       { ...r, product, channel: product, account_id: who.account_id },
