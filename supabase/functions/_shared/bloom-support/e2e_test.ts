@@ -602,6 +602,77 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(pos.status, 201, JSON.stringify(pos.json));
     posTicket = pos.json.ticket_id;
 
+    const followUpBase = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { subject: "Follow-up fixture", body: "The drawer is not opening after a cash sale.", idempotency_key: "pos:follow-up-base" },
+    });
+    assertEquals(followUpBase.status, 201, JSON.stringify(followUpBase.json));
+    const followUpTicket = await ticketRow(String(followUpBase.json.ticket_id));
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'working', stage = 'investigating', automation = 'human', executor = 'person',
+          owner_id = (SELECT id FROM bloom_support.principals WHERE auth_user_id = ${U.sam})
+      WHERE id = ${followUpTicket.id}
+    `;
+    const followUpReport = {
+      body: "It happened again on the next cash sale; we still need help.",
+      append_to_ticket_number: Number(followUpTicket.number),
+      client_action: "still_needs_help",
+      idempotency_key: "pos:follow-up:still-needs-help:1",
+    };
+    const followUp = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: followUpReport,
+    });
+    assertEquals(followUp.status, 201, JSON.stringify(followUp.json));
+    assertEquals(followUp.json.ticket_id, followUpTicket.id, "POS continues the existing support thread");
+    assertEquals(followUp.json.duplicate_delivery, false);
+    assertEquals((await ticketRow(followUpTicket.id)).status, "needs_owner", "a human-owned follow-up becomes Needs You");
+    const exactFollowUp = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: followUpReport,
+    });
+    assertEquals(exactFollowUp.json.duplicate_delivery, true, "an exact product retry returns its durable receipt");
+    assertEquals(Number((await sql!`
+      SELECT count(*) AS n FROM bloom_support.messages
+      WHERE ticket_id = ${followUpTicket.id} AND body = ${followUpReport.body}
+    `)[0].n), 1, "an exact retry appends one client message");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { ...followUpReport, body: "Changed words must not reuse the receipt." },
+    })).status, 409, "a changed follow-up cannot reuse an idempotency key");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-other", email: "other@pos.test", external_account_id: "pos-tenant-other", account_name: "Another POS" },
+      report: { ...followUpReport, idempotency_key: "pos:follow-up:wrong-account:1" },
+    })).status, 404, "a signed user cannot append to another account's ticket number");
+    assertEquals((await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { body: "Missing its paired action is rejected.", append_to_ticket_number: Number(followUpTicket.number), idempotency_key: "pos:follow-up:missing-action" },
+    })).status, 400);
+
+    const resolvedBase = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: { body: "Please confirm the training question is answered.", idempotency_key: "pos:follow-up-confirm-base" },
+    });
+    const resolvedTicket = await ticketRow(String(resolvedBase.json.ticket_id));
+    await sql!`
+      UPDATE bloom_support.tickets
+      SET status = 'resolved', stage = 'resolved', resolved_at = now(), resolution_verified = true,
+          resolution_summary = 'Training answer supplied'
+      WHERE id = ${resolvedTicket.id}
+    `;
+    const confirmed = await signed("pos", {
+      identity: { external_user_id: "pos-user-9", email: "till@rosehill.test", external_account_id: "pos-tenant-rose", account_name: "Rose Hill POS" },
+      report: {
+        body: "That solved it, thank you.",
+        append_to_ticket_number: Number(resolvedTicket.number),
+        client_action: "confirm_resolved",
+        idempotency_key: "pos:follow-up:confirm-resolved:1",
+      },
+    });
+    assertEquals(confirmed.status, 201, JSON.stringify(confirmed.json));
+    assertExists((await ticketRow(resolvedTicket.id)).closed_at, "the same-thread confirmation closes the resolved request");
+
     const directApiRequest = {
       subject: "Direct API idempotency",
       body: "This exact direct API request can be retried safely.",

@@ -45,6 +45,31 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
   return data as T;
 }
 
+/** Exactly-once continuation of a signed CMS/POS support request by number. */
+export async function productClientAction<T = unknown>(args: {
+  actor: string;
+  product: "cms" | "pos";
+  account: string;
+  ticketNumber: number;
+  action: "still_needs_help" | "confirm_resolved";
+  message: string;
+  idempotencyKey: string;
+  fingerprint: string;
+}): Promise<T> {
+  const { data, error } = await db().rpc("bloom_support_product_client_action", {
+    p_actor: args.actor,
+    p_product: args.product,
+    p_account: args.account,
+    p_ticket_number: args.ticketNumber,
+    p_action: args.action,
+    p_message: args.message,
+    p_idempotency_key: args.idempotencyKey,
+    p_fingerprint: args.fingerprint,
+  });
+  if (error) throw mapDbError(error);
+  return data as T;
+}
+
 export interface McpMutationContext {
   /** Opaque SHA-256 key for one authenticated MCP mutation request. */
   requestKey: string;

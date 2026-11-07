@@ -391,6 +391,194 @@ BEGIN
 END
 $$;
 
+-- Signed product clients can continue an existing request without creating a
+-- duplicate ticket. The product identity, its verified account, the ticket's
+-- product/account, and the exact request receipt are all checked atomically.
+CREATE TABLE IF NOT EXISTS bloom_support.product_client_action_receipts (
+  principal_id uuid NOT NULL REFERENCES bloom_support.principals(id) ON DELETE CASCADE,
+  idempotency_key text NOT NULL CHECK (length(idempotency_key) BETWEEN 8 AND 200),
+  fingerprint text NOT NULL CHECK (fingerprint ~ '^[0-9a-f]{64}$'),
+  ticket_id uuid NOT NULL REFERENCES bloom_support.tickets(id) ON DELETE CASCADE,
+  action text NOT NULL CHECK (action IN ('still_needs_help', 'confirm_resolved')),
+  result jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz,
+  PRIMARY KEY (principal_id, idempotency_key)
+);
+ALTER TABLE bloom_support.product_client_action_receipts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE bloom_support.product_client_action_receipts
+  FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION bloom_support.product_client_action(
+  p_actor uuid,
+  p_product text,
+  p_account uuid,
+  p_ticket_number bigint,
+  p_action text,
+  p_message text,
+  p_idempotency_key text,
+  p_fingerprint text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  actor bloom_support.principals;
+  ticket bloom_support.tickets;
+  receipt bloom_support.product_client_action_receipts;
+  action_result jsonb;
+  outcome jsonb;
+BEGIN
+  SELECT * INTO actor
+  FROM bloom_support.principals
+  WHERE id = p_actor
+    AND active;
+  IF actor.id IS NULL
+     OR actor.kind <> 'external_user'
+     OR actor.role <> 'client'
+     OR actor.product IS DISTINCT FROM p_product
+     OR p_product NOT IN ('cms', 'pos') THEN
+    RAISE EXCEPTION 'forbidden: product identity' USING ERRCODE = '42501';
+  END IF;
+  IF p_account IS NULL OR NOT EXISTS (
+    SELECT 1
+    FROM bloom_support.account_members member
+    WHERE member.account_id = p_account
+      AND member.principal_id = p_actor
+      AND member.verified
+  ) THEN
+    RAISE EXCEPTION 'forbidden: product account' USING ERRCODE = '42501';
+  END IF;
+  IF p_ticket_number IS NULL OR p_ticket_number < 1 THEN
+    RAISE EXCEPTION 'invalid: ticket number' USING ERRCODE = '22023';
+  END IF;
+  IF p_action NOT IN ('still_needs_help', 'confirm_resolved') THEN
+    RAISE EXCEPTION 'invalid: client action' USING ERRCODE = '22023';
+  END IF;
+  IF coalesce(btrim(p_message), '') = '' OR length(p_message) > 20000 THEN
+    RAISE EXCEPTION 'invalid: follow-up message required' USING ERRCODE = '22023';
+  END IF;
+  IF p_idempotency_key IS NULL
+     OR p_idempotency_key !~ '^[A-Za-z0-9:._-]{8,200}$'
+     OR p_fingerprint IS NULL
+     OR p_fingerprint !~ '^[0-9a-f]{64}$' THEN
+    RAISE EXCEPTION 'invalid: follow-up idempotency receipt' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO ticket
+  FROM bloom_support.tickets
+  WHERE number = p_ticket_number
+    AND product = p_product
+    AND account_id = p_account
+    AND merged_into IS NULL
+    AND NOT spam
+  FOR UPDATE;
+  IF ticket.id IS NULL THEN
+    -- Do not reveal whether another account's ticket number exists.
+    RAISE EXCEPTION 'not_found: ticket' USING ERRCODE = 'P0002';
+  END IF;
+
+  INSERT INTO bloom_support.product_client_action_receipts(
+    principal_id, idempotency_key, fingerprint, ticket_id, action
+  )
+  VALUES (
+    p_actor, p_idempotency_key, p_fingerprint, ticket.id, p_action
+  )
+  ON CONFLICT (principal_id, idempotency_key) DO NOTHING
+  RETURNING * INTO receipt;
+
+  IF receipt.principal_id IS NULL THEN
+    SELECT * INTO receipt
+    FROM bloom_support.product_client_action_receipts
+    WHERE principal_id = p_actor
+      AND idempotency_key = p_idempotency_key
+    FOR UPDATE;
+    IF receipt.fingerprint IS DISTINCT FROM p_fingerprint
+       OR receipt.ticket_id IS DISTINCT FROM ticket.id
+       OR receipt.action IS DISTINCT FROM p_action THEN
+      RAISE EXCEPTION 'conflict: idempotency key reused with a different follow-up'
+        USING ERRCODE = '23505';
+    END IF;
+    IF receipt.result IS NULL OR receipt.completed_at IS NULL THEN
+      RAISE EXCEPTION 'conflict: incomplete product follow-up receipt'
+        USING ERRCODE = '40001';
+    END IF;
+    RETURN receipt.result || '{"duplicate_delivery":true}'::jsonb;
+  END IF;
+
+  -- Add the customer's own words through the normal message function so a
+  -- human-owned active ticket becomes Needs You and gets the correct alert.
+  PERFORM bloom_support.add_message(
+    p_actor,
+    ticket.id,
+    jsonb_build_object(
+      'body', left(p_message, 20000),
+      'visibility', 'public',
+      'purpose', 'product_follow_up',
+      'idempotency_key', 'product-follow-up:' || p_actor::text || ':' || p_idempotency_key,
+      'notify_client', false
+    )
+  );
+  action_result := bloom_support.client_action(
+    p_actor,
+    ticket.id,
+    CASE p_action WHEN 'still_needs_help' THEN 'still_broken' ELSE 'confirm_resolved' END,
+    NULL
+  );
+  outcome := jsonb_build_object(
+    'received', true,
+    'duplicate_delivery', false,
+    'ticket_id', ticket.id,
+    'number', ticket.number,
+    'conversation_id', ticket.conversation_id,
+    'client_action', p_action,
+    'action_result', action_result
+  );
+  UPDATE bloom_support.product_client_action_receipts
+     SET result = outcome, completed_at = now()
+   WHERE principal_id = p_actor
+     AND idempotency_key = p_idempotency_key;
+  RETURN outcome;
+END
+$$;
+
+REVOKE ALL ON FUNCTION bloom_support.product_client_action(uuid, text, uuid, bigint, text, text, text, text)
+  FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.bloom_support_product_client_action(
+  p_actor uuid,
+  p_product text,
+  p_account uuid,
+  p_ticket_number bigint,
+  p_action text,
+  p_message text,
+  p_idempotency_key text,
+  p_fingerprint text
+)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT bloom_support.product_client_action(
+    p_actor,
+    p_product,
+    p_account,
+    p_ticket_number,
+    p_action,
+    p_message,
+    p_idempotency_key,
+    p_fingerprint
+  )
+$$;
+
+REVOKE ALL ON FUNCTION public.bloom_support_product_client_action(uuid, text, uuid, bigint, text, text, text, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bloom_support_product_client_action(uuid, text, uuid, bigint, text, text, text, text)
+  TO service_role;
+
 REVOKE ALL ON FUNCTION bloom_support.queue_engineering_progress_email()
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION bloom_support.queue_engineering_progress_email()
