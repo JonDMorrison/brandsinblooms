@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { safeSuppressionReason, supportEmailHeaders } from "./email.ts";
+import { retryableLedgerFailure, retryableProviderStatus, safeSuppressionReason, supportEmailHeaders } from "./email.ts";
 
 Deno.test("suppressed email reports the real controlled cause", () => {
   assertEquals(safeSuppressionReason("recipient bounced or complained"), "recipient bounced or complained");
@@ -28,4 +28,21 @@ Deno.test("automatic replies are marked while human-authored replies are not", (
   assertEquals(human["Auto-Submitted"], undefined);
   assertEquals(human["In-Reply-To"], "<client@example.test>");
   assertEquals(human.References, "<client@example.test>");
+});
+
+Deno.test("only ambiguous, rate-limited, and server failures retry", () => {
+  assertEquals(retryableProviderStatus(429), true);
+  assertEquals(retryableProviderStatus(500), true);
+  assertEquals(retryableProviderStatus(503), true);
+  for (const status of [400, 401, 403, 404, 409, 422]) {
+    assertEquals(retryableProviderStatus(status), false);
+  }
+
+  assertEquals(retryableLedgerFailure("uncertain", "outcome unknown"), true);
+  assertEquals(retryableLedgerFailure("not_configured", "missing key"), true);
+  assertEquals(retryableLedgerFailure("failed", "retryable resend 429: limited"), true);
+  assertEquals(retryableLedgerFailure("failed", "resend 503: unavailable"), true);
+  assertEquals(retryableLedgerFailure("failed", "terminal resend 422: invalid"), false);
+  assertEquals(retryableLedgerFailure("failed", "arbitrary old failure"), false);
+  assertEquals(retryableLedgerFailure("suppressed", "recipient bounced"), false);
 });

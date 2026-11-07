@@ -29,7 +29,7 @@ describe('scheduled analytical audience worker',()=>{
 
 describe('analytical audience database worker contract',()=>{
  it('uses tightly scoped definer rights instead of exposing auth.users',()=>{
-  const migration=readFileSync('supabase/migrations/20261107010156_enterprise_bloom_support_reliability.sql','utf8');
+  const migration=readFileSync('supabase/migrations/20261107011102_enterprise_bloom_support_reliability_v2.sql','utf8');
   for(const signature of [
    'public.save_bloom_analytical_audience(uuid,uuid,text,text,uuid[])',
    'public.claim_bloom_audience_refresh(uuid)',

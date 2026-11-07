@@ -202,7 +202,7 @@ function forwardedOriginal(text: string): { email: string; name: string | null }
 
 async function handle(evt: Record<string, unknown>, eventId: string): Promise<Record<string, unknown>> {
   // Delivery status for mail Bloom sent (same webhook endpoint, Svix-signed).
-  if (typeof evt.type === "string" && /^email\.(delivered|bounced|complained|sent|delivery_delayed)$/.test(evt.type)) {
+  if (typeof evt.type === "string" && /^email\.(delivered|bounced|complained|sent|failed|suppressed|delivery_delayed)$/.test(evt.type)) {
     const d = (evt.data ?? {}) as Record<string, unknown>;
     const fresh = await rpc<boolean>("record_email_event", { provider: "resend", event_id: eventId, message_id: null, outcome: String(evt.type) });
     if (!fresh) return { duplicate: true };
