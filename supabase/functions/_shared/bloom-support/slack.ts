@@ -80,7 +80,7 @@ export function slackSafeMessage(
       state.whatItMeans,
       "*What happens next:* " + state.nextStep,
     ];
-    if (state.requiresAttention && source)
+    if ((milestone === "checks_failed" || milestone === "deployment_failed") && source)
       lines.push("<" + source + "|Details for the team>");
     return lines.join("\n");
   }
