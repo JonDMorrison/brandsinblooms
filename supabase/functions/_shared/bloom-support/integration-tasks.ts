@@ -100,19 +100,21 @@ export async function startIntegrationTask(
   });
   if (!result || !UUID.test(result.ticket_id) || !Number.isSafeInteger(result.number))
     throw new BloomError(502, "invalid_receipt", "Support did not confirm the investigation");
-  // A partially successful creation is repeat-safe. This note is internal:
-  // no customer email is sent and no model/repair job is started.
-  await rpc("add_message", {
-    actor: caller.principalId,
-    ticket_id: result.ticket_id,
-    message: {
-      visibility: "internal",
-      body: summary.replace(/<https?:\/\/[^|>]+\|([^>]+)>/g, "$1"),
-      purpose: "internal_note",
-      notify_client: false,
-      idempotency_key: "bloom-integration-evidence:" + contextSource.requestId,
-    },
-  });
+  // A partly successful request is repeat-safe. Never append a second note
+  // with new timestamps under the same idempotency key on a job retry.
+  if (result.duplicate_delivery !== true) {
+    await rpc("add_message", {
+      actor: caller.principalId,
+      ticket_id: result.ticket_id,
+      message: {
+        visibility: "internal",
+        body: summary.replace(/<https?:\/\/[^|>]+\|([^>]+)>/g, "$1"),
+        purpose: "progress",
+        notify_client: false,
+        idempotency_key: "bloom-integration-evidence:" + contextSource.requestId,
+      },
+    });
+  }
   return {
     ticket_id: result.ticket_id, number: result.number,
     duplicate: result.duplicate_delivery === true,
