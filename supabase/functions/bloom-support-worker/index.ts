@@ -12,7 +12,7 @@ import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
-import { postSlackInternalText, postSlackSupportNotification } from "../_shared/bloom-support/slack.ts";
+import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
   type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
@@ -20,10 +20,12 @@ import {
 } from "../_shared/bloom-support/support-emails.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
-import { callProduct } from "../_shared/bloom-support/operations.ts";
+import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
 import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
-import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
+import { ticketQuestionAnswer, ticketRootMessage, ticketUpdateMessage } from "../_shared/bloom-support/ticket-slack.ts";
+import { formatIntegrationEvidence } from "../_shared/bloom-support/integration-diagnostics.ts";
+import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
   announceAfterActiveHandoff,
@@ -714,6 +716,38 @@ async function previewEmails(job: Job): Promise<string> {
   return `preview: ${sent.join("; ")}`;
 }
 
+/**
+ * Deliver one self-contained support ticket summary, then keep all future
+ * progress in that ticket's private thread. The mapping is held in the
+ * existing Bloom Support database, never chosen by raw Slack message text.
+ */
+async function postTicketThreadUpdate(job: Job, eventKind: string): Promise<string> {
+  if (!job.ticket_id) return "skipped: no ticket";
+  const stored = await directRpc<{thread_ts:string|null; allowed:boolean}>(
+    "bloom_support_slack_ticket_thread", {p_ticket:job.ticket_id},
+  );
+  if (stored?.allowed !== true) return "skipped: unavailable or private ticket";
+  const ticket = await rpc<Record<string, unknown>>("get_ticket", {
+    actor: bot.principalId, ticket_id: job.ticket_id,
+  });
+  if (ticket.spam === true || ticket.merged_into || !ticket.id)
+    return "skipped: unavailable ticket";
+  if (stored.thread_ts) {
+    return await postSlackInternalText("tickets",
+      ticketUpdateMessage(ticket,eventKind),job.id,stored.thread_ts);
+  }
+  const receipt = await postSlackInternalMessage("tickets",
+    ticketRootMessage(ticket,eventKind),job.id);
+  const bound = await directRpc<{thread_ts:string|null; allowed:boolean}>(
+    "bloom_support_slack_ticket_thread",
+    {p_ticket:job.ticket_id,p_root_ts:receipt.ts},
+  );
+  if (bound?.allowed !== true || bound?.thread_ts !== receipt.ts) {
+    throw new BloomError(409,"slack_thread_conflict","Support ticket thread was concurrently bound");
+  }
+  return receipt.delivery;
+}
+
 /** Staff emails: watchdog alerts, previews, and notifications (when settings.notifications.email_staff is on). */
 async function notifyEmail(job: Job): Promise<string> {
   // Existing, leased support job queue. No second poller or scheduled agent.
@@ -722,6 +756,52 @@ async function notifyEmail(job: Job): Promise<string> {
     const question = String(job.payload.question ?? "").slice(0, 500);
     if (question.length < 3) return "skipped: question is empty";
     const route = String(job.payload.slack_question_route ?? "ask");
+    if (route === "tickets") {
+      // The SQL enqueue function has already checked the exact private thread,
+      // Slack user mapping and ticket-read permission. Re-check at execution
+      // to handle a staff account being revoked while the job was queued.
+      const uid = /^slack:ask:tickets:([UW][A-Z0-9]{8,24})$/.exec(job.lane)?.[1];
+      const identity = uid
+        ? await directRpc<{principal_id:string;role:string}|null>(
+          "bloom_support_slack_ticket_actor",{p_slack_user_id:uid})
+        : null;
+      if (!identity?.principal_id || !job.ticket_id)
+        return "skipped: no authorized ticket reader";
+      const bound = await directRpc<{thread_ts:string|null;allowed:boolean}>(
+        "bloom_support_slack_ticket_thread",{p_ticket:job.ticket_id});
+      const rootTs = typeof job.payload.thread_ts === "string" ? job.payload.thread_ts : "";
+      if (bound?.allowed !== true || !bound.thread_ts || bound.thread_ts !== rootTs)
+        return "skipped: ticket thread not verified";
+      const ticket = await rpc<Record<string, unknown>>("get_ticket",{
+        actor:identity.principal_id,ticket_id:job.ticket_id,
+      });
+      // A fresh read is permitted for a named integration, but this path
+      // never edits the client, opens a repair job, or sends an email.
+      if (isIntegrationDiagnosticQuestion(question) &&
+          ["cms","platform"].includes(String(ticket.product))) {
+        const account = ticket.account as {id?:unknown;name?:unknown}|null;
+        if (typeof account?.id === "string") {
+          try {
+            const result = await runRead({
+              principalId:identity.principal_id, role:identity.role,
+              via:"service",scopes:[],name:null,
+            },{kind:"site.integration_health",account_id:account.id,inputs:{}});
+            const safeAccount = typeof account.name === "string" ?
+              account.name.replace(/[<>@*_`~]/g," ").slice(0,70) : "this client";
+            return await postSlackInternalText("tickets",
+              formatIntegrationEvidence(safeAccount,result)+"\n_This was a read-only check. Ticket ownership and customer records were not changed._",
+              job.id,rootTs);
+          } catch {
+            // The link may have changed or this principal may lack permissions.
+            return await postSlackInternalText("tickets",
+              "I couldn't verify the linked integration from this ticket. No changes were made. Ask an authorized support person to check the connection in the Bloom dashboard.",
+              job.id,rootTs);
+          }
+        }
+      }
+      return await postSlackInternalText("tickets",
+        ticketQuestionAnswer(ticket,question),job.id,rootTs);
+    }
     if (route === "projects") {
       const requestedTask = taskNumberFromQuestion(question);
       if (requestedTask !== null) {
@@ -802,23 +882,15 @@ async function notifyEmail(job: Job): Promise<string> {
   if (job.payload.finance_daily === true) {
     return await postSlackInternalText("finance", await stripeDailyPayoutBrief(), job.id);
   }
+  if (job.payload.slack_ticket_changed === true && job.ticket_id) {
+    return await postTicketThreadUpdate(job,"ticket.changed");
+  }
   if (job.payload.slack === true) {
-    // Relevant updates to Slack-originated investigations go back into the
-    // original thread. Non-task tickets retain their existing channel routing.
     const eventKind = String(job.payload.kind ?? "");
-    if (job.ticket_id && [
-      "ticket.reopened","ticket.needs_owner","ticket.stalled","ticket.overdue",
-      "engineering.awaiting_approval","engineering.deployed","engineering.verified",
-      "engineering.failed","engineering.escalated",
-    ].includes(eventKind)) {
-      const ticket = await rpc<Record<string, unknown>>("get_ticket", {
-        actor: bot.principalId, ticket_id: job.ticket_id,
-      });
-      const threadTs = taskThreadFromTicket(ticket);
-      const status = taskStatusText(ticket);
-      if (threadTs && status)
-        return await postSlackInternalText("projects", status, job.id, threadTs);
-    }
+    // Every staff ticket and engineering notice is self-contained at the root,
+    // and all subsequent updates use that same private conversation.
+    if (job.ticket_id && slackRoute(eventKind) === "tickets")
+      return await postTicketThreadUpdate(job,eventKind);
     return await postSlackSupportNotification({
       kind: String(job.payload.kind ?? ""),
       ticketId: job.ticket_id,

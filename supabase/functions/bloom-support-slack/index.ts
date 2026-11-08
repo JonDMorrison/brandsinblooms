@@ -51,10 +51,21 @@ Deno.serve(async (req) => {
   // Messages are untrusted user input. Never let a Slack message authorize an operation.
   const question = slackQuestionText(event.text);
   if (question.length < 3) return json({ok:true,ignored:true});
-  const {data:result,error} = await db().rpc("bloom_support_enqueue_slack_question", {
-    p_event_id: eventId, p_channel: event.channel, p_user_id: event.user,
-    p_question: question, p_thread_ts: ts
-  });
+  // Ticket conversations MUST be replies to an existing bot-created ticket
+  // root. The DB validates that root, caller permissions and ticket linkage.
+  // A mention at channel level cannot guess or select another team's ticket.
+  const parentTs = typeof event.thread_ts === "string" ? event.thread_ts : "";
+  if (route === "tickets" && !/^\\d{10}\\.\\d{6}$/.test(parentTs))
+    return json({ok:true,ignored:"not a ticket thread"});
+  const {data:result,error} = route === "tickets"
+    ? await db().rpc("bloom_support_enqueue_slack_ticket_question",{
+      p_event_id:eventId, p_channel:event.channel, p_user_id:event.user,
+      p_question:question.slice(0,800), p_root_ts:parentTs,
+    })
+    : await db().rpc("bloom_support_enqueue_slack_question",{
+      p_event_id: eventId, p_channel: event.channel, p_user_id: event.user,
+      p_question: question, p_thread_ts: ts,
+    });
   if (error) {
     console.error("Slack Ask intake failed",error.code);
     return json({error:"service temporarily unavailable"},503);

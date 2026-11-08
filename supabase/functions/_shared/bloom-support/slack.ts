@@ -81,10 +81,10 @@ export function slackSafeMessage(
       : `<${link}|Open in Bloom Support>`;
   return `*${state.headline}*\n${state.whatItMeans}\n*Next:* ${state.nextStep}\n${actionLink}${source ? ` · <${source}|See GitHub details>` : ""}`;
 }
-/** Only the trusted worker calls this. Never pass raw customer email or webhook text. */
-export async function postSlackInternalText(
+/** Trusted worker: returns the real Slack message timestamp for thread binding. */
+export async function postSlackInternalMessage(
   route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string,
-): Promise<string> {
+): Promise<{delivery: string; ts: string}> {
   if (!/^[-\w.]{16,128}$/.test(jobId)) throw new Error("invalid job ID");
   const token = env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
   const channel = slackChannelId(env("BLOOM_SUPPORT_SLACK_CHANNEL_" + route.toUpperCase()));
@@ -107,7 +107,15 @@ export async function postSlackInternalText(
   if (!response.ok) throw new BloomError(502, "slack_http", "Slack API HTTP " + response.status);
   const result = await response.json().catch(() => null) as {ok?:boolean;error?:string;ts?:string}|null;
   if (!result?.ok) throw new BloomError(502, "slack_delivery", "Slack rejected notification: " + (result?.error ?? "unknown"));
-  return "delivered to " + route + " (Slack ts: " + (result.ts ?? "unknown") + ")";
+  if (typeof result.ts !== "string" || !/^\\d{10}\\.\\d{6}$/.test(result.ts)) {
+    throw new BloomError(502, "slack_receipt", "Slack did not return a valid message timestamp");
+  }
+  return {delivery:"delivered to " + route + " (Slack ts: " + result.ts + ")", ts:result.ts};
+}
+export async function postSlackInternalText(
+  route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string,
+): Promise<string> {
+  return (await postSlackInternalMessage(route,text,jobId,threadTs)).delivery;
 }
 export async function postSlackSupportNotification(input: {
   kind: string; ticketId: string | null; jobId: string; githubUrl?: string; projectId?: string; releaseCategory?: string;
