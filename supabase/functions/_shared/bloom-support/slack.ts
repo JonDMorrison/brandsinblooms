@@ -31,7 +31,7 @@ export function githubSourceLink(value: string | undefined): string | null {
   } catch { return null; }
 }
 /** Do not place ticket subjects, bodies, requester identities, or source details in Slack. */
-export function slackSafeMessage(kind: string, ticketId: string | null, githubUrl?: string): string {
+export function slackSafeMessage(kind: string, ticketId: string | null, githubUrl?: string, projectId?: string): string {
   const route = slackRoute(kind);
   if (!route) throw new Error("unsupported event");
   const milestone = githubMilestoneFromKind(kind);
@@ -57,7 +57,7 @@ export function slackSafeMessage(kind: string, ticketId: string | null, githubUr
   const link = ticketId && /^[0-9a-f-]{36}$/i.test(ticketId) ? `${base}?ticket=${ticketId}` : base;
   const source = milestone ? githubSourceLink(githubUrl) : null;
   const actionLink = route === "projects" || route === "clients"
-    ? "<https://bloomsites.app/dashboard/admin/major-projects|Open Major Projects>"
+    ? `<https://bloomsites.app/dashboard/admin/major-projects${projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? `?project=${projectId}` : ""}|Open Major Projects>`
     : route === "finance"
       ? "<https://dashboard.stripe.com/payouts|Open Stripe payouts>"
       : `<${link}|Open in Bloom Support>`;
@@ -92,9 +92,9 @@ export async function postSlackInternalText(
   return "delivered to " + route + " (Slack ts: " + (result.ts ?? "unknown") + ")";
 }
 export async function postSlackSupportNotification(input: {
-  kind: string; ticketId: string | null; jobId: string; githubUrl?: string;
+  kind: string; ticketId: string | null; jobId: string; githubUrl?: string; projectId?: string;
 }): Promise<string> {
   const route = slackRoute(input.kind);
   if (!route) return "skipped: unsupported Slack event";
-  return await postSlackInternalText(route, slackSafeMessage(input.kind,input.ticketId,input.githubUrl),input.jobId);
+  return await postSlackInternalText(route, slackSafeMessage(input.kind,input.ticketId,input.githubUrl,input.projectId),input.jobId);
 }
