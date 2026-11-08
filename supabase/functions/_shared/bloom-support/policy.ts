@@ -248,6 +248,23 @@ export function mergeModelClassification(rules: Classification, model: unknown):
 // ---------------------------------------------------------------------------
 // Email helpers
 // ---------------------------------------------------------------------------
+/**
+ * Authenticating a manual forward does not grant staff permissions to its sender.
+ * Exact approved mailbox aliases may submit forwarded evidence for human review.
+ * An aligned DKIM signature is required, including when the address belongs to
+ * a staff account. Unverified headers alone can never name another requester.
+ */
+export function authorizedManualForwarder(
+  senderAddress: string,
+  alignedDkim: boolean,
+  staffMembership: boolean,
+  mailboxAliases: readonly string[],
+): boolean {
+  if (!alignedDkim) return false;
+  const sender = senderAddress.trim().toLowerCase();
+  return staffMembership || mailboxAliases.some(alias => alias.trim().toLowerCase() === sender);
+}
+
 export interface InboundHeaders {
   [name: string]: string | undefined;
 }
