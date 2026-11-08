@@ -60,6 +60,12 @@ export function firstSentence(text: unknown, max = 200): string {
   return sentence.length > max ? `${sentence.slice(0, max - 1).trimEnd()}…` : sentence;
 }
 
+/** Engineering notes often hold file paths, code and test names. Those stay in the technical evidence. */
+export function isPlain(text: string): boolean {
+  if (text.length > 150 || text.endsWith("…")) return false;
+  return !/[\\/`{}<>=_]|\.(tsx?|jsx?|sql|json|md)\b|::|\b(test|tests|jest|vitest|regression|migration|schema|PR|commit|repo)\b/i.test(text);
+}
+
 const HOLD = "Assign this request to me for review and keep automatic work paused.";
 const TAKE_DONE = "It's yours now. Bloom's automatic work on it stays paused.";
 const OTHER_DONE = "Your instructions are saved on the request, and it's assigned to you.";
@@ -68,8 +74,8 @@ const OTHER_DONE = "Your instructions are saved on the request, and it's assigne
 /** The card already shows the subject, so the problem never repeats it; a finding that only restates it is dropped. */
 export function escalationProblem(reason: unknown, detail: unknown, subject: string | undefined): { problem: string; finding?: string } {
   const r = String(reason ?? "");
-  const found = firstSentence(detail);
-  const finding = found && found !== subject ? found : undefined;
+  const found = firstSentence(detail, 160);
+  const finding = found && found !== subject && isPlain(found) ? found : undefined;
   if (r === "engineering_start_requested") return { problem: "Bloom looked into this and is ready to start an automatic fix.", finding };
   if (/engineering|repair/.test(r)) return { problem: "Bloom's automatic fix stopped before it finished.", finding };
   if (/overdue|stalled/.test(r)) return { problem: "This request has waited too long for its next step.", finding };
@@ -194,7 +200,8 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
       client: nameOf.get(String(x.ticket_id)) ?? (t ? `Request #${t.number}` : "Escalation"),
       ticket: t ? `#${t.number} ${t.subject}` : undefined,
       when: ago(x.created_at),
-      problem: finding ? `${problem} ${/stopped/.test(problem) ? "Why" : "What it found"}: ${finding}` : problem,
+      problem: finding ? `${problem} ${/stopped/.test(problem) ? "Why" : "What it found"}: ${finding}`
+        : x.detail ? `${problem} The details are technical, so they're under Show technical evidence.` : problem,
       recommendation,
       evidence: [x.detail, group.length > 1 ? `${group.length} related reminders on this request.` : null].filter(Boolean).join("\n\n") || undefined,
       options,
