@@ -1,5 +1,5 @@
 import {assert, assertEquals, assertStringIncludes} from "@std/assert";
-import {findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion,slackDiagnosticUserFromLane} from "./integration-diagnostics.ts";
+import {diagnosticClientHint, findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion,slackDiagnosticUserFromLane} from "./integration-diagnostics.ts";
 
 const siteId = "f599e50e-4245-43d2-954c-e5b05777ec22";
 const accounts = [
@@ -55,4 +55,19 @@ Deno.test("diagnostic authorization accepts only a projects job with an exact Sl
  assertEquals(slackDiagnosticUserFromLane("slack:ask:features:U06V7U9LWSZ"),null);
  assertEquals(slackDiagnosticUserFromLane("slack:ask:projects:U06V7U9LWSZ:forged"),null);
  assertEquals(slackDiagnosticUserFromLane(null),null);
+});
+
+Deno.test("extracts named client from real Slack integration request and ignores surrounding test prose", () => {
+  const question = "Integration test (read-only, November 8, 2026): Verify Lacoste CounterPoint and OPD integration. Report recorded health only.";
+  assertEquals(diagnosticClientHint(question), "Lacoste");
+  assertEquals(diagnosticClientHint("Verify Lacoste's CounterPoint and OPD sync"), "Lacoste");
+  assertEquals(diagnosticClientHint("Check CounterPoint integration for Lacoste"), "Lacoste");
+  assertEquals(diagnosticClientHint("What major projects are active?"), null);
+  const narrowed = accounts.filter(a => a.name.toLowerCase().includes("lacoste"));
+  assertEquals(findDiagnosticAccount(diagnosticClientHint(question)!, narrowed)?.siteId, siteId);
+});
+
+Deno.test("unmentioned garden centres cannot be selected from unrelated message words", () => {
+  assertEquals(diagnosticClientHint("Integration test, report health, site and tickets; verify CounterPoint for noone"), "noone");
+  assertEquals(findDiagnosticAccount("noone", accounts), null);
 });
