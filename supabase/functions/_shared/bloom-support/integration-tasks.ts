@@ -82,7 +82,12 @@ export async function startIntegrationTask(
     throw new BloomError(403, "forbidden", "Cannot access that client");
   const name = safeName(account.name);
   const summary = formatIntegrationEvidence(name, evidence);
-  const key = `bloom-investigation:${contextSource.channel}:${contextSource.requestId}`;
+  const noteBody = summary.replace(/<https?:\/\/[^|>]+\|([^>]+)>/g, "$1").slice(0, 2000);
+  const taskMeta = details.bloom_task as Record<string, unknown>;
+  // Preserve the original bounded evidence so a retry can restore the
+  // original internal note without conflicting with a newer provider check.
+  taskMeta.brief = noteBody;
+  const key = `bloom-investigation:${contextSource.channel}:${input.accountId}:${contextSource.requestId}`;
   const result = await rpc<{ticket_id:string;number:number;duplicate_delivery?:boolean}>("create_ticket", {
     actor: caller.principalId,
     ticket: {
@@ -100,21 +105,25 @@ export async function startIntegrationTask(
   });
   if (!result || !UUID.test(result.ticket_id) || !Number.isSafeInteger(result.number))
     throw new BloomError(502, "invalid_receipt", "Support did not confirm the investigation");
-  // A partly successful request is repeat-safe. Never append a second note
-  // with new timestamps under the same idempotency key on a job retry.
-  if (result.duplicate_delivery !== true) {
-    await rpc("add_message", {
-      actor: caller.principalId,
-      ticket_id: result.ticket_id,
-      message: {
-        visibility: "internal",
-        body: summary.replace(/<https?:\/\/[^|>]+\|([^>]+)>/g, "$1"),
-        purpose: "progress",
-        notify_client: false,
-        idempotency_key: "bloom-integration-evidence:" + contextSource.requestId,
-      },
-    });
-  }
+  // If a prior attempt created the ticket but crashed before recording the
+  // evidence note, replay the original stored brief (same idempotency bytes).
+  const canonical = result.duplicate_delivery === true
+    ? await rpc<Record<string, unknown>>("get_ticket", {
+      actor: caller.principalId, ticket_id: result.ticket_id,
+    }) : null;
+  const meta = ((canonical?.context as Record<string, unknown> | undefined)?.bloom_task ?? null) as Record<string, unknown> | null;
+  const stableNote = result.duplicate_delivery === true &&
+    meta?.kind === "integration_health" && typeof meta.brief === "string" &&
+    meta.brief.length > 0 && meta.brief.length <= 2000 ? meta.brief : noteBody;
+  await rpc("add_message", {
+    actor: caller.principalId,
+    ticket_id: result.ticket_id,
+    message: {
+      visibility: "internal", body: stableNote,
+      purpose: "progress", notify_client: false,
+      idempotency_key: "bloom-integration-evidence:" + contextSource.requestId,
+    },
+  });
   return {
     ticket_id: result.ticket_id, number: result.number,
     duplicate: result.duplicate_delivery === true,
