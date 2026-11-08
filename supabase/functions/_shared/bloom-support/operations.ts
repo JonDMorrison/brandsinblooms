@@ -24,7 +24,7 @@ import { campaignMutationImplementation } from "../../bloom-assist/tools/impleme
 import type { ToolExecutionContext } from "../../bloom-assist/tools/types.ts";
 
 export const READ_OPERATIONS = new Set([
-  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history", "site.preview_link", "site.catalogue.audit",
+  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history", "site.preview_link", "site.catalogue.audit", "site.integration_health",
 ]);
 export const WRITE_OPERATIONS = new Set([
   "campaign.create_draft", "campaign.update_draft", "campaign.schedule", "campaign.unschedule",
@@ -184,6 +184,7 @@ export async function runRead(caller: Caller, req: OperationRequest): Promise<un
       result = await opsRpc("campaign_facts", { actor: caller.principalId, account_id: account.id, campaign_id: inputs.campaign_id });
       break;
     case "site.catalogue.audit":
+    case "site.integration_health":
     case "site.read":
     case "site.pages":
     case "event.list":
