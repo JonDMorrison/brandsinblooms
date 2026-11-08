@@ -33,7 +33,6 @@ export function findDiagnosticAccount(question: string, accounts: DiagnosticAcco
       const name = normalize(candidate.account.name);
       const tokens = name.trim().split(" ").filter(word => word.length >= 4 && !generic.has(word));
       const score = name.trim().length >= 4 && normalizedQuestion.includes(name) ? 5
-        : tokens.length > 0 && tokens.every(word => normalizedQuestion.includes(" " + word + " ")) ? 3
         : tokens.some(word => normalizedQuestion.includes(" " + word + " ")) ? 1 : 0;
       return {...candidate,score};
     }).filter(c => c.score > 0).sort((a,b) => b.score - a.score);
