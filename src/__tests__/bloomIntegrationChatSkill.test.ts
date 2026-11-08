@@ -22,8 +22,8 @@ describe("Bloom in-dashboard staff integration diagnosis", () => {
     expect(tool?.risk_level).toBe("safe");
     expect(tool?.requires_confirmation).toBe(false);
     expect(tool?.allowed_roles).toEqual(["admin","staff"]);
-    expect(isToolVisibleForRoleAndMode(tool!, "query", "viewer")).toBe(false);
-    expect(isToolVisibleForRoleAndMode(tool!, "query", "staff")).toBe(true);
+    expect(isToolVisibleForRoleAndMode(tool!, "standard", "viewer")).toBe(false);
+    expect(isToolVisibleForRoleAndMode(tool!, "standard", "staff")).toBe(true);
   });
 
   it("uses the same account and principal as the support dashboard, dropping model-selected accounts", async () => {
