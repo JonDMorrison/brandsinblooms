@@ -42,16 +42,12 @@ export function slackSafeMessage(
   const source = milestone ? githubSourceLink(githubUrl) : null;
   if (milestone === "pr_merged") {
     const note = publicReleaseNote(releaseCategory);
-    const product = source?.includes("/JonDMorrison/brandsinblooms/") ? "BloomSuite CRM"
-      : source?.includes("/Brands-In-Blooms/cms-brandsinblooms/") ? "BloomSites"
-      : source?.includes("/Brands-In-Blooms/bloomtill/") ? "BloomSuite POS" : "our software";
     return [
-      "*Software improvement: " + note.area + "*",
-      "*What changed:* " + note.changed,
-      "*Why it matters:* " + note.matters,
-      "*Where it stands:* Merged into " + product + " code. Deployment and the customer experience have not yet been verified by this event.",
+      "*" + note.area + "*",
+      note.changed,
+      "*Status:* Added to our software. Not yet confirmed working for customers.",
       "*Next:* " + note.next,
-      source ? "<" + source + "|See the technical change>" : "<https://bloomsuite.app/admin/bloom-support|Open Bloom Support>",
+      source ? "<" + source + "|More details>" : "<https://bloomsuite.app/admin/bloom-support|Open Bloom Support>",
     ].join("\n");
   }
   const state = milestone ? explainGithubMilestone(milestone) :
