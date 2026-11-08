@@ -5,6 +5,7 @@ import { verifyGithubWebhook } from "../_shared/bloom-support/webhook-auth.ts";
 import { githubMilestoneFromKind } from "../_shared/bloom-support/slack-language.ts";
 import { githubSourceLink } from "../_shared/bloom-support/slack.ts";
 import { failedMainCheckSuite } from "../_shared/bloom-support/github-events.ts";
+import { classifyPublicReleaseTitle } from "../_shared/bloom-support/release-notes.ts";
 
 const ALLOWED = new Set([
   "JonDMorrison/brandsinblooms",
@@ -38,11 +39,15 @@ Deno.serve(async (req) => {
   let kind: string | null = null;
   let source: string | null = null;
   let eventId = delivery;
+  let releaseCategory = "other";
   if (event === "pull_request" && payload.action === "closed") {
-    const pr = payload.pull_request as {merged?:boolean;html_url?:string} | undefined;
+    const pr = payload.pull_request as {merged?:boolean;html_url?:string;title?:unknown} | undefined;
     if (pr) {
       kind = pr.merged === true ? "github.pr_merged" : "github.pr_closed";
       source = githubSourceLink(pr.html_url);
+      // Only a fixed, public-safe category is passed downstream.
+      // The raw PR title/body are never logged, queued or posted to Slack.
+      if (pr.merged === true) releaseCategory = classifyPublicReleaseTitle(pr.title);
     }
   } else if (event === "check_suite" && payload.action === "completed") {
     // Pull-request checks remain in GitHub; Slack focuses on main-branch failures.
@@ -64,10 +69,11 @@ Deno.serve(async (req) => {
     }
   }
   if (!kind || !githubMilestoneFromKind(kind)) return respond({ok:true,ignored:true});
-  // Source URL is optional; only allow exact company GitHub repository paths.
-  const {data,error} = await db().rpc("bloom_support_enqueue_slack_external",{
-    p_source:"github", p_event_id:eventId, p_kind:kind,
-    p_url:source, p_project_id:null,
+  // Source URL is optional; the public-facing release description is a
+  // reviewed fixed category, never the untrusted title or PR description.
+  const {data,error} = await db().rpc("bloom_support_enqueue_slack_github",{
+    p_event_id:eventId, p_kind:kind, p_url:source,
+    p_category:releaseCategory,
   });
   if (error) {
     console.error("GitHub notification queue failed",error.code);
