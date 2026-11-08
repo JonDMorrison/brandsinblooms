@@ -57,8 +57,8 @@ export function findDiagnosticAccount(question: string, accounts: DiagnosticAcco
     .map(candidate => {
       const name = normalize(candidate.account.name);
       const tokens = name.trim().split(" ").filter(word => word.length >= 4 && !generic.has(word));
-      const domain = /\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\.[a-z]{2,}\b/i.exec(question)?.[0]?.toLowerCase();
-      const linkedDomain = /(?:^|\s|·)([a-z0-9-]+(?:\.[a-z0-9-]+)+\.[a-z]{2,})(?:\s|$)/i.exec(candidate.label)?.[1]?.toLowerCase();
+      const domain = /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\b/i.exec(question)?.[0]?.toLowerCase();
+      const linkedDomain = /(?:^|\s|·)([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})(?:\s|$)/i.exec(candidate.label)?.[1]?.toLowerCase();
       const score = domain && linkedDomain === domain ? 10
         : name.trim().length >= 4 && normalizedQuestion.includes(name) ? 5
         : tokens.some(word => normalizedQuestion.includes(" " + word + " ")) ? 1 : 0;
