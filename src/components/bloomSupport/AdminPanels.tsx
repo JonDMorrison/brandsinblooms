@@ -337,6 +337,7 @@ export function OperationsPanel() {
   const [output, setOutput] = useState<unknown>(null);
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
   const [task, setTask] = useState<{ticket_id:string;number:number} | null>(null);
+  const [reviewRequested,setReviewRequested] = useState(false);
   const [integrationScope, setIntegrationScope] = useState<"catalogue" | "fulfillment">("catalogue");
   const { run, error, pending } = useAction();
   const isRead = catalog.data?.reads.some((r) => r.kind === kind);
@@ -360,7 +361,7 @@ export function OperationsPanel() {
         <Stack spacing={2}>
           <FormControl required>
             <FormLabel>1. Which client?</FormLabel>
-            <ClientPicker value={client} onChange={(c) => { setClient(c); setOutput(null); setPreview(null); setTask(null); }} />
+            <ClientPicker value={client} onChange={(c) => { setClient(c); setOutput(null); setPreview(null); setTask(null); setReviewRequested(false); }} />
           </FormControl>
           {client && catalog.data?.reads.some((o) => o.kind === "site.integration_health") && (
             <Sheet variant="soft" sx={{ p: 2, borderRadius: "md" }}>
@@ -369,7 +370,7 @@ export function OperationsPanel() {
                 <Typography level="body-sm">Bloom checks the selected integration records without changing the client account.</Typography>
                 <Select size="sm" value={integrationScope} onChange={(_, next) => {
                   if (next === "catalogue" || next === "fulfillment") {
-                    setIntegrationScope(next); setOutput(null); setTask(null);
+                    setIntegrationScope(next); setOutput(null); setTask(null); setReviewRequested(false);
                   }
                 }}>
                   <Option value="catalogue">CounterPoint + Open Plant Data</Option>
@@ -392,7 +393,7 @@ export function OperationsPanel() {
                     });
                     setKind(integrationKind);
                     setInputs(JSON.stringify(integrationInputs)); setPreview(null);
-                    setOutput(result.evidence); setTask({ticket_id:result.ticket_id,number:result.number});
+                    setOutput(result.evidence); setTask({ticket_id:result.ticket_id,number:result.number}); setReviewRequested(false);
                   })}>Record an investigation</Button>
                 <Typography level="body-xs" textColor="text.tertiary">Creates one internal support task with evidence. Bloom cannot repair or contact the client without the separate approval process.</Typography>
                 {task && (
@@ -402,6 +403,15 @@ export function OperationsPanel() {
                     </Link>. Follow its status in the Support desk.
                   </Typography>
                 )}
+                {task && !reviewRequested && (
+                  <Button variant="outlined" color="neutral" loading={pending} disabled={pending}
+                    sx={{alignSelf:"flex-start",borderRadius:"xl"}}
+                    onClick={() => run(async () => {
+                      await bloomSupport.requestIntegrationReview(task.ticket_id);
+                      setReviewRequested(true);
+                    })}>Request human repair review</Button>
+                )}
+                {reviewRequested && <Typography level="body-sm">The support team has been asked to review the evidence. No coding agent or production change was authorized.</Typography> 
                 {!!recentTasks.data?.length && (
                   <Stack spacing={0.5}>
                     <Typography level="title-sm">Open investigations for this client</Typography>
