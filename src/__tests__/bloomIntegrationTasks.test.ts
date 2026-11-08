@@ -13,7 +13,7 @@ vi.mock("../../supabase/functions/_shared/bloom-support/operations.ts", () => ({
 }));
 
 import {
-  startIntegrationTask, supportTaskUrl, taskContext, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket,
+  repairReviewTaskNumber, requestIntegrationRepairReview, startIntegrationTask, supportTaskUrl, taskContext, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket,
 } from "../../supabase/functions/_shared/bloom-support/integration-tasks.ts";
 
 const actor = { principalId:"11111111-1111-4111-8111-111111111111", role:"platform_operator", via:"service", scopes:[] } as const;
@@ -149,5 +149,56 @@ describe("provider tasks stay within authorized, read-only operations",()=>{
     await expect(startIntegrationTask(actor as never,{accountId,source,kind:"site.publish" as never})).rejects.toMatchObject({status:400});
     expect(runRead).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("Repair review is an internal staff escalation, never an agent command",()=>{
+  it("parses explicit review requests, not accidental approval or execution language",()=>{
+    expect(repairReviewTaskNumber("Request repair review for task #1023")).toBe(1023);
+    expect(repairReviewTaskNumber("Task 1023 needs repair review")).toBe(1023);
+    expect(repairReviewTaskNumber("Approve and deploy task 1023")).toBeNull();
+    expect(repairReviewTaskNumber("Fix task 1023 immediately")).toBeNull();
+    expect(repairReviewTaskNumber("Request repair review for task #0")).toBeNull();
+  });
+  it("checks the existing authorized task and requests only a human decision",async()=>{
+    rpc.mockImplementation(async (fn:string)=>{
+      if (fn==="get_ticket") return {id:ticketId,number:1023,status:"new",automation:"paused",context:taskContext(source,evidence)};
+      if (fn==="escalate") return {escalation_id:"77777777-7777-4777-8777-777777777777",duplicate:false,status:"open"};
+      throw Error("unapproved function "+fn);
+    });
+    const out=await requestIntegrationRepairReview(actor as never,ticketId);
+    expect(out.status).toBe("open");
+    const calls=rpc.mock.calls.map(([fn])=>fn);
+    expect(calls).toEqual(["get_ticket","escalate"]);
+    const escalation=rpc.mock.calls[1][1];
+    expect(escalation).toMatchObject({
+      actor:actor.principalId,ticket_id:ticketId,
+      audience:"both",reason:"Integration repair review requested",
+      dedupe_key:"bloom-repair-review:"+ticketId,
+    });
+    expect(escalation.detail).toContain("separately authorize");
+  });
+  it("refuses clients, read-only keys, resolved tickets and non-task tickets",async()=>{
+    await expect(requestIntegrationRepairReview({...actor,role:"client"} as never,ticketId)).rejects.toMatchObject({status:403});
+    await expect(requestIntegrationRepairReview({...actor,scopes:["read"]} as never,ticketId)).rejects.toMatchObject({status:403});
+    expect(rpc).not.toHaveBeenCalled();
+    rpc.mockImplementation(async (fn:string)=>{
+      if(fn==="get_ticket")return {id:ticketId,status:"resolved",automation:"paused",context:taskContext(source,evidence)};
+      throw Error("no writes");
+    });
+    await expect(requestIntegrationRepairReview(actor as never,ticketId)).rejects.toMatchObject({status:409});
+    expect(rpc.mock.calls.map(([fn])=>fn)).toEqual(["get_ticket"]);
+    rpc.mockReset();
+    rpc.mockResolvedValue({id:ticketId,status:"new",automation:"paused",context:{}});
+    await expect(requestIntegrationRepairReview(actor as never,ticketId)).rejects.toMatchObject({status:409});
+    expect(rpc.mock.calls.map(([fn])=>fn)).toEqual(["get_ticket"]);
+  });
+  it("refuses unpaused automation and never dispatches engineering",async()=>{
+    rpc.mockImplementation(async (fn:string)=>{
+      if(fn==="get_ticket") return {id:ticketId,status:"new",automation:"auto",context:taskContext(source,evidence)};
+      throw Error("unexpected mutation");
+    });
+    await expect(requestIntegrationRepairReview(actor as never,ticketId)).rejects.toMatchObject({status:409});
+    expect(rpc.mock.calls.map(([fn])=>fn)).toEqual(["get_ticket"]);
   });
 });
