@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14";
+import Stripe from "npm:stripe@14.25.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { getPlanQuotaDefaults } from "../_shared/planFeatures.ts";
@@ -190,7 +190,7 @@ function getCustomerId(
     return customer;
   }
 
-  if (customer && "id" in customer && typeof customer.id === "string") {
+  if (customer && typeof customer === "object" && "id" in customer && typeof customer.id === "string") {
     return customer.id;
   }
 
@@ -957,7 +957,7 @@ export async function handleStripeWebhook(
       return new Response("Webhook secret not configured", { status: 400 });
     }
 
-    const event = deps.stripe.webhooks.constructEvent(
+    const event = await deps.stripe.webhooks.constructEventAsync(
       body,
       signature,
       webhookSecret,
@@ -977,4 +977,6 @@ export async function handleStripeWebhook(
   }
 }
 
-serve((req) => handleStripeWebhook(req));
+if (import.meta.main) {
+  serve((req) => handleStripeWebhook(req));
+}
