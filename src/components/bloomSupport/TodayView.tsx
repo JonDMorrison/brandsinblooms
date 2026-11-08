@@ -55,7 +55,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk, heroAction }: {
   const subline = decisionsUnknown && needCount === 0
     ? "Some decisions may be waiting. Open Requests to check."
     : needCount === 0 ? "Bloom is taking care of the routine work. It will email you when something needs a person."
-    : "Bloom has a recommendation for each one. Approve it, add instructions, or choose something else.";
+    : "Each one has a recommended answer. Pick it, choose another, or write your own.";
 
   const submitSearch = (e: FormEvent) => { e.preventDefault(); setQuery(search.trim()); };
 
@@ -87,7 +87,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk, heroAction }: {
         </Stack>
       </Box>
 
-      {loadError && <Alert color="danger" variant="soft" sx={{ borderRadius: "lg" }}>Some of today's work couldn't load: {loadError.message}</Alert>}
+      {loadError && <Alert color="warning" variant="soft" sx={{ borderRadius: "lg" }}>Some of today's work couldn't load. Refresh to try again.</Alert>}
 
       <form onSubmit={submitSearch} role="search">
         <Input

@@ -19,7 +19,7 @@ const api = vi.hoisted(() => ({
   staff: vi.fn(),
   settings: vi.fn(),
   engineering: vi.fn(), features: vi.fn(), pageTickets: vi.fn(),
-  getTicket: vi.fn(), setAutomation: vi.fn(), resolveEscalation: vi.fn(), updateTicket: vi.fn(),
+  getTicket: vi.fn(), setAutomation: vi.fn(), resolveEscalation: vi.fn(), updateTicket: vi.fn(), updateEngineering: vi.fn(),
 }));
 vi.mock("@/lib/bloomSupport/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/bloomSupport/api")>();
@@ -158,34 +158,46 @@ import { TodayView } from "@/components/bloomSupport/TodayView";
 import { DecisionCard } from "@/components/bloomSupport/desk/DecisionCard";
 
 describe("support decision card", () => {
+  const take = vi.fn(async () => undefined);
+  const repair = vi.fn(async () => undefined);
+  const other = vi.fn(async () => undefined);
   const decision = {
     key: "repair", client: "Cedar Lane Garden Centre", ticket: "#1019 Checkout", when: "today",
-    problem: "The automatic fix cannot continue safely.", recommendation: "Assign this request to me for review.",
-    reason: "Bloom paused its own work.", risk: "The client marked this urgent priority.", evidence: "Private technical evidence",
-    decide: async () => undefined, done: { do: "a", reject: "b", other: "c" },
+    problem: "Bloom's automatic fix stopped before it finished.", recommendation: "Let Bloom start the fix.",
+    risk: "The client marked this urgent priority.", evidence: "Private technical evidence",
+    options: [
+      { id: "repair", label: "Let Bloom start the fix", detail: "Nothing goes live without approval.", recommended: true, run: repair, done: "a" },
+      { id: "take", label: "I'll take it from here", detail: "Assign it to me.", run: take, done: "b" },
+    ],
+    other: { run: other, done: "c" },
   };
-  it("offers three clearly named choices and puts evidence behind a disclosure", () => {
-    const choose = vi.fn();
-    const { container, unmount } = render(<DecisionCard d={decision} busy={false} onChoose={choose} />);
-    const buttons = Array.from(container.querySelectorAll("button"));
-    expect(buttons.map((b) => b.textContent)).toEqual(["Approve Bloom's plan", "Add instructions", "Not this"]);
-    buttons.forEach((button) => fireEvent.click(button));
-    expect(choose.mock.calls).toEqual([["do"], ["other"], ["reject"]]);
-    expect(container).toHaveTextContent("Bloom recommends");
-    expect(container).toHaveTextContent("Why: Bloom paused its own work.");
-    expect(container).toHaveTextContent("The client marked this urgent priority.");
+  it("asks like a question: problem, recommendation, a Recommended answer, and Something else", () => {
+    const confirm = vi.fn();
+    const { container, unmount } = render(<DecisionCard d={decision} busy={false} onConfirm={confirm} />);
+    expect(container).toHaveTextContent("The problem");
+    expect(container).toHaveTextContent("What Bloom recommends");
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(3);
+    expect(radios[0]).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Let Bloom start the fix.*Recommended/ })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(confirm).toHaveBeenLastCalledWith({ optionId: "repair" });
+    fireEvent.click(screen.getByRole("radio", { name: /Something else/ }));
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "What should happen instead?" }), { target: { value: "  Wait for the vendor.  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(confirm).toHaveBeenLastCalledWith({ other: "Wait for the vendor." });
     const details = container.querySelector("details");
     expect(details).not.toHaveAttribute("open");
-    expect(details).toHaveTextContent("Show technical evidence");
     expect(details).toHaveTextContent("Private technical evidence");
     unmount();
   });
-  it("prevents repeated submission while busy and unauthorized decisions", () => {
-    const choose = vi.fn();
-    const { container, rerender, unmount } = render(<DecisionCard d={decision} busy onChoose={choose} />);
-    for (const button of container.querySelectorAll("button")) expect(button).toBeDisabled();
-    rerender(<DecisionCard d={{ ...decision, decide: undefined }} busy={false} onChoose={choose} />);
-    for (const button of container.querySelectorAll("button")) expect(button).toBeDisabled();
+  it("prevents repeated submission while busy and explains when the role can't decide", () => {
+    const { container, rerender, unmount } = render(<DecisionCard d={decision} busy onConfirm={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
+    rerender(<DecisionCard d={{ ...decision, options: [], other: undefined }} busy={false} onConfirm={vi.fn()} />);
+    expect(container.querySelectorAll("input[type=radio]")).toHaveLength(0);
     expect(container).toHaveTextContent("Your role can't make this decision. An admin can.");
     unmount();
   });
@@ -212,7 +224,7 @@ it("places the Today work column beside the navigation without an empty left gut
 });
 
 
-it("Add instructions saves the alternative through the real Today dialog and ticket actions", async () => {
+it("Something else saves the person's own instructions through the real ticket actions", async () => {
   api.engineering.mockResolvedValue([]);
   api.features.mockResolvedValue([]);
   api.pageTickets.mockResolvedValue({ items: [], total: 0 });
@@ -223,14 +235,13 @@ it("Add instructions saves the alternative through the real Today dialog and tic
   api.updateTicket.mockResolvedValue({});
   const me = { id: "admin-1", permissions: ["engineering.view", "features.view", "escalations.view", "escalations.resolve", "tickets.write"] } as Parameters<typeof TodayView>[0]["me"];
   const { unmount } = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TodayView me={me} onOpenTicket={() => undefined} onOpenDesk={() => undefined} /></QueryClientProvider>);
-  fireEvent.click(await screen.findByRole("button", { name: "Add instructions" }));
+  fireEvent.click(await screen.findByRole("radio", { name: /Something else/ }));
   const field = await screen.findByRole("textbox", { name: "What should happen instead?" });
-  expect(screen.getByRole("button", { name: "Save instructions" })).toBeDisabled();
   fireEvent.change(field, { target: { value: "Check the work already in review before starting again." } });
-  fireEvent.click(screen.getByRole("button", { name: "Save instructions" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(api.updateTicket).toHaveBeenCalledWith("ticket-1", expect.objectContaining({ version: 5, owner_id: "admin-1", next_action: "Alternative requested: Check the work already in review before starting again." })));
   expect(api.setAutomation).toHaveBeenCalledWith("ticket-1", "human", "Alternative requested: Check the work already in review before starting again.");
-  expect(await screen.findByRole("status")).toHaveTextContent("Your instructions are saved on the request, and it is assigned to you.");
+  expect(await screen.findByRole("status")).toHaveTextContent("Your instructions are saved on the request, and it's assigned to you.");
   unmount();
 });
 
@@ -257,5 +268,28 @@ it("Today counts decisions, Bloom's own work and today's completions from live d
   expect(handling).toHaveTextContent("Client b1");
   expect(handling).not.toHaveTextContent("Client p1");
   expect(screen.getByText("Confirm the refund amount.")).toBeInTheDocument();
+  unmount();
+});
+
+it("offers real answers per situation: start the fix when Bloom is ready, keep going when only overdue", async () => {
+  api.engineering.mockResolvedValue([]);
+  api.features.mockResolvedValue([]);
+  api.pageTickets.mockResolvedValue({ items: [], total: 0 });
+  api.escalations.mockResolvedValue([
+    { id: "s1", status: "open", ticket_id: "t1", reason: "engineering_start_requested", engineering_issue_id: "eng-9", created_at: new Date().toISOString(), detail: "Bloom found the template ignores the logo.", ticket: { number: 1, subject: "Logo" } },
+    { id: "o1", status: "open", ticket_id: "t2", reason: "ticket_overdue", created_at: new Date().toISOString(), ticket: { number: 2, subject: "Hours" } },
+    { id: "a1", status: "acknowledged", ticket_id: "t3", reason: "engineering_escalated", created_at: new Date().toISOString(), ticket: { number: 3, subject: "Taken" } },
+  ]);
+  api.updateEngineering.mockResolvedValue({});
+  api.resolveEscalation.mockResolvedValue({});
+  const me = { id: "admin-1", permissions: ["engineering.view", "features.view", "escalations.view", "escalations.resolve", "tickets.write", "engineering.dispatch"] } as Parameters<typeof TodayView>[0]["me"];
+  const { unmount } = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TodayView me={me} onOpenTicket={() => undefined} onOpenDesk={() => undefined} /></QueryClientProvider>);
+  expect(await screen.findByText("Bloom looked into this and is ready to start an automatic fix. What it found: Bloom found the template ignores the logo.")).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: /Let Bloom start the fix.*Recommended/ })).toBeChecked();
+  expect(screen.getByRole("radio", { name: /Let Bloom keep going/ })).toBeInTheDocument();
+  expect(screen.queryByText("#3 Taken")).not.toBeInTheDocument();
+  fireEvent.click(screen.getAllByRole("button", { name: "Confirm" })[0]);
+  await waitFor(() => expect(api.updateEngineering).toHaveBeenCalledWith("eng-9", { start_repair: true, note: "Started from the Support desk" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Bloom is starting the fix. You'll be asked before anything goes live.");
   unmount();
 });

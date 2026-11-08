@@ -33,7 +33,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
   const technical = me.permissions.includes("automation.control") || me.permissions.includes("admin.policy");
 
   if (q.isLoading) return <Stack spacing={4}><Skeleton variant="rectangular" height={160} sx={{ borderRadius: "xl" }} /><Skeleton variant="rectangular" height={240} sx={{ borderRadius: "xl" }} /></Stack>;
-  if (q.error) return <Alert color="danger" variant="soft" sx={{ borderRadius: "lg" }}>Bloom's status couldn't load. Try again in a minute.</Alert>;
+  if (q.error) return <Alert color="warning" variant="soft" sx={{ borderRadius: "lg" }}>Bloom's status couldn't load. Try again in a minute.</Alert>;
   const r = q.data!;
   const caps = r.capabilities as Capability[];
   const s = summarizeCapabilities(caps);
@@ -47,7 +47,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
         <Stack spacing={5}>
           <Stack direction="row" spacing={3} alignItems="flex-start">
             <Box sx={{ width: 52, height: 52, borderRadius: "xl", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: `${run.tone}.50`, color: `${run.tone}.700` }}>
-              {run.tone === "success" ? <Activity size={26} aria-hidden /> : run.tone === "danger" ? <CirclePause size={26} aria-hidden /> : <AlertTriangle size={26} aria-hidden />}
+              {run.tone === "success" ? <Activity size={26} aria-hidden /> : run.title === "Bloom is paused" ? <CirclePause size={26} aria-hidden /> : <AlertTriangle size={26} aria-hidden />}
             </Box>
             <Stack spacing={1}>
               <Typography level="h2" component="h2">{run.title}</Typography>
@@ -65,9 +65,9 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
       {alerts.length > 0 && (
         <Stack spacing={3} component="section" aria-label="Alerts">
           <Typography level="h3" component="h2">Alerts in the last day</Typography>
-          <Box sx={{ ...deskCardSx, p: 5, bgcolor: "danger.50", borderColor: "danger.200" }}>
+          <Box sx={{ ...deskCardSx, p: 5, bgcolor: "warning.50", borderColor: "warning.200" }}>
             <Stack spacing={2}>
-              <Typography level="title-md" startDecorator={<AlertTriangle size={20} aria-hidden />} textColor="danger.800">
+              <Typography level="title-md" startDecorator={<AlertTriangle size={20} aria-hidden />} textColor="warning.800">
                 Bloom raised {alerts.length} alert{alerts.length === 1 ? "" : "s"} about its own work.
               </Typography>
               <Typography level="body-md" textColor="text.secondary">Check failed steps in Settings. Details are under technical evidence.</Typography>
@@ -120,7 +120,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
               </Stack>
             ))}
             {alerts.map((a, i) => (
-              <Typography key={i} level="body-sm" textColor="danger.700" sx={{ px: 5, py: 2 }}>Alert: {String(a.condition)} · {String(a.created_at)} · {String(a.delivered)}</Typography>
+              <Typography key={i} level="body-sm" textColor="warning.700" sx={{ px: 5, py: 2 }}>Alert: {String(a.condition)} · {String(a.created_at)} · {String(a.delivered)}</Typography>
             ))}
           </Stack>
         </Fold>
@@ -194,7 +194,7 @@ function ModelSetting({ ai }: { ai: { model?: string; max_calls_per_account_per_
           if (r) save.mutate(String(r.model).trim());
         }}>Change model</Button>
       </Stack>
-      {error && <Alert color="danger" variant="soft" sx={{ mt: 3, borderRadius: "lg" }}>{error}</Alert>}
+      {error && <Alert color="warning" variant="soft" sx={{ mt: 3, borderRadius: "lg" }}>{error}</Alert>}
     </Box>
   );
 }

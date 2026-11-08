@@ -110,7 +110,7 @@ function HandoffReview({ me, onClose, onOpenTicket }: { me: Whoami; onClose: () 
             <Skeleton variant="rectangular" height={120} sx={{ borderRadius: "xl" }} />
           </Stack>
         )}
-        {details.error && <Alert color="danger" variant="soft" sx={{ borderRadius: "lg" }}>Bloom couldn't load the open requests, so nothing was changed. Close this and try again.</Alert>}
+        {details.error && <Alert color="warning" variant="soft" sx={{ borderRadius: "lg" }}>Bloom couldn't load the open requests, so nothing was changed. Close this and try again.</Alert>}
 
         {plan && phase !== "review" && (
           <Box role="status" aria-live="polite" sx={{ ...deskCardSx, p: 4, bgcolor: phase === "running" ? "primary.50" : failed.length ? "warning.50" : "success.50", borderColor: phase === "running" ? "primary.200" : failed.length ? "warning.200" : "success.200" }}>
@@ -209,7 +209,7 @@ function HandoffRow({ item, phase, checked, state, draft, note, onToggle, onDraf
             <Typography level="body-md" textColor="text.secondary"><b>Why:</b> {item.reason}</Typography>
             {item.blocked && <Typography level="body-sm" textColor="warning.800">{item.blocked}</Typography>}
             {state && state.status !== "queued" && state.status !== "working" && (
-              <Typography level="body-md" textColor={state.status === "done" ? "success.700" : state.status === "failed" ? "danger.700" : "text.secondary"}>{state.message}</Typography>
+              <Typography level="body-md" textColor={state.status === "done" ? "success.700" : state.status === "failed" ? "warning.700" : "text.secondary"}>{state.message}</Typography>
             )}
             {state && state.status !== "done" && !reviewing && <Link component="button" level="body-md" onClick={onOpen} sx={{ alignSelf: "flex-start" }}>Open request</Link>}
           </Stack>
@@ -241,7 +241,7 @@ function StateIcon({ state }: { state?: RunState }) {
   if (!state || state.status === "queued") return <Box sx={{ color: "neutral.400", display: "flex" }}><Circle size={22} aria-label="Waiting" /></Box>;
   if (state.status === "working") return <CircularProgress size="sm" aria-label="Working" />;
   if (state.status === "done") return <Box sx={{ color: "success.600", display: "flex" }}><CheckCircle2 size={22} aria-label="Done" /></Box>;
-  if (state.status === "failed") return <Box sx={{ color: "danger.600", display: "flex" }}><XCircle size={22} aria-label="Didn't finish" /></Box>;
+  if (state.status === "failed") return <Box sx={{ color: "warning.600", display: "flex" }}><XCircle size={22} aria-label="Didn't finish" /></Box>;
   if (state.status === "skipped") return <Box sx={{ color: "warning.600", display: "flex" }}><MinusCircle size={22} aria-label="Left alone" /></Box>;
   return <Box sx={{ color: "warning.600", display: "flex" }}><AlertTriangle size={22} aria-hidden /></Box>;
 }
