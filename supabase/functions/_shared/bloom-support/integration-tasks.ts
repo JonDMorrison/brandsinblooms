@@ -96,7 +96,7 @@ export async function startIntegrationTask(
   // Preserve the original bounded evidence so a retry can restore the
   // original internal note without conflicting with a newer provider check.
   taskMeta.brief = noteBody;
-  const key = `bloom-investigation:${contextSource.channel}:${input.accountId}:${contextSource.requestId}`;
+  const key = `bloom-investigation:${contextSource.channel}:${kind}:${input.accountId}:${contextSource.requestId}`;
   const result = await rpc<{ticket_id:string;number:number;duplicate_delivery?:boolean}>("create_ticket", {
     actor: caller.principalId,
     ticket: {
