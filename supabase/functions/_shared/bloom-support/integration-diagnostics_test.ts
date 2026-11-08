@@ -1,5 +1,5 @@
 import {assert, assertEquals, assertStringIncludes} from "@std/assert";
-import {diagnosticClientHint, findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion,slackDiagnosticUserFromLane} from "./integration-diagnostics.ts";
+import {diagnosticClientHint, findDiagnosticAccount, formatIntegrationEvidence, formatProviderEvidence, isIntegrationDiagnosticQuestion, providerHealthScope,slackDiagnosticUserFromLane} from "./integration-diagnostics.ts";
 
 const siteId = "f599e50e-4245-43d2-954c-e5b05777ec22";
 const accounts = [
@@ -71,4 +71,35 @@ Deno.test("extracts named client from real Slack integration request and ignores
 Deno.test("unmentioned garden centres cannot be selected from unrelated message words", () => {
   assertEquals(diagnosticClientHint("Integration test, report health, site and tickets; verify CounterPoint for noone"), "noone");
   assertEquals(findDiagnosticAccount("noone", accounts), null);
+});
+
+Deno.test("Heartland and ShipStation requests select only the requested provider",()=>{
+ assertEquals(isIntegrationDiagnosticQuestion("Verify Heartland for Horsford"),true);
+ assertEquals(isIntegrationDiagnosticQuestion("Check ShipStation for Horsford"),true);
+ assertEquals(providerHealthScope("Verify Heartland for Horsford"),"heartland");
+ assertEquals(providerHealthScope("Check ShipStation for Horsford"),"shipstation");
+ assertEquals(providerHealthScope("Verify Heartland and ShipStation for horsfordnursery.com"),"both");
+ assertEquals(providerHealthScope("Verify Lacoste CounterPoint and OPD"),null);
+});
+Deno.test("site domain disambiguates separate old and live customer websites safely",()=>{
+ const duplicate=[
+  {id:"old",name:"Horsford Gardens and Nursery",links:[{product:"cms",external_id:"11111111-1111-4111-8111-111111111111",label:"Horsford · horsford-gardens-and-nursery-2.bloomsites.app"}]},
+  {id:"live",name:"Horsford Gardens and Nursery",links:[{product:"cms",external_id:"22222222-2222-4222-8222-222222222222",label:"Horsford · horsfordnursery.com"}]},
+ ];
+ assertEquals(findDiagnosticAccount("Horsford",duplicate),null);
+ assertEquals(diagnosticClientHint("Verify Heartland and ShipStation for horsfordnursery.com"),"horsfordnursery.com");
+ assertEquals(findDiagnosticAccount("horsfordnursery.com",duplicate)?.account.id,"live");
+ assertEquals(findDiagnosticAccount("other.example.com",duplicate),null);
+});
+Deno.test("provider status summaries never reveal raw error text or credentials",()=>{
+ const output=formatProviderEvidence("Horsford Gardens and Nursery",{
+   assessment:"needs_attention",scope:"both",findings:["Read-only status needs follow-up"],
+   heartland:{configured:true,connection_status:"configured",last_success_at:"2026-11-08T14:22:47Z",auto_sync:true,stock_publication_enabled:true,recent_runs:[{status:"failed",error_code:"sk_live_private"}]},
+   shipstation:{configured:true,connection_status:"enabled",last_success_at:"2026-11-07T14:01:23Z",recent_order_events:[{status:"failed",error_code:"private@email.test"}]},
+ });
+ assertStringIncludes(output,"Heartland");
+ assertStringIncludes(output,"ShipStation");
+ assertEquals(output.includes("sk_live"),false);
+ assertEquals(output.includes("private@email"),false);
+ assertStringIncludes(output,"Needs attention");
 });
