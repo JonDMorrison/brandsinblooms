@@ -13,7 +13,7 @@ vi.mock("../../supabase/functions/_shared/bloom-support/operations.ts", () => ({
 }));
 
 import {
-  startIntegrationTask, supportTaskUrl, taskContext, taskStatusText, taskThreadFromTicket,
+  startIntegrationTask, supportTaskUrl, taskContext, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket,
 } from "../../supabase/functions/_shared/bloom-support/integration-tasks.ts";
 
 const actor = { principalId:"11111111-1111-4111-8111-111111111111", role:"platform_operator", via:"service", scopes:[] } as const;
@@ -47,7 +47,7 @@ describe("Bloom investigation tasks are the existing support ticket", () => {
     expect(creation?.[1].actor).toBe(actor.principalId);
     expect(creation?.[1].ticket).toMatchObject({
       channel:"staff",product:"cms",kind_hint:"bug",account_id:accountId,automation:"paused",
-      dedupe_key:"bloom-investigation:slack:" + source.requestId,
+      dedupe_key:"bloom-investigation:slack:" + accountId + ":" + source.requestId,
       context:{bloom_task:{kind:"integration_health",source:"slack",thread_ts:source.threadTs,customer_verified:false,repair_authorized:false}},
     });
     const note = rpc.mock.calls.find(([fn]) => fn === "add_message")?.[1].message;
@@ -58,12 +58,17 @@ describe("Bloom investigation tasks are the existing support ticket", () => {
   });
 
   it("retries do not write duplicate notes or start a model repair", async () => {
+    const originalBrief = "Original diagnostic evidence, no client action authorized.";
     rpc.mockImplementation(async (fn:string) => fn === "get_account"
       ? {id:accountId,name:"Lacoste Garden Centre"} : fn === "create_ticket"
-      ? {ticket_id:ticketId,number:1099,duplicate_delivery:true} : (()=>{throw Error("unexpected "+fn)})());
+      ? {ticket_id:ticketId,number:1099,duplicate_delivery:true}
+      : fn === "get_ticket"
+      ? {id:ticketId,context:{bloom_task:{kind:"integration_health",brief:originalBrief}}}
+      : fn === "add_message" ? {duplicate:true} : (()=>{throw Error("unexpected "+fn)})());
     const result=await startIntegrationTask(actor as never,{accountId,source});
     expect(result.duplicate).toBe(true);
-    expect(rpc.mock.calls.filter(([fn])=>fn==="add_message")).toHaveLength(0);
+    const note = rpc.mock.calls.find(([fn])=>fn==="add_message")?.[1].message;
+    expect(note.body).toBe(originalBrief);
     expect(runRead).toHaveBeenCalledTimes(1);
   });
 
@@ -105,5 +110,18 @@ describe("thread status is bounded and authorization is outside the formatter",(
   it("rejects unrelated tickets and forged Slack timestamps",()=>{
     expect(taskStatusText({id:ticketId,status:"working",context:{}})).toBeNull();
     expect(taskThreadFromTicket({context:{bloom_task:{kind:"integration_health",source:"slack",thread_ts:"bad"}}})).toBeNull();
+  });
+});
+
+describe("Slack status requests only fetch explicitly named task numbers",()=>{
+  it("accepts ordinary ways to ask about a Support investigation",()=>{
+    expect(taskNumberFromQuestion("What is the status of task #1099?")).toBe(1099);
+    expect(taskNumberFromQuestion("@Bloom progress on investigation 1099")).toBe(1099);
+    expect(taskNumberFromQuestion("Ticket #1099 status")).toBe(1099);
+  });
+  it("does not interpret unrelated amounts, projects or hidden commands as task status",()=>{
+    expect(taskNumberFromQuestion("Verify Lacoste integration")).toBeNull();
+    expect(taskNumberFromQuestion("Please transfer 1099 dollars")).toBeNull();
+    expect(taskNumberFromQuestion("Task #0 status")).toBeNull();
   });
 });
