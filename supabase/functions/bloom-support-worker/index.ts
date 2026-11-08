@@ -23,7 +23,7 @@ import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bl
 import { callProduct } from "../_shared/bloom-support/operations.ts";
 import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, providerHealthScope, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
-import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
+import { repairReviewTaskNumber, requestIntegrationRepairReview, startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
   announceAfterActiveHandoff,
@@ -723,6 +723,37 @@ async function notifyEmail(job: Job): Promise<string> {
     if (question.length < 3) return "skipped: question is empty";
     const route = String(job.payload.slack_question_route ?? "ask");
     if (route === "projects") {
+      const reviewTask = repairReviewTaskNumber(question);
+      if (reviewTask !== null) {
+        const userId = slackDiagnosticUserFromLane(job.lane);
+        const identity = userId
+          ? await directRpc<{principal_id:string;role:string}|null>("bloom_support_slack_staff_actor", {p_slack_user_id:userId})
+          : null;
+        if (!identity?.principal_id || !["platform_admin","platform_operator"].includes(identity.role))
+          return await postSlackInternalText("projects",
+            "Requesting repair review requires an authorized Bloom Support staff identity.", job.id, String(job.payload.thread_ts ?? ""));
+        const found = await rpc<Array<{id:string;number:number}>>("list_tickets", {
+          actor: identity.principal_id, filters: {q:"#" + reviewTask, limit:5},
+        });
+        const row = Array.isArray(found) ? found.find(t => t.number === reviewTask) : null;
+        if (!row) return await postSlackInternalText("projects",
+          "I couldn't find an authorized investigation with that number. No repair or approval was started.", job.id, String(job.payload.thread_ts ?? ""));
+        try {
+          await requestIntegrationRepairReview({
+            principalId:identity.principal_id, role:identity.role, via:"service", scopes:[],
+          }, row.id);
+        } catch (error) {
+          if (!(error instanceof BloomError) || error.status >= 500) throw error;
+          return await postSlackInternalText("projects",
+            "The task is not eligible for repair review, or your account is not authorized. Check the task in Bloom Support. No coding agent was started.",
+            job.id, String(job.payload.thread_ts ?? ""));
+        }
+        return await postSlackInternalText("projects",
+          "*Human repair review requested for task #" + reviewTask + ".*\n" +
+            "The support team must review the evidence and separately approve any coding or deployment. No coding agent, customer email, or production change was authorized by this Slack message.\n" +
+            "<" + supportTaskUrl(row.id) + "|Open the shared task and approval controls>",
+          job.id, String(job.payload.thread_ts ?? ""));
+      }
       const requestedTask = taskNumberFromQuestion(question);
       if (requestedTask !== null) {
         const userId = slackDiagnosticUserFromLane(job.lane);
