@@ -7,10 +7,10 @@ import type { ReactNode } from "react";
 import { bloomState, deskAlerts, type DeskAlert, type DeskAlertKind, type DeskAlertTarget, type DeskSummary } from "./deskModel";
 
 const ALERT_ICON: Record<DeskAlertKind, ReactNode> = {
-  paused: <CirclePause size={20} aria-hidden />,
-  failed: <AlertTriangle size={20} aria-hidden />,
-  urgent: <ShieldAlert size={20} aria-hidden />,
-  admin: <UserRound size={20} aria-hidden />,
+  paused: <CirclePause size={18} aria-hidden />,
+  failed: <AlertTriangle size={18} aria-hidden />,
+  urgent: <ShieldAlert size={18} aria-hidden />,
+  admin: <UserRound size={18} aria-hidden />,
 };
 
 export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAlert }: {
@@ -39,7 +39,7 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
         </Button>
       </Stack>
       {alerts.length > 0 && (
-        <Stack spacing={2} role="region" aria-label="Needs attention now">
+        <Stack role="region" aria-label="Worth a look" sx={{ borderRadius: "xl", border: "1px solid", borderColor: "neutral.200", bgcolor: "background.surface", overflow: "hidden", "& > * + *": { borderTop: "1px solid", borderColor: "neutral.100" } }}>
           {alerts.map((a) => <AlertRow key={a.kind} alert={a} onAction={() => onAlert(a.target)} />)}
         </Stack>
       )}
@@ -48,15 +48,15 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
 }
 
 function BloomPill({ tone, label }: { tone: "primary" | "danger" | "neutral"; label: string }) {
-  const dot = tone === "primary" ? "primary.500" : tone === "danger" ? "danger.500" : "neutral.400";
+  const dot = tone === "primary" ? "primary.500" : tone === "danger" ? "warning.400" : "neutral.400";
   return (
     <Box
       role="status"
       sx={{
         display: "inline-flex", alignItems: "center", gap: 2, px: 3, py: 1, borderRadius: 999,
-        bgcolor: tone === "danger" ? "danger.50" : tone === "primary" ? "primary.50" : "neutral.100",
-        border: "1px solid", borderColor: tone === "danger" ? "danger.200" : tone === "primary" ? "primary.200" : "neutral.200",
-        color: tone === "danger" ? "danger.700" : tone === "primary" ? "primary.900" : "text.secondary",
+        bgcolor: tone === "danger" ? "warning.50" : tone === "primary" ? "primary.50" : "neutral.100",
+        border: "1px solid", borderColor: tone === "danger" ? "warning.200" : tone === "primary" ? "primary.200" : "neutral.200",
+        color: tone === "danger" ? "warning.800" : tone === "primary" ? "primary.900" : "text.secondary",
         fontFamily: "body", fontSize: "0.9375rem", fontWeight: 600, whiteSpace: "nowrap",
       }}
     >
@@ -76,27 +76,23 @@ function BloomPill({ tone, label }: { tone: "primary" | "danger" | "neutral"; la
   );
 }
 
+/** Calm by design: a white card with a small amber marker. Nothing here should feel like an alarm. */
 function AlertRow({ alert, onAction }: { alert: DeskAlert; onAction: () => void }) {
-  const danger = alert.tone === "danger";
   return (
     <Stack
       direction={{ xs: "column", sm: "row" }}
-      spacing={{ xs: 3, sm: 4 }}
+      spacing={{ xs: 2, sm: 4 }}
       alignItems={{ xs: "flex-start", sm: "center" }}
-      sx={{
-        p: 4, borderRadius: "xl", border: "1px solid",
-        bgcolor: danger ? "danger.50" : "warning.50",
-        borderColor: danger ? "danger.200" : "warning.200",
-      }}
+      sx={{ px: 4, py: 2.5 }}
     >
-      <Stack direction="row" spacing={3} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ color: danger ? "danger.600" : "warning.700", display: "flex", pt: 0.5 }}>{ALERT_ICON[alert.kind]}</Box>
-        <Stack spacing={0.5}>
-          <Typography level="title-md" textColor={danger ? "danger.800" : "warning.800"}>{alert.title}</Typography>
-          <Typography level="body-md" textColor="text.secondary">{alert.body}</Typography>
+      <Stack direction="row" spacing={3} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: "50%", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "warning.50", color: "warning.600" }}>{ALERT_ICON[alert.kind]}</Box>
+        <Stack spacing={0}>
+          <Typography level="title-md" textColor="text.primary">{alert.title}</Typography>
+          <Typography level="body-sm" textColor="text.secondary">{alert.body}</Typography>
         </Stack>
       </Stack>
-      <Button variant="outlined" color={danger ? "danger" : "warning"} onClick={onAction} sx={{ borderRadius: "xl", bgcolor: "background.surface", flexShrink: 0 }}>
+      <Button variant="plain" color="neutral" onClick={onAction} sx={{ borderRadius: "xl", flexShrink: 0, color: "primary.800" }}>
         {alert.action}
       </Button>
     </Stack>

@@ -103,8 +103,8 @@ export function summarizeCapabilities(caps: Capability[]): StatusSummary {
 }
 
 /** Bloom's headline state from the readiness summary. */
-export function runningState(continuous: string | undefined): { tone: "success" | "warning" | "danger"; title: string; body: string } {
+export function runningState(continuous: string | undefined): { tone: "success" | "warning"; title: string; body: string } {
   if (continuous === "running") return { tone: "success", title: "Bloom is running", body: "Bloom's background work checked in within the last 15 minutes." };
-  if (continuous === "paused") return { tone: "danger", title: "Bloom is paused", body: "Automatic work is switched off in Settings. Requests wait for a person." };
+  if (continuous === "paused") return { tone: "warning", title: "Bloom is paused", body: "Automatic work is switched off in Settings. Requests wait for a person." };
   return { tone: "warning", title: "Bloom needs attention", body: "Automatic work is switched on, but Bloom's background work hasn't checked in for 15 minutes." };
 }

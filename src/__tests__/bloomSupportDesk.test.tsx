@@ -162,3 +162,18 @@ describe("System status panel", () => {
     unmount();
   });
 });
+
+import { escalationProblem, firstSentence } from "@/components/bloomSupport/desk/useDeskDecisions";
+
+describe("decision wording", () => {
+  it("keeps long engineering notes to one readable sentence", () => {
+    expect(firstSentence("Stopped before changing code: needs a payment scope. No tests were run.")).toBe("Stopped before changing code: needs a payment scope.");
+    expect(firstSentence("x".repeat(400)).length).toBe(200);
+    expect(firstSentence(null)).toBe("");
+  });
+  it("names the real problem and never repeats the subject", () => {
+    expect(escalationProblem("engineering_escalated", "Stopped: needs payment changes. More.", "Checkout")).toEqual({ problem: "Bloom's automatic fix stopped before it finished.", finding: "Stopped: needs payment changes." });
+    expect(escalationProblem("engineering_start_requested", "Checkout", "Checkout")).toEqual({ problem: "Bloom looked into this and is ready to start an automatic fix.", finding: undefined });
+    expect(escalationProblem("ticket_overdue", "", "x").problem).toBe("This request has waited too long for its next step.");
+  });
+});

@@ -1,71 +1,142 @@
+import { useState, type ReactNode } from "react";
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Button from "@mui/joy/Button";
 import Link from "@mui/joy/Link";
-import { AlertTriangle, MessageSquarePlus, Sprout } from "lucide-react";
-import type { DecisionChoice } from "../todayActions";
+import Radio from "@mui/joy/Radio";
+import RadioGroup from "@mui/joy/RadioGroup";
+import Textarea from "@mui/joy/Textarea";
+import { AlertTriangle } from "lucide-react";
 import type { DeskDecision } from "./useDeskDecisions";
 import { deskCardSx } from "./deskStyles";
 
-/** One decision, readable at a glance: problem, Bloom's plan, why, and three clear choices. */
-export function DecisionCard({ d, busy, onChoose }: { d: DeskDecision; busy: boolean; onChoose: (choice: DecisionChoice) => void }) {
-  const disabled = busy || !d.decide;
+const OTHER = "__other__";
+
+export type DecisionPick = { optionId: string } | { other: string };
+
+/**
+ * One decision, asked like a short question: the problem, what Bloom
+ * recommends, two or three real answers with one marked Recommended, and a box
+ * to write something else.
+ */
+export function DecisionCard({ d, busy, onConfirm }: { d: DeskDecision; busy: boolean; onConfirm: (pick: DecisionPick) => void }) {
+  const recommended = d.options.find((o) => o.recommended) ?? d.options[0];
+  const [choice, setChoice] = useState<string>(recommended?.id ?? (d.other ? OTHER : ""));
+  const [text, setText] = useState("");
+  const allowed = d.options.length > 0 || !!d.other;
+  const ready = choice === OTHER ? text.trim().length > 0 : !!choice;
+  const groupId = `decision-${d.key.replace(/[^a-z0-9]/gi, "-")}`;
+
   return (
-    <Box
-      component="article"
-      aria-label={`${d.client}: ${d.problem}`}
-      sx={{ ...deskCardSx, overflow: "hidden", borderLeft: "4px solid", borderLeftColor: "warning.400" }}
-    >
-      <Stack spacing={4} sx={{ p: { xs: 4, sm: 5.5 } }}>
-        <Stack spacing={1}>
+    <Box component="article" aria-labelledby={`${groupId}-title`} sx={{ ...deskCardSx, p: { xs: 4, sm: 5 } }}>
+      <Stack spacing={4}>
+        <Stack spacing={0.5}>
           <Stack direction="row" spacing={2} alignItems="baseline" flexWrap="wrap" useFlexGap>
-            <Typography level="title-lg" component="h3">{d.client}</Typography>
+            <Typography id={`${groupId}-title`} level="title-lg" component="h3">{d.client}</Typography>
             {d.when && <Typography level="body-sm" textColor="text.tertiary">{d.when}</Typography>}
           </Stack>
           {d.ticket && <Typography level="body-sm" textColor="text.secondary">{d.ticket}</Typography>}
-          <Typography level="body-lg" textColor="text.primary" sx={{ pt: 1 }}>{d.problem}</Typography>
         </Stack>
 
-        <Box sx={{ borderRadius: "lg", bgcolor: "primary.50", border: "1px solid", borderColor: "primary.100", p: 4 }}>
-          <Stack spacing={1.5}>
-            <Typography level="title-sm" startDecorator={<Sprout size={18} aria-hidden />} textColor="primary.800">Bloom recommends</Typography>
-            <Typography level="body-md" textColor="text.primary">{d.recommendation}</Typography>
-            <Typography level="body-sm" textColor="text.secondary"><b>Why:</b> {d.reason}</Typography>
+        <Stack spacing={3}>
+          <Stack spacing={0.5}>
+            <Typography level="body-sm" textColor="text.tertiary" sx={{ fontWeight: 600 }}>The problem</Typography>
+            <Typography level="body-lg" textColor="text.primary">{d.problem}</Typography>
           </Stack>
-        </Box>
-
-        {d.risk && (
-          <Typography level="body-md" startDecorator={<AlertTriangle size={18} aria-hidden />} textColor="warning.800" sx={{ alignItems: "flex-start" }}>
-            {d.risk}
-          </Typography>
-        )}
-
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} useFlexGap flexWrap="wrap">
-          <Button size="lg" disabled={disabled} onClick={() => onChoose("do")} sx={{ borderRadius: "xl", minHeight: 48, px: 5 }}>
-            Approve Bloom's plan
-          </Button>
-          <Button size="lg" variant="outlined" color="neutral" disabled={disabled} startDecorator={<MessageSquarePlus size={18} aria-hidden />} onClick={() => onChoose("other")} sx={{ borderRadius: "xl", minHeight: 48, bgcolor: "background.surface" }}>
-            Add instructions
-          </Button>
-          <Button size="lg" variant="plain" color="neutral" disabled={disabled} onClick={() => onChoose("reject")} sx={{ borderRadius: "xl", minHeight: 48 }}>
-            Not this
-          </Button>
+          <Stack spacing={0.5}>
+            <Typography level="body-sm" textColor="text.tertiary" sx={{ fontWeight: 600 }}>What Bloom recommends</Typography>
+            <Typography level="body-lg" textColor="text.primary">{d.recommendation}</Typography>
+          </Stack>
+          {d.risk && (
+            <Typography level="body-md" startDecorator={<AlertTriangle size={18} aria-hidden />} textColor="warning.800" sx={{ alignItems: "flex-start" }}>{d.risk}</Typography>
+          )}
         </Stack>
-        {!d.decide && <Typography level="body-sm" textColor="text.secondary">Your role can't make this decision. An admin can.</Typography>}
 
-        {(d.evidence || d.open) && (
-          <Box component="details" sx={{ "& summary": { cursor: "pointer", color: "text.secondary", fontSize: "0.9375rem", py: 1 } }}>
-            <Box component="summary">Show technical evidence</Box>
-            <Stack spacing={2} sx={{ pt: 2 }}>
-              {d.evidence && <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{d.evidence}</Typography>}
+        {allowed ? (
+          <Stack spacing={3}>
+            <RadioGroup
+              name={groupId}
+              value={choice}
+              onChange={(e) => setChoice(e.target.value)}
+              aria-label={`What should happen with ${d.client}?`}
+              sx={{ gap: 2, m: 0 }}
+            >
+              {d.options.map((o) => (
+                <OptionRow key={o.id} value={o.id} selected={choice === o.id} disabled={busy}>
+                  <Stack spacing={0.25}>
+                    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <Typography level="title-md">{o.label}</Typography>
+                      {o.recommended && <Box component="span" sx={{ px: 2, py: 0.5, borderRadius: 999, bgcolor: "primary.100", color: "primary.800", fontSize: "0.75rem", fontWeight: 700 }}>Recommended</Box>}
+                    </Stack>
+                    <Typography level="body-sm" textColor="text.secondary">{o.detail}</Typography>
+                  </Stack>
+                </OptionRow>
+              ))}
+              {d.other && (
+                <OptionRow value={OTHER} selected={choice === OTHER} disabled={busy}>
+                  <Stack spacing={0.25}>
+                    <Typography level="title-md">Something else</Typography>
+                    <Typography level="body-sm" textColor="text.secondary">Write what should happen. It's saved on the request and assigned to you.</Typography>
+                  </Stack>
+                </OptionRow>
+              )}
+            </RadioGroup>
+            {choice === OTHER && (
+              <Textarea
+                autoFocus
+                minRows={2}
+                maxRows={6}
+                value={text}
+                disabled={busy}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="e.g. Check the fix already in review before starting a new one."
+                slotProps={{ textarea: { maxLength: 2000, "aria-label": "What should happen instead?" } }}
+              />
+            )}
+            <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Button size="lg" disabled={busy || !ready} onClick={() => onConfirm(choice === OTHER ? { other: text.trim() } : { optionId: choice })} sx={{ borderRadius: "xl", px: 6 }}>
+                Confirm
+              </Button>
               {d.open && (d.open.href
                 ? <Link href={d.open.href} target="_blank" rel="noopener" level="body-md">{d.open.label}</Link>
-                : <Link component="button" onClick={d.open.onClick} level="body-md" sx={{ alignSelf: "flex-start" }}>{d.open.label}</Link>)}
+                : <Link component="button" onClick={d.open.onClick} level="body-md">{d.open.label}</Link>)}
             </Stack>
+          </Stack>
+        ) : (
+          <Stack spacing={2}>
+            <Typography level="body-md" textColor="text.secondary">Your role can't make this decision. An admin can.</Typography>
+            {d.open && !d.open.href && <Link component="button" onClick={d.open.onClick} level="body-md" sx={{ alignSelf: "flex-start" }}>{d.open.label}</Link>}
+          </Stack>
+        )}
+
+        {d.evidence && (
+          <Box component="details" sx={{ "& summary": { cursor: "pointer", color: "text.tertiary", fontSize: "0.9375rem", py: 1 } }}>
+            <Box component="summary">Show technical evidence</Box>
+            <Typography level="body-sm" textColor="text.secondary" sx={{ pt: 2, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{d.evidence}</Typography>
           </Box>
         )}
       </Stack>
+    </Box>
+  );
+}
+
+function OptionRow({ value, selected, disabled, children }: { value: string; selected: boolean; disabled: boolean; children: ReactNode }) {
+  return (
+    <Box
+      component="label"
+      sx={{
+        display: "flex", gap: 3, alignItems: "flex-start", cursor: disabled ? "default" : "pointer",
+        px: 4, py: 3, borderRadius: "lg", border: "1px solid",
+        borderColor: selected ? "primary.400" : "neutral.200",
+        bgcolor: selected ? "primary.50" : "background.surface",
+        transition: "background-color 120ms ease, border-color 120ms ease",
+        "&:hover": disabled ? {} : { borderColor: selected ? "primary.400" : "neutral.300" },
+        "&:has(:focus-visible)": { outline: "3px solid var(--joy-palette-primary-500)", outlineOffset: "2px" },
+      }}
+    >
+      <Radio value={value} disabled={disabled} sx={{ mt: 0.5 }} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
     </Box>
   );
 }
