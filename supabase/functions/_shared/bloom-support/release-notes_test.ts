@@ -13,16 +13,38 @@ Deno.test("real Bloom Support PR titles become specific approved categories", ()
   assertEquals(classifyPublicReleaseTitle("Improve inventory and product photos"),"catalogue");
 });
 
-Deno.test("release body gives a plain-English benefit, state and next action", () => {
+Deno.test("release message is short, friendly and doesn't claim a change is live", () => {
   const msg = slackSafeMessage("github.pr_merged",null,url,undefined,"support_tasks");
-  assertStringIncludes(msg,"What changed:");
-  assertStringIncludes(msg,"Slack requests and Bloom dashboard investigations");
-  assertStringIncludes(msg,"Why it matters:");
-  assertStringIncludes(msg,"Where it stands:");
-  assertStringIncludes(msg,"not yet been verified");
-  assertStringIncludes(msg,"Next:");
+  assertStringIncludes(msg,"*Bloom investigations*");
+  assertStringIncludes(msg,"We're making it easier to follow the same support task in Slack and Bloom.");
+  assertStringIncludes(msg,"*Status:*");
+  assertStringIncludes(msg,"Not yet confirmed working for customers.");
+  assertStringIncludes(msg,"*Next:* Try one Slack request");
   assertStringIncludes(msg,"/pull/440");
-  assertEquals(msg.includes("live and working"),false);
+  assertStringIncludes(msg,"More details");
+  assertEquals(msg.includes("What changed:"),false);
+  assertEquals(msg.includes("Why it matters:"),false);
+  assertEquals(msg.includes("Where it stands:"),false);
+  assertEquals(msg.includes("technical change"),false);
+  assertEquals(msg.length < 400,true);
+});
+
+Deno.test("customer support updates are understandable without GitHub knowledge", () => {
+  const msg=slackSafeMessage("github.pr_merged",null,url,undefined,"support");
+  assertStringIncludes(msg,"*Customer support*");
+  assertStringIncludes(msg,"We're making customer support requests easier to follow.");
+  assertStringIncludes(msg,"*Status:* Added to our software.");
+  assertStringIncludes(msg,"*Next:* Test a support request from start to finish.");
+  assertEquals(/\\b(merged|codebase|deployment|workflow|technical change)\\b/i.test(msg),false);
+});
+
+Deno.test("every approved category stays concise and never claims a customer result", () => {
+  for (const category of ["support_tasks","integration_checks","checkout","delivery","newsletters","catalogue","pos","website","security","performance","projects","support","other"]) {
+    const msg=slackSafeMessage("github.pr_merged",null,url,undefined,category);
+    assertStringIncludes(msg,"Not yet confirmed working for customers.");
+    assertEquals(msg.length < 440,true,category);
+    assertEquals(msg.includes("See the technical change"),false,category);
+  }
 });
 
 Deno.test("untrusted PR text, customer identities and secrets never reach public Slack",()=>{
@@ -33,7 +55,7 @@ Deno.test("untrusted PR text, customer identities and secrets never reach public
   assertEquals(msg.includes("owner@example.com"),false);
   assertEquals(msg.includes("sk_live"),false);
   assertEquals(msg.includes("private secret"),false);
-  assertStringIncludes(msg,"approved customer-facing description is not available");
+  assertStringIncludes(msg,"don't yet have a confirmed explanation");
 });
 
 Deno.test("unknown/invalid classifications fail closed and cannot inject Slack mentions",()=>{
