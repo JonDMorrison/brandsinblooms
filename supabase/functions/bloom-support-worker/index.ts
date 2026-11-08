@@ -12,6 +12,7 @@ import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
+import { postSlackSupportNotification } from "../_shared/bloom-support/slack.ts";
 import {
   type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
   renderDigestEmail, renderEscalationEmail, renderStaffNotification, resolutionAlreadyTold, type StaffTicket, ticketThreadRoot,
@@ -710,6 +711,15 @@ async function previewEmails(job: Job): Promise<string> {
 
 /** Staff emails: watchdog alerts, previews, and notifications (when settings.notifications.email_staff is on). */
 async function notifyEmail(job: Job): Promise<string> {
+  // Existing, leased support job queue. No second poller or scheduled agent.
+  // Slack delivery cannot block customer intake; retry/failure stays in this job.
+  if (job.payload.slack === true) {
+    return await postSlackSupportNotification({
+      kind: String(job.payload.kind ?? ""),
+      ticketId: job.ticket_id,
+      jobId: job.id,
+    });
+  }
   if (job.payload.preview === true) return await previewEmails(job);
   if (job.payload.kind === "alerts") return await alertEmails(job);
   const to = await ownerEmails(String(job.payload.audience ?? "both"));
