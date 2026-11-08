@@ -191,11 +191,10 @@ it("uses the full Today content area beside the sidebar", () => {
       <TodayView me={me} onOpenTicket={() => undefined} onOpenDesk={() => undefined} />
     </QueryClientProvider>,
   );
-  expect(screen.getByTestId("bloom-support-today-work-column")).toHaveStyle({
-    width: "100%",
-    minWidth: "0px",
-    textAlign: "left",
-  });
+  const column = screen.getByTestId("bloom-support-today-work-column");
+  expect(column).toHaveStyle({ width: "100%" });
+  expect(column).not.toHaveStyle({ marginLeft: "auto" });
+  expect(column).not.toHaveStyle({ maxWidth: "840px" });
 });
 
 
