@@ -614,6 +614,15 @@ verify_jwt = false
 [functions.bloom-support-email]
 verify_jwt = false
 
+[functions.bloom-support-slack]
+verify_jwt = false # verified Slack v0 HMAC signature in handler
+
+[functions.bloom-support-github]
+verify_jwt = false # verified GitHub sha256 signature in handler
+
+[functions.bloom-support-cms-events]
+verify_jwt = false # verified paired CMS HMAC secret in handler
+
 [functions.bloom-support-worker]
 verify_jwt = false
 
