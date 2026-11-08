@@ -163,6 +163,38 @@ export function taskStatusText(value: unknown): string | null {
   return `*Bloom investigation${number === null ? "" : " #" + number}*\n*Status:* ${label}\n*Customer workflow:* Not verified by this status alone.\n<${link}|Open the same task in Bloom Support>`;
 }
 
+/**
+ * Internal review request only. This creates a human-owned escalation, not an
+ * engineering issue, coding-agent job, approval, production merge or release.
+ * The existing escalation RPC enforces the same principal's tickets.write and
+ * ticket-account access with an atomic dedupe receipt.
+ */
+export async function requestIntegrationRepairReview(
+  caller: Caller, ticketId: string,
+): Promise<{ escalation_id: string; duplicate: boolean; status: string }> {
+  if (!UUID.test(ticketId)) throw new BloomError(400,"invalid","Invalid support ticket");
+  if (!["platform_admin","platform_operator"].includes(caller.role) ||
+    (caller.scopes.length > 0 && !caller.scopes.includes("write") && !caller.scopes.includes("*")))
+    throw new BloomError(403,"forbidden","Authorized staff must request repair review");
+  const ticket = await rpc<Record<string,unknown>>("get_ticket", {
+    actor: caller.principalId, ticket_id: ticketId,
+  });
+  if (!taskStatusText(ticket) || ticket?.status === "resolved")
+    throw new BloomError(409,"conflict","Only an open Bloom integration task can request review");
+  // Require the investigation to be under human control. This is never a
+  // substitute for engineering approval and intentionally cannot start repair.
+  if (ticket.automation !== "paused" && ticket.automation !== "human")
+    throw new BloomError(409,"conflict","Pause automation before requesting repair review");
+  return await rpc<{escalation_id:string;duplicate:boolean;status:string}>("escalate",{
+    actor: caller.principalId,
+    ticket_id: ticketId,
+    audience: "both",
+    reason: "Integration repair review requested",
+    detail: "Review the saved read-only diagnostic and customer evidence. A qualified administrator must separately authorize any coding, deployment or production change.",
+    dedupe_key: "bloom-repair-review:" + ticketId,
+  });
+}
+
 /** Asking for review never authorizes an engineering agent or a release. */
 export function repairReviewTaskNumber(question: unknown): number | null {
   if (typeof question !== "string" || question.length > 500) return null;
