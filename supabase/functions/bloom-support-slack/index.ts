@@ -3,8 +3,8 @@
 import { db, env } from "../_shared/bloom-support/runtime.ts";
 import { verifySlackWebhook } from "../_shared/bloom-support/webhook-auth.ts";
 import { slackQuestionText } from "../_shared/bloom-support/slack-question.ts";
+import { slackQuestionRoute } from "../_shared/bloom-support/slack-questions.ts";
 
-const CHANNEL = "C0CFUG4LFLJ";
 const json = (body: Record<string, unknown>, status=200) =>
   new Response(JSON.stringify(body), {status,headers:{"content-type":"application/json;charset=utf-8"}});
 
@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
   if (typeof data.team_id !== "string" || !env("BLOOM_SUPPORT_SLACK_TEAM_ID") ||
       data.team_id !== env("BLOOM_SUPPORT_SLACK_TEAM_ID")) return json({ok:true,ignored:true});
   const event = data.event as Record<string, unknown> | undefined;
-  if (!event || event.type !== "app_mention" || event.channel !== CHANNEL ||
+  const route = slackQuestionRoute(event?.channel);
+  if (!event || event.type !== "app_mention" || !route ||
       event.bot_id || event.subtype) return json({ok:true,ignored:true});
   if (typeof event.user !== "string" || !/^[UW][A-Z0-9]{8,24}$/.test(event.user))
     return json({ok:true,ignored:true});
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
   const question = slackQuestionText(event.text);
   if (question.length < 3) return json({ok:true,ignored:true});
   const {data:result,error} = await db().rpc("bloom_support_enqueue_slack_question", {
-    p_event_id: eventId, p_channel: CHANNEL, p_user_id: event.user,
+    p_event_id: eventId, p_channel: event.channel, p_user_id: event.user,
     p_question: question, p_thread_ts: ts
   });
   if (error) {
