@@ -1668,6 +1668,19 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     allowedModes: QUERY_MODES,
   }),
   defineTool({
+    name: "verify_bloomsites_integrations",
+    description:
+      "For authorized Brands in Blooms staff only: verify the selected client's BloomSites CounterPoint and Open Plant Data (OPD) integration status. Read the live connection health, recent data receipts, catalogue sync errors and approved/imported plant links, with explicit limits. Use when staff ask to check, investigate, verify, diagnose or audit CounterPoint or OPD for the selected garden centre. Read-only: this does not run a sync, fix records, approve products, contact customers or prove the shop works end to end. If there is no linked BloomSites website or access, explain that without guessing another client's site.",
+    parameters: objectSchema({
+      site_id: stringSchema("Optional BloomSites site ID, only when the selected client has more than one linked website."),
+    }),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: STAFF_PLUS,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
     name: "read_suite_data",
     description:
       "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, a sales summary for a date range (up to 93 days), one product variant's price changes (who changed it and when), or a private preview link for a website page's unpublished draft. Read-only, and only for the company the person is signed in to. Every signed-in user of the company can read the website, products and stock levels. The sales summary and price history are only for the company's account owner or an admin; anyone else gets a plain message saying so. If Bloom says there is no access or no connection, tell the user that plainly and do not retry.",
