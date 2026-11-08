@@ -1,5 +1,5 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
-import { githubSourceLink, slackChannelId, slackRoute, slackSafeMessage } from "./slack.ts";
+import { assertEquals, assertStringIncludes, assertRejects } from "@std/assert";
+import { postSlackInternalMessage, githubSourceLink, slackChannelId, slackRoute, slackSafeMessage } from "./slack.ts";
 
 Deno.test("Slack routes support notifications by purpose", () => {
   assertEquals(slackRoute("ticket.created"), "tickets");
@@ -43,4 +43,38 @@ Deno.test("Slack only links to validated company check pages", () => {
   assertEquals(githubSourceLink(url + "?access_token=secret"), null);
   assertEquals(githubSourceLink("https://github.com/other/repo/commit/" + sha + "/checks"), null);
   assertEquals(githubSourceLink("http://github.com/JonDMorrison/brandsinblooms/commit/" + sha + "/checks"), null);
+});
+
+Deno.test("Slack receipts accept real timestamps and reject malformed successful responses", async () => {
+  const originalFetch = globalThis.fetch;
+  const keys = ["BLOOM_SUPPORT_SLACK_BOT_TOKEN", "BLOOM_SUPPORT_SLACK_CHANNEL_TICKETS"];
+  const previous = keys.map((key) => Deno.env.get(key));
+  Deno.env.set(keys[0], "test-token");
+  Deno.env.set(keys[1], "C0CFNEQBS2X");
+  try {
+    for (const ts of ["1794160000.123456", "1234567890.000001"]) {
+      let calls = 0;
+      globalThis.fetch = () => {
+        calls++;
+        return Promise.resolve(Response.json({ ok: true, ts }));
+      };
+      const receipt = await postSlackInternalMessage("tickets", "Test", "11111111-1111-4111-8111-111111111111");
+      assertEquals(receipt.ts, ts);
+      assertEquals(calls, 1);
+    }
+    for (const ts of [undefined, null, 1794160000.123456, "", "1794160000x123456", "1794160000.12345", "1794160000.1234567"]) {
+      globalThis.fetch = () => Promise.resolve(Response.json({ ok: true, ts }));
+      await assertRejects(
+        () => postSlackInternalMessage("tickets", "Test", "11111111-1111-4111-8111-111111111111"),
+        Error, "Slack did not return a valid message timestamp",
+      );
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    keys.forEach((key, index) => {
+      const value = previous[index];
+      if (value === undefined) Deno.env.delete(key);
+      else Deno.env.set(key, value);
+    });
+  }
 });
