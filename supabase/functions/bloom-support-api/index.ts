@@ -8,6 +8,7 @@ import { attachmentUrl, decodeBase64File, storeAttachment } from "../_shared/blo
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { approve, authorizationServerMetadata, authorize, register, token } from "../_shared/bloom-support/oauth.ts";
 import { actOnTicket, attachmentLink, renewLink, replyToTicket, TRACK_HEADERS, viewTicket } from "../_shared/bloom-support/track.ts";
+import { startIntegrationTask } from "../_shared/bloom-support/integration-tasks.ts";
 
 type Handler = (req: Request, params: string[], url: URL) => Promise<unknown>;
 const routes: Array<[string, RegExp, Handler]> = [];
@@ -137,6 +138,16 @@ on("GET", "/operations/catalog", async (req) => {
 });
 // Product reads use POST for their input body but change nothing, so read-only keys may call them.
 on("POST", "/operations/read", async (req) => actions.readOperation(await authenticate(req), await readJson(req)));
+on("POST", "/operations/investigate", async (req) => {
+  const c = await caller(req);  // authenticated staff with write scope
+  const b = await readJson(req);
+  return startIntegrationTask(c, {
+    accountId: String(b.account_id ?? ""),
+    ...(typeof b.site_id === "string" ? {siteId:b.site_id} : {}),
+    // Never accept Slack thread metadata from a browser/API client.
+    source: {channel:"dashboard",requestId:String(b.idempotency_key ?? "")},
+  });
+});
 on("POST", "/operations/preview", async (req) => actions.previewOperation(await caller(req), await readJson(req)));
 on("GET", "/operations/:id", async (req, [id]) => actions.getOperation(await caller(req), id));
 on("POST", "/operations/:id/execute", async (req, [id]) => actions.executeOperation(await caller(req), id));
