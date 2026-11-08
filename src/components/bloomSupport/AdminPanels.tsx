@@ -247,6 +247,7 @@ const OPERATION_INFO: Record<string, { label: string; help: string; template?: R
   "campaign.schedule": { label: "Schedule an email campaign", help: "Sets when a campaign is sent. Can be undone until it sends.", template: { campaign_id: "", scheduled_at: "2026-11-03T15:00:00Z", timezone: "America/Vancouver" } },
   "campaign.unschedule": { label: "Cancel a scheduled campaign", help: "Stops a scheduled send. Can be undone.", template: { campaign_id: "" } },
   "site.read": { label: "See the client's website", help: "Basic details of their website." },
+  "site.integration_health": { label: "Verify CounterPoint and Open Plant Data", help: "Read-only check of connection health, latest sync activity and OPD link counts. Never claims a customer workflow works without a test." },
   "site.pages": { label: "List website pages", help: "Every page on their website." },
   "site.create_draft": { label: "Create a draft website", help: "Starts a draft site. Nothing goes live." },
   "site.page.update": { label: "Edit a website page", help: "Changes a page. Can be undone." },
@@ -275,6 +276,30 @@ const OPERATION_INFO: Record<string, { label: string; help: string; template?: R
 };
 const opLabel = (kind: string) => OPERATION_INFO[kind]?.label ?? labelFor(kind);
 
+function IntegrationHealthSummary({ value }: { value: unknown }) {
+  const data = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const cp = data.counterpoint && typeof data.counterpoint === "object" ? data.counterpoint as Record<string, unknown> : {};
+  const opd = data.opd && typeof data.opd === "object" ? data.opd as Record<string, unknown> : {};
+  const describe = (v: unknown) => typeof v === "string" && v.length < 90 ? v.replaceAll("_", " ") : "Not recorded";
+  const amount = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v.toLocaleString("en-CA") : "Not recorded";
+  const concerns = Array.isArray(data.findings) ? data.findings.filter((x): x is string => typeof x === "string").slice(0, 5) : [];
+  return (
+    <Stack spacing={1.5}>
+      <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+        <Typography level="title-md">Integration health</Typography>
+        <Chip variant="soft" color={data.assessment === "needs_attention" ? "warning" : "neutral"}>
+          {data.assessment === "needs_attention" ? "Needs attention" : "Not fully verified"}
+        </Chip>
+      </Stack>
+      <Typography level="body-sm"><strong>CounterPoint:</strong> {describe(cp.connection_status)} connection, health {describe(cp.connection_health)}. Last successful receipt: {describe(cp.last_success_at)}.</Typography>
+      <Typography level="body-sm"><strong>Catalogue sync:</strong> {describe(cp.catalogue_sync_status)}. Receiving a batch does not establish that it reached the shop.</Typography>
+      <Typography level="body-sm"><strong>Open Plant Data:</strong> {opd.enabled === true ? "Enabled" : "Not enabled or not configured"}. {amount(opd.imported_links)} imported, {amount(opd.approved_links)} approved, {amount(opd.failed_links)} failed.</Typography>
+      {concerns.map((item, i) => <Typography key={i} level="body-sm">{item}</Typography>)}
+      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>Read-only information from BloomSites. Confirm the original customer workflow before reporting a complete fix. No integration settings or customer data were changed.</Typography>
+    </Stack>
+  );
+}
+
 export function OperationsPanel() {
   const catalog = useQuery({ queryKey: ["bloom-support", "ops-catalog"], queryFn: () => bloomSupport.operationsCatalog() });
   const [client, setClient] = useState<PickedClient | null>(null);
@@ -298,6 +323,21 @@ export function OperationsPanel() {
             <FormLabel>1. Which client?</FormLabel>
             <ClientPicker value={client} onChange={(c) => { setClient(c); setOutput(null); setPreview(null); }} />
           </FormControl>
+          {client && catalog.data?.reads.some((o) => o.kind === "site.integration_health") && (
+            <Sheet variant="soft" sx={{ p: 2, borderRadius: "md" }}>
+              <Stack spacing={1}>
+                <Typography level="title-sm">Check this client's integrations</Typography>
+                <Typography level="body-sm">Bloom will review CounterPoint and Open Plant Data status without changing anything.</Typography>
+                <Button variant="solid" color="neutral" loading={pending} disabled={!accountId || pending} sx={{ alignSelf: "flex-start", borderRadius: "xl" }}
+                  onClick={() => run(async () => {
+                    setKind("site.integration_health");
+                    setInputs("{}");
+                    setPreview(null);
+                    setOutput(await bloomSupport.readOperation({ kind: "site.integration_health", account_id: accountId, inputs: {} }));
+                  })}>Verify integrations</Button>
+              </Stack>
+            </Sheet>
+          )}
           <FormControl required>
             <FormLabel>2. What do you want to do?</FormLabel>
             <Select value={kind} onChange={(_, v) => v && pick(v)}>
@@ -330,7 +370,7 @@ export function OperationsPanel() {
       {output !== null && (
         <Sheet variant="soft" sx={{ p: 2, borderRadius: "lg", overflow: "auto", maxHeight: 520 }}>
           <Typography level="title-sm" sx={{ mb: 1 }}>{preview && String(preview.status) === "previewed" ? "This is what will change" : "Result"}</Typography>
-          <ReadableData value={output} />
+          {kind === "site.integration_health" ? <IntegrationHealthSummary value={output} /> : <ReadableData value={output} />}
         </Sheet>
       )}
     </Stack>
