@@ -487,6 +487,7 @@ export const OPERATION_PERMISSIONS: Record<string, string> = {
   "site.read": "ops.site.read",
   "site.catalogue.audit": "ops.site.read",
   "site.integration_health": "ops.site.read",
+  "site.provider_health": "ops.site.read",
   "site.catalogue.assign_categories": "ops.site.edit",
   "site.page.update": "ops.site.edit",
   "site.section.update": "ops.site.edit",
