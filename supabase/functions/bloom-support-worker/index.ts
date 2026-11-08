@@ -20,7 +20,8 @@ import {
 } from "../_shared/bloom-support/support-emails.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
-import { callProduct } from "../_shared/bloom-support/operations.ts";
+import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
+import { findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
@@ -721,6 +722,37 @@ async function notifyEmail(job: Job): Promise<string> {
     if (question.length < 3) return "skipped: question is empty";
     const route = String(job.payload.slack_question_route ?? "ask");
     if (route === "projects") {
+      if (isIntegrationDiagnosticQuestion(question)) {
+        // The user ID comes from the signed, allowlisted Slack ingress job lane.
+        // Resolve to an existing active Bloom Support principal and re-check
+        // the person's real product-read permission. No generic Slack service
+        // identity gets authority to alter customer integrations.
+        const userId = /^slack:ask:projects:([UW][A-Z0-9]{8,24})$/.exec(job.lane)?.[1];
+        const identity = userId
+          ? await directRpc<{principal_id:string;role:string}|null>("bloom_support_slack_staff_actor", {p_slack_user_id:userId})
+          : null;
+        if (!identity?.principal_id || !["platform_admin","platform_operator"].includes(identity.role))
+          return await postSlackInternalText("projects",
+            "This check requires an authorized Bloom Support staff account. Open the Bloom dashboard to review your access.",
+            job.id, String(job.payload.thread_ts ?? ""));
+        const accounts = await rpc<DiagnosticAccount[]>("list_accounts", {
+          actor: identity.principal_id, q: null, limit: 200,
+        });
+        const selected = findDiagnosticAccount(question, Array.isArray(accounts) ? accounts : []);
+        if (!selected) return await postSlackInternalText("projects",
+          "Please name one garden centre with an existing BloomSites connection. Example: @Bloom verify Lacoste CounterPoint and OPD integration. If several sites match, select the client in the Bloom dashboard.",
+          job.id, String(job.payload.thread_ts ?? ""));
+        const report = await runRead({
+          principalId: identity.principal_id, role: identity.role,
+          via: "service", scopes: [], name: null,
+        }, {
+          kind: "site.integration_health", account_id: selected.account.id,
+          inputs: {site_id:selected.siteId},
+        });
+        return await postSlackInternalText("projects",
+          formatIntegrationEvidence(selected.account.name, report),
+          job.id, String(job.payload.thread_ts ?? ""));
+      }
       const response = await callProduct("cms", "major_projects.list", {}, 10000);
       return await postSlackInternalText("projects", projectQuestionAnswer(response.projects), job.id, String(job.payload.thread_ts ?? ""));
     }
