@@ -246,7 +246,7 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
             </Box>
           ))}
           {evidence.length > 2 && <Typography level="body-sm" textColor="text.tertiary">and {evidence.length - 2} more {evidence.length - 2 === 1 ? "request" : "requests"}</Typography>}
-          {f.decision_note ? <Typography level="body-sm" textColor="text.secondary">Decision note: {String(f.decision_note)}</Typography> : null}
+          {f.decision_note ? <Typography level="body-sm" textColor="text.secondary" title={String(f.decision_note)} sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>Decision note: {String(f.decision_note)}</Typography> : null}
           {canDecide && String(f.status) === "awaiting_decision" && (
             <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
               {FEATURE_DECISIONS.map((dec) => (
@@ -265,9 +265,11 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
     <Stack spacing={6} sx={{ maxWidth: 900, pb: 8 }}>
       {dialog}
       {error && <Alert color="warning" variant="soft">{error}</Alert>}
-      {waiting.length > 0 && <DeskSection title="Waiting for your decision" count={waiting.length} tone="warning">{waiting.map(card)}</DeskSection>}
+      {waiting.length > 0
+        ? <DeskSection title="Waiting for your decision" count={waiting.length} tone="warning">{waiting.map(card)}</DeskSection>
+        : <Calm title="Nothing waiting for a decision" body="Bloom brings new ideas here when clients ask for them." />}
       {decided.length > 0 && (
-        <Disclosure label={`Already decided (${decided.length})`} defaultOpen={waiting.length === 0}>
+        <Disclosure label={`Already decided (${decided.length})`}>
           <Stack spacing={3}>{decided.map(card)}</Stack>
         </Disclosure>
       )}
@@ -857,7 +859,8 @@ export function ReportsPanel() {
   );
 }
 
-const ageLabel = (k: string) => labelFor(k.replace(/_/g, " "));
+const AGE_LABEL: Record<string, string> = { under_1d: "Under 1 day", "1_3d": "1 to 3 days", "3_7d": "3 to 7 days", "7_30d": "1 to 4 weeks", over_30d: "Over a month" };
+const ageLabel = (k: string) => AGE_LABEL[k] ?? labelFor(k.replace(/_/g, " "));
 
 function BigStat({ value, label, sub, tone = "primary" }: { value: string; label: string; sub?: string; tone?: "primary" | "warning" | "success" }) {
   return (
