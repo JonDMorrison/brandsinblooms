@@ -25,7 +25,7 @@ import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQue
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { ticketQuestionAnswer, ticketRootMessage, ticketUpdateMessage } from "../_shared/bloom-support/ticket-slack.ts";
 import { formatIntegrationEvidence } from "../_shared/bloom-support/integration-diagnostics.ts";
-import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
+import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
   announceAfterActiveHandoff,
@@ -723,25 +723,26 @@ async function previewEmails(job: Job): Promise<string> {
  */
 async function postTicketThreadUpdate(job: Job, eventKind: string): Promise<string> {
   if (!job.ticket_id) return "skipped: no ticket";
+  const stored = await directRpc<{thread_ts:string|null; allowed:boolean}>(
+    "bloom_support_slack_ticket_thread", {p_ticket:job.ticket_id},
+  );
+  if (stored?.allowed !== true) return "skipped: unavailable or private ticket";
   const ticket = await rpc<Record<string, unknown>>("get_ticket", {
     actor: bot.principalId, ticket_id: job.ticket_id,
   });
   if (ticket.spam === true || ticket.merged_into || !ticket.id)
     return "skipped: unavailable ticket";
-  const stored = await directRpc<{thread_ts: string | null}>(
-    "bloom_support_slack_ticket_thread", {p_ticket:job.ticket_id},
-  );
-  if (stored?.thread_ts) {
+  if (stored.thread_ts) {
     return await postSlackInternalText("tickets",
       ticketUpdateMessage(ticket,eventKind),job.id,stored.thread_ts);
   }
   const receipt = await postSlackInternalMessage("tickets",
     ticketRootMessage(ticket,eventKind),job.id);
-  const bound = await directRpc<{thread_ts:string|null}>(
+  const bound = await directRpc<{thread_ts:string|null; allowed:boolean}>(
     "bloom_support_slack_ticket_thread",
     {p_ticket:job.ticket_id,p_root_ts:receipt.ts},
   );
-  if (bound?.thread_ts !== receipt.ts) {
+  if (bound?.allowed !== true || bound?.thread_ts !== receipt.ts) {
     throw new BloomError(409,"slack_thread_conflict","Support ticket thread was concurrently bound");
   }
   return receipt.delivery;
@@ -766,10 +767,10 @@ async function notifyEmail(job: Job): Promise<string> {
         : null;
       if (!identity?.principal_id || !job.ticket_id)
         return "skipped: no authorized ticket reader";
-      const bound = await directRpc<{thread_ts:string|null}>(
+      const bound = await directRpc<{thread_ts:string|null;allowed:boolean}>(
         "bloom_support_slack_ticket_thread",{p_ticket:job.ticket_id});
       const rootTs = typeof job.payload.thread_ts === "string" ? job.payload.thread_ts : "";
-      if (!bound?.thread_ts || bound.thread_ts !== rootTs)
+      if (bound?.allowed !== true || !bound.thread_ts || bound.thread_ts !== rootTs)
         return "skipped: ticket thread not verified";
       const ticket = await rpc<Record<string, unknown>>("get_ticket",{
         actor:identity.principal_id,ticket_id:job.ticket_id,
@@ -788,7 +789,7 @@ async function notifyEmail(job: Job): Promise<string> {
             const safeAccount = typeof account.name === "string" ?
               account.name.replace(/[<>@*_`~]/g," ").slice(0,70) : "this client";
             return await postSlackInternalText("tickets",
-              formatIntegrationEvidence(safeAccount,result)+"\\n_This was a read-only check. Ticket ownership and customer records were not changed._",
+              formatIntegrationEvidence(safeAccount,result)+"\n_This was a read-only check. Ticket ownership and customer records were not changed._",
               job.id,rootTs);
           } catch {
             // The link may have changed or this principal may lack permissions.
