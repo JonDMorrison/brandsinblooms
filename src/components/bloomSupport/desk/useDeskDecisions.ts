@@ -71,7 +71,7 @@ export function firstSentence(text: unknown, max = 200): string {
 /** Engineering notes often hold file paths, code and test names. Those stay in the technical evidence. */
 export function isPlain(text: string): boolean {
   if (text.length > 150 || text.endsWith("…")) return false;
-  return !/[\\/`{}<>=_]|\.(tsx?|jsx?|sql|json|md)\b|::|\b(test|tests|jest|vitest|regression|migration|schema|PR|commit|repo)\b/i.test(text);
+  return !/[\\/`{}<>=_]|\.(tsx?|jsx?|sql|json|md)\b|::|\b(unit tests?|test files?|regression tests?|jest|vitest|regression|migrations?|schema|PR|commits?|repo)\b/i.test(text);
 }
 
 const HOLD = "Assign this request to me for review and keep automatic work paused.";
