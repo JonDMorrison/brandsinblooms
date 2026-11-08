@@ -188,7 +188,7 @@ export function TodayView({ me, onOpenTicket, onOpenDesk }: { me: Whoami; onOpen
     <Stack
       data-testid="bloom-support-today-work-column"
       spacing={4}
-      sx={{ maxWidth: 840, ml: "auto", mr: 0, width: "100%", textAlign: "left", py: { xs: 1, md: 3 }, pb: 6 }}
+      sx={{ maxWidth: 1200, ml: 0, mr: "auto", width: "100%", textAlign: "left", py: { xs: 1, md: 3 }, pb: 6 }}
     >
       {dialog}
       <Stack spacing={1}>
