@@ -25,7 +25,8 @@ BEGIN
  j := bloom_support.enqueue_job(
    'notify',NULL,NULL,'slack:external:'||p_source,
    jsonb_build_object('slack',true,'kind',p_kind,'github_url',
-                     CASE WHEN p_source='github' THEN left(coalesce(p_url,''),250) ELSE NULL END),
+                     CASE WHEN p_source='github' THEN left(coalesce(p_url,''),250) ELSE NULL END,
+                     'project_id', CASE WHEN p_source='cms' THEN p_project_id::text ELSE NULL END),
    'slack:external:'||p_source||':'||p_event_id,now(),3,30
  );
  RETURN jsonb_build_object('queued',true,'job_id',j);
