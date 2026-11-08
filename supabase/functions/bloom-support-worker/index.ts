@@ -25,7 +25,7 @@ import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQue
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { ticketQuestionAnswer, ticketRootMessage, ticketUpdateMessage } from "../_shared/bloom-support/ticket-slack.ts";
 import { formatIntegrationEvidence } from "../_shared/bloom-support/integration-diagnostics.ts";
-import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion } from "../_shared/bloom-support/integration-tasks.ts";
+import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
   announceAfterActiveHandoff,
