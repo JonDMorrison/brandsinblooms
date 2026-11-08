@@ -119,7 +119,7 @@ export async function postSlackInternalMessage(
   if (!response.ok) throw new BloomError(502, "slack_http", "Slack API HTTP " + response.status);
   const result = await response.json().catch(() => null) as {ok?:boolean;error?:string;ts?:string}|null;
   if (!result?.ok) throw new BloomError(502, "slack_delivery", "Slack rejected notification: " + (result?.error ?? "unknown"));
-  if (typeof result.ts !== "string" || !/^\\d{10}\\.\\d{6}$/.test(result.ts)) {
+  if (typeof result.ts !== "string" || !/^\d{10}\.\d{6}$/.test(result.ts)) {
     throw new BloomError(502, "slack_receipt", "Slack did not return a valid message timestamp");
   }
   return {delivery:"delivered to " + route + " (Slack ts: " + result.ts + ")", ts:result.ts};
