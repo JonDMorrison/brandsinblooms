@@ -141,6 +141,8 @@ on("POST", "/operations/read", async (req) => actions.readOperation(await authen
 on("POST", "/operations/investigate", async (req) => {
   const c = await caller(req);  // authenticated staff with write scope
   const b = await readJson(req);
+  if (b.kind !== undefined && b.kind !== "site.integration_health" && b.kind !== "site.provider_health")
+    throw new BloomError(400, "invalid", "Unknown investigation type");
   return startIntegrationTask(c, {
     accountId: String(b.account_id ?? ""),
     ...(typeof b.site_id === "string" ? {siteId:b.site_id} : {}),
