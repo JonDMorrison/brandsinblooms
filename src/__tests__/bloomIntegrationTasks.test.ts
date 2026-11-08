@@ -47,7 +47,7 @@ describe("Bloom investigation tasks are the existing support ticket", () => {
     expect(creation?.[1].actor).toBe(actor.principalId);
     expect(creation?.[1].ticket).toMatchObject({
       channel:"staff",product:"cms",kind_hint:"bug",account_id:accountId,automation:"paused",
-      dedupe_key:"bloom-investigation:slack:" + accountId + ":" + source.requestId,
+      dedupe_key:"bloom-investigation:slack:site.integration_health:" + accountId + ":" + source.requestId,
       context:{bloom_task:{kind:"integration_health",source:"slack",thread_ts:source.threadTs,customer_verified:false,repair_authorized:false}},
     });
     const note = rpc.mock.calls.find(([fn]) => fn === "add_message")?.[1].message;
@@ -123,5 +123,31 @@ describe("Slack status requests only fetch explicitly named task numbers",()=>{
     expect(taskNumberFromQuestion("Verify Lacoste integration")).toBeNull();
     expect(taskNumberFromQuestion("Please transfer 1099 dollars")).toBeNull();
     expect(taskNumberFromQuestion("Task #0 status")).toBeNull();
+  });
+});
+
+describe("provider tasks stay within authorized, read-only operations",()=>{
+  it("records a paused Heartland and ShipStation task with no customer email",async()=>{
+    runRead.mockResolvedValue({
+      assessment:"needs_attention",scope:"both",checked_at:"2026-11-08T14:00:00Z",
+      heartland:{configured:true,connection_status:"configured",last_success_at:"2026-11-08T14:00:00Z",auto_sync:true,stock_publication_enabled:true,recent_runs:[{status:"failed"}]},
+      shipstation:{configured:true,connection_status:"enabled",last_success_at:"2026-11-08T14:00:00Z",last_error_at:null,recent_order_events:[]},
+    });
+    const result=await startIntegrationTask(actor as never,{accountId,source,kind:"site.provider_health",provider:"both"});
+    expect(result.message).toContain("Heartland");
+    expect(result.message).toContain("ShipStation");
+    expect(runRead).toHaveBeenCalledWith(actor,{kind:"site.provider_health",account_id:accountId,inputs:{provider:"both"}});
+    const ticket=rpc.mock.calls.find(([fn])=>fn==="create_ticket")?.[1].ticket;
+    expect(ticket.context.bloom_task.kind).toBe("provider_health");
+    expect(ticket.automation).toBe("paused");
+    expect(ticket.dedupe_key).toContain("site.provider_health");
+    expect(ticket.body).toContain("Heartland and ShipStation");
+    expect(taskThreadFromTicket({context:ticket.context})).toBe(source.threadTs);
+  });
+  it("rejects unknown provider and prohibited write operations before any read",async()=>{
+    await expect(startIntegrationTask(actor as never,{accountId,source,kind:"site.provider_health",provider:"invalid" as never})).rejects.toMatchObject({status:400});
+    await expect(startIntegrationTask(actor as never,{accountId,source,kind:"site.publish" as never})).rejects.toMatchObject({status:400});
+    expect(runRead).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
