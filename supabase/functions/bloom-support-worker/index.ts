@@ -23,7 +23,7 @@ import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bl
 import { callProduct } from "../_shared/bloom-support/operations.ts";
 import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
-import { startIntegrationTask, supportTaskUrl, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
+import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
   announceAfterActiveHandoff,
@@ -723,6 +723,25 @@ async function notifyEmail(job: Job): Promise<string> {
     if (question.length < 3) return "skipped: question is empty";
     const route = String(job.payload.slack_question_route ?? "ask");
     if (route === "projects") {
+      const requestedTask = taskNumberFromQuestion(question);
+      if (requestedTask !== null) {
+        const userId = slackDiagnosticUserFromLane(job.lane);
+        const identity = userId
+          ? await directRpc<{principal_id:string;role:string}|null>("bloom_support_slack_staff_actor", {p_slack_user_id:userId})
+          : null;
+        if (!identity?.principal_id)
+          return await postSlackInternalText("projects", "This task requires authorized Bloom Support staff access.", job.id, String(job.payload.thread_ts ?? ""));
+        const found = await rpc<Array<{id:string;number:number}>>("list_tickets", {
+          actor: identity.principal_id, filters: {q:"#" + requestedTask, limit:5},
+        });
+        const row = Array.isArray(found) ? found.find(t => t.number === requestedTask) : null;
+        const ticket = row
+          ? await rpc<Record<string, unknown>>("get_ticket", {actor:identity.principal_id,ticket_id:row.id})
+          : null;
+        return await postSlackInternalText("projects", taskStatusText(ticket) ??
+          "No authorized Bloom investigation with that number was found. Open Bloom Support to review your tasks.",
+          job.id, String(job.payload.thread_ts ?? ""));
+      }
       if (isIntegrationDiagnosticQuestion(question)) {
         // The user ID comes from the signed, allowlisted Slack ingress job lane.
         // Resolve to an existing active Bloom Support principal and re-check
