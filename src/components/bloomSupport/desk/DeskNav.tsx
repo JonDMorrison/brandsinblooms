@@ -31,9 +31,9 @@ export function DeskNav({ view, badges, onChange }: {
       component="nav"
       aria-label="Support desk sections"
       direction="row"
-      spacing={1}
+      spacing={2}
       alignItems="stretch"
-      sx={{ display: { xs: "grid", sm: "flex" }, gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1 }}
+      sx={{ display: { xs: "grid", sm: "flex" }, gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 2 }}
     >
       <Tabs
         value={inMore ? null : view}
@@ -44,13 +44,13 @@ export function DeskNav({ view, badges, onChange }: {
           disableUnderline
           sx={{
             display: { xs: "contents", sm: "flex" },
-            gap: 1,
+            gap: 2,
             p: 0,
             bgcolor: "transparent",
             [`& .${tabClasses.root}`]: {
               minHeight: 48,
-              px: 2,
-              gap: 1,
+              px: 4,
+              gap: 2,
               borderRadius: "xl",
               fontSize: "1rem",
               fontWeight: 600,
@@ -94,9 +94,9 @@ export function DeskNav({ view, badges, onChange }: {
         >
           {inMore ? <Box component="span" sx={{ maxWidth: { xs: 96, sm: "none" }, overflow: "hidden", textOverflow: "ellipsis" }}>{inMore.label}</Box> : "More"}
         </MenuButton>
-        <Menu placement="bottom-end" sx={{ minWidth: 300, p: 1, borderRadius: "xl", boxShadow: "lg" }}>
+        <Menu placement="bottom-end" sx={{ minWidth: 300, p: 2, borderRadius: "xl", boxShadow: "lg" }}>
           {MORE_VIEWS.map((m) => (
-            <MenuItem key={m.value} selected={view === m.value} onClick={() => onChange(m.value)} sx={{ borderRadius: "lg", py: 1.25, minHeight: 56 }}>
+            <MenuItem key={m.value} selected={view === m.value} onClick={() => onChange(m.value)} sx={{ borderRadius: "lg", py: 2.5, minHeight: 56 }}>
               <Stack>
                 <Typography level="title-sm" sx={{ fontSize: "1rem" }}>{m.label}</Typography>
                 <Typography level="body-xs" textColor="text.tertiary" sx={{ fontSize: "0.875rem" }}>{m.short}</Typography>
@@ -114,7 +114,7 @@ function CountBubble({ n }: { n: number }) {
     <Box
       component="span"
       aria-label={`${n} waiting`}
-      sx={{ minWidth: 24, height: 24, px: 0.75, borderRadius: 12, bgcolor: "warning.100", color: "warning.800", fontSize: "0.8125rem", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+      sx={{ minWidth: 24, height: 24, px: 1.5, borderRadius: 12, bgcolor: "warning.100", color: "warning.800", fontSize: "0.8125rem", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
     >
       {n}
     </Box>

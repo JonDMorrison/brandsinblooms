@@ -154,19 +154,29 @@ describe("Bloom Support names roles, never people", () => {
 });
 
 import { fireEvent, waitFor } from "@testing-library/react";
-import { DecisionCard, TodayView } from "@/components/bloomSupport/TodayView";
+import { TodayView } from "@/components/bloomSupport/TodayView";
+import { DecisionCard } from "@/components/bloomSupport/desk/DecisionCard";
 
-describe("simple support decision card", () => {
-  const decision = { key: "repair", who: "Request #1019", when: "today", text: "The automatic fix cannot continue safely.", recommendation: "Assign this request to me for review.", detail: "Private technical evidence", decide: async () => undefined };
-  it("offers exactly three primary choices and puts evidence behind a disclosure", () => {
+describe("support decision card", () => {
+  const decision = {
+    key: "repair", client: "Cedar Lane Garden Centre", ticket: "#1019 Checkout", when: "today",
+    problem: "The automatic fix cannot continue safely.", recommendation: "Assign this request to me for review.",
+    reason: "Bloom paused its own work.", risk: "The client marked this urgent priority.", evidence: "Private technical evidence",
+    decide: async () => undefined, done: { do: "a", reject: "b", other: "c" },
+  };
+  it("offers three clearly named choices and puts evidence behind a disclosure", () => {
     const choose = vi.fn();
     const { container, unmount } = render(<DecisionCard d={decision} busy={false} onChoose={choose} />);
     const buttons = Array.from(container.querySelectorAll("button"));
-    expect(buttons.map((b) => b.textContent)).toEqual(["Do It", "Reject it", "Something else"]);
+    expect(buttons.map((b) => b.textContent)).toEqual(["Approve Bloom's plan", "Add instructions", "Not this"]);
     buttons.forEach((button) => fireEvent.click(button));
-    expect(choose.mock.calls).toEqual([["do"], ["reject"], ["other"]]);
+    expect(choose.mock.calls).toEqual([["do"], ["other"], ["reject"]]);
+    expect(container).toHaveTextContent("Bloom recommends");
+    expect(container).toHaveTextContent("Why: Bloom paused its own work.");
+    expect(container).toHaveTextContent("The client marked this urgent priority.");
     const details = container.querySelector("details");
     expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("Show technical evidence");
     expect(details).toHaveTextContent("Private technical evidence");
     unmount();
   });
@@ -176,6 +186,7 @@ describe("simple support decision card", () => {
     for (const button of container.querySelectorAll("button")) expect(button).toBeDisabled();
     rerender(<DecisionCard d={{ ...decision, decide: undefined }} busy={false} onChoose={choose} />);
     for (const button of container.querySelectorAll("button")) expect(button).toBeDisabled();
+    expect(container).toHaveTextContent("Your role can't make this decision. An admin can.");
     unmount();
   });
 });
@@ -201,7 +212,7 @@ it("places the Today work column beside the navigation without an empty left gut
 });
 
 
-it("Something else saves the alternative through the real Today dialog and ticket actions", async () => {
+it("Add instructions saves the alternative through the real Today dialog and ticket actions", async () => {
   api.engineering.mockResolvedValue([]);
   api.features.mockResolvedValue([]);
   api.pageTickets.mockResolvedValue({ items: [], total: 0 });
@@ -212,13 +223,39 @@ it("Something else saves the alternative through the real Today dialog and ticke
   api.updateTicket.mockResolvedValue({});
   const me = { id: "admin-1", permissions: ["engineering.view", "features.view", "escalations.view", "escalations.resolve", "tickets.write"] } as Parameters<typeof TodayView>[0]["me"];
   const { unmount } = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TodayView me={me} onOpenTicket={() => undefined} onOpenDesk={() => undefined} /></QueryClientProvider>);
-  fireEvent.click(await screen.findByRole("button", { name: "Something else" }));
-  const field = await screen.findByRole("textbox", { name: "What would you like instead?" });
-  expect(screen.getByRole("button", { name: "Save guidance" })).toBeDisabled();
+  fireEvent.click(await screen.findByRole("button", { name: "Add instructions" }));
+  const field = await screen.findByRole("textbox", { name: "What should happen instead?" });
+  expect(screen.getByRole("button", { name: "Save instructions" })).toBeDisabled();
   fireEvent.change(field, { target: { value: "Check the work already in review before starting again." } });
-  fireEvent.click(screen.getByRole("button", { name: "Save guidance" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save instructions" }));
   await waitFor(() => expect(api.updateTicket).toHaveBeenCalledWith("ticket-1", expect.objectContaining({ version: 5, owner_id: "admin-1", next_action: "Alternative requested: Check the work already in review before starting again." })));
   expect(api.setAutomation).toHaveBeenCalledWith("ticket-1", "human", "Alternative requested: Check the work already in review before starting again.");
-  expect(await screen.findByRole("status")).toHaveTextContent("Your alternative is recorded for review.");
+  expect(await screen.findByRole("status")).toHaveTextContent("Your instructions are saved on the request, and it is assigned to you.");
+  unmount();
+});
+
+it("Today counts decisions, Bloom's own work and today's completions from live data", async () => {
+  const now = new Date().toISOString();
+  const ticket = (id: string, extra: Record<string, unknown>) => ({ id, number: 1, subject: `Subject ${id}`, status: "working", account: { id: "a", name: `Client ${id}` }, requester: null, updated_at: now, ...extra });
+  api.engineering.mockResolvedValue([]);
+  api.features.mockResolvedValue([]);
+  api.escalations.mockResolvedValue([]);
+  api.pageTickets.mockImplementation(async (f: Record<string, string>) => {
+    if (f.view === "needs_owner") return { items: [ticket("n1", { status: "needs_owner", next_action: "Admin: confirm the refund amount" })], total: 1 };
+    if (f.view === "recently_resolved") return { items: [ticket("r1", { status: "resolved", resolved_at: now, resolution_summary: "Fixed it." }), ticket("r2", { status: "resolved", resolved_at: "2020-01-01T00:00:00Z" })], total: 2 };
+    if (f.automation === "auto") return { items: [ticket("b1", { automation: "auto", executor: "bloom" }), ticket("p1", { automation: "auto", executor: "person" })], total: 2, next_cursor: null };
+    return { items: [], total: 0, next_cursor: null };
+  });
+  const me = { id: "admin-1", permissions: ["tickets.write"] } as unknown as Parameters<typeof TodayView>[0]["me"];
+  const { unmount } = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TodayView me={me} onOpenTicket={() => undefined} onOpenDesk={() => undefined} /></QueryClientProvider>);
+  expect(await screen.findByText("One decision needs you.")).toBeInTheDocument();
+  const glance = screen.getByRole("region", { name: "Today at a glance" });
+  expect(glance).toHaveTextContent("1Need your decision");
+  expect(glance).toHaveTextContent("1Bloom is handling");
+  expect(glance).toHaveTextContent("1Completed today");
+  const handling = screen.getByRole("region", { name: "Bloom is handling" });
+  expect(handling).toHaveTextContent("Client b1");
+  expect(handling).not.toHaveTextContent("Client p1");
+  expect(screen.getByText("Confirm the refund amount.")).toBeInTheDocument();
   unmount();
 });

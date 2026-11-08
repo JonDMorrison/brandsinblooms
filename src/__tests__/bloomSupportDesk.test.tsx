@@ -72,3 +72,25 @@ describe("Support desk header", () => {
     expect(onAlert.mock.calls.map((c) => c[0])).toEqual(["settings", "urgent", "decisions"]);
   });
 });
+
+import { bloomNextStep, friendlyStatus } from "@/components/bloomSupport/desk/statusWords";
+
+describe("Bloom is handling wording", () => {
+  it("uses friendly words, never internal codes", () => {
+    expect(friendlyStatus({ status: "working" }).label).toBe("Bloom is on it");
+    expect(friendlyStatus({ status: "new" }).label).toBe("Just arrived");
+    expect(friendlyStatus({ status: "waiting", waiting_reason: "customer" }).label).toBe("Waiting for the client");
+    expect(friendlyStatus({ status: "waiting", waiting_reason: "third_party" }).label).toBe("Waiting on another company");
+    expect(friendlyStatus({ status: "needs_owner" })).toEqual({ label: "Needs an admin", tone: "attention" });
+    for (const s of ["new", "working", "waiting", "needs_owner", "resolved"] as const) {
+      expect(friendlyStatus({ status: s }).label).not.toMatch(/_/);
+    }
+  });
+
+  it("says what Bloom does next from the stored step, or a plain default", () => {
+    expect(bloomNextStep({ status: "working", next_action: "Compare the till sync log" })).toBe("Compare the till sync log");
+    expect(bloomNextStep({ status: "working", next_action: "Jon/Jeff: client wants a refund" })).toBe("Admin: client wants a refund");
+    expect(bloomNextStep({ status: "waiting", waiting_reason: "customer", next_action: null })).toBe("Bloom follows up if the client doesn't reply.");
+    expect(bloomNextStep({ status: "working", next_action: "  " })).toBe("Bloom is working out the next step.");
+  });
+});
