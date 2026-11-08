@@ -16,6 +16,25 @@ export function isIntegrationDiagnosticQuestion(question: string): boolean {
     /\b(counter\s?point|open plant data|opd|integrations?|sync|synchroni[sz]ation)\b/i.test(question);
 }
 
+/** Extract the named customer next to the requested integration, not arbitrary
+ * words in the surrounding Slack message or connector attribution. */
+export function diagnosticClientHint(question: string): string | null {
+  if (question.length > 1000) return null;
+  const pattern = /\b(?:verify|check|audit|diagnose|investigate|test)\s+([a-z][a-z0-9&.'\-]*(?:\s+[a-z][a-z0-9&.'\-]*){0,5}?)\s+(?:counter\s?point|open plant data|opd|integrations?|sync|synchroni[sz]ation)\b/gi;
+  const matches = [...question.matchAll(pattern)];
+  const label = matches.at(-1)?.[1]
+    ?.replace(/^(?:the|that|our|a|an)\s+/i, "")
+    .replace(/['’]s$/i, "").trim();
+  // "Check CounterPoint integration for Lacoste" names the integration
+  // first: "CounterPoint" is not a customer. Prefer the explicit for/at name.
+  if (label && label.length >= 3 && label.length <= 80 &&
+      !/^(?:counter\s?point|open plant data|opd|integrations?|sync)\b/i.test(label)) return label;
+  // Support "check CounterPoint for Lacoste" without guessing a company from
+  // the unrelated words around the request.
+  const after = /\b(?:counter\s?point|open plant data|opd|integrations?|sync)\b[^\n.!?]{0,80}?\b(?:for|at)\s+([a-z][a-z0-9'\-]{2,60})\b/i.exec(question)?.[1];
+  return after && after.length >= 3 ? after : null;
+}
+
 const normalize = (value: string): string => " " + value.toLowerCase()
   .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim() + " ";
 const generic = new Set(["garden","gardens","centre","center","nursery","nurseries","the","ltd","inc","store","flower","plants"]);

@@ -21,7 +21,7 @@ import {
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
 import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
-import { findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
+import { diagnosticClientHint, findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
@@ -735,10 +735,16 @@ async function notifyEmail(job: Job): Promise<string> {
           return await postSlackInternalText("projects",
             "This check requires an authorized Bloom Support staff account. Open the Bloom dashboard to review your access.",
             job.id, String(job.payload.thread_ts ?? ""));
+        const hint = diagnosticClientHint(question);
+        if (!hint) return await postSlackInternalText("projects",
+          "Please specify which garden centre to check, for example: @Bloom verify Lacoste CounterPoint and OPD integration.",
+          job.id, String(job.payload.thread_ts ?? ""));
+        // Search only the requested client, rather than the first 200
+        // unrelated accounts. The existing scoped SQL RPC enforces access.
         const accounts = await rpc<DiagnosticAccount[]>("list_accounts", {
-          actor: identity.principal_id, q: null, limit: 200,
+          actor: identity.principal_id, q: hint, limit: 50,
         });
-        const selected = findDiagnosticAccount(question, Array.isArray(accounts) ? accounts : []);
+        const selected = findDiagnosticAccount(hint, Array.isArray(accounts) ? accounts : []);
         if (!selected) return await postSlackInternalText("projects",
           "Please name one garden centre with an existing BloomSites connection. Example: @Bloom verify Lacoste CounterPoint and OPD integration. If several sites match, select the client in the Bloom dashboard.",
           job.id, String(job.payload.thread_ts ?? ""));
