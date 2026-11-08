@@ -37,9 +37,11 @@ function FlagChips({ t }: { t: TicketSummary }) {
   );
 }
 
-export function QueueList({ me, selectedId, onOpen }: { me: Whoami; selectedId: string | null; onOpen: (id: string) => void }) {
+export function QueueList({ me, selectedId, onOpen, initialView }: { me: Whoami; selectedId: string | null; onOpen: (id: string) => void; initialView?: string | null }) {
   const qc = useQueryClient();
-  const [filters, setFilters] = useState<Filters>({ view: "needs_attention", sort: "priority" });
+  // A link from the desk header (e.g. "urgent") can open a specific queue view; unknown values fall back.
+  const startView = initialView && QUEUE_VIEWS.some((v) => v.key === initialView) ? initialView : "needs_attention";
+  const [filters, setFilters] = useState<Filters>({ view: startView, sort: "priority" });
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
