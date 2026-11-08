@@ -8,7 +8,7 @@ import { attachmentUrl, decodeBase64File, storeAttachment } from "../_shared/blo
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { approve, authorizationServerMetadata, authorize, register, token } from "../_shared/bloom-support/oauth.ts";
 import { actOnTicket, attachmentLink, renewLink, replyToTicket, TRACK_HEADERS, viewTicket } from "../_shared/bloom-support/track.ts";
-import { startIntegrationTask } from "../_shared/bloom-support/integration-tasks.ts";
+import { requestIntegrationRepairReview, startIntegrationTask } from "../_shared/bloom-support/integration-tasks.ts";
 
 type Handler = (req: Request, params: string[], url: URL) => Promise<unknown>;
 const routes: Array<[string, RegExp, Handler]> = [];
@@ -153,6 +153,7 @@ on("POST", "/operations/investigate", async (req) => {
   });
 });
 on("POST", "/operations/preview", async (req) => actions.previewOperation(await caller(req), await readJson(req)));
+on("POST", "/operations/investigations/:id/request-review", async (req, [id]) => requestIntegrationRepairReview(await caller(req), id));
 on("GET", "/operations/:id", async (req, [id]) => actions.getOperation(await caller(req), id));
 on("POST", "/operations/:id/execute", async (req, [id]) => actions.executeOperation(await caller(req), id));
 on("POST", "/operations/:id/undo", async (req, [id]) => actions.undoOperation(await caller(req), id));
