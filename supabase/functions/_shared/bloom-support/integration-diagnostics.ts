@@ -6,6 +6,11 @@ export interface DiagnosticAccount {
   links?: Array<{product: string; external_id: string}>;
 }
 
+export function slackDiagnosticUserFromLane(lane: unknown): string | null {
+  return typeof lane === "string" ?
+    /^slack:ask:projects:([UW][A-Z0-9]{8,24})$/.exec(lane)?.[1] ?? null : null;
+}
+
 export function isIntegrationDiagnosticQuestion(question: string): boolean {
   return /\b(verify|check|audit|diagnose|investigate|test)\b/i.test(question) &&
     /\b(counter\s?point|open plant data|opd|integrations?|sync|synchroni[sz]ation)\b/i.test(question);
