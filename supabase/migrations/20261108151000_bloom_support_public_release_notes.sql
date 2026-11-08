@@ -20,7 +20,7 @@ BEGIN
     RAISE EXCEPTION 'invalid GitHub release event' USING ERRCODE = '22023';
   END IF;
   -- Fail closed for unknown classifications; never store the original PR text.
-  IF p_category NOT IN (
+  IF p_category IS NULL OR p_category NOT IN (
     'support_tasks','integration_checks','checkout','delivery','newsletters',
     'catalogue','pos','website','security','performance','projects',
     'support','other'
@@ -34,7 +34,7 @@ BEGIN
     'notify',NULL,NULL,'slack:external:github',
     pg_catalog.jsonb_build_object(
       'slack',true,'kind',p_kind,
-      'github_url',pg_catalog.left(pg_catalog.coalesce(p_url,''),250),
+      'github_url',pg_catalog.left(coalesce(p_url,''),250),
       'release_category',p_category
     ),
     'slack:external:github:' || p_event_id,pg_catalog.now(),3,30
