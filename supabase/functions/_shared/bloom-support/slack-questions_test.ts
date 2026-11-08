@@ -5,7 +5,7 @@ Deno.test("only approved question channels are conversational", () => {
   assertEquals(slackQuestionRoute("C0CFUG4LFLJ"), "ask");
   assertEquals(slackQuestionRoute("C0CFWJDUQU9"), "features");
   assertEquals(slackQuestionRoute("C0CFUHJ5ESW"), "projects");
-  assertEquals(slackQuestionRoute("C0CFNEQBS2X"), null);
+  assertEquals(slackQuestionRoute("C0CFNEQBS2X"), "tickets");
 });
 
 Deno.test("project answers are bounded, linked, and exclude unsafe markup", () => {
