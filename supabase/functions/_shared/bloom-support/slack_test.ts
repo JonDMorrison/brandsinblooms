@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { slackChannelId, slackRoute, slackSafeMessage } from "./slack.ts";
+import { githubSourceLink, slackChannelId, slackRoute, slackSafeMessage } from "./slack.ts";
 
 Deno.test("Slack routes support notifications by purpose", () => {
   assertEquals(slackRoute("ticket.created"), "tickets");
@@ -34,4 +34,13 @@ Deno.test("Major Project links open the selected record without accepting arbitr
   assertEquals(invalid.includes("?project="), false);
   assertEquals(slackRoute("major_project.accepted"), "clients");
   assertEquals(slackRoute("major_project.stage_changed"), "projects");
+});
+
+Deno.test("Slack only links to validated company check pages", () => {
+  const sha = "a".repeat(40);
+  const url = "https://github.com/JonDMorrison/brandsinblooms/commit/" + sha + "/checks";
+  assertEquals(githubSourceLink(url), url);
+  assertEquals(githubSourceLink(url + "?access_token=secret"), null);
+  assertEquals(githubSourceLink("https://github.com/other/repo/commit/" + sha + "/checks"), null);
+  assertEquals(githubSourceLink("http://github.com/JonDMorrison/brandsinblooms/commit/" + sha + "/checks"), null);
 });
