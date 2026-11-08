@@ -3,14 +3,17 @@
 import { BloomError, env } from "./runtime.ts";
 import { explainSupportEvent, explainGithubMilestone, githubMilestoneFromKind } from "./slack-language.ts";
 
-export type SlackRoute = "tickets" | "features" | "alerts";
+export type SlackRoute = "tickets" | "features" | "alerts" | "releases" | "projects" | "clients" | "finance";
 
 /** Only known staff events are allowed into Slack; unrelated notifications stay in-app. */
 export function slackRoute(kind: string): SlackRoute | null {
   if (/^(alert\.|escalation(?:\.|$)|job\.dead$|incident\.)/.test(kind)) return "alerts";
   if (/^feature\./.test(kind)) return "features";
   if (kind === "github.deployment_failed") return "alerts";
-  if (githubMilestoneFromKind(kind)) return "tickets";
+  if (githubMilestoneFromKind(kind)) return "releases";
+  if (kind === "major_project.accepted" || kind === "major_project.onboarding") return "clients";
+  if (kind === "major_project.stage_changed" || kind === "major_project.created") return "projects";
+  if (kind === "finance.daily_payouts" || kind === "finance.payout_failed") return "finance";
   if (/^(ticket\.|engineering\.)/.test(kind)) return "tickets";
   return null;
 }
@@ -32,11 +35,33 @@ export function slackSafeMessage(kind: string, ticketId: string | null, githubUr
   const route = slackRoute(kind);
   if (!route) throw new Error("unsupported event");
   const milestone = githubMilestoneFromKind(kind);
-  const state = milestone ? explainGithubMilestone(milestone) : explainSupportEvent(kind);
+  const state = milestone ? explainGithubMilestone(milestone) :
+    kind === "major_project.accepted" ? {
+      headline: "A new customer has accepted",
+      whatItMeans: "A Major Project moved into the accepted stage; it is ready for a careful onboarding handoff.",
+      nextStep: "Confirm the owner and the first onboarding task in Major Projects.",
+    } : kind === "major_project.onboarding" ? {
+      headline: "Customer onboarding has started",
+      whatItMeans: "The existing Major Project is now being prepared for delivery.",
+      nextStep: "Check the project checklist and next action.",
+    } : kind.startsWith("major_project.") ? {
+      headline: "A major project has progressed",
+      whatItMeans: "The official BloomSites project record was updated.",
+      nextStep: "Review the stage, owner and next action in Major Projects.",
+    } : kind.startsWith("finance.") ? {
+      headline: "Stripe payout update",
+      whatItMeans: "The finance reporting system recorded a payout update.",
+      nextStep: "Review the official amounts and payout status in Stripe.",
+    } : explainSupportEvent(kind);
   const base = "https://bloomsuite.app/support";
   const link = ticketId && /^[0-9a-f-]{36}$/i.test(ticketId) ? `${base}?ticket=${ticketId}` : base;
   const source = milestone ? githubSourceLink(githubUrl) : null;
-  return `*${state.headline}*\n${state.whatItMeans}\n*Next:* ${state.nextStep}\n<${link}|Open in Bloom Support>${source ? ` · <${source}|See GitHub details>` : ""}`;
+  const actionLink = route === "projects" || route === "clients"
+    ? "<https://bloomsites.app/dashboard/admin/major-projects|Open Major Projects>"
+    : route === "finance"
+      ? "<https://dashboard.stripe.com/payouts|Open Stripe payouts>"
+      : `<${link}|Open in Bloom Support>`;
+  return `*${state.headline}*\n${state.whatItMeans}\n*Next:* ${state.nextStep}\n${actionLink}${source ? ` · <${source}|See GitHub details>` : ""}`;
 }
 export async function postSlackSupportNotification(input: {
   kind: string; ticketId: string | null; jobId: string; githubUrl?: string;
