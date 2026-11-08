@@ -21,6 +21,7 @@
 import type { JsonObject } from "../../types.ts";
 import type { ToolExecutionContext, ToolName, ToolResult } from "../types.ts";
 import { resolveSupportIdentity, SupportRpcError, supportRpcFor, type SupportIdentity, type SupportRpc } from "./support-tools.ts";
+import { findDiagnosticAccount, type DiagnosticAccount } from "../../../_shared/bloom-support/integration-diagnostics.ts";
 
 export const SUITE_READ_KINDS = [
   "site.read",
@@ -182,14 +183,42 @@ export async function verifyBloomsitesIntegrations(
     if (!who.staff) {
       return toolResult(false, "Only authorized Bloom Support staff can inspect integration diagnostics. Nothing was changed.", null, "forbidden");
     }
+    // Staff may name a garden centre without first switching CRM workspaces.
+    // Search only accounts this exact principal is allowed to access, then
+    // require one unambiguous, site-linked result before any remote read.
+    let accountId = who.account.id;
+    let accountName = who.account.name ?? "the selected company";
+    let resolvedSiteId: string | null = null;
+    if (params.client_name !== undefined && params.client_name !== null) {
+      const name = typeof params.client_name === "string" ? params.client_name.trim() : "";
+      if (name.length < 3 || name.length > 100 || !/^[\p{L}\p{N} .,'&-]+$/u.test(name)) {
+        return toolResult(false, "Use a garden centre name without special characters.", null, "invalid_client");
+      }
+      const matches = await rpc<DiagnosticAccount[]>("list_accounts", {
+        actor: who.principalId, q: name, limit: 50,
+      });
+      const selected = findDiagnosticAccount(name, Array.isArray(matches) ? matches : []);
+      if (!selected) {
+        return toolResult(false,
+          "I could not identify one authorized BloomSites garden centre from that name. Choose the client in Bloom Support, or provide a more specific name.",
+          null, "client_ambiguous");
+      }
+      accountId = selected.account.id;
+      accountName = selected.account.name;
+      resolvedSiteId = selected.siteId;
+    }
     const site_id = typeof params.site_id === "string" && params.site_id.trim()
       ? params.site_id.trim().slice(0, 80) : null;
+    if (resolvedSiteId && site_id && site_id !== resolvedSiteId) {
+      return toolResult(false, "That website does not match the named garden centre. Nothing was read.", null, "site_mismatch");
+    }
+    const targetSite = resolvedSiteId ?? site_id;
     const data = await deps.runRead(
       { principalId: who.principalId, role: who.role, via: "crm_session", name: context.userName ?? null, scopes: [] },
-      { kind: "site.integration_health", account_id: who.account.id, inputs: site_id ? { site_id } : {} },
+      { kind: "site.integration_health", account_id: accountId, inputs: targetSite ? { site_id: targetSite } : {} },
     );
     return toolResult(true,
-      "Checked recorded CounterPoint and Open Plant Data synchronization evidence for the selected company. Explain the exact assessment, recorded failures, latest successful receipt and import counts. A connected service or staged batch does not prove the customer's shop works. This was read-only and changed nothing.",
+      `Checked recorded CounterPoint and Open Plant Data synchronization evidence for ${accountName}. Explain the exact assessment, recorded failures, latest successful receipt and import counts. A connected service or staged batch does not prove the customer's shop works. This was read-only and changed nothing.`,
       { product: "bloomsites", kind: "site.integration_health", result: (data ?? null) as JsonObject });
   } catch (error) {
     console.error("[bloom-assist] integration health read failed", error instanceof Error ? error.message : error);
