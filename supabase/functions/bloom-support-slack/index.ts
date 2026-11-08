@@ -2,6 +2,7 @@
 // Initial reply mode is approved help articles only. No tenant data or actions.
 import { db, env } from "../_shared/bloom-support/runtime.ts";
 import { verifySlackWebhook } from "../_shared/bloom-support/webhook-auth.ts";
+import { slackQuestionText } from "../_shared/bloom-support/slack-question.ts";
 
 const CHANNEL = "C0CFUG4LFLJ";
 const json = (body: Record<string, unknown>, status=200) =>
@@ -47,8 +48,7 @@ Deno.serve(async (req) => {
   if (!/^[A-Za-z0-9_-]{8,100}$/.test(eventId) ||
       !/^\d{10}\.\d{6}$/.test(ts)) return json({error:"invalid"},400);
   // Messages are untrusted user input. Never let a Slack message authorize an operation.
-  const question = typeof event.text === "string" ?
-    event.text.replace(/<@[UW][A-Z0-9]+>/g,"").trim().slice(0,1000) : "";
+  const question = slackQuestionText(event.text);
   if (question.length < 3) return json({ok:true,ignored:true});
   const {data:result,error} = await db().rpc("bloom_support_enqueue_slack_question", {
     p_event_id: eventId, p_channel: CHANNEL, p_user_id: event.user,
