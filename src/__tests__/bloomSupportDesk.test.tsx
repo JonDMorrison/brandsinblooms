@@ -177,3 +177,15 @@ describe("decision wording", () => {
     expect(escalationProblem("ticket_overdue", "", "x").problem).toBe("This request has waited too long for its next step.");
   });
 });
+
+import { isPlain } from "@/components/bloomSupport/desk/useDeskDecisions";
+
+describe("technical notes stay out of the problem line", () => {
+  it("shows plain findings and hides code, paths and test talk", () => {
+    expect(isPlain("Bloom found the receipt template ignores the uploaded logo.")).toBe(true);
+    expect(isPlain("Added exactly one focused test file, tests/unit/lacoste-pottery-browse-only.test.ts, exercising discovery.")).toBe(false);
+    expect(isPlain("Stopped under user rule 3 before adding a regression test or changing code.")).toBe(false);
+    expect(isPlain("x".repeat(151))).toBe(false);
+    expect(escalationProblem("engineering_escalated", "Added one test file, tests/unit/a.test.ts, and stopped.", "Pottery").finding).toBeUndefined();
+  });
+});
