@@ -1670,9 +1670,10 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "verify_bloomsites_integrations",
     description:
-      "For authorized Brands in Blooms staff only: verify the selected client's BloomSites CounterPoint and Open Plant Data (OPD) integration status. Read the live connection health, recent data receipts, catalogue sync errors and approved/imported plant links, with explicit limits. Use when staff ask to check, investigate, verify, diagnose or audit CounterPoint or OPD for the selected garden centre. Read-only: this does not run a sync, fix records, approve products, contact customers or prove the shop works end to end. If there is no linked BloomSites website or access, explain that without guessing another client's site.",
+      "For authorized Brands in Blooms staff only: verify a garden centre's BloomSites CounterPoint and Open Plant Data (OPD) integration. If the staff member names a client (for example 'Verify Lacoste CounterPoint'), pass client_name='Lacoste' even if another company is selected in CRM. Otherwise check the currently selected company. Resolves client names through the staff member's existing authorized Bloom Support accounts and refuses ambiguous or unlinked sites. Report live connection health, recent receipts, catalogue synchronization failures and approved/imported plant links. Read-only: does not sync, repair, approve, contact customers or prove a customer shop works end to end.",
     parameters: objectSchema({
-      site_id: stringSchema("Optional BloomSites site ID, only when the selected client has more than one linked website."),
+      client_name: stringSchema("Optional garden centre name from the staff request, such as Lacoste, Horsford, or Triple Tree. Never invent an account ID."),
+      site_id: stringSchema("Optional BloomSites site ID only when staff are resolving multiple linked sites; never invent this value."),
     }),
     category: "query",
     riskLevel: "safe",
