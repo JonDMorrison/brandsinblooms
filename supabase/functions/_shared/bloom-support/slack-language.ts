@@ -19,7 +19,7 @@ const updates: Record<string, CustomerUpdate> = {
   "ticket.needs_owner": {
     headline: "A team decision is needed",
     whatItMeans: "Bloom cannot safely make the next decision alone.",
-    nextStep: "Jon or Jeff should open the ticket and choose the next action.", requiresAttention: true,
+    nextStep: "The assigned platform administrator should open the ticket and choose the next action.", requiresAttention: true,
   },
   "ticket.unassigned": {
     headline: "A request needs an owner",
