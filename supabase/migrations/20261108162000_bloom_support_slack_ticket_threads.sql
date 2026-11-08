@@ -104,6 +104,23 @@ REVOKE ALL ON FUNCTION public.bloom_support_enqueue_slack_ticket_question(text,t
 GRANT EXECUTE ON FUNCTION public.bloom_support_enqueue_slack_ticket_question(text,text,text,text,text)
   TO service_role;
 
+-- Worker independently rechecks active Slack staff identity before returning
+-- a specific ticket. This never grants the account any new permissions.
+CREATE OR REPLACE FUNCTION public.bloom_support_slack_ticket_actor(p_slack_user_id text)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $
+  SELECT pg_catalog.jsonb_build_object('principal_id',pr.id,'role',pr.role)
+  FROM bloom_support.slack_staff_principals m
+  JOIN bloom_support.principals pr ON pr.id=m.principal_id
+  WHERE m.slack_user_id=p_slack_user_id AND m.enabled AND pr.active
+    AND pr.role IN ('platform_admin','platform_operator','support')
+    AND bloom_support.has_permission(pr.id,'tickets.read_all')
+  LIMIT 1;
+$;
+REVOKE ALL ON FUNCTION public.bloom_support_slack_ticket_actor(text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bloom_support_slack_ticket_actor(text)
+  TO service_role;
+
 -- Thread follow-up notifications are queued by changes to the canonical ticket,
 -- never by Slack messages. Kept separate from customer email notifications.
 CREATE OR REPLACE FUNCTION bloom_support.slack_ticket_change_notice()
@@ -124,7 +141,7 @@ BEGIN
   THEN
     BEGIN
       PERFORM bloom_support.enqueue_job(
-        'notify',NEW.id,NULL,'slack:ticket:'||NEW.id::text,
+        'notify',NEW.id,NULL,'slack:'||NEW.id::text,
         pg_catalog.jsonb_build_object('slack_ticket_changed',true,'kind','ticket.changed'),
         'slack:ticket:version:'||NEW.id::text||':'||NEW.version::text,
         now(),3,30
