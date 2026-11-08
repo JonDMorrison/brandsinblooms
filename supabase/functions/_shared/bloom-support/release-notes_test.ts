@@ -35,7 +35,7 @@ Deno.test("customer support updates are understandable without GitHub knowledge"
   assertStringIncludes(msg,"We're making customer support requests easier to follow.");
   assertStringIncludes(msg,"*Status:* Added to our software.");
   assertStringIncludes(msg,"*Next:* Test a support request from start to finish.");
-  assertEquals(/\\b(merged|codebase|deployment|workflow|technical change)\\b/i.test(msg),false);
+  assertEquals(/\b(merged|codebase|deployment|workflow|technical change)\b/i.test(msg),false);
 });
 
 Deno.test("every approved category stays concise and never claims a customer result", () => {
