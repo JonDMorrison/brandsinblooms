@@ -45,7 +45,13 @@ BEGIN
       'notify', p_ticket, NULL,
       'slack:' || coalesce(p_ticket::text, 'platform'),
       jsonb_build_object('slack', true, 'kind', p_kind),
-      'slack:notification:' || first_notification::text,
+      CASE
+        WHEN p_kind IN ('escalation.overdue','ticket.stalled','ticket.unassigned',
+                        'ticket.overdue','response.missed','response.due_soon','next_action.overdue')
+        THEN 'slack:daily:' || p_kind || ':' || coalesce(p_ticket::text, 'platform') || ':' ||
+          to_char((now() AT TIME ZONE 'America/Vancouver')::date, 'YYYYMMDD')
+        ELSE 'slack:notification:' || first_notification::text
+      END,
       now(), 3, 30
     );
   END IF;
