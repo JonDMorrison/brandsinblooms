@@ -163,6 +163,15 @@ export function taskStatusText(value: unknown): string | null {
   return `*Bloom investigation${number === null ? "" : " #" + number}*\n*Status:* ${label}\n*Customer workflow:* Not verified by this status alone.\n<${link}|Open the same task in Bloom Support>`;
 }
 
+/** Asking for review never authorizes an engineering agent or a release. */
+export function repairReviewTaskNumber(question: unknown): number | null {
+  if (typeof question !== "string" || question.length > 500) return null;
+  const match = /\b(?:request|ask\s+(?:for|the\s+team\s+to))\s+(?:a\s+)?(?:repair|fix)\s+review\s+(?:for|of|on)\s+(?:task|ticket|investigation)\s*#?(\d{1,8})\b/i.exec(question) ??
+    /\b(?:task|ticket|investigation)\s*#?(\d{1,8})\s+(?:needs|requires)\s+(?:a\s+)?(?:repair|fix)\s+review\b/i.exec(question);
+  const number = Number(match?.[1]);
+  return match && Number.isSafeInteger(number) && number > 0 ? number : null;
+}
+
 /** Follow-up requests retrieve the canonical Support ticket, not a Slack copy. */
 export function taskNumberFromQuestion(question: unknown): number | null {
   if (typeof question !== "string" || question.length > 500) return null;
