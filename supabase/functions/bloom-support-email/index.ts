@@ -187,9 +187,16 @@ async function loadEmail(data: Record<string, unknown>): Promise<ReceivedEmail> 
   const full = (data.text || data.html) ? data : await resend(`/emails/receiving/${encodeURIComponent(id)}`);
   const e = full as Record<string, unknown>;
   let attachments = e.attachments as ReceivedEmail["attachments"];
-  if ((!attachments || attachments.some((a) => !a.download_url)) && Array.isArray(data.attachments) && data.attachments.length) {
-    const list = await resend(`/emails/receiving/${encodeURIComponent(id)}/attachments`).catch(() => null) as { data?: ReceivedEmail["attachments"] } | null;
-    attachments = list?.data ?? attachments;
+  // Resend's metadata can list attachments without the signed download URLs.
+  // The webhook itself may contain no attachment manifest, so fetch the
+  // dedicated manifest whenever existing attachment entries lack URLs.
+  // Never silently drop customer screenshots if the provider request fails.
+  const manifestMissingUrls = Array.isArray(attachments) && attachments.some((a) => !a.download_url);
+  const webhookHasAttachments = Array.isArray(data.attachments) && data.attachments.length > 0;
+  if (manifestMissingUrls || ((!attachments || attachments.length === 0) && webhookHasAttachments)) {
+    const list = await resend(`/emails/receiving/${encodeURIComponent(id)}/attachments`) as { data?: ReceivedEmail["attachments"] } | null;
+    if (!Array.isArray(list?.data)) throw new BloomError(502, "provider_error", "Resend attachment manifest unavailable");
+    attachments = list.data;
   }
   return { id, from: String(e.from ?? data.from ?? ""), to: (e.to ?? data.to ?? []) as string[], subject: String(e.subject ?? data.subject ?? ""),
     text: (e.text as string) ?? null, html: (e.html as string) ?? null, message_id: (e.message_id as string) ?? (data.message_id as string) ?? null,
