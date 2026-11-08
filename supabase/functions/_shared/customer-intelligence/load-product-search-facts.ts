@@ -1,3 +1,4 @@
+import {readAllPages} from './query-pages.ts';
 import {readProductSearchPages} from './bounded-search.ts';
 import type {PersistenceClient} from '../../bloom-assist/types.ts';
 import type {PurchaseFact, PurchaseRule} from './purchase-exploration.ts';
@@ -80,14 +81,18 @@ export async function retryOnceOnTimeout(call: () => PromiseLike<RpcResult>): Pr
 
 interface CandidateEvent extends PeriodSummaryEvent { external_customer_code?: string | null; }
 
-export interface ProductSearchFacts { facts: PurchaseFact[]; evidenceCustomerIds: Set<string>; }
+export interface ProductSearchFacts { facts: PurchaseFact[]; evidenceCustomerIds: Set<string>; sourcePeriods?: {start:string|null;end:string|null}[]; }
 
 export async function loadProductSearchFacts(
-  client: PersistenceClient, tenantId: string, cutoff: string, rule: PurchaseRule, store: VerifiedSnapshotStore,
+  client: PersistenceClient, tenantId: string, cutoff: string, rule: PurchaseRule, store: VerifiedSnapshotStore, customerIds?: string[],
 ): Promise<ProductSearchFacts | null> {
   if (!tenantId || !Number.isFinite(idealEvidenceTimestamp(cutoff))) throw Error('Company and valid evidence cutoff are required.');
   const terms = productSearchTerms(rule);
-  if (!terms) return null;
+  // A saved audience can be read directly through the customer index even when
+  // the follow-up has no product term (for example, "bought anything in 2026").
+  const scoped = customerIds !== undefined && customerIds.length <= 1000;
+  if (!terms && !scoped) return null;
+  if (scoped && customerIds.length === 0) return {facts: [], evidenceCustomerIds: new Set()};
 
   const ledger = await loadReportLedger(client, tenantId, cutoff);
   const active = currentSummaryImports(ledger);
@@ -139,8 +144,23 @@ export async function loadProductSearchFacts(
   // Establish the verified generation BEFORE any paged candidate reads.
   const searchable = await verifyImports();
   const [dated, pageResult, outOfPeriodScope] = await Promise.all([
-    loadEligibleDatedFacts(client, tenantId, cutoff),
-    readProductSearchPages(client,tenantId,cutoff,importIds,terms,row=>{
+    loadEligibleDatedFacts(client, tenantId, cutoff, scoped ? customerIds : undefined),
+    scoped ? (async () => {
+      const candidates: CandidateEvent[] = [];
+      for (const importId of importIds) for (let offset=0; offset<customerIds.length; offset+=100) {
+        const batch = customerIds.slice(offset,offset+100);
+        const rows = await readAllPages<CandidateEvent>((from,to) => client.from('customer_intelligence_source_events')
+          .select('id,tenant_id,customer_id,external_customer_code,import_id,source,created_at,raw_data')
+          .eq('tenant_id',tenantId).eq('source','ideal').eq('event_type','purchase_summary')
+          .eq('import_id',importId).in('customer_id',batch).lte('created_at',cutoff).order('id').range(from,to));
+        for (const row of rows) {
+          if (!row.customer_id || !batch.includes(row.customer_id) || row.import_id !== importId)
+            throw Error('The saved audience evidence is outside its requested scope.');
+          candidates.push(row);
+        }
+      }
+      return {candidates,customer_ids:candidates.map(row=>row.customer_id!)};
+    })() : readProductSearchPages(client,tenantId,cutoff,importIds,terms!,row=>{
       const parent=parents.find(p=>p.id===row.import_id);
       checkRowAgainstLedger(row,parent,Boolean(parent && legacy.has(parent.id)));
     }),
@@ -161,7 +181,7 @@ export async function loadProductSearchFacts(
   const candidates = pageResult.candidates as CandidateEvent[];
   const scope = {customer_ids:pageResult.customer_ids};
 
-  if (!searchable) return null;
+  if (!searchable && !scoped) return null;
   for (const row of candidates) {
     const parent = parents.find(p => p.id === row.import_id);
     checkRowAgainstLedger(row, parent, Boolean(parent && legacy.has(parent.id)));
@@ -169,5 +189,6 @@ export async function loadProductSearchFacts(
 
   const evidenceCustomerIds = new Set<string>([...scope.customer_ids,...(outside.customer_ids as string[])].filter((id): id is string => typeof id === 'string'));
   for (const fact of dated) if (fact.customer_id) evidenceCustomerIds.add(fact.customer_id);
-  return {facts: [...dated, ...periodSummaryFacts(candidates, tenantId)], evidenceCustomerIds};
+  return {facts: [...dated, ...periodSummaryFacts(candidates, tenantId)], evidenceCustomerIds,
+    sourcePeriods:relevant.map(parent=>({start:parent.source_period_start,end:parent.source_period_end}))};
 }

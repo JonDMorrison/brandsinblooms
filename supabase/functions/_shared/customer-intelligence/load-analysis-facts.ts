@@ -5,8 +5,15 @@ import {loadReportedEvidence} from './load-reported-evidence.ts';
 
 /** Dated line items from completed imports. Ideal dated rows are not a certified receipt contract yet. */
 export async function loadEligibleDatedFacts(client: PersistenceClient, tenantId: string, cutoff: string, customerIds?: string[]): Promise<PurchaseFact[]> {
-  const bounds=customerIds?[...customerIds].sort():null;
-  const dated = await readAllPages<PurchaseFact>((from,to) => {let query=client.from('customer_purchase_line_items').select('id,tenant_id,customer_id,product_code,product_name,sales_category,department,quantity,net_amount,currency,purchased_at,created_at,source,import_id,external_transaction_id').eq('tenant_id',tenantId).neq('source','ideal').lte('created_at',cutoff);if(bounds)query=query.gte('customer_id',bounds[0]).lte('customer_id',bounds[bounds.length-1]);return query.order('id').range(from,to);});
+  if (customerIds?.length === 0) return [];
+  const dated: PurchaseFact[] = [];
+  const batches = customerIds ? Array.from({length:Math.ceil(customerIds.length/100)},(_,i)=>customerIds.slice(i*100,(i+1)*100)) : [null];
+  for (const batch of batches) dated.push(...await readAllPages<PurchaseFact>((from,to) => {
+    let query=client.from('customer_purchase_line_items').select('id,tenant_id,customer_id,product_code,product_name,sales_category,department,quantity,net_amount,currency,purchased_at,created_at,source,import_id,external_transaction_id').eq('tenant_id',tenantId).neq('source','ideal').lte('created_at',cutoff);
+    if(batch) query=query.in('customer_id',batch);
+    return query.order('id').range(from,to);
+  }));
+  if (customerIds && dated.some(f=>!f.customer_id || !customerIds.includes(f.customer_id))) throw Error('The saved audience evidence is outside its requested scope.');
   const importedIds=[...new Set(dated.flatMap(f=>f.import_id?[f.import_id]:[]))];
   const completed=importedIds.length?await readAllPages<{id:string;source:string}>((from,to)=>client.from('customer_intelligence_imports').select('id,source').eq('tenant_id',tenantId).eq('status','completed').in('id',importedIds).lte('completed_at',cutoff).lte('created_at',cutoff).order('id').range(from,to)):[];
   const completedSources=new Map(completed.map(row=>[row.id,row.source]));

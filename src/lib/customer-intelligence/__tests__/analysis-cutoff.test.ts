@@ -9,9 +9,9 @@ it('does not select an import completed after the source cutoff, even when it st
  const facts=await loadCompanyAnalysisFacts(client,'tenant','2026-10-14T12:00:00Z');
  expect(facts).toHaveLength(1);expect(facts[0].import_id).toBe('old');expect(facts[0].source_period_end).toBe('2026-10-07');
 });
-it('uses bounded UUID ranges and filters gaps to the exact customer batch',async()=>{
+it('uses exact customer ID batches rather than the broad range between UUIDs',async()=>{
  const calls:unknown[][]=[];
- const client={from:(table:string)=>{const q={select:()=>q,eq:()=>q,neq:()=>q,order:()=>q,gte:(key:string,value:string)=>{calls.push(['gte',key,value]);return q;},lte:(key:string,value:string)=>{calls.push(['lte',key,value]);return q;},range:async()=>({error:null,data:table==='customer_purchase_line_items'?['a','b','c'].map(customer_id=>({id:customer_id,customer_id,tenant_id:'tenant'})):[]})};return q;}} as unknown as PersistenceClient;
+ const client={from:(table:string)=>{let ids:string[]=[];const q={select:()=>q,eq:()=>q,neq:()=>q,order:()=>q,lte:()=>q,in:(key:string,value:string[])=>{calls.push(['in',key,value]);ids=value;return q;},range:async()=>({error:null,data:table==='customer_purchase_line_items'?['a','b','c'].filter(id=>ids.includes(id)).map(customer_id=>({id:customer_id,customer_id,tenant_id:'tenant'})):[]})};return q;}} as unknown as PersistenceClient;
  const result=await loadCompanyAnalysisFacts(client,'tenant','2026-10-14T12:00:00Z',['c','a']);
- expect(result.map(r=>r.customer_id)).toEqual(['a','c']);expect(calls).toContainEqual(['gte','customer_id','a']);expect(calls).toContainEqual(['lte','customer_id','c']);
+ expect(result.map(r=>r.customer_id)).toEqual(['a','c']);expect(calls).toContainEqual(['in','customer_id',['c','a']]);
 });

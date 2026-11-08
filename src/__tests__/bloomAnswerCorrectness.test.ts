@@ -288,3 +288,10 @@ describe("6. find_customer_opportunities is plain about zero results", () => {
     }
   });
 });
+
+it("routes repeat buyers to scoped purchases and refuses unknown-as-zero answers", () => {
+  expect(BASE_SYSTEM_PROMPT).toContain('Do not use spending growth to calculate repeat-buyer retention');
+  expect(BASE_SYSTEM_PROMPT).toContain('scope=previous_result');
+  expect(BASE_SYSTEM_PROMPT).toContain('never "0 customers bought"');
+  expect(BASE_SYSTEM_PROMPT).toContain('status=unavailable has no measured spending or growth result');
+});
