@@ -824,6 +824,7 @@ async function notifyEmail(job: Job): Promise<string> {
       ticketId: job.ticket_id,
       jobId: job.id,
       githubUrl: typeof job.payload.github_url === "string" ? job.payload.github_url : undefined,
+      releaseCategory: typeof job.payload.release_category === "string" ? job.payload.release_category : undefined,
       projectId: typeof job.payload.project_id === "string" ? job.payload.project_id : undefined,
     });
   }
