@@ -301,6 +301,34 @@ function IntegrationHealthSummary({ value }: { value: unknown }) {
   );
 }
 
+function ProviderHealthSummary({value}:{value:unknown}) {
+  const report = value && typeof value==="object" && !Array.isArray(value) ? value as Record<string,unknown> : {};
+  const heartland=report.heartland && typeof report.heartland==="object" ? report.heartland as Record<string,unknown> : {};
+  const shipstation=report.shipstation && typeof report.shipstation==="object" ? report.shipstation as Record<string,unknown> : {};
+  const display=(v:unknown) => typeof v==="string" && v.length<90 ? v.replaceAll("_"," ") : "Not recorded";
+  const highlights=Array.isArray(report.findings) ? report.findings.filter((x):x is string => typeof x==="string").slice(0,4) : [];
+  return <Stack spacing={1.5}>
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Typography level="title-md">Provider integration health</Typography>
+      <Chip color={report.assessment==="needs_attention" ? "warning" : "neutral"} variant="soft">
+        {report.assessment==="needs_attention"?"Needs attention":"Not fully verified"}
+      </Chip>
+    </Stack>
+    {(report.scope==="heartland"||report.scope==="both") && <>
+      <Typography level="title-sm">Heartland</Typography>
+      <Typography level="body-sm">Connection: {heartland.configured===true?display(heartland.connection_status):"Not configured"}. Latest successful sync: {display(heartland.last_success_at)}.</Typography>
+      <Typography level="body-sm">Automatic sync: {heartland.auto_sync===true?"Enabled":"Not enabled"}. Stock publication: {heartland.stock_publication_enabled===true?"Enabled":"Not enabled"}.</Typography>
+    </>}
+    {(report.scope==="shipstation"||report.scope==="both") && <>
+      <Typography level="title-sm">ShipStation</Typography>
+      <Typography level="body-sm">Connection: {shipstation.configured===true?display(shipstation.connection_status):"Not configured"}. Latest successful order delivery: {display(shipstation.last_success_at)}.</Typography>
+      <Typography level="body-sm">Last recorded error: {display(shipstation.last_error_at)}.</Typography>
+    </>}
+    {highlights.map((f,i)=><Typography key={i} level="body-sm">{f}</Typography>)}
+    <Typography level="body-xs" sx={{color:"text.tertiary"}}>Read-only provider records. A connected integration does not prove a customer order is complete. No settings, shipping data or customer records were changed.</Typography>
+  </Stack>;
+}
+
 export function OperationsPanel() {
   const catalog = useQuery({ queryKey: ["bloom-support", "ops-catalog"], queryFn: () => bloomSupport.operationsCatalog() });
   const [client, setClient] = useState<PickedClient | null>(null);
