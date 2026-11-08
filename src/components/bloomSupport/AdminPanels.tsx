@@ -307,11 +307,18 @@ export function OperationsPanel() {
   const [inputs, setInputs] = useState(JSON.stringify(OPERATION_INFO["campaign.list"].template ?? {}, null, 2));
   const [output, setOutput] = useState<unknown>(null);
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
+  const [task, setTask] = useState<{ticket_id:string;number:number} | null>(null);
   const { run, error, pending } = useAction();
   const isRead = catalog.data?.reads.some((r) => r.kind === kind);
   const parsed = () => { try { return JSON.parse(inputs || "{}"); } catch { throw new Error("The details box isn't filled in correctly. Keep the quotes and braces as shown."); } };
   const accountId = client?.id ?? "";
-  const pick = (k: string) => { setKind(k); setInputs(JSON.stringify(OPERATION_INFO[k]?.template ?? {}, null, 2)); setOutput(null); setPreview(null); };
+  const recentTasks = useQuery({
+    queryKey: ["bloom-support","integration-tasks",accountId],
+    queryFn: () => bloomSupport.listTickets({ account_id: accountId, q: "Integration investigation", view: "open" }),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+  const pick = (k: string) => { setKind(k); setInputs(JSON.stringify(OPERATION_INFO[k]?.template ?? {}, null, 2)); setOutput(null); setPreview(null); setTask(null); };
   return (
     <Stack spacing={2} sx={{ maxWidth: 820 }}>
       {catalog.data && Object.entries(catalog.data.remote).filter(([, v]) => !v.configured).map(([k]) => (
@@ -321,7 +328,7 @@ export function OperationsPanel() {
         <Stack spacing={2}>
           <FormControl required>
             <FormLabel>1. Which client?</FormLabel>
-            <ClientPicker value={client} onChange={(c) => { setClient(c); setOutput(null); setPreview(null); }} />
+            <ClientPicker value={client} onChange={(c) => { setClient(c); setOutput(null); setPreview(null); setTask(null); }} />
           </FormControl>
           {client && catalog.data?.reads.some((o) => o.kind === "site.integration_health") && (
             <Sheet variant="soft" sx={{ p: 2, borderRadius: "md" }}>
@@ -335,6 +342,36 @@ export function OperationsPanel() {
                     setPreview(null);
                     setOutput(await bloomSupport.readOperation({ kind: "site.integration_health", account_id: accountId, inputs: {} }));
                   })}>Verify integrations</Button>
+                <Button variant="outlined" color="neutral" loading={pending} disabled={!accountId || pending || Boolean(task)}
+                  sx={{ alignSelf:"flex-start", borderRadius:"xl" }}
+                  onClick={() => run(async () => {
+                    const result = await bloomSupport.startIntegrationTask({
+                      account_id: accountId, idempotency_key: crypto.randomUUID(),
+                    });
+                    setKind("site.integration_health");
+                    setInputs("{}"); setPreview(null);
+                    setOutput(result.evidence); setTask({ticket_id:result.ticket_id,number:result.number});
+                  })}>Record an investigation</Button>
+                <Typography level="body-xs" textColor="text.tertiary">Creates one internal support task with evidence. Bloom cannot repair or contact the client without the separate approval process.</Typography>
+                {task && (
+                  <Typography level="body-sm">
+                    Saved as <Link href={`/admin/bloom-support?view=queue&ticket=${encodeURIComponent(task.ticket_id)}`}>
+                      investigation #{task.number}
+                    </Link>. Follow its status in the Support desk.
+                  </Typography>
+                )}
+                {!!recentTasks.data?.length && (
+                  <Stack spacing={0.5}>
+                    <Typography level="title-sm">Open investigations for this client</Typography>
+                    {recentTasks.data.filter(t => t.subject.startsWith("Integration investigation:")).slice(0,5).map(t => (
+                      <Typography key={t.id} level="body-sm">
+                        <Link href={`/admin/bloom-support?view=queue&ticket=${encodeURIComponent(t.id)}`}>
+                          #{t.number} · {t.subject}
+                        </Link> · {ticketStatusLabel(t.status)}
+                      </Typography>
+                    ))}
+                  </Stack>
+                )}
               </Stack>
             </Sheet>
           )}
