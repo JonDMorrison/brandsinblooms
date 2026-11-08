@@ -4,6 +4,7 @@ import { db, env } from "../_shared/bloom-support/runtime.ts";
 import { verifyGithubWebhook } from "../_shared/bloom-support/webhook-auth.ts";
 import { githubMilestoneFromKind } from "../_shared/bloom-support/slack-language.ts";
 import { githubSourceLink } from "../_shared/bloom-support/slack.ts";
+import { failedMainCheckSuite } from "../_shared/bloom-support/github-events.ts";
 
 const ALLOWED = new Set([
   "JonDMorrison/brandsinblooms",
@@ -36,6 +37,7 @@ Deno.serve(async (req) => {
 
   let kind: string | null = null;
   let source: string | null = null;
+  let eventId = delivery;
   if (event === "pull_request" && payload.action === "closed") {
     const pr = payload.pull_request as {merged?:boolean;html_url?:string} | undefined;
     if (pr) {
@@ -43,10 +45,13 @@ Deno.serve(async (req) => {
       source = githubSourceLink(pr.html_url);
     }
   } else if (event === "check_suite" && payload.action === "completed") {
-    const suite = payload.check_suite as {conclusion?:string;html_url?:string} | undefined;
-    if (suite?.conclusion === "failure") {
+    // Pull-request checks remain in GitHub; Slack focuses on main-branch failures.
+    const suite = failedMainCheckSuite(payload.check_suite);
+    if (suite) {
       kind = "github.checks_failed";
-      source = githubSourceLink(suite.html_url);
+      source = githubSourceLink(`https://github.com/${fullName}/commit/${suite.sha}/checks`);
+      // One message per failing suite + commit, even if GitHub redelivers it.
+      eventId = `check_suite_${suite.id}_${suite.sha}`;
     }
   } else if (event === "deployment_status") {
     const d = payload.deployment as {ref?:string;environment?:string;id?:number} | undefined;
@@ -61,7 +66,7 @@ Deno.serve(async (req) => {
   if (!kind || !githubMilestoneFromKind(kind)) return respond({ok:true,ignored:true});
   // Source URL is optional; only allow exact company GitHub repository paths.
   const {data,error} = await db().rpc("bloom_support_enqueue_slack_external",{
-    p_source:"github", p_event_id:delivery, p_kind:kind,
+    p_source:"github", p_event_id:eventId, p_kind:kind,
     p_url:source, p_project_id:null,
   });
   if (error) {

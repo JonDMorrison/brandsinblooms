@@ -26,7 +26,7 @@ export function githubSourceLink(value: string | undefined): string | null {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.hostname !== "github.com" || url.username || url.password || url.search || url.hash) return null;
-    const match = /^\/(JonDMorrison\/brandsinblooms|Brands-In-Blooms\/(?:cms-brandsinblooms|bloomtill))\/(?:pull\/[0-9]+|actions\/runs\/[0-9]+|deployments\/[0-9]+)$/.exec(url.pathname);
+    const match = /^\/(JonDMorrison\/brandsinblooms|Brands-In-Blooms\/(?:cms-brandsinblooms|bloomtill))\/(?:pull\/[0-9]+|actions\/runs\/[0-9]+|deployments\/[0-9]+|commit\/[a-fA-F0-9]{40}\/checks)$/.exec(url.pathname);
     return match ? url.toString() : null;
   } catch { return null; }
 }
