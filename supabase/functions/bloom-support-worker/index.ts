@@ -20,9 +20,10 @@ import {
 } from "../_shared/bloom-support/support-emails.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
-import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
-import { diagnosticClientHint, findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
+import { callProduct } from "../_shared/bloom-support/operations.ts";
+import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
+import { startIntegrationTask, supportTaskUrl, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
   announceAfterActiveHandoff,
@@ -748,15 +749,17 @@ async function notifyEmail(job: Job): Promise<string> {
         if (!selected) return await postSlackInternalText("projects",
           "Please name one garden centre with an existing BloomSites connection. Example: @Bloom verify Lacoste CounterPoint and OPD integration. If several sites match, select the client in the Bloom dashboard.",
           job.id, String(job.payload.thread_ts ?? ""));
-        const report = await runRead({
+        const task = await startIntegrationTask({
           principalId: identity.principal_id, role: identity.role,
           via: "service", scopes: [], name: null,
         }, {
-          kind: "site.integration_health", account_id: selected.account.id,
-          inputs: {site_id:selected.siteId},
+          accountId: selected.account.id, siteId: selected.siteId,
+          source: {channel:"slack",requestId:job.id,threadTs:String(job.payload.thread_ts ?? "")},
         });
         return await postSlackInternalText("projects",
-          formatIntegrationEvidence(selected.account.name, report),
+          task.message + "\n\n*Investigation #" + task.number + " recorded in Bloom Support.* " +
+            "Automation is paused. Any repair requires an authorized review and approval.\n" +
+            "<" + supportTaskUrl(task.ticket_id) + "|Open the shared investigation task>",
           job.id, String(job.payload.thread_ts ?? ""));
       }
       const response = await callProduct("cms", "major_projects.list", {}, 10000);
@@ -781,6 +784,22 @@ async function notifyEmail(job: Job): Promise<string> {
     return await postSlackInternalText("finance", await stripeDailyPayoutBrief(), job.id);
   }
   if (job.payload.slack === true) {
+    // Relevant updates to Slack-originated investigations go back into the
+    // original thread. Non-task tickets retain their existing channel routing.
+    const eventKind = String(job.payload.kind ?? "");
+    if (job.ticket_id && [
+      "ticket.reopened","ticket.needs_owner","ticket.stalled","ticket.overdue",
+      "engineering.awaiting_approval","engineering.deployed","engineering.verified",
+      "engineering.failed","engineering.escalated",
+    ].includes(eventKind)) {
+      const ticket = await rpc<Record<string, unknown>>("get_ticket", {
+        actor: bot.principalId, ticket_id: job.ticket_id,
+      });
+      const threadTs = taskThreadFromTicket(ticket);
+      const status = taskStatusText(ticket);
+      if (threadTs && status)
+        return await postSlackInternalText("projects", status, job.id, threadTs);
+    }
     return await postSlackSupportNotification({
       kind: String(job.payload.kind ?? ""),
       ticketId: job.ticket_id,
