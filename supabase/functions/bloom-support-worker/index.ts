@@ -725,9 +725,7 @@ async function notifyEmail(job: Job): Promise<string> {
       return await postSlackInternalText("projects", projectQuestionAnswer(response.projects), job.id, String(job.payload.thread_ts ?? ""));
     }
     if (route === "features") {
-      const { data, error } = await db().schema("bloom_support").from("feature_requests")
-        .select("title,product,status,updated_at").order("updated_at", { ascending: false }).limit(10);
-      if (error) throw new BloomError(500, "db_error", "Feature summary is temporarily unavailable");
+      const data = await directRpc<Array<Record<string, unknown>>>("bloom_support_slack_feature_summary", {});
       return await postSlackInternalText("features", featureQuestionAnswer(data), job.id, String(job.payload.thread_ts ?? ""));
     }
     const articles = await rpc<Array<{id:string;title:string;body:string;rank:number}>>(
