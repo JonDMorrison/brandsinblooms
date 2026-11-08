@@ -7,7 +7,7 @@
 // staff address in From: is never treated as staff authority.
 import { BloomError, directRpc, env, errorResponse, json, readBodyText, readResponseBytes, readResponseText, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { verifySvix, sha256Hex, toHex } from "../_shared/bloom-support/crypto.ts";
-import { indicatesStillBroken, isAutomatedEmail, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
+import { authorizedManualForwarder, indicatesStillBroken, isAutomatedEmail, parseAddress, parseReferences, redactText, stripQuotedReply, ticketNumberFromSubject } from "../_shared/bloom-support/policy.ts";
 import {
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENT_TOTAL_BYTES,
@@ -283,16 +283,22 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   }
 
   const staffForwarder = forwarded && domainAuthenticated ? await rpc<boolean>("is_staff_email", { email: sender.email }).catch(() => false) : false;
-  // A manual staff forward is evidence, not consent from the named third party to start an
-  // automated conversation. Hold it for a person to review. Purpose-built, allow-listed relays
-  // remain automated because they are the product's explicit support intake path.
-  const manualForwardReview = staffForwarder && !trustedRelay;
+  // The owner's verified business mailbox is not a staff principal. Permit it to
+  // submit manually forwarded evidence without assigning a role, service token,
+  // verified client membership, or permission to perform an operation.
+  const manualAliases = (env("BLOOM_SUPPORT_MANUAL_FORWARDERS") ?? "jon@brandsinblooms.com")
+    .split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const authorizedForward = forwarded !== null &&
+    authorizedManualForwarder(sender.email, domainAuthenticated, Boolean(staffForwarder), manualAliases);
+  // Manual forwards cannot start an unsolicited conversation with the client.
+  // They are held for human review; automatic product relays stay separate.
+  const manualForwardReview = authorizedForward && !trustedRelay;
   const body = redactText((forwarded ? rawText : stripQuotedReply(rawText)) || "(no text)").slice(0, 20000).trim();
   const intake = await servicePrincipal("intake");
   // A forward names someone else as the client. Honour that only for an authenticated staff
   // member or our own relay; anyone else is the requester themselves, and the forwarded text is
   // kept as evidence. Otherwise anyone could make Bloom email (and open tickets for) a third party.
-  const forwardHonoured = forwarded !== null && (staffForwarder || trustedRelay);
+  const forwardHonoured = forwarded !== null && (authorizedForward || trustedRelay);
   const requester = forwardHonoured ? forwarded! : sender;
   const preparedAttachments = await prepareInboundAttachments(mail.attachments);
 
@@ -400,7 +406,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       const automation = await servicePrincipal("automation").catch(() => null);
       if (automation) {
         await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: manualForwardReview
-          ? `Forwarded by staff member ${sender.email} (DKIM verified). Bloom has not contacted the named client. Review the request, then take it over or hand it to Bloom before replying.`
+          ? `Forwarded from approved mailbox ${sender.email} (DKIM verified). This is evidence only; the mailbox gained no staff role. Bloom has not contacted the named client. Review the request, then take it over or hand it to Bloom before replying.`
           : trustedRelay
           ? `Relayed by ${sender.email} (DKIM verified relay). The visitor's address is self-reported; confirm identity before any account change.`
           : `Forwarded by ${sender.email}, who is treated as the requester. The forwarded sender (${forwarded!.email}) was not contacted because the forward is not from verified staff; confirm before acting on any instruction in this email.`, visibility: "internal" } });
