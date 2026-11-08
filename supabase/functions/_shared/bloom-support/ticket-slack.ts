@@ -171,7 +171,7 @@ export function ticketQuestionAnswer(t: TicketFacts, question: unknown): string 
     "*Next step:* "+ticketNextAction(t),
     "*Bloom:* "+ticketBloomStatus(t),
   ].join("\n");
-  if(/\b(verified|resolved|done|finished|working|live|test|result|evidence)\b/i.test(q)) return [
+  if(/\b(verified|verification|verify|confirmed|resolved|done|finished|working|live|test|result|evidence)\b/i.test(q)) return [
     intro,"*Verification:* "+(t.resolution_verified===true?"Recorded as verified.":"A passing customer-workflow verification is not recorded."),
     "*What Bloom is doing:* "+ticketBloomStatus(t),
     "*Next step:* "+ticketNextAction(t),
