@@ -62,6 +62,7 @@ Deno.test("extracts named client from real Slack integration request and ignores
   assertEquals(diagnosticClientHint(question), "Lacoste");
   assertEquals(diagnosticClientHint("Verify Lacoste's CounterPoint and OPD sync"), "Lacoste");
   assertEquals(diagnosticClientHint("Check CounterPoint integration for Lacoste"), "Lacoste");
+  assertEquals(diagnosticClientHint("Verify CounterPoint and OPD integration for Lacoste"), "Lacoste");
   assertEquals(diagnosticClientHint("What major projects are active?"), null);
   const narrowed = accounts.filter(a => a.name.toLowerCase().includes("lacoste"));
   assertEquals(findDiagnosticAccount(diagnosticClientHint(question)!, narrowed)?.siteId, siteId);
