@@ -27,6 +27,7 @@ CREATE EXTENSION IF NOT EXISTS dblink;
 \ir ../../supabase/migrations/20261101035144_bloom_support_knowledge_publication.sql
 \ir ../../supabase/migrations/20261101051925_bloom_support_site_creation_recovery.sql
 \ir ../../supabase/migrations/20261101140000_bloom_support_audit_hardening.sql
+\ir ../../supabase/migrations/20261108221727_bloom_support_verified_email_identity.sql
 -- Migration backfill fixture: preserve intentional post-resolution reply
 -- review while removing stale waiting state.
 INSERT INTO bloom_support.conversations(id, channel, subject)
@@ -858,6 +859,53 @@ SELECT pg_temp.assert(
          AND coalesce(payload->>'subscription_id', payload->>'feature_shipment_subscription_id') = :'terminal_subscription'
          AND coalesce(payload->>'generation', payload->>'feature_shipment_generation') = :'terminal_generation'),
   'marking a ticket as spam terminalizes its current shipment attempt and all unsent work');
+
+-- Duplicate product/email identities: execute the real resolver with isolated fixtures.
+BEGIN;
+DO $$
+DECLARE a uuid; b uuid; old_pid uuid; verified_pid uuid; extra_pid uuid; r jsonb;
+BEGIN
+  INSERT INTO bloom_support.accounts(name, email_domains) VALUES ('Identity A', ARRAY['identity-regression.test']) RETURNING id INTO a;
+  INSERT INTO bloom_support.accounts(name) VALUES ('Identity B') RETURNING id INTO b;
+  INSERT INTO bloom_support.principals(kind, product, external_id, email, role, created_at)
+    VALUES ('external_user', 'email', 'client@identity-regression.test', 'client@identity-regression.test', 'client', now() - interval '2 days') RETURNING id INTO old_pid;
+  INSERT INTO bloom_support.principals(kind, product, external_id, email, role)
+    VALUES ('external_user', 'cms', 'identity-regression-client', 'CLIENT@identity-regression.test', 'client') RETURNING id INTO verified_pid;
+  INSERT INTO bloom_support.account_members(account_id, principal_id, verified) VALUES (a, verified_pid, true);
+  r := bloom_support.resolve_email_sender(' CLIENT@identity-regression.test ', 'Client');
+  PERFORM pg_temp.assert(r->>'principal_id' = verified_pid::text AND r->>'account_id' = a::text AND r->>'match' = 'membership', 'new verified CMS identity beats older unlinked email identity');
+  PERFORM pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.account_members WHERE principal_id = old_pid), 'resolver does not copy verified membership to old identity');
+  PERFORM pg_temp.assert(bloom_support.resolve_email_sender('client@identity-regression.test', 'Client') = r, 'verified identity resolution is retry stable');
+
+  INSERT INTO bloom_support.principals(kind, product, external_id, email, role)
+    VALUES ('external_user', 'pos', 'identity-regression-client', 'client@identity-regression.test', 'client') RETURNING id INTO extra_pid;
+  INSERT INTO bloom_support.account_members(account_id, principal_id, verified) VALUES (a, extra_pid, true);
+  PERFORM pg_temp.assert(bloom_support.resolve_email_sender('client@identity-regression.test', NULL)->>'account_id' = a::text, 'same verified account across products is unambiguous');
+  UPDATE bloom_support.account_members SET account_id = b WHERE principal_id = extra_pid;
+  PERFORM pg_temp.assert(bloom_support.resolve_email_sender('client@identity-regression.test', NULL)->>'account_id' IS NULL, 'different verified accounts across identities fail closed despite a unique domain');
+  UPDATE bloom_support.principals SET active = false WHERE id = extra_pid;
+  PERFORM pg_temp.assert(bloom_support.resolve_email_sender('client@identity-regression.test', NULL)->>'account_id' = a::text, 'inactive identity excluded from account matching');
+  UPDATE bloom_support.principals SET active = true, role = 'support' WHERE id = extra_pid;
+  PERFORM pg_temp.assert(bloom_support.resolve_email_sender('client@identity-regression.test', NULL)->>'principal_id' = verified_pid::text, 'staff identity and its memberships excluded');
+  INSERT INTO bloom_support.account_members(account_id, principal_id, verified) VALUES (b, verified_pid, true);
+  PERFORM pg_temp.assert(bloom_support.resolve_email_sender('client@identity-regression.test', NULL)->>'account_id' IS NULL, 'multiple accounts on one identity cannot fall back to domain');
+  UPDATE bloom_support.account_members SET verified = false WHERE principal_id = verified_pid;
+  r := bloom_support.resolve_email_sender('client@identity-regression.test', NULL);
+  PERFORM pg_temp.assert(r->>'account_id' = a::text AND r->>'match' = 'domain', 'unverified memberships do not count as proof');
+  PERFORM pg_temp.assert(NOT EXISTS (SELECT 1 FROM bloom_support.account_members WHERE principal_id = old_pid AND verified), 'domain membership stays unverified');
+
+  INSERT INTO bloom_support.principals(kind, product, external_id, email, role, active)
+    VALUES ('external_user', 'email', 'blocked@identity-regression.test', 'blocked@identity-regression.test', 'client', false) RETURNING id INTO extra_pid;
+  PERFORM pg_temp.expect_error($q$SELECT bloom_support.resolve_email_sender('blocked@identity-regression.test', NULL)$q$, 'sender identity unavailable');
+  UPDATE bloom_support.principals SET active = true, role = 'support' WHERE id = extra_pid;
+  PERFORM pg_temp.expect_error($q$SELECT bloom_support.resolve_email_sender('blocked@identity-regression.test', NULL)$q$, 'sender identity unavailable');
+  UPDATE bloom_support.principals SET role = 'client', email = 'changed@identity-regression.test' WHERE id = extra_pid;
+  PERFORM pg_temp.expect_error($q$SELECT bloom_support.resolve_email_sender('blocked@identity-regression.test', NULL)$q$, 'sender identity unavailable');
+  UPDATE bloom_support.accounts SET email_domains = ARRAY['gmail.com'] WHERE id = a;
+  PERFORM pg_temp.assert(bloom_support.resolve_email_sender('identity-regression@gmail.com', NULL)->>'account_id' IS NULL, 'consumer domain is never account proof');
+  PERFORM pg_temp.expect_error($q$SELECT bloom_support.resolve_email_sender('invalid', NULL)$q$, 'invalid sender');
+END $$;
+ROLLBACK;
 
 -- 11. Email sender resolution never grants staff authority; domain match stays unverified.
 UPDATE bloom_support.accounts SET email_domains = '{greenleaf.test}' WHERE id = :'greenleaf';

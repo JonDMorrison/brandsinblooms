@@ -40,6 +40,7 @@ GRANT EXECUTE ON FUNCTION public.is_master_admin(uuid) TO service_role;
 \ir ../../supabase/migrations/20261101035144_bloom_support_knowledge_publication.sql
 \ir ../../supabase/migrations/20261101051925_bloom_support_site_creation_recovery.sql
 \ir ../../supabase/migrations/20261101140000_bloom_support_audit_hardening.sql
+\ir ../../supabase/migrations/20261108221727_bloom_support_verified_email_identity.sql
 \ir ../../supabase/migrations/20261104200000_bloom_support_resolution_cleanup.sql
 \ir ../../supabase/migrations/20261104210000_bloom_support_release_reconciliation.sql
 \ir ../../supabase/migrations/20261105200000_bloom_support_email_design.sql
