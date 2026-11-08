@@ -21,7 +21,7 @@ import {
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
 import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
-import { findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
+import { findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
@@ -727,7 +727,7 @@ async function notifyEmail(job: Job): Promise<string> {
         // Resolve to an existing active Bloom Support principal and re-check
         // the person's real product-read permission. No generic Slack service
         // identity gets authority to alter customer integrations.
-        const userId = /^slack:ask:projects:([UW][A-Z0-9]{8,24})$/.exec(job.lane)?.[1];
+        const userId = slackDiagnosticUserFromLane(job.lane);
         const identity = userId
           ? await directRpc<{principal_id:string;role:string}|null>("bloom_support_slack_staff_actor", {p_slack_user_id:userId})
           : null;
