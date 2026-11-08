@@ -21,7 +21,7 @@ Deno.test("ticket alert tells staff what happened, what Bloom does, owner and ne
   assertStringIncludes(message,"West Coast Gardens");
   assertStringIncludes(message,"cannot find Sea Soil");
   assertStringIncludes(message,"Jeff O'Brien");
-  assertStringIncludes(message,"Automatic work");
+  assertStringIncludes(message,"A support person is handling this");
   assertStringIncludes(message,"Review the authenticated CRM search");
   assertStringIncludes(message,"Reply in this thread with @Bloom");
   assertStringIncludes(message,"Open ticket and actions");
