@@ -455,6 +455,7 @@ export const bloomSupport = {
   startIntegrationTask: (input: { account_id: string; site_id?: string; idempotency_key: string; kind?: "site.integration_health" | "site.provider_health"; provider?: "heartland" | "shipstation" | "both" }) =>
     send<{ ticket_id: string; number: number; duplicate: boolean; assessment: string; evidence: Record<string, unknown>; message: string }>(
       "POST", "/operations/investigate", input),
+  requestIntegrationReview: (id: string) => send<{ escalation_id: string; duplicate: boolean; status: string }>("POST", `/operations/investigations/${encodeURIComponent(id)}/request-review`, {}),
   previewOperation: (input: Record<string, unknown>) => send<Record<string, unknown>>("POST", "/operations/preview", input),
   executeOperation: (id: string) => send<Record<string, unknown>>("POST", `/operations/${id}/execute`),
   undoOperation: (id: string) => send<Record<string, unknown>>("POST", `/operations/${id}/undo`),
