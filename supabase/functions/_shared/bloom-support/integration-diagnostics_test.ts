@@ -1,5 +1,5 @@
 import {assert, assertEquals, assertStringIncludes} from "@std/assert";
-import {findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion} from "./integration-diagnostics.ts";
+import {findDiagnosticAccount, formatIntegrationEvidence, isIntegrationDiagnosticQuestion,slackDiagnosticUserFromLane} from "./integration-diagnostics.ts";
 
 const siteId = "f599e50e-4245-43d2-954c-e5b05777ec22";
 const accounts = [
@@ -48,4 +48,11 @@ Deno.test("provider errors, hidden account fields and arbitrary markup never app
  assertEquals(text.includes("sk_live"),false);
  assertEquals(text.includes("x@test.com"),false);
  assertStringIncludes(text,"Not fully verified");
+});
+
+Deno.test("diagnostic authorization accepts only a projects job with an exact Slack user ID",()=>{
+ assertEquals(slackDiagnosticUserFromLane("slack:ask:projects:U06V7U9LWSZ"),"U06V7U9LWSZ");
+ assertEquals(slackDiagnosticUserFromLane("slack:ask:features:U06V7U9LWSZ"),null);
+ assertEquals(slackDiagnosticUserFromLane("slack:ask:projects:U06V7U9LWSZ:forged"),null);
+ assertEquals(slackDiagnosticUserFromLane(null),null);
 });
