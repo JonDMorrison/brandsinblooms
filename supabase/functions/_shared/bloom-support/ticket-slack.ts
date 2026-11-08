@@ -26,7 +26,7 @@ const obj = (v: unknown): Record<string, unknown> =>
 const text = (v: unknown, max = 400): string => {
   const raw = clean(v).slice(0, 2000);
   if (!raw.trim()) return "";
-  if (AUTH.test(raw) || /-----BEGIN [^-]+PRIVATE KEY-----/i.test(raw)) return "Sensitive details are in Bloom Support";
+  if (AUTH.test(raw) || /\bBearer\s+\S+/i.test(raw) || /-----BEGIN [^-]+PRIVATE KEY-----/i.test(raw)) return "Sensitive details are in Bloom Support";
   const compact = raw.replace(/^(?:(?:from|to|cc|bcc|reply-to|subject|sent|date):.*(?:\r?\n|$))+/gim, " ")
     .replace(/(?:^|\n)\s*>[^\n]*(?=\n|$)/g, " ")
     .replace(/\b(?:https?:\/\/|www\.)\S+/gi, "[link in support desk]")
@@ -171,7 +171,7 @@ export function ticketQuestionAnswer(t: TicketFacts, question: unknown): string 
     "*Next step:* "+ticketNextAction(t),
     "*Bloom:* "+ticketBloomStatus(t),
   ].join("\n");
-  if(/\b(verified|verification|verify|confirmed|resolved|done|finished|working|live|test|result|evidence)\b/i.test(q)) return [
+  if(/\b(verified|verification|verify|confirmed|resolved|done|finished|fixed|working|live|test|tested|passed|result|evidence)\b/i.test(q)) return [
     intro,"*Verification:* "+(t.resolution_verified===true?"Recorded as verified.":"A passing customer-workflow verification is not recorded."),
     "*What Bloom is doing:* "+ticketBloomStatus(t),
     "*Next step:* "+ticketNextAction(t),
