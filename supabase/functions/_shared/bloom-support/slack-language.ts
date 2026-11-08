@@ -107,34 +107,34 @@ export function explainSupportEvent(kind: string): CustomerUpdate {
 export type GithubMilestone = "pr_merged" | "pr_closed" | "checks_failed" | "checks_passed" | "deployment_succeeded" | "deployment_failed";
 const githubUpdates: Record<GithubMilestone, CustomerUpdate> = {
   pr_merged: {
-    headline: "A code change was merged",
-    whatItMeans: "The team accepted the change into the codebase. This does not prove it is deployed or that the customer can use it.",
-    nextStep: "Check production deployment, then test the customer's original task.", requiresAttention: false,
+    headline: "An update was accepted",
+    whatItMeans: "The update has been added, but we haven't checked whether customers can use it yet.",
+    nextStep: "Check that it's available, then try the affected task.", requiresAttention: false,
   },
   pr_closed: {
-    headline: "A proposed code change was closed",
-    whatItMeans: "This proposal was not merged. No release is implied.",
-    nextStep: "Check whether the work was replaced or is no longer needed.", requiresAttention: false,
+    headline: "A proposed update was closed",
+    whatItMeans: "The change was closed without being added to our software.",
+    nextStep: "Check if the team has another solution or no longer needs the change.", requiresAttention: false,
   },
   checks_failed: {
-    headline: "An automated code check failed",
-    whatItMeans: "Something needs investigation before the change can be trusted.",
-    nextStep: "Review the failure and fix it before release.", requiresAttention: true,
+    headline: "A software check found a problem",
+    whatItMeans: "This update needs attention before anyone relies on it.",
+    nextStep: "Open the details and fix the problem.", requiresAttention: true,
   },
   checks_passed: {
-    headline: "Automated code checks passed",
-    whatItMeans: "Tests completed successfully. The change may still require approval, release and customer verification.",
-    nextStep: "Check approval and release requirements.", requiresAttention: false,
+    headline: "Software checks passed",
+    whatItMeans: "The checks passed. We still need to confirm the update works for customers.",
+    nextStep: "Check if it's ready to go live.", requiresAttention: false,
   },
   deployment_succeeded: {
-    headline: "A production deployment was reported successful",
-    whatItMeans: "The hosting system accepted the release. The customer experience has not been verified by this event.",
-    nextStep: "Re-test the original customer workflow.", requiresAttention: false,
+    headline: "An update was released",
+    whatItMeans: "The system accepted the update. We haven't checked the customer's experience yet.",
+    nextStep: "Try the affected customer task.", requiresAttention: false,
   },
   deployment_failed: {
-    headline: "A production deployment failed",
-    whatItMeans: "The release did not finish successfully, so the intended improvement is not confirmed live.",
-    nextStep: "Investigate the deployment and protect the existing working version.", requiresAttention: true,
+    headline: "An update could not go live",
+    whatItMeans: "The update didn't finish successfully, so the improvement isn't confirmed live.",
+    nextStep: "Check what went wrong and keep the last working version.", requiresAttention: true,
   },
 };
 export function explainGithubMilestone(milestone: GithubMilestone): CustomerUpdate {
