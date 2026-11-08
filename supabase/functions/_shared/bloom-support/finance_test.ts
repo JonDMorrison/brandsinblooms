@@ -10,7 +10,7 @@ Deno.test("Payout brief distinguishes CAD/USD, paid vs in transit, and bank sett
  const msg=payoutBrief(payouts,at("2026-11-07T18:00:00Z"));
  assertStringIncludes(msg,"CAD");
  assertStringIncludes(msg,"USD");
- assertStringIncludes(msg,"Paid (");
+ assertStringIncludes(msg,"Stripe marked paid (expected available)");
  assertStringIncludes(msg,"On its way");
  assertStringIncludes(msg,"bank settlement");
  assertFalse(msg.includes("po1"));
