@@ -42,16 +42,16 @@ export function slackSafeMessage(
   const source = milestone ? githubSourceLink(githubUrl) : null;
   if (milestone === "pr_merged") {
     const note = publicReleaseNote(releaseCategory);
-    const product = source?.includes("/JonDMorrison/brandsinblooms/") ? "BloomSuite CRM"
-      : source?.includes("/Brands-In-Blooms/cms-brandsinblooms/") ? "BloomSites"
-      : source?.includes("/Brands-In-Blooms/bloomtill/") ? "BloomSuite POS" : "our software";
+    // Slack is the summary, not a link to a developer page. A merge alone
+    // never proves customers can use the change. Keep the wording natural
+    // and never include the untrusted PR title or body.
     return [
-      "*Software improvement: " + note.area + "*",
-      "*What changed:* " + note.changed,
-      "*Why it matters:* " + note.matters,
-      "*Where it stands:* Merged into " + product + " code. Deployment and the customer experience have not yet been verified by this event.",
-      "*Next:* " + note.next,
-      source ? "<" + source + "|See the technical change>" : "<https://bloomsuite.app/admin/bloom-support|Open Bloom Support>",
+      "*" + note.area + "*",
+      note.changed,
+      "",
+      "*What this means for you:* " + note.matters,
+      "*Status:* The change has been added. We're still checking it before we call it ready.",
+      "*Do you need to do anything?* " + note.next,
     ].join("\n");
   }
   const state = milestone ? explainGithubMilestone(milestone) :
