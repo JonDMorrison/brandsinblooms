@@ -16,7 +16,7 @@ const privateDetail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:https?:\/\/|www\
 const clean = (value: unknown, max = 180) => {
   const raw = String(value ?? "");
   if (privateDetail.test(raw)) return "See linked record";
-  return raw.replace(/[<>&@*_\x60~\r\n\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+  return raw.replace(/[<>&@*_\x60~]/g, " ").replace(/\p{Cc}/gu, " ").replace(/\s+/g, " ").trim().slice(0, max);
 };
 const label = (value: unknown) => clean(value, 80).replace(/_/g, " ");
 
