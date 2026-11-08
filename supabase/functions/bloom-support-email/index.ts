@@ -55,7 +55,11 @@ async function resend(path: string): Promise<unknown> {
   if (!key) throw new BloomError(503, "not_configured", "RESEND_API_KEY is not set");
   const res = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new BloomError(502, "provider_error", `Resend ${path} returned ${res.status}`);
-  const raw = await readResponseText(res, 1_000_000);
+  // A signed support forward can contain a long quoted conversation and inline
+  // screenshots. Resend returns HTML and text in a single JSON response that
+  // regularly exceeds 1 MB. Keep a strict 4 MiB cap here (separate from the
+  // small incoming webhook payload and the 12 MiB total attachment cap).
+  const raw = await readResponseText(res, 4 * 1024 * 1024);
   try {
     return JSON.parse(raw);
   } catch {
@@ -103,8 +107,8 @@ async function prepareInboundAttachments(
   let total = 0;
   for (const [index, attachment] of (manifest ?? []).entries()) {
     const label = safeAttachmentLabel(attachment?.filename, index);
-    if (index >= 5) {
-      rejected.push(`${label}: only 5 attachments can be accepted`);
+    if (index >= 10) {
+      rejected.push(`${label}: only 10 attachments can be accepted in an email`);
       continue;
     }
     if (!attachment || !attachment.download_url || !/^https:\/\//i.test(attachment.download_url)) {
@@ -183,9 +187,16 @@ async function loadEmail(data: Record<string, unknown>): Promise<ReceivedEmail> 
   const full = (data.text || data.html) ? data : await resend(`/emails/receiving/${encodeURIComponent(id)}`);
   const e = full as Record<string, unknown>;
   let attachments = e.attachments as ReceivedEmail["attachments"];
-  if ((!attachments || attachments.some((a) => !a.download_url)) && Array.isArray(data.attachments) && data.attachments.length) {
-    const list = await resend(`/emails/receiving/${encodeURIComponent(id)}/attachments`).catch(() => null) as { data?: ReceivedEmail["attachments"] } | null;
-    attachments = list?.data ?? attachments;
+  // Resend's metadata can list attachments without the signed download URLs.
+  // The webhook itself may contain no attachment manifest, so fetch the
+  // dedicated manifest whenever existing attachment entries lack URLs.
+  // Never silently drop customer screenshots if the provider request fails.
+  const manifestMissingUrls = Array.isArray(attachments) && attachments.some((a) => !a.download_url);
+  const webhookHasAttachments = Array.isArray(data.attachments) && data.attachments.length > 0;
+  if (manifestMissingUrls || ((!attachments || attachments.length === 0) && webhookHasAttachments)) {
+    const list = await resend(`/emails/receiving/${encodeURIComponent(id)}/attachments`) as { data?: ReceivedEmail["attachments"] } | null;
+    if (!Array.isArray(list?.data)) throw new BloomError(502, "provider_error", "Resend attachment manifest unavailable");
+    attachments = list.data;
   }
   return { id, from: String(e.from ?? data.from ?? ""), to: (e.to ?? data.to ?? []) as string[], subject: String(e.subject ?? data.subject ?? ""),
     text: (e.text as string) ?? null, html: (e.html as string) ?? null, message_id: (e.message_id as string) ?? (data.message_id as string) ?? null,
