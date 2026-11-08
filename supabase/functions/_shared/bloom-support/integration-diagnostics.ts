@@ -18,7 +18,15 @@ export function isIntegrationDiagnosticQuestion(question: string): boolean {
 
 const normalize = (value: string): string => " " + value.toLowerCase()
   .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim() + " ";
-const generic = new Set(["garden","gardens","centre","center","nursery","nurseries","the","ltd","inc","store","flower","plants"]);
+// Ignore common operational words when identifying a client. Otherwise a
+// request labelled "integration test" can accidentally match a test garden
+// centre, tie with the real customer and make Bloom refuse the diagnostic.
+const generic = new Set([
+  "garden","gardens","centre","center","nursery","nurseries","the","ltd",
+  "inc","store","flower","plants","company","test","testing","integration",
+  "integrations","sync","health","verify","check","report","status",
+  "counterpoint","opd","november","read","only",
+]);
 const isUuid = (value: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
