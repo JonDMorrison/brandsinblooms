@@ -217,8 +217,9 @@ export async function verifyBloomsitesIntegrations(
       { principalId: who.principalId, role: who.role, via: "crm_session", name: context.userName ?? null, scopes: [] },
       { kind: "site.integration_health", account_id: accountId, inputs: targetSite ? { site_id: targetSite } : {} },
     );
+    const displayName = accountName.replace(/[<>&@*`\r\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
     return toolResult(true,
-      `Checked recorded CounterPoint and Open Plant Data synchronization evidence for ${accountName}. Explain the exact assessment, recorded failures, latest successful receipt and import counts. A connected service or staged batch does not prove the customer's shop works. This was read-only and changed nothing.`,
+      `Checked recorded CounterPoint and Open Plant Data synchronization evidence for ${displayName || "the selected company"}. Explain the exact assessment, recorded failures, latest successful receipt and import counts. A connected service or staged batch does not prove the customer's shop works. This was read-only and changed nothing.`,
       { product: "bloomsites", kind: "site.integration_health", result: (data ?? null) as JsonObject });
   } catch (error) {
     console.error("[bloom-assist] integration health read failed", error instanceof Error ? error.message : error);
