@@ -146,6 +146,8 @@ on("POST", "/operations/investigate", async (req) => {
     ...(typeof b.site_id === "string" ? {siteId:b.site_id} : {}),
     // Never accept Slack thread metadata from a browser/API client.
     source: {channel:"dashboard",requestId:String(b.idempotency_key ?? "")},
+    ...(b.kind === "site.provider_health" ? {kind:"site.provider_health" as const} : {}),
+    ...(typeof b.provider === "string" ? {provider:b.provider as "heartland" | "shipstation" | "both"} : {}),
   });
 });
 on("POST", "/operations/preview", async (req) => actions.previewOperation(await caller(req), await readJson(req)));
