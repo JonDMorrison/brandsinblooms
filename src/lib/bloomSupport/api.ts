@@ -452,7 +452,7 @@ export const bloomSupport = {
   explainEscalation: (id: string) => send<{ plain: EscalationPlain | null; reason?: string }>("POST", `/escalations/${id}/explain`),
   operationsCatalog: () => api<{ reads: Array<{ kind: string; permission: string }>; changes: Array<{ kind: string; permission: string; undo: boolean }>; remote: Record<string, { configured: boolean; missing: string[] }> }>("/operations/catalog"),
   readOperation: (input: Record<string, unknown>) => send("POST", "/operations/read", input),
-  startIntegrationTask: (input: { account_id: string; site_id?: string; idempotency_key: string }) =>
+  startIntegrationTask: (input: { account_id: string; site_id?: string; idempotency_key: string; kind?: "site.integration_health" | "site.provider_health"; provider?: "heartland" | "shipstation" | "both" }) =>
     send<{ ticket_id: string; number: number; duplicate: boolean; assessment: string; evidence: Record<string, unknown>; message: string }>(
       "POST", "/operations/investigate", input),
   previewOperation: (input: Record<string, unknown>) => send<Record<string, unknown>>("POST", "/operations/preview", input),
