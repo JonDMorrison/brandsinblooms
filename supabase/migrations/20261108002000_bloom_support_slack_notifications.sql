@@ -41,7 +41,10 @@ BEGIN
     OR p_kind = 'job.dead'
     OR p_kind LIKE 'incident.%'
   ) THEN
-    PERFORM bloom_support.enqueue_job(
+    BEGIN
+      -- Slack is best-effort. A broken notification queue must never roll
+      -- back creation of a support ticket or an in-app notification.
+      PERFORM bloom_support.enqueue_job(
       'notify', p_ticket, NULL,
       'slack:' || coalesce(p_ticket::text, 'platform'),
       jsonb_build_object('slack', true, 'kind', p_kind),
@@ -53,7 +56,10 @@ BEGIN
         ELSE 'slack:notification:' || first_notification::text
       END,
       now(), 3, 30
-    );
+      );
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Optional Slack enqueue failed (SQLSTATE %)', SQLSTATE;
+    END;
   END IF;
 END $$;
 
