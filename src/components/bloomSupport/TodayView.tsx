@@ -15,7 +15,8 @@ import { bloomSupport, type TicketSummary, type Whoami } from "@/lib/bloomSuppor
 import { isBloomHandlingTicket } from "./todayActions";
 import { useDeskDecisions } from "./desk/useDeskDecisions";
 import { DecisionList } from "./desk/DecisionList";
-import { bloomNextStep, clientName, friendlyStatus, type StatusTone } from "./desk/statusWords";
+import { bloomNextStep, clientName, friendlyStatus } from "./desk/statusWords";
+import { StatusPill } from "./desk/StatusPill";
 import { deskCardSx } from "./desk/deskStyles";
 
 /**
@@ -207,22 +208,14 @@ function ClickRow({ onOpen, label, children }: { onOpen: () => void; label: stri
   );
 }
 
-const STATUS_STYLE: Record<StatusTone, { bg: string; fg: string }> = {
-  active: { bg: "primary.50", fg: "primary.800" },
-  waiting: { bg: "neutral.100", fg: "neutral.700" },
-  done: { bg: "success.50", fg: "success.700" },
-  attention: { bg: "warning.50", fg: "warning.800" },
-};
-
 function HandlingRow({ t, onOpen }: { t: TicketSummary; onOpen: (id: string) => void }) {
   const status = friendlyStatus(t);
-  const style = STATUS_STYLE[status.tone];
   return (
     <ClickRow onOpen={() => onOpen(t.id)} label={`${clientName(t)}: ${t.subject}. ${status.label}`}>
       <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
           <Typography level="title-md">{clientName(t)}</Typography>
-          <Box component="span" sx={{ px: 2.5, py: 0.5, borderRadius: 999, bgcolor: style.bg, color: style.fg, fontSize: "0.8125rem", fontWeight: 600, whiteSpace: "nowrap" }}>{status.label}</Box>
+          <StatusPill tone={status.tone}>{status.label}</StatusPill>
         </Stack>
         <Typography level="body-md" textColor="text.primary" sx={{ overflowWrap: "anywhere" }}>{t.subject}</Typography>
         <Typography level="body-sm" textColor="text.secondary">

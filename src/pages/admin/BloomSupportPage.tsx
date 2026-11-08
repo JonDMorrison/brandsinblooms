@@ -6,8 +6,8 @@ import Typography from "@mui/joy/Typography";
 import Sheet from "@mui/joy/Sheet";
 import Alert from "@mui/joy/Alert";
 import Skeleton from "@mui/joy/Skeleton";
-import IconButton from "@mui/joy/IconButton";
-import { ArrowLeft, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
+import { JoyDrawer } from "@/components/joy/JoyDrawer";
 import { useState } from "react";
 import { NewTicketDialog } from "@/components/bloomSupport/NewTicketDialog";
 import { TodayView } from "@/components/bloomSupport/TodayView";
@@ -27,7 +27,7 @@ import { SystemStatusPanel } from "@/components/bloomSupport/desk/SystemStatusPa
 import { useDeskDecisions } from "@/components/bloomSupport/desk/useDeskDecisions";
 import { DeskHeader } from "@/components/bloomSupport/desk/DeskHeader";
 import { parseDeskView, type DeskAlertTarget, type DeskSummary, type DeskView } from "@/components/bloomSupport/desk/deskModel";
-import { deskScaleSx } from "@/components/bloomSupport/desk/deskStyles";
+import { deskCardSx, deskScaleSx } from "@/components/bloomSupport/desk/deskStyles";
 
 const VIEW_HELP: Partial<Record<DeskView, string>> = {
   queue: "Every open request. Filter, assign, and reply to clients.",
@@ -52,6 +52,7 @@ export default function BloomSupportPage() {
   // the queue keeps its list-and-detail layout.
   const view = parseDeskView(params.get("view"));
   const queueFilter = params.get("filter");
+  const details = params.get("details") === "1";
   const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
   const staff = !!me.data && me.data.role !== "client" && me.data.role !== "service";
   const summary = useQuery({ queryKey: ["bloom-support", "summary"], queryFn: () => bloomSupport.summary(), enabled: staff, refetchInterval: 30_000 });
@@ -64,7 +65,7 @@ export default function BloomSupportPage() {
     }
     setParams(p, { replace: false });
   };
-  const openTicket = (id: string) => go({ view: "queue", ticket: id });
+  const openTicket = (id: string) => go({ view: "queue", ticket: id, details: null });
   const onAlert = (target: DeskAlertTarget) => {
     if (target === "settings") go({ view: "settings", ticket: null, filter: null });
     else go({ view: "queue", ticket: null, filter: "urgent" });
@@ -91,7 +92,7 @@ export default function BloomSupportPage() {
       <NewTicketDialog open={newOpen} onClose={() => setNewOpen(false)} onCreated={(id) => { setNewOpen(false); go({ view: "today", ticket: id }); }} />
 
       <Stack spacing={2}>
-        <CountedDeskNav me={me.data!} view={view} onChange={(v) => go({ view: v, ticket: null, filter: null })} />
+        <CountedDeskNav me={me.data!} view={view} onChange={(v) => go({ view: v, ticket: null, filter: null, details: null })} />
         {!(view === "today" && ticketId) && VIEW_HELP[view] && (
           <Typography level="body-md" textColor="text.secondary">{VIEW_HELP[view]}</Typography>
         )}
@@ -100,7 +101,7 @@ export default function BloomSupportPage() {
       {view === "today" && (
         ticketId ? (
           <Sheet variant="outlined" sx={{ borderRadius: "xl", flex: 1, minHeight: { xs: "70dvh", md: 0 }, overflow: "hidden" }}>
-            <TicketConversation key={ticketId} ticketId={ticketId} me={me.data!} onBack={() => go({ ticket: null })} onShowDetails={() => go({ view: "queue" })} onOpenTicket={(id) => go({ view: "today", ticket: id })} />
+            <TicketConversation key={ticketId} ticketId={ticketId} me={me.data!} onBack={() => go({ ticket: null })} onShowDetails={() => go({ view: "queue", details: "1" })} onOpenTicket={(id) => go({ view: "today", ticket: id })} />
           </Sheet>
         ) : (
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -109,23 +110,37 @@ export default function BloomSupportPage() {
         )
       )}
       {view === "queue" && (
-        <Sheet variant="outlined" sx={{ borderRadius: "xl", flex: 1, minWidth: 0, maxWidth: "100%", minHeight: 0, display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(300px, 380px) minmax(0, 1fr)" }, overflow: "hidden", bgcolor: "background.surface" }}>
-          <Box sx={{ borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, minWidth: 0, minHeight: 0, display: { xs: ticketId ? "none" : "block", md: "block" } }}>
+        <Box sx={{ ...deskCardSx, flex: 1, minWidth: 0, maxWidth: "100%", minHeight: { xs: "70dvh", md: 0 }, display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(340px, 420px) minmax(0, 1fr)" }, overflow: "hidden" }}>
+          <Box sx={{ borderRight: { md: "1px solid" }, borderColor: { md: "neutral.100" }, minWidth: 0, minHeight: 0, display: { xs: ticketId ? "none" : "block", md: "block" } }}>
             <QueueList key={queueFilter ?? "default"} me={me.data!} selectedId={ticketId} onOpen={openTicket} initialView={queueFilter} />
           </Box>
           <Box sx={{ minWidth: 0, maxWidth: "100%", minHeight: 0, display: { xs: ticketId ? "block" : "none", md: "block" } }}>
             {ticketId ? (
-              <Stack sx={{ height: "100%", minWidth: 0, maxWidth: "100%" }}>
-                <Box sx={{ display: { md: "none" }, p: 1 }}><IconButton aria-label="Back to list" onClick={() => go({ ticket: null })}><ArrowLeft size={18} /></IconButton></Box>
-                <Box sx={{ flex: 1, minWidth: 0, maxWidth: "100%", minHeight: 0 }}><TicketDetailPane key={ticketId} ticketId={ticketId} me={me.data!} onOpenTicket={openTicket} /></Box>
-              </Stack>
+              <TicketConversation
+                key={ticketId}
+                ticketId={ticketId}
+                me={me.data!}
+                backOn="compact"
+                onBack={() => go({ ticket: null, details: null })}
+                onShowDetails={() => go({ details: "1" })}
+                onOpenTicket={openTicket}
+              />
             ) : (
-              <Box sx={{ p: 4 }}><JoyEmptyState icon={<Inbox size={28} />} title="Select a request" description="The conversation, client, owner, next action and Bloom's automation status appear here." /></Box>
+              <Stack spacing={2} alignItems="center" justifyContent="center" sx={{ height: "100%", p: 8, textAlign: "center" }}>
+                <Box sx={{ width: 56, height: 56, borderRadius: "50%", bgcolor: "primary.50", color: "primary.700", display: "flex", alignItems: "center", justifyContent: "center" }}><Inbox size={26} aria-hidden /></Box>
+                <Typography level="title-lg">Pick a request to read it</Typography>
+                <Typography level="body-md" textColor="text.secondary" sx={{ maxWidth: 380 }}>The conversation opens here, with Bloom's recommended next step at the top.</Typography>
+              </Stack>
             )}
           </Box>
-        </Sheet>
+        </Box>
       )}
-      <Box sx={{ overflow: "auto", display: view === "queue" || view === "today" ? "none" : "block" }}>
+      {view === "queue" && ticketId && details && (
+        <JoyDrawer open onClose={() => go({ details: null })} size="md" title="Request details" description="Change the status, owner or next step, and see the background." contentSx={deskScaleSx}>
+          <TicketDetailPane key={ticketId} ticketId={ticketId} me={me.data!} onOpenTicket={(id) => go({ ticket: id, details: null })} mode="manage" />
+        </JoyDrawer>
+      )}
+      <Box sx={{ overflow: "auto", minHeight: 0, flex: 1, display: view === "queue" || view === "today" ? "none" : "block" }}>
         {view === "escalations" && <DecisionsView me={me.data!} onOpenTicket={openTicket} onOpenDesk={() => go({ view: "queue", ticket: null })} />}
         {view === "engineering" && <EngineeringPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "features" && <FeaturesPanel me={me.data!} onOpenTicket={openTicket} />}
