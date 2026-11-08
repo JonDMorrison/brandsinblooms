@@ -9,7 +9,7 @@ import type {ToolExecutionContext, ToolImplementation, ToolResult} from '../type
 import {explorePurchases, analyzeBasket, finiteNumber, validatePurchaseRule, MATCH_REASONS, type CustomerSet, type PurchaseFact} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
 import {compareCustomerGrowth, moneyMinorUnits, type GrowthOrder, type GrowthSettings} from '../../../_shared/customer-intelligence/customer-growth.ts';
 import {readAllPages} from '../../../_shared/customer-intelligence/query-pages.ts';
-import {periodSummaryFacts,type PeriodSummaryEvent} from '../../../_shared/customer-intelligence/period-summary.ts';
+import {currentSummaryImports,periodSummaryFacts,type PeriodSummaryEvent} from '../../../_shared/customer-intelligence/period-summary.ts';
 import {loadCustomerProductHistory,ProductHistoryNotFound} from '../../../_shared/customer-intelligence/customer-product-history.ts';
 
 interface Customer {id: string; first_name: string | null; last_name: string | null; email: string | null; created_at: string | null;}
@@ -113,8 +113,8 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
   const population = await loadAnalysisPopulation(context,cutoff); await assertConversation(context);
   const previous = scope === 'all_customers' ? null : await loadCustomerSet(context,scope==='saved_result'?String(params.set_id):undefined);
   // Only the report lines that could match are read; the full scan remains for rules that need every line.
-  const narrowed = rule.mode === 'all' ? {facts:[] as PurchaseFact[],evidenceCustomerIds:undefined}
-    : await loadProductSearchFacts(context.dataClient!,context.tenantId,cutoff,rule,snapshotStore(context));
+  const narrowed = rule.mode === 'all' ? {facts:[] as PurchaseFact[],evidenceCustomerIds:undefined,sourcePeriods:[]}
+    : await loadProductSearchFacts(context.dataClient!,context.tenantId,cutoff,rule,snapshotStore(context),previous?.included_ids);
   const facts = narrowed?.facts ?? await loadAnalysisFacts(context,cutoff);
   const set = explorePurchases({tenantId:context.tenantId,userId:context.userId,conversationId:context.conversationId,timezone:context.timezone,
     population,facts,rule,label:String(params.label??''),previous,now:cutoff,knownEvidence:narrowed?.evidenceCustomerIds});
@@ -151,6 +151,8 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
   return analysisResult({...result,
     rows:result.rows.map(row=>({...row,matched_reported_spend:matched.get(row.customer_id)?.amount??null,matched_quantity:matched.get(row.customer_id)?.quantity??null,currency:matched.get(row.customer_id)?.currency??null})),
     order:matched.size?'Largest matched spending first.':'Customer ID order.',
+    source_periods:narrowed?.sourcePeriods??[],
+    coverage_note:'These are matches in available records, not proof of complete period coverage. Disclose the actual report end date for YTD evidence; do not describe it as a complete calendar-year retention rate.',
     evidence_note:reportOnly?'Matches come from imported period sales reports (product totals per customer per report period), not dated receipts.':null},
     set.included_ids.length,typeof params.top_n==='number'
       ? `Search succeeded: ${(set.included_ids.length+set.excluded_ids.filter(id=>set.reasons[id]==='outside_top_n').length).toLocaleString('en-US')} customers bought it. The saved group is the top ${set.included_ids.length.toLocaleString('en-US')} by matched spending; follow-up questions about "these" use exactly those ${set.included_ids.length.toLocaleString('en-US')}. This is a complete answer, not an error.`
@@ -159,12 +161,14 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
 /** Plain result line. Customers with no records on file are normal for imported reports, not a failed lookup. */
 export function exploreMessage(mode: string, included: number, excluded: number, unknown: number): string {
   const n = (value: number) => value.toLocaleString('en-US');
+  if (included === 0 && excluded === 0 && unknown > 0)
+    return `The requested purchase count is unknown: all ${n(unknown)} customers lack evidence precise enough for this question. This is not zero purchases or proof that nobody bought. Annual report totals cannot establish monthly purchases.`;
   const lead = mode === 'not_purchased' ? `Search succeeded: ${n(included)} customers have purchase records and none match.`
     : mode === 'all' ? `Search succeeded: ${n(included)} customers selected.`
     : `Search succeeded: ${n(included)} customers bought it.`;
   if (mode === 'all') return lead;
   const other = mode === 'not_purchased' ? `${n(excluded)} did buy it.` : `${n(excluded)} have purchase records without it.`;
-  return `${lead} ${other} ${n(unknown)} have no purchase records on file, so they are counted separately. This is a complete answer, not an error.`;
+  return `${lead} ${other} ${n(unknown)} lack sufficient purchase evidence for this question, so they remain unknown and are counted separately. This is a complete answer, not an error.`;
 }
 export const inspectCustomerSet: ToolImplementation = async (params,context) => {
   if(params.list_audiences===true){
@@ -241,8 +245,23 @@ export const compareCustomerGrowthTool: ToolImplementation = async (params,conte
   const ids=set?.included_ids??customers.map(c=>c.id), client=context.dataClient!;
   if(params.evidence_basis==='reported_period') {
     const ledger=await loadReportLedger(client,context.tenantId,cutoff);
-    const selectPeriod=(start:unknown,end:unknown)=>{const matches=ledger.filter(row=>row.source_period_start===start&&row.source_period_end===end);if(matches.length!==1)throw new Error('This exact historical period is missing or has multiple retained snapshots. Select the source explicitly in Customer Intelligence reported spending.');return matches[0].id;};
-    const historicalImportIds=[selectPeriod(params.current_start,params.current_end),selectPeriod(params.baseline_start,params.baseline_end)];
+    // Use the globally selected current snapshot when repeated exports cover
+    // the same exact period. Never substitute YTD for a requested full year.
+    const active = currentSummaryImports(ledger);
+    const selectPeriod=(start:unknown,end:unknown)=>{
+      const current=active.filter(row=>row.source_period_start===start&&row.source_period_end===end);
+      if(current.length===1)return current[0].id;
+      const historical=ledger.filter(row=>row.source_period_start===start&&row.source_period_end===end);
+      return historical.length===1?historical[0].id:null;
+    };
+    const selected=[selectPeriod(params.current_start,params.current_end),selectPeriod(params.baseline_start,params.baseline_end)];
+    if(selected.some(id=>id===null)) return analysisResult({kind:'customer_reported_comparison',status:'unavailable',
+      requested_current:{start:params.current_start,end:params.current_end},requested_baseline:{start:params.baseline_start,end:params.baseline_end},
+      available_periods:active.map(row=>({import_id:row.id,start:row.source_period_start,end:row.source_period_end})),
+      rows:[],unknown_count:ids.length,
+      note:'Exact comparable source periods are unavailable. Missing coverage is unknown, not zero. Annual totals cannot establish monthly spending or an annual-versus-YTD growth rate. For repeat buyers, search purchases within the earlier saved audience instead of comparing spending.'},0,
+      'The requested spending comparison is unavailable because matching report periods are missing. No zero spending or retention rate was inferred.');
+    const historicalImportIds=selected as string[];
     const {facts}=await loadReportedEvidence(client,context.tenantId,cutoff,{historicalImportIds,customerIds:ids});
     const report=compareReportedPeriodSpend(facts,ids,context.tenantId,
       {start:String(params.current_start),end:String(params.current_end),currency:String(params.currency)},

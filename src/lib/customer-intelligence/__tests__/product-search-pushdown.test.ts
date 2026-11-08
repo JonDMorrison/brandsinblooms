@@ -149,8 +149,8 @@ describe('search result wording', () => {
   it('reads as a complete answer, not a failed lookup', async () => {
     const {exploreMessage} = await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
     const message = exploreMessage('purchased', 1828, 19791, 26315);
-    expect(message).toBe('Search succeeded: 1,828 customers bought it. 19,791 have purchase records without it. 26,315 have no purchase records on file, so they are counted separately. This is a complete answer, not an error.');
-    expect(message).not.toMatch(/unknown|require more data|could not/i);
+    expect(message).toBe('Search succeeded: 1,828 customers bought it. 19,791 have purchase records without it. 26,315 lack sufficient purchase evidence for this question, so they remain unknown and are counted separately. This is a complete answer, not an error.');
+    expect(message).not.toMatch(/require more data|could not/i);
   });
 });
 
@@ -252,4 +252,77 @@ describe('one-year queries exclude irrelevant report pages without losing histor
     expect(rpc).not.toHaveBeenCalledWith('bloom_summary_search_page',
       expect.objectContaining({p_import_id:'r2024'}));
   });
+});
+
+
+describe('saved customer follow-ups stay bounded without a product filter', () => {
+  function scopedClient() {
+    const calls: Array<{table:string;ids:string[]|null}> = [];
+    const client = {rpc:vi.fn(async()=>{throw Error('No full-company search expected');}),from:(table:string)=>{
+      let ids:string[]|null=null;
+      const q={select:()=>q,eq:()=>q,neq:()=>q,lte:()=>q,order:()=>q,
+        in:(column:string,value:string[])=>{if(column==='customer_id')ids=value;return q;},
+        range:async(from:number,to:number)=>{
+          calls.push({table,ids});
+          const data=table==='customer_intelligence_imports'?[report]:table==='customer_intelligence_source_events'?events.filter(row=>!ids||ids.includes(row.customer_id!)):[];
+          return {data:data.slice(from,to+1),error:null};
+        }};return q;
+    }} as unknown as PersistenceClient;
+    return {client,calls};
+  }
+  it('reads only saved IDs for an anything-bought follow-up, preserving exact full-scan results',async()=>{
+    const {client,calls}=scopedClient();
+    const ids=['buyer','nohistory','blank'];
+    const rule:PurchaseRule={mode:'purchased',start_date:'2025-01-01',end_date:'2025-12-31'};
+    const result=await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',rule,store,ids);
+    expect(result).not.toBeNull();
+    expect(result!.facts.every(row=>ids.includes(row.customer_id!))).toBe(true);
+    expect(result!.sourcePeriods).toEqual([{start:'2025-01-01',end:'2025-12-31'}]);
+    const full=run(rule,periodSummaryFacts(events.filter(row=>ids.includes(row.customer_id!)),T));
+    const bounded=run(rule,result!.facts,result!.evidenceCustomerIds);
+    expect(bounded.included_ids).toEqual(full.included_ids);
+    expect(bounded.unknown_ids).toEqual(full.unknown_ids);
+    expect(calls.filter(call=>['customer_purchase_line_items','customer_intelligence_source_events'].includes(call.table)).every(call=>call.ids?.join()===ids.join())).toBe(true);
+  });
+  it('batches 396 saved customers, never using a broad ID range',async()=>{
+    const {client,calls}=scopedClient();
+    const ids=Array.from({length:396},(_,i)=>`customer-${i}`);
+    await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',{mode:'purchased'},store,ids);
+    const reads=calls.filter(call=>call.table==='customer_intelligence_source_events');
+    expect(reads.map(call=>call.ids!.length)).toEqual([100,100,100,96]);
+    expect(reads.flatMap(call=>call.ids!)).toEqual(ids);
+  });
+  it('returns an empty saved group without reading company evidence',async()=>{
+    const {client,calls}=scopedClient();
+    expect(await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',{mode:'purchased'},store,[])).toEqual({facts:[],evidenceCustomerIds:new Set()});
+    expect(calls).toEqual([]);
+  });
+  it('keeps all 396 customers unknown for a monthly question backed only by annual summaries',async()=>{
+    const {exploreMessage}=await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const rule:PurchaseRule={mode:'purchased',start_date:'2025-11-01',end_date:'2025-11-30'};
+    const rows=Array.from({length:396},(_,i)=>event(`e${i}`,`c${i}`,[['P','Pot','Pots',1,10,1]]));
+    const result=explorePurchases({tenantId:T,userId:'u',conversationId:'c',timezone:'UTC',population:rows.map(row=>row.customer_id!),facts:periodSummaryFacts(rows,T),rule,label:'November',now:'2026-11-03T00:00:00Z'});
+    expect(result.included_ids).toHaveLength(0);expect(result.unknown_ids).toHaveLength(396);
+    expect(exploreMessage('purchased',0,0,396)).toContain('purchase count is unknown');
+    expect(exploreMessage('purchased',0,0,396)).not.toContain('0 customers bought');
+  });
+});
+
+
+it('passes actual YTD coverage through the saved-audience tool result',async()=>{
+ const {exploreCustomerPurchases}=await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+ const ytd={...report,id:'ytd',source_period_start:'2026-01-01',source_period_end:'2026-10-14'};
+ const row={...events[0],import_id:'ytd',raw_data:{...(events[0].raw_data as object),period_start:ytd.source_period_start,period_end:ytd.source_period_end}};
+ const saved={version:1,id:'saved',tenant_id:T,user_id:'u',conversation_id:'c',included_ids:['buyer'],excluded_ids:[],unknown_ids:[],reasons:{buyer:'matching_purchase'},evidence_ids:{},anchors:{},trail:[]};
+ const client={rpc:vi.fn(async(name:string)=>({data:name==='customer_intelligence_summary_fingerprint'?'fp':true,error:null})),from:(table:string)=>{
+  let ids:string[]|undefined;
+  const q={select:()=>q,eq:()=>q,neq:()=>q,is:()=>q,lte:()=>q,order:()=>q,limit:()=>q,
+   in:(_column:string,value:string[])=>{ids=value;return q;},
+   range:async()=>({data:table==='customer_intelligence_imports'?[ytd]:table==='crm_customers'?[{id:'buyer',first_name:'Buyer'}]:table==='customer_intelligence_source_events'&&ids?.includes('buyer')?[row]:[],error:null}),
+   maybeSingle:async()=>({data:table==='bloom_customer_sets'?{id:'saved',payload:saved}:table==='customer_intelligence_verified_summaries'?{fingerprint:'fp'}:{id:'c'},error:null}),
+   insert:async()=>({error:null})};return q;
+ }};
+ const result=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',start_date:'2026-01-01',end_date:'2026-12-31'},label:'Bought again'}, {tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext);
+ expect(result.data).toMatchObject({parent_id:'saved',included_count:1,source_periods:[{start:'2026-01-01',end:'2026-10-14'}]});
+ expect((result.data as {coverage_note:string}).coverage_note).toContain('actual report end date');
 });

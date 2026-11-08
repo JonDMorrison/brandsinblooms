@@ -1,11 +1,12 @@
 import {describe,it,expect,vi} from 'vitest';
 import {compareCustomerGrowthTool,saveCustomerSetSegment,inspectCustomerSet} from '../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration';
 import type {ToolExecutionContext} from '../../../../supabase/functions/bloom-assist/tools/types';
-function fixture(approved=false){
+function fixture(approved=false,duplicate=false){
  const calls:unknown[][]=[];
  const saved={version:1,id:'set',tenant_id:'tenant',user_id:'user',conversation_id:'conversation',captured_at:'2026-01-03T00:00:00Z',timezone:'UTC',included_ids:['buyer'],excluded_ids:[],unknown_ids:['unknown'],reasons:{buyer:'matching_purchase',unknown:'no_purchase_history'},evidence_ids:{buyer:['event']},anchors:{},trail:[{set_id:'set',label:'Pottery',rule:{mode:'purchased',product:'Pottery'}}]};
  const customers=['buyer','unknown'].map(id=>({id,first_name:id,last_name:null,email:null}));
  const imports=[2025,2024].map(year=>({id:`i${year}`,tenant_id:'tenant',status:'completed',source_sha256:`hash${year}`,created_at:'2026-01-01T00:00:00Z',completed_at:'2026-01-02T00:00:00Z',source:'ideal',source_period_start:`${year}-01-01`,source_period_end:`${year}-12-31`}));
+ if(duplicate)imports.push({...imports[0],id:'retained-older-2025'});
  const events=imports.map((r,i)=>({id:r.id,tenant_id:'tenant',customer_id:'buyer',import_id:r.id,source:'ideal',created_at:'2026-01-01T00:00:00Z',raw_data:{source_sha256:r.source_sha256,kind:'purchase_summary',currency:'CAD',period_start:r.source_period_start,period_end:r.source_period_end,items:[['P','Pottery','Pots',1,i===0?125:100,1]]}}));
  const rpc=vi.fn(async(name:string,args:unknown)=>{calls.push(['rpc',name,args]);return {data:name==='save_bloom_analytical_audience'?{id:'audience',mode:'fixed'}:name==='bloom_live_customer_ids'?customers.map(c=>c.id):true,error:null};});
  const client={rpc,from:(table:string)=>{calls.push(['from',table]);const data=table==='crm_customers'?customers:table==='customer_intelligence_imports'?imports:table==='customer_intelligence_source_events'?events:[];
@@ -21,4 +22,15 @@ describe('integrated analytical tools',()=>{
  it('lists saved audiences without loading customer records',async()=>{const f=fixture();const r=await inspectCustomerSet({list_audiences:true},f.context);expect(r.data).toMatchObject({kind:'customer_audiences'});expect(f.calls).toContainEqual(['bloom_analytical_audiences','eq','user_id','user']);expect(f.calls).not.toContainEqual(['from','crm_customers']);});
  it('keeps the excluded bucket distinct from included membership',async()=>{const f=fixture();const r=await inspectCustomerSet({audience_id:'audience',bucket:'excluded'},f.context);expect(r.count).toBe(0);expect(r.data).toMatchObject({bucket:'excluded',rows:[]});});
  it('rejects cross-tenant context before reading source data',async()=>{const f=fixture();f.context.authenticatedTenantId='other';await expect(inspectCustomerSet({audience_id:'audience'},f.context)).rejects.toThrow('company-scoped');expect(f.calls).toEqual([]);});
+});
+
+it('reports unavailable exact-year coverage as unknown instead of an execution error or fabricated zero',async()=>{
+ const f=fixture();const result=await compareCustomerGrowthTool({scope:'all_customers',evidence_basis:'reported_period',current_start:'2026-01-01',current_end:'2026-12-31',baseline_start:'2025-01-01',baseline_end:'2025-12-31',currency:'CAD'},f.context);
+ expect(result.success).toBe(true);expect(result.data).toMatchObject({status:'unavailable',unknown_count:2,rows:[],available_periods:[{start:'2025-01-01',end:'2025-12-31'},{start:'2024-01-01',end:'2024-12-31'}]});
+ expect(f.calls).not.toContainEqual(['from','customer_intelligence_source_events']);
+});
+
+it('uses the active exact-period snapshot when an older identical-period export was retained',async()=>{
+ const f=fixture(false,true);const result=await compareCustomerGrowthTool({scope:'all_customers',evidence_basis:'reported_period',current_start:'2025-01-01',current_end:'2025-12-31',baseline_start:'2024-01-01',baseline_end:'2024-12-31',currency:'CAD'},f.context);
+ expect(result.success).toBe(true);expect(result.data).toMatchObject({rows:[{customer_id:'buyer',spend_change_percent:25},{customer_id:'unknown',spend_change_percent:null}]});
 });
