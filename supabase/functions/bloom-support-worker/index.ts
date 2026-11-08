@@ -12,7 +12,8 @@ import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
-import { postSlackSupportNotification } from "../_shared/bloom-support/slack.ts";
+import { postSlackInternalText, postSlackSupportNotification } from "../_shared/bloom-support/slack.ts";
+import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
   type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
   renderDigestEmail, renderEscalationEmail, renderStaffNotification, resolutionAlreadyTold, type StaffTicket, ticketThreadRoot,
@@ -713,11 +714,29 @@ async function previewEmails(job: Job): Promise<string> {
 async function notifyEmail(job: Job): Promise<string> {
   // Existing, leased support job queue. No second poller or scheduled agent.
   // Slack delivery cannot block customer intake; retry/failure stays in this job.
+  if (job.payload.slack_question === true) {
+    const question = String(job.payload.question ?? "").slice(0, 500);
+    if (question.length < 3) return "skipped: question is empty";
+    const articles = await rpc<Array<{id:string;title:string;body:string;rank:number}>>(
+      "search_knowledge", { product: null, q: question, limit: 2 }
+    );
+    const first = articles[0];
+    const safeTitle = String(first?.title ?? "").replace(/[<>@&\r\n]/g," ").trim().slice(0,120);
+    const safeBody = String(first?.body ?? "").replace(/[<>@&]/g," ").replace(/\s+/g," ").trim().slice(0,700);
+    const answer = first && safeTitle && safeBody
+      ? `*Approved help: ${safeTitle}*\n${safeBody}\n<https://bloomsuite.app/knowledge-base|Browse help articles> · <https://bloomsuite.app/support|Request help>`
+      : "I can't find a verified answer in our approved help articles. <https://bloomsuite.app/support|Open a support request> and our team can investigate.";
+    return await postSlackInternalText("ask", answer, job.id, String(job.payload.thread_ts ?? ""));
+  }
+  if (job.payload.finance_daily === true) {
+    return await postSlackInternalText("finance", await stripeDailyPayoutBrief(), job.id);
+  }
   if (job.payload.slack === true) {
     return await postSlackSupportNotification({
       kind: String(job.payload.kind ?? ""),
       ticketId: job.ticket_id,
       jobId: job.id,
+      githubUrl: typeof job.payload.github_url === "string" ? job.payload.github_url : undefined,
     });
   }
   if (job.payload.preview === true) return await previewEmails(job);
