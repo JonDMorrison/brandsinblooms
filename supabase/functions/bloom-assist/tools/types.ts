@@ -258,7 +258,8 @@ export type ToolName =
   | "report_support_problem"
   | "check_support_request"
   | "run_self_diagnostics"
-  | "read_suite_data";
+  | "read_suite_data"
+  | "verify_bloomsites_integrations";
 
 export type ToolDefinition = OpenAIToolDefinition & {
   function: OpenAIToolDefinition["function"] & {
