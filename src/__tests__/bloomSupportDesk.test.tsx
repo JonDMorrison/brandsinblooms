@@ -94,3 +94,71 @@ describe("Bloom is handling wording", () => {
     expect(bloomNextStep({ status: "working", next_action: "  " })).toBe("Bloom is working out the next step.");
   });
 });
+
+import { capabilityState, friendlyName, runningState, summarizeCapabilities, type Capability } from "@/components/bloomSupport/desk/systemStatus";
+
+describe("System status", () => {
+  const cap = (key: string, extra: Partial<Capability> = {}): Capability => ({ key, label: `raw ${key}`, implemented: true, configured: true, missing: [], tested: "e2e", enabled: true, live: null, ...extra });
+  it("classifies each capability without technical wording", () => {
+    expect(capabilityState(cap("desk"))).toBe("ready");
+    expect(capabilityState(cap("intake_cms", { configured: false, missing: ["SECRET_NAME"] }))).toBe("needs_setup");
+    expect(capabilityState(cap("release", { enabled: false }))).toBe("off");
+    expect(friendlyName(cap("intake_cms"))).toBe("Help from BloomSites");
+    expect(friendlyName(cap("brand_new"))).toBe("raw brand_new");
+  });
+  it("counts ready, needing setup and recently seen, and groups by area", () => {
+    const s = summarizeCapabilities([
+      cap("desk", { live: "2026-11-08T00:00:00Z" }), cap("intake_cms", { configured: false }),
+      cap("worker", { live: "2026-11-08T00:00:00Z" }), cap("release", { enabled: false }),
+      cap("ops_cms", { configured: false }), cap("chatgpt"), cap("brand_new"),
+    ]);
+    expect([s.ready, s.needsSetup, s.observed]).toEqual([4, 2, 2]);
+    expect(s.attention.map((c) => c.key)).toEqual(["intake_cms", "ops_cms"]);
+    expect(s.groups.map((g) => [g.label, g.items.length, g.ready])).toEqual([
+      ["Customer support", 2, 1], ["Bloom automation", 2, 1], ["Product tools", 1, 0], ["Other services", 2, 2],
+    ]);
+  });
+  it("reports Bloom's running state honestly", () => {
+    expect(runningState("running").title).toBe("Bloom is running");
+    expect(runningState("paused").title).toBe("Bloom is paused");
+    expect(runningState("enabled but worker not seen in 15 min").title).toBe("Bloom needs attention");
+  });
+});
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { bloomSupport } from "@/lib/bloomSupport/api";
+import { SystemStatusPanel } from "@/components/bloomSupport/desk/SystemStatusPanel";
+
+describe("System status panel", () => {
+  const readiness = {
+    generated_at: new Date().toISOString(), live_evidence: "Evidence note.",
+    summary: { continuous_automation: "running", owners_configured: true, worker: {}, open_alerts: [], staff: [] },
+    capabilities: [
+      { key: "desk", label: "Support desk (works without AI)", implemented: true, configured: true, missing: [], tested: "SQL", enabled: true, live: null },
+      { key: "intake_cms", label: "BloomSites Get help", implemented: true, configured: false, missing: ["BLOOM_INTAKE_SECRET_CMS"], tested: "e2e", enabled: true, live: null },
+    ],
+  };
+  const renderPanel = (permissions: string[]) => {
+    vi.spyOn(bloomSupport, "readiness").mockResolvedValue(readiness as Awaited<ReturnType<typeof bloomSupport.readiness>>);
+    vi.spyOn(bloomSupport, "settings").mockResolvedValue({});
+    const me = { id: "p", permissions } as unknown as Parameters<typeof SystemStatusPanel>[0]["me"];
+    return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><SystemStatusPanel me={me} /></QueryClientProvider>);
+  };
+  it("leads with plain status and hides configuration names from operators", async () => {
+    const { container, unmount } = renderPanel(["tickets.read_all"]);
+    expect(await screen.findByText("Bloom is running")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Needs setting up" })).toHaveTextContent("Help from BloomSites");
+    expect(container).not.toHaveTextContent("BLOOM_INTAKE_SECRET_CMS");
+    expect(container).not.toHaveTextContent("Show technical evidence");
+    expect(container.querySelector("table")).toBeNull();
+    unmount();
+  });
+  it("gives automation managers the technical evidence, collapsed", async () => {
+    const { container, unmount } = renderPanel(["tickets.read_all", "automation.control"]);
+    expect(await screen.findByText("Show technical evidence")).toBeInTheDocument();
+    const details = Array.from(container.querySelectorAll("details")).find((d) => d.textContent?.includes("Show technical evidence"))!;
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("BLOOM_INTAKE_SECRET_CMS");
+    unmount();
+  });
+});
