@@ -3,7 +3,7 @@ import { explainSupportEvent, explainGithubMilestone, githubMilestoneFromKind } 
 Deno.test("GitHub messages explicitly separate merge, deploy and verified customer outcome", () => {
   const merged = explainGithubMilestone("pr_merged");
   assertStringIncludes(merged.whatItMeans, "still checking it");
-  assertStringIncludes(merged.nextStep, "test");
+  assertStringIncludes(merged.nextStep, "checked");
   const deployed = explainGithubMilestone("deployment_succeeded");
   assertStringIncludes(deployed.whatItMeans, "haven\u0027t checked the full customer experience yet");
   assertEquals(githubMilestoneFromKind("github.checks_failed"), "checks_failed");
