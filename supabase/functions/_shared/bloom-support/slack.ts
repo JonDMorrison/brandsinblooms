@@ -72,6 +72,18 @@ export function slackSafeMessage(
       whatItMeans: "The finance reporting system recorded a payout update.",
       nextStep: "Review the official amounts and payout status in Stripe.",
     } : explainSupportEvent(kind);
+  if (milestone) {
+    // Ordinary release milestones can be understood without opening GitHub.
+    // Show a source link only when a problem actually needs the team's help.
+    const lines = [
+      "*" + state.headline + "*",
+      state.whatItMeans,
+      "*What happens next:* " + state.nextStep,
+    ];
+    if (state.requiresAttention && source)
+      lines.push("<" + source + "|Details for the team>");
+    return lines.join("\n");
+  }
   const base = "https://bloomsuite.app/support";
   const link = ticketId && /^[0-9a-f-]{36}$/i.test(ticketId) ? `${base}?ticket=${ticketId}` : base;
   const actionLink = route === "projects" || route === "clients"
