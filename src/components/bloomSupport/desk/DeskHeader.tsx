@@ -2,7 +2,7 @@ import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Button from "@mui/joy/Button";
-import { AlertTriangle, CirclePause, Plus, ShieldAlert, UserRound } from "lucide-react";
+import { AlertTriangle, CirclePause, Plus, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { bloomState, deskAlerts, type DeskAlert, type DeskAlertKind, type DeskAlertTarget, type DeskSummary } from "./deskModel";
 
@@ -10,7 +10,6 @@ const ALERT_ICON: Record<DeskAlertKind, ReactNode> = {
   paused: <CirclePause size={18} aria-hidden />,
   failed: <AlertTriangle size={18} aria-hidden />,
   urgent: <ShieldAlert size={18} aria-hidden />,
-  admin: <UserRound size={18} aria-hidden />,
 };
 
 export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAlert }: {
