@@ -8,7 +8,8 @@ const STATUS_COLOR: Record<SupportStatus, ChipColor> = {
   new: "primary",
   working: "neutral",
   waiting: "warning",
-  needs_owner: "danger",
+  // Calm desk: work that needs an admin is amber, never alarm red.
+  needs_owner: "warning",
   resolved: "success",
 };
 
@@ -33,9 +34,10 @@ export function StatusChip({ status, audience = "staff" }: { status: TicketStatu
   return <Chip size="sm" variant="soft" color={STATUS_COLOR[s]}>{STATUS_LABEL[s] ?? s}</Chip>;
 }
 
+/** Only urgent and high are worth a chip. Soft colours keep the desk calm. */
 export function PriorityChip({ priority }: { priority: string }) {
   if (priority === "normal" || priority === "low") return null;
-  return <Chip size="sm" variant="solid" color={priority === "urgent" ? "danger" : "warning"}>{priority}</Chip>;
+  return <Chip size="sm" variant="soft" color={priority === "urgent" ? "warning" : "neutral"}>{priority === "urgent" ? "Urgent" : "High priority"}</Chip>;
 }
 
 export function AutomationChip({ mode }: { mode: "auto" | "paused" | "human" }) {
