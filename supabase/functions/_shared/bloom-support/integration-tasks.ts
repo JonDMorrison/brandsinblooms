@@ -5,7 +5,7 @@
  */
 import { BloomError, type Caller, rpc } from "./runtime.ts";
 import { runRead } from "./operations.ts";
-import { formatIntegrationEvidence } from "./integration-diagnostics.ts";
+import { formatIntegrationEvidence, formatProviderEvidence } from "./integration-diagnostics.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const THREAD = /^\d{10}\.\d{6}$/;
@@ -13,6 +13,7 @@ export type TaskSource =
   | { channel: "slack"; requestId: string; threadTs: string }
   | { channel: "dashboard"; requestId: string };
 
+export type IntegrationTaskKind = "site.integration_health" | "site.provider_health";
 export interface IntegrationTaskResult {
   ticket_id: string;
   number: number;
@@ -28,7 +29,7 @@ export function supportTaskUrl(ticketId: string): string {
 }
 
 /** Stored context is bounded and can be read by authorized staff in both UIs. */
-export function taskContext(source: TaskSource, evidence: Record<string, unknown>): Record<string, unknown> {
+export function taskContext(source: TaskSource, evidence: Record<string, unknown>, kind: IntegrationTaskKind = "site.integration_health"): Record<string, unknown> {
   if (!UUID.test(source.requestId)) throw new BloomError(400, "invalid", "Invalid operation request");
   if (source.channel === "slack" && !THREAD.test(source.threadTs)) {
     throw new BloomError(400, "invalid", "Invalid Slack message reference");
@@ -38,7 +39,7 @@ export function taskContext(source: TaskSource, evidence: Record<string, unknown
     throw new BloomError(502, "invalid_evidence", "Unrecognized integration health result");
   return {
     bloom_task: {
-      kind: "integration_health",
+      kind: kind === "site.provider_health" ? "provider_health" : "integration_health",
       source: source.channel,
       // The channel is constant and only ever #bloom-projects. We do not
       // accept a client-supplied Slack channel ID.
@@ -63,25 +64,33 @@ const safeName = (value: unknown): string =>
  */
 export async function startIntegrationTask(
   caller: Caller,
-  input: { accountId: string; siteId?: string; source: TaskSource },
+  input: { accountId: string; siteId?: string; source: TaskSource; kind?: IntegrationTaskKind; provider?: "heartland" | "shipstation" | "both" },
 ): Promise<IntegrationTaskResult> {
   if (!UUID.test(input.accountId)) throw new BloomError(400, "invalid", "Select an existing client");
   const contextSource = input.source;
+  const kind = input.kind ?? "site.integration_health";
+  if (kind !== "site.integration_health" && kind !== "site.provider_health")
+    throw new BloomError(400, "invalid", "Unknown diagnostic operation");
+  if (kind === "site.provider_health" && !["heartland", "shipstation", "both"].includes(input.provider ?? ""))
+    throw new BloomError(400, "invalid", "Select a supported provider");
   // Validate the idempotency and Slack thread reference before any remote read.
-  taskContext(contextSource, { assessment: "not_fully_verified" });
+  taskContext(contextSource, { assessment: "not_fully_verified" }, kind);
   const evidence = await runRead(caller, {
-    kind: "site.integration_health",
+    kind,
     account_id: input.accountId,
-    inputs: input.siteId ? { site_id: input.siteId } : {},
+    inputs: {
+      ...(input.siteId ? {site_id:input.siteId} : {}),
+      ...(kind === "site.provider_health" ? {provider:input.provider} : {}),
+    },
   }) as Record<string, unknown>;
-  const details = taskContext(contextSource, evidence);
+  const details = taskContext(contextSource, evidence, kind);
   const account = await rpc<{id:string;name:string}>("get_account", {
     actor: caller.principalId, account_id: input.accountId,
   });
   if (!account || account.id !== input.accountId)
     throw new BloomError(403, "forbidden", "Cannot access that client");
   const name = safeName(account.name);
-  const summary = formatIntegrationEvidence(name, evidence);
+  const summary = kind === "site.provider_health" ? formatProviderEvidence(name,evidence) : formatIntegrationEvidence(name,evidence);
   const noteBody = summary.replace(/<https?:\/\/[^|>]+\|([^>]+)>/g, "$1").slice(0, 2000);
   const taskMeta = details.bloom_task as Record<string, unknown>;
   // Preserve the original bounded evidence so a retry can restore the
@@ -96,7 +105,7 @@ export async function startIntegrationTask(
       kind_hint: evidence.assessment === "needs_attention" ? "bug" : "question",
       priority_hint: "normal",
       subject: `Integration investigation: ${name}`,
-      body: "Review CounterPoint and Open Plant Data integration evidence. Confirm the customer workflow before resolving. Repairs require separate authorized review.",
+      body: kind === "site.provider_health" ? "Review Heartland and ShipStation integration evidence. Confirm real product and order workflows before resolving. Repairs require separate authorized review." : "Review CounterPoint and Open Plant Data integration evidence. Confirm the customer workflow before resolving. Repairs require separate authorized review.",
       account_id: account.id,
       context: details,
       automation: "paused",
@@ -113,7 +122,7 @@ export async function startIntegrationTask(
     }) : null;
   const meta = ((canonical?.context as Record<string, unknown> | undefined)?.bloom_task ?? null) as Record<string, unknown> | null;
   const stableNote = result.duplicate_delivery === true &&
-    meta?.kind === "integration_health" && typeof meta.brief === "string" &&
+    (meta?.kind === "integration_health" || meta?.kind === "provider_health") && typeof meta.brief === "string" &&
     meta.brief.length > 0 && meta.brief.length <= 2000 ? meta.brief : noteBody;
   await rpc("add_message", {
     actor: caller.principalId,
@@ -140,7 +149,7 @@ export function taskStatusText(value: unknown): string | null {
     ? ticket.context as Record<string, unknown> : {};
   const task = context.bloom_task && typeof context.bloom_task === "object"
     ? context.bloom_task as Record<string, unknown> : {};
-  if (task.kind !== "integration_health" || typeof ticket.id !== "string" || !UUID.test(ticket.id)) return null;
+  if (!["integration_health","provider_health"].includes(String(task.kind)) || typeof ticket.id !== "string" || !UUID.test(ticket.id)) return null;
   const number = typeof ticket.number === "number" && Number.isSafeInteger(ticket.number)
     ? ticket.number : null;
   const status = String(ticket.status ?? "");
@@ -170,6 +179,6 @@ export function taskThreadFromTicket(value: unknown): string | null {
     ? ticket.context as Record<string, unknown> : {};
   const task = context.bloom_task && typeof context.bloom_task === "object"
     ? context.bloom_task as Record<string, unknown> : {};
-  return task.kind === "integration_health" && task.source === "slack" &&
+  return ["integration_health","provider_health"].includes(String(task.kind)) && task.source === "slack" &&
     typeof task.thread_ts === "string" && THREAD.test(task.thread_ts) ? task.thread_ts : null;
 }
