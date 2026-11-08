@@ -51,7 +51,8 @@ export function plainPrompt(ctx: EscalationContext): string {
   ].filter(Boolean).join("\n");
 }
 
-const TECHNICAL = /[\\/`{}<>=_]|\.(tsx?|jsx?|sql|json|md|ya?ml)\b|::|\b(test|tests|jest|vitest|deno|regression|migration|migrations|schema|repo|repository|commit|PR|SQL|API|RPC|stack trace|null|undefined)\b/i;
+// Plain words like "test" or "search" are fine ("what to test next"); developer terms are not.
+const TECHNICAL = /[\\/`{}<>=_]|\.(tsx?|jsx?|sql|json|md|ya?ml)\b|::|\b(unit tests?|test files?|regression tests?|test suites?|jest|vitest|deno|regression|migrations?|schema|repo|repository|commits?|PR|SQL|API|RPC|stack trace|null|undefined)\b/i;
 
 function cleanField(value: unknown, max = 220): string | null {
   if (typeof value !== "string") return null;
