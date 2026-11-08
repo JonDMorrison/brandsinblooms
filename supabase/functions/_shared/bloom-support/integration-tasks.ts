@@ -145,6 +145,15 @@ export function taskStatusText(value: unknown): string | null {
   return `*Bloom investigation${number === null ? "" : " #" + number}*\n*Status:* ${label}\n*Customer workflow:* Not verified by this status alone.\n<${link}|Open the same task in Bloom Support>`;
 }
 
+/** Follow-up requests retrieve the canonical Support ticket, not a Slack copy. */
+export function taskNumberFromQuestion(question: unknown): number | null {
+  if (typeof question !== "string" || question.length > 500) return null;
+  const match = /\b(?:status|progress|update)\s+(?:(?:of|for|on)\s+)?(?:task|ticket|investigation)\s*#?(\d{1,8})\b/i.exec(question) ??
+    /\b(?:task|ticket|investigation)\s*#?(\d{1,8})\s+(?:status|progress|update)\b/i.exec(question);
+  const number = Number(match?.[1]);
+  return match && Number.isSafeInteger(number) && number > 0 ? number : null;
+}
+
 export function taskThreadFromTicket(value: unknown): string | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const ticket = value as Record<string, unknown>;
