@@ -24,3 +24,14 @@ Deno.test("Slack notification never echoes private client data or incoming text"
   assertEquals(msg.includes("@"), false);
   assertEquals(msg.includes("Customer"), false);
 });
+
+Deno.test("Major Project links open the selected record without accepting arbitrary URLs", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const message = slackSafeMessage("major_project.accepted", null, undefined, projectId);
+  assertStringIncludes(message, "?project=" + projectId);
+  assertEquals(message.includes("https://evil.example"), false);
+  const invalid = slackSafeMessage("major_project.onboarding", null, undefined, "https://evil.example");
+  assertEquals(invalid.includes("?project="), false);
+  assertEquals(slackRoute("major_project.accepted"), "clients");
+  assertEquals(slackRoute("major_project.stage_changed"), "projects");
+});
