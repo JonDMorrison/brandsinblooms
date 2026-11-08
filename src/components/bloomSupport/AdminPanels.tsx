@@ -248,6 +248,7 @@ const OPERATION_INFO: Record<string, { label: string; help: string; template?: R
   "campaign.unschedule": { label: "Cancel a scheduled campaign", help: "Stops a scheduled send. Can be undone.", template: { campaign_id: "" } },
   "site.read": { label: "See the client's website", help: "Basic details of their website." },
   "site.integration_health": { label: "Verify CounterPoint and Open Plant Data", help: "Read-only check of connection health, latest sync activity and OPD link counts. Never claims a customer workflow works without a test." },
+  "site.provider_health": { label: "Verify Heartland and ShipStation", help: "Read-only check of recent Heartland syncs and ShipStation order events. Provider credentials and customer order data stay private.", template: {provider:"both"} },
   "site.pages": { label: "List website pages", help: "Every page on their website." },
   "site.create_draft": { label: "Create a draft website", help: "Starts a draft site. Nothing goes live." },
   "site.page.update": { label: "Edit a website page", help: "Changes a page. Can be undone." },
@@ -308,10 +309,13 @@ export function OperationsPanel() {
   const [output, setOutput] = useState<unknown>(null);
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
   const [task, setTask] = useState<{ticket_id:string;number:number} | null>(null);
+  const [integrationScope, setIntegrationScope] = useState<"catalogue" | "fulfillment">("catalogue");
   const { run, error, pending } = useAction();
   const isRead = catalog.data?.reads.some((r) => r.kind === kind);
   const parsed = () => { try { return JSON.parse(inputs || "{}"); } catch { throw new Error("The details box isn't filled in correctly. Keep the quotes and braces as shown."); } };
   const accountId = client?.id ?? "";
+  const integrationKind = integrationScope === "fulfillment" ? "site.provider_health" : "site.integration_health";
+  const integrationInputs = integrationScope === "fulfillment" ? {provider:"both"} : {};
   const recentTasks = useQuery({
     queryKey: ["bloom-support","integration-tasks",accountId],
     queryFn: () => bloomSupport.listTickets({ account_id: accountId, q: "Integration investigation", view: "open" }),
@@ -334,22 +338,32 @@ export function OperationsPanel() {
             <Sheet variant="soft" sx={{ p: 2, borderRadius: "md" }}>
               <Stack spacing={1}>
                 <Typography level="title-sm">Check this client's integrations</Typography>
-                <Typography level="body-sm">Bloom will review CounterPoint and Open Plant Data status without changing anything.</Typography>
+                <Typography level="body-sm">Bloom checks the selected integration records without changing the client account.</Typography>
+                <Select size="sm" value={integrationScope} onChange={(_, next) => {
+                  if (next === "catalogue" || next === "fulfillment") {
+                    setIntegrationScope(next); setOutput(null); setTask(null);
+                  }
+                }}>
+                  <Option value="catalogue">CounterPoint + Open Plant Data</Option>
+                  <Option value="fulfillment">Heartland + ShipStation</Option>
+                </Select>
                 <Button variant="solid" color="neutral" loading={pending} disabled={!accountId || pending} sx={{ alignSelf: "flex-start", borderRadius: "xl" }}
                   onClick={() => run(async () => {
-                    setKind("site.integration_health");
-                    setInputs("{}");
+                    setKind(integrationKind);
+                    setInputs(JSON.stringify(integrationInputs));
                     setPreview(null);
-                    setOutput(await bloomSupport.readOperation({ kind: "site.integration_health", account_id: accountId, inputs: {} }));
+                    setOutput(await bloomSupport.readOperation({ kind: integrationKind, account_id: accountId, inputs: integrationInputs }));
                   })}>Verify integrations</Button>
                 <Button variant="outlined" color="neutral" loading={pending} disabled={!accountId || pending || Boolean(task)}
                   sx={{ alignSelf:"flex-start", borderRadius:"xl" }}
                   onClick={() => run(async () => {
                     const result = await bloomSupport.startIntegrationTask({
                       account_id: accountId, idempotency_key: crypto.randomUUID(),
+                      kind: integrationKind,
+                      ...(integrationScope === "fulfillment" ? {provider:"both" as const} : {}),
                     });
-                    setKind("site.integration_health");
-                    setInputs("{}"); setPreview(null);
+                    setKind(integrationKind);
+                    setInputs(JSON.stringify(integrationInputs)); setPreview(null);
                     setOutput(result.evidence); setTask({ticket_id:result.ticket_id,number:result.number});
                   })}>Record an investigation</Button>
                 <Typography level="body-xs" textColor="text.tertiary">Creates one internal support task with evidence. Bloom cannot repair or contact the client without the separate approval process.</Typography>
@@ -407,7 +421,7 @@ export function OperationsPanel() {
       {output !== null && (
         <Sheet variant="soft" sx={{ p: 2, borderRadius: "lg", overflow: "auto", maxHeight: 520 }}>
           <Typography level="title-sm" sx={{ mb: 1 }}>{preview && String(preview.status) === "previewed" ? "This is what will change" : "Result"}</Typography>
-          {kind === "site.integration_health" ? <IntegrationHealthSummary value={output} /> : <ReadableData value={output} />}
+          {kind === "site.integration_health" ? <IntegrationHealthSummary value={output} /> : kind === "site.provider_health" ? <ProviderHealthSummary value={output} /> : <ReadableData value={output} />}
         </Sheet>
       )}
     </Stack>
