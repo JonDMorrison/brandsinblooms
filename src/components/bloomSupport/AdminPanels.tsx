@@ -479,63 +479,6 @@ export function SettingsPanel({ me }: { me: Whoami }) {
   );
 }
 
-export function ReadinessPanel() {
-  const q = useQuery({ queryKey: ["bloom-support", "readiness"], queryFn: () => bloomSupport.readiness(), refetchInterval: 60_000 });
-  const settings = useQuery({ queryKey: ["bloom-support", "settings"], queryFn: () => bloomSupport.settings() });
-  const { run, error } = useAction();
-  const { ask, dialog } = useAskDialog();
-  if (q.isLoading) return <Loading />;
-  if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
-  const r = q.data!;
-  const ai = (settings.data?.ai ?? {}) as { model?: string; max_calls_per_account_per_day?: number };
-  const tick = (v: boolean | null) => (v === null ? "—" : v ? "yes" : "no");
-  return (
-    <Stack spacing={1.5}>
-      {dialog}
-      {error && <Alert color="danger">{error}</Alert>}
-      <Alert color={r.summary.continuous_automation === "running" ? "success" : "warning"} variant="soft">
-        Bloom's background work is <strong>{r.summary.continuous_automation === "running" ? "running" : labelFor(String(r.summary.continuous_automation)).toLowerCase()}</strong>. It runs on its own schedule; ChatGPT connections are only for people asking Bloom things.
-      </Alert>
-      <Typography level="body-xs" textColor="text.tertiary">
-        {r.live_evidence ?? "Last observed success is real production evidence, not a deployment or health check. No recent evidence means no successful use was observed within that capability's window."}
-      </Typography>
-      <Sheet variant="outlined" sx={{ borderRadius: "md", overflow: "auto" }}>
-        <Table size="sm">
-          <thead><tr><th style={{ width: "26%" }}>What Bloom can do</th><th>Built</th><th>Set up</th><th>Switched on</th><th>Last observed success</th><th style={{ width: "28%" }}>Checked / still needed</th></tr></thead>
-          <tbody>
-            {r.capabilities.map((c) => (
-              <tr key={c.key}>
-                <td><Typography level="body-sm">{c.label}</Typography>{c.note ? <Typography level="body-xs" textColor="text.tertiary">{c.note}</Typography> : null}</td>
-                <td>{tick(c.implemented)}</td>
-                <td><Chip size="sm" variant="soft" color={c.configured ? "success" : "warning"}>{tick(c.configured)}</Chip></td>
-                <td>{tick(c.enabled)}</td>
-                <td><Typography level="body-xs">{c.live ? ago(c.live) : "No recent evidence"}</Typography></td>
-                <td><Typography level="body-xs">{c.tested}</Typography>{c.missing.length ? <Typography level="body-xs" color="warning">Missing: {c.missing.join(", ")}</Typography> : null}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Sheet>
-      <Sheet variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
-        <Typography level="title-sm">Model (OpenAI API, billed to the API account — not a ChatGPT subscription)</Typography>
-        <Stack direction="row" spacing={1} sx={{ mt: 1 }} alignItems="center">
-          <Typography level="body-sm">Current: {ai.model ?? "gpt-4o-mini"} · {ai.max_calls_per_account_per_day ?? 200} calls/client/day</Typography>
-          <Button size="sm" variant="outlined" onClick={async () => {
-            const r = await ask({ title: "Change Bloom's AI model", description: "Used for Bloom's background work. Billed to the OpenAI API account.", fields: [{ name: "model", label: "Model name", kind: "text", required: true, initial: ai.model ?? "gpt-4o-mini", helper: "Exactly as OpenAI names it, e.g. gpt-4o-mini." }], confirmLabel: "Change model" });
-            if (r) run(() => bloomSupport.setSetting("ai", { ...ai, provider: "openai", model: String(r.model).trim() }));
-          }}>Change model</Button>
-        </Stack>
-      </Sheet>
-      {r.summary.open_alerts.length > 0 && (
-        <Sheet variant="soft" color="danger" sx={{ p: 2, borderRadius: "md" }}>
-          <Typography level="title-sm">Alerts (last 24h)</Typography>
-          {r.summary.open_alerts.map((a, i) => <Typography key={i} level="body-xs">{String(a.condition)} · {ago(a.created_at)} · {String(a.delivered)}</Typography>)}
-        </Sheet>
-      )}
-    </Stack>
-  );
-}
-
 export function ProblemsPanel({ onOpenTicket }: { onOpenTicket: (id: string) => void }) {
   const q = useQuery({ queryKey: ["bloom-support", "problems"], queryFn: () => bloomSupport.problems() });
   const { run, error } = useAction();

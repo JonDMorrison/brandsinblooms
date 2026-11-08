@@ -19,9 +19,10 @@ import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { QueueList } from "@/components/bloomSupport/QueueList";
 import { KnowledgePanel } from "@/components/bloomSupport/KnowledgePanel";
-import { ClientsPanel, EngineeringPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReadinessPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
+import { ClientsPanel, EngineeringPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
 import { DeskNav } from "@/components/bloomSupport/desk/DeskNav";
 import { DecisionsView } from "@/components/bloomSupport/desk/DecisionsView";
+import { SystemStatusPanel } from "@/components/bloomSupport/desk/SystemStatusPanel";
 import { useDeskDecisions } from "@/components/bloomSupport/desk/useDeskDecisions";
 import { DeskHeader } from "@/components/bloomSupport/desk/DeskHeader";
 import { parseDeskView, type DeskAlertTarget, type DeskSummary, type DeskView } from "@/components/bloomSupport/desk/deskModel";
@@ -133,7 +134,7 @@ export default function BloomSupportPage() {
         {view === "problems" && <ProblemsPanel onOpenTicket={openTicket} />}
         {view === "reports" && <ReportsPanel />}
         {view === "knowledge" && <KnowledgePanel me={me.data!} />}
-        {view === "readiness" && <ReadinessPanel />}
+        {view === "readiness" && <SystemStatusPanel me={me.data!} />}
         {view === "settings" && <SettingsPanel me={me.data!} />}
       </Box>
     </PageContainer>

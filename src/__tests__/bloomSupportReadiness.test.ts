@@ -36,7 +36,7 @@ describe("Bloom Support readiness evidence", () => {
 
   it("keeps the API and admin UI explicit about the evidence meaning", () => {
     const readiness = readFileSync("supabase/functions/_shared/bloom-support/readiness.ts", "utf8");
-    const panel = readFileSync("src/components/bloomSupport/AdminPanels.tsx", "utf8");
+    const panel = readFileSync("src/components/bloomSupport/desk/SystemStatusPanel.tsx", "utf8");
 
     expect(readiness).toContain("live_evidence: LIVE_EVIDENCE_DESCRIPTION");
     expect(readiness).not.toContain("Needs the CRM frontend deployed from the merged PR");
