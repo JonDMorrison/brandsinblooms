@@ -857,7 +857,8 @@ export function ReportsPanel() {
   );
 }
 
-const ageLabel = (k: string) => labelFor(k.replace(/_/g, " "));
+const AGE_LABEL: Record<string, string> = { under_1d: "Under 1 day", "1_3d": "1 to 3 days", "3_7d": "3 to 7 days", "7_30d": "1 to 4 weeks", over_30d: "Over a month" };
+const ageLabel = (k: string) => AGE_LABEL[k] ?? labelFor(k.replace(/_/g, " "));
 
 function BigStat({ value, label, sub, tone = "primary" }: { value: string; label: string; sub?: string; tone?: "primary" | "warning" | "success" }) {
   return (
