@@ -180,7 +180,7 @@ describe("simple support decision card", () => {
   });
 });
 
-it("right-aligns the Today work column while keeping its content left-aligned", () => {
+it("uses the full Today content area beside the sidebar", () => {
   api.engineering.mockResolvedValue([]);
   api.features.mockResolvedValue([]);
   api.pageTickets.mockResolvedValue({ items: [], total: 0 });
@@ -192,10 +192,8 @@ it("right-aligns the Today work column while keeping its content left-aligned", 
     </QueryClientProvider>,
   );
   expect(screen.getByTestId("bloom-support-today-work-column")).toHaveStyle({
-    marginLeft: "auto",
-    marginRight: "0px",
-    maxWidth: "840px",
     width: "100%",
+    minWidth: "0px",
     textAlign: "left",
   });
 });
