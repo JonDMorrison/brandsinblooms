@@ -55,7 +55,11 @@ async function resend(path: string): Promise<unknown> {
   if (!key) throw new BloomError(503, "not_configured", "RESEND_API_KEY is not set");
   const res = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new BloomError(502, "provider_error", `Resend ${path} returned ${res.status}`);
-  const raw = await readResponseText(res, 1_000_000);
+  // A signed support forward can contain a long quoted conversation and inline
+  // screenshots. Resend returns HTML and text in a single JSON response that
+  // regularly exceeds 1 MB. Keep a strict 4 MiB cap here (separate from the
+  // small incoming webhook payload and the 12 MiB total attachment cap).
+  const raw = await readResponseText(res, 4 * 1024 * 1024);
   try {
     return JSON.parse(raw);
   } catch {
@@ -103,8 +107,8 @@ async function prepareInboundAttachments(
   let total = 0;
   for (const [index, attachment] of (manifest ?? []).entries()) {
     const label = safeAttachmentLabel(attachment?.filename, index);
-    if (index >= 5) {
-      rejected.push(`${label}: only 5 attachments can be accepted`);
+    if (index >= 10) {
+      rejected.push(`${label}: only 10 attachments can be accepted in an email`);
       continue;
     }
     if (!attachment || !attachment.download_url || !/^https:\/\//i.test(attachment.download_url)) {
