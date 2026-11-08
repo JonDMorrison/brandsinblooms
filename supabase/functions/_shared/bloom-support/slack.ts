@@ -2,6 +2,7 @@
 // Slack is an optional delivery channel; tickets and permission checks stay in Bloom Support.
 import { BloomError, env } from "./runtime.ts";
 import { explainSupportEvent, explainGithubMilestone, githubMilestoneFromKind } from "./slack-language.ts";
+import { publicReleaseNote } from "./release-notes.ts";
 
 export type SlackRoute = "tickets" | "features" | "alerts" | "releases" | "projects" | "clients" | "finance";
 
@@ -31,10 +32,28 @@ export function githubSourceLink(value: string | undefined): string | null {
   } catch { return null; }
 }
 /** Do not place ticket subjects, bodies, requester identities, or source details in Slack. */
-export function slackSafeMessage(kind: string, ticketId: string | null, githubUrl?: string, projectId?: string): string {
+export function slackSafeMessage(
+  kind: string, ticketId: string | null, githubUrl?: string,
+  projectId?: string, releaseCategory?: string,
+): string {
   const route = slackRoute(kind);
   if (!route) throw new Error("unsupported event");
   const milestone = githubMilestoneFromKind(kind);
+  const source = milestone ? githubSourceLink(githubUrl) : null;
+  if (milestone === "pr_merged") {
+    const note = publicReleaseNote(releaseCategory);
+    const product = source?.includes("/JonDMorrison/brandsinblooms/") ? "BloomSuite CRM"
+      : source?.includes("/Brands-In-Blooms/cms-brandsinblooms/") ? "BloomSites"
+      : source?.includes("/Brands-In-Blooms/bloomtill/") ? "BloomSuite POS" : "our software";
+    return [
+      "*Software improvement: " + note.area + "*",
+      "*What changed:* " + note.changed,
+      "*Why it matters:* " + note.matters,
+      "*Where it stands:* Merged into " + product + " code. Deployment and the customer experience have not yet been verified by this event.",
+      "*Next:* " + note.next,
+      source ? "<" + source + "|See the technical change>" : "<https://bloomsuite.app/admin/bloom-support|Open Bloom Support>",
+    ].join("\n");
+  }
   const state = milestone ? explainGithubMilestone(milestone) :
     kind === "major_project.accepted" ? {
       headline: "A new customer has accepted",
@@ -55,7 +74,6 @@ export function slackSafeMessage(kind: string, ticketId: string | null, githubUr
     } : explainSupportEvent(kind);
   const base = "https://bloomsuite.app/support";
   const link = ticketId && /^[0-9a-f-]{36}$/i.test(ticketId) ? `${base}?ticket=${ticketId}` : base;
-  const source = milestone ? githubSourceLink(githubUrl) : null;
   const actionLink = route === "projects" || route === "clients"
     ? `<https://bloomsites.app/dashboard/admin/major-projects${projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? `?project=${projectId}` : ""}|Open Major Projects>`
     : route === "finance"
@@ -92,9 +110,9 @@ export async function postSlackInternalText(
   return "delivered to " + route + " (Slack ts: " + (result.ts ?? "unknown") + ")";
 }
 export async function postSlackSupportNotification(input: {
-  kind: string; ticketId: string | null; jobId: string; githubUrl?: string; projectId?: string;
+  kind: string; ticketId: string | null; jobId: string; githubUrl?: string; projectId?: string; releaseCategory?: string;
 }): Promise<string> {
   const route = slackRoute(input.kind);
   if (!route) return "skipped: unsupported Slack event";
-  return await postSlackInternalText(route, slackSafeMessage(input.kind,input.ticketId,input.githubUrl,input.projectId),input.jobId);
+  return await postSlackInternalText(route, slackSafeMessage(input.kind,input.ticketId,input.githubUrl,input.projectId,input.releaseCategory),input.jobId);
 }
