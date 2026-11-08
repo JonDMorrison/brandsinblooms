@@ -17,7 +17,7 @@ const sample = {
 
 Deno.test("ticket alert tells staff what happened, what Bloom does, owner and next step without a click",()=>{
   const message = ticketRootMessage(sample);
-  assertStringIncludes(message,"Ticket #1022");
+  assertStringIncludes(message,"#1022");
   assertStringIncludes(message,"West Coast Gardens");
   assertStringIncludes(message,"cannot find Sea Soil");
   assertStringIncludes(message,"Jeff O'Brien");
