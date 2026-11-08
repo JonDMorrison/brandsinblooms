@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from "vitest";
+import {beforeEach, describe, expect, it, vi} from "vitest";
 import {verifyBloomsitesIntegrations, type SuiteDeps} from "../../supabase/functions/bloom-assist/tools/implementations/suite-tools";
 import {getRegisteredTool, isToolVisibleForRoleAndMode} from "../../supabase/functions/bloom-assist/tools/registry";
 import type {ToolExecutionContext} from "../../supabase/functions/bloom-assist/tools/types";
@@ -68,6 +68,7 @@ describe("Naming a client from anywhere in the Bloom dashboard", () => {
   ];
   const remote = vi.fn(async () => accounts);
   const read = vi.fn(async () => outcome);
+  beforeEach(() => { remote.mockClear(); read.mockClear(); remote.mockResolvedValue(accounts); read.mockResolvedValue(outcome); });
   function d() {
     remote.mockClear(); read.mockClear();
     const d = deps(true, read);
