@@ -22,6 +22,7 @@ import { KnowledgePanel } from "@/components/bloomSupport/KnowledgePanel";
 import { ClientsPanel, EngineeringPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
 import { DeskNav } from "@/components/bloomSupport/desk/DeskNav";
 import { DecisionsView } from "@/components/bloomSupport/desk/DecisionsView";
+import { LetBloomHandle } from "@/components/bloomSupport/desk/LetBloomHandle";
 import { SystemStatusPanel } from "@/components/bloomSupport/desk/SystemStatusPanel";
 import { useDeskDecisions } from "@/components/bloomSupport/desk/useDeskDecisions";
 import { DeskHeader } from "@/components/bloomSupport/desk/DeskHeader";
@@ -104,7 +105,7 @@ export default function BloomSupportPage() {
           </Sheet>
         ) : (
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-            <TodayView me={me.data!} onOpenTicket={(id) => go({ view: "today", ticket: id })} onOpenDesk={() => go({ view: "queue", ticket: null })} />
+            <TodayView me={me.data!} onOpenTicket={(id) => go({ view: "today", ticket: id })} onOpenDesk={() => go({ view: "queue", ticket: null })} heroAction={<LetBloomHandle me={me.data!} onOpenTicket={(id) => go({ view: "today", ticket: id })} />} />
           </Box>
         )
       )}
