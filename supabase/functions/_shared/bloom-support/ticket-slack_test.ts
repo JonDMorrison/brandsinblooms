@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { safeTicketText, ticketBloomStatus, ticketNextAction, ticketOwnership,
+import { safeTicketText, ticketBloomStatus,
   ticketProblem, ticketQuestionAnswer, ticketRootMessage, ticketUpdateMessage } from "./ticket-slack.ts";
 import { slackQuestionRoute } from "./slack-questions.ts";
 
