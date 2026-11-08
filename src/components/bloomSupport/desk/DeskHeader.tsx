@@ -23,10 +23,10 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
   const state = bloomState(summary, summaryFailed);
   const alerts = deskAlerts(summary, urgent);
   return (
-    <Stack spacing={2} component="header">
-      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2}>
-        <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+    <Stack spacing={4} component="header">
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={4}>
+        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" useFlexGap>
             <Typography level="h1" component="h1">Support desk</Typography>
             <BloomPill tone={state.tone} label={state.label} />
           </Stack>
@@ -34,12 +34,12 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
             Bloom handles the routine work. You make the few calls that need a person.
           </Typography>
         </Stack>
-        <Button variant="outlined" color="neutral" startDecorator={<Plus size={18} aria-hidden />} onClick={onNewRequest} sx={{ borderRadius: "xl", minHeight: 48, px: 2.5, bgcolor: "background.surface", flexShrink: 0 }}>
+        <Button variant="outlined" color="neutral" startDecorator={<Plus size={18} aria-hidden />} onClick={onNewRequest} sx={{ borderRadius: "xl", minHeight: 48, px: 5, bgcolor: "background.surface", flexShrink: 0 }}>
           New request
         </Button>
       </Stack>
       {alerts.length > 0 && (
-        <Stack spacing={1} role="region" aria-label="Needs attention now">
+        <Stack spacing={2} role="region" aria-label="Needs attention now">
           {alerts.map((a) => <AlertRow key={a.kind} alert={a} onAction={() => onAlert(a.target)} />)}
         </Stack>
       )}
@@ -53,7 +53,7 @@ function BloomPill({ tone, label }: { tone: "primary" | "danger" | "neutral"; la
     <Box
       role="status"
       sx={{
-        display: "inline-flex", alignItems: "center", gap: 1, px: 1.5, py: 0.5, borderRadius: 999,
+        display: "inline-flex", alignItems: "center", gap: 2, px: 3, py: 1, borderRadius: 999,
         bgcolor: tone === "danger" ? "danger.50" : tone === "primary" ? "primary.50" : "neutral.100",
         border: "1px solid", borderColor: tone === "danger" ? "danger.200" : tone === "primary" ? "primary.200" : "neutral.200",
         color: tone === "danger" ? "danger.700" : tone === "primary" ? "primary.900" : "text.secondary",
@@ -81,17 +81,17 @@ function AlertRow({ alert, onAction }: { alert: DeskAlert; onAction: () => void 
   return (
     <Stack
       direction={{ xs: "column", sm: "row" }}
-      spacing={{ xs: 1.5, sm: 2 }}
+      spacing={{ xs: 3, sm: 4 }}
       alignItems={{ xs: "flex-start", sm: "center" }}
       sx={{
-        p: 2, borderRadius: "xl", border: "1px solid",
+        p: 4, borderRadius: "xl", border: "1px solid",
         bgcolor: danger ? "danger.50" : "warning.50",
         borderColor: danger ? "danger.200" : "warning.200",
       }}
     >
-      <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ color: danger ? "danger.600" : "warning.700", display: "flex", pt: 0.25 }}>{ALERT_ICON[alert.kind]}</Box>
-        <Stack spacing={0.25}>
+      <Stack direction="row" spacing={3} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ color: danger ? "danger.600" : "warning.700", display: "flex", pt: 0.5 }}>{ALERT_ICON[alert.kind]}</Box>
+        <Stack spacing={0.5}>
           <Typography level="title-md" textColor={danger ? "danger.800" : "warning.800"}>{alert.title}</Typography>
           <Typography level="body-md" textColor="text.secondary">{alert.body}</Typography>
         </Stack>

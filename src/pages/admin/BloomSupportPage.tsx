@@ -15,19 +15,21 @@ import { TicketConversation } from "@/components/bloomSupport/TicketConversation
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { mergeSx } from "@/components/joy/mergeSx";
-import { bloomSupport } from "@/lib/bloomSupport/api";
+import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { QueueList } from "@/components/bloomSupport/QueueList";
 import { KnowledgePanel } from "@/components/bloomSupport/KnowledgePanel";
-import { ClientsPanel, EngineeringPanel, EscalationsPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReadinessPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
+import { ClientsPanel, EngineeringPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReadinessPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
 import { DeskNav } from "@/components/bloomSupport/desk/DeskNav";
+import { DecisionsView } from "@/components/bloomSupport/desk/DecisionsView";
+import { useDeskDecisions } from "@/components/bloomSupport/desk/useDeskDecisions";
 import { DeskHeader } from "@/components/bloomSupport/desk/DeskHeader";
 import { parseDeskView, type DeskAlertTarget, type DeskSummary, type DeskView } from "@/components/bloomSupport/desk/deskModel";
 import { deskScaleSx } from "@/components/bloomSupport/desk/deskStyles";
 
 const VIEW_HELP: Partial<Record<DeskView, string>> = {
   queue: "Every open request. Filter, assign, and reply to clients.",
-  escalations: "Things Bloom could not decide on its own. Take one, or record what you decided.",
+  escalations: "Things Bloom could not decide on its own. Bloom recommends a next step for each one.",
   features: "Ideas clients asked for, with who asked. Decide whether to plan them.",
   clients: "Each client's requests, contacts and linked accounts.",
   knowledge: "Approved answers Bloom can reuse when it replies to clients.",
@@ -77,19 +79,18 @@ export default function BloomSupportPage() {
     );
   }
   const s = summary.data as DeskSummary | undefined;
-  const badges: Partial<Record<DeskView, number>> = { escalations: Number(s?.open_escalations ?? 0) };
 
   return (
     <PageContainer
       fullWidth
-      sx={mergeSx(deskScaleSx, { display: "flex", flexDirection: "column", gap: 2.5, height: { md: "calc(100dvh - 96px)" } })}
+      sx={mergeSx(deskScaleSx, { display: "flex", flexDirection: "column", gap: 5, height: { md: "calc(100dvh - 96px)" } })}
       data-testid="bloom-support-desk"
     >
       <DeskHeader summary={s} summaryFailed={!!summary.error} urgent={urgent.data?.total ?? 0} onNewRequest={() => setNewOpen(true)} onAlert={onAlert} />
       <NewTicketDialog open={newOpen} onClose={() => setNewOpen(false)} onCreated={(id) => { setNewOpen(false); go({ view: "today", ticket: id }); }} />
 
-      <Stack spacing={1}>
-        <DeskNav view={view} badges={badges} onChange={(v) => go({ view: v, ticket: null, filter: null })} />
+      <Stack spacing={2}>
+        <CountedDeskNav me={me.data!} view={view} onChange={(v) => go({ view: v, ticket: null, filter: null })} />
         {!(view === "today" && ticketId) && VIEW_HELP[view] && (
           <Typography level="body-md" textColor="text.secondary">{VIEW_HELP[view]}</Typography>
         )}
@@ -124,7 +125,7 @@ export default function BloomSupportPage() {
         </Sheet>
       )}
       <Box sx={{ overflow: "auto", display: view === "queue" || view === "today" ? "none" : "block" }}>
-        {view === "escalations" && <EscalationsPanel me={me.data!} onOpenTicket={openTicket} />}
+        {view === "escalations" && <DecisionsView me={me.data!} onOpenTicket={openTicket} onOpenDesk={() => go({ view: "queue", ticket: null })} />}
         {view === "engineering" && <EngineeringPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "features" && <FeaturesPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "clients" && <ClientsPanel onOpenTicket={openTicket} />}
@@ -137,4 +138,11 @@ export default function BloomSupportPage() {
       </Box>
     </PageContainer>
   );
+}
+
+/** The Decisions badge counts the same list the Decisions view shows (shared query cache, no extra requests). */
+function CountedDeskNav({ me, view, onChange }: { me: Whoami; view: DeskView; onChange: (v: DeskView) => void }) {
+  const { decisions, moreNeedsOwner, loading } = useDeskDecisions(me, () => undefined);
+  const badges: Partial<Record<DeskView, number>> = loading ? {} : { escalations: decisions.length + moreNeedsOwner };
+  return <DeskNav view={view} badges={badges} onChange={onChange} />;
 }

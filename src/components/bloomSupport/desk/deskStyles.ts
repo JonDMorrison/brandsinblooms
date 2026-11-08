@@ -3,11 +3,15 @@ import type { SxProps } from "@mui/joy/styles/types";
 /**
  * Support Desk type scale and control sizing.
  *
+ * These selectors outrank a component's own single-class sx. To size one
+ * element differently, use "&&&" in its sx.
+ *
  * The global Joy theme sets body text to 14px, which is too small for a page
  * people read all day. These overrides apply only inside the Support Desk root,
  * so other CRM pages keep the global scale.
  */
 export const deskScaleSx: SxProps = {
+  fontFamily: "var(--joy-fontFamily-body)",
   "& .MuiTypography-h1": { fontSize: { xs: "1.75rem", md: "2rem" }, lineHeight: 1.2, letterSpacing: "-0.02em" },
   "& .MuiTypography-h2": { fontSize: { xs: "1.5rem", md: "1.75rem" }, lineHeight: 1.25, letterSpacing: "-0.015em" },
   "& .MuiTypography-h3": { fontSize: "1.25rem", lineHeight: 1.3 },
