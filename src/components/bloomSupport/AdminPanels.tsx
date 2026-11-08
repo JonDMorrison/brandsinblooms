@@ -246,7 +246,7 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
             </Box>
           ))}
           {evidence.length > 2 && <Typography level="body-sm" textColor="text.tertiary">and {evidence.length - 2} more {evidence.length - 2 === 1 ? "request" : "requests"}</Typography>}
-          {f.decision_note ? <Typography level="body-sm" textColor="text.secondary">Decision note: {String(f.decision_note)}</Typography> : null}
+          {f.decision_note ? <Typography level="body-sm" textColor="text.secondary" title={String(f.decision_note)} sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>Decision note: {String(f.decision_note)}</Typography> : null}
           {canDecide && String(f.status) === "awaiting_decision" && (
             <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
               {FEATURE_DECISIONS.map((dec) => (
@@ -265,9 +265,11 @@ export function FeaturesPanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: 
     <Stack spacing={6} sx={{ maxWidth: 900, pb: 8 }}>
       {dialog}
       {error && <Alert color="warning" variant="soft">{error}</Alert>}
-      {waiting.length > 0 && <DeskSection title="Waiting for your decision" count={waiting.length} tone="warning">{waiting.map(card)}</DeskSection>}
+      {waiting.length > 0
+        ? <DeskSection title="Waiting for your decision" count={waiting.length} tone="warning">{waiting.map(card)}</DeskSection>
+        : <Calm title="Nothing waiting for a decision" body="Bloom brings new ideas here when clients ask for them." />}
       {decided.length > 0 && (
-        <Disclosure label={`Already decided (${decided.length})`} defaultOpen={waiting.length === 0}>
+        <Disclosure label={`Already decided (${decided.length})`}>
           <Stack spacing={3}>{decided.map(card)}</Stack>
         </Disclosure>
       )}
