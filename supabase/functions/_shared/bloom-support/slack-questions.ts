@@ -10,8 +10,14 @@ export function slackQuestionRoute(channel: unknown): SlackQuestionRoute | null 
   return typeof channel === "string" ? QUESTION_CHANNELS[channel] ?? null : null;
 }
 
-const clean = (value: unknown, max = 180) => String(value ?? "")
-  .replace(/[<>&@\r\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+// Avoid reflecting personal contacts, credentials or payment details accidentally
+// entered into a free-text project/feature summary, even in private Slack.
+const privateDetail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:https?:\/\/|www\.)\S+|(?:xox[baprs]-|sk_(?:live|test)_|rk_(?:live|test)_|gh[pousr]_)\S+|(?:\+?1[\s().-]*)?\(?[2-9]\d{2}\)?[\s().-]*[2-9]\d{2}[\s.-]*\d{4}\b|(?:\d[\s-]?){13,19}|-----BEGIN [A-Z ]+PRIVATE KEY-----/i;
+const clean = (value: unknown, max = 180) => {
+  const raw = String(value ?? "");
+  if (privateDetail.test(raw)) return "See linked record";
+  return raw.replace(/[<>&@*_\x60~\r\n\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+};
 const label = (value: unknown) => clean(value, 80).replace(/_/g, " ");
 
 export function projectQuestionAnswer(rows: unknown): string {
