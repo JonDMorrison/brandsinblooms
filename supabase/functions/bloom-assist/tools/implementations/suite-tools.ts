@@ -34,7 +34,7 @@ export const SUITE_READ_KINDS = [
 ] as const;
 export type SuiteReadKind = (typeof SUITE_READ_KINDS)[number];
 
-export const SUITE_TOOL_NAMES = ["read_suite_data"] as const satisfies readonly ToolName[];
+export const SUITE_TOOL_NAMES = ["read_suite_data", "verify_bloomsites_integrations"] as const satisfies readonly ToolName[];
 const SUITE_TOOL_SET = new Set<string>(SUITE_TOOL_NAMES);
 
 const KIND_LABEL: Record<SuiteReadKind, string> = {
@@ -171,8 +171,38 @@ const DEFAULT_DEPS: SuiteDeps = {
   runRead: defaultRunRead,
 };
 
+/** Staff-only read-only integration health check, reusing the same product and
+ * per-principal authorization as the Bloom Support dashboard and Slack. */
+export async function verifyBloomsitesIntegrations(
+  params: JsonObject, context: ToolExecutionContext, deps: SuiteDeps,
+): Promise<ToolResult> {
+  try {
+    const rpc = deps.rpcFor(context);
+    const who = await deps.identity(context, rpc);
+    if (!who.staff) {
+      return toolResult(false, "Only authorized Bloom Support staff can inspect integration diagnostics. Nothing was changed.", null, "forbidden");
+    }
+    const site_id = typeof params.site_id === "string" && params.site_id.trim()
+      ? params.site_id.trim().slice(0, 80) : null;
+    const data = await deps.runRead(
+      { principalId: who.principalId, role: who.role, via: "crm_session", name: context.userName ?? null, scopes: [] },
+      { kind: "site.integration_health", account_id: who.account.id, inputs: site_id ? { site_id } : {} },
+    );
+    return toolResult(true,
+      "Checked recorded CounterPoint and Open Plant Data synchronization evidence for the selected company. Explain the exact assessment, recorded failures, latest successful receipt and import counts. A connected service or staged batch does not prove the customer's shop works. This was read-only and changed nothing.",
+      { product: "bloomsites", kind: "site.integration_health", result: (data ?? null) as JsonObject });
+  } catch (error) {
+    console.error("[bloom-assist] integration health read failed", error instanceof Error ? error.message : error);
+    return toolResult(false, explainReadFailure("site.read", error), null, "suite_read_failed");
+  }
+}
+
 export function suiteToolImplementation(toolName: ToolName) {
   if (!SUITE_TOOL_SET.has(toolName)) return null;
+  if (toolName === "verify_bloomsites_integrations") {
+    return (params: JsonObject, context: ToolExecutionContext) =>
+      verifyBloomsitesIntegrations(params, context, DEFAULT_DEPS);
+  }
   return (params: JsonObject, context: ToolExecutionContext) => readSuiteData(params, context, DEFAULT_DEPS);
 }
 
