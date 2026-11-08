@@ -21,7 +21,7 @@ import {
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
 import { callProduct } from "../_shared/bloom-support/operations.ts";
-import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
+import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, providerHealthScope, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText, taskThreadFromTicket } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
@@ -766,13 +766,15 @@ async function notifyEmail(job: Job): Promise<string> {
         });
         const selected = findDiagnosticAccount(hint, Array.isArray(accounts) ? accounts : []);
         if (!selected) return await postSlackInternalText("projects",
-          "Please name one garden centre with an existing BloomSites connection. Example: @Bloom verify Lacoste CounterPoint and OPD integration. If several sites match, select the client in the Bloom dashboard.",
+          "Please name one garden centre with an existing BloomSites connection. If multiple sites share a name, specify its website domain (for example, horsfordnursery.com) or select it in the Bloom dashboard.",
           job.id, String(job.payload.thread_ts ?? ""));
+        const provider = providerHealthScope(question);
         const task = await startIntegrationTask({
           principalId: identity.principal_id, role: identity.role,
           via: "service", scopes: [], name: null,
         }, {
           accountId: selected.account.id, siteId: selected.siteId,
+          ...(provider ? {kind:"site.provider_health" as const,provider} : {}),
           source: {channel:"slack",requestId:job.id,threadTs:String(job.payload.thread_ts ?? "")},
         });
         return await postSlackInternalText("projects",
