@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { plainSummary } from "@/components/admin/readableFormat";
-import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
+import { bloomSupport, type EscalationPlain, type Whoami } from "@/lib/bloomSupport/api";
 import { groupOpenEscalations, recordReviewDecision, type TodayEscalation } from "../todayActions";
 import { asSentence, humanizeNextAction } from "../../../../supabase/functions/_shared/bloom-support/notes";
 import { clientName } from "./statusWords";
@@ -50,6 +50,14 @@ const plainStep = (text: string) => {
   const s = humanizeNextAction(text).replace(/^Admin( or Support)?:\s*/i, "").trim();
   return asSentence(s.charAt(0).toUpperCase() + s.slice(1));
 };
+
+/** A stored or freshly written plain summary, or null when the value isn't one. */
+export function readPlain(value: unknown): EscalationPlain | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.problem !== "string" || !v.problem.trim()) return null;
+  return { problem: v.problem.trim(), blocker: typeof v.blocker === "string" && v.blocker.trim() ? v.blocker.trim() : null };
+}
 
 /** The first sentence of a long engineering note, kept short enough to read at a glance. */
 export function firstSentence(text: unknown, max = 200): string {
@@ -115,6 +123,25 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
     run: (text: string) => recordReviewDecision(bloomSupport, { ticketIds, recommendation: HOLD, escalations: items, ownerId: me.id }, "other", text),
   } : undefined);
 
+  // Bloom writes each escalation's plain summary once; open cards without one ask for it.
+  const groupsForPlain = groupOpenEscalations((escalations.data ?? []) as TodayEscalation[]);
+  const missingPlain = groupsForPlain.map((g) => g[0]).filter((x) => !readPlain(x.plain) && typeof x.id === "string").map((x) => String(x.id));
+  const explained = useQueries({
+    queries: missingPlain.map((id) => ({
+      queryKey: ["bloom-support", "escalation-plain", id],
+      queryFn: () => bloomSupport.explainEscalation(id),
+      staleTime: Infinity, retry: false, enabled: can("escalations.view"),
+    })),
+  });
+  const plainOf = (x: Row): EscalationPlain | null | "loading" => {
+    const stored = readPlain(x.plain);
+    if (stored) return stored;
+    const i = missingPlain.indexOf(String(x.id));
+    const q = i >= 0 ? explained[i] : undefined;
+    if (q?.isLoading) return "loading";
+    return readPlain(q?.data?.plain);
+  };
+
   const decisions: DeskDecision[] = [];
   for (const e of (engineering.data ?? []) as Row[]) {
     if (e.reviewOwned === true) continue;
@@ -173,6 +200,7 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
     const ids = x.ticket_id ? [String(x.ticket_id)] : [];
     const reason = String(x.reason ?? "");
     const { problem, finding } = escalationProblem(reason, x.detail, t?.subject);
+    const plain = plainOf(x);
     const options: DecisionOption[] = [];
     let recommendation = "Take it yourself, so Bloom stops retrying while you decide.";
     const engId = typeof x.engineering_issue_id === "string" ? x.engineering_issue_id : null;
@@ -200,7 +228,10 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
       client: nameOf.get(String(x.ticket_id)) ?? (t ? `Request #${t.number}` : "Escalation"),
       ticket: t ? `#${t.number} ${t.subject}` : undefined,
       when: ago(x.created_at),
-      problem: finding ? `${problem} ${/stopped/.test(problem) ? "Why" : "What it found"}: ${finding}`
+      problem: plain && plain !== "loading"
+        ? (plain.blocker ? `${plain.problem} Why Bloom stopped: ${plain.blocker}` : plain.problem)
+        : finding ? `${problem} ${/stopped/.test(problem) ? "Why" : "What it found"}: ${finding}`
+        : plain === "loading" ? `${problem} Bloom is writing a plain summary…`
         : x.detail ? `${problem} The details are technical, so they're under Show technical evidence.` : problem,
       recommendation,
       evidence: [x.detail, group.length > 1 ? `${group.length} related reminders on this request.` : null].filter(Boolean).join("\n\n") || undefined,

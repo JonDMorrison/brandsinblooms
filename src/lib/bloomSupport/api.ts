@@ -192,6 +192,9 @@ export interface TicketDetail extends TicketSummary {
   account_history?: Array<{ id: string; number: number; subject: string; status: SupportStatus; created_at: string }>;
 }
 
+/** Bloom's plain-language summary of an escalation, for the Support desk. */
+export interface EscalationPlain { problem: string; blocker: string | null }
+
 export interface Whoami {
   id: string;
   name: string | null;
@@ -445,6 +448,8 @@ export const bloomSupport = {
   acknowledgeEscalation: (id: string, note?: string) => send("POST", `/escalations/${id}/acknowledge`, { note }),
   escalations: (all = false) => api<Array<Record<string, unknown>>>(`/escalations${all ? "?all=true" : ""}`),
   resolveEscalation: (id: string, decision: string) => send("POST", `/escalations/${id}/resolve`, { decision }),
+  /** A stored plain-language summary of an escalation, written once by Bloom. plain is null when none could be written. */
+  explainEscalation: (id: string) => send<{ plain: EscalationPlain | null; reason?: string }>("POST", `/escalations/${id}/explain`),
   operationsCatalog: () => api<{ reads: Array<{ kind: string; permission: string }>; changes: Array<{ kind: string; permission: string; undo: boolean }>; remote: Record<string, { configured: boolean; missing: string[] }> }>("/operations/catalog"),
   readOperation: (input: Record<string, unknown>) => send("POST", "/operations/read", input),
   previewOperation: (input: Record<string, unknown>) => send<Record<string, unknown>>("POST", "/operations/preview", input),

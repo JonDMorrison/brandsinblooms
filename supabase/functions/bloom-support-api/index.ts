@@ -125,6 +125,7 @@ on("POST", "/features/:id/decision", async (req, [id]) => {
 });
 
 on("GET", "/escalations", async (req, _p, url) => actions.listEscalations(await caller(req), q(url, "all") !== "true"));
+on("POST", "/escalations/:id/explain", async (req, [id]) => actions.explainEscalation(await caller(req), id));
 on("POST", "/escalations/:id/resolve", async (req, [id]) => {
   const b = await readJson(req);
   return actions.resolveEscalation(await caller(req), id, String(b.decision ?? ""));

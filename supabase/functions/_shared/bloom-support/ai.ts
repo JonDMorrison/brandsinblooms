@@ -93,10 +93,9 @@ export async function completeJson<T>(call: JsonCall): Promise<AiResult<T>> {
   }
 }
 
-/** Untrusted text is fenced and labelled so the model treats it as data. */
-export function fence(label: string, text: string): string {
-  return `<${label} untrusted="true">\n${text.replace(/<\/?[a-z_]+ untrusted="true">/gi, "").slice(0, 12000)}\n</${label}>`;
-}
+// Untrusted text is fenced and labelled so the model treats it as data.
+// Lives in fence.ts (no Deno globals) so pure modules and their tests can use it.
+export { fence } from "./fence.ts";
 
 export const CLASSIFY_SCHEMA = {
   type: "object",

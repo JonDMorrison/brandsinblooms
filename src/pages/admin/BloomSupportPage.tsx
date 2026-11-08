@@ -67,7 +67,6 @@ export default function BloomSupportPage() {
   const openTicket = (id: string) => go({ view: "queue", ticket: id });
   const onAlert = (target: DeskAlertTarget) => {
     if (target === "settings") go({ view: "settings", ticket: null, filter: null });
-    else if (target === "decisions") go({ view: "escalations", ticket: null, filter: null });
     else go({ view: "queue", ticket: null, filter: "urgent" });
   };
 

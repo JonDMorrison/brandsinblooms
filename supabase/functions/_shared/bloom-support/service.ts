@@ -4,7 +4,8 @@ import { sanitizeContext, redactText, STATUS_LABEL } from "./policy.ts";
 import { randomToken, sha256Hex } from "./crypto.ts";
 import { describeOperations, executeOperation, previewOperation, runRead, undoOperation } from "./operations.ts";
 import { emailConfig } from "./email.ts";
-import { aiConfig } from "./ai.ts";
+import { aiConfig, completeJson } from "./ai.ts";
+import { cleanPlain, type EscalationContext, PLAIN_SCHEMA, PLAIN_SYSTEM, plainPrompt } from "./plain-escalation.ts";
 import { env } from "./runtime.ts";
 
 const A = (c: Caller) => ({ actor: c.principalId });
@@ -243,6 +244,27 @@ export const actions = {
     return mutationRpc(c, "decide_feature_request", { ...A(c), feature_request_id: uuid(id, "feature_request_id"), decision, note: note ?? null });
   },
   listEscalations: (c: Caller, openOnly = true) => rpc("list_escalations", { ...A(c), open_only: openOnly }),
+  /**
+   * A plain-language summary of one escalation for the Support desk. Written
+   * once by the model, validated, then stored; later calls return the stored
+   * text. Returns plain: null when the model is unavailable or its answer was
+   * rejected, so the desk keeps its own wording.
+   */
+  async explainEscalation(c: Caller, id: string) {
+    requireWriteScope(c);
+    const escalationId = uuid(id, "escalation_id");
+    const ctx = await directRpc<EscalationContext & { plain?: unknown; account_key?: string }>("bloom_support_escalation_context", { p_actor: c.principalId, p_escalation: escalationId });
+    if (ctx.plain) return { plain: ctx.plain };
+    const answer = await completeJson<{ problem: string; blocker: string }>({
+      system: PLAIN_SYSTEM, user: plainPrompt(ctx), schemaName: "plain_escalation", schema: PLAIN_SCHEMA,
+      accountKey: ctx.account_key ?? "none", timeoutMs: 20_000,
+    });
+    if (!answer.ok) return { plain: null, reason: answer.reason };
+    const clean = cleanPlain(answer.value);
+    if (!clean) return { plain: null, reason: "summary rejected: too long or technical" };
+    const plain = await directRpc("bloom_support_save_escalation_plain", { p_actor: c.principalId, p_escalation: escalationId, p_plain: { ...clean, model: answer.model } });
+    return { plain };
+  },
   acknowledgeEscalation(c: Caller, id: string, note?: string) {
     requireWriteScope(c);
     return mutationRpc(c, "acknowledge_escalation", { ...A(c), escalation_id: uuid(id, "escalation_id"), note: note ?? null });
