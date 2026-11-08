@@ -20,6 +20,8 @@ import {
 } from "../_shared/bloom-support/support-emails.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
+import { callProduct } from "../_shared/bloom-support/operations.ts";
+import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
 import {
   announceAfterActiveHandoff,
@@ -717,6 +719,17 @@ async function notifyEmail(job: Job): Promise<string> {
   if (job.payload.slack_question === true) {
     const question = String(job.payload.question ?? "").slice(0, 500);
     if (question.length < 3) return "skipped: question is empty";
+    const route = String(job.payload.slack_question_route ?? "ask");
+    if (route === "projects") {
+      const response = await callProduct("cms", "major_projects.list", {}, 10000);
+      return await postSlackInternalText("projects", projectQuestionAnswer(response.projects), job.id, String(job.payload.thread_ts ?? ""));
+    }
+    if (route === "features") {
+      const { data, error } = await db().schema("bloom_support").from("feature_requests")
+        .select("title,product,status,updated_at").order("updated_at", { ascending: false }).limit(10);
+      if (error) throw new BloomError(500, "db_error", "Feature summary is temporarily unavailable");
+      return await postSlackInternalText("features", featureQuestionAnswer(data), job.id, String(job.payload.thread_ts ?? ""));
+    }
     const articles = await rpc<Array<{id:string;title:string;body:string;rank:number}>>(
       "search_knowledge", { product: null, q: question, limit: 2 }
     );
