@@ -57,3 +57,66 @@ describe("Bloom in-dashboard staff integration diagnosis", () => {
     expect(result.message).not.toContain("private provider");
   });
 });
+
+
+describe("Naming a client from anywhere in the Bloom dashboard", () => {
+  const site = "f599e50e-4245-43d2-954c-e5b05777ec22";
+  const accounts = [
+    {id:"lacoste-crm", name:"Lacoste Garden Centre", links:[{product:"crm", external_id:"11111111-1111-4111-8111-111111111111"}]},
+    {id:"lacoste-site", name:"Lacoste Garden Centre", links:[{product:"cms", external_id:site}]},
+    {id:"horsford-site", name:"Horsford Gardens", links:[{product:"cms", external_id:"22222222-2222-4222-8222-222222222222"}]},
+  ];
+  const remote = vi.fn(async () => accounts);
+  const read = vi.fn(async () => outcome);
+  function d() {
+    remote.mockClear(); read.mockClear();
+    const d = deps(true, read);
+    return {...d, rpcFor: () => remote as never};
+  }
+
+  it("finds Lacoste by name without switching the CRM workspace or trusting model account IDs", async () => {
+    const result = await verifyBloomsitesIntegrations(
+      {client_name:"Lacoste", account_id:"forged", site_id:site, key:"never forward"},
+      {...context, tenantId:"brands-in-blooms"}, d());
+    expect(result.success).toBe(true);
+    expect(remote).toHaveBeenCalledWith("list_accounts", { actor:"operator-principal", q:"Lacoste", limit:50 });
+    expect(read).toHaveBeenCalledWith(
+      {principalId:"operator-principal",role:"platform_operator",via:"crm_session",name:"Jeff",scopes:[]},
+      {kind:"site.integration_health",account_id:"lacoste-site",inputs:{site_id:site}},
+    );
+    expect(result.message).toContain("Lacoste Garden Centre");
+  });
+
+  it("refuses an ambiguous name with two CMS sites", async () => {
+    const ambiguous = [...accounts, {id:"other-lacoste",name:"Lacoste Nursery",links:[{product:"cms",external_id:"33333333-3333-4333-8333-333333333333"}]}];
+    const call = vi.fn(async () => ambiguous);
+    const result = await verifyBloomsitesIntegrations({client_name:"Lacoste"},context,
+      {...deps(true,read), rpcFor:()=>call as never});
+    expect(result).toMatchObject({success:false,error:"client_ambiguous"});
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unlinked or unknown customer rather than choosing another", async () => {
+    const result = await verifyBloomsitesIntegrations({client_name:"Unknown Nursery"},context,d());
+    expect(result).toMatchObject({success:false,error:"client_ambiguous"});
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("rejects wildcard names and mismatched site IDs before a client read", async () => {
+    const invalid = await verifyBloomsitesIntegrations({client_name:"%_"},context,d());
+    expect(invalid).toMatchObject({success:false,error:"invalid_client"});
+    expect(remote).not.toHaveBeenCalled();
+    const mismatch = await verifyBloomsitesIntegrations(
+      {client_name:"Lacoste",site_id:"99999999-9999-4999-8999-999999999999"},context,d());
+    expect(mismatch).toMatchObject({success:false,error:"site_mismatch"});
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("never resolves a named client for a nonstaff caller", async () => {
+    const denied = await verifyBloomsitesIntegrations({client_name:"Lacoste"},context,
+      {...deps(false, read),rpcFor:()=>remote as never});
+    expect(denied).toMatchObject({success:false,error:"forbidden"});
+    expect(remote).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
+});
