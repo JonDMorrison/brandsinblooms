@@ -17,7 +17,7 @@ async function loadEsbuild() {
 }
 const { build } = await loadEsbuild();
 const out = process.argv[2] ?? resolve(root, "dist/bloom-support-functions");
-const fns = ["bloom-support-api", "bloom-support-intake", "bloom-support-email", "bloom-support-worker", "bloom-support-mcp"];
+const fns = ["bloom-support-api", "bloom-support-intake", "bloom-support-email", "bloom-support-worker", "bloom-support-mcp", "bloom-support-slack", "bloom-support-github", "bloom-support-cms-events"];
 const denoSpecifiers = {
   name: "deno-specifiers",
   setup(b) {
