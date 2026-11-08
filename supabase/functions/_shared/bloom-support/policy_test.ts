@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
 import {
-  classify, DEFAULT_RELEASE_POLICY, evaluateRelease, indicatesStillBroken, isAutomatedEmail, matchesAny, mergeModelClassification,
+  authorizedManualForwarder, classify, DEFAULT_RELEASE_POLICY, evaluateRelease, indicatesStillBroken, isAutomatedEmail, matchesAny, mergeModelClassification,
   parseReferences, redactForEngineering, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
 } from "./policy.ts";
 import { signIntake, verifyIntakeSignature, verifySvix, hmacSha256 } from "./crypto.ts";
@@ -270,4 +270,15 @@ Deno.test("svix signatures (Resend webhooks)", async () => {
   const sig = btoa(String.fromCharCode(...await hmacSha256(secretBytes, `msg_1.${ts}.${body}`)));
   assert(await verifySvix(secret, "msg_1", ts, `v1,${sig}`, body));
   assertFalse(await verifySvix(secret, "msg_2", ts, `v1,${sig}`, body));
+});
+
+Deno.test("manual forwarding aliases require aligned DKIM and grant no automatic staff authority", () => {
+  const aliases = ["jon@brandsinblooms.com"];
+  assert(authorizedManualForwarder("Jon@BrandsInBlooms.com", true, false, aliases));
+  assert(authorizedManualForwarder("jeff@brandsinblooms.com", true, true, aliases));
+  assertFalse(authorizedManualForwarder("jon@brandsinblooms.com", false, false, aliases));
+  assertFalse(authorizedManualForwarder("jon@brandsinblooms.com", false, true, aliases));
+  assertFalse(authorizedManualForwarder("attacker@example.com", true, false, aliases));
+  assertFalse(authorizedManualForwarder("jon@brandsinblooms.com.attacker.test", true, false, aliases));
+  assertFalse(authorizedManualForwarder("jon@brandsinblooms.com", true, false, []));
 });
