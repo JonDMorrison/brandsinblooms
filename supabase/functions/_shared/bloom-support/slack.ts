@@ -63,34 +63,38 @@ export function slackSafeMessage(kind: string, ticketId: string | null, githubUr
       : `<${link}|Open in Bloom Support>`;
   return `*${state.headline}*\n${state.whatItMeans}\n*Next:* ${state.nextStep}\n${actionLink}${source ? ` · <${source}|See GitHub details>` : ""}`;
 }
+/** Only the trusted worker calls this. Never pass raw customer email or webhook text. */
+export async function postSlackInternalText(
+  route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string,
+): Promise<string> {
+  if (!/^[-\w.]{16,128}$/.test(jobId)) throw new Error("invalid job ID");
+  const token = env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
+  const channel = slackChannelId(env("BLOOM_SUPPORT_SLACK_CHANNEL_" + route.toUpperCase()));
+  if (!token || !channel) throw new BloomError(503, "not_configured", "Slack bot or channel not configured");
+  const payload: Record<string, unknown> = {
+    channel, text: text.slice(0, 2400), client_msg_id: jobId, unfurl_links: false, unfurl_media: false,
+  };
+  if (threadTs && /^\d{10}\.\d{6}$/.test(threadTs)) payload.thread_ts = threadTs;
+  let response: Response;
+  try {
+    response = await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify(payload), signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    throw new BloomError(502, "slack_network", "Slack notification network error");
+  }
+  if (response.status === 429) throw new BloomError(429, "slack_rate_limit", "Slack rate limit");
+  if (!response.ok) throw new BloomError(502, "slack_http", "Slack API HTTP " + response.status);
+  const result = await response.json().catch(() => null) as {ok?:boolean;error?:string;ts?:string}|null;
+  if (!result?.ok) throw new BloomError(502, "slack_delivery", "Slack rejected notification: " + (result?.error ?? "unknown"));
+  return "delivered to " + route + " (Slack ts: " + (result.ts ?? "unknown") + ")";
+}
 export async function postSlackSupportNotification(input: {
   kind: string; ticketId: string | null; jobId: string; githubUrl?: string;
 }): Promise<string> {
   const route = slackRoute(input.kind);
   if (!route) return "skipped: unsupported Slack event";
-  const token = env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
-  const channel = slackChannelId(env(`BLOOM_SUPPORT_SLACK_CHANNEL_${route.toUpperCase()}`));
-  if (!token || !channel) throw new BloomError(503, "not_configured", "Slack bot token/channel not configured");
-  const payload = {
-    channel,
-    text: slackSafeMessage(input.kind, input.ticketId, input.githubUrl),
-    client_msg_id: input.jobId,
-    unfurl_links: false,
-    unfurl_media: false,
-  };
-  let response: Response;
-  try {
-    response = await fetch("https://slack.com/api/chat.postMessage", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch {
-    throw new BloomError(502, "slack_network", "Slack notification network error");
-  }
-  if (!response.ok) throw new BloomError(502, "slack_http", `Slack API HTTP ${response.status}`);
-  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string; ts?: string } | null;
-  if (!result?.ok) throw new BloomError(502, "slack_delivery", `Slack rejected notification: ${result?.error ?? "unknown"}`);
-  return `delivered to ${route} (Slack ts: ${result.ts ?? "unknown"})`;
+  return await postSlackInternalText(route, slackSafeMessage(input.kind,input.ticketId,input.githubUrl),input.jobId);
 }
