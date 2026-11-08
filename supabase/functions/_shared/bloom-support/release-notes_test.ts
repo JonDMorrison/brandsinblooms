@@ -71,6 +71,6 @@ Deno.test("unknown/invalid classifications fail closed and cannot inject Slack m
 Deno.test("the original deployment-vs-verified safety messages remain distinct",()=>{
   const msg=slackSafeMessage("github.deployment_succeeded",null,
     "https://github.com/JonDMorrison/brandsinblooms/deployments/1234",undefined,"checkout");
-  assertStringIncludes(msg,"customer experience has not been verified");
+  assertStringIncludes(msg,"haven't checked the customer's experience yet");
   assertEquals(msg.includes("shopping carts"),false);
 });
