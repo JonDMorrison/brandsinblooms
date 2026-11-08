@@ -10,6 +10,12 @@ describe("Bloom Support accepts real forwarded email evidence within safe limits
     expect(inbound).toContain("readBodyText(req, 256 * 1024)");
     expect(inbound).not.toContain("readResponseText(res, 1_000_000)");
   });
+  it("fetches screenshot URLs from Resend even when webhook metadata has no attachment list", () => {
+    expect(inbound).toContain("const manifestMissingUrls = Array.isArray(attachments)");
+    expect(inbound).toContain("if (manifestMissingUrls ||");
+    expect(inbound).toContain("Resend attachment manifest unavailable");
+    expect(inbound).not.toContain("attachments = list?.data ?? attachments");
+  });
   it("preserves up to ten emailed screenshots without lifting the per-file or total caps", () => {
     expect(inbound).toContain("if (index >= 10)");
     expect(inbound).toContain("MAX_ATTACHMENT_BYTES");
