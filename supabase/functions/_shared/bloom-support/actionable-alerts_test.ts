@@ -76,7 +76,7 @@ Deno.test("inferred Northfield engineering issue has an accurate client and requ
  },northfield);
  assert(msg);
  assertStringIncludes(msg,"Northfield Garden Center");
- assertStringIncludes(msg,"repair was stopped");
+ assertStringIncludes(msg,"repair has stopped");
  assertStringIncludes(msg,"#1026");
  assertStringIncludes(msg,"Review the stopped repair");
 });
