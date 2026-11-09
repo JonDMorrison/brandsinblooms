@@ -15,6 +15,12 @@ RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
       WHERE m.account_id = a.id AND m.principal_id = p_requester
         AND m.verified AND p.active AND p.role = 'client'
         AND (p.product = l.product OR p.product = 'email')
+        AND (SELECT count(DISTINCT member.account_id)
+             FROM bloom_support.principals sender
+             JOIN bloom_support.account_members member
+               ON member.principal_id = sender.id AND member.verified
+             WHERE lower(sender.email) = lower(p.email)
+               AND sender.active AND sender.role = 'client') = 1
     )
     -- A multi-product account is ambiguous even if this identity came from one
     -- product. A sender may be reporting another product on the same account.
