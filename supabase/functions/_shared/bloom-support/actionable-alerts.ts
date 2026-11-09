@@ -163,3 +163,27 @@ export function actionableAlertMessage(kind:string, rawContext:unknown, rawTicke
   }
   return null;
 }
+
+/**
+ * Missing context is an exception, not proof there is no problem.
+ * Only the self-referential Slack failure loop is silently skipped.
+ * Keep every other potentially important alert visible with an honest blocker.
+ */
+export function missingAlertContextMessage(kind: string): string | null {
+  const isSystem = kind.startsWith("alert.");
+  const isEngineering = kind === "engineering.escalated" || kind === "engineering.failed";
+  const isEscalation = kind === "escalation.overdue";
+  const isSupport = kind === "ticket.overdue" || kind === "ticket.stalled" ||
+    kind === "ticket.needs_owner" || kind === "job.dead";
+  if (!isSystem && !isEngineering && !isEscalation && !isSupport) return null;
+  const label = isEngineering ? "A repair needs review" : isEscalation ?
+    "A support decision needs review" : isSystem ?
+    "A system check needs review" : "A support task needs review";
+  return [
+    "*" + label + "*",
+    "Bloom recorded a problem but could not safely match it to the supporting details.",
+    "*What is known:* The source record could not be verified. Customer impact is not confirmed.",
+    "*Next:* A support administrator should inspect the original alert and link the correct task before taking action.",
+    "<https://bloomsuite.app/admin/bloom-support?view=readiness|Review System Status>",
+  ].join("\n");
+}
