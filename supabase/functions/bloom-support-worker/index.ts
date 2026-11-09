@@ -13,7 +13,7 @@ import {
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
 import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
-import { actionableAlertMessage } from "../_shared/bloom-support/actionable-alerts.ts";
+import { actionableAlertMessage, missingAlertContextMessage } from "../_shared/bloom-support/actionable-alerts.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
   type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
@@ -902,7 +902,17 @@ async function notifyEmail(job: Job): Promise<string> {
       const details = await directRpc<Record<string, unknown>>(
         "bloom_support_slack_alert_context",{p_job_id:job.id},
       );
-      if (details?.actionable !== true) return "skipped: no verified actionable alert";
+      if (details?.actionable !== true) {
+        if (eventKind === "alert.dead_jobs" &&
+            details?.reason === "slack_delivery_failures_only") {
+          return "skipped: Slack delivery errors alone are not customer incidents";
+        }
+        const missing = missingAlertContextMessage(eventKind);
+        if (!missing) return "skipped: not a supported urgent alert";
+        const channel = eventKind.startsWith("engineering.") ||
+          eventKind.startsWith("ticket.") ? "tickets" : "alerts";
+        return await postSlackInternalText(channel,missing,job.id);
+      }
       const linkedId = typeof details.ticket_id === "string" ? details.ticket_id : null;
       let ticket:Record<string,unknown>|null=null;
       if (linkedId) {
