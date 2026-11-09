@@ -39,6 +39,8 @@ SELECT pg_temp.assert((SELECT product='cms' AND engineering_issue_id=:'legacy_is
 SELECT pg_temp.assert((SELECT evidence->'product_routing'->>'owner_assisted_restart'='true' AND repository IS NULL AND branch IS NULL AND attempts=0 AND approved_at IS NULL FROM bloom_support.engineering_issues WHERE id=:'legacy_issue'), 'routing provenance recorded without dispatch or release approval');
 SELECT pg_temp.assert(EXISTS(SELECT 1 FROM bloom_support.jobs WHERE engineering_issue_id=:'legacy_issue' AND kind='investigate' AND status='queued'), 'existing start operation queues investigation');
 SELECT pg_temp.assert(NOT has_function_privilege('anon','bloom_support.verified_email_product(uuid,uuid)','execute'), 'no public RPC privilege added');
+SELECT pg_temp.assert(NOT has_function_privilege('anon','bloom_support.route_new_email_product()','execute'), 'new-email routing trigger stays private');
+SELECT pg_temp.assert(NOT has_function_privilege('anon','bloom_support.route_started_email_repair()','execute'), 'repair-restart trigger stays private');
 -- No recovery for an account that became ambiguous before owner approval.
 SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'intake', 'ticket', jsonb_build_object('product','unknown','channel','email','body','Ambiguous old report','account_id', :'route_account','requester_id', :'route_client','context', '{"email_match":"domain"}'::jsonb))) AS blocked_ticket \gset
 SELECT :'blocked_ticket'::jsonb->>'ticket_id' AS blocked_id \gset
