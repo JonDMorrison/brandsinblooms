@@ -5,9 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:safe": "CAP_LABEL=crm CAP_CPUS=${CAP_CPUS:-2} CAP_MEM_HIGH=${CAP_MEM_HIGH:-2G} CAP_MEM_MAX=${CAP_MEM_MAX:-3G} ../cms-brandsinblooms/scripts/run-capped.sh vite",
     "build": "vite build",
+    "build:safe": "CAP_PROFILE=build CAP_LABEL=crm-build CAP_CPUS=${CAP_CPUS:-3} CAP_MEM_MAX=${CAP_MEM_MAX:-5G} ../cms-brandsinblooms/scripts/run-capped.sh vite build",
+    "typecheck:safe": "CAP_PROFILE=build CAP_LABEL=crm-typecheck CAP_CPUS=${CAP_CPUS:-2} CAP_MEM_MAX=${CAP_MEM_MAX:-4G} ../cms-brandsinblooms/scripts/run-capped.sh tsc -b",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "lint:safe": "CAP_PROFILE=build CAP_LABEL=crm-lint CAP_CPUS=${CAP_CPUS:-2} CAP_MEM_MAX=${CAP_MEM_MAX:-4G} ../cms-brandsinblooms/scripts/run-capped.sh eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
