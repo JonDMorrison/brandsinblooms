@@ -62,11 +62,11 @@ export default function StudioColorPicker({
         ? [...designSystemPresets.core, primaryPreset, ...CORE_COLOR_PRESETS]
         : [primaryPreset, ...CORE_COLOR_PRESETS];
     return Array.from(
-      new Map(
+      new Map<string, string>(
         [...ESSENTIAL_COLOR_PRESETS, ...brandPresets].map((color) => [
           color.toLowerCase(),
           color,
-        ]),
+        ] as const),
       ).values(),
     );
   }, [designSystemPresets?.core, presets, primaryPreset]);
@@ -88,9 +88,9 @@ export default function StudioColorPicker({
   const visiblePresets = React.useMemo(
     () =>
       Array.from(
-        new Map(
+        new Map<string, string>(
           [...colorPresets, ...(expanded ? additionalPresets : [])].map(
-            (color) => [color.toLowerCase(), color],
+            (color) => [color.toLowerCase(), color] as const,
           ),
         ).values(),
       ),
@@ -277,6 +277,7 @@ export default function StudioColorPicker({
             variant="outlined"
             value={resolvedColor}
             onChange={(event) => commitColor(event.target.value)}
+            slotProps={{ input: { "aria-label": `${label} hex colour` } }}
             sx={{
               flex: 1,
               width: "100%",
