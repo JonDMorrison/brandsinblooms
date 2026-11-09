@@ -93,7 +93,7 @@ BEGIN
   IF v_kind = 'engineering.escalated' AND j.ticket_id IS NULL THEN
     -- Some engineering notices were emitted without the ticket ID. Only
     -- attach a ticket when exactly one escalation matches the job timestamp.
-    SELECT count(*)::int,max(t.id) INTO v_matches,v_issue
+    SELECT count(*)::int,(array_agg(t.id))[1] INTO v_matches,v_issue
       FROM bloom_support.engineering_issues e
       JOIN bloom_support.tickets t ON t.engineering_issue_id=e.id
      WHERE e.status='escalated' AND t.spam=false
