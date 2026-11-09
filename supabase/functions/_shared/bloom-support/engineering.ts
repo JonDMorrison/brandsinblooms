@@ -295,7 +295,7 @@ async function actualPRBase(issue: EngineeringIssue): Promise<"main" | "dev" | n
   const pr = await gh<{base?: {ref?: string}}>(
     "release", "GET", `/repos/${issue.repository}/pulls/${issue.pr_number}`,
   );
-  return releaseBaseForPR(issue.repository, pr.base?.ref);
+  return releaseBaseForPR(issue.repository, pr?.base?.ref);
 }
 
 function engineeringPagePath(value: unknown): string | null {
