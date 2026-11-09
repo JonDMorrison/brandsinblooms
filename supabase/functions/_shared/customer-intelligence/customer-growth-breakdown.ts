@@ -39,7 +39,11 @@ export function customerGrowthBreakdown(orders: GrowthOrder[], customerIds: stri
     current: row, previous: previousById.get(row.customerId)!,
   }));
   const badRows = new Set([...baseline.customers, ...current.customers].flatMap(row => row.missingOrderIds));
+  // Match capturePeriod's explicit non-purchase statuses. Unknown statuses still
+  // require reconciliation; canceled anonymous rows are not missing buyers.
+  const ignoredStatuses = new Set(['draft', 'pending', 'failed', 'void', 'voided', 'canceled', 'cancelled']);
   const relevantOrders = orders.filter(order => {
+    if (ignoredStatuses.has(order.status?.toLowerCase() ?? '')) return false;
     if (Number.isFinite(Date.parse(order.created_at)) && Date.parse(order.created_at) > Date.parse(settings.cutoff)) return false;
     const day = localDate(order.order_date, settings.timezone);
     return !day || day <= settings.currentEnd;

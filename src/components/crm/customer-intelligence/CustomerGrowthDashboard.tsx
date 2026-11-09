@@ -13,7 +13,10 @@ type Report = ReturnType<typeof customerGrowthBreakdown>;
 export function CustomerGrowthDashboard() {
   const { tenant, loading } = useTenant();
   const admin = useAdmin();
-  if (loading || admin.isLoading || (admin.isMasterAdmin && (!admin.hasHydratedTenantContext || admin.activeTenantId !== tenant?.id)))
+  if (admin.isLoading || (admin.isMasterAdmin && !admin.hasHydratedTenantContext))
+    return <Typography>Loading customer growth scope…</Typography>;
+  if (admin.isMasterAdmin && !admin.activeTenantId) return <Alert>Select a company to view customer growth.</Alert>;
+  if (loading || (admin.isMasterAdmin && admin.activeTenantId !== tenant?.id))
     return <Typography>Loading customer growth scope…</Typography>;
   if (!tenant?.id) return <Alert>Select a company to view customer growth.</Alert>;
   const timezone = typeof tenant.settings?.timezone === 'string' ? tenant.settings.timezone : 'America/Vancouver';

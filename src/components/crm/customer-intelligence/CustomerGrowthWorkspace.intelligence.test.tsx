@@ -12,10 +12,10 @@ import {
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { CustomerGrowthWorkspace } from "./CustomerGrowthWorkspace";
 
-import { CustomerGrowthDashboardBody } from "./CustomerGrowthDashboard";
-vi.mock("@/contexts/AdminContext", () => ({ useAdmin: () => ({isLoading:false,isMasterAdmin:false}) }));
+import { CustomerGrowthDashboard, CustomerGrowthDashboardBody } from "./CustomerGrowthDashboard";
+vi.mock("@/contexts/AdminContext", () => ({ useAdmin: () => mocks.admin }));
 
-const mocks = vi.hoisted(() => ({ pages: vi.fn(), permission: vi.fn() }));
+const mocks = vi.hoisted(() => ({ pages: vi.fn(), permission: vi.fn(), admin: { isLoading: false, isMasterAdmin: false, hasHydratedTenantContext: true, activeTenantId: null as string | null } }));
 vi.mock("@/hooks/useTenant", () => ({
   useTenant: () => ({
     tenant: {
@@ -55,7 +55,7 @@ function mount(section: "explore" | "growth" | "all") {
     </MemoryRouter>,
   );
 }
-beforeEach(() => { vi.clearAllMocks(); mocks.permission.mockResolvedValue({data:true,error:null}); });
+beforeEach(() => { mocks.admin = { isLoading: false, isMasterAdmin: false, hasHydratedTenantContext: true, activeTenantId: null }; vi.clearAllMocks(); mocks.permission.mockResolvedValue({data:true,error:null}); });
 afterEach(cleanup);
 
 describe("Customer Intelligence workbenches", () => {
@@ -143,6 +143,26 @@ vi.mock("./ReportedPurchaseWorkspace", () => ({ReportedPurchaseWorkspace: () => 
 
 
 describe("Customer growth dashboard safety and interaction", () => {
+  it("prompts a hydrated master admin to select a company instead of using the assigned fallback", () => {
+    mocks.admin.isMasterAdmin = true;
+    render(<CustomerGrowthDashboard />);
+    expect(screen.getByText("Select a company to view customer growth.")).toBeVisible();
+    expect(screen.queryByText("Loading customer growth scope…")).not.toBeInTheDocument();
+    expect(mocks.pages).not.toHaveBeenCalled();
+  });
+  it("waits for master-admin hydration and a matching selected tenant before exposing the dashboard", () => {
+    mocks.admin = { isMasterAdmin: true, isLoading: false, hasHydratedTenantContext: false, activeTenantId: null };
+    const view = render(<CustomerGrowthDashboard />);
+    expect(screen.getByText("Loading customer growth scope…")).toBeVisible();
+    mocks.admin = { ...mocks.admin, hasHydratedTenantContext: true, activeTenantId: "other-tenant" };
+    view.rerender(<CustomerGrowthDashboard />);
+    expect(screen.getByText("Loading customer growth scope…")).toBeVisible();
+    expect(screen.queryByText("Customer growth dashboard")).not.toBeInTheDocument();
+    mocks.admin.activeTenantId = "synthetic-tenant";
+    view.rerender(<CustomerGrowthDashboard />);
+    expect(screen.getByText("Customer growth dashboard")).toBeVisible();
+    expect(mocks.pages).not.toHaveBeenCalled();
+  });
   it("renders reviewed cohort totals through the real growth workspace without certifying unknown history", async () => {
     const customerIds = ["retained", "lost", "new", "recovered"];
     const rows = [

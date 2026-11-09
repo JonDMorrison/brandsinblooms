@@ -162,6 +162,15 @@ describe('annual customer growth dashboard', () => {
    { ...cohortOrders[0], order_date: '2020-01-01T19:00:00Z', crm_customer_id: null },
   ]) expect(breakdown([...cohortOrders, { ...row, id: 'bad' }]).reviewed).toBeNull();
  });
+ it.each(['draft', 'pending', 'failed', 'void', 'voided', 'canceled', 'CANCELLED'])('ignores explicit %s non-purchases in coverage gap checks', status => {
+  const extra = [null, 'deleted-customer', 'new'].map((customer, i) => ({ ...order(`ignored-${i}`, 'new', '2020-01-01', 10, { status, currency: 'USD' }), crm_customer_id: customer }));
+  expect(breakdown([...cohortOrders, ...extra]).reviewed).toEqual(breakdown().reviewed);
+ });
+ it.each(['unknown', null])('keeps unknown status %s as a reconciliation blocker', status => {
+  for (const customer of [null, 'deleted-customer', 'new']) {
+   expect(breakdown([...cohortOrders, { ...order('unknown', 'new', '2020-01-01', 10, { status }), crm_customer_id: customer }]).reviewed).toBeNull();
+  }
+ });
  it('does not certify first-ever across excluded identities or other currencies', () => {
   expect(breakdown([...cohortOrders, order('unavailable', 'deleted-customer', '2020-01-01')]).reviewed).toBeNull();
   expect(breakdown([...cohortOrders, order('foreign', 'new', '2020-01-01', 10, { currency: 'USD' })]).reviewed).toBeNull();
