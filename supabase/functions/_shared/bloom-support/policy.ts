@@ -474,10 +474,25 @@ export function resolvePolicy(stored: unknown, autoReleaseEnabled: boolean): Rel
 // Repository map
 // ---------------------------------------------------------------------------
 export const PRODUCT_REPOSITORIES: Record<Exclude<Product, "unknown" | "platform">, { repository: string; base: string; deployCheck: string }> = {
-  cms: { repository: "Brands-In-Blooms/cms-brandsinblooms", base: "dev", deployCheck: "Vercel" },
+  cms: { repository: "Brands-In-Blooms/cms-brandsinblooms", base: "main", deployCheck: "Vercel" },
   crm: { repository: "JonDMorrison/brandsinblooms", base: "main", deployCheck: "Vercel" },
   pos: { repository: "Brands-In-Blooms/bloomtill", base: "main", deployCheck: "Vercel" },
 };
+
+/**
+ * GitHub's actual PR target is the release authority. Existing BloomSites fixes
+ * may target dev even though new repairs now start against main. Never treat
+ * a historical dev merge as a live production release or accept arbitrary bases.
+ */
+export function releaseBaseForPR(repository: string, base: unknown): "main" | "dev" | null {
+  const known = Object.values(PRODUCT_REPOSITORIES).find(
+    (target) => target.repository.toLowerCase() === repository.toLowerCase(),
+  );
+  if (!known) return null;
+  if (base === "main") return "main";
+  if (base === "dev" && known.repository === PRODUCT_REPOSITORIES.cms.repository) return "dev";
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Permissions mirrored for UI hints (the database is authoritative)
