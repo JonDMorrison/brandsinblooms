@@ -241,15 +241,28 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   const closed = !!t.merged_into;
   const retryLocked = pendingReply.current !== null && replyError !== null;
   const replyLocked = replyRun.isPending || retryLocked;
-  const product = PRODUCT_LABEL[t.product] ?? t.product;
+  const product = t.product === "unknown" ? "Product not confirmed" : PRODUCT_LABEL[t.product] ?? t.product;
+  // The desk already stores a human-readable problem statement. Reuse it instead
+  // of making staff read a technical subject or the full original email.
+  const plainEscalation = (t.escalations ?? []).find((e) =>
+    e.status === "open" && !!e.plain && typeof e.plain === "object" &&
+    typeof (e.plain as Record<string, unknown>).problem === "string",
+  );
+  const plainProblem = (plainEscalation?.plain as { problem?: string } | undefined)?.problem?.trim() ?? "";
   const headline = t.subject.replace(/^TEST:\s*/i, "").replace(/\s*\|\s*20\d{2}-\d{2}-\d{2}$/, "");
   const repairPaused = eng?.status === "escalated";
   const routingBlocked = repairPaused && t.product === "unknown";
   // Routine receipts and triage notes are preserved but don't obscure the actual request.
   const routineUpdates = t.messages.filter((m) => m.author_kind === "bloom" && (
-    m.purpose === "acknowledgement" || m.purpose === "progress" ||
-    (m.visibility === "internal" && m.body.startsWith("Bloom read this as"))
+    m.purpose === "acknowledgement" ||
+    (m.visibility === "internal" && m.body.startsWith("Bloom read this as")) ||
+    (m.purpose === "progress" && (
+      m.body.startsWith("I've logged this as a possible product problem") ||
+      m.body.startsWith("The automatic repair has stopped.")
+    ))
   ));
+  // Custom progress reports, verified findings and actual client replies stay
+  // visible in the conversation. Only stock notifications are tucked away.
   const routineIds = new Set(routineUpdates.map((m) => m.id));
   const mainMessages = t.messages.filter((m) => !routineIds.has(m.id));
   const overLimit = draft.length > MAX_SUPPORT_BODY_LENGTH;
@@ -340,8 +353,11 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
           <Sheet variant="outlined" sx={{ borderRadius: "lg", bgcolor: "background.surface", overflow: "hidden", boxShadow: "xs" }}>
             <Stack spacing={1.5} sx={{ px: { xs: 2, md: 2.5 }, py: 2 }}>
               <Stack spacing={0.5}>
-                <Typography level="body-xs" textColor="text.tertiary" sx={{ fontWeight: "lg" }}>THE ISSUE</Typography>
+                <Typography level="body-xs" textColor="text.tertiary" sx={{ fontWeight: "lg" }}>THE PROBLEM</Typography>
                 <Typography level="title-lg" sx={{ overflowWrap: "anywhere" }}>{headline}</Typography>
+                {plainProblem && plainProblem.toLowerCase() !== headline.toLowerCase() ? (
+                  <Typography level="body-md" textColor="text.secondary" sx={{ pt: 0.5, overflowWrap: "anywhere" }}>{plainProblem}</Typography>
+                ) : null}
                 {/^(TEST|TESTING):\s*/i.test(t.subject) ? <Chip variant="soft" color="neutral" size="sm" sx={{ alignSelf: "flex-start" }}>Marked as a test</Chip> : null}
               </Stack>
               <Divider />
@@ -371,8 +387,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
                     <Typography level="title-sm">What happens next</Typography>
                     <Typography level="body-sm" textColor="text.secondary">
                       {routingBlocked
-                        ? "An admin needs to connect this request to the correct software, then restart the engineering review. The existing approval checks still apply."
-                        : "An admin needs to review why the repair stopped and decide whether engineering can safely continue. Bloom can still handle client messages."}
+                        ? "An admin needs to confirm which product this belongs to, then restart the engineering review. Nothing will be released without the usual checks and approval."
+                        : "An admin needs to review why the repair stopped and decide whether engineering can safely continue. Repair approval and client replies are separate."}
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
                       <Button variant="outlined" color="neutral" size="sm" onClick={onShowDetails}>Review repair details</Button>
