@@ -2662,4 +2662,6 @@ SELECT pg_temp.assert(EXISTS (
     AND ticket ? 'automation'
 ), 'engineering summaries include ticket ownership without detail lookups');
 
+\ir bloom-support-email-product-routing.sql
+
 \echo 'bloom-support-db: all assertions passed'
