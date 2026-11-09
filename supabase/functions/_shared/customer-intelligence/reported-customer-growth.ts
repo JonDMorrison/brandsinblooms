@@ -17,7 +17,7 @@ export function reportedCustomerGrowth(facts: PurchaseFact[], population: string
     return [source.id, new Map<string, { cents: number; positiveQuantity: boolean }>()] as const;
   }));
   const allowed = new Set(population), seen = new Map<string, string>();
-  const excluded = new Set<string>();
+  const unlinkedSummaries = new Set<string>(), unavailableCustomerIds = new Set<string>();
   for (const fact of facts) {
     const source = sources.find(s => s.id === fact.import_id);
     if (!source || fact.tenant_id !== tenantId || fact.source !== source.source || fact.evidence_kind !== 'period_summary' || fact.purchased_at !== null || fact.source_period_start !== source.source_period_start || fact.source_period_end !== source.source_period_end) throw Error('Report facts disagree with their source period.');
@@ -26,7 +26,8 @@ export function reportedCustomerGrowth(facts: PurchaseFact[], population: string
     seen.set(fact.id, fingerprint);
     const cents = moneyMinorUnits(fact.net_amount), quantity = finiteNumber(fact.quantity);
     if (cents === null || quantity === null || fact.currency !== currency) throw Error('Source amounts, quantities or currency need reconciliation.');
-    if (!fact.customer_id || !allowed.has(fact.customer_id)) { excluded.add(fact.customer_id ?? fact.id.split(':')[0]); continue; }
+    if (!fact.customer_id) { unlinkedSummaries.add(`${source.id}:${fact.id.slice(0, fact.id.lastIndexOf(':'))}`); continue; }
+    if (!allowed.has(fact.customer_id)) { unavailableCustomerIds.add(fact.customer_id); continue; }
     const group = bySource.get(source.id)!;
     const value = group.get(fact.customer_id) ?? { cents: 0, positiveQuantity: false };
     value.cents += cents; value.positiveQuantity ||= quantity > 0 && cents > 0;
@@ -46,7 +47,13 @@ export function reportedCustomerGrowth(facts: PurchaseFact[], population: string
     return cents / ids.length / 100;
   };
   const percent = (n: number) => before.size ? n / before.size * 100 : null;
-  return { current, previous, sources, currency, excludedIdentities: excluded.size,
+  const sourceQuarantines = sources.map(source => {
+    const value = (source.reconciliation as { quarantinedGroups?: unknown } | null)?.quarantinedGroups;
+    return { importId: source.id, groups: typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null };
+  });
+  return { current, previous, sources, currency,
+    loadedFactExclusions: { unlinkedSummaries: unlinkedSummaries.size, unavailableCustomerIds: unavailableCustomerIds.size },
+    sourceQuarantines,
     counts: { previous: before.size, current: active.size, retained: retained.length, recovered: recovered.length, firstObserved: firstObserved.length, notReturned: notReturned.length, net: active.size - before.size },
     percentages: { retained: percent(retained.length), recovered: percent(recovered.length), firstObserved: percent(firstObserved.length), net: percent(active.size - before.size) },
     averages: { retained: average(retained), recovered: average(recovered), firstObserved: average(firstObserved) },

@@ -59,7 +59,7 @@ it('deduplicates exact facts, nets refunds, and excludes fully returned activity
 it('shows excluded unknown identities rather than certifying their absence',async()=>{
  const {db}=growthClient(growthSources,eventsForDb([...growthEvents,growthEvent('unlinked',growthSources[2],null,50),growthEvent('deleted',growthSources[2],'unavailable',50)]));
  const result=await loadReportedCustomerGrowth(db,'t','2026-11-09T00:00:00Z',2025,'CAD',growthPopulation);
- expect(result?.excludedIdentities).toBe(2);expect(result?.counts.current).toBe(3);
+ expect(result?.loadedFactExclusions).toEqual({unlinkedSummaries:1,unavailableCustomerIds:1});expect(result?.counts.current).toBe(3);
 });
 it('does not revive a replaced source or combine demo evidence',async()=>{
  const replacement={...growthSources[2],id:'replacement',source_sha256:'replacement-hash',reconciliation:{superseded_sources:[{sourceSha:growthSources[2].source_sha256,periodStart:'2025-01-01',periodEnd:'2025-12-31'}]}};
@@ -79,4 +79,20 @@ it('fails closed for unavailable annual pair, hash mismatch and partial overlap'
 it('handles zero prior net purchasers without infinite contributions',()=>{
  const report=reportedCustomerGrowth([],growthPopulation,'t',growthSources,'current','prior','CAD');
  expect(report.percentages.net).toBeNull();expect(report.counts.current).toBe(0);
+});
+
+it('separates loaded-fact exclusions and per-source quarantined groups without inventing unique people',async()=>{
+ const sources=growthSources.map((source,i)=>({...source,reconciliation:i===0?{}:{quarantinedGroups:i===1?0:3}}));
+ const unlinked=growthEvent('anonymous-current',sources[2],null,20);
+ unlinked.raw_data.items.push(['q','Synthetic pot','Nursery',1,30,2]);
+ const extras=[unlinked,growthEvent('anonymous-prior',sources[1],null,10),growthEvent('unavailable-current',sources[2],'unavailable',30),growthEvent('unavailable-prior',sources[1],'unavailable',40)];
+ const {db}=growthClient(sources,eventsForDb([...growthEvents,...extras]));
+ const result=await loadReportedCustomerGrowth(db,'t','2026-11-09T00:00:00Z',2025,'CAD',growthPopulation);
+ expect(result?.loadedFactExclusions).toEqual({unlinkedSummaries:2,unavailableCustomerIds:1});
+ expect(result?.sourceQuarantines).toEqual([{importId:'earlier',groups:null},{importId:'prior',groups:0},{importId:'current',groups:3}]);
+ expect(result?.counts.current).toBe(3);
+});
+it.each([-1,1.5,'3',null])('keeps invalid quarantine metadata %s unknown rather than zero',value=>{
+ const sources=growthSources.map(source=>({...source,reconciliation:{quarantinedGroups:value}}));
+ expect(reportedCustomerGrowth([],growthPopulation,'t',sources,'current','prior','CAD').sourceQuarantines.every(row=>row.groups===null)).toBe(true);
 });

@@ -153,7 +153,7 @@ describe("Customer growth dashboard safety and interaction", () => {
   it("defaults to imported source results without reading an empty POS ledger or inventing new customers", async () => {
     mocks.pages.mockResolvedValueOnce([{id:"retained",tenant_id:"synthetic-tenant"}]);
     const source = {id:"synthetic-summary",source_period_start:"2026-01-01",source_period_end:"2026-10-14",source_filename:"Synthetic summary",source_sha256:"synthetic-hash",completed_at:"2026-10-20T00:00:00Z",reconciliation:{coverage_complete:false}};
-    mocks.reported.mockResolvedValueOnce({current:source,previous:{...source,id:"prior",source_period_start:"2025-01-01",source_period_end:"2025-12-31"},sources:[source],currency:"CAD",excludedIdentities:1,counts:{previous:2,current:3,retained:1,recovered:1,firstObserved:1,notReturned:1,net:1},percentages:{retained:50,recovered:50,firstObserved:50,net:50},averages:{retained:120,recovered:90,firstObserved:60},firstEver:null,estimatedAnnualSalesEffect:null,spendingSources:[{...source,id:"spending",source_period_end:"2026-11-02",rejected_row_count:2,reconciliation:{coverage_complete:false,unmatched_source_rows:true,unmatched_amount:true}}]});
+    mocks.reported.mockResolvedValueOnce({current:source,previous:{...source,id:"prior",source_period_start:"2025-01-01",source_period_end:"2025-12-31"},sources:[source],currency:"CAD",loadedFactExclusions:{unlinkedSummaries:2,unavailableCustomerIds:1},sourceQuarantines:[{importId:source.id,groups:null}],counts:{previous:2,current:3,retained:1,recovered:1,firstObserved:1,notReturned:1,net:1},percentages:{retained:50,recovered:50,firstObserved:50,net:50},averages:{retained:120,recovered:90,firstObserved:60},firstEver:null,estimatedAnnualSalesEffect:null,spendingSources:[{...source,id:"spending",source_period_end:"2026-11-02",rejected_row_count:2,reconciliation:{coverage_complete:false,unmatched_source_rows:true,unmatched_amount:true}}]});
     render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="UTC" />);
     expect(screen.queryByText("Source coverage review")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button",{name:"Load customer growth dashboard"}));
@@ -162,6 +162,9 @@ describe("Customer growth dashboard safety and interaction", () => {
     expect(screen.getByText(/Spending export 2026-01-01 through 2026-11-02/)).toHaveTextContent("unmatched source rows remain");
     expect(screen.getByText(/Observed positive-net purchasers/)).toHaveTextContent("not certified complete business totals");
     expect(screen.getByText(/First observed is not first-ever/)).toBeVisible();
+    expect(screen.getByText(/Loaded-fact exclusions only/)).toHaveTextContent("2 unlinked source summaries; 1 distinct unavailable customer IDs");
+    expect(screen.getByText(/quarantined group count unknown/)).toBeVisible();
+    expect(screen.getByText(/Counts are source-specific/)).toBeVisible();
     expect(screen.queryByText("New customers (first-ever)")).not.toBeInTheDocument();
     expect(mocks.pages).toHaveBeenCalledTimes(1);
     expect(mocks.reported).toHaveBeenCalledTimes(1);
