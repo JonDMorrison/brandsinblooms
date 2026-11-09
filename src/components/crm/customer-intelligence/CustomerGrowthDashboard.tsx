@@ -5,7 +5,7 @@ import { useTenant } from '@/hooks/useTenant';
 import { useAdmin } from '@/contexts/AdminContext';
 import type { GrowthOrder } from '../../../../supabase/functions/_shared/customer-intelligence/customer-growth';
 import { customerGrowthBreakdown, type GrowthBreakdownSettings } from '../../../../supabase/functions/_shared/customer-intelligence/customer-growth-breakdown';
-import { localDate } from '../../../../supabase/functions/_shared/customer-intelligence/purchase-exploration';
+import { assertDate, localDate } from '../../../../supabase/functions/_shared/customer-intelligence/purchase-exploration';
 import { readAllPages } from '../../../../supabase/functions/_shared/customer-intelligence/query-pages';
 import type { CoverageReview } from '../../../../supabase/functions/_shared/loyalty/programme-measurement';
 
@@ -55,9 +55,14 @@ export function CustomerGrowthDashboardBody({ tenantId, timezone }: { tenantId: 
         if (permissionError || data !== true) throw new Error('Customer growth requires company-wide customer and reporting access.');
       }
       const cutoff = new Date().toISOString();
+      assertDate(currentEnd);
+      // Conservative UTC upper bound retains every business-local endpoint across
+      // supported time zones. Exact local-date filtering remains in the calculator.
+      // No lower bound: first-ever/recovered cohorts need all earlier history.
+      const orderUpperBound = new Date(Date.parse(`${currentEnd}T00:00:00Z`) + 38 * 60 * 60 * 1000).toISOString();
       const [customers, orders] = await Promise.all([
         readAllPages<{ id: string; tenant_id: string }>((from, to) => supabase.from('crm_customers').select('id,tenant_id').eq('tenant_id', tenantId).is('deleted_at', null).is('merged_into_customer_id', null).lte('created_at', cutoff).order('id').range(from, to)),
-        readAllPages<GrowthOrder>((from, to) => supabase.from('pos_orders').select('id,tenant_id,crm_customer_id,order_date,created_at,total_amount,refund_amount,currency,status').eq('tenant_id', tenantId).lte('created_at', cutoff).order('id').range(from, to)),
+        readAllPages<GrowthOrder>((from, to) => supabase.from('pos_orders').select('id,tenant_id,crm_customer_id,order_date,created_at,total_amount,refund_amount,currency,status').eq('tenant_id', tenantId).lte('created_at', cutoff).or(`order_date.lt.${orderUpperBound},order_date.is.null`).order('id').range(from, to)),
       ]);
       if (customers.some(customer => customer.tenant_id !== tenantId)) throw new Error('Customer company scope changed. Retry the report.');
       const review = (reviewed: boolean, evidence: string): CoverageReview => ({ status: reviewed ? 'reviewed_complete' : 'unverified', evidence: evidence.trim(), reviewedAt: reviewed ? cutoff : null });

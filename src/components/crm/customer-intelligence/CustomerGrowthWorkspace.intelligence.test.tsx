@@ -15,7 +15,7 @@ import { CustomerGrowthWorkspace } from "./CustomerGrowthWorkspace";
 import { CustomerGrowthDashboard, CustomerGrowthDashboardBody } from "./CustomerGrowthDashboard";
 vi.mock("@/contexts/AdminContext", () => ({ useAdmin: () => mocks.admin }));
 
-const mocks = vi.hoisted(() => ({ pages: vi.fn(), permission: vi.fn(), admin: { isLoading: false, isMasterAdmin: false, hasHydratedTenantContext: true, activeTenantId: null as string | null } }));
+const mocks = vi.hoisted(() => ({ pages: vi.fn(), permission: vi.fn(), from: vi.fn(), admin: { isLoading: false, isMasterAdmin: false, hasHydratedTenantContext: true, activeTenantId: null as string | null } }));
 vi.mock("@/hooks/useTenant", () => ({
   useTenant: () => ({
     tenant: {
@@ -24,7 +24,7 @@ vi.mock("@/hooks/useTenant", () => ({
     },
   }),
 }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.permission } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.permission, from: mocks.from } }));
 vi.mock(
   "../../../../supabase/functions/_shared/customer-intelligence/query-pages",
   () => ({ readAllPages: mocks.pages }),
@@ -143,6 +143,22 @@ vi.mock("./ReportedPurchaseWorkspace", () => ({ReportedPurchaseWorkspace: () => 
 
 
 describe("Customer growth dashboard safety and interaction", () => {
+  it("bounds historical order reads without dropping earlier history or null dates", async () => {
+    const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), lte: vi.fn(), or: vi.fn(), order: vi.fn(), range: vi.fn() };
+    for (const method of Object.values(query)) method.mockReturnValue(query);
+    query.range.mockResolvedValue({ data: [], error: null });
+    mocks.from.mockReturnValue(query);
+    mocks.pages.mockImplementation(async callback => (await callback(0, 999)).data);
+    render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="Pacific/Honolulu" />);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Reporting year" }), { target: { value: "2024" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load customer growth dashboard" }));
+    expect(await screen.findByText(/Coverage is unverified\./)).toBeVisible();
+    expect(mocks.from).toHaveBeenCalledWith("pos_orders");
+    expect(query.or).toHaveBeenCalledExactlyOnceWith("order_date.lt.2025-01-01T14:00:00.000Z,order_date.is.null");
+    expect(query.eq).toHaveBeenCalledWith("tenant_id", "synthetic-tenant");
+    expect(query.lte.mock.calls.every(([field]) => field === "created_at")).toBe(true);
+    mocks.pages.mockReset();
+  });
   it("prompts a hydrated master admin to select a company instead of using the assigned fallback", () => {
     mocks.admin.isMasterAdmin = true;
     render(<CustomerGrowthDashboard />);

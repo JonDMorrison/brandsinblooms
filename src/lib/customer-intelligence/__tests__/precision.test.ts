@@ -30,6 +30,17 @@ describe('deterministic follow-up customer exploration',()=>{
  it.each(['tenant_id','user_id','conversation_id'] as const)('rejects result reuse across %s',field=>{const s=search({mode:'all'});expect(()=>search({mode:'all'},{...s,[field]:'other'})).toThrow(/outside/);});
  it('rejects invisibly shrinking an old audience after access changes',()=>{const s=search({mode:'all'});expect(()=>explorePurchases({...base,population:['alice'],facts,rule:{mode:'all'},previous:s})).toThrow(/no longer accessible/);});
  it('does not count facts created after the source-read time',()=>expect(search({mode:'purchased',product:'Hydrangea'},undefined,[fact('a','alice','Hydrangea',{created_at:'2027-01-01'})]).included_ids).toEqual([]));
+ it('reuses timezone formatters across large ledgers while validating null dates', () => {
+  const NativeDateTimeFormat = Intl.DateTimeFormat;
+  const constructor = vi.spyOn(Intl, 'DateTimeFormat').mockImplementation((locales, options) => new NativeDateTimeFormat(locales, options));
+  try {
+   for (let i = 0; i < 2000; i++) expect(localDate('2025-01-01T01:00:00Z', 'Pacific/Honolulu')).toBe('2024-12-31');
+   expect(constructor).toHaveBeenCalledTimes(1);
+   expect(localDate(null, 'Pacific/Honolulu')).toBeNull();
+   expect(() => localDate(null, 'Invalid/Timezone')).toThrow();
+   expect(localDate('2025-01-01T01:00:00Z', 'Pacific/Kiritimati')).toBe('2025-01-01');
+  } finally { constructor.mockRestore(); }
+ });
  it('uses local rather than UTC day boundaries',()=>{const s=search({mode:'purchased',product:'Hydrangea',start_date:'2026-09-01',end_date:'2026-09-01'},undefined,[fact('a','alice','Hydrangea',{purchased_at:'2026-09-02T01:00:00Z'})]);expect(s.included_ids).toEqual(['alice']);});
  it('counts unique customers, not units, in basket percentages',()=>{const r=analyzeBasket([...facts,facts[0]],['alice','bob'],'t');expect(r.denominator).toBe(2);expect(r.products.find(p=>p.product==='Hydrangea')).toEqual({product:'Hydrangea',customers:2,percent:100});});
  it('requires earlier dated evidence for within-days questions',()=>expect(()=>search({mode:'purchased',product:'Fertilizer',within_days:30})).toThrow(/earlier result/));
