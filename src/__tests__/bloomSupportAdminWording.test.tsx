@@ -192,6 +192,31 @@ describe("support decision card", () => {
     expect(details).toHaveTextContent("Private technical evidence");
     unmount();
   });
+  it("asks staff to review a stopped repair before opting into takeover", () => {
+    const open = vi.fn();
+    const confirm = vi.fn();
+    const { unmount } = render(
+      <DecisionCard
+        d={{
+          ...decision,
+          reviewFirst: true,
+          recommendation: "Open the request to see why the repair stopped. Taking ownership is optional.",
+          options: [{ id: "take", label: "Take over this request", detail: "Bloom stops messaging the client.", run: take, done: "Assigned." }],
+          other: undefined,
+          open: { label: "Open request", onClick: open },
+        }}
+        busy={false}
+        onConfirm={confirm}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Review stopped repair" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /Take over this request/ })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Review stopped repair" }));
+    expect(open).toHaveBeenCalledOnce();
+    expect(confirm).not.toHaveBeenCalled();
+    unmount();
+  });
   it("prevents repeated submission while busy and explains when the role can't decide", () => {
     const { container, rerender, unmount } = render(<DecisionCard d={decision} busy onConfirm={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
