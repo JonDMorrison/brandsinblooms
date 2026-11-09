@@ -52,5 +52,13 @@ export function bloomNextStep(t: Pick<TicketSummary, "status" | "waiting_reason"
   return "Bloom is working out the next step.";
 }
 
-export const clientName = (t: Pick<TicketSummary, "account" | "requester">) =>
-  t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client";
+/** The Today desk is grouped by client, not by whoever emailed support.
+ * An unlinked intake or test has no verified client identity. Never present a
+ * staff person's email as the customer; show the request number instead.
+ * The requester and email remain available in the ticket details.
+ */
+export const clientName = (t: Pick<TicketSummary, "account" | "requester"> & Partial<Pick<TicketSummary, "number">>): string => {
+  const linked = t.account?.name?.trim();
+  if (linked) return linked;
+  return Number.isInteger(t.number) && Number(t.number) > 0 ? `Unlinked request #${t.number}` : "Unlinked request";
+};
