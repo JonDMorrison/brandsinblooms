@@ -4,12 +4,51 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import StudioColorPicker from "../fields/StudioColorPicker";
 import { ColorField, NumericField } from "./AppearanceControls";
 
+vi.mock("@/contexts/DesignSystemContext", () => ({
+  useOptionalDesignSystem: () => ({
+    designSystem: {
+      colors: {
+        primary: "#112233",
+        secondary: "#445566",
+        accent: "#778899",
+      },
+      colorPresets: { core: ["#112233", "#445566", "#778899", "#AABBCC"], expanded: ["#CCAA88"] },
+    },
+  }),
+}));
+
+
 const orderedSwatches = (container: HTMLElement) =>
   Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(
     (button) => button.getAttribute("aria-label")?.startsWith("Select "),
   );
 
 describe("newsletter colour controls", () => {
+  it("places the three configured brand colours directly after None, black and white", () => {
+    const { container } = render(
+      <StudioColorPicker
+        label="Button colour"
+        value="#445566"
+        presets={["#C0FFEE", "#112233"]}
+      />,
+    );
+    const swatches = orderedSwatches(container);
+    expect(swatches.slice(0, 7).map((button) => button.title)).toEqual([
+      "None / transparent",
+      "#000000",
+      "#FFFFFF",
+      "Brand primary · #112233",
+      "Brand secondary · #445566",
+      "Brand accent · #778899",
+      "#C0FFEE",
+    ]);
+    expect(swatches[4]).toHaveAttribute("aria-pressed", "true");
+    expect(swatches.filter((button) => button.title === "Brand primary · #112233")).toHaveLength(1);
+    const hex = screen.getByRole("textbox", { name: "Button colour hex colour" });
+    expect(swatches[5].compareDocumentPosition(hex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+
   it("puts None, black, and white first, even with a different brand palette", () => {
     const change = vi.fn();
     const { container } = render(
