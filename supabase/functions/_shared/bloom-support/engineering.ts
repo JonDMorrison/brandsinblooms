@@ -10,6 +10,7 @@
 //
 // The repair side never holds merge credentials and cannot write eligibility.
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
+import { promotionObservationSchedule, type EngineeringNext } from "./engineering-schedule.ts";
 import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
 import { evaluateRelease, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Product } from "./policy.ts";
 import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts } from "./github.ts";
@@ -31,7 +32,7 @@ export interface EngineeringIssue {
   tickets: Array<{ id: string; number: number; subject: string; account_id: string | null; status: string }>;
 }
 
-export type StepResult = { next?: { step: string; delaySeconds: number }; note: string };
+export type StepResult = { next?: EngineeringNext; note: string };
 
 async function loadIssue(actor: Caller, id: string): Promise<EngineeringIssue> {
   const all = await rpc<EngineeringIssue[]>("list_engineering", { actor: actor.principalId });
@@ -830,6 +831,7 @@ async function merge(release: Caller, issueId: string, sha: string): Promise<Ste
 }
 
 export async function deploy(release: Caller, issueId: string): Promise<StepResult> {
+  const observationStartedAt = Date.now();
   const issue = await loadIssue(release, issueId);
   if (!issue.merge_sha || !issue.repository) return { note: "no merge" };
   if (!["merged", "deploying"].includes(issue.status)) return { note: `status ${issue.status}` };
@@ -845,8 +847,14 @@ export async function deploy(release: Caller, issueId: string): Promise<StepResu
       base,
     );
     if (!productionSha) {
-      await update(release, issue, null, { deployment: { state: "awaiting_production_release", base, source_merge_sha: issue.merge_sha, note: `Merged to ${base}; production release is a person-authorised ${base} → main merge.` } });
-      return { next: { step: "deploy", delaySeconds: 3600 }, note: "awaiting person-authorised production release" };
+      // Observe promptly without changing who may promote the release. Keep
+      // promotion attempts separate from the production deployment timeout:
+      // waiting for a person must never consume the deployment's 24 polls.
+      const { polls: promotionPolls, delaySeconds, runAfter } = promotionObservationSchedule(
+        issue.deployment?.promotion_polls, observationStartedAt,
+      );
+      await update(release, issue, null, { deployment: { state: "awaiting_production_release", base, source_merge_sha: issue.merge_sha, promotion_polls: promotionPolls, note: `Merged to ${base}; production release is a person-authorised ${base} → main merge.` } });
+      return { next: { step: "deploy", delaySeconds, runAfter }, note: "awaiting person-authorised production release" };
     }
     deploymentSha = productionSha;
     promotion = { source_merge_sha: issue.merge_sha, production_sha: productionSha, promoted_from: base, production_branch: "main" };
