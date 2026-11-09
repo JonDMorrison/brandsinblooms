@@ -19,6 +19,7 @@ import {
   type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
   renderDigestEmail, renderEscalationEmail, renderStaffNotification, resolutionAlreadyTold, type StaffTicket, ticketThreadRoot,
 } from "../_shared/bloom-support/support-emails.ts";
+import { engineeringRunAfter } from "../_shared/bloom-support/engineering-schedule.ts";
 import { deploy, evaluate, investigate, poll, type StepResult, verify } from "../_shared/bloom-support/engineering.ts";
 import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bloom-support/operations.ts";
 import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
@@ -573,7 +574,7 @@ async function engineeringStep(job: Job): Promise<string> {
     await rpc("enqueue_job", {
       actor: bot.principalId, kind: "engineering_step", ticket_id: job.ticket_id, engineering_issue_id: id, lane: job.lane,
       payload: { step: r.next.step }, idempotency_key: `eng:${id}:${r.next.step}:${job.id}`,
-      run_after: new Date(Date.now() + r.next.delaySeconds * 1000).toISOString(), max_attempts: 3, timeout: 300,
+      run_after: engineeringRunAfter(r.next, Date.now()), max_attempts: 3, timeout: 300,
     });
   }
   return `${step}: ${r.note}`;

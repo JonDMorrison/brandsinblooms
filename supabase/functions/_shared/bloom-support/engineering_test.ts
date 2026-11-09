@@ -79,10 +79,12 @@ Deno.test("promotion polling backs off within five minutes without promoting or 
     throw new Error(`Unexpected request ${url}`);
   };
   try {
-    await t.step("persisted backoff is 60, 120, 240, then capped at 300 seconds", async () => {
-      for (const delay of [60, 120, 240, 300, 300, 300]) {
+    await t.step("persisted backoff is 60, 120, 240, then capped at 240 seconds", async () => {
+      for (const delay of [60, 120, 240, 240, 240, 240]) {
         const result = await deploy(actor, issue.id);
-        assertEquals(result.next, { step: "deploy", delaySeconds: delay });
+        assertEquals(result.next?.step, "deploy");
+        assertEquals(result.next?.delaySeconds, delay);
+        assertEquals(typeof result.next?.runAfter, "string");
         assertEquals(issue.status, "deploying");
         assertEquals(issue.deployment.polls, undefined);
       }
@@ -95,7 +97,7 @@ Deno.test("promotion polling backs off within five minutes without promoting or 
         assertEquals((await deploy(actor, issue.id)).next?.delaySeconds, 60);
       }
       issue.deployment = { promotion_polls: Number.MAX_SAFE_INTEGER };
-      assertEquals((await deploy(actor, issue.id)).next?.delaySeconds, 300);
+      assertEquals((await deploy(actor, issue.id)).next?.delaySeconds, 240);
     });
     await t.step("observed promotion retains the separate production timeout and verification step", async () => {
       promoted = true;
