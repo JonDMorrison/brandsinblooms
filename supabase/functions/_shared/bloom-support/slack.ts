@@ -2,7 +2,7 @@
 // Slack is an optional delivery channel; tickets and permission checks stay in Bloom Support.
 import { BloomError, env } from "./runtime.ts";
 import { explainSupportEvent, explainGithubMilestone, githubMilestoneFromKind } from "./slack-language.ts";
-import { publicReleaseNote } from "./release-notes.ts";
+import { isPublicReleaseCategory, publicReleaseNote } from "./release-notes.ts";
 
 export type SlackRoute = "tickets" | "features" | "alerts" | "releases" | "projects" | "clients" | "finance";
 
@@ -41,19 +41,18 @@ export function slackSafeMessage(
   const milestone = githubMilestoneFromKind(kind);
   const source = milestone ? githubSourceLink(githubUrl) : null;
   if (milestone === "pr_merged") {
+    // Defense in depth for queued jobs created before the intake gate.
+    // A missing useful category or validated PR link must never produce
+    // a public filler announcement or an empty Slack post.
+    if (!source || !isPublicReleaseCategory(releaseCategory) || releaseCategory === "other") return "";
     const note = publicReleaseNote(releaseCategory);
-    // Slack is the summary, not a link to a developer page. A merge alone
-    // never proves customers can use the change. Keep the wording natural
-    // and never include the untrusted PR title or body.
+    // Title and body are untrusted, so only vetted category copy is public.
+    // A merge does not establish production deployment or customer acceptance.
     return [
       "*" + note.area + "*",
       note.changed,
-      "",
-      "*What this means for you:* " + note.matters,
-      "*Status:* The change has been added. We're still checking it before we call it ready.",
-      "*Do you need to do anything?* " + note.next,
-      "*Release check:* Confirm this is in main, deployed, and tested for the affected customer before calling it fixed.",
-      ...(source ? ["<" + source + "|Check the change in GitHub>"] : []),
+      "*Status:* Code merged. Live customer use has not been verified by this update.",
+      "<" + source + "|See the change>",
     ].join("\n");
   }
   const state = milestone ? explainGithubMilestone(milestone) :
@@ -136,5 +135,7 @@ export async function postSlackSupportNotification(input: {
 }): Promise<string> {
   const route = slackRoute(input.kind);
   if (!route) return "skipped: unsupported Slack event";
-  return await postSlackInternalText(route, slackSafeMessage(input.kind,input.ticketId,input.githubUrl,input.projectId,input.releaseCategory),input.jobId);
+  const message = slackSafeMessage(input.kind,input.ticketId,input.githubUrl,input.projectId,input.releaseCategory);
+  if (!message) return "skipped: no useful reviewed release summary";
+  return await postSlackInternalText(route, message, input.jobId);
 }

@@ -39,6 +39,21 @@ export function classifyPublicReleaseTitle(value: unknown): PublicReleaseCategor
   return "other";
 }
 
+/**
+ * A merge is not automatically an announcement. Development-branch merges
+ * aren't customer releases, and unclassified PRs have no trustworthy summary.
+ * Keep the raw PR title out of the Slack job and public message.
+ */
+export function announceableMainMerge(input: {
+  merged: unknown;
+  baseRef: unknown;
+  title: unknown;
+}): PublicReleaseCategory | null {
+  if (input.merged !== true || input.baseRef !== "main") return null;
+  const category = classifyPublicReleaseTitle(input.title);
+  return category === "other" ? null : category;
+}
+
 export type PublicReleaseNote = {
   area: string;
   changed: string;
