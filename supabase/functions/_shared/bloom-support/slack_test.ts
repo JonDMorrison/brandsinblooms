@@ -78,3 +78,13 @@ Deno.test("Slack receipts accept real timestamps and reject malformed successful
     });
   }
 });
+
+Deno.test("merged release messages offer a safe direct link and show the production handoff", () => {
+  const url = "https://github.com/JonDMorrison/brandsinblooms/pull/418";
+  const message = slackSafeMessage("github.pr_merged", null, url, undefined, "support_tasks");
+  assertStringIncludes(message, "Check the change in GitHub");
+  assertStringIncludes(message, "Confirm this is in main, deployed, and tested");
+  assertStringIncludes(message, url);
+  const unsafe = slackSafeMessage("github.pr_merged", null, "https://attacker.example/evil", undefined, "support_tasks");
+  assertEquals(unsafe.includes("attacker.example"), false);
+});
