@@ -54,22 +54,32 @@ export default function StudioColorPicker({
   const theme = useTheme();
   const designSystemContext = useOptionalDesignSystem();
   const designSystemPresets = designSystemContext?.designSystem.colorPresets;
+  const brandColors = designSystemContext?.designSystem.colors;
   const primaryPreset = theme.palette.primary[500];
+  // The account's configured primary, secondary and accent colours are always
+  // directly available. Do not mix them into the unrelated generic presets.
+  const brandPresets = React.useMemo(() => [
+    { label: "Brand primary", color: brandColors?.primary },
+    { label: "Brand secondary", color: brandColors?.secondary },
+    { label: "Brand accent", color: brandColors?.accent },
+  ].filter((item): item is { label: string; color: string } =>
+    typeof item.color === "string" &&
+    /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(item.color),
+  ), [brandColors?.primary, brandColors?.secondary, brandColors?.accent]);
   const colorPresets = React.useMemo(() => {
-    const brandPresets = presets?.length
+    const extraPresets = presets?.length
       ? presets
-      : designSystemPresets?.core.length
-        ? [...designSystemPresets.core, primaryPreset, ...CORE_COLOR_PRESETS]
-        : [primaryPreset, ...CORE_COLOR_PRESETS];
+      : [...(designSystemPresets?.core ?? []), primaryPreset, ...CORE_COLOR_PRESETS];
     return Array.from(
       new Map<string, string>(
-        [...ESSENTIAL_COLOR_PRESETS, ...brandPresets].map((color) => [
-          color.toLowerCase(),
-          color,
-        ] as const),
+        [
+          ...ESSENTIAL_COLOR_PRESETS,
+          ...brandPresets.map((item) => item.color),
+          ...extraPresets,
+        ].map((color) => [color.toLowerCase(), color] as const),
       ).values(),
     );
-  }, [designSystemPresets?.core, presets, primaryPreset]);
+  }, [brandPresets, designSystemPresets?.core, presets, primaryPreset]);
   const additionalPresets = React.useMemo(
     () =>
       expandedPresets ??
@@ -150,6 +160,12 @@ export default function StudioColorPicker({
               const isSelected =
                 resolvedColor.toLowerCase() === color.toLowerCase();
               const isNone = color.toLowerCase() === "transparent";
+              const brandLabel = brandPresets.find(
+                (item) => item.color.toLowerCase() === color.toLowerCase(),
+              )?.label;
+              const description = brandLabel
+                ? `${brandLabel} · ${color.toUpperCase()}`
+                : isNone ? "None / transparent" : color.toUpperCase();
               const isLight = isNone || ["#ffffff", "#fff", "#f8fafc"].includes(
                 color.toLowerCase(),
               );
@@ -160,8 +176,8 @@ export default function StudioColorPicker({
                   variant="plain"
                   color="neutral"
                   size="sm"
-                  aria-label={`Select ${isNone ? "None / transparent" : color} for ${label}`}
-                  title={isNone ? "None / transparent" : color.toUpperCase()}
+                  aria-label={`Select ${description} for ${label}`}
+                  title={description}
                   aria-pressed={isSelected}
                   onClick={() => commitColor(color)}
                   sx={{
