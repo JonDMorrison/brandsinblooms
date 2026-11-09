@@ -39,6 +39,9 @@ function shortAge(iso: string, now = new Date()): string {
 function needsAttention(t: TicketSummary): boolean {
   if (t.status === "resolved") return !!t.pending_review;
   if (t.status === "needs_owner" || t.pending_review) return true;
+  // A customer message is not automatically a staff task while Bloom owns
+  // the conversation. Only a named handoff/decision should interrupt staff.
+  if (t.automation === "auto") return false;
   if (!t.last_customer_message_at) return false;
   return !t.last_team_message_at || new Date(t.last_customer_message_at) > new Date(t.last_team_message_at);
 }
@@ -62,6 +65,10 @@ const SupportPage = () => {
   const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
   const mine = useQuery({ queryKey: ["bloom-support", "tickets", "mine-client"], queryFn: () => bloomSupport.listTickets({ limit: "50" }), enabled: !!me.data, refetchInterval: 30_000 });
   const staff = !!me.data && me.data.permissions.includes("tickets.read_all");
+  const orderedRequests = [...(mine.data ?? [])].sort((a, b) =>
+    (staff ? Number(needsAttention(b)) - Number(needsAttention(a)) : 0) ||
+    new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
 
   useEffect(() => {
     if (selected) detailRef.current?.focus();
@@ -193,11 +200,11 @@ const SupportPage = () => {
             >
               <Box sx={{ display: { xs: selected ? "none" : "flex", md: "flex" }, flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, bgcolor: "background.level1" }}>
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-                  <Typography level="title-md" sx={{ flex: 1 }}>{staff ? "Recent conversations" : "Your requests"}</Typography>
+                  <Typography level="title-md" sx={{ flex: 1 }}>{staff ? "Recent requests" : "Your requests"}</Typography>
                   <Chip size="sm" variant="soft" color="neutral">{mine.data.length}</Chip>
                 </Stack>
                 <Stack role="list" aria-label={staff ? "Recent client conversations" : "Your support requests"} spacing={0.5} sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 1 }}>
-                  {mine.data.map((t) => {
+                  {orderedRequests.map((t) => {
                     const active = selected === t.id;
                     const attention = needsAttention(t);
                     const name = staff ? t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client" : t.subject;
@@ -244,6 +251,9 @@ const SupportPage = () => {
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                             <Typography level="body-xs" textColor="text.tertiary">#{t.number}</Typography>
                             <StatusChip status={t.status} audience={staff ? "staff" : "client"} />
+                            {staff && attention && t.status !== "needs_owner" ? (
+                              <Typography level="body-xs" textColor="primary.700" sx={{ fontWeight: "lg" }}>Needs review</Typography>
+                            ) : null}
                           </Stack>
                         </Box>
                       </Box>

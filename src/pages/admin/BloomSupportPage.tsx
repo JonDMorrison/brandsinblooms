@@ -85,13 +85,13 @@ export default function BloomSupportPage() {
   return (
     <PageContainer
       fullWidth
-      sx={mergeSx(deskScaleSx, { display: "flex", flexDirection: "column", gap: 5, height: { md: "calc(100dvh - 96px)" } })}
+      sx={mergeSx(deskScaleSx, { display: "flex", flexDirection: "column", gap: 3, height: { md: "calc(100dvh - 96px)" } })}
       data-testid="bloom-support-desk"
     >
       <DeskHeader summary={s} summaryFailed={!!summary.error} urgent={urgent.data?.total ?? 0} onNewRequest={() => setNewOpen(true)} onAlert={onAlert} />
       <NewTicketDialog open={newOpen} onClose={() => setNewOpen(false)} onCreated={(id) => { setNewOpen(false); go({ view: "today", ticket: id }); }} />
 
-      <Stack spacing={2}>
+      <Stack spacing={1}>
         <CountedDeskNav me={me.data!} view={view} onChange={(v) => go({ view: v, ticket: null, filter: null, details: null })} />
         {!(view === "today" && ticketId) && VIEW_HELP[view] && (
           <Typography level="body-md" textColor="text.secondary">{VIEW_HELP[view]}</Typography>

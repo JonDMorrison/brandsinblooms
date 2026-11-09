@@ -32,6 +32,8 @@ export interface DeskDecision {
   problem: string;
   /** "What I recommend", with the reason. */
   recommendation: string;
+  /** For a stopped repair, reviewing the reason must come before optional takeover. */
+  reviewFirst?: boolean;
   /** Risk or consequence, when there is one. */
   risk?: string;
   /** Technical evidence for the disclosure. Never shown by default. */
@@ -212,6 +214,11 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
         run: () => bloomSupport.updateEngineering(engId, { start_repair: true, note: "Started from the Support desk" }),
       });
       if (canReview(group)) options.push(take(ids, group, false));
+    } else if (reason === "engineering_escalated") {
+      // A routing or repair failure does not justify automatically assigning
+      // client communication to a person. Read the blocker first.
+      recommendation = "Open the request to see why the repair stopped. You can then decide how engineering should continue. Taking ownership is optional and also pauses Bloom's customer replies.";
+      if (ids.length && canReview(group)) options.push(take(ids, group, false, "Take over this request"));
     } else if (/overdue|stalled/.test(reason) && can("escalations.resolve")) {
       recommendation = "Take it yourself, so the client hears from a person today.";
       if (ids.length && canReview(group)) options.push(take(ids, group));
@@ -234,6 +241,7 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
         : plain === "loading" ? `${problem} Bloom is writing a plain summary…`
         : x.detail ? `${problem} The details are technical, so they're under Show technical evidence.` : problem,
       recommendation,
+      reviewFirst: reason === "engineering_escalated" && !!x.ticket_id,
       evidence: [x.detail, group.length > 1 ? `${group.length} related reminders on this request.` : null].filter(Boolean).join("\n\n") || undefined,
       options,
       other: other(ids, group),

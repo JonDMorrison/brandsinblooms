@@ -22,7 +22,7 @@ export type DecisionPick = { optionId: string } | { other: string };
  */
 export function DecisionCard({ d, busy, onConfirm }: { d: DeskDecision; busy: boolean; onConfirm: (pick: DecisionPick) => void }) {
   const recommended = d.options.find((o) => o.recommended) ?? d.options[0];
-  const [choice, setChoice] = useState<string>(recommended?.id ?? (d.other ? OTHER : ""));
+  const [choice, setChoice] = useState<string>(d.reviewFirst ? "" : recommended?.id ?? (d.other ? OTHER : ""));
   const [text, setText] = useState("");
   const allowed = d.options.length > 0 || !!d.other;
   const ready = choice === OTHER ? text.trim().length > 0 : !!choice;
@@ -94,19 +94,28 @@ export function DecisionCard({ d, busy, onConfirm }: { d: DeskDecision; busy: bo
                 slotProps={{ textarea: { maxLength: 2000, "aria-label": "What should happen instead?" } }}
               />
             )}
-            <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Button size="lg" disabled={busy || !ready} onClick={() => onConfirm(choice === OTHER ? { other: text.trim() } : { optionId: choice })} sx={{ borderRadius: "xl", px: 6 }}>
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+              {d.reviewFirst && d.open?.onClick ? (
+                <Button size="lg" color="primary" variant="soft" onClick={d.open.onClick} sx={{ borderRadius: "xl", px: 3 }}>
+                  Review stopped repair
+                </Button>
+              ) : null}
+              <Button size={d.reviewFirst ? "md" : "lg"} variant={d.reviewFirst ? "outlined" : "solid"} color={d.reviewFirst ? "neutral" : "primary"} disabled={busy || !ready} onClick={() => onConfirm(choice === OTHER ? { other: text.trim() } : { optionId: choice })} sx={{ borderRadius: "xl", px: d.reviewFirst ? 3 : 6 }}>
                 Confirm
               </Button>
-              {d.open && (d.open.href
+              {d.open && !d.reviewFirst && (d.open.href
                 ? <Link href={d.open.href} target="_blank" rel="noopener" level="body-md">{d.open.label}</Link>
                 : <Link component="button" onClick={d.open.onClick} level="body-md">{d.open.label}</Link>)}
             </Stack>
           </Stack>
         ) : (
           <Stack spacing={2}>
-            <Typography level="body-md" textColor="text.secondary">Your role can't make this decision. An admin can.</Typography>
-            {d.open && !d.open.href && <Link component="button" onClick={d.open.onClick} level="body-md" sx={{ alignSelf: "flex-start" }}>{d.open.label}</Link>}
+            <Typography level="body-md" textColor="text.secondary">{d.reviewFirst ? "Review the stopped repair to decide what happens next." : "Your role can't make this decision. An admin can."}</Typography>
+            {d.open && !d.open.href && (
+              d.reviewFirst
+                ? <Button variant="soft" onClick={d.open.onClick} sx={{ alignSelf: "flex-start" }}>Review stopped repair</Button>
+                : <Link component="button" onClick={d.open.onClick} level="body-md" sx={{ alignSelf: "flex-start" }}>{d.open.label}</Link>
+            )}
           </Stack>
         )}
 

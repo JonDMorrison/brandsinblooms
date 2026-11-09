@@ -991,18 +991,22 @@ describe("Bloom Support staff workspace", () => {
       product: "unknown",
       status: "needs_owner",
       engineering: { id: "engineering-test", status: "escalated" },
+      escalations: [{ status: "open", plain: { problem: "Calendar exports show broken symbols instead of emojis.", blocker: "Engineering review required." } }],
       messages: [
         { ...baseMessage, id: "client-1", author_kind: "client", author: { name: "Jon" }, body: fullRequest, visibility: "public", purpose: null },
         { ...baseMessage, id: "bloom-1", author_kind: "bloom", author: { name: "Bloom" }, body: "I'm Bloom. I've received your request.", visibility: "public", purpose: "acknowledgement" },
         { ...baseMessage, id: "bloom-2", author_kind: "bloom", author: { name: "Bloom" }, body: "The automatic repair has stopped.", visibility: "public", purpose: "progress" },
+        { ...baseMessage, id: "bloom-3", author_kind: "bloom", author: { name: "Bloom" }, body: "We checked the calendar issue against the original report.", visibility: "public", purpose: "progress" },
       ],
     });
 
     renderConversation();
     expect(await screen.findByText("Marked as a test")).toBeInTheDocument();
     expect(screen.getByText("Calendar export corrupts emojis")).toBeInTheDocument();
+    expect(screen.getByText("Calendar exports show broken symbols instead of emojis.")).toBeInTheDocument();
+    expect(screen.getByText("We checked the calendar issue against the original report.")).toBeInTheDocument();
     expect(screen.getByText(/stopped before starting the repair/)).toBeInTheDocument();
-    expect(screen.getByText(/connect this request to the correct software/)).toBeInTheDocument();
+    expect(screen.getByText(/confirm which product this belongs to/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review repair details" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Bloom recommends" })).not.toBeInTheDocument();
 
@@ -1017,6 +1021,42 @@ describe("Bloom Support staff workspace", () => {
     await user.click(screen.getByText("Bloom activity (2 updates)"));
     expect(activity).toHaveAttribute("open");
     expect(activity).toHaveTextContent("The automatic repair has stopped.");
+  });
+
+  it("puts genuine staff decisions ahead of Bloom-owned messages in the inbox", async () => {
+    const recentBloomMessage = {
+      ...supportTicket,
+      id: "77777777-7777-4777-8777-777777777777",
+      number: 1045,
+      subject: "Bloom owns this message",
+      status: "working" as const,
+      automation: "auto" as const,
+      last_customer_message_at: "2026-11-09T03:00:00Z",
+      last_team_message_at: null,
+      updated_at: "2026-11-09T03:00:00Z",
+    };
+    const olderAdminDecision = {
+      ...supportTicket,
+      id: "88888888-8888-4888-8888-888888888888",
+      number: 1046,
+      subject: "Admin needs to review",
+      status: "needs_owner" as const,
+      automation: "auto" as const,
+      last_customer_message_at: null,
+      updated_at: "2026-11-08T18:00:00Z",
+    };
+    supportMocks.listTickets.mockResolvedValueOnce([recentBloomMessage, olderAdminDecision]);
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+    const rows = await screen.findAllByRole("button", { name: /Open request #104[56]/ });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveAccessibleName(/#1046: Admin needs to review \(needs attention\)/);
+    expect(rows[1]).toHaveAccessibleName("Open request #1045: Bloom owns this message");
   });
 
   it("freezes and retries the exact conversation reply after an ambiguous failure", async () => {
