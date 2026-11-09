@@ -6,6 +6,7 @@ import type {
   TextRole,
 } from "@/types/newsletterDesign";
 import { EMAIL_FONTS, HEADING_SIZES } from "@/lib/studio/newsletter/settings";
+import StudioColorPicker from "../fields/StudioColorPicker";
 import "./newsletterControls.css";
 
 export function Field({
@@ -65,22 +66,42 @@ export function NumericField({
   placeholder?: string;
 }) {
   const id = React.useId();
+  // Keep incomplete input visible while typing (e.g. "1" before "12" or
+  // "8" before "800"). Clamping every keystroke changes what the user entered.
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const commit = (raw: string) => {
+    const parsed = Number(raw);
+    onChange(raw.trim() === "" || !Number.isFinite(parsed)
+      ? undefined
+      : Math.max(min, Math.min(max, parsed)));
+    setDraft(null);
+  };
   return (
     <label className="nl-field" htmlFor={id}>
       <span>{label}</span>
       <input
         id={id}
         type="number"
-        value={value ?? ""}
+        value={draft ?? value ?? ""}
         min={min}
         max={max}
         step={step}
         placeholder={placeholder}
         onChange={(e) => {
-          const n = e.target.valueAsNumber;
-          onChange(
-            Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : undefined,
-          );
+          const next = e.target.value;
+          setDraft(next);
+          const number = e.target.valueAsNumber;
+          if (!next) onChange(undefined);
+          else if (Number.isFinite(number) && number >= min && number <= max) {
+            onChange(number);
+          }
+        }}
+        onBlur={() => { if (draft !== null) commit(draft); }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
         }}
       />
     </label>
@@ -126,33 +147,19 @@ export function ColorField({
   onChange: (value: string | undefined) => void;
   transparent?: boolean;
 }) {
-  const id = React.useId();
   return (
     <div className="nl-field">
-      <label htmlFor={id}>{label}</label>
-      <div className="nl-inline">
-        <input
-          aria-label={`${label} colour picker`}
-          type="color"
-          value={/^#[0-9a-f]{6}$/i.test(value || "") ? value : "#ffffff"}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        <input
-          id={id}
-          value={value || ""}
-          placeholder={
-            transparent ? "Inherit / transparent / #HEX" : "Inherit / #HEX"
-          }
-          onChange={(e) => onChange(e.target.value || undefined)}
-        />
-        <button
-          type="button"
-          className="nl-quiet"
-          onClick={() => onChange(transparent ? "transparent" : undefined)}
-        >
-          {transparent ? "None" : "Reset"}
-        </button>
-      </div>
+      <StudioColorPicker
+        label={label}
+        value={value ?? "transparent"}
+        onChange={(next) =>
+          onChange(
+            !next.trim() || (next === "transparent" && !transparent)
+              ? undefined
+              : next,
+          )
+        }
+      />
     </div>
   );
 }

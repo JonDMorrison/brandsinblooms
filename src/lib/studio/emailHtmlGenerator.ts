@@ -2184,9 +2184,16 @@ export function renderNewsletterBlock(
     "coupon",
     "survey",
   ]);
+  // Follow live brand colours only for blocks that opted in, or that have
+  // never supplied a button colour. Saved custom colours must remain intact.
+  const followsBrand =
+    prepared.useBrandButtonColor === true ||
+    (prepared.useBrandButtonColor == null &&
+      !prepared.buttonColor &&
+      !prepared.buttonTextColor);
   const brandedPrepared =
     designSystem?.colors.primary &&
-    prepared.useBrandButtonColor !== false &&
+    followsBrand &&
     brandButtonTypes.has(prepared.type)
       ? {
           ...prepared,

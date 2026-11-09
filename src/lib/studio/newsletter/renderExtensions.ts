@@ -65,7 +65,7 @@ export function renderNewsletterButton(
     block.buttonStyle === "outlined" || block.buttonStyle === "ghost";
   const fill = emailColor(block.buttonColor, "#1f4341");
   const color = emailColor(
-    block.appearance?.text?.button?.color || block.buttonTextColor,
+    block.buttonTextColor || block.appearance?.text?.button?.color,
     link || outlined ? fill : "#ffffff",
   );
   const defaultY =
@@ -546,7 +546,13 @@ export function applyBlockAppearance(
         ...(inferred ? appearance.text?.[inferred] : {}),
         ...(explicit ? appearance.text?.[explicit] : {}),
       };
-      let additions = Object.keys(overrides).length ? textCss(overrides) : "";
+      // Newsletter typography may set fonts and sizes, but must not overwrite
+      // a button's explicitly chosen text colour (including per-link colours).
+      const additionsForRole =
+        explicit === "button" ? { ...overrides, color: undefined } : overrides;
+      let additions = Object.keys(additionsForRole).length
+        ? textCss(additionsForRole)
+        : "";
       if (tag === "a" && explicit !== "button") {
         if (appearance.linkColor)
           additions += `color:${emailColor(appearance.linkColor)};`;

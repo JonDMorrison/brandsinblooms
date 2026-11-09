@@ -111,6 +111,7 @@ describe("newsletter design and safety", () => {
         buttonText: "Reserve a spot",
         buttonUrl: "https://example.com/event",
         buttonColor: "#545f34",
+        useBrandButtonColor: true,
       }),
       buildStudioDesignSystem({
         brandPrimaryColorRaw: "#263d2d",
@@ -119,6 +120,74 @@ describe("newsletter design and safety", () => {
     expect(output).toContain("background-color:#263d2d");
     expect(output).not.toContain("background-color:#545f34");
   });
+  it.each(["event", "coupon", "image-text", "call-to-action", "button-group"] as const)(
+    "honours explicitly customised button backgrounds, labels and text colours in %s",
+    (type) => {
+      const designSystem = buildStudioDesignSystem({
+        brandPrimaryColorRaw: "#263d2d",
+      } as never);
+      const chosen = block(type, {
+        buttonText: "View offer",
+        buttonUrl: "https://example.com/offer",
+        buttonColor: "#123456",
+        buttonTextColor: "#fedcba",
+        useBrandButtonColor: false,
+        ...(type === "button-group"
+          ? { links: [{ id: "link-1", label: "View offer", url: "https://example.com/offer" }] }
+          : {}),
+      });
+      const output = renderNewsletterBlock(chosen, designSystem, {
+        version: 1,
+        defaults: { text: { button: { color: "#aabbcc", size: 18 } } },
+      });
+      const document = new DOMParser().parseFromString(output, "text/html");
+      const button = Array.from(document.querySelectorAll("a")).find(
+        (node) => node.textContent?.includes("View offer"),
+      );
+      expect(button, type).toBeTruthy();
+      expect(button?.style.backgroundColor, type).toBe("rgb(18, 52, 86)");
+      expect(button?.style.color, type).toBe("rgb(254, 220, 186)");
+    },
+  );
+
+  it("does not override saved legacy custom CTA colours when brand-following is unspecified", () => {
+    const designSystem = buildStudioDesignSystem({
+      brandPrimaryColorRaw: "#263d2d",
+    } as never);
+    const output = renderNewsletterBlock(
+      block("event", {
+        buttonText: "Read more",
+        buttonUrl: "https://example.com",
+        buttonColor: "#123456",
+        buttonTextColor: "#fedcba",
+        useBrandButtonColor: undefined,
+      }),
+      designSystem,
+    );
+    const document = new DOMParser().parseFromString(output, "text/html");
+    const button = document.querySelector<HTMLAnchorElement>('[data-newsletter-role="button"]');
+    expect(button?.style.backgroundColor).toBe("rgb(18, 52, 86)");
+    expect(button?.style.color).toBe("rgb(254, 220, 186)");
+  });
+
+  it("keeps per-link text colours when a button group has newsletter typography defaults", () => {
+    const output = renderNewsletterBlock(
+      block("button-group", {
+        useBrandButtonColor: false,
+        links: [
+          { id: "link-1", label: "Black text", url: "https://example.com/a", color: "#ffffff", textColor: "#000000" },
+          { id: "link-2", label: "White text", url: "https://example.com/b", color: "#000000", textColor: "#ffffff" },
+        ],
+      }),
+      undefined,
+      { version: 1, defaults: { text: { button: { color: "#ff0000" } } } },
+    );
+    const document = new DOMParser().parseFromString(output, "text/html");
+    const [first, second] = Array.from(document.querySelectorAll<HTMLAnchorElement>("a"));
+    expect(first.style.color).toBe("rgb(0, 0, 0)");
+    expect(second.style.color).toBe("rgb(255, 255, 255)");
+  });
+
   it("renders event blocks as a consistent rounded editorial card", () => {
     const output = renderNewsletterBlock(
       block("event", {
