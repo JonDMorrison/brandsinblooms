@@ -1964,6 +1964,10 @@ function PanelContent({
   const updateField = React.useCallback(
     (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => {
       onUpdateBlockField(block.id, field, value);
+      // A manual button colour takes priority over automatic account branding.
+      // Without this, the email renderer silently replaces the chosen colour.
+      if (field === "buttonColor" || field === "buttonTextColor")
+        onUpdateBlockField(block.id, "useBrandButtonColor", false);
       if (field === "logoSize")
         onUpdateBlockField(block.id, "logoSizeExplicit", true);
     },
@@ -5375,9 +5379,15 @@ export default function BlockPropertiesPanel({
           <Box sx={{ px: 2.5, pb: 3 }}>
             <AppearanceControls
               value={block.appearance}
-              onChange={(value) =>
-                onUpdateBlockField(block.id, "appearance", value)
-              }
+              onChange={(value) => {
+                onUpdateBlockField(block.id, "appearance", value);
+                // Typography's Button text colour must agree with the button
+                // field. Otherwise one of the controls appears to do nothing.
+                if (value.text?.button?.color !== block.appearance?.text?.button?.color) {
+                  onUpdateBlockField(block.id, "buttonTextColor", value.text?.button?.color);
+                  onUpdateBlockField(block.id, "useBrandButtonColor", false);
+                }
+              }}
               allowedFonts={settings?.allowedFonts}
             />
           </Box>
