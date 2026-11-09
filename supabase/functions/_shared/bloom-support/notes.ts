@@ -83,7 +83,7 @@ export function staffNotePresentation(body: string): { preview: string; original
   const technical = /(?:\bPR\s*#\d+|\bcommit\b|\bdeployment\b|\bRLS\b|\brollback\b|\benv(?:ironment)?\b|\bidempotenc\w*|\bShipStation\b|\bSQL\b|\bAPI\b)/i.test(original);
   if (!technical && original.length < 900) return { preview: original, original, collapsed: false };
 
-  const optInOff = /recipient_opt_in\s*=\s*false|Horsford site opt-in was false/i.test(original);
+  const optInOff = /recipient_opt_in\s*=\s*false|site opt-in was false/i.test(original);
   const checkoutOff = /shared_checkout_enabled(?:_v1)?\s*=\s*false|shared_checkout_enabled_v1 was false/i.test(original);
   const deployed = /\b(?:READY|production deployment|deployed)\b/i.test(original);
   const preview = optInOff && checkoutOff && deployed
