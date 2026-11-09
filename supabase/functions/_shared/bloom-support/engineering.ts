@@ -845,8 +845,17 @@ export async function deploy(release: Caller, issueId: string): Promise<StepResu
       base,
     );
     if (!productionSha) {
-      await update(release, issue, null, { deployment: { state: "awaiting_production_release", base, source_merge_sha: issue.merge_sha, note: `Merged to ${base}; production release is a person-authorised ${base} → main merge.` } });
-      return { next: { step: "deploy", delaySeconds: 3600 }, note: "awaiting person-authorised production release" };
+      // Observe promptly without changing who may promote the release. Keep
+      // promotion attempts separate from the production deployment timeout:
+      // waiting for a person must never consume the deployment's 24 polls.
+      const previous = issue.deployment?.promotion_polls;
+      const promotionPolls = typeof previous === "number" &&
+          Number.isSafeInteger(previous) && previous >= 0
+        ? Math.min(previous + 1, 4)
+        : 1;
+      const delaySeconds = Math.min(60 * 2 ** (promotionPolls - 1), 300);
+      await update(release, issue, null, { deployment: { state: "awaiting_production_release", base, source_merge_sha: issue.merge_sha, promotion_polls: promotionPolls, note: `Merged to ${base}; production release is a person-authorised ${base} → main merge.` } });
+      return { next: { step: "deploy", delaySeconds }, note: "awaiting person-authorised production release" };
     }
     deploymentSha = productionSha;
     promotion = { source_merge_sha: issue.merge_sha, production_sha: productionSha, promoted_from: base, production_branch: "main" };
