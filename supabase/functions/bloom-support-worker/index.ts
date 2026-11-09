@@ -13,6 +13,7 @@ import {
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
 import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
+import { actionableAlertMessage } from "../_shared/bloom-support/actionable-alerts.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
   type AlertFinding, coalesceOutgoing, type DigestReport, groupAlertFindings, needsYouDelivery, needsYouStep, renderAlertEmail, renderCustomerEmail,
@@ -887,6 +888,40 @@ async function notifyEmail(job: Job): Promise<string> {
   }
   if (job.payload.slack === true) {
     const eventKind = String(job.payload.kind ?? "");
+    // The watchdog used to alert on failed Slack notifications, including its
+    // *own* alert messages, creating a repeated false-emergency loop.
+    // Inspect the exact internal alert job and only post verified, actionable
+    // context. Keep unrelated signed GitHub failure routing unchanged.
+    const contextual = eventKind.startsWith("alert.") ||
+      eventKind === "escalation.overdue" ||
+      eventKind === "ticket.overdue" || eventKind === "ticket.stalled" ||
+      eventKind === "ticket.needs_owner" ||
+      eventKind === "engineering.escalated" ||
+      eventKind === "engineering.failed" || eventKind === "job.dead";
+    if (contextual) {
+      const details = await directRpc<Record<string, unknown>>(
+        "bloom_support_slack_alert_context",{p_job_id:job.id},
+      );
+      if (details?.actionable !== true) return "skipped: no verified actionable alert";
+      const linkedId = typeof details.ticket_id === "string" ? details.ticket_id : null;
+      let ticket:Record<string,unknown>|null=null;
+      if (linkedId) {
+        try {
+          ticket=await rpc<Record<string,unknown>>("get_ticket",{
+            actor:bot.principalId,ticket_id:linkedId,
+          });
+        } catch {
+          return "skipped: support record no longer accessible";
+        }
+      }
+      const message = actionableAlertMessage(eventKind,details,ticket);
+      if (!message) return "skipped: no safe actionable alert details";
+      // Ticket/repair notices stay in their private channel; operational
+      // incidents and overdue escalations remain in #bloom-alerts.
+      const route = eventKind.startsWith("engineering.") ||
+        eventKind.startsWith("ticket.") ? "tickets" : "alerts";
+      return await postSlackInternalText(route,message,job.id);
+    }
     // Every staff ticket and engineering notice is self-contained at the root,
     // and all subsequent updates use that same private conversation.
     if (job.ticket_id && slackRoute(eventKind) === "tickets")
