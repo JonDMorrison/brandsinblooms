@@ -50,7 +50,7 @@ describe("Support desk calm status colours", () => {
       "src/components/bloomSupport/desk/DeskNav.tsx",
     ]) {
       const source = readFileSync(path, "utf8");
-      expect(source, path).not.toMatch(/(?:warning|danger)\\.\\d+|color=["'](?:warning|danger)["']/);
+      expect(source, path).not.toMatch(/(?:warning|danger)\.\d+|color=["'](?:warning|danger)["']/);
     }
   });
 });
