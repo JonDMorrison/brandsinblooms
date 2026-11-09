@@ -1059,6 +1059,39 @@ describe("Bloom Support staff workspace", () => {
     expect(rows[1]).toHaveAccessibleName("Open request #1045: Bloom owns this message");
   });
 
+  it("shows staff notes in neutral colours with a short summary and original evidence on demand", async () => {
+    const user = userEvent.setup();
+    const body = "Release evidence update: BloomSites PR #4359 is deployed READY. "
+      + "Horsford recipient_opt_in=false and shared_checkout_enabled=false. "
+      + "Client checkout has not been activated. "
+      + "Detailed technical certification and outstanding live payment checks. ".repeat(12);
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "staff-note-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "internal",
+        direction: "internal",
+        body,
+        created_at: supportTicket.updated_at,
+        author: { name: "Staff" },
+      }],
+    });
+    const { container, unmount } = renderConversation();
+    const preview = await screen.findByText(/multi-recipient option is still switched off/);
+    const note = preview.closest(".MuiSheet-root");
+    expect(note).toHaveClass("MuiSheet-colorNeutral");
+    expect(note).not.toHaveClass("MuiSheet-colorWarning");
+    const disclosure = screen.getByText("Read full technical note").closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Read full technical note"));
+    expect(disclosure).toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent("shared_checkout_enabled=false");
+    expect(container).not.toHaveTextContent("No client routing or paid checkout was activated.");
+    unmount();
+  });
+
   it("freezes and retries the exact conversation reply after an ambiguous failure", async () => {
     const user = userEvent.setup();
     const first = deferred<{ message_id: string; duplicate: boolean }>();
