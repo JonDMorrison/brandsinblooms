@@ -25,8 +25,9 @@ import { bloomSupport, PRODUCT_LABEL, WAITING_LABEL, type TicketDetail, type Tic
 import { statusPatch } from "./statusPatch";
 import { engineeringLabel, fixStage } from "./labels";
 import { StatusChip } from "./chips";
-import { asSentence, humanizeNextAction, humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
+import { asSentence, humanizeNextAction, staffNotePresentation } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { useAskDialog } from "./useAskDialog";
+import { clientName as deskClientName } from "./desk/statusWords";
 import { BloomRecommends } from "./BloomRecommends";
 import type { NextAction } from "../../../supabase/functions/_shared/bloom-support/next-step";
 import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
@@ -97,21 +98,28 @@ function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: s
   const bloom = m.author_kind === "bloom";
   const who = bloom ? "Bloom" : m.author_kind === "system" ? "System" : m.author?.name ?? (fromClient ? clientName : "Staff");
   const meta = [onRequest, when(m.created_at), !internal && !fromClient && m.delivery && m.delivery !== "none" ? deliveryText(m.delivery) : null].filter(Boolean).join(" · ");
-  const body = internal && bloom ? humanizeStaffNote(m.body) : m.body;
+  const body = m.body;
+  const note = internal ? staffNotePresentation(body) : null;
 
   if (internal) {
     return (
       <Sheet
-        variant="soft"
-        color="warning"
-        sx={{ maxWidth: BUBBLE_MAX, mx: "auto", px: 2, py: 1.5, borderRadius: "lg", border: "1px dashed", borderColor: "warning.outlinedBorder" }}
+        variant="outlined"
+        color="neutral"
+        sx={{ maxWidth: BUBBLE_MAX, mx: "auto", px: 2, py: 1.5, borderRadius: "lg", bgcolor: "background.level1", borderColor: "neutral.200" }}
       >
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
-          <Chip size="sm" variant="outlined" color="warning" startDecorator={<Lock size={12} aria-hidden />} sx={{ bgcolor: "background.surface" }}>Internal</Chip>
+          <Chip size="sm" variant="outlined" color="neutral" startDecorator={<Lock size={12} aria-hidden />} sx={{ bgcolor: "background.surface" }}>Internal</Chip>
           <Typography level="title-sm" textColor="text.primary" startDecorator={bloom ? <Sprout size={14} aria-hidden /> : undefined}>{bloom ? "What Bloom found" : who}</Typography>
           <Typography level="body-xs" textColor="text.tertiary">{meta} · only staff can see this</Typography>
         </Stack>
-        <Typography level="body-sm" textColor="text.primary" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
+        <Typography level="body-sm" textColor="text.primary" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{note?.preview}</Typography>
+        {note?.collapsed ? (
+          <Box component="details" sx={{ mt: 1, "& > summary": { cursor: "pointer", color: "primary.700", fontWeight: 600, py: 0.5 } }}>
+            <Box component="summary">Read full technical note</Box>
+            <Typography level="body-sm" textColor="text.secondary" sx={{ mt: 1, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{note.original}</Typography>
+          </Box>
+        ) : null}
       </Sheet>
     );
   }
@@ -232,7 +240,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
 
   // The thread can include messages from other requests in the same conversation; label them.
   const otherNumbers = new Map(t.conversation_tickets.map((c) => [c.id, c.number]));
-  const clientName = t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client";
+  const clientName = deskClientName(t);
   const b = banner(t);
   const eng = t.engineering as { id?: string; title?: string; status?: string; pr_url?: string | null; pr_number?: number | null; eligibility?: { eligible?: boolean; reasons?: string[] } | null } | null | undefined;
   const fix = eng?.status ? fixStage(eng.status) : null;
@@ -510,11 +518,11 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
               sx={{
                 borderRadius: "lg",
                 overflow: "hidden",
-                bgcolor: internalMode ? "warning.softBg" : "background.surface",
-                borderColor: internalMode ? "warning.outlinedBorder" : "neutral.outlinedBorder",
-                borderStyle: internalMode ? "dashed" : "solid",
+                bgcolor: internalMode ? "background.level1" : "background.surface",
+                borderColor: "neutral.outlinedBorder",
+                borderStyle: "solid",
                 transition: "border-color 120ms ease, box-shadow 120ms ease",
-                "&:focus-within": { borderColor: internalMode ? "warning.400" : "primary.400", boxShadow: "sm" },
+                "&:focus-within": { borderColor: "primary.400", boxShadow: "sm" },
               }}
             >
               <Textarea
@@ -524,7 +532,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
                 value={draft}
                 disabled={replyLocked}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder={internalMode ? "Add an internal note. Only staff will see this." : `Reply to ${t.requester?.name ?? clientName}…`}
+                placeholder={internalMode ? "What changed? What happens next? Add technical evidence below if needed. Only staff will see this." : `Reply to ${t.requester?.name ?? clientName}…`}
                 slotProps={{
                   textarea: {
                     ref: replyInput,

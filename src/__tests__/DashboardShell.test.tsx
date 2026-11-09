@@ -757,7 +757,7 @@ describe("Bloom Support reply composer", () => {
       });
     renderTicket();
 
-    const reply = await screen.findByPlaceholderText("Private note — never sent to the client");
+    const reply = await screen.findByRole("textbox", { name: "Internal note message" });
     expect(reply).toHaveAccessibleName("Internal note message");
     await user.type(reply, "Keep this exact note until the server confirms it.");
     await user.click(screen.getByRole("button", { name: "Add note" }));
@@ -785,7 +785,7 @@ describe("Bloom Support reply composer", () => {
   it("shows and enforces the reply length before anything is sent", async () => {
     renderTicket();
 
-    const reply = await screen.findByPlaceholderText("Private note — never sent to the client");
+    const reply = await screen.findByRole("textbox", { name: "Internal note message" });
     expect(reply).toHaveAttribute("maxlength", "20000");
     expect(screen.getByText("0 / 20,000 characters")).toBeInTheDocument();
 
@@ -800,7 +800,7 @@ describe("Bloom Support reply composer", () => {
     supportMocks.addMessage.mockRejectedValueOnce(new Error("Connection ended before confirmation"));
     renderTicket();
 
-    const reply = await screen.findByPlaceholderText("Private note — never sent to the client");
+    const reply = await screen.findByRole("textbox", { name: "Internal note message" });
     await user.type(reply, "The first reply may already be saved.");
     await user.click(screen.getByRole("button", { name: "Add note" }));
     await screen.findByRole("button", { name: "Retry same reply" });
@@ -827,7 +827,7 @@ describe("Bloom Support reply composer", () => {
   it("uploads reply attachments one at a time", async () => {
     const user = userEvent.setup();
     renderTicket();
-    await screen.findByPlaceholderText("Private note — never sent to the client");
+    await screen.findByRole("textbox", { name: "Internal note message" });
     const input = document.querySelector<HTMLInputElement>('input[type="file"]');
 
     expect(input).not.toBeNull();
@@ -1248,4 +1248,37 @@ describe("Bloom Support staff workspace", () => {
     expect(delivery).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("acknowledgement → gail@example.com: delivered")).toBeInTheDocument();
   });
+  it("shows staff notes in neutral colours with a short summary and original evidence on demand", async () => {
+    const user = userEvent.setup();
+    const body = "Release evidence update: BloomSites PR #4359 is deployed READY. "
+      + "Horsford recipient_opt_in=false and shared_checkout_enabled=false. "
+      + "Client checkout has not been activated. "
+      + "Detailed technical certification and outstanding live payment checks. ".repeat(12);
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "staff-note-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "internal",
+        direction: "internal",
+        body,
+        created_at: supportTicket.updated_at,
+        author: { name: "Staff" },
+      }],
+    });
+    const { unmount } = renderConversation();
+    const preview = await screen.findByText(/multi-recipient option is still switched off/);
+    const note = preview.closest(".MuiSheet-root");
+    expect(note).toHaveClass("MuiSheet-colorNeutral");
+    expect(note).not.toHaveClass("MuiSheet-colorWarning");
+    const disclosure = screen.getByText("Read full technical note").closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Read full technical note"));
+    expect(disclosure).toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent("shared_checkout_enabled=false");
+    unmount();
+  });
+
+
 });

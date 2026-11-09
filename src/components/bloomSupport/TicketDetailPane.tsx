@@ -31,19 +31,20 @@ import { StatusChip, PriorityChip, AutomationChip } from "./chips";
 import { statusPatch } from "./statusPatch";
 import { useAskDialog } from "./useAskDialog";
 import { ReadableData } from "@/components/admin/ReadableData";
-import { humanizeNextAction, humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
+import { humanizeNextAction, staffNotePresentation } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { useAdminInboxNames } from "./useAdminInboxNames";
 import { engineeringLabel } from "./labels";
 import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
 
 function Bubble({ m }: { m: TicketMessage }) {
   const internal = m.visibility === "internal";
+  const note = internal ? staffNotePresentation(m.body) : null;
   const mine = m.author_kind !== "client";
   return (
     <Sheet
-      variant={internal ? "soft" : "outlined"}
-      color={internal ? "primary" : "neutral"}
-      sx={{ p: 1.5, borderRadius: "md", maxWidth: "88%", alignSelf: mine ? "flex-end" : "flex-start", ...(internal ? { borderStyle: "dashed", borderWidth: 1 } : {}) }}
+      variant="outlined"
+      color="neutral"
+      sx={{ p: 1.5, borderRadius: "md", maxWidth: "88%", alignSelf: mine ? "flex-end" : "flex-start", ...(internal ? { bgcolor: "background.level1", borderColor: "neutral.200" } : {}) }}
     >
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
         {m.author_kind === "bloom" ? <Bot size={14} aria-hidden /> : internal ? <Lock size={14} aria-hidden /> : <User size={14} aria-hidden />}
@@ -54,7 +55,13 @@ function Bubble({ m }: { m: TicketMessage }) {
         <Typography level="body-xs" textColor="text.tertiary">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</Typography>
         {m.delivery && m.delivery !== "none" && <Typography level="body-xs" textColor="text.tertiary">· email {m.delivery}</Typography>}
       </Stack>
-      <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{internal && m.author_kind === "bloom" ? humanizeStaffNote(m.body) : m.body}</Typography>
+      <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{note?.preview ?? m.body}</Typography>
+      {note?.collapsed ? (
+        <Box component="details" sx={{ mt: 1, "& > summary": { cursor: "pointer", color: "primary.700", fontWeight: 600, py: 0.5 } }}>
+          <Box component="summary">Read full technical note</Box>
+          <Typography level="body-sm" textColor="text.secondary" sx={{ mt: 1, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{note.original}</Typography>
+        </Box>
+      ) : null}
     </Sheet>
   );
 }
@@ -349,7 +356,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket, mode = "full" }: 
               )}
               <Textarea minRows={3} value={draft} disabled={replyLocked} onChange={(e) => setDraft(e.target.value)}
                 slotProps={{ textarea: { ref: replyInput, disabled: replyLocked, maxLength: MAX_SUPPORT_BODY_LENGTH, "aria-label": replyLabel, "aria-describedby": replyError ? "reply-body-count reply-send-error" : "reply-body-count" } }}
-                placeholder={visibility === "internal" && staff ? "Private note — never sent to the client" : "Your reply (emailed to the client)"} />
+                placeholder={visibility === "internal" && staff ? "What changed? What happens next? Technical evidence can follow. Private for staff." : "Your reply (emailed to the client)"} />
               <Typography id="reply-body-count" level="body-xs" color={draft.length > MAX_SUPPORT_BODY_LENGTH ? "danger" : undefined} textColor={draft.length > MAX_SUPPORT_BODY_LENGTH ? undefined : "text.tertiary"} sx={{ mt: 0.5, textAlign: "right" }}>
                 {draft.length.toLocaleString()} / {MAX_SUPPORT_BODY_LENGTH.toLocaleString()} characters
               </Typography>

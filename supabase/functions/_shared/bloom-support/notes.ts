@@ -68,6 +68,31 @@ export function humanizeStaffNote(body: string): string {
   });
 }
 
+/**
+ * Staff conversations need a readable opening without rewriting their audit
+ * history. Keep the exact original note in an expandable disclosure.
+ *
+ * Do not use an LLM or make guesses about progress: only the narrow verified
+ * release pattern below gets a factual summary. Other long engineering notes
+ * use a neutral description, and the original remains one click away.
+ */
+export function staffNotePresentation(body: string): { preview: string; original: string; collapsed: boolean } {
+  const original = humanizeStaffNote(body);
+  if (original.length <= 480) return { preview: original, original, collapsed: false };
+
+  const technical = /(?:\bPR\s*#\d+|\bcommit\b|\bdeployment\b|\bRLS\b|\brollback\b|\benv(?:ironment)?\b|\bidempotenc\w*|\bShipStation\b|\bSQL\b|\bAPI\b)/i.test(original);
+  if (!technical && original.length < 900) return { preview: original, original, collapsed: false };
+
+  const optInOff = /recipient_opt_in\s*=\s*false|site opt-in was false/i.test(original);
+  const checkoutOff = /shared_checkout_enabled(?:_v1)?\s*=\s*false|shared_checkout_enabled_v1 was false/i.test(original);
+  const deployed = /\b(?:production deployment|production release)\b[^.!?\n]{0,140}\b(?:completed READY|is READY|was READY|deployed successfully|succeeded)\b|\bREADY production deployment\b|\bdeployed READY\b|\bdeployed to production\b/i.test(original);
+  const preview = optInOff && checkoutOff && deployed
+    ? "The checkout update has been deployed, but the multi-recipient option is still switched off. It needs approval and live checkout, shipping and fulfilment checks before use."
+    : "Detailed internal engineering update. Open the original note to see the technical evidence and outstanding checks.";
+
+  return { preview, original, collapsed: true };
+}
+
 // Routing text written before support copy named roles instead of people
 // ("Jon/Jeff: …", "Jon decides on the feature request", "Jeff/Support: …").
 // Stored values stay as they are; staff views reword them when they render.

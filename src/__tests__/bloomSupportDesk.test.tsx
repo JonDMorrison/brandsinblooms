@@ -88,7 +88,25 @@ describe("Support desk header", () => {
   });
 });
 
-import { bloomNextStep, friendlyStatus } from "@/components/bloomSupport/desk/statusWords";
+import { bloomNextStep, clientName, friendlyStatus } from "@/components/bloomSupport/desk/statusWords";
+
+describe("Support client headings", () => {
+  it("shows verified client names and never treats a staff email as a customer", () => {
+    expect(clientName({
+      account: { id: "client", name: "Northfield Garden Center" },
+      requester: { id: "reporter", name: "jon@getclear.ca", email: "jon@getclear.ca" },
+      number: 1026,
+    })).toBe("Northfield Garden Center");
+
+    expect(clientName({
+      account: null,
+      requester: { id: "reporter", name: "jon@getclear.ca", email: "jon@getclear.ca" },
+      number: 1024,
+    })).toBe("Unlinked request #1024");
+
+    expect(clientName({ account: null, requester: null })).toBe("Unlinked request");
+  });
+});
 
 describe("Bloom is handling wording", () => {
   it("uses friendly words, never internal codes", () => {

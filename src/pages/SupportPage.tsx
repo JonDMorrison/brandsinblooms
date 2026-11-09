@@ -16,6 +16,7 @@ import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
 import { TicketConversation } from "@/components/bloomSupport/TicketConversation";
+import { clientName as deskClientName } from "@/components/bloomSupport/desk/statusWords";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { StatusChip } from "@/components/bloomSupport/chips";
 import { bloomSupport, type TicketSummary } from "@/lib/bloomSupport/api";
@@ -207,7 +208,7 @@ const SupportPage = () => {
                   {orderedRequests.map((t) => {
                     const active = selected === t.id;
                     const attention = needsAttention(t);
-                    const name = staff ? t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client" : t.subject;
+                    const name = staff ? deskClientName(t) : t.subject;
                     return (
                       <Box key={t.id} role="listitem">
                         <Box
