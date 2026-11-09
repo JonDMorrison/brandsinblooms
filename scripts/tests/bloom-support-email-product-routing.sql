@@ -44,24 +44,30 @@ INSERT INTO bloom_support.account_links(account_id,product,external_id) VALUES (
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon','issue_id', :'blocked_issue','update',jsonb_build_object('start_repair',true))) AS blocked_restart \gset
 SELECT pg_temp.assert(:'blocked_restart'::jsonb->>'product'='unknown', 'owner start does not resolve ambiguous account');
 DELETE FROM bloom_support.account_links WHERE external_id='route-ambiguous-crm';
-UPDATE bloom_support.engineering_issues SET branch='bloom/already-dispatched' WHERE id=:'blocked_issue';
+UPDATE bloom_support.engineering_issues SET branch='bloom/already-dispatched', repair_started_at=NULL, repair_started_by=NULL WHERE id=:'blocked_issue';
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon','issue_id', :'blocked_issue','update',jsonb_build_object('start_repair',true))) AS dispatched_restart \gset
 SELECT pg_temp.assert(:'dispatched_restart'::jsonb->>'product'='unknown', 'never reroute a repair with an existing branch');
 SELECT pg_temp.assert((SELECT product='unknown' FROM bloom_support.tickets WHERE id=:'blocked_id'), 'failed routing leaves ticket unchanged');
-UPDATE bloom_support.engineering_issues SET branch=NULL, evidence='{"dispatches":1}' WHERE id=:'blocked_issue';
+UPDATE bloom_support.engineering_issues SET branch=NULL, evidence='{"dispatches":1}', repair_started_at=NULL, repair_started_by=NULL WHERE id=:'blocked_issue';
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon','issue_id', :'blocked_issue','update',jsonb_build_object('start_repair',true))) AS guard_restart \gset
 SELECT pg_temp.assert(:'guard_restart'::jsonb->>'product'='unknown', 'dispatch evidence prevents rerouting');
-UPDATE bloom_support.engineering_issues SET evidence='{}' WHERE id=:'blocked_issue';
+UPDATE bloom_support.engineering_issues SET evidence='{}', repair_started_at=NULL, repair_started_by=NULL WHERE id=:'blocked_issue';
 UPDATE bloom_support.tickets SET automation='paused' WHERE id=:'blocked_id';
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon','issue_id', :'blocked_issue','update',jsonb_build_object('start_repair',true))) AS guard_restart \gset
 SELECT pg_temp.assert(:'guard_restart'::jsonb->>'product'='unknown', 'paused report stays untouched');
 UPDATE bloom_support.tickets SET automation='auto', executor='person' WHERE id=:'blocked_id';
+UPDATE bloom_support.engineering_issues SET repair_started_at=NULL, repair_started_by=NULL WHERE id=:'blocked_issue';
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon','issue_id', :'blocked_issue','update',jsonb_build_object('start_repair',true))) AS guard_restart \gset
 SELECT pg_temp.assert(:'guard_restart'::jsonb->>'product'='unknown', 'person-owned report stays untouched');
 UPDATE bloom_support.tickets SET executor='bloom' WHERE id=:'blocked_id';
 UPDATE bloom_support.tickets SET engineering_issue_id=:'blocked_issue' WHERE id=(:'explicit_ticket'::jsonb->>'ticket_id')::uuid;
+UPDATE bloom_support.engineering_issues SET repair_started_at=NULL, repair_started_by=NULL WHERE id=:'blocked_issue';
 SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon','issue_id', :'blocked_issue','update',jsonb_build_object('start_repair',true))) AS guard_restart \gset
 SELECT pg_temp.assert(:'guard_restart'::jsonb->>'product'='unknown', 'conflicting linked report prevents partial rerouting');
 SELECT pg_temp.assert((SELECT product='unknown' FROM bloom_support.tickets WHERE id=:'blocked_id'), 'all-or-nothing routing leaves unresolved ticket untouched');
+UPDATE bloom_support.tickets SET engineering_issue_id=NULL WHERE id=(:'explicit_ticket'::jsonb->>'ticket_id')::uuid;
+UPDATE bloom_support.engineering_issues SET repair_started_at=NULL, repair_started_by=NULL WHERE id=:'blocked_issue';
+SELECT pg_temp.rpc('update_engineering_issue', jsonb_build_object('actor', :'jon','issue_id', :'blocked_issue','update',jsonb_build_object('start_repair',true))) AS guard_restart \gset
+SELECT pg_temp.assert(:'guard_restart'::jsonb->>'product'='cms', 'unblocked restart reaches product routing');
 ROLLBACK;
 \echo 'email product routing: all assertions passed'
