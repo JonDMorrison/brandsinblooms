@@ -993,13 +993,14 @@ describe("Bloom engineering release recovery", () => {
     const current = wireIssue(issue);
     releaseMocks.productionCommitForRepair.mockResolvedValue(null);
     await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
-      next: { step: "deploy", delaySeconds: 3600 },
+      next: { step: "deploy", delaySeconds: 60 },
       note: "awaiting person-authorised production release",
     });
     expect(releaseMocks.productionDeployment).not.toHaveBeenCalled();
     expect(current().deployment).toMatchObject({
       state: "awaiting_production_release",
       source_merge_sha: "dev-merge-sha",
+      promotion_polls: 1,
     });
   });
 
