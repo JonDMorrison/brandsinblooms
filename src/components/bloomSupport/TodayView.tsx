@@ -9,7 +9,7 @@ import IconButton from "@mui/joy/IconButton";
 import Alert from "@mui/joy/Alert";
 import Skeleton from "@mui/joy/Skeleton";
 import Link from "@mui/joy/Link";
-import { ArrowRight, Check, CheckCircle2, Scale, Search, Sprout, X } from "lucide-react";
+import { ArrowRight, CheckCircle2, Scale, Search, Sprout, X } from "lucide-react";
 import { formatDistanceToNow, isToday } from "date-fns";
 import { bloomSupport, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
 import { isBloomHandlingTicket } from "./todayActions";
@@ -63,24 +63,24 @@ export function TodayView({ me, onOpenTicket, onOpenDesk, heroAction }: {
   return (
     <Stack
       data-testid="bloom-support-today-work-column"
-      spacing={8}
-      sx={{ maxWidth: 1200, ml: 0, mr: "auto", width: "100%", textAlign: "left", py: { xs: 2, md: 4 }, pb: 12 }}
+      spacing={4}
+      sx={{ maxWidth: 1200, ml: 0, mr: "auto", width: "100%", textAlign: "left", py: { xs: 1, md: 2 }, pb: 5 }}
     >
       <Box component="section" aria-label="Today at a glance" sx={{
         ...deskCardSx,
-        p: { xs: 5, md: 7 },
+        p: { xs: 3, md: 4 },
         background: "linear-gradient(135deg, var(--joy-palette-primary-50) 0%, var(--joy-palette-background-surface) 55%)",
         borderColor: "primary.100",
       }}>
-        <Stack spacing={6}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={4} justifyContent="space-between" alignItems={{ md: "flex-end" }}>
+        <Stack spacing={3}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems={{ md: "flex-end" }}>
             <Stack spacing={1.5} sx={{ minWidth: 0 }}>
               {headline === null ? <Skeleton variant="text" level="h2" width={320} /> : <Typography level="h2" component="h2">{headline}</Typography>}
               {!loading && <Typography level="body-lg" textColor="text.secondary" sx={{ maxWidth: 620 }}>{subline}</Typography>}
             </Stack>
             {heroAction}
           </Stack>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 3 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1.5 }}>
             <Stat tone="warning" icon={<Scale size={20} aria-hidden />} value={loading ? null : String(needCount)} label="Need your decision" />
             <Stat tone="primary" icon={<Sprout size={20} aria-hidden />} value={open.isLoading ? null : `${handling.length}${handlingMore ? "+" : ""}`} label="Bloom is handling" />
             <Stat tone="success" icon={<CheckCircle2 size={20} aria-hidden />} value={resolved.isLoading ? null : String(doneToday.length)} label="Completed today" />
@@ -117,16 +117,6 @@ export function TodayView({ me, onOpenTicket, onOpenDesk, heroAction }: {
             ? <Skeleton variant="rectangular" height={220} sx={{ borderRadius: "xl" }} />
             : <DecisionList decisions={decisions} moreNeedsOwner={moreNeedsOwner} onOpenDesk={onOpenDesk} />}
         </Section>
-      )}
-
-      {!loading && !decisionsUnknown && needCount === 0 && (
-        <Stack direction="row" spacing={4} alignItems="center" sx={{ ...deskCardSx, p: 6 }}>
-          <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: "success.100", color: "success.700", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}><Check size={24} aria-hidden /></Box>
-          <div>
-            <Typography level="title-lg">You're all caught up</Typography>
-            <Typography level="body-md" textColor="text.secondary">No decisions are waiting. Bloom will email you when something needs a person.</Typography>
-          </div>
-        </Stack>
       )}
 
       <Section title="Bloom is handling" tone="primary" count={open.isLoading ? undefined : handling.length}>
@@ -168,8 +158,8 @@ const TONE_COLOR: Record<"warning" | "primary" | "success", { bg: string; fg: st
 function Stat({ tone, icon, value, label }: { tone: "warning" | "primary" | "success"; icon: ReactNode; value: string | null; label: string }) {
   const c = TONE_COLOR[tone];
   return (
-    <Stack direction="row" spacing={3} alignItems="center" sx={{ p: 4, borderRadius: "lg", bgcolor: "background.surface", border: "1px solid", borderColor: c.border }}>
-      <Box sx={{ width: 44, height: 44, borderRadius: "lg", bgcolor: c.bg, color: c.fg, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>{icon}</Box>
+    <Stack direction="row" spacing={2} alignItems="center" sx={{ p: 2.5, borderRadius: "lg", bgcolor: "background.surface", border: "1px solid", borderColor: c.border }}>
+      <Box sx={{ width: 36, height: 36, borderRadius: "lg", bgcolor: c.bg, color: c.fg, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>{icon}</Box>
       <Stack>
         {value === null ? <Skeleton variant="text" width={32} /> : <Typography level="h1" component="p" sx={{ color: c.fg }}>{value}</Typography>}
         <Typography level="body-md" textColor="text.secondary">{label}</Typography>
@@ -181,7 +171,7 @@ function Stat({ tone, icon, value, label }: { tone: "warning" | "primary" | "suc
 function Section({ title, tone, count, children }: { title: string; tone?: "warning" | "primary" | "success"; count?: number; children: ReactNode }) {
   const dot = tone ? `${tone}.${tone === "primary" ? 500 : 400}` : "neutral.400";
   return (
-    <Stack spacing={3} component="section" aria-label={title}>
+    <Stack spacing={2} component="section" aria-label={title}>
       <Stack direction="row" spacing={2.5} alignItems="center">
         <Box aria-hidden sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: dot }} />
         <Typography level="h3" component="h2">{title}</Typography>
@@ -199,9 +189,9 @@ function RowList({ children }: { children: ReactNode }) {
 function ClickRow({ onOpen, label, children }: { onOpen: () => void; label: string; children: ReactNode }) {
   return (
     <Stack
-      direction="row" spacing={3.5} alignItems="center" role="button" tabIndex={0} aria-label={label}
+      direction="row" spacing={2} alignItems="center" role="button" tabIndex={0} aria-label={label}
       onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-      sx={{ px: { xs: 4, sm: 5 }, py: 4, minHeight: 64, cursor: "pointer", transition: "background-color 120ms ease", "&:hover": { bgcolor: "neutral.50" }, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.500", outlineOffset: -3 } }}
+      sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5, minHeight: 64, cursor: "pointer", transition: "background-color 120ms ease", "&:hover": { bgcolor: "neutral.50" }, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.500", outlineOffset: -3 } }}
     >
       {children}
     </Stack>
