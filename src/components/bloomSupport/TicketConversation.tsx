@@ -27,6 +27,7 @@ import { engineeringLabel, fixStage } from "./labels";
 import { StatusChip } from "./chips";
 import { asSentence, humanizeNextAction, staffNotePresentation } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { useAskDialog } from "./useAskDialog";
+import { clientName as deskClientName } from "./desk/statusWords";
 import { BloomRecommends } from "./BloomRecommends";
 import type { NextAction } from "../../../supabase/functions/_shared/bloom-support/next-step";
 import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
@@ -239,7 +240,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
 
   // The thread can include messages from other requests in the same conversation; label them.
   const otherNumbers = new Map(t.conversation_tickets.map((c) => [c.id, c.number]));
-  const clientName = t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client";
+  const clientName = deskClientName(t);
   const b = banner(t);
   const eng = t.engineering as { id?: string; title?: string; status?: string; pr_url?: string | null; pr_number?: number | null; eligibility?: { eligible?: boolean; reasons?: string[] } | null } | null | undefined;
   const fix = eng?.status ? fixStage(eng.status) : null;
