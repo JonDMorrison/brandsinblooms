@@ -52,6 +52,8 @@ export function slackSafeMessage(
       "*What this means for you:* " + note.matters,
       "*Status:* The change has been added. We're still checking it before we call it ready.",
       "*Do you need to do anything?* " + note.next,
+      "*Release check:* Confirm this is in main, deployed, and tested for the affected customer before calling it fixed.",
+      ...(source ? ["<" + source + "|Check the change in GitHub>"] : []),
     ].join("\n");
   }
   const state = milestone ? explainGithubMilestone(milestone) :
