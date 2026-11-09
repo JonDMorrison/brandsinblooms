@@ -61,6 +61,7 @@ function banner(t: TicketDetail): Banner {
   if (t.pending_review === "reply_after_resolution") return { tone: "warning", text: "Waiting on you: the client replied after this was solved" };
   if (t.pending_review === "client_reply_human") return { tone: "warning", text: "Waiting on you: the client replied to your conversation" };
   if (t.status === "resolved") return { tone: "success", text: t.resolved_at ? `Solved ${formatDistanceToNow(new Date(t.resolved_at), { addSuffix: true })}` : "Solved" };
+  if (eng?.status === "escalated") return { tone: "warning", text: "The automatic repair is paused for engineering review" };
   if (eng?.status === "awaiting_approval") return { tone: "warning", text: "Waiting on you: approve the fix" };
   if (t.status === "needs_owner") return { tone: "warning", text: `Waiting on you: ${t.next_action ? humanizeNextAction(t.next_action) : "an admin decision"}` };
   if (t.automation === "human") return { tone: "neutral", text: `${t.taken_over_by?.name ?? "A person"} is handling this. Bloom has stepped back` };
@@ -140,7 +141,19 @@ function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: s
             color: "text.primary",
           }}
         >
-          <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
+          {fromClient && Array.from(body).length > 700 ? (
+            <>
+              <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>
+                {Array.from(body).slice(0, 220).join("").trimEnd()}…
+              </Typography>
+              <Box component="details" sx={{ mt: 1, "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", color: "primary.700", py: 0.5 } }}>
+                <Box component="summary">Read full original message</Box>
+                <Typography level="body-sm" textColor="inherit" sx={{ mt: 1, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
+              </Box>
+            </>
+          ) : (
+            <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
+          )}
         </Box>
       </Stack>
     </Stack>
@@ -229,6 +242,16 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   const retryLocked = pendingReply.current !== null && replyError !== null;
   const replyLocked = replyRun.isPending || retryLocked;
   const product = PRODUCT_LABEL[t.product] ?? t.product;
+  const headline = t.subject.replace(/^TEST:\\s*/i, "").replace(/\\s*\\|\\s*20\\d{2}-\\d{2}-\\d{2}$/, "");
+  const repairPaused = eng?.status === "escalated";
+  const routingBlocked = repairPaused && t.product === "unknown";
+  // Routine receipts and triage notes are preserved but don't obscure the actual request.
+  const routineUpdates = t.messages.filter((m) => m.author_kind === "bloom" && (
+    m.purpose === "acknowledgement" || m.purpose === "progress" ||
+    (m.visibility === "internal" && m.body.startsWith("Bloom read this as"))
+  ));
+  const routineIds = new Set(routineUpdates.map((m) => m.id));
+  const mainMessages = t.messages.filter((m) => !routineIds.has(m.id));
   const overLimit = draft.length > MAX_SUPPORT_BODY_LENGTH;
   const canSend = !pendingReply.current && !!draft.trim() && !overLimit && !replyRun.isPending;
   const internalMode = mode === "internal";
@@ -314,40 +337,60 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
 
       <Box sx={{ flex: 1, maxWidth: "100%", minWidth: 0, minHeight: 0, overflow: "auto" }}>
         <Stack spacing={3} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", px: { xs: 2, md: 4 }, py: 3 }}>
-          {/* Status: what Bloom is doing, and where the fix stands. */}
+          {/* One readable summary. Detailed evidence and routine updates stay available below. */}
           <Sheet variant="outlined" sx={{ borderRadius: "lg", bgcolor: "background.surface", overflow: "hidden", boxShadow: "xs" }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ px: 2, py: 1.5 }} role="status">
-              <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: toneDot[b.tone], flex: "0 0 auto", boxShadow: "0 0 0 4px var(--joy-palette-background-level1)" }} />
-              <Typography level="title-sm" sx={{ minWidth: 0 }}>{b.text}</Typography>
-            </Stack>
-            {eng?.status && fix ? (
-              <>
-                <Divider />
-                <Stack spacing={1} sx={{ px: 2, py: 1.5 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography level="title-sm" startDecorator={<Sprout size={16} aria-hidden />}>The fix</Typography>
-                    <Chip size="sm" variant="soft" color={fix.tone}>{fix.label}</Chip>
-                  </Stack>
-                  <Typography level="body-sm" textColor="text.secondary">{fixDetail}</Typography>
-                  {eng.title && eng.title.trim() !== t.subject.trim() ? <Typography level="body-xs" textColor="text.tertiary">{asSentence(eng.title)}</Typography> : null}
-                  {eng.eligibility?.reasons?.length ? <Typography level="body-xs" textColor="text.secondary">{asSentence(`Needs a person because: ${eng.eligibility.reasons.slice(0, 3).join("; ")}`)}</Typography> : null}
-                  {(eng.status === "awaiting_approval" && eng.id && can("engineering.approve")) || eng.pr_url ? (
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 0.5 }}>
-                      {eng.status === "awaiting_approval" && eng.id && can("engineering.approve") && (
-                        <Button size="sm" loading={run.isPending}
-                          onClick={() => run.mutate({ fn: () => bloomSupport.updateEngineering(eng.id!, { status: "approved", note: `Approved from ticket #${t.number}` }), done: "Fix approved. Bloom will release it and tell the client." })}>
-                          Approve fix
-                        </Button>
-                      )}
-                      {eng.pr_url && <Button size="sm" variant="plain" color="neutral" component="a" href={eng.pr_url} target="_blank" rel="noopener">See the change{eng.pr_number ? ` (#${eng.pr_number})` : ""}</Button>}
+            <Stack spacing={1.5} sx={{ px: { xs: 2, md: 2.5 }, py: 2 }}>
+              <Stack spacing={0.5}>
+                <Typography level="body-xs" textColor="text.tertiary" sx={{ fontWeight: "lg" }}>THE ISSUE</Typography>
+                <Typography level="title-lg" sx={{ overflowWrap: "anywhere" }}>{headline}</Typography>
+              </Stack>
+              <Divider />
+              <Stack spacing={0.5}>
+                <Typography level="title-sm">Where things stand</Typography>
+                <Typography level="body-md" role="status" textColor="text.secondary">
+                  {routingBlocked
+                    ? "Bloom stopped before starting the repair because the request was not linked to the right product."
+                    : repairPaused
+                      ? "Bloom couldn't continue the repair automatically. An engineering review is needed."
+                      : b.text}
+                </Typography>
+                {!repairPaused && eng?.status && fix ? (
+                  <Typography level="body-sm" textColor="text.tertiary">
+                    Fix: {fix.label}. {fixDetail}
+                  </Typography>
+                ) : null}
+              </Stack>
+              {repairPaused ? (
+                <>
+                  <Divider />
+                  <Stack spacing={0.75}>
+                    <Typography level="title-sm">What happens next</Typography>
+                    <Typography level="body-sm" textColor="text.secondary">
+                      {routingBlocked
+                        ? "An admin needs to connect this request to the correct software, then restart the engineering review. The existing approval checks still apply."
+                        : "An admin needs to review why the repair stopped and decide whether engineering can safely continue. Bloom can still handle client messages."}
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
+                      <Button variant="outlined" color="neutral" size="sm" onClick={onShowDetails}>Review repair details</Button>
                     </Stack>
-                  ) : null}
-                </Stack>
-              </>
-            ) : null}
+                  </Stack>
+                </>
+              ) : null}
+              {!repairPaused && eng?.status === "awaiting_approval" && eng.id && can("engineering.approve") ? (
+                <Button size="sm" loading={run.isPending}
+                  onClick={() => run.mutate({ fn: () => bloomSupport.updateEngineering(eng.id!, { status: "approved", note: `Approved from ticket #${t.number}` }), done: "Fix approved. Bloom will release it and tell the client." })}>
+                  Approve fix
+                </Button>
+              ) : null}
+              {eng?.pr_url ? (
+                <Button variant="plain" color="neutral" size="sm" component="a" href={eng.pr_url} target="_blank" rel="noopener">
+                  See the change{eng.pr_number ? ` (#${eng.pr_number})` : ""}
+                </Button>
+              ) : null}
+            </Stack>
           </Sheet>
 
-          {canWrite ? (
+          {canWrite && !repairPaused ? (
             <BloomRecommends
               t={t}
               me={me}
@@ -367,7 +410,21 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
           )}
 
           <Stack spacing={3} component="ol" aria-label="Conversation" sx={{ listStyle: "none", m: 0, p: 0 }}>
-            {t.messages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} /></Box>)}
+            {mainMessages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} /></Box>)}
+            {routineUpdates.length > 0 && (
+              <Box component="li">
+                <Sheet variant="soft" color="neutral" sx={{ p: 1.5, borderRadius: "lg" }}>
+                  <Box component="details" sx={{ "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", py: 0.5 } }}>
+                    <Box component="summary">Bloom activity ({routineUpdates.length} updates)</Box>
+                    <Stack spacing={2} sx={{ mt: 1.5 }}>
+                      {routineUpdates.map((m) => (
+                        <Message key={m.id} m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} />
+                      ))}
+                    </Stack>
+                  </Box>
+                </Sheet>
+              </Box>
+            )}
           </Stack>
 
           {t.attachments.length > 0 && (
