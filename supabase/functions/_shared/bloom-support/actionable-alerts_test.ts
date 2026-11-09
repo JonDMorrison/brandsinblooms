@@ -123,3 +123,14 @@ Deno.test("task kind codes from database never become executable Slack markup",(
  assertEquals(msg.includes("@here"),false);
  assertStringIncludes(msg,"other support tasks");
 });
+
+Deno.test("read-only alert function is service-only, SQL delimiters are balanced",async()=>{
+ const sql=await Deno.readTextFile(new URL("../../../migrations/20261109021000_bloom_support_slack_actionable_alerts.sql",import.meta.url));
+ assertEquals((sql.match(/CREATE OR REPLACE FUNCTION/g)||[]).length,1);
+ assertEquals((sql.match(/AS \$\$/g)||[]).length,1);
+ assertEquals((sql.match(/\$\$;/g)||[]).length,1);
+ assertStringIncludes(sql,"x.lane NOT LIKE 'slack:%'");
+ assertStringIncludes(sql,"REVOKE ALL ON FUNCTION public.bloom_support_slack_alert_context(uuid)");
+ assertStringIncludes(sql,"GRANT EXECUTE ON FUNCTION public.bloom_support_slack_alert_context(uuid)");
+ assertStringIncludes(sql,"TO service_role;");
+});
