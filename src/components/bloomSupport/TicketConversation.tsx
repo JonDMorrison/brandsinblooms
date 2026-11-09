@@ -355,9 +355,13 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
                       : b.text}
                 </Typography>
                 {!repairPaused && eng?.status && fix ? (
-                  <Typography level="body-sm" textColor="text.tertiary">
-                    Fix: {fix.label}. {fixDetail}
-                  </Typography>
+                  <Stack spacing={0.5} alignItems="flex-start">
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography level="body-sm" textColor="text.tertiary">The fix</Typography>
+                      <Chip size="sm" variant="soft" color={fix.tone}>{fix.label}</Chip>
+                    </Stack>
+                    <Typography level="body-sm" textColor="text.tertiary">{fixDetail}</Typography>
+                  </Stack>
                 ) : null}
               </Stack>
               {repairPaused ? (
