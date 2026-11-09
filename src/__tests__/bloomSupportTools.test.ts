@@ -29,7 +29,7 @@ import {
   MAX_ATTACHMENT_TOTAL_BYTES,
   safeSupportTrackingUrl,
 } from "@/lib/bloomSupport/constants";
-import { asSentence, humanizeStaffNote, triageNoteText } from "../../supabase/functions/_shared/bloom-support/notes";
+import { asSentence, humanizeStaffNote, staffNotePresentation, triageNoteText } from "../../supabase/functions/_shared/bloom-support/notes";
 import {
   decodeBase64File,
   validateAttachmentFile,
@@ -1139,5 +1139,33 @@ describe("Bloom engineering release recovery", () => {
       status: "rolled_back",
       rollback: { status: "confirmed", aliases_confirmed: 1, recovery_verification: { passed: true, scope: "release_smoke" } },
     });
+  });
+});
+
+describe("Readable private support notes", () => {
+  it("shows the real checkout activation hold before the full technical record", () => {
+    const detail = "Release evidence update: BloomSites PR #4359 has a READY production deployment. "
+      + "Both Horsford sites have recipient_opt_in=false and shared_checkout_enabled=false. "
+      + "Approval, shipping, ShipStation and live payments still need verification. "
+      + "Full internal technical details and QA evidence. ".repeat(14);
+    const result = staffNotePresentation(detail);
+    expect(result.collapsed).toBe(true);
+    expect(result.preview).toContain("deployed, but the multi-recipient option is still switched off");
+    expect(result.preview).toContain("live checkout");
+    expect(result.original).toBe(detail);
+  });
+
+  it("keeps a normal note intact and does not invent a summary of unfamiliar engineering evidence", () => {
+    const plain = staffNotePresentation("I called the client and they will send a screenshot.");
+    expect(plain).toEqual({
+      preview: "I called the client and they will send a screenshot.",
+      original: "I called the client and they will send a screenshot.",
+      collapsed: false,
+    });
+    const technical = "PR #876 includes a complex change. ".repeat(26);
+    const result = staffNotePresentation(technical);
+    expect(result.collapsed).toBe(true);
+    expect(result.preview).toContain("Detailed internal engineering update");
+    expect(result.original).toBe(technical);
   });
 });
