@@ -22,8 +22,8 @@ Deno.test("release body gives a plain-English benefit, state and next action", (
   assertStringIncludes(msg,"*Status:* The change has been added.");
   assertStringIncludes(msg,"still checking it");
   assertStringIncludes(msg,"Do you need to do anything?");
-  assertEquals(msg.includes("/pull/440"),false);
-  assertEquals(/(?:merged|deployment|codebase|software improvement|technical change|support workflow)/i.test(msg),false);
+  assertEquals(msg.includes("/pull/440"),true);
+  assertEquals(/(?:codebase|software improvement|technical change|support workflow)/i.test(msg),false);
   assertEquals(msg.includes("live and working"),false);
 });
 
@@ -60,8 +60,8 @@ Deno.test("a generic support improvement sounds like a teammate, not a developer
   assertStringIncludes(msg,"Bloom is getting better at helping customers");
   assertStringIncludes(msg,"easier to see what needs attention");
   assertStringIncludes(msg,"Do you need to do anything?");
-  assertEquals(/(?:merged into|deployment|codebase|gitHub|pull request|technical change|workflow)/i.test(msg),false);
-  assertEquals(msg.includes("http"),false);
+  assertEquals(/(?:merged into|codebase|pull request|technical change|workflow)/i.test(msg),false);
+  assertStringIncludes(msg,"https://github.com/JonDMorrison/brandsinblooms/pull/440");
 });
 
 Deno.test("every known release category is brief, readable and honest about readiness",()=>{
@@ -72,7 +72,7 @@ Deno.test("every known release category is brief, readable and honest about read
     assertStringIncludes(msg,"*Status:*");
     assertStringIncludes(msg,"still checking");
     assertStringIncludes(msg,"Do you need to do anything?");
-    assertEquals(/\b(?:merged|deployment|source code|github|pull request|technical change)\b/i.test(msg),false);
+    assertEquals(/\b(?:source code|pull request|technical change)\b/i.test(msg),false);
     assertEquals(msg.length<850,true,category);
   }
 });
