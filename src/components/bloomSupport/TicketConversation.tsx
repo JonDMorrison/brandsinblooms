@@ -343,6 +343,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
               <Stack spacing={0.5}>
                 <Typography level="body-xs" textColor="text.tertiary" sx={{ fontWeight: "lg" }}>THE ISSUE</Typography>
                 <Typography level="title-lg" sx={{ overflowWrap: "anywhere" }}>{headline}</Typography>
+                {/^(TEST|TESTING):\s*/i.test(t.subject) ? <Chip variant="soft" color="neutral" size="sm" sx={{ alignSelf: "flex-start" }}>Marked as a test</Chip> : null}
               </Stack>
               <Divider />
               <Stack spacing={0.5}>
@@ -415,7 +416,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
               <Box component="li">
                 <Sheet variant="soft" color="neutral" sx={{ p: 1.5, borderRadius: "lg" }}>
                   <Box component="details" sx={{ "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", py: 0.5 } }}>
-                    <Box component="summary">Bloom activity ({routineUpdates.length} updates)</Box>
+                    <Box component="summary">Bloom activity ({routineUpdates.length} {routineUpdates.length === 1 ? "update" : "updates"})</Box>
                     <Stack spacing={2} sx={{ mt: 1.5 }}>
                       {routineUpdates.map((m) => (
                         <Message key={m.id} m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} />
