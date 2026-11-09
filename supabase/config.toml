@@ -1,7 +1,39 @@
 project_id = "udldmkqwnxhdeztyqcau"
 
+# Local development only: this machine runs several Supabase stacks at once, so
+# the CRM uses its own port block (57320-57329, edge inspector 8087) and the
+# Vite dev server at http://localhost:8090. None of this applies to the hosted
+# project.
+[api]
+port = 57321
+
 [db]
 major_version = 15
+port = 57322
+shadow_port = 57320
+
+[db.pooler]
+port = 57329
+
+[studio]
+port = 57323
+
+[local_smtp]
+port = 57324
+smtp_port = 57325
+
+[analytics]
+port = 57327
+
+[edge_runtime]
+inspector_port = 8087
+
+[auth]
+site_url = "http://localhost:8090"
+additional_redirect_urls = ["http://localhost:8090", "http://localhost:8090/auth/bloomsuite", "http://localhost:8090/dashboard", "http://localhost:8090/onboarding", "http://localhost:8090/reset-password", "http://localhost:8090/auth/callback"]
+
+[auth.email]
+enable_confirmations = true
 
 # Note: connect-meta function was removed (deprecated)
 
@@ -137,9 +169,6 @@ verify_jwt = true
 [functions.analyze-csv-intelligent]
 verify_jwt = true
 
-[functions.send-bulk-campaign]
-verify_jwt = true
-
 [functions.fetch-content-images]
 verify_jwt = false
 
@@ -188,9 +217,6 @@ verify_jwt = true
 [functions.exchange-oauth-code]
 verify_jwt = true
 
-[functions.lightspeed-oauth-initiate]
-verify_jwt = true
-
 [functions.lightspeed-oauth-start]
 verify_jwt = true
 
@@ -199,15 +225,6 @@ verify_jwt = false
 
 [functions.lightspeed-test-connection]
 verify_jwt = true
-
-[functions.lightspeed-debug-env]
-verify_jwt = false
-
-[functions.lightspeed-debug-auth]
-verify_jwt = false
-
-[functions.lightspeed-debug-token]
-verify_jwt = false
 
 [functions.lightspeed-sync-customers]
 verify_jwt = true
@@ -358,12 +375,6 @@ verify_jwt = false
 [functions.get-deliverability-status]
 verify_jwt = true
 
-[functions.suppression-checker]
-verify_jwt = false
-
-[functions.reset-daily-limits]
-verify_jwt = false
-
 [functions.get-warmup-status]
 verify_jwt = true
 
@@ -506,9 +517,6 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.derive-climate-profile]
-verify_jwt = false
-
-[functions.test-climate-e2e]
 verify_jwt = false
 
 [functions.get-form-config]
