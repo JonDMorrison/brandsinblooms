@@ -975,6 +975,50 @@ describe("Bloom Support staff workspace", () => {
     </TestQueryClientProvider>,
   );
 
+  it("keeps a long, stopped support test readable without recommending a client takeover", async () => {
+    const user = userEvent.setup();
+    const fullRequest = "The calendar export is breaking emojis. " + "Technical reproduction details. ".repeat(42) + "End of the original request.";
+    const baseMessage = {
+      ticket_id: supportTicket.id,
+      created_at: "2026-11-09T01:26:56.000Z",
+      delivery: "none",
+      direction: "inbound",
+      meaningful: false,
+    };
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      subject: "TEST: Calendar export corrupts emojis | 2026-11-09",
+      product: "unknown",
+      status: "needs_owner",
+      engineering: { id: "engineering-test", status: "escalated" },
+      messages: [
+        { ...baseMessage, id: "client-1", author_kind: "client", author: { name: "Jon" }, body: fullRequest, visibility: "public", purpose: null },
+        { ...baseMessage, id: "bloom-1", author_kind: "bloom", author: { name: "Bloom" }, body: "I'm Bloom. I've received your request.", visibility: "public", purpose: "acknowledgement" },
+        { ...baseMessage, id: "bloom-2", author_kind: "bloom", author: { name: "Bloom" }, body: "The automatic repair has stopped.", visibility: "public", purpose: "progress" },
+      ],
+    });
+
+    renderConversation();
+    expect(await screen.findByText("Marked as a test")).toBeInTheDocument();
+    expect(screen.getByText("Calendar export corrupts emojis")).toBeInTheDocument();
+    expect(screen.getByText(/stopped before starting the repair/)).toBeInTheDocument();
+    expect(screen.getByText(/connect this request to the correct software/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review repair details" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Bloom recommends" })).not.toBeInTheDocument();
+
+    const original = screen.getByText("Read full original message").closest("details");
+    expect(original).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Read full original message"));
+    expect(original).toHaveAttribute("open");
+    expect(original).toHaveTextContent("End of the original request.");
+
+    const activity = screen.getByText("Bloom activity (2 updates)").closest("details");
+    expect(activity).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Bloom activity (2 updates)"));
+    expect(activity).toHaveAttribute("open");
+    expect(activity).toHaveTextContent("The automatic repair has stopped.");
+  });
+
   it("freezes and retries the exact conversation reply after an ambiguous failure", async () => {
     const user = userEvent.setup();
     const first = deferred<{ message_id: string; duplicate: boolean }>();
