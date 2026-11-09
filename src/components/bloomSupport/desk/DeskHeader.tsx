@@ -22,10 +22,10 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
   const state = bloomState(summary, summaryFailed);
   const alerts = deskAlerts(summary, urgent);
   return (
-    <Stack spacing={4} component="header">
-      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={4}>
-        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" useFlexGap>
+    <Stack spacing={2} component="header">
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2}>
+        <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
             <Typography level="h1" component="h1">Support desk</Typography>
             <BloomPill tone={state.tone} label={state.label} />
           </Stack>
@@ -33,7 +33,7 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
             Bloom handles the routine work. You make the few calls that need a person.
           </Typography>
         </Stack>
-        <Button variant="outlined" color="neutral" startDecorator={<Plus size={18} aria-hidden />} onClick={onNewRequest} sx={{ borderRadius: "xl", minHeight: 48, px: 5, bgcolor: "background.surface", flexShrink: 0 }}>
+        <Button variant="outlined" color="neutral" startDecorator={<Plus size={18} aria-hidden />} onClick={onNewRequest} sx={{ borderRadius: "xl", minHeight: 44, px: 3, bgcolor: "background.surface", flexShrink: 0 }}>
           New request
         </Button>
       </Stack>
