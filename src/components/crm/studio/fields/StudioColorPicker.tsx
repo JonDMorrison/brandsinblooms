@@ -9,12 +9,14 @@ import { useTheme } from "@mui/joy/styles";
 import { Check, ChevronDown } from "lucide-react";
 import { useOptionalDesignSystem } from "@/contexts/DesignSystemContext";
 
+// Keep the first three choices consistent across every Studio colour field.
+const ESSENTIAL_COLOR_PRESETS = ["transparent", "#000000", "#FFFFFF"];
+
 const CORE_COLOR_PRESETS = [
   "#1E3A8A",
   "#E76F51",
   "#2E7D32",
   "#374151",
-  "#FFFFFF",
 ];
 
 const MORE_COLOR_PRESETS = [
@@ -54,21 +56,19 @@ export default function StudioColorPicker({
   const designSystemPresets = designSystemContext?.designSystem.colorPresets;
   const primaryPreset = theme.palette.primary[500];
   const colorPresets = React.useMemo(() => {
-    if (presets && presets.length > 0) {
-      return presets;
-    }
-
-    if (designSystemPresets?.core.length) {
-      return Array.from(
-        new Set([
-          ...designSystemPresets.core,
-          primaryPreset,
-          ...CORE_COLOR_PRESETS,
+    const brandPresets = presets?.length
+      ? presets
+      : designSystemPresets?.core.length
+        ? [...designSystemPresets.core, primaryPreset, ...CORE_COLOR_PRESETS]
+        : [primaryPreset, ...CORE_COLOR_PRESETS];
+    return Array.from(
+      new Map(
+        [...ESSENTIAL_COLOR_PRESETS, ...brandPresets].map((color) => [
+          color.toLowerCase(),
+          color,
         ]),
-      );
-    }
-
-    return [primaryPreset, ...CORE_COLOR_PRESETS];
+      ).values(),
+    );
   }, [designSystemPresets?.core, presets, primaryPreset]);
   const additionalPresets = React.useMemo(
     () =>
@@ -85,6 +85,22 @@ export default function StudioColorPicker({
     defaultColor ?? primaryPreset,
   );
   const resolvedColor = value ?? selectedColor;
+  const visiblePresets = React.useMemo(
+    () =>
+      Array.from(
+        new Map(
+          [...colorPresets, ...(expanded ? additionalPresets : [])].map(
+            (color) => [color.toLowerCase(), color],
+          ),
+        ).values(),
+      ),
+    [colorPresets, additionalPresets, expanded],
+  );
+  const nativeColor = /^#[0-9a-f]{6}$/i.test(resolvedColor)
+    ? resolvedColor
+    : /^#[0-9a-f]{3}$/i.test(resolvedColor)
+      ? `#${[...resolvedColor.slice(1)].map((digit) => digit + digit).join("")}`
+      : "#ffffff";
 
   const commitColor = React.useCallback(
     (nextColor: string) => {
@@ -129,11 +145,12 @@ export default function StudioColorPicker({
             boxSizing: "border-box",
           }}
         >
-          {[...colorPresets, ...(expanded ? additionalPresets : [])].map(
+          {visiblePresets.map(
             (color) => {
               const isSelected =
                 resolvedColor.toLowerCase() === color.toLowerCase();
-              const isLight = ["#ffffff", "#fff", "#f8fafc"].includes(
+              const isNone = color.toLowerCase() === "transparent";
+              const isLight = isNone || ["#ffffff", "#fff", "#f8fafc"].includes(
                 color.toLowerCase(),
               );
 
@@ -143,7 +160,8 @@ export default function StudioColorPicker({
                   variant="plain"
                   color="neutral"
                   size="sm"
-                  aria-label={`Select ${color} for ${label}`}
+                  aria-label={`Select ${isNone ? "None / transparent" : color} for ${label}`}
+                  title={isNone ? "None / transparent" : color.toUpperCase()}
                   aria-pressed={isSelected}
                   onClick={() => commitColor(color)}
                   sx={{
@@ -153,7 +171,11 @@ export default function StudioColorPicker({
                     minHeight: 24,
                     p: 0,
                     borderRadius: "50%",
-                    bgcolor: color,
+                    bgcolor: isNone ? "#ffffff" : color,
+                    backgroundImage: isNone
+                      ? "repeating-conic-gradient(#d9dee2 0% 25%, #fff 0% 50%)"
+                      : undefined,
+                    backgroundSize: isNone ? "8px 8px" : undefined,
                     color: isLight ? "primary.700" : "#ffffff",
                     border: "1px solid",
                     borderColor: isLight ? "neutral.200" : "transparent",
@@ -166,7 +188,7 @@ export default function StudioColorPicker({
                     transition:
                       "transform 140ms ease, box-shadow 140ms ease, outline-color 140ms ease",
                     "&:hover": {
-                      bgcolor: color,
+                      bgcolor: isNone ? "#ffffff" : color,
                       transform: "scale(1.08)",
                     },
                     "&:focus-visible": {
@@ -232,11 +254,23 @@ export default function StudioColorPicker({
               height: 18,
               flexShrink: 0,
               borderRadius: "5px",
-              bgcolor: resolvedColor,
+              bgcolor: resolvedColor === "transparent" ? "#ffffff" : resolvedColor,
+              backgroundImage: resolvedColor === "transparent"
+                ? "repeating-conic-gradient(#d9dee2 0% 25%, #fff 0% 50%)"
+                : undefined,
+              backgroundSize: "8px 8px",
               border: "1px solid",
               borderColor: "neutral.200",
               boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.6)",
             }}
+          />
+          <input
+            type="color"
+            aria-label={`Choose custom colour for ${label}`}
+            title={`Choose a custom colour for ${label}`}
+            value={nativeColor}
+            onChange={(event) => commitColor(event.target.value)}
+            style={{ width: 32, height: 32, minWidth: 32, padding: 2, borderRadius: 8, cursor: "pointer" }}
           />
           <Input
             size="sm"
