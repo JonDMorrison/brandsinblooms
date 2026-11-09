@@ -17,7 +17,7 @@ const ago = (d: string | null) => (d ? formatDistanceToNow(new Date(d), { addSuf
 
 const STATE_STYLE: Record<CapabilityState, { bg: string; fg: string }> = {
   ready: { bg: "success.50", fg: "success.700" },
-  needs_setup: { bg: "warning.50", fg: "warning.800" },
+  needs_setup: { bg: "neutral.100", fg: "neutral.700" },
   off: { bg: "neutral.100", fg: "neutral.700" },
   not_built: { bg: "neutral.100", fg: "neutral.600" },
 };
@@ -33,7 +33,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
   const technical = me.permissions.includes("automation.control") || me.permissions.includes("admin.policy");
 
   if (q.isLoading) return <Stack spacing={4}><Skeleton variant="rectangular" height={160} sx={{ borderRadius: "xl" }} /><Skeleton variant="rectangular" height={240} sx={{ borderRadius: "xl" }} /></Stack>;
-  if (q.error) return <Alert color="warning" variant="soft" sx={{ borderRadius: "lg" }}>Bloom's status couldn't load. Try again in a minute.</Alert>;
+  if (q.error) return <Alert color="neutral" variant="soft" sx={{ borderRadius: "lg" }}>Bloom's status couldn't load. Try again in a minute.</Alert>;
   const r = q.data!;
   const caps = r.capabilities as Capability[];
   const s = summarizeCapabilities(caps);
@@ -46,7 +46,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
       <Box sx={{ ...deskCardSx, p: { xs: 5, md: 7 } }}>
         <Stack spacing={5}>
           <Stack direction="row" spacing={3} alignItems="flex-start">
-            <Box sx={{ width: 52, height: 52, borderRadius: "xl", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: `${run.tone}.50`, color: `${run.tone}.700` }}>
+            <Box sx={{ width: 52, height: 52, borderRadius: "xl", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: run.tone === "success" ? "success.50" : "neutral.100", color: run.tone === "success" ? "success.700" : "neutral.700" }}>
               {run.tone === "success" ? <Activity size={26} aria-hidden /> : run.title === "Bloom is paused" ? <CirclePause size={26} aria-hidden /> : <AlertTriangle size={26} aria-hidden />}
             </Box>
             <Stack spacing={1}>
@@ -56,7 +56,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
           </Stack>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 3 }}>
             <Count value={s.ready} label="Capabilities ready" tone="success" />
-            <Count value={s.needsSetup} label="Need setting up" tone={s.needsSetup ? "warning" : "neutral"} />
+            <Count value={s.needsSetup} label="Need setting up" tone="neutral" />
             <Count value={s.observed} label="Success observed recently" tone="primary" />
           </Box>
         </Stack>
@@ -65,9 +65,9 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
       {alerts.length > 0 && (
         <Stack spacing={3} component="section" aria-label="Alerts">
           <Typography level="h3" component="h2">Alerts in the last day</Typography>
-          <Box sx={{ ...deskCardSx, p: 5, bgcolor: "warning.50", borderColor: "warning.200" }}>
+          <Box sx={{ ...deskCardSx, p: 4, bgcolor: "background.surface", borderColor: "neutral.200", borderLeft: "3px solid", borderLeftColor: "primary.400" }}>
             <Stack spacing={2}>
-              <Typography level="title-md" startDecorator={<AlertTriangle size={20} aria-hidden />} textColor="warning.800">
+              <Typography level="title-md" startDecorator={<AlertTriangle size={20} aria-hidden />} textColor="text.primary">
                 Bloom raised {alerts.length} alert{alerts.length === 1 ? "" : "s"} about its own work.
               </Typography>
               <Typography level="body-md" textColor="text.secondary">Check failed steps in Settings. Details are under technical evidence.</Typography>
@@ -81,7 +81,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
           <Typography level="h3" component="h2">Needs setting up</Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 3 }}>
             {s.attention.map((c) => (
-              <Box key={c.key} sx={{ ...deskCardSx, p: 5, borderLeft: "4px solid", borderLeftColor: "warning.400" }}>
+              <Box key={c.key} sx={{ ...deskCardSx, p: 5, borderLeft: "4px solid", borderLeftColor: "primary.400" }}>
                 <Stack spacing={1.5}>
                   <Typography level="title-lg" startDecorator={<Wrench size={20} aria-hidden />}>{friendlyName(c)}</Typography>
                   {purposeOf(c) && <Typography level="body-md" textColor="text.secondary">{purposeOf(c)}</Typography>}
@@ -115,12 +115,12 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
                 <Typography level="title-sm">{c.label} <Box component="code" sx={{ fontSize: "0.8125rem", color: "text.tertiary" }}>{c.key}</Box></Typography>
                 <Typography level="body-sm" textColor="text.secondary">Tested by: {c.tested}</Typography>
                 <Typography level="body-sm" textColor="text.secondary">Built: {c.implemented ? "yes" : "no"} · Set up: {c.configured ? "yes" : "no"} · Switched on: {c.enabled === null ? "n/a" : c.enabled ? "yes" : "no"} · Last observed success: {c.live ?? "none in window"}</Typography>
-                {c.missing.length > 0 && <Typography level="body-sm" textColor="warning.800" sx={{ overflowWrap: "anywhere" }}>Missing configuration: {c.missing.join(", ")}</Typography>}
+                {c.missing.length > 0 && <Typography level="body-sm" textColor="text.secondary" sx={{ overflowWrap: "anywhere" }}>Missing configuration: {c.missing.join(", ")}</Typography>}
                 {c.note && <Typography level="body-sm" textColor="text.secondary" sx={{ overflowWrap: "anywhere" }}>{c.note}</Typography>}
               </Stack>
             ))}
             {alerts.map((a, i) => (
-              <Typography key={i} level="body-sm" textColor="warning.700" sx={{ px: 5, py: 2 }}>Alert: {String(a.condition)} · {String(a.created_at)} · {String(a.delivered)}</Typography>
+              <Typography key={i} level="body-sm" textColor="text.secondary" sx={{ px: 5, py: 2 }}>Alert: {String(a.condition)} · {String(a.created_at)} · {String(a.delivered)}</Typography>
             ))}
           </Stack>
         </Fold>
@@ -129,7 +129,7 @@ export function SystemStatusPanel({ me }: { me: Whoami }) {
   );
 }
 
-function Count({ value, label, tone }: { value: number; label: string; tone: "success" | "warning" | "primary" | "neutral" }) {
+function Count({ value, label, tone }: { value: number; label: string; tone: "success" | "primary" | "neutral" }) {
   return (
     <Stack spacing={0.5} sx={{ p: 4, borderRadius: "lg", border: "1px solid", borderColor: `${tone}.200`, bgcolor: `${tone}.50` }}>
       <Typography level="h1" component="p" textColor={`${tone}.700`}>{value}</Typography>
@@ -143,7 +143,7 @@ function Fold({ title, meta, complete, children }: { title: string; meta: string
   return (
     <Box component="details" sx={{ ...deskCardSx, overflow: "hidden", "&[open] .fold-chevron": { transform: "rotate(180deg)" }, "& > summary::-webkit-details-marker": { display: "none" } }}>
       <Box component="summary" sx={{ listStyle: "none", cursor: "pointer", px: 5, py: 4, minHeight: 64, display: "flex", alignItems: "center", gap: 3, "&:hover": { bgcolor: "neutral.50" } }}>
-        {complete !== undefined && <Box sx={{ color: complete ? "success.600" : "warning.600", display: "flex" }}>{complete ? <CheckCircle2 size={22} aria-hidden /> : <AlertTriangle size={22} aria-hidden />}</Box>}
+        {complete !== undefined && <Box sx={{ color: complete ? "success.600" : "neutral.600", display: "flex" }}>{complete ? <CheckCircle2 size={22} aria-hidden /> : <AlertTriangle size={22} aria-hidden />}</Box>}
         {complete === undefined && <Box sx={{ color: "text.tertiary", display: "flex" }}><Settings2 size={22} aria-hidden /></Box>}
         <Stack sx={{ flex: 1, minWidth: 0 }}>
           <Typography level="title-md">{title}</Typography>
@@ -194,7 +194,7 @@ function ModelSetting({ ai }: { ai: { model?: string; max_calls_per_account_per_
           if (r) save.mutate(String(r.model).trim());
         }}>Change model</Button>
       </Stack>
-      {error && <Alert color="warning" variant="soft" sx={{ mt: 3, borderRadius: "lg" }}>{error}</Alert>}
+      {error && <Alert color="neutral" variant="soft" sx={{ mt: 3, borderRadius: "lg" }}>{error}</Alert>}
     </Box>
   );
 }
