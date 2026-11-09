@@ -11,7 +11,10 @@ import {
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { CustomerGrowthWorkspace } from "./CustomerGrowthWorkspace";
 
-const mocks = vi.hoisted(() => ({ pages: vi.fn() }));
+import { CustomerGrowthDashboardBody } from "./CustomerGrowthDashboard";
+vi.mock("@/contexts/AdminContext", () => ({ useAdmin: () => ({isLoading:false,isMasterAdmin:false}) }));
+
+const mocks = vi.hoisted(() => ({ pages: vi.fn(), permission: vi.fn() }));
 vi.mock("@/hooks/useTenant", () => ({
   useTenant: () => ({
     tenant: {
@@ -20,7 +23,7 @@ vi.mock("@/hooks/useTenant", () => ({
     },
   }),
 }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.permission } }));
 vi.mock(
   "../../../../supabase/functions/_shared/customer-intelligence/query-pages",
   () => ({ readAllPages: mocks.pages }),
@@ -51,7 +54,7 @@ function mount(section: "explore" | "growth" | "all") {
     </MemoryRouter>,
   );
 }
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); mocks.permission.mockResolvedValue({data:true,error:null}); });
 afterEach(cleanup);
 
 describe("Customer Intelligence workbenches", () => {
@@ -136,3 +139,51 @@ describe("Customer Intelligence workbenches", () => {
 });
 
 vi.mock("./ReportedPurchaseWorkspace", () => ({ReportedPurchaseWorkspace: () => <div>Reported source comparisons</div>}));
+
+
+describe("Customer growth dashboard safety and interaction", () => {
+  it("loads on demand, displays unknown rather than fabricated cohort totals, and clears stale results", async () => {
+    mocks.pages.mockResolvedValueOnce([{id:"customer-a",tenant_id:"synthetic-tenant"}]).mockResolvedValueOnce([]);
+    render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="UTC" />);
+    expect(mocks.pages).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", {name:"Load customer growth dashboard"}));
+    expect(await screen.findByText(/Observed previous-year buyers:/)).toBeInTheDocument();
+    expect(screen.getByText(/Coverage is unverified/)).toBeVisible();
+    expect(mocks.permission).toHaveBeenCalledWith("has_tenant_permission", {p_tenant_id:"synthetic-tenant",p_permission:"reporting.read",p_location_id:null});
+    expect(screen.getAllByText("Not established").length).toBeGreaterThan(5);
+    fireEvent.change(screen.getByRole("spinbutton", {name:"Reporting year"}), {target:{value:"2024"}});
+    expect(screen.queryByText(/Observed previous-year buyers:/)).not.toBeInTheDocument();
+  });
+  it("requires written source evidence for a human coverage assertion", () => {
+    render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="UTC" />);
+    fireEvent.click(screen.getByRole("checkbox", {name:/I reviewed complete/}));
+    expect(screen.getByRole("button", {name:"Load customer growth dashboard"})).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", {name:"Period coverage evidence"}), {target:{value:"Synthetic annual source reconciled"}});
+    expect(screen.getByRole("button", {name:"Load customer growth dashboard"})).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", {name:/I also reviewed/}));
+    expect(screen.getByRole("button", {name:"Load customer growth dashboard"})).toBeDisabled();
+  });
+  it("does not read customer records when company-wide reporting permission is denied", async () => {
+    mocks.permission.mockResolvedValue({data:false,error:null});
+    render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="UTC" />);
+    fireEvent.click(screen.getByRole("button", {name:"Load customer growth dashboard"}));
+    expect(await screen.findByText("Customer growth requires company-wide customer and reporting access.")).toBeVisible();
+    expect(mocks.pages).not.toHaveBeenCalled();
+  });
+  it("discards an in-flight report after the selected year changes", async () => {
+    let finish: (orders: never[]) => void = () => {};
+    mocks.pages.mockResolvedValueOnce([{id:"customer-a",tenant_id:"synthetic-tenant"}]).mockReturnValueOnce(new Promise<never[]>(resolve => { finish = resolve; }));
+    render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="UTC" />);
+    fireEvent.click(screen.getByRole("button", {name:"Load customer growth dashboard"}));
+    await waitFor(() => expect(mocks.pages).toHaveBeenCalledTimes(2));
+    fireEvent.change(screen.getByRole("spinbutton", {name:"Reporting year"}), {target:{value:"2023"}});
+    finish([]);
+    await waitFor(() => expect(screen.getByRole("button", {name:"Load customer growth dashboard"})).toBeEnabled());
+    expect(screen.queryByText(/Observed previous-year buyers:/)).not.toBeInTheDocument();
+  });
+  it("labels a partial current year as progress rather than like-for-like annual growth", () => {
+    render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="UTC" />);
+    fireEvent.change(screen.getByRole("spinbutton", {name:"Reporting year"}), {target:{value:String(new Date().getUTCFullYear())}});
+    expect(screen.getByText(/Year-to-date progress against the full previous year/)).toBeVisible();
+  });
+});
