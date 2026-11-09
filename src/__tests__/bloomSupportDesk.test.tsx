@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { bloomState, deskAlerts, MAIN_VIEWS, MORE_VIEWS, parseDeskView } from "@/components/bloomSupport/desk/deskModel";
 import { DeskNav } from "@/components/bloomSupport/desk/DeskNav";
 import { DeskHeader } from "@/components/bloomSupport/desk/DeskHeader";
@@ -38,6 +39,19 @@ describe("Support desk navigation", () => {
     render(<DeskNav view="readiness" badges={{}} onChange={() => undefined} />);
     expect(screen.getByRole("button", { name: /System status/ })).toBeInTheDocument();
     for (const tab of screen.getAllByRole("tab")) expect(tab).toHaveAttribute("aria-selected", "false");
+  });
+});
+
+describe("Support desk calm status colours", () => {
+  it("never uses red or orange warning tokens in the visible status and header surfaces", () => {
+    for (const path of [
+      "src/components/bloomSupport/desk/SystemStatusPanel.tsx",
+      "src/components/bloomSupport/desk/DeskHeader.tsx",
+      "src/components/bloomSupport/desk/DeskNav.tsx",
+    ]) {
+      const source = readFileSync(path, "utf8");
+      expect(source, path).not.toMatch(/(?:warning|danger)\.\d+|color=["'](?:warning|danger)["']/);
+    }
   });
 });
 
