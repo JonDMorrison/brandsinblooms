@@ -49,6 +49,7 @@ import { actions as supportActions } from "../../supabase/functions/_shared/bloo
 const releaseMocks = vi.hoisted(() => ({
   commitContains: vi.fn(),
   env: vi.fn(),
+  gh: vi.fn(),
   productionCommitForRepair: vi.fn(),
   productionDeployment: vi.fn(),
   pullRequestFacts: vi.fn(),
@@ -104,7 +105,7 @@ vi.mock("../../supabase/functions/_shared/bloom-support/github.ts", () => ({
   commitContains: releaseMocks.commitContains,
   GitHubError: class GitHubError extends Error {},
   findPullRequestForBranch: vi.fn(),
-  gh: vi.fn(),
+  gh: releaseMocks.gh,
   mergePullRequest: vi.fn(),
   productionCommitForRepair: releaseMocks.productionCommitForRepair,
   productionDeployment: releaseMocks.productionDeployment,
@@ -756,6 +757,9 @@ describe("Bloom engineering release recovery", () => {
     releaseMocks.productionCommitForRepair.mockReset();
     releaseMocks.productionDeployment.mockReset();
     releaseMocks.pullRequestFacts.mockReset();
+    releaseMocks.gh.mockReset().mockImplementation(async (_credential: string, _method: string, path: string) => ({
+      base: { ref: path.includes(`/${cmsRepository}/pulls/`) ? "dev" : "main" },
+    }));
     releaseMocks.rpc.mockReset();
   });
 
@@ -875,7 +879,7 @@ describe("Bloom engineering release recovery", () => {
         state: "closed",
         head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
       },
-      facts: {},
+      facts: { baseBranch: "main" },
     });
     await expect(evaluateEngineeringRelease(releaseCaller, baseIssue().id)).resolves.toMatchObject({
       next: { step: "deploy" },
@@ -892,7 +896,7 @@ describe("Bloom engineering release recovery", () => {
         state: "closed",
         head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
       },
-      facts: {},
+      facts: { baseBranch: "main" },
     });
     await expect(evaluateEngineeringRelease(releaseCaller, baseIssue().id)).resolves.toEqual({
       next: { step: "evaluate", delaySeconds: 60 },
@@ -920,7 +924,7 @@ describe("Bloom engineering release recovery", () => {
         merge_commit_sha: null,
         head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
       },
-      facts: { checks: [], files: [] },
+      facts: { baseBranch: "main", checks: [], files: [] },
     });
 
     await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
@@ -930,6 +934,33 @@ describe("Bloom engineering release recovery", () => {
       status: "awaiting_approval",
       eligibility: { eligible: false, reasons: ["repair report requires human review"] },
     });
+  });
+
+  it("rejects PR retargeting to an unapproved branch before merging", async () => {
+    const issue = baseIssue();
+    const current = wireIssue(issue);
+    releaseMocks.pullRequestFacts.mockResolvedValue({
+      pr: {
+        merged: false, state: "open", merge_commit_sha: null,
+        head: { ref: issue.branch, sha: issue.head_sha },
+      },
+      facts: { baseBranch: "unreviewed", checks: [], files: [] },
+    });
+    await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
+      note: "unapproved pull request target",
+    });
+    expect(current()).toMatchObject({ status: "escalated" });
+  });
+
+  it("holds production when GitHub reports a changed or unknown merge target", async () => {
+    const issue = { ...baseIssue(), status: "deploying", merge_sha: "merged-but-unknown-base" };
+    const current = wireIssue(issue);
+    releaseMocks.gh.mockResolvedValue({ base: { ref: "feature/unsafe-release" } });
+    await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
+      note: "unverified merged PR target",
+    });
+    expect(current()).toMatchObject({ status: "escalated" });
+    expect(releaseMocks.productionDeployment).not.toHaveBeenCalled();
   });
 
   it("observes a dev promotion and skips every rollback deployment that already contains the repair", async () => {
