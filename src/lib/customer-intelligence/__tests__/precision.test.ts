@@ -30,6 +30,17 @@ describe('deterministic follow-up customer exploration',()=>{
  it.each(['tenant_id','user_id','conversation_id'] as const)('rejects result reuse across %s',field=>{const s=search({mode:'all'});expect(()=>search({mode:'all'},{...s,[field]:'other'})).toThrow(/outside/);});
  it('rejects invisibly shrinking an old audience after access changes',()=>{const s=search({mode:'all'});expect(()=>explorePurchases({...base,population:['alice'],facts,rule:{mode:'all'},previous:s})).toThrow(/no longer accessible/);});
  it('does not count facts created after the source-read time',()=>expect(search({mode:'purchased',product:'Hydrangea'},undefined,[fact('a','alice','Hydrangea',{created_at:'2027-01-01'})]).included_ids).toEqual([]));
+ it('reuses timezone formatters across large ledgers while validating null dates', () => {
+  const NativeDateTimeFormat = Intl.DateTimeFormat;
+  const constructor = vi.spyOn(Intl, 'DateTimeFormat').mockImplementation((locales, options) => new NativeDateTimeFormat(locales, options));
+  try {
+   for (let i = 0; i < 2000; i++) expect(localDate('2025-01-01T01:00:00Z', 'Pacific/Honolulu')).toBe('2024-12-31');
+   expect(constructor).toHaveBeenCalledTimes(1);
+   expect(localDate(null, 'Pacific/Honolulu')).toBeNull();
+   expect(() => localDate(null, 'Invalid/Timezone')).toThrow();
+   expect(localDate('2025-01-01T01:00:00Z', 'Pacific/Kiritimati')).toBe('2025-01-01');
+  } finally { constructor.mockRestore(); }
+ });
  it('uses local rather than UTC day boundaries',()=>{const s=search({mode:'purchased',product:'Hydrangea',start_date:'2026-09-01',end_date:'2026-09-01'},undefined,[fact('a','alice','Hydrangea',{purchased_at:'2026-09-02T01:00:00Z'})]);expect(s.included_ids).toEqual(['alice']);});
  it('counts unique customers, not units, in basket percentages',()=>{const r=analyzeBasket([...facts,facts[0]],['alice','bob'],'t');expect(r.denominator).toBe(2);expect(r.products.find(p=>p.product==='Hydrangea')).toEqual({product:'Hydrangea',customers:2,percent:100});});
  it('requires earlier dated evidence for within-days questions',()=>expect(()=>search({mode:'purchased',product:'Fertilizer',within_days:30})).toThrow(/earlier result/));
@@ -90,4 +101,98 @@ describe('complete queries and permission checks',()=>{
 
 describe('Bloom can actually discover the new tools',()=>{
  it('exposes read-only exploration to query intent, not just analytics intent',()=>expect(customerExplorationTools.filter(t=>!t.requires_confirmation).every(t=>t.category==='query')).toBe(true));
+});
+
+// Synthetic-only annual dashboard coverage. No client counts or records.
+import { customerGrowthBreakdown, type GrowthBreakdownSettings } from '../../../../supabase/functions/_shared/customer-intelligence/customer-growth-breakdown';
+const reviewedCoverage = { status: 'reviewed_complete' as const, evidence: 'Synthetic complete source reconciled to order ledger', reviewedAt: now };
+const unreviewedCoverage = { status: 'unverified' as const, evidence: '', reviewedAt: null };
+const breakdownSettings: GrowthBreakdownSettings = { year: 2025, currentEnd: '2025-12-31', currency: 'CAD', timezone: 'America/Vancouver', cutoff: now, periods: reviewedCoverage, earlierHistory: reviewedCoverage };
+const cohortIds = ['retained', 'lost', 'new', 'recovered'];
+const cohortOrders = [
+ order('r-old', 'retained', '2024-12-15', 80), order('r-now', 'retained', '2025-04-01', 120),
+ order('lost-old', 'lost', '2024-07-01', 50), order('new-now', 'new', '2025-04-02', 60),
+ order('recovered-earlier', 'recovered', '2023-01-01', 30), order('recovered-now', 'recovered', '2025-05-01', 90),
+];
+const breakdown = (input = cohortOrders, overrides: Partial<GrowthBreakdownSettings> = {}) => customerGrowthBreakdown(input, cohortIds, 't', { ...breakdownSettings, ...overrides });
+describe('annual customer growth dashboard', () => {
+ it('reconciles retained, new and recovered against one previous-year denominator', () => {
+  const report = breakdown();
+  expect(report.reviewed).toMatchObject({ previous: 2, retained: 1, newCustomers: 1, recovered: 1, lost: 1, current: 3, net: 1, retentionPercent: 50, newPercent: 50, recoveredPercent: 50, lossPercent: 50, growthPercent: 50, retainedAverage: 120, newAverage: 60, recoveredAverage: 90, estimatedAnnualSalesEffect: 120 });
+  expect(report.reviewed!.retentionPercent! + report.reviewed!.newPercent! + report.reviewed!.recoveredPercent! - 100).toBe(report.reviewed!.growthPercent);
+ });
+ it('never equates first-observed with first-ever without earlier-history evidence', () => {
+  const report = breakdown(undefined, { earlierHistory: unreviewedCoverage });
+  expect(report.status).toBe('earlier_history_unverified');
+  expect(report.reviewed).toMatchObject({ newCustomers: null, newPercent: null, newAverage: null, unclassified: 1, recovered: 1, current: 3 });
+ });
+ it('does not turn unreviewed absence into lost or recovered customers', () => {
+  const report = breakdown(undefined, { periods: unreviewedCoverage, earlierHistory: unreviewedCoverage });
+  expect(report.reviewed).toBeNull(); expect(report.observed).toMatchObject({ firstObserved: 1, recoveredCandidates: 1, notReturned: 1 });
+ });
+ it('requires evidence and a valid dated review, not a checked box', () => {
+  expect(() => breakdown(undefined, { periods: { ...reviewedCoverage, evidence: '' } })).toThrow(/evidence/);
+  expect(() => breakdown(undefined, { earlierHistory: { ...reviewedCoverage, reviewedAt: '2027-01-01T00:00:00Z' } })).toThrow(/dated review/);
+ });
+ it('uses the entire previous year for YTD retention rather than calling a late-year buyer recovered', () => {
+  const report = breakdown(undefined, { currentEnd: '2025-06-30' });
+  expect(report.fullYear).toBe(false); expect(report.reviewed).toMatchObject({ retained: 1, recovered: 1, estimatedAnnualSalesEffect: null });
+  expect(report.previousPeriod).toEqual({ start: '2024-01-01', end: '2024-12-31' });
+ });
+ it('keeps December 31 in progress until the next business-local date', () => {
+  const input = cohortOrders.map(row => ({ ...row, created_at: '2025-12-30T00:00:00Z' }));
+  for (const cutoff of ['2025-12-31T20:00:00Z', '2026-01-01T07:59:59Z', '2026-01-01T08:00:00Z']) {
+   const coverage = { ...reviewedCoverage, reviewedAt: cutoff };
+   const report = breakdown(input, { cutoff, periods: coverage, earlierHistory: coverage });
+   const completed = cutoff === '2026-01-01T08:00:00Z';
+   expect(report.fullYear).toBe(completed);
+   expect(report.reviewed?.estimatedAnnualSalesEffect).toBe(completed ? 120 : null);
+  }
+ });
+ it('handles leap years without normalizing unique customer counts', () => {
+  expect(breakdown().reviewed?.previous).toBe(2);
+  expect(() => breakdown(undefined, { year: 2024, currentEnd: '2024-12-31' })).not.toThrow();
+ });
+ it('keeps a zero denominator undefined, including an empty reviewed ledger', () => {
+  const report = breakdown([order('first', 'new', '2025-02-01')]);
+  expect(report.reviewed).toMatchObject({ previous: 0, current: 1, net: 1, growthPercent: null, newPercent: null, retentionPercent: null, estimatedAnnualSalesEffect: null });
+  expect(breakdown([]).reviewed).toMatchObject({ current: 0, previous: 0, growthPercent: null });
+ });
+ it('uses unique customers, subtracts refunds, and excludes fully returned and canceled activity', () => {
+  const report = breakdown([...cohortOrders, cohortOrders[1], order('partial', 'retained', '2025-06-01', 100, { refund_amount: 20, status: 'partially_refunded' }), order('fully-returned', 'lost', '2025-06-01', 20, { refund_amount: 20, status: 'refunded' }), order('canceled', 'lost', '2025-06-02', 20, { status: 'cancelled' })]);
+  expect(report.reviewed).toMatchObject({ retained: 1, lost: 1, retainedAverage: 200, estimatedAnnualSalesEffect: 200 });
+ });
+ it('rejects cross-company data and conflicting duplicate identities', () => {
+  expect(() => breakdown([{ ...cohortOrders[0], tenant_id: 'other' }])).toThrow(/Cross-company/);
+  expect(() => breakdown([...cohortOrders, { ...cohortOrders[0], total_amount: 12 }])).toThrow(/Conflicting/);
+ });
+ it('fails closed for malformed dates, unknown refunds and unlinked earlier purchases', () => {
+  for (const row of [
+   { ...cohortOrders[0], order_date: 'invalid' },
+   { ...cohortOrders[0], status: 'refunded', refund_amount: null },
+   { ...cohortOrders[0], order_date: '2020-01-01T19:00:00Z', crm_customer_id: null },
+  ]) expect(breakdown([...cohortOrders, { ...row, id: 'bad' }]).reviewed).toBeNull();
+ });
+ it.each(['draft', 'pending', 'failed', 'void', 'voided', 'canceled', 'CANCELLED'])('ignores explicit %s non-purchases in coverage gap checks', status => {
+  const extra = [null, 'deleted-customer', 'new'].map((customer, i) => ({ ...order(`ignored-${i}`, 'new', '2020-01-01', 10, { status, currency: 'USD' }), crm_customer_id: customer }));
+  expect(breakdown([...cohortOrders, ...extra]).reviewed).toEqual(breakdown().reviewed);
+ });
+ it.each(['unknown', null])('keeps unknown status %s as a reconciliation blocker', status => {
+  for (const customer of [null, 'deleted-customer', 'new']) {
+   expect(breakdown([...cohortOrders, { ...order('unknown', 'new', '2020-01-01', 10, { status }), crm_customer_id: customer }]).reviewed).toBeNull();
+  }
+ });
+ it('does not certify first-ever across excluded identities or other currencies', () => {
+  expect(breakdown([...cohortOrders, order('unavailable', 'deleted-customer', '2020-01-01')]).reviewed).toBeNull();
+  expect(breakdown([...cohortOrders, order('foreign', 'new', '2020-01-01', 10, { currency: 'USD' })]).reviewed).toBeNull();
+ });
+ it('rejects future/full-year claims and excludes later inserted records', () => {
+  expect(() => breakdown(undefined, { year: 2026, currentEnd: '2026-12-31' })).toThrow(/cutoff/);
+  const report = breakdown([...cohortOrders, order('later', 'lost', '2025-01-01', 10, { created_at: '2027-01-01T00:00:00Z' })]);
+  expect(report.reviewed?.lost).toBe(1);
+ });
+ it('counts local calendar boundaries rather than UTC year alone', () => {
+  const report = breakdown([order('utc-new-year', 'retained', '2025-01-01', 10, { order_date: '2025-01-01T01:00:00Z' }), order('current', 'retained', '2025-02-01', 20)]);
+  expect(report.reviewed).toMatchObject({ previous: 1, retained: 1, newCustomers: 0 });
+ });
 });
