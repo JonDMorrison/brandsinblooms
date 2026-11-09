@@ -11,7 +11,7 @@
 // The repair side never holds merge credentials and cannot write eligibility.
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
 import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
-import { evaluateRelease, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Product } from "./policy.ts";
+import { evaluateRelease, PRODUCT_REPOSITORIES, redactForEngineering, releaseBaseForPR, resolvePolicy, type Product } from "./policy.ts";
 import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts } from "./github.ts";
 
 export interface EngineeringIssue {
@@ -289,6 +289,15 @@ function repoFor(issue: EngineeringIssue): { repository: string; base: string } 
   return m ? { repository: m.repository, base: m.base } : null;
 }
 
+/** Read the PR's actual GitHub target, not the current default for new repairs. */
+async function actualPRBase(issue: EngineeringIssue): Promise<"main" | "dev" | null> {
+  if (!issue.repository || !issue.pr_number) return null;
+  const pr = await gh<{base?: {ref?: string}}>(
+    "release", "GET", `/repos/${issue.repository}/pulls/${issue.pr_number}`,
+  );
+  return releaseBaseForPR(issue.repository, pr.base?.ref);
+}
+
 function engineeringPagePath(value: unknown): string | null {
   if (typeof value !== "string" || !value) return null;
   try {
@@ -541,16 +550,20 @@ export async function evaluate(
   if (!["in_review", "approved", "awaiting_approval"].includes(issue.status)) return { note: `status ${issue.status}` };
   const repairLogins = (env("BLOOM_GITHUB_REPAIR_LOGINS") ?? "github-actions[bot]").split(",").map((s) => s.trim());
   const { pr, facts } = await pullRequestFacts(issue.repository, issue.pr_number, repairLogins);
+  const verifiedPRBase = releaseBaseForPR(issue.repository, facts.baseBranch);
+  if (!verifiedPRBase) {
+    await update(release, issue, "escalated", {}, "The repair PR targets an unapproved branch. An authorized reviewer must correct the PR target before any merge or deployment.");
+    return { note: "unapproved pull request target" };
+  }
   if (pr.merged) {
     const mergeSha = pr.merge_commit_sha?.trim();
     if (!mergeSha) {
       return { next: { step: "evaluate", delaySeconds: 60 }, note: "merged; waiting for GitHub merge commit" };
     }
-    const target = repoFor(issue);
     // A dev-base merge is not production. Its rollback point must be captured
     // later, immediately before/at the proven main promotion; recording here
     // could roll back unrelated good releases made in between.
-    const rollbackReady = target?.base === "main"
+    const rollbackReady = verifiedPRBase === "main"
       ? await recordPreviousProductionDeployment(
         release,
         issue,
@@ -806,7 +819,11 @@ async function recordPreviousProductionDeployment(
 
 async function merge(release: Caller, issueId: string, sha: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
-  const base = repoFor(issue)?.base ?? "main";
+  const base = await actualPRBase(issue);
+  if (!base) {
+    await update(release, issue, "escalated", {}, "The repair PR target could not be verified. Do not merge until its approved branch is confirmed.");
+    return { note: "unverified pull request target" };
+  }
   if (base === "main" && !(await recordPreviousProductionDeployment(release, issue, [sha], [sha]))) {
     await update(
       release,
@@ -833,7 +850,11 @@ export async function deploy(release: Caller, issueId: string): Promise<StepResu
   const issue = await loadIssue(release, issueId);
   if (!issue.merge_sha || !issue.repository) return { note: "no merge" };
   if (!["merged", "deploying"].includes(issue.status)) return { note: `status ${issue.status}` };
-  const base = Object.values(PRODUCT_REPOSITORIES).find((r) => r.repository.toLowerCase() === issue.repository!.toLowerCase())?.base ?? "main";
+  const base = await actualPRBase(issue);
+  if (!base) {
+    await update(release, issue, "escalated", {}, "The merged PR's target branch could not be verified. Production deployment is held for an authorized review.");
+    return { note: "unverified merged PR target" };
+  }
   let deploymentSha = issue.merge_sha;
   let promotion: Record<string, unknown> = {};
   if (base !== "main") {
