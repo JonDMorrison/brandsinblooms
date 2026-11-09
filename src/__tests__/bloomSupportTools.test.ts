@@ -1153,6 +1153,12 @@ describe("Readable private support notes", () => {
     expect(result.preview).toContain("deployed, but the multi-recipient option is still switched off");
     expect(result.preview).toContain("live checkout");
     expect(result.original).toBe(detail);
+
+    const unverified = ("PR #4359 production deployment failed. " +
+      "recipient_opt_in=false and shared_checkout_enabled=false. ").repeat(10);
+    const unknown = staffNotePresentation(unverified);
+    expect(unknown.collapsed).toBe(true);
+    expect(unknown.preview).not.toContain("has been deployed");
   });
 
   it("keeps a normal note intact and does not invent a summary of unfamiliar engineering evidence", () => {
