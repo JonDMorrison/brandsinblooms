@@ -111,6 +111,7 @@ describe("newsletter design and safety", () => {
         buttonText: "Reserve a spot",
         buttonUrl: "https://example.com/event",
         buttonColor: "#545f34",
+        useBrandButtonColor: true,
       }),
       buildStudioDesignSystem({
         brandPrimaryColorRaw: "#263d2d",
