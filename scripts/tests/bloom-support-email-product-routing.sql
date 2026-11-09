@@ -4,6 +4,11 @@ BEGIN;
 SELECT pg_temp.rpc('resolve_product_user', '{"product":"cms","external_user_id":"route-client","email":"route@northfield.test","name":"Route Client","external_account_id":"route-site","account_name":"Route Site"}'::jsonb) AS route_identity \gset
 SELECT :'route_identity'::jsonb->>'principal_id' AS route_client, :'route_identity'::jsonb->>'account_id' AS route_account \gset
 SELECT pg_temp.assert(bloom_support.verified_email_product(:'route_account', :'route_client') = 'cms', 'verified singleton routes to CMS');
+SELECT pg_temp.rpc('resolve_product_user', '{"product":"pos","external_user_id":"route-ambiguous-client","email":"route@northfield.test","name":"Route Client","external_account_id":"route-pos-site","account_name":"Route POS Site"}'::jsonb) AS ambiguous_identity \gset
+SELECT :'ambiguous_identity'::jsonb->>'principal_id' AS ambiguous_client \gset
+SELECT pg_temp.assert(bloom_support.verified_email_product(:'route_account', :'route_client') IS NULL, 'multiple active sender identities with different verified accounts stay unknown');
+UPDATE bloom_support.principals SET active=false WHERE id=:'ambiguous_client';
+SELECT pg_temp.assert(bloom_support.verified_email_product(:'route_account', :'route_client') = 'cms', 'inactive conflicting sender identity does not block routing');
 SELECT pg_temp.assert(bloom_support.verified_email_product(:'route_account', :'jon') IS NULL, 'staff and wrong requester cannot infer product');
 UPDATE bloom_support.account_members SET verified=false WHERE principal_id=:'route_client';
 SELECT pg_temp.assert(bloom_support.verified_email_product(:'route_account', :'route_client') IS NULL, 'unverified membership stays unknown');
