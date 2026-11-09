@@ -1,5 +1,5 @@
 import {assert,assertEquals,assertStringIncludes} from "@std/assert";
-import {actionableAlertMessage} from "./actionable-alerts.ts";
+import {actionableAlertMessage,missingAlertContextMessage} from "./actionable-alerts.ts";
 
 const westCoast={
  id:"79b917c5-6fd8-4f74-a2cd-4149a1b7fb85",number:1022,
@@ -133,4 +133,15 @@ Deno.test("read-only alert function is service-only, SQL delimiters are balanced
  assertStringIncludes(sql,"REVOKE ALL ON FUNCTION public.bloom_support_slack_alert_context(uuid)");
  assertStringIncludes(sql,"GRANT EXECUTE ON FUNCTION public.bloom_support_slack_alert_context(uuid)");
  assertStringIncludes(sql,"TO service_role;");
+});
+
+Deno.test("unexpected safety alerts remain visible instead of being silently dropped",()=>{
+  const system=missingAlertContextMessage("alert.security_breach");
+  assert(system);
+  assertStringIncludes(system,"source record could not be verified");
+  assertStringIncludes(system,"Review System Status");
+  const engineering=missingAlertContextMessage("engineering.escalated");
+  assert(engineering);
+  assertStringIncludes(engineering,"A repair needs review");
+  assertEquals(missingAlertContextMessage("github.pr_merged"),null);
 });
