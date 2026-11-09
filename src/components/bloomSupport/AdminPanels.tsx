@@ -644,17 +644,26 @@ export function SettingsPanel({ me }: { me: Whoami }) {
       {error && <Alert color="warning" variant="soft">{error}</Alert>}
 
       {clearError && <Alert role="alert" color="neutral" variant="soft">{clearError}</Alert>}
-      {clearedCount !== null && jobs.data?.length === 0 && (
-        <Box role="status" aria-live="polite" sx={{ ...deskCardSx, px: 4, py: 3, display: "flex", alignItems: "center", gap: 2, bgcolor: "background.surface" }}>
-          <CheckCircle2 size={28} color="var(--joy-palette-success-700)" aria-hidden style={{ flexShrink: 0, animation: "bloomClearPop 650ms cubic-bezier(.16,1,.3,1) both" }} />
+      {jobs.data?.length === 0 && (
+        <Box role="status" aria-live="polite" sx={{
+          ...deskCardSx, px: 4, py: 3, display: "flex", alignItems: "center", gap: 2, bgcolor: "background.surface",
+          "& > svg": clearedCount !== null ? { animation: "bloomClearPop 650ms cubic-bezier(.16,1,.3,1) both" } : {},
+          "@keyframes bloomClearPop": {
+            "0%": { opacity: 0, transform: "scale(0.45)" },
+            "65%": { opacity: 1, transform: "scale(1.18)" },
+            "100%": { opacity: 1, transform: "scale(1)" },
+          },
+          "@media (prefers-reduced-motion: reduce)": { "& > svg": { animation: "none" } },
+        }}>
+          <CheckCircle2 size={28} color="var(--joy-palette-success-700)" aria-hidden style={{ flexShrink: 0 }} />
           <Stack spacing={0.25}>
             <Typography level="title-md">All clear</Typography>
-            <Typography level="body-sm" textColor="text.secondary">{clearedCount} historical notification{clearedCount === 1 ? "" : "s"} archived. No Slack messages were resent.</Typography>
+            <Typography level="body-sm" textColor="text.secondary">
+              {clearedCount !== null
+                ? `${clearedCount} historical notification${clearedCount === 1 ? "" : "s"} archived. No Slack messages were resent.`
+                : "No failed automatic steps need attention."}
+            </Typography>
           </Stack>
-          <Box sx={{
-            "@keyframes bloomClearPop": { "0%": { opacity: 0, transform: "scale(0.45)" }, "65%": { opacity: 1, transform: "scale(1.18)" }, "100%": { opacity: 1, transform: "scale(1)" } },
-            "@media (prefers-reduced-motion: reduce)": { "& ~ svg": { animation: "none" } },
-          }} />
         </Box>
       )}
       {jobs.data && jobs.data.length > 0 && (
