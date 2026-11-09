@@ -85,6 +85,7 @@ export default function NewsletterSettingsButton() {
             </p>
             <ColorField
               label="Outside background"
+              transparent
               value={resolved.backgroundColor}
               onChange={(backgroundColor) =>
                 onChange({ ...resolved, backgroundColor })
@@ -92,6 +93,7 @@ export default function NewsletterSettingsButton() {
             />
             <ColorField
               label="Newsletter background"
+              transparent
               value={resolved.contentBackgroundColor}
               onChange={(contentBackgroundColor) =>
                 onChange({ ...resolved, contentBackgroundColor })
