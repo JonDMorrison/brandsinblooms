@@ -242,7 +242,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   const retryLocked = pendingReply.current !== null && replyError !== null;
   const replyLocked = replyRun.isPending || retryLocked;
   const product = PRODUCT_LABEL[t.product] ?? t.product;
-  const headline = t.subject.replace(/^TEST:\\s*/i, "").replace(/\\s*\\|\\s*20\\d{2}-\\d{2}-\\d{2}$/, "");
+  const headline = t.subject.replace(/^TEST:\s*/i, "").replace(/\s*\|\s*20\d{2}-\d{2}-\d{2}$/, "");
   const repairPaused = eng?.status === "escalated";
   const routingBlocked = repairPaused && t.product === "unknown";
   // Routine receipts and triage notes are preserved but don't obscure the actual request.
@@ -296,7 +296,6 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
     if (patch) run.mutate({ fn: () => bloomSupport.updateTicket(t.id, { version: t.version, ...patch }), done: "Marked solved. Bloom will let the client know." });
   };
 
-  const toneDot: Record<Tone, string> = { warning: "warning.500", primary: "primary.500", success: "success.500", neutral: "neutral.400" };
   const fixDetail = eng?.status === "open"
     ? "Logged for engineering. Work hasn't started yet."
     : eng?.status ? asSentence(engineeringLabel(eng.status)) : "";
