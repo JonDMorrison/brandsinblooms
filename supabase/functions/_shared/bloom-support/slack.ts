@@ -13,7 +13,7 @@ export function slackRoute(kind: string): SlackRoute | null {
   if (kind === "github.deployment_failed") return "alerts";
   if (githubMilestoneFromKind(kind)) return "releases";
   if (kind === "major_project.accepted" || kind === "major_project.onboarding") return "clients";
-  if (kind === "major_project.stage_changed" || kind === "major_project.created") return "projects";
+  if (kind === "major_project.stage_changed" || kind === "major_project.created" || kind === "major_project.review_ready") return "projects";
   if (kind === "finance.daily_payouts" || kind === "finance.payout_failed") return "finance";
   if (/^(ticket\.|engineering\.)/.test(kind)) return "tickets";
   return null;
@@ -53,6 +53,19 @@ export function slackSafeMessage(
       note.changed,
       "*Status:* Code merged. Live customer use has not been verified by this update.",
       "<" + source + "|See the change>",
+    ].join("\n");
+  }
+  if (kind === "major_project.review_ready") {
+    // Link only to authenticated CMS pages. Never embed draft tokens, customer
+    // emails, source websites, raw QA findings, or unapproved preview URLs.
+    if (!projectId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId)) return "";
+    const id=encodeURIComponent(projectId);
+    return [
+      "*Website draft ready for your review*",
+      "Bloom has prepared a private draft and recorded its quality checks. Nothing has been sent to the client or published.",
+      "*Project reviewers:* Review pages, photography, mobile layout and important links. Approve the exact draft in Major Projects when ready.",
+      `<https://bloomsites.app/dashboard/admin/major-projects/review?projectId=${id}|Review draft and QA>`,
+      `<https://bloomsites.app/dashboard/admin/major-projects?project=${id}|Open project and approve client preview>`,
     ].join("\n");
   }
   const state = milestone ? explainGithubMilestone(milestone) :

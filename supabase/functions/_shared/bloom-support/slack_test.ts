@@ -36,6 +36,19 @@ Deno.test("Major Project links open the selected record without accepting arbitr
   assertEquals(slackRoute("major_project.stage_changed"), "projects");
 });
 
+Deno.test("QA-ready Major Project asks Jon/Jeff to review with protected links only", () => {
+  const projectId="11111111-1111-4111-8111-111111111111";
+  assertEquals(slackRoute("major_project.review_ready"),"projects");
+  const message=slackSafeMessage("major_project.review_ready",null,undefined,projectId);
+  assertStringIncludes(message,"Website draft ready for your review");
+  assertStringIncludes(message,"Project reviewers");
+  assertStringIncludes(message,"/dashboard/admin/major-projects/review?projectId="+projectId);
+  assertStringIncludes(message,"/dashboard/admin/major-projects?project="+projectId);
+  assertEquals(message.includes("/preview/"),false);
+  assertEquals(message.includes("@"),false);
+  assertEquals(slackSafeMessage("major_project.review_ready",null,undefined,"https://evil.example"),"");
+});
+
 Deno.test("Slack only links to validated company check pages", () => {
   const sha = "a".repeat(40);
   const url = "https://github.com/JonDMorrison/brandsinblooms/commit/" + sha + "/checks";
