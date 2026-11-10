@@ -180,7 +180,7 @@ test("waitForProductionDeployment expires instead of accepting another commit", 
       timeoutMs: 0,
       logger: silentLogger,
     }),
-    /request deadline expired/,
+    /Timed out waiting for the exact production deployment/,
   );
 });
 
