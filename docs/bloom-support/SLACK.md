@@ -62,3 +62,16 @@ Bloom Support is the source of truth for tickets and feature decisions. BloomSit
 Slack messages should be short, actionable and nontechnical. Do not post customer contacts in public channels or sensitive records in private channels. Do not upgrade Slack, create recurring Work agents, or use GitHub administrator merge overrides to operate this integration.
 
 Tracking: [CRM issue #415](https://github.com/JonDMorrison/brandsinblooms/issues/415).
+
+
+## Major Project welcome invitations from Slack
+
+In the existing private `#bloom-projects` channel, staff may mention Bloom:
+
+> @Bloom send the welcome invitation for Triple Tree
+
+The signed Slack event ingress verifies the workspace, channel and allowlisted staff user ID. The existing Bloom Support worker re-verifies that person's platform-staff identity and calls the signed, **read-only** BloomSites Major Projects lookup. It accepts only one valid project name or code; missing, ambiguous and bulk requests cannot select a recipient. No new Slack app, bot permissions, background agent or scheduler is needed.
+
+Bloom replies in the original thread with a **Review & send invitation** link to the authenticated BloomSites route. The link is not a bearer token or authorization: the CMS must verify the current staff login, exact project, recipient and authorized account-creator role before the separate email-send action. Nothing is emailed merely by mentioning Bloom or opening the link. The invitation uses the standard BloomSuite-branded welcome email and its existing delivery records.
+
+Do not paste recipient emails, API keys or banking information into Slack. If the client has no verified owner address or linked website, correct the Major Project first. A successful Slack reply is evidence of a read-only handoff, **not** email delivery or client activation.
