@@ -96,3 +96,41 @@ it.each([-1,1.5,'3',null])('keeps invalid quarantine metadata %s unknown rather 
  const sources=growthSources.map(source=>({...source,reconciliation:{quarantinedGroups:value}}));
  expect(reportedCustomerGrowth([],growthPopulation,'t',sources,'current','prior','CAD').sourceQuarantines.every(row=>row.groups===null)).toBe(true);
 });
+
+import {periodSummaryFacts} from '../../../../supabase/functions/_shared/customer-intelligence/period-summary';
+import {visitReportedEvidence} from '../../../../supabase/functions/_shared/customer-intelligence/load-reported-evidence';
+it('streamed sources exactly match the public calculator across refunds, duplicate facts and earlier-year offsets',async()=>{
+ const negativeEarlier=growthSource('negative-earlier',2022);
+ const sources=[negativeEarlier,...growthSources];
+ const rows=[growthEvent('earlier-negative',negativeEarlier,'recovered',-100,-1),...growthEvents,growthEvents[0],growthEvent('refund',growthSources[2],'first',-60,-1),growthEvent('unlinked',growthSources[2],null,50),growthEvent('deleted',growthSources[2],'unavailable',50)];
+ const result=await loadReportedCustomerGrowth(growthClient(sources,eventsForDb(rows)).db,'t','2026-11-09T00:00:00Z',2025,'CAD',growthPopulation);
+ expect(result).toEqual({...reportedCustomerGrowth(periodSummaryFacts(rows,'t'),growthPopulation,'t',sources,'current','prior','CAD'),spendingSources:[]});
+ expect(result?.counts.recovered).toBe(1);
+});
+it('streamed source validation rejects conflicts and malformed products without a result',async()=>{
+ const conflict={...growthEvents[0],raw_data:{...growthEvents[0].raw_data,items:[['p','Synthetic plant','Nursery',1,999,1]]}};
+ await expect(loadReportedCustomerGrowth(growthClient(growthSources,eventsForDb([...growthEvents,conflict])).db,'t','2026-11-09T00:00:00Z',2025,'CAD',growthPopulation)).rejects.toThrow('Conflicting');
+ const reused={...growthEvents[3],id:growthEvents[0].id};
+ await expect(loadReportedCustomerGrowth(growthClient(growthSources,eventsForDb([...growthEvents,reused])).db,'t','2026-11-09T00:00:00Z',2025,'CAD',growthPopulation)).rejects.toThrow('Conflicting');
+ const bad={...growthEvents[1],raw_data:{...growthEvents[1].raw_data,items:[['invalid']]}};
+ let visited=0;
+ await expect(visitReportedEvidence(growthClient(growthSources,eventsForDb([bad] as typeof growthEvents)).db,'t','2026-11-09T00:00:00Z',{historicalImportIds:['prior']},()=>{visited++;})).rejects.toThrow('invalid');
+ expect(visited).toBe(0);
+});
+it('matches eager calculation for eight synthetic source years without retaining an all-source fact array in the loader',async()=>{
+ const sources=Array.from({length:8},(_,i)=>growthSource('scale-'+i,2018+i));
+ const population=Array.from({length:400},(_,i)=>'synthetic-'+i);
+ const rows=sources.flatMap((source,y)=>population.filter((_,i)=>(i+y)%4!==0).map((id,i)=>{
+  const row=growthEvent(`${source.id}-${i}`,source,id,10);
+  row.raw_data.items=Array.from({length:12},(_,p)=>['p'+p,'Synthetic product','Nursery',p===11?-1:1,p===11?-2:3,p+1]);return row;
+ }));
+ const eager=reportedCustomerGrowth(periodSummaryFacts(rows,'t'),population,'t',sources,'scale-7','scale-6','CAD');
+ const streamed=await loadReportedCustomerGrowth(growthClient(sources,eventsForDb(rows)).db,'t','2026-11-09T00:00:00Z',2025,'CAD',population);
+ expect(streamed).toEqual({...eager,spendingSources:[]});
+});
+
+import {loadSummaryRows} from '../../../../supabase/functions/_shared/customer-intelligence/load-reported-evidence';
+it('bounds nested product expansion independently of source-row count',async()=>{
+ const row={...growthEvents[0],raw_data:{...growthEvents[0].raw_data,items:Array.from({length:4},()=>['p','Synthetic product','Nursery',1,2,1])}};
+ await expect(loadSummaryRows(growthClient(growthSources,eventsForDb([row])).db,'t','2026-11-09T00:00:00Z','earlier',1000,250000,3)).rejects.toThrow('product safety limit');
+});
