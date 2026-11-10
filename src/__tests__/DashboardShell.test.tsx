@@ -1046,6 +1046,34 @@ describe("Bloom Support staff workspace", () => {
     expect(cards[2]).not.toHaveClass("MuiSheet-colorWarning");
   });
 
+  it("collapses long public updates without losing the exact original correspondence", async () => {
+    const user = userEvent.setup();
+    const body = "We inspected the website navigation and checked the publication settings. ".repeat(10)
+      + "The full details remain available.";
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "long-update-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "public",
+        direction: "outbound",
+        body,
+        created_at: supportTicket.updated_at,
+        author: { name: "Sam" },
+        delivery: "delivered",
+      }],
+    });
+
+    renderConversation();
+    const disclosure = (await screen.findByText("Read full update")).closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(screen.getByTestId("bloom-support-message")).toHaveTextContent("We inspected the website navigation");
+    await user.click(screen.getByText("Read full update"));
+    expect(disclosure).toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent("The full details remain available.");
+  });
+
   it("uses clear inbox dividers and leads with the issue rather than repeating the client prefix", async () => {
     const horsford = {
       ...supportTicket,
