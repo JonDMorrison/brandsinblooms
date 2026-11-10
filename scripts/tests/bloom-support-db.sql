@@ -2676,7 +2676,7 @@ BEGIN
  INSERT INTO bloom_support.principals(id,kind,auth_user_id,product,email,display_name,role) VALUES(a,'user',gen_random_uuid(),'crm','slack-fixture@example.test','Slack fixture','platform_admin');
  INSERT INTO bloom_support.slack_staff_principals(slack_user_id,principal_id) VALUES('U000TEST123',a);
  INSERT INTO bloom_support.settings(key,value) VALUES('slack','{"enabled":true}') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
- FOR n IN 1..6 LOOP
+ FOR n IN 1..8 LOOP
   INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Slack fixture') RETURNING id INTO c;
   INSERT INTO bloom_support.engineering_issues(title,product) VALUES('Slack fixture','crm') RETURNING id INTO e;
   INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,engineering_issue_id,automation,executor) VALUES(c,'crm','crm','Slack fixture','Slack fixture','bug',e,'auto','bloom') RETURNING id INTO t;
@@ -2698,6 +2698,9 @@ BEGIN
    INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Older resolved issue') RETURNING id INTO c;
    INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,resolution_summary,resolution_verified,resolved_at,engineering_issue_id) VALUES(c,'crm','crm','Older resolved issue','Older resolved issue','resolved','Fixture resolved',true,now(),e);
   END IF;
+  IF n IN (7,8) THEN
+   INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body) VALUES(c,t,CASE n WHEN 7 THEN 'client' ELSE 'staff' END,CASE n WHEN 7 THEN 'public' ELSE 'internal' END,CASE n WHEN 7 THEN 'inbound' ELSE 'internal' END,'Please use a different approach');
+  END IF;
   r:=public.bloom_support_apply_slack_repair(d,'U000TEST123','C0CFNEQBS2X','1794340000.'||lpad(n::text,6,'0'),CASE WHEN n=2 THEN 'reject' ELSE 'do' END);
   IF n=1 THEN
    IF r->>'applied'<>'true' THEN RAISE EXCEPTION 'dispatch failed: %',r; END IF;
@@ -2705,7 +2708,7 @@ BEGIN
    IF r->>'reason'<>'already_recorded' OR (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='investigate')<>1 THEN RAISE EXCEPTION 'duplicate dispatch'; END IF;
   ELSIF n=2 THEN
    IF r->>'applied'<>'true' OR (SELECT status FROM bloom_support.tickets WHERE id=t)<>'needs_owner' OR EXISTS(SELECT 1 FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='investigate') OR EXISTS(SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id=e AND reason='engineering_start_requested' AND status<>'resolved') THEN RAISE EXCEPTION 'reject semantics failed'; END IF;
-  ELSIF r->>'reason'<>(CASE n WHEN 3 THEN 'stale' WHEN 4 THEN 'expired' WHEN 6 THEN 'stale' ELSE 'unauthorized' END) THEN RAISE EXCEPTION 'guard failed: %',r;
+  ELSIF r->>'reason'<>(CASE n WHEN 3 THEN 'stale' WHEN 4 THEN 'expired' WHEN 6 THEN 'stale' WHEN 7 THEN 'stale' WHEN 8 THEN 'stale' ELSE 'unauthorized' END) THEN RAISE EXCEPTION 'guard failed: %',r;
   END IF;
  END LOOP;
  IF has_function_privilege('authenticated','public.bloom_support_apply_slack_repair(uuid,text,text,text,text)','EXECUTE') THEN RAISE EXCEPTION 'public execution allowed'; END IF;

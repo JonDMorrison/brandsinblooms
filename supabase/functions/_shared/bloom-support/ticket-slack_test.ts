@@ -99,7 +99,7 @@ Deno.test("approved private tickets channel can be conversational, public channe
 
 // Interactive recommendations reuse the same canonical ticket state.
 import { parseSlackDecision, repairDecisionSnapshot, slackDecisionReceipt, ticketDecisionBlocks } from "./slack-decisions.ts";
-const decision = {id:ID,ticket_id:ID,engineering_issue_id:ID,action:"start-repair",ticket_version:4,engineering_version:3,expires_at:"2026-11-10T22:00:00Z"};
+const decision = {id:ID,message_ids:[],ticket_id:ID,engineering_issue_id:ID,action:"start-repair",ticket_version:4,engineering_version:3,expires_at:"2026-11-10T22:00:00Z"};
 const click = {type:"block_actions",team:{id:"T123456789"},user:{id:"U123456789"},channel:{id:"C0CFNEQBS2X"},
   container:{type:"message",channel_id:"C0CFNEQBS2X",message_ts:"1794344400.123456"},
   actions:[{type:"button",action_id:"bloom_repair_do",value:ID}]};
@@ -114,7 +114,7 @@ Deno.test("signed interaction parser binds workspace, staff, channel and exact b
   assertEquals(parseSlackDecision(click,undefined,["U123456789"]),null);
 });
 Deno.test("only a stored current repair snapshot emits executable buttons",()=>{
-  const ticket={...sample,version:4,status:"needs_owner",automation:"auto",engineering:{id:ID,version:3,status:"open"},escalations:[{reason:"engineering_start_requested",status:"open"}]};
+  const ticket={...sample,messages:[],version:4,status:"needs_owner",automation:"auto",engineering:{id:ID,version:3,status:"open"},escalations:[{reason:"engineering_start_requested",status:"open"}]};
   const snapshot=repairDecisionSnapshot(decision);
   assert(snapshot);
   const block=ticketDecisionBlocks(ticket,snapshot)!;
@@ -122,6 +122,8 @@ Deno.test("only a stored current repair snapshot emits executable buttons",()=>{
   assertStringIncludes(encoded,"bloom_repair_do");
   assertStringIncludes(encoded,"Reject It");
   assertStringIncludes(encoded,"Something Else");
+  assertStringIncludes(encoded,"compose=internal");
+  assertEquals(JSON.stringify(ticketDecisionBlocks({...ticket,messages:[{id:ID,author_kind:"client"}]},snapshot)).includes("bloom_repair_do"),false);
   assertStringIncludes(encoded,"does not waive");
   assertEquals(JSON.stringify(ticketDecisionBlocks(ticket,null)).includes("bloom_repair_do"),false);
   assertEquals(JSON.stringify(ticketDecisionBlocks({...ticket,engineering:{id:ID,status:"awaiting_approval"}},snapshot)).includes("bloom_repair_do"),false);

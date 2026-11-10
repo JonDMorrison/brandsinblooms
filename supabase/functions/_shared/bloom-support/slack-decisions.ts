@@ -27,17 +27,18 @@ export function parseSlackDecision(data: Record<string, unknown>, teamId: string
   return choice ? { decisionId: action.value, choice, userId, channelId, messageTs } : null;
 }
 export interface RepairDecisionSnapshot {
-  id: string; action: "start-repair"; ticket_id: string; engineering_issue_id: string; ticket_version: number; engineering_version: number; expires_at: string;
+  id: string; action: "start-repair"; ticket_id: string; engineering_issue_id: string; message_ids: string[]; ticket_version: number; engineering_version: number; expires_at: string;
 }
 export function repairDecisionSnapshot(value: unknown): RepairDecisionSnapshot | null {
   const v = obj(value);
   if (typeof v.id !== "string" || !UUID.test(v.id) || v.action !== "start-repair" ||
       typeof v.ticket_id !== "string" || !UUID.test(v.ticket_id) || typeof v.engineering_issue_id !== "string" || !UUID.test(v.engineering_issue_id) ||
+      !Array.isArray(v.message_ids) || !v.message_ids.every(id => typeof id === "string" && UUID.test(id)) ||
       !Number.isSafeInteger(v.ticket_version) || !Number.isSafeInteger(v.engineering_version) ||
       typeof v.expires_at !== "string" || !Number.isFinite(Date.parse(v.expires_at))) return null;
   return v as unknown as RepairDecisionSnapshot;
 }
-export function ticketDecisionBlocks(ticket: TicketFacts & Partial<LiveTicketState> & { version?: number; engineering?: (NonNullable<LiveTicketState["engineering"]> & { version?: number }) | null }, snapshot: RepairDecisionSnapshot | null): Record<string, unknown>[] | undefined {
+export function ticketDecisionBlocks(ticket: TicketFacts & Partial<LiveTicketState> & { version?: number; messages?: unknown[]; engineering?: (NonNullable<LiveTicketState["engineering"]> & { version?: number }) | null }, snapshot: RepairDecisionSnapshot | null): Record<string, unknown>[] | undefined {
   if (typeof ticket.id !== "string" || !UUID.test(ticket.id) || typeof ticket.status !== "string") return undefined;
   const next = liveNextStep(ticket as LiveTicketState);
   if (!next) return undefined;
@@ -47,7 +48,8 @@ export function ticketDecisionBlocks(ticket: TicketFacts & Partial<LiveTicketSta
   // Bind the displayed evidence, not merely a fresh snapshot fetched after it.
   const inline = next.action === "start-repair" && snapshot?.action === "start-repair" &&
     snapshot.ticket_id === ticket.id && snapshot.ticket_version === display.version &&
-    snapshot.engineering_issue_id === engineering.id && snapshot.engineering_version === engineering.version;
+    snapshot.engineering_issue_id === engineering.id && snapshot.engineering_version === engineering.version &&
+    Array.isArray(ticket.messages) && JSON.stringify(snapshot.message_ids.slice().sort()) === JSON.stringify(ticket.messages.map(obj).filter(m => m.author_kind === "client" || m.author_kind === "staff").map(m => m.id).sort());
   const recommendation = inline
     ? "Start investigating and preparing this repair. Existing review, release and safety checks still apply."
     : next.recommendation;
@@ -65,7 +67,7 @@ export function ticketDecisionBlocks(ticket: TicketFacts & Partial<LiveTicketSta
         confirm: { type: "plain_text", text: "Do It" }, deny: { type: "plain_text", text: "Cancel" },
       } },
       { type: "button", text: { type: "plain_text", text: "Reject It" }, action_id: "bloom_repair_reject", value: snapshot.id },
-      { type: "button", text: { type: "plain_text", text: "Something Else" }, url: supportTicketLink(ticket.id) },
+      { type: "button", text: { type: "plain_text", text: "Something Else" }, url: supportTicketLink(ticket.id) + "&compose=internal" },
     ] : [button("Review recommendation", "")] },
   ];
 }
