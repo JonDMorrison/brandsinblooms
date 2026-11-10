@@ -1,0 +1,25 @@
+name: Website analysis Firecrawl contract
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/analyze-website/**'
+      - 'scripts/analyze-website-firecrawl.test.mjs'
+      - '.github/workflows/firecrawl-v2.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/analyze-website/**'
+      - 'scripts/analyze-website-firecrawl.test.mjs'
+      - '.github/workflows/firecrawl-v2.yml'
+permissions:
+  contents: read
+jobs:
+  firecrawl-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test scripts/analyze-website-firecrawl.test.mjs
