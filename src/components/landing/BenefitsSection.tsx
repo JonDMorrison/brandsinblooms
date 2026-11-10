@@ -5,19 +5,19 @@ export const BenefitsSection = () => {
   const benefits = [{
     icon: Sparkles,
     title: "AI Content Generation",
-    description: "Create professional social media posts, email campaigns, and blog articles in seconds with AI that understands your garden center.",
+    description: "Create professional email and SMS campaigns in seconds with AI that understands your garden center.",
     bg: "#E9F5EC",
     iconColor: "#47B881"
   }, {
     icon: Users,
     title: "Smart Customer Segments",
     description: "Automatically group customers by behavior, opt-ins, and purchase history. Segments update in real-time — no manual work required.",
-    bg: "#FEF3C7",
+    bg: "#F5E8E1",
     iconColor: "#F4C430"
   }, {
     icon: Calendar,
-    title: "Social Media Planning",
-    description: "Plan, schedule, and manage all your social media content across platforms with our visual content calendar.",
+    title: "Customer Journey Planning",
+    description: "Plan, schedule, and manage coordinated email and SMS journeys with our visual campaign calendar.",
     bg: "#FDF2F2",
     iconColor: "#F28C8C"
   }, {
@@ -48,12 +48,12 @@ export const BenefitsSection = () => {
     icon: Leaf,
     title: "Email Marketing",
     description: "Create beautiful newsletters, promotional campaigns, and plant care tips that drive sales and customer loyalty.",
-    bg: "#FEF3C7",
+    bg: "#F5E8E1",
     iconColor: "#F4C430"
   }, {
     icon: Clock,
-    title: "Blog Management",
-    description: "Generate SEO-optimized blog posts about plant care, seasonal gardening tips, and product spotlights to drive organic traffic.",
+    title: "Loyalty & Rewards",
+    description: "Turn POS purchases into points, tiers, birthday rewards, and timely offers that bring garden-center customers back.",
     bg: "#FDF2F2",
     iconColor: "#F28C8C"
   }];

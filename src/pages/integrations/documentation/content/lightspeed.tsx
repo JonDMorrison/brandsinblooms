@@ -16,6 +16,19 @@ if (!lightspeedSeed) {
 
 const proseClassName = "space-y-4 text-[15px] leading-7 text-muted-foreground";
 
+const connectUrl = "https://bloomsuite.app/integrations/lightspeed/connect";
+const documentationUrl =
+  "https://bloomsuite.app/docs/integrations/lightspeed";
+
+const lightspeedScopes: ReactNode[][] = [
+  ["customers:read", "Import customer contact details and purchase history."],
+  ["products:read", "Import the product catalogue and product attributes."],
+  ["sales:read", "Import completed sales and line items for CRM reporting."],
+  ["inventory:read", "Read current inventory counts for synced products."],
+  ["retailer:read", "Identify the authorized retailer and store context."],
+  ["webhooks", "Register event delivery for supported real-time updates."],
+];
+
 function DocTable({
   headers,
   rows,
@@ -115,8 +128,8 @@ export const lightspeedDocumentation: DocContent = {
   pageTitle: "Lightspeed X-Series Integration Guide",
   overview:
     "Connect Lightspeed X-Series to BloomSuite to sync retail customers, sales, products, and real-time webhook events from a store-specific domain. BloomSuite registers webhooks automatically during OAuth and uses background sync jobs to complement real-time delivery with bulk imports, inventory coverage, and recovery paths.",
-  readingTimeMinutes: 14,
-  lastUpdated: "Apr 29, 2026",
+  readingTimeMinutes: 16,
+  lastUpdated: "Aug 25, 2026",
   branding: {
     icon: lightspeedSeed.icon,
     logoSrc: documentationLogoAssets.lightspeed,
@@ -153,6 +166,58 @@ export const lightspeedDocumentation: DocContent = {
             by BloomSuite. If Lightspeed support references Business Rules, they
             are referring to a different capability than the webhooks BloomSuite
             subscribes to.
+          </DocCallout>
+        </div>
+      ),
+    },
+    {
+      id: "partner-links-and-permissions",
+      title: "Connection Links and Permissions",
+      group: "Getting Started",
+      content: (
+        <div className="space-y-6">
+          <DocTable
+            headers={["Partner Field", "Canonical URL"]}
+            rows={[
+              [
+                "Connect Link",
+                <a
+                  className="font-medium text-primary underline underline-offset-4"
+                  href={connectUrl}
+                >
+                  {connectUrl}
+                </a>,
+              ],
+              [
+                "Documentation Link",
+                <a
+                  className="font-medium text-primary underline underline-offset-4"
+                  href={documentationUrl}
+                >
+                  {documentationUrl}
+                </a>,
+              ],
+            ]}
+          />
+          <div className={proseClassName}>
+            <p>
+              The Connect Link is the merchant-facing entry point used by the
+              Lightspeed App Store. A signed-out retailer is asked to sign in to
+              BloomSuite and is then returned to the Lightspeed connection
+              screen. After the retailer enters their X-Series store prefix,
+              BloomSuite starts the OAuth authorization flow.
+            </p>
+          </div>
+          <DocTable
+            headers={["OAuth Scope", "Why BloomSuite Requests It"]}
+            rows={lightspeedScopes}
+          />
+          <DocCallout variant="info" title="Read-only retail data access">
+            BloomSuite does not change checkout, payments, products, customers,
+            inventory, or completed sales in Lightspeed. The only non-read
+            permission is used to register webhook delivery. BloomSuite uses
+            the synchronized data for CRM profiles, segmentation, reporting,
+            and marketing workflows.
           </DocCallout>
         </div>
       ),

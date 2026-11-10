@@ -24,6 +24,67 @@ interface LoyaltyIncentivesImpactProps {
 
 const tiers = ["Bronze", "Silver", "Gold", "Platinum"];
 
+const formatProviderBalance = (
+  balance: number,
+  unit: "points" | "currency" | "unknown",
+  currency: string | null,
+) => {
+  if (unit === "points") {
+    return `${balance.toLocaleString()} pts`;
+  }
+  if (unit === "currency" && currency) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+    }).format(balance);
+  }
+  return `${balance.toLocaleString()} provider-reported balance`;
+};
+
+function ProviderBalanceList({ metrics }: LoyaltyIncentivesImpactProps) {
+  if (metrics.providerAccounts.length === 0) return null;
+
+  return (
+    <Stack spacing={1.25}>
+      <Typography level="title-sm">Current provider balances</Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, minmax(0, 1fr))",
+          },
+          gap: 1.25,
+        }}
+      >
+        {metrics.providerAccounts.map((account) => (
+          <Sheet
+            key={`${account.provider}:${account.programName}`}
+            variant="outlined"
+            sx={{ borderRadius: "lg", p: 1.5 }}
+          >
+            <Stack spacing={0.5}>
+              <Typography level="body-sm" fontWeight="lg">
+                {account.programName}
+              </Typography>
+              <Typography level="title-lg">
+                {formatProviderBalance(
+                  account.balance,
+                  account.balanceUnit,
+                  account.currency,
+                )}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Last synced {formatDateLabel(account.lastSyncedAt)}
+              </Typography>
+            </Stack>
+          </Sheet>
+        ))}
+      </Box>
+    </Stack>
+  );
+}
+
 export function LoyaltyIncentivesImpact({
   metrics,
 }: LoyaltyIncentivesImpactProps) {
@@ -67,6 +128,32 @@ export function LoyaltyIncentivesImpact({
     );
   }
 
+  if (!metrics.hasNativeActivity) {
+    return (
+      <JoyCard variant="outlined">
+        <JoyCardHeader
+          title="Loyalty & incentives"
+          description="Current balances reported by the connected POS or imported loyalty source."
+        />
+        <JoyCardContent>
+          <Stack spacing={2}>
+            <ProviderBalanceList metrics={metrics} />
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "lg", p: 1.5 }}
+            >
+              <Typography level="body-sm">
+                Earn, redeem, and tier activity is unavailable because this
+                source supplied a current balance without a transaction ledger.
+              </Typography>
+            </Sheet>
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
+    );
+  }
+
   return (
     <JoyCard variant="outlined">
       <JoyCardHeader
@@ -75,6 +162,7 @@ export function LoyaltyIncentivesImpact({
       />
       <JoyCardContent>
         <Stack spacing={2.5}>
+          <ProviderBalanceList metrics={metrics} />
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <JoyChip
               color="warning"

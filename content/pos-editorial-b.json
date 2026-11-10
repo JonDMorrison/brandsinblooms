@@ -1,0 +1,2312 @@
+{
+  "charge-accounts": {
+    "intro": "Landscapers often need materials today and an invoice their office can pay later. Charge accounts give that arrangement a proper place in the sale, with the customer, buyer and outstanding amount connected from the beginning.",
+    "explanation": [
+      "A charge sale follows a different path from a cash purchase. Staff need an eligible account, the right buyer and any required purchase-order reference before putting the amount on account. Those checks help turn an informal promise into a transaction the office can understand.",
+      "The useful distinction comes after checkout. The invoice remains an amount owed until an eligible payment or credit is recorded against it. Keeping that history separate makes a later account conversation easier, especially when a contractor has several jobs and purchases underway at once."
+    ],
+    "capabilities": [
+      {
+        "title": "Account eligibility",
+        "text": "Check the active trade arrangement before completing a charge. An existing customer profile alone does not establish payment terms or permission to buy on credit."
+      },
+      {
+        "title": "Buyer context",
+        "text": "Retain the person purchasing and the job or customer PO details required by the account, giving the contractor's office useful context when reviewing an invoice."
+      },
+      {
+        "title": "Outstanding balance",
+        "text": "Keep the original charge and later settlements linked so the owner can distinguish what was purchased, what was paid and what still needs attention."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can every employee of a landscaping company charge purchases?",
+        "a": "No. The store must establish the account and its eligible buyers. Naming the company does not automatically give someone charging authority or access to the company's account administration."
+      },
+      {
+        "q": "Does paying the invoice create another sale?",
+        "a": "The original charge records the purchase. Later settlement reduces the receivable through the account-payment workflow, which helps keep collection of an old invoice separate from new product revenue."
+      }
+    ],
+    "related": [
+      "trade-account-terms",
+      "authorized-trade-buyers",
+      "receivable-payments"
+    ],
+    "flow": [
+      "Verify the account",
+      "Record the purchase",
+      "Track settlement"
+    ],
+    "demoQuestion": "Show us a landscaper purchase that uses an authorized buyer, a customer PO and a later account payment."
+  },
+  "credit-limit-controls": {
+    "intro": "A generous relationship with a good contractor still needs clear boundaries. Credit-limit controls put the account's eligibility decision into the charge workflow, helping staff handle a difficult counter conversation with a consistent process and an explanation.",
+    "explanation": [
+      "A limit is useful when it applies to the account actually being charged. BloomSuite checks the relevant account context rather than treating yesterday's screen or a cashier's recollection as available credit. Currency, status and recorded balances all matter when reviewing an eligible charge.",
+      "When a purchase cannot proceed under the normal rules, the next step belongs to the store's authorized process. Staff should be able to explain the restriction without improvising a workaround, making the owner responsible for a deliberate exception rather than an accidental extension of credit."
+    ],
+    "capabilities": [
+      {
+        "title": "Account-specific decision",
+        "text": "Evaluate the intended account rather than applying one customer's balance or terms to another. This keeps a charge tied to its own recorded commercial arrangement."
+      },
+      {
+        "title": "Current eligibility",
+        "text": "Use the supported online account check when preparing a charge, so a previously viewed figure is not treated as a fresh promise of available credit."
+      },
+      {
+        "title": "Controlled exceptions",
+        "text": "Keep decisions about exceptional credit with the appropriate authority and store policy, giving the cashier a clear escalation path when the ordinary charge cannot proceed."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we rely on a credit balance downloaded earlier?",
+        "a": "An old figure can miss payments, purchases or changes made elsewhere. Charge eligibility needs the supported current check; cached information should not become independent authority to extend more credit."
+      },
+      {
+        "q": "Can a cashier bypass the limit to keep the line moving?",
+        "a": "Access to checkout does not mean unrestricted credit authority. Your store's configured permissions and exception process determine who can make a decision and what evidence must remain with it."
+      }
+    ],
+    "related": [
+      "charge-accounts",
+      "trade-account-terms",
+      "manager-approvals"
+    ],
+    "flow": [
+      "Choose the account",
+      "Check charge eligibility",
+      "Resolve any restriction"
+    ],
+    "demoQuestion": "Show us how a purchase exceeding the account limit is explained to the cashier and escalated to the right person."
+  },
+  "account-statements": {
+    "intro": "A contractor asking what they owe should not trigger a search through separate receipts and handwritten notes. Account statements bring the recorded account position into a view your team can review before discussing unpaid invoices and recent settlements.",
+    "explanation": [
+      "Statements serve a different purpose from checkout receipts. A receipt explains a particular transaction; an account statement helps someone understand a continuing relationship across purchases, credits and payments. That broader view is useful when an office pays several garden-centre invoices together.",
+      "Accuracy depends on the underlying ledger. Before sharing a statement, check that recent collections and credits have been recorded against the intended account. A statement presents the records you have; it does not contact the customer, collect payment or settle a disputed amount by itself."
+    ],
+    "capabilities": [
+      {
+        "title": "Account overview",
+        "text": "Review the customer's recorded account activity together, providing a more coherent starting point than treating every invoice as an unrelated conversation at the counter."
+      },
+      {
+        "title": "Payment context",
+        "text": "Check how recorded payments and credits affect the outstanding position before discussing what remains due, particularly when several purchases share one trade relationship."
+      },
+      {
+        "title": "Original currency",
+        "text": "Retain the currency context of account records instead of silently treating an unknown or different currency as the same amount in your store's usual denomination."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is a statement the same thing as an invoice?",
+        "a": "An invoice records a particular amount charged. A statement provides account context across recorded activity, helping the customer and store review what remains outstanding and how later settlements were applied."
+      },
+      {
+        "q": "Will generating a statement automatically email or collect it?",
+        "a": "No automatic collection activity is implied. Review the statement view and your store's sharing process, and confirm the recipient and account details before sending customer financial information."
+      }
+    ],
+    "related": [
+      "charge-accounts",
+      "receivable-payments",
+      "customer-purchase-order-references"
+    ],
+    "flow": [
+      "Choose the customer",
+      "Review account activity",
+      "Confirm what is due"
+    ],
+    "demoQuestion": "Show us a statement containing several purchases, a partial payment and a credit so our office can follow the balance."
+  },
+  "receivable-payments": {
+    "intro": "The sale may have happened last week, but the contractor is paying today. Receivable payments give that collection its own recorded purpose, helping your team reduce the right account balance without treating old debt as a new retail purchase.",
+    "explanation": [
+      "An account payment needs to explain which obligation it settles. Retaining the customer, amount and allocation gives the office a way to follow the money when a customer pays in parts or asks why an invoice remains open after making a payment.",
+      "There are two records worth keeping distinct: the original sale and its later collection. Your close and accounting review need both, with their actual timing and tender context. Bank deposits and payment-provider settlements may still require their own reconciliation outside the account ledger."
+    ],
+    "capabilities": [
+      {
+        "title": "Account allocation",
+        "text": "Apply an eligible recorded payment to the intended receivable, retaining the relationship between the collection and the customer's outstanding obligation for later review."
+      },
+      {
+        "title": "Partial settlement",
+        "text": "Keep a remaining balance understandable when an account is paid over more than one collection, rather than marking the whole relationship paid after the first amount."
+      },
+      {
+        "title": "Collection history",
+        "text": "Preserve the original charge alongside subsequent payments and credits so an owner can investigate an account question without reconstructing it from memory or replacing previous entries."
+      }
+    ],
+    "faq": [
+      {
+        "q": "What if a customer pays only part of an outstanding account?",
+        "a": "Record the eligible payment through the supported account process and review the remaining balance. A partial collection should leave the unsettled amount visible rather than closing the entire obligation."
+      },
+      {
+        "q": "Does a recorded payment prove the money has reached our bank?",
+        "a": "The ledger records the account action. Card processing, payout timing and bank settlement remain separate evidence, so the recorded collection should be reconciled with the applicable provider or cash records."
+      }
+    ],
+    "related": [
+      "account-statements",
+      "charge-accounts",
+      "tender-reconciliation"
+    ],
+    "flow": [
+      "Identify the receivable",
+      "Record the collection",
+      "Review the remainder"
+    ],
+    "demoQuestion": "Show us a partial contractor payment and how the remaining amount appears on the next statement."
+  },
+  "tax-exemption-evidence": {
+    "intro": "A familiar contractor's name is not enough to establish that every purchase qualifies for an exemption. Tax-exemption evidence helps the store retain the certificate, scope and dates behind a decision instead of relying on a permanent unchecked assumption.",
+    "explanation": [
+      "The same customer can make purchases for different purposes, with products that receive different treatment. Reviewing jurisdiction, intended use and eligible product categories keeps the exemption conversation tied to the actual purchase rather than an overly broad customer label in the address book.",
+      "Documented evidence also gives the owner something useful to revisit when a certificate expires or a transaction is questioned. The software provides a structured review trail; the business remains responsible for confirming its policy and obtaining appropriate professional guidance for the jurisdictions where it trades."
+    ],
+    "capabilities": [
+      {
+        "title": "Certificate context",
+        "text": "Retain the supporting certificate information with its dates and scope, making it easier to see which evidence was reviewed for an eligible customer arrangement."
+      },
+      {
+        "title": "Purchase eligibility",
+        "text": "Consider the relevant jurisdiction, product category and intended use together, rather than assuming one verified document exempts every future item the buyer chooses."
+      },
+      {
+        "title": "Review history",
+        "text": "Keep a traceable decision behind the treatment so questions about timing, document validity or scope can be reviewed against recorded evidence instead of a cashier's recollection."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we mark a landscaper permanently exempt?",
+        "a": "A blanket designation can overlook product, use, date and jurisdiction limits. The supported workflow reviews the evidence within its scope; your owner or adviser must confirm the actual applicable treatment."
+      },
+      {
+        "q": "Does uploading a certificate mean the store can apply an exemption immediately?",
+        "a": "A document is supporting evidence, not automatic approval. The store must complete the relevant review and configuration, confirm validity and scope, and follow its authorized decision process before relying on that treatment."
+      }
+    ],
+    "related": [
+      "trade-account-terms",
+      "tax-reporting-context",
+      "customer-purchase-order-references"
+    ],
+    "flow": [
+      "Review the certificate",
+      "Check purchase scope",
+      "Retain the decision"
+    ],
+    "demoQuestion": "Walk us through a certificate that applies to some products or uses but not every purchase on the account."
+  },
+  "special-orders": {
+    "intro": "A requested specimen tree can take weeks to arrive, with several staff members involved along the way. Special orders keep the customer's request, selected items and agreed terms in one recorded arrangement that the team can return to.",
+    "explanation": [
+      "This is different from an ordinary basket taken home immediately. The store may need to confirm supply, collect a deposit and arrange a later handover. Recording those pieces together helps the person answering the next phone call understand what has actually been agreed.",
+      "A special-order record should make the promise clearer without overstating it. Supplier commitment, physical arrival and customer fulfilment are separate steps. Keeping each step distinct helps your team explain progress honestly and handle a partial delivery or changed arrangement without losing the original request."
+    ],
+    "capabilities": [
+      {
+        "title": "Customer-linked request",
+        "text": "Connect the requested plants or products to the intended customer, giving staff an identifiable order to find when discussing progress, terms or collection arrangements."
+      },
+      {
+        "title": "Agreed terms",
+        "text": "Retain the commercial details of the deferred arrangement so a deposit, balance or cancellation conversation has a recorded starting point beyond a note beside the till."
+      },
+      {
+        "title": "Fulfilment progress",
+        "text": "Track what is still outstanding when the order is completed in stages, keeping later staff from assuming the entire request was handed over with the first item."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does creating a special order guarantee the supplier has the plant?",
+        "a": "No. The order records the customer's arrangement with your store. Supplier availability and commitment must be confirmed separately, and staff should distinguish a request from stock physically received and ready to hand over."
+      },
+      {
+        "q": "Can we collect a deposit before the order arrives?",
+        "a": "The supported deferred-order workflow records eligible payments separately from completed product sales. Agree the terms first, then review how the deposit will apply at fulfilment or be handled if the arrangement changes."
+      }
+    ],
+    "related": [
+      "customer-deposits",
+      "partial-fulfilment",
+      "order-cancellations"
+    ],
+    "flow": [
+      "Record the request",
+      "Confirm the arrangement",
+      "Complete the handover"
+    ],
+    "demoQuestion": "Show us a specimen-tree order from customer request through deposit, supplier arrival and final collection."
+  },
+  "customer-deposits": {
+    "intro": "Taking a deposit creates an obligation as well as a payment. Customer deposits help the store record money held against a future order, making the remaining balance and later application easier for both staff and the customer to understand.",
+    "explanation": [
+      "A deposit should not become indistinguishable from ordinary merchandise revenue the moment it is collected. Keeping the order payment separate gives the owner a clearer account of money received before the goods have been fulfilled, especially across month-end or a long growing season.",
+      "The customer conversation starts with the terms: what the deposit secures, when the rest is due and how a cancellation is handled. The supported order workflow retains the payment relationship so the next fulfilment or correction can be reviewed against the actual agreement rather than a new guess."
+    ],
+    "capabilities": [
+      {
+        "title": "Order payment record",
+        "text": "Associate the amount received with the intended deferred arrangement, keeping the payment understandable even when the final goods will be collected on another day or in stages."
+      },
+      {
+        "title": "Balance review",
+        "text": "See the recorded payments alongside the remaining order obligation, giving staff a firmer starting point when the customer asks how much is still payable before collection."
+      },
+      {
+        "title": "Separate treatment",
+        "text": "Keep held deposits distinct from ordinary sale revenue until the supported application occurs, helping the owner and accountant review timing without double-counting the same money."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is a deposit automatically refundable?",
+        "a": "That depends on your store's agreed terms and the circumstances. Record the arrangement clearly and use the authorized cancellation or refund process; a deposit record does not decide the customer's entitlement on its own."
+      },
+      {
+        "q": "How does a deposit work when only some items are collected?",
+        "a": "Review the eligible application during each fulfilment and retain the remaining order balance. The payment should stay connected to its original arrangement rather than being counted again as newly collected money."
+      }
+    ],
+    "related": [
+      "special-orders",
+      "partial-fulfilment",
+      "order-cancellations"
+    ],
+    "flow": [
+      "Agree the deposit terms",
+      "Record money held",
+      "Apply it at fulfilment"
+    ],
+    "demoQuestion": "Show us how a deposit is applied to a partially collected order without being counted as a second payment."
+  },
+  "partial-fulfilment": {
+    "intro": "Customers do not always need to wait for an entire order before collecting the plants that have arrived. Partial fulfilment keeps the handed-over quantities and remaining obligations visible when a deferred arrangement is completed over more than one visit.",
+    "explanation": [
+      "That distinction matters at a garden centre, where suppliers may split shipments and customers may collect items as planting work progresses. The recorded order needs to tell the next staff member which lines are finished and which still require attention, without treating the first collection as completion of everything.",
+      "Money needs the same care as quantities. Review the deposit application and remaining balance during each fulfilment so the financial position follows the goods actually handled. Physical checks still belong to staff: a recorded quantity does not confirm that a particular specimen is healthy, prepared and ready outside."
+    ],
+    "capabilities": [
+      {
+        "title": "Line progress",
+        "text": "Retain the fulfilled quantity against the original order line so staff can distinguish what has already been handed over from what the customer is still expecting."
+      },
+      {
+        "title": "Outstanding work",
+        "text": "Keep the remaining items available for later review instead of replacing the original order with an informal note describing what was left behind after collection."
+      },
+      {
+        "title": "Payment application",
+        "text": "Review the eligible deposit and balance treatment for the stage being completed, preserving the connection between held money and the customer's actual fulfilment progress."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can a customer collect two items now and return for the third?",
+        "a": "That is the purpose of partial fulfilment. Record the quantities handed over and retain the remaining line, then review any applicable payment application and collection arrangements for the later visit."
+      },
+      {
+        "q": "Does an item marked received mean it has been collected?",
+        "a": "Receiving stock from a supplier and handing goods to a customer are different operations. Staff should confirm physical readiness and record the actual fulfilment rather than assuming a delivery completed the customer's order."
+      }
+    ],
+    "related": [
+      "special-orders",
+      "customer-deposits",
+      "pickup-planning"
+    ],
+    "flow": [
+      "Check ready quantities",
+      "Record this handover",
+      "Retain the remainder"
+    ],
+    "demoQuestion": "Show us an order collected across two visits, including the quantities and payment balance remaining after the first pickup."
+  },
+  "layaway-records": {
+    "intro": "A customer paying in stages needs a shared understanding of the purchase, payment progress and collection terms. Layaway records put that arrangement into the deferred-order workflow so staff can follow it across shifts and customer visits.",
+    "explanation": [
+      "The practical value is continuity. When a different person answers the customer's question, they can start with the recorded arrangement instead of trying to remember a colleague's promise. The selected items, eligible payments and agreed terms belong together throughout the period before final collection.",
+      "Your store still decides whether layaway is offered and under which conditions. A saved record should never substitute for a clear reservation, cancellation and refund policy. Establish the arrangement first, then use the workflow to keep the financial and fulfilment history aligned with that agreement."
+    ],
+    "capabilities": [
+      {
+        "title": "Recorded arrangement",
+        "text": "Keep the intended purchase and customer relationship together, providing a place to review the layaway's agreed commercial details rather than relying on a loose receipt or handwritten reference."
+      },
+      {
+        "title": "Payment progress",
+        "text": "Retain eligible staged payments against the deferred obligation so staff can review what has already been collected and what remains before the next agreed step."
+      },
+      {
+        "title": "Policy context",
+        "text": "Use the recorded terms when discussing a changed plan, helping an authorized manager handle cancellation or collection questions consistently with the arrangement the customer originally accepted."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does BloomSuite decide our layaway policy?",
+        "a": "No. The business must establish whether it offers layaway, what any reservation means and how payments, missed deadlines and cancellations are handled. Software records support that policy rather than creating it for the store."
+      },
+      {
+        "q": "Is money received on layaway already a completed product sale?",
+        "a": "A payment against a deferred order is distinct from completed fulfilment. Review the supported deposit and sale application workflow with your accountant so timing and later collection are recorded appropriately for the arrangement."
+      }
+    ],
+    "related": [
+      "customer-deposits",
+      "special-orders",
+      "order-cancellations"
+    ],
+    "flow": [
+      "Agree the layaway terms",
+      "Record staged payments",
+      "Review collection readiness"
+    ],
+    "demoQuestion": "Walk us through a staged-payment arrangement, including what staff see before collection and how an authorized cancellation is handled."
+  },
+  "rain-checks": {
+    "intro": "An out-of-stock conversation can still lead to a useful next step. Rain checks give the store a record of the customer's interest and agreed arrangement, without pretending that an unavailable plant is already reserved or on the way.",
+    "explanation": [
+      "A rain check serves a different purpose from a completed purchase or confirmed special order. It helps the team remember a request that needs another availability conversation. Keeping that distinction clear prevents the next staff member from interpreting an expression of interest as a guaranteed supply commitment.",
+      "The strongest customer experience is an honest one. Record the relevant customer and terms, then confirm actual supply through the store's normal purchasing and stock review. If the situation changes, staff can return to the recorded request rather than relying on memory of a conversation during a busy Saturday."
+    ],
+    "capabilities": [
+      {
+        "title": "Customer interest",
+        "text": "Retain the request against the intended customer so an out-of-stock conversation has a findable record when the store reviews what people have been asking for."
+      },
+      {
+        "title": "Clear promise",
+        "text": "Distinguish the rain check from a stock reservation, making it easier for staff to explain what the record does and what still needs supplier or store confirmation."
+      },
+      {
+        "title": "Later review",
+        "text": "Return to the agreed terms when availability is discussed again, giving a colleague enough context to continue the conversation without inventing a new promise or assuming supply has arrived."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a rain check reserve stock for the customer?",
+        "a": "No. The supported rain-check record does not reserve inventory. Staff must verify availability and establish any later order or reservation through the appropriate workflow before promising that particular goods are held."
+      },
+      {
+        "q": "Should we use a rain check instead of a special order?",
+        "a": "Use the record that matches the actual agreement. A rain check retains interest without a stock reservation; a special order records a more specific deferred purchase arrangement with its own terms and payment considerations."
+      }
+    ],
+    "related": [
+      "special-orders",
+      "recorded-stock-visibility",
+      "saved-suppliers"
+    ],
+    "flow": [
+      "Record the interest",
+      "Explain the limits",
+      "Review availability later"
+    ],
+    "demoQuestion": "Show us the difference between a rain check, a special order and stock that is actually reserved for fulfilment."
+  },
+  "order-cancellations": {
+    "intro": "A cancelled order may still have a deposit, allocated plants or an unresolved refund attached to it. Order cancellations help the team close the arrangement deliberately, keeping the original agreement and its financial history available for review.",
+    "explanation": [
+      "The job is larger than removing a row from a list. An authorized decision needs to address the remaining commitment, the applicable terms and any associated allocation or payment consequences. Recording that process makes a later question easier to answer without erasing what happened before the cancellation.",
+      "Separate the commercial decision from its eventual payment outcome. A cancelled order does not prove that a provider refund succeeded or that goods physically returned to the yard are sellable. Staff review those related operations through the relevant workflow and keep unresolved work visible until it has been addressed."
+    ],
+    "capabilities": [
+      {
+        "title": "Original history",
+        "text": "Retain the customer's order and its prior payments or fulfilments, giving the owner a reliable record when explaining why the arrangement changed and what remains to be resolved."
+      },
+      {
+        "title": "Terms review",
+        "text": "Apply the store's authorized cancellation policy to the actual agreement instead of assuming every deposit, special order or partially fulfilled purchase receives the same treatment."
+      },
+      {
+        "title": "Related outcomes",
+        "text": "Review eligible refunds, remaining allocations and physical handling separately, so closing the order does not silently assert that money moved or goods returned to a particular condition."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does cancelling an order automatically refund the deposit?",
+        "a": "A cancellation decision and a completed refund are separate outcomes. Your policy determines eligibility, authorized staff initiate the appropriate financial action, and the actual provider or ledger result must still be confirmed."
+      },
+      {
+        "q": "Can we delete the order after cancellation?",
+        "a": "The supported approach retains the history needed to explain the arrangement, payments and later corrections. That evidence is useful if a customer questions the amount or staff need to reconcile a related transaction."
+      }
+    ],
+    "related": [
+      "customer-deposits",
+      "partial-fulfilment",
+      "refund-progress"
+    ],
+    "flow": [
+      "Review the original terms",
+      "Cancel the obligation",
+      "Resolve related money and stock"
+    ],
+    "demoQuestion": "Show us a cancelled special order with a deposit, including how pending financial work remains distinguishable from a completed refund."
+  },
+  "pickup-planning": {
+    "intro": "A collection day becomes easier when the team knows which orders belong together and how much work each pickup group represents. Pickup planning helps organize supported order batches before customers arrive expecting their plants to be ready.",
+    "explanation": [
+      "The benefit appears before the first handover. Reviewing assigned orders and batch capacity gives the manager a concrete preparation list instead of a long unsorted collection of customer names. That is particularly useful for presales and fundraisers with many similar products due around the same time.",
+      "Planning is still distinct from physical readiness and fulfilment. Staff must prepare the actual goods, check what has arrived and record the handover through the appropriate order workflow. A scheduled place in a batch should never be treated as proof that every item is already assembled outside."
+    ],
+    "capabilities": [
+      {
+        "title": "Order grouping",
+        "text": "Build supported pickup batches around the recorded orders, making the work easier to review together when a campaign or seasonal event creates a concentrated collection period."
+      },
+      {
+        "title": "Capacity review",
+        "text": "Consider the supported batch limits before assigning more orders, helping managers organize a workable collection plan rather than relying on an unlimited list of promised arrivals."
+      },
+      {
+        "title": "Handover context",
+        "text": "Keep the assigned orders findable for the team carrying out collection, while retaining the distinction between an order on the plan and goods physically handed to a customer."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does assigning a pickup batch mean the order is ready?",
+        "a": "No. Batch assignment organizes the work. Staff still confirm stock, prepare the goods and complete the appropriate handover record; a place on a schedule is not evidence that the plants have arrived."
+      },
+      {
+        "q": "Can pickup planning help with a fundraiser collection day?",
+        "a": "The supported campaign workflow includes pickup batches and assigned orders. Review the campaign, allocation and capacity configuration in your demo so the plan matches the way your team will physically handle collection."
+      }
+    ],
+    "related": [
+      "presale-campaigns",
+      "fundraiser-reconciliation",
+      "partial-fulfilment"
+    ],
+    "flow": [
+      "Build pickup groups",
+      "Check assigned orders",
+      "Prepare the handover"
+    ],
+    "demoQuestion": "Show us a busy fundraiser pickup day, including batch capacity, preparation and the distinction between scheduled and collected orders."
+  },
+  "delivery-planning": {
+    "intro": "A local delivery promise contains more than an address. Delivery planning gives the owner a place to review customer orders and agreed arrangements, helping the team see the details that need confirmation before goods leave the garden centre.",
+    "explanation": [
+      "This supports the store's own delivery operation rather than replacing it with an assumed shipping service. Staff need a clear view of the order, selected arrangement and relevant details so the person preparing the plants can work from the same understanding as the person arranging the delivery.",
+      "Keep planning, charging and fulfilment distinct. A configured delivery zone or recorded schedule does not collect money, optimize a route or confirm a doorstep handover. The value is a more organized operational conversation, with actual stock, fees and completion handled through their appropriate store processes."
+    ],
+    "capabilities": [
+      {
+        "title": "Order context",
+        "text": "Review delivery arrangements in relation to the customer's recorded purchase, helping staff connect the planned visit to the goods and outstanding work that actually belong to that order."
+      },
+      {
+        "title": "Agreed details",
+        "text": "Keep the relevant location and timing information visible for review, making it easier to identify missing decisions before a driver or preparation team relies on the plan."
+      },
+      {
+        "title": "Store-led execution",
+        "text": "Support the garden centre's own operational handoff while leaving physical preparation, transport and confirmation with the people carrying out the delivery under the store's usual procedures."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does this automatically choose the fastest delivery route?",
+        "a": "No route optimization is implied. The owner workspace supports recorded planning and arrangements; routing, vehicle capacity and real-world transport decisions remain part of the store's own delivery operation and any separately confirmed tools."
+      },
+      {
+        "q": "Are delivery fees collected when a zone is saved?",
+        "a": "A planning record or configured zone is not a payment. Review the agreed fee and collect it through the supported sale or order process rather than assuming a scheduling action charged the customer."
+      }
+    ],
+    "related": [
+      "pickup-planning",
+      "special-orders",
+      "partial-fulfilment"
+    ],
+    "flow": [
+      "Review delivery orders",
+      "Confirm the arrangements",
+      "Carry out fulfilment"
+    ],
+    "demoQuestion": "Show us how a local delivery arrangement stays connected to its order without implying that scheduling collects payment or completes the delivery."
+  },
+  "presale-campaigns": {
+    "intro": "A seasonal presale needs a clear offer, a sensible quantity limit and a defined selling window. Presale campaigns bring those decisions into a recorded structure so the store can review commitments before the collection or delivery period begins.",
+    "explanation": [
+      "Garden centres often face a narrow seasonal opportunity: a limited shipment, a holiday product or a fundraiser with a fixed end date. Keeping the offer and its allocation rules together makes it easier to understand what has been promised and where the campaign still has room for orders.",
+      "Connected channels require deliberate setup. A campaign should not be described as sharing live capacity across a website and till until the intended connection and identities are verified. The campaign records provide a way to review the arrangement; physical supply and customer fulfilment still need their own checks."
+    ],
+    "capabilities": [
+      {
+        "title": "Defined offers",
+        "text": "Record the campaign's products and prices within its selling arrangement so the team can discuss the same offer instead of relying on several slightly different seasonal instructions."
+      },
+      {
+        "title": "Selling window",
+        "text": "Set the supported campaign timing and review it before accepting commitments, keeping the sales period distinct from the later preparation, pickup or delivery period."
+      },
+      {
+        "title": "Allocation controls",
+        "text": "Use the supported caps and recorded allocations to review the campaign's commitments, with connected website or in-store participation enabled only after its intended setup has been confirmed."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can a presale accept unlimited orders for a limited shipment?",
+        "a": "The supported campaign arrangement includes offer caps and allocation rules. Configure and verify them against the intended channels and supply plan before taking live orders; a seasonal offer should not silently promise unlimited stock."
+      },
+      {
+        "q": "Does a campaign automatically connect our website to the till?",
+        "a": "No. Cross-product business identity, product mapping and channel setup require verification. Demonstrate the actual connection for your store before relying on a shared allocation or describing the website and register as already synchronized."
+      }
+    ],
+    "related": [
+      "pickup-planning",
+      "fundraiser-reconciliation",
+      "supplier-shortages-and-backorders"
+    ],
+    "flow": [
+      "Define the offer",
+      "Review the selling limits",
+      "Plan fulfilment"
+    ],
+    "demoQuestion": "Show us a capped seasonal presale, including its selling dates, recorded allocations and the setup needed for any website participation."
+  },
+  "fundraiser-reconciliation": {
+    "intro": "A fundraiser total needs an explanation the store can stand behind. Fundraiser reconciliation brings recorded orders, collections, refunds and attribution into the review, helping the owner discuss a campaign result with more confidence than a single unexplained number.",
+    "explanation": [
+      "Campaign activity can arrive through different channels and at different stages. Money collected is not necessarily the same as booked order value, and a refund can change the final position. Reviewing those components together helps the team identify what is complete and which obligations still need attention.",
+      "Commission deserves a clear label too. A provisional campaign calculation is a starting point for review, not proof that a partner has been paid. Connected website records, customer identity and the store's agreed campaign policy must be confirmed before treating the reconciliation as the final commercial outcome."
+    ],
+    "capabilities": [
+      {
+        "title": "Campaign components",
+        "text": "Review the recorded value, collections and refunds separately, helping the owner explain why the amount booked for a campaign may differ from cash received or the balance still outstanding."
+      },
+      {
+        "title": "Attribution review",
+        "text": "Retain the relevant campaign relationship when reviewing orders and corrections, so a fundraiser conversation can refer back to the underlying records instead of an isolated spreadsheet total."
+      },
+      {
+        "title": "Provisional commission",
+        "text": "Keep calculated commission distinguishable from an approved payout, allowing the store to reconcile cancellations, returns and the agreed basis before accepting a final amount owed to the partner."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is the displayed commission already a payment to the school?",
+        "a": "No. A provisional commission is a calculation for review, not a completed payout. Confirm the campaign records, applicable refunds and agreed commission basis before deciding what is owed and handling the actual payment."
+      },
+      {
+        "q": "Will online and in-store fundraiser orders appear together automatically?",
+        "a": "That depends on the verified connection and campaign setup for the store. Demonstrate the actual mapped channels and retained records rather than assuming that a campaign page alone establishes complete cross-product reconciliation."
+      }
+    ],
+    "related": [
+      "presale-campaigns",
+      "pickup-planning",
+      "order-cancellations"
+    ],
+    "flow": [
+      "Review campaign activity",
+      "Resolve adjustments",
+      "Confirm the partner amount"
+    ],
+    "demoQuestion": "Show us a fundraiser report where booked orders, collected money, refunds and provisional commission are visibly different parts of the result."
+  },
+  "staff-pin-sign-in": {
+    "intro": "The next sale should belong to the person actually serving the customer. Staff PIN sign-in gives a prepared register a clear cashier identity, making a shared counter more accountable without asking the team to share one generic staff login.",
+    "explanation": [
+      "A garden centre can have several people stepping behind the till during the day. Choosing the correct staff identity and following the register's sign-in process helps preserve who performed the work when the owner later reviews a transaction, refund or shift question.",
+      "The PIN is one part of access, not the entire security arrangement. Register and device binding, active membership and the appropriate store permissions still matter. Onboarding should include a normal sign-in and handover rehearsal so seasonal staff know what to do before serving a real customer."
+    ],
+    "capabilities": [
+      {
+        "title": "Named cashier",
+        "text": "Identify the staff member using the register so later transaction review can refer to the person who actually completed the recorded work instead of a shared generic account."
+      },
+      {
+        "title": "Bound register",
+        "text": "Use the prepared device and register context alongside staff sign-in, helping keep a cashier session associated with the intended business location and counter setup."
+      },
+      {
+        "title": "Clear handover",
+        "text": "Give the next staff member their own sign-in step when the register changes hands, supporting a more understandable record across breaks, lunch cover and changing shifts."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can everyone use the manager's PIN?",
+        "a": "Sharing a privileged PIN undermines the purpose of named access and approvals. Give staff their own appropriate identities and permissions, then rehearse ordinary sign-in and sensitive-action escalation under your store's access policy."
+      },
+      {
+        "q": "Can a completely new cashier sign in while the internet is down?",
+        "a": "Do not assume that offline selling also provides new offline sign-in. Prepare devices and authenticated sessions ahead of time, and confirm the supported identity and renewal limits during your store's outage rehearsal."
+      }
+    ],
+    "related": [
+      "cashier-handover",
+      "store-scoped-roles",
+      "register-assignments"
+    ],
+    "flow": [
+      "Choose your identity",
+      "Verify the register",
+      "Begin the shift"
+    ],
+    "demoQuestion": "Show us a normal cashier sign-in and handover without granting the cashier access to manager-only work."
+  },
+  "store-scoped-roles": {
+    "intro": "A seasonal cashier, a department supervisor and an owner have different jobs. Store-scoped roles help make those differences explicit, giving the team access appropriate to their responsibilities rather than treating every person behind a counter as an administrator.",
+    "explanation": [
+      "Location matters as well as job title. A manager working at one store should not automatically receive the same operational reach across another location. Defining roles within the intended store scope gives a growing garden-centre business a more deliberate way to organize access.",
+      "Permissions need care throughout the season. When someone changes responsibilities or leaves the business, the owner should review and revoke access while retaining the history of work already performed. An access change should not erase the evidence needed to understand earlier transactions and approvals."
+    ],
+    "capabilities": [
+      {
+        "title": "Job-based access",
+        "text": "Use the supported cashier, supervisor, manager and owner distinctions to align access with the work a person needs to perform, rather than granting broad control by default."
+      },
+      {
+        "title": "Location scope",
+        "text": "Associate role authority with its intended store so a multi-location business can review who is permitted to work within each operational context and under which responsibility."
+      },
+      {
+        "title": "Retained history",
+        "text": "Revoke or change authority without deleting the person's earlier recorded work, preserving the context needed when reviewing a past approval, transaction or operational decision later in the season."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can a supervisor work at only one location?",
+        "a": "The role model supports store scope. Review the intended locations and responsibilities when granting access, and demonstrate both the permitted work and a location the person should not be able to administer."
+      },
+      {
+        "q": "What happens to history when an employee leaves?",
+        "a": "Removing active authority should not remove the earlier operational record. Retained identity and action evidence let the owner review past work while preventing the departed employee from continuing under an active grant."
+      }
+    ],
+    "related": [
+      "staff-pin-sign-in",
+      "manager-approvals",
+      "multi-store-configuration"
+    ],
+    "flow": [
+      "Define the responsibility",
+      "Grant the store scope",
+      "Review access over time"
+    ],
+    "demoQuestion": "Show us a supervisor permitted to help at one store while owner settings and another location remain outside their authority."
+  },
+  "manager-approvals": {
+    "intro": "A cashier needs a clear next step when a refund or price exception exceeds their authority. Manager approvals turn that moment into a defined store process, keeping the customer conversation moving toward an accountable decision rather than an informal workaround.",
+    "explanation": [
+      "Good approval controls do not assume every exception is suspicious. They recognize that some decisions deserve another person and a reason. Configured thresholds can distinguish routine work from an action that needs review, while retaining who requested the decision and who authorized it.",
+      "The explanation matters after the customer leaves too. An owner reviewing an exception should be able to see the actor, approver and relevant reason together. Rehearse the actual store policy with staff, including what happens when the required authority or offline authorization is unavailable."
+    ],
+    "capabilities": [
+      {
+        "title": "Configured thresholds",
+        "text": "Set the supported approval boundary for sensitive work so staff know when they can proceed directly and when the next decision belongs to a supervisor or manager."
+      },
+      {
+        "title": "Named decision",
+        "text": "Retain both the person requesting an action and the person approving it, creating a clearer account of responsibility than a shared manager sign-in used by everyone."
+      },
+      {
+        "title": "Recorded reason",
+        "text": "Keep the explanation with the sensitive action so a later review can understand the commercial decision rather than seeing only that a refund or adjustment happened."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Do manager approvals mean every small exception stops checkout?",
+        "a": "Your configured policy determines which actions require approval and at what thresholds. The useful goal is a clear distinction between ordinary cashier authority and decisions that deserve another authorized person, rather than interrupting every routine task."
+      },
+      {
+        "q": "Will approvals work during an outage?",
+        "a": "Some supported offline approval paths depend on previously cached, valid authorization and the configured policy. Confirm the exact supported action and device conditions in rehearsal; do not assume any manager can approve every action while disconnected."
+      }
+    ],
+    "related": [
+      "price-overrides",
+      "action-audit-trail",
+      "store-scoped-roles"
+    ],
+    "flow": [
+      "Request the exception",
+      "Verify the approver",
+      "Retain the decision"
+    ],
+    "demoQuestion": "Show us an above-threshold refund with its requested action, manager decision and retained reason."
+  },
+  "action-audit-trail": {
+    "intro": "An owner cannot stand beside every register, stock adjustment and account conversation. The action audit trail provides a recorded explanation of sensitive work, helping the business answer who acted, what changed and which decision supported the outcome.",
+    "explanation": [
+      "That context becomes valuable when a transaction is questioned days later. A price reduction with a named approver and recorded reason tells a different story from an unexplained difference. Retaining before-and-after evidence gives the review something concrete rather than asking people to reconstruct a busy shift from memory.",
+      "An audit trail records application actions; it does not observe what physically happened in the greenhouse or at the cash drawer. Use the evidence to guide a fair operational conversation, alongside the actual goods, documents and staff knowledge needed to understand the event."
+    ],
+    "capabilities": [
+      {
+        "title": "People and authority",
+        "text": "Review the actor and, where applicable, the approver together, showing the relationship between someone requesting work and someone authorized to permit the sensitive decision."
+      },
+      {
+        "title": "Change context",
+        "text": "Retain the relevant before-and-after state and reason for supported actions, providing more useful evidence than a standalone timestamp saying only that something was updated."
+      },
+      {
+        "title": "Store and device",
+        "text": "Keep operational context with the action so the owner can investigate the appropriate location, register or device rather than guessing where a recorded change originated."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can an audit trail prove who physically handed over cash?",
+        "a": "It records authenticated application actions and their retained context. That evidence supports review, but it does not independently observe physical handling or replace the store's staff supervision and cash-management procedures."
+      },
+      {
+        "q": "Why keep the original record after a correction?",
+        "a": "A correction explains how the business addressed an earlier event. Preserving both gives the owner a coherent history, whereas replacing or deleting the first action can remove the context needed to understand the final result."
+      }
+    ],
+    "related": [
+      "manager-approvals",
+      "stock-movement-history",
+      "payment-history"
+    ],
+    "flow": [
+      "Find the action",
+      "Review its evidence",
+      "Understand the correction"
+    ],
+    "demoQuestion": "Show us a corrected sensitive action where both the original decision and the later remedy remain understandable."
+  },
+  "opening-floats": {
+    "intro": "A reliable close starts before the first customer arrives. Opening floats give each register session a counted starting cash amount, so the team has a common reference when reviewing sales, refunds and other cash movements at the end of the shift.",
+    "explanation": [
+      "The important number is the cash actually placed in the drawer, not the amount someone remembers from yesterday. Recording the opening count helps distinguish a starting difference from a discrepancy that arose during trading, making the closing conversation more specific and less dependent on assumptions.",
+      "The software does not count the money. Staff still need a consistent physical routine and the correct register context before opening. Practising that simple sequence with seasonal employees can make the daily process easier to follow, especially when several people cover the same counter during a busy period."
+    ],
+    "capabilities": [
+      {
+        "title": "Counted baseline",
+        "text": "Record the actual opening amount for the prepared register session so the expected closing position begins with an explicit cash figure rather than an inherited assumption."
+      },
+      {
+        "title": "Session context",
+        "text": "Keep the float associated with the session it starts, helping the owner review which cash baseline belongs to which period of trading and register operation."
+      },
+      {
+        "title": "Closing foundation",
+        "text": "Use the opening record alongside sales, refunds and permitted cash movements when explaining the final difference, rather than looking at the day's sales total as the only source of cash change."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we enter our usual float without counting it?",
+        "a": "The system can record an amount, but it cannot verify what is physically present. A real count is what makes the opening figure meaningful when staff later investigate whether a discrepancy existed before trading began."
+      },
+      {
+        "q": "Is the opening float part of sales revenue?",
+        "a": "It is the starting cash position of the register session, not a new customer purchase. Keep its purpose distinct from sales and later cash movements when reviewing the close with your team or accountant."
+      }
+    ],
+    "related": [
+      "cash-count-comparison",
+      "end-of-day-close",
+      "paid-in-and-paid-out"
+    ],
+    "flow": [
+      "Count starting cash",
+      "Record the float",
+      "Open the session"
+    ],
+    "demoQuestion": "Show us how an opening float contributes to the expected cash amount at the end of a shift."
+  },
+  "paid-in-and-paid-out": {
+    "intro": "Not every change in the drawer comes from a sale or a refund. Paid-in and paid-out records give permitted cash movements their own explanation, helping the closer understand why physical cash changed during the working day.",
+    "explanation": [
+      "Without a recorded reason, an authorized cash movement can look like a shortage or unexplained extra money. Keeping the amount and its purpose connected gives the owner a more useful review trail, particularly when the person closing the drawer was not present when the cash moved.",
+      "This is a cash-handling control, not permission for staff to remove money whenever they choose. Your store sets the allowable purposes, supporting paperwork and approval thresholds. Rehearse the process alongside opening and closing so the team knows which movements need a record and who may authorize them."
+    ],
+    "capabilities": [
+      {
+        "title": "Separate movement",
+        "text": "Record eligible cash entering or leaving the drawer outside a retail transaction, keeping its purpose distinct from product revenue and customer return activity in the session."
+      },
+      {
+        "title": "Reason and authority",
+        "text": "Retain the explanation and follow the relevant approval policy, giving a manager enough context to review why a movement was appropriate and who was permitted to perform it."
+      },
+      {
+        "title": "Close context",
+        "text": "Include documented cash movements in the closing conversation so staff can investigate the actual expected position instead of interpreting every difference as a missing sale or refund."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should a petty-cash withdrawal be entered as a negative sale?",
+        "a": "Use the supported cash-movement process for an eligible paid-out amount under store policy. A separate record preserves why cash moved instead of inventing a merchandise transaction to make the drawer total appear correct."
+      },
+      {
+        "q": "Does recording a cash movement prove it was authorized?",
+        "a": "The record should be considered with the configured permissions, approval evidence and store procedure. Entering a reason is useful context, but it does not replace the business's actual cash-handling authority and supporting documentation."
+      }
+    ],
+    "related": [
+      "opening-floats",
+      "cash-count-comparison",
+      "manager-approvals"
+    ],
+    "flow": [
+      "Identify the cash movement",
+      "Record its reason",
+      "Review it at close"
+    ],
+    "demoQuestion": "Show us a permitted paid-out movement and how the closer distinguishes it from a customer refund."
+  },
+  "register-assignments": {
+    "intro": "The device on a counter needs a more reliable identity than a sticker saying Till Two. Register assignments connect the prepared register to its intended store, helping sessions and recorded sales carry the correct operational context from the start.",
+    "explanation": [
+      "This matters when a garden centre adds another lane, moves equipment or operates multiple locations. Staff should be able to confirm where they are working before opening a session, rather than letting a familiar browser or device label silently determine which store receives the day's activity.",
+      "Changing an assignment deserves deliberate handling. Saved baskets, pending payments and unsynchronized work belong to their original context and must be reviewed before a device is repurposed. Treat reassignment as a setup operation, not a convenient way to bypass an error or start a different location without checking outstanding work."
+    ],
+    "capabilities": [
+      {
+        "title": "Store binding",
+        "text": "Associate the register with its intended store so checkout activity begins with a defined location context rather than relying only on the physical name of a tablet or computer."
+      },
+      {
+        "title": "Session continuity",
+        "text": "Retain the appropriate register and store identity with recorded work, making later sales and close review easier to follow across multiple lanes and different staff members."
+      },
+      {
+        "title": "Controlled reassignment",
+        "text": "Review saved work and the supported provisioning process before changing where a register belongs, protecting the original context of activity that may still require payment or synchronization recovery."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we move the same tablet to another store?",
+        "a": "Physical movement alone should not redefine the register. Review the supported reassignment process, outstanding work and the target store configuration before using the device for another location's sessions and customer transactions."
+      },
+      {
+        "q": "Why is a named register different from a staff login?",
+        "a": "Staff identity explains who is performing the work. The register assignment explains the operational location and device context of that work; both matter when reviewing a sale, approval, close or recovery issue."
+      }
+    ],
+    "related": [
+      "multi-store-configuration",
+      "staff-pin-sign-in",
+      "local-backup-hub-readiness"
+    ],
+    "flow": [
+      "Select the store",
+      "Bind the register",
+      "Confirm the working context"
+    ],
+    "demoQuestion": "Show us how a second register is assigned and what must be resolved before an existing device changes location."
+  },
+  "multi-store-configuration": {
+    "intro": "A second garden centre brings more than another address. Multi-store configuration gives each location an explicit operating context, helping the owner organize stores, registers and policies without assuming every site has the same currency, timezone or legal arrangement.",
+    "explanation": [
+      "The value is clarity at the boundaries. A sale should belong to the intended store; a transfer should explain where plants left and where they arrived. Configured business and location records give those operations a common foundation, rather than relying on a staff member to infer context from a device name.",
+      "Configuration should be reviewed before trading starts. Reporting currency, effective tax settings and store policies have consequences beyond the page where they are entered. A combined view does not imply automatic currency conversion or erase the need to reconcile each store's own sessions and operational records."
+    ],
+    "capabilities": [
+      {
+        "title": "Business structure",
+        "text": "Record the supported entity and store arrangement so the organization has an explicit foundation for its locations, registers and location-specific operational decisions within the POS."
+      },
+      {
+        "title": "Local context",
+        "text": "Retain relevant timezone, currency and policy configuration for each store, helping the team review activity in the context where it was actually recorded and carried out."
+      },
+      {
+        "title": "Movement between stores",
+        "text": "Support store-aware transfer records and register assignment by defining the source and destination locations clearly before plants, people or devices start working across the business."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a consolidated report convert currencies automatically?",
+        "a": "No currency conversion should be inferred from a multi-store view. Confirm reporting currency and the supported scope, and retain original currency context rather than combining different denominations as though they were interchangeable amounts."
+      },
+      {
+        "q": "Should we configure each location before adding registers?",
+        "a": "Yes. Confirm the business and store context first, then assign registers and appropriate staff authority to that structure. This gives later sessions, transfers and reports a clear location foundation from the beginning."
+      }
+    ],
+    "related": [
+      "register-assignments",
+      "inter-store-transfers",
+      "store-scoped-roles"
+    ],
+    "flow": [
+      "Define the business",
+      "Configure each store",
+      "Assign registers and people"
+    ],
+    "demoQuestion": "Show us two stores with their own register context and a transfer that retains both source and destination evidence."
+  },
+  "tablet-friendly-workspaces": {
+    "intro": "Receiving, stock review and customer questions do not always happen beside a desktop computer. Tablet-friendly workspaces give managers a responsive way to reach supported store tasks closer to the place where they are actually working during the day.",
+    "explanation": [
+      "The purpose is practical access, not simply shrinking a large table onto a smaller screen. A manager checking a delivery or reviewing a product needs readable context and an understandable next step. The same business workflow should remain recognizable as the available space and way of touching controls change.",
+      "A responsive layout is only one part of the device experience. Browser behavior, connectivity and peripherals must be checked on the equipment your store intends to use. A tablet view can support the work without certifying a scanner, printer or payment reader that has never been physically tested."
+    ],
+    "capabilities": [
+      {
+        "title": "Responsive access",
+        "text": "Use supported manager workflows in layouts designed to adapt to smaller screens, allowing routine review without assuming that every owner will always work from a full-size office monitor."
+      },
+      {
+        "title": "Consistent work",
+        "text": "Keep the purpose of catalogue, receiving and operational tasks recognizable as the screen changes, helping a manager return to familiar work from an appropriate supported browser device."
+      },
+      {
+        "title": "Device review",
+        "text": "Include the actual tablet, browser and connected equipment in onboarding so a successful page layout is assessed separately from network, printing, scanning or payment hardware behavior."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a tablet-friendly layout mean every iPad peripheral works?",
+        "a": "No. Responsive pages and compatible hardware are different checks. The exact browser, scanner, printer, drawer and reader setup require their own review and physical rehearsal before the store relies on them during trading."
+      },
+      {
+        "q": "Can the manager workspace replace a dedicated register screen?",
+        "a": "They serve different jobs. The manager workspace supports store administration and review; the register supports cashier work. Demonstrate the intended device and workflow together rather than assuming every screen is interchangeable at checkout."
+      }
+    ],
+    "related": [
+      "photo-assisted-receiving",
+      "hardware-compatibility-review",
+      "guided-store-setup"
+    ],
+    "flow": [
+      "Choose the store task",
+      "Review on your device",
+      "Confirm the equipment fit"
+    ],
+    "demoQuestion": "Show us receiving and product review on the actual tablet size our managers plan to use."
+  },
+  "guided-store-setup": {
+    "intro": "A good first trading day starts with knowing what still needs attention. Guided store setup brings business details, staff access, catalogue preparation and register readiness into a reviewable path before the garden centre makes promises to real customers.",
+    "explanation": [
+      "Setup is more than account creation. A store can have a login and still lack an approved merchant arrangement, correct product treatment or a tested printer. Making those dependencies visible helps the owner organize the people and decisions needed for a sensible cutover rather than discovering them during the first sale.",
+      "The final step is a store rehearsal, not a filled-out form. Staff should practise ordinary sales and difficult outcomes with the intended device configuration, then confirm the commercial, provider and operating decisions that remain outside the software. Readiness means knowing which evidence is complete and which still needs a person."
+    ],
+    "capabilities": [
+      {
+        "title": "Business foundation",
+        "text": "Review the store identity and operating context before preparing its registers, giving catalogue, staff and payment work a consistent business and location starting point for configuration."
+      },
+      {
+        "title": "Visible dependencies",
+        "text": "Identify the setup areas that still require action, such as merchant readiness, catalogue review or equipment checks, so missing information has a named next step rather than being quietly assumed complete."
+      },
+      {
+        "title": "Practical rehearsal",
+        "text": "Use the prepared setup as the basis for staff and device acceptance, distinguishing completed software configuration from a real store's confirmation that it can trade under its intended procedures."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does finishing setup mean we can take live payments immediately?",
+        "a": "No. Merchant authorization, enabled provider configuration, physical equipment checks and store launch approval have separate requirements. The setup workflow helps expose readiness work rather than converting a completed form into automatic permission to trade."
+      },
+      {
+        "q": "What should we practise before switching systems?",
+        "a": "Walk through the jobs that matter to your store, including sales, returns, receiving, uncertain payments and close. Use the intended hardware and staff, and confirm the relevant tax, guarantee and account policies before cutover."
+      }
+    ],
+    "related": [
+      "reviewed-migration",
+      "hardware-compatibility-review",
+      "cashier-practice"
+    ],
+    "flow": [
+      "Confirm the store details",
+      "Resolve readiness items",
+      "Rehearse the trading day"
+    ],
+    "demoQuestion": "Show us the setup checklist with an intentionally missing dependency and the next action an owner should take."
+  },
+  "sales-reporting": {
+    "intro": "A useful sales report helps an owner ask better questions about the day. Sales reporting brings recorded store activity into a period-based view, giving the garden centre a starting point for reviewing performance and deciding what deserves a closer look.",
+    "explanation": [
+      "The first question is coverage. A report built from synchronized and projected records may not yet include work still waiting on another register. Knowing which store, period and source context a number represents is more useful than treating every attractive dashboard total as a complete picture of the business.",
+      "Revenue is one part of that picture. Tender collections, tax, deposits and reviewed margin evidence serve different purposes and should be considered through their appropriate views. Use the report to explore the recorded sales story, then follow the underlying records when an unexpected change or discrepancy needs an explanation."
+    ],
+    "capabilities": [
+      {
+        "title": "Store and period",
+        "text": "Review recorded activity within its intended location and reporting period, giving comparisons a defined scope instead of relying on an unqualified all-time number without context."
+      },
+      {
+        "title": "Source awareness",
+        "text": "Consider synchronization and projection coverage when interpreting a total, so missing or delayed information is not mistaken for proof that no sales occurred during the selected period."
+      },
+      {
+        "title": "Further investigation",
+        "text": "Use supported reporting and transaction history together when a result deserves attention, connecting the overview to the actual sales or corrections behind the question you want to answer."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is the sales total always the same as money deposited in the bank?",
+        "a": "No. Sales, tender activity, provider fees and payout timing describe different things. Review the relevant reconciliation records rather than assuming a revenue figure alone explains the amount that reached the bank account."
+      },
+      {
+        "q": "What if one register has not synchronized?",
+        "a": "Its pending work may not be reflected in a server-based report yet. Review the register's status and report coverage before using the figure for a complete close, accounting decision or comparison with another period."
+      }
+    ],
+    "related": [
+      "tender-reconciliation",
+      "owner-exception-review",
+      "margin-and-seasonal-performance"
+    ],
+    "flow": [
+      "Choose the reporting scope",
+      "Review recorded activity",
+      "Follow the underlying question"
+    ],
+    "demoQuestion": "Show us how a sales report identifies its store, period and coverage when one register still has pending work."
+  },
+  "cash-count-comparison": {
+    "intro": "Counting the drawer is most useful when the team can explain the difference. Cash-count comparison places the actual physical count beside the session's recorded expectation, giving the closer a specific amount to investigate while the day's events are still fresh.",
+    "explanation": [
+      "The expectation begins with the opening float and changes through cash sales, eligible refunds and documented paid-in or paid-out movements. Reviewing those components helps the team look for a concrete cause, such as an unrecorded movement or starting difference, rather than assuming every mismatch came from a missed sale.",
+      "The count itself remains a staff responsibility. Enter what is physically present and investigate an unexpected variance through the store's procedure. Changing the count simply to match the expected amount would remove the most useful evidence the comparison is designed to preserve for the owner."
+    ],
+    "capabilities": [
+      {
+        "title": "Actual count",
+        "text": "Record the cash physically present at close, giving the session a measured outcome rather than replacing the count with whatever amount the software expected to find."
+      },
+      {
+        "title": "Expected position",
+        "text": "Review the relevant opening cash and recorded movements as the basis of the comparison, helping staff understand which parts of the session may explain a difference."
+      },
+      {
+        "title": "Variance conversation",
+        "text": "Use the discrepancy as a prompt for investigation while the people and paperwork from the shift are still available, retaining the evidence instead of silently adjusting away the question."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Should we enter the expected amount if our first count is different?",
+        "a": "Enter the real count and follow your recount or review procedure. The difference is useful evidence; replacing it with the expected amount can hide the very issue the close should help the owner understand."
+      },
+      {
+        "q": "Does a zero variance prove every payment is reconciled?",
+        "a": "It only addresses the cash comparison within its recorded scope. Card outcomes, account collections, synchronization and other financial exceptions may still need separate review even when the physical drawer matches its expected cash amount."
+      }
+    ],
+    "related": [
+      "opening-floats",
+      "paid-in-and-paid-out",
+      "end-of-day-close"
+    ],
+    "flow": [
+      "Count the drawer",
+      "Compare the expectation",
+      "Investigate the difference"
+    ],
+    "demoQuestion": "Show us a cash variance caused by a documented movement and how the closer traces the difference before sign-off."
+  },
+  "end-of-day-close": {
+    "intro": "At the end of a demanding day, the team needs a closing routine it can follow. End-of-day close brings unresolved payment work, physical cash counting and session review into a defined finish rather than a hopeful click before everyone goes home.",
+    "explanation": [
+      "A close should make outstanding questions visible. Saved or uncertain payments need their own recovery, and cash differences need an explanation grounded in the actual count and movements. Reviewing those items before completing the session gives tomorrow's staff a clearer starting point and the owner a more useful record.",
+      "Closing a register is not the same as confirming a bank payout or finalizing the accounts. It records the supported session outcome under your store's procedure. Keep the close evidence and follow the separate provider, reconciliation and accounting work required to understand the complete financial position."
+    ],
+    "capabilities": [
+      {
+        "title": "Open work review",
+        "text": "Identify the saved payment or operational questions that require attention before session completion, rather than treating the close action as a way to dismiss uncertain financial outcomes."
+      },
+      {
+        "title": "Cash sign-off",
+        "text": "Bring the actual drawer count into the review so the recorded close has a physical basis and an explainable difference where expected and counted amounts do not agree."
+      },
+      {
+        "title": "Retained session",
+        "text": "Keep an understandable outcome for the register period, giving the owner a record to revisit when a later cash, refund or trading question relates to that particular session."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can closing the till fix an uncertain card payment?",
+        "a": "No. The original payment outcome must be recovered or reconciled through its supported workflow. Closing should not invent a successful payment, erase the saved attempt or justify collecting the same customer amount again."
+      },
+      {
+        "q": "Should each store use its own closing procedure?",
+        "a": "The software provides the session workflow, while the business confirms counting, review and sign-off responsibilities. Rehearse the routine with the people who will perform it and the actual registers, cash equipment and payment setup involved."
+      }
+    ],
+    "related": [
+      "cash-count-comparison",
+      "z-reports",
+      "owner-exception-review"
+    ],
+    "flow": [
+      "Resolve open payments",
+      "Count and review cash",
+      "Complete the session"
+    ],
+    "demoQuestion": "Show us a complete close, including what happens when a payment or cash difference is still unresolved."
+  },
+  "z-reports": {
+    "intro": "A closing result needs a record the owner can return to after the counter is shut. Z reports summarize the supported completed register session, helping the team review its recorded trading and cash context without relying on someone's recollection of sign-off.",
+    "explanation": [
+      "Their role is specific. A Z report describes the register period that was closed, not every operational event across every store or every amount eventually deposited by a payment provider. Knowing that scope makes the report more useful when it is compared with another session or questioned later.",
+      "Use the retained summary as part of the close conversation and keep related records available for investigation. If a customer return or payment issue needs more detail, follow its underlying history. A clear closing summary should provide a useful reference, not replace the evidence behind its totals."
+    ],
+    "capabilities": [
+      {
+        "title": "Session summary",
+        "text": "Review the supported output for a completed register period, giving staff and owners a common reference for discussing the close after the physical counter work has finished."
+      },
+      {
+        "title": "Defined scope",
+        "text": "Keep the report tied to its actual register session rather than assuming that one closing output represents every store, provider settlement or accounting entry in the wider business."
+      },
+      {
+        "title": "Review reference",
+        "text": "Use the retained close context when investigating a discrepancy, then follow the relevant sale, refund or cash movement record instead of trying to reconstruct detailed events from a summary alone."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is a Z report our bank settlement report?",
+        "a": "No. A register close summarizes recorded session activity. A provider payout can include fees, different processing dates or other adjustments, so it needs separate evidence before being reconciled to a bank deposit."
+      },
+      {
+        "q": "Should we rely on a Z report instead of reviewing cash differences?",
+        "a": "The summary complements the physical count and exception review. Investigate an unexplained difference through the closing procedure rather than treating the existence of a report as proof that every underlying transaction has been resolved."
+      }
+    ],
+    "related": [
+      "end-of-day-close",
+      "tender-reconciliation",
+      "refund-session-reporting"
+    ],
+    "flow": [
+      "Complete the register session",
+      "Retain the summary",
+      "Review its scope"
+    ],
+    "demoQuestion": "Show us a retained Z report and the underlying records used when an owner questions one of its totals."
+  },
+  "refund-session-reporting": {
+    "intro": "A refund today for a purchase last week changes today's cash or payment activity. Refund-session reporting keeps that timing understandable while preserving the connection to the original sale, helping the owner explain both the purchase history and the session that handled its return.",
+    "explanation": [
+      "Those two dates answer different questions. The original sale tells staff which items, prices and tenders support the return. The refund session explains when the store actually handled the correction and which current drawer or payment review needs to account for that movement.",
+      "Keeping both relationships visible helps avoid a confusing close where an older transaction appears to have silently rewritten today's story. Review the original tender and actual refund state alongside the session information, especially when a provider outcome is still pending or a return is completed after an interruption."
+    ],
+    "capabilities": [
+      {
+        "title": "Original purchase",
+        "text": "Retain the sale linkage needed to understand the item, quantity and payment context that support the eligible return rather than treating the refund as an unrelated negative transaction."
+      },
+      {
+        "title": "Current session",
+        "text": "Attribute the recorded refund activity to the session that actually performed it, helping the closer explain today's cash and tender movements even when the purchase occurred earlier."
+      },
+      {
+        "title": "Outcome review",
+        "text": "Consider the retained refund status with its timing, so a pending or uncertain provider request is not confused with a completed financial movement merely because a return was initiated."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will returning an older purchase erase its original sale?",
+        "a": "The supported return keeps the original history and records the later correction. That relationship lets the owner understand what was sold and what was subsequently returned without rewriting the original transaction as though it never happened."
+      },
+      {
+        "q": "Why can today's drawer include a refund for last week's sale?",
+        "a": "The cash is leaving the drawer during today's session, so the close needs that current activity. The original receipt remains relevant evidence, but its sale date does not move today's physical cash effect back into the past."
+      }
+    ],
+    "related": [
+      "original-tender-returns",
+      "refund-progress",
+      "end-of-day-close"
+    ],
+    "flow": [
+      "Find the original sale",
+      "Record the current return",
+      "Review the refund session"
+    ],
+    "demoQuestion": "Show us a prior-day sale returned in today's session and how both dates remain understandable in the close."
+  },
+  "tender-reconciliation": {
+    "intro": "Knowing what sold is different from knowing how value was collected. Tender reconciliation separates the recorded payment methods and related corrections, helping the owner compare cash, cards and account activity without assuming one blended total explains the entire day.",
+    "explanation": [
+      "Each tender has its own follow-up questions. Cash needs a physical drawer comparison; a card needs its provider outcome and later settlement context; an account payment belongs to a receivable. Reviewing the components separately makes a mismatch more specific and avoids forcing unlike records into an apparently tidy number.",
+      "The recorded breakdown is a starting point for reconciliation, not a substitute for external evidence. Processing fees, payout schedules, uncertain operations and delayed synchronization can affect what the owner sees at different stages. Resolve those differences using the actual source records before describing a day as fully reconciled."
+    ],
+    "capabilities": [
+      {
+        "title": "Method breakdown",
+        "text": "Review the supported tender components independently so cash, card and eligible ledger activity retain their own purpose instead of disappearing into an unexplained single collection figure."
+      },
+      {
+        "title": "Correction context",
+        "text": "Keep returns and other relevant adjustments connected to their original payment method, helping the owner distinguish a later reversal from another new sale or an unrelated cash movement."
+      },
+      {
+        "title": "Settlement comparison",
+        "text": "Bring provider and bank evidence into the appropriate review rather than treating an internal card amount as proof that the same net amount arrived in the business's bank account."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Why do sales and bank deposits sometimes differ?",
+        "a": "Revenue, tax, tenders, provider fees and payout timing describe different stages of the financial story. Compare their actual scope and source evidence rather than assuming a deposit must equal the day's displayed sales total."
+      },
+      {
+        "q": "Does the tender breakdown prove all card payments succeeded?",
+        "a": "A recorded breakdown must be considered with actual payment states, unresolved operations and provider evidence. Do not treat an intended tender or uncertain attempt as settled money simply because it appears in a review workflow."
+      }
+    ],
+    "related": [
+      "payment-history",
+      "cash-count-comparison",
+      "receivable-payments"
+    ],
+    "flow": [
+      "Review payment methods",
+      "Match their source records",
+      "Resolve the differences"
+    ],
+    "demoQuestion": "Show us a day with cash, card and an account collection, including why its bank deposit is a separate reconciliation question."
+  },
+  "tax-reporting-context": {
+    "intro": "An owner reviewing collected tax needs to understand which transactions produced the amount. Tax reporting context retains the relevant sale treatment and supported breakdowns, giving the business and its adviser a clearer foundation for checking recorded tax activity.",
+    "explanation": [
+      "Product scope, jurisdiction and the purchase circumstances can matter at a garden centre. The useful record connects the treatment to the actual sale rather than presenting an unexplained tax figure detached from the goods and decision behind it. Returns and corrections also need to retain their original context.",
+      "A report does not decide legal eligibility or submit a return simply by displaying a number. The store must confirm its configuration, evidence and professional review requirements. Use the supported records to prepare a better accounting conversation, with the relevant dates, store scope and unresolved exceptions clearly understood."
+    ],
+    "capabilities": [
+      {
+        "title": "Sale treatment",
+        "text": "Retain the tax context associated with recorded transaction lines so later review can refer to the actual purchase rather than applying today's assumptions retroactively to an older sale."
+      },
+      {
+        "title": "Supported breakdown",
+        "text": "Review the available tax components within their reporting scope, giving the owner a more specific starting point than an unqualified total without store or period context."
+      },
+      {
+        "title": "Evidence trail",
+        "text": "Consider exemption records and relevant corrections alongside the reported amounts, helping an adviser understand how treatment was supported instead of relying only on a permanent customer label."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does the tax report file our tax return?",
+        "a": "No filing or legal advice is implied by a reporting view. Confirm the applicable process with your adviser and review configuration, source coverage and exceptions before using recorded figures for a statutory submission."
+      },
+      {
+        "q": "Can the system decide whether every plant is exempt?",
+        "a": "Product names alone are insufficient. Jurisdiction, intended use, product scope and supporting evidence may matter, so the owner must complete the relevant review and configuration rather than relying on a general gardening category."
+      }
+    ],
+    "related": [
+      "tax-exemption-evidence",
+      "refund-session-reporting",
+      "quickbooks-close-preparation"
+    ],
+    "flow": [
+      "Choose the tax scope",
+      "Review transaction treatment",
+      "Prepare adviser review"
+    ],
+    "demoQuestion": "Show us the evidence behind a taxed sale and an eligible exemption, including how a later return retains the original treatment."
+  },
+  "owner-exception-review": {
+    "intro": "An owner needs to know where to look first when the day does not quite add up. Exception review highlights recorded issues such as a close mismatch or payment finding, helping the business direct attention toward questions that still need an explanation.",
+    "explanation": [
+      "The value is prioritization, not an automatic verdict. A finding may point to incomplete coverage, delayed projection or an outcome that requires reconciliation. It should make the uncertainty easier to investigate without describing an unknown state as healthy or announcing that a charge failed without the evidence to support that claim.",
+      "A useful review ends with the underlying cause understood and the appropriate workflow followed. Dismissing a notification should not be confused with correcting a payment, stock position or financial record. Keep the source evidence and any required operational remedy connected to the question the owner was trying to resolve."
+    ],
+    "capabilities": [
+      {
+        "title": "Review-first signals",
+        "text": "Bring recorded discrepancies and incomplete sources to the owner's attention so the day can be reviewed in order of the questions that actually require a decision or further evidence."
+      },
+      {
+        "title": "Honest uncertainty",
+        "text": "Keep unavailable information distinguishable from zero activity or a healthy result, giving the owner a more accurate picture when a source has failed or coverage remains incomplete."
+      },
+      {
+        "title": "Source follow-through",
+        "text": "Use the relevant workspace and retained records to investigate a finding, ensuring the next action addresses its cause rather than merely removing a visible warning from the screen."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does a payment exception mean the customer was not charged?",
+        "a": "Not necessarily. It is a signal to inspect the actual retained payment and provider evidence. An uncertain outcome must be recovered before taking another payment, rather than interpreted as an automatic decline."
+      },
+      {
+        "q": "Can clearing an exception fix its underlying record?",
+        "a": "Acknowledging a review item does not itself move money, change stock or settle a provider operation. Follow the appropriate correction or recovery process and retain the evidence that explains how the actual issue was resolved."
+      }
+    ],
+    "related": [
+      "payment-recovery",
+      "visible-synchronization-status",
+      "end-of-day-close"
+    ],
+    "flow": [
+      "Review the finding",
+      "Inspect its source",
+      "Resolve the actual cause"
+    ],
+    "demoQuestion": "Show us the difference between an unavailable source, an unresolved payment and a confirmed failure in the owner review."
+  },
+  "business-data-exports": {
+    "intro": "Your store's records should remain useful beyond the screen where they were entered. Business data exports provide supported, authorized CSV or JSON archives, helping an owner prepare information for review while retaining the scope and context of what was exported.",
+    "explanation": [
+      "An export is useful when someone needs to work with the underlying records separately: an accountant, a migration review or the owner checking operational history. Defining the business scope matters because not every archive contains every document, image or historical detail a reviewer might expect.",
+      "It is also important to distinguish access from recovery. A readable file can support review without being a complete system backup or a tested route to restore trading after a failure. Confirm the supported contents and permissions before relying on an archive for a particular business purpose."
+    ],
+    "capabilities": [
+      {
+        "title": "Owner access",
+        "text": "Prepare supported business records through an authorized export process, keeping access to operational information within the appropriate business and role boundaries rather than exposing unrestricted data downloads."
+      },
+      {
+        "title": "Usable formats",
+        "text": "Work with supported CSV or JSON records for further review, giving the owner a practical way to inspect information outside the application when its documented scope fits the task."
+      },
+      {
+        "title": "Scope clarity",
+        "text": "Review what the archive includes and excludes before handing it to another person, helping the recipient understand the source, completeness and limitations of the supplied business information."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is an export the same as a disaster-recovery backup?",
+        "a": "No. An archive may make records available for review without restoring application state, device work or provider context. Recovery requires its own tested process, including the data and authority needed to resume trading safely."
+      },
+      {
+        "q": "Can we send any exported file directly to our accountant?",
+        "a": "First confirm that its scope and contents suit the requested review and that sharing is authorized. Customer information, supporting evidence and file completeness deserve attention rather than assuming every export is an approved accounting handoff."
+      }
+    ],
+    "related": [
+      "reviewed-migration",
+      "local-backup-hub-readiness",
+      "quickbooks-close-preparation"
+    ],
+    "flow": [
+      "Choose the export scope",
+      "Prepare the archive",
+      "Review included records"
+    ],
+    "demoQuestion": "Show us a business archive and its contents so we can understand which review tasks it supports and what requires separate evidence."
+  },
+  "quickbooks-close-preparation": {
+    "intro": "A bookkeeper needs to know what the day's money represents, not just that the drawer matched. QuickBooks close preparation organizes recorded sales, tax, tenders and liabilities for explicit review, giving the accounting conversation a clearer starting point before any supported journal action.",
+    "explanation": [
+      "A deposit, gift-card issue and account collection can move value without representing another ordinary product sale. The accounting workflow keeps those distinctions visible and requires reviewed supporting evidence, including applicable costs and processor fees, rather than inventing a balancing amount to make the numbers appear complete.",
+      "The implemented journal connection is designed for the QuickBooks sandbox and still needs verified company configuration, provider authorization and accountant acceptance. Saving a review is separate from posting. The commercial promise is a more disciplined preparation workflow, not unattended production bookkeeping or a claim that every store is already connected."
+    ],
+    "capabilities": [
+      {
+        "title": "Source classification",
+        "text": "Review the day's recorded components according to their purpose, keeping product revenue, captured tax, tender activity and relevant liabilities from being treated as one interchangeable cash total."
+      },
+      {
+        "title": "Reviewed mappings",
+        "text": "Prepare the supported accounting treatment using approved company and account context, with the owner and accountant responsible for the evidence and mappings appropriate to the business."
+      },
+      {
+        "title": "Explicit journal action",
+        "text": "Keep preparation, review and any supported sandbox posting distinguishable, so a saved packet is not described as a confirmed external accounting entry before the provider outcome is verified."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Is this an automatic live QuickBooks integration?",
+        "a": "No production posting should be promised from the implemented sandbox workflow. Company connection, consent, configuration and accountant review need acceptance, and a prepared or saved review is not itself a confirmed QuickBooks entry."
+      },
+      {
+        "q": "Why are gift cards and customer deposits reviewed separately from sales?",
+        "a": "They can represent obligations or money held before ordinary merchandise revenue is recognized. The accounting workflow keeps those purposes distinct so the owner and accountant can review the actual underlying transaction rather than count every collection as another sale."
+      }
+    ],
+    "related": [
+      "tender-reconciliation",
+      "customer-deposits",
+      "receivable-payments"
+    ],
+    "flow": [
+      "Review the daily source",
+      "Confirm accounting treatment",
+      "Prepare the supported journal"
+    ],
+    "demoQuestion": "Show our bookkeeper how sales, gift value, deposits and account collections are distinguished before any sandbox journal is sent."
+  },
+  "plant-care-guidance": {
+    "intro": "The customer takes home a living product, and the care conversation matters after checkout. Plant care guidance gives staff a place to review available light, watering and soil information against the confirmed plant identity before presenting it as advice.",
+    "explanation": [
+      "Good guidance starts with the right source. A familiar common name can cover different plants, and a universal watering interval may be inappropriate for the actual product. The supported care workflow retains source guidance and a draft-and-review process, allowing the retailer to publish the information it has checked.",
+      "This is a useful way to improve consistency without pretending every catalogue record is complete. Missing topics should remain visible as work to review. Care guidance is distinct from automated reminders or AI-generated instructions for every plant; those promises need their own source, identity and communication acceptance."
+    ],
+    "capabilities": [
+      {
+        "title": "Three essentials",
+        "text": "Organize available light, watering and soil guidance together, giving staff a consistent starting point for the most common care conversation when the confirmed product has reviewed information."
+      },
+      {
+        "title": "Retailer review",
+        "text": "Keep draft advice separate from published guidance, allowing the garden centre to check plant identity and source content before making it available through the supported product workflow."
+      },
+      {
+        "title": "Known coverage",
+        "text": "Recognize missing or incomplete guidance instead of filling gaps with invented claims, helping the team direct catalogue effort toward the products whose care information still needs attention."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will every product automatically get complete care instructions?",
+        "a": "No. Coverage depends on available source-backed guidance and retailer review. The supported workflow should preserve missing information honestly rather than invent a watering schedule, safety claim or soil requirement from the plant's name alone."
+      },
+      {
+        "q": "Is this an automatic plant-care reminder service?",
+        "a": "Care content and ongoing customer messages are different features. Publishing guidance does not enable a reminder campaign, establish marketing permission or prove that a future follow-up journey is configured for the customer."
+      }
+    ],
+    "related": [
+      "receipt-care-notes",
+      "common-and-botanical-names",
+      "product-setup-review"
+    ],
+    "flow": [
+      "Confirm the plant",
+      "Review the guidance",
+      "Publish checked care"
+    ],
+    "demoQuestion": "Show us a plant with complete reviewed care and another with missing topics so staff can see the difference."
+  },
+  "branded-email-receipts": {
+    "intro": "A receipt is one of the few messages customers actively ask a store to send. Branded email receipts make that moment more useful by delivering a readable record of the purchase through the configured transactional workflow, with the store clearly identified.",
+    "explanation": [
+      "The message should reflect the recorded transaction rather than act as a fresh calculation after the sale. Keeping the receipt tied to its original purchase helps the customer find the relevant details later and gives staff a consistent reference when answering a question about what was bought.",
+      "Sending also needs an honest outcome. A request entered at the till is different from a message accepted by the provider or received in an inbox. Review the store's delivery configuration and actual acceptance, and keep optional promotional communication separate from the customer's request for a receipt."
+    ],
+    "capabilities": [
+      {
+        "title": "Recognizable store",
+        "text": "Present the supported receipt under the retailer's configured identity, giving the customer a clearer connection between the transaction at the counter and the message they find afterward."
+      },
+      {
+        "title": "Recorded purchase",
+        "text": "Use the retained receipt details as the basis of the transactional copy, helping the customer revisit the original purchase without relying on a staff member to recreate its amounts."
+      },
+      {
+        "title": "Delivery workflow",
+        "text": "Retain the distinction between requesting, sending and receiving a receipt, allowing the store to investigate its configured delivery process rather than treating an entered address as proof of inbox arrival."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will requesting an email receipt subscribe the customer to offers?",
+        "a": "No. Transactional receipt delivery and optional ongoing marketing are separate choices. The store must use the appropriate preference and withdrawal process rather than infer campaign permission from a purchase or a receipt request."
+      },
+      {
+        "q": "Does a successful send request guarantee the receipt reached the inbox?",
+        "a": "No. Provider acceptance and recipient delivery are different stages, and inbox placement can have further limits. Confirm actual delivery behavior for the configured sender and use the available status evidence when investigating a missing message."
+      }
+    ],
+    "related": [
+      "hosted-receipt-viewing",
+      "separate-marketing-consent",
+      "receipt-care-notes"
+    ],
+    "flow": [
+      "Capture the receipt request",
+      "Send the recorded purchase",
+      "Review delivery status"
+    ],
+    "demoQuestion": "Show us a branded receipt and how a requested copy, provider acceptance and actual delivery are distinguished."
+  },
+  "hosted-receipt-viewing": {
+    "intro": "Customers need an easy way to revisit a purchase without asking staff to explain an email attachment. Hosted receipt viewing provides a signed destination for the supported recorded receipt, giving the message's view link a useful place to open.",
+    "explanation": [
+      "The destination should explain the original transaction clearly. It is a receipt view, not an editable order form or a current account balance that changes the meaning of what was purchased. Retaining that purpose helps the customer and store use the same reference when discussing the sale later.",
+      "The link also deserves appropriate handling. A signed receipt destination is intended for the person who needs that transaction, not a publicly advertised customer record. Use the valid generated link and confirm service configuration rather than copying private receipt URLs into public marketing material or unrelated customer communications."
+    ],
+    "capabilities": [
+      {
+        "title": "Readable destination",
+        "text": "Open the supported recorded receipt in a dedicated view, giving customers an accessible way to revisit the purchase details from the transactional message that delivered their copy."
+      },
+      {
+        "title": "Purchase reference",
+        "text": "Keep the destination connected to the original receipt so later customer service can begin with the same transaction rather than a manually reconstructed summary of the sale."
+      },
+      {
+        "title": "Signed access",
+        "text": "Use the generated signed link for the intended receipt, treating it as a private customer-service destination rather than an ordinary public page that staff should share indiscriminately."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does the customer need to find the receipt in a public directory?",
+        "a": "No public receipt directory is implied. The supported workflow uses a signed link associated with the intended transaction, so the customer should use the valid destination supplied through the store's receipt process."
+      },
+      {
+        "q": "Can we post a real receipt link as a website example?",
+        "a": "Keep real customer receipt links private. Use a clearly prepared demonstration example for marketing, and verify that any displayed purchase information is appropriate to share rather than exposing an actual transaction's signed destination."
+      }
+    ],
+    "related": [
+      "branded-email-receipts",
+      "payment-history",
+      "original-tender-returns"
+    ],
+    "flow": [
+      "Open the receipt link",
+      "View the recorded purchase",
+      "Keep access private"
+    ],
+    "demoQuestion": "Show us the hosted receipt from a demonstration sale and how the view stays tied to that original purchase."
+  },
+  "receipt-care-notes": {
+    "intro": "The care advice shared at the counter can be easy to forget by the time a customer reaches home. Receipt care notes bring eligible published guidance closer to the purchase, helping the shopper revisit useful information alongside the record they already requested.",
+    "explanation": [
+      "This feature depends on the care content behind the item. The supported receipt rendering can include available reviewed notes, but it should not turn an incomplete product record into apparently complete advice. A customer with several plants needs guidance associated with the correct purchased products, not a generic growing tip presented as universal.",
+      "Care on a receipt is also different from an ongoing message programme. The receipt remains a transactional reference for the purchase. Reminder schedules, future promotional tips and complete public care-guide coverage require separate configuration and acceptance rather than being implied by the presence of a few useful notes."
+    ],
+    "capabilities": [
+      {
+        "title": "Purchase connection",
+        "text": "Keep eligible care information associated with the purchased item in the supported receipt content, giving the customer useful context when several different products came home in one visit."
+      },
+      {
+        "title": "Reviewed guidance",
+        "text": "Use published care from the confirmed product record instead of generating an unsupported instruction during receipt preparation, preserving the retailer's role in checking advice before it is shared."
+      },
+      {
+        "title": "Clear limits",
+        "text": "Distinguish available notes from a promise that every item has complete guidance or that the customer has enrolled in an ongoing reminder journey after receiving the receipt."
+      }
+    ],
+    "faq": [
+      {
+        "q": "What happens when a purchased plant has no reviewed care?",
+        "a": "The workflow should include only the guidance actually available and eligible for the receipt. Missing advice should not be filled with invented instructions simply to make every purchased line look equally complete."
+      },
+      {
+        "q": "Will the customer receive automatic watering reminders afterward?",
+        "a": "Receipt notes do not by themselves enable recurring care messages. Any future follow-up journey needs its own supported configuration, appropriate customer choice and verified delivery process, rather than inheriting permission from the receipt request."
+      }
+    ],
+    "related": [
+      "plant-care-guidance",
+      "branded-email-receipts",
+      "separate-marketing-consent"
+    ],
+    "flow": [
+      "Review published care",
+      "Attach eligible notes",
+      "Deliver the purchase record"
+    ],
+    "demoQuestion": "Show us a mixed basket where one plant has reviewed care and another does not, without inventing advice for the missing record."
+  },
+  "separate-marketing-consent": {
+    "intro": "A customer can want proof of purchase without wanting future promotions. Separate marketing consent keeps those choices understandable at the till, helping the store ask clearly for optional ongoing communication while still handling the transactional receipt the customer requested.",
+    "explanation": [
+      "The distinction is practical as well as respectful. An email address entered for a receipt identifies where that document should go; it does not explain which future offers the person agreed to receive. Keeping the preference separate gives staff a simpler conversation and the business a clearer record of the customer's actual choice.",
+      "The store still needs to configure wording that describes its real communications and an appropriate withdrawal mechanism. A software checkbox is not a complete legal compliance programme. Review the supported consent authority and connected systems before assuming that a preference automatically controls every channel or campaign in the wider business."
+    ],
+    "capabilities": [
+      {
+        "title": "Distinct choices",
+        "text": "Present receipt delivery separately from the optional ongoing communication preference, allowing a customer to request the transaction record without being forced to accept future promotional contact."
+      },
+      {
+        "title": "Clear explanation",
+        "text": "Use store-specific wording that describes the communications actually being offered, helping staff explain what the optional choice means instead of treating a vague permission label as sufficient context."
+      },
+      {
+        "title": "Connected responsibility",
+        "text": "Review which system retains and applies the preference for the configured business, especially before describing a POS choice as synchronized automatically across website, CRM and every campaign channel."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can someone receive a receipt while declining marketing?",
+        "a": "Yes. The receipt request and optional ongoing preference should remain separate. Staff should be able to complete the transactional request without interpreting the customer's purchase or address as agreement to future offers."
+      },
+      {
+        "q": "Does selecting a preference make every connected campaign compliant?",
+        "a": "No. The store must confirm its wording, authority, withdrawal process and actual channel behavior. A recorded choice is useful evidence, but it does not prove that every external system or future communication is configured appropriately."
+      }
+    ],
+    "related": [
+      "branded-email-receipts",
+      "bloomsites-product-photo-sharing",
+      "customer-lookup"
+    ],
+    "flow": [
+      "Explain the receipt choice",
+      "Ask about ongoing contact",
+      "Retain the preference"
+    ],
+    "demoQuestion": "Show us a customer requesting a receipt and declining marketing, including which system retains that exact choice."
+  },
+  "bloom-pos-assistant": {
+    "intro": "A manager should be able to ask for help in the language of the job. The Bloom POS assistant connects supported store questions and how-to guidance with cited sources, giving the owner a starting point and a way to inspect the basis of an answer.",
+    "explanation": [
+      "The useful experience goes beyond a confident paragraph. Staff can follow relevant records or maintained guides and use supported reviewed task workflows where available. The manager remains responsible for checking the suggestion and confirming an intended change; a conversation should not silently become a financial or stock operation.",
+      "Keep the boundaries of the actual source clear. Missing records are not zero activity, and an assistant response is not independent evidence that a provider payment completed. The strongest role for Bloom is to help a manager understand the work, identify a next step and review it before acting."
+    ],
+    "capabilities": [
+      {
+        "title": "Cited answers",
+        "text": "Ask supported questions and inspect the referenced store records or guides, making the explanation easier to assess than an answer that offers no way to see where its details came from."
+      },
+      {
+        "title": "Contextual direction",
+        "text": "Get a starting point for the relevant workspace or store task, helping a manager move from a broad question toward the actual record or procedure that needs attention."
+      },
+      {
+        "title": "Reviewed tasks",
+        "text": "Use the supported proposal and confirmation process for eligible catalogue work, keeping the manager involved in the intended change rather than treating conversational suggestions as permission for autonomous action."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can Bloom issue refunds or change stock automatically?",
+        "a": "No autonomous financial or stock authority should be implied. Payments, refunds, permissions and inventory changes remain in their appropriate reviewed workflows; the assistant's role and any supported task must stay within explicit authorization and confirmation boundaries."
+      },
+      {
+        "q": "Is Bloom limited to a static help article search?",
+        "a": "The supported experience includes cited guidance and store-context questions, with eligible reviewed task assistance. Available sources and configuration matter, so demonstrate a relevant question and its citations rather than promising unrestricted answers about every aspect of the business."
+      }
+    ],
+    "related": [
+      "searchable-pos-guidebook",
+      "owner-exception-review",
+      "catalogue-price-editing"
+    ],
+    "flow": [
+      "Ask about the job",
+      "Inspect the sources",
+      "Review the next action"
+    ],
+    "demoQuestion": "Show us a receiving question, its cited guidance and one supported catalogue task that requires our explicit confirmation."
+  },
+  "searchable-pos-guidebook": {
+    "intro": "Staff should not need to remember an internal screen name to find a useful explanation. The searchable POS guidebook organizes maintained workflow guidance, helping managers return to the right procedure when an unfamiliar task or occasional problem interrupts the day.",
+    "explanation": [
+      "Some store jobs happen too infrequently to become second nature. A first seasonal order, an interrupted return or an unusual close question can send someone looking for the same instructions again. A findable guide library gives those questions a more consistent starting point than a colleague's partial recollection.",
+      "Guidance still has a defined purpose. It explains supported workflows; it does not approve a store policy, certify a physical printer or confirm a particular transaction succeeded. Use the guide as part of onboarding and everyday help, then demonstrate the actual task with the permissions and setup your store will use."
+    ],
+    "capabilities": [
+      {
+        "title": "Searchable instructions",
+        "text": "Find maintained guidance using the job or problem being discussed, helping a manager locate a relevant procedure without already knowing which application module or technical term owns it."
+      },
+      {
+        "title": "Repeatable learning",
+        "text": "Return to the same supported explanation for an occasional workflow, giving staff a more consistent reference when a task has not been performed since the previous season."
+      },
+      {
+        "title": "Assisted help",
+        "text": "Use supported cited how-to answers alongside the guide library where configured, keeping the underlying instructions available for inspection rather than asking staff to accept an untraceable conversational summary."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does using the guidebook mean staff do not need training?",
+        "a": "No. Written guidance supports learning but cannot prove that someone can complete the store's real process independently. Rehearse the common jobs with actual staff, devices and policies, then use the guides for reinforcement and occasional questions."
+      },
+      {
+        "q": "Can a guide confirm that an uncertain payment completed?",
+        "a": "No. Instructions explain what to do; actual retained payment and provider evidence establish the outcome. Follow the relevant recovery workflow rather than treating an article or assistant explanation as proof that money moved."
+      }
+    ],
+    "related": [
+      "bloom-pos-assistant",
+      "cashier-practice",
+      "owner-exception-review"
+    ],
+    "flow": [
+      "Search the task",
+      "Read the maintained guide",
+      "Apply the store procedure"
+    ],
+    "demoQuestion": "Show us how a manager finds receiving guidance without knowing the exact screen name in advance."
+  },
+  "bloomsites-product-photo-sharing": {
+    "intro": "Choosing a better product photo should not always mean uploading it twice. BloomSites product-photo sharing gives explicitly connected, matched products a controlled route from the manager's POS gallery to the corresponding website gallery, with delivery status the owner can understand.",
+    "explanation": [
+      "The important distinction is between saving locally and confirming the website accepted the change. A POS save or upload alone should not be labelled as a completed website update. The supported connection retains pending delivery and exact confirmation, making it easier to see where the photo currently stands.",
+      "This is a deliberately narrow connection. The intended business, website and product mappings must be verified before enabling it. Photo sharing does not establish universal shared sign-in, customer consent, live stock or price synchronization; those are different data relationships with their own authority and acceptance requirements."
+    ],
+    "capabilities": [
+      {
+        "title": "Retailer photo choice",
+        "text": "Preserve the manager's selected gallery for the matched product rather than letting a later supplier refresh silently replace the retailer's preferred presentation in the connected photo workflow."
+      },
+      {
+        "title": "Delivery visibility",
+        "text": "Distinguish a saved local gallery from a queued change and a confirmed website receipt, giving the owner a meaningful status instead of a success message based only on upload completion."
+      },
+      {
+        "title": "Explicit mapping",
+        "text": "Limit publication to the approved POS product and destination website relationship, keeping a photo connection from becoming assumed authority to change unrelated products or another business's catalogue."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does changing a photo also synchronize price and inventory?",
+        "a": "No. This connection publishes the approved gallery for explicitly mapped products. Product identity, pricing, stock, customers and consent have separate authority requirements and should not be described as connected merely because a photo was delivered successfully."
+      },
+      {
+        "q": "Why can a saved photo still be waiting to share?",
+        "a": "The local edit and the website's durable acceptance are separate stages. Review the configured connection and delivery status; a successful POS save does not prove the corresponding website product already received the intended gallery."
+      }
+    ],
+    "related": [
+      "product-photographs",
+      "product-variants",
+      "visible-synchronization-status"
+    ],
+    "flow": [
+      "Choose the POS gallery",
+      "Publish the mapped photo",
+      "Confirm website acceptance"
+    ],
+    "demoQuestion": "Show us a local photo change, its pending delivery state and the exact confirmation from the matched website product."
+  },
+  "reviewed-migration": {
+    "intro": "Switching POS systems should begin with understanding the records your store actually has. Reviewed migration brings supported source adapters, dry-run checks and control totals into the preparation, helping the owner make an informed cutover decision instead of trusting an unchecked import.",
+    "explanation": [
+      "Different record types deserve different questions. A product name and price are not opening stock, while a customer list is not a verified gift-card or trade-account balance. Reviewing scope separately prevents an apparently successful catalogue import from being mistaken for a complete migration of every operational and financial obligation.",
+      "Use real exports and reconcile the agreed totals with the people responsible for the old and new systems. Supported adapters and source formats vary. The goal is a traceable, reviewed transition plan, with unresolved records visible before they become a counter problem or a customer balance dispute."
+    ],
+    "capabilities": [
+      {
+        "title": "Source review",
+        "text": "Check the actual available export and supported adapter before promising what can move, keeping the migration plan grounded in the store's records rather than a generic list of incumbent systems."
+      },
+      {
+        "title": "Dry-run evidence",
+        "text": "Review proposed records and validation findings before application, giving the owner a chance to understand exceptions and confirm the intended source instead of accepting an unchecked file blindly."
+      },
+      {
+        "title": "Control totals",
+        "text": "Compare the agreed product and balance scope with reconciled source figures, retaining explicit sign-off where required rather than interpreting a successful import action as proof of a complete business cutover."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we migrate every historical sale from any POS?",
+        "a": "No universal history migration is promised. Supported adapters, record types and available source evidence vary, so review the actual exports and agreed scope before deciding which history and balances can be transferred reliably."
+      },
+      {
+        "q": "Why is a product import different from opening stock?",
+        "a": "A catalogue describes what the store sells. Opening stock describes physical quantities at cutover and needs its own reconciliation. Successful name and price import does not independently verify how many healthy, available plants are actually on site."
+      }
+    ],
+    "related": [
+      "product-setup-review",
+      "business-data-exports",
+      "guided-store-setup"
+    ],
+    "flow": [
+      "Inspect the real source",
+      "Review the proposed records",
+      "Reconcile the cutover scope"
+    ],
+    "demoQuestion": "Show us a dry run with a deliberate source problem and explain which data types are included in our proposed migration."
+  },
+  "hardware-compatibility-review": {
+    "intro": "Keeping useful equipment can make a POS transition more practical, but compatibility deserves evidence. A hardware review starts with the devices your garden centre already owns and checks the complete checkout arrangement before recommending what to retain, configure or replace.",
+    "explanation": [
+      "A browser-based register is only one piece of the counter. Scanners, printers, cash drawers and payment readers use different protocols and have regional or model-specific requirements. An attractive page on an iPad does not demonstrate a physical print, a drawer opening or an approved Canadian card transaction.",
+      "Review the intended bundle as a working lane. Reconnection, power or internet interruptions and payment recovery need attention alongside an ordinary sale. The right promise is a careful compatibility process, followed by an actual hardware rehearsal, rather than a claim that every pre-existing device will work simply because it turns on."
+    ],
+    "capabilities": [
+      {
+        "title": "Existing equipment",
+        "text": "Start with the exact tablet or computer and peripherals already in the store, helping the business make a realistic reuse decision before spending on replacement counter hardware."
+      },
+      {
+        "title": "Complete lane",
+        "text": "Assess the register, scanner, printer, drawer and reader together, because individually plausible devices still need a compatible working path when a customer is standing at the counter."
+      },
+      {
+        "title": "Physical rehearsal",
+        "text": "Verify real scanning, printing, drawer behavior and payment outcomes on the intended models, keeping a simulated software pass separate from evidence gathered on the store's actual equipment."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we run BloomSuite on a Clover terminal we already own?",
+        "a": "Do not assume a proprietary terminal accepts another POS application. Review the exact device and platform restrictions; an existing iPad or supported browser device has a different compatibility question from a locked payment-and-register appliance."
+      },
+      {
+        "q": "Does a reader from another country work with our Canadian account?",
+        "a": "Do not assume readers and merchant regions are interchangeable. Confirm the account, reader country, Terminal Location and supported integration together before purchasing or attempting activation, and verify the intended Canadian payment flows on physical equipment."
+      }
+    ],
+    "related": [
+      "tablet-friendly-workspaces",
+      "integrated-card-payments",
+      "network-label-printing-from-ipad"
+    ],
+    "flow": [
+      "Inventory the equipment",
+      "Review the exact models",
+      "Rehearse the complete lane"
+    ],
+    "demoQuestion": "Review our current scanner, printer, drawer and tablet together, then identify the physical tests required before we can rely on them."
+  },
+  "offline-cash-selling": {
+    "intro": "An internet interruption should lead to a known store procedure, not a guessing game at the counter. Offline cash selling supports eligible local register work on a prepared device, helping the team continue under its configured rules while keeping saved and synchronized states distinguishable.",
+    "explanation": [
+      "Preparation is essential. The register needs the appropriate downloaded catalogue, authenticated context and current eligible rules before the connection disappears. Offline operation does not make unavailable data current, authorize every tender or create new staff sign-in capability simply because the screen remains open.",
+      "Device-loss protection is another separate question. A sale saved on one tablet still has only one copy until the configured independent hub confirms its snapshot. Rehearse the actual cash, receipt, backup and reconnection sequence with staff so they understand which work is retained locally and which has confirmed protection."
+    ],
+    "capabilities": [
+      {
+        "title": "Prepared register",
+        "text": "Use supported cached catalogue and session context already available to the intended device, giving eligible cash work a defined basis rather than assuming an unprepared browser can begin trading offline."
+      },
+      {
+        "title": "Local continuity",
+        "text": "Retain supported cash-sale work through the register's local process, keeping the customer's payment and saved operation understandable while the normal server synchronization path is interrupted."
+      },
+      {
+        "title": "Recovery awareness",
+        "text": "Review pending work and required second-copy confirmation during the store's outage routine, distinguishing local saving, hub protection and later cloud acceptance instead of treating them as one identical success."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does offline cash selling include offline card payments?",
+        "a": "No. Offline card acceptance is not included in this promise, particularly on iPad Safari. Card, reward and other online-authorized flows have their own provider and balance requirements, even while eligible cash work can use the prepared register."
+      },
+      {
+        "q": "Can we clear Safari storage if the register seems stuck?",
+        "a": "Do not clear site data or replace the device while work remains unsynchronized or a payment is unresolved. Follow the supported recovery procedure so the original saved events and operation identities remain available for reconciliation."
+      }
+    ],
+    "related": [
+      "offline-catalogue-access",
+      "visible-synchronization-status",
+      "local-backup-hub-readiness"
+    ],
+    "flow": [
+      "Prepare the register",
+      "Follow eligible cash checkout",
+      "Confirm saved and synced status"
+    ],
+    "demoQuestion": "Take the prepared register offline and show us exactly when the cash sale is saved, protected by a second copy and accepted by the server."
+  },
+  "offline-catalogue-access": {
+    "intro": "A plant lookup should not become impossible simply because an online request is unavailable. Offline catalogue access keeps previously downloaded product details available to a prepared register, giving staff a reference for eligible work during a connection interruption.",
+    "explanation": [
+      "The useful boundary is the downloaded snapshot. Staff can work with the records the device already has, rather than expecting newly added products or later edits to appear without a connection. This helps the team understand why the local view can remain usable while still needing a refresh when connectivity returns.",
+      "Catalogue access is not a promise that every related operation works offline. Recorded stock can have freshness limits, and some prices, identity checks or payment methods require current online authority. Rehearse those differences so staff know when they can use a downloaded product and when another action must wait or be escalated."
+    ],
+    "capabilities": [
+      {
+        "title": "Downloaded details",
+        "text": "Keep supported product information from the prepared register's cached catalogue within reach, giving staff a local starting point for finding the correct item when the normal request path is interrupted."
+      },
+      {
+        "title": "Known snapshot",
+        "text": "Recognize that the device is using previously downloaded records, helping the team avoid treating an older product list or price context as a real-time update from another store or channel."
+      },
+      {
+        "title": "Clear boundaries",
+        "text": "Distinguish access to product details from authority to complete a particular sale or tender, keeping online-only checks and configuration requirements explicit even when browsing itself remains available."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will a product added during the outage appear on another disconnected till?",
+        "a": "Not until that till receives the relevant update through the supported refresh path. Offline access uses the records already downloaded to that device rather than creating a live connection between disconnected registers."
+      },
+      {
+        "q": "Does seeing a cached item mean its stock quantity is guaranteed?",
+        "a": "No. A product record and a verified physical quantity answer different questions. Other sales, reservations and shrink may affect availability, so staff must consider recorded freshness and actual stock rather than interpreting catalogue visibility as a guarantee."
+      }
+    ],
+    "related": [
+      "plant-search",
+      "recorded-stock-visibility",
+      "offline-cash-selling"
+    ],
+    "flow": [
+      "Download the catalogue",
+      "Use the saved snapshot",
+      "Refresh after reconnection"
+    ],
+    "demoQuestion": "Show us what remains available in the catalogue during an outage and which subsequent actions still require an online check."
+  },
+  "visible-synchronization-status": {
+    "intro": "Staff need to know what the register has saved and what the server has actually accepted. Visible synchronization status makes pending and failed work a reviewable part of the day, helping the owner avoid assuming that a locally finished task is already reflected everywhere.",
+    "explanation": [
+      "That distinction matters when reviewing reports or recovering from an outage. A queue can explain why a server-based total is incomplete, while a failed event may need more than another blind attempt. The retained work should remain available with its original identity until the supported process confirms the outcome or identifies the required correction.",
+      "Good status information changes the next action. The team can reconnect, inspect a problem or seek authorized help while preserving the saved evidence. Clearing browser storage to remove a warning would discard the very context needed to understand whether the work was accepted and how it should be recovered."
+    ],
+    "capabilities": [
+      {
+        "title": "Pending visibility",
+        "text": "See work still awaiting the normal synchronization outcome, giving staff a reason to check coverage before assuming a server report includes every transaction saved on the register."
+      },
+      {
+        "title": "Failure distinction",
+        "text": "Keep failed or rejected work distinguishable from completed acceptance, helping the owner investigate the actual cause rather than interpreting every queue item as a harmless delay."
+      },
+      {
+        "title": "Original evidence",
+        "text": "Retain saved operations and their identities through recovery, allowing the supported retry and reconciliation process to address the same work instead of creating a duplicate transaction to replace an uncertain one."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does an empty-looking screen prove all work reached the server?",
+        "a": "Use the supported acknowledgement and status evidence rather than visual assumptions. Local completion, a queued request and server acceptance are separate states, and a report may still need its own coverage review."
+      },
+      {
+        "q": "Should staff create the sale again if it remains pending?",
+        "a": "Do not duplicate the transaction merely because its acknowledgement is delayed. Preserve the original saved work and follow recovery or authorized reconciliation so the same customer payment is not turned into a second independent sale."
+      }
+    ],
+    "related": [
+      "offline-cash-selling",
+      "payment-recovery",
+      "owner-exception-review"
+    ],
+    "flow": [
+      "Review pending work",
+      "Inspect a failure",
+      "Confirm acknowledgement"
+    ],
+    "demoQuestion": "Show us a saved operation with a delayed response and how it is recovered without creating a second sale."
+  },
+  "local-backup-hub-readiness": {
+    "intro": "A register that keeps working without internet still needs a plan for losing the device itself. Local backup hub readiness addresses that different problem, using an independent store-network second copy whose acknowledgement means more than a save on the original tablet.",
+    "explanation": [
+      "The distinction is physical as well as technical. The recovery service belongs on a separate, persistent machine on the store network, not another tab on the same iPad. Its confirmed snapshot protects the work included in that copy; newer unacknowledged changes must remain visible as additional exposure.",
+      "A replacement rehearsal completes the picture. The owner needs the recovery credentials, trusted network setup and supported reconciliation process before relying on a recovery promise. Internet is currently required for replacement authority and reconciliation, and no software test alone establishes a timed recovery on the store's actual equipment."
+    ],
+    "capabilities": [
+      {
+        "title": "Independent copy",
+        "text": "Use the configured hub on a separate persistent store-network host, keeping the recovery copy outside the tablet whose loss or failure the arrangement is intended to address."
+      },
+      {
+        "title": "Confirmed snapshot",
+        "text": "Distinguish an acknowledged durable backup generation from a local save or attempted network send, making it clearer which work has actually reached the second-copy boundary."
+      },
+      {
+        "title": "Rehearsed replacement",
+        "text": "Review the owner recovery process and retained uncertain operations on the intended equipment, ensuring the store knows the credentials, evidence and reconciliation steps needed before a replacement register can resume safely."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can another browser tab on the same iPad be our backup hub?",
+        "a": "No. The supported protection depends on an independent persistent store-network host. Another tab on the same device does not protect against losing that device, and a second iPad is not assumed to be a supported replica host."
+      },
+      {
+        "q": "Does this guarantee recovery from every kind of loss?",
+        "a": "No. Unacknowledged changes, lost recovery credentials and wider loss of both source and hub have different limits. Confirm the actual scope and physically rehearse replacement rather than treating the presence of a backup setting as universal protection."
+      }
+    ],
+    "related": [
+      "offline-cash-selling",
+      "visible-synchronization-status",
+      "register-assignments"
+    ],
+    "flow": [
+      "Pair the independent hub",
+      "Confirm the second copy",
+      "Rehearse replacement recovery"
+    ],
+    "demoQuestion": "Show us the difference between locally saved work and a confirmed second copy, then walk through an actual replacement-device rehearsal."
+  },
+  "plant-and-shelf-labels": {
+    "intro": "The product record becomes more useful when it reaches the label customers and cashiers actually see. Plant and shelf labels bring supported botanical names, pot sizes, prices and barcode data into a reviewed design that can start from the catalogue, receiving or price-change work.",
+    "explanation": [
+      "Label preparation benefits from context. A receipt batch should refer to the actual accepted variant, including a reviewed substitution, rather than copying the original requested item onto whatever arrived. Copies also need an explicit decision because supplier packs and fractional quantities do not automatically equal the number of tags required.",
+      "The software supports label layout and ZPL preparation; physical output remains a separate acceptance step. The printer, resolution, ribbon, media and barcode scan must be checked together. A neat browser preview can help review text placement without proving that the final tag is durable outdoors or readable at checkout."
+    ],
+    "capabilities": [
+      {
+        "title": "Purposeful formats",
+        "text": "Prepare the supported plant-tag or shelf-label layout with the relevant product details, giving staff an organized design review rather than rebuilding the same information in an unrelated label tool."
+      },
+      {
+        "title": "Workflow entry",
+        "text": "Start eligible batches from catalogue, received variants or changed prices, keeping the label choice connected to the actual operational record that created the need to print."
+      },
+      {
+        "title": "Barcode review",
+        "text": "Carry recorded Code 128 data into the supported printer workflow while treating the browser's barcode area as a preview placeholder, not evidence that physical scanning has already passed."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can we print labels automatically for every quantity on a delivery?",
+        "a": "Copies need explicit review. A supplier pack, partial quantity or damaged receipt does not automatically equal a tag count, and the batch should use accepted actual variants rather than label goods that were not received or are quarantined."
+      },
+      {
+        "q": "Does the on-screen barcode prove our printer will produce a readable tag?",
+        "a": "No. The printer generates the physical barcode from the prepared data. Verify the exact resolution, media, alignment and scanner with real sample output before relying on the tag format during store trading."
+      }
+    ],
+    "related": [
+      "network-label-printing-from-ipad",
+      "partial-receiving",
+      "catalogue-price-editing"
+    ],
+    "flow": [
+      "Select actual variants",
+      "Review the label design",
+      "Print and scan a sample"
+    ],
+    "demoQuestion": "Show us a label batch from a substituted delivery item and the physical sample checks needed before using its barcode at checkout."
+  },
+  "network-label-printing-from-ipad": {
+    "intro": "An iPad can help prepare labels near the delivery, but it needs the right printing route. Network label printing uses the configured store-network bridge to reach a compatible printer, giving tablet users a supported path without pretending Safari can open a raw printer connection.",
+    "explanation": [
+      "The bridge and printer form part of the store's equipment setup. Trusted local HTTPS, the intended browser origin, the selected printer and appropriate credentials need configuration together. A successful catalogue page on the tablet does not establish that the local network, certificate or physical label output is ready.",
+      "Recovery is part of printing too. The supported workflow retains a submitted batch and its job identity so an uncertain response is not silently converted into another automatic print. Staff can inspect status and physical output before deliberately preparing another batch, understanding that sent bytes and paper verified are different outcomes."
+    ],
+    "capabilities": [
+      {
+        "title": "Tablet preparation",
+        "text": "Create the supported label batch from the manager workflow on an appropriate device, keeping product and price review close to the receiving or catalogue task that needs the labels."
+      },
+      {
+        "title": "Network bridge",
+        "text": "Use the configured private-store printing service for the compatible printer path, instead of assuming arbitrary Bluetooth devices or unsupported Safari connection methods can receive the prepared label commands."
+      },
+      {
+        "title": "Saved-job review",
+        "text": "Inspect the retained job status after an uncertain response without automatically printing again, giving staff a chance to check the printer and queue before intentionally preparing a new batch."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can the iPad print to any Bluetooth label printer?",
+        "a": "No universal Bluetooth compatibility is implied. The supported ZPL route uses a configured network bridge and compatible printer, with browser trust, local access, media and physical output verified on the intended store equipment."
+      },
+      {
+        "q": "What should staff do after a print request times out?",
+        "a": "Keep the saved batch and check the supported job status and physical printer before creating another batch. An uncertain response is not proof that nothing printed, so automatic repeated submission could produce unwanted duplicates."
+      }
+    ],
+    "related": [
+      "plant-and-shelf-labels",
+      "tablet-friendly-workspaces",
+      "hardware-compatibility-review"
+    ],
+    "flow": [
+      "Prepare the tablet batch",
+      "Send through the bridge",
+      "Check the saved job"
+    ],
+    "demoQuestion": "Show us an interrupted iPad print request and the read-only job check staff use before deciding whether another batch is needed."
+  },
+  "plant-guarantee-claims": {
+    "intro": "A failed plant can be an emotional customer conversation as well as a financial decision. Plant guarantee claims keep the original purchase, applicable promise and reviewed evidence together, helping the garden centre respond consistently without reducing the decision to an unexplained refund or replacement.",
+    "explanation": [
+      "The promise made at purchase matters. New supported sales can retain the downloaded published guarantee version, while older receipts may need manual evidence review. A later policy change should not quietly rewrite what the store originally offered the customer when the plant was bought.",
+      "Human judgement remains central. Ownership, condition, timing, eligible quantity and previous remedies need review before a supported credit or replacement is fulfilled. Keeping those decisions connected helps prevent the same quantity being compensated repeatedly and keeps failed original plants from being returned to healthy sellable stock by mistake."
+    ],
+    "capabilities": [
+      {
+        "title": "Original promise",
+        "text": "Retain the applicable guarantee terms with supported new sale records, giving the claim conversation a reference to what was offered then rather than automatically applying today's different policy."
+      },
+      {
+        "title": "Evidence review",
+        "text": "Connect the exact receipt line, quantity and relevant condition information to the claim, allowing the owner to consider eligibility with context instead of treating a repeated name or general complaint as sufficient proof."
+      },
+      {
+        "title": "Verified remedy",
+        "text": "Use the supported credit or replacement fulfilment process after review, retaining the original decision and any later compensating correction rather than erasing a mistaken remedy from the history."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does an eligible-looking claim automatically issue a refund?",
+        "a": "No. Claims require human review, and a decision is distinct from completing its financial or stock remedy. Provider refunds, store credit and replacement fulfilment follow their own supported workflows and actual confirmed outcomes."
+      },
+      {
+        "q": "Do we put a dead returned plant back into available stock?",
+        "a": "No. The failed original does not become healthy sellable inventory simply because a guarantee is accepted. Review the appropriate disposition and any actual replacement handover separately, preserving both condition and quantity evidence."
+      }
+    ],
+    "related": [
+      "original-tender-returns",
+      "store-credit",
+      "plant-loss-recording"
+    ],
+    "flow": [
+      "Find the original promise",
+      "Review the claim evidence",
+      "Complete the approved remedy"
+    ],
+    "demoQuestion": "Show us a guarantee claim using the original purchase terms, including what happens if today's policy has changed."
+  },
+  "loyalty-rewards": {
+    "intro": "Repeat customers deserve a reward balance the store can explain. Loyalty rewards connect supported earning, redemption and return behavior to reviewed policy terms and eligible customer purchases, helping the garden centre build a programme with a traceable history rather than an informal points total.",
+    "explanation": [
+      "A saved proposal is only the beginning. The manager activates the reviewed policy and records customer agreement before eligible new purchases earn under that arrangement. Historical or unattributed entries should not become spendable simply because they resemble the right customer or appear in an imported reward history.",
+      "The return journey matters as much as earning. Supported redemptions retain their original customer account, currency and allocations so returns do not silently convert reward value into cash or restart an expiry clock. Provider, balance and policy setup still require review before offering the programme in a real store."
+    ],
+    "capabilities": [
+      {
+        "title": "Reviewed programme",
+        "text": "Distinguish a policy proposal from activation and customer enrollment, giving the owner control over which terms actually apply before the supported programme starts awarding new eligible purchases."
+      },
+      {
+        "title": "Purchase attribution",
+        "text": "Connect verified earnings to eligible completed sale lines and their original policy context, helping the business explain the balance instead of trusting a manually supplied subtotal or unverified historical entry."
+      },
+      {
+        "title": "Original-tender returns",
+        "text": "Retain the original reward account and allocation during supported corrections, so a reward-funded return restores the appropriate value rather than treating it as an unrelated cash refund or a new earning purchase."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does every purchase earn rewards automatically?",
+        "a": "Eligibility depends on the activated policy, enrollment and supported tender rules. Historical purchases do not earn retroactively merely because a customer later joins, and some liability or account-funded transactions have different treatment from eligible cash or card purchases."
+      },
+      {
+        "q": "Are rewards a discount that changes the sale's tax calculation?",
+        "a": "In the supported redemption design, rewards pay an already-calculated total rather than rewriting line prices or tax treatment. Demonstrate the intended currency and tender combination so the store understands both the balance and payment requirements."
+      }
+    ],
+    "related": [
+      "customer-lookup",
+      "split-payments",
+      "original-tender-returns"
+    ],
+    "flow": [
+      "Activate reviewed terms",
+      "Earn on eligible purchases",
+      "Redeem with original account history"
+    ],
+    "demoQuestion": "Show us an enrolled customer's eligible purchase, a reward redemption and a partial return that preserves the original account and currency."
+  },
+  "margin-and-seasonal-performance": {
+    "intro": "Strong sales do not always mean a strong season. Margin and seasonal performance bring recorded revenue together with explicitly reviewed cost, inventory and labour evidence, helping the owner ask more informed questions about categories, timing and the work that supported the result.",
+    "explanation": [
+      "The quality of the evidence matters more than a confidently displayed percentage. Purchase cost is not automatically the cost of goods sold, and missing labour or average inventory should not be treated as zero. The supported reporting distinguishes available information from a result that still lacks the inputs needed for a meaningful calculation.",
+      "Use the view as a disciplined review tool. Comparing periods or product groups can help direct a buying or staffing conversation, but it does not forecast demand or guarantee profit. Preserve source and correction context so a revised figure can be understood rather than appearing to change without explanation."
+    ],
+    "capabilities": [
+      {
+        "title": "Reviewed margin",
+        "text": "Consider net revenue alongside appropriate reviewed cost-of-goods-sold evidence, making the calculation's business meaning clearer than subtracting an arbitrary supplier receipt cost from a sales total."
+      },
+      {
+        "title": "Seasonal context",
+        "text": "Review the supported period and category information with its relevant scope, giving the owner a basis for discussing changing performance rather than relying on one all-time revenue number."
+      },
+      {
+        "title": "Honest missing inputs",
+        "text": "Keep unavailable cost, labour or inventory evidence distinguishable from zero, so the report does not present an apparently complete profitability measure when a required component has not been established."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Will the POS calculate accurate profit just from purchase prices?",
+        "a": "Not by assumption. Reviewed cost of goods sold, returns, inventory and other relevant evidence have their own requirements. Recorded receipt costs can help the review without becoming a substitute for the actual supported cost basis."
+      },
+      {
+        "q": "What if our labour or average inventory information is missing?",
+        "a": "The result should remain unavailable where the calculation requires that input. Treating missing evidence as zero can produce a misleading ratio, so establish and review the source before using the figure to make a business decision."
+      }
+    ],
+    "related": [
+      "sales-reporting",
+      "freight-and-landed-costs",
+      "business-data-exports"
+    ],
+    "flow": [
+      "Choose the season",
+      "Review the evidence",
+      "Compare meaningful performance"
+    ],
+    "demoQuestion": "Show us a margin view with incomplete cost evidence and how a reviewed correction changes the result without erasing its history."
+  },
+  "supplier-shortages-and-backorders": {
+    "intro": "A short delivery leaves two jobs: record what arrived and decide what happens to the remainder. Supplier shortages and backorders keep that unfinished commitment visible, helping the buyer follow up without turning undelivered plants into stock the store never actually received.",
+    "explanation": [
+      "The original order still provides context after a partial shipment. Staff need to understand which quantities remain outstanding, whether the supplier expects another delivery and whether the store should retain or cancel the remainder. Keeping that work connected is clearer than closing the whole order or creating another unrelated one.",
+      "Changes should preserve completed receiving evidence. A remainder cancellation must not erase the accepted plants, costs and earlier exceptions. If a substitute is offered, verify its actual identity and terms before recording it through receiving rather than relabelling a requested item to make the order look complete."
+    ],
+    "capabilities": [
+      {
+        "title": "Outstanding quantities",
+        "text": "Review the order remainder separately from accepted receipts, giving the buyer a clearer view of what is still owed rather than treating the first delivery as completion of every line."
+      },
+      {
+        "title": "Supplier follow-up",
+        "text": "Keep the shortage and backorder conversation tied to the original commitment, helping staff decide which remaining goods still need confirmation and which part of the arrangement has changed."
+      },
+      {
+        "title": "Preserved receipts",
+        "text": "Retain the quantities and cost evidence already recorded when resolving the remainder, so a cancellation or later delivery cannot quietly rewrite the history of plants previously accepted by the store."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Does leaving an item on backorder add it to available stock?",
+        "a": "No. An outstanding supplier commitment is different from a confirmed receipt. Staff must record the actual arrival through receiving before treating undelivered plants as stock physically available for customer sale or fulfilment."
+      },
+      {
+        "q": "Can we cancel only the part the supplier cannot deliver?",
+        "a": "The supported remainder workflow reviews the exact outstanding quantity while preserving earlier receipts. Confirm the supplier arrangement and authorized decision, then resolve the unfulfilled portion without deleting the goods and costs already recorded."
+      }
+    ],
+    "related": [
+      "partial-receiving",
+      "receiving-exceptions",
+      "purchase-orders"
+    ],
+    "flow": [
+      "Review the shortage",
+      "Confirm the supplier plan",
+      "Resolve the remainder"
+    ],
+    "demoQuestion": "Show us a partial delivery followed by cancellation of the unavailable remainder, with the earlier received stock and cost evidence preserved."
+  }
+}

@@ -252,11 +252,10 @@ const AdminPage = () => {
                     <Shield className="h-6 w-6" />
                   </Sheet>
                   <Stack spacing={0.75}>
-                    <Typography level="h2">Tenant Operations</Typography>
+                    <Typography level="h2">All clients</Typography>
                     <Typography level="body-sm" color="neutral">
-                      Review the full tenant roster, manage trial and plan
-                      states, and open detailed admin workflows without leaving
-                      the Joy shell.
+                      Every client account, their plan and trial status. Open a
+                      client to see details or make changes.
                     </Typography>
                     <Stack
                       direction="row"
@@ -334,7 +333,7 @@ const AdminPage = () => {
                     <AlertTriangle className="h-5 w-5" />
                     <Stack spacing={0.35}>
                       <Typography level="title-sm" color="danger">
-                        Tenant data failed to load
+                        Clients could not be loaded
                       </Typography>
                       <Typography level="body-sm" color="danger">
                         {error}
@@ -365,13 +364,13 @@ const AdminPage = () => {
               justifyContent="space-between"
             >
               <Stack spacing={0.25}>
-                <Typography level="title-md">Tenant Roster</Typography>
+                <Typography level="title-md">Clients</Typography>
                 <Typography level="body-sm" color="neutral">
                   {loading
-                    ? "Refreshing tenant data for the current page."
+                    ? "Loading clients…"
                     : hasActiveFilters
-                      ? "Filters are active. Clear them to return to the full tenant roster."
-                      : "Open any tenant to review subscription, contact, and governance details."}
+                      ? "Filters are on. Clear them to see every client."
+                      : "Open a client to see their plan, contacts and email settings."}
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">

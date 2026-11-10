@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { OnboardingGuard } from '@/components/OnboardingGuard';
+import { useAuth } from '@/contexts/AuthContext';
+import { useOnboardingStatus } from '@/contexts/OnboardingStatusContext';
+import { useLoading } from '@/contexts/LoadingContext';
 
 // Mock all the contexts
 vi.mock('@/contexts/AuthContext', () => ({
@@ -17,9 +20,9 @@ vi.mock('@/contexts/LoadingContext', () => ({
   useLoading: vi.fn()
 }));
 
-const mockUseAuth = vi.mocked(require('@/contexts/AuthContext').useAuth);
-const mockUseOnboardingStatus = vi.mocked(require('@/contexts/OnboardingStatusContext').useOnboardingStatus);
-const mockUseLoading = vi.mocked(require('@/contexts/LoadingContext').useLoading);
+const mockUseAuth = vi.mocked(useAuth);
+const mockUseOnboardingStatus = vi.mocked(useOnboardingStatus);
+const mockUseLoading = vi.mocked(useLoading);
 
 describe('OnboardingGuard Hooks Order Regression Test', () => {
   beforeEach(() => {

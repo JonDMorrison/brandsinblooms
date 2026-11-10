@@ -1,14 +1,27 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+
+interface AdminTenant {
+  id: string;
+  name: string;
+  created_at: string;
+}
 
 interface AdminContextType {
   isMasterAdmin: boolean;
   isLoading: boolean;
   activeTenantId: string | null;
   hasHydratedTenantContext: boolean;
-  setActiveTenantId: (tenantId: string | null) => void;
-  availableTenants: any[];
+  setActiveTenantId: (tenantId: string | null) => Promise<void>;
+  availableTenants: AdminTenant[];
   refreshTenants: () => Promise<void>;
 }
 
@@ -18,21 +31,41 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
+  const [resolvedAdminUserId, setResolvedAdminUserId] = useState<string | null>(
+    null,
+  );
+  const [activeTenantId, setActiveTenantIdState] = useState<string | null>(null);
   const [hasHydratedTenantContext, setHasHydratedTenantContext] =
     useState(false);
-  const [availableTenants, setAvailableTenants] = useState<any[]>([]);
+  const [hydratedAdminUserId, setHydratedAdminUserId] = useState<string | null>(
+    null,
+  );
+  const [availableTenants, setAvailableTenants] = useState<AdminTenant[]>([]);
+  const contextWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const contextWriteVersionRef = useRef(0);
 
-  // Check if user is master admin
+  // A Supabase session commonly renders once without a user before the cached
+  // session is restored. Track which authenticated user the admin lookup
+  // belongs to so that a stale "not loading / not admin" result from that
+  // anonymous render can never be mistaken for the authenticated user's final
+  // admin status.
   useEffect(() => {
+    let cancelled = false;
+
     async function checkAdminStatus() {
-      if (!user?.email) {
+      if (!user?.id || !user.email) {
         setIsMasterAdmin(false);
+        setResolvedAdminUserId(null);
         setIsLoading(false);
         return;
       }
+
+      const userId = user.id;
+      setIsLoading(true);
+      setResolvedAdminUserId(null);
 
       try {
         const { data, error } = await supabase
@@ -41,6 +74,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
           .eq("email", user.email)
           .maybeSingle();
 
+        if (cancelled) return;
+
         if (error) {
           console.error("Error checking admin status:", error);
           setIsMasterAdmin(false);
@@ -48,49 +83,90 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsMasterAdmin(!!data);
         }
       } catch (error) {
-        console.error("Error checking admin status:", error);
-        setIsMasterAdmin(false);
+        if (!cancelled) {
+          console.error("Error checking admin status:", error);
+          setIsMasterAdmin(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setResolvedAdminUserId(userId);
+          setIsLoading(false);
+        }
       }
     }
 
     checkAdminStatus();
-  }, [user]);
 
-  // Load available tenants for master admins
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email, user?.id]);
+
+  const hasResolvedAdminStatus =
+    !user?.id || resolvedAdminUserId === user.id;
+  const isAdminStatusLoading = isLoading || !hasResolvedAdminStatus;
+  const effectiveHasHydratedTenantContext =
+    hasResolvedAdminStatus && hasHydratedTenantContext;
+
+  // Hydrate the persisted master-admin tenant context before exposing it as
+  // usable. The admin-status result must belong to the current authenticated
+  // user; a previous anonymous/user render is not authoritative.
+  // Token refreshes can replace the user object without changing its identity.
+  // Do not reset verified context or restart an in-flight read for that event.
   useEffect(() => {
+    let cancelled = false;
+
     async function loadActiveTenantContext() {
-      if (!user || !isMasterAdmin) {
-        setActiveTenantId(null);
+      if (isAdminStatusLoading) {
+        setActiveTenantIdState(null);
+        setHydratedAdminUserId(null);
+        setHasHydratedTenantContext(false);
+        return;
+      }
+
+      if (!userId || !isMasterAdmin) {
+        setActiveTenantIdState(null);
+        setHydratedAdminUserId(null);
         setHasHydratedTenantContext(true);
         return;
       }
 
-      try {
-        setHasHydratedTenantContext(false);
+      setHasHydratedTenantContext(false);
+      setHydratedAdminUserId(null);
 
+      try {
         const { data, error } = await supabase
           .from("admin_session_context")
           .select("active_tenant_id")
-          .eq("admin_user_id", user.id)
+          .eq("admin_user_id", userId)
           .maybeSingle();
 
         if (error) {
           throw error;
         }
 
-        setActiveTenantId(data?.active_tenant_id ?? null);
+        if (!cancelled) {
+          setActiveTenantIdState(data?.active_tenant_id ?? null);
+        }
       } catch (error) {
-        console.error("Error loading admin context:", error);
-        setActiveTenantId(null);
+        if (!cancelled) {
+          console.error("Error loading admin context:", error);
+          setActiveTenantIdState(null);
+        }
       } finally {
-        setHasHydratedTenantContext(true);
+        if (!cancelled) {
+          setHydratedAdminUserId(userId);
+          setHasHydratedTenantContext(true);
+        }
       }
     }
 
     loadActiveTenantContext();
-  }, [isMasterAdmin, user]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdminStatusLoading, isMasterAdmin, userId]);
 
   useEffect(() => {
     async function loadTenants() {
@@ -115,33 +191,59 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     loadTenants();
   }, [isMasterAdmin]);
 
-  // Save/restore active tenant context
-  useEffect(() => {
-    async function saveContext() {
-      if (!user || !isMasterAdmin || !hasHydratedTenantContext) return;
+  // Persist a tenant switch on the server before exposing that tenant as the
+  // active client context. The CRM access RPC derives a master admin's tenant
+  // from admin_session_context, so publishing client state first could make the
+  // UI request access for the new tenant while the server still points at the
+  // old one. Writes are serialized so rapid switches cannot complete out of
+  // order, and access remains gated until the latest switch is durable.
+  const setActiveTenantId = useCallback(
+    async (tenantId: string | null) => {
+      if (!user || !isMasterAdmin || hydratedAdminUserId !== user.id) {
+        return;
+      }
+
+      const writeVersion = ++contextWriteVersionRef.current;
+      setHasHydratedTenantContext(false);
+
+      const write = contextWriteQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const { error } = await supabase.from("admin_session_context").upsert(
+            {
+              admin_user_id: user.id,
+              active_tenant_id: tenantId,
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "admin_user_id",
+            },
+          );
+
+          if (error) {
+            throw error;
+          }
+
+          setActiveTenantIdState(tenantId);
+        });
+
+      contextWriteQueueRef.current = write.catch(() => undefined);
 
       try {
-        const { error } = await supabase.from("admin_session_context").upsert(
-          {
-            admin_user_id: user.id,
-            active_tenant_id: activeTenantId,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "admin_user_id",
-          },
-        );
-
-        if (error) {
-          throw error;
-        }
+        await write;
       } catch (error) {
         console.error("Error saving admin context:", error);
+      } finally {
+        if (
+          contextWriteVersionRef.current === writeVersion &&
+          hydratedAdminUserId === user.id
+        ) {
+          setHasHydratedTenantContext(true);
+        }
       }
-    }
-
-    saveContext();
-  }, [activeTenantId, hasHydratedTenantContext, user, isMasterAdmin]);
+    },
+    [hydratedAdminUserId, isMasterAdmin, user],
+  );
 
   const refreshTenants = async () => {
     if (!isMasterAdmin) return;
@@ -163,9 +265,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     <AdminContext.Provider
       value={{
         isMasterAdmin,
-        isLoading,
+        isLoading: isAdminStatusLoading,
         activeTenantId,
-        hasHydratedTenantContext,
+        hasHydratedTenantContext: effectiveHasHydratedTenantContext,
         setActiveTenantId,
         availableTenants,
         refreshTenants,

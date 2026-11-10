@@ -21,6 +21,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Settings, Upload, FileText, Database, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { Database as DatabaseType } from "@/integrations/supabase/types";
+import {
+  ADMIN_RESOURCE_SPREADSHEET_LIMITS,
+  assertNoWorksheetFormulas,
+  assertSpreadsheetFileSize,
+  assertWorkbookSheetCount,
+  firstWorksheetWithinLimits,
+} from "@/lib/security/spreadsheetLimits";
+import { parseDelimitedText } from "@/utils/csvParser";
 
 type AIResource =
   DatabaseType["public"]["Tables"]["ai_generation_resources"]["Row"];
@@ -61,6 +69,7 @@ export const AdminSettings = () => {
     setUploading(true);
 
     try {
+      assertSpreadsheetFileSize(file, ADMIN_RESOURCE_SPREADSHEET_LIMITS);
       let content = "";
       let fileType: "csv" | "pdf" | "text" = "text";
 
@@ -72,12 +81,32 @@ export const AdminSettings = () => {
           reader.onerror = () => reject(new Error("Failed to read file"));
           reader.readAsText(file);
         });
+        const { records } = parseDelimitedText(content, {
+          label: ADMIN_RESOURCE_SPREADSHEET_LIMITS.label,
+          maxRows: ADMIN_RESOURCE_SPREADSHEET_LIMITS.maxRows,
+          maxColumns: ADMIN_RESOURCE_SPREADSHEET_LIMITS.maxColumns,
+        });
+        if (records.length === 0) {
+          throw new Error("The AI resource file is empty.");
+        }
       } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
         fileType = "csv";
         const data = new Uint8Array(await file.arrayBuffer());
-        const workbook = XLSX.read(data, { type: "array" });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
+        const metadata = XLSX.read(data, { type: "array", bookSheets: true });
+        assertWorkbookSheetCount(metadata, ADMIN_RESOURCE_SPREADSHEET_LIMITS);
+        const workbook = XLSX.read(data, {
+          type: "array",
+          sheetRows: ADMIN_RESOURCE_SPREADSHEET_LIMITS.maxRows + 1,
+          sheets: [metadata.SheetNames[0]],
+        });
+        const { worksheet } = firstWorksheetWithinLimits(
+          workbook,
+          ADMIN_RESOURCE_SPREADSHEET_LIMITS,
+        );
+        assertNoWorksheetFormulas(
+          worksheet,
+          ADMIN_RESOURCE_SPREADSHEET_LIMITS,
+        );
         content = XLSX.utils.sheet_to_csv(worksheet);
       } else if (file.name.endsWith(".pdf")) {
         fileType = "pdf";
@@ -184,7 +213,7 @@ export const AdminSettings = () => {
                   <Input
                     id="resource-file"
                     label="Upload CSV, Excel, or PDF File"
-                    helperText="Upload files containing content ideas, seasonal themes, or AI generation guidance"
+                    helperText="Upload files up to 5 MB containing content ideas, seasonal themes, or AI generation guidance"
                     type="file"
                     accept=".csv,.txt,.xlsx,.xls,.pdf"
                     onChange={handleFileUpload}

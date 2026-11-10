@@ -55,6 +55,11 @@ import {
   MAX_PINNED_CONTEXT_ITEMS,
   normalizeBloomWorkspaceMemory,
 } from "@/hooks/bloom/workspaceMemory";
+import {
+  formatReportedCurrency,
+  formatReportedPeriod,
+  readCustomerReportedSpending,
+} from "@/lib/crm/reportedPeriodSpending";
 
 export interface DataCardBlockProps {
   entityType: DataCardEntityType;
@@ -287,6 +292,8 @@ function CustomerCard({
 }: Omit<DataCardBlockProps, "entityType">) {
   const name = customerName(entity) ?? "Unnamed customer";
   const totalSpent = getRecordValue(entity, "total_spent");
+  const reported = readCustomerReportedSpending(entity);
+  const recordedAmount = readNumber(totalSpent);
   const lastPurchase = getRecordValue(entity, "last_order");
   const orderCount =
     getRecordValue(entity, "purchase_metrics.order_count") ??
@@ -352,13 +359,25 @@ function CustomerCard({
             level="title-sm"
             sx={{ color: "neutral.900", fontVariantNumeric: "tabular-nums" }}
           >
-            {formatCurrencyValue(totalSpent)}
+            {recordedAmount === null && reported
+              ? `${formatReportedCurrency(reported.spend)} CAD reported`
+              : `${formatCurrencyValue(totalSpent, entity.currency)} recorded spending`}
           </Typography>
+          {reported ? (
+            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+              {recordedAmount !== null ? `${formatReportedCurrency(reported.spend)} CAD reported · ` : null}
+              {formatReportedPeriod(reported)}
+            </Typography>
+          ) : null}
           <Typography level="body-xs" sx={{ color: "neutral.500" }}>
             Last: {formatDateValue(lastPurchase)}
           </Typography>
           <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-            {formatNumberValue(orderCount)} orders
+            {readNumber(orderCount) === null
+              ? reported
+                ? `${reported.transactions} reported ${reported.transactions === 1 ? "transaction" : "transactions"}`
+                : "Order history unknown"
+              : `${formatNumberValue(orderCount)} recorded ${readNumber(orderCount) === 1 ? "order" : "orders"}`}
           </Typography>
         </Stack>
       </Stack>

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/utils/toast';
 import { ContentBlock } from '@/types/emailBuilder';
+import { refreshHeaderDates } from '@/lib/crm/placeholderScan';
 
 export interface CampaignData {
   id: string;
@@ -78,11 +79,22 @@ export const useCampaignCloning = () => {
         source_campaign_id: originalCampaignId,
         // Preserve template_id if original was from a template
         template_id: (originalCampaign as any).template_id || null,
-        metadata: originalCampaign.metadata ? {
-          ...(originalCampaign.metadata as any),
-          cloned_from: originalCampaignId,
-          cloned_at: new Date().toISOString()
-        } : {
+        // Refresh visible header dates so the copy doesn't carry the
+        // source campaign's issue date. Flowerhouse incident: a July 31
+        // send went out with "July 24 2026" in the header because the
+        // metadata was cloned verbatim from the prior week's campaign.
+        metadata: originalCampaign.metadata ? (() => {
+          const sourceMetadata = originalCampaign.metadata as any;
+          const contentBlocks = Array.isArray(sourceMetadata.contentBlocks)
+            ? refreshHeaderDates(sourceMetadata.contentBlocks)
+            : sourceMetadata.contentBlocks;
+          return {
+            ...sourceMetadata,
+            contentBlocks,
+            cloned_from: originalCampaignId,
+            cloned_at: new Date().toISOString()
+          };
+        })() : {
           cloned_from: originalCampaignId,
           cloned_at: new Date().toISOString()
         },

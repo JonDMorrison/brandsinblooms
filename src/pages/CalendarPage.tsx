@@ -8,9 +8,9 @@ import Typography from "@mui/joy/Typography";
 import { Calendar } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { MarketingCalendarImport } from '@/components/calendar/MarketingCalendarImport';
 import { CalendarView } from "@/components/CalendarView";
 import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
-import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
 import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { PlanSuccessModal } from "@/components/plan/PlanSuccessModal";
@@ -184,12 +184,11 @@ const CalendarPage = () => {
     <>
       <PageContainer sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
         <Stack spacing={2.5}>
+          <MarketingCalendarImport onImported={() => void refetch()} />
           <CalendarView
             campaignOverview={campaignOverview}
             headerSupplement={
               <>
-                <GenerationProgressBanner />
-
                 {activeGenerationJobs > 0 ? (
                   <ContentGenerationSkeleton
                     type="campaign"

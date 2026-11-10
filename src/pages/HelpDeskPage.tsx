@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Button } from '@/components/ui-legacy/button';
 import { Ticket, Plus, List, BarChart3 } from 'lucide-react';
@@ -27,7 +27,10 @@ const HelpDeskPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Help Desk</h1>
           <p className="text-muted-foreground mt-1">
-            Manage support tickets and customer inquiries
+            Your team's internal tickets. These are not sent to BloomSuite.
+          </p>
+          <p className="text-sm mt-1">
+            Need help from BloomSuite? <Link to="/support" className="underline underline-offset-4">Contact BloomSuite support</Link>.
           </p>
         </div>
         <Button onClick={() => navigate('/helpdesk/tickets/new')}>

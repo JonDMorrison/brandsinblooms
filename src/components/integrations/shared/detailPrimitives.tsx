@@ -888,6 +888,7 @@ export function IntegrationActionMenu({
   return (
     <Dropdown>
       <MenuButton
+        aria-label="Actions"
         slots={{ root: IconButton }}
         slotProps={{
           root: { color: "neutral", size: "sm", variant: "outlined" },

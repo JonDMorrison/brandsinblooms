@@ -1,0 +1,630 @@
+// Bloom Support — permissioned product operations.
+//
+// Reads run immediately and are audited. Changes follow
+//   preview → (person or authorized identity) execute → verify → record
+// and carry undo data where the product supports it. Every operation is
+// re-authorized in the database (record_operation_preview / claim_operation)
+// for the acting principal and the target account.
+import {
+  BloomError,
+  type Caller,
+  claimMcpOperation,
+  completeMcpOperation,
+  db,
+  directRpc,
+  env,
+  failOperationUndo,
+  markOperationReconciliation,
+  mutationRpc,
+  rpc,
+} from "./runtime.ts";
+import { OPERATION_PERMISSIONS } from "./policy.ts";
+import { sha256Hex, signIntake } from "./crypto.ts";
+import { campaignMutationImplementation } from "../../bloom-assist/tools/implementations/campaign-mutations.ts";
+import type { ToolExecutionContext } from "../../bloom-assist/tools/types.ts";
+
+export const READ_OPERATIONS = new Set([
+  "client.lookup", "campaign.list", "campaign.read", "site.read", "site.pages", "event.list", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history", "site.preview_link", "site.catalogue.audit", "site.integration_health",
+]);
+export const WRITE_OPERATIONS = new Set([
+  "campaign.create_draft", "campaign.update_draft", "campaign.schedule", "campaign.unschedule",
+  "site.catalogue.assign_categories",
+  "site.page.update", "site.create_draft", "site.publish", "event.update",
+  "site.section.update", "site.section.reorder", "site.section.visibility",
+  "site.theme.update", "site.theme.publish", "site.theme.discard",
+  "site.blog.create", "site.blog.update", "site.blog.publish", "site.seo.update",
+  "site.navigation.update", "site.navigation.publish", "site.navigation.discard", "site.image.replace",
+]);
+const PERMISSION: Record<string, string> = {
+  ...OPERATION_PERMISSIONS,
+  "campaign.list": "ops.campaign.edit",
+  "site.pages": "ops.site.read",
+  "event.list": "ops.site.read",
+  "site.preview_link": "ops.site.read",
+};
+
+export function describeOperations() {
+  return {
+    reads: [...READ_OPERATIONS].map((k) => ({ kind: k, permission: PERMISSION[k] })),
+    changes: [...WRITE_OPERATIONS].map((k) => ({ kind: k, permission: PERMISSION[k], undo: UNDOABLE.has(k) })),
+    remote: { cms: remoteConfigured("cms"), pos: remoteConfigured("pos") },
+  };
+}
+const UNDOABLE = new Set(["campaign.schedule", "campaign.unschedule", "campaign.update_draft", "site.page.update", "site.publish", "event.update", "site.section.update", "site.section.reorder", "site.section.visibility", "site.theme.update", "site.theme.publish", "site.theme.discard", "site.blog.create", "site.blog.update", "site.blog.publish", "site.seo.update", "site.navigation.update", "site.navigation.publish", "site.navigation.discard", "site.image.replace"]);
+
+async function opsRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await db().rpc("bloom_support_ops_rpc", { p_fn: fn, p: args });
+  if (error) {
+    const status = error.code === "42501" ? 403
+      : error.code === "P0002" ? 404
+      : error.code === "22023" || error.code === "22P02" ? 400
+      : error.code === "40001" || error.code === "23505" ? 409
+      : 500;
+    throw new BloomError(status, status === 403 ? "forbidden" : status === 404 ? "not_found"
+      : status === 400 ? "invalid" : status === 409 ? "conflict" : "db_error", error.message);
+  }
+  return data as T;
+}
+
+interface Account {
+  id: string;
+  name: string;
+  crm_tenant_id: string | null;
+  links: Array<{ product: string; external_id: string; label: string | null }>;
+}
+
+async function loadAccount(caller: Caller, accountId: string): Promise<Account> {
+  return await rpc<Account>("get_account", { actor: caller.principalId, account_id: accountId });
+}
+
+function linkFor(account: Account, product: "cms" | "pos", inputs: Record<string, unknown>): string {
+  const links = account.links.filter((l) => l.product === product);
+  const requested = typeof inputs.site_id === "string" ? inputs.site_id : typeof inputs.pos_tenant_id === "string" ? inputs.pos_tenant_id : null;
+  if (requested) {
+    // The target must be one of the account's own linked records.
+    if (!links.some((l) => l.external_id === requested)) throw new BloomError(403, "forbidden", `${product} record is not linked to this account`);
+    return requested;
+  }
+  if (links.length === 1) return links[0].external_id;
+  if (links.length === 0) throw new BloomError(400, "invalid", `Account has no linked ${product === "cms" ? "BloomSites site" : "POS business"}`);
+  throw new BloomError(400, "invalid", `Account has several ${product} links; pass ${product === "cms" ? "site_id" : "pos_tenant_id"}`);
+}
+
+// ---------------------------------------------------------------------------
+// Remote product adapters (BloomSites, POS): signed server-to-server calls.
+// ---------------------------------------------------------------------------
+function remoteConfigured(product: "cms" | "pos"): { configured: boolean; missing: string[] } {
+  const p = product.toUpperCase();
+  const missing = [`BLOOM_OPS_URL_${p}`, `BLOOM_OPS_SECRET_${p}`].filter((k) => !env(k));
+  return { configured: missing.length === 0, missing };
+}
+
+export async function callProduct(product: "cms" | "pos", action: string, payload: Record<string, unknown>, timeoutMs = 25000): Promise<Record<string, unknown>> {
+  const cfg = remoteConfigured(product);
+  if (!cfg.configured) throw new BloomError(503, "not_configured", `${product.toUpperCase()} operations are not connected: set ${cfg.missing.join(", ")}`);
+  const body = JSON.stringify({ action, ...payload });
+  const ts = Math.floor(Date.now() / 1000);
+  const sig = await signIntake(env(`BLOOM_OPS_SECRET_${product.toUpperCase()}`)!, ts, body);
+  const res = await fetch(env(`BLOOM_OPS_URL_${product.toUpperCase()}`)!, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-bloom-timestamp": String(ts), "x-bloom-signature": sig },
+    body,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new BloomError(res.status === 403 ? 403 : res.status === 404 ? 404 : res.status === 400 ? 400 : res.status === 409 ? 409 : 502, out?.error ?? "product_error", out?.message ?? `${product} returned ${res.status}`);
+  return out as Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// CRM campaigns: reuse the existing bloom-assist campaign implementations for
+// drafts (same validation, audience resolution and duplicate checks).
+// ---------------------------------------------------------------------------
+async function tenantOwnerUserId(tenantId: string): Promise<string> {
+  const { data } = await db().from("users").select("id, role").eq("tenant_id", tenantId).limit(25);
+  const rows = (data ?? []) as Array<{ id: string; role: string | null }>;
+  const owner = rows.find((r) => r.role === "owner") ?? rows.find((r) => r.role === "admin") ?? rows[0];
+  if (!owner) throw new BloomError(400, "invalid", "The CRM tenant has no users to own the campaign");
+  return owner.id;
+}
+
+async function runCampaignTool(tool: "create_campaign" | "update_campaign", tenantId: string, opId: string, params: Record<string, unknown>, approved: boolean) {
+  const impl = campaignMutationImplementation(tool);
+  if (!impl) throw new BloomError(500, "internal", `missing ${tool}`);
+  const ctx: ToolExecutionContext = {
+    tenantId,
+    userId: await tenantOwnerUserId(tenantId),
+    userRole: "owner",
+    userName: "Bloom Support",
+    conversationId: `bloom-op-${opId}`,
+    messageId: `bloom-op-${opId}-${approved ? "exec" : "preview"}`,
+    timezone: typeof params.timezone === "string" ? params.timezone : "America/Toronto",
+    serviceClient: db(),
+    approved,
+  } as ToolExecutionContext;
+  // deno-lint-ignore no-explicit-any
+  const result = await impl(params as any, ctx);
+  if (!result.success && !result.confirmation_required) throw new BloomError(400, "invalid", result.error ?? result.message ?? `${tool} failed`);
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Public surface
+// ---------------------------------------------------------------------------
+export interface OperationRequest {
+  kind: string;
+  account_id: string;
+  ticket_id?: string | null;
+  inputs?: Record<string, unknown>;
+  idempotency_key?: string;
+}
+
+export async function runRead(caller: Caller, req: OperationRequest): Promise<unknown> {
+  if (!READ_OPERATIONS.has(req.kind)) throw new BloomError(400, "invalid", `Unknown read operation ${req.kind}`);
+  const permission = PERMISSION[req.kind];
+  const allowed = await rpc<boolean>("has_permission", { actor: caller.principalId, permission });
+  // Clients (no staff permission) get a read-only path for their own company's
+  // website and POS data. The database decides it: kind -> client permission,
+  // verified membership of this account, current CRM user of its tenant, and
+  // sales figures only for that tenant's CRM owner/admin. It also audits the read.
+  const clientRead = allowed ? null : await authorizeClientRead(caller, req);
+  const inputs = req.inputs ?? {};
+  const account = await loadAccount(caller, req.account_id);
+  const audit = (detail: Record<string, unknown>) =>
+    rpc("log", { actor: caller.principalId, ticket_id: req.ticket_id ?? null, account_id: account.id, action: "operation.read", detail: { kind: req.kind, ...detail } }).catch(() => undefined);
+  let result: unknown;
+  switch (req.kind) {
+    case "client.lookup":
+      result = account;
+      break;
+    case "campaign.list":
+      result = await opsRpc("campaign_list", { actor: caller.principalId, account_id: account.id, status: inputs.status ?? null });
+      break;
+    case "campaign.read":
+      result = await opsRpc("campaign_facts", { actor: caller.principalId, account_id: account.id, campaign_id: inputs.campaign_id });
+      break;
+    case "site.catalogue.audit":
+    case "site.integration_health":
+    case "site.read":
+    case "site.pages":
+    case "event.list":
+    case "site.preview_link":
+      result = await callProduct("cms", req.kind, { site_id: linkFor(account, "cms", inputs), inputs, actor: actorFacts(caller) });
+      break;
+    case "pos.products":
+    case "pos.inventory":
+    case "pos.sales_summary":
+    case "pos.price_history":
+      result = await callProduct("pos", req.kind, { pos_tenant_id: linkFor(account, "pos", inputs), inputs, actor: actorFacts(caller) });
+      break;
+  }
+  // Client reads were already audited by the database when they were authorized.
+  if (caller.role !== "service" && !clientRead) await audit({ inputs: Object.keys(inputs) });
+  return result;
+}
+
+/** Kinds a client may read about their own company. Everything else stays staff-only. */
+export const CLIENT_READ_KINDS = new Set(["site.read", "site.pages", "event.list", "site.preview_link", "pos.products", "pos.inventory", "pos.sales_summary", "pos.price_history"]);
+
+async function authorizeClientRead(caller: Caller, req: OperationRequest): Promise<{ permission: string }> {
+  const permission = PERMISSION[req.kind];
+  if (!CLIENT_READ_KINDS.has(req.kind) || caller.role !== "client") throw new BloomError(403, "forbidden", `${permission} required`);
+  const verdict = await directRpc<{ allowed?: boolean; reason?: string; permission?: string } | null>(
+    "bloom_support_client_suite_read",
+    { p_actor: caller.principalId, p_account: req.account_id, p_kind: req.kind },
+  );
+  if (verdict?.allowed === true && typeof verdict.permission === "string") return { permission: verdict.permission };
+  if (verdict?.reason === "owner_or_admin_only") {
+    throw new BloomError(403, "owner_or_admin_only", "Only the account owner or an admin can see sales figures");
+  }
+  throw new BloomError(403, "forbidden", `${permission} required`);
+}
+
+function actorFacts(caller: Caller) {
+  return { principal_id: caller.principalId, role: caller.role, name: caller.name ?? null, via: caller.via };
+}
+
+
+/** Site creation uses the authenticated person's stored email, never model input. */
+async function siteCreationActor(caller: Caller) {
+  if (caller.role === "service") throw new BloomError(403, "forbidden", "Site creation needs a person to confirm it");
+  for (const permission of ["ops.site.create", "accounts.write"]) {
+    if (!await rpc<boolean>("has_permission", { actor: caller.principalId, permission })) {
+      throw new BloomError(403, "forbidden", permission + " required");
+    }
+  }
+  const me = await rpc<{ email: string | null }>("whoami", { actor: caller.principalId });
+  if (!me.email) throw new BloomError(403, "forbidden", "A verified person is required for site creation");
+  return { ...actorFacts(caller), email: me.email };
+}
+const siteUuid = (value: unknown): value is string =>
+  typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => [key, canonical(item)]));
+  }
+  return value;
+}
+
+/** Builds and records a preview. Nothing changes in the product. */
+export async function previewOperation(caller: Caller, req: OperationRequest): Promise<Record<string, unknown>> {
+  if (!WRITE_OPERATIONS.has(req.kind)) throw new BloomError(400, "invalid", `Unknown change operation ${req.kind}`);
+  const permission = PERMISSION[req.kind];
+  const idempotencyFingerprint = await sha256Hex(JSON.stringify(canonical({
+    account_id: req.account_id,
+    ticket_id: req.ticket_id ?? null,
+    kind: req.kind,
+    permission,
+    inputs: req.inputs ?? {},
+  })));
+  // Check before any product is asked for a preview, so a caller without the
+  // permission learns nothing about the client's data.
+  if (!await rpc<boolean>("has_permission", { actor: caller.principalId, permission })) {
+    throw new BloomError(403, "forbidden", `${permission} required`);
+  }
+  const inputs = { ...(req.inputs ?? {}) };
+  if (req.kind === "site.catalogue.assign_categories") {
+    const evidence = inputs.evidence as Record<string, unknown> | undefined;
+    if (!siteUuid(inputs.category_id) || !Array.isArray(inputs.product_ids)
+        || inputs.product_ids.length === 0 || inputs.product_ids.length > 500
+        || !inputs.product_ids.every(siteUuid)
+        || !evidence || typeof evidence !== "object" || Array.isArray(evidence)
+        || typeof evidence.source !== "string" || !evidence.source.trim()
+        || typeof evidence.reason !== "string" || !evidence.reason.trim()) {
+      throw new BloomError(400, "invalid", "category_id, 1–500 product_ids and evidence {source, reason} are required");
+    }
+    // A fingerprint is always supplied by the product preview, never the caller.
+    delete inputs.expected_fingerprint;
+  }
+  const account = await loadAccount(caller, req.account_id);
+  let preview: Record<string, unknown>;
+  switch (req.kind) {
+    case "site.create_draft": {
+      const actor = await siteCreationActor(caller);
+      const hasAnchor = account.links.some(link => link.product === "cms");
+      const site_id = hasAnchor || inputs.site_id != null ? linkFor(account, "cms", inputs) : null;
+      const result = await callProduct("cms", "site.create_draft.preview", {
+        account_id: account.id, account_name: account.name, site_id, inputs, actor,
+      });
+      const guard = result.guard as Record<string, unknown> | undefined;
+      if (!guard || guard.expected_account_id !== account.id || !siteUuid(guard.expected_creator_id)
+          || typeof guard.expected_creator_email !== "string"
+          || !Object.hasOwn(guard, "expected_tenant_id") || !Object.hasOwn(guard, "expected_anchor_site_id")
+          || (guard.expected_tenant_id !== null && !siteUuid(guard.expected_tenant_id))
+          || guard.expected_anchor_site_id !== site_id) {
+        throw new BloomError(502, "verification_failed", "BloomSites did not return a valid client and creator preview");
+      }
+      Object.assign(inputs, guard);
+      preview = result;
+      break;
+    }
+    case "campaign.schedule": {
+      const facts = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: account.id, campaign_id: inputs.campaign_id });
+      if (typeof inputs.scheduled_at !== "string" || Number.isNaN(Date.parse(inputs.scheduled_at))) throw new BloomError(400, "invalid", "scheduled_at (ISO time) required");
+      const tz = typeof inputs.timezone === "string" ? inputs.timezone : "America/Toronto";
+      let local = inputs.scheduled_at;
+      try {
+        local = new Intl.DateTimeFormat("en-CA", { dateStyle: "full", timeStyle: "short", timeZone: tz }).format(new Date(inputs.scheduled_at));
+      } catch { /* invalid timezone: keep ISO */ }
+      const aud = facts.audience as { segments: Array<{ name: string }>; include_all_customers: boolean; additional_customers: number; projected_recipients: number | null };
+      const content = facts.content as { channel: string; subject: string | null; preheader: string | null; sender_name: string | null; sender_email: string | null; excerpt: string };
+      const client = facts.client as { name: string } | null;
+      // Fingerprint of audience + content: execution refuses if either changed after this preview.
+      inputs.fingerprint = facts.fingerprint;
+      inputs.timezone = tz;
+      preview = {
+        summary: `Schedule "${facts.name}" for ${client?.name ?? account.name}: ${aud.projected_recipients ?? "?"} recipients, ${local} (${tz})`,
+        client: { account: account.name, crm_tenant: client?.name ?? null },
+        audience: { segments: aud.segments.map((s) => s.name), include_all_customers: aud.include_all_customers, additional_customers: aud.additional_customers, projected_recipients: aud.projected_recipients },
+        content: { channel: content.channel, subject: content.subject, preheader: content.preheader, from: `${content.sender_name ?? ""} <${content.sender_email ?? "default sender"}>`, excerpt: content.excerpt },
+        timing: { scheduled_at_utc: inputs.scheduled_at, local, timezone: tz, irreversible_after: inputs.scheduled_at },
+        campaign: facts.campaign,
+      };
+      break;
+    }
+    case "campaign.unschedule": {
+      const facts = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: account.id, campaign_id: inputs.campaign_id });
+      preview = { summary: `Return "${facts.name}" to draft (cancel the scheduled send)`, campaign: facts };
+      break;
+    }
+    case "campaign.create_draft":
+    case "campaign.update_draft": {
+      const tenant = await opsRpc<string>("campaign_tenant", { actor: caller.principalId, account_id: account.id, permission });
+      const r = await runCampaignTool(req.kind === "campaign.create_draft" ? "create_campaign" : "update_campaign", tenant, crypto.randomUUID(), inputs, false);
+      preview = { summary: r.confirmation_details?.action ?? r.message, details: r.confirmation_details ?? null, data: r.data ?? null };
+      break;
+    }
+    default: {
+      const product = "cms" as const;
+      const site_id = linkFor(account, product, inputs);
+      const r = await callProduct(product, `${req.kind}.preview`, { site_id, inputs, actor: actorFacts(caller) });
+      // The product returns the state the person reviewed (e.g. the page version). It is stored with the
+      // operation and overrides any caller-supplied value, so execution refuses if that state changed.
+      const guard = (r as { guard?: unknown } | null)?.guard;
+      if (req.kind === "site.catalogue.assign_categories") {
+        const fingerprint = guard && typeof guard === "object" && !Array.isArray(guard)
+          ? (guard as Record<string, unknown>).expected_fingerprint : null;
+        if (typeof fingerprint !== "string" || !fingerprint.trim()) {
+          throw new BloomError(502, "verification_failed", "BloomSites did not return a catalogue preview fingerprint");
+        }
+        // Freeze the linked site and reviewed state without accepting extra guard fields.
+        inputs.site_id = site_id;
+        inputs.expected_fingerprint = fingerprint;
+        preview = r;
+        break;
+      }
+      if (guard && typeof guard === "object" && !Array.isArray(guard)) Object.assign(inputs, guard);
+      preview = r;
+    }
+  }
+  return await mutationRpc(caller, "record_operation_preview", {
+    actor: caller.principalId,
+    operation: {
+      account_id: account.id, ticket_id: req.ticket_id ?? null, kind: req.kind, permission, inputs, preview,
+      idempotency_key: req.idempotency_key ?? `${caller.principalId}:${req.kind}:${crypto.randomUUID()}`,
+      idempotency_fingerprint: idempotencyFingerprint,
+    },
+  });
+}
+
+interface OperationRow {
+  id: string; kind: string; account_id: string; ticket_id: string | null; inputs: Record<string, unknown>; status: string;
+  already?: boolean; undo?: Record<string, unknown> | null; result?: unknown; permission: string; expires_at: string;
+  mcp_error?: { status: number; code: string; message: string };
+  operation?: Record<string, unknown>;
+  reconciliation?: { action?: "execute" | "undo" } | null;
+}
+
+function replayOperationError(op: OperationRow, action: "execute" | "undo") {
+  if (op.mcp_error) throw new BloomError(op.mcp_error.status, op.mcp_error.code, op.mcp_error.message);
+  if (op.status === "reconciliation_needed") {
+    const pendingAction = op.reconciliation?.action ?? action;
+    throw new BloomError(
+      502,
+      "operation_reconciliation_needed",
+      pendingAction === "undo"
+        ? "The undo may have completed, but Bloom did not receive a conclusive response. Verify the product state before taking another action."
+        : "The product change may have completed, but Bloom did not receive a conclusive response. Verify the product state before taking another action.",
+    );
+  }
+  if (op.already && ["executing", "undoing"].includes(op.status)) {
+    throw new BloomError(409, "operation_in_progress", "The same product change is still in progress. Check it again shortly.");
+  }
+  if (action === "execute" && op.status === "failed") {
+    throw new BloomError(409, "operation_failed", "The product change failed. Review the operation before trying again.");
+  }
+  if (action === "execute" && op.status === "expired") {
+    throw new BloomError(409, "operation_expired", "This preview expired. Create and review a new preview before changing the product.");
+  }
+  if (action === "execute" && op.status === "undone") {
+    throw new BloomError(409, "operation_undone", "This product change was already undone. Create a new preview to apply it again.");
+  }
+  if (action === "execute" && op.status === "cancelled") {
+    throw new BloomError(409, "operation_cancelled", "This product change was cancelled. Create a new preview to continue.");
+  }
+  if (action === "execute" && op.status === "confirmed") {
+    throw new BloomError(409, "operation_in_progress", "This product change is already being confirmed. Check it again shortly.");
+  }
+}
+
+function safeOperationError(error: unknown, fallbackCode: string, fallbackMessage: string) {
+  if (error instanceof BloomError) {
+    return { status: error.status, code: error.code, message: error.message.slice(0, 500) };
+  }
+  return { status: 502, code: fallbackCode, message: fallbackMessage };
+}
+
+interface EffectProgress {
+  /** The next awaited call may mutate the product. */
+  started: boolean;
+  /** The mutating call returned; any later failure is verification/recording ambiguity. */
+  acknowledged: boolean;
+}
+
+function ambiguousAfterEffect(error: unknown, progress: EffectProgress): boolean {
+  if (progress.acknowledged) return true;
+  if (!progress.started) return false;
+  // Explicit 4xx responses are deterministic rejections. Network errors,
+  // timeouts, 5xx and malformed/failed verification are not.
+  return !(error instanceof BloomError && error.status >= 400 && error.status < 500);
+}
+
+function reconciliationError(action: "execute" | "undo") {
+  return {
+    status: 502,
+    code: "operation_reconciliation_needed",
+    message: action === "undo"
+      ? "The undo may have completed, but Bloom did not receive a conclusive response. Verify the product state before taking another action."
+      : "The product change may have completed, but Bloom did not receive a conclusive response. Verify the product state before taking another action.",
+  };
+}
+
+/**
+ * Executes a previewed operation exactly once. Every change requires a person:
+ * service identities may prepare previews but never execute or undo.
+ */
+export async function executeOperation(caller: Caller, operationId: string): Promise<Record<string, unknown>> {
+  // Every change is confirmed by a person. Service identities may prepare previews only.
+  if (caller.role === "service") throw new BloomError(403, "forbidden", "This change needs a person to confirm it");
+  const op = await claimMcpOperation<OperationRow>(caller, operationId, "execute");
+  replayOperationError(op, "execute");
+  if (op.already || op.status !== "executing") return op as unknown as Record<string, unknown>;
+  const progress: EffectProgress = { started: false, acknowledged: false };
+  let operationFinished = false;
+  try {
+    const performed = await perform(caller, op, progress);
+    const verification = performed.verification;
+    if (!verification || typeof verification !== "object" || Array.isArray(verification)
+        || (verification as Record<string, unknown>).passed !== true) {
+      throw new BloomError(502, "verification_failed", "The product change could not be verified after it was sent.");
+    }
+    const finished = await rpc<Record<string, unknown>>("finish_operation", {
+      actor: caller.principalId,
+      operation_id: op.id,
+      outcome: { status: "succeeded", ...performed },
+    });
+    operationFinished = true;
+    await completeMcpOperation(caller, op.id, finished);
+    return finished;
+  } catch (e) {
+    // The durable operation row already tells future retries that execution
+    // succeeded; a receipt write failure is recovered by the claim wrapper.
+    if (operationFinished) throw e;
+    if (ambiguousAfterEffect(e, progress)) {
+      const pending = await markOperationReconciliation<Record<string, unknown>>(caller.principalId, op.id, "execute");
+      const safe = reconciliationError("execute");
+      await completeMcpOperation(caller, op.id, { mcp_error: safe, operation: pending });
+      throw new BloomError(safe.status, safe.code, safe.message);
+    }
+    const message = e instanceof Error ? e.message : String(e);
+    const failed = await rpc<Record<string, unknown>>("finish_operation", { actor: caller.principalId, operation_id: op.id, outcome: { status: "failed", error: message.slice(0, 1000) } });
+    const safe = safeOperationError(e, "operation_failed", "The product change failed. Review the operation before trying again.");
+    await completeMcpOperation(caller, op.id, { mcp_error: safe, operation: failed });
+    throw new BloomError(safe.status, safe.code, safe.message);
+  }
+}
+
+async function perform(
+  caller: Caller,
+  op: OperationRow,
+  progress: EffectProgress,
+): Promise<{ result: unknown; verification: unknown; undo: unknown }> {
+  const inputs = op.inputs ?? {};
+  switch (op.kind) {
+    case "site.create_draft": {
+      const actor = await siteCreationActor(caller);
+      const account = await loadAccount(caller, op.account_id);
+      const anchor = inputs.expected_anchor_site_id;
+      if (anchor !== null && (!siteUuid(anchor) || !account.links.some(link => link.product === "cms" && link.external_id === anchor))) {
+        throw new BloomError(403, "forbidden", "The reviewed anchor is no longer linked to this client");
+      }
+      const expiry = Date.parse(op.expires_at);
+      if (!Number.isFinite(expiry)) throw new BloomError(500, "invalid_operation", "The creation request has no valid expiry");
+      progress.started = true;
+      const response = await callProduct("cms", "site.create_draft", {
+        account_id: account.id, account_name: account.name, site_id: anchor, inputs, actor,
+        operation_id: op.id, resume_only: expiry < Date.now(),
+      });
+      progress.acknowledged = true;
+      const result = response.result as { site?: { id?: unknown; created_by?: unknown; tenant_id?: unknown; is_published?: unknown; commerce_enabled?: unknown }; account_id?: unknown } | undefined;
+      const verification = response.verification as Record<string, unknown> | undefined;
+      if (!result?.site || !siteUuid(result.site.id) || !siteUuid(result.site.tenant_id)
+          || result.account_id !== account.id || verification?.passed !== true || verification.account_id !== account.id
+          || (inputs.expected_tenant_id !== null && result.site.tenant_id !== inputs.expected_tenant_id)
+          || result.site.created_by !== inputs.expected_creator_id || result.site.is_published !== false || result.site.commerce_enabled !== false) {
+        throw new BloomError(502, "verification_failed", "The new client draft could not be verified");
+      }
+      const siteId = result.site.id;
+      if (!account.links.some(link => link.product === "cms" && link.external_id === siteId)) {
+        await rpc("update_account", { actor: caller.principalId, account_id: account.id,
+          patch: { link: { product: "cms", external_id: siteId, label: String(inputs.name ?? account.name).slice(0, 200) } } });
+      }
+      const saved = await loadAccount(caller, account.id);
+      if (!saved.links.some(link => link.product === "cms" && link.external_id === siteId)) {
+        throw new BloomError(502, "verification_failed", "The draft exists but its client link needs recovery");
+      }
+      return { result, verification: { ...verification, account_linked: true }, undo: null };
+    }
+    case "campaign.schedule": {
+      progress.started = true;
+      const r = await opsRpc<Record<string, unknown>>("campaign_schedule", {
+        actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id, scheduled_at: inputs.scheduled_at, timezone: inputs.timezone ?? null,
+        fingerprint: inputs.fingerprint ?? null,
+      });
+      progress.acknowledged = true;
+      const after = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id });
+      return { result: r, verification: { checked: "campaign row", status: after.status, scheduled_at: after.scheduled_at, passed: after.status === "scheduled" }, undo: { kind: "campaign.unschedule", campaign_id: inputs.campaign_id } };
+    }
+    case "campaign.unschedule": {
+      progress.started = true;
+      const r = await opsRpc<Record<string, unknown>>("campaign_unschedule", { actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id });
+      progress.acknowledged = true;
+      const after = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id });
+      return { result: r, verification: { status: after.status, passed: after.status === "draft" }, undo: null };
+    }
+    case "campaign.create_draft":
+    case "campaign.update_draft": {
+      const tenant = await opsRpc<string>("campaign_tenant", { actor: caller.principalId, account_id: op.account_id, permission: op.permission });
+      let before: Record<string, unknown> | null = null;
+      if (op.kind === "campaign.update_draft") before = await opsRpc("campaign_facts", { actor: caller.principalId, account_id: op.account_id, campaign_id: inputs.campaign_id });
+      progress.started = true;
+      const r = await runCampaignTool(op.kind === "campaign.create_draft" ? "create_campaign" : "update_campaign", tenant, op.id, inputs, true);
+      if (!r.success) throw new BloomError(400, "invalid", r.error ?? "campaign change failed");
+      progress.acknowledged = true;
+      const id = (r.data as Record<string, unknown> | null)?.campaign_id ?? (r.data as Record<string, unknown> | null)?.id ?? inputs.campaign_id;
+      const after = id ? await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: op.account_id, campaign_id: id }) : null;
+      // A draft edit has no automatic undo: the snapshot is a read model, not the
+      // editable fields, so replaying it could change more than the edit did.
+      // Keep the before state as evidence and say plainly that undo is done in the product.
+      return {
+        result: r.data,
+        verification: { passed: !!after, campaign: after, ...(before ? { before, undo: "Change it back in the campaign editor" } : {}) },
+        undo: null,
+      };
+    }
+    default: {
+      const account = await loadAccount(caller, op.account_id);
+      const site_id = linkFor(account, "cms", inputs);
+      progress.started = true;
+      const r = await callProduct("cms", op.kind, { site_id, inputs, actor: actorFacts(caller), operation_id: op.id });
+      progress.acknowledged = true;
+      return { result: r.result ?? r, verification: r.verification ?? null, undo: op.kind === "site.catalogue.assign_categories" ? null : r.undo ?? null };
+    }
+  }
+}
+
+/** Undo for operations that recorded restoration data. */
+export async function undoOperation(caller: Caller, operationId: string): Promise<Record<string, unknown>> {
+  if (caller.role === "service") throw new BloomError(403, "forbidden", "Undoing a change needs a person to confirm it");
+  const op = await claimMcpOperation<OperationRow>(caller, operationId, "undo");
+  replayOperationError(op, "undo");
+  if (op.already || op.status !== "undoing") return op as unknown as Record<string, unknown>;
+  const undo = op.undo as Record<string, unknown>;
+  const progress: EffectProgress = { started: false, acknowledged: false };
+  let operationFinished = false;
+  try {
+    let result: unknown;
+    let verification: unknown;
+    if (undo.kind === "campaign.unschedule") {
+      progress.started = true;
+      result = await opsRpc("campaign_unschedule", { actor: caller.principalId, account_id: op.account_id, campaign_id: undo.campaign_id });
+      progress.acknowledged = true;
+      const after = await opsRpc<Record<string, unknown>>("campaign_facts", { actor: caller.principalId, account_id: op.account_id, campaign_id: undo.campaign_id });
+      verification = { checked: "campaign row", status: after.status, passed: after.status === "draft" };
+    } else if (typeof undo.kind === "string" && undo.kind.startsWith("site.") || typeof undo.kind === "string" && undo.kind.startsWith("event.")) {
+      const account = await loadAccount(caller, op.account_id);
+      progress.started = true;
+      const response = await callProduct("cms", `${undo.kind}.undo`, { site_id: linkFor(account, "cms", op.inputs ?? {}), undo, actor: actorFacts(caller), operation_id: op.id });
+      progress.acknowledged = true;
+      result = response.result ?? response;
+      verification = response.verification ?? null;
+    } else {
+      throw new BloomError(400, "invalid", "Undo for this operation must be done in the product");
+    }
+    if (!verification || typeof verification !== "object" || Array.isArray(verification)
+        || (verification as Record<string, unknown>).passed !== true) {
+      throw new BloomError(502, "verification_failed", "The product undo could not be verified after it was sent.");
+    }
+    const finished = await rpc<Record<string, unknown>>("finish_operation", { actor: caller.principalId, operation_id: op.id, outcome: { status: "undone", result, verification } });
+    operationFinished = true;
+    await completeMcpOperation(caller, op.id, finished);
+    return finished;
+  } catch (e) {
+    if (operationFinished) throw e;
+    if (ambiguousAfterEffect(e, progress)) {
+      const pending = await markOperationReconciliation<Record<string, unknown>>(caller.principalId, op.id, "undo");
+      const safe = reconciliationError("undo");
+      await completeMcpOperation(caller, op.id, { mcp_error: safe, operation: pending });
+      throw new BloomError(safe.status, safe.code, safe.message);
+    }
+    const message = e instanceof Error ? e.message : String(e);
+    const restored = await failOperationUndo<Record<string, unknown>>(caller.principalId, op.id, message);
+    const safe = safeOperationError(e, "undo_failed", "The undo failed and the original change remains in place.");
+    await completeMcpOperation(caller, op.id, { mcp_error: safe, operation: restored });
+    throw new BloomError(safe.status, safe.code, safe.message);
+  }
+}

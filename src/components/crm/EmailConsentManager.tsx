@@ -1,3 +1,4 @@
+import {POSMarketingRequests} from './POSMarketingRequests';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Button } from '@/components/ui-legacy/button';
@@ -64,6 +65,7 @@ export function EmailConsentManager() {
 
   return (
     <div className="space-y-6">
+      <POSMarketingRequests/>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

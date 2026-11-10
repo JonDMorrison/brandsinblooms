@@ -18,11 +18,9 @@ export interface AccountSetupProgress {
   posIntegrated: boolean;
   clientListImported: boolean;
   domainConfigured: boolean;
-  socialConnected: boolean;
   googleAnalyticsConnected: boolean;
   smsSetupComplete: boolean;
   firstEmailCampaignSent: boolean;
-  firstSocialPostPublished: boolean;
   firstAutomationCreated: boolean;
   customerSegmentsCreated: boolean;
   newsletterTemplateSent: boolean;
@@ -39,11 +37,9 @@ export const useAccountSetupProgress = () => {
     posIntegrated: false,
     clientListImported: false,
     domainConfigured: false,
-    socialConnected: false,
     googleAnalyticsConnected: false,
     smsSetupComplete: false,
     firstEmailCampaignSent: false,
-    firstSocialPostPublished: false,
     firstAutomationCreated: false,
     customerSegmentsCreated: false,
     newsletterTemplateSent: false,
@@ -111,13 +107,6 @@ export const useAccountSetupProgress = () => {
         .in('status', ['verified', 'warming_up', 'active'])
         .limit(1);
 
-      // FIX: C2 - social_connections has no tenant_id column, use user_id instead
-      const { count: socialCount } = await supabase
-        .from('social_connections')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-
       // Check Google Analytics connection
       const { data: gaConnection } = await supabase
         .from('google_analytics_settings')
@@ -138,13 +127,6 @@ export const useAccountSetupProgress = () => {
         .select('id', { count: 'exact', head: true })
         .eq('tenant_id', tenant.id)
         .eq('status', 'sent');
-
-      // Check first social post published
-      const { count: publishedPostCount } = await supabase
-        .from('content_tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenant.id)
-        .eq('status', 'published');
 
       // Check first automation created
       const { count: automationCount } = await supabase
@@ -184,11 +166,9 @@ export const useAccountSetupProgress = () => {
         posIntegrated,
         clientListImported,
         domainConfigured,
-        socialConnected: (socialCount || 0) > 0,
         googleAnalyticsConnected: !!gaConnection,
         smsSetupComplete: smsComplete,
         firstEmailCampaignSent: (sentCampaignCount || 0) > 0,
-        firstSocialPostPublished: (publishedPostCount || 0) > 0,
         firstAutomationCreated: (automationCount || 0) > 0,
         customerSegmentsCreated: (segmentCount || 0) > 0,
         newsletterTemplateSent: (newsletterCount || 0) > 0,
@@ -240,11 +220,9 @@ export const useAccountSetupProgress = () => {
       { completed: progress.posIntegrated, skipped: skippedSteps.includes('pos') },
       { completed: progress.clientListImported, skipped: skippedSteps.includes('clients') },
       { completed: progress.domainConfigured, skipped: skippedSteps.includes('domain') },
-      { completed: progress.socialConnected, skipped: skippedSteps.includes('social') },
       { completed: progress.googleAnalyticsConnected, skipped: skippedSteps.includes('analytics') },
       { completed: progress.smsSetupComplete, skipped: skippedSteps.includes('sms') },
       { completed: progress.firstEmailCampaignSent, skipped: skippedSteps.includes('first-email') },
-      { completed: progress.firstSocialPostPublished, skipped: skippedSteps.includes('first-post') },
       { completed: progress.firstAutomationCreated, skipped: skippedSteps.includes('first-automation') },
       { completed: progress.customerSegmentsCreated, skipped: skippedSteps.includes('segments') },
       { completed: progress.newsletterTemplateSent, skipped: skippedSteps.includes('newsletter') },

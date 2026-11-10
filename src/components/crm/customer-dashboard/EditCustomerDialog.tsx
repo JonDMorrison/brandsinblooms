@@ -1,9 +1,6 @@
 import * as React from "react";
-import FormControl from "@mui/joy/FormControl";
-import FormLabel from "@mui/joy/FormLabel";
 import Stack from "@mui/joy/Stack";
-import Typography from "@mui/joy/Typography";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -13,7 +10,6 @@ import {
   JoyDialogContent,
 } from "@/components/joy/JoyDialog";
 import { JoyInput } from "@/components/joy/JoyInput";
-import { JoySwitch } from "@/components/joy/JoySwitch";
 import { useUpdateCustomer } from "@/hooks/useUpdateCustomer";
 import type { CustomerData } from "@/hooks/useCustomerDashboard";
 
@@ -38,8 +34,6 @@ const editCustomerSchema = z.object({
     .trim()
     .max(20, "Phone must be less than 20 characters")
     .optional(),
-  email_opt_in: z.boolean().optional(),
-  sms_opt_in: z.boolean().optional(),
 });
 
 type EditCustomerFormData = z.infer<typeof editCustomerSchema>;
@@ -53,8 +47,6 @@ interface EditCustomerDialogProps {
     last_name?: string | null;
     email: string;
     phone?: string | null;
-    email_opt_in?: boolean | null;
-    sms_opt_in?: boolean | null;
   };
   onSuccess?: (updatedCustomer: Partial<CustomerData>) => void;
 }
@@ -69,7 +61,6 @@ export function EditCustomerDialog({
   const updateCustomer = useUpdateCustomer();
 
   const {
-    control,
     register,
     reset,
     handleSubmit,
@@ -81,8 +72,6 @@ export function EditCustomerDialog({
       last_name: initialData.last_name || "",
       email: initialData.email,
       phone: initialData.phone || "",
-      email_opt_in: initialData.email_opt_in ?? false,
-      sms_opt_in: initialData.sms_opt_in ?? false,
     },
     mode: "onChange",
   });
@@ -95,16 +84,12 @@ export function EditCustomerDialog({
       last_name: initialData.last_name || "",
       email: initialData.email,
       phone: initialData.phone || "",
-      email_opt_in: initialData.email_opt_in ?? false,
-      sms_opt_in: initialData.sms_opt_in ?? false,
     });
   }, [
     initialData.email,
-    initialData.email_opt_in,
     initialData.first_name,
     initialData.last_name,
     initialData.phone,
-    initialData.sms_opt_in,
     open,
     reset,
   ]);
@@ -117,8 +102,6 @@ export function EditCustomerDialog({
         last_name: data.last_name || null,
         email: data.email,
         phone: data.phone || null,
-        email_opt_in: data.email_opt_in ?? false,
-        sms_opt_in: data.sms_opt_in ?? false,
       },
     });
 
@@ -131,7 +114,7 @@ export function EditCustomerDialog({
       open={open}
       onClose={() => onOpenChange(false)}
       title="Edit Customer"
-      description="Update customer information and communication preferences."
+      description="Update customer contact information. Consent is managed separately with a documented audit trail."
       size="md"
     >
       <JoyDialogContent>
@@ -171,62 +154,6 @@ export function EditCustomerDialog({
               errorMessage={errors.phone?.message}
               {...register("phone")}
             />
-
-            <Stack spacing={1.5}>
-              <Typography level="title-sm">
-                Communication Preferences
-              </Typography>
-
-              <Controller
-                name="email_opt_in"
-                control={control}
-                render={({ field }) => (
-                  <FormControl
-                    orientation="horizontal"
-                    sx={{
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Stack spacing={0.25}>
-                      <FormLabel>Email Marketing</FormLabel>
-                      <Typography level="body-xs" color="neutral">
-                        Allow marketing campaigns and newsletters by email.
-                      </Typography>
-                    </Stack>
-                    <JoySwitch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                )}
-              />
-
-              <Controller
-                name="sms_opt_in"
-                control={control}
-                render={({ field }) => (
-                  <FormControl
-                    orientation="horizontal"
-                    sx={{
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Stack spacing={0.25}>
-                      <FormLabel>SMS Marketing</FormLabel>
-                      <Typography level="body-xs" color="neutral">
-                        Allow SMS reminders, campaigns, and outreach.
-                      </Typography>
-                    </Stack>
-                    <JoySwitch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                )}
-              />
-            </Stack>
           </Stack>
         </form>
       </JoyDialogContent>

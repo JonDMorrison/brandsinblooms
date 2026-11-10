@@ -1,0 +1,37 @@
+import {describe,expect,it,vi} from 'vitest';
+import {render,screen,fireEvent,cleanup} from '@testing-library/react';
+import {MemoryRouter} from 'react-router-dom';
+import {afterEach} from 'vitest';
+import {CustomerAnalysisBlock} from '@/components/bloom/blocks/CustomerAnalysisBlock';
+import {customerAnalysisPayload} from '../presentation';
+afterEach(cleanup);
+const sample={kind:'customer_exploration',set_id:'result-a',included_count:1,excluded_count:2,unknown_count:3,bucket:'included',total_count:1,page:1,
+ rows:[{customer_id:'alice',name:'Alice',reason:'Recorded purchase',evidence_count:1}],
+ trail:[{set_id:'result-a',label:'Hydrangea buyers',rule:{mode:'purchased',product:'Hydrangea'},input:6,included:1,excluded:2,unknown:3}]};
+describe('customer analysis presentation',()=>{
+ it('shows all decision buckets and the rule trail',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={sample}/></MemoryRouter>);expect(screen.getByText('Included: 1')).toBeTruthy();expect(screen.getByText('Excluded: 2')).toBeTruthy();expect(screen.getByText('Unknown: 3')).toBeTruthy();expect(screen.getByText('How this group was selected')).toBeTruthy();});
+ it('uses the exact result ID when inspecting exclusions',()=>{const action=vi.fn();render(<MemoryRouter><CustomerAnalysisBlock data={sample} onAction={action}/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'Excluded: 2'}));expect(action).toHaveBeenCalledWith(expect.stringContaining('result-a'));expect(action).toHaveBeenCalledWith(expect.stringContaining('excluded'));});
+ it('requests confirmation and does not send when saving a segment',()=>{const action=vi.fn();render(<MemoryRouter><CustomerAnalysisBlock data={sample} onAction={action}/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'Save fixed audience'}));expect(action).toHaveBeenCalledWith(expect.stringContaining('before confirmation'));expect(action).toHaveBeenCalledWith(expect.stringContaining('Do not send'));});
+ it('does not let an empty result become a fake successful segment',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={{...sample,included_count:0,rows:[]}} onAction={vi.fn()}/></MemoryRouter>);expect(screen.queryByRole('button',{name:'Save fixed audience'})).toBeNull();});
+ it('offers an explicit dynamic audience approval path',()=>{const action=vi.fn();render(<MemoryRouter><CustomerAnalysisBlock data={sample} onAction={action}/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'Save dynamic audience'}));expect(action).toHaveBeenCalledWith(expect.stringContaining('mode=dynamic'));expect(action).toHaveBeenCalledWith(expect.stringContaining('confirm before saving'));});
+ it('renders reported spending separately from CGI',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_reported_comparison',current:{start:'2026-01-01'},baseline:{start:'2025-01-01'},rows:[{name:'Buyer',baseline_spend:100,current_spend:125,spend_change_percent:25}]}}/></MemoryRouter>);expect(screen.getByText('Reported spending comparison')).toBeTruthy();expect(screen.queryByText('Growth index')).toBeNull();expect(customerAnalysisPayload({kind:'customer_reported_comparison'})).not.toBeNull();});
+ it('keeps the selected saved-audience bucket when requesting the next page',()=>{const action=vi.fn();render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_audience',audience_id:'audience',bucket:'unknown',page:1,has_more:true,rows:[]}} onAction={action}/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'Next page'}));expect(action).toHaveBeenCalledWith(expect.stringContaining('audience_id audience, unknown bucket'));});
+ it('renders imported text without interpreting it as HTML',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={{...sample,rows:[{name:'<script>bad()</script>'}]}}/></MemoryRouter>);expect(screen.getAllByText('<script>bad()</script>').length).toBeGreaterThan(0);expect(document.querySelector('script')).toBeNull();});
+ it('recognizes nested tool results without affecting ordinary tables',()=>{expect(customerAnalysisPayload({data:{result:sample}})).toBe(sample);expect(customerAnalysisPayload({rows:[{id:'abc'}]})).toBeNull();});
+ it('never shows a customer with no dated receipts as $0 or zero visits',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_growth',rows:[{name:'Bryan customer',baseline_spend:0,current_spend:0,baseline_visits:0,current_visits:0,growth_index:null,state:'no_comparable_history'}]}}/></MemoryRouter>);expect(screen.getAllByText('No dated receipts')).toHaveLength(4);expect(screen.getByText('Not enough history')).toBeTruthy();expect(screen.queryByText('0')).toBeNull();});
+ it('shows null growth values as unknown, not zero',()=>{render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_growth',rows:[{name:'Alice',growth_index:null,state:'incomplete_data'}]}}/></MemoryRouter>);expect(screen.getByText('Unknown')).toBeTruthy();});
+});
+
+it('offers a campaign-selectable CRM segment without analytical-audience mode',()=>{
+ const action=vi.fn();render(<MemoryRouter><CustomerAnalysisBlock data={sample} onAction={action}/></MemoryRouter>);
+ fireEvent.click(screen.getByRole('button',{name:'Save campaign segment'}));
+ expect(action).toHaveBeenCalledOnce();
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('result-a as a static CRM segment'));
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('save_customer_set_segment without mode'));
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('before confirmation'));
+ expect(action).toHaveBeenCalledWith(expect.stringContaining('Do not send any messages or change consent'));
+});
+it('does not offer a campaign segment for an empty included set',()=>{
+ render(<MemoryRouter><CustomerAnalysisBlock data={{...sample,included_count:0}} onAction={vi.fn()}/></MemoryRouter>);
+ expect(screen.queryByRole('button',{name:'Save campaign segment'})).toBeNull();
+});

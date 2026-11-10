@@ -23,6 +23,7 @@ import {
 import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
+import { canQueueCampaignForTenant } from "../../../src/lib/auth/crmAccess.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,8 +46,7 @@ type CampaignReputationPolicy = {
 type TenantSuppressionBypassState = {
   suppression_bypass_active: boolean;
   suppression_bypass_automation_mode:
-    | "campaign_only"
-    | "campaign_and_automation";
+    "campaign_only" | "campaign_and_automation";
 };
 
 type CampaignInterventionState = {
@@ -154,8 +154,7 @@ function normalizeAcknowledgedWarnings(value: unknown) {
       }
 
       const record = toRecord(entry);
-      const label =
-        typeof record.label === "string" ? record.label.trim() : "";
+      const label = typeof record.label === "string" ? record.label.trim() : "";
 
       if (!label) {
         return null;
@@ -484,9 +483,7 @@ serve(async (req: Request) => {
   try {
     const requestBody = toRecord(await req.json());
     const campaignId =
-      typeof requestBody.campaignId === "string"
-        ? requestBody.campaignId
-        : "";
+      typeof requestBody.campaignId === "string" ? requestBody.campaignId : "";
     const includeSuppressed = requestBody.includeSuppressed === true;
     const forceBypassConsent = requestBody.forceBypassConsent === true;
     const forceBypassSoftSuppression =
@@ -631,6 +628,72 @@ serve(async (req: Request) => {
         });
       }
     };
+
+    // Explicit authorization is required before the privileged service-role
+    // queue mutation. Scheduled workers invoke with the service-role token;
+    // interactive callers must have this tenant's campaigns.send permission.
+    // verify_jwt is disabled for internal worker compatibility, so this
+    // check is the primary edge authorization boundary.
+    // Modern sb_secret_ service keys are sent as the apikey header.
+    // Do not require legacy JWT comparison for scheduled workers.
+    const isInternalServiceRequest =
+      req.headers.get("apikey") === supabaseServiceKey ||
+      requesterJwt === supabaseServiceKey;
+    if (!isInternalServiceRequest) {
+      if (!requesterJwt) {
+        return new Response(JSON.stringify({ error: "Authentication required" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: requester, error: requesterError } =
+        await supabase.auth.getUser(requesterJwt);
+      if (requesterError || !requester?.user?.id) {
+        return new Response(JSON.stringify({ error: "Invalid session" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: requestedCampaign, error: requestedCampaignError } =
+        await supabase
+          .from("crm_campaigns")
+          .select("id,tenant_id,user_id")
+          .eq("id", campaignId)
+          .maybeSingle();
+      if (requestedCampaignError || !requestedCampaign) {
+        return new Response(JSON.stringify({ error: "Campaign not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const requestedTenantId = await resolveCampaignTenantId(supabase, requestedCampaign);
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (!anonKey) {
+        console.error("Missing Supabase public key for role verification");
+        return new Response(JSON.stringify({ error: "Authorization unavailable" }), {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const requesterClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${requesterJwt}` } },
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: requesterAccess, error: requesterAccessError } =
+        await requesterClient.rpc("get_current_crm_access");
+      if (
+        requesterAccessError ||
+        !canQueueCampaignForTenant(requesterAccess, requestedTenantId)
+      ) {
+        return new Response(JSON.stringify({ error: "Campaign send permission denied" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
@@ -969,13 +1032,25 @@ serve(async (req: Request) => {
     const additionalCustomerIds = Array.from(
       new Set(audienceExpansion.additionalCustomerIds),
     );
-    const usesLegacyAllCustomersFallback =
-      !includeAllCustomers &&
-      segmentIds.length === 0 &&
-      personaIdList.length === 0 &&
-      additionalCustomerIds.length === 0;
-    const resolveAllCustomersAudience =
-      includeAllCustomers || usesLegacyAllCustomersFallback;
+    const hasExplicitAudience =
+      includeAllCustomers ||
+      segmentIds.length > 0 ||
+      personaIdList.length > 0 ||
+      additionalCustomerIds.length > 0;
+    if (!hasExplicitAudience) {
+      const message = "Choose an audience before sending this campaign.";
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: "audience_not_configured",
+        errorMessage: message,
+      });
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const resolveAllCustomersAudience = includeAllCustomers;
+    const usesLegacyAllCustomersFallback = false;
 
     const audienceMetadata = toRecord(campaign.metadata);
     const rawIncludeAllCustomers =
@@ -1632,16 +1707,15 @@ serve(async (req: Request) => {
             recipient_count: recipientCount,
             audience_config: {
               include_all_customers: includeAllCustomers,
-              uses_legacy_all_customers_fallback: usesLegacyAllCustomersFallback,
+              uses_legacy_all_customers_fallback:
+                usesLegacyAllCustomersFallback,
               segment_ids: segmentIds,
               persona_ids: personaIdList,
               additional_customer_ids_count: additionalCustomerIds.length,
               raw_include_all_customers: rawIncludeAllCustomers,
             },
             single_recipient_email:
-              recipientCount === 1
-                ? (customers[0]?.email ?? null)
-                : null,
+              recipientCount === 1 ? (customers[0]?.email ?? null) : null,
             requester_user_id: requesterUserId ?? null,
             force_bypass_consent: forceBypassConsent,
             force_bypass_soft_suppression: forceBypassSoftSuppression,
@@ -1693,7 +1767,8 @@ serve(async (req: Request) => {
             Number.isFinite(previousCampaign.total_recipients) &&
             previousCampaign.total_recipients > 0
               ? previousCampaign.total_recipients
-              : typeof previousCampaign.projected_recipient_count === "number" &&
+              : typeof previousCampaign.projected_recipient_count ===
+                    "number" &&
                   Number.isFinite(previousCampaign.projected_recipient_count) &&
                   previousCampaign.projected_recipient_count > 0
                 ? previousCampaign.projected_recipient_count
@@ -2056,7 +2131,7 @@ serve(async (req: Request) => {
         );
       }) || null;
 
-    const preflightRender = renderEmailForRecipient({
+    const preflightRender = await renderEmailForRecipient({
       tenantId: campaignTenantId,
       campaignId,
       subject: campaign.subject_line || campaign.subject || "",
@@ -2391,7 +2466,7 @@ serve(async (req: Request) => {
       attemptedQueuedRecipientCount += batchMessageUpserts.length;
       let actualInsertedThisBatch = 0;
 
-      for (let offset = 0; offset < batchMessageUpserts.length; ) {
+      for (let offset = 0; offset < batchMessageUpserts.length;) {
         const chunk = batchMessageUpserts.slice(offset, offset + dbChunkSize);
         try {
           const resp = await supabase

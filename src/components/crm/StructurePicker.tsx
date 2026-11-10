@@ -250,7 +250,7 @@ function BlockDiagram({ blocks }: { blocks: string[] }) {
     header: "#1abc9c",
     text: "#94a3b8",
     image: "#60a5fa",
-    button: "#f59e0b",
+    button: "#B46B48",
     gallery: "#a78bfa",
   };
 

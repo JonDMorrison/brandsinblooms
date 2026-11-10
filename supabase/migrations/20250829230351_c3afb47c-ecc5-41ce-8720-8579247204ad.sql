@@ -6,7 +6,7 @@ SELECT cron.schedule(
   select
     net.http_post(
         url:='https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/watchdog',
-        headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTA1ODQzNCwiZXhwIjoyMDY0NjM0NDM0fQ.vPrVJkNYIzSy36qYTG_FgSCgCfCNsGKNLmMSNTlM2Q4"}'::jsonb,
+        headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || current_setting('supabase.service_role_key', true)),
         body:=concat('{"time": "', now(), '"}')::jsonb
     ) as request_id;
   $$

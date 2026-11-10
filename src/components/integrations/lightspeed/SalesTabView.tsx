@@ -630,6 +630,7 @@ export function SalesTabView({
                   </Stack>
                 </Box>
                 <IconButton
+                  aria-label="Close"
                   variant="plain"
                   color="neutral"
                   size="sm"

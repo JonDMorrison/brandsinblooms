@@ -949,7 +949,7 @@ const AccountPage = () => {
                       All your content and campaigns will be deleted
                     </Typography>
                     <Typography component="li" level="body-sm" sx={{ color: "text.secondary" }}>
-                      Social media connections will be revoked
+                      Saved integration connections will be revoked
                     </Typography>
                     <Typography component="li" level="body-sm" sx={{ color: "text.secondary" }}>
                       Analytics data will be permanently lost

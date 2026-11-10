@@ -1,11 +1,19 @@
 
 import { Button } from "@/components/ui-legacy/button";
-import { LogIn, Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserMenu } from "@/components/UserMenu";
+import "@/components/suite/suiteMarketing.css";
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
+
+// Marketing destinations, ordered independently of the homepage product cards.
+const PRODUCT_NAV_ITEMS = [
+  { name: "CRM", href: "/features", description: "Customer relationships & marketing" },
+  { name: "Website Builder", href: "/website/features", description: "Create and manage your website" },
+  { name: "POS", href: "/pos", description: "In-store checkout & operations" },
+  { name: "E-commerce", href: "/ecomm", description: "Sell your products online" },
+] as const;
 
 interface LandingPageHeaderProps {
   onLogin: () => void;
@@ -30,10 +38,15 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   const navItems = [
     { name: "Home", href: "/" },
     { name: "Features", href: "/features" },
-    { name: "Pricing", href: "/pricing" },
+    { name: "Build your suite", href: "/build-your-suite" },
+    { name: "CRM pricing", href: "/pricing" },
     { name: "FAQ", href: "/faq" },
     { name: "Contact", href: "/contact" },
   ];
+
+  useEffect(() => { setMobileMenuOpen(false); document.querySelectorAll<HTMLDetailsElement>("details.suite-products-menu").forEach(menu => { menu.open = false; }); }, [location.pathname]);
+
+  const productsMenu = <details className="suite-products-menu" onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}><summary>Products <ChevronDown size={16} aria-hidden="true" /></summary><div className="suite-products-menu-panel">{PRODUCT_NAV_ITEMS.map(product => product.href.startsWith("https:") ? <a key={product.name} href={product.href}><strong>{product.name}</strong><span>{product.description}</span></a> : <Link key={product.name} to={product.href} reloadDocument={product.href === "/pos" || product.href === "/website/features"}><strong>{product.name}</strong><span>{product.description}</span></Link>)}</div></details>;
 
   const isActiveRoute = (href: string) => {
     if (href === "/" && location.pathname === "/") return true;
@@ -52,7 +65,8 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
 
       {/* Navigation Links - Right after logo */}
-      <div className="hidden md:flex items-center gap-6 ml-10">
+      <div className="hidden xl:flex items-center gap-4 ml-6">
+        {productsMenu}
         {navItems.map((item) => (
           <Link
             key={item.name}
@@ -69,7 +83,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
         
       {/* Auth Buttons - Far right */}
-      <div className="hidden md:flex items-center gap-2 ml-auto">
+      <div className="hidden xl:flex items-center gap-2 ml-auto">
         {user && showUserMenu && (
           <Button 
             asChild
@@ -102,7 +116,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
 
       {/* Mobile Menu Button */}
-      <div className="md:hidden flex items-center gap-4 ml-auto">
+      <div className="xl:hidden flex items-center gap-4 ml-auto">
         {user && showUserMenu ? (
           <Button 
             asChild
@@ -118,6 +132,9 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
         <Button
           variant="ghost"
           size="icon"
+          aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="suite-mobile-navigation"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="text-foreground"
         >
@@ -127,8 +144,9 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg md:hidden">
+        <div id="suite-mobile-navigation" className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg xl:hidden [&_.suite-products-menu-panel]:static [&_.suite-products-menu-panel]:shadow-none">
           <div className="flex flex-col p-6 space-y-4">
+            {productsMenu}
             {navItems.map((item) => (
               <Link
                 key={item.name}
@@ -171,3 +189,5 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
     </nav>
   );
 };
+
+

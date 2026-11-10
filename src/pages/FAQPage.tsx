@@ -8,6 +8,7 @@ import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate } from "react-router-dom";
 import { VideoModal } from "@/components/ui-legacy/video-modal";
 import faqHero from "@/assets/faq-hero.jpg";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 const FAQPage = () => {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<string>("");
@@ -134,7 +135,7 @@ const FAQPage = () => {
     cta: {
       text: "Questions about security?",
       action: "Talk to our team",
-      onClick: () => window.open('mailto:jeff@brandsinblooms.com', '_blank')
+      onClick: () => window.open(`mailto:${SUPPORT_EMAIL}`, '_blank')
     },
     questions: [{
       question: "Is my data safe?",
@@ -156,7 +157,7 @@ const FAQPage = () => {
     cta: {
       text: "Need a hand right now?",
       action: "Contact Support",
-      onClick: () => window.open('mailto:jeff@brandsinblooms.com', '_blank')
+      onClick: () => window.open(`mailto:${SUPPORT_EMAIL}`, '_blank')
     },
     questions: [{
       question: "Do I get human support?",

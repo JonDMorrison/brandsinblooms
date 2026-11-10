@@ -5,6 +5,7 @@ export type AuthContext =
   | "passwordUpdate"
   | "verifyOtp"
   | "oauth";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 export type AuthErrorCode =
   | "invalid_credentials"
@@ -118,7 +119,7 @@ export function getAuthErrorMessage(
     return {
       code: "user_banned",
       message:
-        "This account has been suspended. Contact support at support@brandsinblooms.com.",
+        `This account has been suspended. Contact support at ${SUPPORT_EMAIL}.`,
       retryable: false,
     };
   }

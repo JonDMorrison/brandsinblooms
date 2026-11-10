@@ -18,10 +18,10 @@ interface QuickAddSheetProps {
   isOpen: boolean;
   onClose: () => void;
   selectedDate: Date | null;
-  defaultType?: "task" | "event" | "newsletter";
+  defaultType?: "event" | "newsletter";
   loading?: boolean;
   onSubmit: (payload: {
-    type: "task" | "event" | "newsletter";
+    type: "event" | "newsletter";
     title: string;
     date: string;
     notes: string;
@@ -32,11 +32,11 @@ export const QuickAddSheet = ({
   isOpen,
   onClose,
   selectedDate,
-  defaultType = "task",
+  defaultType = "newsletter",
   loading = false,
   onSubmit,
 }: QuickAddSheetProps) => {
-  const [type, setType] = useState<"task" | "event" | "newsletter">(
+  const [type, setType] = useState<"event" | "newsletter">(
     defaultType,
   );
   const [title, setTitle] = useState("");
@@ -63,7 +63,7 @@ export const QuickAddSheet = ({
       open={isOpen}
       onClose={() => onClose()}
       title="Quick Add"
-      description={`Create a task, campaign event, or newsletter for ${format(
+      description={`Create a campaign event or schedule an email for ${format(
         selectedDate,
         "EEEE, MMMM d, yyyy",
       )}.`}
@@ -91,7 +91,6 @@ export const QuickAddSheet = ({
                 onChange={(_event, value) => value && setType(value)}
                 slotProps={{ listbox: { disablePortal: true } }}
               >
-                <Option value="task">Task</Option>
                 <Option value="event">Campaign Event</Option>
                 <Option value="newsletter">Newsletter</Option>
               </Select>
@@ -127,9 +126,7 @@ export const QuickAddSheet = ({
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder={
-                type === "task"
-                  ? "Draft spring planting carousel"
-                  : type === "event"
+                type === "event"
                     ? "Mother’s Day in-store event"
                     : "Weekend offers newsletter"
               }

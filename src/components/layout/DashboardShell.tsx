@@ -158,6 +158,11 @@ export function DashboardShell({
     [mode, pathname],
   );
   const isBloomRoute = pathname.startsWith("/bloom");
+  // The floating help button would sit on top of the reply composer, and these pages are already support.
+  const isSupportRoute = /^\/(support|admin\/bloom-support)(\/|$)/.test(pathname);
+  const showBotanicalCanvas = mode !== "admin" &&
+    /^\/(dashboard|analytics|crm)(\/|$)/.test(pathname) &&
+    !/studio|email-builder/.test(pathname);
   const resolvedContentWidth = useMemo(
     () => contentWidth ?? resolveDashboardContentWidth(pathname, mode),
     [contentWidth, mode, pathname],
@@ -347,7 +352,7 @@ export function DashboardShell({
             : `${sidebarWidth}px minmax(0, 1fr)`,
           gridTemplateRows: `${DASHBOARD_TOPBAR_HEIGHT}px minmax(0, 1fr)`,
           transition: `grid-template-columns ${SIDEBAR_WIDTH_TRANSITION}`,
-          backgroundColor: "var(--joy-palette-sand-50)",
+          backgroundColor: "var(--joy-palette-neutral-50)",
         }}
       >
         {!isMobile && <DashboardSidebarSlot mode={mode} />}
@@ -368,7 +373,22 @@ export function DashboardShell({
             overflowX: "hidden",
             scrollBehavior: "smooth",
             overscrollBehavior: "contain",
-            backgroundColor: "var(--joy-palette-sand-50)",
+            backgroundColor: "var(--joy-palette-neutral-50)",
+            backgroundImage: showBotanicalCanvas
+              ? 'url("/images/dashboard/botanical-corner.svg"), url("/images/dashboard/botanical-corner.svg")'
+              : "none",
+            // Outlined/plain controls must remain opaque over the botanical canvas.
+            ...(showBotanicalCanvas ? {
+              "& :is(.MuiButton-variantOutlined, .MuiButton-variantPlain, .MuiIconButton-variantOutlined, .MuiIconButton-variantPlain)": {
+                backgroundColor: "var(--joy-palette-background-surface) !important",
+                "&:hover": { backgroundColor: "var(--joy-palette-neutral-100) !important" },
+                "&:active": { backgroundColor: "var(--joy-palette-neutral-200) !important" },
+                "&.Mui-disabled": { backgroundColor: "var(--joy-palette-background-surface) !important", opacity: 1 },
+              },
+            } : {}),
+            backgroundRepeat: "no-repeat",
+            backgroundSize: { xs: "180px, 160px", md: "360px, 300px" },
+            backgroundPosition: "right top, left bottom",
             scrollbarWidth: "thin",
             scrollbarColor: "var(--joy-palette-neutral-300) transparent",
             "&::-webkit-scrollbar": {
@@ -402,8 +422,8 @@ export function DashboardShell({
               width: "100%",
               height: "100%",
               minHeight: "100%",
-              px: isBloomRoute ? 0 : { xs: 4, md: 6 },
-              py: isBloomRoute ? 0 : 8,
+              px: isBloomRoute ? 0 : showBotanicalCanvas ? { xs: 2, md: 4 } : { xs: 4, md: 6 },
+              py: isBloomRoute ? 0 : showBotanicalCanvas ? { xs: 3, md: 4 } : 8,
               mx: isBloomRoute ? 0 : "auto",
               maxWidth:
                 isBloomRoute || resolvedContentWidth === "full"
@@ -438,7 +458,7 @@ export function DashboardShell({
           <DashboardMobileSidebarBackdrop open={isMobileSidebarOpen} />
         )}
         {isMobile && <DashboardMobileSidebarSlot mode={mode} />}
-        {!isBloomRoute && <HelpWidget />}
+        {!isBloomRoute && !isSupportRoute && <HelpWidget />}
       </Box>
       {hasRequestedCommandPalette ? (
         <ChunkErrorBoundary>

@@ -15,47 +15,9 @@ interface HardDeleteRequest {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const fbClientId = Deno.env.get('FB_CLIENT_ID');
-const fbClientSecret = Deno.env.get('FB_CLIENT_SECRET');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
-
-async function revokeFacebookTokens(userId: string) {
-  try {
-    // Get user's social connections
-    const { data: connections } = await supabase
-      .from('social_connections')
-      .select('platform, platform_account_id, access_token, page_id')
-      .eq('user_id', userId)
-      .in('platform', ['facebook', 'instagram']);
-
-    if (!connections?.length || !fbClientId || !fbClientSecret) return;
-
-    for (const connection of connections) {
-      try {
-        // Revoke Facebook/Instagram tokens via Graph API
-        const revokeUrl = connection.page_id 
-          ? `https://graph.facebook.com/${connection.page_id}/access_token`
-          : `https://graph.facebook.com/${connection.platform_account_id}/permissions`;
-
-        await fetch(revokeUrl, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${connection.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        console.log(`Revoked ${connection.platform} token for user ${userId}`);
-      } catch (error) {
-        console.error(`Failed to revoke ${connection.platform} token:`, error);
-      }
-    }
-  } catch (error) {
-    console.error('Error revoking Facebook tokens:', error);
-  }
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -89,9 +51,6 @@ serve(async (req) => {
     // Get user email before deletion for confirmation email
     const { data: userData } = await supabase.auth.admin.getUserById(userId);
     const userEmail = userData.user?.email;
-
-    // Revoke external API tokens (Facebook/Instagram)
-    await revokeFacebookTokens(userId);
 
     // Hard delete user data from all tables
     const { error: deleteError } = await supabase.rpc('admin_delete_user', {

@@ -1,3 +1,5 @@
+import {resolveCouponReminderSchedule} from '../_shared/customer-intelligence/coupon-reminder-schedule.ts';
+import {parseCouponReminderForChannel,type CouponReminderConfig} from '../_shared/customer-intelligence/coupon-lifecycle.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
@@ -25,6 +27,8 @@ import {
   createMergeTagDataFromCustomer,
 } from "../_shared/mergeTagEngine.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,21 +59,17 @@ interface OutboxMessage {
 }
 
 const BATCH_SIZE = 50;
+const RECOVERY_BATCH_SIZE = 2000;
+const MAX_MESSAGE_AGE_MS = 24 * 60 * 60 * 1000;
 const WORKER_ID = `worker-${crypto.randomUUID().slice(0, 8)}`;
-
-// Soft failure mode: When enabled, failed steps don't block automation - it continues to next step
-const SOFT_FAILURE_MODE = true;
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth gating handled at the platform level via verify_jwt — see
-  // queue-worker / process-email-send-queue for the same pattern.
-  // The previous in-handler check string-compared against the legacy
-  // SUPABASE_SERVICE_ROLE_KEY env and broke after the 2026-05-07
-  // sb_secret_ key migration (cron now sends the new key shape).
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   const startTime = Date.now();
   console.log(`📬 [${WORKER_ID}] Outbox processor starting...`);
@@ -80,17 +80,38 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // FIX: [A19] - Also rediscover stuck 'processing' messages with expired locks (>10 min old)
-    // 1. Find all tenants with queued messages or stuck processing messages
-    const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    // Expire old work before discovery. Releasing a months-old automation
+    // backlog can send irrelevant or non-consensual messages; only recent
+    // crashed work is eligible for reclamation.
+    const messageCutoff = new Date(
+      Date.now() - MAX_MESSAGE_AGE_MS,
+    ).toISOString();
+    const { data: recovery, error: recoveryError } = await supabase.rpc(
+      "expire_stale_automation_work",
+      { p_cutoff: messageCutoff, p_limit: RECOVERY_BATCH_SIZE },
+    );
+    if (recoveryError) {
+      console.error(
+        "❌ Failed to expire stale automation work:",
+        recoveryError,
+      );
+    } else if (
+      (recovery?.expired_outbox_count || 0) > 0 ||
+      (recovery?.failed_run_count || 0) > 0
+    ) {
+      console.log("🧹 Expired stale automation work:", recovery);
+    }
+
+    // 1. Find tenants with queued work or recent processing work whose lock
+    // expired. The claim RPC applies the same 24-hour safety window.
+    const now = new Date().toISOString();
     const { data: tenantRows, error: tenantError } = await supabase
       .from("crm_outbox")
       .select("tenant_id")
-      .or(
-        `status.eq.queued,and(status.eq.processing,updated_at.lt.${stuckCutoff})`,
-      )
-      .lte("scheduled_at", new Date().toISOString())
-      .or("locked_until.is.null,locked_until.lt." + new Date().toISOString())
+      .in("status", ["queued", "processing"])
+      .lte("scheduled_at", now)
+      .gte("scheduled_at", messageCutoff)
+      .or("locked_until.is.null,locked_until.lt." + now)
       .limit(100);
 
     if (tenantError) {
@@ -188,6 +209,24 @@ const handler = async (req: Request): Promise<Response> => {
           `🔒 Processing message ${message.id} (${message.message_type} to ${message.recipient})`,
         );
 
+        const eligibility = await checkAutomationEligibility(supabase, message);
+        if (!eligibility.allowed) {
+          await skipMessage(supabase, message, eligibility.reason);
+          if (eligibility.cancelRun && message.automation_run_id) {
+            await supabase
+              .from("automation_runs")
+              .update({
+                status: "cancelled",
+                completed_at: new Date().toISOString(),
+                error_message: eligibility.reason,
+              })
+              .eq("id", message.automation_run_id)
+              .eq("status", "active");
+          }
+          skipped++;
+          continue;
+        }
+
         // 3. Check channel availability before attempting to send
         const channelStatus = isChannelAvailable(message.message_type);
 
@@ -206,9 +245,6 @@ const handler = async (req: Request): Promise<Response> => {
           skipped++;
           continue;
         }
-
-        // FIX: [A20] - NOTE: Automations disabled after messages are queued will still send queued messages.
-        // To prevent this, add an is_active check on crm_automations here before sending if needed.
 
         // 4. Send the message based on type
         let sendResult: {
@@ -232,6 +268,31 @@ const handler = async (req: Request): Promise<Response> => {
 
         // 5. Handle skip response from send functions
         if (sendResult.shouldSkip) {
+          // The provider or execution ledger already accepted this exact
+          // message. Recover the acknowledgement without sending again.
+          if (sendResult.error === "already_sent") {
+            const { error: recoveryError } = await supabase
+              .from("crm_outbox")
+              .update({
+                status: "sent",
+                sent_at: new Date().toISOString(),
+                error_message: null,
+                locked_until: null,
+                locked_by: null,
+              })
+              .eq("id", message.id);
+            if (recoveryError) {
+              throw new Error(
+                `Failed to recover sent acknowledgement: ${recoveryError.message}`,
+              );
+            }
+            if (message.automation_run_id) {
+              await advanceAutomationRun(supabase, message);
+            }
+            sent++;
+            continue;
+          }
+
           console.log(
             `⏭️ Skipping ${message.message_type} step - ${sendResult.error}`,
           );
@@ -252,7 +313,7 @@ const handler = async (req: Request): Promise<Response> => {
           const sentAt = new Date().toISOString();
 
           // Update outbox to sent
-          await supabase
+          const { error: sentUpdateError } = await supabase
             .from("crm_outbox")
             .update({
               status: "sent",
@@ -261,6 +322,11 @@ const handler = async (req: Request): Promise<Response> => {
               locked_by: null,
             })
             .eq("id", message.id);
+          if (sentUpdateError) {
+            throw new Error(
+              `Failed to acknowledge sent message: ${sentUpdateError.message}`,
+            );
+          }
 
           // Log to crm_message_logs with external_id
           const { error: logError } = await supabase
@@ -323,7 +389,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (effectiveRetryCount >= maxRetries) {
             // Max retries reached, mark message as failed
-            await supabase
+            const { error: outboxFailureError } = await supabase
               .from("crm_outbox")
               .update({
                 status: "failed",
@@ -333,6 +399,11 @@ const handler = async (req: Request): Promise<Response> => {
                 locked_by: null,
               })
               .eq("id", message.id);
+            if (outboxFailureError) {
+              throw new Error(
+                `Failed to finalize outbox failure: ${outboxFailureError.message}`,
+              );
+            }
 
             // Log failure to crm_message_logs
             await supabase.from("crm_message_logs").insert({
@@ -347,43 +418,23 @@ const handler = async (req: Request): Promise<Response> => {
                 customer_id: message.customer_id,
                 step_index: message.step_index,
                 retry_count: effectiveRetryCount,
-                soft_failed: SOFT_FAILURE_MODE,
+                soft_failed: false,
                 non_retryable: isNonRetryable,
               },
             });
 
-            // Soft failure mode: Continue to next step instead of blocking entire automation
-            if (SOFT_FAILURE_MODE && message.automation_run_id) {
-              console.log(
-                `⚠️ Soft failure mode: Step ${message.step_index} (${message.message_type}) failed, continuing to next step`,
-              );
-
-              // Log as soft_failed in automation logs
-              if (message.automation_id) {
-                await writeAutomationLog(supabase, {
-                  automation_id: message.automation_id,
-                  customer_id: message.customer_id,
-                  step_index: message.step_index,
-                  message_type: message.message_type,
-                  status: "soft_failed",
-                  error_message: sendResult.error,
-                  skip_reason: isNonRetryable
-                    ? "Non-retryable failure - bypassed to continue automation"
-                    : `Failed after ${effectiveRetryCount} retries - bypassed to continue automation`,
-                });
-              }
-
-              // Continue to next step despite failure
-              await advanceAutomationRun(supabase, message);
-            } else if (message.automation_run_id) {
-              // Original behavior: mark entire automation as failed
-              await supabase
-                .from("automation_runs")
-                .update({
-                  status: "failed",
-                  error_message: `Step ${message.step_index} failed: ${sendResult.error}`,
-                })
-                .eq("id", message.automation_run_id);
+            if (message.automation_id) {
+              await writeAutomationLog(supabase, {
+                automation_id: message.automation_id,
+                customer_id: message.customer_id,
+                step_index: message.step_index,
+                message_type: message.message_type,
+                status: "failed",
+                error_message: sendResult.error,
+                skip_reason: isNonRetryable
+                  ? "Non-retryable delivery failure"
+                  : `Delivery failed after ${effectiveRetryCount} attempts`,
+              });
             }
 
             failed++;
@@ -472,6 +523,54 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
+async function checkAutomationEligibility(
+  supabase: ReturnType<typeof createClient>,
+  message: OutboxMessage,
+): Promise<{ allowed: boolean; reason: string; cancelRun: boolean }> {
+  if (!message.automation_id) {
+    return { allowed: true, reason: "", cancelRun: false };
+  }
+
+  const { data: automation, error: automationError } = await supabase
+    .from("crm_automations")
+    .select("is_active")
+    .eq("id", message.automation_id)
+    .maybeSingle();
+
+  if (automationError || !automation) {
+    return {
+      allowed: false,
+      reason: "Automation no longer exists",
+      cancelRun: true,
+    };
+  }
+  if (!automation.is_active) {
+    return {
+      allowed: false,
+      reason: "Automation was disabled before this message sent",
+      cancelRun: true,
+    };
+  }
+
+  if (message.automation_run_id) {
+    const { data: run, error: runError } = await supabase
+      .from("automation_runs")
+      .select("status")
+      .eq("id", message.automation_run_id)
+      .maybeSingle();
+
+    if (runError || !run || run.status !== "active") {
+      return {
+        allowed: false,
+        reason: `Automation run is ${run?.status || "unavailable"}`,
+        cancelRun: false,
+      };
+    }
+  }
+
+  return { allowed: true, reason: "", cancelRun: false };
+}
+
 /**
  * Mark a message as skipped and log the skip reason
  */
@@ -482,7 +581,7 @@ async function skipMessage(
 ): Promise<void> {
   const now = new Date().toISOString();
 
-  await supabase
+  const { error: skipUpdateError } = await supabase
     .from("crm_outbox")
     .update({
       status: "skipped",
@@ -492,6 +591,11 @@ async function skipMessage(
       locked_by: null,
     })
     .eq("id", message.id);
+  if (skipUpdateError) {
+    throw new Error(
+      `Failed to acknowledge skipped message: ${skipUpdateError.message}`,
+    );
+  }
 
   // Log skip in crm_message_logs
   await supabase.from("crm_message_logs").insert({
@@ -574,6 +678,10 @@ async function sendEmail(
   const automationNodeId = message.automation_id
     ? await getAutomationNodeId(supabase, message)
     : null;
+
+  if (message.template_data && 'coupon_reminder' in message.template_data && message.template_data.coupon_reminder !== null && (!message.automation_id || !automationNodeId)) {
+    return {success:false,error:'coupon_context_invalid',shouldSkip:true,canRetry:false};
+  }
 
   try {
     // Check suppression/opt-out status before sending (for automation emails)
@@ -676,7 +784,9 @@ async function sendEmail(
     // Fetch customer data for unified rendering
     const { data: customer } = await supabase
       .from("crm_customers")
-      .select("id, email, first_name, last_name, phone")
+      .select(
+        "id, email, first_name, last_name, phone, lifetime_value, total_spent, first_purchase_date, last_purchase_date, custom_fields",
+      )
       .eq("id", message.customer_id)
       .single();
 
@@ -688,10 +798,15 @@ async function sendEmail(
           first_name: customer.first_name,
           last_name: customer.last_name,
           phone: customer.phone,
+          lifetime_value: customer.lifetime_value,
+          total_spent: customer.total_spent,
+          first_purchase_date: customer.first_purchase_date,
+          last_purchase_date: customer.last_purchase_date,
+          custom_fields: customer.custom_fields,
         }
       : null;
 
-    const rendered = renderEmailForRecipient({
+    const rendered = await renderEmailForRecipient({
       tenantId: message.tenant_id,
       html: message.content,
       subject: message.subject || "Message from automation",
@@ -699,6 +814,7 @@ async function sendEmail(
       companyProfile,
       mode: "send",
       includeFooter: true,
+      supplementalData: templateData.trigger_data || null,
     });
 
     console.log(
@@ -716,6 +832,8 @@ async function sendEmail(
           from_name: companyName,
           from_email: senderConfig.fromEmail,
           reply_to: senderConfig.replyTo,
+          unsubscribe_url: rendered.actionLinks.unsubscribeUrl,
+          idempotency_key: `automation/${message.id}`,
           tags: [
             { name: "automation_id", value: message.automation_id || "none" },
             { name: "tenant_id", value: message.tenant_id },
@@ -829,6 +947,25 @@ async function sendSMS(
   canRetry?: boolean;
 }> {
   try {
+    // Consent can change after an automation step is queued. Re-check the
+    // canonical customer at the last possible boundary before provider send.
+    const smsEligibility = await checkSmsSendEligibility(supabase, {
+      tenantId: message.tenant_id,
+      customerId: message.customer_id,
+      recipient: message.recipient,
+    });
+    if (!smsEligibility.allowed) {
+      console.log(
+        `⏭️ [SendSMS] ${smsEligibility.code}: ${smsEligibility.reason}`,
+      );
+      return {
+        success: false,
+        error: `${smsEligibility.code}: ${smsEligibility.reason}`,
+        shouldSkip: true,
+        canRetry: false,
+      };
+    }
+
     // ── SMS Idempotency Check ──
     // Prevent duplicate SMS to the same customer for the same automation node
     if (message.automation_id) {
@@ -871,11 +1008,28 @@ async function sendSMS(
     let smsBody = message.content;
     const { data: smsCustomer } = await supabase
       .from("crm_customers")
-      .select("id, email, first_name, last_name, phone")
+      .select(
+        "id, email, first_name, last_name, phone, lifetime_value, total_spent, first_purchase_date, last_purchase_date, custom_fields",
+      )
       .eq("id", message.customer_id)
       .maybeSingle();
     if (smsCustomer) {
       const mergeData = createMergeTagDataFromCustomer(smsCustomer);
+      const triggerData = message.template_data?.trigger_data;
+      if (triggerData && typeof triggerData === "object") {
+        Object.assign(mergeData, triggerData, {
+          first_name: mergeData.first_name,
+          last_name: mergeData.last_name,
+          email: mergeData.email,
+          phone: mergeData.phone,
+          company: mergeData.company,
+          system: mergeData.system,
+          custom: {
+            ...(mergeData.custom || {}),
+            ...triggerData,
+          },
+        });
+      }
       smsBody = renderMergeTags(smsBody, mergeData);
     }
 
@@ -883,6 +1037,10 @@ async function sendSMS(
       body: {
         to: message.recipient,
         body: smsBody,
+        purpose: "marketing",
+        tenantId: message.tenant_id,
+        customerId: message.customer_id,
+        idempotencyKey: message.id,
       },
     });
 
@@ -988,10 +1146,12 @@ async function advanceAutomationRun(
 
     const rawWorkflowSteps = run.automation?.workflow_steps || [];
     const workflowSteps = normalizeWorkflowSteps(rawWorkflowSteps);
-    const nextStepIndex = run.current_step_index + 1;
+    // Advance from the message we actually processed, not mutable run state.
+    // This makes retries idempotent after a partial acknowledgement failure.
+    const nextStepIndex = message.step_index + 1;
 
     if (nextStepIndex >= run.total_steps) {
-      await supabase
+      const { error: completionError } = await supabase
         .from("automation_runs")
         .update({
           status: "completed",
@@ -999,7 +1159,13 @@ async function advanceAutomationRun(
           completed_at: new Date().toISOString(),
           next_step_scheduled_at: null,
         })
-        .eq("id", message.automation_run_id);
+        .eq("id", message.automation_run_id)
+        .eq("status", "active");
+      if (completionError) {
+        throw new Error(
+          `Failed to complete automation run: ${completionError.message}`,
+        );
+      }
 
       const tenantId = run.tenant_id || run.automation?.tenant_id;
       if (tenantId) {
@@ -1042,23 +1208,55 @@ async function advanceAutomationRun(
     } else {
       const nextStep = workflowSteps[nextStepIndex];
       const delayMs = (nextStep?.delayMin || 0) * 60 * 1000;
-      const nextScheduledAt = new Date(Date.now() + delayMs).toISOString();
+      let nextScheduledAt = new Date(Date.now() + delayMs).toISOString();
 
-      await supabase
-        .from("automation_runs")
-        .update({
-          current_step_index: nextStepIndex,
-          next_step_scheduled_at: nextScheduledAt,
-        })
-        .eq("id", message.automation_run_id);
-
-      const { data: customer } = await supabase
+      const { data: customer, error: customerError } = await supabase
         .from("crm_customers")
         .select("*")
         .eq("id", message.customer_id)
+        .eq("tenant_id", message.tenant_id)
         .single();
 
-      if (customer && nextStep) {
+      if (customerError || !customer) {
+        console.warn(
+          `Customer not found for automation run ${message.automation_run_id}, cancelling run`,
+        );
+        const { error: cancellationError } = await supabase
+          .from("automation_runs")
+          .update({
+            status: "cancelled",
+            error_message: "Customer deleted during automation",
+            completed_at: new Date().toISOString(),
+            next_step_scheduled_at: null,
+          })
+          .eq("id", message.automation_run_id)
+          .eq("status", "active");
+        if (cancellationError) {
+          throw new Error(
+            `Failed to cancel automation run: ${cancellationError.message}`,
+          );
+        }
+        return;
+      }
+
+      if (!nextStep) {
+        throw new Error(
+          `Automation step ${nextStepIndex} is missing from the workflow`,
+        );
+      }
+
+      let nextCouponReminder: (CouponReminderConfig & {issued_event_id:string}) | null = null;
+      if(nextStep.coupon_reminder){
+        if(run.tenant_id !== message.tenant_id || run.customer_id !== message.customer_id)throw new Error('Coupon run scope mismatch');
+        const triggerData=run.trigger_data || message.template_data?.trigger_data || {};
+        const decision=await resolveCouponReminderSchedule(supabase,message.tenant_id,message.customer_id,triggerData,nextStep.coupon_reminder,new Date().toISOString());
+        nextCouponReminder=decision.metadata;
+        // Blocked reminders are queued immediately with their guard intact so the
+        // normal worker records a skip and can advance unrelated later steps.
+        nextScheduledAt=new Date(Math.max(Date.now(),decision.scheduled_at?Date.parse(decision.scheduled_at):Date.now())).toISOString();
+      }
+
+      {
         const nextChannelStatus = isChannelAvailable(nextStep.type);
 
         // FIX: [A10] - Include automation_node_id in outbox insert for next step so idempotency checks work correctly
@@ -1096,39 +1294,44 @@ async function advanceAutomationRun(
             scheduled_at: nextScheduledAt,
             status: "queued", // Standardized: always use queued
             template_data: {
+              coupon_reminder: nextCouponReminder,
               automation_name: run.automation?.name,
               step_index: nextStepIndex,
               customer_data: customer,
+              trigger_data:
+                run.trigger_data || message.template_data?.trigger_data || {},
               channel_available: nextChannelStatus.available,
               channel_skip_reason: nextChannelStatus.reason,
             },
           });
 
-        if (insertError) {
-          console.error(
-            `❌ Failed to enqueue step ${nextStepIndex}:`,
-            insertError,
+        // A retry may find that the next step was already inserted before a
+        // prior run-state update failed. The partial unique index makes that
+        // duplicate a successful idempotent outcome.
+        if (insertError && insertError.code !== "23505") {
+          throw new Error(
+            `Failed to enqueue step ${nextStepIndex}: ${insertError.message}`,
           );
-          return;
         }
+
+        const { error: advanceError } = await supabase
+          .from("automation_runs")
+          .update({
+            current_step_index: nextStepIndex,
+            next_step_scheduled_at: nextScheduledAt,
+          })
+          .eq("id", message.automation_run_id)
+          .eq("status", "active")
+          .eq("current_step_index", message.step_index);
+        if (advanceError) {
+          throw new Error(
+            `Failed to advance automation run: ${advanceError.message}`,
+          );
+        }
+
         console.log(
           `📬 Enqueued next step ${nextStepIndex} for customer ${customer.email}`,
         );
-      }
-
-      // FIX: [A11] - Cancel automation run when customer is deleted instead of leaving it stuck in 'active' state
-      if (!customer) {
-        console.warn(
-          `Customer not found for automation run ${message.automation_run_id}, cancelling run`,
-        );
-        await supabase
-          .from("automation_runs")
-          .update({
-            status: "cancelled",
-            error_message: "Customer deleted during automation",
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", message.automation_run_id);
       }
     }
   } catch (err) {
@@ -1136,6 +1339,7 @@ async function advanceAutomationRun(
       `❌ Error advancing automation run ${message.automation_run_id}:`,
       err,
     );
+    throw err;
   }
 }
 
@@ -1144,6 +1348,7 @@ interface WorkflowStep {
   delayMin: number;
   subject?: string;
   text: string;
+  coupon_reminder?: CouponReminderConfig | null;
 }
 
 function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
@@ -1176,6 +1381,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
           delayMin: totalDelay,
           subject: step.subject || "",
           text: step.content || step.text || "",
+          coupon_reminder:parseCouponReminderForChannel(step.coupon_reminder,step.type),
         });
 
         console.log(
@@ -1213,6 +1419,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
           delayMin,
           subject: node.data?.subject || "",
           text: node.data?.content || node.data?.text || "",
+          coupon_reminder:parseCouponReminderForChannel(node.data?.coupon_reminder,node.type),
         };
       });
   }

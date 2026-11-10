@@ -1,5 +1,4 @@
 import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
-import { socialIconUrls } from "@/utils/socialIcons";
 
 export type IntegrationCardSize = "standard";
 
@@ -31,7 +30,7 @@ const getProviderLogo = (integrationId: string) => {
 export const INTEGRATIONS_SECTION_HEADER = {
   eyebrow: "Integrations",
   headline: "Connects to what you already use.",
-  subtext: "Two-way sync with the tools your store already runs on.",
+  subtext: "Bring the tools your store already uses into your BloomSuite setup.",
 };
 
 export const INTEGRATION_COUNT_COPY = {
@@ -42,7 +41,7 @@ export const INTEGRATION_COUNT_COPY = {
 
 // Ordered by category for scannability: POS first (the most-asked-
 // about integration for garden centres), then ecommerce, email,
-// social, analytics. Stripe (payments-only) and Cloudflare
+// and analytics. Stripe (payments-only) and Cloudflare
 // (infrastructure-only) were dropped — neither speaks to the garden
 // centre operator's day-to-day. VMX POS added to round out the POS
 // row alongside Lightspeed, Square, and Clover.
@@ -99,6 +98,15 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     delayMs: 240,
   },
   {
+    id: "counterpoint",
+    name: "CounterPoint",
+    logo: { src: getProviderLogo("counterpoint"), alt: "CounterPoint logo" },
+    category: "POS",
+    description: "Connect your store’s inventory through assisted setup.",
+    size: "standard",
+    delayMs: 280,
+  },
+  {
     id: "shopify",
     name: "Shopify",
     logo: {
@@ -150,19 +158,6 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     delayMs: 560,
   },
   {
-    id: "meta",
-    name: "Meta",
-    logo: {
-      src: socialIconUrls.facebook,
-      alt: "Facebook logo",
-    },
-    category: "SOCIAL",
-    description:
-      "Publish to Facebook and Instagram from your campaign builder.",
-    size: "standard",
-    delayMs: 640,
-  },
-  {
     id: "google-analytics",
     name: "Google Analytics",
     logo: {
@@ -173,6 +168,6 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     description:
       "Storefront traffic, conversions, and customer journeys mapped to your CRM.",
     size: "standard",
-    delayMs: 720,
+    delayMs: 640,
   },
 ];

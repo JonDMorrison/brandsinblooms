@@ -1,3 +1,6 @@
+import { reviewConnectedEvents } from "@/lib/connectedContent";
+import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
+import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
 import * as React from "react";
 import AspectRatio from "@mui/joy/AspectRatio";
 import Box from "@mui/joy/Box";
@@ -18,10 +21,10 @@ import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
+  Info,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  Calendar,
   Check,
   CheckCircle2,
   Pencil,
@@ -29,7 +32,12 @@ import {
   TimerReset,
   XCircle,
 } from "lucide-react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useParams,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { toast } from "sonner";
 import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { CampaignActiveSendView } from "@/components/crm/campaign-editor/CampaignActiveSendView";
@@ -42,7 +50,13 @@ import { CampaignLockedView } from "@/components/crm/campaign-editor/CampaignLoc
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
 import { CampaignBlockerRow } from "@/components/crm/campaign-editor/CampaignBlockerRow";
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
+import {
+  formatPlaceholderFindings,
+  scanBlocksForPlaceholders,
+  scanSubjectForUnrenderedTokens,
+} from "@/lib/crm/placeholderScan";
 import { CollapsibleSection } from "@/components/crm/campaign-editor/CollapsibleSection";
+import { NewsletterInboxReview } from "@/components/crm/campaign-editor/NewsletterInboxReview";
 import { IntentPicker } from "@/components/crm/campaign-editor/IntentPicker";
 import { ManageTemplatesModal } from "@/components/crm/campaign-editor/ManageTemplatesModal";
 import { SaveAsTemplateModal } from "@/components/crm/campaign-editor/SaveAsTemplateModal";
@@ -92,7 +106,8 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
-import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useCampaignAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   applyCampaignTemplate,
@@ -520,9 +535,16 @@ function CampaignEditorLoadingSkeleton() {
 
 function CampaignEditorScreen() {
   const navigate = useNavigate();
+  const [processParams, setProcessParams] = useSearchParams();
+  const reviewingNewsletter = processParams.get("step") === "review";
   const { tenant } = useTenant();
-  const { emailDomains, loading: emailDomainsLoading } = useEmailDomains();
-  const audienceHealthQuery = useTenantAudienceHealth(tenant?.id);
+  const { hasPermission } = useUserRole();
+  const canSendCampaign = hasPermission("campaigns.send");
+  const {
+    emailDomains,
+    loading: emailDomainsLoading,
+    refetch: refetchEmailDomains,
+  } = useEmailDomains();
   const { designSystem, isLoading: isDesignSystemLoading } = useDesignSystem();
   const {
     campaignId,
@@ -546,6 +568,7 @@ function CampaignEditorScreen() {
     isLoading,
     isLocked,
     isSaving,
+    isDirty,
     lastSavedAt,
     autoSaveStatus,
     autoSaveMessage,
@@ -554,10 +577,22 @@ function CampaignEditorScreen() {
     updateContent,
     updateSchedule,
     saveDraft,
+    isTenantReady,
   } = useCampaignEditor();
+
+  const audienceHealthQuery = useCampaignAudienceHealth({
+    tenantId: tenant?.id,
+    includeAllCustomers,
+    additionalCustomerIds,
+    segmentIds: selectedSegments.map((segment) => segment.id),
+    personaIds: selectedPersonas.map((persona) => persona.id),
+    enabled: campaignType === "email",
+  });
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
+  const [connectedEventWarnings, setConnectedEventWarnings] = React.useState<string[]>([]);
+  const [connectedEventChecking, setConnectedEventChecking] = React.useState(false);
   const [verificationOpen, setVerificationOpen] = React.useState(false);
   const [senderConfigOpen, setSenderConfigOpen] = React.useState(false);
   const [previewUnavailableOpen, setPreviewUnavailableOpen] =
@@ -668,6 +703,8 @@ function CampaignEditorScreen() {
         .from("crm_segments")
         .select("id, name, description, customer_count")
         .eq("tenant_id", tenant?.id)
+        .is("deleted_at", null)
+        .in("status", ["active", "draft", "paused"])
         .order("name", { ascending: true });
 
       if (error) {
@@ -807,7 +844,9 @@ function CampaignEditorScreen() {
 
   const buildCampaignResourceFocus = React.useCallback(() => {
     if (!campaignId) {
-      throw new Error("Campaign focus is unavailable until the draft is saved.");
+      throw new Error(
+        "Campaign focus is unavailable until the draft is saved.",
+      );
     }
 
     return buildCampaignFocus(
@@ -922,7 +961,7 @@ function CampaignEditorScreen() {
   }, []);
 
   const focusSubjectInput = React.useCallback(() => {
-    const section = document.getElementById("campaign-editor-content");
+    const section = document.getElementById("campaign-editor-inbox");
     section?.scrollIntoView({ behavior: "smooth", block: "start" });
     const input = document.getElementById(
       "campaign-editor-subject",
@@ -939,19 +978,29 @@ function CampaignEditorScreen() {
       return;
     }
 
-    let nextCampaignId = campaignId;
-
-    if (!nextCampaignId) {
-      nextCampaignId = await saveDraft({ silent: true });
+    // Until the company is known, a save would fall back to the signed-in
+    // user's own company (wrong for admins working in a client account, and
+    // refused by the server). The card stays disabled until then.
+    if (!isTenantReady) {
+      return;
     }
 
+    // Drafts can be created with no subject or preview. Those fields are
+    // checked only when the customer reviews or sends the newsletter.
+    const nextCampaignId =
+      isLocked && campaignId
+        ? campaignId
+        : await resolveStudioDraftId(null, () => saveDraft({ silent: true }));
+
     if (!nextCampaignId) {
-      toast.error("Save the draft before opening Campaign Studio.");
+      toast.error(
+        "Could not create your newsletter draft. Check your connection and try Design Studio again. Your content has not been discarded.",
+      );
       return;
     }
 
     navigate(`/crm/campaigns/${nextCampaignId}/studio`);
-  }, [campaignId, campaignType, navigate, saveDraft]);
+  }, [campaignId, campaignType, isLocked, isTenantReady, navigate, saveDraft]);
 
   const handleScheduleForLater = React.useCallback(() => {
     setScheduleOpen(true);
@@ -962,8 +1011,9 @@ function CampaignEditorScreen() {
       return;
     }
 
+    setConnectedEventChecking(campaignType === "email" && contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event"));
     setSendConfirmOpen(true);
-  }, [isLocked, pendingTemplateSave]);
+  }, [isLocked, pendingTemplateSave, campaignType, contentBlocks]);
 
   const sendBlockerLines = React.useMemo(() => {
     const blockers: string[] = [];
@@ -1001,7 +1051,14 @@ function CampaignEditorScreen() {
       blockers.push("Sender email is required.");
     }
 
-    if ((audienceCount ?? 0) <= 0) {
+    if (
+      !includeAllCustomers &&
+      selectedSegments.length === 0 &&
+      selectedPersonas.length === 0 &&
+      additionalCustomerIds.length === 0
+    ) {
+      blockers.push("Choose an audience before sending.");
+    } else if ((audienceCount ?? 0) <= 0) {
       blockers.push("At least one eligible recipient is required.");
     }
 
@@ -1020,6 +1077,10 @@ function CampaignEditorScreen() {
     return blockers;
   }, [
     audienceCount,
+    additionalCustomerIds,
+    includeAllCustomers,
+    selectedSegments,
+    selectedPersonas,
     autoSaveStatus,
     campaignType,
     hasComplianceFooter,
@@ -1055,7 +1116,57 @@ function CampaignEditorScreen() {
     return warnings;
   }, [autoSaveStatus, campaignType, senderClassification, senderEmail]);
 
+  // Pre-send placeholder scan (Flowerhouse scaffold-send incident):
+  // detect template scaffold headings and editorial notes in the content
+  // blocks so the send confirmation can require an explicit acknowledgment
+  // before emailing likely-unfinished content to real customers. Soft
+  // warning, never a hard block — false positives are possible.
+  const contentReviewIssues = React.useMemo(
+    () => reviewCampaignContent(contentBlocks),
+    [contentBlocks],
+  );
+  React.useEffect(() => {
+    if (!sendConfirmOpen || campaignType !== "email") {
+      setConnectedEventWarnings([]);
+      setConnectedEventChecking(false);
+      return;
+    }
+    if (!contentBlocks.some(block => block.visible !== false && block.connectedContent?.type === "event")) {
+      setConnectedEventWarnings([]);
+      setConnectedEventChecking(false);
+      return;
+    }
+    let active = true;
+    setConnectedEventWarnings([]);
+    setConnectedEventChecking(true);
+    void reviewConnectedEvents(contentBlocks).then(warnings => {
+      if (active) { setConnectedEventWarnings(warnings); setConnectedEventChecking(false); }
+    }).catch(() => {
+      if (active) { setConnectedEventWarnings(["Linked website events could not be checked. Review them before sending."]); setConnectedEventChecking(false); }
+    });
+    return () => { active = false; };
+  }, [sendConfirmOpen, campaignType, contentBlocks]);
+  const placeholderWarningLines = React.useMemo(
+    () =>
+      campaignType === "email"
+        ? [
+            ...formatPlaceholderFindings(
+              scanBlocksForPlaceholders(contentBlocks),
+            ),
+            // Malformed {{ }} tokens in the subject line pass through the
+            // send-time merge engine untouched and reach every recipient
+            // literally. Well-formed tokens render per-recipient and are
+            // not flagged.
+            ...scanSubjectForUnrenderedTokens(subjectLine),
+            ...contentReviewIssues.map((issue) => issue.message),
+            ...connectedEventWarnings,
+          ]
+        : [],
+    [campaignType, contentBlocks, subjectLine, contentReviewIssues, connectedEventWarnings],
+  );
+
   const sendButtonDisabled =
+    !canSendCampaign ||
     sendBlockerLines.length > 0 ||
     isLocked ||
     isAudienceLoading ||
@@ -1099,25 +1210,14 @@ function CampaignEditorScreen() {
   // which is after the isLoading early return — so the very first
   // mount sees the hydrated values. Manual expand/collapse afterwards
   // always wins because CollapsibleSection owns its own toggle state.
-  const setupInitiallyExpanded = !(name.trim() && senderEmail.trim());
 
   const audienceInitiallyExpanded = true;
   const contentInitiallyExpanded = true;
-  const scheduleInitiallyExpanded = false;
 
-  // Preview section starts collapsed but auto-opens once the user
-  // applies a template (or otherwise gains meaningful blocks). After
-  // the user manually toggles it themselves, we stop auto-opening
-  // for the rest of the session.
+  // Keep the large email preview collapsed until explicitly requested.
+  // The send controls now remain visible without forcing a long scroll.
   const [previewExpanded, setPreviewExpanded] = React.useState(false);
-  const previewManuallyToggledRef = React.useRef(false);
-  React.useEffect(() => {
-    if (hasMeaningfulEmailContent && !previewManuallyToggledRef.current) {
-      setPreviewExpanded(true);
-    }
-  }, [hasMeaningfulEmailContent]);
   const handlePreviewExpandedChange = React.useCallback((next: boolean) => {
-    previewManuallyToggledRef.current = true;
     setPreviewExpanded(next);
   }, []);
 
@@ -1191,6 +1291,7 @@ function CampaignEditorScreen() {
   const unavailableIntents = React.useMemo(() => {
     const intents: CampaignIntentKey[] = [
       "newsletter",
+      "showcase",
       "sale",
       "new-arrivals",
       "event",
@@ -1439,103 +1540,409 @@ function CampaignEditorScreen() {
                   {formatStatusLabel(sendBlockedReason)}
                 </Chip>
               ) : null}
-              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                {isSaving
-                  ? "Saving draft…"
-                  : lastSavedAt
-                    ? `Last saved ${lastSavedAt.toLocaleTimeString()}`
-                    : campaignId
-                      ? "Saved"
-                      : "New draft"}
+              {autoSaveStatus === "failed" || autoSaveStatus === "error" ? (
+                <JoyButton
+                  variant="outlined"
+                  color="neutral"
+                  onClick={() => void saveDraft({ silent: false })}
+                >
+                  Couldn’t save · Retry
+                </JoyButton>
+              ) : null}
+              <Typography
+                role="status"
+                level="body-xs"
+                sx={{ color: "neutral.500" }}
+              >
+                {autoSaveStatus === "failed" || autoSaveStatus === "error"
+                  ? "Your latest changes have not been saved"
+                  : isSaving
+                    ? "Saving…"
+                    : isDirty
+                      ? "Unsaved changes"
+                      : lastSavedAt
+                        ? `Last saved ${new Intl.DateTimeFormat(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }).format(lastSavedAt)}`
+                        : campaignId
+                          ? "Saved · Timestamp unavailable"
+                          : "New draft · Not saved yet"}
               </Typography>
             </Stack>
           </Stack>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            {campaignId ? (
-              <AskBloomResourceTrigger
-                resourceType="campaign"
-                resourceId={campaignId}
-                resourceLabel={name || "Campaign"}
-                buildContext={buildCampaignResourceFocus}
-              />
-            ) : null}
-            <JoyButton
-              variant="outlined"
-              color="neutral"
-              startDecorator={<TimerReset size={16} />}
-              onClick={() => setScheduleOpen(true)}
-              disabled={isLocked}
-            >
-              Schedule
-            </JoyButton>
-            <JoyButton
-              startDecorator={<Send size={16} />}
-              onClick={openSendConfirmation}
-              disabled={sendButtonDisabled}
-            >
-              Send Campaign
-            </JoyButton>
-          </Stack>
-        </Stack>
-      </Stack>
-
-      <CollapsibleSection
-        id="campaign-editor-setup"
-        title="Setup"
-        summary={setupSummary}
-        defaultExpanded={setupInitiallyExpanded}
-      >
-        <Stack spacing={2}>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 2,
-            }}
-          >
-            <JoyInput
-              label="Campaign name"
-              value={name}
-              disabled={isLocked}
-              onValueChange={(value) => updateSetup({ name: value })}
-            />
-            <JoySelect
-              label="Campaign type"
-              value={campaignType}
-              disabled={isLocked}
-              options={[
-                { value: "email", label: "Email" },
-                { value: "sms", label: "SMS" },
-              ]}
-              onValueChange={(value) =>
-                updateSetup({
-                  campaignType: value === "sms" ? "sms" : "email",
-                })
-              }
-            />
-          </Box>
-          {campaignType === "email" ? (
-            <SenderConfigSummary
-              senderDisplayName={senderName}
-              senderEmail={senderEmail}
-              isVerified={senderClassification.status === "ready"}
-              isLocked={isLocked}
-              onEdit={() => setSenderConfigOpen(true)}
+          {campaignId ? (
+            <AskBloomResourceTrigger
+              resourceType="campaign"
+              resourceId={campaignId}
+              resourceLabel={name || "Campaign"}
+              buildContext={buildCampaignResourceFocus}
             />
           ) : null}
         </Stack>
+      </Stack>
+
+      <Sheet
+        id="campaign-editor-schedule"
+        data-testid="campaign-editor-send-toolbar"
+        component="section"
+        role="region"
+        aria-label="Campaign sending controls"
+        variant="outlined"
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 9,
+          borderRadius: "lg",
+          borderColor: "neutral.200",
+          backgroundColor: "background.surface",
+          boxShadow: "0 8px 26px rgba(21, 36, 49, 0.09)",
+          backdropFilter: "blur(12px)",
+          px: { xs: 2, sm: 2.5 },
+          py: { xs: 1.5, sm: 1.75 },
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 1.5, sm: 2 }}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", sm: "center" }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.25}
+            alignItems="center"
+            sx={{ minWidth: 0, flex: 1 }}
+          >
+            <Box
+              sx={{
+                width: 38,
+                height: 38,
+                display: "grid",
+                placeItems: "center",
+                bgcolor: "neutral.100",
+                color: "neutral.700",
+                borderRadius: "md",
+                flexShrink: 0,
+              }}
+            >
+              <Send size={18} strokeWidth={1.9} aria-hidden="true" />
+            </Box>
+            <Stack spacing={0.3} sx={{ minWidth: 0 }}>
+              <Typography
+                level="title-sm"
+                sx={{ fontWeight: 700, color: "neutral.900" }}
+              >
+                {campaignType === "email" && !reviewingNewsletter
+                  ? "Design your newsletter"
+                  : "Review your campaign"}
+              </Typography>
+              <Typography
+                level="body-xs"
+                sx={{
+                  color:
+                    sendBlockerLines.length > 0 ? "neutral.700" : "neutral.600",
+                  lineHeight: 1.4,
+                }}
+              >
+                {campaignType === "email" && !reviewingNewsletter
+                  ? "Start with your content. Review the subject and audience next."
+                  : sendBlockerLines.length > 0
+                    ? sendBlockerLines[0]
+                    : isAudienceLoading
+                      ? "Checking your audience…"
+                      : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving…" : "Ready for final review"}`}
+              </Typography>
+              {blockerSignals.senderUnverified ? (
+                <JoyButton
+                  color="neutral"
+                  variant="plain"
+                  size="sm"
+                  data-testid="campaign-editor-fix-sender"
+                  onClick={() => setVerificationOpen(true)}
+                  sx={{ alignSelf: "flex-start", minHeight: 28, px: 0.5 }}
+                >
+                  Fix sender address
+                </JoyButton>
+              ) : null}
+            </Stack>
+          </Stack>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ flexShrink: 0, width: { xs: "100%", sm: "auto" } }}
+          >
+            <JoyButton
+              size="md"
+              variant="solid"
+              color="primary"
+              disabled={
+                reviewingNewsletter || campaignType !== "email"
+                  ? sendButtonDisabled
+                  : isLocked || Boolean(pendingTemplateSave)
+              }
+              startDecorator={<Send size={16} aria-hidden="true" />}
+              onClick={
+                campaignType === "email" && !reviewingNewsletter
+                  ? handleOpenStudio
+                  : openSendConfirmation
+              }
+              sx={{ minHeight: 44, flex: { xs: 1, sm: "none" } }}
+              data-testid="campaign-editor-review-send-cta"
+            >
+              {campaignType === "email" && !reviewingNewsletter
+                ? "Open Design Studio"
+                : "Review & send"}
+            </JoyButton>
+          </Stack>
+        </Stack>
+      </Sheet>
+      <CampaignBlockerRow
+        senderUnverified={blockerSignals.senderUnverified}
+        audienceEmpty={false}
+        contentEmpty={blockerSignals.contentEmpty}
+        subjectEmpty={blockerSignals.subjectEmpty}
+        draftConflict={blockerSignals.draftConflict}
+        onVerifySender={() => setVerificationOpen(true)}
+        onScrollToAudience={focusAudienceSection}
+        onScrollToContent={focusContentSection}
+        onScrollToSubject={focusSubjectInput}
+        onReload={handleReloadDraft}
+      />
+
+      <CollapsibleSection
+        id="campaign-editor-content"
+        title="1. Design your newsletter"
+        summary={
+          campaignType === "email"
+            ? hasMeaningfulEmailContent
+              ? `${meaningfulEmailBlockCount} block${meaningfulEmailBlockCount === 1 ? "" : "s"}`
+              : "No email blocks yet"
+            : smsMessage.trim()
+              ? `${smsMessage.length} characters · ${computeSmsSegments(smsMessage)} segment(s)`
+              : "Message not written yet"
+        }
+        defaultExpanded={contentInitiallyExpanded}
+        badge={
+          campaignType === "email" && hasMeaningfulEmailContent ? (
+            <Box
+              component="span"
+              data-testid="content-section-applied-badge"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.125,
+                py: "3px",
+                borderRadius: "999px",
+                backgroundColor: "var(--joy-palette-success-50)",
+                color: "var(--joy-palette-success-700)",
+                fontSize: "11px",
+                fontWeight: 500,
+                lineHeight: 1,
+              }}
+            >
+              <Check size={11} strokeWidth={2.5} />
+              Template applied
+            </Box>
+          ) : null
+        }
+      >
+        {campaignType === "email" ? (
+          <Stack spacing={3}>
+            <IntentPicker
+              savedTemplates={savedTemplates}
+              selectedIntent={selectedIntent}
+              selectedSavedTemplateId={selectedSavedTemplateId}
+              disabled={isLocked || Boolean(pendingTemplateSave)}
+              unavailableIntents={unavailableIntents}
+              onSelectIntent={handleSelectIntent}
+              onApplyBuiltInTemplate={handleApplyTemplate}
+              onApplySavedTemplate={handleApplySavedTemplate}
+              onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
+              onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}
+              onOpenManage={() => setManageTemplatesOpen(true)}
+            />
+
+            <StudioCtaCard
+              onOpen={handleOpenStudio}
+              disabled={
+                isLocked || Boolean(pendingTemplateSave) || !isTenantReady
+              }
+              disabledReason={
+                isLocked
+                  ? "This campaign has already been sent"
+                  : pendingTemplateSave
+                    ? "Your template is being saved"
+                    : !isTenantReady
+                      ? "Loading your garden centre"
+                      : undefined
+              }
+              title={isLocked ? "View in Studio" : "Customize in Design Studio"}
+              subtitle="Make it yours. Edit text, add images, change colours, and arrange every block. Start with a layout or a blank canvas."
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                pt: 0.5,
+              }}
+            >
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: "13px",
+                  color: "var(--joy-palette-neutral-500)",
+                }}
+              >
+                or{" "}
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => {
+                    if (!canSaveAsTemplate) return;
+                    setSaveTemplateOpen(true);
+                  }}
+                  disabled={!canSaveAsTemplate}
+                  data-testid="content-save-as-template-link"
+                  title={
+                    !canSaveAsTemplate
+                      ? isLocked
+                        ? "This campaign has already been sent"
+                        : "Add some content first"
+                      : undefined
+                  }
+                  sx={{
+                    background: "none",
+                    border: 0,
+                    padding: 0,
+                    margin: 0,
+                    font: "inherit",
+                    color: canSaveAsTemplate
+                      ? "var(--joy-palette-primary-600)"
+                      : "var(--joy-palette-neutral-400)",
+                    textDecoration: "underline",
+                    cursor: canSaveAsTemplate ? "pointer" : "not-allowed",
+                    "&:focus-visible": {
+                      outline: "2px solid var(--joy-palette-primary-400)",
+                      outlineOffset: "2px",
+                      borderRadius: "2px",
+                    },
+                  }}
+                >
+                  save this design as a template
+                </Box>
+              </Typography>
+            </Box>
+          </Stack>
+        ) : (
+          <Stack spacing={1.5}>
+            <JoyTextarea
+              label="SMS message"
+              minRows={8}
+              value={smsMessage}
+              disabled={isLocked}
+              onValueChange={(value) => updateContent({ smsMessage: value })}
+            />
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "lg", p: 2 }}
+            >
+              <Stack spacing={0.5}>
+                <Typography level="body-sm">
+                  Characters: {smsMessage.length}
+                </Typography>
+                <Typography level="body-sm">
+                  SMS segments: {computeSmsSegments(smsMessage)}
+                </Typography>
+                <Typography level="body-sm">
+                  Include STOP instructions where required.
+                </Typography>
+              </Stack>
+            </Sheet>
+          </Stack>
+        )}
       </CollapsibleSection>
+
+      {campaignType === "email" ? (
+        <CollapsibleSection
+          id="campaign-editor-inbox"
+          title="2. Subject & preview"
+          summary={
+            subjectLine || "Suggested after you add your newsletter content"
+          }
+          defaultExpanded
+        >
+          {reviewingNewsletter || isLocked ? (
+            <NewsletterInboxReview
+              campaignId={campaignId}
+              blocks={contentBlocks}
+              subject={subjectLine}
+              preview={preheaderText}
+              onChange={updateSetup}
+              disabled={isLocked}
+            />
+          ) : (
+            <Stack spacing={2}>
+              <Typography>
+                Finish your newsletter in Design Studio first. Then we’ll read
+                your saved content and help you choose its subject and preview
+                text.
+              </Typography>
+              <JoyButton
+                variant="solid"
+                color="primary"
+                onClick={handleOpenStudio}
+                sx={{ alignSelf: "flex-start", minHeight: 44 }}
+              >
+                Design your newsletter
+              </JoyButton>
+              <JoyButton
+                variant="outlined"
+                color="neutral"
+                disabled={!hasMeaningfulEmailContent}
+                onClick={() => setProcessParams({ step: "review" })}
+                sx={{ alignSelf: "flex-start", minHeight: 44 }}
+              >
+                My content is ready. Review subject & preview
+              </JoyButton>
+            </Stack>
+          )}
+        </CollapsibleSection>
+      ) : null}
+
+      {campaignType === "email" ? (
+        <CollapsibleSection
+          id="campaign-editor-preview"
+          title="Preview"
+          summary={previewSummary}
+          expanded={previewExpanded}
+          onExpandedChange={handlePreviewExpandedChange}
+        >
+          <ContentPreviewCard
+            blocks={contentBlocks}
+            subjectLine={subjectLine}
+            previewText={preheaderText}
+            designSystem={designSystem}
+            loading={isDesignSystemLoading}
+            onOpenStudio={handleOpenStudio}
+          />
+        </CollapsibleSection>
+      ) : null}
 
       <CollapsibleSection
         id="campaign-editor-audience"
-        title="Who's this for?"
+        title="3. Audience"
         summary={
           audienceDetail === "No audience selected" ? (
             <Typography
               component="span"
               level="body-sm"
-              sx={{ color: "warning.700", fontWeight: "md" }}
+              sx={{ color: "neutral.600", fontWeight: "md" }}
             >
               {audienceDetail}
             </Typography>
@@ -1545,18 +1952,12 @@ function CampaignEditorScreen() {
         }
         defaultExpanded={audienceInitiallyExpanded}
         badge={
-          <Chip
-            variant="soft"
-            color={
-              !isAudienceLoading && (audienceCount ?? 0) <= 1
-                ? "warning"
-                : "neutral"
-            }
-            size="sm"
-          >
+          <Chip variant="soft" color="neutral" size="sm">
             {isAudienceLoading
               ? "Calculating audience"
-              : asCountLabel(audienceCount)}
+              : (audienceCount ?? 0) === 0
+                ? "Choose audience"
+                : asCountLabel(audienceCount)}
           </Chip>
         }
       >
@@ -1568,30 +1969,30 @@ function CampaignEditorScreen() {
           additionalCustomerIds.length === 0 ? (
             <Sheet
               variant="soft"
-              color="warning"
+              color="neutral"
               data-testid="campaign-audience-empty-warning"
               sx={{ borderRadius: "md", p: 1.5 }}
             >
               <Stack direction="row" spacing={1} alignItems="flex-start">
-                <AlertCircle
+                <Info
                   size={17}
                   style={{
                     flexShrink: 0,
                     marginTop: 2,
-                    color: "var(--joy-palette-warning-700)",
+                    color: "var(--joy-palette-neutral-600)",
                   }}
                 />
                 <Stack spacing={0.25}>
                   <Typography
                     level="body-sm"
                     fontWeight="lg"
-                    sx={{ color: "warning.700" }}
+                    sx={{ color: "neutral.800" }}
                   >
-                    This campaign currently has no audience configured.
+                    Choose who will receive this newsletter.
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.700" }}>
-                    Pick &ldquo;All Contacts&rdquo; or a segment below before
-                    sending — otherwise this campaign will not reach anyone.
+                    Select All Contacts or a segment below. You can change your
+                    audience before sending.
                   </Typography>
                 </Stack>
               </Stack>
@@ -1607,8 +2008,7 @@ function CampaignEditorScreen() {
             onChange={(next) => updateAudience(next)}
           />
 
-          {audienceHealthQuery.data &&
-          audienceHealthQuery.data.total > 0 ? (
+          {audienceHealthQuery.data && audienceHealthQuery.data.total > 0 ? (
             <Sheet
               variant="outlined"
               data-testid="audience-consent-breakdown"
@@ -1630,7 +2030,7 @@ function CampaignEditorScreen() {
                       letterSpacing: "0.06em",
                     }}
                   >
-                    Who can receive email from you
+                    Who can receive this campaign
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {audienceHealthQuery.data.total.toLocaleString()} total
@@ -1728,12 +2128,9 @@ function CampaignEditorScreen() {
                           color: "var(--joy-palette-warning-700)",
                         }}
                       />
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "neutral.700" }}
-                      >
-                        {audienceHealthQuery.data.pending.toLocaleString()}{" "}
-                        of your contacts are waiting for permission to receive
+                      <Typography level="body-xs" sx={{ color: "neutral.700" }}>
+                        {audienceHealthQuery.data.pending.toLocaleString()} of
+                        your contacts are waiting for permission to receive
                         email — they won't get this campaign. If you already
                         have permission records for them, contact support and
                         we'll help you restore them.
@@ -1919,364 +2316,49 @@ function CampaignEditorScreen() {
       </CollapsibleSection>
 
       <CollapsibleSection
-        id="campaign-editor-content"
-        title="Content"
-        summary={
-          campaignType === "email"
-            ? hasMeaningfulEmailContent
-              ? `${meaningfulEmailBlockCount} block${meaningfulEmailBlockCount === 1 ? "" : "s"}`
-              : "No email blocks yet"
-            : smsMessage.trim()
-              ? `${smsMessage.length} characters · ${computeSmsSegments(smsMessage)} segment(s)`
-              : "Message not written yet"
-        }
-        defaultExpanded={contentInitiallyExpanded}
-        badge={
-          campaignType === "email" && hasMeaningfulEmailContent ? (
-            <Box
-              component="span"
-              data-testid="content-section-applied-badge"
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 1.125,
-                py: "3px",
-                borderRadius: "999px",
-                backgroundColor: "var(--joy-palette-success-50)",
-                color: "var(--joy-palette-success-700)",
-                fontSize: "11px",
-                fontWeight: 500,
-                lineHeight: 1,
-              }}
-            >
-              <Check size={11} strokeWidth={2.5} />
-              Template applied
-            </Box>
-          ) : null
-        }
-      >
-        {campaignType === "email" ? (
-          <Stack spacing={3}>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 2,
-              }}
-            >
-              <JoyInput
-                id="campaign-editor-subject"
-                label="Subject line"
-                value={subjectLine}
-                disabled={isLocked}
-                onValueChange={(value) => updateSetup({ subjectLine: value })}
-              />
-              <JoyInput
-                label="Preview text"
-                value={preheaderText}
-                disabled={isLocked}
-                placeholder="Shows next to the subject in their inbox"
-                onValueChange={(value) => updateSetup({ preheaderText: value })}
-                helperText={
-                  <Box
-                    component="span"
-                    sx={{
-                      color:
-                        preheaderText.length > PREVIEW_TEXT_SOFT_LIMIT
-                          ? "var(--joy-palette-warning-600)"
-                          : "var(--joy-palette-neutral-500)",
-                    }}
-                  >
-                    {`${preheaderText.length} / ${PREVIEW_TEXT_SOFT_LIMIT}`}
-                  </Box>
-                }
-              />
-            </Box>
-
-            <Divider />
-
-            <IntentPicker
-              savedTemplates={savedTemplates}
-              selectedIntent={selectedIntent}
-              selectedSavedTemplateId={selectedSavedTemplateId}
-              disabled={isLocked || Boolean(pendingTemplateSave)}
-              unavailableIntents={unavailableIntents}
-              onSelectIntent={handleSelectIntent}
-              onApplySavedTemplate={handleApplySavedTemplate}
-              onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
-              onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}
-              onOpenManage={() => setManageTemplatesOpen(true)}
-            />
-
-            <StudioCtaCard
-              onOpen={handleOpenStudio}
-              disabled={isLocked || !hasMeaningfulEmailContent}
-              disabledReason={
-                isLocked
-                  ? "This campaign has already been sent"
-                  : !hasMeaningfulEmailContent
-                    ? "Pick a template first to start designing"
-                    : undefined
-              }
-              title={isLocked ? "View in Studio" : undefined}
-            />
-
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                pt: 0.5,
-              }}
-            >
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: "13px",
-                  color: "var(--joy-palette-neutral-500)",
-                }}
-              >
-                or{" "}
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => {
-                    if (!canSaveAsTemplate) return;
-                    setSaveTemplateOpen(true);
-                  }}
-                  disabled={!canSaveAsTemplate}
-                  data-testid="content-save-as-template-link"
-                  title={
-                    !canSaveAsTemplate
-                      ? isLocked
-                        ? "This campaign has already been sent"
-                        : "Add some content first"
-                      : undefined
-                  }
-                  sx={{
-                    background: "none",
-                    border: 0,
-                    padding: 0,
-                    margin: 0,
-                    font: "inherit",
-                    color: canSaveAsTemplate
-                      ? "var(--joy-palette-primary-600)"
-                      : "var(--joy-palette-neutral-400)",
-                    textDecoration: "underline",
-                    cursor: canSaveAsTemplate ? "pointer" : "not-allowed",
-                    "&:focus-visible": {
-                      outline: "2px solid var(--joy-palette-primary-400)",
-                      outlineOffset: "2px",
-                      borderRadius: "2px",
-                    },
-                  }}
-                >
-                  save this design as a template
-                </Box>
-              </Typography>
-            </Box>
-          </Stack>
-        ) : (
-          <Stack spacing={1.5}>
-            <JoyTextarea
-              label="SMS message"
-              minRows={8}
-              value={smsMessage}
-              disabled={isLocked}
-              onValueChange={(value) => updateContent({ smsMessage: value })}
-            />
-            <Sheet
-              variant="soft"
-              color="neutral"
-              sx={{ borderRadius: "lg", p: 2 }}
-            >
-              <Stack spacing={0.5}>
-                <Typography level="body-sm">
-                  Characters: {smsMessage.length}
-                </Typography>
-                <Typography level="body-sm">
-                  SMS segments: {computeSmsSegments(smsMessage)}
-                </Typography>
-                <Typography level="body-sm">
-                  Include STOP instructions where required.
-                </Typography>
-              </Stack>
-            </Sheet>
-          </Stack>
-        )}
-      </CollapsibleSection>
-
-      {campaignType === "email" ? (
-        <CollapsibleSection
-          id="campaign-editor-preview"
-          title="Preview"
-          summary={previewSummary}
-          expanded={previewExpanded}
-          onExpandedChange={handlePreviewExpandedChange}
-        >
-          <Box
-            role="button"
-            tabIndex={0}
-            aria-label={
-              isLocked
-                ? "Open the Design Studio to view this email"
-                : "Open the Design Studio to edit this email"
-            }
-            onClick={handleOpenStudio}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                handleOpenStudio();
-              }
-            }}
-            sx={{
-              position: "relative",
-              borderRadius: "var(--joy-radius-lg)",
-              overflow: "hidden",
-              cursor: "pointer",
-              "&:focus-visible": {
-                outline: "2px solid var(--joy-palette-primary-400)",
-                outlineOffset: "2px",
-              },
-              "& [data-preview-overlay]": {
-                opacity: 0,
-                pointerEvents: "none",
-                transition: "opacity 150ms ease",
-              },
-              "@media (hover: hover)": {
-                "&:hover [data-preview-overlay], &:focus-visible [data-preview-overlay]":
-                  {
-                    opacity: 1,
-                  },
-              },
-              "& [data-preview-touch-pill]": {
-                display: "none",
-              },
-              "@media (hover: none)": {
-                "& [data-preview-touch-pill]": {
-                  display: "inline-flex",
-                },
-              },
-            }}
-          >
-            <ContentPreviewCard
-              blocks={contentBlocks}
-              subjectLine={subjectLine}
-              previewText={preheaderText}
-              designSystem={designSystem}
-              loading={isDesignSystemLoading}
-              onOpenStudio={handleOpenStudio}
-            />
-            <Box
-              data-preview-overlay
-              aria-hidden
-              sx={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 1,
-                color: "#ffffff",
-                backgroundColor: "rgba(20, 20, 20, 0.72)",
-                fontSize: "15px",
-                fontWeight: 500,
-                zIndex: 2,
-              }}
-            >
-              <Pencil size={18} />
-              {isLocked ? "View in Studio" : "Click to edit in Studio"}
-            </Box>
-            <Box
-              data-preview-touch-pill
-              aria-hidden
-              sx={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                alignItems: "center",
-                gap: 0.5,
-                px: 1.25,
-                py: 0.5,
-                borderRadius: "999px",
-                backgroundColor: "rgba(20, 20, 20, 0.78)",
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 500,
-                zIndex: 2,
-              }}
-            >
-              <Pencil size={12} />
-              {isLocked ? "View in Studio" : "Edit in Studio"}
-            </Box>
-          </Box>
-        </CollapsibleSection>
-      ) : null}
-
-      <CollapsibleSection
-        id="campaign-editor-schedule"
-        title="Send or schedule"
-        summary="Review the inline checks above and send or schedule this campaign."
-        defaultExpanded={scheduleInitiallyExpanded}
+        id="campaign-editor-setup"
+        title="Campaign details"
+        summary={setupSummary}
+        defaultExpanded={false}
       >
         <Stack spacing={2}>
-          <CampaignBlockerRow
-            senderUnverified={blockerSignals.senderUnverified}
-            audienceEmpty={blockerSignals.audienceEmpty}
-            contentEmpty={blockerSignals.contentEmpty}
-            subjectEmpty={blockerSignals.subjectEmpty}
-            draftConflict={blockerSignals.draftConflict}
-            onVerifySender={() => setVerificationOpen(true)}
-            onScrollToAudience={focusAudienceSection}
-            onScrollToContent={focusContentSection}
-            onScrollToSubject={focusSubjectInput}
-            onReload={handleReloadDraft}
-          />
-
           <Box
             sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: { xs: "stretch", sm: "center" },
-              justifyContent: "space-between",
-              gap: 1.5,
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 2,
             }}
           >
-            <Stack spacing={0.25}>
-              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                {isAudienceLoading
-                  ? "Calculating audience…"
-                  : asCountLabel(audienceCount)}
-              </Typography>
-              {lastSavedAt ? (
-                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                  Last saved {lastSavedAt.toLocaleTimeString()}
-                </Typography>
-              ) : null}
-            </Stack>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button
-                size="md"
-                variant="plain"
-                color="neutral"
-                disabled={sendButtonDisabled}
-                endDecorator={<Calendar size={16} />}
-                onClick={handleScheduleForLater}
-              >
-                Schedule for later
-              </Button>
-              <Button
-                size="md"
-                variant="solid"
-                color="primary"
-                disabled={sendButtonDisabled}
-                startDecorator={<Send size={16} />}
-                onClick={openSendConfirmation}
-              >
-                Send campaign
-              </Button>
-            </Stack>
+            <JoyInput
+              label="Campaign name"
+              value={name}
+              disabled={isLocked}
+              onValueChange={(value) => updateSetup({ name: value })}
+            />
+            <JoySelect
+              label="Campaign type"
+              value={campaignType}
+              disabled={isLocked}
+              options={[
+                { value: "email", label: "Email" },
+                { value: "sms", label: "SMS" },
+              ]}
+              onValueChange={(value) =>
+                updateSetup({
+                  campaignType: value === "sms" ? "sms" : "email",
+                })
+              }
+            />
           </Box>
+          {campaignType === "email" ? (
+            <SenderConfigSummary
+              senderDisplayName={senderName}
+              senderEmail={senderEmail}
+              isVerified={senderClassification.status === "ready"}
+              isLocked={isLocked}
+              onEdit={() => setSenderConfigOpen(true)}
+            />
+          ) : null}
         </Stack>
       </CollapsibleSection>
 
@@ -2603,17 +2685,117 @@ function CampaignEditorScreen() {
           updateSchedule({ sendImmediately: false, sendAt: scheduledDateTime });
           openSendConfirmation();
         }}
-        canConfirm={!isLocked}
+        canConfirm={!isLocked && canSendCampaign}
       />
       <CampaignSendConfirmation
         open={sendConfirmOpen}
         onClose={() => setSendConfirmOpen(false)}
         builderWarnings={sendWarningLines}
-        builderBlockers={sendBlockerLines}
+        builderBlockers={connectedEventChecking ? [...sendBlockerLines, "Checking linked website events. Please wait."] : sendBlockerLines}
+        placeholderWarnings={placeholderWarningLines}
+        onEditContent={() => {
+          setSendConfirmOpen(false);
+          void handleOpenStudio();
+        }}
+        onSchedule={() => {
+          setSendConfirmOpen(false);
+          handleScheduleForLater();
+        }}
+        reviewContent={
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+              {[
+                ["Sender", "campaign-editor-setup"],
+                ["Subject", "campaign-editor-inbox"],
+                ["Audience", "campaign-editor-audience"],
+              ].map(([label, section]) => (
+                <JoyButton
+                  key={label}
+                  variant="outlined"
+                  color="neutral"
+                  onClick={() => {
+                    setSendConfirmOpen(false);
+                    if (section === "campaign-editor-inbox")
+                      setProcessParams({ step: "review" });
+                    requestAnimationFrame(() => {
+                      const target = document.getElementById(section);
+                      target
+                        ?.querySelector<HTMLElement>(
+                          '[role="button"][aria-expanded="false"]',
+                        )
+                        ?.click();
+                      target?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    });
+                  }}
+                >
+                  Edit {label.toLowerCase()}
+                </JoyButton>
+              ))}
+            </Stack>
+            {campaignType === "email" ? (
+              <details>
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    padding: "12px 0",
+                    fontWeight: 600,
+                  }}
+                >
+                  Review newsletter preview
+                </summary>
+                <ContentPreviewCard
+                  blocks={contentBlocks}
+                  subjectLine={subjectLine}
+                  previewText={preheaderText}
+                  designSystem={designSystem}
+                  loading={isDesignSystemLoading}
+                  onOpenStudio={() => {
+                    setSendConfirmOpen(false);
+                    void handleOpenStudio();
+                  }}
+                />
+              </details>
+            ) : (
+              <Typography>{smsMessage}</Typography>
+            )}
+            {contentReviewIssues.map((issue) => (
+              <JoyButton
+                key={`${issue.blockId}-${issue.message}`}
+                variant="outlined"
+                color="neutral"
+                onClick={async () => {
+                  setSendConfirmOpen(false);
+                  const savedId = await saveDraft({ silent: true });
+                  if (savedId)
+                    navigate(
+                      `/crm/campaigns/${savedId}/studio?block=${encodeURIComponent(issue.blockId)}`,
+                    );
+                }}
+              >
+                {issue.message} Fix in Studio
+              </JoyButton>
+            ))}
+          </Stack>
+        }
       />
       <SenderVerificationDialog
         open={verificationOpen}
-        onClose={() => setVerificationOpen(false)}
+        onClose={() => {
+          setVerificationOpen(false);
+          // The modal checks DNS; refresh the editor's own domain list too.
+          void refetchEmailDomains();
+        }}
+        campaignSenderEmail={senderEmail}
+        onChooseVerifiedSender={(verifiedEmail) => {
+          updateSetup({
+            senderEmail: verifiedEmail,
+            // Keep the chosen sender name and existing reply-to unchanged.
+            replyTo: replyTo.trim() || verifiedEmail,
+          });
+        }}
       />
       <SenderConfigModal
         open={senderConfigOpen}

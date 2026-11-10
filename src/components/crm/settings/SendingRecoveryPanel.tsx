@@ -12,8 +12,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { useEmailDomains } from "@/hooks/useEmailDomains";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
-const SUPPORT_EMAIL = "support@bloomsuite.app";
 
 interface RecoveryRpcResult {
   addresses_suppressed: number;

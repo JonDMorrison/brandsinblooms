@@ -299,9 +299,9 @@ export default function AdminCostsPage() {
             </JoyButton>
             <DollarSign className="w-8 h-8 text-green-500" />
             <Stack spacing={0.5}>
-              <Typography level="h2">Cost Dashboard</Typography>
+              <Typography level="h2">Running costs</Typography>
               <Typography level="body-sm" color="neutral">
-                Platform resource usage and cost monitoring
+                What it costs to run BloomSuite, and which clients use the most.
               </Typography>
             </Stack>
           </Stack>
@@ -472,8 +472,8 @@ export default function AdminCostsPage() {
             sx={{ borderColor: "warning.200", backgroundColor: "warning.50" }}
           >
             <JoyCardHeader
-              title="Usage Anomalies Detected"
-              description="These tenants are using >3x more resources than average."
+              title="Unusually heavy use"
+              description="These clients are using more than three times the average."
               startDecorator={
                 <AlertTriangle className="h-5 w-5 text-amber-600" />
               }

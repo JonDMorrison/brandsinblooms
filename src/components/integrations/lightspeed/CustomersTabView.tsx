@@ -610,6 +610,7 @@ export function CustomersTabView({
                     />
                   </Stack>
                   <IconButton
+                    aria-label="Close"
                     variant="plain"
                     color="neutral"
                     size="sm"
@@ -689,6 +690,7 @@ export function CustomersTabView({
                     </Stack>
                   </Box>
                   <IconButton
+                    aria-label="Close"
                     variant="plain"
                     color="neutral"
                     size="sm"

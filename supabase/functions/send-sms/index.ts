@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { checkSMSAvailability } from "../_shared/channelAvailability.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
+import {
+  extractMtaRecipientValidation,
+  extractMtaSendAcceptance,
+  toMtaRequestId,
+} from "../_shared/mtaSendResponse.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -106,20 +113,24 @@ async function handler(req: Request): Promise<Response> {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // FIX: [issue #4] - Add JWT authentication to prevent unauthenticated access
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'No authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-  const authToken = authHeader.replace('Bearer ', '');
-  const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  const { data: { user: authUser }, error: authError } = await authClient.auth.getUser(authToken);
-  if (authError || !authUser) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  // Internal workers authenticate with the modern apikey header. Interactive
+  // test sends still require a real user JWT and are explicitly marked test.
+  const isInternal = requireInternalApiKey(req) === null;
+  if (!isInternal) {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const authToken = authHeader.replace('Bearer ', '');
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const { data: { user: authUser }, error: authError } = await authClient.auth.getUser(authToken);
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
   }
 
   try {
-    const { to, body, mediaUrl, mediaUrls, skipOptOutCheck } = await req.json();
+    const { to, body, mediaUrl, mediaUrls, purpose, tenantId, customerId, idempotencyKey } = await req.json();
 
     if (!to || !body) {
       return new Response(
@@ -199,6 +210,36 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+    const messageCorrelationId = isInternal && typeof idempotencyKey === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)
+      ? idempotencyKey
+      : crypto.randomUUID();
+
+    if (!isInternal && purpose !== 'test') {
+      return new Response(
+        JSON.stringify({ error: 'Direct marketing SMS must use a consent-aware campaign or automation queue' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (purpose !== 'test') {
+      const eligibility = await checkSmsSendEligibility(supabase, {
+        tenantId,
+        customerId,
+        recipient: to,
+      });
+      if (!eligibility.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: eligibility.code,
+            message: eligibility.reason,
+            skipable: true,
+            canRetry: false,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Step 1: Validate recipient
     console.log(`📱 [MTA] Validating recipient: ${formattedTo}`);
@@ -209,7 +250,7 @@ async function handler(req: Request): Promise<Response> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        recipients: [{ number: formattedTo, externalId: "bloomsuite" }],
+        recipients: [{ number: formattedTo, externalId: messageCorrelationId }],
         validateUnsubscribes: true,
       }),
     });
@@ -237,19 +278,17 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // Check if any recipients are invalid or unsubscribed
-    const invalidList = Array.isArray(validateData?.invalid) ? validateData.invalid : [];
-    const unsubscribedList = Array.isArray(validateData?.unsubscribed) ? validateData.unsubscribed : [];
-
-    if (invalidList.length > 0 || unsubscribedList.length > 0) {
+    // Check the documented data.invalidRecipients response shape.
+    const validation = extractMtaRecipientValidation(validateData);
+    if (validation.invalidRecipients.length > 0) {
       let errorMessage: string;
 
-      if (unsubscribedList.length > 0) {
+      if (validation.hasUnsubscribedRecipient) {
         errorMessage = "This number has opted out. They must text UNSTOP to opt back in.";
-      } else if (invalidList.length > 0) {
-        errorMessage = `Invalid phone number: ${invalidList.join(", ")}`;
       } else {
-        errorMessage = "Recipient validation failed";
+        errorMessage = validation.invalidRecipients
+          .map(({ recipient, error }) => [recipient, error].filter(Boolean).join(": "))
+          .join(", ") || "Recipient validation failed";
       }
 
       return new Response(
@@ -303,7 +342,7 @@ async function handler(req: Request): Promise<Response> {
     console.log(`📱 [MTA] Sending message to ${formattedTo}`);
 
     let sendPayload: Record<string, unknown>;
-    let sendEndpoint: string;
+    const sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
 
     // Build media URLs array
     const allMediaUrls: string[] = [];
@@ -311,19 +350,19 @@ async function handler(req: Request): Promise<Response> {
     if (mediaUrls && Array.isArray(mediaUrls)) allMediaUrls.push(...mediaUrls);
 
     if (templateId) {
-      // Use template endpoint for unverified accounts
-      sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send/controlled-template`;
+      // The v3 send contract accepts templateId directly.
       sendPayload = {
         subscribers: [formattedTo],
         templateId: templateId,
+        externalId: messageCorrelationId,
       };
-      console.log(`📱 [MTA] Using controlled template endpoint with templateId: ${templateId}`);
+      console.log(`📱 [MTA] Using controlled template with templateId: ${templateId}`);
     } else {
       // Use regular send
-      sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
       sendPayload = {
         subscribers: [formattedTo],
         message: finalMessage,
+        externalId: messageCorrelationId,
       };
 
       // Add longcodeId if configured (for multi-number accounts)
@@ -347,6 +386,8 @@ async function handler(req: Request): Promise<Response> {
       headers: {
         Authorization: `Bearer ${MOBILE_TEXT_ALERTS_API_KEY}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Request-Id": toMtaRequestId(messageCorrelationId),
       },
       body: JSON.stringify(sendPayload),
     });
@@ -356,7 +397,8 @@ async function handler(req: Request): Promise<Response> {
 
     console.log(`📱 [MTA] Send response (HTTP ${sendParsed.status}):`, JSON.stringify(sendData));
 
-    if (!sendParsed.ok) {
+    const duplicateAccepted = sendParsed.status === 409;
+    if ((!sendParsed.ok && !duplicateAccepted) || (sendData?.success === false && !duplicateAccepted)) {
       const errorMessage = sendData?.message || sendData?.error ||
         `Failed to send message (HTTP ${sendParsed.status})`;
 
@@ -374,19 +416,47 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    const messageId = sendData.messageId || sendData.id || crypto.randomUUID();
-    console.log(`📱 SMS sent successfully via MTA: ${messageId}`);
+    const acceptance = extractMtaSendAcceptance(sendData);
+    const messageId = acceptance.messageId;
+    const trackingError = messageId
+      ? null
+      : duplicateAccepted
+      ? 'Provider previously accepted this idempotent request; awaiting delivery reconciliation'
+      : 'Provider accepted SMS without a message ID';
+    console.log(`📱 SMS accepted by MTA: ${messageId ?? 'tracking ID unavailable'}`);
 
     // Log the SMS send
     try {
-      await supabase.from('sms_messages').insert({
+      const { data: loggedMessage } = await supabase.from('sms_messages').insert({
+        id: messageCorrelationId,
+        tenant_id: tenantId || null,
+        customer_id: customerId || null,
         phone: formattedTo,
         content: finalMessage,
         status: 'sent',
         twilio_sid: messageId, // Reusing field for MTA message ID
+        provider: 'mobile_text_alerts',
+        provider_message_id: messageId,
+        provider_status: messageId ? 'sent' : 'accepted_untrackable',
+        provider_status_at: new Date().toISOString(),
+        provider_status_source: 'send',
+        error_code: messageId ? null : 'MTA_MESSAGE_ID_MISSING',
+        error_message: trackingError,
+        failure_type: messageId ? null : 'provider_tracking',
         media_urls: allMediaUrls.length > 0 ? allMediaUrls : null,
         sent_at: new Date().toISOString(),
-      });
+      }).select('id').maybeSingle();
+
+      if (purpose !== 'test' && tenantId && loggedMessage?.id) {
+        const { error: billingError } = await supabase.rpc('bill_sms_message', {
+          p_tenant_id: tenantId,
+          p_message_id: loggedMessage.id,
+          p_billable_units: 1,
+        });
+        if (billingError) {
+          console.warn('Failed to bill accepted SMS:', billingError.message);
+        }
+      }
     } catch (logError) {
       console.warn('Failed to log SMS send:', logError);
       // Don't fail the request if logging fails
@@ -397,6 +467,7 @@ async function handler(req: Request): Promise<Response> {
         sid: messageId,
         status: 'sent',
         message: 'SMS sent successfully via Mobile Text Alerts',
+        trackingWarning: trackingError,
         skipable: false
       }),
       {

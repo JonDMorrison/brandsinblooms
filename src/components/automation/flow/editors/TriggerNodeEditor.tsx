@@ -5,6 +5,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Zap } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyInput } from "@/components/joy/JoyInput";
 import { JoySelect } from "@/components/joy/JoySelect";
 import { triggerCatalog } from "@/lib/automation/triggerCatalog";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +42,12 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
   const [selectedFormId, setSelectedFormId] = useState<string>(
     data.conditions?.form_id || "",
   );
+  const [productMatch, setProductMatch] = useState<string>(
+    data.conditions?.product_match || "",
+  );
+  const [categoryMatch, setCategoryMatch] = useState<string>(
+    data.conditions?.category_match || "",
+  );
   const [overlapBehavior, setOverlapBehavior] = useState<string>(
     data.overlapBehavior || "ignore",
   );
@@ -55,6 +62,8 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
     setSelectedSegmentId(data.conditions?.segment_id || "");
     setSelectedPersonaId(data.conditions?.persona_id || "");
     setSelectedFormId(data.conditions?.form_id || "");
+    setProductMatch(data.conditions?.product_match || "");
+    setCategoryMatch(data.conditions?.category_match || "");
     setOverlapBehavior(data.overlapBehavior || "ignore");
   }, [data.conditions, data.overlapBehavior, data.triggerType]);
 
@@ -156,6 +165,12 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
       )?.name;
     }
 
+    if (["payment.completed", "first_purchase"].includes(triggerType)) {
+      if (productMatch.trim()) conditions.product_match = productMatch.trim();
+      if (categoryMatch.trim())
+        conditions.category_match = categoryMatch.trim();
+    }
+
     onSave({
       ...data,
       triggerType,
@@ -207,6 +222,8 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
           setSelectedSegmentId("");
           setSelectedPersonaId("");
           setSelectedFormId("");
+          setProductMatch("");
+          setCategoryMatch("");
         }}
       />
 
@@ -273,6 +290,25 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
             helperText="Choose the form submission event that should start the automation."
           />
         )
+      ) : null}
+
+      {["payment.completed", "first_purchase"].includes(triggerType) ? (
+        <Stack spacing={1.5}>
+          <JoyInput
+            label="Product name contains (optional)"
+            value={productMatch}
+            onChange={(event) => setProductMatch(event.target.value)}
+            placeholder="e.g., tomato, hanging basket"
+            helperText="Separate alternatives with commas. The automation starts when any purchased product contains one of these terms."
+          />
+          <JoyInput
+            label="Product category contains (optional)"
+            value={categoryMatch}
+            onChange={(event) => setCategoryMatch(event.target.value)}
+            placeholder="e.g., vegetables, houseplants"
+            helperText="Category-filtered journeys only start when the POS includes category data for the purchase."
+          />
+        </Stack>
       ) : null}
 
       <JoySelect

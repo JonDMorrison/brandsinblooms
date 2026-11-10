@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireCloverApproval } from "../_shared/cloverApprovalGate.ts";
 import { decryptToken } from '../_shared/crypto/tokens.ts';
 
 const corsHeaders = {
@@ -23,6 +24,8 @@ function getCloverApiUrl(environment: string, region: string = 'na'): string {
 }
 
 Deno.serve(async (req) => {
+  const approvalResponse = requireCloverApproval(req);
+  if (approvalResponse) return approvalResponse;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

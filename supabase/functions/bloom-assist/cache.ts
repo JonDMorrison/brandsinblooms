@@ -19,6 +19,8 @@ const TOOL_TTLS_SECONDS: Record<string, number> = {
   get_revenue_analytics: 120,
   get_integration_status: 300,
   get_customer_insights: 1800,
+  rank_customers_by_intelligence: 300,
+  find_customer_opportunities: 300,
   get_customer_detail: 60,
   get_customer_timeline: 60,
 };
@@ -30,6 +32,8 @@ const ENTITY_CACHE_TOOLS: Record<string, readonly string[]> = {
     "get_customer_detail",
     "get_customer_timeline",
     "get_customer_insights",
+    "rank_customers_by_intelligence",
+    "find_customer_opportunities",
   ],
   product: ["query_products", "get_product_detail"],
   segment: ["query_segments", "get_segment_members", "compute_audience_size"],

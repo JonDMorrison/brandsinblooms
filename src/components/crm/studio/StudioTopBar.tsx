@@ -1,3 +1,4 @@
+import NewsletterSettingsButton from "./newsletter/NewsletterSettingsButton";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -13,10 +14,10 @@ import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Eye,
   Info,
-  LogOut,
   Monitor,
   Redo2,
   RefreshCw,
@@ -26,6 +27,7 @@ import {
   Tablet,
   Undo2,
   AlertTriangle,
+  BookmarkPlus,
   X,
 } from "lucide-react";
 import StudioPreviewDialog from "@/components/crm/studio/StudioPreviewDialog";
@@ -57,18 +59,18 @@ type StudioTopBarProps = {
   onDismissExternalUpdate: () => void;
   onReloadCampaign: () => void;
   onSave: () => void;
+  onSaveAsTemplate: () => void;
   onExit: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   lastSavedAt: string | null;
 };
 
 type CampaignStatus = "Draft" | "Scheduled" | "Sending" | "Sent";
 type StudioSaveStatus =
-  | "idle"
-  | "saving"
-  | "saved"
-  | "error"
-  | "conflict"
-  | "failed";
+  "idle" | "saving" | "saved" | "error" | "conflict" | "failed";
 
 const STATUS_COLOR: Record<
   CampaignStatus,
@@ -130,7 +132,12 @@ export default function StudioTopBar({
   onDismissExternalUpdate,
   onReloadCampaign,
   onSave,
+  onSaveAsTemplate,
   onExit,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   lastSavedAt,
 }: StudioTopBarProps) {
   const [draftName, setDraftName] = React.useState(campaignName);
@@ -160,37 +167,45 @@ export default function StudioTopBar({
           ? "success.600"
           : "neutral.500";
   const statusLabel =
-    saveMessage ||
-    (saveStatus === "saving"
-      ? "Saving changes..."
-      : saveStatus === "saved"
-        ? "Saved"
-        : saveStatus === "conflict"
-          ? "Save conflict"
-          : saveStatus === "error" || saveStatus === "failed"
-            ? "Save failed"
-            : hasUnsavedChanges
-              ? "Unsaved changes"
-              : lastSavedAt
-                ? "Saved"
-                : "Ready");
+    saveStatus === "saving"
+      ? "Saving…"
+      : saveStatus === "conflict"
+        ? "Save conflict. Review before saving."
+        : saveStatus === "error" || saveStatus === "failed"
+          ? "Couldn’t save. Your edits are still here."
+          : hasUnsavedChanges
+            ? "Unsaved changes"
+            : saveStatus === "saved" || lastSavedAt
+              ? "All changes saved"
+              : saveMessage || "Ready";
+
+  const savedDate = lastSavedAt ? new Date(lastSavedAt) : null;
+  const savedAtLabel =
+    savedDate && !Number.isNaN(savedDate.getTime())
+      ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(savedDate)
+      : "Not saved yet";
 
   return (
     <Sheet
       sx={{
         height: 52,
-        bgcolor: "background.surface",
+        bgcolor: "#d9e0e2",
+        color: "#203137",
         boxShadow: "0 1px 0 0 rgba(0,0,0,0.06)",
         overflowX: "auto",
       }}
     >
       <Box
         sx={{
-          height: 52,
+          minHeight: 64,
+          py: 1.25,
           px: 2,
-          minWidth: { xs: 980, md: 0 },
+          minWidth: 0,
           display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
+          gridTemplateColumns: {
+            xs: "1fr",
+            lg: "minmax(160px, 1fr) auto minmax(0, 2fr)",
+          },
           alignItems: "center",
           gap: 2,
         }}
@@ -313,13 +328,16 @@ export default function StudioTopBar({
             <Settings size={16} />
           </IconButton>
 
+          <NewsletterSettingsButton />
           <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)}>
             <ModalDialog
               sx={{
-                width: 360,
+                width: 500,
                 maxWidth: "calc(100vw - 32px)",
-                p: 2.5,
-                borderRadius: "12px",
+                maxHeight: "calc(100vh - 32px)",
+                overflowY: "auto",
+                p: { xs: 2, sm: 3 },
+                borderRadius: "14px",
                 boxShadow: "lg",
               }}
             >
@@ -328,7 +346,12 @@ export default function StudioTopBar({
                 alignItems="center"
                 justifyContent="space-between"
               >
-                <Typography level="title-sm">Campaign Settings</Typography>
+                <Stack spacing={0.25}>
+                  <Typography level="title-md">Campaign settings</Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    Edit inbox details and review save information.
+                  </Typography>
+                </Stack>
                 <IconButton
                   variant="plain"
                   color="neutral"
@@ -345,6 +368,24 @@ export default function StudioTopBar({
               </Stack>
               <Box sx={{ height: "1px", bgcolor: "neutral.100", my: 1.5 }} />
               <Stack spacing={1.5}>
+                <Sheet variant="soft" color="neutral" sx={{ p: 1.5, borderRadius: "md" }}>
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                    <Stack spacing={0.25}>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>Campaign status</Typography>
+                      <Chip variant="outlined" color={STATUS_COLOR[campaignStatus]} size="sm">
+                        {campaignStatus}
+                      </Chip>
+                    </Stack>
+                    <Stack spacing={0.25} alignItems="flex-end">
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>Last saved</Typography>
+                      <Typography level="body-sm" fontWeight="md">{savedAtLabel}</Typography>
+                      {hasUnsavedChanges ? (
+                        <Typography level="body-xs" sx={{ color: "neutral.600" }}>Unsaved changes</Typography>
+                      ) : null}
+                    </Stack>
+                  </Stack>
+                </Sheet>
+                <Typography level="title-sm">Inbox details</Typography>
                 <Stack spacing={0.5}>
                   <Typography
                     level="body-xs"
@@ -401,6 +442,8 @@ export default function StudioTopBar({
                   </Typography>
                 </Stack>
 
+                <Box sx={{ height: "1px", bgcolor: "neutral.100", my: 0.5 }} />
+                <Typography level="title-sm">Sender details</Typography>
                 <Stack spacing={0.5}>
                   <Typography
                     level="body-xs"
@@ -435,6 +478,21 @@ export default function StudioTopBar({
                     }
                     sx={metadataInputSx}
                   />
+                </Stack>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    Changes remain in this campaign until saved.
+                  </Typography>
+                  <Button
+                    color="primary"
+                    variant={hasUnsavedChanges ? "solid" : "outlined"}
+                    size="sm"
+                    loading={saveStatus === "saving"}
+                    onClick={onSave}
+                    disabled={!hasUnsavedChanges || saveStatus === "saving"}
+                  >
+                    Save changes
+                  </Button>
                 </Stack>
               </Stack>
             </ModalDialog>
@@ -485,29 +543,31 @@ export default function StudioTopBar({
 
           <Box sx={studioDividerSx} />
 
-          <Tooltip title="Undo">
+          <Tooltip title="Undo (Ctrl/⌘ Z)">
             <span>
               <IconButton
                 variant="plain"
                 color="neutral"
                 size="sm"
-                disabled
+                disabled={!canUndo}
                 aria-label="Undo"
-                sx={{ opacity: 0.35, "&:hover": { opacity: 1 } }}
+                onClick={onUndo}
+                sx={{ opacity: canUndo ? 1 : 0.35 }}
               >
                 <Undo2 size={16} />
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title="Redo">
+          <Tooltip title="Redo (Ctrl/⌘ Shift Z)">
             <span>
               <IconButton
                 variant="plain"
                 color="neutral"
                 size="sm"
-                disabled
+                disabled={!canRedo}
                 aria-label="Redo"
-                sx={{ opacity: 0.35, "&:hover": { opacity: 1 } }}
+                onClick={onRedo}
+                sx={{ opacity: canRedo ? 1 : 0.35 }}
               >
                 <Redo2 size={16} />
               </IconButton>
@@ -529,108 +589,136 @@ export default function StudioTopBar({
           alignItems="center"
           spacing={1}
           justifyContent="flex-end"
+          useFlexGap
+          flexWrap="wrap"
         >
-          {externalUpdateNotice ? (() => {
-            const isInfo = externalUpdateNotice.severity === "info";
-            const color = isInfo ? "primary" : "warning";
-            const textColor = isInfo ? "primary.700" : "warning.700";
-            const Icon = isInfo ? Info : AlertTriangle;
-            const reloadLabel = externalUpdateNotice.localChangesAtRisk
-              ? "Reload anyway"
-              : "Reload";
-            return (
-              <Sheet
-                variant="soft"
-                color={color}
-                sx={{
-                  px: 1.25,
-                  py: 0.75,
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  maxWidth: 480,
-                }}
-                role={isInfo ? "status" : "alert"}
-              >
-                <Icon size={14} />
-                <Stack
-                  spacing={0.25}
-                  sx={{
-                    minWidth: 0,
-                    flex: "1 1 auto",
-                  }}
-                >
-                  <Typography
-                    level="body-xs"
-                    sx={{
-                      color: textColor,
-                      fontWeight: 600,
-                      whiteSpace: "normal",
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {externalUpdateNotice.message}
-                  </Typography>
-                  <Typography
-                    level="body-xs"
-                    sx={{
-                      color: textColor,
-                      opacity: 0.8,
-                      whiteSpace: "normal",
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {externalUpdateNotice.detail}
-                  </Typography>
-                </Stack>
-                <Button
-                  variant="soft"
-                  color={color}
-                  size="sm"
-                  startDecorator={<RefreshCw size={12} />}
-                  onClick={onReloadCampaign}
-                  sx={{
-                    height: 26,
-                    minHeight: 26,
-                    fontSize: "12px",
-                    px: 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  {reloadLabel}
-                </Button>
-                {externalUpdateNotice.localChangesAtRisk ? (
-                  <Button
-                    variant="plain"
-                    color="neutral"
-                    size="sm"
-                    onClick={onDismissExternalUpdate}
-                    sx={{
-                      height: 26,
-                      minHeight: 26,
-                      fontSize: "12px",
-                      px: 1,
-                      flexShrink: 0,
-                    }}
-                  >
-                    Keep my version
-                  </Button>
-                ) : (
-                  <IconButton
-                    variant="plain"
+          {externalUpdateNotice
+            ? (() => {
+                const isInfo = externalUpdateNotice.severity === "info";
+                const color = isInfo ? "primary" : "warning";
+                const textColor = isInfo ? "primary.700" : "warning.700";
+                const Icon = isInfo ? Info : AlertTriangle;
+                const reloadLabel = externalUpdateNotice.localChangesAtRisk
+                  ? "Reload anyway"
+                  : "Reload";
+                return (
+                  <Sheet
+                    variant="soft"
                     color={color}
-                    size="sm"
-                    aria-label="Dismiss notification"
-                    onClick={onDismissExternalUpdate}
-                    sx={{ minWidth: 20, minHeight: 20, borderRadius: "6px" }}
+                    sx={{
+                      px: 1.25,
+                      py: 0.75,
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      maxWidth: 480,
+                    }}
+                    role={isInfo ? "status" : "alert"}
                   >
-                    <X size={12} />
-                  </IconButton>
-                )}
-              </Sheet>
-            );
-          })() : null}
+                    <Icon size={14} />
+                    <Stack
+                      spacing={0.25}
+                      sx={{
+                        minWidth: 0,
+                        flex: "1 1 auto",
+                      }}
+                    >
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: textColor,
+                          fontWeight: 600,
+                          whiteSpace: "normal",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {externalUpdateNotice.message}
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: textColor,
+                          opacity: 0.8,
+                          whiteSpace: "normal",
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {externalUpdateNotice.detail}
+                      </Typography>
+                    </Stack>
+                    <Button
+                      variant="soft"
+                      color={color}
+                      size="sm"
+                      startDecorator={<RefreshCw size={12} />}
+                      onClick={onReloadCampaign}
+                      sx={{
+                        height: 26,
+                        minHeight: 26,
+                        fontSize: "12px",
+                        px: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {reloadLabel}
+                    </Button>
+                    {externalUpdateNotice.localChangesAtRisk ? (
+                      <Button
+                        variant="plain"
+                        color="neutral"
+                        size="sm"
+                        onClick={onDismissExternalUpdate}
+                        sx={{
+                          height: 26,
+                          minHeight: 26,
+                          fontSize: "12px",
+                          px: 1,
+                          flexShrink: 0,
+                        }}
+                      >
+                        Keep my version
+                      </Button>
+                    ) : (
+                      <IconButton
+                        variant="plain"
+                        color={color}
+                        size="sm"
+                        aria-label="Dismiss notification"
+                        onClick={onDismissExternalUpdate}
+                        sx={{
+                          minWidth: 20,
+                          minHeight: 20,
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <X size={12} />
+                      </IconButton>
+                    )}
+                  </Sheet>
+                );
+              })()
+            : null}
+
+          <Button
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            startDecorator={<BookmarkPlus size={16} />}
+            onClick={onSaveAsTemplate}
+            disabled={blockCount === 0}
+            sx={{
+              height: 32,
+              minHeight: 32,
+              borderColor: "neutral.300",
+              borderRadius: "8px",
+              fontWeight: 500,
+              fontSize: "13px",
+              "&:hover": { bgcolor: "neutral.50" },
+            }}
+          >
+            Save template
+          </Button>
 
           <Button
             variant="outlined"
@@ -671,7 +759,9 @@ export default function StudioTopBar({
               fontSize: "13px",
             }}
           >
-            Save
+            {saveStatus === "failed" || saveStatus === "error"
+              ? "Retry save"
+              : "Save"}
           </Button>
 
           <Typography
@@ -701,21 +791,40 @@ export default function StudioTopBar({
             {statusLabel}
           </Typography>
 
-          <Button
-            variant="plain"
-            color="neutral"
-            size="sm"
-            startDecorator={<LogOut size={16} />}
-            onClick={onExit}
-            sx={{
-              fontSize: "13px",
-              fontWeight: 500,
-              borderRadius: "8px",
-              "&:hover": { bgcolor: "neutral.100" },
-            }}
-          >
-            Exit
-          </Button>
+          {campaignStatus === "Draft" ? (
+            <Tooltip title="Your design is saved before you review recipients and send. This does not send your email.">
+              <Button
+                variant="solid"
+                size="md"
+                aria-label="Review & Send"
+                onClick={onExit}
+                loading={saveStatus === "saving"}
+                endDecorator={<ArrowRight size={18} aria-hidden="true" />}
+                sx={{
+                  minHeight: 44,
+                  px: 2.5,
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: 15,
+                  bgcolor: "#244d46",
+                  "&:hover": { bgcolor: "#183c35" },
+                }}
+              >
+                Review &amp; Send
+              </Button>
+            </Tooltip>
+          ) : null}
+          <Tooltip title="Save your changes and return to the campaign">
+            <IconButton
+              variant="plain"
+              color="neutral"
+              aria-label="Save and close Design Studio"
+              onClick={onExit}
+              sx={{ minWidth: 44, minHeight: 44 }}
+            >
+              <X size={18} />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </Box>
 

@@ -104,6 +104,113 @@ export function createStudioBlock(
   } satisfies Pick<StudioBlock, "id" | "type" | "label" | "order" | "visible">;
 
   switch (type) {
+    case "preheader":
+      return {
+        ...base,
+        body: "",
+        appearance: {
+          text: { smallPrint: { size: 12, color: "#46595a" } },
+          padding: { top: 8, right: 24, bottom: 8, left: 24 },
+        },
+      };
+    case "headline":
+      return {
+        ...base,
+        headline: "",
+        headingLevel: "h2",
+        appearance: { padding: { top: 16, right: 24, bottom: 16, left: 24 } },
+      };
+    case "youtube":
+      return {
+        ...base,
+        videoUrl: "",
+        imageUrl: "",
+        headline: "",
+        body: "",
+        buttonText: "Watch video",
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "navigation":
+    case "button-group":
+      return {
+        ...base,
+        links: [{ id: crypto.randomUUID(), label: "", url: "" }],
+        buttonColor: primaryColor || "#1f4341",
+        buttonTextColor: "#ffffff",
+        appearance: { padding: { top: 12, right: 16, bottom: 12, left: 16 } },
+      };
+    case "text-columns":
+      return {
+        ...base,
+        textColumns: ["", ""],
+        appearance: { padding: { top: 24, right: 14, bottom: 24, left: 14 } },
+      };
+    case "data-table":
+      return {
+        ...base,
+        tableCaption: "",
+        tableHeaders: ["", ""],
+        tableRows: [["", ""]],
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "chart":
+      return {
+        ...base,
+        headline: "",
+        chartData: [],
+        chartUnit: "",
+        accentColor: primaryColor || "#1f4341",
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "survey":
+      return {
+        ...base,
+        headline: "",
+        body: "",
+        links: [],
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+    case "event":
+    case "blog":
+    case "announcement":
+      return {
+        ...base,
+        headline: "",
+        subheading: "",
+        body: "",
+        imageUrl: "",
+        imagePosition: "top",
+        buttonText:
+          type === "event"
+            ? "Book your place"
+            : type === "blog"
+              ? "Read the article"
+              : "Learn more",
+        buttonUrl: "",
+        buttonColor: primaryColor || "#1f4341",
+        buttonTextColor: primaryContrastText || "#ffffff",
+        useBrandButtonColor: true,
+        appearance: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+      };
+
+    case "coupon":
+      return {
+        ...base,
+        headline: "",
+        body: "",
+        couponOffer: "25",
+        couponPrice: "",
+        couponConditions: "",
+        couponImageSide: "left",
+        couponBorder: true,
+        couponScissors: true,
+        imageUrl: "",
+        imageAlt: "",
+        buttonText: "Shop this offer",
+        buttonUrl: "",
+        backgroundColor: "#ffffff",
+        textColor: "#172d2c",
+      };
     case "email-safe-hero":
       return {
         ...base,
@@ -111,8 +218,8 @@ export function createStudioBlock(
         subheading: "",
         body: "",
         tagLabel: "",
-        backgroundColor: "#1a1a2e",
-        textColor: "#ffffff",
+        backgroundColor: "#ffffff",
+        textColor: "#1a1a2e",
         textAlign: "center",
         heroStyle: "solid",
         overlayOpacity: 45,
@@ -125,7 +232,7 @@ export function createStudioBlock(
         buttonTextColor: (primaryColor && primaryContrastText) || "#1a1a2e",
         buttonSize: "md",
         buttonRounded: true,
-        layoutPreset: "hero-dark-center",
+        layoutPreset: "hero-light-center",
       };
     case "graphic-hero":
       return {
@@ -136,6 +243,8 @@ export function createStudioBlock(
         imageAlt: "",
         linkUrl: "",
         imageFit: "cover",
+        imageFocalX: 50,
+        imageFocalY: 50,
         maxHeight: 400,
         borderRadius: 0,
         insetPadding: false,
@@ -175,6 +284,8 @@ export function createStudioBlock(
         captionAlignment: "center",
         captionColor: "#6b7280",
         imageFit: "cover",
+        imageFocalX: 50,
+        imageFocalY: 50,
         maxHeight: 400,
         borderRadius: 0,
         insetPadding: false,
@@ -192,7 +303,7 @@ export function createStudioBlock(
         dateLabel: getDefaultDateLabel(),
         tagline: "",
         logoAlignment: "left",
-        logoSize: 40,
+        logoSize: 56,
         logoShape: "rounded",
         logoUrl: designSystem?.company.logoUrl || "",
         backgroundColor: "#ffffff",
@@ -214,11 +325,13 @@ export function createStudioBlock(
         imageAlt: "",
         imagePosition: "left",
         imageFit: "cover",
+        imageFocalX: 50,
+        imageFocalY: 50,
         imageRatio: "auto",
-        borderRadius: 8,
+        borderRadius: 12,
         columnSplit: "50/50",
         contentPadding: 24,
-        backgroundColor: "#ffffff",
+        backgroundColor: "#fbfaf6",
         textColor: brandTextColor || "#111827",
         textAlign: "left",
         overlayColor: "#000000",
@@ -239,7 +352,7 @@ export function createStudioBlock(
       return {
         ...base,
         body: "",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#fbfaf6",
         textColor: brandTextColor || "#111827",
         textAlign: "left",
         showAccent: false,
@@ -284,6 +397,8 @@ export function createStudioBlock(
         imageUrl: "",
         imageAlt: "",
         imageFit: "cover",
+        imageFocalX: 50,
+        imageFocalY: 50,
         badgeText: "",
         badgeColor: primaryColor || "#111827",
         badgeTextColor: "#ffffff",
@@ -306,8 +421,8 @@ export function createStudioBlock(
       return {
         ...base,
         galleryImages: [],
-        layout: "grid-3",
-        layoutPreset: "gallery-grid-3",
+        layout: "row-3",
+        layoutPreset: "gallery-row-3",
         gridColumns: 3,
         imageHeight: 180,
         gridGap: 8,
@@ -318,12 +433,12 @@ export function createStudioBlock(
     case "product-gallery":
       return {
         ...base,
-        galleryProducts: Array.from({ length: 4 }, () =>
+        galleryProducts: Array.from({ length: 3 }, () =>
           createEmptyGalleryProduct(),
         ),
-        layout: "standard-grid",
-        layoutPreset: "product-gallery-standard",
-        gridColumns: 2,
+        layout: "row-3",
+        layoutPreset: "product-gallery-row-3",
+        gridColumns: 3,
         imageHeight: 160,
         cardGap: 16,
         backgroundColor: "#ffffff",
@@ -392,8 +507,8 @@ export function createStudioBlock(
         lineThickness: 1,
         lineWidth: 100,
         textAlign: "center",
-        paddingTop: 20,
-        paddingBottom: 20,
+        paddingTop: 8,
+        paddingBottom: 8,
         showOrnament: false,
         ornamentSymbol: "✦",
         ornamentColor: primaryColor || "#111827",
@@ -420,7 +535,7 @@ export function createStudioBlock(
         complianceText,
         logoUrl: designSystem?.company.logoUrl || "",
         logoAlignment: "left",
-        logoSize: 40,
+        logoSize: 64,
         showUnsubscribe: true,
         showManagePreferences: true,
         showWebsiteLink: Boolean(stringValue(designSystem?.company.websiteUrl)),

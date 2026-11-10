@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  Database,
   Globe,
   Mail,
   MessageSquare,
@@ -16,7 +17,6 @@ export type IntegrationStatus = "connected" | "available" | "coming-soon";
 
 export type IntegrationCategory =
   | "pos-systems"
-  | "social"
   | "analytics"
   | "marketing-import"
   | "automation"
@@ -68,7 +68,6 @@ export const INTEGRATION_CATEGORIES: Array<{
   label: string;
 }> = [
   { value: "pos-systems", label: "POS Systems" },
-  { value: "social", label: "Social" },
   { value: "analytics", label: "Analytics" },
   { value: "marketing-import", label: "Marketing Import" },
   { value: "automation", label: "Automation" },
@@ -101,22 +100,40 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
       "Square keeps BloomSuite aligned with your live customer and order activity.",
   },
   {
-    slug: "clover",
-    name: "Clover",
+    slug: "ideal",
+    name: "Ideal",
     description:
-      "Connect Clover to bring POS customer and sales data into BloomSuite.",
+      "Connect Ideal to Customer Intelligence through partner API access when available, with secure report sync as the supported fallback.",
     category: "pos-systems",
     categoryLabel: "POS Systems",
     defaultStatus: "available",
+    icon: Database,
+    keywords: ["ideal", "ideal computer systems", "pos", "api", "customer intelligence", "reports"],
+    syncScopeLabel: "Customers + Sales + Loyalty + Coupons",
+    canDisconnect: true,
+    targetPath: "/integrations/pos",
+    actionLabel: "Set up",
+    detailActionLabel: "Set up Customer Intelligence",
+    detailSummary:
+      "BloomSuite prefers Ideal API access when the account supports the required customer and sales data, and falls back to idempotent report sync when it does not.",
+  },
+  {
+    slug: "clover",
+    name: "Clover",
+    description:
+      "Clover support is staged while we await formal API approval and final production details.",
+    category: "pos-systems",
+    categoryLabel: "POS Systems",
+    defaultStatus: "coming-soon",
     icon: ShoppingBag,
     keywords: ["clover", "pos", "orders", "customers"],
     syncScopeLabel: "Customers + Orders",
-    canDisconnect: true,
-    targetPath: "/integrations/clover/guide",
-    actionLabel: "Connect",
-    detailActionLabel: "Open Clover setup",
+    canDisconnect: false,
+    targetPath: "/integrations/clover",
+    actionLabel: "Notify me",
+    detailActionLabel: "View approval status",
     detailSummary:
-      "Clover sync keeps customer and purchase history ready for campaigns and segmentation.",
+      "The implementation remains disabled until Clover grants formal API approval.",
   },
   {
     slug: "lightspeed",
@@ -152,43 +169,6 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     detailActionLabel: "Connect Shopify",
     detailSummary:
       "Shopify connects BloomSuite to your storefront through a store-specific OAuth install flow.",
-  },
-  {
-    slug: "meta",
-    name: "Meta",
-    description:
-      "Manage Facebook Pages and Instagram Business accounts through a single Meta connection.",
-    category: "social",
-    categoryLabel: "Social",
-    defaultStatus: "available",
-    icon: Network,
-    keywords: [
-      "meta",
-      "facebook",
-      "instagram",
-      "social",
-      "pages",
-      "publishing",
-    ],
-    syncScopeLabel: "Facebook + Instagram publishing",
-    canDisconnect: true,
-    targetPath: "/social-accounts",
-    actionLabel: "Connect",
-    detailActionLabel: "Open social account settings",
-    detailSummary:
-      "Meta authorizes Facebook Pages and Instagram Business accounts from a shared OAuth flow.",
-    children: [
-      {
-        name: "Facebook",
-        status: "available",
-        description: "Facebook Pages and publishing access",
-      },
-      {
-        name: "Instagram",
-        status: "available",
-        description: "Instagram Business account access",
-      },
-    ],
   },
   {
     slug: "google-analytics",
@@ -420,7 +400,6 @@ export function getTabCounts(
   const counts: Record<IntegrationTabValue, number> = {
     all: filterIntegrations(items, "all", searchQuery).length,
     "pos-systems": 0,
-    social: 0,
     analytics: 0,
     "marketing-import": 0,
     automation: 0,

@@ -27,7 +27,7 @@ export const unifiedPlatformContent: FeaturePageContent = {
       {
         title: "Tool sprawl",
         description:
-          "A POS, a CRM, an email tool, a website builder, an analytics dashboard, a social scheduler. Four to six logins, four to six bills, four to six things to learn and maintain. The bill compounds, the complexity compounds.",
+          "A POS, a CRM, an email tool, an SMS tool, a website builder, and an analytics dashboard. Four to six logins, four to six bills, four to six things to learn and maintain. The bill compounds, the complexity compounds.",
       },
       {
         title: "Data silos",
@@ -129,7 +129,7 @@ export const unifiedPlatformContent: FeaturePageContent = {
       {
         question: "What tools does BloomSuite typically replace?",
         answer:
-          "Most customers replace four to six tools: a CRM (like HubSpot or Salesforce), an email tool (like Mailchimp or Klaviyo), an SMS tool (like Attentive or Postscript), an ecommerce platform (like Shopify or BigCommerce), an analytics tool (like Google Analytics or a BI dashboard), and sometimes a social scheduler. The exact mix depends on what you're running today.",
+          "Most customers replace four to six tools: a CRM (like HubSpot or Salesforce), an email tool (like Mailchimp or Klaviyo), an SMS tool (like Attentive or Postscript), an ecommerce platform (like Shopify or BigCommerce), and an analytics tool (like Google Analytics or a BI dashboard). The exact mix depends on what you're running today.",
       },
       {
         question: "How does pricing compare to the sum of those tools?",
@@ -145,7 +145,7 @@ export const unifiedPlatformContent: FeaturePageContent = {
         question:
           "What about my custom integrations or third-party tools?",
         answer:
-          "BloomSuite's API supports custom integrations to anything that matters. Webhooks let you push data to external systems. We integrate natively with Lightspeed, Square, Shopify, Clover, VMX POS, Mailchimp, Klaviyo, Constant Contact, Meta, and Google Analytics. If you need something else connected, our team can help.",
+          "BloomSuite's API supports custom integrations to anything that matters. Webhooks let you push data to external systems. Current integrations include Lightspeed, Square, Shopify, VMX POS, Mailchimp, Klaviyo, Constant Contact, and Google Analytics. If you need something else connected, our team can help.",
       },
       {
         question: "How do roles and permissions work?",

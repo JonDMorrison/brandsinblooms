@@ -14,6 +14,13 @@ export type Database = {
   };
   public: {
     Tables: {
+      crm_saved_blocks: {
+        Row: { id: string; tenant_id: string; created_by: string; name: string; block_data: Json; created_at: string; updated_at: string; save_schema_version: number };
+        Insert: { id?: string; tenant_id: string; created_by: string; name: string; block_data: Json; created_at?: string; updated_at?: string; save_schema_version: number };
+        Update: { name?: string; block_data?: Json; updated_at?: string };
+        Relationships: [];
+      };
+
       admin_audit_log: {
         deleted_at: string | null;
         Row: {
@@ -1335,6 +1342,7 @@ export type Database = {
         Row: {
           automation_id: string | null;
           claimed_at: string | null;
+          claimed_by: string | null;
           created_at: string | null;
           customer_id: string | null;
           error_message: string | null;
@@ -1349,12 +1357,14 @@ export type Database = {
           queued_until: string | null;
           retry_count: number | null;
           segment_id: string | null;
+          source_event_key: string | null;
           submission_id: string | null;
           tenant_id: string;
         };
         Insert: {
           automation_id?: string | null;
           claimed_at?: string | null;
+          claimed_by?: string | null;
           created_at?: string | null;
           customer_id?: string | null;
           error_message?: string | null;
@@ -1369,12 +1379,14 @@ export type Database = {
           queued_until?: string | null;
           retry_count?: number | null;
           segment_id?: string | null;
+          source_event_key?: string | null;
           submission_id?: string | null;
           tenant_id: string;
         };
         Update: {
           automation_id?: string | null;
           claimed_at?: string | null;
+          claimed_by?: string | null;
           created_at?: string | null;
           customer_id?: string | null;
           error_message?: string | null;
@@ -1389,6 +1401,7 @@ export type Database = {
           queued_until?: string | null;
           retry_count?: number | null;
           segment_id?: string | null;
+          source_event_key?: string | null;
           submission_id?: string | null;
           tenant_id?: string;
         };
@@ -1864,6 +1877,122 @@ export type Database = {
           persona_id?: string;
         };
         Relationships: [];
+      };
+      campaign_revenue_attributions: {
+        Row: {
+          attributed_revenue: number;
+          attribution_model: string;
+          attribution_window_days: number;
+          channel: string;
+          created_at: string;
+          currency: string;
+          customer_id: string;
+          email_campaign_id: string | null;
+          gross_revenue: number;
+          id: string;
+          order_at: string;
+          order_id: string;
+          refund_amount: number;
+          sms_campaign_id: string | null;
+          tenant_id: string;
+          touch_at: string;
+          touch_event_id: string;
+          touch_source: string;
+          updated_at: string;
+        };
+        Insert: {
+          attributed_revenue?: number;
+          attribution_model?: string;
+          attribution_window_days?: number;
+          channel: string;
+          created_at?: string;
+          currency?: string;
+          customer_id: string;
+          email_campaign_id?: string | null;
+          gross_revenue?: number;
+          id?: string;
+          order_at: string;
+          order_id: string;
+          refund_amount?: number;
+          sms_campaign_id?: string | null;
+          tenant_id: string;
+          touch_at: string;
+          touch_event_id: string;
+          touch_source: string;
+          updated_at?: string;
+        };
+        Update: {
+          attributed_revenue?: number;
+          attribution_model?: string;
+          attribution_window_days?: number;
+          channel?: string;
+          created_at?: string;
+          currency?: string;
+          customer_id?: string;
+          email_campaign_id?: string | null;
+          gross_revenue?: number;
+          id?: string;
+          order_at?: string;
+          order_id?: string;
+          refund_amount?: number;
+          sms_campaign_id?: string | null;
+          tenant_id?: string;
+          touch_at?: string;
+          touch_event_id?: string;
+          touch_source?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_revenue_attributions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_email_campaign_id_fkey";
+            columns: ["email_campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "pos_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_sms_campaign_id_fkey";
+            columns: ["sms_campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_sms_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       campaign_segments: {
         Row: {
@@ -3680,9 +3809,12 @@ export type Database = {
       };
       crm_email_consent_events: {
         Row: {
+          actor_user_id: string | null;
+          consent_basis: string | null;
           created_at: string;
           customer_id: string;
           email: string;
+          evidence: Json;
           event_type: string;
           id: string;
           ip_address: string | null;
@@ -3691,9 +3823,12 @@ export type Database = {
           user_agent: string | null;
         };
         Insert: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id: string;
           email: string;
+          evidence?: Json;
           event_type: string;
           id?: string;
           ip_address?: string | null;
@@ -3702,9 +3837,12 @@ export type Database = {
           user_agent?: string | null;
         };
         Update: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id?: string;
           email?: string;
+          evidence?: Json;
           event_type?: string;
           id?: string;
           ip_address?: string | null;
@@ -4276,9 +4414,12 @@ export type Database = {
       };
       crm_sms_consent_events: {
         Row: {
+          actor_user_id: string | null;
+          consent_basis: string | null;
           created_at: string;
           customer_id: string;
           event_type: string;
+          evidence: Json;
           id: string;
           ip_address: string | null;
           phone: string;
@@ -4287,9 +4428,12 @@ export type Database = {
           user_agent: string | null;
         };
         Insert: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id: string;
           event_type: string;
+          evidence?: Json;
           id?: string;
           ip_address?: string | null;
           phone: string;
@@ -4298,9 +4442,12 @@ export type Database = {
           user_agent?: string | null;
         };
         Update: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id?: string;
           event_type?: string;
+          evidence?: Json;
           id?: string;
           ip_address?: string | null;
           phone?: string;
@@ -10333,6 +10480,92 @@ export type Database = {
           },
         ];
       };
+      loyalty_provider_accounts: {
+        Row: {
+          balance: number;
+          balance_unit: string;
+          created_at: string;
+          currency: string | null;
+          customer_id: string;
+          enrolled_at: string | null;
+          external_account_id: string;
+          external_program_id: string | null;
+          id: string;
+          last_synced_at: string;
+          lifetime_value: number;
+          program_name: string | null;
+          provider: string;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          balance?: number;
+          balance_unit: string;
+          created_at?: string;
+          currency?: string | null;
+          customer_id: string;
+          enrolled_at?: string | null;
+          external_account_id: string;
+          external_program_id?: string | null;
+          id?: string;
+          last_synced_at: string;
+          lifetime_value?: number;
+          program_name?: string | null;
+          provider: string;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          balance?: number;
+          balance_unit?: string;
+          created_at?: string;
+          currency?: string | null;
+          customer_id?: string;
+          enrolled_at?: string | null;
+          external_account_id?: string;
+          external_program_id?: string | null;
+          id?: string;
+          last_synced_at?: string;
+          lifetime_value?: number;
+          program_name?: string | null;
+          provider?: string;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_provider_accounts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_accounts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_accounts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_accounts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       loyalty_points_transactions: {
         Row: {
           created_at: string | null;
@@ -13095,15 +13328,19 @@ export type Database = {
           error_code: string | null;
           error_message: string | null;
           failure_type: string | null;
+          first_clicked_at: string | null;
           from_phone: string | null;
           id: string;
           last_attempt_at: string | null;
+          last_clicked_at: string | null;
+          links_clicked: number;
           media_urls: Json | null;
           phone: string;
           scheduled_at: string | null;
           sent_at: string | null;
           status: string | null;
           twilio_sid: string | null;
+          unique_links_clicked: number;
           updated_at: string;
         };
         Insert: {
@@ -13117,15 +13354,19 @@ export type Database = {
           error_code?: string | null;
           error_message?: string | null;
           failure_type?: string | null;
+          first_clicked_at?: string | null;
           from_phone?: string | null;
           id?: string;
           last_attempt_at?: string | null;
+          last_clicked_at?: string | null;
+          links_clicked?: number;
           media_urls?: Json | null;
           phone: string;
           scheduled_at?: string | null;
           sent_at?: string | null;
           status?: string | null;
           twilio_sid?: string | null;
+          unique_links_clicked?: number;
           updated_at?: string;
         };
         Update: {
@@ -13139,15 +13380,19 @@ export type Database = {
           error_code?: string | null;
           error_message?: string | null;
           failure_type?: string | null;
+          first_clicked_at?: string | null;
           from_phone?: string | null;
           id?: string;
           last_attempt_at?: string | null;
+          last_clicked_at?: string | null;
+          links_clicked?: number;
           media_urls?: Json | null;
           phone?: string;
           scheduled_at?: string | null;
           sent_at?: string | null;
           status?: string | null;
           twilio_sid?: string | null;
+          unique_links_clicked?: number;
           updated_at?: string;
         };
         Relationships: [
@@ -15189,6 +15434,23 @@ export type Database = {
       };
     };
     Functions: {
+      begin_customer_csv_import: {
+        Args: {
+          p_attestation_type: string;
+          p_contact_count: number;
+          p_import_batch_id: string;
+          p_attestation_wording: string;
+        };
+        Returns: Json;
+      };
+      crm_has_permission: {
+        Args: {
+          p_location_id?: string | null;
+          p_permission: string;
+          p_tenant_id?: string | null;
+        };
+        Returns: boolean;
+      };
       acquire_provider_send_slot: {
         Args: { p_min_interval_ms?: number; p_provider: string };
         Returns: number;
@@ -15915,6 +16177,10 @@ export type Database = {
         };
         Returns: boolean;
       };
+      compute_pos_order_revenue_attribution: {
+        Args: { p_order_id: string; p_window_days?: number };
+        Returns: Json;
+      };
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string };
         Returns: number;
@@ -15922,6 +16188,10 @@ export type Database = {
       create_automation_from_draft: {
         Args: { draft_id: string; template_key?: string };
         Returns: string;
+      };
+      create_current_user_tenant: {
+        Args: { p_name: string };
+        Returns: Database["public"]["Tables"]["tenants"]["Row"][];
       };
       delete_customers_except: {
         Args: { p_keep_email: string; p_tenant_id: string };
@@ -16027,6 +16297,10 @@ export type Database = {
           total_recipients: number | null;
           worker_heartbeat_at: string | null;
         }[];
+      };
+      ensure_system_segments: {
+        Args: { p_segments: Json; p_tenant_id: string };
+        Returns: number;
       };
       ensure_org_usage_initialized: {
         Args: { p_tenant_id: string };
@@ -16252,6 +16526,22 @@ export type Database = {
           sms_events: number;
         }[];
       };
+      get_customer_export_page: {
+        Args: { p_after_id?: string | null; p_limit?: number };
+        Returns: Json;
+      };
+      get_customer_catalog_stats: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      get_customer_merge_review_queue: {
+        Args: { p_limit?: number; p_offset?: number };
+        Returns: Json;
+      };
+      get_current_crm_access: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
       get_customer_purchase_timeline: {
         Args: { p_customer_id: string; p_months?: number };
         Returns: {
@@ -16341,6 +16631,36 @@ export type Database = {
           total: number;
         }[];
       };
+      get_email_campaign_reporting_snapshot: {
+        Args: { p_campaign_id: string };
+        Returns: Json;
+      };
+      set_customer_marketing_consent: {
+        Args: {
+          p_channel: string;
+          p_consent_basis?: string | null;
+          p_customer_id: string;
+          p_evidence?: string | null;
+          p_ip_address?: string | null;
+          p_opt_in: boolean;
+          p_source: string;
+          p_user_agent?: string | null;
+        };
+        Returns: Json;
+      };
+      set_customer_marketing_consent_authorized: {
+        Args: {
+          p_channel: string;
+          p_consent_basis?: string | null;
+          p_customer_id: string;
+          p_evidence?: string | null;
+          p_ip_address?: string | null;
+          p_opt_in: boolean;
+          p_source: string;
+          p_user_agent?: string | null;
+        };
+        Returns: Json;
+      };
       get_email_consent_stats: {
         Args: { p_tenant_id: string };
         Returns: {
@@ -16422,6 +16742,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      get_sms_dashboard_stats: { Args: never; Returns: Json };
       get_sms_warmup_info: {
         Args: { p_messaging_service_sid?: string; p_phone_number?: string };
         Returns: {
@@ -16505,6 +16826,10 @@ export type Database = {
         Returns: boolean;
       };
       increment_image_usage: { Args: { asset_id: string }; Returns: undefined };
+      import_crm_customer_batch: {
+        Args: { p_attestation_id: string; p_customers: Json };
+        Returns: Json;
+      };
       increment_template_usage: {
         Args: { template_id: string };
         Returns: undefined;
@@ -16678,6 +17003,16 @@ export type Database = {
         Args: { p_tokens?: number; p_user_id: string };
         Returns: boolean;
       };
+      rebuild_campaign_revenue_attribution: {
+        Args: {
+          p_after_order_id?: string;
+          p_from: string;
+          p_limit?: number;
+          p_to: string;
+          p_window_days?: number;
+        };
+        Returns: Json;
+      };
       refresh_all_content_intent_metrics: {
         Args: { p_tenant_id: string };
         Returns: number;
@@ -16706,9 +17041,17 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: number;
       };
+      refresh_email_campaign_revenue_metrics: {
+        Args: { p_campaign_id: string };
+        Returns: undefined;
+      };
       refresh_email_governance_tenant_reputation_score: {
         Args: { p_as_of?: string; p_tenant_id: string };
         Returns: Json;
+      };
+      refresh_sms_campaign_revenue_metrics: {
+        Args: { p_campaign_id: string };
+        Returns: undefined;
       };
       release_stale_claims: {
         Args: { p_stale_threshold_minutes?: number };
@@ -16731,6 +17074,20 @@ export type Database = {
       resolve_effective_subscription_tier: {
         Args: { p_tenant_id: string };
         Returns: string;
+      };
+      resolve_customer_merge_review: {
+        Args: {
+          p_action: string;
+          p_duplicate_customer_id: string | null;
+          p_reason: string;
+          p_suggestion_id: string;
+          p_survivor_customer_id: string | null;
+        };
+        Returns: Json;
+      };
+      scan_current_tenant_customer_duplicates: {
+        Args: { p_limit?: number };
+        Returns: Json;
       };
       restore_user_data: { Args: { target_user_id: string }; Returns: boolean };
       resume_email_campaign_sending: {
@@ -16781,6 +17138,14 @@ export type Database = {
       set_tenant_default_from_email_domain: {
         Args: { p_domain_id: string };
         Returns: undefined;
+      };
+      set_tenant_user_crm_access: {
+        Args: {
+          p_location_ids?: string[];
+          p_role: string;
+          p_user_id: string;
+        };
+        Returns: Json;
       };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };

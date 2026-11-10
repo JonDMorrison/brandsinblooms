@@ -40,6 +40,9 @@ enable_confirmations = true
 [functions.process-automation-outbox]
 verify_jwt = false
 
+[functions.automation-executor]
+verify_jwt = false
+
 [functions.seed-demo-customers]
 verify_jwt = false
 
@@ -253,7 +256,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.send-sms]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-sms-campaign]
 verify_jwt = true
@@ -439,7 +442,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.pos-sync-worker]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pos-sync-status]
 verify_jwt = false
@@ -463,9 +466,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.evaluate-customer-segments]
-verify_jwt = false
-
-[functions.automation-executor]
 verify_jwt = false
 
 [functions.domain-verify-cron]
@@ -497,6 +497,12 @@ verify_jwt = true
 
 [functions.mta-debug-numbers]
 verify_jwt = true
+
+[functions.mta-delivery-reconciliation-worker]
+verify_jwt = false
+
+[functions.mta-webhook]
+verify_jwt = false
 
 [functions.constant-contact-fetch-lists]
 verify_jwt = true
@@ -533,3 +539,103 @@ verify_jwt = false
 
 [functions.serve-embed-js]
 verify_jwt = false
+[functions.handle-unsubscribe]
+verify_jwt = false
+
+[functions.validate-preference-token]
+verify_jwt = true
+
+[functions.update-email-preference]
+verify_jwt = true
+
+[functions.recompute-segment-memberships]
+verify_jwt = true
+
+[functions.notify-notion-trial]
+verify_jwt = false
+
+[functions.update-notion-profile]
+verify_jwt = false
+
+[functions.pos-link-customers]
+verify_jwt = true
+
+[functions.vmx-sync-customers]
+verify_jwt = true
+
+[functions.configure-pos-sms-consent]
+verify_jwt = true
+
+[functions.bloomsuite-pos-inbound]
+verify_jwt = false
+
+# Storefront OAuth state is validated against a short-lived site-owner-bound record.
+# Signed read requests are authenticated by the grant's per-site ECDSA proof.
+[functions.lightspeed-storefront-bridge]
+verify_jwt = false
+
+[functions.pos-onboarding-export]
+verify_jwt = false
+
+# Signed service-to-service calls from BloomSites; this function verifies HMAC
+# before parsing or applying a subscription.
+[functions.receive-storefront-push]
+verify_jwt = false
+
+# Internal cron only. The function validates the exact service-role bearer.
+[functions.process-push-send-queue]
+verify_jwt = false
+
+[functions.send-push-test]
+verify_jwt = true
+
+[functions.review-storefront-push-identity]
+verify_jwt = true
+
+[functions.link-storefront-tenant]
+verify_jwt = true
+
+[functions.queue-push-segment]
+verify_jwt = true
+
+[functions.record-push-click]
+verify_jwt = false
+
+[functions.push-readiness]
+verify_jwt = true
+
+[functions.loyalty-programmes]
+verify_jwt = true
+
+[functions.ideal-manual-sync-job]
+verify_jwt = true
+
+# Bloom Support & Operations — each function authenticates its caller itself
+# (CRM session JWT, Bloom API key, signed product intake, Svix webhook signature,
+# or the internal key for the cron worker).
+[functions.bloom-support-api]
+verify_jwt = false
+
+[functions.bloom-support-intake]
+verify_jwt = false
+
+[functions.bloom-support-email]
+verify_jwt = false
+
+[functions.bloom-support-slack]
+verify_jwt = false # verified Slack v0 HMAC signature in handler
+
+[functions.bloom-support-github]
+verify_jwt = false # verified GitHub sha256 signature in handler
+
+[functions.bloom-support-cms-events]
+verify_jwt = false # verified paired CMS HMAC secret in handler
+
+[functions.bloom-support-worker]
+verify_jwt = false
+
+[functions.bloom-support-mcp]
+verify_jwt = false
+
+[functions.connected-content]
+verify_jwt = true

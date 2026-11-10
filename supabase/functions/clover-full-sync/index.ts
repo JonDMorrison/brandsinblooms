@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireCloverApproval } from "../_shared/cloverApprovalGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,8 @@ function parseEnqueueOutcome(payload: unknown): EnqueueOutcome {
 }
 
 Deno.serve(async (req) => {
+  const approvalResponse = requireCloverApproval(req);
+  if (approvalResponse) return approvalResponse;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -148,7 +151,11 @@ Deno.serve(async (req) => {
 
     // Kick off the worker to start processing
     console.log("[CLOVER-FULL-SYNC] Starting pos-sync-worker...");
-    const { error: workerError } = await supabaseClient.functions.invoke(
+    const workerClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    const { error: workerError } = await workerClient.functions.invoke(
       "pos-sync-worker",
       {
         body: { provider: "clover" },

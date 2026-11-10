@@ -12,10 +12,10 @@ describe("integrations hub config helpers", () => {
     status: seed.slug === "square" ? "connected" : seed.defaultStatus,
   }));
 
-  it("filters by search terms across grouped child keywords", () => {
-    const results = filterIntegrations(items, "all", "instagram");
+  it("filters by provider keywords", () => {
+    const results = filterIntegrations(items, "all", "mailchimp");
 
-    expect(results.map((item) => item.slug)).toContain("meta");
+    expect(results.map((item) => item.slug)).toContain("mailchimp");
     expect(results.some((item) => item.slug === "square")).toBe(false);
   });
 
@@ -31,7 +31,7 @@ describe("integrations hub config helpers", () => {
     const grouped = groupIntegrationsByStatus(items);
 
     expect(grouped.connected.map((item) => item.slug)).toContain("square");
-    expect(grouped.comingSoon.map((item) => item.slug)).toContain("shopify");
+    expect(grouped.available.map((item) => item.slug)).toContain("shopify");
   });
 
   it("summarizes connected, available, and coming soon counts", () => {

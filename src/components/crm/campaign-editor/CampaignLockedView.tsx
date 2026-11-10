@@ -1,3 +1,4 @@
+import { CampaignResultsOverview } from "./CampaignResultsOverview";
 import * as React from "react";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
@@ -15,7 +16,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
-  CheckCircle,
   Clock,
   Copy,
   Eye,
@@ -176,16 +176,6 @@ async function fetchCampaignStateSnapshot(
   return normalizeCampaignRow(data as CampaignRow);
 }
 
-function formatCount(value: number | null | undefined) {
-  if (value === null || value === undefined) return "-";
-  return value.toLocaleString();
-}
-
-function formatPercent(value: number | null | undefined) {
-  if (value === null || value === undefined) return "-";
-  return `${value.toFixed(1)}%`;
-}
-
 function formatTimestamp(value: string | null) {
   if (!value) return "Not recorded";
   return new Date(value).toLocaleString();
@@ -231,6 +221,10 @@ function getSystemPauseCopy(snapshot: CampaignStateSnapshot) {
   const raw =
     `${snapshot.sendBlockedReason || ""} ${snapshot.sendError || ""}`.toLowerCase();
   if (!raw.trim() || raw.includes("paused_by_user")) return null;
+
+  if (raw.includes("audience_not_configured")) {
+    return "Choose an audience, then schedule the campaign again.";
+  }
 
   if (
     raw.includes("intervention") ||
@@ -317,38 +311,6 @@ function SnapshotChip({ label, value }: { label: string; value: number }) {
     <JoyChip variant="soft" color="neutral" size="sm">
       {label}: {value.toLocaleString()}
     </JoyChip>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  percent,
-  color = "neutral",
-}: {
-  label: string;
-  value: number | null | undefined;
-  percent?: number | null;
-  color?: "neutral" | "success" | "warning";
-}) {
-  return (
-    <Sheet
-      variant="soft"
-      color={color}
-      sx={{ borderRadius: "md", p: 1.75, minWidth: 0, flex: 1 }}
-    >
-      <Stack spacing={0.5}>
-        <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-          {label}
-        </Typography>
-        <Typography level="title-lg" fontWeight="xl">
-          {formatCount(value)}
-        </Typography>
-        <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-          {formatPercent(percent)}
-        </Typography>
-      </Stack>
-    </Sheet>
   );
 }
 
@@ -632,9 +594,6 @@ export function CampaignLockedView({
   const deliveredRate = deliveredMetrics?.rates.delivery ?? null;
   const openedRate = deliveredMetrics?.rates.open_reported ?? null;
   const clickedRate = deliveredMetrics?.rates.click ?? null;
-  const bouncedRate = deliveredMetrics?.rates.bounce ?? null;
-  const failedRate =
-    totalRecipients > 0 ? (failedCount / totalRecipients) * 100 : 0;
 
   const closeDialog = () => {
     if (!actionLoading) {
@@ -808,14 +767,16 @@ export function CampaignLockedView({
 
   const renderPausedView = () => {
     const systemPauseCopy = getSystemPauseCopy(snapshot);
+    const needsAudience = snapshot.sendBlockedReason === "audience_not_configured";
     return (
       <StateShell
         icon={<Pause size={48} color="var(--joy-palette-neutral-500)" />}
       >
         <Typography level="h3">Campaign Paused</Typography>
         <Typography level="body-md" sx={{ color: "neutral.600" }}>
-          Paused after sending to {snapshot.messagesSent.toLocaleString()} of{" "}
-          {totalRecipients.toLocaleString()} recipients
+          {needsAudience
+            ? "This campaign needs an audience before it can send."
+            : `Paused after sending to ${snapshot.messagesSent.toLocaleString()} of ${totalRecipients.toLocaleString()} recipients`}
         </Typography>
         {snapshot.messagesFailed > 0 ? (
           <Typography level="body-sm" sx={{ color: "warning.700" }}>
@@ -857,14 +818,20 @@ export function CampaignLockedView({
           justifyContent="center"
           sx={{ width: "100%" }}
         >
-          <JoyButton
-            variant="solid"
-            color="primary"
-            startDecorator={<Play size={16} />}
-            onClick={() => setDialogKind("resume")}
-          >
-            Resume Sending
-          </JoyButton>
+          {needsAudience ? (
+            <JoyButton variant="solid" color="primary" onClick={() => setDialogKind("edit")}>
+              Choose Audience
+            </JoyButton>
+          ) : (
+            <JoyButton
+              variant="solid"
+              color="primary"
+              startDecorator={<Play size={16} />}
+              onClick={() => setDialogKind("resume")}
+            >
+              Resume Sending
+            </JoyButton>
+          )}
           <JoyButton
             variant="outlined"
             color="neutral"
@@ -881,7 +848,15 @@ export function CampaignLockedView({
     );
   };
 
-  const renderFailedView = () => (
+  const renderFailedView = () => snapshot.sendBlockedReason === "audience_not_configured" && snapshot.messagesSent === 0 ? (
+    <StateShell icon={<AlertTriangle size={48} color="var(--joy-palette-warning-600)" />}>
+      <Typography level="h3">Choose an audience</Typography>
+      <Typography level="body-md">This campaign did not send because no audience was selected. Choose an audience, then schedule it again.</Typography>
+      <JoyButton variant="solid" color="primary" onClick={() => setDialogKind("edit")}>
+        Choose Audience
+      </JoyButton>
+    </StateShell>
+  ) : (
     <StateShell
       icon={<AlertTriangle size={48} color="var(--joy-palette-danger-600)" />}
     >
@@ -961,102 +936,26 @@ export function CampaignLockedView({
     </StateShell>
   );
 
-  const renderSentView = (withErrors: boolean) => (
-    <StateShell
-      icon={
-        withErrors ? (
-          <AlertTriangle size={48} color="var(--joy-palette-warning-600)" />
-        ) : (
-          <CheckCircle size={48} color="var(--joy-palette-success-600)" />
-        )
-      }
-    >
-      <Typography level="h3">
-        {withErrors ? "Campaign Sent with Errors" : "Campaign Sent"}
-      </Typography>
-      <Typography level="body-md" sx={{ color: "neutral.600" }}>
-        {withErrors
-          ? `Delivered to ${snapshot.messagesSent.toLocaleString()} recipients. ${snapshot.messagesFailed.toLocaleString()} emails could not be delivered.`
-          : `Delivered to ${snapshot.messagesSent.toLocaleString()} recipients on ${formatTimestamp(snapshot.sendCompletedAt || snapshot.sentAt)}`}
-      </Typography>
-
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={1.25}
-        sx={{ width: "100%" }}
-      >
-        <MetricCard
-          label="Delivered"
-          value={deliveredCount}
-          percent={deliveredRate}
-          color="success"
-        />
-        <MetricCard label="Opened" value={openedCount} percent={openedRate} />
-        <MetricCard
-          label="Clicked"
-          value={clickedCount}
-          percent={clickedRate}
-        />
-        <MetricCard
-          label="Bounced"
-          value={bouncedCount}
-          percent={bouncedRate}
-        />
-        {withErrors ? (
-          <MetricCard
-            label="Failed"
-            value={failedCount}
-            percent={failedRate}
-            color="warning"
-          />
-        ) : null}
-      </Stack>
-
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={1}
-        justifyContent="center"
-        useFlexGap
-        flexWrap="wrap"
-        sx={{ width: "100%" }}
-      >
-        <JoyButton
-          variant="solid"
-          color="primary"
-          startDecorator={<MailCheck size={16} />}
-          onClick={actions.report}
-        >
-          View Full Report
-        </JoyButton>
-        <JoyButton
-          variant="outlined"
-          color="neutral"
-          startDecorator={<Users size={16} />}
-          onClick={actions.recipients}
-        >
-          View Recipients
-        </JoyButton>
-        <JoyButton
-          variant="plain"
-          color="neutral"
-          loading={isCloning}
-          startDecorator={<Copy size={16} />}
-          onClick={() => void handleDuplicate()}
-        >
-          Duplicate Campaign
-        </JoyButton>
-        {withErrors ? (
-          <JoyButton
-            variant="plain"
-            color="warning"
-            startDecorator={<RefreshCw size={16} />}
-            onClick={() => setDialogKind("retry")}
-          >
-            Retry Failed Recipients
-          </JoyButton>
-        ) : null}
-      </Stack>
-    </StateShell>
+  const renderSentView = (_withErrors: boolean) => (
+    <CampaignResultsOverview
+      name={snapshot.name}
+      subject={snapshot.subjectLine}
+      completedAt={formatTimestamp(snapshot.sendCompletedAt || snapshot.sentAt)}
+      sent={snapshot.messagesSent}
+      delivered={deliveredCount}
+      opened={openedCount}
+      clicked={clickedCount}
+      bounced={bouncedCount}
+      failed={failedCount}
+      deliveryRate={deliveredRate}
+      openRate={openedRate}
+      clickRate={clickedRate}
+      cloning={isCloning}
+      onReport={actions.report}
+      onRecipients={actions.recipients}
+      onDuplicate={() => void handleDuplicate()}
+      onRetry={() => setDialogKind("retry")}
+    />
   );
 
   const renderScheduledView = () => (

@@ -142,9 +142,15 @@ export function convertLegacyTags(template: string): string {
     }
   );
   
-  // Handle {single_curly} patterns
+  // Handle {single_curly} patterns.
+  //
+  // Lookarounds keep this pass off the inner braces of a {{double}} tag —
+  // matching "{first_name}" inside "{{first_name}}" strands the outer braces
+  // and renders "Hi {Jeff}," to the recipient. This pass currently runs after
+  // the {{ }} pass above, which also avoids it, but the guard makes the
+  // result correct regardless of ordering.
   result = result.replace(
-    /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
+    /(?<!\{)\{([a-zA-Z_][a-zA-Z0-9_]*)\}(?!\})/g,
     (match, key) => convertToModernSyntax(key)
   );
   

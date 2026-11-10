@@ -1,4 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { claimAction, finishClaim, loadStoredActionCard, sameArguments } from "./action-claims.ts";
+import { resolveAdminWorkspaceTenant } from "./admin-workspace.ts";
+import { parseClientContext } from "./client-context.ts";
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -31,18 +34,28 @@ import {
   releaseRateLimitSlot,
 } from "./security/rate-limiter.ts";
 import { sanitizeInput } from "./security/sanitizer.ts";
+import {
+  createSpendMeter,
+  isSpendCapReached,
+  meteredModelFetch,
+  SPEND_CAP_MESSAGE,
+  type SpendMeter,
+} from "./security/spend-cap.ts";
 import { validateOutput } from "./security/output-validator.ts";
 import { processOpenAIStream } from "./stream-handler.ts";
-import { processApproval } from "./task-plan/executor.ts";
+import { processApproval, processCancel, processResume } from "./task-plan/executor.ts";
+import { PlanAccessError, PlanBusyError } from "./task-plan/durable-runner.ts";
 import {
   generateTaskPlan,
   prefillCampaignContent,
 } from "./task-plan/generator.ts";
 import { validateTaskPlan } from "./task-plan/validator.ts";
-import type { TaskPlanApprovalPayload } from "./task-plan/types.ts";
+import type { TaskPlanApprovalPayload, TaskProgressEmitter } from "./task-plan/types.ts";
 import { taskPlanSummaryToJson, taskPlanToJson } from "./task-plan/types.ts";
 import { executeTool } from "./tools/executor.ts";
+import { isSupportTool } from "./tools/implementations/support-tools.ts";
 import { classifyIntentWithComplexity } from "./tools/intent-classifier.ts";
+import { getToolCategoriesForRouting } from "./tools/tool-routing.ts";
 import {
   filterRegisteredTools,
   getRegisteredTool,
@@ -50,12 +63,12 @@ import {
 } from "./tools/registry.ts";
 import type {
   IntentClassificationResult,
-  ToolCategory,
   ToolResult,
 } from "./tools/types.ts";
 import type {
   BloomAssistRequest,
   BloomAuditEventType,
+  BloomClientContext,
   BloomCacheStats,
   BloomLatencyBreakdown,
   EntitySummary,
@@ -87,15 +100,6 @@ const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
 const TITLE_MODEL = "gpt-4o-mini";
 const OPENAI_MODEL = "gpt-4o";
-const QUERY_TOOL_CATEGORIES = new Set<ToolCategory>(["query"]);
-const QUERY_ANALYTICS_TOOL_CATEGORIES = new Set<ToolCategory>([
-  "query",
-  "analytics",
-]);
-const MUTATION_TOOL_CATEGORIES = new Set<ToolCategory>(["query", "mutation"]);
-const CONTENT_TOOL_CATEGORIES = new Set<ToolCategory>(["content"]);
-const NAVIGATION_TOOL_CATEGORIES = new Set<ToolCategory>(["navigation"]);
-const RESEARCH_TOOL_CATEGORIES = QUERY_ANALYTICS_TOOL_CATEGORIES;
 const RESEARCH_MAX_TOOL_ITERATIONS = 15;
 const MAX_OUTPUT_TOKENS = 8_000;
 const MAX_MESSAGE_LENGTH = 20_000;
@@ -193,6 +197,7 @@ type ExecuteActionRequest = {
   conversationId: string;
   assistantMessageId: string | null;
   action: ExecuteActionPayload;
+  clientContext: BloomClientContext | null;
 };
 
 type ParsedExecuteActionResult =
@@ -687,6 +692,9 @@ function parseBloomAssistRequest(rawBody: unknown): ParsedRequestResult {
       page_context: pageContext.value,
       timezone,
       attachments: attachments.value,
+      client_context: parseClientContext(
+        rawBody.client_context ?? rawBody.clientContext,
+      ),
     },
   };
 }
@@ -808,6 +816,11 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
     return { ok: false, message: "retry_task_id must be a task id" };
   }
 
+  const rawAction = source.plan_action ?? "approve";
+  if (rawAction !== "approve" && rawAction !== "resume" && rawAction !== "cancel") {
+    return { ok: false, message: "plan_action must be approve, resume or cancel" };
+  }
+
   const mode = isBloomMode(source.mode) ? source.mode : "standard";
   const timezone =
     typeof source.timezone === "string" && source.timezone.trim().length > 0
@@ -817,6 +830,7 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
   return {
     ok: true,
     value: {
+      action: rawAction,
       conversation_id: conversationId,
       plan_id: planId,
       approved_task_ids: approvedTaskIds.value,
@@ -825,6 +839,10 @@ function parseTaskPlanApprovalRequest(rawBody: unknown): ParsedApprovalResult {
       retry_task_id: rawRetryTaskId,
       mode,
       timezone,
+      client_context: parseClientContext(
+        source.client_context ??
+          (isRecord(rawBody) ? rawBody.client_context : null),
+      ),
     },
   };
 }
@@ -885,6 +903,7 @@ function parseExecuteActionRequest(
         toolName,
         toolArgs,
       },
+      clientContext: parseClientContext(rawBody.client_context),
     },
   };
 }
@@ -938,37 +957,6 @@ function selectMaxToolIterations(mode: BloomMode): number | undefined {
   return mode === "research" ? RESEARCH_MAX_TOOL_ITERATIONS : undefined;
 }
 
-function getToolCategoriesForRouting(
-  mode: BloomMode,
-  classification: IntentClassificationResult,
-): Set<ToolCategory> | null {
-  if (mode === "research") {
-    return RESEARCH_TOOL_CATEGORIES;
-  }
-
-  if (mode === "image") {
-    return CONTENT_TOOL_CATEGORIES;
-  }
-
-  switch (classification.category) {
-    case "query":
-      return classification.complexity === "simple"
-        ? QUERY_TOOL_CATEGORIES
-        : QUERY_ANALYTICS_TOOL_CATEGORIES;
-    case "mutation":
-      return MUTATION_TOOL_CATEGORIES;
-    case "analytics":
-      return QUERY_ANALYTICS_TOOL_CATEGORIES;
-    case "content":
-    case "image":
-      return CONTENT_TOOL_CATEGORIES;
-    case "navigation":
-      return NAVIGATION_TOOL_CATEGORIES;
-    case "general":
-      return null;
-  }
-}
-
 function getToolDefinitionsForMode(
   mode: BloomMode,
   userRole: string,
@@ -976,7 +964,13 @@ function getToolDefinitionsForMode(
 ) {
   const categories = getToolCategoriesForRouting(mode, classification);
   return filterRegisteredTools({ mode, userRole })
-    .filter((tool) => !categories || categories.has(tool.category))
+    .filter(
+      (tool) =>
+        !categories ||
+        categories.has(tool.category) ||
+        // "This is broken" can classify as anything; support stays reachable.
+        (mode !== "image" && isSupportTool(tool.function.name)),
+    )
     .map(toOpenAIToolDefinition);
 }
 
@@ -1435,6 +1429,7 @@ function extractOpenAiTitle(payload: unknown): string | null {
 
 export async function generateConversationTitle(
   message: string,
+  meter: SpendMeter | null = null,
 ): Promise<string> {
   const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openAiApiKey) {
@@ -1442,7 +1437,7 @@ export async function generateConversationTitle(
   }
 
   try {
-    const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+    const response = await meteredModelFetch(meter, "title", OPENAI_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${openAiApiKey}`,
@@ -1495,7 +1490,12 @@ async function resolveUserContext(
   }
 
   const userRow = parsePublicUserRow(data);
-  if (!userRow?.tenant_id) {
+  const adminWorkspaceTenantId = await resolveAdminWorkspaceTenant(
+    userClient,
+    userId,
+  );
+  const tenantId = adminWorkspaceTenantId ?? userRow?.tenant_id ?? null;
+  if (!tenantId) {
     return null;
   }
 
@@ -1504,10 +1504,11 @@ async function resolveUserContext(
     readMetadataString(userMetadata, "name");
 
   return {
-    tenantId: userRow.tenant_id,
+    tenantId,
     userId,
-    userRole: userRow.role || "user",
-    userName: metadataName || userRow.full_name || userRow.name,
+    // A master admin acting in a client's workspace has full admin scope there.
+    userRole: adminWorkspaceTenantId ? "admin" : userRow?.role || "user",
+    userName: metadataName || userRow?.full_name || userRow?.name || null,
     conversationId: null,
   };
 }
@@ -1695,13 +1696,14 @@ export async function persistUserMessage(
   attachments: JsonArray | null = null,
   sessionType: BloomSessionType = "standard",
   resourceFocus: BloomResourceFocus | null = null,
+  titleMeter: SpendMeter | null = null,
 ): Promise<PersistUserMessageResult> {
   let resolvedConversationId = conversationId;
   let title: string | null = null;
   const isNewConversation = !resolvedConversationId;
 
   if (!resolvedConversationId) {
-    title = await generateConversationTitle(message);
+    title = await generateConversationTitle(message, titleMeter);
 
     const { data, error } = await serviceClient
       .from("bloom_conversations")
@@ -1734,7 +1736,7 @@ export async function persistUserMessage(
       !existingConversation.title &&
       existingConversation.message_count === 0
     ) {
-      title = await generateConversationTitle(message);
+      title = await generateConversationTitle(message, titleMeter);
 
       const { error: updateError } = await serviceClient
         .from("bloom_conversations")
@@ -1909,6 +1911,76 @@ export async function logAuditEvent(
   }
 }
 
+export type BloomRequestRejection = {
+  stage: "access_denied" | "request_failed";
+  status: 403 | 500;
+  reason: string;
+  conversationId?: string | null;
+};
+
+/**
+ * Records a request Bloom refused before streaming, so the watchdog can see
+ * 403 storms and pre-stream failures. Best-effort: it never throws, so a
+ * logging failure cannot change the response the user receives.
+ *
+ * The conversation column is set only when the conversation belongs to the
+ * caller's tenant. For any other case, the requested id stays in event_data and
+ * conversation_scope names why access failed, without copying another
+ * tenant's id into this tenant's audit log.
+ */
+export async function recordRequestRejection(
+  serviceClient: PersistenceClient,
+  context: { tenantId: string; userId: string },
+  rejection: BloomRequestRejection,
+): Promise<void> {
+  try {
+    let conversationId: string | null = null;
+    let conversationScope: string | null = null;
+
+    if (rejection.conversationId) {
+      const { data, error } = await serviceClient
+        .from("bloom_conversations")
+        .select("id, tenant_id, user_id, status")
+        .eq("id", rejection.conversationId)
+        .maybeSingle();
+
+      if (error || !isRecord(data)) {
+        conversationScope = error ? "lookup_failed" : "not_found";
+      } else if (data.tenant_id !== context.tenantId) {
+        conversationScope = "other_tenant";
+      } else {
+        conversationId = typeof data.id === "string" ? data.id : null;
+        conversationScope =
+          data.status === "deleted"
+            ? "deleted"
+            : data.user_id !== context.userId
+              ? "other_user"
+              : "same_tenant";
+      }
+    }
+
+    await logAuditEvent(
+      serviceClient,
+      context.tenantId,
+      context.userId,
+      "error",
+      compactAuditObject({
+        stage: rejection.stage,
+        status: rejection.status,
+        reason: rejection.reason,
+        requested_conversation_id: rejection.conversationId ?? null,
+        conversation_scope: conversationScope,
+      }),
+      { conversationId },
+    );
+  } catch (error) {
+    console.error(
+      "[bloom-assist] Failed to record request rejection",
+      toErrorMessage(error),
+    );
+  }
+}
+
 function formatSseEvent(event: BloomSseEvent): string {
   return `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`;
 }
@@ -2033,6 +2105,11 @@ function injectImplicitResourceFocusArguments(
   };
 }
 
+// Tools whose approval must show a server-computed preview (and, for a list
+// import, the consent statement being recorded) go through the task-plan card,
+// never the one-click inline action card.
+const PREVIEW_FIRST_TOOLS = new Set(["import_customer_list"]);
+
 function createMutationActionCard(
   toolName: string,
   toolArgs: JsonObject,
@@ -2040,6 +2117,7 @@ function createMutationActionCard(
 ): JsonObject | null {
   const toolDefinition = getRegisteredTool(toolName);
   if (
+    PREVIEW_FIRST_TOOLS.has(toolName) ||
     request.session_type !== "resource_focused" ||
     !request.resource_focus ||
     !toolDefinition ||
@@ -2131,6 +2209,7 @@ function createBloomToolExecutor(
       cacheAuditScopeId,
       serviceClient,
       dataClient,
+      clientContext: bloomRequest.client_context,
     });
     const executionTimeMs = Date.now() - startedAt;
     const status = statusForToolResult(toolResult);
@@ -2196,6 +2275,12 @@ function createBloomStreamResponse(
   let innerReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let streamCancelled = false;
   const toolExecutions: PostResponseToolExecution[] = [];
+  // Server-derived tenant only; nothing in the request body reaches the cap.
+  const spendMeter = createSpendMeter({
+    client: serviceClient,
+    tenantId: context.tenantId,
+    userId: context.userId,
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -2383,10 +2468,71 @@ function createBloomStreamResponse(
         };
       };
 
+      // Over this month's cap: answer with a plain message, make no model call.
+      const replyWithSpendCap = async () => {
+        const tokenCounts: TokenCounts = { tokens_input: 0, tokens_output: 0 };
+        if (conversationId) {
+          const assistantMessage = await persistAssistantResponse(
+            serviceClient,
+            context.tenantId,
+            conversationId,
+            SPEND_CAP_MESSAGE,
+            null,
+            {},
+            tokenCounts,
+            [],
+            effectiveBody.mode,
+            "none",
+            { spend_cap_reached: true },
+          );
+          assistantMessageId = assistantMessage.messageId;
+          pendingResponseAudit = {
+            assistantMessageId: assistantMessage.messageId,
+            model: "none",
+            tokenCounts,
+            eventData: { status: "spend_cap_reached", stage: "spend_cap" },
+          };
+        }
+        writeEvent({ event: "token", data: { text: SPEND_CAP_MESSAGE } });
+        writeEvent({
+          event: "done",
+          data: {
+            ...tokenCounts,
+            model: "none",
+            conversation_id: conversationId ?? "",
+            ...(assistantMessageId
+              ? { assistant_message_id: assistantMessageId }
+              : {}),
+            ...(conversationTitle ? { title: conversationTitle } : {}),
+            follow_up_chips: [],
+          },
+        });
+      };
+
       try {
+        if (await spendMeter.isOverCap()) {
+          const persisted = await persistUserMessage(
+            serviceClient,
+            context.tenantId,
+            context.userId,
+            body.conversation_id,
+            body.message,
+            body.mode,
+            preparePendingAttachments(body.attachments),
+            body.session_type,
+            body.resource_focus,
+            spendMeter,
+          );
+          conversationId = persisted.conversationId;
+          conversationTitle = persisted.title;
+          userMessageId = persisted.messageId;
+          await replyWithSpendCap();
+          return;
+        }
+
         const intentClassification = await classifyIntentWithComplexity(
           body.message,
-          { openAiApiKey },
+          { openAiApiKey, meter: spendMeter },
         );
         const { mode: effectiveMode, modeOverride: resolvedModeOverride } =
           resolveEffectiveMode(body.mode, intentClassification);
@@ -2405,6 +2551,7 @@ function createBloomStreamResponse(
           pendingAttachments,
           effectiveBody.session_type,
           effectiveBody.resource_focus,
+          spendMeter,
         );
 
         conversationId = persistedUserMessage.conversationId;
@@ -2419,6 +2566,7 @@ function createBloomStreamResponse(
           tenantId: context.tenantId,
           conversationId,
           openAiApiKey,
+          meter: spendMeter,
         });
 
         if (pendingAttachments && pendingAttachments.length > 0) {
@@ -2576,6 +2724,7 @@ function createBloomStreamResponse(
           inputSecurity,
           toolDefinitionProvider: ({ mode, userRole }) =>
             getToolDefinitionsForMode(mode, userRole, intentClassification),
+          meter: spendMeter,
         });
         latencyCapture.contextBuildCompletedAt = Date.now();
 
@@ -2635,7 +2784,7 @@ function createBloomStreamResponse(
         }
 
         latencyCapture.openAiRequestStartedAt = Date.now();
-        const openAiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+        const openAiResponse = await meteredModelFetch(spendMeter, "chat", OPENAI_CHAT_COMPLETIONS_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${openAiApiKey}`,
@@ -2659,6 +2808,7 @@ function createBloomStreamResponse(
           ),
           {
             openAiApiKey,
+            meter: spendMeter,
             model: selectedModel,
             mode: effectiveBody.mode,
             modeOverride,
@@ -2839,6 +2989,17 @@ function createBloomStreamResponse(
           controller.enqueue(value);
         }
       } catch (error) {
+        if (isSpendCapReached(error)) {
+          try {
+            await replyWithSpendCap();
+          } catch (replyError) {
+            console.error(
+              "[bloom-assist] Spend cap reply failed",
+              toErrorMessage(replyError),
+            );
+          }
+          return;
+        }
         const message = toErrorMessage(error);
         console.error("[bloom-assist] Stream pipeline failed", message);
 
@@ -2889,28 +3050,32 @@ function createTaskApprovalStreamResponse(
       };
 
       try {
-        const summary = await processApproval(
-          approval.plan_id,
-          approval.approved_task_ids,
-          approval.skipped_task_ids,
-          approval.edited_fields,
-          {
-            tenantId: context.tenantId,
-            userId: context.userId,
-            userRole: context.userRole,
-            userName: context.userName,
-            conversationId: approval.conversation_id,
-            messageId: approval.plan_id,
-            timezone: approval.timezone,
-            serviceClient,
-            dataClient,
-            mode: approval.mode,
-            emitProgress: (progress) => {
-              writeEvent({ event: "task_progress", data: progress });
-            },
+        const executionContext = {
+          tenantId: context.tenantId,
+          userId: context.userId,
+          userRole: context.userRole,
+          userName: context.userName,
+          conversationId: approval.conversation_id,
+          messageId: approval.plan_id,
+          timezone: approval.timezone,
+          serviceClient,
+          dataClient,
+          clientContext: approval.client_context ?? null,
+          mode: approval.mode,
+          emitProgress: (progress: Parameters<TaskProgressEmitter>[0]) => {
+            writeEvent({ event: "task_progress", data: progress });
           },
-          approval.retry_task_id,
-        );
+        };
+        const summary = approval.action === "resume"
+          ? await processResume(approval.plan_id, executionContext)
+          : await processApproval(
+            approval.plan_id,
+            approval.approved_task_ids,
+            approval.skipped_task_ids,
+            approval.edited_fields,
+            executionContext,
+            approval.retry_task_id,
+          );
 
         const summaryJson = taskPlanSummaryToJson(summary);
         writeEvent({ event: "task_complete", data: summaryJson });
@@ -2983,7 +3148,14 @@ function createTaskApprovalStreamResponse(
         }
         writeEvent({
           event: "error",
-          data: { message, code: "task_approval_error" },
+          data: {
+            message,
+            code: error instanceof PlanBusyError
+              ? "task_plan_busy"
+              : error instanceof PlanAccessError
+              ? "task_plan_forbidden"
+              : "task_approval_error",
+          },
         });
       } finally {
         releaseRateLimitSlot(context.userId);
@@ -2998,6 +3170,48 @@ function createTaskApprovalStreamResponse(
   });
 
   return new Response(stream, { headers: createSseHeaders(req) });
+}
+
+/** Stops the plan's steps that have not started. Same checks as running the plan. */
+async function createTaskPlanCancelResponse(
+  req: Request,
+  serviceClient: PersistenceClient,
+  dataClient: PersistenceClient,
+  context: UserContext,
+  approval: TaskPlanApprovalPayload,
+): Promise<Response> {
+  try {
+    const outcome = await processCancel(approval.plan_id, {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      userRole: context.userRole,
+      userName: context.userName,
+      conversationId: approval.conversation_id,
+      messageId: approval.plan_id,
+      timezone: approval.timezone,
+      serviceClient,
+      dataClient,
+      clientContext: approval.client_context ?? null,
+      mode: approval.mode,
+      emitProgress: () => undefined,
+    });
+    return jsonResponse(req, outcome);
+  } catch (error) {
+    if (error instanceof PlanAccessError) {
+      await recordRequestRejection(serviceClient, context, {
+        stage: "access_denied",
+        status: 403,
+        reason: "task_plan_cancel_access_denied",
+        conversationId: approval.conversation_id,
+      });
+      return jsonResponse(req, { error: error.message }, 403);
+    }
+    const message = toErrorMessage(error);
+    if (message === "Task plan not found for this conversation.") {
+      return jsonResponse(req, { error: message }, 404);
+    }
+    throw error;
+  }
 }
 
 async function createExecuteActionResponse(
@@ -3022,6 +3236,12 @@ async function createExecuteActionResponse(
     data.tenant_id !== context.tenantId ||
     data.user_id !== context.userId
   ) {
+    await recordRequestRejection(serviceClient, context, {
+      stage: "access_denied",
+      status: 403,
+      reason: "execute_action_conversation_access_denied",
+      conversationId: payload.conversationId,
+    });
     return jsonResponse(req, { error: "Conversation access denied" }, 403);
   }
 
@@ -3033,59 +3253,119 @@ async function createExecuteActionResponse(
     );
   }
 
-  const toolDefinition = getRegisteredTool(payload.action.toolName);
+  // Approvals run only the change Bloom stored when it proposed it, exactly once.
+  if (!payload.assistantMessageId) {
+    return jsonResponse(req, { error: "assistant_message_id is required to approve an action" }, 400);
+  }
+  const messageId = payload.assistantMessageId;
+  const stored = await loadStoredActionCard(serviceClient, {
+    tenantId: context.tenantId,
+    conversationId: payload.conversationId,
+    messageId,
+    mutationId: payload.action.mutationId,
+  });
+  if (!stored) {
+    return jsonResponse(req, { error: "Bloom couldn't find that proposed change. Ask Bloom again." }, 404);
+  }
+  if (stored.toolName !== payload.action.toolName || !sameArguments(stored.toolArgs, payload.action.toolArgs)) {
+    await recordRequestRejection(serviceClient, context, {
+      stage: "access_denied",
+      status: 403,
+      reason: "execute_action_arguments_changed",
+      conversationId: payload.conversationId,
+    });
+    return jsonResponse(req, { error: "This change no longer matches what Bloom proposed. Ask Bloom again." }, 409);
+  }
+
+  if (stored.status === "completed") {
+    return jsonResponse(req, { mutationId: stored.mutationId, status: "completed", result: null, error: null, data: null, replayed: true });
+  }
+
+  const toolDefinition = getRegisteredTool(stored.toolName);
   if (!toolDefinition || toolDefinition.category !== "mutation") {
     return jsonResponse(req, { error: "execute_action requires a mutation tool" }, 400);
   }
 
-  if (payload.assistantMessageId) {
-    await loadMessageOwnership(
-      serviceClient,
-      context.tenantId,
-      payload.conversationId,
-      payload.assistantMessageId,
-    );
+  const claim = await claimAction(serviceClient, {
+    mutationId: stored.mutationId,
+    tenantId: context.tenantId,
+    userId: context.userId,
+    conversationId: payload.conversationId,
+    messageId,
+    toolName: stored.toolName,
+  });
+  if (claim.kind === "already_done") {
+    return jsonResponse(req, {
+      mutationId: stored.mutationId,
+      status: "completed",
+      result: claim.result,
+      error: null,
+      data: null,
+      replayed: true,
+    });
+  }
+  if (claim.kind === "in_progress") {
+    return jsonResponse(req, { error: "Bloom is already applying this change." }, 409);
+  }
+
+  try {
     await updateAssistantMessageActionCard({
       serviceClient,
       tenantId: context.tenantId,
       conversationId: payload.conversationId,
-      messageId: payload.assistantMessageId,
-      mutationId: payload.action.mutationId,
+      messageId,
+      mutationId: stored.mutationId,
       status: "executing",
       result: null,
     });
+  } catch (error) {
+    // Nothing has run yet, so release the claim for a retry.
+    await finishClaim(serviceClient, stored.mutationId, "failed", toErrorMessage(error)).catch(() => undefined);
+    throw error;
   }
 
-  const toolResult = await executeTool(payload.action.toolName, payload.action.toolArgs, {
-    ...context,
-    conversationId: payload.conversationId,
-    messageId: payload.assistantMessageId ?? payload.action.mutationId,
-    timezone: "UTC",
-    authenticatedTenantId: context.tenantId,
-    serviceClient,
-    dataClient,
-    approved: true,
-  });
+  let toolResult: Awaited<ReturnType<typeof executeTool>>;
+  try {
+    toolResult = await executeTool(stored.toolName, stored.toolArgs, {
+      ...context,
+      conversationId: payload.conversationId,
+      messageId,
+      timezone: "UTC",
+      authenticatedTenantId: context.tenantId,
+      serviceClient,
+      dataClient,
+      approved: true,
+      clientContext: payload.clientContext,
+    });
+  } catch (error) {
+    // The change may already be saved (for example, only the execution log failed).
+    // Leave the claim "executing" so it can never run twice, and say the outcome is unknown.
+    console.error("[bloom-assist] action outcome unknown", stored.mutationId, toErrorMessage(error));
+    return jsonResponse(req, {
+      error: "Bloom couldn't confirm whether this change was applied. Check the record before asking Bloom again.",
+      mutationId: stored.mutationId,
+      outcome: "unknown",
+    }, 500);
+  }
 
   const status = toolResult.success ? "completed" : "failed";
   const resultMessage = toolResult.success
     ? toolResult.message
     : toolResult.error || toolResult.message;
 
-  if (payload.assistantMessageId) {
-    await updateAssistantMessageActionCard({
-      serviceClient,
-      tenantId: context.tenantId,
-      conversationId: payload.conversationId,
-      messageId: payload.assistantMessageId,
-      mutationId: payload.action.mutationId,
-      status,
-      result: resultMessage,
-    });
-  }
+  await finishClaim(serviceClient, stored.mutationId, status, resultMessage ?? null);
+  await updateAssistantMessageActionCard({
+    serviceClient,
+    tenantId: context.tenantId,
+    conversationId: payload.conversationId,
+    messageId,
+    mutationId: stored.mutationId,
+    status,
+    result: resultMessage,
+  });
 
   return jsonResponse(req, {
-    mutationId: payload.action.mutationId,
+    mutationId: stored.mutationId,
     status,
     result: status === "completed" ? resultMessage : null,
     error: status === "failed" ? resultMessage : null,
@@ -3123,6 +3403,10 @@ export async function handleRequest(req: Request): Promise<Response> {
     return jsonResponse(req, { error: "Server configuration error" }, 500);
   }
 
+  let rejectionClient: PersistenceClient | null = null;
+  let rejectionContext: UserContext | null = null;
+  let rejectionConversationId: string | null = null;
+
   try {
     const userClient = createClient(envConfig.supabaseUrl, envConfig.anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -3131,6 +3415,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       envConfig.supabaseUrl,
       envConfig.serviceRoleKey,
     );
+    rejectionClient = serviceClient;
 
     const {
       data: { user },
@@ -3145,8 +3430,15 @@ export async function handleRequest(req: Request): Promise<Response> {
     const context = await resolveUserContext(userClient, user.id, userMetadata);
 
     if (!context) {
+      // No tenant resolved, so there is no tenant to attribute a
+      // bloom_audit_log row to (tenant_id is NOT NULL). Log for function logs.
+      console.error(
+        "[bloom-assist] Request rejected: tenant membership required",
+        JSON.stringify({ user_id: user.id, stage: "access_denied" }),
+      );
       return jsonResponse(req, { error: "Tenant membership required" }, 403);
     }
+    rejectionContext = context;
 
     let rawBody: unknown;
     try {
@@ -3160,6 +3452,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       if (!parsedExecuteAction.ok) {
         return jsonResponse(req, { error: parsedExecuteAction.message }, 400);
       }
+      rejectionConversationId = parsedExecuteAction.value.conversationId;
 
       return await createExecuteActionResponse(
         req,
@@ -3175,6 +3468,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       if (!parsedApproval.ok) {
         return jsonResponse(req, { error: parsedApproval.message }, 400);
       }
+      rejectionConversationId = parsedApproval.value.conversation_id;
 
       const conversation = await validateConversationOwnership(
         serviceClient,
@@ -3184,7 +3478,23 @@ export async function handleRequest(req: Request): Promise<Response> {
       );
 
       if (!conversation) {
+        await recordRequestRejection(serviceClient, context, {
+          stage: "access_denied",
+          status: 403,
+          reason: "task_approval_conversation_access_denied",
+          conversationId: parsedApproval.value.conversation_id,
+        });
         return jsonResponse(req, { error: "Conversation access denied" }, 403);
+      }
+
+      if (parsedApproval.value.action === "cancel") {
+        return await createTaskPlanCancelResponse(
+          req,
+          serviceClient,
+          userClient,
+          { ...context, conversationId: parsedApproval.value.conversation_id },
+          parsedApproval.value,
+        );
       }
 
       const rateLimit = await checkRateLimit(
@@ -3215,6 +3525,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (!parsedBody.ok) {
       return jsonResponse(req, { error: parsedBody.message }, 400);
     }
+    rejectionConversationId = parsedBody.value.conversation_id ?? null;
 
     const rateLimit = await checkRateLimit(
       context.tenantId,
@@ -3272,6 +3583,12 @@ export async function handleRequest(req: Request): Promise<Response> {
 
       if (!conversation) {
         releaseReservedRateLimit();
+        await recordRequestRejection(serviceClient, context, {
+          stage: "access_denied",
+          status: 403,
+          reason: "conversation_access_denied",
+          conversationId: sanitizedBody.conversation_id,
+        });
         return jsonResponse(req, { error: "Conversation access denied" }, 403);
       }
     }
@@ -3302,6 +3619,14 @@ export async function handleRequest(req: Request): Promise<Response> {
   } catch (error) {
     releaseReservedRateLimit();
     console.error("[bloom-assist] Request failed", toErrorMessage(error));
+    if (rejectionClient && rejectionContext) {
+      await recordRequestRejection(rejectionClient, rejectionContext, {
+        stage: "request_failed",
+        status: 500,
+        reason: toErrorMessage(error).slice(0, 300),
+        conversationId: rejectionConversationId,
+      });
+    }
     return jsonResponse(req, { error: "Internal server error" }, 500);
   }
 }

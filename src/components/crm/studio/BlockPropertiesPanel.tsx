@@ -1,3 +1,10 @@
+import { buildConnectedContentBlock, connectedContentRequest, type ConnectedContentItem, type ConnectedContentResponse } from "@/lib/connectedContent";
+import AudienceControls from "./newsletter/AudienceControls";
+import ExtendedBlockProperties, {
+  AdditionalBlockFields,
+} from "./newsletter/ExtendedBlockProperties";
+import AppearanceControls, { Field } from "./newsletter/AppearanceControls";
+import { useNewsletterDesign } from "./newsletter/NewsletterDesignContext";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -95,6 +102,7 @@ type BlockPropertiesPanelProps = {
   onRestoreComplete?: () => void;
   onScrollPositionChange?: (scrollTop: number) => void;
   onUpdateBlockField: OnUpdateBlockField;
+  onUpdateBlockFields?: (blockId: string, fields: Partial<StudioBlock>) => void;
   resolveCampaignImageFieldSource?: ResolveCampaignImageFieldSource;
   restoreScrollPosition?: number | null;
   suppressed?: boolean;
@@ -114,6 +122,52 @@ type CollapsibleSectionProps = {
   description?: string;
 };
 
+function ConnectedEventRefresh({ block, onUpdate }: { block: StudioBlock; onUpdate: (blockId: string, fields: Partial<StudioBlock>) => void }) {
+  const { designSystem } = useDesignSystem();
+  const [item, setItem] = React.useState<ConnectedContentItem | null>(null);
+  const [message, setMessage] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const source = block.connectedContent;
+  async function check() {
+    if (!source || busy) return;
+    setBusy(true); setItem(null); setMessage("");
+    try {
+      const result = await connectedContentRequest<ConnectedContentResponse>({ action: "catalog", type: "events", siteId: source.siteId, itemId: source.itemId, limit: 1 });
+      const found = result.items.find(entry => entry.siteId === source.siteId && entry.id === source.itemId);
+      if (result.sources.some(entry => entry.error)) throw new Error("Website could not be reached.");
+      if (!found) { setMessage("This event is no longer available on your website."); return; }
+      setItem(found);
+      if (found.eventStatus === "cancelled") setMessage("This event is cancelled on your website.");
+      else if (found.eventStatus === "sold_out") setMessage("This event is marked sold out on your website.");
+      else setMessage(found.capacityCheckRequired ? "Check ticket availability on your website." : "Review the latest website details below.");
+    } catch { setMessage("Could not check the website. Please try again."); }
+    finally { setBusy(false); }
+  }
+  function apply() {
+    if (!item || item.eventStatus !== "available") return;
+    const fresh = buildConnectedContentBlock(item, designSystem);
+    onUpdate(block.id, {
+      headline: fresh.headline, subheading: fresh.subheading, body: fresh.body,
+      imageUrl: fresh.imageUrl, imageAlt: fresh.imageAlt, buttonText: fresh.buttonText,
+      buttonUrl: fresh.buttonUrl, connectedContent: fresh.connectedContent,
+    });
+    setItem(null); setMessage("Event details updated. You can undo this change.");
+  }
+  return <Box sx={{ mx: 2.5, my: 1, p: 1.5, border: "1px solid", borderColor: "neutral.200", borderRadius: "md" }}>
+    <Typography level="title-sm">Website event</Typography>
+    <Typography level="body-xs">Check for changes, then choose whether to update this block.</Typography>
+    <Button size="sm" variant="outlined" color="neutral" loading={busy} onClick={() => void check()} sx={{ mt: 1 }}>Check website</Button>
+    {message && <Typography role="status" level="body-xs" sx={{ mt: 1 }}>{message}</Typography>}
+    {item && <Box sx={{ mt: 1 }}>
+      <Typography level="title-sm">{item.title}</Typography>
+      <Typography level="body-xs">{item.description}</Typography>
+      {item.imageUrl && <Box component="img" src={item.imageUrl} alt="" sx={{ width: 96, maxHeight: 72, objectFit: "cover", borderRadius: "sm", mt: 1 }} />}
+      {item.eventStatus === "available" && <Button size="sm" color="primary" onClick={apply} sx={{ mt: 1 }}>Use latest website details</Button>}
+      <Typography level="body-xs">Using these details replaces this block’s text, image, and link. Its layout and appearance stay the same.</Typography>
+    </Box>}
+  </Box>;
+}
+
 function PanelSection({ title, children }: PanelSectionProps) {
   return (
     <Stack
@@ -131,11 +185,12 @@ function PanelSection({ title, children }: PanelSectionProps) {
           pt: 2.5,
           pb: 1,
           maxWidth: "100%",
-          fontSize: "10px",
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.12em",
-          color: "primary.400",
+          // Section titles need to stand apart from small field labels.
+          fontSize: "14px",
+          fontWeight: 750,
+          lineHeight: 1.35,
+          letterSpacing: "0.01em",
+          color: "neutral.800",
         }}
       >
         {title}
@@ -462,6 +517,47 @@ function ButtonSizeVisual({ width }: { width: number }) {
         boxShadow: "0 0 0 3px var(--joy-palette-primary-50)",
       }}
     />
+  );
+}
+
+function ImageCropControls({
+  block,
+  updateField,
+}: {
+  block: StudioBlock;
+  updateField: UpdateField;
+}) {
+  if ((block.imageFit ?? "cover") !== "cover") {
+    return null;
+  }
+
+  return (
+    <Stack spacing={0.75}>
+      <Typography
+        level="body-xs"
+        sx={{ color: "neutral.500", fontSize: "11px" }}
+      >
+        Crop focus keeps the important part of the image visible.
+      </Typography>
+      <StudioSliderField
+        label="Horizontal Focus"
+        min={0}
+        max={100}
+        step={5}
+        defaultValue={50}
+        value={block.imageFocalX ?? 50}
+        onChange={(value) => updateField("imageFocalX", value)}
+      />
+      <StudioSliderField
+        label="Vertical Focus"
+        min={0}
+        max={100}
+        step={5}
+        defaultValue={50}
+        value={block.imageFocalY ?? 50}
+        onChange={(value) => updateField("imageFocalY", value)}
+      />
+    </Stack>
   );
 }
 
@@ -1869,6 +1965,12 @@ function PanelContent({
   const updateField = React.useCallback(
     (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => {
       onUpdateBlockField(block.id, field, value);
+      // A manual button colour takes priority over automatic account branding.
+      // Without this, the email renderer silently replaces the chosen colour.
+      if (field === "buttonColor" || field === "buttonTextColor")
+        onUpdateBlockField(block.id, "useBrandButtonColor", false);
+      if (field === "logoSize")
+        onUpdateBlockField(block.id, "logoSizeExplicit", true);
     },
     [block.id, onUpdateBlockField],
   );
@@ -1920,6 +2022,28 @@ function PanelContent({
     [block, onUpdateBlockField],
   );
 
+  if (
+    [
+      "divider",
+      "preheader",
+      "headline",
+      "youtube",
+      "navigation",
+      "button-group",
+      "text-columns",
+      "data-table",
+      "chart",
+      "survey",
+      "event",
+      "blog",
+      "announcement",
+      "coupon",
+      "image-gallery",
+      "product-gallery",
+    ].includes(block.type)
+  )
+    return <ExtendedBlockProperties block={block} update={updateField} />;
+
   switch (block.type) {
     case "email-safe-hero":
       return (
@@ -1937,6 +2061,49 @@ function PanelContent({
             sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
           >
             {renderSections([
+              {
+                id: "hero-photo",
+                title: "Hero photo",
+                content: (
+                  <>
+                    <StudioImageUpload
+                      label={
+                        block.heroStyle === "image-overlay"
+                          ? "Background photo"
+                          : "Hero photo"
+                      }
+                      emptyText="Add hero photo"
+                      value={block.imageUrl ?? ""}
+                      onChange={(value) => updateField("imageUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "landscape",
+                        blockContext:
+                          block.heroStyle === "image-overlay"
+                            ? "Email Safe Hero background image"
+                            : "Email Safe Hero hero image",
+                        fieldKey: `${block.id}:imageUrl`,
+                        value: block.imageUrl ?? "",
+                      })}
+                    />
+                    <StudioTextField
+                      label="Image Alt Text"
+                      placeholder="Describe this image"
+                      value={block.imageAlt ?? ""}
+                      onChange={(value) => updateField("imageAlt", value)}
+                    />
+                    <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                      Add a photo from your device or image library. Text and
+                      buttons stay editable.
+                      {block.heroStyle !== "image-overlay" &&
+                      block.heroStyle !== "image-bottom"
+                        ? " Adding a photo places it below your text."
+                        : block.heroStyle === "image-overlay"
+                          ? " Your photo appears behind the text."
+                          : " Your photo appears below the text."}
+                    </Typography>
+                  </>
+                ),
+              },
               {
                 id: "content",
                 title: "Content",
@@ -2032,7 +2199,7 @@ function PanelContent({
               },
               {
                 id: "hero-style",
-                title: "Colors & Image",
+                title: "Colors",
                 content: (
                   <>
                     {block.heroStyle === "gradient" ? (
@@ -2059,36 +2226,6 @@ function PanelContent({
                         }
                       />
                     )}
-                    {block.heroStyle === "image-overlay" ||
-                    block.heroStyle === "image-bottom" ? (
-                      <>
-                        <StudioImageUpload
-                          label={
-                            block.heroStyle === "image-overlay"
-                              ? "Background Image"
-                              : "Hero Image"
-                          }
-                          emptyText="Upload or drag image"
-                          value={block.imageUrl ?? ""}
-                          onChange={(value) => updateField("imageUrl", value)}
-                          {...buildAIUploadProps({
-                            aiAspectRatioHint: "landscape",
-                            blockContext:
-                              block.heroStyle === "image-overlay"
-                                ? "Email Safe Hero background image"
-                                : "Email Safe Hero hero image",
-                            fieldKey: `${block.id}:imageUrl`,
-                            value: block.imageUrl ?? "",
-                          })}
-                        />
-                        <StudioTextField
-                          label="Image Alt Text"
-                          placeholder="Describe this image"
-                          value={block.imageAlt ?? ""}
-                          onChange={(value) => updateField("imageAlt", value)}
-                        />
-                      </>
-                    ) : null}
                     {block.heroStyle === "image-overlay" ? (
                       <>
                         <StudioSliderField
@@ -2243,6 +2380,10 @@ function PanelContent({
                         )
                       }
                     />
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
+                    />
                     <StudioSliderField
                       label="Image Border Radius"
                       min={0}
@@ -2273,7 +2414,7 @@ function PanelContent({
               },
               {
                 id: "content",
-                title: "Content",
+                title: "Text & button",
                 content: (
                   <>
                     <StudioTextField
@@ -2296,6 +2437,16 @@ function PanelContent({
                       value={block.body ?? ""}
                       onChange={(value) => updateField("body", value)}
                       placeholder="Write the main message..."
+                    />
+                    <StudioColorPicker
+                      label="Text Color"
+                      value={block.textColor ?? "#111827"}
+                      onChange={(value) => updateField("textColor", value)}
+                    />
+                    <StudioAlignmentToggle
+                      label="Text Alignment"
+                      value={block.textAlign ?? "left"}
+                      onChange={(value) => updateField("textAlign", value)}
                     />
                     <StudioTextField
                       label="Button Text"
@@ -2441,7 +2592,7 @@ function PanelContent({
                 : []),
               {
                 id: "style",
-                title: "Style",
+                title: "Whole block",
                 content: (
                   <>
                     <StudioColorPicker
@@ -2450,16 +2601,6 @@ function PanelContent({
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
-                    />
-                    <StudioColorPicker
-                      label="Text Color"
-                      value={block.textColor ?? "#111827"}
-                      onChange={(value) => updateField("textColor", value)}
-                    />
-                    <StudioAlignmentToggle
-                      label="Text Alignment"
-                      value={block.textAlign ?? "left"}
-                      onChange={(value) => updateField("textAlign", value)}
                     />
                     <StudioSliderField
                       label="Content Padding"
@@ -2519,6 +2660,18 @@ function PanelContent({
                     onChange={(value) => updateField("body", value)}
                     placeholder="Write the paragraph body..."
                   />
+                ),
+              },
+              {
+                id: "button",
+                title: "Button (optional)",
+                content: (
+                  <>
+                    <StudioTextField label="Button Text" placeholder="Learn more" value={block.buttonText ?? ""} onChange={(value) => updateField("buttonText", value)} />
+                    <StudioTextField label="Button URL" placeholder="https://..." type="url" value={block.buttonUrl ?? ""} onChange={(value) => updateField("buttonUrl", value)} />
+                    <StudioColorPicker label="Button Color" value={block.buttonColor ?? "#111827"} onChange={(value) => updateField("buttonColor", value)} />
+                    <StudioColorPicker label="Button Text Color" value={block.buttonTextColor ?? "#ffffff"} onChange={(value) => updateField("buttonTextColor", value)} />
+                  </>
                 ),
               },
               {
@@ -2939,6 +3092,10 @@ function PanelContent({
                         )
                       }
                     />
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
+                    />
                     <Stack
                       spacing={0.5}
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
@@ -3289,15 +3446,15 @@ function PanelContent({
                         )
                       }
                     />
-                    <StudioSliderField
-                      label="Max Height"
-                      min={150}
-                      max={600}
-                      step={10}
-                      defaultValue={400}
-                      value={block.maxHeight ?? 400}
-                      onChange={(value) => updateField("maxHeight", value)}
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
                     />
+                    {block.imageFit === "contain" ? (
+                      <Typography level="body-xs">Shows the full image at its natural proportions. Choose Cover to crop to a fixed height.</Typography>
+                    ) : (
+                      <StudioSliderField label="Image height" min={150} max={600} step={10} defaultValue={400} value={block.maxHeight ?? 400} onChange={(value) => updateField("maxHeight", value)} />
+                    )}
                   </>
                 ),
               },
@@ -4091,8 +4248,10 @@ function PanelContent({
                       min={24}
                       max={80}
                       step={4}
-                      defaultValue={40}
-                      value={block.logoSize ?? 40}
+                      defaultValue={64}
+                      value={
+                        block.logoSize === 40 ? 64 : (block.logoSize ?? 64)
+                      }
                       onChange={(value) => updateField("logoSize", value)}
                     />
                     <StudioAlignmentToggle
@@ -4296,8 +4455,10 @@ function PanelContent({
                       min={24}
                       max={80}
                       step={4}
-                      defaultValue={40}
-                      value={block.logoSize ?? 40}
+                      defaultValue={56}
+                      value={
+                        block.logoSize === 40 ? 56 : (block.logoSize ?? 56)
+                      }
                       onChange={(value) => updateField("logoSize", value)}
                     />
                     <StudioAlignmentToggle
@@ -4534,6 +4695,102 @@ function PanelContent({
           </Stack>
         </Stack>
       );
+    case "coupon":
+      return (
+        <Stack spacing={1.5} sx={{ width: "100%" }}>
+          <StudioToggleField
+            label="Offer"
+            options={[
+              { label: "BOGO", value: "bogo" },
+              { label: "25% off", value: "25" },
+              { label: "50% off", value: "50" },
+            ]}
+            value={block.couponOffer ?? "25"}
+            onChange={(value) =>
+              updateField("couponOffer", value as StudioBlock["couponOffer"])
+            }
+          />
+          <StudioTextField
+            label="Title"
+            value={block.headline ?? ""}
+            onChange={(value) => updateField("headline", value)}
+            placeholder="Your offer headline"
+          />
+          <StudioTextField
+            label="Description"
+            multiline
+            minRows={2}
+            value={block.body ?? ""}
+            onChange={(value) => updateField("body", value)}
+            placeholder="What is included?"
+          />
+          <StudioTextField
+            label="Price (optional)"
+            value={block.couponPrice ?? ""}
+            onChange={(value) => updateField("couponPrice", value)}
+            placeholder="e.g. $19.99"
+          />
+          <StudioTextField
+            label="Conditions"
+            multiline
+            minRows={2}
+            value={block.couponConditions ?? ""}
+            onChange={(value) => updateField("couponConditions", value)}
+            placeholder="Expiry, exclusions and terms"
+          />
+          <StudioImageUpload
+            label="Coupon image"
+            value={block.imageUrl ?? ""}
+            onChange={(value) => updateField("imageUrl", value)}
+            {...buildAIUploadProps({
+              aiAspectRatioHint: "square",
+              blockContext: "Coupon product image",
+              fieldKey: `${block.id}:imageUrl`,
+              value: block.imageUrl ?? "",
+            })}
+          />
+          <StudioTextField
+            label="Image alt text"
+            value={block.imageAlt ?? ""}
+            onChange={(value) => updateField("imageAlt", value)}
+          />
+          <StudioToggleField
+            label="Image placement"
+            options={[
+              { label: "Left", value: "left" },
+              { label: "Right", value: "right" },
+            ]}
+            value={block.couponImageSide ?? "left"}
+            onChange={(value) =>
+              updateField(
+                "couponImageSide",
+                value as StudioBlock["couponImageSide"],
+              )
+            }
+          />
+          <StudioSwitchField
+            label="Coupon border"
+            checked={block.couponBorder ?? true}
+            onChange={(value) => updateField("couponBorder", value)}
+          />
+          <StudioSwitchField
+            label="Scissors / cut line"
+            checked={block.couponScissors ?? true}
+            onChange={(value) => updateField("couponScissors", value)}
+          />
+          <StudioTextField
+            label="Link text"
+            value={block.buttonText ?? ""}
+            onChange={(value) => updateField("buttonText", value)}
+          />
+          <StudioTextField
+            label="Website link"
+            value={block.buttonUrl ?? ""}
+            onChange={(value) => updateField("buttonUrl", value)}
+            placeholder="https://..."
+          />
+        </Stack>
+      );
     case "product-card":
       return (
         <Stack
@@ -4679,6 +4936,10 @@ function PanelContent({
                           value as StudioBlock["imageFit"],
                         )
                       }
+                    />
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
                     />
                     <StudioSliderField
                       label="Image Border Radius"
@@ -4830,8 +5091,7 @@ function PanelContent({
                         sx={{ flexWrap: "wrap", rowGap: 0.5 }}
                       >
                         {[8, 16, 24, 32, 48, 64].map((preset) => {
-                          const active =
-                            (block.spacerHeight ?? 32) === preset;
+                          const active = (block.spacerHeight ?? 32) === preset;
                           return (
                             <Chip
                               key={preset}
@@ -4897,10 +5157,12 @@ export default function BlockPropertiesPanel({
   onRestoreComplete,
   onScrollPositionChange,
   onUpdateBlockField,
+  onUpdateBlockFields,
   resolveCampaignImageFieldSource,
   restoreScrollPosition,
   suppressed = false,
 }: BlockPropertiesPanelProps) {
+  const { settings } = useNewsletterDesign();
   const block = React.useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
     [blocks, selectedBlockId],
@@ -4951,7 +5213,7 @@ export default function BlockPropertiesPanel({
         display: "grid",
         position: { xs: "fixed", md: "relative" },
         inset: { xs: 0, md: "auto" },
-        width: { xs: "100vw", md: 340 },
+        width: { xs: "100vw", md: 340, xl: 420 },
         maxWidth: "100%",
         boxSizing: "border-box",
         minHeight: 0,
@@ -5023,7 +5285,7 @@ export default function BlockPropertiesPanel({
               noWrap
               sx={{ fontSize: "15px", fontWeight: 600, color: "neutral.800" }}
             >
-              {blockDefinition?.name ?? "Block Properties"}
+              {`Properties · ${blockDefinition?.name ?? "Select a block"}`}
             </Typography>
           </Stack>
           <IconButton
@@ -5074,6 +5336,17 @@ export default function BlockPropertiesPanel({
           pointerEvents: panelVisible ? "auto" : "none",
         }}
       >
+        {block && (
+          <Box sx={{ px: 2.5, pt: 1 }}>
+            <Field
+              label="Block name"
+              value={block.label}
+              onChange={(value) => onUpdateBlockField(block.id, "label", value)}
+              placeholder="Name this block for your outline and saved library"
+            />
+          </Box>
+        )}
+        {block?.connectedContent?.type === "event" && onUpdateBlockFields ? <ConnectedEventRefresh key={block.id} block={block} onUpdate={onUpdateBlockFields} /> : null}
         {block ? (
           <PanelContent
             key={block.id}
@@ -5087,6 +5360,39 @@ export default function BlockPropertiesPanel({
             resolveCampaignImageFieldSource={resolveCampaignImageFieldSource}
           />
         ) : null}
+        {block && (
+          <AudienceControls
+            block={block}
+            onChange={(value) =>
+              onUpdateBlockField(block.id, "audience", value)
+            }
+          />
+        )}
+        {block && (
+          <AdditionalBlockFields
+            block={block}
+            update={(field, value) =>
+              onUpdateBlockField(block.id, field, value)
+            }
+          />
+        )}
+        {block && (
+          <Box sx={{ px: 2.5, pb: 3 }}>
+            <AppearanceControls
+              value={block.appearance}
+              onChange={(value) => {
+                onUpdateBlockField(block.id, "appearance", value);
+                // Typography's Button text colour must agree with the button
+                // field. Otherwise one of the controls appears to do nothing.
+                if (value.text?.button?.color !== block.appearance?.text?.button?.color) {
+                  onUpdateBlockField(block.id, "buttonTextColor", value.text?.button?.color);
+                  onUpdateBlockField(block.id, "useBrandButtonColor", false);
+                }
+              }}
+              allowedFonts={settings?.allowedFonts}
+            />
+          </Box>
+        )}
       </Box>
     </Sheet>
   );

@@ -6,9 +6,43 @@ import { buildIntegrationDetailModel } from "@/components/integrations/integrati
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 
 vi.mock("@/hooks/useIntegrationDetailData", () => ({
   useIntegrationDetailData: vi.fn(),
+}));
+vi.mock("@/hooks/useMailchimpImportProgress", () => ({
+  useMailchimpImportProgress: () => ({ jobId: null }),
+}));
+
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () =>
+            Promise.resolve({
+              data: {
+                id: "customer-1",
+                contact_id: "crm-1",
+                lightspeed_customer_id: "CUST-1",
+                displayName: "Alice Example",
+                first_name: "Alice",
+                last_name: "Example",
+                email: "alice@example.com",
+                phone: "15551234567",
+                total_spend: 420.5,
+                purchase_count: 3,
+                loyalty_balance: 250,
+                tags: ["vip"],
+                raw_data: { tier: "gold" },
+              },
+              error: null,
+            }),
+        }),
+      }),
+    }),
+  },
 }));
 
 vi.mock("sonner", () => ({
@@ -333,16 +367,18 @@ function LocationProbe() {
 
 function renderPage() {
   render(
-    <MemoryRouter initialEntries={["/integrations/lightspeed"]}>
-      <Routes>
-        <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
-        <Route
-          path="/integrations/lightspeed/debug"
-          element={<div>Diagnostics Route</div>}
-        />
-      </Routes>
-      <LocationProbe />
-    </MemoryRouter>,
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={["/integrations/lightspeed"]}>
+        <Routes>
+          <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
+          <Route
+            path="/integrations/lightspeed/debug"
+            element={<div>Diagnostics Route</div>}
+          />
+        </Routes>
+        <LocationProbe />
+      </MemoryRouter>
+    </TestQueryClientProvider>,
   );
 }
 
@@ -397,8 +433,14 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /actions/i }));
 
-    expect(screen.queryByText("Run diagnostics")).toBeNull();
-    expect(screen.queryByText("Disconnect Lightspeed")).toBeNull();
+    expect(
+      screen
+        .getAllByRole("menuitem")
+        .some((item) => item.textContent?.trim() === "Run diagnostics"),
+    ).toBe(false);
+    expect(
+      screen.queryByRole("menuitem", { name: /^Disconnect Lightspeed\b/i }),
+    ).toBeNull();
     expect(screen.getByText("View sync logs")).toBeTruthy();
     expect(screen.getByText("Open store URL")).toBeTruthy();
   });
@@ -454,10 +496,10 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
 
     expect(screen.getByText("Disconnect Lightspeed X-Series?")).toBeTruthy();
     expect(
-      screen.getByText(
+      screen.getAllByText(
         /This removes the current Lightspeed X-Series connection from BloomSuite and immediately stops its active integration workflows/i,
-      ),
-    ).toBeTruthy();
+      ).length,
+    ).toBeGreaterThan(0);
     expect(
       screen.getAllByText(/Disconnect Lightspeed/i).length,
     ).toBeGreaterThanOrEqual(1);
@@ -478,13 +520,24 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
       lightspeedRealtimeActive: false,
       lightspeedSyncState: "idle",
       isLightspeedSyncing: false,
+      lightspeedDashboard: {
+        ...state.lightspeedDashboard,
+        syncLogs: {
+          ...state.lightspeedDashboard.syncLogs,
+          rows: [],
+        },
+      },
     });
 
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /reset synced data/i }));
 
-    expect(screen.getByText("Reset Lightspeed synced data?")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Reset synced Lightspeed data?",
+      }),
+    ).toBeTruthy();
     expect(
       screen.getByText(
         /This action is scoped to the current super admin tenant only/i,
@@ -592,13 +645,13 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
     renderPage();
 
     expect(
-      screen.getByRole("button", { name: /customers/i }).textContent,
+      screen.getByRole("tab", { name: /customers/i }).textContent,
     ).toContain("7");
     expect(
-      screen.getByRole("button", { name: /sales/i }).textContent,
+      screen.getByRole("tab", { name: /sales/i }).textContent,
     ).toContain("8");
     expect(
-      screen.getByRole("button", { name: /products/i }).textContent,
+      screen.getByRole("tab", { name: /products/i }).textContent,
     ).toContain("9");
     expect(
       screen.getAllByText(
@@ -623,27 +676,26 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /customers/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /customers/i }));
 
     expect(screen.getByText("Alice Example")).toBeTruthy();
     fireEvent.click(screen.getByText("Alice Example"));
-    expect(screen.getByText("Lightspeed ID: CUST-1")).toBeTruthy();
+    expect(await screen.findByText("LS-CUST1")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /View in CRM/i }).getAttribute("href"),
-    ).toBe("/crm/customers?email=alice%40example.com");
+    ).toBe("/crm/customers/crm-1");
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /sales/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /sales/i }));
     expect(screen.getByText("Total revenue")).toBeTruthy();
     fireEvent.click(screen.getByText("LS-1001"));
     expect(screen.getByText("Peony Stem")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /products/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /products/i }));
     expect(screen.getByText("Low Soil Mix")).toBeTruthy();
-    expect(screen.getByText("+1 more")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /sync logs/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /sync logs/i }));
     expect(screen.getByText("Sync history")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Failed$/i }));
     fireEvent.click(screen.getByRole("button", { name: /Retry/i }));

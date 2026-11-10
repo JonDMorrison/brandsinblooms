@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Box from "@mui/joy/Box";
 import IconButton from "@mui/joy/IconButton";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
@@ -102,7 +103,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
 
   if (loading) {
     return (
-      <JoyCard variant="outlined">
+      <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
         <JoyCardHeader
           title={<Skeleton variant="text" sx={{ width: 220 }} />}
         />
@@ -132,7 +133,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
 
   if (error) {
     return (
-      <JoyCard variant="soft" color="danger">
+      <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
         <JoyCardHeader title="Email Campaign Performance" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack spacing={1.5}>
@@ -142,7 +143,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
             <JoyButton
               size="sm"
               variant="soft"
-              color="danger"
+              color="neutral"
               startDecorator={<RefreshCw size={14} />}
               onClick={() => void refresh()}
             >
@@ -156,7 +157,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
 
   if (!campaigns.length) {
     return (
-      <JoyCard variant="outlined">
+      <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
         <JoyCardHeader title="Email Campaign Performance" />
         <JoyCardContent sx={{ pt: 3 }}>
           <JoyEmptyState
@@ -173,42 +174,50 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
     );
   }
 
+  // The hook weights campaign rates by delivered messages and limits its
+  // reporting window to the ten most recent sent campaigns.
+  const hasDeliveryData = summary.totalDelivered > 0;
+  const engagementMetrics = [
+    {
+      id: "clicks",
+      label: "Click-through rate",
+      value: hasDeliveryData ? formatPercent(summary.avgClickRate) : "—",
+      helper: "Average across recent delivered emails",
+      icon: MousePointerClick,
+    },
+    {
+      id: "opens",
+      label: "Reported open rate",
+      value: hasDeliveryData ? formatPercent(summary.avgOpenRate) : "—",
+      helper: "Approximate; privacy features can inflate opens",
+      icon: Eye,
+    },
+    {
+      id: "delivered",
+      label: "Delivered emails",
+      value: hasDeliveryData ? summary.totalDelivered.toLocaleString() : "—",
+      helper: "Recorded delivery for these recent campaigns",
+      icon: Mail,
+    },
+  ];
   const summaryChips = [
     {
       key: "campaigns",
       color: "neutral" as const,
-      label: `${summary.totalCampaigns} Campaigns Sent`,
-    },
-    {
-      key: "delivered",
-      color: "neutral" as const,
-      label: `${summary.totalDelivered.toLocaleString()} Delivered`,
+      label: `${summary.totalCampaigns} recent campaigns`,
     },
     {
       key: "skipped",
-      color:
-        summary.totalSkipped > 0 ? ("warning" as const) : ("neutral" as const),
-      label: `${summary.totalSkipped.toLocaleString()} Skipped`,
-    },
-    {
-      key: "open-rate",
-      color:
-        summary.avgOpenRate >= 20 ? ("success" as const) : ("warning" as const),
-      label: `${formatPercent(summary.avgOpenRate)} Avg Open Rate`,
-    },
-    {
-      key: "click-rate",
-      color:
-        summary.avgClickRate >= 3 ? ("success" as const) : ("warning" as const),
-      label: `${formatPercent(summary.avgClickRate)} Avg Click Rate`,
+      color: summary.totalSkipped > 0 ? ("warning" as const) : ("neutral" as const),
+      label: `${summary.totalSkipped.toLocaleString()} skipped`,
     },
   ];
 
   return (
-    <JoyCard variant="outlined">
+    <JoyCard variant="outlined" sx={{ borderRadius: "xl", boxShadow: "0 4px 20px rgb(24 60 83 / 5%)" }}>
       <JoyCardHeader
         title="Email Campaign Performance"
-        description="Delivery quality, engagement, and breakdowns for your most recent sent campaigns"
+        description="A clear view of clicks, opens, and delivery for up to 10 recent sent campaigns"
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
             {campaigns.some((campaign) => campaign.isStale) ? (
@@ -222,28 +231,67 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
               </JoyChip>
             ) : null}
             <JoyButton
-              size="sm"
-              variant="soft"
+              size="md"
+              variant="outlined"
               color="neutral"
-              startDecorator={<RefreshCw size={14} />}
-              onClick={() => void handleRecomputeAll()}
-              loading={recomputingAll}
-            >
-              Recompute All
-            </JoyButton>
-            <JoyButton
-              size="sm"
-              variant="plain"
-              color="primary"
               onClick={() => navigate("/crm/campaigns")}
             >
-              View All →
+              View campaigns →
             </JoyButton>
           </Stack>
         }
       />
       <JoyCardContent sx={{ pt: 3 }}>
         <Stack spacing={2}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(3, minmax(0, 1fr))",
+              },
+              gap: 1.25,
+            }}
+          >
+            {engagementMetrics.map((metric) => {
+              const Icon = metric.icon;
+              return (
+                <Stack
+                  key={metric.id}
+                  spacing={0.75}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "neutral.200",
+                    borderRadius: "lg",
+                    backgroundColor: "neutral.50",
+                    p: { xs: 2.25, md: 3 },
+                    minWidth: 0,
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={0.75}>
+                    <Icon size={21} aria-hidden="true" />
+                    <Typography level="body-sm" sx={{ color: "neutral.700", fontWeight: 600 }}>
+                      {metric.label}
+                    </Typography>
+                  </Stack>
+                  <Typography
+                    level="h2"
+                    sx={{ fontSize: { xs: "2.5rem", md: "3.25rem" }, lineHeight: 1.15, py: 1, fontWeight: 700, color: "neutral.900", letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {metric.value}
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                    {metric.helper}
+                  </Typography>
+                </Stack>
+              );
+            })}
+          </Box>
+          {!hasDeliveryData ? (
+            <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+              Recorded delivery totals are not yet available. Engagement rates are not shown as zero.
+            </Typography>
+          ) : null}
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             {summaryChips.map((chip) => (
               <JoyChip
@@ -257,7 +305,41 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
             ))}
           </Stack>
 
-          <JoyTable stickyHeader>
+          <Box
+            component="details"
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "neutral.200",
+              pt: 1.5,
+              "&[open] .campaign-detail-chevron": { transform: "rotate(180deg)" },
+            }}
+          >
+            <Box
+              component="summary"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                cursor: "pointer",
+                color: "neutral.800",
+                fontWeight: 600,
+                py: 1,
+                "&:focus-visible": {
+                  outline: "2px solid var(--joy-palette-primary-400)",
+                  outlineOffset: 2,
+                },
+              }}
+            >
+              See individual campaigns and delivery details
+              <ChevronDown
+                className="campaign-detail-chevron"
+                size={18}
+                aria-hidden="true"
+                style={{ transition: "transform 150ms ease" }}
+              />
+            </Box>
+            <Box sx={{ overflowX: "auto", mt: 1 }}>
+              <JoyTable stickyHeader>
             <JoyTableHead>
               <JoyTableRow>
                 <JoyTableHeaderCell sx={{ width: 44 }} />
@@ -409,7 +491,28 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
                 );
               })}
             </JoyTableBody>
-          </JoyTable>
+              </JoyTable>
+            </Box>
+          </Box>
+          <Box component="details" sx={{ pt: 0.5 }}>
+            <Box
+              component="summary"
+              sx={{ cursor: "pointer", color: "neutral.600", fontSize: 13 }}
+            >
+              Advanced delivery tools
+            </Box>
+            <JoyButton
+              size="sm"
+              variant="soft"
+              color="neutral"
+              startDecorator={<RefreshCw size={14} />}
+              onClick={() => void handleRecomputeAll()}
+              loading={recomputingAll}
+              sx={{ mt: 1 }}
+            >
+              Recompute campaign metrics
+            </JoyButton>
+          </Box>
         </Stack>
       </JoyCardContent>
     </JoyCard>

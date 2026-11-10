@@ -1,4 +1,8 @@
 {
+    "lock": {
+        "path": "./deno.lock",
+        "frozen": true
+    },
     "imports": {
         "@/": "../../src/",
         "@std/assert": "jsr:@std/assert@^1.0.13",
@@ -6,6 +10,7 @@
         "@std/async": "jsr:@std/async@^1.0.13",
         "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
         "jose": "npm:jose@6.2.2",
-        "bcryptjs": "npm:bcryptjs@^2.4.3"
+        "bcryptjs": "npm:bcryptjs@^2.4.3",
+        "sanitize-html": "npm:sanitize-html@2.18.1"
     }
 }

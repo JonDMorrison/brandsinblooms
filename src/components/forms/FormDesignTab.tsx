@@ -1363,7 +1363,7 @@ export function FormDesignTab({
                       >
                         <Stack direction="row" spacing={0.75}>
                           <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#F87171" }} />
-                          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#FBBF24" }} />
+                          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#C98A6B" }} />
                           <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#34D399" }} />
                         </Stack>
                         <Sheet

@@ -1,4 +1,26 @@
+import type {
+  BlockAppearance,
+  BlockAudience,
+  ChartPoint,
+  CouponOffer,
+  HeadingLevel,
+  NewsletterLink,
+  NewsletterSettings,
+  ProductBadge,
+} from "./newsletterDesign.ts";
 export type BlockType =
+  | "preheader"
+  | "headline"
+  | "youtube"
+  | "navigation"
+  | "button-group"
+  | "text-columns"
+  | "data-table"
+  | "chart"
+  | "survey"
+  | "event"
+  | "blog"
+  | "announcement"
   | "email-safe-hero"
   | "graphic-hero"
   | "full-width-image"
@@ -7,6 +29,7 @@ export type BlockType =
   | "plain-text"
   | "quote"
   | "product-card"
+  | "coupon"
   | "image-gallery"
   | "product-gallery"
   | "call-to-action"
@@ -21,18 +44,17 @@ export type StudioFontSize = "sm" | "md" | "lg";
 export type StudioFontStyle = "italic" | "normal";
 export type StudioFontWeightPreset = "normal" | "medium";
 export type StudioHeroStyle =
-  | "solid"
-  | "gradient"
-  | "image-overlay"
-  | "image-bottom";
+  "solid" | "gradient" | "image-overlay" | "image-bottom";
 export type StudioImageFit = "cover" | "contain" | "fill";
 export type StudioImagePosition = "left" | "right" | "top" | "overlay";
 export type StudioImageRatio = "auto" | "1:1" | "4:3" | "16:9";
-export type StudioColumnSplit = "40/60" | "50/50" | "60/40";
+export type StudioColumnSplit = "30/70" | "40/60" | "50/50" | "60/40" | "70/30";
 export type StudioOverlayGradientDirection =
   | "uniform"
   | "top-to-bottom"
-  | "bottom-to-top";
+  | "bottom-to-top"
+  | "left-to-right"
+  | "right-to-left";
 export type StudioTextPosition = "top" | "center" | "bottom";
 export type StudioDividerLineStyle = "solid" | "dashed" | "dotted";
 export type StudioDividerLineType = "solid" | "dashed" | "dotted";
@@ -40,10 +62,7 @@ export type StudioOrnamentSymbol = "✦" | "●" | "◆" | "★" | "─";
 export type StudioSocialColorMode = "brand" | "monochrome" | "custom";
 export type StudioIconColorMode = "brand" | "mono" | "custom";
 export type StudioSocialIconStyle =
-  | "filled"
-  | "outlined"
-  | "square"
-  | "minimal";
+  "filled" | "outlined" | "square" | "minimal";
 export type StudioIconStyle = "filled" | "outlined" | "square" | "minimal";
 export type StudioSocialPlatform =
   | "facebook"
@@ -62,6 +81,7 @@ export interface GalleryImage {
   id: string;
   url: string;
   alt: string;
+  caption?: string;
   linkUrl?: string;
 }
 
@@ -69,6 +89,8 @@ export interface GalleryProduct {
   id: string;
   imageUrl: string;
   name: string;
+  altName?: string;
+  linkUrl?: string;
   price: string;
   originalPrice?: string;
   description?: string;
@@ -85,11 +107,59 @@ export interface SocialLink {
 }
 
 export interface StudioBlock {
+  appearance?: BlockAppearance;
+  audience?: BlockAudience;
+  headingLevel?: HeadingLevel;
+  couponPercent?: number;
+  couponAmount?: string;
+  couponBuyQuantity?: number;
+  couponBundleQuantity?: number;
+  couponBundlePrice?: string;
+  couponMinimumQuantity?: number;
+  couponRegularPrice?: string;
+  couponSizing?: string;
+  couponExpiry?: string;
+  couponBarcode?: string;
+  couponBarcodeImageUrl?: string;
+  productSubtitle?: string;
+  badges?: ProductBadge[];
+  links?: NewsletterLink[];
+  textColumns?: string[];
+  tableHeaders?: string[];
+  tableRows?: string[][];
+  tableCaption?: string;
+  chartData?: ChartPoint[];
+  chartUnit?: string;
+  videoUrl?: string;
+  eventDate?: string;
+  eventLocation?: string;
+  headerBannerUrl?: string;
+  newsletterSettings?: NewsletterSettings;
+
+  /** Stable CMS publication provenance for website-to-campaign traceability. */
+  connectedContent?: {
+    siteId: string;
+    itemId: string;
+    type: "event"|"page"|"product"|"blog"|"fundraiser";
+    updatedAt: string;
+    publicUrl: string;
+    startAt?: string | null;
+    sourceTitle?: string;
+    sourceDescription?: string;
+    sourceImageUrl?: string | null;
+    upcomingDateCount?: number;
+  };
   id: string;
   type: BlockType;
   label: string;
   order: number;
   visible: boolean;
+  couponOffer?: CouponOffer;
+  couponPrice?: string;
+  couponConditions?: string;
+  couponImageSide?: "left" | "right" | "top";
+  couponBorder?: boolean;
+  couponScissors?: boolean;
   headline?: string;
   subheading?: string;
   body?: string;
@@ -117,6 +187,8 @@ export interface StudioBlock {
   buttonUrl?: string;
   buttonColor?: string;
   buttonTextColor?: string;
+  /** Keep CTA colours synced with the account brand unless explicitly disabled. */
+  useBrandButtonColor?: boolean;
   buttonSize?: StudioButtonSize;
   buttonStyle?: StudioButtonStyle;
   buttonRounded?: boolean;
@@ -129,6 +201,7 @@ export interface StudioBlock {
   textAlign?: StudioTextAlign;
   accentColor?: string;
   accentThickness?: number;
+  showAccent?: boolean;
   overlayColor?: string;
   overlayOpacity?: number;
   showOverlay?: boolean;
@@ -141,6 +214,8 @@ export interface StudioBlock {
   logoUrl?: string;
   logoAlignment?: StudioLogoAlignment;
   logoSize?: number;
+  /** Set by the editor when a user chooses an exact size, including 40px. */
+  logoSizeExplicit?: boolean;
   logoShape?: StudioLogoShape;
   borderRadius?: number;
   cardBorderRadius?: number;
@@ -148,6 +223,8 @@ export interface StudioBlock {
   contentPadding?: number;
   verticalPadding?: number;
   imageFit?: StudioImageFit;
+  imageFocalX?: number;
+  imageFocalY?: number;
   imagePosition?: StudioImagePosition;
   imageRatio?: StudioImageRatio;
   imagePadding?: boolean;

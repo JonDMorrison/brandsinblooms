@@ -388,6 +388,18 @@ export interface CustomerLoyaltyMetrics {
   updated_at: string;
 }
 
+export type LoyaltyBalanceUnit = 'points' | 'currency' | 'unknown';
+
+export interface CustomerLoyaltyAccount {
+  provider: string;
+  program_name: string | null;
+  balance: number;
+  balance_unit: LoyaltyBalanceUnit;
+  currency: string | null;
+  enrolled_at: string | null;
+  last_synced_at: string;
+}
+
 export interface LoyaltyPointsTransaction {
   id: string;
   tenant_id: string;

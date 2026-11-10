@@ -1,128 +1,92 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { CRMAutomationBuilder } from '@/pages/crm/CRMAutomationBuilder';
-import { useToast } from '@/hooks/use-toast';
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock dependencies
-vi.mock('@/hooks/use-toast');
-vi.mock('@/integrations/supabase/client', () => ({
+import { CRMAutomationBuilder } from "@/pages/crm/CRMAutomationBuilder";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
+
+const { canvasProps } = vi.hoisted(() => ({ canvasProps: vi.fn() }));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { id: "test-user" } }),
+}));
+vi.mock("@/hooks/useTenant", () => ({
+  useTenant: () => ({ tenant: { id: "test-tenant" } }),
+}));
+vi.mock("@/hooks/usePersonaSegmentIntegration", () => ({
+  usePersonaSegmentIntegration: () => ({
+    loadAutomationTargeting: vi.fn().mockResolvedValue({
+      personas: [],
+      segments: [],
+    }),
+    saveAutomationTargeting: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    functions: {
-      invoke: vi.fn()
-    },
     from: vi.fn(() => ({
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn()
-        }))
-      }))
-    }))
-  }
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: { tenant_id: "test-tenant" },
+            error: null,
+          }),
+        })),
+      })),
+    })),
+  },
+}));
+vi.mock("@/components/automation/flow/AutomationFlowCanvas", () => ({
+  AutomationFlowCanvas: (props: unknown) => {
+    canvasProps(props);
+    return <div data-testid="automation-flow-canvas">Automation canvas</div>;
+  },
 }));
 
-const mockToast = vi.fn();
+function renderBuilder() {
+  return render(
+    <TestQueryClientProvider>
+      <MemoryRouter>
+        <CRMAutomationBuilder />
+      </MemoryRouter>
+    </TestQueryClientProvider>,
+  );
+}
 
-describe('CRMAutomationBuilder', () => {
+describe("CRMAutomationBuilder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useToast as any).mockReturnValue({ toast: mockToast });
   });
 
-  it('renders trigger popover with all trigger options', async () => {
-    render(<CRMAutomationBuilder />);
-    
-    // Find and click the trigger button
-    const triggerButton = screen.getByText('Select trigger type');
-    fireEvent.click(triggerButton);
-    
-    // Verify all triggers are shown
-    await waitFor(() => {
-      expect(screen.getByText('Customer joins Loyalty Program')).toBeInTheDocument();
-      expect(screen.getByText('First Purchase Completed')).toBeInTheDocument();
-      expect(screen.getByText('Customer Birthday (SMS)')).toBeInTheDocument();
-      expect(screen.getByText('Lifetime Spend > $500')).toBeInTheDocument();
-      expect(screen.getByText('Abandoned Cart')).toBeInTheDocument();
-      expect(screen.getByText('Product Delivered')).toBeInTheDocument();
-      expect(screen.getByText('Workshop RSVP')).toBeInTheDocument();
-      expect(screen.getByText('Email Opt-in')).toBeInTheDocument();
-    });
+  it("renders the current visual automation builder", () => {
+    renderBuilder();
+
+    expect(screen.getByText("New Automation")).toBeInTheDocument();
+    expect(screen.getByTestId("automation-flow-canvas")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Draft" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Test" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Activate" })).toBeDisabled();
   });
 
-  it('shows template selector after selecting trigger', async () => {
-    render(<CRMAutomationBuilder />);
-    
-    // Open trigger dropdown and select loyalty_join
-    const triggerButton = screen.getByText('Select trigger type');
-    fireEvent.click(triggerButton);
-    
-    await waitFor(() => {
-      const loyaltyOption = screen.getByText('Customer joins Loyalty Program');
-      fireEvent.click(loyaltyOption);
-    });
-    
-    // Verify template selector appears
-    await waitFor(() => {
-      expect(screen.getByText('Choose a Template')).toBeInTheDocument();
-    });
+  it("links back to the automation list", () => {
+    renderBuilder();
+
+    expect(
+      screen.getByRole("link", { name: /back to automations/i }),
+    ).toHaveAttribute("href", "/crm/automations");
   });
 
-  it('applies template when Use Template button is clicked', async () => {
-    render(<CRMAutomationBuilder />);
-    
-    // Select loyalty trigger
-    const triggerButton = screen.getByText('Select trigger type');
-    fireEvent.click(triggerButton);
-    
-    await waitFor(() => {
-      const loyaltyOption = screen.getByText('Customer joins Loyalty Program');
-      fireEvent.click(loyaltyOption);
-    });
-    
-    // Click Use Template on the SMS template
-    await waitFor(() => {
-      const useTemplateButton = screen.getByText('Use Template');
-      fireEvent.click(useTemplateButton);
-    });
-    
-    // Verify toast is called
-    expect(mockToast).toHaveBeenCalledWith({
-      title: "Template Applied",
-      description: "1 step added to your automation.",
-    });
-  });
+  it("passes the tenant and empty workflow into the canvas", async () => {
+    renderBuilder();
 
-  it('disables save button when required fields are missing', () => {
-    render(<CRMAutomationBuilder />);
-    
-    const saveButton = screen.getByText('Save Automation');
-    expect(saveButton).toBeDisabled();
-  });
-
-  it('enables save button when all required fields are filled', async () => {
-    render(<CRMAutomationBuilder />);
-    
-    // Fill automation name
-    const nameInput = screen.getByLabelText('Automation Name');
-    fireEvent.change(nameInput, { target: { value: 'Test Automation' } });
-    
-    // Select trigger and apply template
-    const triggerButton = screen.getByText('Select trigger type');
-    fireEvent.click(triggerButton);
-    
-    await waitFor(() => {
-      const loyaltyOption = screen.getByText('Customer joins Loyalty Program');
-      fireEvent.click(loyaltyOption);
-    });
-    
-    await waitFor(() => {
-      const useTemplateButton = screen.getByText('Use Template');
-      fireEvent.click(useTemplateButton);
-    });
-    
-    // Save button should now be enabled
-    await waitFor(() => {
-      const saveButton = screen.getByText('Save Automation');
-      expect(saveButton).not.toBeDisabled();
-    });
+    await vi.waitFor(() =>
+      expect(canvasProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          automationName: "New Automation",
+          initialFlowState: { nodes: [], edges: [] },
+          tenantId: "test-tenant",
+        }),
+      ),
+    );
   });
 });

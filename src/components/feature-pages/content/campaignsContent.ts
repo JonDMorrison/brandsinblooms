@@ -109,7 +109,7 @@ export const campaignsContent: FeaturePageContent = {
       { name: "Mailchimp" },
       { name: "Klaviyo" },
       { name: "Constant Contact" },
-      { name: "Meta" },
+      { name: "Twilio" },
     ],
   },
   useCases: {

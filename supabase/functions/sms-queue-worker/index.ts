@@ -21,6 +21,15 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
 import { classifyTwilioError, calculateRetryDelay, type SmsFailureType } from '../_shared/smsErrorPolicy.ts'
 import { logComplianceEvent, classifyErrorToComplianceType } from '../_shared/smsComplianceLogger.ts'
+import { checkSmsSendEligibility } from '../_shared/smsConsentGate.ts'
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
+import {
+  extractMtaRecipientValidation,
+  extractMtaSendAcceptance,
+  toMtaRequestId,
+} from '../_shared/mtaSendResponse.ts'
+import { prepareSmsContentForDelivery } from '../_shared/smsLinkWrapper.ts'
+import { calculateBillableUnits } from '../_shared/smsSegmentCounter.ts'
 
 // Configuration constants
 const SMS_BATCH_DELAY_MS = Number(Deno.env.get("SMS_BATCH_DELAY_MS") ?? "200");
@@ -29,6 +38,9 @@ const MAX_LEGACY_MESSAGES_PER_RUN = 100;
 const MAX_JOB_ATTEMPTS = Number(Deno.env.get("SMS_MAX_JOB_ATTEMPTS") ?? "3");
 const MAX_MESSAGE_ATTEMPTS = Number(Deno.env.get("SMS_MAX_MESSAGE_ATTEMPTS") ?? "3");
 const RETRY_BASE_DELAY_MS = Number(Deno.env.get("SMS_RETRY_BASE_DELAY_MS") ?? "2000");
+const DEFAULT_MMS_UNIT_COST = Number(Deno.env.get("SMS_MMS_UNIT_COST") ?? "3");
+const SMS_LINK_REDIRECT_BASE_URL = Deno.env.get("SMS_LINK_REDIRECT_BASE_URL") ||
+  `${Deno.env.get("SUPABASE_URL")}/functions/v1/sms-link-redirect`;
 
 // Stale claim timeout - jobs in_progress longer than this can be reclaimed
 const CLAIM_STALE_AFTER_MINUTES = Number(Deno.env.get("SMS_CLAIM_STALE_AFTER_MINUTES") ?? "15");
@@ -49,7 +61,7 @@ interface MTAConfig {
 
 interface SmsMessage {
   id: string
-  tenant_id: string
+  tenant_id: string | null
   phone: string
   content: string
   media_urls: string[] | null
@@ -139,6 +151,7 @@ async function sendSMSViaMTA(
   body: string,
   options: {
     mediaUrls?: string[] | null
+    externalId?: string
   } = {}
 ): Promise<{ success: boolean; messageId?: string; error?: string; rawError?: unknown }> {
   try {
@@ -152,7 +165,7 @@ async function sendSMSViaMTA(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        recipients: [{ number: to, externalId: "bloomsuite_worker" }],
+        recipients: [{ number: to, externalId: options.externalId ?? "bloomsuite_worker" }],
         validateUnsubscribes: true,
       }),
     });
@@ -168,11 +181,8 @@ async function sendSMSViaMTA(
       };
     }
 
-    // Check for invalid/unsubscribed
-    const invalidList = Array.isArray(validateData?.invalid) ? validateData.invalid : [];
-    const unsubscribedList = Array.isArray(validateData?.unsubscribed) ? validateData.unsubscribed : [];
-
-    if (unsubscribedList.length > 0) {
+    const validation = extractMtaRecipientValidation(validateData);
+    if (validation.hasUnsubscribedRecipient) {
       return {
         success: false,
         error: "Recipient has opted out",
@@ -180,10 +190,12 @@ async function sendSMSViaMTA(
       };
     }
 
-    if (invalidList.length > 0) {
+    if (validation.invalidRecipients.length > 0) {
       return {
         success: false,
-        error: `Invalid phone number: ${invalidList.join(", ")}`,
+        error: validation.invalidRecipients
+          .map(({ recipient, error }) => [recipient, error].filter(Boolean).join(": "))
+          .join(", ") || "Recipient validation failed",
         rawError: { code: 21211, invalid: true },
       };
     }
@@ -193,6 +205,7 @@ async function sendSMSViaMTA(
       subscribers: [to],
       message: finalMessage,
     };
+    if (options.externalId) sendPayload.externalId = options.externalId;
 
     // Add longcodeId if configured
     if (config.longcodeId) {
@@ -210,6 +223,10 @@ async function sendSMSViaMTA(
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(options.externalId
+          ? { "X-Request-Id": toMtaRequestId(options.externalId) }
+          : {}),
       },
       body: JSON.stringify(sendPayload),
     });
@@ -218,6 +235,12 @@ async function sendSMSViaMTA(
     const sendData = sendParsed.json ?? {};
 
     if (!sendParsed.ok) {
+      if (sendParsed.status === 409 && options.externalId) {
+        return {
+          success: true,
+          error: "Provider previously accepted this idempotent request; awaiting delivery reconciliation",
+        };
+      }
       return {
         success: false,
         error: sendData?.message || sendData?.error || `Send failed (HTTP ${sendParsed.status})`,
@@ -225,8 +248,21 @@ async function sendSMSViaMTA(
       };
     }
 
-    const messageId = sendData.messageId || sendData.id || crypto.randomUUID();
-    return { success: true, messageId };
+    if (sendData?.success === false) {
+      return {
+        success: false,
+        error: sendData?.message || sendData?.error || "Provider rejected the send",
+        rawError: sendParsed,
+      };
+    }
+
+    const acceptance = extractMtaSendAcceptance(sendData);
+    const messageId = acceptance.messageId ?? undefined;
+    return {
+      success: true,
+      messageId,
+      error: messageId ? undefined : "Provider accepted SMS without a message ID",
+    };
 
   } catch (error) {
     return { 
@@ -250,6 +286,58 @@ async function rateLimitDelay(): Promise<void> {
 function truncateError(message: string, maxLength: number = 250): string {
   if (!message) return '';
   return message.length > maxLength ? message.substring(0, maxLength) + '...' : message;
+}
+
+/**
+ * Fail a queued marketing message closed when current consent cannot be proven.
+ * This is deliberately evaluated after claiming and immediately before the
+ * provider call so a STOP received while the message was waiting is honored.
+ */
+async function blockIfSmsIneligible(
+  supabase: any,
+  msg: SmsMessage,
+  tenantId: string | null | undefined,
+): Promise<boolean> {
+  const eligibility = await checkSmsSendEligibility(supabase, {
+    tenantId,
+    customerId: msg.customer_id,
+    recipient: msg.phone,
+  });
+
+  if (eligibility.allowed) return false;
+
+  const now = new Date().toISOString();
+  const reason = `${eligibility.code}: ${eligibility.reason}`;
+  await supabase
+    .from('sms_messages')
+    .update({
+      status: 'failed',
+      error_message: truncateError(reason),
+      error_code: eligibility.code,
+      failure_type: 'compliance',
+      dead_lettered_at: now,
+      updated_at: now,
+    })
+    .eq('id', msg.id)
+    .eq('status', 'queued');
+
+  await logComplianceEvent(supabase, {
+    tenantId: tenantId || undefined,
+    customerId: msg.customer_id || undefined,
+    phone: msg.phone,
+    eventType: 'BLOCKED_SEND',
+    messageContent: msg.content,
+    source: 'worker',
+    errorCode: eligibility.code,
+    errorMessage: eligibility.reason,
+    metadata: {
+      campaign_id: msg.campaign_id,
+      message_id: msg.id,
+    },
+  });
+
+  console.log(`[sms-queue-worker] Blocked message ${msg.id}: ${reason}`);
+  return true;
 }
 
 /**
@@ -291,78 +379,20 @@ async function claimSmsSendJobsSafe(
   workerId: string,
   claimToken: string
 ): Promise<SmsSendJob[]> {
-  const staleThreshold = new Date(Date.now() - CLAIM_STALE_AFTER_MINUTES * 60 * 1000).toISOString();
-  const now = new Date().toISOString();
+  const { data, error } = await supabase.rpc('claim_sms_send_jobs', {
+    p_limit: limit,
+    p_worker_id: workerId,
+    p_claim_token: claimToken,
+    p_stale_minutes: CLAIM_STALE_AFTER_MINUTES,
+    p_max_attempts: MAX_JOB_ATTEMPTS,
+  });
 
-  // Step 1: Find eligible jobs with priority ordering
-  const { data: eligibleJobs, error: selectError } = await supabase
-    .from('sms_send_jobs')
-    .select('*')
-    .in('status', ['pending', 'in_progress'])
-    .lt('attempts', MAX_JOB_ATTEMPTS)
-    .is('dead_lettered_at', null)
-    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
-    .order('priority', { ascending: true })
-    .order('created_at', { ascending: true })
-    .limit(limit * 2);
-
-  if (selectError) {
-    console.error('[sms-queue-worker] Error selecting jobs:', selectError);
+  if (error) {
+    console.error('[sms-queue-worker] Atomic job claim failed:', error);
     return [];
   }
 
-  if (!eligibleJobs || eligibleJobs.length === 0) {
-    return [];
-  }
-
-  // Step 2: Filter for claimable jobs
-  const claimableJobs = eligibleJobs.filter((job: SmsSendJob) => {
-    if (!job.claimed_at) return true;
-    return new Date(job.claimed_at) < new Date(staleThreshold);
-  }).slice(0, limit);
-
-  if (claimableJobs.length === 0) {
-    return [];
-  }
-
-  // Step 3: Atomically claim each job
-  const claimedJobs: SmsSendJob[] = [];
-
-  for (const job of claimableJobs) {
-    const { data: claimed, error: claimError } = await supabase
-      .from('sms_send_jobs')
-      .update({
-        status: 'in_progress',
-        claimed_at: now,
-        claimed_by: workerId,
-        claim_token: claimToken,
-        attempts: job.attempts + 1,
-        updated_at: now,
-      })
-      .eq('id', job.id)
-      .in('status', ['pending', 'in_progress'])
-      .lt('attempts', MAX_JOB_ATTEMPTS)
-      .is('dead_lettered_at', null)
-      .select('*')
-      .maybeSingle();
-
-    if (claimError) {
-      console.log(`[sms-queue-worker] Failed to claim job ${job.id}:`, claimError.message);
-      continue;
-    }
-
-    if (claimed) {
-      if (claimed.claim_token === claimToken) {
-        claimedJobs.push(claimed);
-      } else {
-        console.log(`[sms-queue-worker] Job ${job.id} claimed by another worker`);
-      }
-    }
-
-    if (claimedJobs.length >= limit) break;
-  }
-
-  return claimedJobs;
+  return (data || []) as SmsSendJob[];
 }
 
 /**
@@ -463,7 +493,7 @@ async function handleMessageFailure(
   const complianceEventType = classifyErrorToComplianceType(classified.code);
   if (complianceEventType) {
     await logComplianceEvent(supabase, {
-      tenantId: msg.tenant_id,
+      tenantId: msg.tenant_id || undefined,
       customerId: msg.customer_id || undefined,
       phone: msg.phone,
       eventType: complianceEventType,
@@ -523,6 +553,9 @@ Deno.serve(async (req) => {
   // Handle CORS preflight
   const corsResponse = handleCorsPrelight(req);
   if (corsResponse) return corsResponse;
+
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   const startTime = Date.now();
   const claimToken = crypto.randomUUID();
@@ -646,6 +679,14 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          const messageTenantId = msg.tenant_id || job.tenant_id;
+          if (await blockIfSmsIneligible(supabase, msg, messageTenantId)) {
+            jobFailed++;
+            stats.messagesFailed++;
+            stats.messagesDeadLettered++;
+            continue;
+          }
+
           // Increment attempts
           const currentAttempts = (msg.attempts || 0) + 1;
           await supabase
@@ -657,10 +698,51 @@ Deno.serve(async (req) => {
             })
             .eq('id', msg.id);
 
+          let deliveryContent: string;
+          let billableUnits: number;
+          try {
+            const compliantContent = ensureOptOutMessage(msg.content);
+            const prepared = await prepareSmsContentForDelivery(
+              supabase,
+              compliantContent,
+              SMS_LINK_REDIRECT_BASE_URL,
+              { messageId: msg.id },
+            );
+            deliveryContent = prepared.content;
+            billableUnits = calculateBillableUnits(
+              deliveryContent,
+              Boolean(msg.media_urls && msg.media_urls.length > 0),
+              DEFAULT_MMS_UNIT_COST,
+            );
+
+            await supabase
+              .from('sms_messages')
+              .update({ billable_units: billableUnits, updated_at: now })
+              .eq('id', msg.id)
+              .eq('status', 'queued');
+          } catch (trackingError) {
+            const failureResult = await handleMessageFailure(
+              supabase,
+              msg,
+              currentAttempts,
+              trackingError,
+            );
+            if (failureResult.retryScheduled) {
+              jobRetryScheduled++;
+              stats.messagesRetryScheduled++;
+            } else {
+              jobFailed++;
+              stats.messagesFailed++;
+              stats.messagesDeadLettered++;
+            }
+            continue;
+          }
+
           // Send via MTA
           const formattedPhone = normalizePhone(msg.phone);
-          const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
+          const result = await sendSMSViaMTA(mtaConfig, formattedPhone, deliveryContent, {
             mediaUrls: msg.media_urls,
+            externalId: msg.id,
           });
 
           if (result.success) {
@@ -669,12 +751,16 @@ Deno.serve(async (req) => {
               .from('sms_messages')
               .update({
                 status: 'sent',
-                twilio_sid: result.messageId, // Reusing field for MTA message ID
+                twilio_sid: result.messageId ?? null, // Legacy compatibility field
+                provider: 'mobile_text_alerts',
+                provider_message_id: result.messageId ?? null,
+                provider_status: result.messageId ? 'sent' : 'accepted_untrackable',
+                provider_status_at: now,
+                provider_status_source: 'send',
                 sent_at: now,
-                billed_at: msg.billed_at ? undefined : now,
-                error_message: null,
-                error_code: null,
-                failure_type: null,
+                error_message: result.error ?? null,
+                error_code: result.messageId ? null : 'MTA_MESSAGE_ID_MISSING',
+                failure_type: result.messageId ? null : 'provider_tracking',
                 updated_at: now,
               })
               .eq('id', msg.id)
@@ -686,8 +772,7 @@ Deno.serve(async (req) => {
 
             // Bill the message if not already billed
             if (!msg.billed_at) {
-              const billableUnits = msg.billable_units || 1;
-              const tenantId = msg.tenant_id || job.tenant_id;
+              const tenantId = messageTenantId;
               
               if (tenantId) {
                 const billed = await billMessage(supabase, tenantId, msg.id, billableUnits);
@@ -736,9 +821,11 @@ Deno.serve(async (req) => {
             stats.jobsClaimStolen++;
           }
         } else {
-          const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
+          // Any terminal recipient failure makes the batch visibly failed. The
+          // campaign metrics still preserve how many recipients were sent.
+          const jobStatus = jobFailed > 0 ? 'failed' : 'completed';
           const jobErrorMessage = jobStatus === 'failed'
-            ? `All ${jobFailed} messages failed.`
+            ? `${jobFailed} recipient(s) failed; ${jobSent} sent.`
             : null;
 
           const updated = await updateJobWithGuard(supabase, job.id, claimToken, {
@@ -783,9 +870,7 @@ Deno.serve(async (req) => {
           continue;
         } else if (pendingOrInProgress.length > 0) {
           newCampaignStatus = 'sending';
-        } else if (completedJobs.length === allJobs.length) {
-          newCampaignStatus = 'sent';
-        } else if (failedJobs.length === allJobs.length) {
+        } else if (failedJobs.length > 0) {
           newCampaignStatus = 'failed';
         } else {
           newCampaignStatus = 'sent';
@@ -868,6 +953,12 @@ Deno.serve(async (req) => {
 
         stats.legacyMessagesProcessed++;
 
+        if (await blockIfSmsIneligible(supabase, msg, msg.tenant_id)) {
+          stats.messagesFailed++;
+          stats.messagesDeadLettered++;
+          continue;
+        }
+
         // Increment attempts
         const currentAttempts = (msg.attempts || 0) + 1;
         await supabase
@@ -879,9 +970,48 @@ Deno.serve(async (req) => {
           })
           .eq('id', msg.id);
 
+        let deliveryContent: string;
+        let billableUnits: number;
+        try {
+          const compliantContent = ensureOptOutMessage(msg.content);
+          const prepared = await prepareSmsContentForDelivery(
+            supabase,
+            compliantContent,
+            SMS_LINK_REDIRECT_BASE_URL,
+            { messageId: msg.id },
+          );
+          deliveryContent = prepared.content;
+          billableUnits = calculateBillableUnits(
+            deliveryContent,
+            Boolean(msg.media_urls && msg.media_urls.length > 0),
+            DEFAULT_MMS_UNIT_COST,
+          );
+
+          await supabase
+            .from('sms_messages')
+            .update({ billable_units: billableUnits, updated_at: now })
+            .eq('id', msg.id)
+            .eq('status', 'queued');
+        } catch (trackingError) {
+          const failureResult = await handleMessageFailure(
+            supabase,
+            msg,
+            currentAttempts,
+            trackingError,
+          );
+          if (failureResult.retryScheduled) {
+            stats.messagesRetryScheduled++;
+          } else {
+            stats.messagesFailed++;
+            stats.messagesDeadLettered++;
+          }
+          continue;
+        }
+
         const formattedPhone = normalizePhone(msg.phone);
-        const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
+        const result = await sendSMSViaMTA(mtaConfig, formattedPhone, deliveryContent, {
           mediaUrls: msg.media_urls,
+          externalId: msg.id,
         });
 
         if (result.success) {
@@ -889,12 +1019,16 @@ Deno.serve(async (req) => {
             .from('sms_messages')
             .update({
               status: 'sent',
-              twilio_sid: result.messageId,
+              twilio_sid: result.messageId ?? null,
+              provider: 'mobile_text_alerts',
+              provider_message_id: result.messageId ?? null,
+              provider_status: result.messageId ? 'sent' : 'accepted_untrackable',
+              provider_status_at: now,
+              provider_status_source: 'send',
               sent_at: now,
-              billed_at: msg.billed_at ? undefined : now,
-              error_message: null,
-              error_code: null,
-              failure_type: null,
+              error_message: result.error ?? null,
+              error_code: result.messageId ? null : 'MTA_MESSAGE_ID_MISSING',
+              failure_type: result.messageId ? null : 'provider_tracking',
               updated_at: now,
             })
             .eq('id', msg.id);
@@ -904,7 +1038,6 @@ Deno.serve(async (req) => {
 
           // Bill legacy messages too
           if (!msg.billed_at && msg.tenant_id) {
-            const billableUnits = msg.billable_units || 1;
             const billed = await billMessage(supabase, msg.tenant_id, msg.id, billableUnits);
             if (billed) {
               stats.messagesBilled++;

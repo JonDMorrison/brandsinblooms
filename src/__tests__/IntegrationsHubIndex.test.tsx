@@ -20,13 +20,7 @@ function mockHubData(overrides: Record<string, unknown> = {}) {
     items: [
       buildItem("square", { status: "connected" }),
       buildItem("clover", { status: "available" }),
-      buildItem("meta", {
-        status: "connected",
-        children: [
-          { name: "Facebook", status: "connected" },
-          { name: "Instagram", status: "available" },
-        ],
-      }),
+      buildItem("shopify", { status: "available" }),
       buildItem("email-infrastructure", {
         status: "available",
         metaLabel: "bloomsuiteflowers.com",
@@ -142,19 +136,19 @@ describe("IntegrationsHubIndex", () => {
       screen
         .getAllByRole("heading", { level: 3 })
         .map((heading) => heading.textContent),
-    ).toEqual(["Square", "Clover", "Meta", "Slack", "Email Infrastructure"]);
+    ).toEqual(["Square", "Clover", "Shopify", "Slack", "Email Infrastructure"]);
 
     expect(
       screen
         .getAllByRole("heading", { level: 4 })
         .map((heading) => heading.textContent),
-    ).toEqual(["Point of sale", "Social", "Automation", "Infrastructure"]);
+    ).toEqual(["Point of sale", "Automation", "Infrastructure"]);
 
     const squareCard = screen
       .getByRole("heading", { name: "Square" })
       .closest("article");
-    const metaCard = screen
-      .getByRole("heading", { name: "Meta" })
+    const shopifyCard = screen
+      .getByRole("heading", { name: "Shopify" })
       .closest("article");
     const cloverCard = screen
       .getByRole("heading", { name: "Clover" })
@@ -168,7 +162,7 @@ describe("IntegrationsHubIndex", () => {
 
     if (
       !squareCard ||
-      !metaCard ||
+      !shopifyCard ||
       !cloverCard ||
       !infrastructureCard ||
       !slackCard
@@ -182,9 +176,7 @@ describe("IntegrationsHubIndex", () => {
       within(infrastructureCard).getByText("Featured"),
     ).toBeInTheDocument();
 
-    expect(within(metaCard).getByText("Facebook")).toBeInTheDocument();
-    expect(within(metaCard).getByText("Instagram")).toBeInTheDocument();
-    expect(within(metaCard).getByText("Connected")).toBeInTheDocument();
+    expect(within(shopifyCard).getByText("Not connected")).toBeInTheDocument();
     expect(
       squareCard.querySelector('img[src*="square-new.png"]'),
     ).toBeInTheDocument();

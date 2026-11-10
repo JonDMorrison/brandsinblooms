@@ -26,9 +26,10 @@ import {
 } from "@/components/integrations/integrationsHubConfig";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 const REQUEST_INTEGRATION_MAILTO =
-  "mailto:support@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
+  `mailto:${SUPPORT_EMAIL}?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A`;
 
 const FILTER_OPTIONS: Array<{
   value: IntegrationTabValue;
@@ -37,7 +38,6 @@ const FILTER_OPTIONS: Array<{
   { value: "all", label: "All" },
   { value: "pos-systems", label: "POS" },
   { value: "marketing-import", label: "Marketing" },
-  { value: "social", label: "Social" },
   { value: "analytics", label: "Analytics" },
   { value: "infrastructure", label: "Infrastructure" },
   { value: "automation", label: "Automation" },
@@ -56,11 +56,6 @@ const CATEGORY_COPY: Record<
     title: "Marketing",
     description:
       "Audience and campaign connectors for CRM, email, and customer growth programs.",
-  },
-  social: {
-    title: "Social",
-    description:
-      "Publishing and profile integrations for the channels your team manages every week.",
   },
   analytics: {
     title: "Analytics",
@@ -85,7 +80,6 @@ const CATEGORY_QUERY_ALIASES: Record<string, IntegrationCategory> = {
   crm: "marketing-import",
   marketing: "marketing-import",
   "marketing-import": "marketing-import",
-  social: "social",
   website: "analytics",
   analytics: "analytics",
   automation: "automation",
@@ -253,7 +247,6 @@ export function IntegrationsHubIndex({
         },
         {
           "pos-systems": [],
-          social: [],
           analytics: [],
           "marketing-import": [],
           automation: [],

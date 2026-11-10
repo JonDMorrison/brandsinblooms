@@ -265,7 +265,7 @@ describe('Persistence Key Uniqueness', () => {
         return `new_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       };
 
-      const existingCampaignSlug = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      const existingCampaignSlug = 'a1b2c3d4-e5f6-4890-abcd-ef1234567890';
       const sessionId = generateSessionId(existingCampaignSlug);
 
       expect(sessionId).toBe(existingCampaignSlug);

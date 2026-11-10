@@ -30,11 +30,6 @@ import {
   ArrowRight,
   CalendarDays,
   ChevronLeft,
-  Clapperboard,
-  Facebook,
-  FileText,
-  Images,
-  Instagram,
   Leaf,
   Loader2,
   Mail,
@@ -43,7 +38,6 @@ import {
   Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useDashboardData } from "@/hooks/useDashboardData";
 import { useDebounce } from "@/hooks/useDebounce";
 import { supabase } from "@/integrations/supabase/client";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
@@ -68,14 +62,7 @@ type Goal = "traffic" | "sales" | "awareness" | "none";
 type WizardStep = "category" | "topic" | "channels";
 type WizardAction = "back" | "continue" | "cancel" | "escape";
 type TransitionOutcome = WizardStep | "close" | "submit";
-type ChannelKey =
-  | "newsletter"
-  | "instagram"
-  | "facebook"
-  | "video"
-  | "blog"
-  | "instagram_carousel"
-  | "facebook_carousel";
+type ChannelKey = "newsletter";
 
 interface CreateFlowDialogProps {
   open: boolean;
@@ -102,7 +89,6 @@ interface ChannelOption {
   title: string;
   description: string;
   icon: ElementType;
-  platform?: "instagram" | "facebook";
 }
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
@@ -136,53 +122,10 @@ const CUSTOM_IDEA_SUGGESTIONS = [
 
 const CHANNEL_OPTIONS: ChannelOption[] = [
   {
-    key: "instagram",
-    title: "Instagram",
-    description: "Generates an image-forward caption and post-ready draft.",
-    icon: Instagram,
-    platform: "instagram",
-  },
-  {
-    key: "facebook",
-    title: "Facebook",
-    description: "Creates a social post tailored for longer-form engagement.",
-    icon: Facebook,
-    platform: "facebook",
-  },
-  {
-    key: "blog",
-    title: "Blog",
-    description: "Builds an educational article draft with structured copy.",
-    icon: FileText,
-  },
-  {
     key: "newsletter",
     title: "Newsletter",
-    description: "Prepares a newsletter section ready for review and edits.",
+    description: "Prepares an email campaign draft ready for review and edits.",
     icon: Mail,
-  },
-  {
-    key: "instagram_carousel",
-    title: "Instagram Carousel",
-    description:
-      "Opens the carousel composer with a multi-image Instagram draft.",
-    icon: Images,
-    platform: "instagram",
-  },
-  {
-    key: "facebook_carousel",
-    title: "Facebook Carousel",
-    description:
-      "Opens the carousel composer with a multi-image Facebook draft.",
-    icon: Images,
-    platform: "facebook",
-  },
-  {
-    key: "video",
-    title: "Video",
-    description:
-      "Creates a short-form video script with a clear creative hook.",
-    icon: Clapperboard,
   },
 ];
 
@@ -212,30 +155,19 @@ const STEP_TRANSITIONS: Record<
 
 const SELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
   newsletter: true,
-  instagram: true,
-  facebook: true,
-  video: true,
-  blog: true,
-  instagram_carousel: true,
-  facebook_carousel: true,
 };
 
 const DESELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
   newsletter: false,
-  instagram: false,
-  facebook: false,
-  video: false,
-  blog: false,
-  instagram_carousel: false,
-  facebook_carousel: false,
 };
 
 const IMAGE_GENERATION_CHANNEL_KEYS = new Set<ChannelKey>([
   "newsletter",
-  "instagram",
-  "facebook",
-  "blog",
 ]);
+
+const AVAILABLE_CHANNEL_KEYS = new Set(
+  CHANNEL_OPTIONS.map((channel) => channel.key),
+);
 
 const fmtLocalDate = (dateValue?: string) => {
   if (!dateValue) return "";
@@ -266,7 +198,9 @@ const formatHolidayProximity = (holidayDate: string) => {
 
 const getSelectedChannels = (channelState: Record<ChannelKey, boolean>) =>
   Object.entries(channelState)
-    .filter(([, isSelected]) => isSelected)
+    .filter(([channel, isSelected]) =>
+      isSelected && AVAILABLE_CHANNEL_KEYS.has(channel as ChannelKey),
+    )
     .map(([channel]) => channel as ChannelKey);
 
 const getStepCopy = (step: WizardStep, selectedPath: Mode | null): StepCopy => {
@@ -325,8 +259,6 @@ export function CreateFlowDialog({
   initialDraft = null,
 }: CreateFlowDialogProps) {
   const navigate = useNavigate();
-  const { data: dashboardData, isLoading: socialConnectionsLoading } =
-    useDashboardData();
   const {
     selectedPath,
     setSelectedPath,
@@ -568,24 +500,10 @@ export function CreateFlowDialog({
     () => getStepCopy(step, selectedPath),
     [selectedPath, step],
   );
-  const hasCarousel = selectedChannelNames.some(
-    (channel) =>
-      channel === "instagram_carousel" || channel === "facebook_carousel",
-  );
-  const hasOnlyCarousel =
-    selectedChannelNames.length > 0 &&
-    selectedChannelNames.every(
-      (channel) =>
-        channel === "instagram_carousel" || channel === "facebook_carousel",
-    );
   const continueLabel =
     step !== "channels"
       ? "Continue"
-      : hasOnlyCarousel
-        ? "Open Carousel Builder"
-        : hasCarousel
-          ? "Generate & Open Carousel"
-          : "Generate Content";
+      : "Generate Email";
 
   const resetLocalState = useCallback(() => {
     setStep("category");
@@ -648,16 +566,6 @@ export function CreateFlowDialog({
     setSearch("");
     setGenerationErrorMessage(null);
   };
-
-  const socialPlatforms = useMemo(
-    () =>
-      new Set(
-        (dashboardData?.socialConnections || [])
-          .filter((connection) => connection.is_active)
-          .map((connection) => connection.platform as "instagram" | "facebook"),
-      ),
-    [dashboardData?.socialConnections],
-  );
 
   const handleCategoryKeyDown = (
     event: KeyboardEvent<HTMLElement>,
@@ -734,16 +642,6 @@ export function CreateFlowDialog({
     const currentGoal = goal;
     const currentWeeklyThemes = [...weeklyThemes];
     const currentHolidays = [...allHolidays];
-    const includesCarousel = selectedChannels.some(
-      (channel) =>
-        channel === "instagram_carousel" || channel === "facebook_carousel",
-    );
-    const onlyCarouselChannels =
-      selectedChannels.length > 0 &&
-      selectedChannels.every(
-        (channel) =>
-          channel === "instagram_carousel" || channel === "facebook_carousel",
-      );
 
     let topicTitle: string | undefined;
     let topicDescription: string | undefined;
@@ -774,32 +672,7 @@ export function CreateFlowDialog({
       }
     }
 
-    if (onlyCarouselChannels && includesCarousel) {
-      const platform = currentChannels.instagram_carousel
-        ? "instagram"
-        : "facebook";
-      const queryParams = new URLSearchParams({ platform });
-      if (topicTitle) {
-        queryParams.set("topicTitle", topicTitle);
-      }
-      if (topicDescription) {
-        queryParams.set("topicDescription", topicDescription);
-      }
-      dismissWizard();
-      navigate(`/carousel/composer?${queryParams.toString()}`);
-      return;
-    }
-
-    let generationChannels = selectedChannels;
-    if (includesCarousel) {
-      generationChannels = selectedChannels.filter(
-        (channel) =>
-          channel !== "instagram_carousel" && channel !== "facebook_carousel",
-      );
-      if (generationChannels.length === 0) {
-        return;
-      }
-    }
+    const generationChannels = selectedChannels;
 
     try {
       const {
@@ -827,12 +700,8 @@ export function CreateFlowDialog({
         topicDescription || currentNotes || currentTone || "";
       const generationContext = {
         selectedChannels,
-        hasMixedCarousel: includesCarousel,
-        carouselPlatform: includesCarousel
-          ? currentChannels.instagram_carousel
-            ? "instagram"
-            : "facebook"
-          : null,
+        hasMixedCarousel: false,
+        carouselPlatform: null,
       };
       const userIdea =
         currentPath === "custom"
@@ -1446,11 +1315,7 @@ export function CreateFlowDialog({
           {CHANNEL_OPTIONS.map((channel) => {
             const Icon = channel.icon;
             const isSelected = channels[channel.key];
-            const isSocialChannel = Boolean(channel.platform);
-            const isDisabled =
-              isSocialChannel &&
-              (socialConnectionsLoading ||
-                !socialPlatforms.has(channel.platform!));
+            const isDisabled = false;
 
             return (
               <Card
@@ -1505,13 +1370,6 @@ export function CreateFlowDialog({
                     {channel.description}
                   </Typography>
                 </Box>
-                {isDisabled ? (
-                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-                    {socialConnectionsLoading
-                      ? "Checking account connection"
-                      : "Connect account first"}
-                  </Typography>
-                ) : null}
               </Card>
             );
           })}

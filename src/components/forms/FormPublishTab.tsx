@@ -32,6 +32,7 @@ import { JoyChip } from "@/components/joy/JoyChip";
 import { JoyInput } from "@/components/joy/JoyInput";
 import { JoySelect } from "@/components/joy/JoySelect";
 import { trackFormBuilderAnalyticsEvent } from "@/lib/forms/analytics";
+import { getCanonicalFormDocumentationPath } from "@/lib/forms/documentation";
 import type { PublishValidationIssue } from "@/lib/forms/publish";
 import {
   STATIC_EMBED_RUNTIME_VERSION,
@@ -95,6 +96,28 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
+}
+
+async function writeTextToClipboard(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  if (!copied) {
+    throw new Error("Clipboard copy was rejected");
+  }
 }
 
 function PublishLoadingState() {
@@ -370,7 +393,7 @@ export function FormPublishTab({
     [form.id],
   );
   const documentationPath = React.useMemo(
-    () => `/crm/forms/${form.id}/docs`,
+    () => getCanonicalFormDocumentationPath(form.id),
     [form.id],
   );
   const iframeCode = React.useMemo(
@@ -541,7 +564,7 @@ export function FormPublishTab({
       trackMethodSelected(method, target);
 
       try {
-        await navigator.clipboard.writeText(value);
+        await writeTextToClipboard(value);
         markCopied(key);
         toast.success(`${label} copied`);
         trackCopySuccess(method, target);

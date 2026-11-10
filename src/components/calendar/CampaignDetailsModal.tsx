@@ -1,12 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui-legacy/dialog";
 import { Badge } from "@/components/ui-legacy/badge";
 import { Button } from "@/components/ui-legacy/button";
-import { Calendar, Edit2, FileText, Users, TrendingUp, Clock } from "lucide-react";
+import { Calendar, Edit2, FileText, Mail, MessageSquare, TrendingUp, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ThemeDisplay } from "./ThemeDisplay";
 import { ThemeEditor } from "./ThemeEditor";
-import { CampaignContentSection } from "./CampaignContentSection";
 import { supabase } from "@/integrations/supabase/client";
 import { dateToWeekNumber } from "@/utils/dateUtils";
 // Removed sonner import - using global toast replacement
@@ -28,8 +28,8 @@ interface CampaignDetailsModalProps {
 }
 
 export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: CampaignDetailsModalProps) => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [contentUpdateKey, setContentUpdateKey] = useState(0);
 
   if (!campaign) return null;
 
@@ -74,15 +74,6 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
     }
   };
 
-  const handleContentGenerated = () => {
-    toast.success('Content pack generated! Use the review section below to approve your content.');
-    setContentUpdateKey(prev => prev + 1);
-  };
-
-  const handleContentUpdate = () => {
-    setContentUpdateKey(prev => prev + 1);
-  };
-
   const getStatusBadge = () => {
     const today = new Date();
     const startDate = new Date(campaign.start_date);
@@ -97,9 +88,6 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
       return <Badge className="bg-gray-100 text-gray-800">Completed</Badge>;
     }
   };
-
-  const hasTheme = campaign.theme && campaign.theme.trim() !== "";
-  const hasDescription = campaign.description && campaign.description.trim() !== "";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -147,10 +135,10 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
             </div>
 
             <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
-              <Users className="w-5 h-5 text-purple-600" />
+              <Mail className="w-5 h-5 text-purple-600" />
               <div>
-                <p className="text-sm font-medium text-purple-900">Target Reach</p>
-                <p className="text-xs text-purple-700">Multi-platform</p>
+                <p className="text-sm font-medium text-purple-900">Channels</p>
+                <p className="text-xs text-purple-700">Email + SMS</p>
               </div>
             </div>
           </div>
@@ -187,27 +175,30 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
                 />
               ) : (
                 <ThemeDisplay
-                  campaignId={campaign.id.toString()}
                   currentTheme={campaign.theme || ""}
                   currentDescription={campaign.description}
-                  weekNumber={actualWeekNumber}
                   onEdit={() => setIsEditing(true)}
-                  onContentGenerated={handleContentGenerated}
                 />
               )}
             </div>
           </div>
 
-          {/* Generated Content Section */}
-          <div className="space-y-4">
-            <CampaignContentSection
-              key={contentUpdateKey}
-              campaignId={campaign.id.toString()}
-              campaignTitle={campaign.title}
-              hasTheme={hasTheme}
-              hasDescription={hasDescription}
-              onContentUpdate={handleContentUpdate}
-            />
+          <div className="flex flex-wrap gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <Button
+              onClick={() => navigate(`/crm/campaigns/${campaign.id}`)}
+              className="flex items-center gap-2"
+            >
+              <Mail className="h-4 w-4" />
+              Build Email
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/sms/new?campaign=${campaign.id}`)}
+              className="flex items-center gap-2"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Build SMS
+            </Button>
           </div>
 
         </div>

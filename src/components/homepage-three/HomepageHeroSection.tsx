@@ -113,7 +113,7 @@ export const HomepageHeroSection = ({
         <img
           ref={bannerRef}
           src={heroBanner}
-          alt="A garden centre owner using BloomSuite on a tablet, surrounded by floating panels showing campaigns, schedule, conversion tracking, and social posts"
+          alt="A garden centre owner using BloomSuite on a tablet, surrounded by panels showing email campaigns, customer segments, sales, and loyalty"
           className="hp-hero__banner"
           loading="eager"
           fetchPriority="high"

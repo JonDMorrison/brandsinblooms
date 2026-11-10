@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { HelmetProvider } from "react-helmet-async";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -21,15 +22,21 @@ function LocationDisplay() {
 
 function renderPage(pathname: string) {
   return render(
-    <MemoryRouter initialEntries={[pathname]}>
-      <Routes>
-        <Route
-          path="/integrations/:slug/documentation"
-          element={<IntegrationDocumentationPage />}
-        />
-        <Route path="/integrations" element={<LocationDisplay />} />
-      </Routes>
-    </MemoryRouter>,
+    <HelmetProvider>
+      <MemoryRouter initialEntries={[pathname]}>
+        <Routes>
+          <Route
+            path="/integrations/:slug/documentation"
+            element={<IntegrationDocumentationPage />}
+          />
+          <Route
+            path="/docs/integrations/:slug"
+            element={<IntegrationDocumentationPage />}
+          />
+          <Route path="/integrations" element={<LocationDisplay />} />
+        </Routes>
+      </MemoryRouter>
+    </HelmetProvider>,
   );
 }
 
@@ -108,25 +115,32 @@ describe("IntegrationDocumentationPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders provider-specific Meta documentation content", () => {
-    renderPage("/integrations/meta/documentation");
+  it("publishes the Lightspeed partner guide without requiring dashboard navigation", () => {
+    renderPage("/docs/integrations/lightspeed");
 
     expect(
-      screen.getByRole("heading", { name: "Meta Integration Guide" }),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("heading", {
-        name: "Connecting Your Meta Account",
+        name: "Lightspeed X-Series Integration Guide",
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "Publishing and Analytics Coverage",
+        name: "Connection Links and Permissions",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Connect and Configure" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("link", { name: "Back to Help Centre" }),
+    ).toHaveAttribute("href", "/knowledge-base");
+    expect(
+      screen.getByRole("link", {
+        name: "https://bloomsuite.app/integrations/lightspeed/connect",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "https://bloomsuite.app/integrations/lightspeed/connect",
+    );
+    expect(screen.getByText("customers:read")).toBeInTheDocument();
+    expect(screen.getByText("webhooks")).toBeInTheDocument();
   });
 
   it("supports the requested Google Analytics alias route", () => {

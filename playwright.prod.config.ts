@@ -1,7 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL || "https://www.bloomsuite.app";
+
 /**
- * Playwright config for running E2E tests against the live production site.
+ * Playwright config for running E2E tests against the live production site by
+ * default. PLAYWRIGHT_BASE_URL may be supplied by CI to certify a built QA
+ * artifact before it is merged. The post-merge workflow supplies the immutable
+ * Vercel deployment URL for the exact commit that triggered the run.
+ *
+ * The authenticated release suites share one persisted master-admin tenant
+ * context. Keep execution serial so one spec cannot restore/clear that context
+ * while another spec is still navigating the tenant workspace.
  *
  * Usage:
  *   E2E_EMAIL=you@example.com E2E_PASSWORD=secret \
@@ -15,8 +25,9 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30000,
   retries: 0,
+  workers: 1,
   use: {
-    baseURL: "https://www.bloomsuite.app",
+    baseURL: BASE_URL,
     headless: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
@@ -42,5 +53,5 @@ export default defineConfig({
       },
     },
   ],
-  // No webServer — tests run against the live site
+  // No webServer — CI either targets production or starts a QA preview first.
 });

@@ -8,7 +8,7 @@ interface FeaturePageHeroProps {
 }
 
 export const FeaturePageHero = ({ hero, cta }: FeaturePageHeroProps) => (
-  <section className="relative overflow-hidden bg-gradient-to-b from-[#E1FFFE]/40 to-white px-6 pb-16 pt-28 lg:pb-24 lg:pt-36">
+  <section className="relative overflow-hidden bg-gradient-to-b from-[#E4EEED]/40 to-white px-6 pb-16 pt-28 lg:pb-24 lg:pt-36">
     <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
       <div>
         <SectionEyebrow>{hero.eyebrow}</SectionEyebrow>
@@ -30,7 +30,7 @@ export const FeaturePageHero = ({ hero, cta }: FeaturePageHeroProps) => (
           </Link>
           <Link
             to={cta.secondaryHref}
-            className="inline-flex items-center justify-center rounded-xl border border-[#3E7C77]/30 bg-white px-6 py-3 text-sm font-semibold text-[#2E605C] transition hover:border-[#3E7C77]/60 hover:bg-[#E1FFFE]/40"
+            className="inline-flex items-center justify-center rounded-xl border border-[#3E7C77]/30 bg-white px-6 py-3 text-sm font-semibold text-[#2E605C] transition hover:border-[#3E7C77]/60 hover:bg-[#E4EEED]/40"
           >
             {cta.secondaryLabel}
           </Link>

@@ -1,92 +1,146 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const url = new URL(req.url);
-    const email = url.searchParams.get('email');
-    const tenantId = url.searchParams.get('tenant_id');
-    const token = url.searchParams.get('token');
+    const email = url.searchParams.get("email");
+    const tenantId = url.searchParams.get("tenant_id");
+    const token = url.searchParams.get("token");
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // New sends use an opaque, database-backed token. It supports both the
+    // human GET flow and RFC 8058 one-click POST requests from mailbox UIs.
+    if (token && (!email || !tenantId)) {
+      const ipAddress =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("x-real-ip") ||
+        null;
+      const userAgent = req.headers.get("user-agent") || null;
+      const { data, error } = await supabase.rpc(
+        "unsubscribe_customer_by_preference_token",
+        {
+          p_token: token,
+          p_ip_address: ipAddress,
+          p_user_agent: userAgent,
+        },
+      );
+
+      if (error || !data?.success) {
+        console.error("Opaque unsubscribe token failed:", error);
+        return new Response(
+          getUnsubscribeHTML("Invalid or expired unsubscribe link"),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "text/html" },
+          },
+        );
+      }
+
+      if (req.method === "POST") {
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(
+        getUnsubscribeHTML("You have been successfully unsubscribed", true),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "text/html" },
+        },
+      );
+    }
 
     if (!email || !tenantId) {
-      return new Response(getUnsubscribeHTML('Invalid unsubscribe link'), {
+      return new Response(getUnsubscribeHTML("Invalid unsubscribe link"), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'text/html' }
+        headers: { ...corsHeaders, "Content-Type": "text/html" },
       });
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // SECURITY: [E40] - TODO: Replace btoa token with HMAC-SHA256 signed token
-    // Current token btoa(email:tenant_id) is trivially forgeable. Should use crypto.subtle.sign() with OAUTH_STATE_SECRET.
-    // Simple token validation (email + tenant_id base64 encoded)
+    // Legacy compatibility for links already delivered before opaque tokens
+    // were introduced. All newly rendered messages use the branch above.
     const expectedToken = btoa(`${email}:${tenantId}`);
     if (token !== expectedToken) {
-      return new Response(getUnsubscribeHTML('Invalid unsubscribe token'), {
+      return new Response(getUnsubscribeHTML("Invalid unsubscribe token"), {
         status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'text/html' }
+        headers: { ...corsHeaders, "Content-Type": "text/html" },
       });
     }
 
     // Canonical suppression: record unsubscribe in suppression_list
     const { error: upsertError } = await supabase
-      .from('suppression_list')
-      .upsert({
-        tenant_id: tenantId,
-        email: email.toLowerCase().trim(),
-        suppression_type: 'unsubscribed',
-        channel: 'email',
-        reason: 'unsubscribe_link',
-        auto_suppressed: false,
-        suppressed_at: new Date().toISOString(),
-        lifted_at: null,
-      }, {
-        onConflict: 'tenant_id,email,channel,suppression_type',
-        ignoreDuplicates: false,
-      });
+      .from("suppression_list")
+      .upsert(
+        {
+          tenant_id: tenantId,
+          email: email.toLowerCase().trim(),
+          suppression_type: "unsubscribed",
+          channel: "email",
+          reason: "unsubscribe_link",
+          auto_suppressed: false,
+          suppressed_at: new Date().toISOString(),
+          lifted_at: null,
+        },
+        {
+          onConflict: "tenant_id,email,channel,suppression_type",
+          ignoreDuplicates: false,
+        },
+      );
 
     if (upsertError) {
-      console.error('Error updating subscription:', upsertError);
-      return new Response(getUnsubscribeHTML('Error processing unsubscribe request'), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'text/html' }
-      });
+      console.error("Error updating subscription:", upsertError);
+      return new Response(
+        getUnsubscribeHTML("Error processing unsubscribe request"),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "text/html" },
+        },
+      );
     }
 
     console.log(`Successfully unsubscribed ${email} for tenant ${tenantId}`);
 
-    return new Response(getUnsubscribeHTML('You have been successfully unsubscribed', true), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'text/html' }
-    });
-
+    return new Response(
+      getUnsubscribeHTML("You have been successfully unsubscribed", true),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/html" },
+      },
+    );
   } catch (error) {
-    console.error('Error in handle-unsubscribe function:', error);
-    return new Response(getUnsubscribeHTML('An error occurred while processing your request'), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'text/html' }
-    });
+    console.error("Error in handle-unsubscribe function:", error);
+    return new Response(
+      getUnsubscribeHTML("An error occurred while processing your request"),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "text/html" },
+      },
+    );
   }
 });
 
 function getUnsubscribeHTML(message: string, success = false): string {
-  const status = success ? 'success' : 'error';
-  const bgColor = success ? '#f0f9ff' : '#fef2f2';
-  const borderColor = success ? '#0ea5e9' : '#ef4444';
-  const textColor = success ? '#0c4a6e' : '#7f1d1d';
+  const status = success ? "success" : "error";
+  const bgColor = success ? "#f0f9ff" : "#fef2f2";
+  const borderColor = success ? "#0ea5e9" : "#ef4444";
+  const textColor = success ? "#0c4a6e" : "#7f1d1d";
 
   return `
     <!DOCTYPE html>
@@ -148,9 +202,13 @@ function getUnsubscribeHTML(message: string, success = false): string {
         <div class="status-box">
           <p class="status-text">${message}</p>
         </div>
-        ${success ? `
+        ${
+          success
+            ? `
           <p>You will no longer receive emails from this sender. If you believe this was done in error, please contact the sender directly.</p>
-        ` : ''}
+        `
+            : ""
+        }
         <div class="footer">
           <p>If you have any questions, please contact support.</p>
         </div>

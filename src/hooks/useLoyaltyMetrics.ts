@@ -1,10 +1,45 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  CustomerLoyaltyAccount,
   CustomerLoyaltyMetrics,
   LoyaltyPointsTransaction,
   TenantLoyaltyStats,
 } from "@/types/customerMetrics";
+
+const LOYALTY_ACCOUNT_FIELDS =
+  "provider, program_name, balance, balance_unit, currency, enrolled_at, last_synced_at";
+
+/**
+ * Fetch current provider-reported balances for the staff customer profile.
+ * Provider account identifiers stay server-side; the browser receives only
+ * display fields protected by tenant-scoped RLS.
+ */
+export const useCustomerLoyaltyAccounts = (
+  customerId: string | undefined,
+) => {
+  return useQuery({
+    queryKey: ["customer-loyalty-accounts", customerId],
+    queryFn: async () => {
+      if (!customerId) return [];
+
+      const { data, error } = await supabase
+        .from("loyalty_provider_accounts")
+        .select(LOYALTY_ACCOUNT_FIELDS)
+        .eq("customer_id", customerId)
+        .eq("status", "active")
+        .order("last_synced_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching loyalty accounts:", error);
+        throw error;
+      }
+
+      return (data ?? []) as CustomerLoyaltyAccount[];
+    },
+    enabled: !!customerId,
+  });
+};
 
 /**
  * Fetch loyalty metrics for a specific customer
@@ -195,7 +230,9 @@ export const useTenantLoyaltyStats = (tenantId: string | undefined) => {
           { p_tenant_id: tenantId },
         );
         stats.perks_enrollment_rate = enrollmentRate || 0;
-      } catch (e) {}
+      } catch {
+        stats.perks_enrollment_rate = 0;
+      }
 
       return stats;
     },

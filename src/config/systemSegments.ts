@@ -26,14 +26,14 @@ export const SYSTEM_SEGMENT_PRESENTATIONS: SystemSegmentPresentation[] = [
     id: "new-customers",
     name: "New Customers",
     description:
-      "Recently acquired customers in their first 30 days, prime for onboarding campaigns and first-purchase incentives.",
+      "Customers whose first recorded purchase was in the last 30 days. Imported customers without a first purchase date are not counted.",
     icon: "🆕",
   },
   {
     id: "lapsed-customers",
     name: "Lapsed Customers",
     description:
-      "Previously active customers who haven't engaged or purchased in over 60 days, ideal for re-engagement campaigns.",
+      "Customers whose last recorded purchase was more than 90 days ago, ideal for re-engagement campaigns. Imported customers without a last purchase date are not counted.",
     icon: "😴",
   },
   {
@@ -47,7 +47,7 @@ export const SYSTEM_SEGMENT_PRESENTATIONS: SystemSegmentPresentation[] = [
     id: "frequent-buyers",
     name: "Frequent Buyers",
     description:
-      "Customers who purchase regularly with above-average order frequency, strong candidates for loyalty programs.",
+      "Customers with 3 or more recorded purchases, strong candidates for loyalty programs.",
     icon: "🔄",
   },
   {

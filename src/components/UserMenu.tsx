@@ -8,12 +8,10 @@ import {
   AlertTriangle,
   LayoutDashboard,
   Calendar,
-  Share2,
   ClipboardList,
   Building2,
   Users,
   CreditCard,
-  TrendingUp,
   PlayCircle,
   Rocket,
 } from "lucide-react";
@@ -175,14 +173,6 @@ export const UserMenu = () => {
 
               <button
                 className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center"
-                onClick={() => handleNavigation("/social-accounts")}
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Content Planner
-              </button>
-
-              <button
-                className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center"
                 onClick={() => {
                   sessionStorage.setItem("startProductTour", "true");
                   navigate("/dashboard");
@@ -191,14 +181,6 @@ export const UserMenu = () => {
               >
                 <PlayCircle className="mr-2 h-4 w-4" />
                 Start Product Tour
-              </button>
-
-              <button
-                className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center"
-                onClick={() => handleNavigation("/social-accounts")}
-              >
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Analytics & Scheduling
               </button>
 
               <button
@@ -308,7 +290,7 @@ export const UserMenu = () => {
                 <li>• Delete all campaigns and content tasks</li>
                 <li>• Clear company profile information</li>
                 <li>• Reset tokens to 100</li>
-                <li>• Remove social media connections</li>
+                <li>• Remove saved integration connections</li>
                 <li>• Clear all generated content</li>
                 <li>• Trigger re-onboarding process</li>
               </ul>

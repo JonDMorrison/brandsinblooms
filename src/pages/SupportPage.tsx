@@ -1,230 +1,316 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Textarea } from '@/components/ui-legacy/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui-legacy/dialog';
-import { BookOpen, ExternalLink, Loader2, Mail } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useRef, useState } from "react";
+import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import Button from "@mui/joy/Button";
+import Sheet from "@mui/joy/Sheet";
+import Box from "@mui/joy/Box";
+import Alert from "@mui/joy/Alert";
+import Skeleton from "@mui/joy/Skeleton";
+import Link from "@mui/joy/Link";
+import Chip from "@mui/joy/Chip";
+import { ArrowRight, BookOpen, Inbox, LifeBuoy } from "lucide-react";
+import { differenceInCalendarDays, differenceInHours, differenceInMinutes, format } from "date-fns";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
+import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
+import { TicketConversation } from "@/components/bloomSupport/TicketConversation";
+import { clientName as deskClientName } from "@/components/bloomSupport/desk/statusWords";
+import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
+import { StatusChip } from "@/components/bloomSupport/chips";
+import { bloomSupport, type TicketSummary } from "@/lib/bloomSupport/api";
+import { isNextAction } from "../../supabase/functions/_shared/bloom-support/next-step";
 
-const KNOWLEDGE_BASE_URL = 'https://bloomsuite.notion.site/bloomsuite-help';
+export const SUPPORT_MOBILE_GRID_TRACK = "minmax(0, 1fr)";
 
+/** Compact inbox age: "now", "12m", "3h", "4d", then the date. */
+function shortAge(iso: string, now = new Date()): string {
+  const date = new Date(iso);
+  const minutes = differenceInMinutes(now, date);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = differenceInHours(now, date);
+  if (hours < 24) return `${hours}h`;
+  const days = differenceInCalendarDays(now, date);
+  return days < 7 ? `${days}d` : format(date, "MMM d");
+}
+
+/** The client name is already shown below the issue; don't repeat a "Horsford:" prefix. */
+function requestTitle(t: TicketSummary): string {
+  const subject = t.subject.trim();
+  const firstWord = t.account?.name?.trim().split(/\s+/)[0];
+  if (!firstWord || firstWord.length < 4) return subject;
+  const prefix = firstWord.toLowerCase() + ":";
+  return subject.toLowerCase().startsWith(prefix) ? subject.slice(prefix.length).trim() : subject;
+}
+
+/** A request is waiting on us when it needs an owner's decision or the client wrote last. */
+function needsAttention(t: TicketSummary): boolean {
+  if (t.status === "resolved") return !!t.pending_review;
+  if (t.status === "needs_owner" || t.pending_review) return true;
+  // A customer message is not automatically a staff task while Bloom owns
+  // the conversation. Only a named handoff/decision should interrupt staff.
+  if (t.automation === "auto") return false;
+  if (!t.last_customer_message_at) return false;
+  return !t.last_team_message_at || new Date(t.last_customer_message_at) > new Date(t.last_team_message_at);
+}
+
+/**
+ * Help & Support for BloomSuite users. Requests go to Bloom Support (the shared
+ * support system for BloomSites, CRM and POS); people see and reply to their
+ * own requests here.
+ */
 const SupportPage = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  // Staff emails link here as /support?ticket=<id>&action=<recommended action>.
+  // The link only opens the ticket with the action pre-selected; nothing runs until a person confirms.
+  const [params] = useSearchParams();
+  const linkedTicket = params.get("ticket");
+  const linkedAction = params.get("action");
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<string | null>(linkedTicket && /^[0-9a-f-]{36}$/i.test(linkedTicket) ? linkedTicket : null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const requestRefs = useRef(new Map<string, HTMLButtonElement>());
+  const me = useQuery({ queryKey: ["bloom-support", "me"], queryFn: () => bloomSupport.me(), staleTime: 60_000 });
+  const mine = useQuery({ queryKey: ["bloom-support", "tickets", "mine-client"], queryFn: () => bloomSupport.listTickets({ limit: "50" }), enabled: !!me.data, refetchInterval: 30_000 });
+  const staff = !!me.data && me.data.permissions.includes("tickets.read_all");
+  const orderedRequests = [...(mine.data ?? [])].sort((a, b) =>
+    (staff ? Number(needsAttention(b)) - Number(needsAttention(a)) : 0) ||
+    new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
 
-  const [ticketOpen, setTicketOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  // Pre-fill from the signed-in user whenever the dialog opens
   useEffect(() => {
-    if (ticketOpen) {
-      const metaName =
-        (user?.user_metadata?.full_name as string | undefined) ??
-        (user?.user_metadata?.name as string | undefined) ??
-        '';
-      setName(metaName);
-      setEmail(user?.email ?? '');
-      setSubject('');
-      setMessage('');
-    }
-  }, [ticketOpen, user]);
+    if (selected) detailRef.current?.focus();
+  }, [selected]);
 
-  const canSubmit =
-    name.trim().length > 0 &&
-    email.trim().length > 0 &&
-    subject.trim().length > 0 &&
-    message.trim().length > 0 &&
-    !submitting;
+  if (me.isLoading) {
+    return (
+      <PageContainer>
+        <Stack spacing={2} aria-busy="true">
+          <div>
+            <Typography level="h2">Loading support</Typography>
+            <Typography level="body-md" textColor="text.secondary">Loading your support workspace…</Typography>
+          </div>
+          <Sheet
+            role="status"
+            aria-label="Loading your support workspace"
+            aria-live="polite"
+            variant="outlined"
+            sx={{ p: 2, borderRadius: "lg" }}
+          >
+            <Stack spacing={1.25} aria-hidden="true">
+              <Skeleton variant="text" level="title-md" sx={{ width: "min(240px, 70%)" }} />
+              <Skeleton variant="rectangular" height={88} sx={{ borderRadius: "md" }} />
+            </Stack>
+          </Sheet>
+        </Stack>
+      </PageContainer>
+    );
+  }
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!canSubmit) return;
+  if (me.error) {
+    return (
+      <PageContainer>
+        <Stack spacing={2}>
+          <div>
+            <Typography level="h2">Support unavailable</Typography>
+            <Typography level="body-md" textColor="text.secondary">We couldn't confirm which support workspace you should see.</Typography>
+          </div>
+          <Sheet role="alert" variant="outlined" sx={{ p: 2, borderRadius: "lg" }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ sm: "center" }}>
+              <Typography level="body-sm">Try again to securely load your support access.</Typography>
+              <Button
+                variant="outlined"
+                color="neutral"
+                loading={me.isFetching}
+                onClick={() => { void me.refetch(); }}
+                sx={{ minHeight: 44, alignSelf: { xs: "stretch", sm: "auto" } }}
+              >
+                Retry
+              </Button>
+            </Stack>
+          </Sheet>
+        </Stack>
+      </PageContainer>
+    );
+  }
 
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-support-ticket', {
-        body: {
-          name: name.trim(),
-          email: email.trim(),
-          subject: subject.trim(),
-          message: message.trim(),
-        },
-      });
-
-      if (error) throw error;
-      if ((data as { error?: string })?.error) {
-        throw new Error((data as { error: string }).error);
-      }
-
-      toast({
-        title: 'Message sent',
-        description: "Your message has been sent. We'll get back to you within 1 business day.",
-      });
-      setTicketOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Could not send message',
-        description: err instanceof Error ? err.message : 'Please try again in a moment.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
+  const showRequestList = () => {
+    const previous = selected;
+    setSelected(null);
+    requestAnimationFrame(() => {
+      if (previous) requestRefs.current.get(previous)?.focus();
+    });
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Support & Help</h1>
-        <p className="text-muted-foreground">
-          Get help and support for your BloomSuite account
-        </p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Contact Support
-            </CardTitle>
-            <CardDescription>
-              Send us a message and we'll reply within 1 business day
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full" onClick={() => setTicketOpen(true)}>
-              Create a ticket
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              Knowledge Base
-            </CardTitle>
-            <CardDescription>
-              Browse guides, how-tos, and best practices
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+    <PageContainer
+      fullWidth={staff}
+      sx={staff ? { height: { md: "calc(100dvh - 96px)" } } : undefined}
+    >
+      <Stack spacing={3} sx={staff ? { height: "100%", minHeight: 0 } : undefined}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "flex-end" }} spacing={2}>
+          <Stack spacing={0.5}>
+            <Typography level="h2">{staff ? "Support" : "Help & Support"}</Typography>
+            <Typography level="body-md" textColor="text.secondary">
+              {staff
+                ? "Stay focused on the client conversation. Bloom keeps the background work moving."
+                : "Report a problem, ask a question, or request a change. Track the conversation and replies here."}
+            </Typography>
+          </Stack>
+          {staff ? (
             <Button
-              variant="outline"
-              className="w-full"
-              asChild
+              component={RouterLink}
+              to="/admin/bloom-support"
+              variant="outlined"
+              color="neutral"
+              endDecorator={<ArrowRight size={16} aria-hidden />}
+              sx={{ borderRadius: "md", alignSelf: { xs: "flex-start", sm: "auto" }, flex: "0 0 auto" }}
             >
-              <a
-                href={KNOWLEDGE_BASE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Visit Knowledge Base
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </a>
+              Open full support desk
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          ) : null}
+        </Stack>
+        {!staff ? (
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", flex: 1 }}>
+              <Stack direction="row" spacing={1} alignItems="center"><LifeBuoy size={18} aria-hidden /><Typography level="title-md">Get help</Typography></Stack>
+              <Typography level="body-sm" sx={{ my: 1 }}>Describe what's happening. No need to choose a category — we'll route it.</Typography>
+              <Button onClick={() => setOpen(true)}>Start a request</Button>
+            </Sheet>
+            <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg", flex: 1 }}>
+              <Stack direction="row" spacing={1} alignItems="center"><BookOpen size={18} aria-hidden /><Typography level="title-md">Help centre</Typography></Stack>
+              <Typography level="body-sm" sx={{ my: 1 }}>Guides and answers to common questions.</Typography>
+              <Button variant="outlined" component={RouterLink} to="/knowledge-base">Open help centre</Button>
+            </Sheet>
+          </Stack>
+        ) : null}
 
-      <Dialog open={ticketOpen} onOpenChange={setTicketOpen}>
-        <DialogContent className="max-w-lg">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Contact Support</DialogTitle>
-              <DialogDescription>
-                Send us a message. We'll reply within 1 business day.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-name">Name</Label>
-              <Input
-                id="support-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-email">Email</Label>
-              <Input
-                id="support-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-subject">Subject</Label>
-              <Input
-                id="support-subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="What's this about?"
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="support-message">Message</Label>
-              <Textarea
-                id="support-message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Describe what you need help with..."
-                rows={6}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setTicketOpen(false)}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!canSubmit}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  'Send Message'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+        <Box sx={staff ? { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" } : undefined}>
+          {mine.error && <Alert color="danger">{(mine.error as Error).message}</Alert>}
+          {mine.isLoading && <Skeleton variant="rectangular" height={120} sx={{ borderRadius: "lg" }} />}
+          {mine.data?.length === 0 && <Typography level="body-sm" textColor="text.tertiary">{staff ? "No client requests yet." : "You haven't sent any requests yet."}</Typography>}
+          {mine.data && mine.data.length > 0 && (
+            <Sheet
+              variant="outlined"
+              sx={{
+                borderRadius: "xl",
+                borderColor: "divider",
+                boxShadow: "sm",
+                bgcolor: "background.surface",
+                display: "grid",
+                gridTemplateColumns: { xs: SUPPORT_MOBILE_GRID_TRACK, md: "minmax(300px, 360px) minmax(0, 1fr)" },
+                gridTemplateRows: "minmax(0, 1fr)",
+                minWidth: 0,
+                minHeight: staff ? { xs: 480, md: 0 } : 360,
+                flex: staff ? 1 : undefined,
+                overflow: "hidden",
+              }}
+            >
+              <Box sx={{ display: { xs: selected ? "none" : "flex", md: "flex" }, flexDirection: "column", minWidth: 0, minHeight: 0, borderRight: { md: "1px solid" }, borderColor: { md: "divider" }, bgcolor: "background.level1" }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+                  <Typography level="title-md" sx={{ flex: 1 }}>{staff ? "Recent requests" : "Your requests"}</Typography>
+                  <Chip size="sm" variant="soft" color="neutral">{mine.data.length}</Chip>
+                </Stack>
+                <Stack role="list" aria-label={staff ? "Recent client conversations" : "Your support requests"} spacing={0} sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 0 }}>
+                  {orderedRequests.map((t) => {
+                    const active = selected === t.id;
+                    const attention = needsAttention(t);
+                    const name = staff ? deskClientName(t) : t.subject;
+                    return (
+                      <Box key={t.id} role="listitem">
+                        <Box
+                          component="button"
+                          ref={(node: HTMLButtonElement | null) => {
+                            if (node) requestRefs.current.set(t.id, node);
+                            else requestRefs.current.delete(t.id);
+                          }}
+                          type="button"
+                          aria-current={active ? "true" : undefined}
+                          aria-label={`Open request #${t.number}: ${t.subject}${attention ? " (needs attention)" : ""}`}
+                          onClick={() => setSelected(t.id)}
+                          sx={{
+                            display: "block",
+                            width: "100%",
+                            px: 2,
+                            py: 1.75,
+                            cursor: "pointer",
+                            border: 0,
+                            borderBottom: "1px solid",
+                            borderBottomColor: "neutral.200",
+                            borderLeft: "3px solid",
+                            borderLeftColor: active ? "primary.500" : "transparent",
+                            borderRadius: 0,
+                            bgcolor: active ? "neutral.100" : "background.surface",
+                            color: "inherit",
+                            font: "inherit",
+                            textAlign: "left",
+                            transition: "background-color 120ms ease",
+                            "&:hover": { bgcolor: active ? "neutral.100" : "neutral.50" },
+                            "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: -2 },
+                          }}
+                        >
+                          <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ minWidth: 0 }}>
+                            {attention ? <Box aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "primary.500", flexShrink: 0, mt: 0.75 }} /> : null}
+                            <Typography level="title-sm" title={t.subject} sx={{
+                              flex: 1, minWidth: 0, fontWeight: attention ? "lg" : "md", lineHeight: 1.35,
+                              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                              overflow: "hidden", textOverflow: "ellipsis",
+                            }}>
+                              {staff ? requestTitle(t) : name}
+                            </Typography>
+                            <Typography level="body-xs" textColor="text.tertiary" sx={{ flexShrink: 0, pt: 0.25 }} title={new Date(t.updated_at).toLocaleString()}>{shortAge(t.updated_at)}</Typography>
+                          </Stack>
+                          {staff ? <Typography level="body-xs" textColor="text.secondary" noWrap sx={{ mt: 0.75 }}>{name}</Typography> : null}
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+                            <Typography level="body-xs" textColor="text.tertiary">#{t.number}</Typography>
+                            <StatusChip status={t.status} audience={staff ? "staff" : "client"} />
+                            {staff && attention && t.status !== "needs_owner" ? (
+                              <Typography level="body-xs" textColor="primary.700" sx={{ fontWeight: "lg" }}>Needs review</Typography>
+                            ) : null}
+                          </Stack>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+              {selected && me.data ? (
+                <Box ref={detailRef} tabIndex={-1} role="region" aria-label="Request details" sx={{ width: "100%", maxWidth: "100%", minWidth: 0, minHeight: { xs: 480, md: 0 }, outline: "none" }}>
+                  {staff ? (
+                    <TicketConversation
+                      key={selected}
+                      ticketId={selected}
+                      me={me.data}
+                      backOn="compact"
+                      onBack={showRequestList}
+                      onShowDetails={() => navigate(`/admin/bloom-support?view=queue&ticket=${encodeURIComponent(selected)}`)}
+                      onOpenTicket={setSelected}
+                      actionHint={selected === linkedTicket && isNextAction(linkedAction) ? linkedAction : null}
+                    />
+                  ) : (
+                    <>
+                      <Link component="button" level="body-sm" sx={{ m: 1, display: { md: "none" } }} onClick={showRequestList}>← All requests</Link>
+                      <TicketDetailPane key={selected} ticketId={selected} me={me.data} onOpenTicket={setSelected} />
+                    </>
+                  )}
+                </Box>
+              ) : (
+                <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", justifyContent: "center", minHeight: 0 }}>
+                  <JoyEmptyState
+                    icon={<Inbox size={28} aria-hidden />}
+                    title={staff ? "Pick a conversation" : "Pick a request"}
+                    description={staff ? "Choose a conversation on the left to read the thread and reply." : "Choose a request on the left to see replies and add more detail."}
+                  />
+                </Box>
+              )}
+            </Sheet>
+          )}
+        </Box>
+      </Stack>
+      <ReportProblemDialog open={open} onClose={() => { setOpen(false); mine.refetch(); }} />
+    </PageContainer>
   );
 };
 

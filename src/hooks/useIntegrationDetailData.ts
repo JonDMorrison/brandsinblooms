@@ -26,12 +26,13 @@ import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 const REQUEST_INTEGRATION_MAILTO =
-  "mailto:support@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
+  `mailto:${SUPPORT_EMAIL}?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A`;
 
 const EMAIL_INFRASTRUCTURE_SUPPORT_MAILTO =
-  "mailto:support@bloomsuite.app?subject=Email%20Infrastructure%20Support&body=Hi%20BloomSuite%20team%2C%0A%0AI%20need%20help%20with%20my%20email%20infrastructure.%0A";
+  `mailto:${SUPPORT_EMAIL}?subject=Email%20Infrastructure%20Support&body=Hi%20BloomSuite%20team%2C%0A%0AI%20need%20help%20with%20my%20email%20infrastructure.%0A`;
 
 const REQUIRED_SQUARE_WEBHOOK_EVENTS = [
   "payment.created",
@@ -67,6 +68,7 @@ const META_OAUTH_SCOPE =
   "pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_manage_insights,read_insights";
 
 const COMING_SOON_INTEGRATION_SLUGS = [
+  "clover",
   "hubspot",
   "zapier",
   "slack",
@@ -107,6 +109,34 @@ const COMING_SOON_CONTENT: Record<
   ComingSoonIntegrationSlug,
   ComingSoonContent
 > = {
+  clover: {
+    statusLabel: "Awaiting Clover approval",
+    statusTone: "warning",
+    availabilityLabel: "Vendor approval pending",
+    description:
+      "BloomSuite's Clover adapter is staged but disabled while we wait for formal API approval and the final production contract from Clover.",
+    metadata: [
+      "Category: POS Systems",
+      "Scope: Customers, products, sales, loyalty, and webhooks",
+      "Availability: Blocked on Clover approval",
+    ],
+    capabilities: [
+      "Sync resolved Clover customers into one BloomSuite profile",
+      "Import products and transaction history for segmentation",
+      "Receive approved real-time sales and refund webhooks",
+      "Reconcile Clover loyalty data without duplicating customers",
+    ],
+    callout: {
+      tone: "warning",
+      title: "Clover is not available for connection yet.",
+      description:
+        "OAuth, synchronization, tests, and webhooks remain server-side disabled until formal vendor approval is recorded.",
+    },
+    notifyLabel: "Notify me when Clover is approved",
+    notifyConfirmation:
+      "You're on the list. We'll notify you when Clover is approved and available.",
+    requestLabel: "Ask about Clover availability →",
+  },
   shopify: {
     statusLabel: "Coming soon",
     statusTone: "warning",
@@ -3992,7 +4022,7 @@ export function useIntegrationDetailData(
 ) {
   const { user, loading: authLoading } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  const { hasRole } = useUserRole();
+  const { hasPermission } = useUserRole();
   const { data: isSuperAdmin = false } = useIsSuperAdmin();
   const queryClient = useQueryClient();
   const seed = slug ? getIntegrationSeed(slug) : null;
@@ -4027,6 +4057,10 @@ export function useIntegrationDetailData(
       const fallback = buildFallbackResult(seed);
       if (!fallback) {
         return null;
+      }
+
+      if (seed.defaultStatus === "coming-soon") {
+        return fallback;
       }
 
       switch (seed.slug) {
@@ -4731,6 +4765,10 @@ export function useIntegrationDetailData(
     const base = query.data ?? buildFallbackResult(seed);
     if (!base) {
       return null;
+    }
+
+    if (seed?.defaultStatus === "coming-soon") {
+      return base;
     }
 
     if (seed?.slug === "square") {
@@ -8531,7 +8569,7 @@ export function useIntegrationDetailData(
     requestPath: resolved?.requestPath,
     canUseActions:
       !isComingSoonIntegrationSlug(resolved?.item?.slug ?? null) &&
-      hasRole("member"),
+      hasPermission("integrations.manage"),
     canAccessLightspeedAdminFeatures:
       resolved?.item?.slug === "lightspeed" ? isSuperAdmin : false,
     canDisconnect: Boolean(

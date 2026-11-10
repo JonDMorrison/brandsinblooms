@@ -1,150 +1,102 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { HelmetProvider } from "react-helmet-async";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { HomepagePresentation } from "./HomepagePresentation";
-import { HOMEPAGE_ANALYTICS_CONSENT_STORAGE_KEY } from "./homepageTelemetry";
 import { HOMEPAGE_SEO, HOMEPAGE_STRUCTURED_DATA } from "./homepageSeo";
-import { HOMEPAGE_SECTIONS, HOMEPAGE_TRANSITIONS } from "./sectionConfig";
+import { HOMEPAGE_ANALYTICS_CONSENT_STORAGE_KEY } from "./homepageTelemetry";
+import { HOMEPAGE_SECTIONS } from "./sectionConfig";
+import { AI_CAPABILITIES_HEADER } from "./content/aiCapabilitiesContent";
 import {
-  FOOTER_CONTENT,
   PRICING_CARDS_LABEL,
   PRICING_PLANS,
   PRICING_SECTION_HEADER,
 } from "./content/pricingCtaFooterContent";
-// TEMP: testimonials hidden until verified quotes are sourced —
-// imports of TESTIMONIAL_CARDS_LABEL / TESTIMONIALS /
-// TESTIMONIALS_SECTION_HEADER removed alongside the section assertions.
 
-const renderHomepage = (hash = "") => {
-  window.history.replaceState(null, "", `/${hash}`);
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ loading: false, user: null }),
+}));
 
-  return render(
+const renderHomepage = () =>
+  render(
     <HelmetProvider>
       <MemoryRouter>
         <HomepagePresentation />
       </MemoryRouter>
     </HelmetProvider>,
   );
-};
 
 describe("HomepagePresentation", () => {
   beforeEach(() => {
-    window.localStorage.removeItem("bloomsuite.homepage.animationsDisabled");
     window.localStorage.removeItem(HOMEPAGE_ANALYTICS_CONSENT_STORAGE_KEY);
     delete window.dataLayer;
   });
 
   afterEach(() => {
-    window.history.replaceState(null, "", "/");
-    window.localStorage.removeItem("bloomsuite.homepage.animationsDisabled");
-    window.localStorage.removeItem(HOMEPAGE_ANALYTICS_CONSENT_STORAGE_KEY);
     delete window.dataLayer;
-    document.body.style.overflow = "";
-    document.documentElement.style.overflow = "";
+    document.documentElement.style.scrollBehavior = "";
   });
 
-  it("renders the locked shell, nav, and seven progress dots", () => {
-    renderHomepage();
-
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "0",
-    );
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-device-tier",
-      "fallback",
-    );
-    // The "Homepage navigation" landmark and the "Homepage section
-    // progress" rail were retired when the homepage swapped to the
-    // shared LandingPageHeader (refactor/homepage-use-shared-nav). The
-    // older assertions on those elements were removed.
-    expect(
-      within(screen.getByLabelText("Homepage section progress")).getAllByRole(
-        "button",
-        {
-          name: /^Navigate to /,
-        },
-      ),
-    ).toHaveLength(7);
-    expect(document.body.style.overflow).toBe("hidden");
-    expect(document.documentElement.style.overflow).toBe("hidden");
-  });
-
-  it("exposes HP-M12 semantic landmarks, skip link, and labelled sections", () => {
+  it("renders the shared navigation and every configured homepage section", () => {
     renderHomepage();
 
     expect(
       screen.getByRole("main", { name: "BloomSuite homepage" }),
     ).toBeInTheDocument();
+    expect(screen.getAllByRole("banner").length).toBeGreaterThan(0);
+
+    const sections = screen
+      .getAllByRole("region")
+      .filter((section) => section.hasAttribute("data-section-id"));
+    expect(sections).toHaveLength(HOMEPAGE_SECTIONS.length);
+    expect(sections.map((section) => section.id)).toEqual(
+      HOMEPAGE_SECTIONS.map((section) => section.id),
+    );
+  });
+
+  it("renders the garden-center product, AI, integration, and pricing content", () => {
+    renderHomepage();
+
     expect(
-      screen.getByRole("link", { name: "Skip to content" }),
-    ).toHaveAttribute("href", "#homepage-main-content");
-    expect(
-      screen.getByRole("region", { name: "Hero section" }),
-    ).toHaveAttribute("id", "hero");
-    expect(
-      screen.getByRole("navigation", { name: "Homepage section progress" }),
+      screen.getByRole("heading", { name: "What you get with BloomSuite" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: AI_CAPABILITIES_HEADER.headline }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Connects to what you already use." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: PRICING_SECTION_HEADER.headline }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByLabelText(PRICING_CARDS_LABEL)).getAllByRole("article"),
+    ).toHaveLength(PRICING_PLANS.length);
   });
 
   it("sets homepage SEO metadata and structured data", async () => {
     renderHomepage();
 
     await waitFor(() => expect(document.title).toBe(HOMEPAGE_SEO.title));
-
     expect(
-      document
-        .querySelector('meta[name="description"]')
-        ?.getAttribute("content"),
+      document.querySelector('meta[name="description"]')?.getAttribute("content"),
     ).toBe(HOMEPAGE_SEO.description);
     expect(
       document.querySelector('link[rel="canonical"]')?.getAttribute("href"),
     ).toBe(HOMEPAGE_SEO.url);
-    expect(
-      document
-        .querySelector('meta[property="og:title"]')
-        ?.getAttribute("content"),
-    ).toBe(HOMEPAGE_SEO.title);
-    expect(
-      document
-        .querySelector('meta[name="twitter:card"]')
-        ?.getAttribute("content"),
-    ).toBe("summary_large_image");
 
     const jsonLd = JSON.parse(
       document.querySelector('script[type="application/ld+json"]')
         ?.textContent ?? "[]",
     );
-
     expect(jsonLd.map((entry: { "@type": string }) => entry["@type"])).toEqual(
       HOMEPAGE_STRUCTURED_DATA.map((entry) => entry["@type"]),
     );
   });
 
-  it("persists the animation preference toggle", () => {
-    renderHomepage();
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.click(screen.getByRole("button", { name: "Disable animations" }));
-
-    expect(shell).toHaveAttribute("data-animations-disabled", "true");
-    expect(
-      window.localStorage.getItem("bloomsuite.homepage.animationsDisabled"),
-    ).toBe("true");
-    expect(
-      screen.getByRole("button", { name: "Enable animations" }),
-    ).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("fires consent-gated homepage analytics for page, section, and CTA events", async () => {
+  it("records a consented page view", async () => {
     window.localStorage.setItem(
       HOMEPAGE_ANALYTICS_CONSENT_STORAGE_KEY,
       "granted",
@@ -152,296 +104,22 @@ describe("HomepagePresentation", () => {
     renderHomepage();
 
     await waitFor(() =>
-      expect(window.dataLayer?.map((event) => event.event)).toContain(
-        "homepage_page_view",
-      ),
-    );
-
-    fireEvent.keyDown(window, { key: "ArrowDown" });
-    // The "Start Free Trial" button click + cta_click expectation was
-    // removed when the homepage adopted the shared LandingPageHeader —
-    // that button lived on the old custom hp-nav and no longer exists
-    // in this component. Section-view event still fires and is asserted.
-    await waitFor(() =>
       expect(window.dataLayer).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            event: "homepage_section_view",
-            section: "features",
+            event: "homepage_page_view",
+            section: "hero",
           }),
         ]),
       ),
     );
   });
 
-  it("deep-links only to known hash sections", () => {
-    renderHomepage("#ai");
+  it("enables smooth scrolling only while mounted", () => {
+    const view = renderHomepage();
+    expect(document.documentElement.style.scrollBehavior).toBe("smooth");
 
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "3",
-    );
-    expect(window.location.hash).toBe("#ai");
+    view.unmount();
+    expect(document.documentElement.style.scrollBehavior).toBe("");
   });
-
-  it("renders the feature highlights section at the features hash", () => {
-    renderHomepage("#features");
-
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "1",
-    );
-    const featureSection = screen.getByTestId("homepage-feature-highlights");
-    expect(featureSection).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "What you get with BloomSuite" }),
-    ).toBeInTheDocument();
-    expect(within(featureSection).getAllByRole("article")).toHaveLength(6);
-  });
-
-  it("renders the CRM showcase at the customer-growth hash", () => {
-    renderHomepage("#customer-growth");
-
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "2",
-    );
-    expect(screen.getByTestId("homepage-crm-showcase")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: "A CRM shaped like a garden centre.",
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText("CRM feature callouts")).getAllByRole(
-        "article",
-      ),
-    ).toHaveLength(3);
-  });
-
-  it("renders the AI capabilities section at the AI hash without particles", () => {
-    renderHomepage("#ai");
-
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "3",
-    );
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-surface",
-      "dark",
-    );
-    expect(screen.getByTestId("homepage-ai-capabilities")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "AI that knows your customers." }),
-    ).toBeInTheDocument();
-    expect(document.querySelector(".hp-particle-canvas")).toBeNull();
-  });
-
-  it("renders the impact and how-it-works section at the automation hash", () => {
-    renderHomepage("#automation");
-
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "4",
-    );
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-surface",
-      "light",
-    );
-    expect(
-      screen.getByTestId("homepage-impact-how-it-works"),
-    ).toBeInTheDocument();
-    // Old "Real Impact / Why Teams Choose BloomSuite" stats block + the
-    // separate "Get Started in 3 Easy Steps" header are gone.
-    // IMPACT_SECTION_HEADER now drives the single Getting Started header.
-    expect(
-      screen.getByRole("heading", { name: "Up and running in a week." }),
-    ).toBeInTheDocument();
-  });
-
-  it("renders the integrations ecosystem section at the integrations hash", () => {
-    renderHomepage("#integrations");
-
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "5",
-    );
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-surface",
-      "subtle",
-    );
-    expect(
-      screen.getByTestId("homepage-integrations-ecosystem"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Connects to what you already use." }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText("Integration ecosystem logos")).getAllByRole(
-        "img",
-      ),
-    ).toHaveLength(11);
-  });
-
-  // TEMP: testimonials hidden until verified quotes are sourced.
-  // The previous "renders the testimonials social proof section at the
-  // testimonials hash" test was removed alongside the section.
-
-  it("renders the final pricing CTA and footer section at the start hash", () => {
-    renderHomepage("#start");
-
-    const shell = screen.getByTestId("homepage-shell");
-    const progressButtons = within(
-      screen.getByLabelText("Homepage section progress"),
-    ).getAllByRole("button", { name: /^Navigate to / });
-
-    expect(shell).toHaveAttribute("data-current-section", "6");
-    expect(shell).toHaveAttribute("data-current-surface", "light");
-    expect(
-      screen.getByTestId("homepage-pricing-cta-footer"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: PRICING_SECTION_HEADER.headline }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText(PRICING_CARDS_LABEL)).getAllByRole(
-        "article",
-      ),
-    ).toHaveLength(PRICING_PLANS.length);
-    expect(progressButtons[progressButtons.length - 1]).toHaveAttribute(
-      "data-state",
-      "active",
-    );
-    expect(HOMEPAGE_SECTIONS[6]).toMatchObject({
-      id: "start",
-      slug: "start",
-      surface: "light",
-      particleTint: "sage",
-    });
-  });
-
-  // The "routes the Pricing nav item to the final conversion section"
-  // test was removed when the homepage adopted the shared
-  // LandingPageHeader. Pricing routing now goes through that header's
-  // <Link to="/pricing"> which is already covered by the shared nav's
-  // own tests.
-
-  it("persists the footer disable animations link end-to-end", () => {
-    renderHomepage("#start");
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.click(
-      screen.getByRole("link", {
-        name: FOOTER_CONTENT.disableAnimationsLabel,
-      }),
-    );
-
-    expect(shell).toHaveAttribute("data-animations-disabled", "true");
-    expect(
-      window.localStorage.getItem("bloomsuite.homepage.animationsDisabled"),
-    ).toBe("true");
-  });
-
-  it("uses the HP-M11 section choreography map", () => {
-    expect(HOMEPAGE_SECTIONS.map((section) => section.id)).toEqual([
-      "hero",
-      "features",
-      "customer-growth",
-      "ai",
-      "automation",
-      "integrations",
-      "start",
-    ]);
-    expect(HOMEPAGE_TRANSITIONS).toEqual([
-      { from: 0, to: 1, type: "slide-up", durationMs: 700 },
-      { from: 1, to: 2, type: "slide-up", durationMs: 700 },
-      { from: 2, to: 3, type: "dissolve", durationMs: 800 },
-      { from: 3, to: 4, type: "dissolve", durationMs: 800 },
-      { from: 4, to: 5, type: "crossfade-hold", durationMs: 600 },
-      { from: 5, to: 6, type: "scale-fade", durationMs: 700 },
-    ]);
-    expect(HOMEPAGE_SECTIONS[3]).toMatchObject({
-      id: "ai",
-      surface: "dark",
-      particleDensity: 0,
-      particleTint: "none",
-    });
-    expect(HOMEPAGE_SECTIONS[4]).toMatchObject({
-      id: "automation",
-      surface: "light",
-      particleTint: "sage",
-    });
-  });
-
-  it("normalizes a wheel flick to one section advance", () => {
-    renderHomepage();
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.wheel(shell, { deltaY: 120, deltaMode: 0 });
-    fireEvent.wheel(shell, { deltaY: 180, deltaMode: 0 });
-
-    expect(shell).toHaveAttribute("data-current-section", "1");
-    expect(shell).toHaveAttribute("data-transition-type", "slide-up");
-    expect(window.location.hash).toBe("#features");
-  });
-
-  it("does not advance when wheel input starts inside a scrollable gesture-locked section", () => {
-    renderHomepage("#features");
-    const shell = screen.getByTestId("homepage-shell");
-    const featureSection = screen.getByTestId("homepage-feature-highlights");
-
-    Object.defineProperty(featureSection, "scrollHeight", {
-      configurable: true,
-      value: 1200,
-    });
-    Object.defineProperty(featureSection, "clientHeight", {
-      configurable: true,
-      value: 600,
-    });
-
-    fireEvent.wheel(featureSection, { deltaY: 180, deltaMode: 0 });
-
-    expect(shell).toHaveAttribute("data-current-section", "1");
-    expect(window.location.hash).toBe("#features");
-  });
-
-  it("supports keyboard navigation and no-op edges", () => {
-    renderHomepage();
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.keyDown(window, { key: "ArrowUp" });
-    expect(shell).toHaveAttribute("data-current-section", "0");
-
-    fireEvent.keyDown(window, { key: "ArrowDown" });
-    expect(shell).toHaveAttribute("data-current-section", "1");
-    expect(screen.getByText("Showing Features section")).toBeInTheDocument();
-  });
-
-  it("supports Home and End keyboard section jumps from rest", () => {
-    renderHomepage();
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.keyDown(window, { key: "End" });
-    expect(shell).toHaveAttribute("data-current-section", "6");
-
-    fireEvent.keyDown(window, { key: "ArrowDown" });
-    expect(shell).toHaveAttribute("data-current-section", "6");
-  });
-
-  it("navigates from progress dots at faster speed and updates hash", () => {
-    renderHomepage();
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Navigate to Pricing" }),
-    );
-
-    expect(shell).toHaveAttribute("data-current-section", "6");
-    expect(window.location.hash).toBe("#start");
-  });
-
-  // The "opens and closes the mobile glass menu" test was removed when
-  // the homepage adopted the shared LandingPageHeader. The custom
-  // hp-mobile-overlay panel + hp-menu-button no longer exist here;
-  // mobile nav behavior now lives entirely inside LandingPageHeader.
 });

@@ -9,10 +9,13 @@ import { Textarea } from "@/components/ui-legacy/textarea";
 import { Checkbox } from "@/components/ui-legacy/checkbox";
 import { Label } from "@/components/ui-legacy/label";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, MessageCircle, CheckCircle } from "lucide-react";
+import "@/components/suite/posDemo.css";
+import { productGuideContext } from "@/components/suite/productGuideContext";
+import { posDemoMessage } from "@/components/suite/posDemoContext";
+import { Mail, CheckCircle } from "lucide-react";
 
 const contactFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
@@ -25,6 +28,12 @@ type ContactFormData = z.infer<typeof contactFormSchema>;
 
 const ContactPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const guideContext = productGuideContext(searchParams);
+  const isPosDemo = searchParams.get("product") === "pos";
+  const isSuiteReview = searchParams.get("product") === "suite";
+  // An editable inquiry, never a trusted price, entitlement, or Checkout input.
+  const suiteInquiry = isSuiteReview ? (searchParams.get("suiteEstimate") || "Please help me choose my BloomSuite setup.").slice(0, 900) : "";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -40,12 +49,13 @@ const ContactPage = () => {
     defaultValues: {
       name: "",
       email: "",
-      inquiryTypes: [],
-      message: ""
+      inquiryTypes: isPosDemo ? ["pos"] : isSuiteReview || guideContext ? ["signup"] : [],
+      message: isPosDemo ? posDemoMessage(searchParams) : guideContext?.message || suiteInquiry
     }
   });
 
   const inquiryOptions = [
+    { id: "pos", label: "BloomSuite POS Demonstration" },
     { id: "support", label: "Support & Technical Help" },
     { id: "signup", label: "Signing Up & Getting Started" },
     { id: "general", label: "General Inquiry" },
@@ -66,12 +76,12 @@ const ContactPage = () => {
     try {
       setIsSubmitting(true);
       
-      const { error } = await supabase.functions.invoke('send-contact-form', {
+      const { data: response, error } = await supabase.functions.invoke('send-contact-form', {
         body: data
       });
 
-      if (error) {
-        throw error;
+      if (error || response?.error || response?.success !== true) {
+        throw error || new Error("The message could not be delivered.");
       }
 
       setIsSubmitted(true);
@@ -85,21 +95,23 @@ const ContactPage = () => {
     }
   };
 
+  const pageHeader = isPosDemo ? <header className="pos-demo-header"><a className="pos-demo-brand" href="/pos"><img src="/pos/features-assets/bloomsuite-logo.png" width="36" height="36" alt="" />BloomSuite<span>POS</span></a><a href="/pos">Back to POS</a></header> : <LandingPageHeader onLogin={() => navigate('/auth')} />;
+
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-        <LandingPageHeader onLogin={() => navigate('/auth')} />
+      <div className={isPosDemo ? "pos-demo-inquiry min-h-screen" : "min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30"}>
+        {pageHeader}
         
         <section className="py-16 px-6">
           <div className="max-w-2xl mx-auto">
-            <Card className="p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl">
+            <Card className={isPosDemo ? "pos-demo-card p-6 md:p-8" : "p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl"}>
               <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-6 bg-[#E1FFFE] rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-[#E4EEED] rounded-full flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-[#3E7C77]" />
                 </div>
                 <h1 className="text-3xl font-bold text-accent mb-4">Message Sent!</h1>
                 <p className="text-lg text-muted-foreground mb-8">
-                  Thank you for reaching out. We'll get back to you within 24 hours.
+                  Thank you for reaching out. Our team will review your message and get back to you.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button onClick={() => setIsSubmitted(false)} variant="outline">
@@ -118,33 +130,33 @@ const ContactPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-      <LandingPageHeader onLogin={() => navigate('/auth')} />
+    <div className={isPosDemo ? "pos-demo-inquiry min-h-screen" : "min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30"}>
+      {pageHeader}
       
       {/* Hero Section */}
-      <section className="py-16 px-6 text-center">
+      <section className={isPosDemo ? "pt-12 pb-6 px-6 text-center" : "py-16 px-6 text-center"}>
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold text-accent mb-6">
-            Contact Us
+            {isPosDemo ? "See BloomSuite POS in action" : isSuiteReview ? "Let’s review your BloomSuite setup" : "Contact Us"}
           </h1>
           <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-            Have questions about BloomSuite? We'd love to help.
+            {isPosDemo ? "Bring your current POS, a few everyday jobs and your equipment list. We'll tailor the demonstration to your store, explain setup requirements and help you evaluate the fit." : isSuiteReview ? "Your draft setup is included below. Add your details and send it when you’re ready. We’ll confirm fit, regional pricing and implementation costs." : "Have questions about BloomSuite? We’d love to help."}
           </p>
         </div>
       </section>
 
       {/* Contact Form */}
-      <section className="py-16 px-6">
+      <section className={isPosDemo ? "pb-16 px-6" : "py-16 px-6"}>
         <div className="max-w-2xl mx-auto">
-          <Card className="p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl">
-            <CardHeader className="text-center pb-8">
-              <CardTitle className="text-2xl text-accent mb-2">Get in Touch</CardTitle>
+          <Card className={isPosDemo ? "pos-demo-card p-6 md:p-8" : "p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl"}>
+            <CardHeader className={isPosDemo ? "text-left p-0 pb-6" : "text-center pb-8"}>
+              <CardTitle className="text-2xl text-accent mb-2">{isPosDemo ? "Your POS demonstration" : "Get in Touch"}</CardTitle>
               <p className="text-muted-foreground">
-                Fill out the form below and we'll get back to you as soon as possible.
+                {isPosDemo ? "Your selected topics are included below. Add your store details and edit the request before sending." : "Fill out the form below and we'll get back to you as soon as possible."}
               </p>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className={isPosDemo ? "p-0" : undefined}>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -175,10 +187,10 @@ const ContactPage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className={isPosDemo ? "hidden" : "space-y-4"}>
                   <Label>What can we help you with? *</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {inquiryOptions.map((option) => (
+                    {(isPosDemo ? inquiryOptions.filter(option => option.id === "pos") : inquiryOptions).map((option) => (
                       <div key={option.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={option.id}
@@ -218,7 +230,7 @@ const ContactPage = () => {
                   type="submit"
                   size="lg"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white"
+                  className={isPosDemo ? "w-full bg-[#182639] hover:bg-[#263b56] text-white" : "w-full bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white"}
                 >
                   {isSubmitting ? (
                     <>
@@ -228,7 +240,7 @@ const ContactPage = () => {
                   ) : (
                     <>
                       <Mail className="w-4 h-4 mr-2" />
-                      Send Message
+                      {isPosDemo ? "Request my demo" : "Send Message"}
                     </>
                   )}
                 </Button>
@@ -239,11 +251,11 @@ const ContactPage = () => {
                   <p className="mb-2">Need immediate assistance?</p>
                   <div className="flex items-center justify-center gap-4">
                     <a 
-                      href="mailto:support@brandsinblooms.com" 
+                      href="mailto:bloom@bloomsuite.app"
                       className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
                     >
                       <Mail className="w-4 h-4" />
-                      support@brandsinblooms.com
+                      bloom@bloomsuite.app
                     </a>
                   </div>
                 </div>
@@ -257,3 +269,4 @@ const ContactPage = () => {
 };
 
 export default ContactPage;
+

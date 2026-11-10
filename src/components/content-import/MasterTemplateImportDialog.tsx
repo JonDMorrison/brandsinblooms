@@ -18,6 +18,14 @@ import { useToast } from "@/hooks/use-toast";
 // Removed sonner import - using global toast replacement
 import { Badge } from "@/components/ui-legacy/badge";
 import * as XLSX from "xlsx";
+import {
+  MASTER_TEMPLATE_SPREADSHEET_LIMITS,
+  assertNoWorksheetFormulas,
+  assertSpreadsheetFileSize,
+  assertWorkbookSheetCount,
+  firstWorksheetWithinLimits,
+} from "@/lib/security/spreadsheetLimits";
+import { parseDelimitedText } from "@/utils/csvParser";
 
 interface MasterTemplateImportDialogProps {
   onImportComplete?: () => void;
@@ -47,15 +55,20 @@ export const MasterTemplateImportDialog = ({
   const [previewMode, setPreviewMode] = useState(false);
 
   const parseCSV = (csvText: string): ParsedMasterTemplate[] => {
-    const lines = csvText.split("\n").filter((line) => line.trim());
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const { records } = parseDelimitedText(csvText, {
+      label: MASTER_TEMPLATE_SPREADSHEET_LIMITS.label,
+      maxRows: MASTER_TEMPLATE_SPREADSHEET_LIMITS.maxRows,
+      maxColumns: MASTER_TEMPLATE_SPREADSHEET_LIMITS.maxColumns,
+    });
+    if (records.length < 2) {
+      throw new Error("File must contain a header row and at least one data row");
+    }
+    const headers = records[0].map((header) => header.trim().toLowerCase());
 
     const data: ParsedMasterTemplate[] = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i]
-        .split(",")
-        .map((v) => v.trim().replace(/^"|"$/g, ""));
+    for (let i = 1; i < records.length; i++) {
+      const values = records[i];
 
       if (values.length >= 2) {
         const weekNumber = parseInt(
@@ -89,14 +102,31 @@ export const MasterTemplateImportDialog = ({
   };
 
   const parseExcel = (file: File): Promise<ParsedMasterTemplate[]> => {
+    assertSpreadsheetFileSize(file, MASTER_TEMPLATE_SPREADSHEET_LIMITS);
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array" });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
+          const metadata = XLSX.read(data, { type: "array", bookSheets: true });
+          assertWorkbookSheetCount(
+            metadata,
+            MASTER_TEMPLATE_SPREADSHEET_LIMITS,
+          );
+          const workbook = XLSX.read(data, {
+            type: "array",
+            sheetRows: MASTER_TEMPLATE_SPREADSHEET_LIMITS.maxRows + 1,
+            sheets: [metadata.SheetNames[0]],
+          });
+          const { worksheet } = firstWorksheetWithinLimits(
+            workbook,
+            MASTER_TEMPLATE_SPREADSHEET_LIMITS,
+          );
+          assertNoWorksheetFormulas(
+            worksheet,
+            MASTER_TEMPLATE_SPREADSHEET_LIMITS,
+          );
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
           if (jsonData.length < 2) {
@@ -175,6 +205,10 @@ export const MasterTemplateImportDialog = ({
       setFile(selectedFile);
 
       try {
+        assertSpreadsheetFileSize(
+          selectedFile,
+          MASTER_TEMPLATE_SPREADSHEET_LIMITS,
+        );
         let parsed: ParsedMasterTemplate[] = [];
 
         if (
@@ -200,9 +234,15 @@ export const MasterTemplateImportDialog = ({
           description: `Found ${parsed.length} templates in your file`,
         });
       } catch (error) {
+        setFile(null);
+        setParsedData([]);
+        setPreviewMode(false);
         toast({
           title: "Error",
-          description: "Failed to parse file. Please check the format.",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to parse file. Please check the format.",
           variant: "destructive",
         });
         console.error("File parsing error:", error);
@@ -408,7 +448,7 @@ export const MasterTemplateImportDialog = ({
                   </p>
                   <p>
                     <strong>Supported formats:</strong> CSV, TXT
-                    (comma-separated), Excel
+                    (comma-separated), Excel — up to 5 MB
                   </p>
                   <p>
                     <strong>Example:</strong>

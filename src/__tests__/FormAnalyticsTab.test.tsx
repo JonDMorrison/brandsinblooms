@@ -27,6 +27,7 @@ vi.mock("recharts", () => {
     PieChart: SvgContainer,
     Pie: GroupContainer,
     Area: () => null,
+    Line: () => null,
     Cell: () => null,
     CartesianGrid: () => null,
     Tooltip: () => null,
@@ -253,15 +254,15 @@ describe("FormAnalyticsTab", () => {
       30,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "12M" }));
+    fireEvent.click(screen.getByRole("button", { name: "90 days" }));
 
     expect(useFormAnalyticsMock).toHaveBeenLastCalledWith(
       "form-1",
       "tenant-1",
-      365,
+      90,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    fireEvent.click(screen.getByRole("button", { name: "All time" }));
 
     expect(useFormAnalyticsMock).toHaveBeenLastCalledWith(
       "form-1",
@@ -289,10 +290,12 @@ describe("FormAnalyticsTab", () => {
     );
 
     expect(
-      screen.getByText("No submissions in this range yet"),
+      screen.getByText("No analytics data yet"),
     ).toBeInTheDocument();
 
-    const shareButton = screen.getByRole("button", { name: "Share" });
+    const shareButton = screen.getByRole("button", {
+      name: "Go to Publish tab",
+    });
     expect(shareButton).toBeInTheDocument();
 
     fireEvent.click(shareButton);
@@ -309,10 +312,10 @@ describe("FormAnalyticsTab", () => {
     render(<FormAnalyticsTab formId="form-1" tenantId="tenant-1" />);
 
     expect(
-      screen.getByText("No submissions in this range yet"),
+      screen.getByText("No analytics data yet"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Share" }),
+      screen.queryByRole("button", { name: "Go to Publish tab" }),
     ).not.toBeInTheDocument();
   });
 });

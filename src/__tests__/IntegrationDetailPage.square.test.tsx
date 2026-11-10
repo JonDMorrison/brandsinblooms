@@ -6,9 +6,13 @@ import { buildIntegrationDetailModel } from "@/components/integrations/integrati
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 
 vi.mock("@/hooks/useIntegrationDetailData", () => ({
   useIntegrationDetailData: vi.fn(),
+}));
+vi.mock("@/hooks/useMailchimpImportProgress", () => ({
+  useMailchimpImportProgress: () => ({ jobId: null }),
 }));
 
 vi.mock("sonner", () => ({
@@ -333,13 +337,15 @@ function LocationProbe() {
 
 function renderPage() {
   render(
-    <MemoryRouter initialEntries={["/integrations/square"]}>
-      <Routes>
-        <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
-        <Route path="/crm/automations" element={<div>Automations Route</div>} />
-      </Routes>
-      <LocationProbe />
-    </MemoryRouter>,
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={["/integrations/square"]}>
+        <Routes>
+          <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
+          <Route path="/crm/automations" element={<div>Automations Route</div>} />
+        </Routes>
+        <LocationProbe />
+      </MemoryRouter>
+    </TestQueryClientProvider>,
   );
 }
 
@@ -354,7 +360,7 @@ describe("IntegrationDetailPage Square branch", () => {
 
     expect(screen.getByRole("heading", { name: "Square" })).toBeTruthy();
     expect(screen.getByText("Verify Square webhook coverage")).toBeTruthy();
-    expect(screen.getByText("Bloom Square Merchant")).toBeTruthy();
+    expect(screen.getAllByText("Bloom Square Merchant").length).toBeGreaterThan(0);
   });
 
   it("triggers Square webhook verification from the header actions", async () => {
@@ -374,11 +380,11 @@ describe("IntegrationDetailPage Square branch", () => {
   it("shows Square-specific customer and sales columns", async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /Customers/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Customers/ }));
     expect(await screen.findByText("Customer ID")).toBeTruthy();
     expect(screen.getByText("SQ-CUST-1")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /Sales/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Sales/ }));
     expect(await screen.findByText("Order Type")).toBeTruthy();
     expect(screen.getByText("Automation Fired")).toBeTruthy();
     expect(screen.getByText("Triggered")).toBeTruthy();
@@ -403,7 +409,7 @@ describe("IntegrationDetailPage Square branch", () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /Customers/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Customers/ }));
     expect(
       await screen.findByText("No Square customers synced yet"),
     ).toBeTruthy();

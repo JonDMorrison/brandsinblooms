@@ -1,3 +1,4 @@
+import { ProductFeatureFinderLinks } from "@/components/suite/ProductFeatureFinderLinks";
 import { useNavigate } from 'react-router-dom';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 import { Button } from '@/components/ui-legacy/button';
@@ -165,6 +166,7 @@ export const EcommPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <LandingPageHeader onLogin={handleGetStarted} />
+      <ProductFeatureFinderLinks product="ecomm" />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">

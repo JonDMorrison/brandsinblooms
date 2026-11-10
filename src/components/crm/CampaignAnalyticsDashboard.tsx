@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { useNavigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
 import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
 import { CampaignPerformanceCard } from "./CampaignPerformanceCard";
+import type { CampaignPerformanceMetrics } from "@/lib/crm/campaignAnalyticsSummary";
 import { supabase } from "@/integrations/supabase/client";
 import { useCRMAccess } from "@/hooks/useCRMAccess";
 import {
   CAMPAIGN_STATUS,
   getCampaignStatusLabel,
-  isDeliveredCampaignStatus,
+  isTerminalCampaignStatus,
 } from "@/constants/campaignStatuses";
 import {
   Search,
-  Filter,
-  BarChart3,
   TrendingUp,
   Mail,
   Eye,
@@ -22,6 +27,11 @@ import {
   Download,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatAttributedRevenue } from "@/lib/crm/campaignRevenueMetrics";
+import {
+  aggregateRevenue,
+  toPerformanceMetrics,
+} from "@/lib/crm/campaignAnalyticsSummary";
 
 interface Campaign {
   id: string;
@@ -30,18 +40,18 @@ interface Campaign {
   queued_at: string | null;
   activity_at: string;
   status: string;
-  metrics: {
-    sent: number;
-    delivered: number;
-    opened: number;
-    clicked: number;
-    bounced: number;
-    unsubscribed: number;
-    revenue?: number;
-  } | null;
+  metrics: CampaignPerformanceMetrics | null;
+}
+
+const CAMPAIGN_PAGE_SIZE = 500;
+
+function csvCell(value: unknown): string {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 export const CampaignAnalyticsDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { hasCRMAccess, loading: crmLoading } = useCRMAccess();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,25 +68,30 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
   const loadCampaigns = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("crm_campaigns")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const rows: Array<Record<string, unknown>> = [];
+      for (let from = 0; ; from += CAMPAIGN_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("crm_campaigns")
+          .select("id,name,sent_at,queued_at,created_at,status,metrics")
+          .order("created_at", { ascending: false })
+          .range(from, from + CAMPAIGN_PAGE_SIZE - 1);
 
-      if (error) throw error;
+        if (error) throw error;
+        rows.push(...((data || []) as Array<Record<string, unknown>>));
+        if (!data || data.length < CAMPAIGN_PAGE_SIZE) break;
+      }
 
-      const processedCampaigns: Campaign[] = (data || []).map((campaign) => ({
-        id: campaign.id,
-        name: campaign.name,
-        sent_at: campaign.sent_at,
-        queued_at: campaign.queued_at,
-        activity_at:
+      const processedCampaigns: Campaign[] = rows.map((campaign) => ({
+        id: String(campaign.id),
+        name: String(campaign.name || "Untitled campaign"),
+        sent_at: typeof campaign.sent_at === "string" ? campaign.sent_at : null,
+        queued_at:
+          typeof campaign.queued_at === "string" ? campaign.queued_at : null,
+        activity_at: String(
           campaign.sent_at || campaign.queued_at || campaign.created_at,
-        status: campaign.status,
-        metrics:
-          typeof campaign.metrics === "object" && campaign.metrics !== null
-            ? (campaign.metrics as Campaign["metrics"])
-            : null,
+        ),
+        status: String(campaign.status),
+        metrics: toPerformanceMetrics(campaign.metrics),
       }));
 
       setCampaigns(processedCampaigns);
@@ -105,22 +120,22 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
         new Date(b.activity_at).getTime() - new Date(a.activity_at).getTime()
       );
     } else {
-      // Sort by performance (open rate)
-      const aOpenRate = a.metrics
-        ? (a.metrics.opened / (a.metrics.delivered || a.metrics.sent || 1)) *
+      // Sort by the more reliable engagement signal: unique click rate.
+      const aClickRate = a.metrics
+        ? (a.metrics.clicked / (a.metrics.delivered || a.metrics.sent || 1)) *
           100
         : 0;
-      const bOpenRate = b.metrics
-        ? (b.metrics.opened / (b.metrics.delivered || b.metrics.sent || 1)) *
+      const bClickRate = b.metrics
+        ? (b.metrics.clicked / (b.metrics.delivered || b.metrics.sent || 1)) *
           100
         : 0;
-      return bOpenRate - aOpenRate;
+      return bClickRate - aClickRate;
     }
   });
 
   const calculateOverallStats = () => {
     const sentCampaigns = campaigns.filter(
-      (c) => c.metrics && isDeliveredCampaignStatus(c.status),
+      (c) => c.metrics && isTerminalCampaignStatus(c.status),
     );
     if (sentCampaigns.length === 0) return null;
 
@@ -130,23 +145,39 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
         return {
           sent: acc.sent + metrics.sent,
           delivered: acc.delivered + metrics.delivered,
-          opened: acc.opened + metrics.opened,
+          adjustedOpens: acc.adjustedOpens + metrics.adjustedOpens,
+          reportedOpens: acc.reportedOpens + metrics.reportedOpens,
           clicked: acc.clicked + metrics.clicked,
-          revenue: acc.revenue + (metrics.revenue || 0),
+          failed: acc.failed + metrics.failed,
+          pending: acc.pending + metrics.pending,
+          unconfirmed: acc.unconfirmed + metrics.unconfirmed,
         };
       },
-      { sent: 0, delivered: 0, opened: 0, clicked: 0, revenue: 0 },
+      {
+        sent: 0,
+        delivered: 0,
+        adjustedOpens: 0,
+        reportedOpens: 0,
+        clicked: 0,
+        failed: 0,
+        pending: 0,
+        unconfirmed: 0,
+      },
+    );
+
+    const revenueAttribution = aggregateRevenue(
+      sentCampaigns.map((campaign) => campaign.metrics!),
     );
 
     return {
       totalCampaigns: sentCampaigns.length,
-      avgOpenRate: Math.round(
-        (totals.opened / (totals.delivered || totals.sent || 1)) * 100,
+      adjustedOpenRate: Math.round(
+        (totals.adjustedOpens / (totals.delivered || totals.sent || 1)) * 100,
       ),
       avgClickRate: Math.round(
         (totals.clicked / (totals.delivered || totals.sent || 1)) * 100,
       ),
-      totalRevenue: totals.revenue,
+      revenueAttribution,
       ...totals,
     };
   };
@@ -154,12 +185,12 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
   const overallStats = calculateOverallStats();
 
   const exportCampaignData = () => {
-    if (campaigns.length === 0) {
+    if (sortedCampaigns.length === 0) {
       toast.info("No campaign data to export");
       return;
     }
 
-    const csvData = campaigns.map((campaign) => ({
+    const csvData = sortedCampaigns.map((campaign) => ({
       name: campaign.name,
       status: campaign.status,
       queued_date: campaign.queued_at || "",
@@ -167,11 +198,12 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
       activity_date: campaign.activity_at,
       sent: campaign.metrics?.sent || 0,
       delivered: campaign.metrics?.delivered || 0,
-      opened: campaign.metrics?.opened || 0,
-      clicked: campaign.metrics?.clicked || 0,
-      open_rate: campaign.metrics
+      adjusted_unique_opens: campaign.metrics?.adjustedOpens || 0,
+      reported_unique_opens: campaign.metrics?.reportedOpens || 0,
+      unique_clicks: campaign.metrics?.clicked || 0,
+      adjusted_open_rate: campaign.metrics
         ? Math.round(
-            (campaign.metrics.opened /
+            (campaign.metrics.adjustedOpens /
               (campaign.metrics.delivered || campaign.metrics.sent || 1)) *
               100,
           )
@@ -183,11 +215,24 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
               100,
           )
         : 0,
+      bounced: campaign.metrics?.bounced || 0,
+      unsubscribed: campaign.metrics?.unsubscribed || 0,
+      failed: campaign.metrics?.failed || 0,
+      pending: campaign.metrics?.pending || 0,
+      unconfirmed: campaign.metrics?.unconfirmed || 0,
+      attributed_orders: campaign.metrics?.revenueAttribution.orders || 0,
+      attributed_customers: campaign.metrics?.revenueAttribution.customers || 0,
+      attributed_revenue: campaign.metrics
+        ? formatAttributedRevenue(campaign.metrics.revenueAttribution)
+        : "",
+      attribution_model: campaign.metrics?.revenueAttribution.model || "",
+      attribution_window_days:
+        campaign.metrics?.revenueAttribution.windowDays || "",
     }));
 
     const csv = [
-      Object.keys(csvData[0]).join(","),
-      ...csvData.map((row) => Object.values(row).join(",")),
+      Object.keys(csvData[0]).map(csvCell).join(","),
+      ...csvData.map((row) => Object.values(row).map(csvCell).join(",")),
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
@@ -196,6 +241,8 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
     a.href = url;
     a.download = `campaign-analytics-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   if (crmLoading) {
@@ -252,9 +299,8 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
               </div>
               <p className="text-xs text-muted-foreground">
                 {
-                  campaigns.filter(
-                    (c) => c.status === CAMPAIGN_STATUS.DRAFT,
-                  ).length
+                  campaigns.filter((c) => c.status === CAMPAIGN_STATUS.DRAFT)
+                    .length
                 }{" "}
                 drafts
               </p>
@@ -265,15 +311,15 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Eye className="h-4 w-4" />
-                Avg Open Rate
+                Adjusted Open Rate
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {overallStats.avgOpenRate}%
+                {overallStats.adjustedOpenRate}%
               </div>
               <p className="text-xs text-muted-foreground">
-                {overallStats.opened.toLocaleString()} total opens
+                {overallStats.adjustedOpens.toLocaleString()} non-machine opens
               </p>
             </CardContent>
           </Card>
@@ -299,15 +345,17 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Total Revenue
+                Attributed Revenue
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${overallStats.totalRevenue.toFixed(2)}
+                {overallStats.revenueAttribution.revenue > 0
+                  ? formatAttributedRevenue(overallStats.revenueAttribution)
+                  : "None yet"}
               </div>
               <p className="text-xs text-muted-foreground">
-                Across all campaigns
+                Auditable 7-day last-click POS sales
               </p>
             </CardContent>
           </Card>
@@ -373,7 +421,7 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
           className="w-48"
           options={[
             { value: "recent", label: "Most Recent" },
-            { value: "performance", label: "Best Performance" },
+            { value: "performance", label: "Best Click Rate" },
           ]}
         />
       </div>
@@ -409,9 +457,9 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
                 sentDate={campaign.sent_at ?? campaign.activity_at}
                 status={campaign.status}
                 metrics={campaign.metrics || undefined}
-                onViewDetails={() => {
-                  // Navigate to detailed analytics view
-                }}
+                onViewDetails={() =>
+                  navigate(`/crm/campaigns/${campaign.id}/report`)
+                }
               />
             ))}
           </div>

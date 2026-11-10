@@ -1,7 +1,61 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { evaluateConditions } from "../_shared/segments/evaluator.ts";
 import { resolveEligibleEmailCustomerIds } from "../_shared/eligibleEmailAudience.ts";
+import {
+  collectReferencedSegmentIds,
+  evaluateSegmentRule,
+  normalizeSegmentRuleGroup,
+} from "../_shared/segmentEvaluator.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+interface Segment {
+  id: string;
+  name: string;
+  conditions: unknown;
+  include_all_customers: boolean;
+}
+
+function sortSegmentsByDependencies(segments: Segment[]) {
+  const ids = new Set(segments.map((segment) => segment.id));
+  const dependencies = new Map<string, string[]>();
+  const incoming = new Map<string, number>();
+
+  for (const segment of segments) {
+    const referenced = collectReferencedSegmentIds(
+      normalizeSegmentRuleGroup(segment.conditions),
+    ).filter((segmentId) => ids.has(segmentId));
+    dependencies.set(segment.id, referenced);
+    incoming.set(segment.id, referenced.length);
+  }
+
+  const queue = segments
+    .filter((segment) => (incoming.get(segment.id) ?? 0) === 0)
+    .map((segment) => segment.id);
+  const orderedIds: string[] = [];
+
+  while (queue.length) {
+    const segmentId = queue.shift()!;
+    orderedIds.push(segmentId);
+
+    for (const segment of segments) {
+      if (!(dependencies.get(segment.id) ?? []).includes(segmentId)) continue;
+      const next = (incoming.get(segment.id) ?? 0) - 1;
+      incoming.set(segment.id, next);
+      if (next === 0) queue.push(segment.id);
+    }
+  }
+
+  // Preserve source order for a cycle; never omit cyclic segments.
+  if (orderedIds.length !== segments.length) return segments;
+
+  const byId = new Map(segments.map((segment) => [segment.id, segment]));
+  return orderedIds.map((segmentId) => byId.get(segmentId)!).filter(Boolean);
+}
 
 /**
  * recompute-segment-memberships
@@ -12,6 +66,10 @@ import { resolveEligibleEmailCustomerIds } from "../_shared/eligibleEmailAudienc
  */
 
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   const startTime = Date.now();
 
   try {
@@ -27,11 +85,49 @@ serve(async (req) => {
     const { tenant_id, segment_ids, customer_ids } = await req.json();
     if (!tenant_id) throw new Error("tenant_id is required");
 
+    const authHeader = req.headers.get("Authorization");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.slice("Bearer ".length);
+    if (token !== serviceRoleKey) {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser(token);
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: membership } = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
+        .eq("tenant_id", tenant_id)
+        .maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // 1. Load target segments
     let segQuery = supabase
       .from("crm_segments")
       .select("id, name, conditions, include_all_customers")
       .eq("tenant_id", tenant_id)
+      .eq("auto_update", true)
+      .eq("status", "active")
       .is("deleted_at", null);
 
     if (segment_ids?.length > 0) {
@@ -64,7 +160,7 @@ serve(async (req) => {
     // 2. Load target customers (paginate to get all)
     const allCustomers: any[] = [];
     const selectFields =
-      "id, email, email_opt_in, first_name, last_name, total_spent, last_visit_date, last_purchase_date, loyalty_member, loyalty_rewards_balance, email_consent, sms_consent, tags, pos_source, custom_fields, created_at";
+      "id, email, email_opt_in, sms_opt_in, first_name, last_name, phone, total_spent, lifetime_value, pos_order_count, first_purchase_date, last_purchase_date, last_visit_date, loyalty_member, loyalty_rewards_balance, email_consent, sms_consent, tags, product_tags, persona, persona_id, preferred_channel, last_open_at, last_email_clicked_at, total_emails_opened, total_emails_clicked, total_emails_sent, email_click_rate, email_engagement_score, suppressed, opt_out, is_vip, pos_source, custom_fields, created_at, updated_at";
 
     if (customer_ids?.length > 0) {
       // Targeted: load specific customers in chunks
@@ -74,6 +170,7 @@ serve(async (req) => {
           .from("crm_customers")
           .select(selectFields)
           .eq("tenant_id", tenant_id)
+          .is("deleted_at", null)
           .in("id", chunk);
         if (data) allCustomers.push(...data);
       }
@@ -86,6 +183,7 @@ serve(async (req) => {
           .from("crm_customers")
           .select(selectFields)
           .eq("tenant_id", tenant_id)
+          .is("deleted_at", null)
           .order("id")
           .limit(pageSize)
           .range(offset, offset + pageSize - 1);
@@ -124,6 +222,16 @@ serve(async (req) => {
 
     // 3. Load existing memberships for the target scope
     const segmentIdList = segments.map((s) => s.id);
+    const relevantSegmentIds = Array.from(
+      new Set([
+        ...segmentIdList,
+        ...segments.flatMap((segment) =>
+          collectReferencedSegmentIds(
+            normalizeSegmentRuleGroup(segment.conditions),
+          ),
+        ),
+      ]),
+    );
     const customerIdList = customers.map((c) => c.id);
 
     // Chunk the query to avoid URL limits
@@ -134,12 +242,24 @@ serve(async (req) => {
         .from("customer_segments")
         .select("customer_id, segment_id")
         .in("customer_id", chunk)
-        .in("segment_id", segmentIdList);
+        .in("segment_id", relevantSegmentIds);
 
       for (const row of existing || []) {
         existingSet.add(`${row.customer_id}:${row.segment_id}`);
       }
     }
+
+    const membershipsByCustomerId = new Map<string, Set<string>>();
+    for (const key of existingSet) {
+      const separator = key.indexOf(":");
+      const customerId = key.slice(0, separator);
+      const segmentId = key.slice(separator + 1);
+      const memberships = membershipsByCustomerId.get(customerId) ?? new Set();
+      memberships.add(segmentId);
+      membershipsByCustomerId.set(customerId, memberships);
+    }
+
+    const sortedSegments = sortSegmentsByDependencies(segments as Segment[]);
 
     // 4. Evaluate and diff
     const toInsert: Array<{
@@ -150,12 +270,15 @@ serve(async (req) => {
     const toDelete: Array<{ customer_id: string; segment_id: string }> = [];
 
     for (const customer of customers) {
-      for (const segment of segments) {
+      for (const segment of sortedSegments) {
         const key = `${customer.id}:${segment.id}`;
-        const conditions = segment.conditions || {};
         const matches = segment.include_all_customers
           ? eligibleAllCustomerIds.has(customer.id)
-          : evaluateConditions(conditions, customer);
+          : evaluateSegmentRule(
+              normalizeSegmentRuleGroup(segment.conditions),
+              customer,
+              { customerSegmentsByCustomerId: membershipsByCustomerId },
+            );
         const exists = existingSet.has(key);
 
         if (matches && !exists) {
@@ -164,8 +287,13 @@ serve(async (req) => {
             segment_id: segment.id,
             assigned_at: new Date().toISOString(),
           });
+          const memberships =
+            membershipsByCustomerId.get(customer.id) ?? new Set<string>();
+          memberships.add(segment.id);
+          membershipsByCustomerId.set(customer.id, memberships);
         } else if (!matches && exists) {
           toDelete.push({ customer_id: customer.id, segment_id: segment.id });
+          membershipsByCustomerId.get(customer.id)?.delete(segment.id);
         }
       }
     }

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { Button } from '@/components/ui-legacy/button';
 import { LoadingSpinner } from '@/components/ui-legacy/loading-spinner';
 import { Progress } from '@/components/ui-legacy/progress';
-import { Sparkles, FileText, Users, Mail, Video, X } from 'lucide-react';
+import { Sparkles, FileText, Users, Mail, MessageSquare, X } from 'lucide-react';
 
 interface ContentGenerationLoadingModalProps {
   isOpen: boolean;
@@ -14,16 +14,16 @@ interface ContentGenerationLoadingModalProps {
 
 const generationSteps = [
   { icon: Sparkles, label: 'Analyzing your campaign theme', delay: 0 },
-  { icon: FileText, label: 'Crafting social media posts', delay: 2000 },
+  { icon: FileText, label: 'Building your campaign message', delay: 2000 },
   { icon: Mail, label: 'Writing email content', delay: 4000 },
-  { icon: Video, label: 'Creating video scripts', delay: 6000 },
+  { icon: MessageSquare, label: 'Writing SMS content', delay: 6000 },
   { icon: Users, label: 'Personalizing for your audience', delay: 8000 },
 ];
 
 export const ContentGenerationLoadingModal: React.FC<ContentGenerationLoadingModalProps> = ({
   isOpen,
   campaignTitle,
-  progress = 0,
+  progress,
   currentStep
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
@@ -48,7 +48,10 @@ export const ContentGenerationLoadingModal: React.FC<ContentGenerationLoadingMod
     };
   }, [isOpen]);
 
-  const calculatedProgress = currentStep ? progress : Math.min(95, (currentStepIndex + 1) * 20);
+  const calculatedProgress =
+    typeof progress === 'number'
+      ? Math.max(0, Math.min(100, progress))
+      : Math.min(95, (currentStepIndex + 1) * 20);
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>

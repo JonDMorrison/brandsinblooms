@@ -4,7 +4,8 @@ echo "🚀 Starting E2E Test Suite Setup Verification..."
 
 # Set environment variables
 export VITE_SUPABASE_URL="https://udldmkqwnxhdeztyqcau.supabase.co"
-export VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM"
+: "${VITE_SUPABASE_ANON_KEY:?VITE_SUPABASE_ANON_KEY must be set}"
+export VITE_SUPABASE_ANON_KEY
 
 echo "📦 Installing Playwright browsers..."
 npx playwright install --with-deps

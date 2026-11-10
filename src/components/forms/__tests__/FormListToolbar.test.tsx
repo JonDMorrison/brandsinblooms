@@ -5,6 +5,16 @@ import { render, screen } from "@testing-library/react";
 import { CssVarsProvider } from "@mui/joy/styles";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+vi.mock("@mui/icons-material", () => ({
+  AddRounded: () => <span aria-hidden="true" />,
+  CheckRounded: () => <span aria-hidden="true" />,
+  CloseRounded: () => <span aria-hidden="true" />,
+  GridViewRounded: () => <span aria-hidden="true" />,
+  SearchRounded: () => <span aria-hidden="true" />,
+  SortRounded: () => <span aria-hidden="true" />,
+  ViewListRounded: () => <span aria-hidden="true" />,
+}));
+
 import { joyTheme } from "@/config/joy-theme";
 import { FormListToolbar } from "@/components/forms/FormListToolbar";
 

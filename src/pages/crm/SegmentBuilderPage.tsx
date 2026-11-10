@@ -521,19 +521,25 @@ export default function SegmentBuilderPage() {
       },
       {
         label: "Average LTV",
-        value: SEGMENT_CURRENCY_FORMATTER.format(
-          previewQuery.preview.averageLifetimeValue,
-        ),
+        value:
+          previewQuery.preview.averageLifetimeValue === null
+            ? "Not available"
+            : SEGMENT_CURRENCY_FORMATTER.format(
+                previewQuery.preview.averageLifetimeValue,
+              ),
         icon: <DollarSign size={18} />,
         iconColor: "neutral" as const,
       },
       {
         label: "LTV Delta",
-        value: formatDeltaCurrency(
-          previewQuery.preview.averageLifetimeValueDelta,
-        ),
+        value:
+          previewQuery.preview.averageLifetimeValueDelta === null
+            ? "Not available"
+            : formatDeltaCurrency(
+                previewQuery.preview.averageLifetimeValueDelta,
+              ),
         icon:
-          previewQuery.preview.averageLifetimeValueDelta >= 0 ? (
+          (previewQuery.preview.averageLifetimeValueDelta ?? 0) >= 0 ? (
             <TrendingUp size={18} />
           ) : (
             <TrendingDown size={18} />
@@ -900,6 +906,7 @@ export default function SegmentBuilderPage() {
                       { value: "dynamic", label: "Dynamic" },
                       { value: "static", label: "Static" },
                     ]}
+                    helperText={type === "dynamic" ? "Saved rules: membership updates as customer data changes." : "Saved people: a fixed list until you edit its membership."}
                     value={type}
                   />
                   <JoySelect

@@ -107,6 +107,28 @@ serve(async (req) => {
         console.log(`vmx-backfill: rollup updated ${rollupCount} customers`);
       }
 
+      const { data: locationRollup, error: locationRollupErr } =
+        await supabase.rpc("recompute_vmx_customer_locations", {
+          p_tenant_id: conn.tenant_id,
+          p_external_customer_ids: null,
+        });
+
+      if (locationRollupErr) {
+        const message =
+          `Location activity rollup failed: ${locationRollupErr.message}`;
+        console.error("vmx-backfill:", message);
+        await supabase.from("pos_connections").update({
+          sync_status: "error",
+          sync_error: message,
+          updated_at: new Date().toISOString(),
+        }).eq("id", connection_id);
+
+        return new Response(
+          JSON.stringify({ done: false, error: message, page: currentPage }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
       await supabase.from("pos_connections").update({
         backfill_mode: false,
         backfill_completed_at: new Date().toISOString(),
@@ -123,6 +145,7 @@ serve(async (req) => {
           total_processed: newTotal,
           pages: currentPage,
           rollup_customers: rollupCount ?? 0,
+          location_rollup: locationRollup,
           duration_ms: duration,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },

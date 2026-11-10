@@ -39,17 +39,6 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     group: "pages",
   }),
   createStaticItem({
-    id: "static:page:content-library",
-    type: "page",
-    title: "Content Library",
-    subtitle: "Manage reusable content, assets, and creative ideas.",
-    route: "/content",
-    icon: "pages",
-    metadata: "Page",
-    keywords: ["content", "library", "assets", "creative"],
-    group: "pages",
-  }),
-  createStaticItem({
     id: "static:page:newsletters",
     type: "page",
     title: "Newsletters",
@@ -58,24 +47,6 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     icon: "mail",
     metadata: "Page",
     keywords: ["newsletter", "email", "broadcast", "send"],
-    group: "pages",
-  }),
-  createStaticItem({
-    id: "static:page:social-media",
-    type: "page",
-    title: "Social Media",
-    subtitle: "Manage connected social accounts and publishing channels.",
-    route: "/social-accounts",
-    icon: "pages",
-    metadata: "Page",
-    keywords: [
-      "social media",
-      "accounts",
-      "connections",
-      "facebook",
-      "instagram",
-      "meta",
-    ],
     group: "pages",
   }),
   createStaticItem({
@@ -244,28 +215,6 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     group: "pages",
   }),
   createStaticItem({
-    id: "static:page:publish",
-    type: "page",
-    title: "Publish Portal",
-    subtitle: "Schedule and manage social publishing from one workspace.",
-    route: "/publish",
-    icon: "campaigns",
-    metadata: "Page",
-    keywords: ["publish", "post", "compose", "schedule", "social post"],
-    group: "pages",
-  }),
-  createStaticItem({
-    id: "static:page:plan",
-    type: "page",
-    title: "Plan",
-    subtitle: "Review subscription details, plan options, and upgrades.",
-    route: "/plan",
-    icon: "billing",
-    metadata: "Page",
-    keywords: ["plan", "pricing", "billing", "subscription"],
-    group: "pages",
-  }),
-  createStaticItem({
     id: "static:page:community",
     type: "page",
     title: "Community",
@@ -346,11 +295,11 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     id: "static:page:help-desk",
     type: "ticket",
     title: "Help Desk",
-    subtitle: "Review tickets, triage issues, and open support requests.",
+    subtitle: "Your team's internal ticket tracker. For BloomSuite help, use Support.",
     route: "/helpdesk",
     icon: "help",
     metadata: "Page",
-    keywords: ["help desk", "tickets", "support", "issues"],
+    keywords: ["help desk", "internal tickets", "issues"],
     group: "pages",
   }),
   createStaticItem({
@@ -520,10 +469,10 @@ const INTEGRATION_ENTRIES: SearchResultItem[] = [
     id: "static:integration:clover",
     type: "integration",
     title: "Clover",
-    subtitle: "Connect Clover POS data for sales and customer sync.",
+    subtitle: "Clover is awaiting formal API approval and final integration details.",
     route: "/integrations/clover",
     icon: "integrations",
-    metadata: "Integration",
+    metadata: "Coming soon",
     keywords: ["clover", "pos", "point of sale", "retail"],
     group: "integrations",
   }),
@@ -547,17 +496,6 @@ const INTEGRATION_ENTRIES: SearchResultItem[] = [
     icon: "integrations",
     metadata: "Integration",
     keywords: ["shopify", "ecommerce", "pos", "storefront"],
-    group: "integrations",
-  }),
-  createStaticItem({
-    id: "static:integration:meta",
-    type: "integration",
-    title: "Meta (Facebook & Instagram)",
-    subtitle: "Manage Meta-linked social channels and publishing access.",
-    route: "/integrations/meta",
-    icon: "integrations",
-    metadata: "Integration",
-    keywords: ["meta", "facebook", "instagram", "social"],
     group: "integrations",
   }),
   createStaticItem({
@@ -841,11 +779,11 @@ const SETTINGS_ENTRIES: SearchResultItem[] = [
     id: "static:setting:connections",
     type: "setting",
     title: "Connections",
-    subtitle: "Manage POS, social, domain, and email connection settings.",
+    subtitle: "Manage POS, domain, and email connection settings.",
     route: "/settings?tab=connections",
     icon: "settings",
     metadata: "Settings page",
-    keywords: ["connections", "integrations", "pos", "social"],
+    keywords: ["connections", "integrations", "pos", "email"],
     group: "settings",
   }),
   createStaticItem({
@@ -1060,17 +998,6 @@ const SETUP_ENTRIES: SearchResultItem[] = [
     group: "setup",
   }),
   createStaticItem({
-    id: "static:setup:social-accounts",
-    type: "page",
-    title: "Setup: Social Accounts",
-    subtitle: "Connect the social accounts used for publishing and analytics.",
-    route: "/social-accounts",
-    icon: "pages",
-    metadata: "Onboarding step",
-    keywords: ["setup social accounts", "social", "channels", "onboarding"],
-    group: "setup",
-  }),
-  createStaticItem({
     id: "static:setup:google-analytics",
     type: "page",
     title: "Setup: Google Analytics",
@@ -1105,22 +1032,6 @@ const SETUP_ENTRIES: SearchResultItem[] = [
       "email campaign",
       "onboarding",
       "send",
-    ],
-    group: "setup",
-  }),
-  createStaticItem({
-    id: "static:setup:first-social-post",
-    type: "page",
-    title: "Setup: First Social Post",
-    subtitle: "Open publish tools and draft your first social post.",
-    route: "/publish",
-    icon: "campaigns",
-    metadata: "Onboarding step",
-    keywords: [
-      "setup first social post",
-      "social post",
-      "publish",
-      "onboarding",
     ],
     group: "setup",
   }),
@@ -1243,17 +1154,6 @@ const ACTION_ENTRIES: SearchResultItem[] = [
     group: "actions",
   }),
   createStaticItem({
-    id: "static:action:compose-social-post",
-    type: "action",
-    title: "Compose Social Post",
-    subtitle: "Jump into the social publishing workspace to draft a post.",
-    route: "/publish",
-    icon: "campaigns",
-    metadata: "Quick action",
-    keywords: ["compose social post", "social post", "publish", "draft"],
-    group: "actions",
-  }),
-  createStaticItem({
     id: "static:action:send-email-campaign",
     type: "action",
     title: "Send Email Campaign",
@@ -1347,8 +1247,6 @@ const DEFAULT_JUMP_TO_IDS = [
   "static:page:dashboard",
   "static:page:analytics",
   "static:page:calendar",
-  "static:page:content-library",
-  "static:page:publish",
   "static:page:settings",
 ] as const;
 
@@ -1370,12 +1268,10 @@ const INTEGRATIONS_JUMP_TO_IDS = [
   "static:page:account-setup",
 ] as const;
 
-const PUBLISH_JUMP_TO_IDS = [
-  "static:page:publish",
-  "static:page:content-library",
+const MESSAGING_JUMP_TO_IDS = [
   "static:page:calendar",
-  "static:page:social-media",
   "static:page:newsletters",
+  "static:page:sms",
   "static:page:analytics",
 ] as const;
 
@@ -1391,10 +1287,7 @@ const SETTINGS_JUMP_TO_IDS = [
 const COMMERCE_JUMP_TO_IDS = [
   "static:page:products",
   "static:page:website",
-  "static:page:publish",
   "static:page:analytics",
-  "static:page:content-library",
-  "static:page:plan",
 ] as const;
 
 function normalizeSearchText(value: string) {
@@ -1609,12 +1502,10 @@ function getJumpToPriorityIds(pathname: string) {
   }
 
   if (
-    pathname.startsWith("/publish") ||
     pathname.startsWith("/calendar") ||
-    pathname.startsWith("/social-accounts") ||
     pathname.startsWith("/newsletters")
   ) {
-    return PUBLISH_JUMP_TO_IDS;
+    return MESSAGING_JUMP_TO_IDS;
   }
 
   if (pathname.startsWith("/products") || pathname.startsWith("/website")) {

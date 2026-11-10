@@ -5,6 +5,7 @@ import Typography from "@mui/joy/Typography";
 import { Lock, X } from "lucide-react";
 import { useAskBloom } from "@/providers/AskBloomProvider";
 import type { AskBloomResourceType, ResourceFocus } from "@/types/askBloom";
+import { describeCustomerOrders } from "@/utils/askBloomContextBuilders";
 
 const readSummaryValue = (summary: string, label: string) => {
   const match = summary.match(new RegExp(`^${label}:\\s*(.+)$`, "im"));
@@ -25,11 +26,7 @@ const buildCustomerSubtitle = (resourceFocus: ResourceFocus) => {
       .map((value) => value.trim())
       .find((value) => value && value !== "None") ??
     "Focused view";
-  const orders = readSummaryValue(
-    resourceFocus.resourceSummary,
-    "Total Orders",
-  );
-  return `Customer · ${primaryTag} · ${orders || "0"} orders`;
+  return `Customer · ${primaryTag} · ${describeCustomerOrders(resourceFocus.resourceSummary)}`;
 };
 
 const buildProductSubtitle = (resourceFocus: ResourceFocus) => {

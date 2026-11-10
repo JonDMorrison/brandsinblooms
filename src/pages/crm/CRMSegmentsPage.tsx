@@ -1,4 +1,6 @@
 import * as React from "react";
+import { CatalogViewToggle, type CatalogLayout } from "@/components/crm/catalog/CatalogViewToggle";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useQuery } from "@tanstack/react-query";
 import Box from "@mui/joy/Box";
 import Divider from "@mui/joy/Divider";
@@ -42,10 +44,12 @@ import { useCreateSegment } from "@/hooks/useCreateSegment";
 import { useDeleteSegment } from "@/hooks/useDeleteSegment";
 import { useEvaluateSegments } from "@/hooks/useSegmentEvaluation";
 import { type SegmentListItem, useSegments } from "@/hooks/useSegments";
+import { useSystemSegmentDataAvailability } from "@/hooks/useSystemSegmentDataAvailability";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { BASE_SEGMENT_FIELDS } from "@/lib/segmentFields";
 import { segmentRuleToNaturalLanguage } from "@/lib/segmentRuleToNaturalLanguage";
+import { getMissingDataExplanation } from "@/lib/crm/systemSegmentDataAvailability";
 import {
   downloadTextFile,
   sanitizeFileNamePart,
@@ -175,6 +179,8 @@ export function CRMSegmentsPage() {
   const tenantId = tenant?.id ?? null;
   const userId = user?.id ?? null;
   const [query, setQuery] = React.useState("");
+  const [storedLayout, setLayout] = useLocalStorage<CatalogLayout>("crm:segments:layout", "grid");
+  const layout: CatalogLayout = storedLayout === "list" ? "list" : "grid";
   const [view, setView] = React.useState<SegmentViewFilter>("all");
   const [sort, setSort] = React.useState<SegmentSortOption>("members-desc");
   const [segmentPendingDelete, setSegmentPendingDelete] =
@@ -211,6 +217,10 @@ export function CRMSegmentsPage() {
     staleTime: 60_000,
   });
 
+  // Explains empty built-in groups. Never blocks the page; on error the
+  // cards fall back to the plain member count.
+  const dataAvailabilityQuery = useSystemSegmentDataAvailability(tenantId);
+
   const summaries = React.useMemo(() => {
     return Object.fromEntries(
       allSegments.map((segment) => [
@@ -231,10 +241,13 @@ export function CRMSegmentsPage() {
   }, [allSegments]);
 
   React.useEffect(() => {
+    // Never restore built-in groups from a failed or partial load: an empty
+    // list after an error is not proof the groups are missing.
     if (
       !tenantId ||
       !userId ||
       isLoading ||
+      error ||
       missingSystemDefinitions.length === 0
     ) {
       return;
@@ -258,21 +271,19 @@ export function CRMSegmentsPage() {
       setIsHydratingSystemSegments(true);
 
       try {
-        const { error: insertError } = await supabase
-          .from("crm_segments")
-          .insert(
-            missingSystemDefinitions.map((segment) => ({
-              tenant_id: tenantId,
-              user_id: userId,
+        // Server-side, locked and idempotent: creates only groups that do not
+        // already exist, even when several tabs or remounts race.
+        const { error: insertError } = await supabase.rpc(
+          "ensure_system_segments",
+          {
+            p_tenant_id: tenantId,
+            p_segments: missingSystemDefinitions.map((segment) => ({
               name: segment.name,
               description: segment.description,
-              auto_update: true,
               conditions: segment.conditions,
-              status: "active",
-              is_system_segment: true,
-              customer_count: 0,
             })),
-          );
+          },
+        );
 
         if (insertError) {
           throw insertError;
@@ -304,6 +315,7 @@ export function CRMSegmentsPage() {
       cancelled = true;
     };
   }, [
+    error,
     evaluateSegments,
     isHydratingSystemSegments,
     isLoading,
@@ -581,6 +593,7 @@ export function CRMSegmentsPage() {
           description="Groups of customers who go together — big spenders, weekend regulars, people new this season. Use segments to send the right message to the right group."
           actions={
             <>
+              <CatalogViewToggle value={layout} onChange={setLayout} label="Segments view" />
               <JoyTooltip title="Refresh segments">
                 <IconButton
                   variant="plain"
@@ -697,12 +710,13 @@ export function CRMSegmentsPage() {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: SEGMENT_GRID_COLUMNS,
+                    gridTemplateColumns: layout === "list" ? "minmax(0, 1fr)" : SEGMENT_GRID_COLUMNS,
                     gap: 2,
                   }}
                 >
                   {visibleSystemSegments.map((segment) => (
                     <SegmentCatalogCard
+                      layout={layout}
                       key={segment.id}
                       item={{
                         id: segment.id,
@@ -715,8 +729,13 @@ export function CRMSegmentsPage() {
                         }),
                         isSystemSegment: true,
                         memberCount: segment.memberCount,
-                        averageValue: 0,
-                        totalValue: 0,
+                        averageValue: null,
+                        totalValue: null,
+                        emptyReason: getMissingDataExplanation({
+                          segmentName: segment.name,
+                          memberCount: segment.memberCount,
+                          availability: dataAvailabilityQuery.data,
+                        }),
                       }}
                       detailHref={`/crm/segments/${segment.id}`}
                       membersHref={`/crm/segments/${segment.id}/members`}
@@ -743,13 +762,14 @@ export function CRMSegmentsPage() {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: SEGMENT_GRID_COLUMNS,
+                    gridTemplateColumns: layout === "list" ? "minmax(0, 1fr)" : SEGMENT_GRID_COLUMNS,
                     gap: 2,
                   }}
                 >
-                  <CreateSegmentCard onClick={openCreateSegment} />
+                  {layout === "grid" ? <CreateSegmentCard onClick={openCreateSegment} /> : null}
                   {visibleCustomSegments.map((segment) => (
                     <SegmentCatalogCard
+                      layout={layout}
                       key={segment.id}
                       item={{
                         id: segment.id,
@@ -762,8 +782,8 @@ export function CRMSegmentsPage() {
                         }),
                         isSystemSegment: false,
                         memberCount: segment.memberCount,
-                        averageValue: 0,
-                        totalValue: 0,
+                        averageValue: null,
+                        totalValue: null,
                       }}
                       detailHref={`/crm/segments/${segment.id}`}
                       membersHref={`/crm/segments/${segment.id}/members`}

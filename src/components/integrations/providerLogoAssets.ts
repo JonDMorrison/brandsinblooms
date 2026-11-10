@@ -1,3 +1,4 @@
+import counterpointLogo from "@/assets/logos/counterpoint.png";
 import cloverLogo from "@/assets/logos/clover.svg";
 import constantContactLogo from "@/assets/logos/constant-contact.svg";
 import googleAnalytics4Logo from "@/assets/logos/google-analytics-4.png";
@@ -12,6 +13,7 @@ import vmxPosLogo from "@/assets/logos/vmx-pos.png";
 import zapierLogo from "@/assets/logos/zapier.jpeg";
 
 export const providerLogoAssets: Partial<Record<string, string>> = {
+  counterpoint: counterpointLogo,
   square: squareLogo,
   clover: cloverLogo,
   lightspeed: lightspeedLogo,

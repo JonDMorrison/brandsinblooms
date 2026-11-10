@@ -39,9 +39,9 @@ export const GUIDE_PILLARS: GuidePillarConfig[] = [
   },
   {
     icon: Calendar,
-    title: "Social and email automation",
+    title: "Email and SMS automation",
     description:
-      "Plan, schedule, and send across every channel from one workspace.",
+      "Plan, schedule, and send coordinated customer journeys from one workspace.",
   },
   {
     icon: MessageSquare,

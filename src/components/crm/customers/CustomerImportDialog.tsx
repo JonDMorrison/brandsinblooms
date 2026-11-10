@@ -24,6 +24,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAllPersonas } from "@/hooks/useAllPersonas";
 import * as XLSX from "xlsx";
+import {
+  CUSTOMER_IMPORT_SPREADSHEET_LIMITS,
+  assertNoWorksheetFormulas,
+  assertSpreadsheetFileSize,
+  assertWorkbookSheetCount,
+  firstWorksheetWithinLimits,
+} from "@/lib/security/spreadsheetLimits";
+import { parseDelimitedText } from "@/utils/csvParser";
 
 interface CustomerImportDialogProps {
   onImportComplete?: () => void;
@@ -189,35 +197,23 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({
     return mapping;
   };
   const parseCSV = (csvText: string): ParsedCustomer[] => {
-    const rawLines = csvText.split(/\r?\n/);
-    const lines = rawLines.filter((line) => line.trim());
-    if (lines.length < 2)
+    const { records } = parseDelimitedText(csvText, {
+      label: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.label,
+      maxRows: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.maxRows,
+      maxColumns: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.maxColumns,
+    });
+    if (records.length < 2)
       throw new Error("CSV must have at least a header and one data row");
 
-    // Auto-detect delimiter (comma, semicolon, or tab)
-    const detectDelimiter = (line: string) => {
-      const candidates = [",", ";", "\t"];
-      const counts = candidates.map(
-        (d) => (line.match(new RegExp(`\\${d}`, "g")) || []).length,
-      );
-      const maxCount = Math.max(...counts);
-      return candidates[counts.indexOf(maxCount)] || ",";
-    };
-    const delimiter = detectDelimiter(lines[0]);
-
-    const headers = lines[0]
-      .split(delimiter)
-      .map((h) => h.replace(/\r/g, "").trim().replace(/"/g, ""));
+    const headers = records[0].map((header) => header.trim());
     const detectedMapping = detectFieldMapping(headers);
     setFieldMapping(detectedMapping);
 
     const customers: ParsedCustomer[] = [];
     const importErrors: ImportError[] = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i]
-        .split(delimiter)
-        .map((v) => v.replace(/\r/g, "").trim().replace(/"/g, ""));
+    for (let i = 1; i < records.length; i++) {
+      const values = records[i];
       const customer: ParsedCustomer = { email: "" };
 
       headers.forEach((header, index) => {
@@ -315,14 +311,31 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({
   };
 
   const parseExcel = (file: File): Promise<ParsedCustomer[]> => {
+    assertSpreadsheetFileSize(file, CUSTOMER_IMPORT_SPREADSHEET_LIMITS);
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
+          const metadata = XLSX.read(data, { type: "array", bookSheets: true });
+          assertWorkbookSheetCount(
+            metadata,
+            CUSTOMER_IMPORT_SPREADSHEET_LIMITS,
+          );
+          const workbook = XLSX.read(data, {
+            type: "array",
+            sheetRows: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.maxRows + 1,
+            sheets: [metadata.SheetNames[0]],
+          });
+          const { worksheet } = firstWorksheetWithinLimits(
+            workbook,
+            CUSTOMER_IMPORT_SPREADSHEET_LIMITS,
+          );
+          assertNoWorksheetFormulas(
+            worksheet,
+            CUSTOMER_IMPORT_SPREADSHEET_LIMITS,
+          );
           const csvText = XLSX.utils.sheet_to_csv(worksheet);
           resolve(parseCSV(csvText));
         } catch (error) {
@@ -342,6 +355,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({
       setIsProcessing(true);
 
       try {
+        assertSpreadsheetFileSize(file, CUSTOMER_IMPORT_SPREADSHEET_LIMITS);
         let customers: ParsedCustomer[];
 
         if (file.name.endsWith(".csv")) {
@@ -379,8 +393,19 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({
     [errors.length, toast],
   );
 
+  const onDropRejected = useCallback(() => {
+    toast({
+      title: "File not accepted",
+      description:
+        "Choose a CSV or one-sheet Excel file no larger than 5 MB.",
+      variant: "destructive",
+      duration: 5000,
+    });
+  }, [toast]);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: {
       "text/csv": [".csv"],
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
@@ -389,7 +414,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({
       "application/vnd.ms-excel": [".xls"],
     },
     multiple: false,
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: CUSTOMER_IMPORT_SPREADSHEET_LIMITS.maxBytes,
   });
 
   const handleImport = async () => {
@@ -588,7 +613,7 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
                       Drag & drop your customer file here, or click to browse
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Supports CSV, Excel (.xlsx, .xls) files up to 10MB
+                      CSV or Excel up to 5 MB; Excel must have one worksheet
                     </p>
                   </div>
                 )}

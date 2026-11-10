@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  formatReportedCurrency,
+  formatReportedPeriod,
+  readReportedPeriodSpending,
+} from "@/lib/crm/reportedPeriodSpending";
 import type {
   BloomEntitySummary,
   BloomEntitySummaryDetail,
@@ -13,11 +18,14 @@ const ENTITY_SUMMARY_STALE_TIME_MS = 60 * 1000;
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["crm_customers"]["Row"],
   | "deleted_at"
+  | "custom_fields"
   | "email"
   | "first_name"
+  | "first_purchase_date"
   | "id"
   | "last_name"
   | "last_purchase_date"
+  | "pos_order_count"
   | "tenant_id"
   | "total_spent"
 >;
@@ -141,7 +149,24 @@ const buildCustomerSummary = (
   entityId: string,
 ): BloomEntitySummary => {
   const email = readString(record.email);
-  const totalSpent = formatCurrency(readFiniteNumber(record.total_spent));
+  const reported = readReportedPeriodSpending(record.custom_fields);
+  const storedSpent = readFiniteNumber(record.total_spent);
+  const hasReceiptEvidence = (readFiniteNumber(record.pos_order_count) ?? 0) > 0 ||
+    [record.first_purchase_date, record.last_purchase_date].some(
+      value => typeof value === "string" && Number.isFinite(Date.parse(value)),
+    );
+  const recordedSpent = storedSpent === 0 && !hasReceiptEvidence ? null : storedSpent;
+  // Customer totals do not carry a currency. Preserve the amount without
+  // inventing USD; the imported IdealPOS report has an explicit CAD basis.
+  const totalSpent = recordedSpent === null ? null : new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(recordedSpent);
+  const reportedSpend = reported ? `${formatReportedCurrency(reported.spend)} CAD` : null;
+  const reportedPeriod = reported ? formatReportedPeriod(reported) : null;
+  const reportedTransactions = reported
+    ? `${reported.transactions} reported ${reported.transactions === 1 ? "transaction" : "transactions"}`
+    : null;
   const lastPurchaseDate = formatShortDate(
     readString(record.last_purchase_date),
   );
@@ -152,12 +177,17 @@ const buildCustomerSummary = (
     name: buildCustomerName(record, entityId),
     summaryText: joinSummaryParts([
       email,
-      totalSpent ? `${totalSpent} total spent` : null,
+      reportedSpend ? `${reportedSpend} reported spending (${reportedPeriod})` : null,
+      reportedTransactions,
+      totalSpent !== null ? `${totalSpent} recorded spending` : reported ? null : "Recorded spending unknown",
       lastPurchaseDate ? `last purchase ${lastPurchaseDate}` : null,
     ]),
     detailItems: compactDetailItems([
       detailItem("Email", email),
-      detailItem("Total spent", totalSpent),
+      detailItem("Reported spending", reportedSpend),
+      detailItem("Report period", reportedPeriod),
+      detailItem("Reported transactions", reported ? String(reported.transactions) : null),
+      detailItem("Recorded spending", totalSpent ?? "Unknown"),
       detailItem("Last purchase", lastPurchaseDate),
     ]),
   };
@@ -205,7 +235,7 @@ const buildCampaignSummary = (
     entityId,
     name: readString(record.name) || fallbackName("Campaign", entityId),
     summaryText: joinSummaryParts([
-      subjectLine ? `subject \"${subjectLine}\"` : null,
+      subjectLine ? `subject "${subjectLine}"` : null,
       status ? `status ${status}` : null,
       audienceSize ? `${audienceSize} audience size` : null,
     ]),
@@ -264,7 +294,7 @@ const fetchCustomerSummary = async (
   const { data, error } = await supabase
     .from("crm_customers")
     .select(
-      "id, first_name, last_name, email, total_spent, last_purchase_date, tenant_id, deleted_at",
+      "id, first_name, last_name, email, total_spent, first_purchase_date, last_purchase_date, pos_order_count, custom_fields, tenant_id, deleted_at",
     )
     .eq("id", entityId)
     .eq("tenant_id", tenantId)

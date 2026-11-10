@@ -17,7 +17,7 @@ SELECT cron.schedule(
   SELECT
     net.http_post(
         url:='https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/auto-generate-weekly-campaigns',
-        headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM"}'::jsonb,
+        headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || current_setting('supabase.service_role_key', true)),
         body:='{"cron_trigger": true}'::jsonb
     ) as request_id;
   $$

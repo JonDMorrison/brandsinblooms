@@ -107,91 +107,45 @@ export async function recordEmailConsentEvent(params: {
 /**
  * Update a customer's consent status and record the event
  */
-// FIX: [issue #50] - TODO: Wrap consent update in a database transaction (RPC) to ensure atomicity
-// Currently: suppression_list update, customer update, and consent event recording are separate calls
 export async function updateCustomerConsent(params: {
   tenantId: string;
   customerId: string;
   email: string;
   optIn: boolean;
   source: string;
+  consentBasis?: "express" | "implied";
+  evidence?: string;
   ipAddress?: string | null;
   userAgent?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const normalizedEmail = String(params.email || "")
-      .toLowerCase()
-      .trim();
-
-    // Canonical suppression_list maintenance (single source of truth for blocking)
-    if (normalizedEmail) {
-      if (params.optIn) {
-        const { error: liftError } = await supabase
-          .from("suppression_list")
-          .update({
-            lifted_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("tenant_id", params.tenantId)
-          .eq("email", normalizedEmail)
-          .eq("channel", "email")
-          .eq("suppression_type", "unsubscribed")
-          .is("lifted_at", null);
-
-        if (liftError) {
-        }
-      } else {
-        const { error: suppressError } = await supabase
-          .from("suppression_list")
-          .upsert(
-            {
-              tenant_id: params.tenantId,
-              customer_id: params.customerId,
-              email: normalizedEmail,
-              suppression_type: "unsubscribed",
-              channel: "email",
-              reason: "admin_opt_out",
-              auto_suppressed: false,
-              suppressed_at: new Date().toISOString(),
-              lifted_at: null,
-            },
-            {
-              onConflict: "tenant_id,email,channel,suppression_type",
-              ignoreDuplicates: false,
-            },
-          );
-
-        if (suppressError) {
-        }
-      }
+    if (
+      params.optIn &&
+      (!params.consentBasis || (params.evidence?.trim().length ?? 0) < 10)
+    ) {
+      return {
+        success: false,
+        error:
+          "Opt-in requires a lawful basis and at least 10 characters of evidence",
+      };
     }
 
-    // Update the customer record
-    const { error: updateError } = await supabase
-      .from("crm_customers")
-      .update({
-        email_opt_in: params.optIn,
-        email_opt_in_at: params.optIn ? new Date().toISOString() : null,
-        email_consent_source: params.source,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", params.customerId);
-
-    if (updateError) {
-      console.error("Failed to update customer consent:", updateError);
-      return { success: false, error: updateError.message };
-    }
-
-    // Record the consent event
-    await recordEmailConsentEvent({
-      tenantId: params.tenantId,
-      customerId: params.customerId,
-      email: params.email,
-      eventType: params.optIn ? "opt_in" : "opt_out",
-      source: params.source,
-      ipAddress: params.ipAddress,
-      userAgent: params.userAgent,
-    });
+    const source =
+      params.source === "admin_panel" ? "admin_correction" : params.source;
+    const { error } = await supabase.rpc(
+      "set_customer_marketing_consent_authorized",
+      {
+        p_customer_id: params.customerId,
+        p_channel: "email",
+        p_opt_in: params.optIn,
+        p_source: source,
+        p_consent_basis: params.optIn ? params.consentBasis : null,
+        p_evidence: params.evidence?.trim() || null,
+        p_ip_address: params.ipAddress ?? null,
+        p_user_agent: params.userAgent ?? null,
+      },
+    );
+    if (error) return { success: false, error: error.message };
 
     return { success: true };
   } catch (err) {

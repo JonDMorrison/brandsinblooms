@@ -111,7 +111,9 @@ Deno.serve(async (req) => {
 
     console.log(`[sms-retry-failed] Found ${failedMessages.length} failed messages`)
 
-    // Get customer IDs for opt-out/suppression check
+    // Pre-filter obvious SMS opt-outs. The delivery worker still performs the
+    // authoritative channel-specific consent/suppression check immediately
+    // before calling the provider.
     const customerIds = failedMessages
       .map(m => m.customer_id)
       .filter((id): id is string => !!id)
@@ -119,7 +121,7 @@ Deno.serve(async (req) => {
     // Fetch customer statuses
     const { data: customers } = await supabase
       .from('crm_customers')
-      .select('id, sms_opt_in, opt_out, suppressed')
+      .select('id, sms_opt_in, sms_consent')
       .in('id', customerIds)
 
     const customerMap = new Map(customers?.map(c => [c.id, c]) || [])
@@ -136,14 +138,8 @@ Deno.serve(async (req) => {
         
         if (customer) {
           // Check opt-out
-          if (!customer.sms_opt_in || customer.opt_out) {
+          if (!customer.sms_opt_in || customer.sms_consent === false) {
             countSkippedOptOut++
-            continue
-          }
-          
-          // Check suppression
-          if (customer.suppressed) {
-            countSkippedSuppressed++
             continue
           }
         }

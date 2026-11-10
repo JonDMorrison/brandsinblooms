@@ -40,6 +40,7 @@ import {
   governanceRiskLabel,
   governanceSendingStatusLabel,
 } from "@/lib/email/governanceRisk";
+import { assessDomainAuthentication } from "@/lib/email/domainAuthentication";
 
 type PreflightRowState = "ok" | "warn" | "block" | "unknown";
 
@@ -112,6 +113,12 @@ type DomainLookupRow = {
   id: string;
   domain: string;
   status: string | null;
+  resend_status?: {
+    dkim_verified?: boolean;
+    spf_verified?: boolean;
+    dmarc_verified?: boolean;
+    return_path_verified?: boolean;
+  } | null;
 };
 
 type EmailDomainVerifyResponse = {
@@ -396,7 +403,8 @@ function parseFunctionsInvokeError(error: unknown): {
       const message =
         (typeof parsed?.message === "string" && parsed.message) ||
         (typeof parsed?.error === "string" && parsed.error) ||
-        (typeof (error as any)?.message === "string" && (error as any).message) ||
+        (typeof (error as any)?.message === "string" &&
+          (error as any).message) ||
         "Request failed";
       return { message, status };
     } catch {
@@ -497,7 +505,7 @@ function useEmailDomainReadiness(params: {
       for (const candidate of domainCandidates) {
         const preferred = await supabase
           .from("email_domains")
-          .select("id, domain, status")
+          .select("id, domain, status, resend_status")
           .eq("tenant_id", tenantId)
           .ilike("domain", candidate)
           .in("status", ["active", "warming_up"])
@@ -512,7 +520,7 @@ function useEmailDomainReadiness(params: {
       for (const candidate of domainCandidates) {
         const fallback = await supabase
           .from("email_domains")
-          .select("id, domain, status")
+          .select("id, domain, status, resend_status")
           .eq("tenant_id", tenantId)
           .ilike("domain", candidate)
           .order("created_at", { ascending: false })
@@ -577,15 +585,18 @@ function useEmailDomainReadiness(params: {
   const verifyStatusReady =
     verifyStatus === "active" || verifyStatus === "warming_up";
 
+  const authentication = assessDomainAuthentication(
+    verifyQuery.data?.provider ?? domainRow?.resend_status,
+  );
+
   const domainConfigured = Boolean(normalizedDomain && domainId);
   const domainReady: boolean | null = checksLoading
     ? null
     : domainConfigured
-      ? // IMPORTANT: elsewhere in the app, a domain with status=active/warming_up is
-        // considered send-ready. The readiness.status can be DOMAIN_NOT_CONNECTED for
-        // non-Entri/manual domains even when DNS is verified and status is active.
-        // To avoid false negatives, treat active/warming_up as ready.
-        domainStatusReady || verifyStatusReady || isReadyStatus
+      ? // Operational status is necessary, but authentication evidence remains
+        // the final fail-closed gate for every marketing campaign.
+        (domainStatusReady || verifyStatusReady || isReadyStatus) &&
+        authentication.ready
       : false;
 
   return {
@@ -602,10 +613,11 @@ function useEmailDomainReadiness(params: {
       ? getErrorMessage(verifyQuery.error) || "Failed to verify domain"
       : null,
     readinessStatus: readinessStatus || null,
-    readinessMessage:
-      verifyQuery.data?.readiness?.subMessage ||
-      verifyQuery.data?.readiness?.message ||
-      null,
+    readinessMessage: !authentication.ready
+      ? authentication.message
+      : verifyQuery.data?.readiness?.subMessage ||
+        verifyQuery.data?.readiness?.message ||
+        null,
     domainReady,
     domainConfigured,
   };
@@ -898,7 +910,8 @@ export const CampaignSendConfirmationModal: React.FC<
         : fallbackPreflightChecks;
 
     // Audience targeting check — warn if sending to all contacts with no segments
-    const hasAudience = selectedSegments.length > 0 || selectedPersonas.length > 0;
+    const hasAudience =
+      selectedSegments.length > 0 || selectedPersonas.length > 0;
     const audienceCheck: FinalPreflightCheck = {
       id: "audience",
       label: "Audience targeted",
@@ -910,7 +923,13 @@ export const CampaignSendConfirmationModal: React.FC<
     };
 
     return [domainCheck, audienceCheck, ...preflightChecks];
-  }, [buildDomainCheck, preflightSummary?.checks, shouldLoadPreflight, selectedSegments, selectedPersonas]);
+  }, [
+    buildDomainCheck,
+    preflightSummary?.checks,
+    shouldLoadPreflight,
+    selectedSegments,
+    selectedPersonas,
+  ]);
 
   const finalPreflightChecking =
     shouldLoadPreflight && finalPreflightChecks.some((c) => c.loading);
@@ -1986,7 +2005,10 @@ function PreflightPanels(props: {
       );
     }
 
-    if ((overridesState as string) === "warn" || (overridesState as string) === "block") {
+    if (
+      (overridesState as string) === "warn" ||
+      (overridesState as string) === "block"
+    ) {
       const reason =
         typeof (override as any)?.under_review_override_reason === "string" &&
         (override as any)?.under_review_override_reason
@@ -2078,7 +2100,10 @@ function PreflightPanels(props: {
       );
     }
 
-    if ((audienceState as string) === "warn" || (audienceState as string) === "block") {
+    if (
+      (audienceState as string) === "warn" ||
+      (audienceState as string) === "block"
+    ) {
       rows.push(
         <ComplianceRow
           key="audience"

@@ -94,18 +94,32 @@ export function SegmentLivePreview({
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <MetricBlock
-            helper="Average across matched customers"
+            helper={
+              preview.averageLifetimeValue === null
+                ? "No spending totals on file for these customers"
+                : "Average across matched customers"
+            }
             label="Average LTV"
-            value={`$${preview.averageLifetimeValue.toFixed(0)}`}
+            value={
+              preview.averageLifetimeValue === null
+                ? "Not available"
+                : `$${preview.averageLifetimeValue.toFixed(0)}`
+            }
           />
           <MetricBlock
             helper={
-              preview.averageLifetimeValueDelta >= 0
-                ? "Above tenant average"
-                : "Below tenant average"
+              preview.averageLifetimeValueDelta === null
+                ? "Needs spending totals to compare"
+                : preview.averageLifetimeValueDelta >= 0
+                  ? "Above tenant average"
+                  : "Below tenant average"
             }
             label="LTV delta"
-            value={`${preview.averageLifetimeValueDelta >= 0 ? "+" : ""}$${preview.averageLifetimeValueDelta.toFixed(0)}`}
+            value={
+              preview.averageLifetimeValueDelta === null
+                ? "Not available"
+                : `${preview.averageLifetimeValueDelta >= 0 ? "+" : ""}$${preview.averageLifetimeValueDelta.toFixed(0)}`
+            }
           />
         </Stack>
 

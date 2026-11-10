@@ -37,13 +37,16 @@ type RevenueChartProps = {
   loading?: boolean;
   onRetry?: () => void;
   periodLabel: string;
+  currency?: string;
 };
 
 function RevenueTooltip({
   active,
   label,
   payload,
+  currency,
 }: {
+  currency?: string;
   active?: boolean;
   label?: string;
   payload?: Array<{ value: number; payload: RevenuePoint }>;
@@ -70,7 +73,7 @@ function RevenueTooltip({
         {label ? formatAnalyticsDay(label) : "Revenue"}
       </Typography>
       <Typography level="title-sm" sx={{ color: "neutral.900" }}>
-        {formatCurrency(row?.revenue ?? 0)}
+        {formatCurrency(row?.revenue ?? 0, { currency })}
       </Typography>
       <Typography level="body-xs" sx={{ color: "neutral.600" }}>
         {row?.orders ?? 0} orders
@@ -85,6 +88,7 @@ export function RevenueChart({
   loading = false,
   onRetry,
   periodLabel,
+  currency,
 }: RevenueChartProps) {
   if (loading) {
     return (
@@ -107,7 +111,7 @@ export function RevenueChart({
 
   if (error) {
     return (
-      <JoyCard variant="soft" color="danger">
+      <JoyCard variant="outlined">
         <JoyCardHeader title="Revenue Over Time" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack spacing={1.5}>
@@ -118,7 +122,7 @@ export function RevenueChart({
               <JoyButton
                 size="sm"
                 variant="soft"
-                color="danger"
+                color="neutral"
                 startDecorator={<RefreshCw size={14} />}
                 onClick={onRetry}
               >
@@ -198,13 +202,13 @@ export function RevenueChart({
                 axisLine={false}
                 tick={{ fill: "var(--joy-palette-neutral-500)", fontSize: 12 }}
                 tickFormatter={(value: number) =>
-                  formatCurrency(value, { compact: true })
+                  formatCurrency(value, { compact: true, currency })
                 }
                 tickLine={false}
                 width={72}
               />
               <Tooltip
-                content={<RevenueTooltip />}
+                content={<RevenueTooltip currency={currency} />}
                 cursor={{
                   stroke: "rgba(var(--joy-palette-primary-mainChannel) / 0.25)",
                 }}

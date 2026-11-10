@@ -79,8 +79,9 @@ function CanvasInsertionPoint({
         ref={setNodeRef}
         sx={{
           position: "relative",
-          height: isActiveDropTarget ? 32 : 16,
-          my: 0,
+          height: isActiveDropTarget ? 32 : 8,
+          my: isActiveDropTarget ? 0 : "-4px",
+          zIndex: 4,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -95,9 +96,7 @@ function CanvasInsertionPoint({
             transform: "translate(-50%, -50%) scale(0.88)",
             transition: "all 120ms ease",
           },
-          "&:hover": {
-            height: 32,
-          },
+
           "&:hover .studio-insert-line, &:focus-within .studio-insert-line": {
             opacity: 1,
           },
@@ -254,6 +253,8 @@ export default function StudioCanvas({
 
   return (
     <Box
+      aria-label="Newsletter block builder"
+      data-newsletter-canvas=""
       onClick={() => onSelect(null)}
       sx={{
         minWidth: 0,
@@ -275,6 +276,54 @@ export default function StudioCanvas({
         "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
       }}
     >
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 5,
+          px: 2,
+          py: 1,
+          bgcolor: "#e4eaeb",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid #bbc9cc",
+        }}
+      >
+        <Typography level="body-sm" sx={{ fontWeight: 700, color: "#263d42" }}>
+          Block builder
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <button
+            type="button"
+            className="nl-quiet"
+            onClick={(event) => {
+              event.stopPropagation();
+              event.currentTarget
+                .closest("[data-newsletter-canvas]")
+                ?.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
+            Top
+          </button>
+          <button
+            type="button"
+            className="nl-quiet"
+            onClick={(event) => {
+              event.stopPropagation();
+              const canvas = event.currentTarget.closest(
+                "[data-newsletter-canvas]",
+              );
+              canvas?.scrollTo({
+                top: canvas.scrollHeight,
+                behavior: "smooth",
+              });
+            }}
+          >
+            Bottom
+          </button>
+        </Box>
+      </Box>
       <Box
         sx={{
           width: "100%",

@@ -4,6 +4,7 @@ import type {
   OpenAIChatMessage,
   PersistenceClient,
 } from "./types.ts";
+import { meteredModelFetch, type SpendMeter } from "./security/spend-cap.ts";
 
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
@@ -39,6 +40,7 @@ export type CompactionMessageRange = {
   recentWindow?: number;
   trigger?: Exclude<CompactionTrigger, "none">;
   maxSummaryTokens?: number;
+  meter?: SpendMeter | null;
 };
 
 export type CompactionSummary = {
@@ -111,6 +113,7 @@ type ContextOptions = {
   userId?: string;
   currentMessageId?: string;
   forceTrigger?: "emergency";
+  meter?: SpendMeter | null;
 };
 
 type TenantScope = {
@@ -875,7 +878,7 @@ export async function generateCompactionSummary(
     );
   }
 
-  const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+  const response = await meteredModelFetch(messageRange.meter, "compaction", OPENAI_CHAT_COMPLETIONS_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${openAiApiKey}`,
@@ -1045,6 +1048,7 @@ export async function getContextWithCompaction(
         maxSummaryTokens: forcedEmergency
           ? EMERGENCY_MAX_SUMMARY_TOKENS
           : DEFAULT_MAX_SUMMARY_TOKENS,
+        meter: options.meter,
       },
     );
     await applyCompaction(serviceClient, conversation.id, appliedSummary);

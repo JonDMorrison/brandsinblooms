@@ -4,6 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { generateInsights as generateCampaignAnomalies } from "./generators/campaign-anomalies.ts";
+import { generateInsights as generateCustomerIntelligence } from "./generators/customer-intelligence.ts";
 import { generateInsights as generateDormantCustomers } from "./generators/dormant-customers.ts";
 import { generateInsights as generateLowStock } from "./generators/low-stock.ts";
 import { generateInsights as generatePendingDrafts } from "./generators/pending-drafts.ts";
@@ -18,6 +19,7 @@ const CORS_OPTIONS = {
 };
 
 const GENERATORS = [
+  { key: "customer-intelligence", run: generateCustomerIntelligence },
   { key: "low-stock", run: generateLowStock },
   { key: "dormant-customers", run: generateDormantCustomers },
   { key: "campaign-anomalies", run: generateCampaignAnomalies },
@@ -57,6 +59,7 @@ type PendingInsightInsert = {
 
 function createGeneratorStatsRecord(): Record<GeneratorKey, GeneratorStats> {
   return {
+    "customer-intelligence": { generated: 0, inserted: 0, duplicates: 0, errors: 0 },
     "low-stock": { generated: 0, inserted: 0, duplicates: 0, errors: 0 },
     "dormant-customers": {
       generated: 0,

@@ -22,8 +22,7 @@ type SearchEntityType =
   | "activity"
   | "ticket"
   | "integration"
-  | "community_story"
-  | "publish_item";
+  | "community_story";
 
 type SearchGroupKey =
   | "customers"
@@ -40,8 +39,7 @@ type SearchGroupKey =
   | "activity"
   | "tickets"
   | "integrations"
-  | "community"
-  | "publish";
+  | "community";
 
 type SearchResultItem = {
   id: string;
@@ -209,16 +207,6 @@ type PosConnectionSearchRow = {
   sync_status: string | null;
 };
 
-type SocialConnectionSearchRow = {
-  id: string;
-  platform: string;
-  platform_account_id: string;
-  platform_account_name: string | null;
-  username: string | null;
-  is_active: boolean;
-  expires_at: string | null;
-};
-
 type CommunityStorySearchRow = {
   id: string;
   customer_name: string | null;
@@ -226,16 +214,6 @@ type CommunityStorySearchRow = {
   status: string;
   tags: string[] | null;
   created_at: string;
-};
-
-type PublishItemSearchRow = {
-  id: string;
-  ai_output: string | null;
-  post_type: string | null;
-  status: string;
-  scheduled_date: string | null;
-  hashtags: string | null;
-  notes: string | null;
 };
 
 type CampaignRecipientRelationCampaign = {
@@ -291,7 +269,6 @@ const SEARCH_GROUP_ORDER: SearchGroupKey[] = [
   "tickets",
   "integrations",
   "community",
-  "publish",
 ];
 
 const SEARCH_GROUP_METADATA: Record<
@@ -313,7 +290,6 @@ const SEARCH_GROUP_METADATA: Record<
   tickets: { title: "Tickets", icon: "support" },
   integrations: { title: "Integrations", icon: "integrations" },
   community: { title: "Community", icon: "community" },
-  publish: { title: "Publish", icon: "publish" },
 };
 
 const ENTITY_GROUP_MAP: Record<SearchEntityType, SearchGroupKey> = {
@@ -332,7 +308,6 @@ const ENTITY_GROUP_MAP: Record<SearchEntityType, SearchGroupKey> = {
   ticket: "tickets",
   integration: "integrations",
   community_story: "community",
-  publish_item: "publish",
 };
 
 const ENTITY_ICON_MAP: Record<SearchEntityType, string> = {
@@ -351,7 +326,6 @@ const ENTITY_ICON_MAP: Record<SearchEntityType, string> = {
   ticket: "support",
   integration: "integrations",
   community_story: "community",
-  publish_item: "publish",
 };
 
 const ALLOWED_ENTITY_TYPES: SearchEntityType[] = [
@@ -370,7 +344,6 @@ const ALLOWED_ENTITY_TYPES: SearchEntityType[] = [
   "ticket",
   "integration",
   "community_story",
-  "publish_item",
 ];
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -1633,7 +1606,6 @@ async function searchTickets(
 async function searchIntegrationConnections(
   supabase: SupabaseClientLike,
   tenantId: string,
-  userId: string,
   query: string,
   limit: number,
   offset: number,
@@ -1655,24 +1627,12 @@ async function searchIntegrationConnections(
     .or(buildOrFilter(["name", "platform", "sync_status", "sync_error"], query, fuzzy))
     .limit(limit + offset);
 
-  let socialRequest = supabase
-    .from("social_connections")
-    .select(
-      "id, platform, platform_account_id, platform_account_name, username, is_active, expires_at",
-    )
-    .eq("user_id", userId)
-    .is("deleted_at", null)
-    .or(buildOrFilter(["platform", "platform_account_id", "platform_account_name", "username"], query, fuzzy))
-    .limit(limit + offset);
-
   providerRequest = applyTimeout(providerRequest);
   posRequest = applyTimeout(posRequest);
-  socialRequest = applyTimeout(socialRequest);
 
-  const [providerResult, posResult, socialResult] = await Promise.all([
+  const [providerResult, posResult] = await Promise.all([
     providerRequest,
     posRequest,
-    socialRequest,
   ]);
 
   if (providerResult.error) {
@@ -1683,13 +1643,8 @@ async function searchIntegrationConnections(
     throw posResult.error;
   }
 
-  if (socialResult.error) {
-    throw socialResult.error;
-  }
-
   const providerRows = (providerResult.data ?? []) as ProviderConnectionSearchRow[];
   const posRows = (posResult.data ?? []) as PosConnectionSearchRow[];
-  const socialRows = (socialResult.data ?? []) as SocialConnectionSearchRow[];
 
   const results = [
     ...providerRows.map((connection) => {
@@ -1746,34 +1701,6 @@ async function searchIntegrationConnections(
         ].filter(Boolean) as string[],
       );
     }),
-    ...socialRows.map((connection) => {
-      const providerLabel = formatProviderLabel(connection.platform);
-      const slug = getIntegrationSlug(connection.platform);
-
-      return createSearchItem(
-        "integration",
-        {
-          id: `db:integration:social:${connection.id}`,
-          title:
-            connection.platform_account_name || connection.username || providerLabel,
-          subtitle: joinSubtitle([
-            providerLabel,
-            connection.platform_account_id,
-          ]),
-          route: getRouteWithQuery(`/integrations/${slug}`, {
-            connection: connection.id,
-          }),
-          metadata: connection.is_active ? "Active" : "Inactive",
-        },
-        query,
-        [
-          connection.platform,
-          connection.platform_account_id,
-          connection.platform_account_name,
-          connection.username,
-        ].filter(Boolean) as string[],
-      );
-    }),
   ];
 
   return sortAndSliceResults(results, limit, offset);
@@ -1813,56 +1740,6 @@ async function searchCommunityStories(
       },
       query,
       [story.customer_name, story.status, ...(story.tags ?? [])].filter(Boolean) as string[],
-    )
-  );
-
-  return sortAndSliceResults(results, limit, offset);
-}
-
-async function searchPublishItems(
-  supabase: SupabaseClientLike,
-  tenantId: string,
-  query: string,
-  limit: number,
-  offset: number,
-  fuzzy = true,
-) {
-  let request = supabase
-    .from("content_tasks")
-    .select("id, ai_output, post_type, status, scheduled_date, hashtags, notes")
-    .eq("tenant_id", tenantId)
-    .is("deleted_at", null)
-    .neq("status", "published")
-    .neq("status", "archived")
-    .or(buildOrFilter(["ai_output", "post_type", "hashtags", "notes"], query, fuzzy))
-    .limit(limit + offset);
-
-  request = applyTimeout(request);
-
-  const { data, error } = await request;
-
-  if (error) {
-    throw error;
-  }
-
-  const rows = (data ?? []) as PublishItemSearchRow[];
-  const results = rows.map((item) =>
-    createSearchItem(
-      "publish_item",
-      {
-        id: `db:publish_item:${item.id}`,
-        title: excerptText(item.ai_output, 56) || "Publish item",
-        subtitle: joinSubtitle([
-          formatStatus(item.post_type),
-          item.scheduled_date,
-        ]),
-        route: getRouteWithQuery("/publish", { highlight: item.id, tab: "ready" }),
-        metadata: formatStatus(item.status),
-      },
-      query,
-      [item.ai_output, item.post_type, item.hashtags, item.notes, item.status].filter(
-        Boolean,
-      ) as string[],
     )
   );
 
@@ -2106,7 +1983,6 @@ Deno.serve(async (req) => {
             searchIntegrationConnections(
               supabase,
               userTenantId,
-              user.id,
               query,
               limit,
               offset,
@@ -2116,10 +1992,6 @@ Deno.serve(async (req) => {
         case "community_story":
           return runEntitySearch(entityType, () =>
             searchCommunityStories(supabase, query, limit, offset, fuzzy)
-          );
-        case "publish_item":
-          return runEntitySearch(entityType, () =>
-            searchPublishItems(supabase, userTenantId, query, limit, offset, fuzzy)
           );
       }
     });

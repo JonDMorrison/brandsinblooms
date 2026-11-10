@@ -6,9 +6,13 @@ import { buildIntegrationDetailModel } from "@/components/integrations/integrati
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 
 vi.mock("@/hooks/useIntegrationDetailData", () => ({
   useIntegrationDetailData: vi.fn(),
+}));
+vi.mock("@/hooks/useMailchimpImportProgress", () => ({
+  useMailchimpImportProgress: () => ({ jobId: null }),
 }));
 
 vi.mock("sonner", () => ({
@@ -318,18 +322,20 @@ function LocationProbe() {
 
 function renderPage() {
   render(
-    <MemoryRouter initialEntries={["/integrations/email-infrastructure"]}>
-      <Routes>
-        <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
-        <Route path="/domains" element={<div>Domains Route</div>} />
-        <Route path="/activity" element={<div>Activity Route</div>} />
-        <Route
-          path="/crm/settings/email-sending"
-          element={<div>Email Settings Route</div>}
-        />
-      </Routes>
-      <LocationProbe />
-    </MemoryRouter>,
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={["/integrations/email-infrastructure"]}>
+        <Routes>
+          <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
+          <Route path="/domains" element={<div>Domains Route</div>} />
+          <Route path="/activity" element={<div>Activity Route</div>} />
+          <Route
+            path="/crm/settings/email-sending"
+            element={<div>Email Settings Route</div>}
+          />
+        </Routes>
+        <LocationProbe />
+      </MemoryRouter>
+    </TestQueryClientProvider>,
   );
 }
 
@@ -347,9 +353,9 @@ describe("IntegrationDetailPage email infrastructure branch", () => {
 
     expect(screen.getAllByText("DNS healthy").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Run DNS Check" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Overview" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /DNS Records/i })).toBeTruthy();
-    expect(screen.getByText("Domain")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /DNS Records/i })).toBeTruthy();
+    expect(screen.getAllByText("Domain").length).toBeGreaterThan(0);
     expect(screen.getByText("DNS Health")).toBeTruthy();
     expect(screen.getByText("Sending Health")).toBeTruthy();
     expect(screen.getByText("Domain Configuration")).toBeTruthy();
@@ -397,7 +403,10 @@ describe("IntegrationDetailPage email infrastructure branch", () => {
     fireEvent.click(screen.getAllByText("View DNS Records")[0]);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "DNS Records" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: /DNS Records/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
       expect(screen.getByText("Purpose")).toBeTruthy();
       expect(screen.getByText("Host")).toBeTruthy();
       expect(screen.getByText("Value")).toBeTruthy();

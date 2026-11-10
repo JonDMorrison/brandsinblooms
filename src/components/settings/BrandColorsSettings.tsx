@@ -29,7 +29,7 @@ const COLOR_PRESETS = [
     name: "Green Garden (Default)",
     primary: "#22c55e",
     secondary: "#1e40af",
-    accent: "#f59e0b",
+    accent: "#B46B48",
     text: "#1f2937",
   },
   {
@@ -72,7 +72,7 @@ const COLOR_PRESETS = [
 const DEFAULT_COLORS = {
   primary: "#22c55e",
   secondary: "#1e40af",
-  accent: "#f59e0b",
+  accent: "#B46B48",
   text: "#1f2937",
 };
 
@@ -89,16 +89,16 @@ const FOOTER_BG_PRESETS = [
   { label: "Deep Green", value: "#283024" },
   { label: "Navy", value: "#1e3a5f" },
   { label: "Charcoal", value: "#374151" },
-  { label: "Cream", value: "#FAF9F6" },
+  { label: "Soft Slate", value: "#F8FAFC" },
   { label: "White", value: "#FFFFFF" },
 ];
 
 const FOOTER_ACCENT_PRESETS = [
-  { label: "Warm Tan", value: "#E5BFA7" },
+  { label: "Cool Slate", value: "#CBD5E1" },
   { label: "Blue", value: "#3B82F6" },
   { label: "Green", value: "#22C55E" },
   { label: "Rose", value: "#F472B6" },
-  { label: "Gold", value: "#F59E0B" },
+  { label: "Clay", value: "#B46B48" },
 ];
 
 export const BrandColorsSettings: React.FC = () => {
@@ -547,7 +547,7 @@ export const BrandColorsSettings: React.FC = () => {
                   onChange={(e) =>
                     setColors({ ...colors, accent: e.target.value })
                   }
-                  placeholder="#f59e0b"
+                  placeholder="#B46B48"
                   className="flex-1"
                 />
               </div>

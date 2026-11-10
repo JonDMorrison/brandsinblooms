@@ -171,13 +171,26 @@ export function sanitizePostgrestSearch(value: string): string {
   return value.replace(/[,.()"'\\]/g, "").trim();
 }
 
-export function formatCurrency(value: number | null, currency = "USD"): string {
-  const amount = value ?? 0;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(amount);
+export const UNKNOWN_AMOUNT_LABEL = "Unknown";
+
+/**
+ * Formats a money amount for people to read.
+ * A missing amount is "Unknown", never $0.00. Without a known ISO currency
+ * code the plain amount is shown; a currency is never assumed.
+ */
+export function formatCurrency(
+  value: number | null | undefined,
+  currency: string | null = null,
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return UNKNOWN_AMOUNT_LABEL;
+  }
+
+  const code = currency?.trim().toUpperCase() ?? "";
+  const options: Intl.NumberFormatOptions = /^[A-Z]{3}$/.test(code)
+    ? { style: "currency", currency: code, maximumFractionDigits: 2 }
+    : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  return new Intl.NumberFormat("en-US", options).format(value);
 }
 
 export function isJunctionOperator(operator: FilterOperator): boolean {

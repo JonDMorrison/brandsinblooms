@@ -6,9 +6,11 @@ import MenuItem from "@mui/joy/MenuItem";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
+  Check,
   Calendar,
   FilePlus,
   Heart,
+  Images,
   MoreHorizontal,
   Newspaper,
   Sprout,
@@ -18,6 +20,8 @@ import {
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   getTemplateForIntent,
+  CAMPAIGN_TEMPLATES,
+  type CampaignTemplate,
   type CampaignIntentKey,
 } from "@/lib/studio/campaignTemplates";
 import type { SavedTemplate } from "@/hooks/useSavedTemplates";
@@ -35,9 +39,15 @@ export type IntentCardEntry = {
 const DEFAULT_INTENTS: ReadonlyArray<Omit<IntentCardEntry, "comingSoon">> = [
   {
     key: "newsletter",
-    title: "Newsletter",
+    title: "Editorial Newsletter",
     subtitle: "Monthly update with multiple sections",
     icon: Newspaper,
+  },
+  {
+    key: "showcase",
+    title: "Seasonal Showcase",
+    subtitle: "Image-led stories in a magazine-style layout",
+    icon: Images,
   },
   {
     key: "sale",
@@ -84,8 +94,8 @@ const cardBaseSx = {
   position: "relative",
   display: "flex",
   flexDirection: "column",
-  gap: 1,
-  p: 2.25,
+  gap: 1.5,
+  p: 2.5,
   borderRadius: "var(--joy-radius-lg)",
   border: "1px solid",
   borderColor: "neutral.200",
@@ -94,6 +104,7 @@ const cardBaseSx = {
   cursor: "pointer",
   transition:
     "transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease",
+  "&:focus-visible": { outline: "2px solid #244d46", outlineOffset: 4 },
   "&:hover": {
     borderColor: "neutral.300",
     transform: "translateY(-1px)",
@@ -102,9 +113,10 @@ const cardBaseSx = {
 
 const cardSelectedSx = {
   borderWidth: "2px",
-  borderColor: "primary.500",
-  backgroundColor: "primary.50",
-  p: "calc(1.125 * var(--joy-spacing) - 1px)",
+  borderColor: "#244d46",
+  backgroundColor: "#FFFFFF",
+  boxShadow: "0 0 0 1px #244d46",
+  p: "calc(20px - 1px)",
 } as const;
 
 const cardDisabledSx = {
@@ -141,9 +153,11 @@ function formatRelativeFromNow(value: string) {
   if (diffHours < 24)
     return `Saved ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
   const diffDays = Math.round(diffHours / 24);
-  if (diffDays < 7) return `Saved ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+  if (diffDays < 7)
+    return `Saved ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
   const diffWeeks = Math.round(diffDays / 7);
-  if (diffWeeks < 5) return `Saved ${diffWeeks} week${diffWeeks === 1 ? "" : "s"} ago`;
+  if (diffWeeks < 5)
+    return `Saved ${diffWeeks} week${diffWeeks === 1 ? "" : "s"} ago`;
   const date = new Date(timestamp);
   return `Saved ${date.toLocaleDateString()}`;
 }
@@ -168,6 +182,9 @@ function IntentCard({
     () => (isBlank ? null : getTemplateForIntent(entry.key)),
     [entry.key, isBlank],
   );
+  const formatLabel =
+    template?.formatLabel ||
+    (isBlank ? "Build your own layout" : "Ready-to-edit email design");
 
   return (
     <Box
@@ -195,26 +212,59 @@ function IntentCard({
       }}
     >
       <IntentCardThumbnail
+        intent={entry.key}
         template={template}
         variant={isBlank ? "blank" : "preview"}
         emptyLabel={entry.comingSoon ? "Coming soon" : null}
       />
-      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mt: 1 }}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        sx={{ minHeight: 22 }}
+      >
+        <Typography
+          level="body-xs"
+          sx={{ color: "neutral.700", fontWeight: 600 }}
+        >
+          {template?.name || "Blank canvas"}
+        </Typography>
+        {selected ? (
+          <Typography
+            level="body-xs"
+            startDecorator={<Check size={14} />}
+            sx={{ color: "#244d46", fontWeight: 700 }}
+          >
+            Selected
+          </Typography>
+        ) : null}
+      </Stack>
+      <Stack
+        direction="row"
+        spacing={1.25}
+        alignItems="flex-start"
+        sx={{ mt: 0.5 }}
+      >
         <Box sx={iconContainerSx} aria-hidden>
           <Icon size={18} strokeWidth={1.8} />
         </Box>
         <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             level="title-sm"
-            sx={{ fontSize: "15px", fontWeight: 500, color: "neutral.800" }}
+            sx={{ fontSize: "17px", fontWeight: 600, color: "neutral.800" }}
           >
             {entry.title}
           </Typography>
           <Typography
             level="body-sm"
-            sx={{ fontSize: "13px", color: "neutral.500" }}
+            sx={{ fontSize: "14px", color: "neutral.600" }}
           >
             {entry.subtitle}
+          </Typography>
+          <Typography
+            level="body-xs"
+            sx={{ mt: 0.5, color: "neutral.500", fontSize: "12px" }}
+          >
+            {formatLabel}
           </Typography>
         </Stack>
       </Stack>
@@ -242,7 +292,9 @@ function SavedTemplateCard({
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   const menuOpen = Boolean(menuAnchor);
   const blockCount = template.layout_json.length;
-  const savedLabel = formatRelativeFromNow(template.created_at);
+  const savedLabel = formatRelativeFromNow(
+    template.updated_at || template.created_at,
+  );
 
   return (
     <Box
@@ -268,6 +320,7 @@ function SavedTemplateCard({
         ...(disabled ? cardDisabledSx : {}),
       }}
     >
+      <IntentCardThumbnail template={null} blocks={template.layout_json} />
       <Stack
         direction="row"
         spacing={1}
@@ -352,6 +405,7 @@ export interface IntentPickerProps {
   /** Intent keys that have no matching template — rendered as Coming soon. */
   unavailableIntents?: ReadonlySet<CampaignIntentKey>;
   onSelectIntent: (key: CampaignIntentKey) => void;
+  onApplyBuiltInTemplate?: (template: CampaignTemplate) => void;
   onApplySavedTemplate: (template: SavedTemplate) => void;
   onRenameSavedTemplate: (template: SavedTemplate) => void;
   onArchiveSavedTemplate: (template: SavedTemplate) => void;
@@ -365,16 +419,14 @@ export function IntentPicker({
   disabled = false,
   unavailableIntents,
   onSelectIntent,
+  onApplyBuiltInTemplate,
   onApplySavedTemplate,
   onRenameSavedTemplate,
   onArchiveSavedTemplate,
   onOpenManage,
 }: IntentPickerProps) {
   const intentEntries = React.useMemo(
-    () =>
-      buildIntentEntries(
-        (key) => !(unavailableIntents?.has(key) ?? false),
-      ),
+    () => buildIntentEntries((key) => !(unavailableIntents?.has(key) ?? false)),
     [unavailableIntents],
   );
 
@@ -383,7 +435,9 @@ export function IntentPicker({
   return (
     <Stack spacing={2.5} data-testid="intent-picker">
       <Stack spacing={0.5}>
-        <Typography level="title-md">Start with</Typography>
+        <Typography level="h2" sx={{ fontSize: 24, fontWeight: 700 }}>
+          Choose your starting point
+        </Typography>
         <Typography
           level="body-sm"
           sx={{ color: "neutral.600", maxWidth: 620 }}
@@ -391,6 +445,45 @@ export function IntentPicker({
           Pick what you want to send. You can edit everything afterward.
         </Typography>
       </Stack>
+
+      {onApplyBuiltInTemplate ? (
+        <Stack spacing={1.5}>
+          <Typography level="title-md">
+            Botanical Editorial collection
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            Photographic layouts with your branding. Replace the photos and
+            copy, then save your own version in My templates.
+          </Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            {CAMPAIGN_TEMPLATES.filter((template) =>
+              template.id.startsWith("botanical-"),
+            ).map((template) => (
+              <Box key={template.id} sx={{ ...cardBaseSx, cursor: "default" }}>
+                <IntentCardThumbnail template={template} />
+                <Typography level="title-sm">{template.name}</Typography>
+                <JoyButton
+                  variant="outlined"
+                  color="neutral"
+                  disabled={disabled}
+                  onClick={() => onApplyBuiltInTemplate(template)}
+                >
+                  Use {template.name}
+                </JoyButton>
+              </Box>
+            ))}
+          </Box>
+        </Stack>
+      ) : null}
 
       {hasSavedTemplates ? (
         <Stack spacing={1.5} data-testid="intent-picker-my-templates">
@@ -420,7 +513,11 @@ export function IntentPicker({
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(3, minmax(0, 1fr))",
+              },
               gap: 1.5,
             }}
           >
@@ -442,8 +539,12 @@ export function IntentPicker({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 1.5,
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
+          gap: 2.5,
         }}
       >
         {intentEntries.map((entry) => (

@@ -7,7 +7,6 @@ import {
   Megaphone, 
   Calendar, 
   BarChart3, 
-  Share2,
   ArrowRight,
   Sparkles,
   Globe
@@ -34,13 +33,6 @@ const quickStartOptions = [
     description: 'Quick email blast to your customers',
     icon: <Mail className="w-5 h-5" />,
     color: 'from-green-50 to-green-100'
-  },
-  {
-    id: 'social-post',
-    title: 'Post on Social Media',
-    description: 'Share content across your social channels',
-    icon: <Share2 className="w-5 h-5" />,
-    color: 'from-slate-50 to-slate-100'
   },
   {
     id: 'campaign',

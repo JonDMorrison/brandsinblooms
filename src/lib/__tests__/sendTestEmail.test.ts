@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { sendCampaignTestEmail, sendSenderTestEmail, sendDomainTestEmail, isValidEmail } from '../sendTestEmail';
 
 // Mock Supabase
-const mockInvoke = vi.fn();
+const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     functions: {

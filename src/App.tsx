@@ -17,6 +17,7 @@ import {
 } from "@/components/layout/DashboardShell";
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { CRMAccessGate } from "@/components/crm/CRMAccessGate";
 import { PublicRoute } from "@/components/PublicRoute";
 import { RecoveryRoute } from "@/components/RecoveryRoute";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
@@ -26,6 +27,7 @@ import { NavigationTracker } from "@/components/NavigationTracker";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { lazyNamed } from "@/utils/lazyNamed";
 import { lazyRetry } from "@/utils/lazyRetry";
+import type { CrmPermission } from "@/lib/auth/crmAccess";
 
 // ============================================================
 // LAZY-LOADED ADMIN PAGES
@@ -54,6 +56,17 @@ const AdminAuditLogsPage = lazyRetry(
 const ReportedProblemsPage = lazyRetry(
   () => import("@/pages/admin/ReportedProblemsPage"),
 );
+const BloomSupportPage = lazyRetry(
+  () => import("@/pages/admin/BloomSupportPage"),
+);
+const BloomSupportConnectPage = lazyRetry(
+  () => import("@/pages/BloomSupportConnectPage"),
+);
+const PublicSupportContact = lazyNamed(
+  () => import("@/pages/PublicSupportPage"),
+  "PublicSupportContact",
+);
+const PublicSupportTrack = lazyRetry(() => import("@/pages/PublicSupportTrackPage"));
 const ReportedProblemDetailPage = lazyRetry(
   () => import("@/pages/admin/ReportedProblemDetailPage"),
 );
@@ -76,9 +89,6 @@ const POSIntegrationsPage = lazyRetry(
 );
 const CRMIntegrationsPage = lazyRetry(
   () => import("@/pages/integrations/CRMIntegrationsPage"),
-);
-const SocialIntegrationsPage = lazyRetry(
-  () => import("@/pages/integrations/SocialIntegrationsPage"),
 );
 const AutomationsIntegrationsPage = lazyRetry(
   () => import("@/pages/integrations/AutomationsIntegrationsPage"),
@@ -103,9 +113,6 @@ const ShopifyDebugPage = lazyRetry(
 );
 const SquareGuidePage = lazyRetry(
   () => import("@/pages/integrations/square/GuidePage"),
-);
-const CloverGuidePage = lazyRetry(
-  () => import("@/pages/integrations/clover/GuidePage"),
 );
 const IntegrationDocumentationPage = lazyRetry(
   () => import("@/pages/integrations/IntegrationDocumentationPage"),
@@ -137,8 +144,15 @@ const OnboardingPage = lazyRetry(() => import("@/pages/OnboardingPage"));
 const PricingPage = lazyRetry(() => import("@/pages/PricingPage"));
 const FAQPage = lazyRetry(() => import("@/pages/FAQPage"));
 const ContactPage = lazyRetry(() => import("@/pages/ContactPage"));
+const SuiteBuilderPage = lazyNamed(() => import("@/pages/SuiteBuilderPage"), "SuiteBuilderPage");
+const SuitePage = lazyNamed(() => import("@/pages/SuitePage"), "SuitePage");
+const PosMarketingPage = lazyNamed(() => import("@/pages/PosMarketingPage"), "PosMarketingPage");
 const AboutPage = lazyNamed(() => import("@/pages/AboutPage"), "AboutPage");
 const SmsPage = lazyNamed(() => import("@/pages/public/SmsPage"), "SmsPage");
+const LightspeedLandingPage = lazyNamed(
+  () => import("@/pages/public/LightspeedLandingPage"),
+  "LightspeedLandingPage",
+);
 const PrivacyPage = lazyNamed(
   () => import("@/pages/public/PrivacyPage"),
   "PrivacyPage",
@@ -168,10 +182,6 @@ const WebsiteWaitlistPage = lazyNamed(
   () => import("@/pages/WebsiteWaitlistPage"),
   "WebsiteWaitlistPage",
 );
-const AuthCallbackPage = lazyNamed(
-  () => import("@/pages/AuthCallbackPage"),
-  "AuthCallbackPage",
-);
 const OAuthCallbackHandler = lazyNamed(
   () => import("@/components/migrations/OAuthCallbackHandler"),
   "OAuthCallbackHandler",
@@ -187,9 +197,6 @@ const ShopifyCallbackPage = lazyRetry(
 );
 const SquareCallbackPage = lazyRetry(
   () => import("@/pages/integrations/square/CallbackPage"),
-);
-const CloverCallbackPage = lazyRetry(
-  () => import("@/pages/integrations/clover/CallbackPage"),
 );
 const ConfirmSubscription = lazyRetry(
   () => import("@/pages/ConfirmSubscription"),
@@ -210,6 +217,9 @@ const CRMCustomersPage = lazyNamed(
 const AddCustomer = lazyRetry(() => import("@/pages/crm/AddCustomer"));
 const CustomerDashboardPage = lazyRetry(
   () => import("@/pages/crm/CustomerDashboardPage"),
+);
+const CustomerIntelligencePage = lazyRetry(
+  () => import("@/pages/crm/CustomerIntelligencePage"),
 );
 const CRMCampaignsPage = lazyNamed(
   () => import("@/pages/crm/CRMCampaignsPage"),
@@ -274,6 +284,9 @@ const CRMCampaignEditorPage = lazyRetry(
 const CampaignStudioPage = lazyRetry(
   () => import("@/pages/crm/CampaignStudioPage"),
 );
+const ConnectedContentPage = lazyRetry(
+  () => import("@/pages/crm/ConnectedContentPage"),
+);
 const SavedBlocksPage = lazyNamed(
   () => import("@/pages/crm/SavedBlocksPage"),
   "SavedBlocksPage",
@@ -291,14 +304,6 @@ const SegmentBuilderPage = lazyRetry(
 );
 const SegmentMembersPage = lazyRetry(
   () => import("@/pages/crm/SegmentMembersPage"),
-);
-const ContentLibraryPage = lazyRetry(
-  () => import("@/pages/ContentLibraryPage"),
-);
-const SocialMediaPage = lazyRetry(() => import("@/pages/SocialMediaPage"));
-const PublishPage = lazyRetry(() => import("@/pages/PublishPage"));
-const CarouselComposerPage = lazyRetry(
-  () => import("@/pages/CarouselComposerPage"),
 );
 const TemplatesPage = lazyNamed(
   () => import("@/pages/TemplatesPage"),
@@ -348,7 +353,6 @@ const HelpDeskPage = lazyRetry(() => import("@/pages/HelpDeskPage"));
 const TicketListPage = lazyRetry(() => import("@/pages/TicketListPage"));
 const CreateTicketPage = lazyRetry(() => import("@/pages/CreateTicketPage"));
 const TicketDetailPage = lazyRetry(() => import("@/pages/TicketDetailPage"));
-const PlanPage = lazyRetry(() => import("@/pages/PlanPage"));
 const CommunityPage = lazyNamed(
   () => import("@/pages/CommunityPage"),
   "CommunityPage",
@@ -361,14 +365,12 @@ const LEGACY_SOCIAL_ROUTE = ["/", "social"].join("");
 const LEGACY_SOCIAL_MEDIA_ROUTE = ["/", ["social", "media"].join("-")].join("");
 
 function IntegrationsRouteLayout() {
-  return <TenantRouteLayout />;
-}
-
-function TenantRouteLayout() {
   return (
     <ProtectedRoute>
       <DashboardShell mode="tenant">
-        <Outlet />
+        <CRMAccessGate requiredPermission="integrations.manage">
+          <Outlet />
+        </CRMAccessGate>
       </DashboardShell>
     </ProtectedRoute>
   );
@@ -465,8 +467,19 @@ interface ProtectedSidebarLazyPageOptions {
 function renderProtectedSidebarLazyPage(
   page: React.ReactElement,
   skeleton: ProtectedSidebarSkeletonVariant,
-  options: ProtectedSidebarLazyPageOptions = CRM_LAZY_PAGE_OPTIONS,
+  optionsOrPermission:
+    | ProtectedSidebarLazyPageOptions
+    | CrmPermission = CRM_LAZY_PAGE_OPTIONS,
+  requiredPermission?: CrmPermission,
 ) {
+  const options =
+    typeof optionsOrPermission === "string"
+      ? CRM_LAZY_PAGE_OPTIONS
+      : optionsOrPermission;
+  const permission =
+    typeof optionsOrPermission === "string"
+      ? optionsOrPermission
+      : requiredPermission;
   const { dashboardHref, linkLabel } = options;
 
   return (
@@ -474,7 +487,13 @@ function renderProtectedSidebarLazyPage(
       <SidebarLayout>
         <ChunkErrorBoundary dashboardHref={dashboardHref} linkLabel={linkLabel}>
           <Suspense fallback={<PageSkeleton variant={skeleton} />}>
-            {page}
+            {permission ? (
+              <CRMAccessGate requiredPermission={permission}>
+                {page}
+              </CRMAccessGate>
+            ) : (
+              page
+            )}
           </Suspense>
         </ChunkErrorBoundary>
       </SidebarLayout>
@@ -485,15 +504,32 @@ function renderProtectedSidebarLazyPage(
 function renderProtectedFullscreenLazyPage(
   page: React.ReactElement,
   skeleton: ProtectedSidebarSkeletonVariant,
-  options: ProtectedSidebarLazyPageOptions = CRM_LAZY_PAGE_OPTIONS,
+  optionsOrPermission:
+    | ProtectedSidebarLazyPageOptions
+    | CrmPermission = CRM_LAZY_PAGE_OPTIONS,
+  requiredPermission?: CrmPermission,
 ) {
+  const options =
+    typeof optionsOrPermission === "string"
+      ? CRM_LAZY_PAGE_OPTIONS
+      : optionsOrPermission;
+  const permission =
+    typeof optionsOrPermission === "string"
+      ? optionsOrPermission
+      : requiredPermission;
   const { dashboardHref, linkLabel } = options;
 
   return (
     <ProtectedRoute>
       <ChunkErrorBoundary dashboardHref={dashboardHref} linkLabel={linkLabel}>
         <Suspense fallback={<PageSkeleton variant={skeleton} />}>
-          {page}
+          {permission ? (
+            <CRMAccessGate requiredPermission={permission}>
+              {page}
+            </CRMAccessGate>
+          ) : (
+            page
+          )}
         </Suspense>
       </ChunkErrorBoundary>
     </ProtectedRoute>
@@ -509,6 +545,8 @@ function App() {
           <NavigationTracker />
           <Routes>
             {/* Public routes */}
+            <Route path="/signup" element={<Navigate to="/auth#signup" replace />} />
+            <Route path="/sign-up" element={<Navigate to="/auth#signup" replace />} />
             <Route element={<PublicLazyBoundary />}>
               <Route
                 path="/auth"
@@ -558,23 +596,33 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/build-your-suite" element={<SuiteBuilderPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/faq" element={<FAQPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/pos" element={<PosMarketingPage />} />
+              <Route path="/suite" element={<SuitePage />} />
 
               {/* Public compliance pages */}
               <Route path="/sms-program" element={<SmsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/support/contact" element={<PublicSupportContact />} />
+              <Route path="/support/track/:token" element={<PublicSupportTrack />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route
                 path="/platform-agreement"
                 element={<PlatformAgreementPage />}
               />
               <Route path="/ecomm" element={<EcommPage />} />
+              <Route path="/lightspeed" element={<LightspeedLandingPage />} />
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/features/:slug" element={<FeatureDetailPage />} />
               <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+              <Route
+                path="/docs/integrations/:slug"
+                element={<IntegrationDocumentationPage />}
+              />
               <Route path="/home1" element={<Home1Page />} />
               <Route path="/email-preferences" element={<EmailPreferences />} />
 
@@ -611,7 +659,9 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SidebarLayout>
-                    <BloomShell />
+                    <CRMAccessGate requiredPermission="content.design">
+                      <BloomShell />
+                    </CRMAccessGate>
                   </SidebarLayout>
                 </ProtectedRoute>
               }
@@ -628,6 +678,7 @@ function App() {
                 <NewslettersPage />,
                 "table",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "campaigns.read",
               )}
             />
             <Route
@@ -636,6 +687,7 @@ function App() {
                 <TemplatesPage />,
                 "table",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "campaigns.write",
               )}
             />
             {/* Protected website builder */}
@@ -645,23 +697,16 @@ function App() {
                 <WebsitePage />,
                 "default",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "content.design",
               )}
             />
             <Route
               path="/content"
-              element={renderProtectedSidebarLazyPage(
-                <ContentLibraryPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/content/library"
-              element={renderProtectedSidebarLazyPage(
-                <ContentLibraryPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/calendar"
@@ -676,7 +721,9 @@ function App() {
                         <Suspense
                           fallback={<PageSkeleton variant="dashboard" />}
                         >
-                          <CalendarPage />
+                          <CRMAccessGate requiredPermission="campaigns.read">
+                            <CalendarPage />
+                          </CRMAccessGate>
                         </Suspense>
                       </ChunkErrorBoundary>
                     </DataProviderWrapper>
@@ -690,6 +737,7 @@ function App() {
                 <ActivityCenterPage />,
                 "table",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "campaigns.read",
               )}
             />
             <Route
@@ -698,21 +746,19 @@ function App() {
                 <ActivityDetailsPage />,
                 "form",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "campaigns.read",
               )}
             />
             <Route
               path="/campaigns"
-              element={renderProtectedSidebarLazyPage(
-                <SocialMediaPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/crm"
               element={renderProtectedSidebarLazyPage(
                 <CRMDashboardPage />,
                 "table",
+                "customers.read",
               )}
             />
             <Route
@@ -720,17 +766,39 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCustomersPage />,
                 "table",
+                "customers.read",
+              )}
+            />
+            <Route
+              path="/crm/intelligence"
+              element={renderProtectedSidebarLazyPage(
+                <CustomerIntelligencePage />,
+                "table",
+                "reports.read",
               )}
             />
             <Route
               path="/crm/customers/new"
-              element={renderProtectedSidebarLazyPage(<AddCustomer />, "form")}
+              element={renderProtectedSidebarLazyPage(
+                <AddCustomer />,
+                "form",
+                "customers.write",
+              )}
             />
             <Route
               path="/crm/customers/:customerId"
               element={renderProtectedSidebarLazyPage(
                 <CustomerDashboardPage />,
                 "form",
+                "customers.read",
+              )}
+            />
+            <Route
+              path="/crm/connected-content"
+              element={renderProtectedSidebarLazyPage(
+                <ConnectedContentPage />,
+                "full",
+                "campaigns.write",
               )}
             />
             <Route
@@ -738,6 +806,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignsPage />,
                 "table",
+                "campaigns.read",
               )}
             />
             <Route
@@ -745,6 +814,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignReport />,
                 "table",
+                "reports.read",
               )}
             />
             <Route
@@ -752,6 +822,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignReport />,
                 "table",
+                "reports.read",
               )}
             />
             <Route
@@ -759,6 +830,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignRecipientsPage />,
                 "table",
+                "campaigns.read",
               )}
             />
             <Route
@@ -766,6 +838,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignRecipientDetailPage />,
                 "form",
+                "campaigns.read",
               )}
             />
             <Route
@@ -773,6 +846,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignRecipientsPage />,
                 "table",
+                "campaigns.read",
               )}
             />
             <Route
@@ -780,6 +854,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignRecipientDetailPage />,
                 "form",
+                "campaigns.read",
               )}
             />
             <Route
@@ -791,6 +866,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMSegmentsPage />,
                 "table",
+                "segments.manage",
               )}
             />
             <Route
@@ -798,6 +874,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <SegmentBuilderPage />,
                 "form",
+                "segments.manage",
               )}
             />
             <Route
@@ -805,6 +882,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <SegmentBuilderPage />,
                 "form",
+                "segments.manage",
               )}
             />
             <Route
@@ -812,6 +890,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <SegmentMembersPage />,
                 "table",
+                "segments.manage",
               )}
             />
             <Route
@@ -819,6 +898,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMPersonasPage />,
                 "table",
+                "segments.manage",
               )}
             />
             <Route
@@ -826,6 +906,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <PersonaDetailPage />,
                 "table",
+                "segments.manage",
               )}
             />
             <Route
@@ -833,6 +914,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMAnalytics />,
                 "table",
+                "reports.read",
               )}
             />
             <Route
@@ -840,6 +922,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMAutomations />,
                 "table",
+                "automations.manage",
               )}
             />
             <Route
@@ -847,6 +930,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <AutomationWizardLandingPage />,
                 "form",
+                "automations.manage",
               )}
             />
             <Route
@@ -854,6 +938,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMAutomationGuidePage />,
                 "form",
+                "automations.manage",
               )}
             />
             <Route
@@ -861,6 +946,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMAutomationBuilderPage />,
                 "form",
+                "automations.manage",
               )}
             />
             <Route
@@ -868,6 +954,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMAutomationBuilderPage />,
                 "form",
+                "automations.manage",
               )}
             />
             <Route
@@ -875,6 +962,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMAutomationExecutionsPage />,
                 "table",
+                "automations.manage",
               )}
             />
             <Route
@@ -884,6 +972,7 @@ function App() {
                   <FormsPage />
                 </PageErrorBoundary>,
                 "table",
+                "content.design",
               )}
             />
             <Route
@@ -901,6 +990,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <FormDocumentationPage />,
                 "form",
+                "content.design",
               )}
             />
             <Route
@@ -908,6 +998,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <FormDocumentationPage />,
                 "form",
+                "content.design",
               )}
             />
             <Route
@@ -915,6 +1006,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <FormEditorPage />,
                 "form",
+                "content.design",
               )}
             />
             <Route
@@ -922,6 +1014,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <EmailSendingSettings />,
                 "form",
+                "integrations.manage",
               )}
             />
             <Route
@@ -929,6 +1022,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <SavedBlocksPage />,
                 "table",
+                "campaigns.write",
               )}
             />
             <Route
@@ -936,6 +1030,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignEditorPage />,
                 "form",
+                "campaigns.write",
               )}
             />
             <Route
@@ -943,6 +1038,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignEditorPage />,
                 "form",
+                "campaigns.write",
               )}
             />
             <Route
@@ -950,6 +1046,7 @@ function App() {
               element={renderProtectedFullscreenLazyPage(
                 <CampaignStudioPage />,
                 "dashboard",
+                "campaigns.write",
               )}
             />
             <Route
@@ -957,6 +1054,7 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignEditorPage />,
                 "form",
+                "campaigns.write",
               )}
             />
             <Route
@@ -965,6 +1063,7 @@ function App() {
                 <SMSRoutes />,
                 "default",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "campaigns.write",
               )}
             />
             <Route
@@ -973,6 +1072,7 @@ function App() {
                 <SMSTestingDemo />,
                 "default",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "integrations.manage",
               )}
             />
             <Route
@@ -981,15 +1081,12 @@ function App() {
                 <AnalyticsPage />,
                 "default",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "reports.read",
               )}
             />
             <Route
               path="/assets"
-              element={renderProtectedSidebarLazyPage(
-                <ContentLibraryPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/settings"
@@ -997,6 +1094,7 @@ function App() {
                 <SettingsPage />,
                 "form",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "access.manage",
               )}
             />
             <Route
@@ -1005,6 +1103,7 @@ function App() {
                 <AccountSetupPage />,
                 "form",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "access.manage",
               )}
             />
             <Route
@@ -1013,6 +1112,7 @@ function App() {
                 <UsagePage />,
                 "table",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "access.manage",
               )}
             />
             <Route
@@ -1021,15 +1121,12 @@ function App() {
                 <DomainsPage />,
                 "form",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "integrations.manage",
               )}
             />
             <Route
               path="/social-accounts"
-              element={renderProtectedSidebarLazyPage(
-                <SocialMediaPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/newsletters/new"
@@ -1037,6 +1134,7 @@ function App() {
                 <NewsletterNewPage />,
                 "form",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "campaigns.write",
               )}
             />
             <Route
@@ -1045,6 +1143,7 @@ function App() {
                 <CRMCampaignEditorPage />,
                 "form",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "campaigns.write",
               )}
             />
             <Route path="/integrations" element={<IntegrationsRouteLayout />}>
@@ -1052,14 +1151,21 @@ function App() {
                 <Route index element={<IntegrationsPage />} />
                 <Route path="pos" element={<POSIntegrationsPage />} />
                 <Route path="crm" element={<CRMIntegrationsPage />} />
-                <Route path="social" element={<SocialIntegrationsPage />} />
+                <Route
+                  path="social"
+                  element={<RedirectWithQuery to="/integrations" />}
+                />
                 <Route
                   path="facebook"
-                  element={<RedirectWithQuery to="/integrations/meta" />}
+                  element={<RedirectWithQuery to="/integrations" />}
                 />
                 <Route
                   path="instagram"
-                  element={<RedirectWithQuery to="/integrations/meta" />}
+                  element={<RedirectWithQuery to="/integrations" />}
+                />
+                <Route
+                  path="meta"
+                  element={<RedirectWithQuery to="/integrations" />}
                 />
                 <Route
                   path="google-analytics-4"
@@ -1087,7 +1193,10 @@ function App() {
                 <Route path="lightspeed/debug" element={<DebugPage />} />
                 <Route path="shopify/debug" element={<ShopifyDebugPage />} />
                 <Route path="square/guide" element={<SquareGuidePage />} />
-                <Route path="clover/guide" element={<CloverGuidePage />} />
+                <Route
+                  path="clover/guide"
+                  element={<RedirectWithQuery to="/integrations/clover" />}
+                />
                 <Route
                   path=":slug/documentation"
                   element={<IntegrationDocumentationPage />}
@@ -1098,15 +1207,18 @@ function App() {
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
             <Route
               path={LEGACY_SOCIAL_ROUTE}
-              element={<RedirectWithQuery to="/social-accounts" />}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path={LEGACY_SOCIAL_MEDIA_ROUTE}
-              element={<RedirectWithQuery to="/social-accounts" />}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route element={<CallbackLazyBoundary />}>
               <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
-              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route
+                path="/auth/callback"
+                element={<RedirectWithQuery to="/integrations" />}
+              />
               <Route
                 path="/admin/impersonate/callback"
                 element={<ImpersonateCallbackPage />}
@@ -1125,7 +1237,7 @@ function App() {
               />
               <Route
                 path="/integrations/clover/callback"
-                element={<CloverCallbackPage />}
+                element={<RedirectWithQuery to="/integrations/clover" />}
               />
             </Route>
             <Route
@@ -1135,7 +1247,9 @@ function App() {
                   <SidebarLayout>
                     <ChunkErrorBoundary>
                       <Suspense fallback={<PageSkeleton variant="default" />}>
-                        <POSIntegrationsPage />
+                        <CRMAccessGate requiredPermission="integrations.manage">
+                          <POSIntegrationsPage />
+                        </CRMAccessGate>
                       </Suspense>
                     </ChunkErrorBoundary>
                   </SidebarLayout>
@@ -1150,6 +1264,7 @@ function App() {
                 <ProductsPage />,
                 "table",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "reports.read",
               )}
             />
             <Route
@@ -1158,6 +1273,7 @@ function App() {
                 <ProductDetailPage />,
                 "form",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
+                "reports.read",
               )}
             />
             <Route
@@ -1173,6 +1289,14 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <AccountPage />,
                 "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
+            />
+            <Route
+              path="/bloom-support/connect"
+              element={renderProtectedSidebarLazyPage(
+                <BloomSupportConnectPage />,
+                "default",
                 DASHBOARD_LAZY_PAGE_OPTIONS,
               )}
             />
@@ -1221,27 +1345,15 @@ function App() {
 
             <Route
               path="/publish"
-              element={renderProtectedSidebarLazyPage(
-                <PublishPage />,
-                "form",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/carousel/composer"
-              element={renderProtectedSidebarLazyPage(
-                <CarouselComposerPage />,
-                "form",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/plan"
-              element={renderProtectedSidebarLazyPage(
-                <PlanPage />,
-                "default",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/calendar" />}
             />
             <Route path="/admin" element={<AdminRouteLayout />}>
               <Route element={<AdminLazyBoundary />}>
@@ -1260,6 +1372,7 @@ function App() {
                 <Route path="reports" element={<AdminReportsPage />} />
                 <Route path="costs" element={<AdminCostsPage />} />
                 <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+                <Route path="bloom-support" element={<BloomSupportPage />} />
                 <Route
                   path="reported-problems"
                   element={<ReportedProblemsPage />}
@@ -1322,3 +1435,4 @@ function App() {
 }
 
 export default App;
+

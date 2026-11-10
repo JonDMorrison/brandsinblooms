@@ -1,172 +1,177 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function splitName(name: string | null) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return {
+    first_name: parts.shift() || null,
+    last_name: parts.join(" ") || null,
+  };
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
-    // Get user from JWT
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const token = authHeader.slice("Bearer ".length);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      throw new Error('Invalid authentication');
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    // Get user's tenant
     const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
       .single();
-
-    if (userError || !userData) {
-      throw new Error('User not found');
+    if (userError || !userData?.tenant_id) {
+      return jsonResponse({ error: "User tenant not found" }, 403);
     }
 
-    const body = await req.json();
-    const { connection_id } = body;
+    const { connection_id: connectionId } = await req.json();
+    if (!connectionId || typeof connectionId !== "string") {
+      return jsonResponse({ error: "connection_id is required" }, 400);
+    }
 
-    console.log('Linking POS customers to CRM:', { connection_id });
+    const { data: connection, error: connectionError } = await supabase
+      .from("pos_connections")
+      .select("id, tenant_id, platform")
+      .eq("id", connectionId)
+      .eq("tenant_id", userData.tenant_id)
+      .single();
+    if (connectionError || !connection) {
+      return jsonResponse({ error: "POS connection not found" }, 404);
+    }
 
-    // Get all POS customers for this connection that aren't linked yet
     const { data: posCustomers, error: posError } = await supabase
-      .from('pos_customers')
-      .select(`
-        id,
-        email,
-        first_name,
-        last_name,
-        phone,
-        tags,
-        raw_data
-      `)
-      .eq('tenant_id', userData.tenant_id)
-      .eq('connection_id', connection_id)
-      .not('id', 'in', `(
-        SELECT pos_customer_id FROM crm_customer_links 
-        WHERE tenant_id = '${userData.tenant_id}'
-      )`);
-
+      .from("pos_customers")
+      .select("id, external_id, name, email, phone, tags, raw_data")
+      .eq("pos_connection_id", connection.id)
+      .order("id");
     if (posError) {
       throw new Error(`Failed to fetch POS customers: ${posError.message}`);
     }
 
-    let linked = 0;
-    let created = 0;
-    const errors: string[] = [];
-
-    for (const posCustomer of posCustomers || []) {
-      try {
-        // Try to find existing CRM customer by email
-        const { data: existingCrm, error: crmError } = await supabase
-          .from('crm_customers')
-          .select('id')
-          .eq('tenant_id', userData.tenant_id)
-          .eq('email', posCustomer.email)
-          .maybeSingle();
-
-        if (crmError && crmError.code !== 'PGRST116') { // PGRST116 = no rows found
-          throw new Error(`CRM lookup error: ${crmError.message}`);
-        }
-
-        let crmCustomerId: string;
-
-        if (existingCrm) {
-          // Link to existing CRM customer
-          crmCustomerId = existingCrm.id;
-          linked++;
-        } else {
-          // Create new CRM customer
-          const { data: newCrm, error: createError } = await supabase
-            .from('crm_customers')
-            .insert({
-              tenant_id: userData.tenant_id,
-              user_id: user.id,
-              email: posCustomer.email,
-              first_name: posCustomer.first_name,
-              last_name: posCustomer.last_name,
-              phone: posCustomer.phone,
-              tags: posCustomer.tags || [],
-              pos_source: 'pos_sync',
-              custom_fields: {
-                pos_raw_data: posCustomer.raw_data
-              }
-            })
-            .select('id')
-            .single();
-
-          if (createError) {
-            throw new Error(`Failed to create CRM customer: ${createError.message}`);
-          }
-
-          crmCustomerId = newCrm.id;
-          created++;
-        }
-
-        // Create the link
-        const { error: linkError } = await supabase
-          .from('crm_customer_links')
-          .insert({
-            tenant_id: userData.tenant_id,
-            crm_customer_id: crmCustomerId,
-            pos_customer_id: posCustomer.id,
-            link_method: 'email',
-            confidence_score: 1.0
-          });
-
-        if (linkError) {
-          throw new Error(`Failed to create link: ${linkError.message}`);
-        }
-
-      } catch (customerError) {
-        console.error('Error linking customer:', customerError);
-        errors.push(`${posCustomer.email}: ${customerError instanceof Error ? customerError.message : 'Unknown error'}`);
+    const customerIds = (posCustomers || []).map((customer) => customer.id);
+    const existingLinks = new Set<string>();
+    for (let i = 0; i < customerIds.length; i += 200) {
+      const chunk = customerIds.slice(i, i + 200);
+      const { data: links, error: linksError } = await supabase
+        .from("crm_customer_identity_links")
+        .select("pos_customer_id")
+        .eq("tenant_id", userData.tenant_id)
+        .in("pos_customer_id", chunk);
+      if (linksError) {
+        throw new Error(
+          `Failed to load existing identity links: ${linksError.message}`,
+        );
+      }
+      for (const link of links || []) {
+        if (link.pos_customer_id) existingLinks.add(link.pos_customer_id);
       }
     }
 
-    console.log('Customer linking completed:', { linked, created, errors: errors.length });
+    let linked = 0;
+    let created = 0;
+    let alreadyLinked = 0;
+    let conflicts = 0;
+    const errors: Array<{ pos_customer_id: string; error: string }> = [];
 
-    return new Response(JSON.stringify({
+    for (const posCustomer of posCustomers || []) {
+      if (existingLinks.has(posCustomer.id)) {
+        alreadyLinked += 1;
+        continue;
+      }
+
+      try {
+        const names = splitName(posCustomer.name);
+        const { data, error } = await supabase.rpc(
+          "resolve_crm_customer_identity",
+          {
+            p_tenant_id: userData.tenant_id,
+            p_provider: String(connection.platform || "pos").toLowerCase(),
+            p_external_id: posCustomer.external_id,
+            p_pos_connection_id: connection.id,
+            p_pos_customer_id: posCustomer.id,
+            p_email: posCustomer.email,
+            p_phone: posCustomer.phone,
+            p_user_id: user.id,
+            p_profile: {
+              ...names,
+              custom_fields: {
+                pos_tags: posCustomer.tags || [],
+                pos_raw_data: posCustomer.raw_data || {},
+              },
+            },
+          },
+        );
+        if (error) throw error;
+
+        if (!data?.customer_id) {
+          conflicts += 1;
+          continue;
+        }
+        if (data.created) created += 1;
+        else linked += 1;
+        if (data.conflict_id) conflicts += 1;
+      } catch (error) {
+        errors.push({
+          pos_customer_id: posCustomer.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+
+    return jsonResponse({
       success: errors.length === 0,
       linked,
       created,
+      already_linked: alreadyLinked,
+      conflicts,
       total_processed: (posCustomers || []).length,
-      errors: errors
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+      errors,
     });
-
   } catch (error) {
-    console.error('Error linking POS customers:', error);
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
-      }),
+    console.error("pos-link-customers failed", error);
+    return jsonResponse(
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       },
+      500,
     );
   }
 });

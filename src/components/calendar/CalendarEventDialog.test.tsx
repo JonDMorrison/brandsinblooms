@@ -39,13 +39,6 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-const generateCampaignContentMock = vi.fn();
-
-vi.mock("@/components/homepage/ContentGenerationServices", () => ({
-  generateCampaignContent: (...args: unknown[]) =>
-    generateCampaignContentMock(...args),
-}));
-
 import { CalendarEventDialog } from "./CalendarEventDialog";
 
 // MUI Joy `Input` doesn't auto-associate the visible <Typography> label with
@@ -66,21 +59,13 @@ describe("CalendarEventDialog", () => {
     selectMock.mockClear();
     insertMock.mockClear();
     fromMock.mockClear();
-    generateCampaignContentMock.mockReset();
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("closes the modal as soon as the campaigns insert resolves, even when content gen hangs", async () => {
-    let resolveContentGen: (value: unknown) => void = () => {};
-    generateCampaignContentMock.mockReturnValue(
-      new Promise((resolve) => {
-        resolveContentGen = resolve;
-      }),
-    );
-
+  it("creates an event for email and SMS campaign planning", async () => {
     const onOpenChange = vi.fn();
     const onEventCreated = vi.fn();
 
@@ -108,22 +93,16 @@ describe("CalendarEventDialog", () => {
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Event created",
-        description: expect.stringContaining("background"),
+        description: "The event is ready for email and SMS campaign planning.",
       }),
     );
-
-    expect(generateCampaignContentMock).toHaveBeenCalled();
-
-    // Cleanup: resolve so the test doesn't leave a dangling promise.
-    resolveContentGen({ success: true, tasks: [] });
   });
 
-  it("shows a failure toast when background content gen rejects (timeout)", async () => {
-    generateCampaignContentMock.mockRejectedValue(
-      new Error(
-        "Content generation is taking longer than expected. Your event was created — you can regenerate content from the campaign page.",
-      ),
-    );
+  it("keeps the dialog open and shows the insert error", async () => {
+    singleMock.mockResolvedValueOnce({
+      data: null,
+      error: new Error("insert failed"),
+    });
 
     render(
       <CalendarEventDialog
@@ -137,15 +116,7 @@ describe("CalendarEventDialog", () => {
     fireEvent.change(getEventNameInput(), { target: { value: "My Event" } });
     fireEvent.click(screen.getByRole("button", { name: /create event/i }));
 
-    await waitFor(() => {
-      const calls = toastMock.mock.calls.map((args) => args[0]);
-      expect(
-        calls.some(
-          (call: { title?: string; variant?: string }) =>
-            call?.title === "Content generation failed" &&
-            call?.variant === "destructive",
-        ),
-      ).toBe(true);
-    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("insert failed");
+    expect(toastMock).not.toHaveBeenCalled();
   });
 });

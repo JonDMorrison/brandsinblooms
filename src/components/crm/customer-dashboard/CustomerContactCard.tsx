@@ -12,7 +12,6 @@ import {
   JoyCardHeader,
 } from "@/components/joy/JoyCard";
 import { JoyInput } from "@/components/joy/JoyInput";
-import { JoySwitch } from "@/components/joy/JoySwitch";
 import { useUpdateCustomer } from "@/hooks/useUpdateCustomer";
 import { useToast } from "@/hooks/use-toast";
 import type { CustomerData } from "@/hooks/useCustomerDashboard";
@@ -27,11 +26,10 @@ interface CustomerContactCardProps {
     | "last_name"
     | "email"
     | "phone"
-    | "email_opt_in"
-    | "sms_opt_in"
   >;
   onCustomerPatched: (patch: Partial<CustomerData>) => void;
   onOpenBatchEdit?: () => void;
+  canEdit?: boolean;
 }
 
 const textFieldLabels: Array<{
@@ -69,6 +67,7 @@ export function CustomerContactCard({
   customer,
   onCustomerPatched,
   onOpenBatchEdit,
+  canEdit = true,
 }: CustomerContactCardProps) {
   const updateCustomer = useUpdateCustomer();
   const { toast } = useToast();
@@ -133,30 +132,17 @@ export function CustomerContactCard({
     }
   };
 
-  const handleToggle = async (
-    field: "email_opt_in" | "sms_opt_in",
-    value: boolean,
-  ) => {
-    setSavingField(field);
-    try {
-      await updateCustomer.mutateAsync({
-        customerId,
-        data: { [field]: value },
-      });
-
-      onCustomerPatched({ [field]: value } as Partial<CustomerData>);
-    } finally {
-      setSavingField(null);
-    }
-  };
-
   return (
     <JoyCard variant="outlined">
       <JoyCardHeader
         title="Contact information"
-        description="Edit core profile fields inline without leaving the customer record."
+        description={
+          canEdit
+            ? "Edit core profile fields inline without leaving the customer record."
+            : "Customer contact details."
+        }
         actions={
-          onOpenBatchEdit ? (
+          canEdit && onOpenBatchEdit ? (
             <JoyButton
               color="neutral"
               variant="plain"
@@ -260,7 +246,7 @@ export function CustomerContactCard({
                           <X size={14} />
                         </IconButton>
                       </Stack>
-                    ) : (
+                    ) : canEdit ? (
                       <IconButton
                         size="sm"
                         variant="plain"
@@ -269,70 +255,12 @@ export function CustomerContactCard({
                       >
                         <Pencil size={14} />
                       </IconButton>
-                    )}
+                    ) : null}
                   </Stack>
                 </Stack>
               </React.Fragment>
             );
           })}
-
-          <Divider />
-
-          <Stack spacing={1.5} sx={{ py: 1.5 }}>
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              spacing={2}
-            >
-              <Stack spacing={0.25}>
-                <Typography level="body-sm">Email Opt-in</Typography>
-                <Typography level="body-xs" color="neutral">
-                  Controls whether this customer can receive marketing email.
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                {savingField === "email_opt_in" ? (
-                  <CircularProgress size="sm" />
-                ) : null}
-                <JoySwitch
-                  checked={customer.email_opt_in ?? false}
-                  disabled={savingField === "email_opt_in"}
-                  onCheckedChange={(checked) => {
-                    void handleToggle("email_opt_in", checked);
-                  }}
-                />
-              </Stack>
-            </Stack>
-
-            <Divider />
-
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              spacing={2}
-            >
-              <Stack spacing={0.25}>
-                <Typography level="body-sm">SMS Opt-in</Typography>
-                <Typography level="body-xs" color="neutral">
-                  Controls whether this customer can receive SMS outreach.
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                {savingField === "sms_opt_in" ? (
-                  <CircularProgress size="sm" />
-                ) : null}
-                <JoySwitch
-                  checked={customer.sms_opt_in ?? false}
-                  disabled={savingField === "sms_opt_in"}
-                  onCheckedChange={(checked) => {
-                    void handleToggle("sms_opt_in", checked);
-                  }}
-                />
-              </Stack>
-            </Stack>
-          </Stack>
         </Stack>
       </JoyCardContent>
     </JoyCard>

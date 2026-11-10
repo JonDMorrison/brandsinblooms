@@ -161,7 +161,9 @@ describe('EMAIL MERGE TAG TESTS', () => {
       expectations: {
         fullData: 'Hi Sarah Johnson, your points: 1,250.5',
         noName: 'Hi Friend , your points: 50',
-        partialData: 'Hi Mike Customer, your points: 0',
+        // An explicit empty default intentionally suppresses the global
+        // "Customer" fallback.
+        partialData: 'Hi Mike , your points: 0',
       },
     },
   ];

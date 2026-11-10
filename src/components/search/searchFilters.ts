@@ -28,8 +28,6 @@ const DEFAULT_DATABASE_ENTITY_TYPES: SearchEntityType[] = [
   "activity",
   "ticket",
   "integration",
-  "community_story",
-  "publish_item",
 ];
 
 const GROUP_ENTITY_TYPES: Partial<Record<SearchGroupKey, SearchEntityType[]>> = {
@@ -47,8 +45,6 @@ const GROUP_ENTITY_TYPES: Partial<Record<SearchGroupKey, SearchEntityType[]>> = 
   activity: ["activity"],
   tickets: ["ticket"],
   integrations: ["integration"],
-  community: ["community_story"],
-  publish: ["publish_item"],
 };
 
 function uniqEntityTypes(entityTypes: SearchEntityType[]) {
@@ -94,9 +90,6 @@ export function getContextualSearchFilter(pathname: string): SearchFilterValue {
   if (pathname.startsWith("/activity")) return "activity";
   if (pathname.startsWith("/helpdesk")) return "tickets";
   if (pathname.startsWith("/integrations")) return "integrations";
-  if (pathname.startsWith("/community")) return "community";
-  if (pathname.startsWith("/publish")) return "publish";
-
   return "all";
 }
 

@@ -119,15 +119,18 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  let callerUserId: string | null = null;
   if (authHeader !== `Bearer ${supabaseServiceKey}`) {
     const token = authHeader.replace("Bearer ", "");
-    const { error: authErr } = await supabase.auth.getUser(token);
-    if (authErr) {
+    const { data: authData, error: authErr } =
+      await supabase.auth.getUser(token);
+    if (authErr || !authData.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    callerUserId = authData.user.id;
   }
 
   const startTime = Date.now();
@@ -146,6 +149,22 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
+    }
+
+    if (callerUserId) {
+      const { data: caller, error: callerError } = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", callerUserId)
+        .eq("tenant_id", tenant_id)
+        .maybeSingle();
+
+      if (callerError || !caller) {
+        return new Response(JSON.stringify({ error: "Tenant access denied" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const { data: customer, error: customerError } = await supabase

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/hooks/useTenant";
 import {
   DEFAULT_FORM_AUDIENCE,
   DEFAULT_FORM_COMPLIANCE,
@@ -298,7 +299,16 @@ const EMPTY_ANALYTICS_DATA: FormAnalyticsData = {
   lastSubmission: null,
 };
 
-async function getAuthenticatedTenantContext() {
+// The forms list and its mutations must follow the tenant the user is
+// actually working in — for a master admin that is the tenant chosen in the
+// admin switcher, not the tenant their own user row belongs to. Resolving the
+// tenant from users.tenant_id made /crm/forms show the admin's own forms while
+// the page header said the selected client, and hid that client's real forms.
+// useFormEditor already scopes off useTenant; this brings the list in line.
+//
+// Only the user id still comes from auth, for the brand-colour lookup that is
+// genuinely user-scoped.
+async function getAuthenticatedUserId(): Promise<string> {
   const { data: authData } = await supabase.auth.getUser();
   const user = authData.user;
 
@@ -306,24 +316,15 @@ async function getAuthenticatedTenantContext() {
     throw new Error("Not authenticated");
   }
 
-  const { data: userData, error } = await supabase
-    .from("users")
-    .select("tenant_id")
-    .eq("id", user.id)
-    .single();
+  return user.id;
+}
 
-  if (error) {
-    throw error;
+function requireTenantId(tenantId: string | undefined): string {
+  if (!tenantId) {
+    throw new Error("No tenant selected");
   }
 
-  if (!userData?.tenant_id) {
-    throw new Error("No tenant found");
-  }
-
-  return {
-    userId: user.id,
-    tenantId: userData.tenant_id,
-  };
+  return tenantId;
 }
 
 function toNumber(value: number | string | null | undefined): number {
@@ -790,14 +791,18 @@ export async function deleteFormSubmissions({
 export function useForms() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { tenant, loading: tenantLoading } = useTenant();
+  const tenantId = tenant?.id;
 
   const formsQuery = useQuery({
-    queryKey: ["forms"],
+    // Keyed by tenant: an unkeyed cache served one tenant's forms to the next
+    // one the admin switched into.
+    queryKey: ["forms", tenantId],
     queryFn: async () => {
-      const { tenantId } = await getAuthenticatedTenantContext();
+      const scopedTenantId = requireTenantId(tenantId);
 
       const { data, error } = await supabase.rpc("get_forms_with_stats", {
-        p_tenant_id: tenantId,
+        p_tenant_id: scopedTenantId,
         p_stats_days: 7,
       });
 
@@ -808,11 +813,13 @@ export function useForms() {
         .filter((form): form is RawFormsWithStatsRow => isRecord(form))
         .map((form) => mapFormWithStatsRow(form as RawFormsWithStatsRow));
     },
+    enabled: !!tenantId,
   });
 
   const createFormMutation = useMutation({
     mutationFn: async (formData: CreateFormData) => {
-      const { userId, tenantId } = await getAuthenticatedTenantContext();
+      const scopedTenantId = requireTenantId(tenantId);
+      const userId = await getAuthenticatedUserId();
 
       const brandColors = await fetchBrandColors(userId);
 
@@ -829,7 +836,7 @@ export function useForms() {
       const { data, error } = await supabase
         .from("forms")
         .insert({
-          tenant_id: tenantId,
+          tenant_id: scopedTenantId,
           name: formData.name,
           status: "draft",
           fields_json: (formData.fields_json || []) as unknown as Json,
@@ -846,7 +853,7 @@ export function useForms() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["forms"] });
+      queryClient.invalidateQueries({ queryKey: ["forms", tenantId] });
       toast({
         title: "Form created",
         description: "Your form has been created successfully.",
@@ -863,7 +870,7 @@ export function useForms() {
 
   const updateFormMutation = useMutation({
     mutationFn: async ({ id, ...updates }: UpdateFormData) => {
-      const { tenantId } = await getAuthenticatedTenantContext();
+      const scopedTenantId = requireTenantId(tenantId);
 
       const dbUpdates: Record<string, unknown> = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -885,7 +892,7 @@ export function useForms() {
         .from("forms")
         .update(dbUpdates)
         .eq("id", id)
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", scopedTenantId)
         .select()
         .single();
 
@@ -893,7 +900,7 @@ export function useForms() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["forms"] });
+      queryClient.invalidateQueries({ queryKey: ["forms", tenantId] });
     },
     onError: (error) => {
       toast({
@@ -906,18 +913,18 @@ export function useForms() {
 
   const deleteFormMutation = useMutation({
     mutationFn: async (formId: string) => {
-      const { tenantId } = await getAuthenticatedTenantContext();
+      const scopedTenantId = requireTenantId(tenantId);
 
       const { error } = await supabase
         .from("forms")
         .delete()
         .eq("id", formId)
-        .eq("tenant_id", tenantId);
+        .eq("tenant_id", scopedTenantId);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["forms"] });
+      queryClient.invalidateQueries({ queryKey: ["forms", tenantId] });
       toast({
         title: "Form deleted",
         description: "Your form has been deleted.",
@@ -934,7 +941,9 @@ export function useForms() {
 
   return {
     forms: (formsQuery.data || []) as FormWithStats[],
-    isLoading: formsQuery.isLoading,
+    // Tenant resolution happens before the query can run, so fold it into the
+    // loading flag — otherwise the page flashes "no forms" while it resolves.
+    isLoading: tenantLoading || formsQuery.isLoading,
     isError: formsQuery.isError,
     isRefetching: formsQuery.isRefetching,
     error: formsQuery.error,

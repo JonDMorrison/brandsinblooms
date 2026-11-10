@@ -100,7 +100,7 @@ Deno.serve(async () => {
     let heroImage = "", accentColor = "#1abc9c";
     if (month >= 2 && month <= 4) { heroImage = "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&q=80"; accentColor = "#1abc9c"; }
     else if (month >= 5 && month <= 7) { heroImage = "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1200&q=80"; accentColor = "#16a34a"; }
-    else if (month >= 8 && month <= 10) { heroImage = "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1200&q=80"; accentColor = "#d97706"; }
+    else if (month >= 8 && month <= 10) { heroImage = "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1200&q=80"; accentColor = "#9C5A3B"; }
     else { heroImage = "https://images.unsplash.com/photo-1482012792084-a0c3725f289f?w=1200&q=80"; accentColor = "#0f766e"; }
 
     const featureTip = featureTips[now.getMonth()];

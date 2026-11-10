@@ -4,6 +4,7 @@
     display: grid;
     /* Grid rows shrink to natural content height in scroll mode so the
        banner sits cleanly below the copy. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto;
     /* Tightened from 40-72px so the banner illustration sits closer
        to the CTAs after the headline shrunk to single-line size. */
@@ -18,7 +19,7 @@
        to the viewport top. The banner illustration becomes more
        visually prominent without growing its own dimensions because
        more of it sits above the fold. */
-    padding: 64px clamp(20px, 4vw, 64px) 56px;
+    padding: 64px 0 56px;
 }
 
 .hp-hero__copy {
@@ -29,7 +30,8 @@
     /* Wider than the original 860px cap so the headline ("The most
        powerful marketing tool") fits on one line at 64px display size
        on >=1280px viewports. */
-    width: min(1120px, 100%);
+    width: min(1120px, calc(100% - 2 * clamp(20px, 4vw, 64px)));
+    min-width: 0;
     text-align: center;
 }
 
@@ -45,6 +47,9 @@
 
 .hp-hero__headline {
     display: grid;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     /* Tight gap so the rotating line and the static "Built For
        Garden Centres." line read as visually adjacent. */
     gap: 8px;
@@ -145,15 +150,11 @@
     display: grid;
     justify-items: center;
     align-self: start;
-    /* Full-bleed: 100vw plus the classic margin-left:
-       calc(50% - 50vw) trick so the banner illustration breaks out
-       of the .hp-hero parent's horizontal padding and touches both
-       viewport edges at every breakpoint. The text content
-       (eyebrow, headline, subhead, CTAs) keeps its existing centered
-       padded layout — only the banner goes edge-to-edge. */
-    width: 100vw;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
+    /* The hero has no horizontal padding; only its copy is inset.
+       Keep the banner in the grid's available width instead of using
+       viewport units and negative margins that can enlarge the page. */
+    width: 100%;
+    min-width: 0;
 }
 
 .hp-hero__banner {
@@ -263,17 +264,14 @@
     }
 }
 
-/* No tablet-specific .hp-hero__visual width override — the base
-   rule's 100vw + margin-left bleed trick already gives full-bleed at
-   every breakpoint. */
-
 @media (max-width: 767px) {
     .hp-hero {
         grid-template-rows: auto auto;
-        padding: 56px 16px 40px;
+        padding: 56px 0 40px;
     }
 
     .hp-hero__copy {
+        width: calc(100% - 32px);
         gap: 14px;
     }
 
@@ -304,8 +302,6 @@
         font-size: 0.88rem;
     }
 
-    /* Mobile-specific .hp-hero__visual rule removed — the base
-       full-bleed rule already covers mobile. */
 }
 
 @media (max-height: 760px) and (min-width: 768px) {

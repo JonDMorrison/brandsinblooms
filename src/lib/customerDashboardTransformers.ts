@@ -5,6 +5,7 @@
 
 import type { CustomerData } from "@/hooks/useCustomerDashboard";
 import type {
+  CustomerLoyaltyAccount,
   CustomerCrossChannelMetrics,
   CustomerPurchaseMetrics,
   CustomerPostPurchaseMetrics,
@@ -329,6 +330,15 @@ export const transformToPurchaseMetrics = (
 
 export interface LoyaltyDisplayMetrics {
   isPerksEnrolled: boolean;
+  hasNativeActivity: boolean;
+  providerAccounts: Array<{
+    provider: string;
+    programName: string;
+    balance: number;
+    balanceUnit: "points" | "currency" | "unknown";
+    currency: string | null;
+    lastSyncedAt: string;
+  }>;
   currentTier: string;
   pointsEarned: number;
   pointsRedeemed: number;
@@ -345,6 +355,7 @@ export interface LoyaltyDisplayMetrics {
 export const transformToLoyaltyMetrics = (
   loyalty: CustomerLoyaltyMetrics | null,
   purchase: CustomerPurchaseMetrics | null,
+  providerAccounts: CustomerLoyaltyAccount[] = [],
 ): LoyaltyDisplayMetrics => {
   const tierProgression: Record<string, string | null> = {
     bronze: "Silver",
@@ -354,9 +365,31 @@ export const transformToLoyaltyMetrics = (
   };
 
   const currentTier = loyalty?.current_loyalty_tier ?? "bronze";
+  const activeAccounts = providerAccounts
+    .filter(
+      (account) =>
+        Number.isFinite(Number(account.balance)) && Number(account.balance) >= 0,
+    )
+    .map((account) => ({
+      provider: account.provider,
+      programName:
+        account.program_name?.trim() ||
+        (account.provider === "crm_import"
+          ? "Imported POS loyalty balance"
+          : account.provider === "legacy_metrics"
+            ? "Imported loyalty points"
+            : `${account.provider} loyalty`),
+      balance: Number(account.balance),
+      balanceUnit: account.balance_unit,
+      currency: account.currency,
+      lastSyncedAt: account.last_synced_at,
+    }));
 
   return {
-    isPerksEnrolled: loyalty?.is_perks_member ?? false,
+    isPerksEnrolled:
+      (loyalty?.is_perks_member ?? false) || activeAccounts.length > 0,
+    hasNativeActivity: loyalty !== null,
+    providerAccounts: activeAccounts,
     currentTier: currentTier.charAt(0).toUpperCase() + currentTier.slice(1),
     pointsEarned: loyalty?.total_points_earned ?? 0,
     pointsRedeemed: loyalty?.total_points_redeemed ?? 0,

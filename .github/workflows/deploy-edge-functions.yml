@@ -4,7 +4,43 @@ on:
   push:
     branches: [main]
     paths:
-      - 'supabase/functions/**'
+      - "supabase/functions/**"
+      # src/ modules (email HTML generator, design system, POS adapters) are
+      # bundled into functions, so a change there must redeploy them too.
+      - "src/lib/studio/**"
+      - "src/lib/crm/htmlContent*.ts"
+      - "src/types/**"
+      - "src/config/**"
+      - "supabase/config.toml"
+      - ".github/workflows/deploy-edge-functions.yml"
+      - "scripts/find-affected-edge-functions.mjs"
+      - "src/components/crm/pos/adapters/**"
+      - "src/hooks/useCompanyInfo.ts"
+      - "src/integrations/supabase/types.ts"
+      - "src/lib/bloomSupport/**"
+  # Re-run a deploy that failed after merge, for the named functions only.
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: "Space-separated function names to deploy"
+        required: true
+
+# A failed deploy must never pass silently: the job opens a tracking issue.
+permissions:
+  contents: read
+  issues: write
+  # Read the Bloom Support release run for this commit (see the wait step).
+  actions: read
+
+# Deploys run one at a time, in push order. Without this an older push whose
+# deploy waited for Bloom Support migrations could finish after a newer push
+# and overwrite its functions (seen 2026-11-06: #377 overwrote #381's
+# bloom-support-api). If GitHub drops a queued run because a newer one was
+# queued behind it, the newer run diffs from the last successful deploy, so
+# no commit's functions are skipped.
+concurrency:
+  group: deploy-edge-functions
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -14,49 +50,156 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
+
+      # The diff base: the commit of the last successful push deploy, so a
+      # queued run GitHub dropped never loses its functions. Falls back to
+      # HEAD~1 when there is none or it is not an ancestor of this commit.
+      - name: Find deploy base
+        id: base
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          base="$(gh api "repos/$REPO/actions/workflows/deploy-edge-functions.yml/runs?branch=main&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty' || true)"
+          if [[ -z "$base" ]] || ! git merge-base --is-ancestor "$base" HEAD 2>/dev/null || [[ "$base" == "$(git rev-parse HEAD)" ]]; then
+            base="$(git rev-parse HEAD~1)"
+          fi
+          echo "Deploy base: $base"
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+
+      # bloom-support-release.yml applies Bloom Support migrations on the same
+      # push. Both workflows start together, so new function code could go
+      # live before the schema it calls (new RPCs, tables, statuses) exists,
+      # or stay live against the old schema if the release fails. When this
+      # commit changes a Bloom Support migration, deploy only after that
+      # release run for the same commit has succeeded. Manual redeploys
+      # (workflow_dispatch) are never gated.
+      - name: Wait for Bloom Support migrations
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ steps.base.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$BASE" HEAD -- 'supabase/migrations/*bloom_support*'; then
+            echo "No Bloom Support migration since the last deploy; nothing to wait for."
+            exit 0
+          fi
+          # Wait until no Bloom Support release on main is queued or running,
+          # then require the most recent one to have succeeded.
+          for i in $(seq 1 60); do
+            busy="$(gh api "repos/$REPO/actions/workflows/bloom-support-release.yml/runs?branch=main&event=push&per_page=10" \
+              --jq '[.workflow_runs[] | select(.status != "completed")] | length')"
+            if [[ "$busy" == "0" ]]; then
+              conclusion="$(gh api "repos/$REPO/actions/workflows/bloom-support-release.yml/runs?branch=main&event=push&per_page=1" \
+                --jq '.workflow_runs[0].conclusion // "missing"')"
+              if [[ "$conclusion" == "success" ]]; then
+                echo "Bloom Support migrations applied; deploying."
+                exit 0
+              fi
+              echo "::error title=Bloom Support release did not succeed::conclusion=$conclusion. Functions were NOT deployed; fix the release, then re-run this workflow."
+              exit 1
+            fi
+            echo "Waiting for Bloom Support release ($busy running) $i/60…"
+            sleep 30
+          done
+          echo "::error title=Bloom Support release timed out::A release was still running after 30 minutes. Functions were NOT deployed."
+          exit 1
 
       - name: Detect changed functions
         id: changed
+        env:
+          REQUESTED_FUNCTIONS: ${{ github.event.inputs.functions }}
+          BASE: ${{ steps.base.outputs.sha }}
         run: |
-          changed=$(git diff --name-only HEAD~1 HEAD -- supabase/functions/ \
-            | grep -oP 'supabase/functions/\K[^/]+' \
-            | grep -v '^_' \
-            | sort -u \
-            | tr '\n' ' ')
-
-          if [[ -z "$changed" ]]; then
-            echo "functions=" >> "$GITHUB_OUTPUT"
-            echo "No individual function changes detected — will deploy all."
-          else
-            echo "functions=$changed" >> "$GITHUB_OUTPUT"
-            echo "Changed functions: $changed"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            for fn in $REQUESTED_FUNCTIONS; do
+              if [[ ! "$fn" =~ ^[a-z0-9-]+$ || ! -f "supabase/functions/$fn/index.ts" ]]; then
+                echo "::error::Unknown edge function: $fn"
+                exit 1
+              fi
+            done
+            {
+              echo "deploy_all=false"
+              echo "functions=$(echo "$REQUESTED_FUNCTIONS" | xargs)"
+              echo "reason=manual redeploy"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          changed_paths="$(git diff --name-only "$BASE" HEAD | grep -v '^supabase/config.toml$' || true)"
+          config_function_paths=""
+          if ! git diff --quiet "$BASE" HEAD -- supabase/config.toml; then
+            config_function_paths="$(python3 - <<'PY'
+          import os
+          import subprocess
+          import tomllib
 
+          old = tomllib.loads(subprocess.check_output(
+              ["git", "show", os.environ["BASE"] + ":supabase/config.toml"], text=True
+          ))
+          with open("supabase/config.toml", "rb") as source:
+              new = tomllib.load(source)
+
+          old_functions = old.get("functions", {})
+          new_functions = new.get("functions", {})
+          for name in sorted(set(old_functions) | set(new_functions)):
+              if old_functions.get(name) != new_functions.get(name):
+                  print(f"supabase/functions/{name}/.gateway-config")
+          PY
+          )"
+          fi
+          printf '%s\n%s\n' "$changed_paths" "$config_function_paths" \
+            | node scripts/find-affected-edge-functions.mjs \
+            >> "$GITHUB_OUTPUT"
+
+      # Pinned. 'latest' moved to CLI 3.0.0 on 2026-11-02 and silently changed
+      # deploy behaviour (the hosted-project confirmation answered by --yes
+      # below). Upgrade on purpose, in its own PR, and watch the first deploy.
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.0.0
+
+      - name: Validate Supabase config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+
+          tomllib.loads(Path("supabase/config.toml").read_text())
+          PY
 
       - name: Deploy changed functions
+        id: deploy
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: |
           functions="${{ steps.changed.outputs.functions }}"
+          deploy_all="${{ steps.changed.outputs.deploy_all }}"
           succeeded=0
           failed=0
           failed_names=""
 
-          # If no specific changes detected, deploy all non-internal functions
-          if [[ -z "$functions" ]]; then
-            echo "Falling back to deploying all functions..."
+          # Runtime or gateway configuration is broad enough to require
+          # a fleet deploy. Shared modules and src imports are resolved through
+          # the dependency graph in the detection step.
+          if [[ "$deploy_all" == "true" ]]; then
+            echo "Runtime configuration changed — deploying all functions..."
             functions=""
             for dir in supabase/functions/*/; do
               fn="$(basename "$dir")"
               [[ "$fn" == _* ]] && continue
+              [[ -f "$dir/index.ts" ]] || continue
               functions="$functions $fn"
             done
+          elif [[ -z "$functions" ]]; then
+            echo "No Edge Function dependencies changed. Nothing to deploy."
           fi
 
           total=$(echo "$functions" | wc -w | tr -d ' ')
@@ -66,11 +209,15 @@ jobs:
             count=$((count + 1))
             echo "[$count/$total] Deploying $fn..."
 
-            if supabase functions deploy "$fn" --project-ref "$PROJECT_ID" --no-verify-jwt; then
+            # Respect each function's verify_jwt declaration in
+            # supabase/config.toml. A global --no-verify-jwt here silently
+            # disabled the gateway on functions explicitly configured true.
+            if supabase functions deploy "$fn" --project-ref "$PROJECT_ID" --yes; then
               echo "  ✓ $fn deployed"
               succeeded=$((succeeded + 1))
             else
               echo "  ✗ $fn FAILED"
+              echo "::error title=Edge function deploy failed::$fn was not deployed"
               failed=$((failed + 1))
               failed_names="$failed_names $fn"
             fi
@@ -82,7 +229,71 @@ jobs:
           echo "  Succeeded: $succeeded"
           echo "  Failed:    $failed"
 
+          {
+            echo "## Edge function deploy"
+            echo ""
+            echo "| Result | Count |"
+            echo "| --- | --- |"
+            echo "| Succeeded | $succeeded |"
+            echo "| Failed | $failed |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "failed_names=$(echo "$failed_names" | xargs || true)" >> "$GITHUB_OUTPUT"
+
           if [[ $failed -gt 0 ]]; then
             echo "  Failed: $failed_names"
+            {
+              echo ""
+              echo "**Not deployed:**$failed_names"
+              echo ""
+              echo "These functions are still running their previous version"
+              echo "in production. Merged changes to them are NOT live."
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+
+      # A red check on a post-merge workflow is easy to miss — the change is
+      # already merged and nobody is watching the run. Open an issue so an
+      # undeployed function is impossible to overlook.
+      - name: Open tracking issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failed = '${{ steps.deploy.outputs.failed_names }}'.trim();
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = 'Edge function deploy failed — functions are stale in production';
+            const body = [
+              failed
+                ? `The following functions failed to deploy and are still running their previous version in production:\n\n${failed.split(/\s+/).map((f) => `- \`${f}\``).join('\n')}`
+                : 'The edge function deploy workflow failed before reporting which functions were affected.',
+              '',
+              `Commit: ${context.sha}`,
+              `Run: ${runUrl}`,
+              '',
+              'Merged changes to these functions are NOT live until this is fixed and the deploy re-run.',
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'edge-deploy-failure',
+            });
+
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['edge-deploy-failure'],
+              });
+            }

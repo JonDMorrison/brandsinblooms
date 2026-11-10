@@ -1,4 +1,4 @@
-import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter';
+import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter.ts';
 
 // Mock data for testing
 const MOCK_CUSTOMERS = [

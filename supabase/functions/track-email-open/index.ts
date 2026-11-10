@@ -67,7 +67,32 @@ async function sha256Hex(value: string): Promise<string> {
 function looksLikeMppFetch(userAgent: string): boolean {
   const ua = (userAgent || "").toLowerCase();
   // Apple Mail Privacy Protection routes through Apple-owned relay UAs.
+  // Real MPP fetches rarely carry the literal "mail privacy protection"
+  // string — they present as Apple Mail / CFNetwork fetches — so match the
+  // family, not just the marketing name. This was previously so narrow it
+  // flagged essentially nothing (678 true rows out of 424k events).
   if (ua.includes("mail privacy protection")) return true;
+  if (ua.includes("applemail") || ua.includes("apple mail")) return true;
+  if (ua.includes("cfnetwork") && ua.includes("darwin")) return true;
+  // Security scanners prefetch pixels the instant mail arrives.
+  const scannerMarkers = [
+    "barracuda",
+    "proofpoint",
+    "mimecast",
+    "symantec",
+    "trendmicro",
+    "bitdefender",
+    "python-requests",
+    "curl/",
+    "axios/",
+    "go-http-client",
+    "okhttp",
+    "headlesschrome",
+    "bot",
+    "crawler",
+    "spider",
+  ];
+  if (scannerMarkers.some((marker) => ua.includes(marker))) return true;
   // GoogleImageProxy is Gmail's proxy, but it does NOT mean MPP — Gmail
   // proxy fires on actual user opens. Don't flag it.
   return false;
@@ -116,11 +141,12 @@ serve(async (req: Request) => {
     let resolvedTenantId = tenantId || null;
     let resolvedCustomerId = customerId || null;
     let providerMessageId: string | null = null;
+    let messageSentAt: string | null = null;
 
     try {
       const messageQuery = supabase
         .from("email_messages")
-        .select("email, tenant_id, customer_id, resend_id")
+        .select("email, tenant_id, customer_id, resend_id, sent_at")
         .eq("campaign_id", campaignId)
         .limit(1);
       const filtered = customerId
@@ -134,6 +160,7 @@ serve(async (req: Request) => {
         resolvedTenantId ||= messageRow.tenant_id || null;
         resolvedCustomerId ||= messageRow.customer_id || null;
         providerMessageId = messageRow.resend_id || null;
+        messageSentAt = messageRow.sent_at || null;
       }
     } catch (lookupErr) {
       console.warn("track-email-open: message lookup warning:", lookupErr);
@@ -169,6 +196,19 @@ serve(async (req: Request) => {
     // response ends, so an orphan Promise.then() never runs. The
     // 60-200ms latency is acceptable for an image load and matches
     // how Resend's own tracking pixel behaves.
+    // Seconds since the per-recipient send. Sub-3-second pixel fetches are
+    // prefetches (MPP / scanners), not humans — fold into is_mpp_guess.
+    let timeToEventSeconds: number | null = null;
+    if (messageSentAt) {
+      const sentMs = Date.parse(messageSentAt);
+      const nowMs = Date.parse(nowIso);
+      if (Number.isFinite(sentMs) && nowMs >= sentMs) {
+        timeToEventSeconds = Math.round((nowMs - sentMs) / 1000);
+      }
+    }
+    const isMppFinal =
+      isMpp || (timeToEventSeconds !== null && timeToEventSeconds < 3);
+
     const { error: trackingError } = await supabase
       .from("email_tracking_events")
       .insert({
@@ -180,9 +220,11 @@ serve(async (req: Request) => {
         event_data: eventData,
         ingested_at: nowIso,
         event_ts_provider: nowIso,
+        sent_at: messageSentAt,
+        time_to_event_seconds: timeToEventSeconds,
         user_agent: userAgent || null,
         ip_hash: ipHash,
-        is_mpp_guess: isMpp,
+        is_mpp_guess: isMppFinal,
         provider_message_id: providerMessageId,
       });
 

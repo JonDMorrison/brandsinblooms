@@ -6,9 +6,13 @@ import { buildIntegrationDetailModel } from "@/components/integrations/integrati
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 
 vi.mock("@/hooks/useIntegrationDetailData", () => ({
   useIntegrationDetailData: vi.fn(),
+}));
+vi.mock("@/hooks/useMailchimpImportProgress", () => ({
+  useMailchimpImportProgress: () => ({ jobId: null }),
 }));
 
 vi.mock("sonner", () => ({
@@ -182,15 +186,17 @@ function buildShopifyDetailState() {
 
 function renderPage() {
   render(
-    <MemoryRouter initialEntries={["/integrations/shopify"]}>
-      <Routes>
-        <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
-        <Route
-          path="/integrations/shopify/debug"
-          element={<div>Shopify Diagnostics</div>}
-        />
-      </Routes>
-    </MemoryRouter>,
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={["/integrations/shopify"]}>
+        <Routes>
+          <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
+          <Route
+            path="/integrations/shopify/debug"
+            element={<div>Shopify Diagnostics</div>}
+          />
+        </Routes>
+      </MemoryRouter>
+    </TestQueryClientProvider>,
   );
 }
 

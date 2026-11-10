@@ -42,15 +42,29 @@ import type {
   DatabaseField,
   AIAnalysisResult,
 } from "@/types/import";
-import { CUSTOMER_FIELDS, applyField } from "@/lib/crm/customerImportSchema";
 import {
-  applyAttestationToCustomer,
+  CUSTOMER_FIELDS,
+  inferCustomFieldType,
+  normalizeCustomFieldKey,
+  parseValue,
+  customerFieldByKey,
+} from "@/lib/crm/customerImportSchema";
+import {
+  getRememberedImportField,
+  rememberImportField,
+} from "@/lib/crm/customerImportMappings";
+import {
   DEFAULT_ATTESTATION_CHOICE,
-  recordImportAttestation,
-  recordImportConsentEvents,
+  getAttestationOption,
   type ImportAttestationChoice,
 } from "@/lib/crm/importConsent";
 import { ImportConsentAttestationStep } from "@/components/crm/segments/ImportConsentAttestationStep";
+
+import {
+  buildImportCustomers,
+  getDefaultImportField as getSharedDefaultImportField,
+} from "@/lib/crm/customerImportRows";
+import { CUSTOMER_IMPORT_BATCH_SIZE, importCustomerBatch, getCustomerImportOutcome } from "@/lib/crm/customerImportBatch";
 
 interface EnhancedSegmentImportDialogProps {
   open: boolean;
@@ -58,6 +72,34 @@ interface EnhancedSegmentImportDialogProps {
   segmentId?: string;
   segmentName?: string;
   onImportComplete?: () => void;
+}
+
+interface CustomerImportBatchResponse {
+  imported: number;
+  customers: Array<{ id: string; email: string }>;
+  errors: Array<{ row: number; email: string | null; message: string }>;
+}
+
+interface BeginCustomerImportResponse {
+  attestationId: string;
+  tenantId: string;
+}
+
+function getDefaultImportField(header: string): DatabaseField {
+  return getSharedDefaultImportField(header) as DatabaseField;
+}
+
+function getImportErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const details = error as Record<string, unknown>;
+    for (const key of ["message", "details", "hint"]) {
+      if (typeof details[key] === "string" && details[key]) {
+        return details[key];
+      }
+    }
+  }
+  return JSON.stringify(error) || "Unknown import error";
 }
 
 export const EnhancedSegmentImportDialog: React.FC<
@@ -80,7 +122,7 @@ export const EnhancedSegmentImportDialog: React.FC<
     useState<ImportAttestationChoice>(DEFAULT_ATTESTATION_CHOICE);
 
   // Build field options from CUSTOMER_FIELDS schema
-  const fieldOptions = [
+  const standardFieldOptions = [
     { value: "skip", label: "-- Skip Column --" },
     ...CUSTOMER_FIELDS.map((field) => ({
       value: field.key,
@@ -92,13 +134,22 @@ export const EnhancedSegmentImportDialog: React.FC<
     { value: "tags", label: "Tags (comma-separated)" },
     { value: "persona", label: "Persona" },
     { value: "notes", label: "Notes/Memo" },
+    { value: "full_name", label: "Full name (fills first and last name)" },
+  ];
+
+  const getFieldOptions = (mapping: ColumnMapping) => [
+    ...standardFieldOptions,
+    {
+      value: `custom:${normalizeCustomFieldKey(mapping.csvHeader)}`,
+      label: `Custom field: ${mapping.csvHeader}`,
+    },
   ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    // Only validate file type, no size or format restrictions
+    // Shape and byte limits are enforced before the file is decoded.
     if (!selectedFile.name.endsWith(".csv")) {
       toast({
         title: "Invalid file type",
@@ -109,6 +160,8 @@ export const EnhancedSegmentImportDialog: React.FC<
     }
 
     setFile(selectedFile);
+    setIsAnalyzing(true);
+    setValidationErrors([]);
     setProgress({
       stage: "upload",
       progress: 30,
@@ -128,7 +181,7 @@ export const EnhancedSegmentImportDialog: React.FC<
       const { data: analysisResult, error: analysisError } =
         await supabase.functions.invoke("analyze-csv-intelligent", {
           body: {
-            csvRows: parsed.firstFiveRows,
+            csvRows: [parsed.headers, ...parsed.firstFiveRows],
             delimiter: parsed.delimiter,
             columnCount: parsed.columnCount,
           },
@@ -157,24 +210,38 @@ export const EnhancedSegmentImportDialog: React.FC<
         // Fallback: Use generic column names
         mappings = parsed.headers.map((header, index) => ({
           csvHeader: header,
-          databaseField: "skip" as DatabaseField,
+          databaseField:
+            getRememberedImportField(window.localStorage, header) ||
+            getDefaultImportField(header),
           sampleData: parsed.sampleData[index].samples,
+          sourceIndex: index,
         }));
       } else {
         // Success: Use AI suggestions
         setAiAnalysis(analysisResult);
 
-        mappings = analysisResult.analysis.suggestedMappings.map(
-          (suggestion) => ({
-            csvHeader: suggestion.columnName,
-            databaseField: suggestion.suggestedField,
-            sampleData: parsed.firstFiveRows.map(
-              (row) => row[suggestion.columnIndex] || "",
-            ),
-            aiConfidence: suggestion.confidence,
-            aiReasoning: suggestion.reasoning,
-          }),
-        );
+        // The parsed file remains authoritative. AI can suggest a mapping, but
+        // an omitted or malformed suggestion must never drop a CSV column.
+        mappings = parsed.headers.map((header, columnIndex) => {
+          const suggestion =
+            analysisResult.analysis.suggestedMappings.find(
+              (candidate) => candidate.columnIndex === columnIndex,
+            );
+          const suggestedField = suggestion?.suggestedField;
+
+          return {
+            csvHeader: header,
+            databaseField:
+              getRememberedImportField(window.localStorage, header) ||
+              (!suggestedField || suggestedField === "skip"
+                ? `custom:${normalizeCustomFieldKey(header)}`
+                : suggestedField),
+            sampleData: parsed.sampleData[columnIndex].samples,
+            sourceIndex: columnIndex,
+            aiConfidence: suggestion?.confidence,
+            aiReasoning: suggestion?.reasoning,
+          };
+        });
 
         // Show warnings if data is inconsistent
         if (!analysisResult.analysis.dataConsistency.isConsistent) {
@@ -197,7 +264,7 @@ export const EnhancedSegmentImportDialog: React.FC<
       setProgress({
         stage: "mapping",
         progress: 0,
-        message: `Loaded ${parsed.dataRows.length} rows. ${aiAnalysis ? "AI analysis complete." : "Please verify mappings."}`,
+        message: `Loaded ${parsed.dataRows.length} rows. Please verify mappings.`,
       });
     } catch (error) {
       console.error("Error analyzing CSV:", error);
@@ -220,6 +287,11 @@ export const EnhancedSegmentImportDialog: React.FC<
         ...updated[index],
         databaseField: value as DatabaseField,
       };
+      rememberImportField(
+        window.localStorage,
+        updated[index].csvHeader,
+        updated[index].databaseField,
+      );
       return updated;
     });
     setValidationErrors([]);
@@ -251,6 +323,60 @@ export const EnhancedSegmentImportDialog: React.FC<
       );
     }
 
+    const emailMapping = columnMappings.find(
+      (mapping) => mapping.databaseField === "email",
+    );
+    if (emailMapping) {
+      const emailIndex =
+        emailMapping.sourceIndex ?? columnMappings.indexOf(emailMapping);
+      const invalidEmailRows = dataRows
+        .map((row, index) => ({
+          value: String(row[emailIndex] ?? "").trim(),
+          row: index + 2,
+        }))
+        .filter(({ value }) => !value || !isValidEmail(value));
+      if (invalidEmailRows.length > 0) {
+        const examples = invalidEmailRows
+          .slice(0, 5)
+          .map(({ row }) => row)
+          .join(", ");
+        errors.push(
+          `${invalidEmailRows.length} row(s) have a missing or invalid email (CSV row${invalidEmailRows.length === 1 ? "" : "s"} ${examples}${invalidEmailRows.length > 5 ? ", …" : ""}).`,
+        );
+      }
+    }
+
+    for (const [mappingIndex, mapping] of columnMappings.entries()) {
+      if (
+        mapping.databaseField === "skip" ||
+        mapping.databaseField === "email"
+      ) {
+        continue;
+      }
+
+      const custom = mapping.databaseField.startsWith("custom:");
+      const schemaField = custom
+        ? null
+        : customerFieldByKey[mapping.databaseField];
+      const type = custom
+        ? inferCustomFieldType(mapping.csvHeader, mapping.sampleData)
+        : schemaField?.type;
+      if (!type) continue;
+
+      const sourceIndex = mapping.sourceIndex ?? mappingIndex;
+      const invalidValues = dataRows
+        .map((row, index) => ({ value: row[sourceIndex], row: index + 2 }))
+        .filter(
+          ({ value }) =>
+            String(value ?? "").trim() && parseValue(type, value) === null,
+        );
+      if (invalidValues.length > 0) {
+        errors.push(
+          `${mapping.csvHeader} has ${invalidValues.length} value(s) that are not valid ${type} data (first at CSV row ${invalidValues[0].row}).`,
+        );
+      }
+    }
+
     return { isValid: errors.length === 0, errors };
   };
 
@@ -258,147 +384,21 @@ export const EnhancedSegmentImportDialog: React.FC<
     choice: ImportAttestationChoice,
   ): Promise<{
     result: ImportResult;
-    insertedContacts: Array<{ id: string; email: string }>;
+    affectedCustomerIds: string[];
     tenantId: string;
-    userId: string;
   }> => {
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) throw new Error("User not authenticated");
 
-    const { data: userRecord } = await supabase
-      .from("users")
-      .select("tenant_id")
-      .eq("id", user.user.id)
-      .single();
-
-    if (!userRecord?.tenant_id) {
-      throw new Error("You are not assigned to a tenant");
-    }
-
-    const tenantId = userRecord.tenant_id;
     const userId = user.user.id;
 
-    // Owner-attested defaults for newly inserted contacts. Per-row CSV opt-in
-    // columns (handled further down) can still override per-row.
-    const attestationConsent = applyAttestationToCustomer(choice);
-
-    // Build customers using applyField from shared schema
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const customers: any[] = [];
-    let skippedNoEmail = 0;
-
-    for (const row of dataRows) {
-      // Find email mapping
-      const emailMappingIndex = columnMappings.findIndex(
-        (m) => m.databaseField === "email",
-      );
-      const rawEmail = emailMappingIndex >= 0 ? row[emailMappingIndex] : null;
-      const email = rawEmail ? String(rawEmail).trim().toLowerCase() : "";
-
-      if (!email || !isValidEmail(email)) {
-        skippedNoEmail++;
-        continue;
-      }
-
-      const customer: Record<string, unknown> = {
-        tenant_id: tenantId,
-        user_id: userId,
-        email,
-        ...attestationConsent,
-        custom_fields: {},
-      };
-
-      // Apply all mapped fields using the shared schema
-      columnMappings.forEach((mapping, index) => {
-        const raw = row[index];
-        const fieldKey = mapping.databaseField;
-
-        if (fieldKey === "skip" || fieldKey === "email") {
-          // Skip already handled or explicitly skipped
-          return;
-        }
-
-        // Use applyField for schema-defined fields
-        applyField(customer, fieldKey, raw);
-
-        // Handle fields not in schema (phone, tags, persona, sms_opt_in, notes)
-        const value = raw ? String(raw).trim() : "";
-        if (!value) return;
-
-        switch (fieldKey) {
-          case "phone":
-            customer.phone = value.replace(/\D/g, "");
-            break;
-          case "tags":
-            customer.tags = value
-              .split(",")
-              .map((t) => t.trim())
-              .filter(Boolean);
-            break;
-          case "persona":
-            customer.persona = value;
-            break;
-          case "sms_opt_in":
-            customer.sms_opt_in = [
-              "true",
-              "1",
-              "yes",
-              "y",
-              "subscribed",
-              "opted-in",
-              "opted_in",
-            ].includes(value.toLowerCase());
-            break;
-          case "notes":
-            (customer.custom_fields as Record<string, unknown>).notes = value;
-            break;
-        }
-      });
-
-      // Handle email_opt_in timestamp if opted in
-      if (customer.email_opt_in === true) {
-        customer.email_opt_in_at = new Date().toISOString();
-        customer.email_consent_method = "csv_import_subscribed";
-      }
-
-      customers.push(customer);
-    }
-    // Deduplicate by email and merge data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const customerMap = new Map<string, any>();
-    for (const customer of customers) {
-      const email = String(customer.email).toLowerCase();
-      const existing = customerMap.get(email);
-      if (!existing) {
-        customerMap.set(email, customer);
-      } else {
-        // Merge non-empty values
-        for (const [key, value] of Object.entries(customer)) {
-          if (value === null || value === undefined || value === "") continue;
-          if (
-            key === "custom_fields" &&
-            typeof value === "object" &&
-            value !== null
-          ) {
-            existing.custom_fields = {
-              ...(existing.custom_fields || {}),
-              ...(value as Record<string, unknown>),
-            };
-          } else if (
-            existing[key] === null ||
-            existing[key] === undefined ||
-            existing[key] === ""
-          ) {
-            existing[key] = value;
-          }
-        }
-      }
-    }
-
-    const deduplicatedCustomers = Array.from(customerMap.values());
-    const duplicatesMerged = customers.length - deduplicatedCustomers.length;
-    // Insert customers in batches using upsert
-    const BATCH_SIZE = 500;
+    // Row rules (email check, field mapping, in-file de-duplication) are
+    // shared with Bloom chat's server-side import.
+    const built = buildImportCustomers(dataRows, columnMappings);
+    const deduplicatedCustomers = built.customers;
+    const duplicatesMerged = built.duplicatesMerged;
+    const skippedNoEmail = built.invalidEmailRows.length;
+    const BATCH_SIZE = CUSTOMER_IMPORT_BATCH_SIZE;
     const totalBatches = Math.ceil(deduplicatedCustomers.length / BATCH_SIZE);
     const results: ImportResult = {
       total: dataRows.length,
@@ -409,7 +409,25 @@ export const EnhancedSegmentImportDialog: React.FC<
       errors: [],
     };
 
-    const insertedContacts: Array<{ id: string; email: string }> = [];
+    const attestation = getAttestationOption(choice);
+    const { data: beginData, error: beginError } = await supabase.rpc(
+      "begin_customer_csv_import",
+      {
+        p_attestation_type: choice,
+        p_contact_count: deduplicatedCustomers.length,
+        p_import_batch_id: file?.name ?? "customer-import.csv",
+        p_attestation_wording: attestation.wording,
+      },
+    );
+    if (beginError) throw beginError;
+
+    const beginImport = beginData as unknown as BeginCustomerImportResponse;
+    if (!beginImport?.attestationId || !beginImport?.tenantId) {
+      throw new Error("The import consent record could not be created");
+    }
+
+    const tenantId = beginImport.tenantId;
+    const affectedCustomerIds: string[] = [];
 
     for (let i = 0; i < deduplicatedCustomers.length; i += BATCH_SIZE) {
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
@@ -423,52 +441,63 @@ export const EnhancedSegmentImportDialog: React.FC<
         totalBatches,
       });
 
-      try {
-        const { data, error } = await supabase
-          .from("crm_customers")
-          .upsert(batch, {
-            onConflict: "tenant_id,email",
-            ignoreDuplicates: false,
-          })
-          .select("id, email");
+      const outcomes = await importCustomerBatch(
+        batch,
+        async (rows) => {
+          const { data, error } = await supabase.rpc(
+            "import_crm_customer_batch",
+            { p_customers: rows, p_attestation_id: beginImport.attestationId },
+          );
+          if (error) throw error;
+          return data as unknown as CustomerImportBatchResponse;
+        },
+        i,
+      );
 
-        if (error) throw error;
-
-        results.imported += data.length;
-        for (const row of data) {
-          if (row && typeof row.id === "string" && typeof row.email === "string") {
-            insertedContacts.push({ id: row.id, email: row.email });
-          }
+      for (const outcome of outcomes) {
+        if (!outcome.result) {
+          results.failed += outcome.count;
+          results.errors.push(getImportErrorMessage(outcome.error));
+          continue;
+        }
+        const batchResult = outcome.result;
+        results.imported += batchResult.imported;
+        results.failed += batchResult.errors.length;
+        results.errors.push(
+          ...batchResult.errors.map(
+            (rowError) =>
+              `CSV row ${outcome.offset + rowError.row + 1}${rowError.email ? ` (${rowError.email})` : ""}: ${rowError.message}`,
+          ),
+        );
+        for (const customer of batchResult.customers) {
+          affectedCustomerIds.push(customer.id);
         }
 
-        // If segment is specified, add customers to segment
-        if (segmentId && data) {
-          const segmentAssignments = data.map((customer) => ({
+        if (segmentId && batchResult.customers.length > 0) {
+          const segmentAssignments = batchResult.customers.map((customer) => ({
             customer_id: customer.id,
             segment_id: segmentId,
             assigned_by_user_id: userId,
           }));
-
-          await supabase.from("customer_segments").upsert(segmentAssignments, {
-            onConflict: "customer_id,segment_id",
-          });
+          try {
+            const { error: assignmentError } = await supabase
+              .from("customer_segments")
+              .upsert(segmentAssignments, { onConflict: "customer_id,segment_id" });
+            if (assignmentError) throw assignmentError;
+          } catch (assignmentError) {
+            results.errors.push(
+              `Customers imported, but segment assignment failed: ${getImportErrorMessage(assignmentError)}`,
+            );
+          }
         }
-      } catch (error) {
-        console.error("Batch import error:", error);
-        results.failed += batch.length;
-        // Extract actual error message from Supabase error object
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : (error as any)?.message ||
-              (error as any)?.details ||
-              (error as any)?.hint ||
-              JSON.stringify(error);
-        results.errors.push(errorMessage);
       }
     }
 
-    return { result: results, insertedContacts, tenantId, userId };
+    return {
+      result: results,
+      affectedCustomerIds,
+      tenantId,
+    };
   };
 
   // From the mapping step, "Import N Customers" advances to the consent
@@ -501,41 +530,23 @@ export const EnhancedSegmentImportDialog: React.FC<
     });
 
     try {
-      const { result, insertedContacts, tenantId, userId } =
+      const { result, affectedCustomerIds, tenantId } =
         await processImport(attestationChoice);
 
-      // Record the owner's attestation as an auditable header BEFORE the
-      // per-contact events so the events can reference its id. If the audit
-      // write fails the import itself already succeeded; we surface a toast
-      // but don't roll back the customer rows.
-      if (insertedContacts.length > 0) {
-        try {
-          const attestationId = await recordImportAttestation({
-            client: supabase,
-            tenantId,
-            attestedByUserId: userId,
-            choice: attestationChoice,
-            contactCount: insertedContacts.length,
-            importBatchId: file?.name ?? null,
-          });
-          await recordImportConsentEvents({
-            client: supabase,
-            tenantId,
-            attestationId,
-            choice: attestationChoice,
-            contacts: insertedContacts,
-          });
-        } catch (auditError) {
-          console.error(
-            "[EnhancedSegmentImportDialog] attestation audit write failed:",
-            auditError,
+      if (affectedCustomerIds.length > 0) {
+        const { error: segmentRefreshError } = await supabase.functions.invoke(
+          "recompute-segment-memberships",
+          {
+            body: {
+              tenant_id: tenantId,
+              customer_ids: affectedCustomerIds,
+            },
+          },
+        );
+        if (segmentRefreshError) {
+          result.errors.push(
+            `Customers imported, but automatic segment refresh failed: ${segmentRefreshError.message}`,
           );
-          toast({
-            title: "Consent record didn't save",
-            description:
-              "Contacts imported, but we couldn't write the consent audit row. Try the import again, or contact support if it keeps happening.",
-            variant: "destructive",
-          });
         }
       }
 
@@ -543,15 +554,16 @@ export const EnhancedSegmentImportDialog: React.FC<
       setProgress({
         stage: "complete",
         progress: 100,
-        message: "Import completed",
+        message: getCustomerImportOutcome(result),
       });
 
       toast({
-        title: "Import completed",
+        title: getCustomerImportOutcome(result),
+        variant: getCustomerImportOutcome(result) === "Import Complete" ? "default" : "destructive",
         description: `Successfully imported ${result.imported} customers${result.duplicatesMerged ? `, ${result.duplicatesMerged} duplicates merged` : ""}${result.failed > 0 ? `, ${result.failed} failed` : ""}${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`,
       });
 
-      if (onImportComplete) {
+      if (result.imported > 0 && onImportComplete) {
         onImportComplete();
       }
     } catch (error) {
@@ -665,7 +677,7 @@ export const EnhancedSegmentImportDialog: React.FC<
                     Drag & drop your customer file here, or click to browse
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Supports CSV files with any delimiter
+                    CSV up to 5 MB, 10,000 customer rows, and 50 columns
                   </p>
 
                   {file && (
@@ -818,7 +830,7 @@ export const EnhancedSegmentImportDialog: React.FC<
                           onChange={(e) =>
                             handleFieldMappingChange(index, e.target.value)
                           }
-                          options={fieldOptions}
+                          options={getFieldOptions(mapping)}
                           className="w-full"
                         />
                       </TableCell>
@@ -872,9 +884,15 @@ export const EnhancedSegmentImportDialog: React.FC<
         {/* Stage 4: Complete */}
         {progress.stage === "complete" && importResult && (
           <div className="space-y-4">
-            <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-500">
-              <CheckCircle className="w-8 h-8" />
-              <h3 className="text-xl font-semibold">Import Complete</h3>
+            <div className={`flex items-center justify-center gap-2 ${
+              getCustomerImportOutcome(importResult) === "Import Complete"
+                ? "text-green-600 dark:text-green-500"
+                : "text-destructive"
+            }`}>
+              {getCustomerImportOutcome(importResult) === "Import Complete"
+                ? <CheckCircle className="w-8 h-8" />
+                : <AlertCircle className="w-8 h-8" />}
+              <h3 className="text-xl font-semibold">{getCustomerImportOutcome(importResult)}</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -890,8 +908,7 @@ export const EnhancedSegmentImportDialog: React.FC<
                   {importResult.imported}
                 </p>
               </div>
-              {importResult.duplicatesMerged &&
-                importResult.duplicatesMerged > 0 && (
+              {(importResult.duplicatesMerged ?? 0) > 0 && (
                   <div className="border rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">
                       Duplicates Merged
@@ -930,11 +947,11 @@ export const EnhancedSegmentImportDialog: React.FC<
                   </p>
                   <p className="text-sm text-muted-foreground">
                     You marked consent as unsure, so we&apos;ve held{" "}
-                    {importResult.imported} contacts back from marketing
-                    sends. Send a one-time permission campaign asking them
-                    to opt in — only the people who confirm will become
-                    sendable. Open the campaigns page when you&apos;re ready;
-                    we won&apos;t auto-send anything on your behalf.
+                    {importResult.imported} contacts back from marketing sends.
+                    Send a one-time permission campaign asking them to opt in —
+                    only the people who confirm will become sendable. Open the
+                    campaigns page when you&apos;re ready; we won&apos;t
+                    auto-send anything on your behalf.
                   </p>
                 </AlertDescription>
               </Alert>

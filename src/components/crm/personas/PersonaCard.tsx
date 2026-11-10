@@ -1,4 +1,6 @@
 import * as React from "react";
+import { CatalogListRow } from "@/components/crm/catalog/CatalogListRow";
+import type { CatalogLayout } from "@/components/crm/catalog/CatalogViewToggle";
 import Avatar from "@mui/joy/Avatar";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
@@ -6,13 +8,14 @@ import Typography from "@mui/joy/Typography";
 import { MoreHorizontal } from "lucide-react";
 import { Link as RouterLink } from "react-router-dom";
 import { getPersonaIcon } from "@/components/icons/personas";
+import { formatSegmentValue } from "@/lib/crm/systemSegmentDataAvailability";
 import type { PersonaRecord } from "@/config/systemPersonas";
 import {
   JoyCard,
   JoyCardContent,
   JoyCardHeader,
 } from "@/components/joy/JoyCard";
-import { JoyButton } from "@/components/joy/JoyButton";
+import Button from "@mui/joy/Button";
 import { JoyChip } from "@/components/joy/JoyChip";
 import {
   JoyDropdownMenu,
@@ -23,6 +26,7 @@ import {
 import type { PersonaRollup } from "@/hooks/usePersonaCustomerCounts";
 
 interface PersonaCardProps {
+  layout?: CatalogLayout;
   persona: PersonaRecord;
   metrics?: PersonaRollup;
   detailHref: string;
@@ -40,6 +44,7 @@ const stopPropagation = (event: React.MouseEvent<HTMLElement>) => {
 };
 
 export function PersonaCard({
+  layout = "grid",
   persona,
   metrics,
   detailHref,
@@ -56,6 +61,72 @@ export function PersonaCard({
     persona.persona_name,
     !persona.is_custom,
   );
+
+  const actions = (
+    <JoyDropdownMenu>
+      <JoyDropdownMenuTrigger
+        aria-label={`Actions for ${persona.persona_name}`}
+        onClick={stopPropagation}
+        iconButtonSx={{ width: 40, height: 40, minWidth: 40, minHeight: 40 }}
+      >
+        <MoreHorizontal size={16} />
+      </JoyDropdownMenuTrigger>
+      <JoyDropdownMenuContent onClick={stopPropagation}>
+        <JoyDropdownMenuItem onClick={onView}>
+          View details
+        </JoyDropdownMenuItem>
+        <JoyDropdownMenuItem onClick={onCreateCampaign}>
+          Create campaign
+        </JoyDropdownMenuItem>
+        {onGenerateContent ? (
+          <JoyDropdownMenuItem onClick={onGenerateContent}>
+            Generate AI content
+          </JoyDropdownMenuItem>
+        ) : null}
+        {persona.is_custom && onEdit ? (
+          <JoyDropdownMenuItem onClick={onEdit}>
+            Edit persona
+          </JoyDropdownMenuItem>
+        ) : null}
+        {persona.is_custom && onDuplicate ? (
+          <JoyDropdownMenuItem onClick={onDuplicate}>
+            Duplicate persona
+          </JoyDropdownMenuItem>
+        ) : null}
+        {persona.is_custom && onDelete ? (
+          <>
+            <Divider sx={{ my: 0.5 }} />
+            <JoyDropdownMenuItem destructive onClick={onDelete}>
+              Delete persona
+            </JoyDropdownMenuItem>
+          </>
+        ) : null}
+      </JoyDropdownMenuContent>
+    </JoyDropdownMenu>
+  );
+
+  const count = metrics?.customerCount;
+  const averageValue = formatSegmentValue(metrics?.averageValue ?? null, count ?? 0);
+  const totalValue = formatSegmentValue(metrics?.totalValue ?? null, count ?? 0);
+
+  if (layout === "list") {
+    return (
+      <CatalogListRow
+        name={persona.persona_name}
+        description={persona.persona_description}
+        icon={<PersonaIcon size={20} />}
+        isCustom={persona.is_custom}
+        detailHref={detailHref}
+        campaignHref={campaignHref}
+        actions={actions}
+        metrics={[
+          { label: "Customers", value: count === undefined ? "Not available" : `${count.toLocaleString()} customers` },
+          { label: "Average value", value: averageValue },
+          { label: "Total value", value: totalValue },
+        ]}
+      />
+    );
+  }
 
   return (
     <JoyCard
@@ -92,44 +163,7 @@ export function PersonaCard({
             <PersonaIcon size={22} />
           </Avatar>
         }
-        actions={
-          <JoyDropdownMenu>
-            <JoyDropdownMenuTrigger>
-              <MoreHorizontal size={16} />
-            </JoyDropdownMenuTrigger>
-            <JoyDropdownMenuContent>
-              <JoyDropdownMenuItem onClick={onView}>
-                View details
-              </JoyDropdownMenuItem>
-              <JoyDropdownMenuItem onClick={onCreateCampaign}>
-                Create campaign
-              </JoyDropdownMenuItem>
-              {onGenerateContent ? (
-                <JoyDropdownMenuItem onClick={onGenerateContent}>
-                  Generate AI content
-                </JoyDropdownMenuItem>
-              ) : null}
-              {persona.is_custom && onEdit ? (
-                <JoyDropdownMenuItem onClick={onEdit}>
-                  Edit persona
-                </JoyDropdownMenuItem>
-              ) : null}
-              {persona.is_custom && onDuplicate ? (
-                <JoyDropdownMenuItem onClick={onDuplicate}>
-                  Duplicate persona
-                </JoyDropdownMenuItem>
-              ) : null}
-              {persona.is_custom && onDelete ? (
-                <>
-                  <Divider sx={{ my: 0.5 }} />
-                  <JoyDropdownMenuItem destructive onClick={onDelete}>
-                    Delete persona
-                  </JoyDropdownMenuItem>
-                </>
-              ) : null}
-            </JoyDropdownMenuContent>
-          </JoyDropdownMenu>
-        }
+        actions={actions}
       />
 
       <JoyCardContent
@@ -147,7 +181,7 @@ export function PersonaCard({
               Customers
             </Typography>
             <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-              {(metrics?.customerCount ?? 0).toLocaleString()} customers
+              {count === undefined ? "Not available" : `${count.toLocaleString()} customers`}
             </Typography>
           </Stack>
 
@@ -157,7 +191,7 @@ export function PersonaCard({
                 Average value
               </Typography>
               <Typography level="body-sm" sx={{ fontWeight: 500 }}>
-                ${metrics?.averageValue?.toLocaleString() ?? "0"}
+                {averageValue}
               </Typography>
             </Stack>
             <Stack spacing={0.35} sx={{ minWidth: 110 }}>
@@ -165,7 +199,7 @@ export function PersonaCard({
                 Total value
               </Typography>
               <Typography level="body-sm" sx={{ fontWeight: 500 }}>
-                ${metrics?.totalValue?.toLocaleString() ?? "0"}
+                {totalValue}
               </Typography>
             </Stack>
           </Stack>
@@ -186,7 +220,7 @@ export function PersonaCard({
           spacing={1}
           mt="auto"
         >
-          <JoyButton
+          <Button
             size="sm"
             variant="soft"
             color="neutral"
@@ -195,8 +229,8 @@ export function PersonaCard({
             onClick={stopPropagation}
           >
             View details
-          </JoyButton>
-          <JoyButton
+          </Button>
+          <Button
             size="sm"
             variant="solid"
             color="primary"
@@ -205,7 +239,7 @@ export function PersonaCard({
             onClick={stopPropagation}
           >
             Create campaign
-          </JoyButton>
+          </Button>
         </Stack>
       </JoyCardContent>
     </JoyCard>

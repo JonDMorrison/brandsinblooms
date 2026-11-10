@@ -188,7 +188,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { error: workerError } = await supabaseClient.functions.invoke(
+    const workerClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    const { error: workerError } = await workerClient.functions.invoke(
       "pos-sync-worker",
       {
         body: { provider: "shopify" },

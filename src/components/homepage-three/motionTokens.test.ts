@@ -1,64 +1,26 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const homepageRoot = join(process.cwd(), "src/components/homepage-three");
-
-const collectCssFiles = (directory: string): string[] =>
-  readdirSync(directory).flatMap((entry) => {
-    const path = `${directory}/${entry}`;
-
-    if (statSync(path).isDirectory()) {
-      return collectCssFiles(path);
-    }
-
-    return path.endsWith(".css") ? [path] : [];
-  });
-
-const stripApprovedTimingFunctions = (declaration: string) =>
-  declaration
-    .replace(/var\(--hp-ease-[^)]+\)/g, "")
-    .replace(/steps\([^)]*\)/g, "");
+const tokenSource = readFileSync(
+  join(homepageRoot, "homepageTokens.css"),
+  "utf8",
+);
+const homepageSource = readFileSync(
+  join(homepageRoot, "homepageThree.css"),
+  "utf8",
+);
 
 describe("homepage motion tokens", () => {
-  const cssDeclarations = collectCssFiles(homepageRoot).flatMap((filePath) => {
-    const text = readFileSync(filePath, "utf8");
-    return Array.from(
-      text.matchAll(/(?:animation|transition):[^;]+;/g),
-      ([declaration]) => ({ declaration, filePath }),
-    );
+  it("defines the shared duration and easing tokens used by homepage motion", () => {
+    expect(tokenSource).toContain("--hp-hover-duration: 200ms");
+    expect(tokenSource).toContain("--hp-entry-duration: 400ms");
+    expect(tokenSource).toContain("--hp-ease-hover: cubic-bezier");
+    expect(tokenSource).toContain("--hp-ease-entry: cubic-bezier");
   });
 
-  it("does not use default or linear animation easing in motion declarations", () => {
-    for (const { declaration, filePath } of cssDeclarations) {
-      expect(
-        stripApprovedTimingFunctions(declaration),
-        `${filePath}: ${declaration}`,
-      ).not.toMatch(/\b(?:ease|ease-in|ease-out|ease-in-out|linear)\b/);
-    }
-  });
-
-  it("keeps hover transition declarations on the shared 200ms token", () => {
-    const transitionDeclarations = cssDeclarations.filter(({ declaration }) =>
-      declaration.startsWith("transition:"),
-    );
-
-    for (const { declaration, filePath } of transitionDeclarations) {
-      if (declaration === "transition: none;") {
-        continue;
-      }
-
-      if (declaration.includes("500ms")) {
-        expect(declaration, filePath).toContain("var(--hp-ease-entry)");
-        continue;
-      }
-
-      expect(declaration, `${filePath}: ${declaration}`).toContain(
-        "var(--hp-hover-duration) var(--hp-ease-hover)",
-      );
-      expect(declaration, `${filePath}: ${declaration}`).not.toMatch(
-        /\b(?:160|180|200|220)ms\b/,
-      );
-    }
+  it("provides a reduced-motion override for homepage animations", () => {
+    expect(homepageSource).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });

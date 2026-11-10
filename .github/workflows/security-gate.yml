@@ -1,0 +1,47 @@
+name: Security Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Validate Supabase config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+
+          tomllib.loads(Path("supabase/config.toml").read_text())
+          PY
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Reject committed credentials and unsafe database access
+        run: npm run test:security
+
+      - name: Verify production E2E orchestration safeguards
+        run: node --test scripts/ci/wait-for-production-deployment.test.mjs scripts/ci/production-e2e-state.test.mjs e2e/utils/vercel-deployment-protection.test.mjs
+
+      - name: Run full unit and component test suite
+        run: npm test
+
+      - name: Build production application
+        run: npm run build

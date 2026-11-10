@@ -1,4 +1,4 @@
-import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter';
+import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter.ts';
 
 export class VMXAdapter extends POSAdapter {
   // VMX doesn't have an API, so we work with CSV data directly

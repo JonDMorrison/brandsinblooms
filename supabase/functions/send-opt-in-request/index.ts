@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
+import { renderBloomSystemEmail, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,51 +101,25 @@ serve(async (req) => {
         const preferencesUrl = `${baseUrl}/email-preferences?token=${token}`;
         const firstName = customer.first_name || "Friend";
 
-        // Build email HTML
-        const emailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Email Preferences</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Can we send you updates?</h1>
-  </div>
-  
-  <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-    <p style="font-size: 16px;">Hi ${firstName},</p>
-    
-    <p>You're receiving this email because you shared your email with <strong>${companyName}</strong> for a purchase, course, or event.</p>
-    
-    <p>We'd love to occasionally send you:</p>
-    <ul style="padding-left: 20px;">
-      <li>Seasonal gardening tips</li>
-      <li>New arrivals and promotions</li>
-      <li>Updates on workshops and events</li>
-    </ul>
-    
-    <p><strong>Please choose your email preferences:</strong></p>
-    
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${preferencesUrl}" style="display: inline-block; background: #22c55e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 5px;">
-        Update My Preferences
-      </a>
-    </div>
-    
-    <p style="font-size: 14px; color: #666;">You can change your preferences at any time.</p>
-    
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-    
-    <p style="font-size: 12px; color: #999; text-align: center;">
-      ${companyName}<br>
-      ${companyAddress}
-    </p>
-  </div>
-</body>
-</html>`;
+        // Keep the existing consent/pref-token flow and merchant sender intact.
+        // Only the HTML layout changes; the signed preference link is never tracked.
+        const emailHtml = renderBloomSystemEmail({
+          eyebrow: "EMAIL PREFERENCES",
+          title: "Can we send you updates?",
+          preheader: "Choose whether to receive garden updates",
+          brandName: companyName,
+          icon: "mail",
+          bodyHtml: [
+            `<p style="margin:0 0 16px;">Hi ${bloomEmailEscape(firstName)},</p>`,
+            `<p style="margin:0 0 16px;">You\u0027re receiving this email because you shared your email with <strong>${bloomEmailEscape(companyName)}</strong> for a purchase, course, or event.</p>`,
+            `<p style="margin:0 0 12px;">We\u0027d love to occasionally send you:</p>`,
+            `<ul style="padding-left:22px;margin:0 0 20px;"><li>Seasonal gardening tips</li><li>New arrivals and promotions</li><li>Updates on workshops and events</li></ul>`,
+            `<p style="margin:0 0 16px;"><strong>Please choose your email preferences:</strong></p>`,
+            `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0;"><tr><td bgcolor="#1B3049" style="border-radius:8px;background:#1B3049;"><a href="${bloomEmailEscape(preferencesUrl)}" data-no-track="true" clicktracking="off" style="display:inline-block;padding:15px 22px;color:#FFFFFF;font-size:15px;font-weight:700;text-decoration:none;">Update My Preferences</a></td></tr></table>`,
+            `<p style="margin:0;color:#5B6B79;font-size:14px;">You can change your preferences at any time.</p>`,
+          ].join(""),
+          footer: companyAddress ? `${companyName} — ${companyAddress}` : companyName,
+        });
 
         // Send email via Resend using resolved sender
         const resendApiKey = Deno.env.get("RESEND_API_KEY");

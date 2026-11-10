@@ -10,7 +10,7 @@ export const ANALYTICS_PERIOD_OPTIONS = [
   { label: "7d", value: 7 },
   { label: "30d", value: 30 },
   { label: "90d", value: 90 },
-  { label: "All", value: 3650 },
+  { label: "365d", value: 365 },
 ] as const;
 
 export type AnalyticsPeriod =
@@ -36,12 +36,13 @@ export const formatCurrency = (
   value: number,
   options?: {
     compact?: boolean;
+    currency?: string;
     maximumFractionDigits?: number;
   },
 ) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: options?.currency ?? "USD",
     notation: options?.compact ? "compact" : "standard",
     maximumFractionDigits: options?.maximumFractionDigits ?? 0,
   }).format(value);
@@ -135,7 +136,7 @@ export const getTrendMeta = (delta?: number | null) => {
 
   if (delta < 0) {
     return {
-      tone: "danger" as const,
+      tone: "neutral" as const,
       direction: "down" as const,
       label: `${Math.round(delta)}%`,
     };

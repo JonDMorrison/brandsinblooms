@@ -273,12 +273,14 @@ export const useEntriConnect = () => {
 
         // SAFETY: Verify we still have required subdomain records after filtering
         const hasDkim = safeRecords.some((r) => r.host.includes("domainkey"));
-        const hasMxOrSpf = safeRecords.some(
+        const hasMx = safeRecords.some((r) => r.type === "MX");
+        const hasSpf = safeRecords.some(
           (r) =>
-            r.type === "MX" || (r.type === "TXT" && r.value.includes("spf")),
+            r.type === "TXT" &&
+            r.value.trim().toLowerCase().startsWith("v=spf1"),
         );
 
-        if (!hasDkim || !hasMxOrSpf) {
+        if (!hasDkim || !hasMx || !hasSpf) {
           setIsLoading(false);
           return {
             opened: false,
@@ -422,7 +424,7 @@ export const useEntriConnect = () => {
 
   /**
    * Sanitize and convert backend DNS records to Entri format.
-   * Enforces Resend's canonical model: DKIM CNAME only, MX with priority.
+   * Preserves the provider's DKIM type and requires aligned SPF/MX records.
    *
    * @returns Object with sanitized records and validation result
    */

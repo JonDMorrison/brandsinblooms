@@ -2,14 +2,7 @@ export type CreateFlowMode = "seasonal" | "holiday" | "custom";
 
 export type CreateFlowGoal = "traffic" | "sales" | "awareness" | "none";
 
-export type CreateFlowChannelKey =
-  | "newsletter"
-  | "instagram"
-  | "facebook"
-  | "video"
-  | "blog"
-  | "instagram_carousel"
-  | "facebook_carousel";
+export type CreateFlowChannelKey = "newsletter";
 
 export interface CreateFlowRetryDraft {
   path: CreateFlowMode;

@@ -1,4 +1,6 @@
+import type { SpendMeter } from "../security/spend-cap.ts";
 import type {
+  BloomClientContext,
   BloomMode,
   JsonArray,
   JsonObject,
@@ -226,6 +228,7 @@ export type ToolName =
   | "assign_segment"
   | "create_tag"
   | "bulk_tag_customers"
+  | "import_customer_list"
   | "manage_consent"
   | "get_dashboard_summary"
   | "get_revenue_analytics"
@@ -234,11 +237,29 @@ export type ToolName =
   | "get_campaign_analytics"
   | "get_integration_status"
   | "get_customer_insights"
+  | "rank_customers_by_intelligence"
+  | "find_customer_opportunities"
+  | "explore_customer_reported_spending"
+  | "explore_customer_purchases"
+  | "get_customer_product_history"
+  | "inspect_customer_set"
+  | "explain_customer_set_member"
+  | "analyze_customer_basket"
+  | "compare_customer_growth"
+  | "save_customer_set_segment"
+  | "list_loyalty_programme_templates"
+  | "list_loyalty_programmes"
+  | "read_loyalty_programme_results"
   | "generate_content"
   | "generate_image"
   | "navigate_to"
   | "export_data"
-  | "compute_audience_size";
+  | "compute_audience_size"
+  | "report_support_problem"
+  | "check_support_request"
+  | "run_self_diagnostics"
+  | "read_suite_data"
+  | "verify_bloomsites_integrations";
 
 export type ToolDefinition = OpenAIToolDefinition & {
   function: OpenAIToolDefinition["function"] & {
@@ -295,6 +316,8 @@ export type ToolExecutionContext = OrchestratorContext & {
   serviceClient: PersistenceClient;
   dataClient?: PersistenceClient;
   approved?: boolean;
+  /** Browser route, user agent and viewport, when the client sent them. */
+  clientContext?: BloomClientContext | null;
 };
 
 export type ToolImplementation = (
@@ -329,6 +352,8 @@ export type ToolDefinitionFilter = {
 export type IntentClassifierOptions = {
   openAiApiKey?: string;
   timeoutMs?: number;
+  /** Tenant spending cap; over the cap the deterministic default is used. */
+  meter?: SpendMeter | null;
 };
 
 export type FilterFieldCatalog = Record<ToolEntity, readonly string[]>;

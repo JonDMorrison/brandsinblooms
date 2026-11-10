@@ -12,5 +12,7 @@ Allow: /
 
 User-agent: *
 Allow: /
+# Private support tracking links (also sent as X-Robots-Tag: noindex)
+Disallow: /support/track/
 
 Sitemap: https://bloomsuite.app/sitemap.xml

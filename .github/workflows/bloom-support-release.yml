@@ -1,0 +1,68 @@
+name: Bloom Support release
+# Runs after a Bloom Support change is merged to main (production).
+#  1. Applies each supabase/migrations/*bloom_support*.sql exactly once, in
+#     order, through the Supabase Management API (existing SUPABASE_ACCESS_TOKEN),
+#     recording it in supabase_migrations.schema_migrations under the file's own
+#     version. Only these files are touched — never `db push` of everything.
+#  2. Waits for the Edge Function deploy (deploy-edge-functions.yml) and checks
+#     that the pg_cron worker is producing heartbeats.
+# A failure opens a tracking issue, like the edge-function deploy does.
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/migrations/*bloom_support*', '.github/workflows/bloom-support-release.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: bloom-support-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Production changes come only from main, even when started by hand.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: udldmkqwnxhdeztyqcau
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Bloom Support migrations (once each, in order)
+        run: |
+          set -euo pipefail
+          [ -n "$TOKEN" ] || { echo "::error::SUPABASE_ACCESS_TOKEN is not set"; exit 1; }
+          q() { printf '%s' "$1" | jq -Rs '{query:.}' > /tmp/q.json; curl -fsS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+          for f in $(ls supabase/migrations/*bloom_support*.sql | sort); do
+            base=$(basename "$f" .sql); version=${base%%_*}; name=${base#*_}
+            applied=$(q "select count(*)::int as n from supabase_migrations.schema_migrations where version = '$version' or name = '$name'" | jq -r '.[0].n')
+            if [ "$applied" != "0" ]; then echo "already applied: $base"; continue; fi
+            echo "applying: $base"
+            body=$(cat "$f")
+            esc=$(printf '%s' "$body" | sed "s/'/''/g")
+            q "begin; $body
+            ; insert into supabase_migrations.schema_migrations(version, name, statements) values ('$version', '$name', array['$esc']); commit;" > /dev/null
+          done
+      - name: Check the background worker
+        run: |
+          set -euo pipefail
+          q() { printf '%s' "$1" | jq -Rs '{query:.}' > /tmp/q.json; curl -fsS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+          q "select jobname, active from cron.job where jobname like 'bloom-support-%'"
+          for i in $(seq 1 12); do
+            n=$(q "select count(*)::int as n from bloom_support.worker_runs where finished_at > now() - interval '3 minutes'" | jq -r '.[0].n')
+            if [ "$n" -gt 0 ]; then echo "worker heartbeat OK"; exit 0; fi
+            echo "waiting for worker heartbeat ($i/12)…"; sleep 30
+          done
+          echo "::error::No Bloom worker heartbeat within 6 minutes. Check that deploy-edge-functions deployed bloom-support-worker and see net._http_response."
+          q "select status_code, left(content::text, 300) as content, created from net._http_response order by created desc limit 5" || true
+          exit 1
+      - name: Open tracking issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "Bloom Support release failed ($(date -u +%F))" --body "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. See docs/bloom-support/HANDOVER.md §8 (operating and recovery)." || true

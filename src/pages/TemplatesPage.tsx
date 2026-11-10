@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
-import { FileText, Mail, MessageSquare, Layout, Sparkles } from "lucide-react";
+import { FileText, Mail, MessageSquare, Sparkles } from "lucide-react";
 
 export const TemplatesPage = () => {
   const templateCategories = [
@@ -14,20 +14,12 @@ export const TemplatesPage = () => {
       comingSoon: false,
     },
     {
-      id: 'social',
-      title: 'Social Media Templates',
-      description: 'Eye-catching social media post designs',
+      id: 'sms',
+      title: 'SMS Templates',
+      description: 'Concise promotions, reminders, and care tips',
       icon: <MessageSquare className="w-6 h-6 text-purple-600" />,
       count: 8,
-      comingSoon: true,
-    },
-    {
-      id: 'website',
-      title: 'Website Templates',
-      description: 'Modern website layouts and pages',
-      icon: <Layout className="w-6 h-6 text-teal-600" />,
-      count: 5,
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       id: 'campaign',
@@ -52,7 +44,7 @@ export const TemplatesPage = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {templateCategories.map((category) => (
             <Card 
               key={category.id}

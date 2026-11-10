@@ -15,6 +15,7 @@ import {
   AlertCircle,
   BarChart3,
   Clock3,
+  CheckCircle,
   Copy,
   Download,
   Edit3,
@@ -86,8 +87,11 @@ type StatusFilter =
   | "draft"
   | "sent"
   | "failed";
+type ChannelFilter = "all" | "email" | "newsletter" | "sms";
 type SortColumn =
   | "campaign"
+  | "type"
+  | "scheduled-date"
   | "status"
   | "recipients"
   | "date"
@@ -102,13 +106,26 @@ type ConfirmAction =
   | { type: "retry"; campaign: CampaignCatalogItem };
 
 const FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "sending", label: "Sending" },
-  { value: "scheduled", label: "Scheduled" },
   { value: "draft", label: "Drafts" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "sending", label: "Sending" },
   { value: "sent", label: "Sent" },
   { value: "failed", label: "Failed" },
+  { value: "all", label: "All campaigns" },
 ];
+
+const CHANNEL_FILTERS: Array<{ value: ChannelFilter; label: string }> = [
+  { value: "all", label: "All types" },
+  { value: "email", label: "Email" },
+  { value: "newsletter", label: "Newsletter" },
+  { value: "sms", label: "SMS" },
+];
+
+const CHANNEL_LABELS: Record<Exclude<ChannelFilter, "all">, string> = {
+  email: "Email",
+  newsletter: "Newsletter",
+  sms: "SMS",
+};
 
 const PAGE_SIZE = 100;
 
@@ -218,8 +235,9 @@ function getSortDate(campaign: CampaignCatalogItem) {
   ).getTime();
 }
 
-function normalizeFilter(value: string | null): StatusFilter {
+export function normalizeFilter(value: string | null): StatusFilter {
   switch (value) {
+    case "all":
     case "sending":
     case "scheduled":
     case "draft":
@@ -227,13 +245,19 @@ function normalizeFilter(value: string | null): StatusFilter {
     case "failed":
       return value;
     default:
-      return "all";
+      return "draft";
   }
+}
+
+export function normalizeChannelFilter(value: string | null): ChannelFilter {
+  return value === "email" || value === "newsletter" || value === "sms" ? value : "all";
 }
 
 function normalizeSortColumn(value: string | null): SortColumn {
   switch (value) {
     case "campaign":
+    case "type":
+    case "scheduled-date":
     case "status":
     case "recipients":
     case "date":
@@ -282,7 +306,7 @@ function matchesStatusFilter(
   }
 }
 
-function StatusChip({
+export function StatusChip({
   campaign,
   compactOnNarrow = true,
 }: {
@@ -335,12 +359,15 @@ function StatusChip({
     case CAMPAIGN_STATUS.SENT:
       label = "Sent";
       color = "success";
-      icon = <BarChart3 size={13} />;
+      icon = <CheckCircle size={13} />;
       break;
     case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
-      label = `Sent - ${Number(campaign.messagesFailed || 0).toLocaleString()} errors`;
-      color = "warning";
-      icon = <AlertCircle size={13} />;
+      // Sending is complete; recipient errors remain in the campaign report.
+      label = Number(campaign.messagesSent || 0) > 0 ? "Sent" : "Failed";
+      color = Number(campaign.messagesSent || 0) > 0 ? "success" : "danger";
+      icon = Number(campaign.messagesSent || 0) > 0
+        ? <CheckCircle size={13} />
+        : <XCircle size={13} />;
       break;
     case CAMPAIGN_STATUS.FAILED:
       label = "Failed";
@@ -471,6 +498,9 @@ function SkeletonRows() {
               sx={{ borderRadius: "md" }}
             />
           </JoyTableCell>
+          <JoyTableCell>
+            <Skeleton animation="wave" variant="text" width={62} />
+          </JoyTableCell>
           <JoyTableCell sx={{ textAlign: "right" }}>
             <Skeleton
               animation="wave"
@@ -478,6 +508,9 @@ function SkeletonRows() {
               width={52}
               sx={{ ml: "auto" }}
             />
+          </JoyTableCell>
+          <JoyTableCell>
+            <Skeleton animation="wave" variant="text" width={108} />
           </JoyTableCell>
           <JoyTableCell>
             <Skeleton animation="wave" variant="text" width={110} />
@@ -532,6 +565,7 @@ export function CRMCampaignsPage() {
 
   const query = searchParams.get("q") ?? "";
   const statusFilter = normalizeFilter(searchParams.get("status"));
+  const channelFilter = normalizeChannelFilter(searchParams.get("type"));
   const sortColumn = normalizeSortColumn(searchParams.get("sort"));
   const sortDirection = normalizeSortDirection(searchParams.get("dir"));
 
@@ -556,7 +590,8 @@ export function CRMCampaignsPage() {
       Object.entries(updates).forEach(([key, value]) => {
         if (
           !value ||
-          value === "all" ||
+          (key === "status" && value === "draft") ||
+          (key === "type" && value === "all") ||
           (key === "sort" && value === "date") ||
           (key === "dir" && value === "desc")
         ) {
@@ -646,6 +681,7 @@ export function CRMCampaignsPage() {
     const normalizedQuery = query.trim().toLowerCase();
     const filtered = (campaignsQuery.data ?? []).filter((campaign) => {
       if (!matchesStatusFilter(campaign, statusFilter)) return false;
+      if (channelFilter !== "all" && campaign.channel !== channelFilter) return false;
       if (!normalizedQuery) return true;
       return `${campaign.name} ${campaign.subjectLine}`
         .toLowerCase()
@@ -660,6 +696,13 @@ export function CRMCampaignsPage() {
           break;
         case "status":
           result = left.status.localeCompare(right.status);
+          break;
+        case "type":
+          result = left.channel.localeCompare(right.channel);
+          break;
+        case "scheduled-date":
+          result = (parseDate(left.scheduledAt)?.getTime() ?? 0) -
+            (parseDate(right.scheduledAt)?.getTime() ?? 0);
           break;
         case "recipients":
           result =
@@ -679,7 +722,7 @@ export function CRMCampaignsPage() {
     });
 
     return filtered;
-  }, [campaignsQuery.data, query, sortColumn, sortDirection, statusFilter]);
+  }, [campaignsQuery.data, query, sortColumn, sortDirection, statusFilter, channelFilter]);
 
   const paginatedCampaigns = React.useMemo(() => {
     if (filteredCampaigns.length <= PAGE_SIZE) return filteredCampaigns;
@@ -687,7 +730,7 @@ export function CRMCampaignsPage() {
     return filteredCampaigns.slice(start, start + PAGE_SIZE);
   }, [filteredCampaigns, page]);
 
-  const hasFilters = statusFilter !== "all" || query.trim().length > 0;
+  const hasFilters = statusFilter !== "draft" || channelFilter !== "all" || query.trim().length > 0;
   const isLoading = tenantLoading || campaignsQuery.isLoading;
   const isEmptyCatalog =
     !isLoading && !campaignsQuery.isError && totalCount === 0;
@@ -807,7 +850,7 @@ export function CRMCampaignsPage() {
 
   const clearFilters = React.useCallback(() => {
     setSearchDraft("");
-    setSearchParams(new URLSearchParams(), { replace: true });
+    setSearchParams(new URLSearchParams({ status: "all" }), { replace: true });
     setPage(1);
   }, [setSearchParams]);
 
@@ -907,11 +950,11 @@ export function CRMCampaignsPage() {
       case CAMPAIGN_STATUS.FAILED:
       default:
         items = [
-          item("Retry", <RotateCcw size={16} />, () =>
-            setConfirmAction({ type: "retry", campaign }),
-          ),
           item("View Details", <AlertCircle size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
+          ),
+          item("Retry", <RotateCcw size={16} />, () =>
+            setConfirmAction({ type: "retry", campaign }),
           ),
           duplicate,
           deleteItem,
@@ -1093,6 +1136,21 @@ export function CRMCampaignsPage() {
                 ))}
               </Stack>
             </Stack>
+            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" sx={{ mt: 1 }}>
+              <Typography level="body-xs" sx={{ color: "neutral.500", mr: 0.5 }}>Type</Typography>
+              {CHANNEL_FILTERS.map((filter) => (
+                <Chip
+                  key={filter.value}
+                  size="sm"
+                  color="neutral"
+                  variant={channelFilter === filter.value ? "solid" : "outlined"}
+                  onClick={() => updateParams({ type: filter.value })}
+                  sx={{ borderRadius: "md" }}
+                >
+                  {filter.label}
+                </Chip>
+              ))}
+            </Stack>
           </Sheet>
 
           <Sheet
@@ -1117,6 +1175,14 @@ export function CRMCampaignsPage() {
                     </JoyTableHeaderCell>
                     <JoyTableHeaderCell
                       sortable
+                      sortDirection={getSortDirection(sortColumn, sortDirection, "type")}
+                      onSort={() => setSort("type")}
+                      sx={{ width: 112 }}
+                    >
+                      Type
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell
+                      sortable
                       sortDirection={getSortDirection(
                         sortColumn,
                         sortDirection,
@@ -1126,6 +1192,14 @@ export function CRMCampaignsPage() {
                       sx={{ width: 170 }}
                     >
                       Status
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell
+                      sortable
+                      sortDirection={getSortDirection(sortColumn, sortDirection, "scheduled-date")}
+                      onSort={() => setSort("scheduled-date")}
+                      sx={{ width: 175 }}
+                    >
+                      Scheduled date
                     </JoyTableHeaderCell>
                     <JoyTableHeaderCell
                       align="right"
@@ -1193,7 +1267,7 @@ export function CRMCampaignsPage() {
                   {isLoading ? <SkeletonRows /> : null}
                   {campaignsQuery.isError ? (
                     <JoyTableRow>
-                      <JoyTableCell colSpan={7}>
+                      <JoyTableCell colSpan={9}>
                         <Sheet
                           variant="soft"
                           color="neutral"
@@ -1217,7 +1291,7 @@ export function CRMCampaignsPage() {
                   ) : null}
                   {isEmptyCatalog ? (
                     <JoyTableRow>
-                      <JoyTableCell colSpan={7}>
+                      <JoyTableCell colSpan={9}>
                         <Sheet
                           variant="soft"
                           color="neutral"
@@ -1252,7 +1326,7 @@ export function CRMCampaignsPage() {
                   ) : null}
                   {isEmptyFiltered ? (
                     <JoyTableRow>
-                      <JoyTableCell colSpan={7}>
+                      <JoyTableCell colSpan={9}>
                         <Sheet
                           variant="soft"
                           color="neutral"
@@ -1320,8 +1394,18 @@ export function CRMCampaignsPage() {
                               </Stack>
                             </JoyTableCell>
                             <JoyTableCell>
+                              <Typography level="body-sm">
+                                {CHANNEL_LABELS[campaign.channel]}
+                              </Typography>
+                            </JoyTableCell>
+                            <JoyTableCell>
                               <StatusChip campaign={campaign} />
                               <ProgressMeter campaign={campaign} />
+                            </JoyTableCell>
+                            <JoyTableCell>
+                              <Typography level="body-sm" sx={{ color: campaign.scheduledAt ? "neutral.800" : "neutral.400" }}>
+                                {parseDate(campaign.scheduledAt) ? format(parseDate(campaign.scheduledAt)!, "MMM d, yyyy h:mm a") : "Not scheduled"}
+                              </Typography>
                             </JoyTableCell>
                             <JoyTableCell sx={{ textAlign: "right" }}>
                               <Stack
@@ -1472,6 +1556,12 @@ export function CRMCampaignsPage() {
                               campaign={campaign}
                               compactOnNarrow={false}
                             />
+                            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                              {CHANNEL_LABELS[campaign.channel]}
+                              {parseDate(campaign.scheduledAt)
+                                ? ` · Scheduled ${format(parseDate(campaign.scheduledAt)!, "MMM d, yyyy h:mm a")}`
+                                : ""}
+                            </Typography>
                             <Typography
                               level="body-xs"
                               sx={{ color: "neutral.500" }}

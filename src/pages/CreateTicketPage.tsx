@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -57,9 +57,12 @@ const CreateTicketPage = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create Support Ticket</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Create Internal Ticket</h1>
           <p className="text-muted-foreground mt-1">
-            Describe your issue and we'll help you resolve it
+            Track an issue inside your own team's help desk. These tickets are not sent to BloomSuite.
+          </p>
+          <p className="text-sm mt-1">
+            Need help from BloomSuite? <Link to="/support" className="underline underline-offset-4">Contact BloomSuite support</Link>.
           </p>
         </div>
       </div>

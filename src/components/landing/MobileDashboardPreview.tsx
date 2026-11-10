@@ -50,7 +50,7 @@ export const MobileDashboardPreview = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-gray-900 mb-1">Post Content</h3>
-              <p className="text-sm text-gray-600">Schedule across all your social platforms</p>
+              <p className="text-sm text-gray-600">Coordinate email and SMS customer journeys</p>
             </div>
           </div>
         </div>

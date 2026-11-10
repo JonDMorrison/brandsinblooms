@@ -74,14 +74,14 @@ export const useOnboardingCompletion = () => {
         throw saveError;
       }
 
-      // STEP 2: Start company profile and content generation in background
+      // STEP 2: Finish the company profile and email/SMS campaign calendar in
+      // the background so onboarding can complete immediately.
       // Start background process without waiting for completion
       createCompanyProfileFromOnboarding(finalData, userId)
         .then(() => {
           toast({
             title: "Success",
-            description:
-              "🎉 Your content library is ready! All posts have been generated.",
+            description: "Your BloomSuite profile and campaign calendar are ready.",
           });
         })
         .catch((profileError) => {
@@ -91,15 +91,15 @@ export const useOnboardingCompletion = () => {
           );
 
           // Show specific error message based on the error
-          let errorMessage = "Content generation encountered an issue. ";
+          let errorMessage = "Workspace setup encountered an issue. ";
           if (profileError.message.includes("tenant")) {
             errorMessage += "There was an issue setting up your workspace.";
           } else if (profileError.message.includes("Profile generation")) {
             errorMessage += "AI profile generation failed.";
           } else if (profileError.message.includes("Campaign creation")) {
-            errorMessage += "Content planning failed.";
+            errorMessage += "Campaign planning failed.";
           } else {
-            errorMessage += "Some content may not be available.";
+            errorMessage += "Some setup details may not be available.";
           }
 
           toast({
@@ -123,8 +123,7 @@ export const useOnboardingCompletion = () => {
 
       toast({
         title: "Success",
-        description:
-          "🎉 Profile created! Your dashboard is ready - content is generating in the background.",
+        description: "Your dashboard is ready. Workspace setup is finishing in the background.",
       });
     } catch (error) {
       console.error("🚨 Critical error in onboarding completion:", error);

@@ -637,6 +637,31 @@ export default function AdminHub() {
     enabled: isSuperAdmin === true,
   });
 
+  // Hooks must run on every render, before the loading and access returns below.
+  const operationalItems = useMemo(
+    () => buildAdminHubItems(tenants),
+    [tenants],
+  );
+
+  const selectedDateItems = useMemo(
+    () =>
+      operationalItems.filter((item) =>
+        isSameDay(item.scheduledStart, selectedDate),
+      ),
+    [operationalItems, selectedDate],
+  );
+
+  useEffect(() => {
+    if (selectedDateItems.length === 0) {
+      setSelectedItemId(null);
+      return;
+    }
+
+    if (!selectedDateItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(selectedDateItems[0].id);
+    }
+  }, [selectedDateItems, selectedItemId]);
+
   if (isLoading) {
     return (
       <PageContainer fullWidth>
@@ -701,7 +726,7 @@ export default function AdminHub() {
           iconColor: "success",
         },
         {
-          title: "Cost Dashboard",
+          title: "Running costs",
           description: "Monitor platform resource usage, costs, and anomalies",
           icon: DollarSign,
           href: "/admin/costs",
@@ -735,9 +760,9 @@ export default function AdminHub() {
           iconColor: "danger",
         },
         {
-          title: "Email Governance Settings",
+          title: "Email sending rules",
           description:
-            "Manage global email governance thresholds, batch defaults, and warmup limits",
+            "Safety limits that protect every client's email reputation",
           icon: Shield,
           href: "/admin/governance-config",
           iconColor: "warning",
@@ -769,30 +794,6 @@ export default function AdminHub() {
       action: () => navigate("/admin/reports"),
     },
   ];
-
-  const operationalItems = useMemo(
-    () => buildAdminHubItems(tenants),
-    [tenants],
-  );
-
-  const selectedDateItems = useMemo(
-    () =>
-      operationalItems.filter((item) =>
-        isSameDay(item.scheduledStart, selectedDate),
-      ),
-    [operationalItems, selectedDate],
-  );
-
-  useEffect(() => {
-    if (selectedDateItems.length === 0) {
-      setSelectedItemId(null);
-      return;
-    }
-
-    if (!selectedDateItems.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId(selectedDateItems[0].id);
-    }
-  }, [selectedDateItems, selectedItemId]);
 
   const selectedItem =
     selectedDateItems.find((item) => item.id === selectedItemId) ?? null;
@@ -886,10 +887,10 @@ export default function AdminHub() {
                       <Shield size={24} />
                     </Sheet>
                     <Stack spacing={0.5}>
-                      <Typography level="h2">Admin Operations Hub</Typography>
+                      <Typography level="h2">Admin home</Typography>
                       <Typography level="body-sm" color="neutral">
-                        A live operational view of tenant health, billing
-                        checkpoints, and admin tasks.
+                        How clients are doing, billing to check, and admin tasks
+                        that need attention.
                       </Typography>
                     </Stack>
                   </Stack>
@@ -900,7 +901,6 @@ export default function AdminHub() {
                     useFlexGap
                     flexWrap="wrap"
                   >
-                    <JoyStatusChip label="Live admin view" status="active" />
                     <Typography level="body-xs" color="neutral">
                       Snapshot updated{" "}
                       {format(new Date(), "MMM d, yyyy 'at' h:mm a")}

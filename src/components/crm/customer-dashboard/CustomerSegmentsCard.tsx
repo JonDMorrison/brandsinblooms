@@ -22,6 +22,7 @@ import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 
 interface CustomerSegmentsCardProps {
   customerId: string;
+  canManage?: boolean;
 }
 
 const segmentBadgeSx = {
@@ -37,6 +38,7 @@ const segmentBadgeSx = {
 
 export function CustomerSegmentsCard({
   customerId,
+  canManage = true,
 }: CustomerSegmentsCardProps) {
   const {
     customerSegments,
@@ -126,7 +128,11 @@ export function CustomerSegmentsCard({
   return (
     <JoyCard variant="outlined">
       <JoyCardHeader
-        description="Manage manual segment membership and persona labels tied to this customer record."
+        description={
+          canManage
+            ? "Manage manual segment membership and persona labels tied to this customer record."
+            : "Segment memberships and persona labels tied to this customer record."
+        }
         title="Segments & personas"
       />
       <JoyCardContent>
@@ -144,7 +150,7 @@ export function CustomerSegmentsCard({
                   automatically from their rules.
                 </Typography>
               </Box>
-              {segmentPickerOpen ? null : (
+              {canManage && !segmentPickerOpen ? (
                 <JoyButton
                   color="primary"
                   variant="plain"
@@ -154,10 +160,10 @@ export function CustomerSegmentsCard({
                 >
                   Add static segment
                 </JoyButton>
-              )}
+              ) : null}
             </Stack>
 
-            {segmentPickerOpen ? (
+            {canManage && segmentPickerOpen ? (
               <Stack spacing={1.25}>
                 <SegmentPicker
                   excludeSegmentIds={assignedSegmentIds}
@@ -247,7 +253,7 @@ export function CustomerSegmentsCard({
                           : "Manual membership. You can remove this customer directly from here."}
                       </Typography>
                     </Box>
-                    {assignment.segment.type === "static" ? (
+                    {canManage && assignment.segment.type === "static" ? (
                       <IconButton
                         size="sm"
                         variant="plain"
@@ -311,7 +317,7 @@ export function CustomerSegmentsCard({
                     color="primary"
                     variant="soft"
                     size="sm"
-                    endDecorator={
+                    endDecorator={canManage ? (
                       <IconButton
                         size="sm"
                         variant="plain"
@@ -336,7 +342,7 @@ export function CustomerSegmentsCard({
                           <X size={12} />
                         )}
                       </IconButton>
-                    }
+                    ) : undefined}
                   >
                     {persona.label}
                   </JoyChip>
@@ -348,7 +354,7 @@ export function CustomerSegmentsCard({
               </Typography>
             )}
 
-            <JoySelect
+            {canManage ? <JoySelect
               value={personaSelection}
               placeholder={
                 personasLoading ? "Loading personas…" : "Assign a persona"
@@ -376,7 +382,7 @@ export function CustomerSegmentsCard({
                   </Stack>
                 </Option>
               ))}
-            </JoySelect>
+            </JoySelect> : null}
           </Stack>
 
           {isAddingSegments || Boolean(personaSavingId) ? (

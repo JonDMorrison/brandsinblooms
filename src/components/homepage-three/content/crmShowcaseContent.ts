@@ -43,9 +43,9 @@ export const CRM_CALLOUTS: CrmCalloutConfig[] = [
   },
   {
     icon: Inbox,
-    title: "Unified inbox",
+    title: "Unified engagement history",
     description:
-      "Email, SMS, social messages, and reviews in one place. Reply once, log everywhere.",
+      "Email, SMS, purchases, consent, and loyalty activity in one customer profile.",
     delayMs: 700,
   },
 ];

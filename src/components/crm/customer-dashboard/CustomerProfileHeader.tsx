@@ -57,6 +57,8 @@ export interface CustomerProfileHeaderProps {
   segmentLabels?: string[];
   isVip?: boolean;
   isDeleting?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   headerActions?: React.ReactNode;
   onBack: () => void;
   onEdit: () => void;
@@ -92,6 +94,8 @@ export function CustomerProfileHeader({
   segmentLabels = [],
   isVip = false,
   isDeleting = false,
+  canEdit = true,
+  canDelete = true,
   headerActions,
   onBack,
   onEdit,
@@ -363,15 +367,17 @@ export function CustomerProfileHeader({
               alignSelf={{ xs: "stretch", md: "flex-start" }}
             >
               {headerActions}
-              <JoyButton
-                color="neutral"
-                variant="soft"
-                size="sm"
-                startDecorator={<Pencil size={14} />}
-                onClick={onEdit}
-              >
-                Edit
-              </JoyButton>
+              {canEdit ? (
+                <JoyButton
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                  startDecorator={<Pencil size={14} />}
+                  onClick={onEdit}
+                >
+                  Edit
+                </JoyButton>
+              ) : null}
 
               {!isCompact ? (
                 <JoyTooltip title="Coming soon">
@@ -416,12 +422,14 @@ export function CustomerProfileHeader({
                   >
                     View Activity Log
                   </JoyDropdownMenuItem>
-                  <JoyDropdownMenuItem
-                    startDecorator={<StickyNote size={16} />}
-                    onClick={() => setNoteOpen(true)}
-                  >
-                    Add Note
-                  </JoyDropdownMenuItem>
+                  {canEdit ? (
+                    <JoyDropdownMenuItem
+                      startDecorator={<StickyNote size={16} />}
+                      onClick={() => setNoteOpen(true)}
+                    >
+                      Add Note
+                    </JoyDropdownMenuItem>
+                  ) : null}
                   <JoyDropdownMenuItem
                     startDecorator={<Clock3 size={16} />}
                     onClick={() => {
@@ -430,14 +438,16 @@ export function CustomerProfileHeader({
                   >
                     Refresh Data
                   </JoyDropdownMenuItem>
-                  <JoyDropdownMenuSeparator />
-                  <JoyDropdownMenuItem
-                    startDecorator={<Trash2 size={16} />}
-                    destructive
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    Delete Customer
-                  </JoyDropdownMenuItem>
+                  {canDelete ? <JoyDropdownMenuSeparator /> : null}
+                  {canDelete ? (
+                    <JoyDropdownMenuItem
+                      startDecorator={<Trash2 size={16} />}
+                      destructive
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      Delete Customer
+                    </JoyDropdownMenuItem>
+                  ) : null}
                 </JoyDropdownMenuContent>
               </JoyDropdownMenu>
             </Stack>
@@ -445,7 +455,7 @@ export function CustomerProfileHeader({
         </Stack>
       </Sheet>
 
-      <JoyDialog
+      {canEdit ? <JoyDialog
         open={noteOpen}
         onClose={() => {
           if (noteSaving) {
@@ -485,9 +495,9 @@ export function CustomerProfileHeader({
             Save Note
           </JoyButton>
         </JoyDialogActions>
-      </JoyDialog>
+      </JoyDialog> : null}
 
-      <JoyAlertDialog
+      {canDelete ? <JoyAlertDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onConfirm={async () => {
@@ -500,7 +510,7 @@ export function CustomerProfileHeader({
         cancelLabel="Cancel"
         variant="danger"
         loading={isDeleting}
-      />
+      /> : null}
     </>
   );
 }

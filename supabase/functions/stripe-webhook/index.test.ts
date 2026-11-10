@@ -1,8 +1,12 @@
 import { assertEquals } from "@std/assert";
-import Stripe from "https://esm.sh/stripe@14";
+import Stripe from "npm:stripe@14.25.0";
 
 import { createMockSupabaseClient } from "../_shared/testing/testHarness.ts";
-import { handleStripeEvent, type StripeWebhookDependencies } from "./index.ts";
+import {
+  handleStripeEvent,
+  handleStripeWebhook,
+  type StripeWebhookDependencies,
+} from "./index.ts";
 
 const NOW = new Date("2026-04-28T10:00:00.000Z");
 
@@ -30,7 +34,7 @@ function makeDependencies(
         retrieve: () => Promise.resolve(subscription),
       },
       webhooks: {
-        constructEvent: () => {
+        constructEventAsync: () => {
           throw new Error("Not used in unit tests");
         },
       },
@@ -176,3 +180,63 @@ Deno.test(
     );
   },
 );
+
+Deno.test("stripe-webhook verifies real signatures with the Deno Stripe build", async () => {
+  const stripe = new Stripe("sk_test_local_signature_only", {
+    apiVersion: "2023-10-16",
+  });
+  const { deps, recorder, dispatchCalls } = makeDependencies(
+    {},
+    {} as Stripe.Subscription,
+  );
+  deps.stripe = stripe;
+  const payload = JSON.stringify({
+    id: "evt_signature_test",
+    type: "test.unhandled",
+    data: { object: {} },
+  });
+  const sign = async (timestamp: number) => {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode("whsec_test"),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const digest = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(`${timestamp}.${payload}`),
+    );
+    const signature = Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `t=${timestamp},v1=${signature}`;
+  };
+  const signature = await sign(Math.floor(Date.now() / 1000));
+  const request = (body: string, header: string) =>
+    new Request("https://example.test/stripe-webhook", {
+      method: "POST",
+      headers: { "stripe-signature": header },
+      body,
+    });
+
+  const accepted = await handleStripeWebhook(request(payload, signature), deps);
+  assertEquals(accepted.status, 200);
+  assertEquals(await accepted.json(), { received: true });
+
+  const tampered = await handleStripeWebhook(
+    request(payload.replace("evt_signature_test", "evt_tampered"), signature),
+    deps,
+  );
+  assertEquals(tampered.status, 400);
+
+  const expiredSignature = await sign(Math.floor(Date.now() / 1000) - 600);
+  const expired = await handleStripeWebhook(
+    request(payload, expiredSignature),
+    deps,
+  );
+  assertEquals(expired.status, 400);
+  assertEquals(recorder.length, 0);
+  assertEquals(dispatchCalls.length, 0);
+});

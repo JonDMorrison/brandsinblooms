@@ -4,6 +4,7 @@ import Typography from "@mui/joy/Typography";
 import { ImagePlus } from "lucide-react";
 import { formatDraftRichText } from "@/lib/crm/htmlContent";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
 
 type ProductCardRendererProps = {
   block: StudioBlock;
@@ -33,6 +34,10 @@ function ProductImage({
             height: wide ? 220 : 190,
             display: "block",
             objectFit: block.imageFit || "cover",
+            objectPosition: getImageObjectPosition(
+              block.imageFocalX,
+              block.imageFocalY,
+            ),
             borderRadius: `${imageRadius}px`,
             bgcolor: "neutral.100",
           }}

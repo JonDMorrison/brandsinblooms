@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 
 export const createCompanyProfileFromOnboarding = async (
   onboardingData: any,
@@ -83,17 +82,12 @@ export const createCompanyProfileFromOnboarding = async (
           throw new Error("Failed to get authenticated user information");
         }
 
-        // Create a new tenant for this user
+        // Create and assign the tenant atomically. Browser clients never need
+        // broad INSERT/UPDATE access to tenant or user identity tables.
+        const tenantName =
+          onboardingData.aboutBusiness?.split(".")[0] || "My Garden Center";
         const { data: newTenant, error: tenantError } = await supabase
-          .from("tenants")
-          .insert({
-            name:
-              onboardingData.aboutBusiness?.split(".")[0] || "My Garden Center",
-            slug: `tenant-${userId.slice(0, 8)}`,
-            settings: {},
-            is_active: true,
-          })
-          .select()
+          .rpc("create_current_user_tenant", { p_name: tenantName })
           .single();
 
         if (tenantError) {
@@ -105,27 +99,6 @@ export const createCompanyProfileFromOnboarding = async (
             hint: tenantError.hint,
           });
           throw new Error(`Failed to create tenant: ${tenantError.message}`);
-        }
-
-        // Update/create user record in public.users table with tenant_id
-        const { error: updateUserError } = await supabase.from("users").upsert({
-          id: userId,
-          tenant_id: newTenant.id,
-          email: authUser.user.email || "",
-          name:
-            authUser.user.user_metadata?.full_name ||
-            authUser.user.email?.split("@")[0] ||
-            "User",
-        });
-
-        if (updateUserError) {
-          console.error(
-            "❌ Error updating user with tenant_id:",
-            updateUserError,
-          );
-          throw new Error(
-            `Failed to link user to tenant: ${updateUserError.message}`,
-          );
         }
 
         tenant = newTenant;
@@ -316,67 +289,8 @@ export const createCompanyProfileFromOnboarding = async (
       throw new Error(`Campaign creation failed: ${campaignError.message}`);
     }
 
-    // STEP 6: Generate content for the immediate campaign (only if no content exists)
-
-    try {
-      // Check if content already exists for this campaign
-      const { data: existingContent } = await supabase
-        .from("content_tasks")
-        .select("id")
-        .eq("campaign_id", immediateCampaign.id)
-        .eq("tenant_id", tenant.id)
-        .limit(1);
-
-      if (existingContent && existingContent.length > 0) {
-      } else {
-        const dummyTaskUpdate = () => {};
-
-        await generateRequiredTasks(
-          immediateCampaign.id,
-          [immediateCampaign],
-          userId,
-          dummyTaskUpdate,
-          tenant.id,
-        );
-
-        console.log(
-          "🎉 IMMEDIATE CONTENT GENERATED! User will see ready content on dashboard",
-        );
-
-        // Verify content was created
-        const { data: verifyContent, error: verifyError } = await supabase
-          .from("content_tasks")
-          .select("id, post_type, status, tenant_id")
-          .eq("campaign_id", immediateCampaign.id)
-          .eq("tenant_id", tenant.id);
-
-        if (verifyError) {
-          console.error("⚠️ Error verifying generated content:", verifyError);
-        } else {
-        }
-      }
-
-      // FIX: C4 - Set first_content_generated ONLY after content generation succeeds
-      const { error: flagError } = await supabase
-        .from("company_profiles")
-        .update({ first_content_generated: true })
-        .eq("user_id", userId);
-      if (flagError) {
-        console.error("⚠️ Error setting first_content_generated:", flagError);
-      } else {
-        console.log(
-          "✅ first_content_generated set to true after successful content generation",
-        );
-      }
-    } catch (contentError) {
-      console.error(
-        "⚠️ Error generating immediate content during onboarding:",
-        contentError,
-      );
-      // Don't throw here - profile creation was successful, content generation is secondary
-    }
-
-    // STEP 7: Generate 52-week collection (optional, non-blocking)
+    // STEP 6: Generate a 52-week email/SMS campaign calendar (optional,
+    // non-blocking). Content is authored deliberately in the campaign studio.
 
     try {
       const { data: themesData, error: themesError } =

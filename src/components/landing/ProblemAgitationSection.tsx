@@ -5,7 +5,7 @@ export const ProblemAgitationSection = () => {
     {
       icon: Clock,
       title: "Wasting Hours on Marketing",
-      description: "You're spending 10+ hours a week creating social media posts, writing emails, and planning campaigns instead of running your business.",
+      description: "You're spending 10+ hours a week building campaigns, cleaning customer lists, and planning promotions instead of running your business.",
       accentColor: "#68BEB9",
       glowColor: "rgba(104, 190, 185, 0.15)",
       cardBg: "rgba(104, 190, 185, 0.08)"
@@ -13,7 +13,7 @@ export const ProblemAgitationSection = () => {
     {
       icon: DollarSign,
       title: "Paying for Multiple Tools", 
-      description: "Between social media schedulers, email platforms, CRM systems, and analytics tools, you're paying $200+ per month for scattered solutions.",
+      description: "Between email, SMS, loyalty, CRM, and analytics tools, you're paying $200+ per month for scattered solutions.",
       accentColor: "#22C55E",
       glowColor: "rgba(34, 197, 94, 0.15)",
       cardBg: "rgba(34, 197, 94, 0.08)"

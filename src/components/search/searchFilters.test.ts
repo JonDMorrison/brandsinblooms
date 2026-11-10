@@ -49,6 +49,13 @@ describe("searchFilters", () => {
     expect(config.skipDatabase).toBe(false);
   });
 
+  it("does not query the unshipped community story backend from global search", () => {
+    const config = buildSearchRequestConfig("all", "/dashboard");
+
+    expect(config.entityTypes).not.toContain("community_story");
+    expect(getContextualSearchFilter("/community")).toBe("all");
+  });
+
   it("skips database search when the active chip is purely static", () => {
     const config = buildSearchRequestConfig("pages", "/crm/customers");
 

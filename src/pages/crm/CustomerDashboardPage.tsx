@@ -17,15 +17,23 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CustomerActivityPanel } from "@/components/activity/CustomerActivityPanel";
+import { CustomerAutomationsCard } from "@/components/crm/customer-dashboard/CustomerAutomationsCard";
 import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { AIInsightsActions } from "@/components/crm/customer-dashboard/AIInsightsActions";
 import { ChannelDeepDive } from "@/components/crm/customer-dashboard/ChannelDeepDive";
 import { CrossChannelIntelligence } from "@/components/crm/customer-dashboard/CrossChannelIntelligence";
 import { CustomerContactCard } from "@/components/crm/customer-dashboard/CustomerContactCard";
+import { CustomerIntelligenceStory } from "@/components/crm/customer-dashboard/CustomerIntelligenceStory";
+import { CustomerConsentCard } from "@/components/crm/customer-dashboard/CustomerConsentCard";
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
+import { CustomerCouponsCard } from "@/components/crm/customer-dashboard/CustomerCouponsCard";
+import { CustomerIdealEvidenceCard } from "@/components/crm/customer-dashboard/CustomerIdealEvidenceCard";
+import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboard/CustomerProfileAttributesCard";
+import { ImportedCustomerSummary } from "@/components/crm/customer-dashboard/ImportedCustomerSummary";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
 import { CustomerSegmentsCard } from "@/components/crm/customer-dashboard/CustomerSegmentsCard";
+import { CustomerTagsCard } from "@/components/crm/customer-dashboard/CustomerTagsCard";
 import { CustomerSnapshot } from "@/components/crm/customer-dashboard/CustomerSnapshot";
 import { EditCustomerDialog } from "@/components/crm/customer-dashboard/EditCustomerDialog";
 import { EngagementHealthOverview } from "@/components/crm/customer-dashboard/EngagementHealthOverview";
@@ -47,10 +55,12 @@ import {
   type CustomerData,
 } from "@/hooks/useCustomerDashboard";
 import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
+import { useCustomerIntelligenceDetail } from "@/hooks/useCustomerIntelligenceDetail";
 import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   transformToCrossChannelMetrics,
   transformToEmailMetrics,
@@ -86,10 +96,10 @@ const TAB_OPTIONS: Array<{
   label: string;
   icon: React.ElementType;
 }> = [
-  { value: "overview", label: "Overview", icon: UserCircle2 },
+  { value: "overview", label: "Profile", icon: UserCircle2 },
   { value: "activity", label: "Activity", icon: Activity },
-  { value: "engagement", label: "Engagement", icon: HeartPulse },
-  { value: "purchase", label: "Purchase", icon: ShoppingBag },
+  { value: "engagement", label: "Marketing", icon: HeartPulse },
+  { value: "purchase", label: "Purchases", icon: ShoppingBag },
   { value: "insights", label: "Insights", icon: Sparkles },
 ];
 
@@ -197,6 +207,11 @@ const CustomerDashboardPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { role: crmRole, hasPermission } = useUserRole();
+  const canEditCustomer = hasPermission("customers.write");
+  const canManageSegments = hasPermission("segments.manage");
+  const canRegenerateInsights = hasPermission("content.design");
+  const canDeleteCustomer = crmRole === "owner_admin";
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [localCustomer, setLocalCustomer] = React.useState<CustomerData | null>(
@@ -224,6 +239,7 @@ const CustomerDashboardPage: React.FC = () => {
     purchaseMetrics,
     postPurchaseMetrics,
     loyaltyMetrics,
+    loyaltyAccounts,
     lifecycleMetrics,
     contentIntentMetrics,
     riskSignals,
@@ -256,6 +272,7 @@ const CustomerDashboardPage: React.FC = () => {
   const { personas: allPersonas } = useAllPersonas();
   const { assignments } = useCustomerPersonas(customerId ?? "");
   const { customerSegments } = useCustomerSegments(customerId);
+  const { data: customerIntelligence } = useCustomerIntelligenceDetail(customerId);
 
   React.useEffect(() => {
     setLocalCustomer(customer ?? null);
@@ -343,8 +360,9 @@ const CustomerDashboardPage: React.FC = () => {
       transformToLoyaltyMetrics(
         loyaltyMetrics ?? null,
         purchaseMetrics ?? null,
+        loyaltyAccounts,
       ),
-    [loyaltyMetrics, purchaseMetrics],
+    [loyaltyAccounts, loyaltyMetrics, purchaseMetrics],
   );
   const riskDisplayMetrics = React.useMemo(
     () => transformToRiskMetrics(riskSignals ?? null),
@@ -490,6 +508,10 @@ const CustomerDashboardPage: React.FC = () => {
     return <FatalState onRetry={handleRefresh} />;
   }
 
+  const fields=displayCustomer.custom_fields;
+  const isIdealProfile=Boolean(fields&&typeof fields==='object'&&!Array.isArray(fields)&&'ideal_import_source' in fields);
+  const receiptMetricsUnavailable=isIdealProfile&&!purchaseMetrics;
+
   const activityFilters = {
     start: rangeStartDate,
     status: activityStatus === "all" ? undefined : [activityStatus],
@@ -515,13 +537,17 @@ const CustomerDashboardPage: React.FC = () => {
             segmentLabels={segmentLabels}
             isVip={isVip}
             isDeleting={deleteCustomer.isPending}
+            canEdit={canEditCustomer}
+            canDelete={canDeleteCustomer}
             headerActions={
-              <AskBloomResourceTrigger
-                resourceType="customer"
-                resourceId={displayCustomer.id}
-                resourceLabel={customerName}
-                buildContext={buildCustomerResourceFocus}
-              />
+              canRegenerateInsights ? (
+                <AskBloomResourceTrigger
+                  resourceType="customer"
+                  resourceId={displayCustomer.id}
+                  resourceLabel={customerName}
+                  buildContext={buildCustomerResourceFocus}
+                />
+              ) : null
             }
             onBack={() => navigate("/crm/customers")}
             onEdit={() => setIsEditDialogOpen(true)}
@@ -539,11 +565,13 @@ const CustomerDashboardPage: React.FC = () => {
             <LinearProgress sx={{ borderRadius: 999 }} />
           ) : null}
 
+          <ImportedCustomerSummary fields={displayCustomer.custom_fields} />
+          {displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
           <CustomerQuickStats
             healthScore={snapshotMetrics.engagementHealthScore}
             engagementScore={engagementMetrics.engagementScore}
-            lifetimeValue={purchaseDisplayMetrics.ltv}
-            totalOrders={purchaseDisplayMetrics.totalPurchases}
+            lifetimeValue={purchaseMetrics?.lifetime_value ?? null}
+            totalOrders={purchaseMetrics?.total_purchases ?? null}
             preferredChannel={snapshotMetrics.preferredChannel}
             accountAgeDays={snapshotMetrics.accountAgeDays}
           />
@@ -634,13 +662,26 @@ const CustomerDashboardPage: React.FC = () => {
                     last_name: displayCustomer.last_name,
                     email: displayCustomer.email,
                     phone: displayCustomer.phone,
-                    email_opt_in: displayCustomer.email_opt_in,
-                    sms_opt_in: displayCustomer.sms_opt_in,
                   }}
                   onCustomerPatched={handleCustomerPatched}
-                  onOpenBatchEdit={() => setIsEditDialogOpen(true)}
+                  canEdit={false}
                 />
-                <CustomerSegmentsCard customerId={displayCustomer.id} />
+                <CustomerConsentCard
+                  customer={displayCustomer}
+                  customerLabel={customerName}
+                  onCustomerPatched={handleCustomerPatched}
+                  canManage={canEditCustomer}
+                />
+                <CustomerTagsCard
+                  customerId={displayCustomer.id}
+                  canManage={canEditCustomer}
+                />
+                <CustomerProfileAttributesCard customer={displayCustomer} />
+                <CustomerCouponsCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />
+                <CustomerSegmentsCard
+                  customerId={displayCustomer.id}
+                  canManage={canManageSegments}
+                />
                 <CustomerSnapshot
                   customer={{
                     name: customerName,
@@ -657,6 +698,7 @@ const CustomerDashboardPage: React.FC = () => {
               </Stack>
 
               <Stack spacing={2}>
+                <CustomerAutomationsCard customerId={displayCustomer.id} />
                 <CustomerEventTimeline
                   events={timelineDisplayEvents}
                   compact
@@ -762,13 +804,19 @@ const CustomerDashboardPage: React.FC = () => {
 
           {activeTab === "purchase" ? (
             <Stack spacing={2}>
-              <PurchaseValueBehavior
+              {(!isIdealProfile||customerIntelligence?.last_line_item_purchase_at)&&<CustomerIntelligenceStory
+                intelligence={customerIntelligence}
+                onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
+              />
+              }
+              {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. Use the imported report-period spending above; missing receipt history is not zero spending.</Typography> : <PurchaseValueBehavior
                 metrics={purchaseDisplayMetrics}
                 purchaseTimeline={purchaseTimeline}
                 errorMessage={chartErrors.purchaseTimeline}
                 onRetry={() => void handleRefresh()}
               />
-              <LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />
+              }
+              {!receiptMetricsUnavailable&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
             </Stack>
           ) : null}
 
@@ -788,14 +836,16 @@ const CustomerDashboardPage: React.FC = () => {
                 loading={isAILoading}
                 regenerating={isAIRegenerating}
                 errorMessage={aiError?.message ?? null}
-                onRegenerate={regenerateAIInsights}
+                onRegenerate={
+                  canRegenerateInsights ? regenerateAIInsights : undefined
+                }
               />
             </Stack>
           ) : null}
         </Stack>
       </PageContainer>
 
-      {customerId ? (
+      {customerId && canEditCustomer ? (
         <EditCustomerDialog
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
@@ -805,8 +855,6 @@ const CustomerDashboardPage: React.FC = () => {
             last_name: displayCustomer.last_name,
             email: displayCustomer.email,
             phone: displayCustomer.phone,
-            email_opt_in: displayCustomer.email_opt_in,
-            sms_opt_in: displayCustomer.sms_opt_in,
           }}
           onSuccess={(updatedCustomer) => {
             handleCustomerPatched(updatedCustomer);

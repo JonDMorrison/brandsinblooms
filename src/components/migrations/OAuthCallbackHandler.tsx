@@ -1,16 +1,12 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui-legacy/button";
-import { supabase } from "@/integrations/supabase/client";
-import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
 export const OAuthCallbackHandler = () => {
   const [searchParams] = useSearchParams();
   const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
     const provider = searchParams.get("provider");
     const status = searchParams.get("status");
     const callbackMessage = searchParams.get("message");
@@ -54,71 +50,9 @@ export const OAuthCallbackHandler = () => {
         return;
       }
 
-      // Meta OAuth flow: handle exchange directly in the popup
-      if (code && state) {
-        (async () => {
-          try {
-            // Call exchange-oauth-code edge function
-            const { data, error } = await supabase.functions.invoke(
-              "exchange-oauth-code",
-              {
-                body: {
-                  code,
-                  state,
-                  redirect_uri: getOAuthRedirectUri(),
-                },
-              },
-            );
-
-            if (error) throw error;
-            // Notify opener window of success
-            if (window.opener && !window.opener.closed) {
-              window.opener.postMessage(
-                {
-                  type: "oauth-success",
-                  provider: "meta",
-                  platforms: data?.connections || [],
-                  message: data?.message || "Connected successfully",
-                },
-                window.location.origin,
-              );
-            }
-
-            // Try to close the popup
-            try {
-              window.close();
-              // If close didn't work, show fallback after a short delay
-              setTimeout(() => {
-                setShowFallback(true);
-              }, 600);
-            } catch (e) {
-              setShowFallback(true);
-            }
-          } catch (error: any) {
-            console.error("[OAuthCallbackHandler] Exchange failed:", error);
-
-            // Notify opener of failure
-            if (window.opener && !window.opener.closed) {
-              window.opener.postMessage(
-                {
-                  type: "oauth-error",
-                  provider: "meta",
-                  stage: error.stage || "exchange_failed",
-                  error: error.message || "Failed to connect Meta account",
-                },
-                window.location.origin,
-              );
-            }
-
-            // Show error in popup
-            setShowFallback(true);
-          }
-        })();
-
-        return;
-      }
-
-      // If we reach here, params are missing – show manual fallback
+      // Active providers complete their code exchange server-side, then return
+      // with provider + status. Raw code/state callbacks are intentionally not
+      // handled in the browser.
       setShowFallback(true);
     }, 100);
 
@@ -136,8 +70,8 @@ export const OAuthCallbackHandler = () => {
             {isPopup ? (
               <Button onClick={() => window.close()}>Close Window</Button>
             ) : (
-              <Button onClick={() => (window.location.href = "/social-accounts")}>
-                Return to Social Accounts
+              <Button onClick={() => (window.location.href = "/integrations")}>
+                Return to Integrations
               </Button>
             )}
           </>

@@ -1,3 +1,6 @@
+import { listLoyaltyProgrammeTemplates, listLoyaltyProgrammes, readLoyaltyProgrammeResults } from "./implementations/loyalty-programmes.ts";
+import { toolFailureResult } from "./failure.ts";
+import { exploreCustomerReportedSpending, exploreCustomerPurchases, getCustomerProductHistory, inspectCustomerSet, explainCustomerSetMember, analyzeCustomerBasket, compareCustomerGrowthTool, saveCustomerSetSegment, prepareCustomerSetSave } from "./implementations/customer-exploration.ts";
 import type { JsonArray, JsonObject, JsonValue } from "../types.ts";
 import { cacheGet, cacheInvalidate, cacheSet } from "../cache.ts";
 import {
@@ -17,6 +20,7 @@ import {
   getRevenueAnalytics,
 } from "./implementations/analytics-tools.ts";
 import { getCampaignAnalytics } from "./implementations/campaign-analytics.ts";
+import { findCustomerOpportunities, rankCustomersByIntelligence } from "./implementations/customer-intelligence.ts";
 import {
   getCustomerInsights,
   getCustomerTimeline,
@@ -27,6 +31,8 @@ import { getProductDetail } from "./implementations/get-product-detail.ts";
 import { getSegmentMembers } from "./implementations/get-segment-members.ts";
 import { exportDataImplementation } from "./implementations/export-data.ts";
 import { executeGenerateImage } from "./implementations/image-tools.ts";
+import { importCustomerList, prepareCustomerListImport } from "./implementations/customer-list-import.ts";
+import { readPhotoReference, withCampaignPhotoPreview } from "./implementations/campaign-photo.ts";
 import { navigateToImplementation } from "./implementations/navigate-to.ts";
 import { campaignMutationImplementation } from "./implementations/campaign-mutations.ts";
 import { customerMutationImplementation } from "./implementations/customer-mutations.ts";
@@ -39,6 +45,8 @@ import { querySegments } from "./implementations/query-segments.ts";
 import { searchKnowledge } from "./implementations/search-knowledge.ts";
 import { segmentAudienceImplementation } from "./implementations/segment-audience.ts";
 import { tagConsentImplementation } from "./implementations/tag-consent-tools.ts";
+import { isSupportTool, supportToolImplementation } from "./implementations/support-tools.ts";
+import { isSuiteTool, suiteToolImplementation } from "./implementations/suite-tools.ts";
 import { getRegisteredTool, normalizeToolRole } from "./registry.ts";
 import type {
   ConfirmationDetails,
@@ -587,6 +595,8 @@ const TOOL_ACTION_FORMATTERS: Record<string, ToolActionFormatter> = {
         : "Apply a tag to";
     return `${action} ${customerCountLabel(params)}`;
   },
+  import_customer_list: () =>
+    "Import the contacts from the uploaded list as customers",
   manage_consent: (params) => {
     const channel =
       readParamString(params, "channel")?.toUpperCase() ?? "communication";
@@ -598,6 +608,13 @@ const TOOL_ACTION_FORMATTERS: Record<string, ToolActionFormatter> = {
     const entity = readParamString(params, "entity") ?? "data";
     const format = readParamString(params, "format")?.toUpperCase() ?? "file";
     return `Export ${entity} as ${format}`;
+  },
+  report_support_problem: (params) => {
+    const subject =
+      readParamString(params, "subject") ??
+      readParamString(params, "what_happened")?.replace(/\s+/g, " ").slice(0, 80) ??
+      null;
+    return `Send a problem report to the Bloom support team${quotedName(subject)}`;
   },
 };
 
@@ -636,7 +653,9 @@ function isLikelyReversible(toolName: ToolName): boolean {
     case "delete_customer":
     case "send_campaign":
     case "bulk_tag_customers":
+    case "import_customer_list":
     case "manage_consent":
+    case "report_support_problem":
       return false;
     default:
       return true;
@@ -649,6 +668,7 @@ function mutationEntityType(toolName: ToolName): string | null {
     case "update_customer":
     case "delete_customer":
     case "bulk_tag_customers":
+    case "import_customer_list":
     case "manage_consent":
       return "customer";
     case "create_campaign":
@@ -659,6 +679,7 @@ function mutationEntityType(toolName: ToolName): string | null {
     case "pause_resume_campaign":
       return "campaign";
     case "create_segment":
+    case "save_customer_set_segment":
     case "update_segment":
     case "assign_segment":
       return "segment";
@@ -790,7 +811,9 @@ function unknownToolResult(toolName: string): ToolResult {
 }
 
 function isCacheableTool(toolName: ToolName): boolean {
-  return toolName !== "export_data";
+  if (isSupportTool(toolName)) return false;
+  if (isSuiteTool(toolName)) return false;
+  return !["list_loyalty_programme_templates", "list_loyalty_programmes", "read_loyalty_programme_results", "explore_customer_purchases", "get_customer_product_history", "explore_customer_reported_spending", "inspect_customer_set", "explain_customer_set_member", "analyze_customer_basket", "compare_customer_growth", "save_customer_set_segment", "export_data", "rank_customers_by_intelligence", "find_customer_opportunities"].includes(toolName);
 }
 
 async function logCrossTenantAttempt(
@@ -833,6 +856,14 @@ function notImplementedResult(toolName: ToolName): ToolResult {
 }
 
 function getToolImplementation(toolName: ToolName): ToolImplementation {
+  const analysisTools: Partial<Record<ToolName, ToolImplementation>> = {
+    list_loyalty_programme_templates: listLoyaltyProgrammeTemplates, list_loyalty_programmes: listLoyaltyProgrammes, read_loyalty_programme_results: readLoyaltyProgrammeResults,
+    explore_customer_reported_spending: exploreCustomerReportedSpending,
+    explore_customer_purchases: exploreCustomerPurchases, get_customer_product_history: getCustomerProductHistory, inspect_customer_set: inspectCustomerSet,
+    explain_customer_set_member: explainCustomerSetMember, analyze_customer_basket: analyzeCustomerBasket,
+    compare_customer_growth: compareCustomerGrowthTool, save_customer_set_segment: saveCustomerSetSegment,
+  };
+  if (analysisTools[toolName]) return analysisTools[toolName]!;
   const navigateTo = navigateToImplementation(toolName);
   if (navigateTo) {
     return navigateTo;
@@ -868,6 +899,16 @@ function getToolImplementation(toolName: ToolName): ToolImplementation {
     return tagConsent;
   }
 
+  const support = supportToolImplementation(toolName);
+  if (support) {
+    return support;
+  }
+
+  const suite = suiteToolImplementation(toolName);
+  if (suite) {
+    return suite;
+  }
+
   switch (toolName) {
     case "query_customers":
       return queryCustomers;
@@ -901,10 +942,16 @@ function getToolImplementation(toolName: ToolName): ToolImplementation {
       return getIntegrationStatus;
     case "get_customer_insights":
       return getCustomerInsights;
+    case "rank_customers_by_intelligence":
+      return rankCustomersByIntelligence;
+    case "find_customer_opportunities":
+      return findCustomerOpportunities;
     case "generate_content":
       return generateContent;
     case "generate_image":
       return executeGenerateImage;
+    case "import_customer_list":
+      return importCustomerList;
     default:
       return () => Promise.resolve(notImplementedResult(toolName));
   }
@@ -988,13 +1035,24 @@ export async function executeTool(
   }
 
   if (tool.requires_confirmation && context.approved !== true) {
-    result = createConfirmationResult(tool, validation.value);
+    try {
+      // Tools whose approval card needs a server-computed preview.
+      result = tool.function.name === "save_customer_set_segment"
+        ? await prepareCustomerSetSave(validation.value, context)
+        : tool.function.name === "import_customer_list"
+        ? await prepareCustomerListImport(validation.value, context)
+        : tool.function.name === "create_campaign" && readPhotoReference(validation.value)
+        ? await withCampaignPhotoPreview(createConfirmationResult(tool, validation.value), validation.value, context)
+        : createConfirmationResult(tool, validation.value);
+    } catch (error) {
+      result = createResult({ success: false, message: error instanceof Error ? error.message : "Unable to prepare the audience.", error: "analysis_confirmation_failed", blockType: "text" });
+    }
     await logToolExecution(context, {
       toolName: tool.function.name,
       input: logInput,
       output: resultToJsonObject(result),
-      status: "completed",
-      errorMessage: null,
+      status: statusForResult(result),
+      errorMessage: result.error,
       executionTimeMs: Date.now() - startedAt,
     });
     return result;
@@ -1024,13 +1082,7 @@ export async function executeTool(
     const implementation = getToolImplementation(tool.function.name);
     result = await implementation(validation.value, context);
   } catch (error) {
-    result = createResult({
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Tool execution failed.",
-      error: "execution_error",
-      blockType: "text",
-    });
+    result = toolFailureResult(tool.function.name, error);
   }
 
   if (!isTenantIsolationExemptTool(tool.function.name)) {

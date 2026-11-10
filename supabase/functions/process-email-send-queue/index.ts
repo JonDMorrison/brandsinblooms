@@ -1,3 +1,5 @@
+import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
+import { isolateBatchValidation, type BatchSendResult } from "../_shared/isolateBatchValidation.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
@@ -257,7 +259,7 @@ function toCustomerShape(customer: any): CustomerShape {
   };
 }
 
-function buildEmailPayloadOptimized(
+async function buildEmailPayloadOptimized(
   customer: any,
   campaign: any,
   companyProfile: CompanyProfileShape | null,
@@ -268,8 +270,8 @@ function buildEmailPayloadOptimized(
   activeDomainId: string | null,
   trackedLinkMap: Map<string, string> | null,
   replyToEmail?: string,
-): any {
-  const rendered = renderEmailForRecipient({
+): Promise<any> {
+  const rendered = await renderEmailForRecipient({
     tenantId: campaign.tenant_id,
     campaignId: campaign.id,
     subject: campaign.subject_line || "Newsletter from your Garden Center",
@@ -294,6 +296,8 @@ function buildEmailPayloadOptimized(
       "X-Campaign-Type": "bulk",
       "X-Tenant-ID": campaign.tenant_id,
       "X-Domain-ID": activeDomainId || "none",
+      "List-Unsubscribe": `<${rendered.actionLinks.unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
     tags: [
       { name: "campaign_id", value: campaign.id },
@@ -608,7 +612,7 @@ async function sha256Base64Url(input: string): Promise<string> {
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-async function resendSendBatch(
+async function resendSendBatchRequest(
   apiKey: string,
   payloads: any[],
   batchIdempotencyKeySeed: string,
@@ -694,6 +698,16 @@ async function resendSendBatch(
       error: truncateError(e?.message || "Network error calling Resend"),
     };
   }
+}
+
+async function resendSendBatch(
+  apiKey: string,
+  payloads: any[],
+  seed: string,
+  limiter?: { acquire: () => Promise<void> },
+): Promise<BatchSendResult> {
+  return isolateBatchValidation(payloads, seed, (items, key) =>
+    resendSendBatchRequest(apiKey, items, key, limiter));
 }
 
 serve((req: Request) => {
@@ -1899,17 +1913,14 @@ serve((req: Request) => {
                     }
                   });
 
-                  if (map.size === 0) {
-                    const representativeCustomer =
-                      Array.from(customersById.values())[0] ||
-                      (sendable[0]
-                        ? {
-                            id: sendable[0].customer_id,
-                            email: sendable[0].email,
-                          }
-                        : null);
-
-                    const preflightRender = renderEmailForRecipient({
+                  if (
+                    map.size === 0 ||
+                    requestedNewsletterSegments(campaignSource.contentBlocks)
+                      .length > 0
+                  ) {
+                    // Collect every conditional variant for link tracking only. Actual
+                    // delivery below still resolves each recipient's segment membership.
+                    const preflightRender = await renderEmailForRecipient({
                       tenantId: campaign.tenant_id,
                       campaignId,
                       subject:
@@ -1919,11 +1930,9 @@ serve((req: Request) => {
                         campaign.preheader_text || campaign.preheader || "",
                       html: campaignSource.html,
                       contentBlocks: campaignSource.contentBlocks,
-                      customer: representativeCustomer
-                        ? toCustomerShape(representativeCustomer)
-                        : null,
+                      customer: null,
                       companyProfile: companyProfile as CompanyProfileShape,
-                      mode: "send",
+                      mode: "preview",
                       includeFooter: true,
                       enableLinkTracking: false,
                     });
@@ -1971,7 +1980,7 @@ serve((req: Request) => {
 
               // Send claimed messages using Resend batch endpoint.
               // Batch size adapts downward on provider rate limits and recovers upward after sustained success.
-              for (let i = 0; i < claimedForSend.length; ) {
+              for (let i = 0; i < claimedForSend.length;) {
                 const currentResendBatchSize = Math.max(
                   1,
                   Math.min(MAX_RESEND_BATCH_SIZE, dynamicResendBatchSize),
@@ -2087,7 +2096,7 @@ serve((req: Request) => {
                       id: msg.customer_id,
                       email: msg.email,
                     };
-                    payload = buildEmailPayloadOptimized(
+                    payload = await buildEmailPayloadOptimized(
                       customer,
                       campaign,
                       companyProfile as CompanyProfileShape,
@@ -2193,7 +2202,16 @@ serve((req: Request) => {
                     batchResp.ids &&
                     batchResp.ids.length === payloads.length
                   ) {
-                    maybeRaiseDynamicResendBatchSize();
+                    // A validation split can accept one sibling while another
+                    // is rate limited. Persist the successes and defer only
+                    // the remaining messages using the normal cooldown path.
+                    if (batchResp.ids.some((item) => item.status === 429)) {
+                      lowerDynamicResendBatchSize();
+                      batchWasRateLimited = true;
+                      retryAfterSeconds = 30;
+                    } else {
+                      maybeRaiseDynamicResendBatchSize();
+                    }
                     for (let k = 0; k < batchResp.ids.length; k++) {
                       const msgId = msgIds[k];
                       const resendId = batchResp.ids[k]?.id;
@@ -2203,8 +2221,8 @@ serve((req: Request) => {
                         resendId,
                         error: resendId
                           ? undefined
-                          : "Resend batch returned missing id",
-                        status: batchResp.status,
+                          : batchResp.ids[k]?.error || "Resend batch returned missing id",
+                        status: batchResp.ids[k]?.status ?? batchResp.status,
                       });
                     }
                   } else {
@@ -2466,6 +2484,25 @@ serve((req: Request) => {
         ) {
           if (Date.now() - startTime > 50000) {
             console.log("⏱️ Approaching timeout, stopping processing");
+            // These jobs were claimed up front but have never been started.
+            // Release them now so the next tick need not wait for stale recovery.
+            const unstartedIds = jobs.slice(jobIndex).map((job: any) => job.id);
+            const { error: releaseError } = await supabase
+              .from("email_send_jobs")
+              .update({
+                status: "pending",
+                claim_token: null,
+                claimed_at: null,
+                claimed_by: null,
+                available_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .in("id", unstartedIds)
+              .eq("claim_token", claimToken)
+              .eq("status", "in_progress");
+            if (releaseError) {
+              console.error("Failed to release unstarted jobs", releaseError.message);
+            }
             break;
           }
 
@@ -2511,21 +2548,26 @@ serve((req: Request) => {
             continue;
           }
 
-          // Compute final metrics from email_messages
-          const { data: sentRows } = await supabase
+          // Compute final metrics from email_messages via server-side
+          // COUNT aggregates. The previous implementation fetched the rows
+          // and took `.length`, which PostgREST silently caps at its
+          // 1000-row default — campaigns over 1000 recipients finalized
+          // with messages_sent frozen at exactly 1000 (seen on campaigns
+          // 34bd5205… at 1624 real sends and b9b89a2b… at 1245).
+          const { count: sentCount } = await supabase
             .from("email_messages")
-            .select("id")
+            .select("id", { count: "exact", head: true })
             .eq("campaign_id", campaignId)
             .eq("status", "sent");
 
-          const { data: failedRows } = await supabase
+          const { count: failedCount } = await supabase
             .from("email_messages")
-            .select("id")
+            .select("id", { count: "exact", head: true })
             .eq("campaign_id", campaignId)
             .eq("status", "failed");
 
-          const totalSent = (sentRows || []).length;
-          const totalFailed = (failedRows || []).length;
+          const totalSent = sentCount ?? 0;
+          const totalFailed = failedCount ?? 0;
           const hasErrors = totalFailed > 0;
 
           const completedAt = new Date().toISOString();

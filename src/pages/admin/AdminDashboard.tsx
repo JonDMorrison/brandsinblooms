@@ -30,12 +30,15 @@ export default function AdminDashboard() {
   const { data: tenants, isLoading: loadingTenants } = useQuery({
     queryKey: ["admin-tenants", searchEmail],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("admin_tenant_overview")
-        .select("*")
-        .ilike("primary_contact_email", `%${searchEmail}%`)
-        .order("tenant_created_at", { ascending: false })
-        .limit(10);
+      // admin_tenant_overview contains auth.users data and is deliberately not
+      // exposed through PostgREST. The RPC performs the master-admin check
+      // before reading the view.
+      const { data, error } = await supabase.rpc("admin_list_tenants", {
+        p_search: searchEmail,
+        p_status: null,
+        p_limit: 10,
+        p_offset: 0,
+      });
 
       if (error) throw error;
       return data;
@@ -110,9 +113,9 @@ export default function AdminDashboard() {
     <PageContainer fullWidth>
       <Stack spacing={3}>
         <Stack spacing={0.75}>
-          <Typography level="h2">Master Admin Dashboard</Typography>
+          <Typography level="h2">Find a client</Typography>
           <Typography level="body-md" color="neutral">
-            Search and manage tenant accounts
+            Look up a client by the email address they sign in with.
           </Typography>
         </Stack>
 

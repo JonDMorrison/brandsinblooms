@@ -1,4 +1,4 @@
-import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter';
+import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter.ts';
 
 export class ShopifyAdapter extends POSAdapter {
   private baseUrl: string;

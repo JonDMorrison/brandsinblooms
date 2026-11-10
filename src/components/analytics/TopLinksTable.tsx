@@ -34,7 +34,10 @@ export const TopLinksTable: React.FC<TopLinksTableProps> = ({
         .from('email_tracking_events')
         .select('link_id')
         .eq('campaign_id', campaignId)
-        .eq('event_type', 'click')
+        // 'click' = legacy first-party rows; 'clicked' = webhook rows and
+        // all rows written after the redirect-click writer was unified on
+        // the webhook's event name.
+        .in('event_type', ['click', 'clicked'])
         .not('link_id', 'is', null);
 
       if (error) throw error;

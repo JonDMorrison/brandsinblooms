@@ -43,12 +43,12 @@ export const PROVIDERS: POSProvider[] = [
   {
     id: "clover",
     name: "Clover",
-    description: "Versatile POS with strong payment and loyalty features",
+    description: "Awaiting formal Clover API approval and final production details",
     logoPath: "/src/assets/logos/clover.svg",
     connectionTable: "clover_connections",
     platformFilter: null,
-    connectMethod: "oauth",
-    connectHandler: "clover-oauth",
+    connectMethod: "coming_soon",
+    connectHandler: null,
   },
   {
     id: "vmx",

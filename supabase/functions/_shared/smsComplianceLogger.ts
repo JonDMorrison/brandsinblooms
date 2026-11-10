@@ -16,7 +16,8 @@ export type ComplianceEventType =
   | 'CARRIER_FILTERING'
   | 'INVALID_NUMBER'
   | 'SPAM_DETECTION'
-  | 'CONTENT_REJECTION';
+  | 'CONTENT_REJECTION'
+  | 'BLOCKED_SEND';
 
 export interface ComplianceEvent {
   tenantId?: string;
@@ -101,6 +102,7 @@ function mapEventTypeToComplianceLog(eventType: ComplianceEventType): string {
     'INVALID_NUMBER': 'invalid_number',
     'SPAM_DETECTION': 'spam_detection',
     'CONTENT_REJECTION': 'content_rejection',
+    'BLOCKED_SEND': 'blocked_send',
   };
   return mapping[eventType] || eventType.toLowerCase();
 }

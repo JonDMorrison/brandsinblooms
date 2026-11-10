@@ -1,0 +1,31 @@
+name: POS onboarding transfer
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/pos-onboarding-export/**'
+      - 'supabase/functions/_shared/onboarding-transfer*'
+      - 'supabase/migrations/20261011111726_pos_onboarding_export.sql'
+      - 'supabase/tests/pos_onboarding_export_fixture.sql'
+      - '.github/workflows/pos-onboarding.yml'
+jobs:
+  transfer:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: onboarding_fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.5.0
+      - run: deno check --no-config supabase/functions/pos-onboarding-export/index.ts
+      - run: deno test --no-config supabase/functions/_shared/onboarding-transfer_test.ts
+      - run: psql -h localhost -U postgres -d onboarding_fixture -f supabase/tests/pos_onboarding_export_fixture.sql
+        env:
+          PGPASSWORD: test-only

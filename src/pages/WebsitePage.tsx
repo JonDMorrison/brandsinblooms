@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from "@/components/ui-legacy/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { Globe, Construction, Sparkles } from "lucide-react";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 export const WebsitePage = () => {
   return (
@@ -84,7 +85,7 @@ export const WebsitePage = () => {
         <div className="text-center mt-12">
           <p className="text-gray-500">
             Want to be notified when the website builder launches?{' '}
-            <a href="mailto:support@bloomsuite.com" className="text-teal-600 hover:underline">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-teal-600 hover:underline">
               Contact us
             </a>
           </p>

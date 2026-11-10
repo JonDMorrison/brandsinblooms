@@ -1,31 +1,34 @@
-export type DatabaseField = 
-  | 'email' 
-  | 'first_name' 
-  | 'last_name' 
-  | 'phone' 
-  | 'tags' 
-  | 'persona' 
-  | 'sms_opt_in'
-  | 'email_opt_in'
-  | 'date_of_birth'
-  | 'first_purchase_date'
-  | 'last_purchase_date'
-  | 'lifetime_value'
-  | 'company_name'
-  | 'address_line1'
-  | 'address_line2'
-  | 'city'
-  | 'state'
-  | 'postal_code'
-  | 'notes'
-  | 'external_id'
-  | 'skip';
+export type KnownDatabaseField =
+  | "email"
+  | "first_name"
+  | "last_name"
+  | "phone"
+  | "tags"
+  | "persona"
+  | "sms_opt_in"
+  | "email_opt_in"
+  | "date_of_birth"
+  | "first_purchase_date"
+  | "last_purchase_date"
+  | "lifetime_value"
+  | "company_name"
+  | "address_line1"
+  | "address_line2"
+  | "city"
+  | "state"
+  | "postal_code"
+  | "notes"
+  | "external_id"
+  | "skip";
+
+export type DatabaseField = KnownDatabaseField | `custom:${string}`;
 
 export interface ColumnMapping {
   csvHeader: string;
   databaseField: DatabaseField;
   sampleData: string[];
-  aiConfidence?: 'high' | 'medium' | 'low';
+  sourceIndex?: number;
+  aiConfidence?: "high" | "medium" | "low";
   aiReasoning?: string;
 }
 
@@ -43,7 +46,8 @@ export interface ImportResult {
   errors: string[];
 }
 
-export type ImportStage = 'upload' | 'mapping' | 'consent' | 'importing' | 'complete';
+export type ImportStage =
+  "upload" | "mapping" | "consent" | "importing" | "complete";
 
 export interface ImportProgress {
   stage: ImportStage;
@@ -66,7 +70,7 @@ export interface AIAnalysisResult {
       columnIndex: number;
       columnName: string;
       suggestedField: DatabaseField;
-      confidence: 'high' | 'medium' | 'low';
+      confidence: "high" | "medium" | "low";
       reasoning: string;
     }>;
   };

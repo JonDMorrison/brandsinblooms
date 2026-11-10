@@ -100,7 +100,7 @@
 }
 
 .pricing-comparison-card--positive {
-    background: var(--hp-green-50, #E1FFFE);
+    background: var(--hp-green-50, #E4EEED);
     border: 2px solid var(--hp-green-400, #68BEB9);
     box-shadow: 0 8px 28px rgba(62, 124, 119, 0.10);
     color: var(--hp-green-900, #11302E);
@@ -115,7 +115,7 @@
 }
 
 .pricing-comparison-card--negative .pricing-comparison-card__heading {
-    color: #92400e;
+    color: #6A3C28;
 }
 
 .pricing-comparison-card__big {
@@ -159,7 +159,7 @@
 
 /* "Every plan, every feature" banner — Section 3. */
 .pricing-every-plan-banner {
-    background: var(--hp-green-50, #E1FFFE);
+    background: var(--hp-green-50, #E4EEED);
     border-block: 1px solid rgba(104, 190, 185, 0.28);
     padding: 22px 24px;
     text-align: center;
@@ -192,7 +192,7 @@
     position: relative;
     overflow: hidden;
     border-radius: 20px;
-    border: 2px solid var(--hp-green-300, #87DFD8);
+    border: 2px solid var(--hp-green-300, #83B1AD);
     background: var(--hp-bg-subtle, #F8F9FB);
     padding: clamp(28px, 4vw, 48px);
 }

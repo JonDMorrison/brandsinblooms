@@ -529,10 +529,11 @@ export default function AdminGovernanceConfig() {
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Shield className="h-7 w-7 text-warning" />
           <Stack spacing={0.5}>
-            <Typography level="h1">Email Governance Settings</Typography>
+            <Typography level="h2">Email sending rules</Typography>
             <Typography level="body-md" color="neutral">
-              Global controls for governance thresholds, batch behavior, and
-              warmup limits.
+              Safety limits that protect every client's email reputation: when
+              sending pauses, how fast large sends go out, and how much new
+              senders can send while they build trust. Change these with care.
             </Typography>
           </Stack>
         </Stack>

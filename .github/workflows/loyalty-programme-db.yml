@@ -1,0 +1,40 @@
+name: Loyalty Programme Database
+on:
+  pull_request:
+    paths:
+      [
+        "supabase/migrations/*loyalty_programme*",
+        "scripts/tests/loyalty-programme-db.py",
+        ".github/workflows/loyalty-programme-db.yml",
+      ]
+  push:
+    branches: [main]
+    paths:
+      [
+        "supabase/migrations/*loyalty_programme*",
+        "scripts/tests/loyalty-programme-db.py",
+        ".github/workflows/loyalty-programme-db.yml",
+      ]
+permissions:
+  contents: read
+jobs:
+  database-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: bloom_loyalty_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["127.0.0.1:5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify programme evidence, role isolation, atomic calendar import and concurrent replays
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: bloom_loyalty_test
+        run: python3 scripts/tests/loyalty-programme-db.py

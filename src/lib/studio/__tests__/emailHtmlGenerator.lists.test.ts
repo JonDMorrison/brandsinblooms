@@ -79,6 +79,36 @@ describe("emailHtmlGenerator — text block compilation", () => {
       expect(tag).toContain("margin:0 0 12px");
     });
   });
+
+  it("preserves safe alignment and emphasis pasted onto block elements", () => {
+    const html = renderStudioBlocksToEmailHtml([
+      textBlock(
+        '<p class="copied" style="text-align:center;font-weight:bold">Centered</p>',
+      ),
+    ]);
+
+    expect(html).toMatch(/<p[^>]*class="copied"/);
+    expect(html).toMatch(/<p[^>]*style="[^"]*line-height:1\.6/);
+    expect(html).toMatch(/<p[^>]*style="[^"]*text-align:center/);
+    expect(html).toMatch(/<p[^>]*style="[^"]*font-weight:bold/);
+  });
+
+  it("honors the plain-text block line-height control in each paragraph", () => {
+    const html = renderStudioBlocksToEmailHtml([
+      { ...textBlock("<p>Roomy copy</p>"), lineHeight: 1.9 },
+    ]);
+
+    expect(html).toMatch(/<p[^>]*style="[^"]*line-height:1\.9/);
+  });
+
+  it("keeps nested lists indented and explicitly spaced", () => {
+    const html = renderStudioBlocksToEmailHtml([
+      textBlock("<ul><li>Plants<ul><li>Perennials</li></ul></li></ul>"),
+    ]);
+
+    expect(html.match(/padding-left:24px/g)?.length).toBe(2);
+    expect(html.match(/line-height:1\.6/g)?.length).toBeGreaterThanOrEqual(4);
+  });
 });
 
 describe("emailHtmlGenerator — Spacer block", () => {

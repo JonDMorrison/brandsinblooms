@@ -1,9 +1,16 @@
+<!-- Store in: /home/charliex/Projects/dev-zero/brandsinblooms/CLAUDE.md (CRM repo root; replaces the current file) -->
 ## BloomSuite Copilot Instructions
 
 These instructions are authoritative for this repository. Follow them exactly.
 Do not import habits from other BloomSuite apps when the live code here says otherwise.
 
-## Never Open the Interactive Browser, Nor Write any of the Playwrite scripts. THIS IS IMPORTANT.
+## Browser QA, Playwright And Tests
+
+- Browser QA is allowed and expected. Verify UI and user flows end to end with Playwright (scripts or the Playwright MCP) or the browser tools (Claude in Chrome, the desktop app browser), and report pass/fail with evidence.
+- Writing and running automated tests is allowed: unit, integration and Playwright end-to-end tests. Add or update the tests that prove a change, following the repo's existing test layout and tooling.
+- Test against the local stack by default: the local Supabase stack started from this repo (`npx supabase start`) and the local dev server pointed at it. Test users and test data created for a check stay local.
+- Never point a test or a browser check at the hosted Supabase project or production data. A check against production is read-only, uses only access Jon legitimately has (his own session and the admin tenant switcher), and never signs in as a customer, changes permissions, or alters customer data to make a check pass.
+- Wait on conditions (a selector, a response, a URL), never on fixed timeouts, so runs stay fast.
 
 ## 0. Investigation-First Protocol
 
@@ -195,12 +202,13 @@ Rules:
 - After editing, run the narrowest validation that can falsify the change: targeted test, typecheck, lint, or other focused verification.
 - Prefer route-, hook-, or feature-scoped checks over broad full-repo runs when a narrow check exists.
 - If a behavior already has a nearby test, update or run it before widening scope.
+- For UI and user-flow changes, add a browser check (Playwright or the browser tools) on the local stack.
 - Do not claim a fix is complete without at least one post-edit validation step when the environment supports it.
 
 Generation rules:
 
 - Do not generate documentation unless explicitly requested.
-- Do not generate new test files unless explicitly requested.
+- Add or update test files when they prove a change (see Browser QA, Playwright And Tests). Keep them deterministic, in the existing test layout, and runnable against the local stack.
 
 ## 10. Absolute Prohibitions
 
@@ -227,3 +235,4 @@ Before finishing, verify:
 - Design-system choices follow Joy-first rules for current dashboard/admin surfaces.
 - Existing helpers and hooks were reused where appropriate instead of duplicated.
 - Validation was run for the touched slice.
+- Browser or automated test evidence exists for the touched flows, from the local stack.
