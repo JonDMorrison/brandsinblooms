@@ -375,7 +375,7 @@ async function answer(job: Job): Promise<string> {
   const model = await completeJson<{ answerable: boolean; answer: string; cited_article_ids: string[] }>({
     system: `${BLOOM_ANSWER_SYSTEM_PROMPT} ${IMAGE_SAFETY_RULE}`,
     images: vision.images,
-    user: `${fence("question", question)}\n${fence("conversation", conversationEvidence(t, true))}${visionPromptText(vision)}\n\nApproved articles:\n${articles.map((a) => `[${a.id}] ${a.title}\n${a.body.slice(0, 3000)}`).join("\n\n")}`,
+    user: `${fence("question", question)}${visionPromptText(vision)}\n\nApproved articles:\n${articles.map((a) => `[${a.id}] ${a.title}\n${a.body.slice(0, 3000)}`).join("\n\n")}`,
     schemaName: "answer", schema: ANSWER_SCHEMA, accountKey: t.account?.id ?? "none",
   });
   const cited = model.ok ? model.value.cited_article_ids.filter((id) => articles.some((a) => a.id === id)) : [];
