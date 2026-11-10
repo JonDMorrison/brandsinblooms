@@ -63,7 +63,7 @@ export function slackSafeMessage(
     return [
       "*Website draft ready for your review*",
       "Bloom has prepared a private draft and recorded its quality checks. Nothing has been sent to the client or published.",
-      "*Jon or Jeff:* Review the pages, photos, mobile layout and key links. Approve the exact draft in Major Projects when it is ready.",
+      "*Project reviewers:* Review pages, photography, mobile layout and important links. Approve the exact draft in Major Projects when ready.",
       `<https://bloomsites.app/dashboard/admin/major-projects/review?projectId=${id}|Review draft and QA>`,
       `<https://bloomsites.app/dashboard/admin/major-projects?project=${id}|Open project and approve client preview>`,
     ].join("\n");
