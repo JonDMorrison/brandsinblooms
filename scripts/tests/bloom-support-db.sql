@@ -2785,6 +2785,7 @@ BEGIN;
 \ir ../../supabase/migrations/20261108133500_bloom_support_slack_diagnostic_staff.sql
 \ir ../../supabase/migrations/20261108162000_bloom_support_slack_ticket_threads.sql
 \ir ../../supabase/migrations/20261110211500_bloom_support_slack_repair_decisions.sql
+\ir ../../supabase/migrations/20261110224000_bloom_support_resume_release.sql
 DO $$
 DECLARE a uuid:=gen_random_uuid(); c uuid; t uuid; e uuid; j uuid; d uuid; r jsonb; n int;
 BEGIN
@@ -2828,6 +2829,44 @@ BEGIN
  END LOOP;
  IF has_function_privilege('authenticated','public.bloom_support_apply_slack_repair(uuid,text,text,text,text)','EXECUTE') THEN RAISE EXCEPTION 'public execution allowed'; END IF;
 END $$;
+
+DO $$
+DECLARE a uuid:=gen_random_uuid(); c uuid; t uuid; e uuid; v integer; r jsonb; original uuid;
+BEGIN
+ INSERT INTO bloom_support.principals(id,kind,auth_user_id,product,email,display_name,role) VALUES(a,'user',gen_random_uuid(),'crm','resume-fixture@example.test','Resume fixture','platform_admin');
+ INSERT INTO bloom_support.engineering_issues(title,product,status,repository,merge_sha) VALUES('Resume fixture','crm','merged','JonDMorrison/brandsinblooms',repeat('a',40)) RETURNING id,version INTO e,v;
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Resume fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,status,stage,engineering_issue_id,automation,executor)
+ VALUES(c,'crm','crm','Resume fixture','Fixture','bug','working','releasing',e,'paused','person') RETURNING id INTO t;
+ r:=public.bloom_support_resume_release(a,e,v); original:=(r->>'job_id')::uuid;
+ IF r->>'queued'<>'true' OR (SELECT payload->>'step' FROM bloom_support.jobs WHERE id=original)<>'deploy' THEN RAISE EXCEPTION 'not queued: %',r; END IF;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'reason'<>'already_tracking' OR (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e)<>1 THEN RAISE EXCEPTION 'duplicate observer'; END IF;
+ IF (SELECT executor||':'||automation FROM bloom_support.tickets WHERE id=t)<>'person:paused' OR (SELECT version FROM bloom_support.engineering_issues WHERE id=e)<>v THEN RAISE EXCEPTION 'ownership/state changed'; END IF;
+ UPDATE bloom_support.jobs SET status='running' WHERE id=original;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'reason'<>'already_tracking' THEN RAISE EXCEPTION 'running lease ignored'; END IF;
+ UPDATE bloom_support.jobs SET status='succeeded' WHERE id=original;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'status'<>'succeeded' OR (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e)<>1 THEN RAISE EXCEPTION 'completed replay duplicated'; END IF;
+ UPDATE bloom_support.jobs SET status='dead',attempts=3 WHERE id=original;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'status'<>'dead' OR (SELECT attempts FROM bloom_support.jobs WHERE id=original)<>3 THEN RAISE EXCEPTION 'exhausted retry reset'; END IF;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v+1); RAISE EXCEPTION 'stale version accepted'; EXCEPTION WHEN serialization_failure THEN NULL; END;
+ UPDATE bloom_support.engineering_issues SET status='verifying',version=version+1 WHERE id=e RETURNING version INTO v;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF (SELECT payload->>'step' FROM bloom_support.jobs WHERE id=(r->>'job_id')::uuid)<>'verify' THEN RAISE EXCEPTION 'wrong continuation'; END IF;
+ UPDATE bloom_support.engineering_issues SET status='in_review',version=version+1 WHERE id=e RETURNING version INTO v;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'unmerged accepted'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ UPDATE bloom_support.principals SET role='client' WHERE id=a;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'client accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ UPDATE bloom_support.principals SET role='service',kind='service',auth_user_id=NULL,grants=ARRAY['automation.control','engineering.approve'] WHERE id=a;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'service accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ UPDATE bloom_support.principals SET role='platform_admin',kind='user',auth_user_id=gen_random_uuid(),active=false WHERE id=a;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'disabled principal accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ IF has_function_privilege('authenticated','public.bloom_support_resume_release(uuid,uuid,integer)','EXECUTE') OR has_function_privilege('anon','public.bloom_support_resume_release(uuid,uuid,integer)','EXECUTE') THEN RAISE EXCEPTION 'public execution allowed'; END IF;
+END $$;
+
 
 ROLLBACK;
 

@@ -1253,3 +1253,15 @@ describe("Bloom support continuity", () => {
     expect(verificationCoversLatestReply(t, "2026-11-10T12:03:00Z")).toBe(true);
   });
 });
+
+describe("release tracking replay boundary", () => {
+  const caller = { principalId: "staff-principal", role: "platform_admin", via: "crm_session" as const, scopes: [] };
+  it("rejects a narrowed read-only credential before calling the database", () => {
+    expect(() => supportActions.resumeRelease({ ...caller, scopes: ["read"] }, "11111111-1111-4111-8111-111111111111", 1)).toThrow("read-only");
+  });
+  it("requires an exact positive engineering version", () => {
+    for (const version of [0, -1, 1.5, NaN, Infinity]) {
+      expect(() => supportActions.resumeRelease(caller, "11111111-1111-4111-8111-111111111111", version)).toThrow("exact current engineering version");
+    }
+  });
+});
