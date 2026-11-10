@@ -82,7 +82,7 @@ describe("properties panel heading hierarchy", () => {
     expect(heading).toHaveStyle({
       fontSize: "14px",
       fontWeight: "750",
-      color: "var(--joy-palette-neutral-800)",
+      color: "var(--joy-palette-neutral-800, #171A1C)",
     });
   });
 });
