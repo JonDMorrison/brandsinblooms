@@ -37,7 +37,7 @@ export function repairDecisionSnapshot(value: unknown): RepairDecisionSnapshot |
       typeof v.expires_at !== "string" || !Number.isFinite(Date.parse(v.expires_at))) return null;
   return v as unknown as RepairDecisionSnapshot;
 }
-export function ticketDecisionBlocks(ticket: TicketFacts & Partial<LiveTicketState>, snapshot: RepairDecisionSnapshot | null): Record<string, unknown>[] | undefined {
+export function ticketDecisionBlocks(ticket: TicketFacts & Partial<LiveTicketState> & { version?: number; engineering?: (NonNullable<LiveTicketState["engineering"]> & { version?: number }) | null }, snapshot: RepairDecisionSnapshot | null): Record<string, unknown>[] | undefined {
   if (typeof ticket.id !== "string" || !UUID.test(ticket.id) || typeof ticket.status !== "string") return undefined;
   const next = liveNextStep(ticket as LiveTicketState);
   if (!next) return undefined;
