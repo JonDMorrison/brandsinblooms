@@ -180,7 +180,9 @@ test("waitForProductionDeployment expires instead of accepting another commit", 
       timeoutMs: 0,
       logger: silentLogger,
     }),
-    /Timed out waiting for the exact production deployment/,
+    // A zero-ms timeout can expire at either the request or deployment polling
+    // boundary. Both errors are safe: neither accepts another commit.
+    /(?:request deadline expired|Timed out waiting for the exact production deployment)/,
   );
 });
 
