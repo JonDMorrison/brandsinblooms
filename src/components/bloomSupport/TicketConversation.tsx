@@ -469,11 +469,16 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
             </Sheet>
           )}
 
-          <Stack spacing={3} component="ol" aria-label="Conversation" sx={{ listStyle: "none", m: 0, p: 0 }}>
+          <Stack spacing={1.5} component="section" aria-label="Conversation history">
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ pb: 1.25, borderBottom: "1px solid", borderColor: "neutral.200" }}>
+              <Typography level="title-md">Conversation</Typography>
+              <Typography level="body-xs" textColor="text.tertiary">{t.messages.length} updates</Typography>
+            </Stack>
+            <Stack spacing={2.5} component="ol" aria-label="Conversation" sx={{ listStyle: "none", m: 0, p: 0 }}>
             {mainMessages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} /></Box>)}
             {routineUpdates.length > 0 && (
               <Box component="li">
-                <Sheet variant="soft" color="neutral" sx={{ p: 1.5, borderRadius: "lg" }}>
+                <Sheet variant="outlined" color="neutral" sx={{ p: 1.5, borderRadius: "lg", borderColor: "neutral.200", bgcolor: "background.level1" }}>
                   <Box component="details" sx={{ "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", py: 0.5 } }}>
                     <Box component="summary">Bloom activity ({routineUpdates.length} {routineUpdates.length === 1 ? "update" : "updates"})</Box>
                     <Stack spacing={2} sx={{ mt: 1.5 }}>
@@ -485,6 +490,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
                 </Sheet>
               </Box>
             )}
+            </Stack>
           </Stack>
 
           {t.attachments.length > 0 && (
@@ -513,7 +519,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       </Box>
 
       {canWrite && !closed && (
-        <Box sx={{ flex: "0 0 auto", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
+        <Box sx={{ flex: "0 0 auto", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "2px solid", borderColor: "neutral.200", bgcolor: "background.level1", boxShadow: "0 -4px 14px rgba(15,23,42,0.05)", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
           <Stack data-testid="bloom-support-conversation-composer" spacing={1} sx={conversationColumnSx}>
             {error ? <Alert role="alert" size="sm" variant="soft" color="danger">{error}</Alert> : null}
             {replyError ? (
