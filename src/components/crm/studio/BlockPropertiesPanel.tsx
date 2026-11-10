@@ -185,11 +185,12 @@ function PanelSection({ title, children }: PanelSectionProps) {
           pt: 2.5,
           pb: 1,
           maxWidth: "100%",
-          fontSize: "10px",
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.12em",
-          color: "primary.400",
+          // Section titles need to stand apart from small field labels.
+          fontSize: "14px",
+          fontWeight: 750,
+          lineHeight: 1.35,
+          letterSpacing: "0.01em",
+          color: "neutral.800",
         }}
       >
         {title}
