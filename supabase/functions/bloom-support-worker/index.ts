@@ -25,6 +25,7 @@ import { previewOperation, WRITE_OPERATIONS as WRITE_KINDS } from "../_shared/bl
 import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
 import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
+import { majorProjectInvitationIntent, findMajorProjectInvitationTarget, projectInviteSlackAnswer } from "../_shared/bloom-support/major-project-invitations.ts";
 import { ticketQuestionAnswer, ticketRootMessage, ticketUpdateMessage } from "../_shared/bloom-support/ticket-slack.ts";
 import { formatIntegrationEvidence } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText } from "../_shared/bloom-support/integration-tasks.ts";
@@ -805,6 +806,27 @@ async function notifyEmail(job: Job): Promise<string> {
         ticketQuestionAnswer(ticket,question),job.id,rootTs);
     }
     if (route === "projects") {
+      // Staff may ask Bloom to locate an invitation, but Slack cannot grant
+      // site-owner rights or send any email. The link opens the existing
+      // authenticated, founder-only invitation action in BloomSites.
+      const invitationHint = majorProjectInvitationIntent(question);
+      if (invitationHint) {
+        const userId = slackDiagnosticUserFromLane(job.lane);
+        const identity = userId
+          ? await directRpc<{principal_id:string;role:string}|null>(
+            "bloom_support_slack_staff_actor", {p_slack_user_id:userId})
+          : null;
+        if (!identity?.principal_id ||
+            !["platform_admin","platform_operator"].includes(identity.role)) {
+          return await postSlackInternalText("projects",
+            "Only authorized Bloom Support staff can prepare client invitations. No email was sent.",
+            job.id, String(job.payload.thread_ts ?? ""));
+        }
+        const response = await callProduct("cms", "major_projects.list", {}, 10000);
+        const target = findMajorProjectInvitationTarget(invitationHint, response.projects);
+        return await postSlackInternalText("projects",
+          projectInviteSlackAnswer(target), job.id, String(job.payload.thread_ts ?? ""));
+      }
       const requestedTask = taskNumberFromQuestion(question);
       if (requestedTask !== null) {
         const userId = slackDiagnosticUserFromLane(job.lane);
