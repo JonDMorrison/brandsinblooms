@@ -975,6 +975,44 @@ describe("Bloom Support staff workspace", () => {
     </TestQueryClientProvider>,
   );
 
+  it("left-aligns the ticket summary and sticky reply composer to one shared content column", async () => {
+    renderConversation();
+    const content = await screen.findByTestId("bloom-support-conversation-content");
+    const composer = screen.getByTestId("bloom-support-conversation-composer");
+
+    for (const element of [content, composer]) {
+      expect(element).toHaveStyle({
+        width: "100%",
+        maxWidth: "1200px",
+        minWidth: "0",
+        boxSizing: "border-box",
+        marginLeft: "0px",
+        marginRight: "auto",
+      });
+    }
+    expect(content).toContainElement(screen.getByText("THE PROBLEM"));
+    expect(composer).toContainElement(screen.getByRole("textbox", { name: "Message" }));
+  });
+
+  it("aligns private support notes with the left edge instead of centring them", async () => {
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "layout-note-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "internal",
+        direction: "internal",
+        body: "Internal layout note for the support desk.",
+        created_at: supportTicket.updated_at,
+        author: { name: "Support" },
+      }],
+    });
+    renderConversation();
+    const note = (await screen.findByText("Internal layout note for the support desk.")).closest(".MuiSheet-root");
+    expect(note).toHaveStyle({ marginLeft: "0px", marginRight: "auto" });
+  });
+
   it("keeps a long, stopped support test readable without recommending a client takeover", async () => {
     const user = userEvent.setup();
     const fullRequest = "The calendar export is breaking emojis. " + "Technical reproduction details. ".repeat(42) + "End of the original request.";

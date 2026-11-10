@@ -90,7 +90,22 @@ const wideOnly = { display: { xs: "none", sm: "inline" } } as const;
 const actionSx = { borderRadius: "md", "& .MuiButton-startDecorator": { mr: { xs: 0, sm: 0.75 } } } as const;
 
 /** Readable text width for every bubble and note, so the thread keeps one calm column. */
-const BUBBLE_MAX = "min(70ch, 85%)";
+const BUBBLE_MAX = "min(70ch, 100%)";
+
+/**
+ * The ticket summary, message history and reply composer must share the
+ * same left edge. The previous 820px centred columns left a large blank
+ * gutter in the Support desk and disconnected the reply from the thread.
+ * Allow a wider desk while keeping individual messages readable.
+ */
+const conversationColumnSx = {
+  width: "100%",
+  maxWidth: 1200,
+  minWidth: 0,
+  boxSizing: "border-box",
+  ml: 0,
+  mr: "auto",
+} as const;
 
 function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: string; onRequest?: string }) {
   const fromClient = m.author_kind === "client";
@@ -106,7 +121,7 @@ function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: s
       <Sheet
         variant="outlined"
         color="neutral"
-        sx={{ maxWidth: BUBBLE_MAX, mx: "auto", px: 2, py: 1.5, borderRadius: "lg", bgcolor: "background.level1", borderColor: "neutral.200" }}
+        sx={{ maxWidth: BUBBLE_MAX, minWidth: 0, ml: 0, mr: "auto", px: 2, py: 1.5, borderRadius: "lg", bgcolor: "background.level1", borderColor: "neutral.200" }}
       >
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
           <Chip size="sm" variant="outlined" color="neutral" startDecorator={<Lock size={12} aria-hidden />} sx={{ bgcolor: "background.surface" }}>Internal</Chip>
@@ -234,7 +249,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   });
 
   const t = q.data;
-  if (q.isLoading) return <Stack spacing={2} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", p: 3 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
+  if (q.isLoading) return <Stack spacing={2} sx={{ ...conversationColumnSx, p: 3 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
 
@@ -356,7 +371,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       </Stack>
 
       <Box sx={{ flex: 1, maxWidth: "100%", minWidth: 0, minHeight: 0, overflow: "auto" }}>
-        <Stack spacing={3} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", px: { xs: 2, md: 4 }, py: 3 }}>
+        <Stack data-testid="bloom-support-conversation-content" spacing={3} sx={{ ...conversationColumnSx, px: { xs: 2, md: 4 }, py: 3 }}>
           {/* One readable summary. Detailed evidence and routine updates stay available below. */}
           <Sheet variant="outlined" sx={{ borderRadius: "lg", bgcolor: "background.surface", overflow: "hidden", boxShadow: "xs" }}>
             <Stack spacing={1.5} sx={{ px: { xs: 2, md: 2.5 }, py: 2 }}>
@@ -482,7 +497,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
 
       {canWrite && !closed && (
         <Box sx={{ flex: "0 0 auto", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
-          <Stack spacing={1} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto" }}>
+          <Stack data-testid="bloom-support-conversation-composer" spacing={1} sx={conversationColumnSx}>
             {error ? <Alert role="alert" size="sm" variant="soft" color="danger">{error}</Alert> : null}
             {replyError ? (
               <Alert id="conversation-reply-error" role="alert" size="sm" variant="soft" color="danger">
