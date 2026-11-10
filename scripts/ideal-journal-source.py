@@ -6,6 +6,7 @@ from ideal_journal_rules import inline_void_description,change_amount,source_cha
 import sys,resource,math,bisect,os
 from ideal_journal_anchors import validate_event_anchors
 from ideal_journal_gate import classify_receipt
+from ideal_journal_evidence import layout_evidence
 source=sys.argv[1]
 MEMORY_BUDGET=1536*1024*1024
 MAX_ROWS=2000000
@@ -171,6 +172,7 @@ for gi,g in enumerate(groups):
  if unknown_by_group[gi]:reasons.append('receipt_contains_unrepresented_numeric_anchors')
  if unowned:reasons.append('source_contains_unowned_numeric_anchors')
  fields={'header':r,'events':g['events'],'ambiguities':g['ambiguities'],'originalAnchorErrors':sorted(errors[gi]),'sourceFinancialExclusions':reasons,'sourceEquation':{'merchandiseCents':merch,'taxCents':tax,'roundingCents':rounding,'netTenderCents':tender},'localExcelDate':r['date'],'terminal':r['terminal'],'receiptNumber':r['number'],'timezone':None,'sourceCoverage':{'unrepresentedNumericCoordinates':unknown_by_group[gi],'globalUnrepresentedNumericCount':len(numeric),'unownedNumericCoordinates':unowned},'pageBoundaryProvenance':'original_biff_horizontal_breaks_and_continue','certificationState':'incomplete','identityState':'master_link_required'}
+ fields.update(layout_evidence(g))
  output[r['sheet']].append({'row':r['row'],'normalized':{'kind':'receipt_evidence','customerCode':r['code'],'fields':fields}})
 for sn,nrows in source_sheets:
  print(json.dumps({'sheetStart':sn,'rows':nrows}))
