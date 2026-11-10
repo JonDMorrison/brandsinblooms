@@ -2692,6 +2692,7 @@ BEGIN
  VALUES(c,'crm','crm','Closure freshness fixture','Fixture','working','triage') RETURNING id INTO t;
  INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,stage,merged_into)
  VALUES(c,'crm','crm','Merged source','Fixture','working','triage',t) RETURNING id INTO source;
+ UPDATE bloom_support.tickets SET created_at='2026-11-10T11:00:00Z' WHERE id IN(t,source);
  INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
  VALUES(c,t,'client','public','inbound','Original','2026-11-10T12:00:00Z');
  SELECT version INTO v FROM bloom_support.tickets WHERE id=t;
@@ -2724,6 +2725,7 @@ BEGIN
  INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Freshness omission fixture') RETURNING id INTO c;
  INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,status,stage,engineering_issue_id)
  VALUES(c,'crm','crm','Freshness omission fixture','Fixture','bug','working','triage',e) RETURNING id INTO t;
+ UPDATE bloom_support.tickets SET created_at='2026-11-10T11:00:00Z' WHERE id=t;
  INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
  VALUES(c,t,'client','public','inbound','Latest report','2026-11-10T12:02:00Z');
  BEGIN
@@ -2735,6 +2737,42 @@ BEGIN
  END;
  UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
  resolution_evidence=jsonb_build_object('resolved_by','bloom','verification',jsonb_build_object('started_at','2026-11-10T12:02:01Z','scope','ticket_flow','ticket_ids',jsonb_build_array(t))) WHERE id=t;
+END $$;
+
+DO $$
+DECLARE c uuid; a uuid; b uuid; target uuid; e uuid:=gen_random_uuid(); v int;
+BEGIN
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Chained merge fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at)
+ VALUES(c,'crm','crm','Target','Fixture','working','2026-11-10T11:00:00Z') RETURNING id INTO target;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at,merged_into)
+ VALUES(c,'crm','crm','Middle','Fixture','working','2026-11-10T11:00:00Z',target) RETURNING id INTO b;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at,merged_into)
+ VALUES(c,'crm','crm','Oldest','Fixture','working','2026-11-10T11:00:00Z',b) RETURNING id INTO a;
+ SELECT version INTO v FROM bloom_support.tickets WHERE id=target;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,a,'client','public','inbound','Nested correction','2026-11-10T12:02:00Z');
+ IF (SELECT version FROM bloom_support.tickets WHERE id=target)<>v+1 THEN RAISE EXCEPTION 'transitive parent not invalidated'; END IF;
+ BEGIN
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:01:00Z')) WHERE id=target;
+ RAISE EXCEPTION 'nested correction ignored';
+ EXCEPTION WHEN check_violation THEN
+ IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:03:00Z')) WHERE id=target;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at)
+ VALUES(c,'crm','crm','Staff report, no client messages','Fixture','working','2026-11-10T12:00:00Z') RETURNING id INTO target;
+ BEGIN
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T11:59:00Z')) WHERE id=target;
+ RAISE EXCEPTION 'verification predating staff report accepted';
+ EXCEPTION WHEN check_violation THEN
+ IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:03:00Z')) WHERE id=target;
 END $$;
 
 \echo 'bloom-support-db: all assertions passed'

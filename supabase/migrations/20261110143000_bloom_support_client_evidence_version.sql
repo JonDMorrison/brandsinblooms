@@ -9,11 +9,15 @@ SET search_path = pg_catalog, bloom_support
 AS $$
 BEGIN
   IF NEW.author_kind = 'client' AND NEW.ticket_id IS NOT NULL THEN
+    WITH RECURSIVE targets(id, merged_into) AS (
+      SELECT id, merged_into FROM bloom_support.tickets WHERE id = NEW.ticket_id
+      UNION
+      SELECT parent.id, parent.merged_into FROM bloom_support.tickets parent
+      JOIN targets child ON parent.id = child.merged_into
+    )
     UPDATE bloom_support.tickets
     SET version = version + 1, updated_at = now()
-    WHERE id = NEW.ticket_id OR id = (
-      SELECT source.merged_into FROM bloom_support.tickets source WHERE source.id = NEW.ticket_id
-    );
+    WHERE id IN (SELECT id FROM targets);
   END IF;
   RETURN NEW;
 END;
@@ -39,12 +43,17 @@ BEGIN
      AND NEW.resolution_evidence->>'resolved_by' = 'bloom'
      AND (NEW.engineering_issue_id IS NOT NULL
        OR NEW.resolution_evidence->>'engineering_issue_id' IS NOT NULL) THEN
-    SELECT max(m.created_at) INTO latest_client
-    FROM bloom_support.messages m
-    WHERE m.author_kind = 'client'
-      AND (m.ticket_id = NEW.id OR m.ticket_id IN (
-        SELECT t.id FROM bloom_support.tickets t WHERE t.merged_into = NEW.id
-      ));
+    WITH RECURSIVE sources(id, created_at) AS (
+      SELECT id, created_at FROM bloom_support.tickets WHERE id = NEW.id
+      UNION
+      SELECT source.id, source.created_at FROM bloom_support.tickets source
+      JOIN sources target ON source.merged_into = target.id
+    )
+    -- Staff/system-filed requests may have no client messages. Their durable
+    -- creation time is still authoritative evidence; an absent timeline is not.
+    SELECT greatest(max(m.created_at), max(s.created_at)) INTO latest_client
+    FROM sources s LEFT JOIN bloom_support.messages m
+      ON m.ticket_id = s.id AND m.author_kind = 'client';
     BEGIN
       started := (NEW.resolution_evidence #>> '{verification,started_at}')::timestamptz;
     EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow THEN
