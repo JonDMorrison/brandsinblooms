@@ -27,7 +27,7 @@
 
 import { RICH_TEXT_SANITIZE_OPTIONS } from "./htmlContentSanitizeConfig.ts";
 
-const ALLOWED_TAGS = new Set(RICH_TEXT_SANITIZE_OPTIONS.allowedTags ?? []);
+const ALLOWED_TAGS = new Set(Array.isArray(RICH_TEXT_SANITIZE_OPTIONS.allowedTags) ? RICH_TEXT_SANITIZE_OPTIONS.allowedTags : []);
 const ALLOWED_ATTRIBUTES = (RICH_TEXT_SANITIZE_OPTIONS.allowedAttributes ??
   {}) as Record<string, string[]>;
 const GLOBAL_ALLOWED_ATTRIBUTES = new Set(ALLOWED_ATTRIBUTES["*"] ?? []);
@@ -36,7 +36,7 @@ const ALLOWED_STYLE_RULES =
     | Record<string, RegExp[]>
     | undefined) ?? {};
 const ALLOWED_SCHEMES = new Set(
-  RICH_TEXT_SANITIZE_OPTIONS.allowedSchemes ?? [],
+  Array.isArray(RICH_TEXT_SANITIZE_OPTIONS.allowedSchemes) ? RICH_TEXT_SANITIZE_OPTIONS.allowedSchemes : [],
 );
 const ALLOWED_SCHEMES_BY_TAG =
   (RICH_TEXT_SANITIZE_OPTIONS.allowedSchemesByTag ?? {}) as Record<
@@ -169,7 +169,7 @@ function sanitizeAttributesWithoutDom(tagName: string, rawAttributes: string) {
   ]);
   const sanitizedAttributes = new Map<string, string>();
   const attributePattern =
-    /([^\s=\/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g;
+    /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g;
   let match: RegExpExecArray | null;
 
   while ((match = attributePattern.exec(rawAttributes)) !== null) {
