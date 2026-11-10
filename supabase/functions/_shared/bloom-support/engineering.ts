@@ -1195,6 +1195,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
       return { note: "rollback confirmation failed" };
     }
   }
+  const verificationStartedAt = new Date().toISOString();
   const results = await runProductionChecks(releasePolicy, issue.repository!, checks);
   const smokePassed = results.every((r) => r.pass);
   const ticketFlow = smokePassed
@@ -1211,6 +1212,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     ],
     release_smoke: { passed: smokePassed, checks: results },
     ticket_flows: ticketFlow.flows,
+    started_at: verificationStartedAt,
     at: new Date().toISOString(),
   };
   if (passed) {

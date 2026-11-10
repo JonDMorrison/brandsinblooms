@@ -2664,4 +2664,24 @@ SELECT pg_temp.assert(EXISTS (
 
 \ir bloom-support-email-product-routing.sql
 
+\ir ../../supabase/migrations/20261110143000_bloom_support_client_evidence_version.sql
+-- Incoming evidence invalidates old snapshots, even on an already-working ticket.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'gail', 'ticket',
+  jsonb_build_object('product','crm','channel','crm','subject','Evidence version contract',
+    'body','Initial report','account_id', :'greenleaf'))) AS evidence_ticket \gset
+SELECT (:'evidence_ticket'::jsonb->>'ticket_id') AS evidence_ticket_id \gset
+UPDATE bloom_support.tickets SET status='working', stage='triage' WHERE id=:'evidence_ticket_id';
+SELECT version AS evidence_before FROM bloom_support.tickets WHERE id=:'evidence_ticket_id' \gset
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_id', :'evidence_ticket_id',
+  'message', '{"body":"New reproduction detail","visibility":"public","idempotency_key":"evidence-contract-reply"}'::jsonb));
+SELECT pg_temp.assert((SELECT version FROM bloom_support.tickets WHERE id=:'evidence_ticket_id') = :evidence_before + 1,
+  'client reply increments working ticket evidence version');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"version":%s,"next_action":"stale decision"}}'::jsonb)$q$,
+  :'jeff', :'evidence_ticket_id', :'evidence_before'), 'conflict');
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_id', :'evidence_ticket_id',
+  'message', '{"body":"New reproduction detail","visibility":"public","idempotency_key":"evidence-contract-reply"}'::jsonb));
+SELECT pg_temp.assert((SELECT version FROM bloom_support.tickets WHERE id=:'evidence_ticket_id') = :evidence_before + 1,
+  'idempotent message retry does not invalidate evidence twice');
+
 \echo 'bloom-support-db: all assertions passed'
