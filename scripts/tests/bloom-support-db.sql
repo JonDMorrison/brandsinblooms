@@ -2740,8 +2740,9 @@ BEGIN
 END $$;
 
 DO $$
-DECLARE c uuid; a uuid; b uuid; target uuid; e uuid:=gen_random_uuid(); v int;
+DECLARE c uuid; a uuid; b uuid; target uuid; e uuid:=gen_random_uuid(); v int; actor uuid:=gen_random_uuid(); snapshot jsonb;
 BEGIN
+ INSERT INTO bloom_support.principals(id,kind,auth_user_id,product,email,display_name,role) VALUES(actor,'user',gen_random_uuid(),'crm',actor::text || '@example.test','Chain fixture','platform_admin');
  INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Chained merge fixture') RETURNING id INTO c;
  INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at)
  VALUES(c,'crm','crm','Target','Fixture','working','2026-11-10T11:00:00Z') RETURNING id INTO target;
@@ -2762,6 +2763,10 @@ BEGIN
  END;
  UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
  resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:03:00Z')) WHERE id=target;
+ snapshot:=public.bloom_support_rpc('get_ticket',jsonb_build_object('actor',actor,'ticket_id',target));
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'merged_tickets') source WHERE source->>'id'=a::text)
+ OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'messages') message WHERE message->>'body'='Nested correction')
+ THEN RAISE EXCEPTION 'staff context lost transitive source correction'; END IF;
  INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at)
  VALUES(c,'crm','crm','Staff report, no client messages','Fixture','working','2026-11-10T12:00:00Z') RETURNING id INTO target;
  BEGIN
