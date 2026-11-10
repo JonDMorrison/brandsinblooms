@@ -41,7 +41,7 @@ Deno.test("QA-ready Major Project asks Jon/Jeff to review with protected links o
   assertEquals(slackRoute("major_project.review_ready"),"projects");
   const message=slackSafeMessage("major_project.review_ready",null,undefined,projectId);
   assertStringIncludes(message,"Website draft ready for your review");
-  assertStringIncludes(message,"Jon or Jeff");
+  assertStringIncludes(message,"Project reviewers");
   assertStringIncludes(message,"/dashboard/admin/major-projects/review?projectId="+projectId);
   assertStringIncludes(message,"/dashboard/admin/major-projects?project="+projectId);
   assertEquals(message.includes("/preview/"),false);
