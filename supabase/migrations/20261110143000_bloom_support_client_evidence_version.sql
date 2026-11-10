@@ -37,7 +37,8 @@ BEGIN
   IF NEW.status = 'resolved' AND OLD.status IS DISTINCT FROM 'resolved'
      AND NEW.resolution_verified
      AND NEW.resolution_evidence->>'resolved_by' = 'bloom'
-     AND NEW.resolution_evidence->>'engineering_issue_id' IS NOT NULL THEN
+     AND (NEW.engineering_issue_id IS NOT NULL
+       OR NEW.resolution_evidence->>'engineering_issue_id' IS NOT NULL) THEN
     SELECT max(m.created_at) INTO latest_client
     FROM bloom_support.messages m
     WHERE m.author_kind = 'client'

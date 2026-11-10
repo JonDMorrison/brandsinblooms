@@ -152,7 +152,7 @@ async function triage(job: Job): Promise<string> {
   const latest = (await context(t.id)).ticket;
   if (latest.status === "resolved" || latest.merged_into) return "skipped: ticket is no longer active";
   if (latest.automation !== "auto" || latest.executor === "person") return "skipped: ownership changed during triage";
-  if (latest.version !== t.version || latestClientMessage(latest)?.id !== lastClient?.id) return "skipped: new evidence arrived during triage";
+  if (latest.version !== t.version || latestClientMessage(latest)?.id !== lastClient?.id) throw new BloomError(409, "conflict", "Ticket changed before triage; retry with current evidence");
   const linkedEngineeringStatus = String(latest.engineering?.status ?? "");
   if (latest.engineering_issue_id) {
     const lastClient = latestClientMessage(latest);
@@ -193,8 +193,12 @@ async function triage(job: Job): Promise<string> {
     schemaName: "triage", schema: CLASSIFY_SCHEMA, accountKey: t.account?.id ?? "none", images: vision.images,
   });
   const afterModel = (await context(t.id)).ticket;
-  if (afterModel.version !== latest.version || latestClientMessage(afterModel)?.id !== lastClient?.id || afterModel.status === "resolved" || afterModel.merged_into || afterModel.automation !== "auto" || afterModel.executor === "person" || afterModel.engineering_issue_id) {
-    return "skipped: ticket changed during triage";
+  if (afterModel.status === "resolved" || afterModel.merged_into || afterModel.automation !== "auto" || afterModel.executor === "person" || afterModel.engineering_issue_id) {
+    return "skipped: ticket ownership or routing changed during triage";
+  }
+  if (afterModel.version !== latest.version || latestClientMessage(afterModel)?.id !== lastClient?.id) {
+    // runOne treats 409 as retryable, preserving the existing bounded job.
+    throw new BloomError(409, "conflict", "Ticket changed during triage; retry with current evidence");
   }
   const c = model.ok ? mergeModelClassification(rules, model.value) : rules;
   const isFirst = job.payload.reason === "new_ticket";

@@ -1189,6 +1189,13 @@ describe("Bloom support continuity", () => {
   const ticket = (messages: Parameters<typeof conversationEvidence>[0]["messages"]) => ({
     id: "ticket-a", subject: "Checkout", summary: "Two addresses fail", messages,
   });
+  it("retains active triage jobs on metadata/evidence conflicts rather than completing them", () => {
+    const worker = fs.readFileSync(path.join(process.cwd(), "supabase/functions/bloom-support-worker/index.ts"), "utf8");
+    expect(worker).toContain('throw new BloomError(409, "conflict", "Ticket changed before triage; retry with current evidence")');
+    expect(worker).toContain('throw new BloomError(409, "conflict", "Ticket changed during triage; retry with current evidence")');
+    expect(worker).toContain('[400, 403, 404].includes(e.status)');
+    expect(worker).toContain('rpc("fail_job"');
+  });
   it("keeps chronological source-labelled corrections without treating prose as approval", () => {
     const context = conversationEvidence(ticket([message("2", "Actually use pickup"), message("1", "Use delivery")]));
     expect(context.indexOf("Use delivery")).toBeLessThan(context.indexOf("Actually use pickup"));

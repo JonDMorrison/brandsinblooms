@@ -2717,4 +2717,24 @@ BEGIN
  resolution_evidence=jsonb_build_object('resolved_by','bloom','product_decision','approved') WHERE id=t;
 END $$;
 
+DO $$
+DECLARE c uuid; t uuid; e uuid;
+BEGIN
+ INSERT INTO bloom_support.engineering_issues(title,product) VALUES('Freshness omission fixture','crm') RETURNING id INTO e;
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Freshness omission fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,status,stage,engineering_issue_id)
+ VALUES(c,'crm','crm','Freshness omission fixture','Fixture','bug','working','triage',e) RETURNING id INTO t;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,t,'client','public','inbound','Latest report','2026-11-10T12:02:00Z');
+ BEGIN
+  UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+  resolution_evidence=jsonb_build_object('resolved_by','bloom','verification',jsonb_build_object('started_at','2026-11-10T12:01:00Z','scope','ticket_flow','ticket_ids',jsonb_build_array(t))) WHERE id=t;
+  RAISE EXCEPTION 'omitted engineering evidence bypassed persisted link';
+ EXCEPTION WHEN check_violation THEN
+  IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','verification',jsonb_build_object('started_at','2026-11-10T12:02:01Z','scope','ticket_flow','ticket_ids',jsonb_build_array(t))) WHERE id=t;
+END $$;
+
 \echo 'bloom-support-db: all assertions passed'
