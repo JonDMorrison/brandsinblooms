@@ -90,7 +90,7 @@ const wideOnly = { display: { xs: "none", sm: "inline" } } as const;
 const actionSx = { borderRadius: "md", "& .MuiButton-startDecorator": { mr: { xs: 0, sm: 0.75 } } } as const;
 
 /** Readable text width for every bubble and note, so the thread keeps one calm column. */
-const BUBBLE_MAX = "min(70ch, 100%)";
+
 
 /**
  * The ticket summary, message history and reply composer must share the
@@ -107,79 +107,96 @@ const conversationColumnSx = {
   mr: "auto",
 } as const;
 
+/**
+ * Show support correspondence as a readable activity feed.
+ * Each entry has its own visible boundary and a consistent sender/time header.
+ * Unlike chat bubbles, staff and client updates share the same reading edge.
+ */
 function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: string; onRequest?: string }) {
   const fromClient = m.author_kind === "client";
   const internal = m.visibility === "internal";
   const bloom = m.author_kind === "bloom";
   const who = bloom ? "Bloom" : m.author_kind === "system" ? "System" : m.author?.name ?? (fromClient ? clientName : "Staff");
-  const meta = [onRequest, when(m.created_at), !internal && !fromClient && m.delivery && m.delivery !== "none" ? deliveryText(m.delivery) : null].filter(Boolean).join(" · ");
+  const delivery = !internal && !fromClient && m.delivery && m.delivery !== "none" ? deliveryText(m.delivery) : null;
   const body = m.body;
   const note = internal ? staffNotePresentation(body) : null;
 
-  if (internal) {
-    return (
-      <Sheet
-        variant="outlined"
-        color="neutral"
-        sx={{ maxWidth: BUBBLE_MAX, minWidth: 0, ml: 0, mr: "auto", px: 2, py: 1.5, borderRadius: "lg", bgcolor: "background.level1", borderColor: "neutral.200" }}
-      >
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
-          <Chip size="sm" variant="outlined" color="neutral" startDecorator={<Lock size={12} aria-hidden />} sx={{ bgcolor: "background.surface" }}>Internal</Chip>
-          <Typography level="title-sm" textColor="text.primary" startDecorator={bloom ? <Sprout size={14} aria-hidden /> : undefined}>{bloom ? "What Bloom found" : who}</Typography>
-          <Typography level="body-xs" textColor="text.tertiary">{meta} · only staff can see this</Typography>
-        </Stack>
-        <Typography level="body-sm" textColor="text.primary" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{note?.preview}</Typography>
-        {note?.collapsed ? (
-          <Box component="details" sx={{ mt: 1, "& > summary": { cursor: "pointer", color: "primary.700", fontWeight: 600, py: 0.5 } }}>
-            <Box component="summary">Read full technical note</Box>
-            <Typography level="body-sm" textColor="text.secondary" sx={{ mt: 1, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{note.original}</Typography>
-          </Box>
-        ) : null}
-      </Sheet>
-    );
-  }
   return (
-    <Stack direction={fromClient ? "row" : "row-reverse"} spacing={1.25} alignItems="flex-end">
-      <Avatar
-        size="sm"
-        variant={fromClient ? "soft" : "solid"}
-        color={fromClient ? "neutral" : "primary"}
-        aria-hidden
-        sx={{ flex: "0 0 auto", "--Avatar-size": "28px", fontSize: "xs" }}
-      >
-        {bloom ? <Sprout size={14} /> : initials(who)}
-      </Avatar>
-      <Stack spacing={0.5} sx={{ minWidth: 0, maxWidth: BUBBLE_MAX, alignItems: fromClient ? "flex-start" : "flex-end" }}>
-        <Typography level="body-xs" textColor="text.tertiary" sx={{ px: 0.5 }}>
-          <Typography fontWeight="lg" textColor="text.secondary">{who}</Typography>{meta ? ` · ${meta}` : ""}
-        </Typography>
-        <Box
-          sx={{
-            px: 2,
-            py: 1.25,
-            borderRadius: "xl",
-            borderBottomLeftRadius: fromClient ? "sm" : "xl",
-            borderBottomRightRadius: fromClient ? "xl" : "sm",
-            bgcolor: fromClient ? "neutral.softBg" : "primary.softBg",
-            color: "text.primary",
-          }}
+    <Sheet
+      data-testid="bloom-support-message"
+      data-message-visibility={internal ? "internal" : "public"}
+      variant="outlined"
+      color="neutral"
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        ml: 0,
+        mr: "auto",
+        px: { xs: 2, sm: 2.5 },
+        py: 2,
+        border: "1px solid",
+        borderColor: "neutral.200",
+        borderRadius: "lg",
+        bgcolor: internal ? "background.level1" : fromClient ? "background.surface" : "neutral.50",
+        boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+      }}
+    >
+      <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ minWidth: 0, mb: 1.5, pb: 1.25, borderBottom: "1px solid", borderColor: "neutral.200" }}>
+        <Avatar
+          size="sm"
+          variant="soft"
+          color={fromClient || internal ? "neutral" : "primary"}
+          aria-hidden
+          sx={{ flex: "0 0 auto", "--Avatar-size": "32px", fontSize: "xs" }}
         >
-          {fromClient && Array.from(body).length > 700 ? (
-            <>
-              <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>
-                {Array.from(body).slice(0, 220).join("").trimEnd()}…
+          {bloom ? <Sprout size={16} /> : initials(who)}
+        </Avatar>
+        <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography level="title-sm" textColor="text.primary">{who}</Typography>
+            {internal ? (
+              <Chip size="sm" variant="outlined" color="neutral" startDecorator={<Lock size={12} aria-hidden />}>Internal · staff only</Chip>
+            ) : (
+              <Typography level="body-xs" textColor="text.tertiary">
+                {fromClient ? "Customer" : bloom ? "Bloom reply" : "Team reply"}
               </Typography>
-              <Box component="details" sx={{ mt: 1, "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", color: "primary.700", py: 0.5 } }}>
-                <Box component="summary">Read full original message</Box>
-                <Typography level="body-sm" textColor="inherit" sx={{ mt: 1, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
-              </Box>
-            </>
-          ) : (
-            <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
-          )}
-        </Box>
+            )}
+          </Stack>
+          {onRequest && <Typography level="body-xs" textColor="text.tertiary">{onRequest}</Typography>}
+          {delivery && <Typography level="body-xs" textColor="text.tertiary">{delivery}</Typography>}
+        </Stack>
+        <Typography level="body-xs" textColor="text.tertiary" sx={{ whiteSpace: "nowrap", pt: 0.25, flexShrink: 0 }}>
+          {when(m.created_at)}
+        </Typography>
       </Stack>
-    </Stack>
+      <Box sx={{ pl: { xs: 0, sm: "44px" }, minWidth: 0 }}>
+        {internal ? (
+          <>
+            <Typography level="body-md" textColor="text.primary" sx={{ maxWidth: "82ch", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>
+              {note?.preview}
+            </Typography>
+            {note?.collapsed ? (
+              <Box component="details" sx={{ mt: 1.25, "& > summary": { cursor: "pointer", color: "primary.700", fontWeight: 600, py: 0.5 } }}>
+                <Box component="summary">Read full technical note</Box>
+                <Typography level="body-sm" textColor="text.secondary" sx={{ mt: 1, whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>{note.original}</Typography>
+              </Box>
+            ) : null}
+          </>
+        ) : fromClient && Array.from(body).length > 700 ? (
+          <>
+            <Typography level="body-md" textColor="text.primary" sx={{ maxWidth: "82ch", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>
+              {Array.from(body).slice(0, 220).join("").trimEnd()}…
+            </Typography>
+            <Box component="details" sx={{ mt: 1.25, "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", color: "primary.700", py: 0.5 } }}>
+              <Box component="summary">Read full original message</Box>
+              <Typography level="body-sm" textColor="text.primary" sx={{ mt: 1, whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>{body}</Typography>
+            </Box>
+          </>
+        ) : (
+          <Typography level="body-md" textColor="text.primary" sx={{ maxWidth: "82ch", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>{body}</Typography>
+        )}
+      </Box>
+    </Sheet>
   );
 }
 
