@@ -1095,8 +1095,9 @@ describe("Bloom Support staff workspace", () => {
     expect(row).toHaveTextContent("published links missing or not updating on live site");
     expect(row).toHaveTextContent("Horsford Gardens and Nursery");
     expect(row).not.toHaveTextContent("Horsford: published");
-    expect(row).toHaveStyle({ borderBottom: "1px solid" });
-    expect(row).toHaveStyle({ borderLeft: "3px solid" });
+    expect(row.closest('[role="listitem"]')).not.toBeNull();
+    await userEvent.setup().click(row);
+    expect(row).toHaveAttribute("aria-current", "true");
   });
 
   it("keeps a long, stopped support test readable without recommending a client takeover", async () => {
