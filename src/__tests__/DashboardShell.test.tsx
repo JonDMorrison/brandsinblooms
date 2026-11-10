@@ -1013,6 +1013,93 @@ describe("Bloom Support staff workspace", () => {
     expect(note).toHaveStyle({ marginLeft: "0px", marginRight: "auto" });
   });
 
+  it("shows separate, left-aligned cards for customer replies, staff replies and private notes", async () => {
+    const base = {
+      ticket_id: supportTicket.id,
+      created_at: supportTicket.updated_at,
+      delivery: "none",
+    };
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [
+        { ...base, id: "client-message-1", author_kind: "client", visibility: "public", direction: "inbound", body: "The links on the website are missing.", author: { name: "Kate" } },
+        { ...base, id: "staff-message-2", author_kind: "staff", visibility: "public", direction: "outbound", body: "We are checking the public website now.", author: { name: "Sam" } },
+        { ...base, id: "private-note-3", author_kind: "staff", visibility: "internal", direction: "internal", body: "The previous publish completed; verify the links.", author: { name: "Sam" } },
+      ],
+    });
+
+    renderConversation();
+    const cards = await screen.findAllByTestId("bloom-support-message");
+    expect(cards).toHaveLength(3);
+    expect(screen.getByRole("region", { name: "Conversation history" })).toBeInTheDocument();
+    expect(cards.map((c) => c.getAttribute("data-message-visibility"))).toEqual(["public", "public", "internal"]);
+    for (const card of cards) {
+      expect(card).toHaveClass("MuiSheet-colorNeutral");
+      expect(card).toHaveStyle({ width: "100%", marginLeft: "0px", marginRight: "auto" });
+    }
+    expect(cards[0]).toHaveTextContent("Kate");
+    expect(cards[0]).toHaveTextContent("Customer");
+    expect(cards[1]).toHaveTextContent("Sam");
+    expect(cards[1]).toHaveTextContent("Team reply");
+    expect(cards[2]).toHaveTextContent("Internal · staff only");
+    expect(cards[2]).toHaveTextContent("verify the links.");
+    expect(cards[2]).not.toHaveClass("MuiSheet-colorWarning");
+  });
+
+  it("collapses long public updates without losing the exact original correspondence", async () => {
+    const user = userEvent.setup();
+    const body = "We inspected the website navigation and checked the publication settings. ".repeat(10)
+      + "The full details remain available.";
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "long-update-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "public",
+        direction: "outbound",
+        body,
+        created_at: supportTicket.updated_at,
+        author: { name: "Sam" },
+        delivery: "delivered",
+      }],
+    });
+
+    renderConversation();
+    const disclosure = (await screen.findByText("Read full update")).closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(screen.getByTestId("bloom-support-message")).toHaveTextContent("We inspected the website navigation");
+    await user.click(screen.getByText("Read full update"));
+    expect(disclosure).toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent("The full details remain available.");
+  });
+
+  it("uses clear inbox dividers and leads with the issue rather than repeating the client prefix", async () => {
+    const horsford = {
+      ...supportTicket,
+      id: "88888888-8888-4888-8888-888888888888",
+      number: 1028,
+      subject: "Horsford: published links missing or not updating on live site",
+      account: { id: "99999999-9999-4999-8999-999999999999", name: "Horsford Gardens and Nursery" },
+    };
+    supportMocks.listTickets.mockResolvedValueOnce([horsford]);
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+
+    const row = await screen.findByRole("button", { name: /Open request #1028: Horsford: published links missing/ });
+    expect(row).toHaveTextContent("published links missing or not updating on live site");
+    expect(row).toHaveTextContent("Horsford Gardens and Nursery");
+    expect(row).not.toHaveTextContent("Horsford: published");
+    expect(row.closest('[role="listitem"]')).not.toBeNull();
+    await userEvent.setup().click(row);
+    expect(row).toHaveAttribute("aria-current", "true");
+  });
+
   it("keeps a long, stopped support test readable without recommending a client takeover", async () => {
     const user = userEvent.setup();
     const fullRequest = "The calendar export is breaking emojis. " + "Technical reproduction details. ".repeat(42) + "End of the original request.";
