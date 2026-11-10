@@ -62,6 +62,14 @@ export default function SharedEmailBlockPreview({
     /<img\b/i.test(html) ||
     ["divider", "spacer"].includes(block.type),
   );
+  // A Graphic Hero is an email background image, not an <img>. The generic
+  // click-to-edit handler cannot find it, so expose the same picker explicitly.
+  // This also works when the new Graphic Hero is completely empty.
+  const openGraphicHeroImagePicker = () => {
+    if (!onUpdateBlockField || busy || block.type !== "graphic-hero") return;
+    target.current = { field: "imageUrl", index: 0, blockId: block.id };
+    input.current?.click();
+  };
   const choose = (element: Element) => {
     if (!onUpdateBlockField || busy) return;
     const image = element.closest("img");
@@ -172,6 +180,41 @@ export default function SharedEmailBlockPreview({
           <Typography level="body-xs" sx={{ mt: 0.5, color: "#526b72" }}>
             Select this block to add its content in Properties.
           </Typography>
+        </Box>
+      )}
+      {onUpdateBlockField && block.type === "graphic-hero" && (
+        <Box
+          component="button"
+          type="button"
+          aria-label={block.imageUrl ? "Replace Graphic Hero image" : "Upload Graphic Hero image"}
+          disabled={busy}
+          onClick={(event) => {
+            event.stopPropagation();
+            openGraphicHeroImagePicker();
+          }}
+          sx={{
+            position: hasVisibleContent ? "absolute" : "relative",
+            top: hasVisibleContent ? 8 : undefined,
+            right: hasVisibleContent ? 8 : undefined,
+            display: "block",
+            mx: hasVisibleContent ? 0 : "auto",
+            mt: hasVisibleContent ? 0 : 1,
+            px: 1.75,
+            py: 1,
+            border: "1px solid",
+            borderColor: "neutral.300",
+            borderRadius: "sm",
+            bgcolor: "#ffffff",
+            color: "#203b3b",
+            fontSize: 13,
+            fontWeight: 650,
+            cursor: busy ? "wait" : "pointer",
+            boxShadow: "sm",
+            zIndex: 2,
+            "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500" },
+          }}
+        >
+          {block.imageUrl ? "Replace image" : "Upload image"}
         </Box>
       )}
       {onUpdateBlockField && (
