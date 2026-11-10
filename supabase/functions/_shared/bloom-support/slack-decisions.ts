@@ -49,7 +49,7 @@ export function ticketDecisionBlocks(ticket: TicketFacts & Partial<LiveTicketSta
   const inline = next.action === "start-repair" && snapshot?.action === "start-repair" &&
     snapshot.ticket_id === ticket.id && snapshot.ticket_version === display.version &&
     snapshot.engineering_issue_id === engineering.id && snapshot.engineering_version === engineering.version &&
-    Array.isArray(ticket.messages) && JSON.stringify(snapshot.message_ids.slice().sort()) === JSON.stringify(ticket.messages.map(obj).filter(m => m.author_kind === "client" || m.author_kind === "staff").map(m => m.id).sort());
+    Array.isArray(ticket.messages) && JSON.stringify(snapshot.message_ids.slice().sort()) === JSON.stringify(ticket.messages.map(obj).filter(m => m.ticket_id === ticket.id && (m.author_kind === "client" || m.author_kind === "staff")).map(m => m.id).sort());
   const recommendation = inline
     ? "Start investigating and preparing this repair. Existing review, release and safety checks still apply."
     : next.recommendation;

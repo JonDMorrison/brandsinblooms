@@ -123,7 +123,7 @@ Deno.test("only a stored current repair snapshot emits executable buttons",()=>{
   assertStringIncludes(encoded,"Reject It");
   assertStringIncludes(encoded,"Something Else");
   assertStringIncludes(encoded,"compose=internal");
-  assertEquals(JSON.stringify(ticketDecisionBlocks({...ticket,messages:[{id:ID,author_kind:"client"}]},snapshot)).includes("bloom_repair_do"),false);
+  assertEquals(JSON.stringify(ticketDecisionBlocks({...ticket,messages:[{id:ID,ticket_id:ID,author_kind:"client"}]},snapshot)).includes("bloom_repair_do"),false);
   assertStringIncludes(encoded,"does not waive");
   assertEquals(JSON.stringify(ticketDecisionBlocks(ticket,null)).includes("bloom_repair_do"),false);
   assertEquals(JSON.stringify(ticketDecisionBlocks({...ticket,engineering:{id:ID,status:"awaiting_approval"}},snapshot)).includes("bloom_repair_do"),false);

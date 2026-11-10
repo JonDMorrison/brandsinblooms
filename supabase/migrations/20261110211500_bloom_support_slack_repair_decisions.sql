@@ -45,7 +45,7 @@ BEGIN
     OR EXISTS (SELECT 1 FROM bloom_support.slack_repair_decisions WHERE ticket_id=t.id AND engineering_issue_id=e.id AND engineering_version=e.version AND choice='reject')
   THEN RETURN NULL; END IF;
   INSERT INTO bloom_support.slack_repair_decisions(ticket_id,engineering_issue_id,ticket_version,engineering_version,job_id,channel_id,message_ids)
-  VALUES(t.id,e.id,t.version,e.version,p_job,'C0CFNEQBS2X',ARRAY(SELECT id FROM bloom_support.messages WHERE conversation_id=t.conversation_id AND author_kind IN ('client','staff') ORDER BY id)) ON CONFLICT(job_id) DO NOTHING;
+  VALUES(t.id,e.id,t.version,e.version,p_job,'C0CFNEQBS2X',ARRAY(SELECT id FROM bloom_support.messages WHERE ticket_id=t.id AND author_kind IN ('client','staff') ORDER BY id)) ON CONFLICT(job_id) DO NOTHING;
   SELECT * INTO d FROM bloom_support.slack_repair_decisions WHERE job_id=p_job;
   IF d.ticket_id IS DISTINCT FROM t.id OR d.ticket_version<>t.version OR d.engineering_version<>e.version
     OR d.expires_at<=now() OR d.choice IS NOT NULL THEN RETURN NULL; END IF;
@@ -87,7 +87,7 @@ BEGIN
   SELECT * INTO e FROM bloom_support.engineering_issues WHERE id=d.engineering_issue_id FOR UPDATE;
   PERFORM id FROM bloom_support.escalations WHERE engineering_issue_id=e.id AND reason='engineering_start_requested' ORDER BY id FOR UPDATE;
   SELECT * INTO t FROM bloom_support.tickets WHERE id=d.ticket_id FOR UPDATE;
-  IF d.message_ids IS DISTINCT FROM ARRAY(SELECT id FROM bloom_support.messages WHERE conversation_id=t.conversation_id AND author_kind IN ('client','staff') ORDER BY id)
+  IF d.message_ids IS DISTINCT FROM ARRAY(SELECT id FROM bloom_support.messages WHERE ticket_id=t.id AND author_kind IN ('client','staff') ORDER BY id)
     OR t.version IS DISTINCT FROM d.ticket_version OR e.version IS DISTINCT FROM d.engineering_version
     OR t.engineering_issue_id IS DISTINCT FROM e.id OR t.spam OR t.redacted_at IS NOT NULL OR t.merged_into IS NOT NULL
     OR t.status='resolved' OR t.kind<>'bug' OR t.pending_review IS NOT NULL OR t.automation<>'auto' OR t.executor<>'bloom'
