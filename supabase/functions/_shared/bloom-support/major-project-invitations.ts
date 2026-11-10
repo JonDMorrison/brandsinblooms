@@ -41,11 +41,12 @@ export function findMajorProjectInvitationTarget(hint:string,items:unknown):Invi
     return [{id:row.id,name:safeProjectName(row.project_name),stage:typeof row.stage==="string"?row.stage:"unknown",
       normalized:normalize(row.project_name),code:typeof row.project_code==="string"?normalize(row.project_code):""}];
   });
-  const exact=rows.filter(r=>r.normalized===wanted||r.code===wanted);
-  // Short single words are too ambiguous for a partial-name lookup.
+  // Account creation is high-trust: a code match must not hide a second
+  // project with the same partial name.
   const distinctivePartial = wanted.includes(" ") || wanted.length >= 7;
-  const candidates=exact.length>0?exact:distinctivePartial?
-    rows.filter(r=>r.normalized.includes(wanted)) : [];
+  const candidates=rows.filter(r=>
+    r.normalized===wanted || r.code===wanted ||
+    (distinctivePartial && r.normalized.includes(wanted)));
   if(!candidates.length)return {kind:"none"};
   if(candidates.length>1)return {kind:"ambiguous"};
   const {id,name,stage}=candidates[0];
