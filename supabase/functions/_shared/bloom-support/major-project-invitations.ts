@@ -28,7 +28,7 @@ export interface ProjectInviteSummary {
   id?:unknown; project_name?:unknown;project_code?:unknown;stage?:unknown;
 }
 export type InviteMatch={kind:"matched";project:{id:string;name:string;stage:string}}|
-  {kind:"none"|"ambiguous"};
+  {kind:"none"}|{kind:"ambiguous"};
 
 /** Select only one genuine project. No first-result guesses or invented IDs. */
 export function findMajorProjectInvitationTarget(hint:string,items:unknown):InviteMatch{
