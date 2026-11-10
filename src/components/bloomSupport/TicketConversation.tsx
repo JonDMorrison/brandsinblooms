@@ -197,7 +197,7 @@ function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: s
   );
 }
 
-export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket, backOn = "always", actionHint = null }: {
+export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket, backOn = "always", actionHint = null, initialVisibility = "public" }: {
   ticketId: string;
   me: Whoami;
   onBack: () => void;
@@ -207,11 +207,13 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   backOn?: "always" | "compact";
   /** Action pre-selected by a staff email link; the live ticket decides whether it still applies. */
   actionHint?: NextAction | null;
+  /** A staff-only deep link may preselect a private note, never send automatically. */
+  initialVisibility?: Visibility;
 }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["bloom-support", "ticket", ticketId], queryFn: () => bloomSupport.getTicket(ticketId), refetchInterval: 20_000 });
   const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState<Visibility>("public");
+  const [mode, setMode] = useState<Visibility>(initialVisibility);
   const [error, setError] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

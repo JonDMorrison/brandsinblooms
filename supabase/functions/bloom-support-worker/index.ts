@@ -13,7 +13,7 @@ import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
-import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
+import { postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
 import { actionableAlertMessage, missingAlertContextMessage } from "../_shared/bloom-support/actionable-alerts.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
@@ -27,7 +27,8 @@ import { callProduct, runRead } from "../_shared/bloom-support/operations.ts";
 import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQuestion, slackDiagnosticUserFromLane, type DiagnosticAccount } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { featureQuestionAnswer, projectQuestionAnswer } from "../_shared/bloom-support/slack-questions.ts";
 import { majorProjectInvitationIntent, findMajorProjectInvitationTarget, projectInviteSlackAnswer } from "../_shared/bloom-support/major-project-invitations.ts";
-import { ticketQuestionAnswer, ticketRootMessage, ticketUpdateMessage } from "../_shared/bloom-support/ticket-slack.ts";
+import { postTicketDecisionMessage } from "../_shared/bloom-support/slack-decision-delivery.ts";
+import { ticketQuestionAnswer } from "../_shared/bloom-support/ticket-slack.ts";
 import { formatIntegrationEvidence } from "../_shared/bloom-support/integration-diagnostics.ts";
 import { startIntegrationTask, supportTaskUrl, taskNumberFromQuestion, taskStatusText } from "../_shared/bloom-support/integration-tasks.ts";
 import { clientBrand as sharedClientBrand } from "../_shared/bloom-support/client-brand-loader.ts";
@@ -757,11 +758,9 @@ async function postTicketThreadUpdate(job: Job, eventKind: string): Promise<stri
   if (ticket.spam === true || ticket.merged_into || !ticket.id)
     return "skipped: unavailable ticket";
   if (stored.thread_ts) {
-    return await postSlackInternalText("tickets",
-      ticketUpdateMessage(ticket,eventKind),job.id,stored.thread_ts);
+    return (await postTicketDecisionMessage(ticket,eventKind,job.id,stored.thread_ts)).delivery;
   }
-  const receipt = await postSlackInternalMessage("tickets",
-    ticketRootMessage(ticket,eventKind),job.id);
+  const receipt = await postTicketDecisionMessage(ticket,eventKind,job.id);
   const bound = await directRpc<{thread_ts:string|null; allowed:boolean}>(
     "bloom_support_slack_ticket_thread",
     {p_ticket:job.ticket_id,p_root_ts:receipt.ts},

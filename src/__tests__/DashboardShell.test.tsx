@@ -963,9 +963,10 @@ describe("Bloom Support staff workspace", () => {
     await waitFor(() => expect(row).toHaveFocus());
   });
 
-  const renderConversation = () => render(
+  const renderConversation = (initialVisibility: "public" | "internal" = "public") => render(
     <TestQueryClientProvider>
       <TicketConversation
+        initialVisibility={initialVisibility}
         ticketId={supportTicket.id}
         me={{ ...supportAgent, permissions: [...supportAgent.permissions, "tickets.write"] }}
         onBack={vi.fn()}
@@ -974,6 +975,18 @@ describe("Bloom Support staff workspace", () => {
       />
     </TestQueryClientProvider>,
   );
+
+  it("opens alternative recommendations as private notes without sending to the client", async () => {
+    const user = userEvent.setup();
+    renderConversation("internal");
+    const input = await screen.findByRole("textbox", { name: "Message" });
+    expect(screen.getByRole("button", { name: "Add note" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send to client" })).not.toBeInTheDocument();
+    await user.type(input, "Please try a different approach first.");
+    await user.click(screen.getByRole("button", { name: "Add note" }));
+    await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(1));
+    expect(supportMocks.addMessage.mock.calls[0][1].visibility).toBe("internal");
+  });
 
   it("left-aligns the ticket summary and sticky reply composer to one shared content column", async () => {
     renderConversation();

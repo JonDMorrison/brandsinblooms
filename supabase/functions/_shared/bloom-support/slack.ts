@@ -109,7 +109,7 @@ export function slackSafeMessage(
 }
 /** Trusted worker: returns the real Slack message timestamp for thread binding. */
 export async function postSlackInternalMessage(
-  route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string,
+  route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string, blocks?: Record<string, unknown>[],
 ): Promise<{delivery: string; ts: string}> {
   if (!/^[-\w.]{16,128}$/.test(jobId)) throw new Error("invalid job ID");
   const token = env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
@@ -119,6 +119,7 @@ export async function postSlackInternalMessage(
     channel, text: text.slice(0, 2400), client_msg_id: jobId, unfurl_links: false, unfurl_media: false,
   };
   if (threadTs && /^\d{10}\.\d{6}$/.test(threadTs)) payload.thread_ts = threadTs;
+  if (blocks?.length) payload.blocks = [{type:"section",text:{type:"mrkdwn",text:text.slice(0,2400)}},...blocks];
   let response: Response;
   try {
     response = await fetch("https://slack.com/api/chat.postMessage", {
