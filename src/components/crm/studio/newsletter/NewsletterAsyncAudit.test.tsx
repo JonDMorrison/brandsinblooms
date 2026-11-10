@@ -29,6 +29,50 @@ function deferred<T>() {
   return { promise, resolve };
 }
 beforeEach(() => vi.clearAllMocks());
+describe("graphic hero image upload", () => {
+  it("opens the file picker for an empty Graphic Hero and applies its image", async () => {
+    const update = vi.fn();
+    mocks.upload.mockResolvedValue("https://example.com/hero-upload.png");
+    const block = createStudioBlock("graphic-hero");
+    const view = render(<SharedEmailBlockPreview block={block} onUpdateBlockField={update} />);
+    const input = view.container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).toBeTruthy();
+    const click = vi.spyOn(input!, "click").mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Upload Graphic Hero image" }));
+    expect(click).toHaveBeenCalledTimes(1);
+    fireEvent.change(input!, {
+      target: { files: [new File(["hero"], "hero.png", { type: "image/png" })] },
+    });
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(block.id, "imageUrl", "https://example.com/hero-upload.png"),
+    );
+    click.mockRestore();
+    view.unmount();
+  });
+
+  it("allows replacing a Graphic Hero that already has a background image", async () => {
+    const update = vi.fn();
+    mocks.upload.mockResolvedValue("https://example.com/replaced.png");
+    const block = {
+      ...createStudioBlock("graphic-hero"),
+      imageUrl: "https://example.com/existing.png",
+    };
+    const view = render(<SharedEmailBlockPreview block={block} onUpdateBlockField={update} />);
+    const input = view.container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const click = vi.spyOn(input, "click").mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Replace Graphic Hero image" }));
+    expect(click).toHaveBeenCalledTimes(1);
+    fireEvent.change(input, {
+      target: { files: [new File(["replacement"], "replacement.png", { type: "image/png" })] },
+    });
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(block.id, "imageUrl", "https://example.com/replaced.png"),
+    );
+    click.mockRestore();
+    view.unmount();
+  });
+});
+
 describe("newsletter asynchronous edit safety", () => {
   it("applies an image upload by stable ID without erasing newer edits or reordering", async () => {
     const pending = deferred<string>();
