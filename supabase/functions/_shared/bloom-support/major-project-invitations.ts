@@ -5,7 +5,9 @@
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const prohibited=/@|https?:|www\.|[<>]|(?:\b(?:all|every|everyone|bulk|multiple|entire)\s+(?:projects?|clients?|customers?|accounts?)\b)|(?:sk_(?:live|test)_|xox[baprs]-|gh[pousr]_|rk_(?:live|test)_)/i;
 const normalize=(s:string)=>s.trim().toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
-const safeProjectName=(s:string)=>s.replace(/[<>&@*_\x60~\r\n]/g," ").replace(/\s+/g," ").trim().slice(0,90);
+const privateField=/(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|https?:\/\/|\b(?:sk_(?:live|test)_|xox[baprs]-|gh[pousr]_)[A-Za-z0-9_-]+)/i;
+const safeProjectName=(s:string)=>privateField.test(s)?"this Major Project":
+  s.replace(/[<>&@*_\x60~\r\n]/g," ").replace(/\s+/g," ").trim().slice(0,90);
 
 /** Exact affirmative commands. A status question or bulk request is not an invite command. */
 export function majorProjectInvitationIntent(input:unknown):string|null{
@@ -14,7 +16,7 @@ export function majorProjectInvitationIntent(input:unknown):string|null{
   if(raw.length<12||raw.length>180||prohibited.test(raw))return null;
   if(/^(?:did|have|has|was|is|are|when|why|which|what|where)\b/i.test(raw))return null;
   const patterns=[
-    /^(?:please\s+)?(?:can you\s+)?send\s+(?:(?:the|a|our)\s+)?(?:(?:new|client|major project)\s+){0,2}(?:welcome\s+)?(?:onboarding\s+)?(?:invitation|invite|email)\s+(?:to|for)\s+(.+)$/i,
+    /^(?:please\s+)?(?:can you\s+)?send\s+(?:(?:the|a|an|our)\s+)?(?:(?:new|client|major project)\s+){0,2}(?:welcome\s+)?(?:onboarding\s+)?(?:invitation|invite|email)\s+(?:to|for)\s+(.+)$/i,
     /^(?:please\s+)?(?:can you\s+)?(?:invite|onboard)\s+(?:the\s+)?(?:owner\s+(?:of|at|for)\s+)?(?:new\s+)?(?:major\s+project\s+)?(.+)$/i,
     /^(?:please\s+)?(?:can you\s+)?(?:prepare|start)\s+(?:the\s+)?(?:new\s+)?(?:major\s+project\s+)?(?:welcome\s+)?(?:invitation|onboarding)\s+(?:for|at)\s+(.+)$/i,
   ];
@@ -40,7 +42,10 @@ export function findMajorProjectInvitationTarget(hint:string,items:unknown):Invi
       normalized:normalize(row.project_name),code:typeof row.project_code==="string"?normalize(row.project_code):""}];
   });
   const exact=rows.filter(r=>r.normalized===wanted||r.code===wanted);
-  const candidates=exact.length>0?exact:rows.filter(r=>r.normalized.includes(wanted));
+  // Short single words are too ambiguous for a partial-name lookup.
+  const distinctivePartial = wanted.includes(" ") || wanted.length >= 7;
+  const candidates=exact.length>0?exact:distinctivePartial?
+    rows.filter(r=>r.normalized.includes(wanted)) : [];
   if(!candidates.length)return {kind:"none"};
   if(candidates.length>1)return {kind:"ambiguous"};
   const {id,name,stage}=candidates[0];
