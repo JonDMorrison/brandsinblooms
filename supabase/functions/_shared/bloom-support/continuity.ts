@@ -13,11 +13,13 @@ export interface ContinuityTicket {
   subject: string;
   summary: string;
   messages: ContinuityMessage[];
+  merged_tickets?: Array<{ id: string }>;
 }
 
 /** Staff ticket views can include other tickets in the same conversation. */
 export function ticketMessages(t: ContinuityTicket): ContinuityMessage[] {
-  return t.messages.filter(m => !m.ticket_id || m.ticket_id === t.id)
+  const sources = new Set([t.id, ...(t.merged_tickets ?? []).map(source => source.id)]);
+  return t.messages.filter(m => !m.ticket_id || sources.has(m.ticket_id))
     .slice().sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
 }
 export function latestClientMessage(t: ContinuityTicket): ContinuityMessage | undefined {
@@ -67,7 +69,7 @@ export function engineeringFollowupNote(message: ContinuityMessage, issue: { id:
 /** A previously passing test cannot close a newer customer report. */
 export function verificationCoversLatestReply(t: ContinuityTicket, verifiedAt: unknown): boolean {
   const latest = latestClientMessage(t);
-  if (!latest) return true;
+  if (!latest) return false;
   const checked = typeof verifiedAt === "string" ? Date.parse(verifiedAt) : NaN;
   const received = Date.parse(latest.created_at);
   return Number.isFinite(checked) && Number.isFinite(received) && checked >= received;

@@ -1200,6 +1200,16 @@ describe("Bloom support continuity", () => {
     expect(conversationEvidence(t)).not.toContain("Other customer symptom");
     expect(latestClientMessage(t)?.id).toBe("1");
   });
+  it("includes explicitly merged sources without unrelated sibling tickets", () => {
+    const t = { ...ticket([message("1", "Original"), message("2", "Merged correction", { ticket_id: "merged" }), message("3", "Sibling", { ticket_id: "other" })]), merged_tickets: [{ id: "merged" }] };
+    expect(latestClientMessage(t)?.id).toBe("2");
+    expect(conversationEvidence(t)).toContain("Merged correction");
+    expect(conversationEvidence(t)).not.toContain("Sibling");
+    expect(verificationCoversLatestReply(t, "2026-11-10T12:01:00Z")).toBe(false);
+  });
+  it("refuses closure when the bounded timeline has no client evidence", () => {
+    expect(verificationCoversLatestReply(ticket([]), "2026-11-10T12:03:00Z")).toBe(false);
+  });
   it("bounds history, labels omissions and preserves client replies over internal-note noise", () => {
     const t = ticket([message("1", "Keep this answer"), ...Array.from({ length: 20 }, (_, i) => message(String(i + 2), "x".repeat(10000), { visibility: "internal", author_kind: "bloom" }))]);
     const context = conversationEvidence(t);

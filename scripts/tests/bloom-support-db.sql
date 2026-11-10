@@ -2684,4 +2684,37 @@ SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_i
 SELECT pg_temp.assert((SELECT version FROM bloom_support.tickets WHERE id=:'evidence_ticket_id') = :evidence_before + 1,
   'idempotent message retry does not invalidate evidence twice');
 
+DO $$
+DECLARE c uuid; t uuid; source uuid; v int; e uuid:=gen_random_uuid();
+BEGIN
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Closure freshness fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,stage)
+ VALUES(c,'crm','crm','Closure freshness fixture','Fixture','working','triage') RETURNING id INTO t;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,stage,merged_into)
+ VALUES(c,'crm','crm','Merged source','Fixture','working','triage',t) RETURNING id INTO source;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,t,'client','public','inbound','Original','2026-11-10T12:00:00Z');
+ SELECT version INTO v FROM bloom_support.tickets WHERE id=t;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,source,'client','public','inbound','Merged correction','2026-11-10T12:02:00Z');
+ IF (SELECT version FROM bloom_support.tickets WHERE id=t)<>v+1 THEN RAISE EXCEPTION 'merged source did not invalidate target'; END IF;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ SELECT c,t,'bloom','internal','internal','Newer note','2026-11-10T12:03:00Z'::timestamptz + n*interval '1 second' FROM generate_series(1,301)n;
+ BEGIN
+  UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+  resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:01:00Z')) WHERE id=t;
+  RAISE EXCEPTION 'stale bounded/merged evidence accepted';
+ EXCEPTION WHEN check_violation THEN
+  IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:02:01Z')) WHERE id=t;
+ UPDATE bloom_support.tickets SET status='working' WHERE id=t;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','person','engineering_issue_id',e) WHERE id=t;
+ UPDATE bloom_support.tickets SET status='working' WHERE id=t;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','product_decision','approved') WHERE id=t;
+END $$;
+
 \echo 'bloom-support-db: all assertions passed'

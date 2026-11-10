@@ -56,6 +56,7 @@ interface TicketView {
   engineering_issue_id: string | null; feature_request_id: string | null; feature_request?: { status?: string } | null; reopen_count: number; version: number;
   messages: Array<{ id: string; ticket_id?: string | null; author_kind: string; visibility: string; body: string; created_at: string; delivery?: string; purpose?: string | null }>;
   created_at?: string; waiting_reason?: string | null; requester?: { name?: string | null; email?: string | null } | null;
+  merged_tickets?: Array<{ id: string }>;
   engineering?: { status?: unknown; pr_url?: unknown } | null; escalations?: Array<Record<string, unknown>>; resolution_evidence?: unknown;
   attachments?: TicketAttachment[];
 }
@@ -482,14 +483,16 @@ async function verifyResolution(job: Job): Promise<string> {
     !issue.verification.ticket_ids?.includes(t.id)
   ) {
     await note(t, "The release smoke checks passed, but the affected workflow was not verified. Confirm the result with the client before resolving.", `verify-gap:${t.id}:${issue.id}`);
-    await patch(t, {
-      internal_only: true,
+    if (t.automation === "auto" && t.executor !== "person") await patch(t, {
+      version: t.version,
       next_action: "Confirm the client's own flow works, then resolve",
       next_action_due_at: new Date(Date.now() + 8 * 3600e3).toISOString(),
     });
     return "release smoke passed; ticket flow needs confirmation";
   }
-  if (!verificationCoversLatestReply(t, issue.verification.started_at)) {
+  // The bounded view can omit all client messages. In that case the database
+  // closure trigger still checks the complete authoritative message history.
+  if (latestClientMessage(t) && !verificationCoversLatestReply(t, issue.verification.started_at)) {
     await note(t, "The latest client reply arrived after the recorded verification, or the verification time is missing. Recheck that reply before calling this fixed.", `verify-new-evidence:${t.id}:${issue.id}:${latestClientMessage(t)?.id ?? "unknown"}`);
     return "new client evidence needs verification; not resolving";
   }
@@ -500,7 +503,7 @@ async function verifyResolution(job: Job): Promise<string> {
   const affectedHost = pageUrl ? (() => { try { return new URL(pageUrl).host; } catch { return null; } })() : null;
   if (!["bug", "incident"].includes(t.kind) || (engProduct && engProduct !== t.product) || (affectedHost && checkedHosts.length && !checkedHosts.includes(affectedHost))) {
     await note(t, `The linked fix is verified (${checkedHosts.join(", ") || "no hosts"}), but this ticket's affected flow (${affectedHost ?? t.product}) was not covered. Confirm with the client before resolving.`, `verify-gap:${t.id}:${issue.id}`);
-    await patch(t, { internal_only: true, next_action: "Confirm the client's own flow works, then resolve", next_action_due_at: new Date(Date.now() + 8 * 3600e3).toISOString() });
+    if (t.automation === "auto" && t.executor !== "person") await patch(t, { version: t.version, next_action: "Confirm the client's own flow works, then resolve", next_action_due_at: new Date(Date.now() + 8 * 3600e3).toISOString() });
     return "fix verified; ticket's own flow needs confirmation";
   }
   if (t.automation !== "auto" || t.executor === "person") {
