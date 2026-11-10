@@ -55,8 +55,11 @@ export function findMajorProjectInvitationTarget(hint:string,items:unknown):Invi
 const reviewLink=(id:string)=>"https://bloomsites.app/dashboard/admin/major-projects/invite?project="+id;
 export function projectInviteSlackAnswer(result:InviteMatch):string{
   const projectsLink="<https://bloomsites.app/dashboard/admin/major-projects|Open Major Projects>";
-  if(result.kind==="none")return "I couldn't find that Major Project. Check its name in "+projectsLink+". No invitation was sent.";
-  if(result.kind==="ambiguous")return "I found more than one matching project. Use the full name or code. No invitation was sent. "+projectsLink;
+  if(result.kind!=="matched"){
+    return result.kind==="none"
+      ? "I couldn't find that Major Project. Check its name in "+projectsLink+". No invitation was sent."
+      : "I found more than one matching project. Use the full name or code. No invitation was sent. "+projectsLink;
+  }
   const {id,name,stage}=result.project;
   if(["lead","discovery_scheduled","discovery_complete","proposal_draft","proposal_sent","declined","paused"].includes(stage)){
     return "*"+safeProjectName(name)+"* isn't ready for client onboarding yet. Accept the project in "+projectsLink+" first. No invitation was sent.";
