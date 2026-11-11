@@ -270,7 +270,7 @@ describe('saved-group email inspection and file export', () => {
         };
         return q;
       },
-      storage: {from: () => ({upload: async (_path:string, bytes:Uint8Array) => {uploaded.push(new TextDecoder().decode(bytes));return {error:options.uploadError?{message:'upload unavailable'}:null};},createSignedUrl: async()=>({data:options.signError?null:{signedUrl:'https://example.com/synthetic.csv'},error:options.signError?{message:'sign unavailable'}:null})})},
+      storage: {from: () => ({upload: async (_path:string, bytes:Uint8Array) => {uploaded.push(new TextDecoder().decode(bytes));return {error:options.uploadError?{message:'upload unavailable'}:null};},createSignedUrl: async(...args:unknown[])=>{calls.push({table:'storage',method:'createSignedUrl',args});return {data:options.signError?null:{signedUrl:'https://example.com/synthetic.csv'},error:options.signError?{message:'sign unavailable'}:null};}})},
     } as unknown as PersistenceClient;
     return {client,calls,uploaded,ids};
   }
@@ -306,6 +306,10 @@ describe('saved-group email inspection and file export', () => {
     const {client,calls,uploaded}=savedClient();
     const result=await exportDataImplementation('export_data')!({entity:'customers',format,scope:'saved_result',set_id:setId},context(client));
     expect(result).toMatchObject({success:true,count:53,data:{set_id:setId,row_count:53,total_matching_count:53,truncated:false,download_url:'https://example.com/synthetic.csv'}});
+    const metadata = result.data as {storage_path:string;file_name:string};
+    expect(calls).toContainEqual({table:'storage',method:'createSignedUrl',args:[metadata.storage_path,3600,{download:metadata.file_name}]});
+    expect(metadata.file_name).toMatch(new RegExp(`^customers-export-[a-zA-Z0-9._-]+\\.${format}$`));
+    expect(metadata.storage_path).toMatch(new RegExp(`/exports/[0-9a-f-]{36}_`));
     expect(uploaded).toHaveLength(1);expect(uploaded[0]).toContain('member-52@example.com');expect(uploaded[0]).not.toContain('Unknown');
     expect(calls).toContainEqual({table:'crm_customers',method:'eq',args:['tenant_id',TENANT]});
     expect(calls).toContainEqual({table:'crm_customers',method:'is',args:['deleted_at',null]});

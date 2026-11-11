@@ -1051,11 +1051,12 @@ async function uploadExportBytes(args: {
 
 async function createSignedDownloadUrl(
   storagePath: string,
+  fileName: string,
   context: ToolExecutionContext,
 ): Promise<string> {
   const { data, error } = await context.serviceClient.storage
     .from(BLOOM_UPLOADS_BUCKET)
-    .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+    .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS, { download: fileName });
 
   if (error || !data?.signedUrl) {
     throw new Error(
@@ -1206,7 +1207,7 @@ const exportData: ToolImplementation = async (
     context,
   });
 
-  const downloadUrl = await createSignedDownloadUrl(storagePath, context);
+  const downloadUrl = await createSignedDownloadUrl(storagePath, fileName, context);
   const expiresAt = new Date(
     Date.now() + SIGNED_URL_TTL_SECONDS * 1000,
   ).toISOString();
