@@ -1,3 +1,4 @@
+import { renderBloomSystemEmail, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
@@ -373,7 +374,15 @@ Deno.serve(async (req) => {
                   from: "BloomSuite <hello@brandsinblooms.com>",
                   to: email,
                   subject: `${gardenCenter} is live on BloomSuite 🌱`,
-                  html: `<h2>You're live!</h2><p>Your BloomSuite setup is complete. Your first content is ready to go.</p><p><a href="https://www.bloomsuite.app">Open your dashboard →</a></p><p>Need help? Reply to this email and we'll get you sorted.</p>`,
+                  html: renderBloomSystemEmail({
+                    eyebrow: "ACCOUNT READY",
+                    title: "You are live!",
+                    preheader: "Your BloomSuite setup is complete",
+                    brandName: gardenCenter,
+                    icon: "check",
+                    bodyHtml: "<p>Your BloomSuite setup is complete. Your first content is ready to go.</p><p>Need help? Reply to this email and we\u0027ll get you sorted.</p>",
+                    action: { label: "Open your dashboard →", url: "https://www.bloomsuite.app" },
+                  }),
                 }),
               });
             } catch (e) {
@@ -392,7 +401,14 @@ Deno.serve(async (req) => {
                 from: "BloomSuite System <system@bloomsuite.app>",
                 to: Deno.env.get("INTERNAL_ALERT_EMAIL") || "jon@getclear.ca",
                 subject: `🌱 ${gardenCenter} just went live`,
-                html: `<p>${gardenCenter} has completed all onboarding steps and is now Active. Go Live Date: ${today}.</p>`,
+                html: renderBloomSystemEmail({
+                  eyebrow: "GO LIVE",
+                  title: "A garden centre just went live",
+                  preheader: `${gardenCenter} just went live`,
+                  icon: "check",
+                  bodyHtml: `<p><strong>${bloomEmailEscape(gardenCenter)}</strong> has completed all onboarding steps and is now Active. Go Live Date: ${bloomEmailEscape(today)}.</p>`,
+                  footer: "BloomSuite — internal onboarding notification.",
+                }),
               }),
             });
           } catch (e) {

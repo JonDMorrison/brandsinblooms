@@ -1,3 +1,4 @@
+import { renderBloomSystemEmail } from "../../../src/lib/email/premiumBotanical.ts";
 import { assess, stripeList } from "./core.ts";
 
 const env = (name: string) => {
@@ -197,8 +198,14 @@ Deno.serve(async (req: Request) => {
           from: "BloomSuite System <system@bloomsuite.app>",
           to: ["jon@getclear.ca", "jeff@brandsinblooms.com"],
           subject: `BloomSuite Reconciliation — ${pending.length} changes`,
-          html:
-            `<h2>Stripe / Notion Reconciliation</h2><ul>${items}</ul><p>Customer records and billing were not changed. Review the reconciliation queue and <a href="https://www.notion.so/344d234a0ae54f4185e19d260ac658a9">customer pipeline</a>.</p>`,
+          html: renderBloomSystemEmail({
+            eyebrow: "OPERATIONS",
+            title: "Stripe / Notion Reconciliation",
+            preheader: `BloomSuite Reconciliation — ${pending.length} changes`,
+            icon: "alert",
+            bodyHtml: `<ul>${items}</ul><p>Customer records and billing were not changed. Review the reconciliation queue and <a href="https://www.notion.so/344d234a0ae54f4185e19d260ac658a9">customer pipeline</a>.</p>`,
+            footer: "BloomSuite — internal reconciliation notice.",
+          }),
         }),
       });
       for (const i of pending) {
