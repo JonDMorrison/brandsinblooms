@@ -189,3 +189,57 @@ describe("West Coast reported spending stays consistent across Bloom reads", () 
     await expect(getCustomerDetail({ customer_id: CUSTOMER }, context(client))).rejects.toEqual(error);
   });
 });
+
+describe('durable saved-group references survive history compaction',()=>{
+ const user='user',conversation='conversation',setId='33333333-3333-4333-8333-333333333333';
+ const scope={tenantId:TENANT,userId:user,conversationId:conversation,userRole:'admin',userName:null};
+ const step={set_id:setId,rule:{mode:'purchased',product:'wreath',start_date:'2025-01-01',end_date:'2025-12-31'},input:20,included:8,excluded:10,unknown:2};
+ const snapshot={id:setId,tenant_id:TENANT,user_id:user,conversation_id:conversation,created_at:'2026-11-11T00:00:00Z',snapshot_id:setId,snapshot_tenant:TENANT,snapshot_user:user,snapshot_conversation:conversation,version:1,trail:[step],included_ids:[CUSTOMER],email:'must-not-appear@example.com'};
+ function referenceClient(overrides:Record<string,unknown>={},conversationOverrides:Record<string,unknown>={},allowed=true){
+  const calls:Call[]=[];
+  const client={rpc:async()=>({data:allowed,error:null}),from:(table:string)=>{
+   const q:Record<string,unknown>={};
+   for(const method of ['select','eq','neq','order','limit'])q[method]=(...args:unknown[])=>{calls.push({table,method,args});return q;};
+   q.maybeSingle=async()=>({data:table==='bloom_conversations'?{id:conversation,tenant_id:TENANT,user_id:user,...conversationOverrides}:{...snapshot,...overrides},error:null});return q;
+  }} as unknown as PersistenceClient;return {client,calls};
+ }
+ it('selects bounded metadata and exact ownership, exposing rules/counts but no members',async()=>{
+  const {loadSavedCustomerResultContext}=await import('../../supabase/functions/bloom-assist/context-builder');
+  const {client,calls}=referenceClient();const result=await loadSavedCustomerResultContext(client,scope);
+  expect(result).toContain(setId);expect(result).toContain('wreath');expect(result).toContain('2025-12-31');
+  expect(result).not.toContain(CUSTOMER);expect(result).not.toContain('must-not-appear');
+  for(const table of ['bloom_conversations','bloom_customer_sets'])for(const [column,value] of [['tenant_id',TENANT],['user_id',user]])expect(calls).toContainEqual({table,method:'eq',args:[column,value]});
+  expect(calls).toContainEqual({table:'bloom_customer_sets',method:'eq',args:['conversation_id',conversation]});
+  expect(calls).toContainEqual({table:'bloom_conversations',method:'neq',args:['status','deleted']});
+  expect(String(calls.find(c=>c.table==='bloom_customer_sets'&&c.method==='select')?.args[0])).not.toMatch(/included_ids|evidence_ids|^.*(?:^|,)payload(?:,|$)/);
+ });
+ it.each(['tenant_id','user_id','conversation_id','snapshot_tenant','snapshot_user','snapshot_conversation'])('rejects mismatched %s',async key=>{
+  const {loadSavedCustomerResultContext}=await import('../../supabase/functions/bloom-assist/context-builder');
+  expect(await loadSavedCustomerResultContext(referenceClient({[key]:'other'}).client,scope)).toBeNull();
+ });
+ it('does not load references without analysis permission or an owned conversation',async()=>{
+  const {loadSavedCustomerResultContext}=await import('../../supabase/functions/bloom-assist/context-builder');
+  const denied=referenceClient({}, {},false);expect(await loadSavedCustomerResultContext(denied.client,scope)).toBeNull();expect(denied.calls).toEqual([]);
+  expect(await loadSavedCustomerResultContext(referenceClient({}, {user_id:'other'}).client,scope)).toBeNull();
+  expect(await loadSavedCustomerResultContext(referenceClient({}, {status:'deleted'}).client,scope)).toBeNull();
+ });
+ it('retains only validated spending source periods and thresholds, not extra customer data',async()=>{
+  const {loadSavedCustomerResultContext}=await import('../../supabase/functions/bloom-assist/context-builder');
+  const source={report_id:CUSTOMER,period_start:'2025-01-01',period_end:'2025-12-31',minimum_spend:100,minimum_transactions:2};
+  const result=await loadSavedCustomerResultContext(referenceClient({trail:[{...step,rule:{mode:'purchased'},reported_spending:{...source,email:'never-include@example.com'}}]}).client,scope);
+  expect(result).toContain(JSON.stringify(source));expect(result).not.toContain('never-include');
+  expect(result).toContain('explicit purchased criteria with its report dates');
+  for(const invalid of [{period_start:'2025-02-30'},{period_end:'2024-12-31'},{minimum_spend:-1},{minimum_transactions:1.5},{report_id:'invented'}]){
+   expect(await loadSavedCustomerResultContext(referenceClient({trail:[{...step,reported_spending:{...source,...invalid}}]}).client,scope)).toBeNull();
+  }
+ });
+ it('fails softly for invalid rules, missing client, failed lookup and timeout',async()=>{
+  const {loadSavedCustomerResultContext}=await import('../../supabase/functions/bloom-assist/context-builder');
+  expect(await loadSavedCustomerResultContext(referenceClient({trail:[{...step,rule:{mode:'invented'}}]}).client,scope)).toBeNull();
+  expect(await loadSavedCustomerResultContext(undefined,scope)).toBeNull();
+  const failed={rpc:async()=>{throw Error('offline');}} as unknown as PersistenceClient;
+  expect(await loadSavedCustomerResultContext(failed,scope)).toBeNull();
+  const slow={rpc:()=>new Promise(()=>{})} as unknown as PersistenceClient;
+  expect(await loadSavedCustomerResultContext(slow,scope,1)).toBeNull();
+ });
+});

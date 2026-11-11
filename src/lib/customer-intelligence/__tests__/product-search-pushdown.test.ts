@@ -314,15 +314,93 @@ it('passes actual YTD coverage through the saved-audience tool result',async()=>
  const ytd={...report,id:'ytd',source_period_start:'2026-01-01',source_period_end:'2026-10-14'};
  const row={...events[0],import_id:'ytd',raw_data:{...(events[0].raw_data as object),period_start:ytd.source_period_start,period_end:ytd.source_period_end}};
  const saved={version:1,id:'saved',tenant_id:T,user_id:'u',conversation_id:'c',included_ids:['buyer'],excluded_ids:[],unknown_ids:[],reasons:{buyer:'matching_purchase'},evidence_ids:{},anchors:{},trail:[]};
+ const insert=vi.fn(async()=>({error:null}));
  const client={rpc:vi.fn(async(name:string)=>({data:name==='customer_intelligence_summary_fingerprint'?'fp':true,error:null})),from:(table:string)=>{
   let ids:string[]|undefined;
   const q={select:()=>q,eq:()=>q,neq:()=>q,is:()=>q,lte:()=>q,order:()=>q,limit:()=>q,
    in:(_column:string,value:string[])=>{ids=value;return q;},
    range:async()=>({data:table==='customer_intelligence_imports'?[ytd]:table==='crm_customers'?[{id:'buyer',first_name:'Buyer'}]:table==='customer_intelligence_source_events'&&ids?.includes('buyer')?[row]:[],error:null}),
    maybeSingle:async()=>({data:table==='bloom_customer_sets'?{id:'saved',payload:saved}:table==='customer_intelligence_verified_summaries'?{fingerprint:'fp'}:{id:'c'},error:null}),
-   insert:async()=>({error:null})};return q;
+   insert};return q;
  }};
  const result=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',start_date:'2026-01-01',end_date:'2026-12-31'},label:'Bought again'}, {tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext);
  expect(result.data).toMatchObject({parent_id:'saved',included_count:1,source_periods:[{start:'2026-01-01',end:'2026-10-14'}]});
  expect((result.data as {coverage_note:string}).coverage_note).toContain('actual report end date');
+ insert.mockClear();
+ const ranked=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',department:'Holiday',start_date:'2026-01-01',end_date:'2026-12-31'},label:'Rank saved wreath buyers'}, {tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext,{limit:1});
+ expect(ranked.data).toMatchObject({kind:'customer_ranking',set_id:'saved',eligible_customers:1,shown_customers:1,source_periods:[{start:'2026-01-01',end:'2026-10-14'}]});
+ expect(insert).not.toHaveBeenCalled();expect(saved.included_ids).toEqual(['buyer']);
+ // Read-only rankings must work even when a normal exploration has reached its step cap.
+ Object.assign(saved,{trail:Array.from({length:30},(_,i)=>({set_id:`step-${i}`,rule:{mode:'purchased'},label:'Earlier search'})),
+   anchors:{buyer:[Date.parse('2026-01-01T00:00:00Z')]}});
+ const snapshotBefore=JSON.stringify(saved);
+ const context={tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext;
+ for(const focus of [{department:'Holiday'},{category:'Holiday'}]){
+   const rankedAtCap=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',...focus,start_date:'2026-01-01',end_date:'2026-12-31'},label:'Rank capped group'},context,{limit:1});
+   expect(rankedAtCap.data).toMatchObject({kind:'customer_ranking',set_id:'saved',scanned_customers:1,source_periods:[{start:'2026-01-01',end:'2026-10-14'}]});
+ }
+ // Existing dated anchors are still required and honored, even though annual facts cannot prove a within-days purchase.
+ const relative=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',department:'Holiday',within_days:10},label:'Relative ranking'},context,{limit:1});
+ expect(relative.data).toMatchObject({set_id:'saved',scanned_customers:1,eligible_customers:0,unranked_count:1});
+ await expect(exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased'},label:'Another saved step'},context)).rejects.toThrow('30 steps');
+ expect(insert).not.toHaveBeenCalled();expect(JSON.stringify(saved)).toBe(snapshotBefore);
+});
+
+describe('saved basket inspection preserves the original purchase step',()=>{
+ async function basket(params:Record<string,unknown>={},size=2){
+  const {analyzeCustomerBasket}=await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+  const ids=size?['buyer',...Array.from({length:size-1},(_,i)=>`member-${i}`)]:[];
+  const saved={version:1,id:'inactive',tenant_id:T,user_id:'u',conversation_id:'c',timezone:'UTC',included_ids:ids,excluded_ids:[],unknown_ids:[],reasons:{},evidence_ids:{},anchors:{},trail:[
+   {set_id:'wreaths',rule:{mode:'purchased',product:'wreath',start_date:'2025-01-01',end_date:'2025-12-31'}},
+   {set_id:'spending',rule:{mode:'purchased'},reported_spending:{report_id:'report',period_start:'2025-01-01',period_end:'2025-12-31',minimum_spend:100,minimum_transactions:1}},
+   {set_id:'inactive',rule:{mode:'not_purchased',start_date:'2026-01-01',end_date:'2026-12-31'}}]};
+  const reads:Array<{table:string;ids:string[]|undefined}>=[];
+  const insert=vi.fn(async()=>{throw Error('Inspection must never save a new group');});
+  const client={rpc:vi.fn(async(name:string)=>({data:name==='customer_intelligence_summary_fingerprint'?'fp':name==='bloom_summary_evidence_scope'?{customer_ids:['buyer'],invalid_rows:0}:true,error:null})),from:(table:string)=>{
+   let selected:string[]|undefined;
+   const result=()=>{
+    reads.push({table,ids:selected});
+    if(['customer_intelligence_source_events','customer_purchase_line_items','crm_customers'].includes(table)&&!selected)throw Error('Unbounded company read');
+    return {data:table==='crm_customers'?selected!.map(id=>({id})):table==='customer_intelligence_imports'?[report]:table==='customer_intelligence_source_events'?events.filter(e=>selected!.includes(e.customer_id!)):[],error:null};
+   };
+   const q={select:()=>q,eq:()=>q,neq:()=>q,is:()=>q,lte:()=>q,order:()=>q,limit:()=>q,
+    in:(_c:string,value:string[])=>{selected=value;return q;},range:async()=>result(),then:(resolve:(v:ReturnType<typeof result>)=>unknown)=>Promise.resolve(result()).then(resolve),
+    maybeSingle:async()=>({data:table==='bloom_customer_sets'?{id:saved.id,payload:saved}:table==='customer_intelligence_verified_summaries'?{fingerprint:'fp'}:{id:'c'},error:null}),insert};return q;
+  }};
+  const result=await analyzeCustomerBasket(params as import('../../../../supabase/functions/bloom-assist/types').JsonObject,{tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext);
+  return {result,reads,insert};
+ }
+ it('returns only 2025 wreaths for the original step, with exact denominator and report details',async()=>{
+  const {result,insert}=await basket({matching_step_id:'wreaths'});
+  expect(result.data).toMatchObject({set_id:'inactive',denominator:2,total_products:1,matching_step_id:'wreaths',criteria:{product:'wreath',start_date:'2025-01-01'},source_periods:[{start:'2025-01-01',end:'2025-12-31'}],rows:[{product:'Wreath',customers:1,percent:50,details:[{product_code:'W1',quantity:1,net_amount:20,currency:'CAD',evidence_kind:'period_summary',period_end:'2025-12-31'}]}]});
+  expect(insert).not.toHaveBeenCalled();
+ });
+ it('keeps the default all-product basket and never scans customers outside even a >1000 saved group',async()=>{
+  const {result,reads}=await basket({},1001);
+  expect(result.data).toMatchObject({set_id:'inactive',denominator:1001,total_products:4,criteria:null});
+  const summaries=reads.filter(r=>r.table==='customer_intelligence_source_events');
+  expect(summaries).toHaveLength(11);expect(summaries.every(r=>r.ids&&r.ids.length<=100)).toBe(true);
+ });
+ it('keeps annual-only November matches unknown instead of claiming zero purchases',async()=>{
+  const {result}=await basket({criteria:{mode:'purchased',product:'wreath',start_date:'2025-11-01',end_date:'2025-11-30'}});
+  expect(result.data).toMatchObject({denominator:2,total_products:0,unknown_count:2});
+ });
+ it('keeps verified out-of-period buyers as known nonmatches, not unknown history',async()=>{
+  const {result,reads}=await basket({criteria:{mode:'purchased',product:'wreath',start_date:'2026-01-01',end_date:'2026-12-31'}});
+  expect(result.data).toMatchObject({denominator:2,total_products:0,unknown_count:1,source_periods:[]});
+  expect(reads.filter(read=>read.table==='customer_intelligence_source_events')).toEqual([]);
+  const single=await basket({criteria:{mode:'purchased',start_date:'2026-01-01',end_date:'2026-12-31'}},1);
+  expect(single.result.data).toMatchObject({denominator:1,total_products:0,unknown_count:0});
+ });
+ it('rejects changed or ambiguous step meaning rather than silently widening it',async()=>{
+  await expect(basket({matching_step_id:'spending'})).rejects.toThrow('explicit purchased criteria with start_date and end_date');
+  await expect(basket({matching_step_id:'missing'})).rejects.toThrow('not part');
+  await expect(basket({matching_step_id:'inactive'})).rejects.toThrow('positive purchase');
+  await expect(basket({matching_step_id:'wreaths',criteria:{mode:'purchased'}})).rejects.toThrow('not both');
+ });
+ it('does not read any company facts for an empty saved group',async()=>{
+  const {result,reads}=await basket({},0);
+  expect(result.data).toMatchObject({set_id:'inactive',denominator:0,total_products:0});
+  expect(reads).toEqual([]);
+ });
 });
