@@ -56,3 +56,33 @@ describe("hero photo discoverability", () => {
     ).toBeTruthy();
   });
 });
+
+describe("properties panel heading hierarchy", () => {
+  it("uses prominent dark section titles above the Graphic Hero controls", () => {
+    const block = {
+      id: "graphic",
+      type: "graphic-hero",
+      label: "Graphic Hero",
+      order: 0,
+      visible: true,
+    } as StudioBlock;
+    render(
+      <BlockPropertiesPanel
+        campaignImageGallery={[]}
+        campaignName="Winter"
+        campaignType="newsletter"
+        selectedBlockId={block.id}
+        blocks={[block]}
+        open
+        onClose={() => {}}
+        onUpdateBlockField={() => {}}
+      />,
+    );
+    const heading = screen.getByText("Image", { selector: ".MuiTypography-root" });
+    expect(heading).toHaveStyle({
+      fontSize: "14px",
+      fontWeight: "750",
+      color: "var(--joy-palette-neutral-800, #171A1C)",
+    });
+  });
+});

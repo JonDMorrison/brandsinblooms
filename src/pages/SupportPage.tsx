@@ -16,6 +16,7 @@ import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
 import { TicketConversation } from "@/components/bloomSupport/TicketConversation";
+import { clientName as deskClientName } from "@/components/bloomSupport/desk/statusWords";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { StatusChip } from "@/components/bloomSupport/chips";
 import { bloomSupport, type TicketSummary } from "@/lib/bloomSupport/api";
@@ -33,6 +34,15 @@ function shortAge(iso: string, now = new Date()): string {
   if (hours < 24) return `${hours}h`;
   const days = differenceInCalendarDays(now, date);
   return days < 7 ? `${days}d` : format(date, "MMM d");
+}
+
+/** The client name is already shown below the issue; don't repeat a "Horsford:" prefix. */
+function requestTitle(t: TicketSummary): string {
+  const subject = t.subject.trim();
+  const firstWord = t.account?.name?.trim().split(/\s+/)[0];
+  if (!firstWord || firstWord.length < 4) return subject;
+  const prefix = firstWord.toLowerCase() + ":";
+  return subject.toLowerCase().startsWith(prefix) ? subject.slice(prefix.length).trim() : subject;
 }
 
 /** A request is waiting on us when it needs an owner's decision or the client wrote last. */
@@ -203,11 +213,11 @@ const SupportPage = () => {
                   <Typography level="title-md" sx={{ flex: 1 }}>{staff ? "Recent requests" : "Your requests"}</Typography>
                   <Chip size="sm" variant="soft" color="neutral">{mine.data.length}</Chip>
                 </Stack>
-                <Stack role="list" aria-label={staff ? "Recent client conversations" : "Your support requests"} spacing={0.5} sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 1 }}>
+                <Stack role="list" aria-label={staff ? "Recent client conversations" : "Your support requests"} spacing={0} sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 0 }}>
                   {orderedRequests.map((t) => {
                     const active = selected === t.id;
                     const attention = needsAttention(t);
-                    const name = staff ? t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client" : t.subject;
+                    const name = staff ? deskClientName(t) : t.subject;
                     return (
                       <Box key={t.id} role="listitem">
                         <Box
@@ -223,32 +233,37 @@ const SupportPage = () => {
                           sx={{
                             display: "block",
                             width: "100%",
-                            px: 1.5,
-                            py: 1.5,
+                            px: 2,
+                            py: 1.75,
                             cursor: "pointer",
                             border: 0,
-                            borderRadius: "md",
-                            bgcolor: active ? "background.surface" : "transparent",
-                            boxShadow: active ? "sm" : "none",
-                            position: "relative",
+                            borderBottom: "1px solid",
+                            borderBottomColor: "neutral.200",
+                            borderLeft: "3px solid",
+                            borderLeftColor: active ? "primary.500" : "transparent",
+                            borderRadius: 0,
+                            bgcolor: active ? "neutral.100" : "background.surface",
                             color: "inherit",
                             font: "inherit",
                             textAlign: "left",
-                            transition: "background-color 120ms ease, box-shadow 120ms ease",
-                            "&::before": active
-                              ? { content: '""', position: "absolute", left: 0, top: 12, bottom: 12, width: 3, borderRadius: 3, bgcolor: "primary.500" }
-                              : undefined,
-                            "&:hover": { bgcolor: active ? "background.surface" : "background.level2" },
+                            transition: "background-color 120ms ease",
+                            "&:hover": { bgcolor: active ? "neutral.100" : "neutral.50" },
                             "&:focus-visible": { outline: "2px solid", outlineColor: "primary.500", outlineOffset: -2 },
                           }}
                         >
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                            {attention ? <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "primary.500", flex: "0 0 auto" }} /> : null}
-                            <Typography level="title-sm" noWrap sx={{ flex: 1, minWidth: 0, fontWeight: attention ? "lg" : "md" }}>{name}</Typography>
-                            <Typography level="body-xs" textColor="text.tertiary" sx={{ flex: "0 0 auto" }} title={new Date(t.updated_at).toLocaleString()}>{shortAge(t.updated_at)}</Typography>
+                          <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ minWidth: 0 }}>
+                            {attention ? <Box aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "primary.500", flexShrink: 0, mt: 0.75 }} /> : null}
+                            <Typography level="title-sm" title={t.subject} sx={{
+                              flex: 1, minWidth: 0, fontWeight: attention ? "lg" : "md", lineHeight: 1.35,
+                              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                              overflow: "hidden", textOverflow: "ellipsis",
+                            }}>
+                              {staff ? requestTitle(t) : name}
+                            </Typography>
+                            <Typography level="body-xs" textColor="text.tertiary" sx={{ flexShrink: 0, pt: 0.25 }} title={new Date(t.updated_at).toLocaleString()}>{shortAge(t.updated_at)}</Typography>
                           </Stack>
-                          {staff ? <Typography level="body-sm" textColor="text.secondary" noWrap sx={{ mt: 0.5 }}>{t.subject}</Typography> : null}
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                          {staff ? <Typography level="body-xs" textColor="text.secondary" noWrap sx={{ mt: 0.75 }}>{name}</Typography> : null}
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
                             <Typography level="body-xs" textColor="text.tertiary">#{t.number}</Typography>
                             <StatusChip status={t.status} audience={staff ? "staff" : "client"} />
                             {staff && attention && t.status !== "needs_owner" ? (

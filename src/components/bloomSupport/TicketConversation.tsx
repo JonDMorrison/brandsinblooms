@@ -25,8 +25,9 @@ import { bloomSupport, PRODUCT_LABEL, WAITING_LABEL, type TicketDetail, type Tic
 import { statusPatch } from "./statusPatch";
 import { engineeringLabel, fixStage } from "./labels";
 import { StatusChip } from "./chips";
-import { asSentence, humanizeNextAction, humanizeStaffNote } from "../../../supabase/functions/_shared/bloom-support/notes";
+import { asSentence, humanizeNextAction, staffNotePresentation } from "../../../supabase/functions/_shared/bloom-support/notes";
 import { useAskDialog } from "./useAskDialog";
+import { clientName as deskClientName } from "./desk/statusWords";
 import { BloomRecommends } from "./BloomRecommends";
 import type { NextAction } from "../../../supabase/functions/_shared/bloom-support/next-step";
 import { ATTACHMENT_ACCEPT, checkAttachments, MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
@@ -88,79 +89,115 @@ const segmentSx = {
 const wideOnly = { display: { xs: "none", sm: "inline" } } as const;
 const actionSx = { borderRadius: "md", "& .MuiButton-startDecorator": { mr: { xs: 0, sm: 0.75 } } } as const;
 
-/** Readable text width for every bubble and note, so the thread keeps one calm column. */
-const BUBBLE_MAX = "min(70ch, 85%)";
+/**
+ * The ticket summary, message history and reply composer must share the
+ * same left edge. The previous 820px centred columns left a large blank
+ * gutter in the Support desk and disconnected the reply from the thread.
+ * Allow a wider desk while keeping individual messages readable.
+ */
+const conversationColumnSx = {
+  width: "100%",
+  maxWidth: 1200,
+  minWidth: 0,
+  boxSizing: "border-box",
+  ml: 0,
+  mr: "auto",
+} as const;
 
+/**
+ * Show support correspondence as a readable activity feed.
+ * Each entry has its own visible boundary and a consistent sender/time header.
+ * Unlike chat bubbles, staff and client updates share the same reading edge.
+ */
 function Message({ m, clientName, onRequest }: { m: TicketMessage; clientName: string; onRequest?: string }) {
   const fromClient = m.author_kind === "client";
   const internal = m.visibility === "internal";
   const bloom = m.author_kind === "bloom";
   const who = bloom ? "Bloom" : m.author_kind === "system" ? "System" : m.author?.name ?? (fromClient ? clientName : "Staff");
-  const meta = [onRequest, when(m.created_at), !internal && !fromClient && m.delivery && m.delivery !== "none" ? deliveryText(m.delivery) : null].filter(Boolean).join(" · ");
-  const body = internal && bloom ? humanizeStaffNote(m.body) : m.body;
+  const delivery = !internal && !fromClient && m.delivery && m.delivery !== "none" ? deliveryText(m.delivery) : null;
+  const body = m.body;
+  const note = internal ? staffNotePresentation(body) : null;
 
-  if (internal) {
-    return (
-      <Sheet
-        variant="soft"
-        color="warning"
-        sx={{ maxWidth: BUBBLE_MAX, mx: "auto", px: 2, py: 1.5, borderRadius: "lg", border: "1px dashed", borderColor: "warning.outlinedBorder" }}
-      >
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
-          <Chip size="sm" variant="outlined" color="warning" startDecorator={<Lock size={12} aria-hidden />} sx={{ bgcolor: "background.surface" }}>Internal</Chip>
-          <Typography level="title-sm" textColor="text.primary" startDecorator={bloom ? <Sprout size={14} aria-hidden /> : undefined}>{bloom ? "What Bloom found" : who}</Typography>
-          <Typography level="body-xs" textColor="text.tertiary">{meta} · only staff can see this</Typography>
-        </Stack>
-        <Typography level="body-sm" textColor="text.primary" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
-      </Sheet>
-    );
-  }
   return (
-    <Stack direction={fromClient ? "row" : "row-reverse"} spacing={1.25} alignItems="flex-end">
-      <Avatar
-        size="sm"
-        variant={fromClient ? "soft" : "solid"}
-        color={fromClient ? "neutral" : "primary"}
-        aria-hidden
-        sx={{ flex: "0 0 auto", "--Avatar-size": "28px", fontSize: "xs" }}
-      >
-        {bloom ? <Sprout size={14} /> : initials(who)}
-      </Avatar>
-      <Stack spacing={0.5} sx={{ minWidth: 0, maxWidth: BUBBLE_MAX, alignItems: fromClient ? "flex-start" : "flex-end" }}>
-        <Typography level="body-xs" textColor="text.tertiary" sx={{ px: 0.5 }}>
-          <Typography fontWeight="lg" textColor="text.secondary">{who}</Typography>{meta ? ` · ${meta}` : ""}
-        </Typography>
-        <Box
-          sx={{
-            px: 2,
-            py: 1.25,
-            borderRadius: "xl",
-            borderBottomLeftRadius: fromClient ? "sm" : "xl",
-            borderBottomRightRadius: fromClient ? "xl" : "sm",
-            bgcolor: fromClient ? "neutral.softBg" : "primary.softBg",
-            color: "text.primary",
-          }}
+    <Sheet
+      data-testid="bloom-support-message"
+      data-message-visibility={internal ? "internal" : "public"}
+      variant="outlined"
+      color="neutral"
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        ml: 0,
+        mr: "auto",
+        px: { xs: 2, sm: 2.5 },
+        py: 2,
+        border: "1px solid",
+        borderColor: "neutral.200",
+        borderRadius: "lg",
+        bgcolor: internal ? "background.level1" : fromClient ? "background.surface" : "neutral.50",
+        boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+      }}
+    >
+      <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ minWidth: 0, mb: 1.5, pb: 1.25, borderBottom: "1px solid", borderColor: "neutral.200" }}>
+        <Avatar
+          size="sm"
+          variant="soft"
+          color={fromClient || internal ? "neutral" : "primary"}
+          aria-hidden
+          sx={{ flex: "0 0 auto", "--Avatar-size": "32px", fontSize: "xs" }}
         >
-          {fromClient && Array.from(body).length > 700 ? (
-            <>
-              <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>
-                {Array.from(body).slice(0, 220).join("").trimEnd()}…
+          {bloom ? <Sprout size={16} /> : initials(who)}
+        </Avatar>
+        <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography level="title-sm" textColor="text.primary">{who}</Typography>
+            {internal ? (
+              <Chip size="sm" variant="outlined" color="neutral" startDecorator={<Lock size={12} aria-hidden />}>Internal · staff only</Chip>
+            ) : (
+              <Typography level="body-xs" textColor="text.tertiary">
+                {fromClient ? "Customer" : bloom ? "Bloom reply" : "Team reply"}
               </Typography>
-              <Box component="details" sx={{ mt: 1, "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", color: "primary.700", py: 0.5 } }}>
-                <Box component="summary">Read full original message</Box>
-                <Typography level="body-sm" textColor="inherit" sx={{ mt: 1, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
-              </Box>
-            </>
-          ) : (
-            <Typography level="body-md" textColor="inherit" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{body}</Typography>
-          )}
-        </Box>
+            )}
+          </Stack>
+          {onRequest && <Typography level="body-xs" textColor="text.tertiary">{onRequest}</Typography>}
+          {delivery && <Typography level="body-xs" textColor="text.tertiary">{delivery}</Typography>}
+        </Stack>
+        <Typography level="body-xs" textColor="text.tertiary" sx={{ whiteSpace: "nowrap", pt: 0.25, flexShrink: 0 }}>
+          {when(m.created_at)}
+        </Typography>
       </Stack>
-    </Stack>
+      <Box sx={{ pl: { xs: 0, sm: "44px" }, minWidth: 0 }}>
+        {internal ? (
+          <>
+            <Typography level="body-md" textColor="text.primary" sx={{ maxWidth: "82ch", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>
+              {note?.preview}
+            </Typography>
+            {note?.collapsed ? (
+              <Box component="details" sx={{ mt: 1.25, "& > summary": { cursor: "pointer", color: "primary.700", fontWeight: 600, py: 0.5 } }}>
+                <Box component="summary">Read full technical note</Box>
+                <Typography level="body-sm" textColor="text.secondary" sx={{ mt: 1, whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>{note.original}</Typography>
+              </Box>
+            ) : null}
+          </>
+        ) : Array.from(body).length > 380 ? (
+          <>
+            <Typography level="body-md" textColor="text.primary" sx={{ maxWidth: "82ch", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>
+              {Array.from(body).slice(0, 260).join("").trimEnd()}…
+            </Typography>
+            <Box component="details" sx={{ mt: 1.25, "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", color: "primary.700", py: 0.5 } }}>
+              <Box component="summary">{fromClient ? "Read full original message" : "Read full update"}</Box>
+              <Typography level="body-sm" textColor="text.primary" sx={{ mt: 1, whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>{body}</Typography>
+            </Box>
+          </>
+        ) : (
+          <Typography level="body-md" textColor="text.primary" sx={{ maxWidth: "82ch", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>{body}</Typography>
+        )}
+      </Box>
+    </Sheet>
   );
 }
 
-export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket, backOn = "always", actionHint = null }: {
+export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpenTicket, backOn = "always", actionHint = null, initialVisibility = "public" }: {
   ticketId: string;
   me: Whoami;
   onBack: () => void;
@@ -170,11 +207,13 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   backOn?: "always" | "compact";
   /** Action pre-selected by a staff email link; the live ticket decides whether it still applies. */
   actionHint?: NextAction | null;
+  /** A staff-only deep link may preselect a private note, never send automatically. */
+  initialVisibility?: Visibility;
 }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["bloom-support", "ticket", ticketId], queryFn: () => bloomSupport.getTicket(ticketId), refetchInterval: 20_000 });
   const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState<Visibility>("public");
+  const [mode, setMode] = useState<Visibility>(initialVisibility);
   const [error, setError] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -226,13 +265,13 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
   });
 
   const t = q.data;
-  if (q.isLoading) return <Stack spacing={2} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", p: 3 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
+  if (q.isLoading) return <Stack spacing={2} sx={{ ...conversationColumnSx, p: 3 }}><Skeleton variant="text" level="h3" /><Skeleton variant="rectangular" height={320} sx={{ borderRadius: "lg" }} /></Stack>;
   if (q.error) return <Alert color="danger" sx={{ m: 2 }}>{(q.error as Error).message}</Alert>;
   if (!t) return null;
 
   // The thread can include messages from other requests in the same conversation; label them.
   const otherNumbers = new Map(t.conversation_tickets.map((c) => [c.id, c.number]));
-  const clientName = t.account?.name ?? t.requester?.name ?? t.requester?.email ?? "Unknown client";
+  const clientName = deskClientName(t);
   const b = banner(t);
   const eng = t.engineering as { id?: string; title?: string; status?: string; pr_url?: string | null; pr_number?: number | null; eligibility?: { eligible?: boolean; reasons?: string[] } | null } | null | undefined;
   const fix = eng?.status ? fixStage(eng.status) : null;
@@ -348,7 +387,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       </Stack>
 
       <Box sx={{ flex: 1, maxWidth: "100%", minWidth: 0, minHeight: 0, overflow: "auto" }}>
-        <Stack spacing={3} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto", px: { xs: 2, md: 4 }, py: 3 }}>
+        <Stack data-testid="bloom-support-conversation-content" spacing={3} sx={{ ...conversationColumnSx, px: { xs: 2, md: 4 }, py: 3 }}>
           {/* One readable summary. Detailed evidence and routine updates stay available below. */}
           <Sheet variant="outlined" sx={{ borderRadius: "lg", bgcolor: "background.surface", overflow: "hidden", boxShadow: "xs" }}>
             <Stack spacing={1.5} sx={{ px: { xs: 2, md: 2.5 }, py: 2 }}>
@@ -429,22 +468,28 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
             </Sheet>
           )}
 
-          <Stack spacing={3} component="ol" aria-label="Conversation" sx={{ listStyle: "none", m: 0, p: 0 }}>
-            {mainMessages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} /></Box>)}
-            {routineUpdates.length > 0 && (
-              <Box component="li">
-                <Sheet variant="soft" color="neutral" sx={{ p: 1.5, borderRadius: "lg" }}>
-                  <Box component="details" sx={{ "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", py: 0.5 } }}>
-                    <Box component="summary">Bloom activity ({routineUpdates.length} {routineUpdates.length === 1 ? "update" : "updates"})</Box>
-                    <Stack spacing={2} sx={{ mt: 1.5 }}>
-                      {routineUpdates.map((m) => (
-                        <Message key={m.id} m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} />
-                      ))}
-                    </Stack>
-                  </Box>
-                </Sheet>
-              </Box>
-            )}
+          <Stack spacing={1.5} component="section" aria-label="Conversation history">
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ pb: 1.25, borderBottom: "1px solid", borderColor: "neutral.200" }}>
+              <Typography level="title-md">Conversation</Typography>
+              <Typography level="body-xs" textColor="text.tertiary">{t.messages.length} updates</Typography>
+            </Stack>
+            <Stack spacing={2.5} component="ol" aria-label="Conversation" sx={{ listStyle: "none", m: 0, p: 0 }}>
+              {mainMessages.map((m) => <Box component="li" key={m.id}><Message m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} /></Box>)}
+              {routineUpdates.length > 0 && (
+                <Box component="li">
+                  <Sheet variant="outlined" color="neutral" sx={{ p: 1.5, borderRadius: "lg", borderColor: "neutral.200", bgcolor: "background.level1" }}>
+                    <Box component="details" sx={{ "& > summary": { cursor: "pointer", fontWeight: 600, fontSize: "sm", py: 0.5 } }}>
+                      <Box component="summary">Bloom activity ({routineUpdates.length} {routineUpdates.length === 1 ? "update" : "updates"})</Box>
+                      <Stack spacing={2} sx={{ mt: 1.5 }}>
+                        {routineUpdates.map((m) => (
+                          <Message key={m.id} m={m} clientName={clientName} onRequest={m.ticket_id && m.ticket_id !== t.id ? `On request #${otherNumbers.get(m.ticket_id) ?? "other"}` : undefined} />
+                        ))}
+                      </Stack>
+                    </Box>
+                  </Sheet>
+                </Box>
+              )}
+            </Stack>
           </Stack>
 
           {t.attachments.length > 0 && (
@@ -473,8 +518,8 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
       </Box>
 
       {canWrite && !closed && (
-        <Box sx={{ flex: "0 0 auto", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "1px solid", borderColor: "divider", bgcolor: "background.surface", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
-          <Stack spacing={1} sx={{ width: "100%", maxWidth: 820, minWidth: 0, boxSizing: "border-box", mx: "auto" }}>
+        <Box sx={{ flex: "0 0 auto", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", borderTop: "2px solid", borderColor: "neutral.200", bgcolor: "background.level1", boxShadow: "0 -4px 14px rgba(15,23,42,0.05)", px: { xs: 2, md: 4 }, pt: 1.5, pb: 2 }}>
+          <Stack data-testid="bloom-support-conversation-composer" spacing={1} sx={conversationColumnSx}>
             {error ? <Alert role="alert" size="sm" variant="soft" color="danger">{error}</Alert> : null}
             {replyError ? (
               <Alert id="conversation-reply-error" role="alert" size="sm" variant="soft" color="danger">
@@ -510,11 +555,11 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
               sx={{
                 borderRadius: "lg",
                 overflow: "hidden",
-                bgcolor: internalMode ? "warning.softBg" : "background.surface",
-                borderColor: internalMode ? "warning.outlinedBorder" : "neutral.outlinedBorder",
-                borderStyle: internalMode ? "dashed" : "solid",
+                bgcolor: internalMode ? "background.level1" : "background.surface",
+                borderColor: "neutral.outlinedBorder",
+                borderStyle: "solid",
                 transition: "border-color 120ms ease, box-shadow 120ms ease",
-                "&:focus-within": { borderColor: internalMode ? "warning.400" : "primary.400", boxShadow: "sm" },
+                "&:focus-within": { borderColor: "primary.400", boxShadow: "sm" },
               }}
             >
               <Textarea
@@ -524,7 +569,7 @@ export function TicketConversation({ ticketId, me, onBack, onShowDetails, onOpen
                 value={draft}
                 disabled={replyLocked}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder={internalMode ? "Add an internal note. Only staff will see this." : `Reply to ${t.requester?.name ?? clientName}…`}
+                placeholder={internalMode ? "What changed? What happens next? Add technical evidence below if needed. Only staff will see this." : `Reply to ${t.requester?.name ?? clientName}…`}
                 slotProps={{
                   textarea: {
                     ref: replyInput,

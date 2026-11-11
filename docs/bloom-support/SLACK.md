@@ -30,7 +30,9 @@ These are **historical observations**, not an instruction to activate credential
 
 ## Release-notification policy
 
-Report PR merges as *code merged*, and production deployments as *deployed, not customer verified*. GitHub PR check failures remain visible in GitHub Actions; Slack should alert on failure of a `main` branch check suite with a safe commit-specific link and a stable per-suite event key. Repeat webhook deliveries must not repeat the message. This noise-control policy is delivered by the focused follow-up PR and takes effect only when its production Edge Function is deployed and verified.
+Only announce GitHub pull requests in #bloom-releases when they actually **merge into `main`** and Bloom can select a vetted, relevant category. Do **not** post about dev-branch merges, closed proposals, unclassified PRs, or changes with no safe nontechnical summary. A missing description is grounds for silence, not a generic “update behind the scenes” message. Never copy untrusted titles or descriptions into public Slack. Existing unclassified jobs are also skipped by the Slack sender to avoid delayed filler messages.
+
+A qualifying merge announcement says **code merged, not yet proven live** in a few lines. Production deployment remains **deployed, not customer verified**. GitHub PR check failures remain visible in GitHub Actions; only failed `main` branch checks and production deployment failures generate actionable Slack alerts. Repeat webhook deliveries must not repeat the message. Use Bloom Support ticket evidence to report actual customer verification, and do not imply a fix is working from GitHub alone.
 
 Notify humans on production release failures; do not silently hide these events. Include actionable links and avoid technical wording where possible.
 
@@ -60,3 +62,16 @@ Bloom Support is the source of truth for tickets and feature decisions. BloomSit
 Slack messages should be short, actionable and nontechnical. Do not post customer contacts in public channels or sensitive records in private channels. Do not upgrade Slack, create recurring Work agents, or use GitHub administrator merge overrides to operate this integration.
 
 Tracking: [CRM issue #415](https://github.com/JonDMorrison/brandsinblooms/issues/415).
+
+
+## Major Project welcome invitations from Slack
+
+In the existing private `#bloom-projects` channel, staff may mention Bloom:
+
+> @Bloom send the welcome invitation for Triple Tree
+
+The signed Slack event ingress verifies the workspace, channel and allowlisted staff user ID. The existing Bloom Support worker re-verifies that person's platform-staff identity and calls the signed, **read-only** BloomSites Major Projects lookup. It accepts only one valid project name or code; missing, ambiguous and bulk requests cannot select a recipient. No new Slack app, bot permissions, background agent or scheduler is needed.
+
+Bloom replies in the original thread with a **Review & send invitation** link to the authenticated BloomSites route. The link is not a bearer token or authorization: the CMS must verify the current staff login, exact project, recipient and authorized account-creator role before the separate email-send action. Nothing is emailed merely by mentioning Bloom or opening the link. The invitation uses the standard BloomSuite-branded welcome email and its existing delivery records.
+
+Do not paste recipient emails, API keys or banking information into Slack. If the client has no verified owner address or linked website, correct the Major Project first. A successful Slack reply is evidence of a read-only handoff, **not** email delivery or client activation.

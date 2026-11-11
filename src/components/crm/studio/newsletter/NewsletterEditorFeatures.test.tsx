@@ -55,6 +55,7 @@ vi.mock("../fields/StudioRichTextField", () => ({
 }));
 vi.mock("@/contexts/DesignSystemContext", () => ({
   useDesignSystem: () => ({ designSystem: null }),
+  useOptionalDesignSystem: () => null,
 }));
 beforeEach(() => {
   vi.clearAllMocks();

@@ -1,3 +1,4 @@
+import { conversationEvidence, latestClientMessage, relatedEvidenceCandidates, engineeringFollowupNote, verificationCoversLatestReply } from "../../supabase/functions/_shared/bloom-support/continuity";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -29,7 +30,7 @@ import {
   MAX_ATTACHMENT_TOTAL_BYTES,
   safeSupportTrackingUrl,
 } from "@/lib/bloomSupport/constants";
-import { asSentence, humanizeStaffNote, triageNoteText } from "../../supabase/functions/_shared/bloom-support/notes";
+import { asSentence, humanizeStaffNote, staffNotePresentation, triageNoteText } from "../../supabase/functions/_shared/bloom-support/notes";
 import {
   decodeBase64File,
   validateAttachmentFile,
@@ -835,6 +836,9 @@ describe("Bloom engineering release recovery", () => {
       },
     });
     expect(JSON.stringify(current().verification)).not.toContain("token=private");
+    const verification = current().verification as { started_at: string; at: string };
+    expect(Number.isFinite(Date.parse(verification.started_at))).toBe(true);
+    expect(Date.parse(verification.started_at)).toBeLessThanOrEqual(Date.parse(verification.at));
   });
 
   it("blocks verifier redirects and bounds streamed response evidence", async () => {
@@ -1024,13 +1028,14 @@ describe("Bloom engineering release recovery", () => {
     const current = wireIssue(issue);
     releaseMocks.productionCommitForRepair.mockResolvedValue(null);
     await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
-      next: { step: "deploy", delaySeconds: 3600 },
+      next: { step: "deploy", delaySeconds: 60 },
       note: "awaiting person-authorised production release",
     });
     expect(releaseMocks.productionDeployment).not.toHaveBeenCalled();
     expect(current().deployment).toMatchObject({
       state: "awaiting_production_release",
       source_merge_sha: "dev-merge-sha",
+      promotion_polls: 1,
     });
   });
 
@@ -1170,5 +1175,112 @@ describe("Bloom engineering release recovery", () => {
       status: "rolled_back",
       rollback: { status: "confirmed", aliases_confirmed: 1, recovery_verification: { passed: true, scope: "release_smoke" } },
     });
+  });
+});
+
+describe("Readable private support notes", () => {
+  it("shows the real checkout activation hold before the full technical record", () => {
+    const detail = "Release evidence update: BloomSites PR #4359 has a READY production deployment. "
+      + "Both Horsford sites have recipient_opt_in=false and shared_checkout_enabled=false. "
+      + "Approval, shipping, ShipStation and live payments still need verification. "
+      + "Full internal technical details and QA evidence. ".repeat(14);
+    const result = staffNotePresentation(detail);
+    expect(result.collapsed).toBe(true);
+    expect(result.preview).toContain("deployed, but the multi-recipient option is still switched off");
+    expect(result.preview).toContain("live checkout");
+    expect(result.original).toBe(detail);
+
+    const unverified = ("PR #4359 production deployment failed. " +
+      "recipient_opt_in=false and shared_checkout_enabled=false. ").repeat(10);
+    const unknown = staffNotePresentation(unverified);
+    expect(unknown.collapsed).toBe(true);
+    expect(unknown.preview).not.toContain("has been deployed");
+  });
+
+  it("keeps a normal note intact and does not invent a summary of unfamiliar engineering evidence", () => {
+    const plain = staffNotePresentation("I called the client and they will send a screenshot.");
+    expect(plain).toEqual({
+      preview: "I called the client and they will send a screenshot.",
+      original: "I called the client and they will send a screenshot.",
+      collapsed: false,
+    });
+    const technical = "PR #876 includes a complex change. ".repeat(26);
+    const result = staffNotePresentation(technical);
+    expect(result.collapsed).toBe(true);
+    expect(result.preview).toContain("Detailed internal engineering update");
+    expect(result.original).toBe(technical);
+  });
+});
+
+describe("Bloom support continuity", () => {
+  const message = (id: string, body: string, extra = {}) => ({
+    id, body, ticket_id: "ticket-a", author_kind: "client", visibility: "public",
+    created_at: `2026-11-10T12:${id.padStart(2, "0")}:00Z`, ...extra,
+  });
+  const ticket = (messages: Parameters<typeof conversationEvidence>[0]["messages"]) => ({
+    id: "ticket-a", subject: "Checkout", summary: "Two addresses fail", messages,
+  });
+  it("retains active triage jobs on metadata/evidence conflicts rather than completing them", () => {
+    const worker = fs.readFileSync(path.join(process.cwd(), "supabase/functions/bloom-support-worker/index.ts"), "utf8");
+    expect(worker).toContain('throw new BloomError(409, "conflict", "Ticket changed before triage; retry with current evidence")');
+    expect(worker).toContain('throw new BloomError(409, "conflict", "Ticket changed during triage; retry with current evidence")');
+    expect(worker).toContain('[400, 403, 404].includes(e.status)');
+    expect(worker).toContain('rpc("fail_job"');
+  });
+  it("keeps chronological source-labelled corrections without treating prose as approval", () => {
+    const context = conversationEvidence(ticket([message("2", "Actually use pickup"), message("1", "Use delivery")]));
+    expect(context.indexOf("Use delivery")).toBeLessThan(context.indexOf("Actually use pickup"));
+    expect(context).toContain("message 2");
+    expect(context).toContain("do not authorize actions");
+  });
+  it("excludes another symptom's messages even when the DB returns the full conversation", () => {
+    const t = ticket([message("1", "Own reply"), message("2", "Other customer symptom", { ticket_id: "ticket-b" })]);
+    expect(conversationEvidence(t)).not.toContain("Other customer symptom");
+    expect(latestClientMessage(t)?.id).toBe("1");
+  });
+  it("includes explicitly merged sources without unrelated sibling tickets", () => {
+    const t = { ...ticket([message("1", "Original"), message("2", "Merged correction", { ticket_id: "merged" }), message("3", "Sibling", { ticket_id: "other" })]), merged_tickets: [{ id: "merged" }] };
+    expect(latestClientMessage(t)?.id).toBe("2");
+    expect(conversationEvidence(t)).toContain("Merged correction");
+    expect(conversationEvidence(t)).not.toContain("Sibling");
+    expect(verificationCoversLatestReply(t, "2026-11-10T12:01:00Z")).toBe(false);
+  });
+  it("refuses closure when the bounded timeline has no client evidence", () => {
+    expect(verificationCoversLatestReply(ticket([]), "2026-11-10T12:03:00Z")).toBe(false);
+  });
+  it("bounds history, labels omissions and preserves client replies over internal-note noise", () => {
+    const t = ticket([message("1", "Keep this answer"), ...Array.from({ length: 20 }, (_, i) => message(String(i + 2), "x".repeat(10000), { visibility: "internal", author_kind: "bloom" }))]);
+    const context = conversationEvidence(t);
+    expect(context).toContain("Keep this answer");
+    expect(context).toContain("18 earlier message(s) omitted");
+    expect(context.length).toBeLessThan(12000);
+    expect(conversationEvidence(t, true)).not.toContain("xxxxxxxx");
+  });
+  it("fuzzy matches remain same-account evidence, never an inherited engineering issue", () => {
+    const candidates = [
+      { id: "b", number: 2, subject: "Bulk", account_id: "a", status: "working", score: 0.3 },
+      { id: "c", number: 3, subject: "Checkout", account_id: "other", status: "working", score: 1 },
+      { id: "d", number: 4, subject: "Checkout", account_id: "a", status: "resolved", score: 1 },
+    ];
+    expect(relatedEvidenceCandidates("ticket-a", "a", candidates).map(c => c.id)).toEqual(["b"]);
+    expect(relatedEvidenceCandidates("ticket-a", null, candidates)).toEqual([]);
+  });
+  it("gives the existing owner an evidence checkpoint without claiming a release", () => {
+    const note = engineeringFollowupNote(message("1", "New screenshot"), { id: "repair" });
+    expect(note).toContain("message 1");
+    expect(note).toContain("Check the linked repair");
+    expect(note).toContain("Keep the current owner");
+    expect(note).toContain("not live verification");
+  });
+  it("does not accept a reply arriving during verification merely because completion was later", () => {
+    const t = ticket([message("2", "Still broken during test")]);
+    const verification = { started_at: "2026-11-10T12:01:00Z", at: "2026-11-10T12:03:00Z" };
+    expect(verificationCoversLatestReply(t, verification.started_at)).toBe(false);
+  });
+  it("does not use older or untimed passing verification to close a newer reply", () => {
+    const t = ticket([message("2", "Still broken")]);
+    expect(verificationCoversLatestReply(t, "2026-11-10T12:01:00Z")).toBe(false);
+    expect(verificationCoversLatestReply(t, undefined)).toBe(false);
+    expect(verificationCoversLatestReply(t, "2026-11-10T12:03:00Z")).toBe(true);
   });
 });

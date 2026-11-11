@@ -18,11 +18,12 @@ import Box from "@mui/joy/Box";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, PRODUCT_LABEL, type Whoami } from "@/lib/bloomSupport/api";
 import { deskCardSx } from "./desk/deskStyles";
+import { verifiedHistoricalNotificationFailure } from "./desk/resolvedFailures";
 import { StatusPill } from "./desk/StatusPill";
 import { ADMIN_INBOX_KEYS, adminAudienceLabel, adminInboxNames } from "@/lib/bloomSupport/adminLabels";
 import { useAdminInboxNames } from "./useAdminInboxNames";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
-import { ChevronDown, Inbox, Search } from "lucide-react";
+import { CheckCircle2, ChevronDown, Inbox, Search } from "lucide-react";
 import { splitList, useAskDialog } from "./useAskDialog";
 import { ClientPicker, type PickedClient } from "./ClientPicker";
 import { ChatSpendPanel } from "./ChatSpendPanel";
@@ -574,6 +575,51 @@ export function SettingsPanel({ me }: { me: Whoami }) {
   const staff = useQuery({ queryKey: ["bloom-support", "staff"], queryFn: () => bloomSupport.staff() });
   const keys = useQuery({ queryKey: ["bloom-support", "keys"], queryFn: () => bloomSupport.keys() });
   const jobs = useQuery({ queryKey: ["bloom-support", "jobs", "failed,dead"], queryFn: () => bloomSupport.jobs("failed,dead"), enabled: me.permissions.includes("automation.control") });
+  const successfulJobs = useQuery({
+    queryKey: ["bloom-support", "jobs", "succeeded"],
+    queryFn: () => bloomSupport.jobs("succeeded"),
+    enabled: me.permissions.includes("automation.control") && !!jobs.data?.length,
+    staleTime: 30_000,
+  });
+  const queryClient = useQueryClient();
+  const [clearedCount, setClearedCount] = useState<number | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const safelyClearable = (jobs.data ?? []).filter((job) => verifiedHistoricalNotificationFailure(job, successfulJobs.data ?? []));
+  const allClearable = !!jobs.data?.length && !successfulJobs.isFetching && !successfulJobs.error && safelyClearable.length === jobs.data.length;
+  const clearResolved = useMutation({
+    mutationFn: async (expectedIds: string[]) => {
+      // Re-check the current server state at confirmation time. A fresh,
+      // unrelated failure must never be swallowed by this historic cleanup.
+      const [currentFailed, currentSucceeded] = await Promise.all([
+        bloomSupport.jobs("failed,dead"), bloomSupport.jobs("succeeded"),
+      ]);
+      if (currentFailed.length !== expectedIds.length ||
+        !currentFailed.every((job) => expectedIds.includes(String(job.id)) &&
+          verifiedHistoricalNotificationFailure(job, currentSucceeded))) {
+        throw new Error("The failed-job list changed. Review the updated list before clearing anything.");
+      }
+      let cleared = 0;
+      for (const job of currentFailed) {
+        try {
+          await bloomSupport.controlJob(String(job.id), "cancel");
+          cleared += 1;
+        } catch (error) {
+          throw new Error(`Cleared ${cleared} older notification${cleared === 1 ? "" : "s"}. The rest remain visible. ${error instanceof Error ? error.message : "Refresh before trying again."}`);
+        }
+      }
+      return cleared;
+    },
+    onSuccess: (count) => {
+      setClearError(null);
+      setClearedCount(count);
+      void queryClient.invalidateQueries({ queryKey: ["bloom-support"] });
+    },
+    onError: (error: Error) => {
+      setClearedCount(null);
+      setClearError(error.message);
+      void queryClient.invalidateQueries({ queryKey: ["bloom-support"] });
+    },
+  });
   const [newKey, setNewKey] = useState<string | null>(null);
   const { run, error } = useAction();
   const { ask, dialog } = useAskDialog();
@@ -597,22 +643,78 @@ export function SettingsPanel({ me }: { me: Whoami }) {
       {dialog}
       {error && <Alert color="warning" variant="soft">{error}</Alert>}
 
+      {clearError && <Alert role="alert" color="neutral" variant="soft">{clearError}</Alert>}
+      {jobs.data?.length === 0 && (
+        <Box role="status" aria-live="polite" sx={{
+          ...deskCardSx, px: 4, py: 3, display: "flex", alignItems: "center", gap: 2, bgcolor: "background.surface",
+          "& > svg": clearedCount !== null ? { animation: "bloomClearPop 650ms cubic-bezier(.16,1,.3,1) both" } : {},
+          "@keyframes bloomClearPop": {
+            "0%": { opacity: 0, transform: "scale(0.45)" },
+            "65%": { opacity: 1, transform: "scale(1.18)" },
+            "100%": { opacity: 1, transform: "scale(1)" },
+          },
+          "@media (prefers-reduced-motion: reduce)": { "& > svg": { animation: "none" } },
+        }}>
+          <CheckCircle2 size={28} color="var(--joy-palette-success-700)" aria-hidden style={{ flexShrink: 0 }} />
+          <Stack spacing={0.25}>
+            <Typography level="title-md">All clear</Typography>
+            <Typography level="body-sm" textColor="text.secondary">
+              {clearedCount !== null
+                ? `${clearedCount} historical notification${clearedCount === 1 ? "" : "s"} archived. No Slack messages were resent.`
+                : "No failed automatic steps need attention."}
+            </Typography>
+          </Stack>
+        </Box>
+      )}
       {jobs.data && jobs.data.length > 0 && (
-        <DeskSection title="Automatic steps that failed" count={jobs.data.length} tone="warning">
-          <Typography level="body-md" textColor="text.secondary">Bloom stopped retrying these. Try again once the cause is fixed, or cancel them.</Typography>
+        <DeskSection title="Automatic steps that failed" count={jobs.data.length} tone="primary">
+          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2}>
+            <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+              <Typography level="body-md" textColor="text.secondary">
+                {successfulJobs.isFetching
+                  ? "Checking whether these older failures have already recovered…"
+                  : allClearable
+                    ? "All of these are historical Slack notifications. Later messages succeeded on each affected route. Clearing archives the old failures without resending anything."
+                    : "Only verified historical notifications can be cleared together. Other failures need investigation before retrying or cancelling."}
+              </Typography>
+              {!allClearable && !successfulJobs.isFetching && safelyClearable.length > 0 && (
+                <Typography level="body-sm" textColor="text.tertiary">{safelyClearable.length} historical notification{safelyClearable.length === 1 ? "" : "s"} verified. Other failures remain in the list.</Typography>
+              )}
+            </Stack>
+            {allClearable && (
+              <Button variant="outlined" color="neutral" loading={clearResolved.isPending} disabled={clearResolved.isPending}
+                sx={{ borderRadius: "xl", flex: "0 0 auto" }}
+                onClick={async () => {
+                  const answer = await ask({
+                    title: `Clear all ${safelyClearable.length} old notifications?`,
+                    description: "These old Slack notification failures have newer successful delivery evidence. The failed records will be archived, with an audit of the action. No Slack messages will be resent. This does not mark any customer ticket fixed.",
+                    confirmLabel: "Clear All",
+                  });
+                  if (answer) clearResolved.mutate(safelyClearable.map((job) => String(job.id)));
+                }}>
+                Clear All
+              </Button>
+            )}
+          </Stack>
           <Box sx={{ ...deskCardSx, overflow: "hidden", "& > * + *": { borderTop: "1px solid", borderColor: "neutral.100" } }}>
-            {jobs.data.map((j) => (
-              <Stack key={String(j.id)} direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} sx={{ px: 5, py: 3.5 }}>
-                <Stack sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography level="title-sm">{labelFor(String(j.kind))}</Typography>
-                  {j.last_error ? <Typography level="body-sm" textColor="text.secondary" sx={{ overflowWrap: "anywhere" }}>{String(j.last_error).slice(0, 160)}</Typography> : null}
+            {jobs.data.map((j) => {
+              const verified = verifiedHistoricalNotificationFailure(j, successfulJobs.data ?? []);
+              return (
+                <Stack key={String(j.id)} direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} sx={{ px: 4, py: 2.5 }}>
+                  <Stack sx={{ minWidth: 0, flex: 1 }} spacing={0.25}>
+                    <Typography level="title-sm">{verified ? "Historical notification" : labelFor(String(j.kind))}</Typography>
+                    {j.last_error ? <Typography level="body-sm" textColor="text.secondary" sx={{ overflowWrap: "anywhere" }}>{String(j.last_error).slice(0, 160)}</Typography> : null}
+                    {verified && <Typography level="body-xs" textColor="text.tertiary">The same Slack route delivered successfully afterward. Do not replay this message.</Typography>}
+                  </Stack>
+                  {!verified && (
+                    <Stack direction="row" spacing={1}>
+                      <Button size="sm" variant="soft" color="primary" disabled={clearResolved.isPending} onClick={() => run(() => bloomSupport.controlJob(String(j.id), "retry"))}>Try again</Button>
+                      <Button size="sm" variant="plain" color="neutral" disabled={clearResolved.isPending} onClick={() => run(() => bloomSupport.controlJob(String(j.id), "cancel"))}>Cancel</Button>
+                    </Stack>
+                  )}
                 </Stack>
-                <Stack direction="row" spacing={1}>
-                  <Button size="sm" variant="soft" color="primary" onClick={() => run(() => bloomSupport.controlJob(String(j.id), "retry"))}>Try again</Button>
-                  <Button size="sm" variant="plain" color="neutral" onClick={() => run(() => bloomSupport.controlJob(String(j.id), "cancel"))}>Cancel</Button>
-                </Stack>
-              </Stack>
-            ))}
+              );
+            })}
           </Box>
         </DeskSection>
       )}

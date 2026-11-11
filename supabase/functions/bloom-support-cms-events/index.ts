@@ -23,7 +23,7 @@ async function verify(secret:string,timestamp:string,body:string,signature:strin
 }
 const TYPES=new Set([
   "major_project.created","major_project.stage_changed",
-  "major_project.accepted","major_project.onboarding"
+  "major_project.accepted","major_project.onboarding","major_project.review_ready"
 ]);
 Deno.serve(async(req)=>{
   if(req.method!=="POST")return respond({error:"POST only"},405);

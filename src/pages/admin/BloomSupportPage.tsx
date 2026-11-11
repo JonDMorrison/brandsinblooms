@@ -48,6 +48,7 @@ export default function BloomSupportPage() {
   const navigate = useNavigate();
   const [newOpen, setNewOpen] = useState(false);
   const ticketId = params.get("ticket");
+  const initialVisibility = params.get("compose") === "internal" ? "internal" : "public";
   // Today is the default. A ticket opened from Today (or a deep link) reads as a conversation;
   // the queue keeps its list-and-detail layout.
   const view = parseDeskView(params.get("view"));
@@ -59,6 +60,7 @@ export default function BloomSupportPage() {
   const urgent = useQuery({ queryKey: ["bloom-support", "header", "urgent"], queryFn: () => bloomSupport.pageTickets({ view: "urgent", limit: "1" }), enabled: staff, refetchInterval: 60_000 });
   const go = (next: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
+    if ("ticket" in next && next.ticket !== ticketId) p.delete("compose");
     for (const [k, v] of Object.entries(next)) {
       if (v === null) p.delete(k);
       else p.set(k, v);
@@ -101,7 +103,7 @@ export default function BloomSupportPage() {
       {view === "today" && (
         ticketId ? (
           <Sheet variant="outlined" sx={{ borderRadius: "xl", flex: 1, minHeight: { xs: "70dvh", md: 0 }, overflow: "hidden" }}>
-            <TicketConversation key={ticketId} ticketId={ticketId} me={me.data!} onBack={() => go({ ticket: null })} onShowDetails={() => go({ view: "queue", details: "1" })} onOpenTicket={(id) => go({ view: "today", ticket: id })} />
+            <TicketConversation key={`${ticketId}:${initialVisibility}`} initialVisibility={initialVisibility} ticketId={ticketId} me={me.data!} onBack={() => go({ ticket: null })} onShowDetails={() => go({ view: "queue", details: "1" })} onOpenTicket={(id) => go({ view: "today", ticket: id })} />
           </Sheet>
         ) : (
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -117,7 +119,8 @@ export default function BloomSupportPage() {
           <Box sx={{ minWidth: 0, maxWidth: "100%", minHeight: 0, display: { xs: ticketId ? "block" : "none", md: "block" } }}>
             {ticketId ? (
               <TicketConversation
-                key={ticketId}
+                key={`${ticketId}:${initialVisibility}`}
+                initialVisibility={initialVisibility}
                 ticketId={ticketId}
                 me={me.data!}
                 backOn="compact"

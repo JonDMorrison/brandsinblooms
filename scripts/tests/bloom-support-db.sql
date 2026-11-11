@@ -2664,4 +2664,171 @@ SELECT pg_temp.assert(EXISTS (
 
 \ir bloom-support-email-product-routing.sql
 
+\ir ../../supabase/migrations/20261110143000_bloom_support_client_evidence_version.sql
+-- Incoming evidence invalidates old snapshots, even on an already-working ticket.
+SELECT pg_temp.rpc('create_ticket', jsonb_build_object('actor', :'gail', 'ticket',
+  jsonb_build_object('product','crm','channel','crm','subject','Evidence version contract',
+    'body','Initial report','account_id', :'greenleaf'))) AS evidence_ticket \gset
+SELECT (:'evidence_ticket'::jsonb->>'ticket_id') AS evidence_ticket_id \gset
+UPDATE bloom_support.tickets SET status='working', stage='triage' WHERE id=:'evidence_ticket_id';
+SELECT version AS evidence_before FROM bloom_support.tickets WHERE id=:'evidence_ticket_id' \gset
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_id', :'evidence_ticket_id',
+  'message', '{"body":"New reproduction detail","visibility":"public","idempotency_key":"evidence-contract-reply"}'::jsonb));
+SELECT pg_temp.assert((SELECT version FROM bloom_support.tickets WHERE id=:'evidence_ticket_id') = :evidence_before + 1,
+  'client reply increments working ticket evidence version');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('update_ticket', '{"actor":"%s","ticket_id":"%s","patch":{"version":%s,"next_action":"stale decision"}}'::jsonb)$q$,
+  :'jeff', :'evidence_ticket_id', :'evidence_before'), 'conflict');
+SELECT pg_temp.rpc('add_message', jsonb_build_object('actor', :'gail', 'ticket_id', :'evidence_ticket_id',
+  'message', '{"body":"New reproduction detail","visibility":"public","idempotency_key":"evidence-contract-reply"}'::jsonb));
+SELECT pg_temp.assert((SELECT version FROM bloom_support.tickets WHERE id=:'evidence_ticket_id') = :evidence_before + 1,
+  'idempotent message retry does not invalidate evidence twice');
+
+DO $$
+DECLARE c uuid; t uuid; source uuid; v int; e uuid:=gen_random_uuid();
+BEGIN
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Closure freshness fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,stage)
+ VALUES(c,'crm','crm','Closure freshness fixture','Fixture','working','triage') RETURNING id INTO t;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,stage,merged_into)
+ VALUES(c,'crm','crm','Merged source','Fixture','working','triage',t) RETURNING id INTO source;
+ UPDATE bloom_support.tickets SET created_at='2026-11-10T11:00:00Z' WHERE id IN(t,source);
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,t,'client','public','inbound','Original','2026-11-10T12:00:00Z');
+ SELECT version INTO v FROM bloom_support.tickets WHERE id=t;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,source,'client','public','inbound','Merged correction','2026-11-10T12:02:00Z');
+ IF (SELECT version FROM bloom_support.tickets WHERE id=t)<>v+1 THEN RAISE EXCEPTION 'merged source did not invalidate target'; END IF;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ SELECT c,t,'bloom','internal','internal','Newer note','2026-11-10T12:03:00Z'::timestamptz + n*interval '1 second' FROM generate_series(1,301)n;
+ BEGIN
+  UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+  resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:01:00Z')) WHERE id=t;
+  RAISE EXCEPTION 'stale bounded/merged evidence accepted';
+ EXCEPTION WHEN check_violation THEN
+  IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:02:01Z')) WHERE id=t;
+ UPDATE bloom_support.tickets SET status='working' WHERE id=t;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','person','engineering_issue_id',e) WHERE id=t;
+ UPDATE bloom_support.tickets SET status='working' WHERE id=t;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','product_decision','approved') WHERE id=t;
+END $$;
+
+DO $$
+DECLARE c uuid; t uuid; e uuid;
+BEGIN
+ INSERT INTO bloom_support.engineering_issues(title,product) VALUES('Freshness omission fixture','crm') RETURNING id INTO e;
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Freshness omission fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,status,stage,engineering_issue_id)
+ VALUES(c,'crm','crm','Freshness omission fixture','Fixture','bug','working','triage',e) RETURNING id INTO t;
+ UPDATE bloom_support.tickets SET created_at='2026-11-10T11:00:00Z' WHERE id=t;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,t,'client','public','inbound','Latest report','2026-11-10T12:02:00Z');
+ BEGIN
+  UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+  resolution_evidence=jsonb_build_object('resolved_by','bloom','verification',jsonb_build_object('started_at','2026-11-10T12:01:00Z','scope','ticket_flow','ticket_ids',jsonb_build_array(t))) WHERE id=t;
+  RAISE EXCEPTION 'omitted engineering evidence bypassed persisted link';
+ EXCEPTION WHEN check_violation THEN
+  IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','verification',jsonb_build_object('started_at','2026-11-10T12:02:01Z','scope','ticket_flow','ticket_ids',jsonb_build_array(t))) WHERE id=t;
+END $$;
+
+DO $$
+DECLARE c uuid; a uuid; b uuid; target uuid; e uuid:=gen_random_uuid(); v int; actor uuid:=gen_random_uuid(); snapshot jsonb;
+BEGIN
+ INSERT INTO bloom_support.principals(id,kind,auth_user_id,product,email,display_name,role) VALUES(actor,'user',gen_random_uuid(),'crm',actor::text || '@example.test','Chain fixture','platform_admin');
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Chained merge fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at)
+ VALUES(c,'crm','crm','Target','Fixture','working','2026-11-10T11:00:00Z') RETURNING id INTO target;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at,merged_into)
+ VALUES(c,'crm','crm','Middle','Fixture','working','2026-11-10T11:00:00Z',target) RETURNING id INTO b;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at,merged_into)
+ VALUES(c,'crm','crm','Oldest','Fixture','working','2026-11-10T11:00:00Z',b) RETURNING id INTO a;
+ SELECT version INTO v FROM bloom_support.tickets WHERE id=target;
+ INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body,created_at)
+ VALUES(c,a,'client','public','inbound','Nested correction','2026-11-10T12:02:00Z');
+ IF (SELECT version FROM bloom_support.tickets WHERE id=target)<>v+1 THEN RAISE EXCEPTION 'transitive parent not invalidated'; END IF;
+ BEGIN
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:01:00Z')) WHERE id=target;
+ RAISE EXCEPTION 'nested correction ignored';
+ EXCEPTION WHEN check_violation THEN
+ IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:03:00Z')) WHERE id=target;
+ snapshot:=public.bloom_support_rpc('get_ticket',jsonb_build_object('actor',actor,'ticket_id',target));
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'merged_tickets') source WHERE source->>'id'=a::text)
+ OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'messages') message WHERE message->>'body'='Nested correction')
+ THEN RAISE EXCEPTION 'staff context lost transitive source correction'; END IF;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,created_at)
+ VALUES(c,'crm','crm','Staff report, no client messages','Fixture','working','2026-11-10T12:00:00Z') RETURNING id INTO target;
+ BEGIN
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T11:59:00Z')) WHERE id=target;
+ RAISE EXCEPTION 'verification predating staff report accepted';
+ EXCEPTION WHEN check_violation THEN
+ IF SQLERRM NOT LIKE '%current client evidence requires fresh verification%' THEN RAISE; END IF;
+ END;
+ UPDATE bloom_support.tickets SET status='resolved',resolved_at=now(),resolution_verified=true,
+ resolution_evidence=jsonb_build_object('resolved_by','bloom','engineering_issue_id',e,'verification',jsonb_build_object('started_at','2026-11-10T12:03:00Z')) WHERE id=target;
+END $$;
+
+-- Signed Slack repair decisions reuse staff permissions and current ticket scope.
+BEGIN;
+\ir ../../supabase/migrations/20261108133500_bloom_support_slack_diagnostic_staff.sql
+\ir ../../supabase/migrations/20261108162000_bloom_support_slack_ticket_threads.sql
+\ir ../../supabase/migrations/20261110211500_bloom_support_slack_repair_decisions.sql
+DO $$
+DECLARE a uuid:=gen_random_uuid(); c uuid; t uuid; e uuid; j uuid; d uuid; r jsonb; n int;
+BEGIN
+ INSERT INTO bloom_support.principals(id,kind,auth_user_id,product,email,display_name,role) VALUES(a,'user',gen_random_uuid(),'crm','slack-fixture@example.test','Slack fixture','platform_admin');
+ INSERT INTO bloom_support.slack_staff_principals(slack_user_id,principal_id) VALUES('U000TEST123',a);
+ INSERT INTO bloom_support.settings(key,value) VALUES('slack','{"enabled":true}') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+ FOR n IN 1..8 LOOP
+  INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Slack fixture') RETURNING id INTO c;
+  INSERT INTO bloom_support.engineering_issues(title,product) VALUES('Slack fixture','crm') RETURNING id INTO e;
+  INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,engineering_issue_id,automation,executor) VALUES(c,'crm','crm','Slack fixture','Slack fixture','bug',e,'auto','bloom') RETURNING id INTO t;
+  INSERT INTO bloom_support.escalations(ticket_id,engineering_issue_id,audience,reason) VALUES(t,e,'both','engineering_start_requested');
+  INSERT INTO bloom_support.jobs(kind,ticket_id,lane) VALUES('notify',t,'slack-fixture') RETURNING id INTO j;
+  d:=(public.bloom_support_slack_repair_snapshot(t,j)->>'id')::uuid;
+  IF d IS NULL THEN RAISE EXCEPTION 'snapshot missing'; END IF;
+  INSERT INTO bloom_support.slack_ticket_threads(ticket_id,root_ts) VALUES(t,'1794340000.'||lpad(n::text,6,'0'));
+  PERFORM public.bloom_support_bind_slack_repair(d,'1794340000.'||lpad(n::text,6,'0'),'1794340000.'||lpad(n::text,6,'0'));
+  r:=public.bloom_support_apply_slack_repair(d,'UUNKNOWN123','C0CFNEQBS2X','1794340000.'||lpad(n::text,6,'0'),'do');
+  IF r->>'reason'<>'unauthorized' THEN RAISE EXCEPTION 'unknown actor accepted'; END IF;
+  r:=public.bloom_support_apply_slack_repair(d,'U000TEST123','C0CFNEQBS2X','1794340000.999999','do');
+  IF r->>'reason'<>'unauthorized' THEN RAISE EXCEPTION 'wrong message accepted'; END IF;
+  IF n=3 THEN UPDATE bloom_support.tickets SET version=version+1 WHERE id=t; END IF;
+  IF n=4 THEN UPDATE bloom_support.slack_repair_decisions SET expires_at=now()-interval '1 minute' WHERE id=d; END IF;
+  IF n=5 THEN UPDATE bloom_support.principals SET active=false WHERE id=a; END IF;
+  IF n=6 THEN
+   UPDATE bloom_support.principals SET active=true WHERE id=a;
+   INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Older resolved issue') RETURNING id INTO c;
+   INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,status,resolution_summary,resolution_verified,resolved_at,engineering_issue_id) VALUES(c,'crm','crm','Older resolved issue','Older resolved issue','resolved','Fixture resolved',true,now(),e);
+  END IF;
+  IF n IN (7,8) THEN
+   INSERT INTO bloom_support.messages(conversation_id,ticket_id,author_kind,visibility,direction,body) VALUES(c,t,CASE n WHEN 7 THEN 'client' ELSE 'staff' END,CASE n WHEN 7 THEN 'public' ELSE 'internal' END,CASE n WHEN 7 THEN 'inbound' ELSE 'internal' END,'Please use a different approach');
+  END IF;
+  r:=public.bloom_support_apply_slack_repair(d,'U000TEST123','C0CFNEQBS2X','1794340000.'||lpad(n::text,6,'0'),CASE WHEN n=2 THEN 'reject' ELSE 'do' END);
+  IF n=1 THEN
+   IF r->>'applied'<>'true' THEN RAISE EXCEPTION 'dispatch failed: %',r; END IF;
+   r:=public.bloom_support_apply_slack_repair(d,'U000TEST123','C0CFNEQBS2X','1794340000.'||lpad(n::text,6,'0'),'do');
+   IF r->>'reason'<>'already_recorded' OR (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='investigate')<>1 THEN RAISE EXCEPTION 'duplicate dispatch'; END IF;
+  ELSIF n=2 THEN
+   IF r->>'applied'<>'true' OR (SELECT status FROM bloom_support.tickets WHERE id=t)<>'needs_owner' OR EXISTS(SELECT 1 FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='investigate') OR EXISTS(SELECT 1 FROM bloom_support.escalations WHERE engineering_issue_id=e AND reason='engineering_start_requested' AND status<>'resolved') THEN RAISE EXCEPTION 'reject semantics failed'; END IF;
+  ELSIF r->>'reason'<>(CASE n WHEN 3 THEN 'stale' WHEN 4 THEN 'expired' WHEN 6 THEN 'stale' WHEN 7 THEN 'stale' WHEN 8 THEN 'stale' ELSE 'unauthorized' END) THEN RAISE EXCEPTION 'guard failed: %',r;
+  END IF;
+ END LOOP;
+ IF has_function_privilege('authenticated','public.bloom_support_apply_slack_repair(uuid,text,text,text,text)','EXECUTE') THEN RAISE EXCEPTION 'public execution allowed'; END IF;
+END $$;
+
+ROLLBACK;
+
 \echo 'bloom-support-db: all assertions passed'
