@@ -757,7 +757,7 @@ describe("Bloom Support reply composer", () => {
       });
     renderTicket();
 
-    const reply = await screen.findByPlaceholderText("Private note — never sent to the client");
+    const reply = await screen.findByRole("textbox", { name: "Internal note message" });
     expect(reply).toHaveAccessibleName("Internal note message");
     await user.type(reply, "Keep this exact note until the server confirms it.");
     await user.click(screen.getByRole("button", { name: "Add note" }));
@@ -785,7 +785,7 @@ describe("Bloom Support reply composer", () => {
   it("shows and enforces the reply length before anything is sent", async () => {
     renderTicket();
 
-    const reply = await screen.findByPlaceholderText("Private note — never sent to the client");
+    const reply = await screen.findByRole("textbox", { name: "Internal note message" });
     expect(reply).toHaveAttribute("maxlength", "20000");
     expect(screen.getByText("0 / 20,000 characters")).toBeInTheDocument();
 
@@ -800,7 +800,7 @@ describe("Bloom Support reply composer", () => {
     supportMocks.addMessage.mockRejectedValueOnce(new Error("Connection ended before confirmation"));
     renderTicket();
 
-    const reply = await screen.findByPlaceholderText("Private note — never sent to the client");
+    const reply = await screen.findByRole("textbox", { name: "Internal note message" });
     await user.type(reply, "The first reply may already be saved.");
     await user.click(screen.getByRole("button", { name: "Add note" }));
     await screen.findByRole("button", { name: "Retry same reply" });
@@ -827,7 +827,7 @@ describe("Bloom Support reply composer", () => {
   it("uploads reply attachments one at a time", async () => {
     const user = userEvent.setup();
     renderTicket();
-    await screen.findByPlaceholderText("Private note — never sent to the client");
+    await screen.findByRole("textbox", { name: "Internal note message" });
     const input = document.querySelector<HTMLInputElement>('input[type="file"]');
 
     expect(input).not.toBeNull();
@@ -963,9 +963,10 @@ describe("Bloom Support staff workspace", () => {
     await waitFor(() => expect(row).toHaveFocus());
   });
 
-  const renderConversation = () => render(
+  const renderConversation = (initialVisibility: "public" | "internal" = "public") => render(
     <TestQueryClientProvider>
       <TicketConversation
+        initialVisibility={initialVisibility}
         ticketId={supportTicket.id}
         me={{ ...supportAgent, permissions: [...supportAgent.permissions, "tickets.write"] }}
         onBack={vi.fn()}
@@ -974,6 +975,227 @@ describe("Bloom Support staff workspace", () => {
       />
     </TestQueryClientProvider>,
   );
+
+  it("opens alternative recommendations as private notes without sending to the client", async () => {
+    const user = userEvent.setup();
+    renderConversation("internal");
+    const input = await screen.findByRole("textbox", { name: "Message" });
+    expect(screen.getByRole("button", { name: "Add note" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send to client" })).not.toBeInTheDocument();
+    await user.type(input, "Please try a different approach first.");
+    await user.click(screen.getByRole("button", { name: "Add note" }));
+    await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(1));
+    expect(supportMocks.addMessage.mock.calls[0][1].visibility).toBe("internal");
+  });
+
+  it("left-aligns the ticket summary and sticky reply composer to one shared content column", async () => {
+    renderConversation();
+    const content = await screen.findByTestId("bloom-support-conversation-content");
+    const composer = screen.getByTestId("bloom-support-conversation-composer");
+
+    for (const element of [content, composer]) {
+      expect(element).toHaveStyle({
+        width: "100%",
+        maxWidth: "1200px",
+        minWidth: "0",
+        boxSizing: "border-box",
+        marginLeft: "0px",
+        marginRight: "auto",
+      });
+    }
+    expect(content).toContainElement(screen.getByText("THE PROBLEM"));
+    expect(composer).toContainElement(screen.getByRole("textbox", { name: "Message" }));
+  });
+
+  it("aligns private support notes with the left edge instead of centring them", async () => {
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "layout-note-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "internal",
+        direction: "internal",
+        body: "Internal layout note for the support desk.",
+        created_at: supportTicket.updated_at,
+        author: { name: "Support" },
+      }],
+    });
+    renderConversation();
+    const note = (await screen.findByText("Internal layout note for the support desk.")).closest(".MuiSheet-root");
+    expect(note).toHaveStyle({ marginLeft: "0px", marginRight: "auto" });
+  });
+
+  it("shows separate, left-aligned cards for customer replies, staff replies and private notes", async () => {
+    const base = {
+      ticket_id: supportTicket.id,
+      created_at: supportTicket.updated_at,
+      delivery: "none",
+    };
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [
+        { ...base, id: "client-message-1", author_kind: "client", visibility: "public", direction: "inbound", body: "The links on the website are missing.", author: { name: "Kate" } },
+        { ...base, id: "staff-message-2", author_kind: "staff", visibility: "public", direction: "outbound", body: "We are checking the public website now.", author: { name: "Sam" } },
+        { ...base, id: "private-note-3", author_kind: "staff", visibility: "internal", direction: "internal", body: "The previous publish completed; verify the links.", author: { name: "Sam" } },
+      ],
+    });
+
+    renderConversation();
+    const cards = await screen.findAllByTestId("bloom-support-message");
+    expect(cards).toHaveLength(3);
+    expect(screen.getByRole("region", { name: "Conversation history" })).toBeInTheDocument();
+    expect(cards.map((c) => c.getAttribute("data-message-visibility"))).toEqual(["public", "public", "internal"]);
+    for (const card of cards) {
+      expect(card).toHaveClass("MuiSheet-colorNeutral");
+      expect(card).toHaveStyle({ width: "100%", marginLeft: "0px", marginRight: "auto" });
+    }
+    expect(cards[0]).toHaveTextContent("Kate");
+    expect(cards[0]).toHaveTextContent("Customer");
+    expect(cards[1]).toHaveTextContent("Sam");
+    expect(cards[1]).toHaveTextContent("Team reply");
+    expect(cards[2]).toHaveTextContent("Internal · staff only");
+    expect(cards[2]).toHaveTextContent("verify the links.");
+    expect(cards[2]).not.toHaveClass("MuiSheet-colorWarning");
+  });
+
+  it("collapses long public updates without losing the exact original correspondence", async () => {
+    const user = userEvent.setup();
+    const body = "We inspected the website navigation and checked the publication settings. ".repeat(10)
+      + "The full details remain available.";
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "long-update-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "public",
+        direction: "outbound",
+        body,
+        created_at: supportTicket.updated_at,
+        author: { name: "Sam" },
+        delivery: "delivered",
+      }],
+    });
+
+    renderConversation();
+    const disclosure = (await screen.findByText("Read full update")).closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(screen.getByTestId("bloom-support-message")).toHaveTextContent("We inspected the website navigation");
+    await user.click(screen.getByText("Read full update"));
+    expect(disclosure).toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent("The full details remain available.");
+  });
+
+  it("uses clear inbox dividers and leads with the issue rather than repeating the client prefix", async () => {
+    const horsford = {
+      ...supportTicket,
+      id: "88888888-8888-4888-8888-888888888888",
+      number: 1028,
+      subject: "Horsford: published links missing or not updating on live site",
+      account: { id: "99999999-9999-4999-8999-999999999999", name: "Horsford Gardens and Nursery" },
+    };
+    supportMocks.listTickets.mockResolvedValueOnce([horsford]);
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+
+    const row = await screen.findByRole("button", { name: /Open request #1028: Horsford: published links missing/ });
+    expect(row).toHaveTextContent("published links missing or not updating on live site");
+    expect(row).toHaveTextContent("Horsford Gardens and Nursery");
+    expect(row).not.toHaveTextContent("Horsford: published");
+    expect(row.closest('[role="listitem"]')).not.toBeNull();
+    await userEvent.setup().click(row);
+    expect(row).toHaveAttribute("aria-current", "true");
+  });
+
+  it("keeps a long, stopped support test readable without recommending a client takeover", async () => {
+    const user = userEvent.setup();
+    const fullRequest = "The calendar export is breaking emojis. " + "Technical reproduction details. ".repeat(42) + "End of the original request.";
+    const baseMessage = {
+      ticket_id: supportTicket.id,
+      created_at: "2026-11-09T01:26:56.000Z",
+      delivery: "none",
+      direction: "inbound",
+      meaningful: false,
+    };
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      subject: "TEST: Calendar export corrupts emojis | 2026-11-09",
+      product: "unknown",
+      status: "needs_owner",
+      engineering: { id: "engineering-test", status: "escalated" },
+      escalations: [{ status: "open", plain: { problem: "Calendar exports show broken symbols instead of emojis.", blocker: "Engineering review required." } }],
+      messages: [
+        { ...baseMessage, id: "client-1", author_kind: "client", author: { name: "Jon" }, body: fullRequest, visibility: "public", purpose: null },
+        { ...baseMessage, id: "bloom-1", author_kind: "bloom", author: { name: "Bloom" }, body: "I'm Bloom. I've received your request.", visibility: "public", purpose: "acknowledgement" },
+        { ...baseMessage, id: "bloom-2", author_kind: "bloom", author: { name: "Bloom" }, body: "The automatic repair has stopped.", visibility: "public", purpose: "progress" },
+        { ...baseMessage, id: "bloom-3", author_kind: "bloom", author: { name: "Bloom" }, body: "We checked the calendar issue against the original report.", visibility: "public", purpose: "progress" },
+      ],
+    });
+
+    renderConversation();
+    expect(await screen.findByText("Marked as a test")).toBeInTheDocument();
+    expect(screen.getByText("Calendar export corrupts emojis")).toBeInTheDocument();
+    expect(screen.getByText("Calendar exports show broken symbols instead of emojis.")).toBeInTheDocument();
+    expect(screen.getByText("We checked the calendar issue against the original report.")).toBeInTheDocument();
+    expect(screen.getByText(/stopped before starting the repair/)).toBeInTheDocument();
+    expect(screen.getByText(/confirm which product this belongs to/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review repair details" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Bloom recommends" })).not.toBeInTheDocument();
+
+    const original = screen.getByText("Read full original message").closest("details");
+    expect(original).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Read full original message"));
+    expect(original).toHaveAttribute("open");
+    expect(original).toHaveTextContent("End of the original request.");
+
+    const activity = screen.getByText("Bloom activity (2 updates)").closest("details");
+    expect(activity).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Bloom activity (2 updates)"));
+    expect(activity).toHaveAttribute("open");
+    expect(activity).toHaveTextContent("The automatic repair has stopped.");
+  });
+
+  it("puts genuine staff decisions ahead of Bloom-owned messages in the inbox", async () => {
+    const recentBloomMessage = {
+      ...supportTicket,
+      id: "77777777-7777-4777-8777-777777777777",
+      number: 1045,
+      subject: "Bloom owns this message",
+      status: "working" as const,
+      automation: "auto" as const,
+      last_customer_message_at: "2026-11-09T03:00:00Z",
+      last_team_message_at: null,
+      updated_at: "2026-11-09T03:00:00Z",
+    };
+    const olderAdminDecision = {
+      ...supportTicket,
+      id: "88888888-8888-4888-8888-888888888888",
+      number: 1046,
+      subject: "Admin needs to review",
+      status: "needs_owner" as const,
+      automation: "auto" as const,
+      last_customer_message_at: null,
+      updated_at: "2026-11-08T18:00:00Z",
+    };
+    supportMocks.listTickets.mockResolvedValueOnce([recentBloomMessage, olderAdminDecision]);
+    render(
+      <TestQueryClientProvider>
+        <MemoryRouter>
+          <SupportPage />
+        </MemoryRouter>
+      </TestQueryClientProvider>,
+    );
+    const rows = await screen.findAllByRole("button", { name: /Open request #104[56]/ });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveAccessibleName(/#1046: Admin needs to review \(needs attention\)/);
+    expect(rows[1]).toHaveAccessibleName("Open request #1045: Bloom owns this message");
+  });
 
   it("freezes and retries the exact conversation reply after an ambiguous failure", async () => {
     const user = userEvent.setup();
@@ -1164,4 +1386,37 @@ describe("Bloom Support staff workspace", () => {
     expect(delivery).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("acknowledgement → gail@example.com: delivered")).toBeInTheDocument();
   });
+  it("shows staff notes in neutral colours with a short summary and original evidence on demand", async () => {
+    const user = userEvent.setup();
+    const body = "Release evidence update: BloomSites PR #4359 is deployed READY. "
+      + "Horsford recipient_opt_in=false and shared_checkout_enabled=false. "
+      + "Client checkout has not been activated. "
+      + "Detailed technical certification and outstanding live payment checks. ".repeat(12);
+    supportMocks.getTicket.mockResolvedValueOnce({
+      ...supportTicket,
+      messages: [{
+        id: "staff-note-1",
+        ticket_id: supportTicket.id,
+        author_kind: "staff",
+        visibility: "internal",
+        direction: "internal",
+        body,
+        created_at: supportTicket.updated_at,
+        author: { name: "Staff" },
+      }],
+    });
+    const { unmount } = renderConversation();
+    const preview = await screen.findByText(/multi-recipient option is still switched off/);
+    const note = preview.closest(".MuiSheet-root");
+    expect(note).toHaveClass("MuiSheet-colorNeutral");
+    expect(note).not.toHaveClass("MuiSheet-colorWarning");
+    const disclosure = screen.getByText("Read full technical note").closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Read full technical note"));
+    expect(disclosure).toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent("shared_checkout_enabled=false");
+    unmount();
+  });
+
+
 });

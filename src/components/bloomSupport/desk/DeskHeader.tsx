@@ -2,7 +2,7 @@ import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Button from "@mui/joy/Button";
-import { AlertTriangle, CirclePause, Plus, ShieldAlert, UserRound } from "lucide-react";
+import { AlertTriangle, CirclePause, Plus, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { bloomState, deskAlerts, type DeskAlert, type DeskAlertKind, type DeskAlertTarget, type DeskSummary } from "./deskModel";
 
@@ -10,7 +10,6 @@ const ALERT_ICON: Record<DeskAlertKind, ReactNode> = {
   paused: <CirclePause size={18} aria-hidden />,
   failed: <AlertTriangle size={18} aria-hidden />,
   urgent: <ShieldAlert size={18} aria-hidden />,
-  admin: <UserRound size={18} aria-hidden />,
 };
 
 export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAlert }: {
@@ -23,10 +22,10 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
   const state = bloomState(summary, summaryFailed);
   const alerts = deskAlerts(summary, urgent);
   return (
-    <Stack spacing={4} component="header">
-      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={4}>
-        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" useFlexGap>
+    <Stack spacing={2} component="header">
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2}>
+        <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
             <Typography level="h1" component="h1">Support desk</Typography>
             <BloomPill tone={state.tone} label={state.label} />
           </Stack>
@@ -34,7 +33,7 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
             Bloom handles the routine work. You make the few calls that need a person.
           </Typography>
         </Stack>
-        <Button variant="outlined" color="neutral" startDecorator={<Plus size={18} aria-hidden />} onClick={onNewRequest} sx={{ borderRadius: "xl", minHeight: 48, px: 5, bgcolor: "background.surface", flexShrink: 0 }}>
+        <Button variant="outlined" color="neutral" startDecorator={<Plus size={18} aria-hidden />} onClick={onNewRequest} sx={{ borderRadius: "xl", minHeight: 44, px: 3, bgcolor: "background.surface", flexShrink: 0 }}>
           New request
         </Button>
       </Stack>
@@ -48,15 +47,15 @@ export function DeskHeader({ summary, summaryFailed, urgent, onNewRequest, onAle
 }
 
 function BloomPill({ tone, label }: { tone: "primary" | "danger" | "neutral"; label: string }) {
-  const dot = tone === "primary" ? "primary.500" : tone === "danger" ? "warning.400" : "neutral.400";
+  const dot = tone === "primary" ? "primary.500" : "neutral.500";
   return (
     <Box
       role="status"
       sx={{
         display: "inline-flex", alignItems: "center", gap: 2, px: 3, py: 1, borderRadius: 999,
-        bgcolor: tone === "danger" ? "warning.50" : tone === "primary" ? "primary.50" : "neutral.100",
-        border: "1px solid", borderColor: tone === "danger" ? "warning.200" : tone === "primary" ? "primary.200" : "neutral.200",
-        color: tone === "danger" ? "warning.800" : tone === "primary" ? "primary.900" : "text.secondary",
+        bgcolor: tone === "primary" ? "primary.50" : "neutral.100",
+        border: "1px solid", borderColor: tone === "primary" ? "primary.200" : "neutral.200",
+        color: tone === "primary" ? "primary.900" : "neutral.700",
         fontFamily: "body", fontSize: "0.9375rem", fontWeight: 600, whiteSpace: "nowrap",
       }}
     >
@@ -76,7 +75,7 @@ function BloomPill({ tone, label }: { tone: "primary" | "danger" | "neutral"; la
   );
 }
 
-/** Calm by design: a white card with a small amber marker. Nothing here should feel like an alarm. */
+/** Keep the status text and icon clear without orange or red alert styling. */
 function AlertRow({ alert, onAction }: { alert: DeskAlert; onAction: () => void }) {
   return (
     <Stack
@@ -86,7 +85,7 @@ function AlertRow({ alert, onAction }: { alert: DeskAlert; onAction: () => void 
       sx={{ px: 4, py: 2.5 }}
     >
       <Stack direction="row" spacing={3} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ width: 36, height: 36, borderRadius: "50%", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "warning.50", color: "warning.600" }}>{ALERT_ICON[alert.kind]}</Box>
+        <Box sx={{ width: 36, height: 36, borderRadius: "50%", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "neutral.100", color: "neutral.700" }}>{ALERT_ICON[alert.kind]}</Box>
         <Stack spacing={0}>
           <Typography level="title-md" textColor="text.primary">{alert.title}</Typography>
           <Typography level="body-sm" textColor="text.secondary">{alert.body}</Typography>

@@ -34,7 +34,7 @@ export function fixStage(status: string): { label: string; tone: FixStageTone } 
     case "failed":
     case "rolled_back":
     case "escalated":
-      return { label: "Needs a person", tone: "danger" };
+      return { label: "Needs a person", tone: "warning" };
     default:
       return { label: "In progress", tone: "primary" };
   }

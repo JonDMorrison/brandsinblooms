@@ -2,6 +2,7 @@
 // Slack is an optional delivery channel; tickets and permission checks stay in Bloom Support.
 import { BloomError, env } from "./runtime.ts";
 import { explainSupportEvent, explainGithubMilestone, githubMilestoneFromKind } from "./slack-language.ts";
+import { isPublicReleaseCategory, publicReleaseNote } from "./release-notes.ts";
 
 export type SlackRoute = "tickets" | "features" | "alerts" | "releases" | "projects" | "clients" | "finance";
 
@@ -12,7 +13,7 @@ export function slackRoute(kind: string): SlackRoute | null {
   if (kind === "github.deployment_failed") return "alerts";
   if (githubMilestoneFromKind(kind)) return "releases";
   if (kind === "major_project.accepted" || kind === "major_project.onboarding") return "clients";
-  if (kind === "major_project.stage_changed" || kind === "major_project.created") return "projects";
+  if (kind === "major_project.stage_changed" || kind === "major_project.created" || kind === "major_project.review_ready") return "projects";
   if (kind === "finance.daily_payouts" || kind === "finance.payout_failed") return "finance";
   if (/^(ticket\.|engineering\.)/.test(kind)) return "tickets";
   return null;
@@ -31,10 +32,42 @@ export function githubSourceLink(value: string | undefined): string | null {
   } catch { return null; }
 }
 /** Do not place ticket subjects, bodies, requester identities, or source details in Slack. */
-export function slackSafeMessage(kind: string, ticketId: string | null, githubUrl?: string, projectId?: string): string {
+export function slackSafeMessage(
+  kind: string, ticketId: string | null, githubUrl?: string,
+  projectId?: string, releaseCategory?: string,
+): string {
   const route = slackRoute(kind);
   if (!route) throw new Error("unsupported event");
   const milestone = githubMilestoneFromKind(kind);
+  const source = milestone ? githubSourceLink(githubUrl) : null;
+  if (milestone === "pr_merged") {
+    // Defense in depth for queued jobs created before the intake gate.
+    // A missing useful category or validated PR link must never produce
+    // a public filler announcement or an empty Slack post.
+    if (!source || !isPublicReleaseCategory(releaseCategory) || releaseCategory === "other") return "";
+    const note = publicReleaseNote(releaseCategory);
+    // Title and body are untrusted, so only vetted category copy is public.
+    // A merge does not establish production deployment or customer acceptance.
+    return [
+      "*" + note.area + "*",
+      note.changed,
+      "*Status:* Code merged. Live customer use has not been verified by this update.",
+      "<" + source + "|See the change>",
+    ].join("\n");
+  }
+  if (kind === "major_project.review_ready") {
+    // Link only to authenticated CMS pages. Never embed draft tokens, customer
+    // emails, source websites, raw QA findings, or unapproved preview URLs.
+    if (!projectId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId)) return "";
+    const id=encodeURIComponent(projectId);
+    return [
+      "*Website draft ready for your review*",
+      "Bloom has prepared a private draft and recorded its quality checks. Nothing has been sent to the client or published.",
+      "*Project reviewers:* Review pages, photography, mobile layout and important links. Approve the exact draft in Major Projects when ready.",
+      `<https://bloomsites.app/dashboard/admin/major-projects/review?projectId=${id}|Review draft and QA>`,
+      `<https://bloomsites.app/dashboard/admin/major-projects?project=${id}|Open project and approve client preview>`,
+    ].join("\n");
+  }
   const state = milestone ? explainGithubMilestone(milestone) :
     kind === "major_project.accepted" ? {
       headline: "A new customer has accepted",
@@ -53,9 +86,20 @@ export function slackSafeMessage(kind: string, ticketId: string | null, githubUr
       whatItMeans: "The finance reporting system recorded a payout update.",
       nextStep: "Review the official amounts and payout status in Stripe.",
     } : explainSupportEvent(kind);
+  if (milestone) {
+    // Ordinary release milestones can be understood without opening GitHub.
+    // Show a source link only when a problem actually needs the team's help.
+    const lines = [
+      "*" + state.headline + "*",
+      state.whatItMeans,
+      "*What happens next:* " + state.nextStep,
+    ];
+    if ((milestone === "checks_failed" || milestone === "deployment_failed") && source)
+      lines.push("<" + source + "|Details for the team>");
+    return lines.join("\n");
+  }
   const base = "https://bloomsuite.app/support";
   const link = ticketId && /^[0-9a-f-]{36}$/i.test(ticketId) ? `${base}?ticket=${ticketId}` : base;
-  const source = milestone ? githubSourceLink(githubUrl) : null;
   const actionLink = route === "projects" || route === "clients"
     ? `<https://bloomsites.app/dashboard/admin/major-projects${projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? `?project=${projectId}` : ""}|Open Major Projects>`
     : route === "finance"
@@ -63,10 +107,10 @@ export function slackSafeMessage(kind: string, ticketId: string | null, githubUr
       : `<${link}|Open in Bloom Support>`;
   return `*${state.headline}*\n${state.whatItMeans}\n*Next:* ${state.nextStep}\n${actionLink}${source ? ` · <${source}|See GitHub details>` : ""}`;
 }
-/** Only the trusted worker calls this. Never pass raw customer email or webhook text. */
-export async function postSlackInternalText(
-  route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string,
-): Promise<string> {
+/** Trusted worker: returns the real Slack message timestamp for thread binding. */
+export async function postSlackInternalMessage(
+  route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string, blocks?: Record<string, unknown>[],
+): Promise<{delivery: string; ts: string}> {
   if (!/^[-\w.]{16,128}$/.test(jobId)) throw new Error("invalid job ID");
   const token = env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
   const channel = slackChannelId(env("BLOOM_SUPPORT_SLACK_CHANNEL_" + route.toUpperCase()));
@@ -75,6 +119,7 @@ export async function postSlackInternalText(
     channel, text: text.slice(0, 2400), client_msg_id: jobId, unfurl_links: false, unfurl_media: false,
   };
   if (threadTs && /^\d{10}\.\d{6}$/.test(threadTs)) payload.thread_ts = threadTs;
+  if (blocks?.length) payload.blocks = [{type:"section",text:{type:"mrkdwn",text:text.slice(0,2400)}},...blocks];
   let response: Response;
   try {
     response = await fetch("https://slack.com/api/chat.postMessage", {
@@ -89,12 +134,22 @@ export async function postSlackInternalText(
   if (!response.ok) throw new BloomError(502, "slack_http", "Slack API HTTP " + response.status);
   const result = await response.json().catch(() => null) as {ok?:boolean;error?:string;ts?:string}|null;
   if (!result?.ok) throw new BloomError(502, "slack_delivery", "Slack rejected notification: " + (result?.error ?? "unknown"));
-  return "delivered to " + route + " (Slack ts: " + (result.ts ?? "unknown") + ")";
+  if (typeof result.ts !== "string" || !/^\d{10}\.\d{6}$/.test(result.ts)) {
+    throw new BloomError(502, "slack_receipt", "Slack did not return a valid message timestamp");
+  }
+  return {delivery:"delivered to " + route + " (Slack ts: " + result.ts + ")", ts:result.ts};
+}
+export async function postSlackInternalText(
+  route: SlackRoute | "ask", text: string, jobId: string, threadTs?: string,
+): Promise<string> {
+  return (await postSlackInternalMessage(route,text,jobId,threadTs)).delivery;
 }
 export async function postSlackSupportNotification(input: {
-  kind: string; ticketId: string | null; jobId: string; githubUrl?: string; projectId?: string;
+  kind: string; ticketId: string | null; jobId: string; githubUrl?: string; projectId?: string; releaseCategory?: string;
 }): Promise<string> {
   const route = slackRoute(input.kind);
   if (!route) return "skipped: unsupported Slack event";
-  return await postSlackInternalText(route, slackSafeMessage(input.kind,input.ticketId,input.githubUrl,input.projectId),input.jobId);
+  const message = slackSafeMessage(input.kind,input.ticketId,input.githubUrl,input.projectId,input.releaseCategory);
+  if (!message) return "skipped: no useful reviewed release summary";
+  return await postSlackInternalText(route, message, input.jobId);
 }

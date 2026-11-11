@@ -1668,6 +1668,20 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     allowedModes: QUERY_MODES,
   }),
   defineTool({
+    name: "verify_bloomsites_integrations",
+    description:
+      "For authorized Brands in Blooms staff only: verify a garden centre's BloomSites CounterPoint and Open Plant Data (OPD) integration. If the staff member names a client (for example 'Verify Lacoste CounterPoint'), pass client_name='Lacoste' even if another company is selected in CRM. Otherwise check the currently selected company. Resolves client names through the staff member's existing authorized Bloom Support accounts and refuses ambiguous or unlinked sites. Report live connection health, recent receipts, catalogue synchronization failures and approved/imported plant links. Read-only: does not sync, repair, approve, contact customers or prove a customer shop works end to end.",
+    parameters: objectSchema({
+      client_name: stringSchema("Optional garden centre name from the staff request, such as Lacoste, Horsford, or Triple Tree. Never invent an account ID."),
+      site_id: stringSchema("Optional BloomSites site ID only when staff are resolving multiple linked sites; never invent this value."),
+    }),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: STAFF_PLUS,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
     name: "read_suite_data",
     description:
       "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, a sales summary for a date range (up to 93 days), one product variant's price changes (who changed it and when), or a private preview link for a website page's unpublished draft. Read-only, and only for the company the person is signed in to. Every signed-in user of the company can read the website, products and stock levels. The sales summary and price history are only for the company's account owner or an admin; anyone else gets a plain message saying so. If Bloom says there is no access or no connection, tell the user that plainly and do not retry.",

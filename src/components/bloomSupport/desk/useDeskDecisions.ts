@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { plainSummary } from "@/components/admin/readableFormat";
-import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
+import { bloomSupport, type EscalationPlain, type Whoami } from "@/lib/bloomSupport/api";
 import { groupOpenEscalations, recordReviewDecision, type TodayEscalation } from "../todayActions";
 import { asSentence, humanizeNextAction } from "../../../../supabase/functions/_shared/bloom-support/notes";
 import { clientName } from "./statusWords";
@@ -32,6 +32,8 @@ export interface DeskDecision {
   problem: string;
   /** "What I recommend", with the reason. */
   recommendation: string;
+  /** For a stopped repair, reviewing the reason must come before optional takeover. */
+  reviewFirst?: boolean;
   /** Risk or consequence, when there is one. */
   risk?: string;
   /** Technical evidence for the disclosure. Never shown by default. */
@@ -51,6 +53,14 @@ const plainStep = (text: string) => {
   return asSentence(s.charAt(0).toUpperCase() + s.slice(1));
 };
 
+/** A stored or freshly written plain summary, or null when the value isn't one. */
+export function readPlain(value: unknown): EscalationPlain | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.problem !== "string" || !v.problem.trim()) return null;
+  return { problem: v.problem.trim(), blocker: typeof v.blocker === "string" && v.blocker.trim() ? v.blocker.trim() : null };
+}
+
 /** The first sentence of a long engineering note, kept short enough to read at a glance. */
 export function firstSentence(text: unknown, max = 200): string {
   const clean = String(text ?? "").replace(/\s+/g, " ").trim();
@@ -63,7 +73,7 @@ export function firstSentence(text: unknown, max = 200): string {
 /** Engineering notes often hold file paths, code and test names. Those stay in the technical evidence. */
 export function isPlain(text: string): boolean {
   if (text.length > 150 || text.endsWith("…")) return false;
-  return !/[\\/`{}<>=_]|\.(tsx?|jsx?|sql|json|md)\b|::|\b(test|tests|jest|vitest|regression|migration|schema|PR|commit|repo)\b/i.test(text);
+  return !/[\\/`{}<>=_]|\.(tsx?|jsx?|sql|json|md)\b|::|\b(unit tests?|test files?|regression tests?|jest|vitest|regression|migrations?|schema|PR|commits?|repo)\b/i.test(text);
 }
 
 const HOLD = "Assign this request to me for review and keep automatic work paused.";
@@ -114,6 +124,25 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
     done: OTHER_DONE,
     run: (text: string) => recordReviewDecision(bloomSupport, { ticketIds, recommendation: HOLD, escalations: items, ownerId: me.id }, "other", text),
   } : undefined);
+
+  // Bloom writes each escalation's plain summary once; open cards without one ask for it.
+  const groupsForPlain = groupOpenEscalations((escalations.data ?? []) as TodayEscalation[]);
+  const missingPlain = groupsForPlain.map((g) => g[0]).filter((x) => !readPlain(x.plain) && typeof x.id === "string").map((x) => String(x.id));
+  const explained = useQueries({
+    queries: missingPlain.map((id) => ({
+      queryKey: ["bloom-support", "escalation-plain", id],
+      queryFn: () => bloomSupport.explainEscalation(id),
+      staleTime: Infinity, retry: false, enabled: can("escalations.view"),
+    })),
+  });
+  const plainOf = (x: Row): EscalationPlain | null | "loading" => {
+    const stored = readPlain(x.plain);
+    if (stored) return stored;
+    const i = missingPlain.indexOf(String(x.id));
+    const q = i >= 0 ? explained[i] : undefined;
+    if (q?.isLoading) return "loading";
+    return readPlain(q?.data?.plain);
+  };
 
   const decisions: DeskDecision[] = [];
   for (const e of (engineering.data ?? []) as Row[]) {
@@ -173,6 +202,7 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
     const ids = x.ticket_id ? [String(x.ticket_id)] : [];
     const reason = String(x.reason ?? "");
     const { problem, finding } = escalationProblem(reason, x.detail, t?.subject);
+    const plain = plainOf(x);
     const options: DecisionOption[] = [];
     let recommendation = "Take it yourself, so Bloom stops retrying while you decide.";
     const engId = typeof x.engineering_issue_id === "string" ? x.engineering_issue_id : null;
@@ -184,6 +214,11 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
         run: () => bloomSupport.updateEngineering(engId, { start_repair: true, note: "Started from the Support desk" }),
       });
       if (canReview(group)) options.push(take(ids, group, false));
+    } else if (reason === "engineering_escalated") {
+      // A routing or repair failure does not justify automatically assigning
+      // client communication to a person. Read the blocker first.
+      recommendation = "Open the request to see why the repair stopped. You can then decide how engineering should continue. Taking ownership is optional and also pauses Bloom's customer replies.";
+      if (ids.length && canReview(group)) options.push(take(ids, group, false, "Take over this request"));
     } else if (/overdue|stalled/.test(reason) && can("escalations.resolve")) {
       recommendation = "Take it yourself, so the client hears from a person today.";
       if (ids.length && canReview(group)) options.push(take(ids, group));
@@ -200,9 +235,13 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
       client: nameOf.get(String(x.ticket_id)) ?? (t ? `Request #${t.number}` : "Escalation"),
       ticket: t ? `#${t.number} ${t.subject}` : undefined,
       when: ago(x.created_at),
-      problem: finding ? `${problem} ${/stopped/.test(problem) ? "Why" : "What it found"}: ${finding}`
+      problem: plain && plain !== "loading"
+        ? (plain.blocker ? `${plain.problem} Why Bloom stopped: ${plain.blocker}` : plain.problem)
+        : finding ? `${problem} ${/stopped/.test(problem) ? "Why" : "What it found"}: ${finding}`
+        : plain === "loading" ? `${problem} Bloom is writing a plain summary…`
         : x.detail ? `${problem} The details are technical, so they're under Show technical evidence.` : problem,
       recommendation,
+      reviewFirst: reason === "engineering_escalated" && !!x.ticket_id,
       evidence: [x.detail, group.length > 1 ? `${group.length} related reminders on this request.` : null].filter(Boolean).join("\n\n") || undefined,
       options,
       other: other(ids, group),

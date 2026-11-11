@@ -2716,6 +2716,7 @@ function createBloomStreamResponse(
 
         const contextBuildResult = await buildContextLayers({
           serviceClient,
+          dataClient,
           context: resolvedContext,
           request: effectiveBody,
           entitySummary: resolvedEntitySummary,

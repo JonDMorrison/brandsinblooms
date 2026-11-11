@@ -40,8 +40,8 @@ export interface DeskSummary {
   open_escalations?: unknown;
 }
 
-export type DeskAlertTarget = "settings" | "decisions" | "urgent";
-export type DeskAlertKind = "paused" | "failed" | "urgent" | "admin";
+export type DeskAlertTarget = "settings" | "urgent";
+export type DeskAlertKind = "paused" | "failed" | "urgent";
 
 export interface DeskAlert {
   kind: DeskAlertKind;
@@ -56,8 +56,9 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : N
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * Only exceptional states reach the header: Bloom paused, failed automatic steps,
- * urgent requests, and requests that need an admin. Normal counts stay off it.
+ * Only exceptional states reach the header: Bloom paused, failed automatic steps
+ * and urgent requests. Requests that need an admin already show on Today and in
+ * the Decisions count, so the header doesn't repeat them.
  */
 export function deskAlerts(summary: DeskSummary | undefined, urgent: number): DeskAlert[] {
   if (!summary) return [];
@@ -71,11 +72,6 @@ export function deskAlerts(summary: DeskSummary | undefined, urgent: number): De
   }
   if (urgent > 0) {
     alerts.push({ kind: "urgent", tone: "danger", title: `${plural(urgent, "urgent request", "urgent requests")} open`, body: "These are marked urgent. Check that each one is moving.", action: "See urgent requests", target: "urgent" });
-  }
-  const byStatus = (summary.by_status ?? {}) as Record<string, unknown>;
-  const needsAdmin = num(byStatus.needs_owner);
-  if (needsAdmin > 0) {
-    alerts.push({ kind: "admin", tone: "warning", title: `${plural(needsAdmin, "request needs", "requests need")} an admin`, body: "Bloom cannot move these forward without an admin's decision.", action: "See decisions", target: "decisions" });
   }
   return alerts;
 }

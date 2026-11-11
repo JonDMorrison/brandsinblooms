@@ -114,7 +114,7 @@ function CountBubble({ n }: { n: number }) {
     <Box
       component="span"
       aria-label={`${n} waiting`}
-      sx={{ minWidth: 24, height: 24, px: 1.5, borderRadius: 12, bgcolor: "warning.100", color: "warning.800", fontSize: "0.8125rem", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+      sx={{ minWidth: 24, height: 24, px: 1.5, borderRadius: 12, bgcolor: "neutral.100", color: "neutral.800", fontSize: "0.8125rem", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
     >
       {n}
     </Box>

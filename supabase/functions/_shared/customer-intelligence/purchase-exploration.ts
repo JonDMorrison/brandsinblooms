@@ -44,9 +44,16 @@ export function assertDate(value: string): void {
     throw new Error('Dates must be real calendar dates in YYYY-MM-DD format.');
   }
 }
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 export function localDate(value: string | null, timezone: string): string | null {
   // Validate the time zone even when a record has no date.
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+  let formatter = dateFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+    // Bound memory when many tenants/time zones share a long-lived process.
+    if (dateFormatters.size >= 32) dateFormatters.delete(dateFormatters.keys().next().value!);
+    dateFormatters.set(timezone, formatter);
+  }
   if (!value || !Number.isFinite(Date.parse(value))) return null;
   const parts = formatter.formatToParts(new Date(value));
   const part = (key: string) => parts.find((p) => p.type === key)?.value;

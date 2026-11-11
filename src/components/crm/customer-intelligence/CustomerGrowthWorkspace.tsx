@@ -1,4 +1,5 @@
 import * as React from "react";
+import { CustomerGrowthDashboard } from "./CustomerGrowthDashboard";
 import {ReportedPurchaseWorkspace} from "./ReportedPurchaseWorkspace";
 import {
   Alert,
@@ -304,6 +305,7 @@ export function CustomerGrowthWorkspace({
         </Sheet>
       )}
 
+      {showGrowth && <CustomerGrowthDashboard />}
       {showGrowth && <ReportedPurchaseWorkspace />}
       {showGrowth && (
         <Sheet

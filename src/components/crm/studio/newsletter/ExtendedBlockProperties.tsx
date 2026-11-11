@@ -69,6 +69,7 @@ function LinksEditor({
             <>
               <ColorField
                 label="Button colour"
+                transparent
                 value={link.color}
                 onChange={(color) => change(link.id, { color })}
               />
@@ -236,6 +237,7 @@ function ButtonFields({
       />
       <ColorField
         label="Button colour"
+        transparent
         value={block.buttonColor}
         onChange={(value) => update("buttonColor", value)}
       />
