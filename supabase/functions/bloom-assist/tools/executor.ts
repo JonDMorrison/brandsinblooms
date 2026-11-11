@@ -30,7 +30,7 @@ import {
 import { getCustomerDetail } from "./implementations/get-customer-detail.ts";
 import { getProductDetail } from "./implementations/get-product-detail.ts";
 import { getSegmentMembers } from "./implementations/get-segment-members.ts";
-import { exportDataImplementation } from "./implementations/export-data.ts";
+import { exportDataImplementation, prepareExportDataParams } from "./implementations/export-data.ts";
 import { executeGenerateImage } from "./implementations/image-tools.ts";
 import { importCustomerList, prepareCustomerListImport } from "./implementations/customer-list-import.ts";
 import { readPhotoReference, withCampaignPhotoPreview } from "./implementations/campaign-photo.ts";
@@ -608,7 +608,9 @@ const TOOL_ACTION_FORMATTERS: Record<string, ToolActionFormatter> = {
   export_data: (params) => {
     const entity = readParamString(params, "entity") ?? "data";
     const format = readParamString(params, "format")?.toUpperCase() ?? "file";
-    return `Export ${entity} as ${format}`;
+    return params.scope === "saved_result"
+      ? `Export customers from the selected saved group as ${format}`
+      : `Export ${entity} as ${format}`;
   },
   report_support_problem: (params) => {
     const subject =
@@ -1039,14 +1041,22 @@ export async function executeTool(
 
   if (tool.requires_confirmation && context.approved !== true) {
     try {
-      // Tools whose approval card needs a server-computed preview.
-      result = tool.function.name === "save_customer_set_segment"
-        ? await prepareCustomerSetSave(validation.value, context)
-        : tool.function.name === "import_customer_list"
-        ? await prepareCustomerListImport(validation.value, context)
-        : tool.function.name === "create_campaign" && readPhotoReference(validation.value)
-        ? await withCampaignPhotoPreview(createConfirmationResult(tool, validation.value), validation.value, context)
-        : createConfirmationResult(tool, validation.value);
+      // Resolve dynamic audience references before the approval is persisted.
+      if (tool.function.name === "export_data") {
+        const pinnedParams = await prepareExportDataParams(validation.value, context);
+        result = createConfirmationResult(tool, pinnedParams);
+        result.data = { ...(isJsonObject(result.data) ? result.data : {}), pinned_tool_params: pinnedParams };
+        logInput = pinnedParams;
+      } else {
+        // Tools whose approval card needs a server-computed preview.
+        result = tool.function.name === "save_customer_set_segment"
+          ? await prepareCustomerSetSave(validation.value, context)
+          : tool.function.name === "import_customer_list"
+          ? await prepareCustomerListImport(validation.value, context)
+          : tool.function.name === "create_campaign" && readPhotoReference(validation.value)
+          ? await withCampaignPhotoPreview(createConfirmationResult(tool, validation.value), validation.value, context)
+          : createConfirmationResult(tool, validation.value);
+      }
     } catch (error) {
       result = createResult({ success: false, message: error instanceof Error ? error.message : "Unable to prepare the audience.", error: "analysis_confirmation_failed", blockType: "text" });
     }

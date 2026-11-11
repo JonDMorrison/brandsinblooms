@@ -52,3 +52,25 @@ describe("compact customer purchase evidence", () => {
     expect(screen.getByText(/29 reported transactions · 410\.50 recorded spending/)).toBeVisible();
   });
 });
+
+describe('saved group contact and export presentation', () => {
+  it('renders recorded emails visibly, without replacing missing addresses', async () => {
+    const {CustomerAnalysisBlock} = await import('./blocks/CustomerAnalysisBlock');
+    render(<MemoryRouter><CustomerAnalysisBlock data={{kind:'customer_exploration',set_id:'saved',total_count:2,rows:[{customer_id:'a',name:'Synthetic A',email:'a@example.com'},{customer_id:'b',name:'Synthetic B',email:null}]}} /></MemoryRouter>);
+    expect(screen.getByRole('columnheader', {name:'Email'})).toBeVisible();
+    expect(screen.getByRole('cell', {name:'a@example.com'})).toBeVisible();
+    expect(screen.getByRole('cell', {name:'No email on file'})).toBeVisible();
+  });
+  it('offers an actionable download only for a generated file and preserves expiry', async () => {
+    const {ExportResultCard}=await import('./content/cards/ExportResultCard');
+    const {normalizeToolResult}=await import('./content/cards/cardUtils');
+    const result=normalizeToolResult({toolName:'export_data',data:{success:true,data:{download_url:'https://example.com/synthetic.csv',file_name:'synthetic.csv',row_count:53,total_matching_count:53,format:'csv',expires_at:'2026-11-11T18:00:00Z'},count:53}});
+    render(<ExportResultCard result={result}/>);
+    expect(screen.getByRole('link',{name:'Download Csv'})).toHaveAttribute('href','https://example.com/synthetic.csv');
+    expect(screen.getByRole('link',{name:'Download Csv'})).toHaveAttribute('download','synthetic.csv');
+    expect(screen.getByText(/Expires/)).toBeVisible();
+    const empty=normalizeToolResult({toolName:'export_data',data:{success:false,data:null,error:'export_empty',message:'No export file was created.'}});
+    expect(empty.status).toBe('error');
+    const {container}=render(<ExportResultCard result={empty}/>);expect(container).toBeEmptyDOMElement();
+  });
+});

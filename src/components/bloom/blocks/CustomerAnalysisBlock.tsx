@@ -18,15 +18,15 @@ function Details({title,value}:{title:string;value:unknown}) {
 export function CustomerAnalysisBlock({data,onAction}:{data:Row;onAction?:(prompt:string)=>void}) {
   const entries=rows(data.rows),trail=rows(data.trail),kind=String(data.kind),setId=typeof data.set_id==='string'?data.set_id:null;
   const titles:Record<string,string>={customer_reported_comparison:'Reported spending comparison',customer_audiences:'Saved analytical audiences',customer_audience:'Saved analytical audience',customer_exploration:'Your customer search',customer_growth:'Customer growth',customer_evidence:'Why this customer?',customer_basket:'What else this group bought',customer_ranking:'Customer ranking',customer_opportunities:'Customer opportunities'};
-  const preferred=kind==='customer_audiences'?['name','mode','refreshed_at','last_error']:kind==='customer_reported_comparison'?['name','baseline_spend','current_spend','spend_change_percent']:kind==='customer_audience'?['name','membership']:kind==='customer_growth'?['name','baseline_spend','current_spend','baseline_visits','current_visits','growth_index','growth_change_percent','state']:
+  const preferred=kind==='customer_audiences'?['name','mode','refreshed_at','last_error']:kind==='customer_reported_comparison'?['name','baseline_spend','current_spend','spend_change_percent']:kind==='customer_audience'?['name','email','membership']:kind==='customer_growth'?['name','baseline_spend','current_spend','baseline_visits','current_visits','growth_index','growth_change_percent','state']:
     kind==='customer_ranking'?['name','score','missing_factors']:kind==='customer_basket'?['product','customers','percent']:
     kind==='customer_evidence'?['product_name','quantity','net_amount','currency','purchased_at','source']:
-    kind==='customer_opportunities'?['first_name','last_name','lifetime_value','purchase_velocity']:['name','reason','evidence_count'];
+    kind==='customer_opportunities'?['first_name','last_name','lifetime_value','purchase_velocity']:['name','email','reason','evidence_count'];
   const columns=preferred.filter(key=>entries.some(row=>key in row));
   // A customer with no dated receipts in either period has unknown history,
   // not a recorded $0 or zero visits. Never show those as zeros.
   const noHistory=(row:Row)=>kind==='customer_growth'&&row.state==='no_comparable_history';
-  const cell=(row:Row,key:string)=>noHistory(row)&&['baseline_spend','current_spend','baseline_visits','current_visits'].includes(key)?'No dated receipts':key==='state'&&typeof row.state==='string'?(growthStates[row.state]??label(row.state)):text(row[key]);
+  const cell=(row:Row,key:string)=>key==='email'&&(row.email===null||row.email===undefined||row.email==='')?'No email on file':noHistory(row)&&['baseline_spend','current_spend','baseline_visits','current_visits'].includes(key)?'No dated receipts':key==='state'&&typeof row.state==='string'?(growthStates[row.state]??label(row.state)):text(row[key]);
   const total=data.total_count??data.scanned_customers??entries.length;
   return <Sheet variant="outlined" sx={{p:{xs:2,sm:3},borderRadius:'xl'}}><Stack spacing={2}>
     <Stack direction="row" justifyContent="space-between" useFlexGap flexWrap="wrap" gap={1}><Typography level="title-lg">{titles[kind]??'Customer analysis'}</Typography><Chip size="sm" variant="soft">Recorded data</Chip></Stack>

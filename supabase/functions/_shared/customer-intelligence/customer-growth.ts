@@ -55,8 +55,9 @@ export function compareCustomerGrowth(orders: GrowthOrder[], customerIds: string
     if (['refunded', 'partially_refunded'].includes(status!) && order.refund_amount === null) { row.missing++; continue; }
     const gross = moneyMinorUnits(order.total_amount), refund = order.refund_amount === null ? 0 : moneyMinorUnits(order.refund_amount);
     if (gross === null || refund === null || refund < 0 || gross < 0 || refund > gross) { row.missing++; continue; }
-    if (gross === 0) continue;
     const net = gross - refund;
+    // Match annual retention: free and fully returned orders are not activity.
+    if (net === 0) continue;
     if (date < settings.baseline_start) { row.earlier++; continue; }
     if (date <= settings.baseline_end) { row.baseline += net; row.baselineVisits++; }
     else if (date >= settings.current_start) { row.current += net; row.currentVisits++; }
@@ -84,7 +85,7 @@ export function compareCustomerGrowth(orders: GrowthOrder[], customerIds: string
   const retained = established.filter((row) => row.current_visits > 0);
   return {kind: 'customer_growth', settings, current_days: currentDays, baseline_days: baselineDays,
     formula: '(spend growth % × spend weight + visit growth % × visit weight) / total weight; index = 100 + change %',
-    source: 'Canonical POS order ledger; net order value after recorded refunds; one visit per completed order, not per line item.',
+    source: 'Canonical POS order ledger; net order value after recorded refunds; one visit per completed positive-net order, not per line item.',
     rows, summary: {customers: rows.length, comparable_customers: comparable.length, unscored_customers: rows.length - comparable.length,
       mean_customer_growth_percent: comparable.length ? round(comparable.reduce((sum, row) => sum + row.growth_change_percent!, 0) / comparable.length) : null,
       established_customers: established.length, retained_customers: retained.length,

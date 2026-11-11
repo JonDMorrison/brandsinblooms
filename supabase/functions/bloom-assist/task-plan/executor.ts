@@ -118,6 +118,11 @@ function validateEditedParams(
   task: TaskPlanItem,
   params: JsonObject,
 ): string | null {
+  // An export approval binds the audience, not a movable "latest" pointer.
+  if (task.tool_name === "export_data" &&
+      ["scope", "set_id", "entity"].some((field) => params[field] !== task.tool_params[field])) {
+    return "The export audience cannot change after preview. Request a new export approval.";
+  }
   const tool = getRegisteredTool(task.tool_name);
   if (!tool) {
     return `Unknown tool: ${task.tool_name}`;
@@ -299,7 +304,7 @@ export async function loadTaskPlan(
   return null;
 }
 
-function preparePlanForApproval(
+export function preparePlanForApproval(
   plan: TaskPlan,
   approvedTaskIds: string[],
   skippedTaskIds: string[],
@@ -356,7 +361,7 @@ function preparePlanForApproval(
     if (validationError) {
       return {
         ...task,
-        tool_params: editedParams,
+        tool_params: task.tool_name === "export_data" ? task.tool_params : editedParams,
         status: "failed" as const,
         error_message: validationError,
       };

@@ -9,6 +9,7 @@ import type {
   ToolName,
   ToolResult,
 } from "../types.ts";
+import { loadCustomerSet, loadCustomerSetContacts } from "./customer-exploration.ts";
 import { queryCampaigns } from "./query-campaigns.ts";
 import { queryCustomers } from "./query-customers.ts";
 import { queryProducts } from "./query-products.ts";
@@ -933,7 +934,10 @@ function csvCellValue(value: JsonValue | undefined): string {
   return String(value);
 }
 
-function escapeCsvCell(value: string): string {
+function escapeCsvCell(value: string, protectFormula = false): string {
+  // Spreadsheet applications can execute contact strings as formulas. Preserve
+  // numeric values (including negatives) and JSON; neutralize only CSV text.
+  if (protectFormula && /^(?:\s*[=+@-]|[\t\r\n])/.test(value)) value = "'" + value;
   return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
@@ -955,11 +959,11 @@ function collectColumns(rows: JsonObject[]): string[] {
 
 function buildCsvContent(rows: JsonObject[]): string {
   const columns = collectColumns(rows);
-  const header = columns.map(escapeCsvCell).join(",");
+  const header = columns.map(column => escapeCsvCell(column)).join(",");
   const body = rows.map((row) =>
     columns
       .map((column) =>
-        escapeCsvCell(csvCellValue(row[column] as JsonValue | undefined)),
+        escapeCsvCell(csvCellValue(row[column] as JsonValue | undefined), typeof row[column] === "string"),
       )
       .join(","),
   );
@@ -1124,6 +1128,20 @@ function buildExportCard(args: {
   };
 }
 
+/** Freeze latest-result references before approval; never change the approved audience later. */
+export async function prepareExportDataParams(params: JsonObject, context: ToolExecutionContext): Promise<JsonObject> {
+  const savedScope = params.scope === "previous_result" || params.scope === "saved_result";
+  if ((params.scope !== undefined && !savedScope && params.scope !== "all_customers") ||
+      (params.scope === "saved_result" && (typeof params.set_id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.set_id))) ||
+      (params.scope !== "saved_result" && params.set_id !== undefined) ||
+      (savedScope && (params.entity !== "customers" || (params.filters !== undefined && (!Array.isArray(params.filters) || params.filters.length > 0))))) {
+    throw new Error("Choose an exact saved customer group without additional filters, or an ordinary filtered export. No file was created.");
+  }
+  if (!savedScope) return params;
+  const set = await loadCustomerSet(context, params.scope === "saved_result" ? String(params.set_id) : undefined);
+  return {...params, scope: "saved_result", set_id: set.id};
+}
+
 const exportData: ToolImplementation = async (
   params: JsonObject,
   context: ToolExecutionContext,
@@ -1137,11 +1155,29 @@ const exportData: ToolImplementation = async (
     );
   }
 
-  const filters = normalizeExportFilters(params.filters, entity);
-  const exportRows = await fetchExportRows({ entity, filters, context });
+  if (context.approved === true && params.scope === "previous_result") {
+    return errorResult("The saved group was not pinned before approval. Request a new export confirmation for the exact saved result. No file was created.", "export_confirmation_required");
+  }
+  params = await prepareExportDataParams(params, context);
+  const savedScope = params.scope === "saved_result";
+  let exportRows: ExportRowsResult;
+  let savedSetId: string | null = null;
+  if (savedScope) {
+    const set = await loadCustomerSet(context, params.scope === "saved_result" ? String(params.set_id) : undefined);
+    savedSetId = set.id;
+    if (set.included_ids.length > EXPORT_ROW_LIMIT) {
+      return errorResult(`This saved group exceeds the ${EXPORT_ROW_LIMIT.toLocaleString()}-customer export limit. No partial file was created. Select a smaller group explicitly.`, "export_too_large");
+    }
+    const customers = await loadCustomerSetContacts(context, set.included_ids);
+    exportRows = {rows: customers.map(customer => ({customer_id: customer.id, first_name: customer.first_name, last_name: customer.last_name, email: customer.email})), totalMatchingCount: customers.length, truncated: false};
+  } else {
+    const filters = normalizeExportFilters(params.filters, entity);
+    exportRows = await fetchExportRows({ entity, filters, context });
+  }
   if (exportRows.rows.length === 0) {
     return createResult({
-      success: true,
+      success: false,
+      error: "export_empty",
       message:
         exportRows.emptyMessage ??
         `No ${PLURAL_ENTITY_LABELS[entity]} matched the requested filters, so no export file was created.`,
@@ -1186,7 +1222,7 @@ const exportData: ToolImplementation = async (
       fileName,
       downloadUrl,
     }),
-    data: buildExportCard({
+    data: {set_id: savedSetId, ...buildExportCard({
       entity,
       format,
       fileName,
@@ -1198,7 +1234,7 @@ const exportData: ToolImplementation = async (
       generatedAt,
       expiresAt,
       byteSize: bytes.byteLength,
-    }),
+    })},
     count: exportRows.rows.length,
     blockType: "data_card",
   });
