@@ -13,7 +13,7 @@
 import { promotionObservationSchedule, type EngineeringNext } from "./engineering-schedule.ts";
 import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
 import { evaluateRelease, PRODUCT_REPOSITORIES, redactForEngineering, releaseBaseForPR, resolvePolicy, type Product } from "./policy.ts";
-import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts } from "./github.ts";
+import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, type PullRequest, pullRequestFacts } from "./github.ts";
 
 export interface EngineeringIssue {
   id: string; title: string; product: Product; repository: string | null; status: string; version: number;
@@ -290,13 +290,8 @@ function repoFor(issue: EngineeringIssue): { repository: string; base: string } 
   return m ? { repository: m.repository, base: m.base } : null;
 }
 
-/** Read the PR's actual GitHub target, not the current default for new repairs. */
-async function actualPRBase(issue: EngineeringIssue): Promise<"main" | "dev" | null> {
-  if (!issue.repository || !issue.pr_number) return null;
-  const pr = await gh<{base?: {ref?: string}}>(
-    "release", "GET", `/repos/${issue.repository}/pulls/${issue.pr_number}`,
-  );
-  return releaseBaseForPR(issue.repository, pr?.base?.ref);
+function isCMSRepository(repository: string): boolean {
+  return repository.toLowerCase() === PRODUCT_REPOSITORIES.cms.repository.toLowerCase();
 }
 
 function engineeringPagePath(value: unknown): string | null {
@@ -421,14 +416,17 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
     const startedAt = typeof issue.evidence.dispatch_started_at === "string"
       ? issue.evidence.dispatch_started_at
       : new Date(Date.now() - 120_000).toISOString();
-    await updateVersioned(repair, issue, null, { evidence: { dispatch_claim_until: dispatchClaimUntil() } });
-    issue = await loadIssue(repair, issueId);
     const target = repoFor(issue);
     if (!target) {
       await update(repair, issue, "escalated", {}, "Product unknown: Bloom cannot map this report to a repository");
       return { note: "escalated: unknown product" };
     }
-    return await continueRepairDispatch(repair, automation, issue, target, workflow, startedAt);
+    // A pending CMS claim created before routing changed was prepared for dev.
+    const base = releaseBaseForPR(target.repository, issue.evidence.dispatch_base) ??
+      (isCMSRepository(target.repository) ? "dev" : target.base);
+    await updateVersioned(repair, issue, null, { evidence: { dispatch_claim_until: dispatchClaimUntil(), dispatch_base: base } });
+    issue = await loadIssue(repair, issueId);
+    return await continueRepairDispatch(repair, automation, issue, { ...target, base }, workflow, startedAt);
   }
   // A queued duplicate observes an existing dispatch or repair run; it never
   // spends another attempt. Pending dispatches above are reconciled explicitly.
@@ -464,6 +462,7 @@ export async function investigate(repair: Caller, automation: Caller, issueId: s
       dispatch_pending: true,
       dispatch_started_at: startedAt,
       dispatch_claim_until: dispatchClaimUntil(),
+      dispatch_base: target.base,
     },
   }, `Starting repair attempt ${cap.attempts + 1}/${cap.max_attempts}`);
   issue = await loadIssue(repair, issueId);
@@ -556,6 +555,13 @@ export async function evaluate(
     await update(release, issue, "escalated", {}, "The repair PR targets an unapproved branch. An authorized reviewer must correct the PR target before any merge or deployment.");
     return { note: "unapproved pull request target" };
   }
+  const dispatchBase = releaseBaseForPR(issue.repository, issue.evidence.dispatch_base);
+  const reviewedBase = releaseBaseForPR(issue.repository, issue.eligibility?.base_branch);
+  if ((dispatchBase && dispatchBase !== verifiedPRBase) || (reviewedBase && reviewedBase !== verifiedPRBase)) {
+    await update(release, issue, "escalated", {}, "The repair PR target changed. Restore the intended target or create a separately reviewed release PR.");
+    return { note: "pull request target changed" };
+  }
+  const targetEvidence = { ...issue.eligibility, base_branch: verifiedPRBase };
   if (pr.merged) {
     const mergeSha = pr.merge_commit_sha?.trim();
     if (!mergeSha) {
@@ -573,18 +579,18 @@ export async function evaluate(
       )
       : true;
     if (!rollbackReady) {
-      await update(
+      await updateVersioned(
         release,
         issue,
         "escalated",
-        { merge_sha: mergeSha, head_sha: pr.head.sha },
+        { merge_sha: mergeSha, head_sha: pr.head.sha, eligibility: targetEvidence },
         "Pull request was already merged, but Bloom could not prove which prior production deployment is safe to restore. A person must verify the release and rollback point.",
       );
       return { note: "merged; rollback point could not be proven" };
     }
     // A person may merge an approved PR before Bloom's next evaluation. Persist
     // the same release facts as the automated merge path before deployment.
-    await update(release, issue, "merged", { merge_sha: mergeSha, head_sha: pr.head.sha }, "Pull request was merged outside Bloom; continuing release tracking");
+    await update(release, issue, "merged", { merge_sha: mergeSha, head_sha: pr.head.sha, eligibility: targetEvidence }, "Pull request was merged outside Bloom; continuing release tracking");
     const merged = await loadIssue(release, issueId);
     await update(release, merged, "deploying", {});
     return { next: { step: "deploy", delaySeconds: 60 }, note: "existing merge recorded; tracking deployment" };
@@ -596,6 +602,9 @@ export async function evaluate(
   // Under human ownership, evaluate only a permission-checked approval.
   // Existing merges are handled above so deployment monitoring is never lost.
   if (options.humanOwned && (issue.status !== "approved" || !issue.approved_head_sha)) {
+    if (reviewedBase !== verifiedPRBase || issue.head_sha !== pr.head.sha) {
+      await updateVersioned(release, issue, null, { eligibility: targetEvidence, head_sha: pr.head.sha });
+    }
     return { note: "human owns engineering review; automatic release decision held" };
   }
   // A delayed repair report can arrive after polling has already moved the
@@ -608,17 +617,18 @@ export async function evaluate(
     const eligibility = {
       eligible: false,
       reasons: ["repair report requires human review"],
+      base_branch: verifiedPRBase,
     };
     if (issue.status !== "awaiting_approval") {
       await update(
         release,
         issue,
         "awaiting_approval",
-        { eligibility },
+        { eligibility, head_sha: pr.head.sha },
         "The repair report requires human review before this pull request can merge",
       );
     } else {
-      await update(release, issue, null, { eligibility });
+      await updateVersioned(release, issue, null, { eligibility, head_sha: pr.head.sha });
     }
     return { note: "awaiting approval: repair report requires human review" };
   }
@@ -627,7 +637,7 @@ export async function evaluate(
   const kinds = issue.tickets.length ? "bug" : "unknown";
   // Automatic rollback exists only where Bloom can redeploy the previous production build.
   const rollbackTarget = await vercelTarget(issue.repository);
-  const eligibility = evaluateRelease(policy, {
+  const evaluation = evaluateRelease(policy, {
     kind: kinds as "bug",
     reproduced: !!issue.reproduction?.failing_test || issue.reproduction?.reproduced === true,
     intendedBehaviourEstablished: issue.reproduction?.intended_behaviour_established === true,
@@ -639,6 +649,8 @@ export async function evaluate(
     ) !== null,
     hasRollback: rollbackTarget !== null,
   }, facts);
+  const eligibility = { ...evaluation, base_branch: verifiedPRBase };
+  const cmsMain = verifiedPRBase === "main" && isCMSRepository(issue.repository);
   const checksPending = facts.checks.some((c) => c.status !== "completed");
   if (issue.status === "approved") {
     // A person approved; still require green checks and no open threads.
@@ -646,24 +658,25 @@ export async function evaluate(
     // must be complete and green, no review may request changes, and no thread may be open.
     const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|no required checks configured|a check failed|unresolved|requested changes|not mergeable|empty change|no production verification|no supported rollback/.test(r));
     // The approval covers exactly the commit Jon reviewed. A new push needs a new approval.
-    if (issue.approved_head_sha && issue.approved_head_sha !== pr.head.sha) {
-      await update(release, issue, "awaiting_approval", { eligibility, head_sha: pr.head.sha }, "The pull request changed after approval; it needs approving again");
+    if (!issue.approved_head_sha || issue.approved_head_sha !== pr.head.sha || (isCMSRepository(issue.repository) && !reviewedBase)) {
+      await updateVersioned(release, issue, "awaiting_approval", { eligibility, head_sha: pr.head.sha }, "Confirm the current pull request target and commit before approving the release again.");
       return { note: "re-approval needed" };
     }
+    if (cmsMain && eligibility.reasons.includes("no independent approving review")) hardBlocks.push("no independent approving review");
     if (checksPending) hardBlocks.push("checks still running");
     if (hardBlocks.length) return { next: { step: "evaluate", delaySeconds: 600 }, note: `approved, waiting: ${hardBlocks.join("; ")}` };
-    await update(release, issue, "merging", { eligibility, head_sha: pr.head.sha });
-    return await merge(release, issueId, pr.head.sha);
+    await updateVersioned(release, issue, "merging", { eligibility, head_sha: pr.head.sha });
+    return await merge(release, issueId, pr.head.sha, verifiedPRBase);
   }
   if (eligibility.eligible) {
-    await update(release, issue, "merging", { eligibility, head_sha: pr.head.sha }, "Eligible for automatic release");
-    return await merge(release, issueId, pr.head.sha);
+    await updateVersioned(release, issue, "merging", { eligibility, head_sha: pr.head.sha }, "Eligible for automatic release");
+    return await merge(release, issueId, pr.head.sha, verifiedPRBase);
   }
   if (checksPending) {
-    await update(release, issue, null, { eligibility });
+    await updateVersioned(release, issue, null, { eligibility, head_sha: pr.head.sha });
     return { next: { step: "evaluate", delaySeconds: 600 }, note: "checks still running" };
   }
-  await update(release, issue, "awaiting_approval", { eligibility }, `Needs review: ${eligibility.reasons.slice(0, 4).join("; ")}`);
+  await updateVersioned(release, issue, "awaiting_approval", { eligibility, head_sha: pr.head.sha }, `Needs review: ${eligibility.reasons.slice(0, 4).join("; ")}`);
   return { note: "awaiting approval" };
 }
 
@@ -818,12 +831,11 @@ async function recordPreviousProductionDeployment(
   }
 }
 
-async function merge(release: Caller, issueId: string, sha: string): Promise<StepResult> {
+async function merge(release: Caller, issueId: string, sha: string, base: "main" | "dev"): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
-  const base = await actualPRBase(issue);
-  if (!base) {
-    await update(release, issue, "escalated", {}, "The repair PR target could not be verified. Do not merge until its approved branch is confirmed.");
-    return { note: "unverified pull request target" };
+  if (issue.status !== "merging" || issue.head_sha !== sha || issue.eligibility?.base_branch !== base ||
+    !issue.repository || !issue.pr_number) {
+    return { note: "release decision changed before merge" };
   }
   if (base === "main" && !(await recordPreviousProductionDeployment(release, issue, [sha], [sha]))) {
     await update(
@@ -836,7 +848,14 @@ async function merge(release: Caller, issueId: string, sha: string): Promise<Ste
     return { note: "merge blocked: rollback point could not be proven" };
   }
   try {
-    const out = await mergePullRequest(issue.repository!, issue.pr_number!, sha, `fix: ${issue.title} (Bloom ${issue.id.slice(0, 8)})`);
+    // GitHub's merge precondition pins the head SHA. Recheck the evaluated
+    // target after the rollback lookup, immediately before the merge request.
+    const pr = await gh<PullRequest>("release", "GET", `/repos/${issue.repository}/pulls/${issue.pr_number}`);
+    if (pr?.base?.ref !== base || pr.head?.sha !== sha || pr.state !== "open" || pr.merged !== false) {
+      await update(release, issue, "escalated", {}, "The pull request target, commit or state changed since evaluation. Review it again before releasing.");
+      return { note: "pull request changed before merge" };
+    }
+    const out = await mergePullRequest(issue.repository, issue.pr_number, sha, `fix: ${issue.title} (Bloom ${issue.id.slice(0, 8)})`);
     await update(release, issue, "merged", { merge_sha: out.sha });
   } catch (e) {
     await update(release, issue, "failed", {}, `Merge failed: ${e instanceof Error ? e.message : e}`);
@@ -850,12 +869,15 @@ async function merge(release: Caller, issueId: string, sha: string): Promise<Ste
 export async function deploy(release: Caller, issueId: string): Promise<StepResult> {
   const observationStartedAt = Date.now();
   const issue = await loadIssue(release, issueId);
-  if (!issue.merge_sha || !issue.repository) return { note: "no merge" };
+  if (!issue.merge_sha || !issue.repository || !issue.pr_number) return { note: "no merge" };
   if (!["merged", "deploying"].includes(issue.status)) return { note: `status ${issue.status}` };
-  const base = await actualPRBase(issue);
-  if (!base) {
-    await update(release, issue, "escalated", {}, "The merged PR's target branch could not be verified. Production deployment is held for an authorized review.");
-    return { note: "unverified merged PR target" };
+  const pr = await gh<PullRequest>("release", "GET", `/repos/${issue.repository}/pulls/${issue.pr_number}`);
+  const base = releaseBaseForPR(issue.repository, pr?.base?.ref);
+  const recordedBase = issue.eligibility?.base_branch;
+  if (!base || (recordedBase && recordedBase !== base) || pr.merged !== true ||
+    pr.merge_commit_sha?.trim() !== issue.merge_sha) {
+    await update(release, issue, "escalated", {}, "GitHub could not confirm this pull request's merge target and commit. Production deployment tracking is held for review.");
+    return { note: "unverified merged PR" };
   }
   let deploymentSha = issue.merge_sha;
   let promotion: Record<string, unknown> = {};

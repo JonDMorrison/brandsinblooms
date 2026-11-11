@@ -91,7 +91,7 @@ export async function pullRequestFacts(repo: string, number: number, repairLogin
       reviews: [...latest.values()].map((r) => ({ state: r.state, author: r.login, independent: r.login !== pr.user.login && !repairLogins.includes(r.login) })),
       unresolvedThreads: threads.repository.pullRequest.reviewThreads.nodes.filter((t) => !t.isResolved).length,
       mergeable: pr.mergeable,
-      baseBranch: pr.base.ref,
+      baseBranch: pr.base?.ref ?? "",
       testFilesAdded: files.filter((f) => isTest(f.filename) && f.status === "added").map((f) => f.filename),
       testFilesModifiedOrDeleted: files.filter((f) => isTest(f.filename) && f.status !== "added").map((f) => f.filename),
     },
