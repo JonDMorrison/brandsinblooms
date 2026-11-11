@@ -1,3 +1,4 @@
+import { normalizeCustomerExplorationParams } from './customer-exploration-registry.ts';
 import { listLoyaltyProgrammeTemplates, listLoyaltyProgrammes, readLoyaltyProgrammeResults } from "./implementations/loyalty-programmes.ts";
 import { toolFailureResult } from "./failure.ts";
 import { exploreCustomerReportedSpending, exploreCustomerPurchases, getCustomerProductHistory, inspectCustomerSet, explainCustomerSetMember, analyzeCustomerBasket, compareCustomerGrowthTool, saveCustomerSetSegment, prepareCustomerSetSave } from "./implementations/customer-exploration.ts";
@@ -393,7 +394,7 @@ export function normalizeToolParams(
   }
 
   const properties = readSchemaProperties(tool.function.parameters);
-  const normalized: Record<string, unknown> = { ...params };
+  const normalized = normalizeCustomerExplorationParams(tool.function.name, { ...params });
 
   if ("page_size" in normalized) {
     normalized.page_size = normalizePageInteger(normalized.page_size, 10, 100);
@@ -786,10 +787,12 @@ function unauthorizedResult(tool: ToolDefinition, role: ToolRole): ToolResult {
   });
 }
 
-function validationErrorResult(issues: ToolValidationIssue[]): ToolResult {
+function validationErrorResult(issues: ToolValidationIssue[], toolName?: string): ToolResult {
   return createResult({
     success: false,
-    message: "Tool parameters failed validation.",
+    message: toolName === "explore_customer_purchases"
+      ? 'The purchase lookup did not run. Correct the arguments and retry: criteria.mode is required (purchased or not_purchased); omit top_n unless the user requested a top-N buyer subset of 1–500. For the full previous group use scope=previous_result and omit set_id and top_n. Do not infer a count from this failed call.'
+      : "The lookup did not run because its arguments are invalid. Correct the listed fields and retry; do not present the error payload as customer data.",
     error: "validation_error",
     blockType: "text",
     data: {
@@ -1007,7 +1010,7 @@ export async function executeTool(
   const normalizedParams = normalizeToolParams(tool, params);
   const validation = validateToolParams(tool, normalizedParams);
   if (!validation.ok) {
-    result = validationErrorResult(validation.issues);
+    result = validationErrorResult(validation.issues, tool.function.name);
     await logToolExecution(context, {
       toolName: tool.function.name,
       input: logInput,
