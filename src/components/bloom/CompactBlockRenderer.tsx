@@ -372,7 +372,6 @@ function CompactDataCardBlock({
               href={downloadUrl}
               rel="noopener noreferrer"
               size="sm"
-              target="_blank"
               variant="soft"
               startDecorator={<Download size={13} strokeWidth={1.9} />}
               sx={{ minHeight: 28, px: 1 }}
