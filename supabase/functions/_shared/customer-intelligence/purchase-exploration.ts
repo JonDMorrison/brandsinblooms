@@ -98,6 +98,13 @@ function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anc
   const quantity = finiteNumber(fact.quantity);
   if (quantity !== null && quantity <= 0) return false; // Returns are not fresh purchases.
   if (quantity === null) missing = true;
+  // General shopping activity needs a positive purchase value. Explicit item
+  // searches still identify free coupon stock entries without deleting evidence.
+  if (!rule.product && !rule.category && !rule.department) {
+    const amount = finiteNumber(fact.net_amount);
+    if (amount !== null && amount <= 0) return false;
+    if (amount === null) missing = true;
+  }
   if (rule.product) {
     const values = rule.product_match === 'sku' ? [fact.product_code] : [fact.product_name, fact.product_code];
     const available = values.filter((v): v is string => typeof v === 'string' && Boolean(v.trim()));

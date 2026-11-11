@@ -134,3 +134,25 @@ it('bounds nested product expansion independently of source-row count',async()=>
  const row={...growthEvents[0],raw_data:{...growthEvents[0].raw_data,items:Array.from({length:4},()=>['p','Synthetic product','Nursery',1,2,1])}};
  await expect(loadSummaryRows(growthClient(growthSources,eventsForDb([row])).db,'t','2026-11-09T00:00:00Z','earlier',1000,250000,3)).rejects.toThrow('product safety limit');
 });
+
+it('ignores coupon-only years for reported cohorts while retaining net returns and unknown lifetime coverage',async()=>{
+ const population=['zero-only','prior-free','earlier-free','repeat-paid','returned','negative'];
+ const rows=[
+  growthEvent('zero',growthSources[2],'zero-only',0),
+  growthEvent('prior-free',growthSources[1],'prior-free',0),growthEvent('first-paid',growthSources[2],'prior-free',20),
+  growthEvent('earlier-free',growthSources[0],'earlier-free',0),growthEvent('later-paid',growthSources[2],'earlier-free',30),
+  growthEvent('repeat-before',growthSources[1],'repeat-paid',10),growthEvent('repeat-now',growthSources[2],'repeat-paid',40),
+  growthEvent('repeat-coupon',growthSources[2],'repeat-paid',0),growthEvent('partial-return',growthSources[2],'repeat-paid',-10,-1),
+  growthEvent('returned-before',growthSources[1],'returned',10),growthEvent('returned-sale',growthSources[2],'returned',20),growthEvent('returned-refund',growthSources[2],'returned',-20,-1),
+  growthEvent('negative',growthSources[2],'negative',-5,-1),
+ ];
+ const report=await loadReportedCustomerGrowth(growthClient(growthSources,eventsForDb(rows)).db,'t','2026-11-09T00:00:00Z',2025,'CAD',population);
+ expect(report?.counts).toEqual({previous:2,current:3,retained:1,recovered:0,firstObserved:2,notReturned:1,net:1});
+ expect(report?.averages).toEqual({retained:30,recovered:null,firstObserved:25});
+ expect(report?.firstEver).toBeNull();
+ expect(report).toEqual({...reportedCustomerGrowth(periodSummaryFacts(rows,'t'),population,'t',growthSources,'current','prior','CAD'),spendingSources:[]});
+});
+it('fails closed for unknown reported amounts rather than classifying them as zero-value stock',()=>{
+ const facts=periodSummaryFacts([growthEvents[0]],'t');
+ expect(()=>reportedCustomerGrowth([{...facts[0],net_amount:null}],growthPopulation,'t',growthSources,'current','prior','CAD')).toThrow('reconciliation');
+});
