@@ -1,0 +1,11 @@
+# Imported period reports in Customer Intelligence
+
+A customer master and a reconciled product/spending report can be useful before the POS exposes dated receipt history. Preserve them in the existing source-event authority. `purchase_summary` stores one customer-period record with explicitly labelled product aggregates; it never enters the receipt-line or POS order ledgers. `customer_spending` retains the independently reported period spending and transaction count. Keep original source hashes, filenames, row references, report periods and separate reconciliation totals.
+
+Bloom reads only completed, tenant-authorized imports. Product exploration supports a complete source period, leaves partially overlapping date filters unknown, and never fabricates purchase timestamps. Newer cumulative exports supersede covered older snapshots; partially overlapping exports require reconciliation. Exact customer sets carry through spending and product follow-ups, evidence inspection, and reviewed static segment saving. Reported spending does not become lifetime value, an established segment, a lifecycle label, or marketing consent.
+
+The overview surfaces report totals and source limits. Customer profiles show the original source code and separately labelled reported-period spending. Missing lifetime or momentum metrics stay unmeasured. Existing rewards, consent, sending and Customer Type approval authorities remain unchanged.
+
+For a supervised bulk import, transaction-local `app.customer_import.defer_notion=true` suppresses per-customer account-counter webhooks. Refresh the account counter once after reconciliation. Customer metric and identity triggers remain enabled. This setting does not change authentication, permissions, customer consent or campaign sending.
+
+Acceptance requires source-to-database customer and amount checks, repeat-import idempotency, leading-zero preservation, shared-email identity review, authenticated tenant isolation, source-period boundary tests, and desktop/mobile navigation. A damaged historical workbook or unverified journal cannot certify year-over-year CGI or seasonal lifecycle models. Record these limits in the tenant's source status and each relevant import instead of presenting missing history as zero.

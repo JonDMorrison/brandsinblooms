@@ -19,6 +19,11 @@ import {
 import { useNavigate } from "react-router-dom";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
+import {
+  formatReportedCurrency,
+  formatReportedPeriod,
+  readCustomerReportedSpending,
+} from "@/lib/crm/reportedPeriodSpending";
 import { normalizeConfirmationPayload } from "@/components/bloom/blocks/ConfirmationBlock";
 import { normalizeImagePayload } from "@/components/bloom/blocks/ImageBlock";
 import { normalizeInteractionPayload } from "@/components/bloom/blocks/InteractionBlock";
@@ -188,7 +193,21 @@ function metricForDataCard(
   switch (entityType) {
     case "customer": {
       const totalSpent = getRecordValue(entity, "total_spent");
-      return `${formatCurrencyValue(totalSpent)} spent`;
+      const reported = readCustomerReportedSpending(entity);
+      const amount = readNumber(totalSpent);
+      const recordedOrders = readNumber(getRecordValue(entity, "purchase_metrics.order_count") ?? entity.pos_order_count ?? entity.order_count);
+      const receiptDates = [getRecordValue(entity, "last_order"), entity.first_purchase_date, getRecordValue(entity, "purchase_metrics.first_purchase_date")];
+      const hasReceiptEvidence = (recordedOrders ?? 0) > 0 ||
+        receiptDates.some(value => typeof value === "string" && Number.isFinite(Date.parse(value)));
+      const recordedAmount = amount === 0 && !hasReceiptEvidence ? null : amount;
+      const parts: string[] = [];
+      if (reported) {
+        parts.push(`${formatReportedCurrency(reported.spend)} CAD reported (${formatReportedPeriod(reported)}), ${reported.transactions} reported ${reported.transactions === 1 ? "transaction" : "transactions"}`);
+      }
+      if (recordedAmount !== null) {
+        parts.push(`${formatCurrencyValue(recordedAmount, entity.currency)} recorded spending`);
+      }
+      return parts.length > 0 ? parts.join(" · ") : "Recorded spending unknown";
     }
     case "product": {
       const price = formatCurrencyValue(entity.price, entity.currency);

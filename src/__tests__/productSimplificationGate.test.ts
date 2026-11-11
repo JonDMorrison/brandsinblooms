@@ -68,6 +68,7 @@ describe("BloomSuite product simplification release gate", () => {
       "src/components/onboarding/OnboardingCompletion.ts",
       "src/components/settings/SettingsHub.tsx",
       "src/components/settings/ConnectionsSettings.tsx",
+      "src/components/billing/UsageAnalytics.tsx",
       "src/components/analytics/MarketingPerformanceSection.tsx",
       "src/components/analytics/DataSourcesSection.tsx",
       "src/hooks/useIntegrationsHubData.ts",

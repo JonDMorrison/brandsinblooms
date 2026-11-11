@@ -895,7 +895,7 @@ serve(async (req) => {
         try {
           console.log('🔥 Using Firecrawl API as fallback');
           
-          const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          const firecrawlResponse = await fetch('https://api.firecrawl.dev/v2/scrape', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${firecrawlApiKey}`,
@@ -1006,7 +1006,7 @@ serve(async (req) => {
       try {
         console.log('🎨 Attempting to extract brand colors via Firecrawl');
         
-        const brandingResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        const brandingResponse = await fetch('https://api.firecrawl.dev/v2/scrape', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${firecrawlApiKey}`,

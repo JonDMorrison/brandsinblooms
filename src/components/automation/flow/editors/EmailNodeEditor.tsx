@@ -1,3 +1,4 @@
+import {parseCouponReminderConfig,type CouponReminderConfig} from '../../../../../supabase/functions/_shared/customer-intelligence/coupon-lifecycle';
 import React, { useMemo, useState } from "react";
 import Box from "@mui/joy/Box";
 import Card from "@mui/joy/Card";
@@ -19,6 +20,7 @@ interface EmailNodeData {
   template?: string;
   delay?: string;
   imageUrl?: string;
+  coupon_reminder?: CouponReminderConfig | null;
 }
 
 interface EmailNodeEditorProps {
@@ -72,6 +74,8 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
   onSave,
   onCancel,
 }) => {
+  const [couponDays,setCouponDays]=useState(data.coupon_reminder?String(data.coupon_reminder.days_before_expiry):"");
+  const validCouponDays=couponDays===""||(/^\d+$/.test(couponDays)&&Number(couponDays)<=365);
   const [subject, setSubject] = useState(data.subject || "");
   const [content, setContent] = useState(data.content || data.body || "");
   const [template, setTemplate] = useState(data.template || "");
@@ -125,6 +129,7 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
       template,
       delay,
       imageUrl,
+      coupon_reminder:couponDays===""?null:parseCouponReminderConfig({days_before_expiry:Number(couponDays)}),
     });
   };
 
@@ -183,6 +188,8 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
         />
       </Stack>
 
+      <JoyInput label="Coupon reminder: days before recorded expiry (optional)" value={couponDays} onChange={event=>setCouponDays(event.target.value)} error={!validCouponDays} errorMessage={!validCouponDays?"Enter a whole number from 0 to 365":undefined}/>
+      <Typography level="body-sm">Requires an exact issued-coupon event in the trigger. Timing uses its recorded expiry; this overrides the send delay for this node. Missing or ambiguous evidence and known redemption suppress sending. Leave blank for an ordinary email.</Typography>
       <JoyInput
         label="Optional hero image URL"
         value={imageUrl}
@@ -270,7 +277,7 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
           </JoyButton>
           <JoyButton
             onClick={handleSave}
-            disabled={!subject.trim() || !content.trim()}
+            disabled={!subject.trim() || !content.trim() || !validCouponDays}
           >
             Save changes
           </JoyButton>

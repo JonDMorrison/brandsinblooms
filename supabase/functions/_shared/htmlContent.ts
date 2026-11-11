@@ -23,7 +23,7 @@
 // inline event handlers) is stripped. The same configuration is mirrored
 // in src/lib/crm/htmlContent.ts.
 
-import sanitizeHtml from "npm:sanitize-html@2.17.3";
+import sanitizeHtml from "npm:sanitize-html@2.18.1";
 
 import { RICH_TEXT_SANITIZE_OPTIONS } from "./htmlContentSanitizeConfig.ts";
 

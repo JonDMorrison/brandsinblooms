@@ -1,4 +1,5 @@
 import { test, expect, type Browser, type Page, type Response } from '@playwright/test';
+import { expectRouteSettled } from '../utils/route-settled';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'https://www.bloomsuite.app';
 const DEMO_TENANT = 'Greenfield Garden Centre';
@@ -7,17 +8,15 @@ let previousTenantLabel: string | null = null;
 const primaryNavigation = [
   ['Dashboard', '/dashboard'],
   ['Bloom', '/bloom'],
-  ['Analytics', '/analytics'],
+  ['Reports', '/analytics'],
   ['Activity Center', '/activity'],
   ['Calendar', '/calendar'],
-  ['Customers', '/crm/customers'],
+  ['Contacts', '/crm/customers'],
   ['Segments', '/crm/segments'],
   ['Personas', '/crm/personas'],
   ['Forms', '/crm/forms'],
   ['Campaigns', '/crm/campaigns'],
   ['Automations', '/crm/automations'],
-  ['Newsletter', '/newsletters'],
-  ['SMS Campaigns', '/sms'],
   ['Products', '/products'],
   ['Manage Domains', '/domains'],
   ['Integrations', '/integrations'],
@@ -29,12 +28,33 @@ const primaryNavigation = [
   ['Support', '/support'],
 ] as const;
 
+// The tenant navigation now groups specialized destinations behind
+// progressively disclosed branches. Check the real expand-and-click flow
+// rather than assuming every link is always visible on the home screen.
+const sidebarBranchForLink: Record<string, string> = {
+  Bloom: 'Marketing tools',
+  'Activity Center': 'More tools & help',
+  Calendar: 'Marketing tools',
+  Segments: 'Audience tools',
+  Personas: 'Audience tools',
+  Products: 'Store & integrations',
+  'Manage Domains': 'Store & integrations',
+  Integrations: 'Store & integrations',
+  Profile: 'More tools & help',
+  Account: 'More tools & help',
+  Support: 'More tools & help',
+};
+
 const secondaryReadOnlyRoutes = [
   ['/crm/analytics', '/crm/analytics'],
   ['/crm/settings/email-sending', '/crm/settings/email-sending'],
   ['/crm/campaigns/blocks', '/crm/campaigns/blocks'],
   ['/settings/usage', '/settings/usage'],
   ['/account-setup', '/account-setup'],
+  // Newsletter and SMS left the sidebar when campaign creation moved to one
+  // entry point (#326); their routes stay live for bookmarks and deep links.
+  ['/newsletters', '/newsletters'],
+  ['/sms', '/sms'],
   // These legacy routes have explicit RedirectWithQuery entries in App.tsx.
   ['/plan', '/calendar'],
   ['/helpdesk', '/helpdesk'],
@@ -66,7 +86,7 @@ async function openAdminManage(browser: Browser) {
   });
   const page = await context.newPage();
   await page.goto('/admin/manage', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Admin Manage', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Client tools', level: 2 })).toBeVisible({ timeout: 15_000 });
   return { context, page };
 }
 
@@ -103,13 +123,12 @@ async function clearTenant(page: Page) {
 }
 
 async function assertHealthyPage(page: Page, expectedPath: string, sourcePath = expectedPath) {
-  const accessCheck = page.getByRole('status', { name: 'Checking workspace access' });
-  await accessCheck.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+  await expectRouteSettled(page, expectedPath, sourcePath);
+  // Observation window, not synchronisation: keep listening for the rendered
+  // page's first data requests so watchForFailures can see their 403/404/5xx.
   await page.waitForTimeout(500);
   await expect(page).not.toHaveURL(/\/auth(?:$|\?)/);
-  expect(new URL(page.url()).pathname, `unexpected redirect from ${sourcePath}`).toBe(expectedPath);
   await expect(page.locator('body')).not.toContainText(/Something went wrong|Application error|Security Violation/i);
-  await expect(accessCheck, `workspace access never resolved on ${sourcePath}`).toBeHidden({ timeout: 2_000 });
 }
 
 function watchForFailures(page: Page) {
@@ -173,6 +192,14 @@ test('primary sidebar navigation is clickable end-to-end', async ({ page }) => {
 
   for (const [label, expectedPath] of primaryNavigation) {
     const sidebar = page.getByTestId('dashboard-shell-sidebar');
+    const branchLabel = sidebarBranchForLink[label];
+    if (branchLabel) {
+      const branch = sidebar.getByRole('button', { name: branchLabel, exact: true });
+      await expect(branch, `missing sidebar section: ${branchLabel}`).toBeVisible({ timeout: 10_000 });
+      if ((await branch.getAttribute('aria-expanded')) !== 'true') {
+        await branch.click();
+      }
+    }
     const link = sidebar.getByRole('link', { name: label, exact: true });
     await expect(link, `missing sidebar link: ${label}`).toBeVisible({ timeout: 10_000 });
     await link.click();

@@ -27,9 +27,13 @@ import { CustomerIntelligenceStory } from "@/components/crm/customer-dashboard/C
 import { CustomerConsentCard } from "@/components/crm/customer-dashboard/CustomerConsentCard";
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
+import { CustomerCouponsCard } from "@/components/crm/customer-dashboard/CustomerCouponsCard";
+import { CustomerIdealEvidenceCard } from "@/components/crm/customer-dashboard/CustomerIdealEvidenceCard";
 import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboard/CustomerProfileAttributesCard";
+import { ImportedCustomerSummary } from "@/components/crm/customer-dashboard/ImportedCustomerSummary";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
 import { CustomerSegmentsCard } from "@/components/crm/customer-dashboard/CustomerSegmentsCard";
+import { CustomerTagsCard } from "@/components/crm/customer-dashboard/CustomerTagsCard";
 import { CustomerSnapshot } from "@/components/crm/customer-dashboard/CustomerSnapshot";
 import { EditCustomerDialog } from "@/components/crm/customer-dashboard/EditCustomerDialog";
 import { EngagementHealthOverview } from "@/components/crm/customer-dashboard/EngagementHealthOverview";
@@ -92,10 +96,10 @@ const TAB_OPTIONS: Array<{
   label: string;
   icon: React.ElementType;
 }> = [
-  { value: "overview", label: "Overview", icon: UserCircle2 },
+  { value: "overview", label: "Profile", icon: UserCircle2 },
   { value: "activity", label: "Activity", icon: Activity },
-  { value: "engagement", label: "Engagement", icon: HeartPulse },
-  { value: "purchase", label: "Purchase", icon: ShoppingBag },
+  { value: "engagement", label: "Marketing", icon: HeartPulse },
+  { value: "purchase", label: "Purchases", icon: ShoppingBag },
   { value: "insights", label: "Insights", icon: Sparkles },
 ];
 
@@ -504,6 +508,10 @@ const CustomerDashboardPage: React.FC = () => {
     return <FatalState onRetry={handleRefresh} />;
   }
 
+  const fields=displayCustomer.custom_fields;
+  const isIdealProfile=Boolean(fields&&typeof fields==='object'&&!Array.isArray(fields)&&'ideal_import_source' in fields);
+  const receiptMetricsUnavailable=isIdealProfile&&!purchaseMetrics;
+
   const activityFilters = {
     start: rangeStartDate,
     status: activityStatus === "all" ? undefined : [activityStatus],
@@ -557,11 +565,13 @@ const CustomerDashboardPage: React.FC = () => {
             <LinearProgress sx={{ borderRadius: 999 }} />
           ) : null}
 
+          <ImportedCustomerSummary fields={displayCustomer.custom_fields} />
+          {displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
           <CustomerQuickStats
             healthScore={snapshotMetrics.engagementHealthScore}
             engagementScore={engagementMetrics.engagementScore}
-            lifetimeValue={purchaseDisplayMetrics.ltv}
-            totalOrders={purchaseDisplayMetrics.totalPurchases}
+            lifetimeValue={purchaseMetrics?.lifetime_value ?? null}
+            totalOrders={purchaseMetrics?.total_purchases ?? null}
             preferredChannel={snapshotMetrics.preferredChannel}
             accountAgeDays={snapshotMetrics.accountAgeDays}
           />
@@ -654,12 +664,7 @@ const CustomerDashboardPage: React.FC = () => {
                     phone: displayCustomer.phone,
                   }}
                   onCustomerPatched={handleCustomerPatched}
-                  onOpenBatchEdit={
-                    canEditCustomer
-                      ? () => setIsEditDialogOpen(true)
-                      : undefined
-                  }
-                  canEdit={canEditCustomer}
+                  canEdit={false}
                 />
                 <CustomerConsentCard
                   customer={displayCustomer}
@@ -667,7 +672,12 @@ const CustomerDashboardPage: React.FC = () => {
                   onCustomerPatched={handleCustomerPatched}
                   canManage={canEditCustomer}
                 />
+                <CustomerTagsCard
+                  customerId={displayCustomer.id}
+                  canManage={canEditCustomer}
+                />
                 <CustomerProfileAttributesCard customer={displayCustomer} />
+                <CustomerCouponsCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />
                 <CustomerSegmentsCard
                   customerId={displayCustomer.id}
                   canManage={canManageSegments}
@@ -794,17 +804,19 @@ const CustomerDashboardPage: React.FC = () => {
 
           {activeTab === "purchase" ? (
             <Stack spacing={2}>
-              <CustomerIntelligenceStory
+              {(!isIdealProfile||customerIntelligence?.last_line_item_purchase_at)&&<CustomerIntelligenceStory
                 intelligence={customerIntelligence}
                 onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
               />
-              <PurchaseValueBehavior
+              }
+              {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. Use the imported report-period spending above; missing receipt history is not zero spending.</Typography> : <PurchaseValueBehavior
                 metrics={purchaseDisplayMetrics}
                 purchaseTimeline={purchaseTimeline}
                 errorMessage={chartErrors.purchaseTimeline}
                 onRetry={() => void handleRefresh()}
               />
-              <LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />
+              }
+              {!receiptMetricsUnavailable&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
             </Stack>
           ) : null}
 

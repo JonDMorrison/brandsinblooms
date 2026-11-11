@@ -29,7 +29,8 @@ The current theme is defined in `src/config/joy-theme.ts`.
 - Neutral palette: default text, borders, muted surfaces, and shell structure.
 - Success, warning, info, and danger palettes: status-driven feedback.
 - `brandNavy`: dashboard shell and primary navigation surface color family.
-- `sand`: light background and content canvas tones used throughout the shell.
+- Dashboard canvas: `neutral.50` (`#F8FAFC`); cards and dialogs: `background.surface` (white). Warm beige/cream/sand is retired from the application palette.
+- Status tones remain semantic: reserve amber for genuine warnings and red for genuine failures; never use either as a default page or modal background.
 - Bridge tokens: legacy semantic values that keep older variables aligned with Joy colors while migration is still in progress.
 
 When styling new UI, prefer Joy palette tokens and `sx` values over ad hoc hardcoded colors.
@@ -100,6 +101,14 @@ The codebase still contains non-shell routes and older UI surfaces. Use these ru
 - Do not introduce new `ui-legacy` imports on admin pages or other Joy-based shell routes unless there is no Joy equivalent and the usage is temporary.
 - Do not recreate imports from `src/components/ui/*`; that directory is no longer the active target for new work.
 - Avoid adding new CSS token layers that bypass `joy-theme.ts` or `joy-tailwind-bridge.css`.
+
+## Campaign Sending Surfaces
+
+- Keep the **Send or schedule** toolbar near the campaign title and sticky in the shell's scroll container. Do not bury the only send affordance below Content/Preview, or auto-expand a long preview that pushes it off-screen.
+- Label the first sending action **Review & send** when it opens a confirmation. Do not bypass preflight, domain verification, consent filters or final-send confirmation.
+- Keep sender verification and sender configuration in `JoyDialog`, showing one verified sending identity or one actionable pending step, not stacked legacy cards.
+- Never show a verified-domain success state as proof that an individual campaign has a configured sender; the campaign's own sender must be valid.
+- Retain a visible blocker explanation when send buttons are disabled. Use neutral surfaces with semantic warning icons rather than large beige panels.
 
 ## Practical Guidance
 

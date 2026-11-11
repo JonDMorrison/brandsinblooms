@@ -26,9 +26,10 @@ import {
 } from "@/components/integrations/integrationsHubConfig";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 const REQUEST_INTEGRATION_MAILTO =
-  "mailto:support@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
+  `mailto:${SUPPORT_EMAIL}?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A`;
 
 const FILTER_OPTIONS: Array<{
   value: IntegrationTabValue;

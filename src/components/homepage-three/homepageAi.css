@@ -74,7 +74,7 @@
     width: fit-content;
     margin: 0 0 20px;
     padding: 6px 16px;
-    color: #A5FFFA;
+    color: #A9C9C6;
     background: rgba(104, 190, 185, 0.10);
     border: 1px solid rgba(104, 190, 185, 0.20);
     border-radius: 9999px;
@@ -252,7 +252,7 @@
     height: 6px;
     flex: 0 0 6px;
     margin-right: 4px;
-    background: #87DFD8;
+    background: #83B1AD;
     border-radius: 50%;
     transform: translateY(-1px);
 }
@@ -269,7 +269,7 @@
 .hp-ai-chat__line[data-kind="question"] {
     margin-top: 8px;
     padding-top: 8px;
-    color: #A5FFFA;
+    color: #A9C9C6;
     border-top: 1px solid rgba(104, 190, 185, 0.12);
     font-style: italic;
     font-weight: 500;
@@ -285,7 +285,7 @@
     width: 6px;
     height: 1em;
     margin-left: 2px;
-    border-right: 2px solid #A5FFFA;
+    border-right: 2px solid #A9C9C6;
     vertical-align: -0.14em;
     animation: hp-ai-cursor-blink 780ms steps(2, start) infinite;
 }
@@ -357,7 +357,7 @@
     width: 44px;
     height: 44px;
     flex: 0 0 44px;
-    color: #87DFD8;
+    color: #83B1AD;
     background: rgba(104, 190, 185, 0.10);
     border: 1px solid rgba(104, 190, 185, 0.15);
     border-radius: 11px;

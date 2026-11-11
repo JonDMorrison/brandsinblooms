@@ -222,6 +222,7 @@ const handler = async (req: Request): Promise<Response> => {
           automationNodeId,
           customerId: execution.customer_id,
           email: execution.email,
+          outboxId: execution.outbox_id ?? undefined,
         });
 
         if (!suppressionCheck.allowed) {

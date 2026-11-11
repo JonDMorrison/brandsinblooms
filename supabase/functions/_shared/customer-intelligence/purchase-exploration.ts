@@ -6,13 +6,14 @@ export interface PurchaseFact {
   quantity: number | string | null; net_amount: number | string | null;
   currency: string | null; purchased_at: string | null; created_at: string;
   source: string; import_id?: string | null; external_transaction_id?: string | null;
+  evidence_kind?: 'period_summary'; source_period_start?: string; source_period_end?: string;
 }
 export interface PurchaseRule {
   mode: 'all' | 'purchased' | 'not_purchased'; product?: string;
   product_match?: 'contains' | 'exact' | 'sku'; category?: string; department?: string;
   start_date?: string; end_date?: string; within_days?: number;
 }
-export type MatchReason = 'all_customers' | 'matching_purchase' | 'no_matching_purchase' | 'no_purchase_history' | 'missing_fields';
+export type MatchReason = 'all_customers' | 'matching_purchase' | 'no_matching_purchase' | 'no_purchase_history' | 'missing_fields' | 'outside_top_n';
 export interface SearchStep {
   set_id: string; label: string; rule: PurchaseRule; input: number;
   included: number; excluded: number; unknown: number; source_read_at: string;
@@ -30,6 +31,7 @@ export const MATCH_REASONS: Record<MatchReason, string> = {
   no_matching_purchase: 'No qualifying purchase was found in the available records. This does not prove that the export contains the complete purchase history.',
   no_purchase_history: 'No purchase records are available for this customer. Not treated as a non-buyer.',
   missing_fields: 'A required field is missing or invalid, so a reliable inclusion/exclusion decision cannot be made.',
+  outside_top_n: 'Bought it, but is not among the top customers by matched spending that were asked for.',
 };
 export function finiteNumber(value: unknown): number | null {
   if (typeof value !== 'number' && typeof value !== 'string') return null;
@@ -42,9 +44,16 @@ export function assertDate(value: string): void {
     throw new Error('Dates must be real calendar dates in YYYY-MM-DD format.');
   }
 }
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 export function localDate(value: string | null, timezone: string): string | null {
   // Validate the time zone even when a record has no date.
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+  let formatter = dateFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+    // Bound memory when many tenants/time zones share a long-lived process.
+    if (dateFormatters.size >= 32) dateFormatters.delete(dateFormatters.keys().next().value!);
+    dateFormatters.set(timezone, formatter);
+  }
   if (!value || !Number.isFinite(Date.parse(value))) return null;
   const parts = formatter.formatToParts(new Date(value));
   const part = (key: string) => parts.find((p) => p.type === key)?.value;
@@ -68,6 +77,22 @@ export function validatePurchaseRule(value: unknown): PurchaseRule {
   return rule as unknown as PurchaseRule;
 }
 const normalized = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase('en-CA');
+/** POS department labels often carry a numeric code: "1,501    Tropicals". */
+const withoutCode = (value: string) => value.replace(/^[\d,.\s-]+(?=\D)/, '').trim();
+function wordFound(haystack: string, word: string) {
+  return haystack.includes(word) || (word.length > 3 && word.endsWith('s') && haystack.includes(word.slice(0, -1)));
+}
+/**
+ * Department/category match: the exact label, or every word the user named
+ * appears in the label without its numeric code ("tropical" → "1,501 Tropicals").
+ */
+export function groupMatches(expected: string, actual: string): boolean {
+  const want = normalized(expected), have = normalized(actual);
+  if (want === have) return true;
+  const words = withoutCode(want).split(/\s+/).filter(Boolean);
+  const label = withoutCode(have);
+  return words.length > 0 && words.every((word) => wordFound(label, word));
+}
 function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anchors?: number[]): boolean | null {
   let missing = false;
   const quantity = finiteNumber(fact.quantity);
@@ -89,11 +114,18 @@ function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anc
   for (const [expected, actual] of [[rule.category, fact.sales_category], [rule.department, fact.department]]) {
     if (!expected) continue;
     if (!actual?.trim()) missing = true;
-    else if (normalized(expected) !== normalized(actual)) return false;
+    else if (!groupMatches(expected, actual)) return false;
   }
   if (rule.start_date || rule.end_date || rule.within_days !== undefined) {
-    const date = localDate(fact.purchased_at, timezone);
-    if (!date) missing = true;
+    // explorePurchases already validates timezone once. Aggregate rows have no timestamp.
+    const date = fact.purchased_at ? localDate(fact.purchased_at, timezone) : null;
+    if (!date && fact.evidence_kind === 'period_summary' && fact.source_period_start && fact.source_period_end && rule.within_days === undefined) {
+      assertDate(fact.source_period_start); assertDate(fact.source_period_end);
+      if (fact.source_period_start > fact.source_period_end) throw new Error('The report period is invalid.');
+      // Fully enclosed source periods support a positive purchase match. Partial overlap is unknown.
+      if ((rule.start_date && fact.source_period_end < rule.start_date) || (rule.end_date && fact.source_period_start > rule.end_date)) return false;
+      if ((rule.start_date && fact.source_period_start < rule.start_date) || (rule.end_date && fact.source_period_end > rule.end_date)) missing = true;
+    } else if (!date) missing = true;
     else {
       if (rule.start_date && date < rule.start_date) return false;
       if (rule.end_date && date > rule.end_date) return false;
@@ -110,28 +142,35 @@ export function explorePurchases(input: {
   tenantId: string; userId: string; conversationId: string; timezone: string;
   population: string[]; facts: PurchaseFact[]; rule: PurchaseRule; label: string;
   previous?: CustomerSet | null; now?: string; id?: string;
+  /** Saved refreshes may lose dated evidence; keep those customers unknown. */
+  allowMissingAnchors?: boolean;
+  /**
+   * Customers known to have purchase evidence whose non-matching lines were
+   * filtered out before this call. With no remaining facts they did not match,
+   * rather than having no purchase history.
+   */
+  knownEvidence?: ReadonlySet<string>;
 }): CustomerSet {
   const rule = validatePurchaseRule(input.rule), now = input.now ?? new Date().toISOString();
   if (!input.label.trim() || input.label.length > 180) throw new Error('Name the customer search in 180 characters or fewer.');
   if (!localDate(now, input.timezone)) throw new Error('A valid source-read time is required.');
   const previous = input.previous;
   if (previous && (previous.tenant_id !== input.tenantId || previous.user_id !== input.userId || previous.conversation_id !== input.conversationId)) throw new Error('The earlier result is outside this user, company, or conversation.');
-  if (rule.within_days !== undefined && (!previous || !Object.values(previous.anchors).some((dates) => dates.length))) throw new Error('A within-days search requires an earlier result with dated matching purchases.');
+  if (rule.within_days !== undefined && (!previous || (!input.allowMissingAnchors && !Object.values(previous.anchors).some((dates) => dates.length)))) throw new Error('A within-days search requires an earlier result with dated matching purchases.');
   if (previous && previous.trail.length >= 30) throw new Error('This search has 30 steps. Save the audience before starting a new exploration.');
   const visible = new Set(input.population);
   // Fail rather than silently dropping customers whose visibility has changed.
   if (previous?.included_ids.some((id) => !visible.has(id))) throw new Error('Some customers in that result are no longer accessible. Start a new search; the earlier audience has not been silently changed.');
   const population = [...new Set(previous ? previous.included_ids : input.population)].sort();
   const byCustomer = new Map<string, PurchaseFact[]>();
-  const seen = new Map<string, string>();
+  const seen = new Map<string, PurchaseFact>();
   for (const fact of input.facts) {
     if (fact.tenant_id !== input.tenantId) throw new Error('Cross-company purchase data was rejected.');
-    const signature = JSON.stringify(fact);
     if (seen.has(fact.id)) {
-      if (seen.get(fact.id) !== signature) throw new Error('Conflicting versions of a purchase record were returned. Retry the search.');
+      if (JSON.stringify(seen.get(fact.id)) !== JSON.stringify(fact)) throw new Error('Conflicting versions of a purchase record were returned. Retry the search.');
       continue;
     }
-    seen.set(fact.id, signature);
+    seen.set(fact.id, fact);
     if (!fact.customer_id || !visible.has(fact.customer_id) || Date.parse(fact.created_at) > Date.parse(now)) continue;
     const group = byCustomer.get(fact.customer_id) ?? [];
     group.push(fact); byCustomer.set(fact.customer_id, group);
@@ -143,7 +182,12 @@ export function explorePurchases(input: {
   for (const customerId of population) {
     const facts = byCustomer.get(customerId) ?? [];
     if (rule.mode === 'all') { set.included_ids.push(customerId); set.reasons[customerId] = 'all_customers'; continue; }
-    if (!facts.length) { set.unknown_ids.push(customerId); set.reasons[customerId] = 'no_purchase_history'; continue; }
+    if (!facts.length) {
+      if (input.knownEvidence?.has(customerId)) {
+        (rule.mode === 'not_purchased' ? set.included_ids : set.excluded_ids).push(customerId); set.reasons[customerId] = 'no_matching_purchase';
+      } else { set.unknown_ids.push(customerId); set.reasons[customerId] = 'no_purchase_history'; }
+      continue;
+    }
     const matched: PurchaseFact[] = []; let unknown = false;
     for (const fact of facts) {
       const decision = matchFact(fact, rule, input.timezone, previous?.anchors[customerId]);

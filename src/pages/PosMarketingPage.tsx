@@ -40,7 +40,7 @@ export function PosMarketingPage() {
                 <p className="pos-lead">A busy counter. A changing catalogue. A team with plants to care for and people to help. Bring checkout and store operations together—and plan the connection to your website and customer marketing.</p>
                 <div className="suite-actions">
                   <Link className="suite-button suite-button--primary" to={POS_DEMO_HREF}>Book a POS demo</Link>
-                  <Link className="suite-button" to="/build-your-suite">Find my setup</Link>
+                  <a className="suite-button" href="/pos/features">Explore all 110 features</a>
                 </div>
                 <p className="pos-demo-caption">Already have an account? <Link className="pos-inline-link" to={POS_LOGIN_HREF}>Log in to POS</Link></p>
               </div>
@@ -60,6 +60,7 @@ export function PosMarketingPage() {
         <section className="pos-section" id="pos-capabilities">
           <div className="suite-container">
             <div className="suite-section-heading"><p className="suite-eyebrow">Make the everyday work easier</p><h2>From the first delivery to the last sale.</h2><p>Give staff a clear place to work and owners a clear view of the details.</p></div>
+            <div className="suite-actions"><a className="suite-button" href="/pos/features">Explore the complete POS feature library</a></div>
             <div className="pos-feature-grid">{features.map(([Icon, title, description]) => (
               <article className="pos-feature" key={title}><Icon size={28} aria-hidden="true" /><h3>{title}</h3><p>{description}</p></article>
             ))}</div>
@@ -119,7 +120,7 @@ export function PosMarketingPage() {
           <div className="suite-container"><div className="suite-section-heading"><p className="suite-eyebrow">Let’s see it in action</p><h2>Bring your questions. We’ll bring the POS.</h2><p>See how BloomSuite POS could fit the way your garden centre works.</p></div><div className="suite-actions"><Link className="suite-button suite-button--primary" to={POS_DEMO_HREF}>Book a POS demo</Link><Link className="suite-button" to="/build-your-suite">Find my setup</Link></div></div>
         </section>
       </main>
-      <footer className="suite-footer"><div className="suite-container"><strong>BloomSuite POS</strong><nav className="suite-footer-links" aria-label="POS footer"><Link to="/">BloomSuite</Link><Link to={POS_LOGIN_HREF}>POS login</Link><a href="https://bloomsites.app/">BloomSites</a><Link to="/contact?product=pos">Contact</Link><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></nav></div></footer>
+      <footer className="suite-footer"><div className="suite-container"><strong>BloomSuite POS</strong><nav className="suite-footer-links" aria-label="POS footer"><Link to="/">BloomSuite</Link><a href="/pos/features">POS features</a><Link to={POS_LOGIN_HREF}>POS login</Link><a href="https://bloomsites.app/">BloomSites</a><Link to="/contact?product=pos">Contact</Link><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></nav></div></footer>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { normalizeStoreMergeFields } from "../../../src/lib/studio/newsletter/mergeFields.ts";
 /**
  * Unified Merge Tag Engine for BloomSuite Edge Functions
  * 
@@ -162,7 +163,7 @@ export function renderMergeTags(template: string, data: MergeTagData): string {
     },
   };
   
-  return template.replace(MERGE_TAG_REGEX, (match, fieldPath: string, explicitDefault?: string) => {
+  return normalizeStoreMergeFields(template).replace(MERGE_TAG_REGEX, (match, fieldPath: string, explicitDefault?: string) => {
     let value = getNestedValue(enrichedData as Record<string, unknown>, fieldPath);
     
     if (value === null || value === undefined || value === '') {

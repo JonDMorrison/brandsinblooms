@@ -27,7 +27,7 @@ interface ClaimedCampaign {
 interface CampaignResult {
   id: string;
   name: string;
-  status: 'sent' | 'failed' | 'skipped' | 'queued';
+  status: 'sent' | 'failed' | 'skipped' | 'queued' | 'paused';
   durationMs: number;
   error?: string;
   recipientCount?: number;
@@ -204,9 +204,24 @@ const handler = async (req: Request): Promise<Response> => {
         if (sendError) {
           const { data: resumeState } = await supabase
             .from('crm_campaigns')
-            .select('status, total_recipients')
+            .select('status, total_recipients, send_blocked_reason, send_error')
             .eq('id', campaign.id)
             .maybeSingle();
+
+          // The sender may have deliberately paused the campaign during preflight.
+          // Keep its actionable reason instead of replacing it with a transport error.
+          if (resumeState?.status === 'paused') {
+            campaignsFailed++;
+            results.push({
+              id: campaign.id,
+              name: campaign.name,
+              status: 'paused',
+              durationMs: Date.now() - campaignStartTime,
+              error: resumeState.send_error || resumeState.send_blocked_reason || 'Campaign paused',
+              sendAttempts,
+            });
+            continue;
+          }
 
           if (resumeState?.status === 'queued' || resumeState?.status === 'partially_queued') {
             const queuedCount = Number(resumeState.total_recipients || 0);
@@ -232,9 +247,24 @@ const handler = async (req: Request): Promise<Response> => {
         if (sendResult?.error) {
           const { data: resumeState } = await supabase
             .from('crm_campaigns')
-            .select('status, total_recipients')
+            .select('status, total_recipients, send_blocked_reason, send_error')
             .eq('id', campaign.id)
             .maybeSingle();
+
+          // The sender may have deliberately paused the campaign during preflight.
+          // Keep its actionable reason instead of replacing it with a transport error.
+          if (resumeState?.status === 'paused') {
+            campaignsFailed++;
+            results.push({
+              id: campaign.id,
+              name: campaign.name,
+              status: 'paused',
+              durationMs: Date.now() - campaignStartTime,
+              error: resumeState.send_error || resumeState.send_blocked_reason || 'Campaign paused',
+              sendAttempts,
+            });
+            continue;
+          }
 
           if (resumeState?.status === 'queued' || resumeState?.status === 'partially_queued') {
             const queuedCount = Number(resumeState.total_recipients || sendResult?.total_recipients || 0);

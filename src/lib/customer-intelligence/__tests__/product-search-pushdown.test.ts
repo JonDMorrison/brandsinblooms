@@ -1,0 +1,406 @@
+import {describe, expect, it, vi} from 'vitest';
+import {explorePurchases, groupMatches, type PurchaseFact, type PurchaseRule} from '../../../../supabase/functions/_shared/customer-intelligence/purchase-exploration';
+import {periodSummaryFacts, type PeriodSummaryEvent} from '../../../../supabase/functions/_shared/customer-intelligence/period-summary';
+import {loadProductSearchFacts, productSearchTerms, type VerifiedSnapshotStore} from '../../../../supabase/functions/_shared/customer-intelligence/load-product-search-facts';
+import type {PersistenceClient} from '../../../../supabase/functions/bloom-assist/types';
+
+const T = 'tenant';
+type Item = [string, string, string, number, number, number];
+const report = {id: 'r2025', tenant_id: T, status: 'completed', source: 'ideal', source_sha256: 'sha', source_filename: 'sales.xls',
+  source_period_start: '2025-01-01', source_period_end: '2025-12-31', created_at: '2026-01-02T00:00:00Z', completed_at: '2026-01-02T00:00:00Z', reconciliation: null};
+function event(id: string, customer: string, items: Item[]): PeriodSummaryEvent {
+  return {id, tenant_id: T, customer_id: customer, import_id: report.id, source: 'ideal', created_at: '2026-01-02T00:00:00Z',
+    raw_data: {kind: 'purchase_summary', currency: 'CAD', period_start: '2025-01-01', period_end: '2025-12-31', source_sha256: 'sha', items}};
+}
+const events = [
+  event('e1', 'buyer', [['S1', 'Sea Soil 1cuft', '901    Bagged Outdoor Soil', 2, 25.5, 1], ['P1', 'Petunia 4in', '101    Annuals', 6, 18, 2], ['E1','Eucalyptus bunch','Floral',2,12,8], ['W1','Wreath','Holiday',1,20,9]]),
+  event('e2', 'other', [['M1', 'Monstera 6in', '1,501    Tropicals', 1, 40, 3]]),
+  event('e3', 'blank', [['', ' ', '', 1, 5, 4], ['H1', 'Basil', '102    Herbs', 1, 4, 5]]),
+  event('e4', 'both', [['F1', 'Fern 8in', '1,501    Tropicals', 1, 30, 6], ['S2', 'SEA SOIL Potting', '902    Bagged Indoor Soil', 1, 20, 7]]),
+];
+const population = ['blank', 'both', 'buyer', 'nohistory', 'other'];
+
+/** What the database helper returns: candidate lines only, with their original positions. */
+function serverCandidates(terms: string[]) {
+  return events.flatMap(e => {
+    const raw = e.raw_data as {items: Item[]};
+    const kept = raw.items.map((item, index) => ({item, index})).filter(({item}) =>
+      (!item[0].trim() && !item[1].trim()) || terms.some(term => `${item[0]} ${item[1]} ${item[2]}`.toLowerCase().includes(term)));
+    return kept.length ? [{...e, raw_data: {...raw, items: kept.map(k => k.item)}, item_indexes: kept.map(k => k.index)}] : [];
+  });
+}
+function fakeClient(candidates: unknown, scope: unknown = {customer_ids: ['buyer', 'other', 'blank', 'both'], rows: 4, invalid_rows: 0}, rows: unknown[] = events) {
+  const rpc = vi.fn(async () => {
+    const evidence = scope as {customer_ids:string[];invalid_rows:number};
+    return evidence.invalid_rows ? {data:null,error:{message:'Report facts do not match their completed source ledger.'}} : {data:{scanned:rows.length,last_id:'e4',customer_ids:evidence.customer_ids,candidates,provenance:rows},error:null};
+  });
+  const neqCalls: Array<{table: string; column: string; value: unknown}> = [];
+  const from = (table: string) => {
+    const data = table === 'customer_intelligence_imports' ? [report] : table === 'customer_intelligence_source_events' ? rows : [];
+    const q = {select: () => q, eq: () => q, neq: (column: string, value: unknown) => {neqCalls.push({table, column, value}); return q;},
+      is: () => q, lte: () => q, gte: () => q, in: () => q, order: () => q, range: async () => ({data, error: null})};
+    return q;
+  };
+  return {rpc, from, neqCalls} as unknown as PersistenceClient & {rpc: typeof rpc; neqCalls: typeof neqCalls};
+}
+const store: VerifiedSnapshotStore = {fingerprint: async () => 'fp', get: async () => 'fp', set: async () => undefined};
+function run(rule: PurchaseRule, facts: PurchaseFact[], knownEvidence?: Set<string>) {
+  return explorePurchases({tenantId: T, userId: 'u', conversationId: 'c', timezone: 'America/Vancouver', population, facts, rule, label: 'test', now: '2026-11-03T00:00:00Z', id: 'set', knownEvidence});
+}
+
+describe('department labels with POS codes', () => {
+  it('matches the words a person uses, ignoring the numeric code and plurals', () => {
+    expect(groupMatches('Tropical', '1,501    Tropicals')).toBe(true);
+    expect(groupMatches('tropicals', '1,501    Tropical')).toBe(true);
+    expect(groupMatches('Bagged Soil', '901    Bagged Outdoor Soil')).toBe(true);
+    expect(groupMatches('1,501    Tropicals', '1,501    Tropicals')).toBe(true);
+    expect(groupMatches('Herbs', '101    Annuals')).toBe(false);
+    expect(groupMatches('Annuals', '203    Perennials')).toBe(false);
+  });
+});
+
+describe('which searches the database may narrow', () => {
+  it('narrows product and department searches only', () => {
+    expect(productSearchTerms({mode: 'purchased', product: 'Sea Soil'})).toEqual(['sea soil']);
+    expect(productSearchTerms({mode: 'not_purchased', product: 'wreath', start_date: '2025-01-01'})).toEqual(['wreath']);
+    expect(productSearchTerms({mode: 'purchased', department: 'Tropicals'})).toEqual(['tropical']);
+    expect(productSearchTerms({mode: 'purchased', department: '1,501    Tropicals'})).toEqual(['tropical']);
+    expect(productSearchTerms({mode: 'all'})).toBeNull();
+    expect(productSearchTerms({mode: 'purchased', category: 'Plants'})).toBeNull();
+    expect(productSearchTerms({mode: 'purchased', start_date: '2025-01-01'})).toBeNull();
+    expect(productSearchTerms({mode: 'purchased', product: 'say "hi"'})).toBeNull();
+    expect(productSearchTerms({mode: 'purchased', product: 'Café'})).toBeNull();
+  });
+});
+
+describe('narrowed search gives the same answer as the full scan', () => {
+  const rules: PurchaseRule[] = [
+    {mode: 'purchased', product: 'eucalyptus', start_date:'2025-01-01', end_date:'2025-12-31'},
+    {mode: 'purchased', product: 'eucalyptus bunch'},
+    {mode: 'purchased', product: 'wreath'},
+    {mode: 'purchased', product: 'sea soil'},
+    {mode: 'not_purchased', product: 'sea soil'},
+    {mode: 'purchased', product: 'sea soil', start_date: '2025-01-01', end_date: '2025-12-31'},
+    {mode: 'purchased', product: 'sea soil', start_date: '2025-06-01'},
+    {mode: 'purchased', department: 'Tropical'},
+    {mode: 'purchased', product: 's1', product_match: 'sku'},
+  ];
+  for (const rule of rules) it(JSON.stringify(rule), async () => {
+    const full = run(rule, periodSummaryFacts(events, T));
+    const narrowed = await loadProductSearchFacts(fakeClient(serverCandidates(productSearchTerms(rule)!)), T, '2026-11-03T00:00:00Z', rule, store);
+    expect(narrowed).not.toBeNull();
+    const fast = run(rule, narrowed!.facts, narrowed!.evidenceCustomerIds);
+    expect(fast.included_ids).toEqual(full.included_ids);
+    expect(fast.excluded_ids).toEqual(full.excluded_ids);
+    expect(fast.unknown_ids).toEqual(full.unknown_ids);
+    expect(fast.reasons).toEqual(full.reasons);
+    expect(fast.evidence_ids).toEqual(full.evidence_ids);
+  });
+
+  it('finds Tropicals buyers and keeps customers without history unknown', async () => {
+    const rule: PurchaseRule = {mode: 'purchased', department: 'Tropical'};
+    const narrowed = await loadProductSearchFacts(fakeClient(serverCandidates(['tropical'])), T, '2026-11-03T00:00:00Z', rule, store);
+    const set = run(rule, narrowed!.facts, narrowed!.evidenceCustomerIds);
+    expect(set.included_ids).toEqual(['both', 'other']);
+    expect(set.unknown_ids).toContain('nohistory');
+    expect(set.reasons.nohistory).toBe('no_purchase_history');
+    expect(set.evidence_ids.both).toEqual(['e4:0']);
+  });
+});
+
+describe('narrowed report rows are still checked', () => {
+  const rule: PurchaseRule = {mode: 'purchased', product: 'sea soil'};
+  it('keeps original line positions in evidence IDs', async () => {
+    const narrowed = await loadProductSearchFacts(fakeClient(serverCandidates(['sea soil'])), T, '2026-11-03T00:00:00Z', rule, store);
+    expect(narrowed!.facts.map(f => f.id).sort()).toEqual(['e1:0', 'e3:0', 'e4:1']);
+  });
+  it('rejects a row from a different source file', async () => {
+    const tampered = serverCandidates(['sea soil']).map(e => ({...e, raw_data: {...(e.raw_data as object), source_sha256: 'other'}}));
+    await expect(loadProductSearchFacts(fakeClient(tampered), T, '2026-11-03T00:00:00Z', rule, store)).rejects.toThrow('ledger');
+  });
+  it('validates nonmatching-row provenance even when the full-snapshot fingerprint is cached', async () => {
+    const bad=events.map(e=>e.id==='e2'?{...e,raw_data:{...(e.raw_data as object),source_sha256:'other'}}:e);
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']),undefined,bad),T,'2026-11-03T00:00:00Z',rule,store)).rejects.toThrow('ledger');
+  });
+  it('rejects a concurrent source mutation after cached verification and paged reads',async()=>{
+    const fingerprint=vi.fn().mockResolvedValueOnce('fp').mockResolvedValueOnce('changed');
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil'])),T,'2026-11-03T00:00:00Z',rule,{...store,fingerprint})).rejects.toThrow('changed during');
+  });
+  it('rejects line positions that do not line up with the lines', () => {
+    const bad = {...serverCandidates(['sea soil'])[0], item_indexes: [0, 1]};
+    expect(() => periodSummaryFacts([bad], T)).toThrow('reconciliation');
+  });
+  it('asks the database only for matching lines, never every report row', async () => {
+    const client = fakeClient(serverCandidates(['sea soil']));
+    await loadProductSearchFacts(client, T, '2026-11-03T00:00:00Z', rule, store);
+    expect(client.rpc).toHaveBeenCalledWith('bloom_summary_search_page', expect.objectContaining({p_term: 'sea soil', p_import_id: 'r2025', p_after:null}));
+  });
+  it('never pages through stored IdealPOS journal lines, which Bloom does not use', async () => {
+    const client = fakeClient(serverCandidates(['sea soil']));
+    await loadProductSearchFacts(client, T, '2026-11-03T00:00:00Z', rule, store);
+    expect(client.neqCalls).toContainEqual({table: 'customer_purchase_line_items', column: 'source', value: 'ideal'});
+  });
+  it('falls back to the full scan for rules that need every line', async () => {
+    expect(await loadProductSearchFacts(fakeClient([]), T, '2026-11-03T00:00:00Z', {mode: 'purchased', category: 'Plants'}, store)).toBeNull();
+  });
+});
+
+describe('search result wording', () => {
+  it('reads as a complete answer, not a failed lookup', async () => {
+    const {exploreMessage} = await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const message = exploreMessage('purchased', 1828, 19791, 26315);
+    expect(message).toBe('Search succeeded: 1,828 customers bought it. 19,791 have purchase records without it. 26,315 lack sufficient purchase evidence for this question, so they remain unknown and are counted separately. This is a complete answer, not an error.');
+    expect(message).not.toMatch(/require more data|could not/i);
+  });
+});
+
+describe('each report import is verified once, then reused until it changes', () => {
+  const rule: PurchaseRule = {mode: 'purchased', product: 'sea soil'};
+  const verified = events.filter(e => e.customer_id !== 'blank');
+  function memoryStore(fingerprint = 'fp1') {
+    const saved = new Map<string, string>();
+    return {saved, store: {fingerprint: async () => fingerprint, get: async (id: string) => saved.get(id) ?? null, set: async (id: string, value: string) => {saved.set(id, value);}} as VerifiedSnapshotStore};
+  }
+  it('verifies every row of a new import, then records its fingerprint', async () => {
+    const {saved, store: s} = memoryStore();
+    const result = await loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), undefined, verified), T, '2026-11-03T00:00:00Z', rule, s);
+    expect(result).not.toBeNull();
+    expect(saved.get('r2025')).toBe('fp1');
+  });
+  it('rejects the search when any row of the import disagrees with its ledger, even one that does not match the term', async () => {
+    const {saved, store: s} = memoryStore();
+    const tampered = verified.map(e => e.id === 'e2' ? {...e, raw_data: {...(e.raw_data as object), source_sha256: 'other'}} : e);
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), undefined, tampered), T, '2026-11-03T00:00:00Z', rule, s)).rejects.toThrow('ledger');
+    expect(saved.size).toBe(0);
+  });
+  it('falls back to the full scan when an import has product lines with no name or code', async () => {
+    const {saved, store: s} = memoryStore();
+    expect(await loadProductSearchFacts(fakeClient(serverCandidates(['sea soil'])), T, '2026-11-03T00:00:00Z', rule, s)).toBeNull();
+    expect(saved.size).toBe(0);
+  });
+  it('re-verifies when the fingerprint changed since the last verification', async () => {
+    const {saved, store: s} = memoryStore('fp2');
+    saved.set('r2025', 'fp1');
+    const tampered = verified.map(e => e.id === 'e2' ? {...e, raw_data: {...(e.raw_data as object), period_end: '2025-06-30'}} : e);
+    await expect(loadProductSearchFacts(fakeClient(serverCandidates(['sea soil']), undefined, tampered), T, '2026-11-03T00:00:00Z', rule, s)).rejects.toThrow('ledger');
+  });
+});
+
+describe('customer codes are read by ID cursor', () => {
+  it('returns every live customer once across pages, each page starting after the last ID', async () => {
+    const {readCustomerIdentities} = await import('../../../../supabase/functions/_shared/customer-intelligence/load-product-search-facts');
+    const all = Array.from({length: 2500}, (_, i) => ({id: `c${String(i).padStart(5, '0')}`, tenant_id: T, external_id: `X${i}`}));
+    const cursors: (string | null)[] = [];
+    const client = {from: () => {
+      let after: string | null = null;
+      const q = {select: () => q, eq: () => q, is: () => q, gt: (_c: string, v: string) => {after = v; return q;}, order: () => q,
+        range: async (from: number, to: number) => {cursors.push(after); return {data: all.filter(r => !after || r.id > after).slice(from, to + 1), error: null};}};
+      return q;
+    }} as unknown as PersistenceClient;
+    const rows = await readCustomerIdentities(client, T, 1000);
+    expect(rows.map(r => r.id)).toEqual(all.map(r => r.id));
+    expect(cursors).toEqual([null, 'c00999', 'c01999']);
+  });
+});
+
+describe('a cold first search is retried once', () => {
+  it('retries a statement timeout once and returns the second result', async () => {
+    const {retryOnceOnTimeout} = await import('../../../../supabase/functions/_shared/customer-intelligence/load-product-search-facts');
+    const call = vi.fn()
+      .mockResolvedValueOnce({data: null, error: {message: 'canceling statement due to statement timeout', code: '57014'}})
+      .mockResolvedValueOnce({data: ['ok'], error: null});
+    expect(await retryOnceOnTimeout(call)).toEqual({data: ['ok'], error: null});
+    expect(call).toHaveBeenCalledTimes(2);
+  });
+  it('does not retry other errors or a second timeout', async () => {
+    const {retryOnceOnTimeout} = await import('../../../../supabase/functions/_shared/customer-intelligence/load-product-search-facts');
+    const denied = vi.fn().mockResolvedValue({data: null, error: {message: 'permission denied'}});
+    expect((await retryOnceOnTimeout(denied)).error?.message).toBe('permission denied');
+    expect(denied).toHaveBeenCalledTimes(1);
+    const slow = vi.fn().mockResolvedValue({data: null, error: {message: 'canceling statement due to statement timeout', code: '57014'}});
+    expect((await retryOnceOnTimeout(slow)).error?.code).toBe('57014');
+    expect(slow).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('one-year queries exclude irrelevant report pages without losing historical evidence',()=>{
+  it('keeps historical customers classified as having evidence, and never scans old report lines',async()=>{
+    const old={...report,id:'r2024',source_period_start:'2024-01-01',source_period_end:'2024-12-31'};
+    const oldEvent={...event('older','previous-year', [['H1','Herb','Herbs',1,10,1]]),
+      import_id:'r2024',raw_data:{kind:'purchase_summary',currency:'CAD',period_start:'2024-01-01',
+      period_end:'2024-12-31',source_sha256:'sha',items:[['H1','Herb','Herbs',1,10,1]]}};
+    const rpc=vi.fn(async(name:string,args:Record<string,unknown>)=>{
+      if(name==='bloom_summary_evidence_scope'){
+        expect(args.p_imports).toEqual([{id:'r2024'}]);
+        return {data:{customer_ids:['previous-year'],rows:1,invalid_rows:0},error:null};
+      }
+      if(name!=='bloom_summary_search_page'||args.p_import_id!=='r2025')throw Error('Unexpected report page');
+      return {data:{scanned:4,last_id:'e4',customer_ids:['buyer','other','blank','both'],
+        candidates:serverCandidates(['sea soil']),provenance:events},error:null};
+    });
+    const from=(table:string)=>{
+      const rows=table==='customer_intelligence_imports'?[report,old]:
+        table==='customer_intelligence_source_events'?[...events,oldEvent]:[];
+      const q={select:()=>q,eq:()=>q,lte:()=>q,is:()=>q,neq:()=>q,order:()=>q,range:async()=>({data:rows,error:null})};
+      return q;
+    };
+    const client={rpc,from} as unknown as PersistenceClient;
+    const rule:PurchaseRule={mode:'purchased',product:'sea soil',start_date:'2025-01-01',end_date:'2025-12-31'};
+    const result=await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',rule,store);
+    expect(result!.evidenceCustomerIds.has('previous-year')).toBe(true);
+    expect(rpc.mock.calls.filter(([name])=>name==='bloom_summary_search_page')).toHaveLength(1);
+    expect(rpc).not.toHaveBeenCalledWith('bloom_summary_search_page',
+      expect.objectContaining({p_import_id:'r2024'}));
+  });
+});
+
+
+describe('saved customer follow-ups stay bounded without a product filter', () => {
+  function scopedClient() {
+    const calls: Array<{table:string;ids:string[]|null}> = [];
+    const client = {rpc:vi.fn(async()=>{throw Error('No full-company search expected');}),from:(table:string)=>{
+      let ids:string[]|null=null;
+      const q={select:()=>q,eq:()=>q,neq:()=>q,lte:()=>q,order:()=>q,
+        in:(column:string,value:string[])=>{if(column==='customer_id')ids=value;return q;},
+        range:async(from:number,to:number)=>{
+          calls.push({table,ids});
+          const data=table==='customer_intelligence_imports'?[report]:table==='customer_intelligence_source_events'?events.filter(row=>!ids||ids.includes(row.customer_id!)):[];
+          return {data:data.slice(from,to+1),error:null};
+        }};return q;
+    }} as unknown as PersistenceClient;
+    return {client,calls};
+  }
+  it('reads only saved IDs for an anything-bought follow-up, preserving exact full-scan results',async()=>{
+    const {client,calls}=scopedClient();
+    const ids=['buyer','nohistory','blank'];
+    const rule:PurchaseRule={mode:'purchased',start_date:'2025-01-01',end_date:'2025-12-31'};
+    const result=await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',rule,store,ids);
+    expect(result).not.toBeNull();
+    expect(result!.facts.every(row=>ids.includes(row.customer_id!))).toBe(true);
+    expect(result!.sourcePeriods).toEqual([{start:'2025-01-01',end:'2025-12-31'}]);
+    const full=run(rule,periodSummaryFacts(events.filter(row=>ids.includes(row.customer_id!)),T));
+    const bounded=run(rule,result!.facts,result!.evidenceCustomerIds);
+    expect(bounded.included_ids).toEqual(full.included_ids);
+    expect(bounded.unknown_ids).toEqual(full.unknown_ids);
+    expect(calls.filter(call=>['customer_purchase_line_items','customer_intelligence_source_events'].includes(call.table)).every(call=>call.ids?.join()===ids.join())).toBe(true);
+  });
+  it('batches 396 saved customers, never using a broad ID range',async()=>{
+    const {client,calls}=scopedClient();
+    const ids=Array.from({length:396},(_,i)=>`customer-${i}`);
+    await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',{mode:'purchased'},store,ids);
+    const reads=calls.filter(call=>call.table==='customer_intelligence_source_events');
+    expect(reads.map(call=>call.ids!.length)).toEqual([100,100,100,96]);
+    expect(reads.flatMap(call=>call.ids!)).toEqual(ids);
+  });
+  it('returns an empty saved group without reading company evidence',async()=>{
+    const {client,calls}=scopedClient();
+    expect(await loadProductSearchFacts(client,T,'2026-11-03T00:00:00Z',{mode:'purchased'},store,[])).toEqual({facts:[],evidenceCustomerIds:new Set()});
+    expect(calls).toEqual([]);
+  });
+  it('keeps all 396 customers unknown for a monthly question backed only by annual summaries',async()=>{
+    const {exploreMessage}=await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const rule:PurchaseRule={mode:'purchased',start_date:'2025-11-01',end_date:'2025-11-30'};
+    const rows=Array.from({length:396},(_,i)=>event(`e${i}`,`c${i}`,[['P','Pot','Pots',1,10,1]]));
+    const result=explorePurchases({tenantId:T,userId:'u',conversationId:'c',timezone:'UTC',population:rows.map(row=>row.customer_id!),facts:periodSummaryFacts(rows,T),rule,label:'November',now:'2026-11-03T00:00:00Z'});
+    expect(result.included_ids).toHaveLength(0);expect(result.unknown_ids).toHaveLength(396);
+    expect(exploreMessage('purchased',0,0,396)).toContain('purchase count is unknown');
+    expect(exploreMessage('purchased',0,0,396)).not.toContain('0 customers bought');
+  });
+});
+
+
+it('passes actual YTD coverage through the saved-audience tool result',async()=>{
+ const {exploreCustomerPurchases}=await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+ const ytd={...report,id:'ytd',source_period_start:'2026-01-01',source_period_end:'2026-10-14'};
+ const row={...events[0],import_id:'ytd',raw_data:{...(events[0].raw_data as object),period_start:ytd.source_period_start,period_end:ytd.source_period_end}};
+ const saved={version:1,id:'saved',tenant_id:T,user_id:'u',conversation_id:'c',included_ids:['buyer'],excluded_ids:[],unknown_ids:[],reasons:{buyer:'matching_purchase'},evidence_ids:{},anchors:{},trail:[]};
+ const insert=vi.fn(async()=>({error:null}));
+ const client={rpc:vi.fn(async(name:string)=>({data:name==='customer_intelligence_summary_fingerprint'?'fp':true,error:null})),from:(table:string)=>{
+  let ids:string[]|undefined;
+  const q={select:()=>q,eq:()=>q,neq:()=>q,is:()=>q,lte:()=>q,order:()=>q,limit:()=>q,
+   in:(_column:string,value:string[])=>{ids=value;return q;},
+   range:async()=>({data:table==='customer_intelligence_imports'?[ytd]:table==='crm_customers'?[{id:'buyer',first_name:'Buyer'}]:table==='customer_intelligence_source_events'&&ids?.includes('buyer')?[row]:[],error:null}),
+   maybeSingle:async()=>({data:table==='bloom_customer_sets'?{id:'saved',payload:saved}:table==='customer_intelligence_verified_summaries'?{fingerprint:'fp'}:{id:'c'},error:null}),
+   insert};return q;
+ }};
+ const result=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',start_date:'2026-01-01',end_date:'2026-12-31'},label:'Bought again'}, {tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext);
+ expect(result.data).toMatchObject({parent_id:'saved',included_count:1,source_periods:[{start:'2026-01-01',end:'2026-10-14'}]});
+ expect((result.data as {coverage_note:string}).coverage_note).toContain('actual report end date');
+ insert.mockClear();
+ const ranked=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',department:'Holiday',start_date:'2026-01-01',end_date:'2026-12-31'},label:'Rank saved wreath buyers'}, {tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext,{limit:1});
+ expect(ranked.data).toMatchObject({kind:'customer_ranking',set_id:'saved',eligible_customers:1,shown_customers:1,source_periods:[{start:'2026-01-01',end:'2026-10-14'}]});
+ expect(insert).not.toHaveBeenCalled();expect(saved.included_ids).toEqual(['buyer']);
+ // Read-only rankings must work even when a normal exploration has reached its step cap.
+ Object.assign(saved,{trail:Array.from({length:30},(_,i)=>({set_id:`step-${i}`,rule:{mode:'purchased'},label:'Earlier search'})),
+   anchors:{buyer:[Date.parse('2026-01-01T00:00:00Z')]}});
+ const snapshotBefore=JSON.stringify(saved);
+ const context={tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext;
+ for(const focus of [{department:'Holiday'},{category:'Holiday'}]){
+   const rankedAtCap=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',...focus,start_date:'2026-01-01',end_date:'2026-12-31'},label:'Rank capped group'},context,{limit:1});
+   expect(rankedAtCap.data).toMatchObject({kind:'customer_ranking',set_id:'saved',scanned_customers:1,source_periods:[{start:'2026-01-01',end:'2026-10-14'}]});
+ }
+ // Existing dated anchors are still required and honored, even though annual facts cannot prove a within-days purchase.
+ const relative=await exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased',department:'Holiday',within_days:10},label:'Relative ranking'},context,{limit:1});
+ expect(relative.data).toMatchObject({set_id:'saved',scanned_customers:1,eligible_customers:0,unranked_count:1});
+ await expect(exploreCustomerPurchases({scope:'previous_result',criteria:{mode:'purchased'},label:'Another saved step'},context)).rejects.toThrow('30 steps');
+ expect(insert).not.toHaveBeenCalled();expect(JSON.stringify(saved)).toBe(snapshotBefore);
+});
+
+describe('saved basket inspection preserves the original purchase step',()=>{
+ async function basket(params:Record<string,unknown>={},size=2){
+  const {analyzeCustomerBasket}=await import('../../../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+  const ids=size?['buyer',...Array.from({length:size-1},(_,i)=>`member-${i}`)]:[];
+  const saved={version:1,id:'inactive',tenant_id:T,user_id:'u',conversation_id:'c',timezone:'UTC',included_ids:ids,excluded_ids:[],unknown_ids:[],reasons:{},evidence_ids:{},anchors:{},trail:[
+   {set_id:'wreaths',rule:{mode:'purchased',product:'wreath',start_date:'2025-01-01',end_date:'2025-12-31'}},
+   {set_id:'spending',rule:{mode:'purchased'},reported_spending:{report_id:'report',period_start:'2025-01-01',period_end:'2025-12-31',minimum_spend:100,minimum_transactions:1}},
+   {set_id:'inactive',rule:{mode:'not_purchased',start_date:'2026-01-01',end_date:'2026-12-31'}}]};
+  const reads:Array<{table:string;ids:string[]|undefined}>=[];
+  const insert=vi.fn(async()=>{throw Error('Inspection must never save a new group');});
+  const client={rpc:vi.fn(async(name:string)=>({data:name==='customer_intelligence_summary_fingerprint'?'fp':name==='bloom_summary_evidence_scope'?{customer_ids:['buyer'],invalid_rows:0}:true,error:null})),from:(table:string)=>{
+   let selected:string[]|undefined;
+   const result=()=>{
+    reads.push({table,ids:selected});
+    if(['customer_intelligence_source_events','customer_purchase_line_items','crm_customers'].includes(table)&&!selected)throw Error('Unbounded company read');
+    return {data:table==='crm_customers'?selected!.map(id=>({id})):table==='customer_intelligence_imports'?[report]:table==='customer_intelligence_source_events'?events.filter(e=>selected!.includes(e.customer_id!)):[],error:null};
+   };
+   const q={select:()=>q,eq:()=>q,neq:()=>q,is:()=>q,lte:()=>q,order:()=>q,limit:()=>q,
+    in:(_c:string,value:string[])=>{selected=value;return q;},range:async()=>result(),then:(resolve:(v:ReturnType<typeof result>)=>unknown)=>Promise.resolve(result()).then(resolve),
+    maybeSingle:async()=>({data:table==='bloom_customer_sets'?{id:saved.id,payload:saved}:table==='customer_intelligence_verified_summaries'?{fingerprint:'fp'}:{id:'c'},error:null}),insert};return q;
+  }};
+  const result=await analyzeCustomerBasket(params as import('../../../../supabase/functions/bloom-assist/types').JsonObject,{tenantId:T,authenticatedTenantId:T,userId:'u',conversationId:'c',timezone:'UTC',dataClient:client,serviceClient:client} as unknown as import('../../../../supabase/functions/bloom-assist/tools/types').ToolExecutionContext);
+  return {result,reads,insert};
+ }
+ it('returns only 2025 wreaths for the original step, with exact denominator and report details',async()=>{
+  const {result,insert}=await basket({matching_step_id:'wreaths'});
+  expect(result.data).toMatchObject({set_id:'inactive',denominator:2,total_products:1,matching_step_id:'wreaths',criteria:{product:'wreath',start_date:'2025-01-01'},source_periods:[{start:'2025-01-01',end:'2025-12-31'}],rows:[{product:'Wreath',customers:1,percent:50,details:[{product_code:'W1',quantity:1,net_amount:20,currency:'CAD',evidence_kind:'period_summary',period_end:'2025-12-31'}]}]});
+  expect(insert).not.toHaveBeenCalled();
+ });
+ it('keeps the default all-product basket and never scans customers outside even a >1000 saved group',async()=>{
+  const {result,reads}=await basket({},1001);
+  expect(result.data).toMatchObject({set_id:'inactive',denominator:1001,total_products:4,criteria:null});
+  const summaries=reads.filter(r=>r.table==='customer_intelligence_source_events');
+  expect(summaries).toHaveLength(11);expect(summaries.every(r=>r.ids&&r.ids.length<=100)).toBe(true);
+ });
+ it('keeps annual-only November matches unknown instead of claiming zero purchases',async()=>{
+  const {result}=await basket({criteria:{mode:'purchased',product:'wreath',start_date:'2025-11-01',end_date:'2025-11-30'}});
+  expect(result.data).toMatchObject({denominator:2,total_products:0,unknown_count:2});
+ });
+ it('keeps verified out-of-period buyers as known nonmatches, not unknown history',async()=>{
+  const {result,reads}=await basket({criteria:{mode:'purchased',product:'wreath',start_date:'2026-01-01',end_date:'2026-12-31'}});
+  expect(result.data).toMatchObject({denominator:2,total_products:0,unknown_count:1,source_periods:[]});
+  expect(reads.filter(read=>read.table==='customer_intelligence_source_events')).toEqual([]);
+  const single=await basket({criteria:{mode:'purchased',start_date:'2026-01-01',end_date:'2026-12-31'}},1);
+  expect(single.result.data).toMatchObject({denominator:1,total_products:0,unknown_count:0});
+ });
+ it('rejects changed or ambiguous step meaning rather than silently widening it',async()=>{
+  await expect(basket({matching_step_id:'spending'})).rejects.toThrow('explicit purchased criteria with start_date and end_date');
+  await expect(basket({matching_step_id:'missing'})).rejects.toThrow('not part');
+  await expect(basket({matching_step_id:'inactive'})).rejects.toThrow('positive purchase');
+  await expect(basket({matching_step_id:'wreaths',criteria:{mode:'purchased'}})).rejects.toThrow('not both');
+ });
+ it('does not read any company facts for an empty saved group',async()=>{
+  const {result,reads}=await basket({},0);
+  expect(result.data).toMatchObject({set_id:'inactive',denominator:0,total_products:0});
+  expect(reads).toEqual([]);
+ });
+});

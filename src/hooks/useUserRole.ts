@@ -13,6 +13,10 @@ export type UserRole = "admin" | "editor" | "member" | "viewer";
 
 const LEGACY_ROLE_LEVEL: Record<CrmRole, number> = {
   staff: 0,
+  // Specialist CRM roles must not inherit broad legacy editor rights.
+  designer: 0,
+  list_manager: 0,
+  sender: 0,
   store_manager: 1,
   marketing: 2,
   owner_admin: 3,

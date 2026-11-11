@@ -2,6 +2,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui-legacy/button";
 import { ArrowRight } from "lucide-react";
 import { BrandFoliage } from "@/components/brand";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 export const FinalCTANew = () => {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export const FinalCTANew = () => {
             <Button
               onClick={() => navigate("/auth")}
               size="lg"
-              className="bg-[#E1FFFE] text-[#1F4341] hover:bg-white font-semibold px-8 py-6 text-base group min-w-[200px]"
+              className="bg-[#E4EEED] text-[#1F4341] hover:bg-white font-semibold px-8 py-6 text-base group min-w-[200px]"
             >
               Start free trial
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -52,8 +53,8 @@ export const FinalCTANew = () => {
 
           <p className="pricing-final-cta__support">
             Questions? Email{" "}
-            <a href="mailto:support@bloomsuite.app">
-              support@bloomsuite.app
+            <a href={`mailto:${SUPPORT_EMAIL}`}>
+              {SUPPORT_EMAIL}
             </a>
           </p>
         </div>

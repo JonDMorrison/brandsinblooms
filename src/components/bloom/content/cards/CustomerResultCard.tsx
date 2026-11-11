@@ -16,6 +16,11 @@ import {
   visibleRows,
 } from "@/components/bloom/content/cards/cardUtils";
 import { ResultOutcomeBanner } from "@/components/bloom/content/cards/ResultOutcomeBanner";
+import {
+  formatReportedCurrency,
+  formatReportedPeriod,
+  readCustomerReportedSpending,
+} from "@/lib/crm/reportedPeriodSpending";
 
 export function CustomerResultCard({
   result,
@@ -68,11 +73,13 @@ export function CustomerResultCard({
                   "lifetime_value",
                   "purchase_metrics.total_spent",
                 ]),
+                customer.currency,
               );
+              const reported = readCustomerReportedSpending(customer);
               const detailLine = [email, phone].filter(Boolean).join(" · ");
               const activityLine = [
                 lastOrder ? `Last order: ${lastOrder}` : null,
-                totalSpent ? `Total spent: ${totalSpent}` : null,
+                totalSpent ? `Recorded spending: ${totalSpent}` : null,
               ]
                 .filter(Boolean)
                 .join(" · ");
@@ -121,6 +128,13 @@ export function CustomerResultCard({
                         sx={{ color: "neutral.400", mt: 0.25 }}
                       >
                         {activityLine}
+                      </Typography>
+                    ) : null}
+                    {reported ? (
+                      <Typography level="body-xs" sx={{ color: "neutral.500", mt: 0.25 }}>
+                        Reported spending: {formatReportedCurrency(reported.spend)} CAD
+                        {" · "}{formatReportedPeriod(reported)}
+                        {" · "}{reported.transactions} reported {reported.transactions === 1 ? "transaction" : "transactions"}
                       </Typography>
                     ) : null}
                   </Box>

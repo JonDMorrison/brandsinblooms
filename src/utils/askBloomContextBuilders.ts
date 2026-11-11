@@ -1,4 +1,8 @@
 import type { AskBloomResourceType, ResourceFocus } from "@/types/askBloom";
+import {
+  formatReportedCurrency,
+  readReportedPeriodSpending,
+} from "@/lib/crm/reportedPeriodSpending";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -14,6 +18,9 @@ interface CustomerLike extends UnknownRecord {
   created_at?: string | null;
   lifetime_value?: number | null;
   order_count?: number | null;
+  pos_order_count?: number | null;
+  total_spent?: number | string | null;
+  custom_fields?: unknown;
   avg_order_value?: number | null;
   notes?: string | null;
   email_opt_in?: boolean | null;
@@ -405,10 +412,54 @@ export function buildCustomerFocus(
     .slice(0, SUMMARY_LIST_LIMIT)
     .map(formatCampaignEngagement);
   const fullName = buildFullName(customer) || "Customer";
-  const lastOrderDate =
-    recentOrders && recentOrders.length > 0
+  // Absent order data is unknown. Only an explicitly loaded, empty order list
+  // proves there are no dated receipts on file, and even that is not "never".
+  const lastOrderDate = !recentOrders
+    ? "Not available"
+    : recentOrders.length > 0
       ? formatDate(recentOrders[0]?.created_at)
-      : "Never";
+      : "No dated receipts on file";
+  const reported = readReportedPeriodSpending(customer.custom_fields);
+  // These columns default to 0, so 0 means "nothing recorded", never a verified zero.
+  // Take the first positive value; strings come from PostgREST numeric columns.
+  const firstPositive = (...values: unknown[]) => {
+    const numbers = values
+      .map((value) => (typeof value === "string" && value.trim() ? Number(value) : value))
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    return numbers.find((value) => value > 0) ?? (numbers.length ? 0 : null);
+  };
+  const recordedValue = firstPositive(customer.lifetime_value, customer.total_spent);
+  const recordedOrders = firstPositive(customer.order_count, customer.pos_order_count);
+  const lifetimeValue =
+    recordedValue !== null && recordedValue > 0
+      ? formatMoney(recordedValue)
+      : reported
+        ? "Not available (no dated receipts on file; see Reported Period Spending)"
+        : recordedValue === 0
+          ? "No recorded spend"
+          : "Not available";
+  const totalOrders =
+    recordedOrders !== null && recordedOrders > 0
+      ? String(recordedOrders)
+      : reported
+        ? "Unknown (no dated receipts on file; see Reported Transactions)"
+        : recordedOrders === 0
+          ? "No recorded orders"
+          : "Not available";
+  const posCustomerCode = readString(
+    isRecord(customer.custom_fields)
+      ? customer.custom_fields.ideal_customer_code
+      : undefined,
+  );
+  const reportedSection = reported
+    ? [
+        `Reported Period Spending: ${formatReportedCurrency(reported.spend)} CAD from ${reported.start} to ${reported.end}${
+          reported.source ? ` (source report: ${sanitizeText(reported.source)})` : ""
+        }. This is a POS report total for that period only. It is not lifetime value, not dated receipts and not an order count.`,
+        `Reported Transactions: ${reported.transactions} (${reported.start} to ${reported.end})`,
+        "Purchase Evidence: Imported POS report totals. Use get_customer_product_history for products bought. Missing receipts are unknown, never zero.",
+      ]
+    : [];
 
   const summary = finalizeSummary([
     "[RESOURCE FOCUS]",
@@ -421,9 +472,15 @@ export function buildCustomerFocus(
     `Tags: ${tags.length > 0 ? tags.join(", ") : "None"}`,
     `Segments: ${segmentNames.length > 0 ? segmentNames.join(", ") : "None"}`,
     `Created: ${formatDate(customer.created_at)}`,
-    `Lifetime Value: ${formatMoney(customer.lifetime_value)}`,
-    `Total Orders: ${readNumber(customer.order_count) ?? 0}`,
-    `Average Order Value: ${formatMoney(customer.avg_order_value)}`,
+    ...(posCustomerCode ? [`POS Customer Code: ${sanitizeText(posCustomerCode)}`] : []),
+    `Lifetime Value: ${lifetimeValue}`,
+    `Total Orders: ${totalOrders}`,
+    ...reportedSection,
+    `Average Order Value: ${
+      readNumber(customer.avg_order_value) === null
+        ? "Not available"
+        : formatMoney(customer.avg_order_value)
+    }`,
     `Customer Tier: ${sanitizeText(customer.customer_tier) || "Not available"}`,
     `Purchase Momentum: ${readNumber(customer.purchase_velocity) === null ? "Not available" : `${readNumber(customer.purchase_velocity)?.toFixed(1)}%`}`,
     `Days Since Last Purchase: ${readNumber(customer.days_since_last_purchase) ?? "Not available"}`,
@@ -661,3 +718,23 @@ export function buildGenericFocus(
     summary,
   );
 }
+
+const readFocusSummaryValue = (summary: string, label: string) =>
+  summary.match(new RegExp(`^${label}:\\s*(.+)$`, "im"))?.[1]?.trim() ?? "";
+
+/** Never show a missing order count as "0 orders". */
+export const describeCustomerOrders = (summary: string) => {
+  const orders = readFocusSummaryValue(summary, "Total Orders");
+  const count = /^\d+$/.test(orders) ? Number(orders) : null;
+  if (count !== null && count > 0) {
+    return `${count} ${count === 1 ? "order" : "orders"}`;
+  }
+  const reported = readFocusSummaryValue(summary, "Reported Transactions").match(/^(\d+)/);
+  if (reported) {
+    return `${reported[1]} reported ${reported[1] === "1" ? "transaction" : "transactions"}`;
+  }
+  if (orders === "No recorded orders" || count === 0) {
+    return "no recorded orders";
+  }
+  return "order history not on file";
+};

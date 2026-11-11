@@ -3,7 +3,11 @@
 These instructions are authoritative for this repository. Follow them exactly.
 Do not import habits from other BloomSuite apps when the live code here says otherwise.
 
-## Never Open the Interactive Browser, Nor Write any of the Playwrite scripts. THIS IS IMPORTANT.
+## Browser QA And Playwright
+
+- Interactive browser QA is allowed and expected. When Jon asks for QA, drive his own browser (Claude in Chrome or the desktop app browser) through the real user flow and report pass/fail with evidence.
+- Use only access Jon legitimately has, such as his own session and the admin tenant switcher. Never sign in as a customer, change permissions, or alter customer data to make a check pass.
+- Do not write new Playwright scripts unless explicitly asked.
 
 ## 0. Investigation-First Protocol
 

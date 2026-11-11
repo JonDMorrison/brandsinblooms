@@ -5,12 +5,23 @@ import type { ToolName, ToolResult } from "../tools/types.ts";
 import type {
   ApprovalExecutionContext,
   PersistedTaskPlan,
-  TaskExecutionResult,
   TaskPlan,
   TaskPlanCompletionSummary,
   TaskPlanItem,
 } from "./types.ts";
 import { taskPlanSummaryToJson, taskPlanToJson } from "./types.ts";
+import { claimAction, finishClaim } from "../action-claims.ts";
+import {
+  assertPlanOwner,
+  cancelPlanSteps,
+  enqueueRemainingSteps,
+  type PlanStepJob,
+  type PlanStepQueue,
+  remainingTaskIds,
+  runPlanSteps,
+  type StepClaims,
+  type StepExecution,
+} from "./durable-runner.ts";
 
 type TaskPlanMessageRow = {
   id: string;
@@ -133,6 +144,10 @@ function statusCounts(
     failed_count: plan.tasks.filter((task) => task.status === "failed").length,
     blocked_count: plan.tasks.filter((task) => task.status === "blocked")
       .length,
+    cancelled_count: plan.tasks.filter((task) => task.status === "cancelled")
+      .length,
+    unknown_count: plan.tasks.filter((task) => task.status === "unknown")
+      .length,
   };
 }
 
@@ -200,7 +215,11 @@ async function persistCompletionMessage(
   context: ApprovalExecutionContext,
   summary: TaskPlanCompletionSummary,
 ): Promise<void> {
-  const content = `Task plan complete: ${summary.completed_count} completed, ${summary.skipped_count} skipped, ${summary.failed_count} failed.`;
+  const extra = [
+    summary.cancelled_count > 0 ? `${summary.cancelled_count} cancelled` : null,
+    summary.unknown_count > 0 ? `${summary.unknown_count} not confirmed` : null,
+  ].filter(Boolean).join(", ");
+  const content = `Task plan complete: ${summary.completed_count} completed, ${summary.skipped_count} skipped, ${summary.failed_count} failed${extra ? `, ${extra}` : ""}.`;
   const { error } = await client.from("bloom_messages").insert({
     conversation_id: context.conversationId,
     tenant_id: context.tenantId,
@@ -247,51 +266,6 @@ function resultStatus(result: ToolResult): "completed" | "failed" {
   return result.success && result.confirmation_required !== true
     ? "completed"
     : "failed";
-}
-
-export async function executeTask(
-  task: TaskPlanItem,
-  serviceClient: PersistenceClient,
-  tenantId: string,
-  context: ApprovalExecutionContext,
-): Promise<TaskExecutionResult> {
-  const startedAt = Date.now();
-  try {
-    const result = await executeTool(task.tool_name, task.tool_params, {
-      tenantId,
-      userId: context.userId,
-      userRole: context.userRole,
-      userName: context.userName,
-      conversationId: context.conversationId,
-      messageId: context.messageId,
-      timezone: context.timezone,
-      authenticatedTenantId: tenantId,
-      serviceClient,
-      dataClient: context.dataClient,
-      approved: true,
-    });
-    const status = resultStatus(result);
-    return {
-      task_id: task.task_id,
-      tool_name: task.tool_name,
-      status,
-      result: toolResultToJson(result),
-      error_message:
-        status === "failed"
-          ? toPublicErrorMessage(result.message || result.error)
-          : null,
-      execution_time_ms: Date.now() - startedAt,
-    };
-  } catch (error) {
-    return {
-      task_id: task.task_id,
-      tool_name: task.tool_name,
-      status: "failed",
-      result: null,
-      error_message: toPublicErrorMessage(error),
-      execution_time_ms: Date.now() - startedAt,
-    };
-  }
 }
 
 export async function loadTaskPlan(
@@ -399,136 +373,147 @@ function preparePlanForApproval(
   return { plan: { ...plan, tasks }, error: null };
 }
 
-function dependencyFailed(
+const TRANSIENT_TOOL_ERRORS = new Set(["timeout_error", "execution_error"]);
+
+/** Turns one tool run into a step outcome. A thrown error means the outcome is unknown. */
+async function executeStep(
   task: TaskPlanItem,
-  tasksById: Map<string, TaskPlanItem>,
-): boolean {
-  return task.depends_on.some((dependencyId) => {
-    const dependency = tasksById.get(dependencyId);
-    return (
-      dependency?.status === "failed" ||
-      dependency?.status === "blocked" ||
-      dependency?.status === "skipped"
-    );
-  });
-}
-
-function dependenciesComplete(
-  task: TaskPlanItem,
-  tasksById: Map<string, TaskPlanItem>,
-): boolean {
-  return task.depends_on.every(
-    (dependencyId) => tasksById.get(dependencyId)?.status === "completed",
-  );
-}
-
-function nextReadyTasks(tasks: TaskPlanItem[]): TaskPlanItem[] {
-  const tasksById = new Map(tasks.map((task) => [task.task_id, task]));
-  return tasks.filter(
-    (task) =>
-      task.status === "approved" && dependenciesComplete(task, tasksById),
-  );
-}
-
-function markBlockedTasks(tasks: TaskPlanItem[]): TaskPlanItem[] {
-  let changed = true;
-  let nextTasks = tasks;
-  while (changed) {
-    changed = false;
-    const tasksById = new Map(nextTasks.map((task) => [task.task_id, task]));
-    nextTasks = nextTasks.map((task) => {
-      if (task.status === "approved" && dependencyFailed(task, tasksById)) {
-        changed = true;
-        return {
-          ...task,
-          status: "blocked" as const,
-          error_message: "A required earlier task did not complete.",
-        };
-      }
-      return task;
-    });
-  }
-  return nextTasks;
-}
-
-function applyTaskResult(
-  tasks: TaskPlanItem[],
-  result: TaskExecutionResult,
-): TaskPlanItem[] {
-  return tasks.map((task) =>
-    task.task_id === result.task_id
-      ? { ...task, status: result.status, error_message: result.error_message }
-      : task,
-  );
-}
-
-function incompleteApprovedTasks(tasks: TaskPlanItem[]): boolean {
-  return tasks.some(
-    (task) => task.status === "approved" || task.status === "executing",
-  );
-}
-
-async function executeApprovedTasks(
-  plan: TaskPlan,
+  params: JsonObject,
   context: ApprovalExecutionContext,
-): Promise<{ plan: TaskPlan; results: TaskExecutionResult[] }> {
-  let tasks = markBlockedTasks(plan.tasks);
-  const results: TaskExecutionResult[] = [];
-
-  while (incompleteApprovedTasks(tasks)) {
-    const readyTasks = nextReadyTasks(tasks);
-    if (readyTasks.length === 0) {
-      tasks = markBlockedTasks(tasks);
-      break;
-    }
-
-    for (const readyTask of readyTasks) {
-      context.emitProgress({
-        plan_id: plan.plan_id,
-        task_id: readyTask.task_id,
-        status: "executing",
-      });
-      tasks = tasks.map((task) =>
-        task.task_id === readyTask.task_id
-          ? { ...task, status: "executing" as const, error_message: null }
-          : task,
-      );
-
-      const result = await executeTask(
-        readyTask,
-        context.serviceClient,
-        context.tenantId,
-        context,
-      );
-      results.push(result);
-      context.emitProgress({
-        plan_id: plan.plan_id,
-        task_id: result.task_id,
-        status: result.status,
-        error_message: result.error_message,
-      });
-      tasks = applyTaskResult(tasks, result);
-    }
-
-    const blockedBefore = new Set(
-      tasks
-        .filter((task) => task.status === "blocked")
-        .map((task) => task.task_id),
-    );
-    tasks = markBlockedTasks(tasks);
-    for (const task of tasks) {
-      if (task.status === "blocked" && !blockedBefore.has(task.task_id)) {
-        context.emitProgress({
-          plan_id: plan.plan_id,
-          task_id: task.task_id,
-          status: "blocked",
-          error_message: task.error_message,
-        });
-      }
-    }
+): Promise<StepExecution> {
+  const result = await executeTool(task.tool_name, params, {
+    tenantId: context.tenantId,
+    userId: context.userId,
+    userRole: context.userRole,
+    userName: context.userName,
+    conversationId: context.conversationId,
+    messageId: context.messageId,
+    timezone: context.timezone,
+    authenticatedTenantId: context.tenantId,
+    serviceClient: context.serviceClient,
+    dataClient: context.dataClient,
+    approved: true,
+    clientContext: context.clientContext ?? null,
+  });
+  if (resultStatus(result) === "completed") {
+    return { kind: "completed", result: toolResultToJson(result), message: result.message ?? null };
   }
+  return {
+    kind: "failed",
+    transient: !result.confirmation_required && TRANSIENT_TOOL_ERRORS.has(result.error ?? ""),
+    result: toolResultToJson(result),
+    message: toPublicErrorMessage(result.message || result.error),
+  };
+}
 
-  return { plan: { ...plan, tasks }, results };
+function isPlanStepJob(value: unknown): value is PlanStepJob {
+  return isRecord(value) && typeof value.job_id === "string" && typeof value.task_id === "string" &&
+    typeof value.status === "string" && isJsonObject(value.tool_params);
+}
+
+function readJobs(value: unknown): PlanStepJob[] {
+  return Array.isArray(value) ? value.filter(isPlanStepJob) : [];
+}
+
+/** bloom_support.jobs for one plan, through the service-role-only gateway. */
+export function createPlanStepQueue(
+  client: PersistenceClient,
+  owner: { tenantId: string; userId: string; conversationId: string; messageId: string; planId: string },
+): PlanStepQueue {
+  const base = { tenant_id: owner.tenantId, user_id: owner.userId, plan_id: owner.planId };
+  const call = async (fn: string, args: Record<string, unknown> = {}): Promise<unknown> => {
+    const { data, error } = await client.rpc("bloom_chat_plan_rpc", { p_fn: fn, p: { ...base, ...args } });
+    if (error) throw new Error(`Plan step queue (${fn}) failed: ${error.message}`);
+    return data;
+  };
+  return {
+    enqueue: async (steps) =>
+      readJobs(await call("enqueue", { conversation_id: owner.conversationId, message_id: owner.messageId, steps })),
+    steps: async () => readJobs(await call("steps")),
+    claim: async (taskId, worker) => {
+      const job = await call("claim", { task_id: taskId, worker });
+      return isPlanStepJob(job) ? job : null;
+    },
+    finish: async (job, worker, finish) => {
+      const status = await call("finish", finish.outcome === "succeeded"
+        ? { job_id: job.job_id, worker, outcome: "succeeded", result: finish.result }
+        : { job_id: job.job_id, worker, outcome: "failed", error: finish.error, permanent: finish.permanent, retry_in: finish.retryIn });
+      return status === "succeeded" || status === "queued" ? status : "dead";
+    },
+    cancel: async (taskIds, reason) => {
+      const ids = await call("cancel", { task_ids: taskIds, reason });
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+    },
+    requeue: async (taskId) => {
+      const job = await call("requeue", { task_id: taskId });
+      return isPlanStepJob(job) ? job : null;
+    },
+  };
+}
+
+function createStepClaims(client: PersistenceClient, context: ApprovalExecutionContext): StepClaims {
+  return {
+    claim: (mutationId, toolName) =>
+      claimAction(client, {
+        mutationId,
+        tenantId: context.tenantId,
+        userId: context.userId,
+        conversationId: context.conversationId,
+        messageId: context.messageId,
+        toolName,
+      }),
+    finish: (mutationId, status, result) => finishClaim(client, mutationId, status, result),
+  };
+}
+
+const WORKER_PREFIX = "bloom-assist";
+
+async function loadOwnedPlan(planId: string, context: ApprovalExecutionContext) {
+  const persisted = await loadTaskPlan(
+    context.serviceClient,
+    context.tenantId,
+    context.conversationId,
+    planId,
+  );
+  if (!persisted) {
+    throw new Error("Task plan not found for this conversation.");
+  }
+  // Same person and company that the plan was made for (the conversation check
+  // in index.ts already guarantees this; the plan message is checked as well).
+  assertPlanOwner({ tenantId: context.tenantId, userId: persisted.userId }, { tenantId: context.tenantId, userId: context.userId });
+  const executionContext: ApprovalExecutionContext = { ...context, messageId: persisted.messageId };
+  const queue = createPlanStepQueue(context.serviceClient, {
+    tenantId: context.tenantId,
+    userId: context.userId,
+    conversationId: context.conversationId,
+    messageId: persisted.messageId,
+    planId,
+  });
+  return { persisted, executionContext, queue };
+}
+
+async function runAndSummarise(
+  plan: TaskPlan,
+  messageId: string,
+  queue: PlanStepQueue,
+  context: ApprovalExecutionContext,
+): Promise<TaskPlanCompletionSummary> {
+  await enqueueRemainingSteps(plan, queue);
+  const executed = await runPlanSteps(plan, {
+    queue,
+    claims: createStepClaims(context.serviceClient, context),
+    execute: (task, params) => executeStep(task, params, context),
+    persist: (next) => updatePersistedPlan(context.serviceClient, messageId, context.tenantId, next),
+    emit: context.emitProgress,
+    worker: `${WORKER_PREFIX}-${crypto.randomUUID().slice(0, 8)}`,
+  });
+  const summary: TaskPlanCompletionSummary = {
+    plan_id: plan.plan_id,
+    ...statusCounts(executed.plan),
+    results: executed.results,
+  };
+  await persistCompletionMessage(context.serviceClient, context, summary);
+  return summary;
 }
 
 export async function processApproval(
@@ -539,21 +524,7 @@ export async function processApproval(
   context: ApprovalExecutionContext,
   retryTaskId: string | null = null,
 ): Promise<TaskPlanCompletionSummary> {
-  const persisted = await loadTaskPlan(
-    context.serviceClient,
-    context.tenantId,
-    context.conversationId,
-    planId,
-  );
-  if (!persisted) {
-    throw new Error("Task plan not found for this conversation.");
-  }
-
-  const executionContext: ApprovalExecutionContext = {
-    ...context,
-    messageId: persisted.messageId,
-    userId: persisted.userId,
-  };
+  const { persisted, executionContext, queue } = await loadOwnedPlan(planId, context);
 
   const prepared = preparePlanForApproval(
     persisted.plan,
@@ -584,25 +555,50 @@ export async function processApproval(
     retry_task_id: retryTaskId,
   });
 
-  const executed = await executeApprovedTasks(prepared.plan, executionContext);
-  await updatePersistedPlan(
-    executionContext.serviceClient,
-    persisted.messageId,
-    executionContext.tenantId,
-    executed.plan,
-  );
-  const counts = statusCounts(executed.plan);
-  const summary: TaskPlanCompletionSummary = {
+  // The approved plan is saved before anything runs, so a crash can be resumed.
+  await updatePersistedPlan(executionContext.serviceClient, persisted.messageId, executionContext.tenantId, prepared.plan);
+  if (retryTaskId) {
+    await queue.requeue(retryTaskId);
+  }
+  return await runAndSummarise(prepared.plan, persisted.messageId, queue, executionContext);
+}
+
+/** Continues an interrupted plan. Finished steps are not run again. */
+export async function processResume(
+  planId: string,
+  context: ApprovalExecutionContext,
+): Promise<TaskPlanCompletionSummary> {
+  const { persisted, executionContext, queue } = await loadOwnedPlan(planId, context);
+  if (remainingTaskIds(persisted.plan).length === 0) {
+    throw new Error("Nothing is left to run in this plan.");
+  }
+  await logApprovalAudit(executionContext.serviceClient, executionContext, {
     plan_id: planId,
-    ...counts,
-    results: executed.results,
+    action: "resume",
+    remaining_task_ids: remainingTaskIds(persisted.plan),
+  });
+  return await runAndSummarise(persisted.plan, persisted.messageId, queue, executionContext);
+}
+
+/** Stops the steps that have not started. A step that is running finishes. */
+export async function processCancel(
+  planId: string,
+  context: ApprovalExecutionContext,
+): Promise<{ plan: JsonObject; cancelled_task_ids: string[]; running_task_ids: string[] }> {
+  const { persisted, executionContext, queue } = await loadOwnedPlan(planId, context);
+  const cancelled = await cancelPlanSteps(persisted.plan, queue);
+  await updatePersistedPlan(executionContext.serviceClient, persisted.messageId, executionContext.tenantId, cancelled.plan);
+  await logApprovalAudit(executionContext.serviceClient, executionContext, {
+    plan_id: planId,
+    action: "cancel",
+    cancelled_task_ids: cancelled.cancelledTaskIds,
+    running_task_ids: cancelled.runningTaskIds,
+  });
+  return {
+    plan: taskPlanToJson(cancelled.plan),
+    cancelled_task_ids: cancelled.cancelledTaskIds,
+    running_task_ids: cancelled.runningTaskIds,
   };
-  await persistCompletionMessage(
-    executionContext.serviceClient,
-    executionContext,
-    summary,
-  );
-  return summary;
 }
 
 export function isKnownToolName(value: string): value is ToolName {

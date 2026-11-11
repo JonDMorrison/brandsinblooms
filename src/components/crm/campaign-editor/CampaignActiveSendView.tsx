@@ -200,9 +200,9 @@ function formatTimestamp(value: string | null) {
 }
 
 function formatEta(value: string | null) {
-  if (!value) return "Calculating ETA";
+  if (!value) return "We’ll estimate the time once sending starts";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Calculating ETA";
+  if (Number.isNaN(date.getTime())) return "Timing updates as sending progresses";
   return `ETA ${formatDistanceToNow(date, { addSuffix: true })}`;
 }
 
@@ -308,7 +308,7 @@ function MetricTile({
         : "neutral.900";
 
   return (
-    <Sheet variant="outlined" sx={{ borderRadius: "md", p: 2, minHeight: 104 }}>
+    <Sheet variant="outlined" sx={{ borderRadius: "md", p: 2 }}>
       <Stack spacing={0.75}>
         <Typography level="body-xs" sx={{ color: "neutral.500" }}>
           {label}
@@ -754,19 +754,19 @@ export function CampaignActiveSendView({
       ? "Campaign stopped before completion"
       : isDelivered
         ? snapshot.status === CAMPAIGN_STATUS.SENT_WITH_ERRORS
-          ? "Campaign complete with delivery errors"
-          : "Campaign complete"
+          ? "Sending finished. A few contacts need a look."
+          : "And… sent!"
         : isSending
-          ? "Delivering your campaign"
-          : "Campaign accepted. Preparing the queue.";
+          ? "Your newsletter is on its way"
+          : "You’re all set. We’re getting it ready.";
   const detail =
     snapshot.status === CAMPAIGN_STATUS.FAILED
-      ? `${messagesSent.toLocaleString()} of ${totalRecipients.toLocaleString()} recipients were delivered before sending stopped.`
+      ? `${messagesSent.toLocaleString()} of ${totalRecipients.toLocaleString()} emails were sent before sending stopped.`
       : isDelivered
-        ? `${messagesSent.toLocaleString()} emails delivered through the provider.`
+        ? `${messagesSent.toLocaleString()} emails sent. Delivery results will continue to update in your report.`
         : isSending
-          ? `${messagesSent.toLocaleString()} of ${totalRecipients.toLocaleString()} recipients sent.`
-          : "Recipients are being batched before provider delivery begins.";
+          ? `${messagesSent.toLocaleString()} of ${totalRecipients.toLocaleString()} emails sent.`
+          : "Your campaign is safely queued. We’re preparing your emails for sending.";
 
   const handlePause = async () => {
     setPauseError(null);
@@ -787,10 +787,13 @@ export function CampaignActiveSendView({
 
   return (
     <>
-      <Stack
-        spacing={3}
-        sx={{ maxWidth: 920, mx: "auto", py: { xs: 2, md: 4 } }}
-      >
+      <Box sx={{
+        width: "100%", maxWidth: 1280, mx: "auto", py: 0,
+        display: "grid", gap: 2,
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.55fr) minmax(0, 1fr)" },
+        alignItems: "start",
+        "& > *": { minWidth: 0 },
+      }}>
         <Sheet
           className="bg-card"
           variant="outlined"
@@ -798,9 +801,39 @@ export function CampaignActiveSendView({
             borderRadius: "lg",
             p: { xs: 2, md: 3 },
             backgroundColor: "background.surface",
+            gridColumn: { lg: "1" }, gridRow: { lg: "1" },
+            position: "relative", overflow: "hidden",
+            "&::before": {
+              content: '""', position: "absolute", right: -24, top: -30,
+              width: 260, height: 280,
+              background: 'url("/images/dashboard/botanical-corner.svg") center / contain no-repeat',
+              pointerEvents: "none",
+            },
+            "& > *": { position: "relative" },
           }}
         >
           <Stack spacing={2.5}>
+            <Box aria-hidden="true" sx={{
+              width: 60, height: 60, borderRadius: "50%", display: "grid", placeItems: "center",
+              bgcolor: "neutral.100", color: isDelivered ? "success.700" : "neutral.700",
+              position: "relative",
+              "& > svg": { animation: !isTerminal ? "sendFloat 3s ease-in-out infinite" : "sendArrive .5s ease-out both" },
+              "@keyframes sendFloat": { "0%, 100%": { transform: "translateY(2px) rotate(-5deg)" }, "50%": { transform: "translateY(-4px) rotate(4deg)" } },
+              "@keyframes sendArrive": { from: { transform: "scale(.6)", opacity: 0 }, to: { transform: "scale(1)", opacity: 1 } },
+              "@keyframes sendSpark": { from: { transform: "scale(.2)", opacity: 1 }, to: { transform: "scale(1.8) translateY(-14px)", opacity: 0 } },
+              "@media (prefers-reduced-motion: reduce)": { "& > svg, & > span": { animation: "none" } },
+            }}>
+              {isDelivered ? <CheckCircle2 size={30} /> : <Send size={28} />}
+              {snapshot.status === CAMPAIGN_STATUS.SENT ? Array.from({ length: 8 }, (_, index) => (
+                <Box component="span" key={index} sx={{
+                  position: "absolute", width: 5, height: 5, borderRadius: index % 2 ? "50%" : "1px",
+                  left: `${50 + Math.cos(index * Math.PI / 4) * 58}%`,
+                  top: `${50 + Math.sin(index * Math.PI / 4) * 58}%`,
+                  bgcolor: index % 2 ? "success.400" : "neutral.400",
+                  animation: "sendSpark 1.2s ease-out both",
+                }} />
+              )) : null}
+            </Box>
             <Stack
               direction={{ xs: "column", md: "row" }}
               spacing={2}
@@ -864,8 +897,8 @@ export function CampaignActiveSendView({
                 </Typography>
               </Stack>
               <Box sx={{ textAlign: { xs: "left", md: "right" } }}>
-                <Typography level="h1" fontWeight="xl">
-                  {progress}%
+                <Typography level={isQueued && messagesSent === 0 ? "title-lg" : "h1"} fontWeight="xl">
+                  {isQueued && messagesSent === 0 ? "Getting ready" : `${progress}%`}
                 </Typography>
                 <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                   {isTerminal
@@ -876,8 +909,9 @@ export function CampaignActiveSendView({
             </Stack>
 
             <LinearProgress
-              determinate
+              determinate={!(isQueued && messagesSent === 0)}
               value={progress}
+              aria-label={isQueued ? "Preparing your campaign" : "Campaign sending progress"}
               size="lg"
               color={progressColor}
               sx={{
@@ -888,23 +922,32 @@ export function CampaignActiveSendView({
               }}
             />
 
-            <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+            <Stack direction={{ xs: "column", xl: "row" }} spacing={1.5}>
               <PhaseStep
-                label="Preparing"
-                detail="Queue accepted and batches created"
+                label="Ready to go"
+                detail="Your campaign is safely queued"
                 state={getPhaseState("preparing", snapshot.status)}
               />
               <PhaseStep
-                label="Provider Delivery"
-                detail="Messages moving through delivery"
+                label="Sending"
+                detail="Emails are on their way"
                 state={getPhaseState("sending", snapshot.status)}
               />
               <PhaseStep
-                label="Complete"
-                detail="Final counts recorded"
+                label="Send finished"
+                detail="See delivery and engagement in your report"
                 state={getPhaseState("complete", snapshot.status)}
               />
             </Stack>
+
+            {canPause ? (
+              <Sheet variant="soft" color="neutral" sx={{ borderRadius: "md", p: 1.75 }}>
+                <Typography level="body-sm" fontWeight="lg">You can leave this page. We’ll keep sending.</Typography>
+                <Typography level="body-xs" sx={{ color: "neutral.600", mt: 0.5 }}>
+                  No need to click Send again. Come back to this campaign to check progress and see who opens and clicks.
+                </Typography>
+              </Sheet>
+            ) : null}
 
             {staleHeartbeat ? (
               <Sheet
@@ -927,10 +970,12 @@ export function CampaignActiveSendView({
           </Stack>
         </Sheet>
 
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+        <Stack direction="row" spacing={1.5} sx={{
+          gridColumn: { lg: "1" }, gridRow: { lg: "2" }, flexWrap: "wrap",
+        }}>
           <Box sx={{ flex: 1 }}>
             <MetricTile
-              label="Sent"
+              label="Emails sent"
               value={messagesSent}
               tone="success"
               bumped={sentBumped}
@@ -946,20 +991,22 @@ export function CampaignActiveSendView({
             </Box>
           ) : null}
           <Box sx={{ flex: 1 }}>
-            <MetricTile label="Remaining" value={remaining} />
+            <MetricTile label="Still to send" value={remaining} />
           </Box>
         </Stack>
 
         <Sheet
           variant="outlined"
-          sx={{ borderRadius: "lg", p: { xs: 2, md: 2.5 } }}
+          sx={{
+            borderRadius: "lg", p: { xs: 2, md: 2.5 },
+            gridColumn: { lg: "2" }, gridRow: { lg: "1 / span 2" },
+          }}
         >
           <Stack spacing={2}>
             <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", md: "center" }}
+              direction="column"
+              spacing={1}
+              alignItems="flex-start"
             >
               <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                 <Typography level="title-md" fontWeight="lg">
@@ -1096,7 +1143,7 @@ export function CampaignActiveSendView({
           justifyContent="space-between"
           alignItems={{ xs: "stretch", sm: "center" }}
         >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ gridColumn: "1 / -1" }}>
             {canPause ? (
               <JoyButton
                 variant="outlined"
@@ -1139,7 +1186,7 @@ export function CampaignActiveSendView({
             </Box>
           ) : null}
         </Stack>
-      </Stack>
+      </Box>
 
       <Modal open={pauseOpen} onClose={() => !isPausing && setPauseOpen(false)}>
         <ModalDialog variant="outlined" size="sm">

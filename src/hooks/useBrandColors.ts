@@ -14,7 +14,7 @@ export interface BrandColors {
 export const DEFAULT_BRAND_COLORS: BrandColors = {
   primary: '#22C55E',
   secondary: '#1E40AF',
-  accent: '#F59E0B',
+  accent: '#B46B48',
   text: '#1F2937',
   background: '#FFFFFF',
 };

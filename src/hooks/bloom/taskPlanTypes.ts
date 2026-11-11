@@ -26,7 +26,9 @@ export type BloomTaskPlanStatus =
   | "executing"
   | "completed"
   | "failed"
-  | "blocked";
+  | "blocked"
+  | "cancelled"
+  | "unknown";
 
 export type BloomTaskRiskLevel = "safe" | "low" | "medium" | "high";
 
@@ -68,6 +70,13 @@ export interface BloomValidationAnnotation {
   step: string;
 }
 
+/** A statement the person agrees to by approving the task. */
+export interface BloomTaskPlanNotice {
+  title: string;
+  body: string;
+  detail: string | null;
+}
+
 export interface BloomTaskPlanItem {
   taskId: string;
   action: BloomTaskPlanAction;
@@ -83,6 +92,7 @@ export interface BloomTaskPlanItem {
   editableFields: string[];
   editableFieldMetadata: BloomEditableFieldMetadata[];
   validationAnnotations: BloomValidationAnnotation[];
+  notice: BloomTaskPlanNotice | null;
   status: BloomTaskPlanStatus;
   errorMessage: string | null;
 }
@@ -149,6 +159,8 @@ const TASK_STATUSES = new Set<BloomTaskPlanStatus>([
   "completed",
   "failed",
   "blocked",
+  "cancelled",
+  "unknown",
 ]);
 
 const RISK_LEVELS = new Set<BloomTaskRiskLevel>([
@@ -330,6 +342,17 @@ const parseEditableFieldMetadata = (
   };
 };
 
+const parseNotice = (value: unknown): BloomTaskPlanNotice | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const title = readString(value.title);
+  const body = readString(value.body);
+  return title && body
+    ? { title, body, detail: readString(value.detail) }
+    : null;
+};
+
 const parseAnnotation = (value: unknown): BloomValidationAnnotation | null => {
   if (!isRecord(value)) {
     return null;
@@ -424,6 +447,7 @@ const parseTask = (value: unknown): BloomTaskPlanItem | null => {
     editableFields: readStringArray(value.editable_fields),
     editableFieldMetadata,
     validationAnnotations,
+    notice: parseNotice(value.notice),
     status,
     errorMessage: readString(value.error_message),
   };
@@ -572,6 +596,13 @@ export const taskPlanBlockData = (plan: BloomTaskPlan): Json => ({
         step: annotation.step,
         resolution_options: [],
       })),
+      notice: task.notice
+        ? {
+            title: task.notice.title,
+            body: task.notice.body,
+            detail: task.notice.detail,
+          }
+        : null,
       status: task.status,
       error_message: task.errorMessage,
     })),

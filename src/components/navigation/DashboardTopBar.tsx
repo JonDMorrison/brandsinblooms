@@ -31,7 +31,7 @@ import { useDashboardShell } from "@/components/layout/DashboardShell";
 import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
 import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
-import { useJiraIssueCollector } from "@/hooks/useJiraIssueCollector";
+import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
 import { signOutCompletely } from "@/integrations/supabase/client";
 
 const LazyReportProblemDialog = lazy(() =>
@@ -151,7 +151,8 @@ export function DashboardTopBar({
   const navigate = useNavigate();
   const askBloom = useOptionalAskBloom();
   const { user, loading } = useAuth();
-  const { openFeedback } = useJiraIssueCollector();
+  // "Get help" goes to Bloom Support (shared with BloomSites and POS) instead of the Jira collector.
+  const [reportOpen, setReportOpen] = useState(false);
   const {
     isMobile,
     isMobileSidebarOpen,
@@ -415,19 +416,19 @@ export function DashboardTopBar({
                   </Button>
                 </Tooltip>
               ) : null}
-              <Tooltip arrow placement="bottom" title="Send feedback">
+              <Tooltip arrow placement="bottom" title="Get help or report a problem">
                 <IconButton
-                  id="myCustomTrigger"
-                  aria-label="Send feedback"
+                  aria-label="Get help or report a problem"
                   color="neutral"
                   size="sm"
                   variant="plain"
-                  onClick={openFeedback}
+                  onClick={() => setReportOpen(true)}
                   sx={iconButtonSx}
                 >
                   <MessageSquareText size={18} strokeWidth={1.9} />
                 </IconButton>
               </Tooltip>
+              <ReportProblemDialog open={reportOpen} onClose={() => setReportOpen(false)} />
               <Dropdown>
                 <MenuButton
                   aria-label="Open user menu"

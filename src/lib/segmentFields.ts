@@ -639,35 +639,68 @@ export function normalizeSegmentRuleGroup(input: unknown): SegmentRuleGroup {
     };
   }
 
-  if (
-    input &&
-    typeof input === "object" &&
-    Array.isArray((input as { conditions?: unknown[] }).conditions)
-  ) {
-    const legacy = input as {
-      conditions: Array<{
-        field?: string;
-        operator?: SegmentOperatorId;
-        value?: SegmentRuleValue;
-      }>;
-      logic?: "AND" | "OR";
-    };
+  // Older saved segments keep a flat list under "conditions" or "rules"
+  // (the built-in system segments use "rules"). The server evaluator reads
+  // both, so the editor must too, or it shows an empty rule that matches
+  // every customer.
+  const legacyList =
+    input && typeof input === "object"
+      ? ((input as { conditions?: unknown }).conditions ??
+        (input as { rules?: unknown }).rules)
+      : undefined;
+
+  if (Array.isArray(legacyList)) {
+    const legacy = input as { logic?: "AND" | "OR"; operator?: "AND" | "OR" };
 
     return {
       id: makeId("group-legacy"),
       kind: "group",
-      operator: legacy.logic === "OR" ? "OR" : "AND",
-      children: legacy.conditions.map((condition) => ({
-        id: makeId("rule-legacy"),
-        kind: "rule",
-        fieldId: condition.field ?? null,
-        operatorId: condition.operator ?? null,
-        value: condition.value ?? null,
-      })),
+      operator: legacy.logic === "OR" || legacy.operator === "OR" ? "OR" : "AND",
+      children: legacyList.map((condition) =>
+        normalizeLegacyCondition(
+          (condition ?? {}) as LegacySegmentCondition,
+          "rule-legacy",
+        ),
+      ),
     };
   }
 
   return createEmptyGroup();
+}
+
+type LegacySegmentCondition = {
+  field?: string;
+  operator?: string;
+  value?: SegmentRuleValue;
+};
+
+/**
+ * Legacy "within_days" and "older_than_days" have no editor operator. The
+ * server evaluates them exactly like "within_last" and "not_within_last" in
+ * days (same cutoff, and a missing date never matches), so map them for a
+ * positive whole number of days.
+ */
+function normalizeLegacyCondition(
+  legacy: LegacySegmentCondition,
+  idPrefix: string,
+): SegmentRuleCondition {
+  const days = typeof legacy.value === "number" ? legacy.value : Number(legacy.value);
+  const relative =
+    (legacy.operator === "within_days" || legacy.operator === "older_than_days") &&
+    Number.isInteger(days) &&
+    days > 0;
+
+  return {
+    id: makeId(idPrefix),
+    kind: "rule",
+    fieldId: legacy.field ?? null,
+    operatorId: relative
+      ? legacy.operator === "within_days"
+        ? "within_last"
+        : "not_within_last"
+      : ((legacy.operator as SegmentOperatorId | undefined) ?? null),
+    value: relative ? { amount: days, unit: "days" } : (legacy.value ?? null),
+  };
 }
 
 function normalizeSegmentRuleCondition(input: unknown): SegmentRuleCondition {
@@ -676,19 +709,10 @@ function normalizeSegmentRuleCondition(input: unknown): SegmentRuleCondition {
   }
 
   if (input && typeof input === "object") {
-    const legacy = input as {
-      field?: string;
-      operator?: SegmentOperatorId;
-      value?: SegmentRuleValue;
-    };
-
-    return {
-      id: makeId("rule-normalized"),
-      kind: "rule",
-      fieldId: legacy.field ?? null,
-      operatorId: legacy.operator ?? null,
-      value: legacy.value ?? null,
-    };
+    return normalizeLegacyCondition(
+      input as LegacySegmentCondition,
+      "rule-normalized",
+    );
   }
 
   return createEmptyRule();

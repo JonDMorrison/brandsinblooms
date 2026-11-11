@@ -1,3 +1,5 @@
+import {resolveCouponReminderSchedule} from '../_shared/customer-intelligence/coupon-reminder-schedule.ts';
+import {parseCouponReminderForChannel,type CouponReminderConfig} from '../_shared/customer-intelligence/coupon-lifecycle.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveSender, type SenderConfig } from "../_shared/senderResolver.ts";
@@ -30,6 +32,7 @@ interface WorkflowStep {
   delayMin: number;
   subject?: string;
   text: string;
+  coupon_reminder?: CouponReminderConfig | null;
 }
 
 interface AutomationEnrollment {
@@ -131,6 +134,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
           delayMin: totalDelay,
           subject: step.subject || "",
           text: step.content || step.text || "",
+          coupon_reminder:parseCouponReminderForChannel(step.coupon_reminder,step.type),
         });
 
         // Reset cumulative delay after applying to a message step
@@ -164,6 +168,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
           delayMin,
           subject: node.data?.subject || "",
           text: node.data?.content || node.data?.text || "",
+          coupon_reminder:parseCouponReminderForChannel(node.data?.coupon_reminder,node.type),
         };
       });
   }
@@ -230,6 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
     for (const automation of activeAutomations || []) {
       // Skip event-driven triggers - they're handled by webhooks or the event queue, NOT cron
       const eventDrivenTriggers = [
+        "ideal.coupon_issued",
         "segment.added",
         "segment_added",
         "persona.assigned",
@@ -475,6 +481,7 @@ async function processAutomation(supabase: any, automation: any) {
             .from("automation_runs")
             .update({ next_step_scheduled_at: scheduledAt.toISOString() })
             .eq("id", runId)
+            .eq("current_step_index", 0)
             .eq("status", "active");
           if (scheduleError) throw scheduleError;
         } catch (enqueueError) {
@@ -799,6 +806,22 @@ async function enqueueMessage(
     return;
   }
 
+  let couponReminder: (CouponReminderConfig & {issued_event_id:string}) | null = null;
+  if (step.coupon_reminder) {
+    const decision = await resolveCouponReminderSchedule(supabase,automation.tenant_id,customer.id,triggerContext,step.coupon_reminder,new Date().toISOString());
+    couponReminder = decision.metadata;
+    if (!decision.scheduled_at) {
+      await skipStep(supabase,automation,customer,step,stepIndex,runId,decision.reason,triggerContext);
+      return;
+    }
+    scheduledAt.setTime(Math.max(Date.now(),Date.parse(decision.scheduled_at)));
+    const {data: couponRun,error: couponScheduleError} = await supabase.from('automation_runs')
+      .update({next_step_scheduled_at:scheduledAt.toISOString()})
+      .eq('id',runId).eq('tenant_id',automation.tenant_id).eq('current_step_index',stepIndex).eq('status','active').select('id').maybeSingle();
+    if(couponScheduleError)throw couponScheduleError;
+    if(!couponRun)throw new Error('Coupon reminder run is no longer active at this step');
+  }
+
   // Check if channel is available
   const channelStatus = isChannelAvailable(step.type);
   if (!channelStatus.available) {
@@ -847,6 +870,7 @@ async function enqueueMessage(
     subject: step.subject || undefined,
     step_index: stepIndex,
     template_data: {
+      coupon_reminder: couponReminder,
       automation_name: automation.name,
       step_index: stepIndex,
       customer_data: customer,
@@ -1153,6 +1177,7 @@ async function processPendingTriggerEvents(
           .from("crm_automations")
           .select("*")
           .eq("id", event.automation_id)
+          .eq("tenant_id", event.tenant_id)
           .eq("is_active", true)
           .single();
 
@@ -1173,6 +1198,9 @@ async function processPendingTriggerEvents(
           .from("crm_customers")
           .select("*")
           .eq("id", event.customer_id)
+          .eq("tenant_id", event.tenant_id)
+          .is("deleted_at", null)
+          .is("merged_into_customer_id", null)
           .single();
 
         if (customerError || !customer) {
@@ -1285,6 +1313,7 @@ async function processPendingTriggerEvents(
             .from("automation_runs")
             .update({ next_step_scheduled_at: scheduledAt.toISOString() })
             .eq("id", runId)
+            .eq("current_step_index", 0)
             .eq("status", "active");
           if (scheduleError) throw scheduleError;
         } catch (enqueueError) {

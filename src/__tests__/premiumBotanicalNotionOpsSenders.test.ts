@@ -7,12 +7,14 @@ describe("premium botanical CRM system and operational senders", () => {
   it("keeps Stripe/Notion reconciliation decisions, recipients and pipeline links", () => {
     const src = read("supabase/functions/reconcile-stripe-notion/index.ts");
     expect(src).toContain("renderBloomSystemEmail({");
-    expect(src).toContain("renderItem(m: ReconEvent)");
-    expect(src).toContain("manualItems");
-    expect(src).toContain("autoFixedItems");
-    expect(src).toContain("to: RECIPIENTS");
-    expect(src).toContain("subject,");
-    expect(src).toContain("html: emailHtml");
+    expect(src).toContain('assess, stripeList');
+    expect(src).toContain('rpc/reconcile_stripe_notion_snapshot');
+    expect(src).toContain('"Idempotency-Key": `stripe-notion-${digest}`');
+    expect(src).toContain('to: ["jon@getclear.ca", "jeff@brandsinblooms.com"]');
+    expect(src).toContain('subject: `BloomSuite Reconciliation — ${pending.length} changes`');
+    expect(src).toContain('escape(i.detail)');
+    expect(src).not.toContain('autoFixedItems');
+    expect(src).not.toContain('https://api.notion.com/v1/pages/');
     expect(src).toContain("https://www.notion.so/344d234a0ae54f4185e19d260ac658a9");
     expect(src).not.toContain("#1abc9c");
   });

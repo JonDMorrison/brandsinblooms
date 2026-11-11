@@ -64,4 +64,21 @@ describe("StudioTopBar", () => {
       screen.getByRole("button", { name: "Save template" }),
     ).toBeDisabled();
   });
+  it("offers a save-and-review action alongside close", async () => {
+    const user = userEvent.setup();
+    const onExit = vi.fn();
+    renderTopBar({ onExit, hasUnsavedChanges: true });
+    await user.click(screen.getByRole("button", { name: "Review & Send" }));
+    expect(onExit).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("button", { name: "Save and close Design Studio" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer sending for an already sent campaign", () => {
+    renderTopBar({ campaignStatus: "Sent" });
+    expect(
+      screen.queryByRole("button", { name: "Review & Send" }),
+    ).not.toBeInTheDocument();
+  });
 });

@@ -5,13 +5,11 @@ declare module "@mui/joy/styles" {
   interface ColorPalettePropOverrides {
     info: true;
     brandNavy: true;
-    sand: true;
   }
 
   interface Palette {
     info: PaletteRange;
     brandNavy: PaletteRange;
-    sand: PaletteRange;
     bridge: Record<string, string>;
   }
 
@@ -120,11 +118,11 @@ const createFocusRing = (channel: string, width = 2, alpha = 0.18) =>
 
 export const bloomPaletteScales = {
   primary: {
-    50: "#F0FFFE",
-    100: "#E1FFFE",
-    200: "#C3FFFC",
-    300: "#A5FFFA",
-    400: "#87DFD8",
+    50: "#F3F7F7",
+    100: "#E4EEED",
+    200: "#C9DDDB",
+    300: "#A9C9C6",
+    400: "#83B1AD",
     500: "#68BEB9",
     600: "#5AA8A3",
     700: "#4C928D",
@@ -156,28 +154,28 @@ export const bloomPaletteScales = {
     900: "#450A0A",
   },
   success: {
-    50: "#F0FDF4",
-    100: "#E7FAF7",
-    200: "#BCF5E6",
-    300: "#86EFDB",
-    400: "#4AE0C4",
-    500: "#22D3B0",
+    50: "#F2F7F4",
+    100: "#E3EFE8",
+    200: "#C5DFD0",
+    300: "#9FC9B1",
+    400: "#6FAE8B",
+    500: "#3E9168",
     600: "#1FA87B",
     700: "#167A5B",
     800: "#0F5F45",
     900: "#0A4D36",
   },
   warning: {
-    50: "#FFF9EC",
-    100: "#FEF0C7",
-    200: "#FDE68A",
-    300: "#FCD34D",
-    400: "#FBBF24",
-    500: "#F59E0B",
-    600: "#D97706",
-    700: "#B45309",
-    800: "#92400E",
-    900: "#78350F",
+    50: "#FBF5F2",
+    100: "#F5E8E1",
+    200: "#EBCFC1",
+    300: "#DDAE97",
+    400: "#C98A6B",
+    500: "#B46B48",
+    600: "#9C5A3B",
+    700: "#834A31",
+    800: "#6A3C28",
+    900: "#52301F",
   },
   info: {
     50: "#EFF6FF",
@@ -203,24 +201,12 @@ export const bloomPaletteScales = {
     800: "#183246",
     900: "#10283E",
   },
-  sand: {
-    50: "#FBF9F4",
-    100: "#F7F3E8",
-    200: "#F0E6D1",
-    300: "#E8D9BA",
-    400: "#E0CCA3",
-    500: "#D8BF8C",
-    600: "#C09970",
-    700: "#A87354",
-    800: "#904D38",
-    900: "#78271C",
-  },
 } as const satisfies Record<string, Scale>;
 
 // These bridge tokens preserve the current semantic CSS variable behavior while
 // Joy becomes the source of truth for all new palette work.
 export const bloomLegacyBridgeTokens = {
-  "background-hsl": "46 80% 97%",
+  "background-hsl": "210 40% 98%",
   "foreground-hsl": "225 42% 32%",
   "card-hsl": "0 0% 100%",
   "card-foreground-hsl": "225 42% 32%",
@@ -240,10 +226,9 @@ export const bloomLegacyBridgeTokens = {
   "input-hsl": "214 32% 91%",
   "ring-hsl": "184 55% 41%",
   "brand-navy-hsl": "210 24% 27%",
-  "brand-teal-hsl": "174 63% 57%",
-  "mint-100-hsl": "142 76% 89%",
-  "mint-600-hsl": "160 68% 40%",
-  "sand-50-hsl": "46 80% 97%",
+  "brand-teal-hsl": "176 32% 51%",
+  "mint-100-hsl": "174 20% 91%",
+  "mint-600-hsl": "150 40% 36%",
   "gray-50-hsl": "210 40% 98%",
   "gray-100-hsl": "210 40% 96%",
   "gray-200-hsl": "214 32% 91%",
@@ -257,9 +242,9 @@ export const bloomLegacyBridgeTokens = {
   "brand-blue-hsl": "220 70% 50%",
   "chip-draft-hsl": "220 9% 46%",
   "chip-generated-hsl": "221 83% 53%",
-  "chip-approved-hsl": "174 63% 57%",
+  "chip-approved-hsl": "176 32% 51%",
   "chip-scheduled-hsl": "221 83% 53%",
-  "chip-posted-hsl": "174 63% 57%",
+  "chip-posted-hsl": "176 32% 51%",
 } as const;
 
 const neutralPalette = {
@@ -339,15 +324,7 @@ const infoPalette = createPaletteRange("info", bloomPaletteScales.info, {
   softColor: 800,
 });
 
-const sandPalette = createPaletteRange("sand", bloomPaletteScales.sand, {
-  solidColor: "var(--joy-palette-brandNavy-900)",
-  solidBg: 300,
-  solidHoverBg: 400,
-  solidActiveBg: 500,
-  plainColor: 800,
-  outlinedColor: 800,
-  softColor: 900,
-});
+
 
 const spacingScale: Record<number, string> = {
   0: "0px",
@@ -885,7 +862,6 @@ export const joyTheme = extendTheme({
           "brandNavy",
           bloomPaletteScales.brandNavy,
         ),
-        sand: sandPalette,
         bridge: bloomLegacyBridgeTokens,
         text: {
           primary: bloomPaletteScales.brandNavy[800],
@@ -894,11 +870,11 @@ export const joyTheme = extendTheme({
           icon: bloomPaletteScales.brandNavy[700],
         },
         background: {
-          body: bloomPaletteScales.sand[50],
+          body: bloomPaletteScales.neutral[50],
           surface: "var(--joy-palette-common-white)",
           popup: "var(--joy-palette-common-white)",
           level1: "var(--joy-palette-common-white)",
-          level2: bloomPaletteScales.sand[50],
+          level2: bloomPaletteScales.neutral[50],
           level3: bloomPaletteScales.neutral[100],
           tooltip: bloomPaletteScales.neutral[800],
           backdrop: `rgba(${hexToRgbChannel(bloomPaletteScales.brandNavy[900])} / 0.24)`,

@@ -78,7 +78,7 @@ export function CampaignDeliverySummary({
   pending,
 }: CampaignDeliverySummaryProps) {
   const bounceRate = sent > 0 ? bounced / sent : 0;
-  const bounceTone = bounceRate > 0.05 ? "danger" : "neutral";
+  const bounceTone = bounceRate > 0.05 ? "warning" : "neutral";
 
   const items = [
     {

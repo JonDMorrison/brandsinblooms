@@ -5,10 +5,10 @@
     /* Brand teal ramp. Variable names retained as --auth-green-* so the
        rest of this file (and any consumers of the auth-token-scope) keep
        working without rename. 500 is the canonical brand teal #3E7C77. */
-    --auth-green-50: #E1FFFE;
+    --auth-green-50: #E4EEED;
     --auth-green-100: #C5FBF7;
-    --auth-green-200: #A5FFFA;
-    --auth-green-300: #87DFD8;
+    --auth-green-200: #A9C9C6;
+    --auth-green-300: #83B1AD;
     --auth-green-400: #68BEB9;
     --auth-green-500: #3E7C77;
     --auth-green-600: #2E605C;
@@ -1010,8 +1010,8 @@
 }
 
 .auth-onboarding-note--warning {
-    background: #fffbeb;
-    color: #92400e;
+    background: #FBF5F2;
+    color: #6A3C28;
 }
 
 .auth-onboarding-location {
@@ -1062,8 +1062,8 @@
 }
 
 .auth-confidence-pill--medium {
-    background: #fffbeb;
-    color: #92400e;
+    background: #FBF5F2;
+    color: #6A3C28;
 }
 
 .auth-confidence-pill--low {
@@ -1811,7 +1811,7 @@
 }
 
 .auth-password-strength__bar--weak {
-    background: #f59e0b;
+    background: #B46B48;
 }
 
 .auth-password-strength__bar--fair {
@@ -2589,7 +2589,7 @@
 }
 
 /* Soft brand-tinted gradient overlay — uses --auth-green-50 (the
-   lightest brand teal, #E1FFFE) at low opacity in one corner so
+   lightest brand teal, #E4EEED) at low opacity in one corner so
    the panel feels garden-fresh without any heavy color. The
    homepage subtle sections (homepageCrm.css linear-gradient(160deg,
    #F8F9FB → #F0F4F7 → #F8F9FB)) use a similar diagonal soft sweep. */

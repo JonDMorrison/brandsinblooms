@@ -78,7 +78,7 @@ const seasonalContent: Record<string, SeasonContent> = {
       { week: "Week 4", action: "End-of-season clearance. Move remaining summer inventory with a targeted email to your most engaged customers." },
     ],
     cta_text: "Start your fall campaign", cta_url: "https://www.bloomsuite.app/newsletters/new",
-    accent: "#d97706", heroImage: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1200&q=80",
+    accent: "#9C5A3B", heroImage: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1200&q=80",
   },
   bulb_season: {
     subject: "Bulb season is here. One email can drive a week of traffic.",
@@ -91,7 +91,7 @@ const seasonalContent: Record<string, SeasonContent> = {
       { week: "Week 4", action: "Transition email: \"Preparing your garden for winter.\" Winterization tips, garlic planting, and a teaser for holiday gifts." },
     ],
     cta_text: "Create your bulb season campaign", cta_url: "https://www.bloomsuite.app/newsletters/new",
-    accent: "#d97706", heroImage: "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1200&q=80",
+    accent: "#9C5A3B", heroImage: "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1200&q=80",
   },
   holiday: {
     subject: "Holiday season plan: 4 emails that drive gift sales.",

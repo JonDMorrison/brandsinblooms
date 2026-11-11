@@ -54,15 +54,16 @@ export function CampaignBlockerRow({
       data-testid={`campaign-blocker-${blocker.kind}`}
       sx={{
         display: "flex",
-        alignItems: "center",
+        flexDirection: { xs: "column", sm: "row" },
+        alignItems: { xs: "flex-start", sm: "center" },
         justifyContent: "space-between",
         gap: 1.5,
-        px: 2,
-        py: 1.25,
+        px: { xs: 2, sm: 2.5 },
+        py: 1.5,
         borderRadius: "10px",
-        backgroundColor: "warning.50",
+        backgroundColor: "background.surface",
         border: "1px solid",
-        borderColor: "warning.200",
+        borderColor: "neutral.300",
       }}
     >
       <Stack
@@ -78,7 +79,7 @@ export function CampaignBlockerRow({
         <Typography
           level="body-sm"
           fontWeight="md"
-          sx={{ color: "warning.700" }}
+          sx={{ color: "neutral.800" }}
         >
           {blocker.message}
         </Typography>
@@ -86,8 +87,8 @@ export function CampaignBlockerRow({
       {blocker.actionLabel && blocker.onAction ? (
         <JoyButton
           size="sm"
-          variant="soft"
-          color="warning"
+          variant="outlined"
+          color="neutral"
           onClick={blocker.onAction}
         >
           {blocker.actionLabel}

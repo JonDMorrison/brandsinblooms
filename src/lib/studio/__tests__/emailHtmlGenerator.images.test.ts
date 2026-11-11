@@ -108,3 +108,19 @@ describe("emailHtmlGenerator — logo sizing", () => {
     expect(html).toContain("height:64px");
   });
 });
+
+describe("email-safe hero photos", () => {
+  it.each(["image-bottom", "image-overlay"] as const)("includes the %s photo and editable content after save/reload", (heroStyle) => {
+    const blocks = JSON.parse(JSON.stringify([{ ...baseBlock, type: "email-safe-hero", heroStyle,
+      headline: "Winter workshops", buttonText: "Book now", buttonUrl: "https://example.com/book" }]));
+    const html = renderStudioBlocksToEmailHtml(blocks);
+    expect(html).toContain(baseBlock.imageUrl);
+    expect(html).toContain("Winter workshops");
+    expect(html).toContain('href="https://example.com/book"');
+    if (heroStyle === "image-bottom") expect(html).toContain(`alt="${baseBlock.imageAlt}"`);
+    else expect(html).toContain("v:fill");
+    const cleared = renderStudioBlocksToEmailHtml([{ ...blocks[0], imageUrl: "" }]);
+    expect(cleared).not.toContain(baseBlock.imageUrl);
+    expect(cleared).toContain("Winter workshops");
+  });
+});

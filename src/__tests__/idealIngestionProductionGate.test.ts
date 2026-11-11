@@ -7,10 +7,22 @@ describe("production Ideal ingestion",()=>{
   const wizard=read("src/components/integrations/CustomerIntelligenceSetupWizard.tsx");
   expect(wizard).toContain('accept=".xlsx,.xls,.csv,.txt"');
   expect(wizard).toContain('supabase.functions.invoke("ideal-intelligence-import"');
-  expect(wizard).toContain("Process & reconcile");
+  expect(wizard).toContain("Review reports — no import");
+  expect(wizard).toContain('form.append("mode","preview")');
+  expect(wizard).toContain("Confirm reviewed import");
+  expect(wizard).toContain("approved_digest");
   expect(wizard).toContain("accepted");
   expect(wizard).toContain("duplicates");
   expect(wizard).toContain("rejected");
+ });
+ it("requires a verified source review before any record is written",()=>{
+  const fn=read("supabase/functions/ideal-intelligence-import/index.ts");
+  expect(fn).toContain('if(mode==="preview")return reply(review);');
+  expect(fn.indexOf('if(mode==="preview")return reply(review);')).toBeLessThan(fn.indexOf('.from("customer_intelligence_imports").insert('));
+  expect(fn).toContain('String(form.get("approved_digest"))!==digest');
+  expect(fn).toContain('!review.ready_to_import');
+  expect(fn).toContain('inspection.review.rejected>0');
+  expect(fn).toContain('120000');
  });
  it("authenticates, resolves the active tenant and permission-gates ingestion before privileged writes",()=>{
   const fn=read("supabase/functions/ideal-intelligence-import/index.ts");
@@ -48,9 +60,13 @@ describe("production Ideal ingestion",()=>{
   expect(fn).not.toContain('.from("coupons")');
   expect(fn).not.toContain('.from("loyalty_points_transactions")');
  });
- it("refreshes intelligence after accepted purchase facts",()=>{
+ it("preserves Ideal metrics until a source-aware projection exists",()=>{
   const fn=read("supabase/functions/ideal-intelligence-import/index.ts");
-  expect(fn).toContain("recalculate_customer_intelligence_after_import");
-  expect(fn).toContain("customer_intelligence_sources");
+  const post=read("supabase/functions/_shared/customer-intelligence/import-postprocessing.ts");
+  expect(fn).toContain("finishIdealImportPostprocessing");
+  expect(fn).not.toContain("recalculate_customer_intelligence_after_import");
+  expect(post).toContain("customer_intelligence_sources");
+  expect(post).toContain("projection_status");
+  expect(post).toContain("postprocessing_pending");
  });
 });

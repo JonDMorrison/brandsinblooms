@@ -18,6 +18,7 @@ type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
 
 export interface PersistCampaignRecordInput {
+  tenantId?: string | null;
   campaignId?: string | null;
   expectedUpdatedAt?: string | null;
   campaignType: "email" | "sms";
@@ -465,13 +466,44 @@ export function renderDraftPreviewHtml(
   });
 }
 
-async function getAuthenticatedWriterContext() {
+export async function getAuthenticatedWriterContext(requestedTenantId?: string | null) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
     throw new Error("User not authenticated");
+  }
+
+  if (requestedTenantId) {
+    // The selected CRM account is authoritative. Only a server-side permission
+    // check can approve it, so changing the client value cannot cross tenants.
+    // The permission RPC exists in production but is not yet listed in the
+    // older generated Supabase type snapshot. Keep this call explicitly typed.
+    const permissionClient = supabase as unknown as {
+      rpc: (
+        name: "has_tenant_permission",
+        args: {
+          p_tenant_id: string;
+          p_permission: string;
+          p_location_id: string | null;
+        },
+      ) => PromiseLike<{ data: boolean | null; error: { message: string } | null }>;
+    };
+    const { data: allowed, error: permissionError } = await permissionClient.rpc(
+      "has_tenant_permission",
+      {
+        p_tenant_id: requestedTenantId,
+        p_permission: "campaign.write",
+        p_location_id: null,
+      },
+    );
+    if (permissionError || allowed !== true) {
+      throw new Error(
+        "You cannot save newsletters in the selected account. Check your account access.",
+      );
+    }
+    return { userId: user.id, tenantId: requestedTenantId };
   }
 
   const { data: userRecord, error: userRecordError } = await supabase
@@ -481,17 +513,16 @@ async function getAuthenticatedWriterContext() {
     .maybeSingle();
 
   if (userRecordError) {
-    throw userRecordError;
+    throw new Error(
+      "Your account could not be loaded. Choose a garden centre and try again.",
+    );
   }
 
   if (!userRecord?.tenant_id) {
-    throw new Error("User tenant not found");
+    throw new Error("Choose a garden centre before creating a newsletter.");
   }
 
-  return {
-    userId: user.id,
-    tenantId: userRecord.tenant_id,
-  };
+  return { userId: user.id, tenantId: userRecord.tenant_id };
 }
 
 function buildCampaignMetadata(
@@ -637,7 +668,7 @@ async function loadWriterCompanyProfile(userId: string) {
 }
 
 export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
-  const { tenantId, userId } = await getAuthenticatedWriterContext();
+  const { tenantId, userId } = await getAuthenticatedWriterContext(input.tenantId);
   const rawContentBlocks = normalizeInputBlocks(input.contentBlocks);
   const companyProfile =
     input.campaignType === "email"
@@ -864,7 +895,11 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     campaignRow = insertedRow as CampaignRow;
   }
 
-  await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
+  try {
+    await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
+  } catch (backupError) {
+    console.error('Campaign block backup synchronization failed', backupError);
+  }
 
   return {
     campaign: campaignRow,
@@ -875,6 +910,7 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
 }
 
 export async function writeCampaignDraftSnapshot(params: {
+  tenantId?: string | null;
   campaignId: string;
   campaignType: "email" | "sms";
   trigger: DraftSnapshotTrigger;
@@ -888,7 +924,7 @@ export async function writeCampaignDraftSnapshot(params: {
   segmentIds: string[];
   personaIds: string[];
 }) {
-  const { tenantId, userId } = await getAuthenticatedWriterContext();
+  const { tenantId, userId } = await getAuthenticatedWriterContext(params.tenantId);
   const recipientIds = await resolveAudienceRecipientIds({
     tenantId,
     includeAllCustomers: params.includeAllCustomers,

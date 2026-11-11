@@ -50,6 +50,14 @@ const CallbackPage = () => {
           searchParams.get("error_description") ||
           searchParams.get("errorDescription");
 
+        // A cancelled storefront authorization returns to the fixed owner screen.
+        // Never log provider error descriptions or reuse the legacy CRM callback.
+        if (state?.startsWith("bs_") && error) {
+          clearTimeout(timeoutId);
+          window.location.replace("https://bloomsites.app/dashboard/integrations/lightspeed?connection_error=access_denied");
+          return;
+        }
+
         // Handle OAuth errors
         if (error) {
           clearTimeout(timeoutId);

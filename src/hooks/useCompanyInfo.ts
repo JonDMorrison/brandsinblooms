@@ -157,7 +157,7 @@ export const useCompanyInfo = () => {
             emailDomain: profile.email_domain,
             brandPrimaryColor: profile.brand_primary_color || "#22c55e",
             brandSecondaryColor: profile.brand_secondary_color || "#1e40af",
-            brandAccentColor: profile.brand_accent_color || "#f59e0b",
+            brandAccentColor: profile.brand_accent_color || "#B46B48",
             brandTextColor: profile.brand_text_color || "#1f2937",
             brandPrimaryColorRaw: profile.brand_primary_color || undefined,
             brandSecondaryColorRaw: profile.brand_secondary_color || undefined,

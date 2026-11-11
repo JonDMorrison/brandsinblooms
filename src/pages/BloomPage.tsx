@@ -7,6 +7,9 @@ import {
 } from "react-router-dom";
 import { toast } from "sonner";
 import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import { ArrowLeft } from "lucide-react";
+import { intelligenceView } from "@/lib/customer-intelligence/intelligenceExperience";
 import { BloomConversationArea } from "@/components/bloom/BloomConversationArea";
 import { BloomApprovalBar } from "@/components/bloom/BloomApprovalBar";
 import { useBloom } from "@/components/bloom/BloomContext";
@@ -38,9 +41,21 @@ function BloomPageParamHandler() {
     setComposerDraft(prompt.slice(0, 4000));
     const remaining = new URLSearchParams(searchParams);
     remaining.delete("prompt");
-    navigate({ pathname: location.pathname, search: remaining.toString() ? `?${remaining}` : "" }, { replace: true });
-  }, [location.pathname, navigate, searchParams, setComposerDraft, tenant?.id, tenantLoading]);
-
+    navigate(
+      {
+        pathname: location.pathname,
+        search: remaining.toString() ? `?${remaining}` : "",
+      },
+      { replace: true },
+    );
+  }, [
+    location.pathname,
+    navigate,
+    searchParams,
+    setComposerDraft,
+    tenant?.id,
+    tenantLoading,
+  ]);
 
   useEffect(() => {
     const insightId = searchParams.get("insight")?.trim() ?? "";
@@ -268,6 +283,35 @@ function BloomPageParamHandler() {
   return null;
 }
 
+/** Offer a clear exit while keeping Intelligence return destinations allow-listed. */
+function BloomReturnControl() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const fromIntelligence = params.get("origin") === "intelligence";
+  const returnView = intelligenceView(params.get("returnView"));
+  return (
+    <Box
+      sx={{ position: "absolute", left: { xs: 8, md: 20 }, top: 12, zIndex: 4 }}
+    >
+      <Button
+        size="sm"
+        variant="soft"
+        color="neutral"
+        startDecorator={<ArrowLeft size={15} />}
+        onClick={() =>
+          navigate(
+            fromIntelligence
+              ? "/crm/intelligence?view=" + returnView
+              : "/dashboard",
+          )
+        }
+      >
+        {fromIntelligence ? "Back to Intelligence" : "Back to Dashboard"}
+      </Button>
+    </Box>
+  );
+}
+
 export default function BloomPage() {
   const { prioritizePageContext } = useOutletContext<BloomShellOutletContext>();
 
@@ -287,6 +331,7 @@ export default function BloomPage() {
           flexDirection: "column",
         }}
       >
+        <BloomReturnControl />
         <BloomConversationArea prioritizePageContext={prioritizePageContext} />
         {/* Floating composer: absolutely anchored to the bottom so it hovers
             over the conversation rather than sitting in a flat bar. The wrapper

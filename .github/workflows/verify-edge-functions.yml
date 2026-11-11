@@ -18,12 +18,16 @@ on:
     paths:
       - 'supabase/functions/**'
       - 'src/**'
+      - 'deno.json'
+      - 'package.json'
       - '.github/workflows/verify-edge-functions.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/functions/**'
       - 'src/**'
+      - 'deno.json'
+      - 'package.json'
       - '.github/workflows/verify-edge-functions.yml'
 
 jobs:
@@ -37,7 +41,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
 
       - name: Resolve module graph for every function
         run: |
@@ -50,14 +54,13 @@ jobs:
             [[ -f "$dir/index.ts" ]] || continue
             checked=$((checked + 1))
 
-            output="$(deno info --config supabase/functions/deno.json "$dir/index.ts" 2>&1 || true)"
-            errors="$(printf '%s' "$output" \
-              | sed 's/\x1b\[[0-9;]*m//g' \
-              | grep -E 'resolve error|\(missing\)' \
-              | sed 's/^[^a-zA-Z]*//' \
-              | sort -u || true)"
-
-            if [[ -n "$errors" ]]; then
+            if ! output="$(deno info \
+              --config supabase/functions/deno.json \
+              --frozen-lockfile \
+              --allow-import=cdn.sheetjs.com,deno.land,esm.sh,jsr.io,registry.npmjs.org \
+              "$dir/index.ts" 2>&1)"; then
+              errors="$(printf '%s' "$output" \
+                | sed 's/\x1b\[[0-9;]*m//g')"
               broken="$broken $fn"
               echo "::error title=Edge function graph unresolved::$fn cannot be bundled"
               {

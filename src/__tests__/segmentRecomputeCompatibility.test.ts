@@ -130,4 +130,30 @@ describe("segment recompute compatibility", () => {
 
     vi.useRealTimers();
   });
+
+  it("the editor loads the built-in Lapsed rule and matches the same customers as the server", async () => {
+    const { normalizeSegmentRuleGroup: editorNormalize } = await import("@/lib/segmentFields");
+    const lapsed = { logic: "AND", rules: [{ field: "last_purchase_date", operator: "older_than_days", value: 90 }] };
+    const editorGroup = editorNormalize(lapsed);
+    expect(editorGroup.children).toHaveLength(1);
+    expect(editorGroup.children[0]).toMatchObject({
+      kind: "rule",
+      fieldId: "last_purchase_date",
+      operatorId: "not_within_last",
+      value: { amount: 90, unit: "days" },
+    });
+
+    const day = 86400000;
+    const customers = [
+      { id: "old", last_purchase_date: new Date(Date.now() - 200 * day).toISOString() },
+      { id: "recent", last_purchase_date: new Date(Date.now() - 10 * day).toISOString() },
+      { id: "none", last_purchase_date: null },
+    ];
+    const serverGroup = normalizeSegmentRuleGroup(lapsed);
+    const reloadedGroup = normalizeSegmentRuleGroup(editorGroup);
+    for (const customer of customers) {
+      expect(evaluateSegmentRule(reloadedGroup, customer)).toBe(evaluateSegmentRule(serverGroup, customer));
+    }
+    expect(customers.filter((customer) => evaluateSegmentRule(reloadedGroup, customer)).map((c) => c.id)).toEqual(["old"]);
+  });
 });

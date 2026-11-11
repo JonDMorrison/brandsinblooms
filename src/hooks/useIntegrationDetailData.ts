@@ -26,12 +26,13 @@ import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
 const REQUEST_INTEGRATION_MAILTO =
-  "mailto:support@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
+  `mailto:${SUPPORT_EMAIL}?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A`;
 
 const EMAIL_INFRASTRUCTURE_SUPPORT_MAILTO =
-  "mailto:support@bloomsuite.app?subject=Email%20Infrastructure%20Support&body=Hi%20BloomSuite%20team%2C%0A%0AI%20need%20help%20with%20my%20email%20infrastructure.%0A";
+  `mailto:${SUPPORT_EMAIL}?subject=Email%20Infrastructure%20Support&body=Hi%20BloomSuite%20team%2C%0A%0AI%20need%20help%20with%20my%20email%20infrastructure.%0A`;
 
 const REQUIRED_SQUARE_WEBHOOK_EVENTS = [
   "payment.created",

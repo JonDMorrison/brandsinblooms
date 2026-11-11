@@ -92,6 +92,7 @@ export interface CampaignEditorRecord extends CampaignCatalogItem {
 }
 
 export interface PersistCampaignDraftInput {
+  tenantId?: string | null;
   campaignId?: string | null;
   expectedUpdatedAt?: string | null;
   campaignType: EditorCampaignType;
@@ -501,6 +502,7 @@ async function syncCampaignPersonas(
 
 export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
   const {
+    tenantId,
     campaignId,
     expectedUpdatedAt = null,
     campaignType,
@@ -527,6 +529,7 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
   } = input;
 
   const savedCampaign = await persistCampaignRecord({
+    tenantId,
     campaignId,
     expectedUpdatedAt,
     campaignType,
@@ -552,10 +555,14 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     personaIds: personas.map((persona) => persona.id),
   });
 
-  await Promise.all([
-    syncCampaignSegments(savedCampaign.campaign.id, segments),
-    syncCampaignPersonas(savedCampaign.campaign.id, personas),
-  ]);
+  // A brand-new blank draft has no audience associations to reconcile.
+  // Do not turn optional membership cleanup into a prerequisite for opening Studio.
+  if (campaignId || segments.length > 0 || personas.length > 0) {
+    await Promise.all([
+      syncCampaignSegments(savedCampaign.campaign.id, segments),
+      syncCampaignPersonas(savedCampaign.campaign.id, personas),
+    ]);
+  }
 
   return mapCampaignCatalogItem(savedCampaign.campaign);
 }

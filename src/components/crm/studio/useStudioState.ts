@@ -1,3 +1,6 @@
+import { cloneSavedBlock } from "@/lib/studio/newsletter/savedBlocks";
+import type { NewsletterSettings } from "@/types/newsletterDesign";
+import { normalizeNewsletterSettings } from "@/lib/studio/newsletter/settings";
 import * as React from "react";
 import {
   type StudioBlockType,
@@ -153,8 +156,7 @@ export type StudioCampaignSnapshot = {
 export type CampaignImageGallerySource = "upload" | "ai-generated" | "library";
 
 export type CampaignImageIndicatorSource =
-  | CampaignImageGallerySource
-  | "reused";
+  CampaignImageGallerySource | "reused";
 
 export interface CampaignImageGalleryItem {
   url: string;
@@ -302,7 +304,28 @@ export function useStudioState({
     [blocks, selectedBlockId],
   );
 
-  const canvasWidth = DEVICE_WIDTHS[deviceMode];
+  const newsletterSettings = blocks.find(
+    (block) => block.type === "footer",
+  )?.newsletterSettings;
+  const canvasWidth =
+    deviceMode === "desktop"
+      ? normalizeNewsletterSettings(newsletterSettings).width!
+      : DEVICE_WIDTHS[deviceMode];
+  const setNewsletterSettings = React.useCallback(
+    (settings: NewsletterSettings) => {
+      setBlocks((current) =>
+        current.map((block) =>
+          block.type === "footer"
+            ? {
+                ...block,
+                newsletterSettings: normalizeNewsletterSettings(settings),
+              }
+            : block,
+        ),
+      );
+    },
+    [setBlocks],
+  );
   const isPropertiesPanelOpen = selectedBlockId !== null;
   const estimatedWordCount = React.useMemo(
     () => blocks.reduce((total, block) => total + countBlockWords(block), 0),
@@ -400,6 +423,62 @@ export function useStudioState({
     [blocks, designSystem, pulseInsertedBlock],
   );
 
+  const insertSavedBlock = React.useCallback(
+    (saved: StudioBlock) => {
+      if (saved.type === "footer") return;
+      const instance = {
+        ...cloneSavedBlock(saved),
+        id: crypto.randomUUID(),
+        order: 0,
+        visible: true,
+      };
+      setBlocks((current) => {
+        const footerIndex = current.findIndex(
+          (block) => block.type === "footer",
+        );
+        const next = [...current];
+        next.splice(footerIndex < 0 ? next.length : footerIndex, 0, instance);
+        return normalizeBlocks(reindexBlocks(next), designSystem);
+      });
+      setSelectedBlockId(instance.id);
+      pulseInsertedBlock(instance.id);
+    },
+    [designSystem, pulseInsertedBlock],
+  );
+
+  const insertImportedBlocks = React.useCallback(
+    (imported: StudioBlock[]) => {
+      const copies = imported
+        .slice(0, 100)
+        .filter((block) => block.type !== "footer")
+        .map(cloneSavedBlock);
+      if (!copies.length) return;
+      setBlocks((current) => {
+        const next = [...current];
+        const footerIndex = next.findIndex((block) => block.type === "footer");
+        next.splice(footerIndex < 0 ? next.length : footerIndex, 0, ...copies);
+        return normalizeBlocks(reindexBlocks(next), designSystem);
+      });
+      setSelectedBlockId(copies[0].id);
+      pulseInsertedBlock(copies[0].id);
+    },
+    [designSystem, pulseInsertedBlock, setBlocks],
+  );
+  /** Append preconfigured connected-site blocks before the compliance footer. */
+  const insertConnectedContentBlocks = React.useCallback((items: StudioBlock[]) => {
+    const valid=items.filter(block => block.type !== "footer" && Boolean(block.buttonUrl));
+    if(valid.length===0)return;
+    setBlocks(current=>{
+      const footer=current.findIndex(block=>block.type==="footer");
+      const index=footer<0?current.length:footer;
+      const next=[...current];
+      next.splice(index,0,...valid);
+      return normalizeBlocks(reindexBlocks(next),designSystem);
+    });
+    setSelectedBlockId(valid[valid.length-1].id);
+    pulseInsertedBlock(valid[valid.length-1].id);
+  },[designSystem,pulseInsertedBlock,setBlocks]);
+
   const removeBlock = React.useCallback(
     (blockId: string) => {
       if (removalTimeoutsRef.current[blockId]) {
@@ -449,9 +528,9 @@ export function useStudioState({
         }
 
         const duplicateBlock = {
-          ...current[sourceIndex],
+          ...structuredClone(current[sourceIndex]),
           id: crypto.randomUUID(),
-          label: STUDIO_BLOCK_LOOKUP[current[sourceIndex].type].name,
+          label: current[sourceIndex].label,
         };
         duplicateId = duplicateBlock.id;
 
@@ -468,6 +547,10 @@ export function useStudioState({
     [designSystem, pulseInsertedBlock],
   );
 
+  const updateBlockFields = React.useCallback((blockId: string, fields: Partial<StudioBlock>) => {
+    setBlocks(current => current.map(block => block.id === blockId ? { ...block, ...fields, id: block.id, type: block.type } : block));
+  }, [setBlocks]);
+
   const updateBlockField = React.useCallback(
     (
       blockId: string,
@@ -476,7 +559,25 @@ export function useStudioState({
     ) => {
       setBlocks((current) =>
         current.map((block) =>
-          block.id === blockId ? { ...block, [field]: value } : block,
+          block.id === blockId
+            ? {
+                ...block,
+                [field]: value,
+                // All image sources (upload, library and AI) use this update path.
+                // Adding a hero photo must also make it visible, in one undo step.
+                ...(block.type === "email-safe-hero" &&
+                field === "imageUrl" &&
+                typeof value === "string" &&
+                value.trim() &&
+                block.heroStyle !== "image-overlay" &&
+                block.heroStyle !== "image-bottom"
+                  ? {
+                      heroStyle: "image-bottom" as const,
+                      layoutPreset: undefined,
+                    }
+                  : {}),
+              }
+            : block,
         ),
       );
     },
@@ -715,6 +816,8 @@ export function useStudioState({
 
   return {
     blocks,
+    newsletterSettings,
+    setNewsletterSettings,
     selectedBlockId,
     selectedBlock,
     deviceMode,
@@ -737,9 +840,13 @@ export function useStudioState({
     canUndo: blockHistory.past.length > 0,
     canRedo: blockHistory.future.length > 0,
     addBlock,
+    insertSavedBlock,
+    insertImportedBlocks,
+    insertConnectedContentBlocks,
     removeBlock,
     duplicateBlock,
     updateBlockField,
+    updateBlockFields,
     registerCampaignImage,
     reorderBlock,
     resolveCampaignImageFieldSource,

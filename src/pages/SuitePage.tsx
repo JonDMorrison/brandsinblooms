@@ -36,7 +36,7 @@ export function SuitePage() {
           <>
             <div className="pos-connect-grid">
               <article><h2>BloomSuite CRM</h2><p>Customer relationships, email, SMS, and marketing.</p><Link className="suite-button suite-button--primary" to={user ? "/dashboard" : "/auth"}>{user ? "Open CRM" : "Sign in to CRM"}</Link></article>
-              <article><h2>BloomSuite POS</h2><p>Choose your manager workspace or register, then sign in to your store.</p><Link className="suite-button suite-button--primary" to={POS_LOGIN_HREF}>Open POS</Link><Link className="suite-text-link" to="/pos">Explore POS</Link></article>
+              <article><h2>BloomSuite POS</h2><p>Choose your manager workspace or register, then sign in to your store.</p><Link className="suite-button suite-button--primary" to={POS_LOGIN_HREF}>Open POS</Link><Link className="suite-text-link" to="/pos" reloadDocument>Explore POS</Link></article>
               <article><h2>BloomSites</h2><p>Your website, content, and online store.</p><a className="suite-button suite-button--primary" href="https://bloomsites.app/login">Sign in to BloomSites</a></article>
             </div>
             <p className="pos-connect-note">Need help finding your account? <Link className="suite-text-link" to="/contact">Get in touch</Link>.</p>

@@ -47,6 +47,12 @@ export async function fetchTenantAudienceHealth(
       buildBaseQuery(tenantId).eq("suppressed", true),
     ]);
 
+  // A failed count is not zero reachable customers. Surface the error so the
+  // dashboard and campaign targeting cannot mistake unavailable data for 0.
+  const failures = [totalRes, confirmedRes, pendingRes, optedOutRes, suppressedRes];
+  const firstError = failures.find((result) => result.error)?.error;
+  if (firstError) throw firstError;
+
   const safe = (count: number | null | undefined) =>
     typeof count === "number" && Number.isFinite(count) && count >= 0
       ? count

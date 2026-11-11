@@ -66,7 +66,9 @@ export function readNumber(value: unknown): number | null {
     return null;
   }
 
-  const numeric = Number(value.replace(/[^0-9.-]+/g, ""));
+  const normalized = value.replace(/[^0-9.-]+/g, "");
+  if (!normalized || !/\d/.test(normalized)) return null;
+  const numeric = Number(normalized);
   return Number.isFinite(numeric) ? numeric : null;
 }
 
@@ -128,7 +130,14 @@ export function formatCurrency(value: unknown, currencyValue?: unknown) {
     return null;
   }
 
-  const currency = readString(currencyValue) ?? "USD";
+  const currency = readString(currencyValue);
+  if (!currency) {
+    if (typeof value === "string" && /\p{Sc}/u.test(value)) return value.trim();
+    return new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,

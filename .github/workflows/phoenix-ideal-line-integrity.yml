@@ -1,0 +1,36 @@
+name: Phoenix Ideal Line Integrity
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*ideal_line_identity_guard.sql"
+      - "scripts/tests/ideal-line-identity-contract.sh"
+      - ".github/workflows/phoenix-ideal-line-integrity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*ideal_line_identity_guard.sql"
+      - "scripts/tests/ideal-line-identity-contract.sh"
+      - ".github/workflows/phoenix-ideal-line-integrity.yml"
+permissions:
+  contents: read
+jobs:
+  source-identity-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: phoenix_guard_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["127.0.0.1:5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prevent silent duplicate Ideal lines
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: phoenix_guard_test
+        run: bash scripts/tests/ideal-line-identity-contract.sh

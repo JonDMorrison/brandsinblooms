@@ -12,6 +12,7 @@ import {
   FlaskConical,
   HeartPulse,
   Home,
+  Globe,
   Layers,
   LayoutDashboard,
   LifeBuoy,
@@ -101,6 +102,7 @@ const TENANT_ITEM_PERMISSIONS: Partial<Record<string, CrmPermission>> = {
   products: "reports.read",
   "manage-domains": "integrations.manage",
   integrations: "integrations.manage",
+  "connected-content": "campaigns.write",
   settings: "access.manage",
 };
 
@@ -158,7 +160,7 @@ const legacyBloomItem = createLegacyItem("Bloom", "/bloom", Sparkles, [
   { path: "/bloom/*", end: false },
 ]);
 const legacyAnalyticsItem = createLegacyItem(
-  "Analytics",
+  "Reports",
   "/analytics",
   BarChart3,
   [{ path: "/analytics", end: false }],
@@ -179,7 +181,7 @@ const legacyIntelligenceItem = createLegacyItem(
   [{ path: "/crm/intelligence", end: false }],
 );
 const legacyCustomersItem = createLegacyItem(
-  "Customers",
+  "Contacts",
   "/crm/customers",
   Users,
   [{ path: "/crm/customers", end: false }],
@@ -242,6 +244,12 @@ const legacyIntegrationsItem = createLegacyItem(
   "/integrations",
   Layers,
   [{ path: "/integrations", end: false }],
+);
+const legacyConnectedContentItem = createLegacyItem(
+  "Connected websites",
+  "/crm/connected-content",
+  Globe,
+  [{ path: "/crm/connected-content", end: false }],
 );
 const legacyProfileItem = createLegacyItem("Profile", "/profile", User, [
   { path: "/profile", end: false },
@@ -333,7 +341,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-hub",
-    label: "Admin Hub",
+    label: "Admin home",
     to: "/admin",
     icon: LayoutDashboard,
     patterns: [{ path: "/admin", end: true }],
@@ -342,7 +350,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-tenants",
-    label: "Tenants",
+    label: "All clients",
     to: "/admin/tenants",
     icon: Store,
     patterns: [{ path: "/admin/tenants", end: false }],
@@ -351,7 +359,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-search",
-    label: "Search",
+    label: "Find a client",
     to: "/admin/search",
     icon: Search,
     patterns: [{ path: "/admin/search", end: true }],
@@ -360,7 +368,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-manage",
-    label: "Manage",
+    label: "Client tools",
     to: "/admin/manage",
     icon: SlidersHorizontal,
     patterns: [{ path: "/admin/manage", end: true }],
@@ -369,7 +377,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-governance",
-    label: "Governance",
+    label: "Email sending rules",
     to: "/admin/governance-config",
     icon: ScrollText,
     patterns: [{ path: "/admin/governance-config", end: true }],
@@ -378,7 +386,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-reports",
-    label: "Reports",
+    label: "Trial reports",
     to: "/admin/reports",
     icon: FileBarChart2,
     patterns: [{ path: "/admin/reports", end: true }],
@@ -387,7 +395,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-costs",
-    label: "Costs",
+    label: "Running costs",
     to: "/admin/costs",
     icon: BadgeDollarSign,
     patterns: [{ path: "/admin/costs", end: true }],
@@ -396,7 +404,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-audit-logs",
-    label: "Audit Logs",
+    label: "Change history",
     to: "/admin/audit-logs",
     icon: ShieldCheck,
     patterns: [{ path: "/admin/audit-logs", end: true }],
@@ -404,8 +412,17 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   },
   {
     kind: "link",
+    id: "admin-bloom-support",
+    label: "Support desk",
+    to: "/admin/bloom-support",
+    icon: LifeBuoy,
+    patterns: [{ path: "/admin/bloom-support", end: false }],
+    contentWidth: "full",
+  },
+  {
+    kind: "link",
     id: "admin-reported-problems",
-    label: "Reported Problems",
+    label: "Problem reports",
     to: "/admin/reported-problems",
     icon: Bug,
     patterns: [{ path: "/admin/reported-problems", end: false }],
@@ -414,7 +431,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-oauth-debug",
-    label: "OAuth Debug",
+    label: "Sign-in connection log",
     to: "/admin/oauth-debug",
     icon: FlaskConical,
     patterns: [{ path: "/admin/oauth-debug", end: true }],
@@ -423,7 +440,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-seed-demo",
-    label: "Seed Demo",
+    label: "Demo data (developers)",
     to: "/admin/seed-demo",
     icon: HeartPulse,
     patterns: [{ path: "/admin/seed-demo", end: true }],
@@ -432,7 +449,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-twilio-copy",
-    label: "Twilio Copy",
+    label: "SMS registration text",
     to: "/admin/twilio-copy",
     icon: MessageSquare,
     patterns: [{ path: "/admin/twilio-copy", end: true }],
@@ -441,7 +458,7 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   {
     kind: "link",
     id: "admin-analytics-health",
-    label: "Analytics Health",
+    label: "Data pipeline health",
     to: "/admin/analytics-health",
     icon: Activity,
     patterns: [{ path: "/admin/analytics-health", end: true }],
@@ -449,107 +466,161 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   },
 ];
 
+// The everyday destinations stay visible. Advanced tools remain one click away
+// inside accessible branches, and the permission filter still checks every link.
 const tenantSidebarGroups: DashboardSidebarGroup[] = [
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Workspace",
     items: [
       createDashboardLinkItem("dashboard", legacyDashboardItem, {
         contentWidth: "full",
       }),
-      createDashboardLinkItem("bloom", legacyBloomItem, {
+      createDashboardLinkItem("campaigns", legacyCampaignsItem, {
         contentWidth: "full",
       }),
-      createDashboardLinkItem("analytics", legacyAnalyticsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("activity-center", legacyActivityItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("calendar", legacyCalendarItem, {
-        contentWidth: "full",
-      }),
-    ],
-  },
-  {
-    id: "crm",
-    label: "CRM",
-    items: [
       createDashboardLinkItem("customers", legacyCustomersItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("customer-intelligence", legacyIntelligenceItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("segments", legacySegmentsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("personas", legacyPersonasItem, {
         contentWidth: "full",
       }),
       createDashboardLinkItem("forms", legacyFormsItem, {
         contentWidth: "full",
       }),
-    ],
-  },
-  {
-    id: "marketing",
-    label: "Marketing",
-    items: [
-      createDashboardLinkItem("campaigns", legacyCampaignsItem, {
-        contentWidth: "full",
-      }),
       createDashboardLinkItem("automations", legacyAutomationsItem, {
         contentWidth: "full",
       }),
-      createDashboardLinkItem("newsletter", legacyNewsletterItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("sms-campaigns", legacySmsItem, {
+      createDashboardLinkItem("analytics", legacyAnalyticsItem, {
         contentWidth: "full",
       }),
     ],
   },
   {
-    id: "store",
-    label: "Store",
+    id: "workflows",
+    label: "Explore",
     items: [
-      createDashboardLinkItem("products", legacyProductsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("manage-domains", legacyDomainsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("integrations", legacyIntegrationsItem, {
-        contentWidth: "full",
-      }),
+      {
+        kind: "branch",
+        id: "marketing-tools",
+        label: "Marketing tools",
+        icon: Mail,
+        children: [
+          // Campaign creation has one navigation entry; retain legacy routes for bookmarks.
+          createDashboardLinkItem("calendar", legacyCalendarItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("bloom", legacyBloomItem, {
+            contentWidth: "full",
+          }),
+        ],
+      },
+      {
+        kind: "branch",
+        id: "audience-tools",
+        label: "Audience tools",
+        icon: Users,
+        children: [
+          createDashboardLinkItem("customer-intelligence", legacyIntelligenceItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("segments", legacySegmentsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("personas", legacyPersonasItem, {
+            contentWidth: "full",
+          }),
+        ],
+      },
+      {
+        kind: "branch",
+        id: "store-tools",
+        label: "Store & integrations",
+        icon: Store,
+        children: [
+          createDashboardLinkItem("products", legacyProductsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("manage-domains", legacyDomainsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("integrations", legacyIntegrationsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("connected-content", legacyConnectedContentItem, {
+            contentWidth: "full",
+          }),
+        ],
+      },
     ],
   },
   {
     id: "settings",
-    label: "Settings",
+    label: "More",
     items: [
+      {
+        kind: "branch",
+        id: "more-tools",
+        label: "More tools & help",
+        icon: Layers,
+        children: [
+          createDashboardLinkItem("activity-center", legacyActivityItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("profile", legacyProfileItem),
+          createDashboardLinkItem("account", legacyAccountItem),
+          createDashboardLinkItem("support", legacySupportItem),
+        ],
+      },
       createDashboardLinkItem("settings", legacySettingsItem, {
         contentWidth: "full",
       }),
-      createDashboardLinkItem("profile", legacyProfileItem),
-      createDashboardLinkItem("account", legacyAccountItem),
-      createDashboardLinkItem("support", legacySupportItem),
     ],
   },
 ];
 
+const adminItem = (id: string) => {
+  const item = adminLinkItems.find((entry) => entry.id === id);
+  if (!item) throw new Error(`Unknown admin nav item: ${id}`);
+  return item;
+};
+
+// Plain-English groups for non-technical staff. Everyday screens stay visible;
+// developer-only tools sit in one collapsed branch. Permission checks are unchanged.
 const adminSidebarGroups: DashboardSidebarGroup[] = [
   {
     id: "admin",
     label: "Admin",
+    items: [adminItem("admin-hub"), adminItem("admin-bloom-support"), adminItem("admin-reported-problems")],
+  },
+  {
+    id: "admin-clients",
+    label: "Clients",
+    items: [adminItem("admin-tenants"), adminItem("admin-search"), adminItem("admin-manage")],
+  },
+  {
+    id: "admin-money",
+    label: "Money and reports",
+    items: [adminItem("admin-reports"), adminItem("admin-costs")],
+  },
+  {
+    id: "admin-email",
+    label: "Email safety",
+    items: [adminItem("admin-governance")],
+  },
+  {
+    id: "admin-system",
+    label: "System",
     items: [
       {
         kind: "branch",
-        id: "admin-tools",
-        label: "Admin Tools",
+        id: "admin-developer-tools",
+        label: "Developer tools",
         icon: Shield,
-        children: adminLinkItems,
+        children: [
+          adminItem("admin-audit-logs"),
+          adminItem("admin-analytics-health"),
+          adminItem("admin-oauth-debug"),
+          adminItem("admin-twilio-copy"),
+          adminItem("admin-seed-demo"),
+        ],
       },
     ],
   },
@@ -573,10 +644,11 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
     "full",
   ),
   createRouteDescriptor("Bloom", legacyBloomItem.patterns, "full"),
-  createRouteDescriptor("Analytics", legacyAnalyticsItem.patterns, "full"),
+  createRouteDescriptor("Campaign Analytics", [{ path: "/crm/analytics", end: true }], "full"),
+  createRouteDescriptor("Reports", legacyAnalyticsItem.patterns, "full"),
   createRouteDescriptor("Activity Center", legacyActivityItem.patterns, "full"),
   createRouteDescriptor("Calendar", legacyCalendarItem.patterns, "full"),
-  createRouteDescriptor("Customers", legacyCustomersItem.patterns, "full"),
+  createRouteDescriptor("Contacts", legacyCustomersItem.patterns, "full"),
   createRouteDescriptor("Customer Intelligence", legacyIntelligenceItem.patterns, "full"),
   createRouteDescriptor("Campaigns", legacyCampaignsItem.patterns, "full"),
   createRouteDescriptor("Automations", legacyAutomationsItem.patterns, "full"),
@@ -587,6 +659,7 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   createRouteDescriptor("SMS Campaigns", legacySmsItem.patterns, "full"),
   createRouteDescriptor("Products", legacyProductsItem.patterns, "full"),
   createRouteDescriptor("Domains", legacyDomainsItem.patterns, "full"),
+  createRouteDescriptor("Connected websites", legacyConnectedContentItem.patterns, "full"),
   createRouteDescriptor(
     "Integrations",
     [...legacyIntegrationsItem.patterns, { path: "/crm/pos", end: false }],

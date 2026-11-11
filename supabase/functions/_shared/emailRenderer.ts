@@ -1,3 +1,5 @@
+import { resolveNewsletterAudience } from "./newsletterAudience.ts";
+import { normalizeStoreMergeFields } from "../../../src/lib/studio/newsletter/mergeFields.ts";
 /**
  * Unified Email Renderer
  *
@@ -303,12 +305,19 @@ export async function renderEmailForRecipient(
     tenantId,
     footerLinkMode,
   );
+  const audience = await resolveNewsletterAudience({
+    tenantId,
+    customerId: customer?.id,
+    blocks: contentBlocks,
+    preview: mode === "preview",
+  });
   const sourceHtml = hasContentBlocks
     ? renderContentBlocksToEmailHtml(contentBlocks, {
         subject,
         previewText,
         companyProfile,
         footerLinks,
+        audience,
       })
     : typeof html === "string" && html.trim().length > 0
       ? html
@@ -319,8 +328,12 @@ export async function renderEmailForRecipient(
   );
 
   // Step 1: Normalize escaped merge tokens
-  let normalizedHtml = normalizeMergeTokens(sourceHtml);
-  let normalizedSubject = normalizeMergeTokens(subject);
+  let normalizedHtml = normalizeStoreMergeFields(
+    normalizeMergeTokens(sourceHtml),
+  );
+  let normalizedSubject = normalizeStoreMergeFields(
+    normalizeMergeTokens(subject),
+  );
 
   // Step 2: Count legacy tags before conversion
   const legacyTagsConverted =

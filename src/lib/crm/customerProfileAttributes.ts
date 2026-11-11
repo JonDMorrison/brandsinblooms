@@ -21,6 +21,11 @@ const RESERVED_CUSTOM_FIELDS = new Set([
   "preference_center_updated_at",
 ]);
 
+const IMPORTED_FIELD_LABELS: Record<string, string> = {
+  ideal_customer_code: "IdealPOS customer CODE (identity)",
+  ideal_customer_type: "IdealPOS customer TYPE (source)",
+};
+
 const uniqueLabels = (values: unknown): string[] => {
   if (!Array.isArray(values)) return [];
 
@@ -77,7 +82,7 @@ export function getCustomerProfileAttributes(
       .filter(([key]) => !RESERVED_CUSTOM_FIELDS.has(key) && !key.startsWith("_"))
       .map(([key, value]) => ({
         key,
-        label: titleize(key),
+        label: IMPORTED_FIELD_LABELS[key] ?? titleize(key),
         value: formatCustomValue(value),
       }))
       .filter(

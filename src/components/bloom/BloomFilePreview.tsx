@@ -13,6 +13,7 @@ import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
 import {
   formatBloomFileSize,
+  getBloomAttachmentHints,
   getBloomAttachmentKind,
   truncateBloomFilename,
 } from "@/components/bloom/bloomFileUtils";
@@ -22,6 +23,8 @@ interface BloomFilePreviewProps {
   files: BloomUploadingFile[];
   onRemove: (id: string) => void;
   onRetry: (id: string) => void;
+  /** Say what Bloom can do with these files (only where files reach Bloom). */
+  showCapabilityHint?: boolean;
 }
 
 const kindIcons: Record<
@@ -37,10 +40,13 @@ export function BloomFilePreview({
   files,
   onRemove,
   onRetry,
+  showCapabilityHint = false,
 }: BloomFilePreviewProps) {
   if (files.length === 0) {
     return null;
   }
+
+  const hints = showCapabilityHint ? getBloomAttachmentHints(files) : [];
 
   return (
     <Stack spacing={0.5} sx={{ minWidth: 0 }}>
@@ -131,6 +137,15 @@ export function BloomFilePreview({
           </Stack>
         );
       })}
+      {hints.map((hint) => (
+        <Typography
+          key={hint}
+          level="body-xs"
+          sx={{ color: "text.tertiary", lineHeight: 1.45 }}
+        >
+          {hint}
+        </Typography>
+      ))}
     </Stack>
   );
 }

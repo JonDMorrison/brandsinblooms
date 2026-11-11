@@ -349,7 +349,7 @@ Deno.serve(async (req) => {
             query = query.gte("created_at", thirtyDaysAgo.toISOString());
             break;
           case "frequent-buyers":
-            query = query.gte("order_count", 3);
+            query = query.gte("pos_order_count", 3);
             break;
           case "perks-members":
             // Special handling for perks members - need to get IDs first

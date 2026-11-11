@@ -24,6 +24,8 @@ import type {
   OutputValidationResult,
 } from "./security/output-validator.ts";
 import { sandboxToolResult } from "./security/tool-result-sandbox.ts";
+import { meteredModelFetch, type SpendMeter } from "./security/spend-cap.ts";
+import { correctFalseFailureReply, toolOutcomeFrom, type ToolOutcome } from "./reply-guard.ts";
 
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
@@ -37,6 +39,8 @@ const UUID_PATTERN =
 
 type StreamHandlerOptions = {
   openAiApiKey: string;
+  /** Tenant spending cap; every follow-up model call reserves against it. */
+  meter?: SpendMeter | null;
   model: string;
   mode: BloomMode;
   modeOverride?: BloomMode | null;
@@ -884,10 +888,27 @@ function parseToolArguments(argumentsText: string): JsonObject {
   }
 }
 
+/**
+ * JSON-serialise a tool result the way it is stored. An `undefined` field used
+ * to fail the strict check and blank the whole result, so the model was told a
+ * successful search returned nothing and replied that the data "could not be
+ * retrieved".
+ */
+export function toJsonResult(value: unknown): JsonValue {
+  if (value === undefined) return null;
+  try {
+    if (isJsonValue(value)) return value;
+    const roundTripped: unknown = JSON.parse(JSON.stringify(value));
+    return isJsonValue(roundTripped) ? roundTripped : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeToolResult(value: ToolExecutorResult): ToolExecutorResult {
   return {
     block_type: value.block_type || "data",
-    result: isJsonValue(value.result) ? value.result : null,
+    result: toJsonResult(value.result),
     status: value.status,
     execution_time_ms: value.execution_time_ms,
     error_message: value.error_message,
@@ -1016,6 +1037,7 @@ async function requestOpenAIStream(
   messages: OpenAIChatMessage[],
   tools: OpenAIToolDefinition[],
   forceTextOnly: boolean,
+  meter: SpendMeter | null | undefined,
 ): Promise<Response> {
   const body: Record<string, unknown> = {
     model,
@@ -1031,7 +1053,7 @@ async function requestOpenAIStream(
     body.tool_choice = forceTextOnly ? "none" : "auto";
   }
 
-  return fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+  return meteredModelFetch(meter, "chat", OPENAI_CHAT_COMPLETIONS_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${openAiApiKey}`,
@@ -1159,6 +1181,7 @@ async function executeAndAppendTools(args: {
   researchProgress: ResearchProgressState | null;
   thinkingContent: string;
   actionCards: JsonObject[];
+  toolOutcomes?: ToolOutcome[];
 }): Promise<TaskPlanToolResult[]> {
   const confirmationResults: TaskPlanToolResult[] = [];
 
@@ -1220,6 +1243,7 @@ async function executeAndAppendTools(args: {
     if (result.result !== null) {
       collectKnownEntityIds(result.result, args.knownEntityIds);
     }
+    args.toolOutcomes?.push(toolOutcomeFrom(result.status, result.result));
 
     if (
       result.block_type === "mutation_action" &&
@@ -1298,6 +1322,7 @@ export function processOpenAIStream(
   let finalizedCompletion: FinalizedCompletion | null = null;
   const knownEntityIds = new Set<string>();
   const actionCards: JsonObject[] = [];
+  const toolOutcomes: ToolOutcome[] = [];
   const latencyState: StreamLatencyState = {
     firstOpenAiChunkAt: null,
     firstTokenEmittedAt: null,
@@ -1341,6 +1366,8 @@ export function processOpenAIStream(
       content = outputValidation.sanitizedResponse;
       followUpChips = [];
     }
+    // Never tell the user a lookup failed when every lookup succeeded.
+    content = correctFalseFailureReply(content, toolOutcomes);
     const thinkingContent = routingState.thinkingContent.trim() || null;
     const tokenCounts = computeTokenCounts(
       latestUsage,
@@ -1470,6 +1497,7 @@ export function processOpenAIStream(
               messages,
               options.tools,
               true,
+              options.meter,
             );
             continue;
           }
@@ -1492,6 +1520,7 @@ export function processOpenAIStream(
             researchProgress,
             thinkingContent: routingState.thinkingContent,
             actionCards,
+            toolOutcomes,
           });
 
           if (confirmationResults.length > 0 && options.onTaskPlan) {
@@ -1545,6 +1574,7 @@ export function processOpenAIStream(
             messages,
             options.tools,
             false,
+            options.meter,
           );
         }
 

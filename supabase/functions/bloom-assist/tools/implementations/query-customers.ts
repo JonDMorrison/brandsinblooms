@@ -1,4 +1,5 @@
 import { SYSTEM_PERSONAS } from "../../../../../src/config/systemPersonas.ts";
+import { readCustomerPurchaseEvidence } from "../../../_shared/customer-intelligence/customer-purchase-evidence.ts";
 import type { Database } from "../../../../../src/integrations/supabase/types.ts";
 import type { JsonObject, JsonValue } from "../../types.ts";
 import { applyFilters } from "../filter-engine.ts";
@@ -19,7 +20,6 @@ import {
   paginationRange,
   parseListQueryParams,
   sanitizePostgrestSearch,
-  toNumberOrNull,
   uniqueStrings,
   type BloomQueryClient,
 } from "./shared.ts";
@@ -32,7 +32,10 @@ type CustomerRow = Pick<
   | "email"
   | "phone"
   | "total_spent"
+  | "pos_order_count"
+  | "first_purchase_date"
   | "last_purchase_date"
+  | "custom_fields"
   | "created_at"
   | "persona"
   | "persona_id"
@@ -68,7 +71,10 @@ const CUSTOMER_SELECT = `
   email,
   phone,
   total_spent,
+  pos_order_count,
+  first_purchase_date,
   last_purchase_date,
+  custom_fields,
   created_at,
   persona,
   persona_id,
@@ -626,6 +632,7 @@ function mapCustomer(
       (assignment) => assignment.crm_tags?.name ?? null,
     ),
   );
+  const purchases = readCustomerPurchaseEvidence(row);
 
   return {
     id: row.id,
@@ -633,7 +640,11 @@ function mapCustomer(
     last_name: row.last_name,
     email: row.email,
     phone: row.phone,
-    total_spent: formatCurrency(toNumberOrNull(row.total_spent)),
+    // crm_customers has no currency column and tenants have no currency
+    // setting, so the amount is shown without a currency symbol.
+    total_spent: formatCurrency(purchases.total_spent),
+    reported_period_spending: purchases.reported_period_spending,
+    purchase_data_note: purchases.purchase_data_note,
     last_purchase_date: row.last_purchase_date,
     created_at: row.created_at,
     persona_name: assignedPersonaNames[0] ?? null,
@@ -719,7 +730,13 @@ export const queryCustomers: ToolImplementation = async (
     entity: "customer",
     timezone: context.timezone,
   })
-    .order(sortBy, { ascending: queryParams.sortOrder === "asc" })
+    // Unknown values (for example spend that was never recorded) go last in
+    // both directions. Postgres puts NULLs first for DESC by default, which
+    // made customers with no spend on file look like top spenders.
+    .order(sortBy, {
+      ascending: queryParams.sortOrder === "asc",
+      nullsFirst: false,
+    })
     .range(from, to);
 
   const { data, error, count } = await query;

@@ -52,9 +52,11 @@ describe("email campaign reporting release gate", () => {
     expect(migration).toContain("'delivery_complete'");
     expect(migration).toContain("event.is_mpp_guess");
     expect(migration).toContain("opened_non_mpp OR clicked");
-    expect(report).toContain("Campaign delivery is not complete");
-    expect(report).toContain("Campaign delivery is not fully confirmed");
-    expect(report).toContain("Top failures:");
+    expect(report).toContain("Sending in progress");
+    expect(report).toContain("Sending finished");
+    expect(report).toContain("View delivery details");
+    expect(report).toContain("This does not mean they failed.");
+    expect(report).toContain("Review recipients");
     expect(report).toContain("metrics.totals.failed.toString()");
     expect(report).toContain("adjustedUniqueOpens");
     expect(report).toContain("adjustedTotalOpens");

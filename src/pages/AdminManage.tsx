@@ -69,6 +69,7 @@ export default function AdminManage() {
   const {
     isMasterAdmin,
     isLoading,
+    hasHydratedTenantContext,
     activeTenantId,
     setActiveTenantId,
     availableTenants,
@@ -128,7 +129,7 @@ export default function AdminManage() {
     setPage(1);
   };
 
-  if (isLoading) {
+  if (isLoading || (isMasterAdmin && !hasHydratedTenantContext)) {
     return (
       <PageContainer fullWidth sx={{ px: 0, py: 0 }}>
         <Stack
@@ -183,10 +184,10 @@ export default function AdminManage() {
                   <Shield className="h-6 w-6" />
                 </Sheet>
                 <Stack spacing={0.75}>
-                  <Typography level="h2">Admin Manage</Typography>
+                  <Typography level="h2">Client tools</Typography>
                   <Typography level="body-sm" color="neutral">
-                    Select a tenant context and run scoped admin operations
-                    without leaving the dashboard shell.
+                    Choose a client, then use the tools below to import data or
+                    fix their account.
                   </Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     <JoyStatusChip
@@ -319,8 +320,7 @@ export default function AdminManage() {
                   <JoyTable stickyHeader containerSx={{ minWidth: 860 }}>
                     <JoyTableHead>
                       <JoyTableRow>
-                        <JoyTableHeaderCell>Tenant</JoyTableHeaderCell>
-                        <JoyTableHeaderCell>Tenant ID</JoyTableHeaderCell>
+                        <JoyTableHeaderCell>Client</JoyTableHeaderCell>
                         <JoyTableHeaderCell>Created</JoyTableHeaderCell>
                         <JoyTableHeaderCell>Context</JoyTableHeaderCell>
                         <JoyTableHeaderCell align="right">
@@ -350,12 +350,9 @@ export default function AdminManage() {
                                   {getTenantLabel(tenant)}
                                 </Typography>
                                 <Typography level="body-xs" color="neutral">
-                                  Master-admin workspace target
+                                  Client account
                                 </Typography>
                               </Stack>
-                            </JoyTableCell>
-                            <JoyTableCell sx={{ fontFamily: "monospace" }}>
-                              {tenant.id}
                             </JoyTableCell>
                             <JoyTableCell>
                               {createdAt
@@ -490,7 +487,7 @@ export default function AdminManage() {
                         onClick={() => navigate("/admin/tenants")}
                         endDecorator={<ArrowRight className="h-4 w-4" />}
                       >
-                        Open Tenant Operations
+                        See all clients
                       </JoyButton>
                     </JoyCardContent>
                   </JoyCard>
@@ -520,8 +517,8 @@ export default function AdminManage() {
         ) : (
           <JoyCard>
             <JoyCardHeader
-              title="Management Workspace"
-              description="Select a tenant above to unlock scoped import and operational tools."
+              title="Choose a client first"
+              description="Pick a client above. Their import and repair tools appear here."
             />
             <JoyCardContent>
               <Sheet

@@ -30,8 +30,9 @@ export function JoyPageHeaderBand({
           px: { xs: 4, md: 6 },
           py: 5,
           borderRadius: "var(--joy-radius-xl)",
-          background:
-            "linear-gradient(135deg, var(--joy-palette-primary-50) 0%, var(--joy-palette-sand-50) 100%)",
+          backgroundColor: "neutral.50",
+          border: "1px solid",
+          borderColor: "neutral.200",
         },
         sx,
       )}

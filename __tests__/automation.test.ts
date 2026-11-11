@@ -35,17 +35,21 @@ describe('Automation System', () => {
 
   describe('Trigger Catalog', () => {
     it('should include every essential trigger', () => {
-      expect(triggerCatalog).toHaveLength(20);
+      expect(triggerCatalog).toHaveLength(21);
       
       const expectedTriggers = [
         'loyalty_join', 'first_purchase', 'repeat_purchase_90d', 'plant_care_reminder',
         'birthday', 'new_product_drop', 'event_registration', 'abandoned_cart',
-        'review_request', 'garden_tips_subscription', 'holiday_promo', 'custom_webhook'
+        'review_request', 'garden_tips_subscription', 'holiday_promo', 'custom_webhook',
+        'ideal.coupon_issued'
       ];
       
       const triggerIds = triggerCatalog.map(t => t.id);
       expectedTriggers.forEach(id => {
         expect(triggerIds).toContain(id);
+      });
+      expect(getTriggerById('ideal.coupon_issued')).toMatchObject({
+        channels: ['email'], audienceType: 'event', defaultDelayMin: 0,
       });
     });
 

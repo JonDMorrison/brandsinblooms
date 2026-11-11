@@ -1,6 +1,10 @@
 {
+    "lock": {
+        "path": "./supabase/functions/deno.lock",
+        "frozen": true
+    },
     "tasks": {
-        "test:edge": "deno test --allow-env --allow-net --allow-read supabase/functions"
+        "test:edge": "deno test --config supabase/functions/deno.json --allow-env --allow-net --allow-read --allow-import=cdn.sheetjs.com,deno.land,esm.sh,jsr.io,registry.npmjs.org supabase/functions"
     },
     "imports": {
         "@/": "./src/",

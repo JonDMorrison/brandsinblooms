@@ -21,7 +21,7 @@ export const FeaturePageOutcomes = ({ outcomes }: FeaturePageOutcomesProps) => (
         {outcomes.items.map((item) => (
           <li
             key={item.title}
-            className="rounded-2xl border border-[#3E7C77]/15 bg-[#E1FFFE]/30 p-6"
+            className="rounded-2xl border border-[#3E7C77]/15 bg-[#E4EEED]/30 p-6"
           >
             <h3 className="mb-2 text-lg font-semibold text-slate-900">
               {item.title}

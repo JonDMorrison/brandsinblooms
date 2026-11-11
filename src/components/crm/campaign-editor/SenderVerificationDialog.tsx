@@ -5,9 +5,13 @@ import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 export function SenderVerificationDialog({
   open,
   onClose,
+  campaignSenderEmail,
+  onChooseVerifiedSender,
 }: {
   open: boolean;
   onClose: () => void;
+  campaignSenderEmail?: string;
+  onChooseVerifiedSender?: (email: string) => void;
 }) {
   const { senderConfig } = useSenderConfiguration();
 
@@ -24,6 +28,8 @@ export function SenderVerificationDialog({
         }
       }}
       senderConfig={senderConfig}
+      campaignSenderEmail={campaignSenderEmail}
+      onChooseVerifiedSender={onChooseVerifiedSender}
     />
   );
 }

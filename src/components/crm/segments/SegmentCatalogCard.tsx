@@ -1,4 +1,6 @@
 import * as React from "react";
+import { CatalogListRow } from "@/components/crm/catalog/CatalogListRow";
+import type { CatalogLayout } from "@/components/crm/catalog/CatalogViewToggle";
 import Avatar from "@mui/joy/Avatar";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
@@ -6,12 +8,13 @@ import Typography from "@mui/joy/Typography";
 import { MoreHorizontal } from "lucide-react";
 import { Link as RouterLink } from "react-router-dom";
 import { getSegmentIcon } from "@/components/icons/segments";
+import { formatSegmentValue } from "@/lib/crm/systemSegmentDataAvailability";
 import {
   JoyCard,
   JoyCardContent,
   JoyCardHeader,
 } from "@/components/joy/JoyCard";
-import { JoyButton } from "@/components/joy/JoyButton";
+import Button from "@mui/joy/Button";
 import { JoyChip } from "@/components/joy/JoyChip";
 import {
   JoyDropdownMenu,
@@ -27,11 +30,15 @@ export interface SegmentCatalogItem {
   description: string;
   isSystemSegment: boolean;
   memberCount: number;
-  averageValue: number;
-  totalValue: number;
+  /** null when spend is unknown; never rendered as $0. */
+  averageValue: number | null;
+  totalValue: number | null;
+  /** Plain explanation shown instead of a bare 0 when the group cannot fill yet. */
+  emptyReason?: string | null;
 }
 
 interface SegmentCatalogCardProps {
+  layout?: CatalogLayout;
   item: SegmentCatalogItem;
   detailHref: string;
   campaignHref: string;
@@ -50,6 +57,7 @@ const stopPropagation = (event: React.MouseEvent<HTMLElement>) => {
 };
 
 export function SegmentCatalogCard({
+  layout = "grid",
   item,
   detailHref,
   campaignHref,
@@ -63,6 +71,71 @@ export function SegmentCatalogCard({
   onArchive,
 }: SegmentCatalogCardProps) {
   const SegmentIcon = getSegmentIcon(item.id, item.name, item.isSystemSegment);
+
+  const actions = (
+    <JoyDropdownMenu>
+      <JoyDropdownMenuTrigger
+        aria-label={`Actions for ${item.name}`}
+        onClick={stopPropagation}
+        iconButtonSx={{ width: 40, height: 40, minWidth: 40, minHeight: 40 }}
+      >
+        <MoreHorizontal size={16} />
+      </JoyDropdownMenuTrigger>
+      <JoyDropdownMenuContent onClick={stopPropagation}>
+        <JoyDropdownMenuItem onClick={onView}>
+          View details
+        </JoyDropdownMenuItem>
+        <JoyDropdownMenuItem onClick={onViewMembers}>
+          View members
+        </JoyDropdownMenuItem>
+        <JoyDropdownMenuItem onClick={onCreateCampaign}>
+          Create campaign
+        </JoyDropdownMenuItem>
+        <JoyDropdownMenuItem onClick={onExportMembers}>
+          Export members
+        </JoyDropdownMenuItem>
+        {!item.isSystemSegment && (onEdit || onDuplicate || onArchive) ? (
+          <>
+            <JoyDropdownMenuSeparator />
+            {onEdit ? (
+              <JoyDropdownMenuItem onClick={onEdit}>
+                Edit segment
+              </JoyDropdownMenuItem>
+            ) : null}
+            {onDuplicate ? (
+              <JoyDropdownMenuItem onClick={onDuplicate}>
+                Duplicate segment
+              </JoyDropdownMenuItem>
+            ) : null}
+            {onArchive ? (
+              <JoyDropdownMenuItem destructive onClick={onArchive}>
+                Archive segment
+              </JoyDropdownMenuItem>
+            ) : null}
+          </>
+        ) : null}
+      </JoyDropdownMenuContent>
+    </JoyDropdownMenu>
+  );
+
+  if (layout === "list") {
+    return (
+      <CatalogListRow
+        name={item.name}
+        description={item.description}
+        icon={<SegmentIcon size={20} />}
+        isCustom={!item.isSystemSegment}
+        detailHref={detailHref}
+        campaignHref={campaignHref}
+        actions={actions}
+        metrics={[
+          { label: "Members", value: item.memberCount === 0 && item.emptyReason ? item.emptyReason : `${item.memberCount.toLocaleString()} members` },
+          { label: "Average value", value: formatSegmentValue(item.averageValue, item.memberCount) },
+          { label: "Total value", value: formatSegmentValue(item.totalValue, item.memberCount) },
+        ]}
+      />
+    );
+  }
 
   return (
     <JoyCard
@@ -99,47 +172,7 @@ export function SegmentCatalogCard({
             <SegmentIcon size={22} />
           </Avatar>
         }
-        actions={
-          <JoyDropdownMenu>
-            <JoyDropdownMenuTrigger>
-              <MoreHorizontal size={16} />
-            </JoyDropdownMenuTrigger>
-            <JoyDropdownMenuContent>
-              <JoyDropdownMenuItem onClick={onView}>
-                View details
-              </JoyDropdownMenuItem>
-              <JoyDropdownMenuItem onClick={onViewMembers}>
-                View members
-              </JoyDropdownMenuItem>
-              <JoyDropdownMenuItem onClick={onCreateCampaign}>
-                Create campaign
-              </JoyDropdownMenuItem>
-              <JoyDropdownMenuItem onClick={onExportMembers}>
-                Export members
-              </JoyDropdownMenuItem>
-              {!item.isSystemSegment && (onEdit || onDuplicate || onArchive) ? (
-                <>
-                  <JoyDropdownMenuSeparator />
-                  {onEdit ? (
-                    <JoyDropdownMenuItem onClick={onEdit}>
-                      Edit segment
-                    </JoyDropdownMenuItem>
-                  ) : null}
-                  {onDuplicate ? (
-                    <JoyDropdownMenuItem onClick={onDuplicate}>
-                      Duplicate segment
-                    </JoyDropdownMenuItem>
-                  ) : null}
-                  {onArchive ? (
-                    <JoyDropdownMenuItem destructive onClick={onArchive}>
-                      Archive segment
-                    </JoyDropdownMenuItem>
-                  ) : null}
-                </>
-              ) : null}
-            </JoyDropdownMenuContent>
-          </JoyDropdownMenu>
-        }
+        actions={actions}
       />
 
       <JoyCardContent
@@ -156,9 +189,15 @@ export function SegmentCatalogCard({
             <Typography level="body-xs" color="neutral">
               Members
             </Typography>
-            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-              {item.memberCount.toLocaleString()} members
-            </Typography>
+            {item.memberCount === 0 && item.emptyReason ? (
+              <Typography level="body-sm" color="neutral">
+                {item.emptyReason}
+              </Typography>
+            ) : (
+              <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                {item.memberCount.toLocaleString()} members
+              </Typography>
+            )}
           </Stack>
 
           <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
@@ -167,7 +206,7 @@ export function SegmentCatalogCard({
                 Average value
               </Typography>
               <Typography level="body-sm" sx={{ fontWeight: 500 }}>
-                ${item.averageValue.toLocaleString()}
+                {formatSegmentValue(item.averageValue, item.memberCount)}
               </Typography>
             </Stack>
             <Stack spacing={0.35} sx={{ minWidth: 110 }}>
@@ -175,7 +214,7 @@ export function SegmentCatalogCard({
                 Total value
               </Typography>
               <Typography level="body-sm" sx={{ fontWeight: 500 }}>
-                ${item.totalValue.toLocaleString()}
+                {formatSegmentValue(item.totalValue, item.memberCount)}
               </Typography>
             </Stack>
           </Stack>
@@ -190,7 +229,7 @@ export function SegmentCatalogCard({
           spacing={1}
           mt="auto"
         >
-          <JoyButton
+          <Button
             size="sm"
             variant="soft"
             color="neutral"
@@ -199,8 +238,8 @@ export function SegmentCatalogCard({
             onClick={stopPropagation}
           >
             View details
-          </JoyButton>
-          <JoyButton
+          </Button>
+          <Button
             size="sm"
             variant="solid"
             color="primary"
@@ -209,7 +248,7 @@ export function SegmentCatalogCard({
             onClick={stopPropagation}
           >
             Create campaign
-          </JoyButton>
+          </Button>
         </Stack>
       </JoyCardContent>
     </JoyCard>

@@ -1,102 +1,82 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui-legacy/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { Loader2, Users, CheckCircle } from 'lucide-react';
+import { useState } from "react";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import Sheet from "@mui/joy/Sheet";
+import Button from "@mui/joy/Button";
+import Alert from "@mui/joy/Alert";
+import List from "@mui/joy/List";
+import ListItem from "@mui/joy/ListItem";
+import { CheckCircle, Users } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { useAskDialog } from "@/components/bloomSupport/useAskDialog";
+
+interface SeedResult { tenantId: string; personasCreated: number; customersCreated: number }
 
 export default function SeedDemoCustomers() {
   const [isSeeding, setIsSeeding] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<SeedResult | null>(null);
+  const { ask, dialog } = useAskDialog();
 
   const handleSeedCustomers = async () => {
+    const ok = await ask({
+      title: "Add 500 made-up customers?",
+      description: "This writes demo data into the Plant Addicts account. Only do this on a demo account.",
+      confirmLabel: "Add demo customers",
+      tone: "danger",
+    });
+    if (!ok) return;
     setIsSeeding(true);
     setResult(null);
-
     try {
-      const { data, error } = await supabase.functions.invoke('seed-demo-customers', {
-        body: {
-          userId: '4d993313-c925-4c96-a8ee-3ab5be5c54cf',
-          count: 500
-        }
+      const { data, error } = await supabase.functions.invoke("seed-demo-customers", {
+        body: { userId: "4d993313-c925-4c96-a8ee-3ab5be5c54cf", count: 500 },
       });
-
       if (error) throw error;
-
-      setResult(data);
-      toast.success(`Successfully created ${data.customersCreated} demo customers!`);
-    } catch (error) {
-      console.error('Seeding error:', error);
-      toast.error('Failed to seed customers: ' + error.message);
+      setResult(data as SeedResult);
+      toast.success(`Added ${data.customersCreated} demo customers.`);
+    } catch (error: unknown) {
+      console.error("Seeding error:", error);
+      toast.error(`Demo customers were not added: ${error instanceof Error ? error.message : "unknown error"}`);
     } finally {
       setIsSeeding(false);
     }
   };
 
   return (
-    <div className="container max-w-4xl mx-auto py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle>Seed Demo Customers for Plant Addicts</CardTitle>
-          <CardDescription>
-            This will create 500 diverse demo customers for richard.anderson@plantaddicts.com
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold">What this will do:</h3>
-            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-              <li>Create "Plant Addicts" tenant (if not exists)</li>
-              <li>Assign richard.anderson@plantaddicts.com to the tenant</li>
-              <li>Create 8 garden center personas</li>
-              <li>Generate 500 diverse demo customers with:
-                <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
-                  <li>Diverse names (American, Hispanic, Asian, African, Middle Eastern, European)</li>
-                  <li>Realistic email addresses and phone numbers</li>
-                  <li>Random persona assignments</li>
-                  <li>Varied purchase history and financial data</li>
-                  <li>Mixed opt-in statuses (email/SMS)</li>
-                  <li>Geographic timezone diversity</li>
-                  <li>Historical creation and purchase dates</li>
-                </ul>
-              </li>
-            </ul>
-          </div>
-
-          {result && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-2">
-              <div className="flex items-center gap-2 text-green-700 font-semibold">
-                <CheckCircle className="h-5 w-5" />
-                Seeding Complete!
-              </div>
-              <div className="text-sm space-y-1">
-                <p>Tenant ID: <code className="bg-green-100 px-2 py-1 rounded">{result.tenantId}</code></p>
-                <p>Personas Created: {result.personasCreated}</p>
-                <p>Customers Created: {result.customersCreated}</p>
-              </div>
+    <PageContainer>
+      {dialog}
+      <Stack spacing={3}>
+        <Stack spacing={0.5}>
+          <Typography level="h2">Demo data</Typography>
+          <Typography level="body-md" textColor="text.secondary">
+            For developers: fill the Plant Addicts demo account with made-up customers so features can be shown with realistic data.
+          </Typography>
+        </Stack>
+        <Alert color="warning" variant="soft">This adds data to a real account (richard.anderson@plantaddicts.com). Never run it on a client's account.</Alert>
+        <Sheet variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, borderRadius: "xl", bgcolor: "background.surface" }}>
+          <Stack spacing={2.5}>
+            <div>
+              <Typography level="title-md">What it does</Typography>
+              <List size="sm" marker="disc">
+                <ListItem>Creates the Plant Addicts account if it does not exist, and adds Richard to it</ListItem>
+                <ListItem>Creates 8 garden centre customer types</ListItem>
+                <ListItem>Creates 500 made-up customers with varied names, contact details, purchases, email/SMS choices and time zones</ListItem>
+              </List>
             </div>
-          )}
-
-          <Button
-            onClick={handleSeedCustomers}
-            disabled={isSeeding}
-            className="w-full"
-            size="lg"
-          >
-            {isSeeding ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Seeding Customers... This may take 1-2 minutes
-              </>
-            ) : (
-              <>
-                <Users className="mr-2 h-5 w-5" />
-                Seed 500 Demo Customers
-              </>
+            {result && (
+              <Sheet variant="soft" color="success" sx={{ p: 2, borderRadius: "lg" }}>
+                <Typography level="title-sm" startDecorator={<CheckCircle size={16} />}>Done</Typography>
+                <Typography level="body-sm">{result.personasCreated} customer types and {result.customersCreated} customers added.</Typography>
+              </Sheet>
             )}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+            <Button size="lg" color="neutral" loading={isSeeding} startDecorator={<Users size={18} />} onClick={handleSeedCustomers} sx={{ borderRadius: "xl", alignSelf: "flex-start" }}>
+              {isSeeding ? "Adding customers, this takes 1–2 minutes" : "Add 500 demo customers"}
+            </Button>
+          </Stack>
+        </Sheet>
+      </Stack>
+    </PageContainer>
   );
 }

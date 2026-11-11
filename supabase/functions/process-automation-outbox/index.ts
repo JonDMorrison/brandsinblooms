@@ -1,3 +1,5 @@
+import {resolveCouponReminderSchedule} from '../_shared/customer-intelligence/coupon-reminder-schedule.ts';
+import {parseCouponReminderForChannel,type CouponReminderConfig} from '../_shared/customer-intelligence/coupon-lifecycle.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
@@ -677,6 +679,10 @@ async function sendEmail(
     ? await getAutomationNodeId(supabase, message)
     : null;
 
+  if (message.template_data && 'coupon_reminder' in message.template_data && message.template_data.coupon_reminder !== null && (!message.automation_id || !automationNodeId)) {
+    return {success:false,error:'coupon_context_invalid',shouldSkip:true,canRetry:false};
+  }
+
   try {
     // Check suppression/opt-out status before sending (for automation emails)
     if (message.automation_id && automationNodeId) {
@@ -1202,12 +1208,13 @@ async function advanceAutomationRun(
     } else {
       const nextStep = workflowSteps[nextStepIndex];
       const delayMs = (nextStep?.delayMin || 0) * 60 * 1000;
-      const nextScheduledAt = new Date(Date.now() + delayMs).toISOString();
+      let nextScheduledAt = new Date(Date.now() + delayMs).toISOString();
 
       const { data: customer, error: customerError } = await supabase
         .from("crm_customers")
         .select("*")
         .eq("id", message.customer_id)
+        .eq("tenant_id", message.tenant_id)
         .single();
 
       if (customerError || !customer) {
@@ -1236,6 +1243,17 @@ async function advanceAutomationRun(
         throw new Error(
           `Automation step ${nextStepIndex} is missing from the workflow`,
         );
+      }
+
+      let nextCouponReminder: (CouponReminderConfig & {issued_event_id:string}) | null = null;
+      if(nextStep.coupon_reminder){
+        if(run.tenant_id !== message.tenant_id || run.customer_id !== message.customer_id)throw new Error('Coupon run scope mismatch');
+        const triggerData=run.trigger_data || message.template_data?.trigger_data || {};
+        const decision=await resolveCouponReminderSchedule(supabase,message.tenant_id,message.customer_id,triggerData,nextStep.coupon_reminder,new Date().toISOString());
+        nextCouponReminder=decision.metadata;
+        // Blocked reminders are queued immediately with their guard intact so the
+        // normal worker records a skip and can advance unrelated later steps.
+        nextScheduledAt=new Date(Math.max(Date.now(),decision.scheduled_at?Date.parse(decision.scheduled_at):Date.now())).toISOString();
       }
 
       {
@@ -1276,6 +1294,7 @@ async function advanceAutomationRun(
             scheduled_at: nextScheduledAt,
             status: "queued", // Standardized: always use queued
             template_data: {
+              coupon_reminder: nextCouponReminder,
               automation_name: run.automation?.name,
               step_index: nextStepIndex,
               customer_data: customer,
@@ -1329,6 +1348,7 @@ interface WorkflowStep {
   delayMin: number;
   subject?: string;
   text: string;
+  coupon_reminder?: CouponReminderConfig | null;
 }
 
 function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
@@ -1361,6 +1381,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
           delayMin: totalDelay,
           subject: step.subject || "",
           text: step.content || step.text || "",
+          coupon_reminder:parseCouponReminderForChannel(step.coupon_reminder,step.type),
         });
 
         console.log(
@@ -1398,6 +1419,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
           delayMin,
           subject: node.data?.subject || "",
           text: node.data?.content || node.data?.text || "",
+          coupon_reminder:parseCouponReminderForChannel(node.data?.coupon_reminder,node.type),
         };
       });
   }

@@ -39,23 +39,27 @@ export async function fireAutomationTriggers(
   triggerTypes: string[],
   eventData: Record<string, any>,
 ) {
-  const { data: automations } = await supabase
+  const { data: automations, error: automationsError } = await supabase
     .from("crm_automations")
     .select("id,name,trigger_type,trigger_conditions,persona_targeting")
     .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .in("trigger_type", triggerTypes);
 
+  if (automationsError) throw new Error("Cannot read active automation targets");
+
   if (!automations?.length) {
     return;
   }
 
-  const { data: customer } = await supabase
+  const { data: customer, error: customerError } = await supabase
     .from("crm_customers")
     .select("*")
     .eq("tenant_id", tenantId)
     .eq("id", customerId)
     .single();
+
+  if (customerError) throw new Error("Cannot read automation customer scope");
 
   if (!customer) {
     return;

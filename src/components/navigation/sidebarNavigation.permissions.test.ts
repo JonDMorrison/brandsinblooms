@@ -16,7 +16,7 @@ function visibleIds(permissions: CrmPermission[]) {
     .flatMap((item) =>
       item.kind === "link"
         ? [item.id]
-        : [item.id, ...item.children.map((child) => child.id)],
+        : item.children.map((child) => child.id),
     );
 }
 
@@ -74,6 +74,26 @@ describe("tenant sidebar permissions", () => {
     );
   });
 
+  it("keeps primary CRM destinations visible while removing duplicate editor entry points", () => {
+    const workspace = getDashboardSidebarGroups({ mode: "tenant" }).find(
+      (group) => group.id === "dashboard",
+    );
+
+    expect(workspace?.items.map((item) => item.id)).toEqual([
+      "dashboard",
+      "campaigns",
+      "customers",
+      "forms",
+      "automations",
+      "analytics",
+    ]);
+    const visible = getDashboardSidebarGroups({ mode: "tenant" })
+      .flatMap((group) => group.items)
+      .flatMap((item) => item.kind === "link" ? [item.id] : item.children.map((child) => child.id));
+    expect(visible).not.toContain("newsletter");
+    expect(visible).not.toContain("sms-campaigns");
+  });
+
   it("shows every tenant item when every permission is granted", () => {
     const items = visibleIds([
       "access.manage",
@@ -91,9 +111,9 @@ describe("tenant sidebar permissions", () => {
       "content.design",
     ]);
 
-    expect(items).toHaveLength(21);
+    expect(items).toHaveLength(20);
     expect(items).toEqual(
-      expect.arrayContaining(["customer-intelligence", "integrations", "settings", "sms-campaigns"]),
+      expect.arrayContaining(["customer-intelligence", "integrations", "connected-content", "settings", "campaigns", "forms"]),
     );
   });
 });

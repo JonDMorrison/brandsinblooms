@@ -65,8 +65,8 @@ export default function FullWidthImageRenderer({
       alt={block.imageAlt || ""}
       sx={{
         width: "100%",
-        height: `${maxHeight}px`,
-        maxHeight: `${maxHeight}px`,
+        height: block.imageFit === "contain" ? "auto" : `${maxHeight}px`,
+        maxHeight: block.imageFit === "contain" ? "none" : `${maxHeight}px`,
         display: "block",
         objectFit: block.imageFit ?? "cover",
         objectPosition: getImageObjectPosition(

@@ -109,6 +109,9 @@ interface CampaignActivationOptions extends CampaignSendInvocationOptions {
 
 interface CampaignEditorContextValue extends CampaignEditorState {
   isLoading: boolean;
+  /** True once the company this editor saves into is known. Saving earlier
+   *  would fall back to the user's own company. */
+  isTenantReady: boolean;
   syncLiveCampaign: (
     next: Partial<
       Pick<CampaignEditorState, "campaignId" | "status" | "sendBlockedReason">
@@ -336,6 +339,9 @@ export function CampaignEditorProvider({
     typeof setTimeout
   > | null>(null);
   const hasHydratedRef = React.useRef(false);
+  // Backfill a previously saved empty sender once per opened campaign, but
+  // never overwrite a customer's explicit sender choice or locked send.
+  const senderDefaultAppliedForRef = React.useRef<string | null>(null);
   const lastSavedFingerprintRef = React.useRef<string | null>(null);
   const lastUpdatedAtRef = React.useRef<string | null>(null);
   // Number of consecutive failures for the current draft fingerprint.
@@ -781,31 +787,13 @@ export function CampaignEditorProvider({
 
       setState((current) => ({ ...current, isAudienceLoading: true }));
       try {
-        let count: number;
-        const hasLegacyAllContactsFallback =
-          !state.includeAllCustomers &&
-          state.additionalCustomerIds.length === 0 &&
-          state.selectedSegments.length === 0 &&
-          state.selectedPersonas.length === 0;
-
-        if (hasLegacyAllContactsFallback) {
-          // "All Contacts" mode — count all emailable customers for this tenant
-          const { count: total } = await supabase
-            .from("crm_customers")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant.id)
-            .not("email", "is", null)
-            .not("email_opt_in", "is", false);
-          count = total ?? 0;
-        } else {
-          count = await computeAudienceRecipientCount({
-            tenantId: tenant.id,
-            includeAllCustomers: state.includeAllCustomers,
-            additionalCustomerIds: state.additionalCustomerIds,
-            segmentIds: state.selectedSegments.map((segment) => segment.id),
-            personaIds: state.selectedPersonas.map((persona) => persona.id),
-          });
-        }
+        const count = await computeAudienceRecipientCount({
+          tenantId: tenant.id,
+          includeAllCustomers: state.includeAllCustomers,
+          additionalCustomerIds: state.additionalCustomerIds,
+          segmentIds: state.selectedSegments.map((segment) => segment.id),
+          personaIds: state.selectedPersonas.map((persona) => persona.id),
+        });
 
         if (!cancelled) {
           setState((current) => ({
@@ -847,6 +835,7 @@ export function CampaignEditorProvider({
   const draftPayload = React.useMemo(
     () => ({
       campaignId: state.campaignId,
+      tenantId: tenant?.id ?? null,
       campaignType: state.campaignType,
       status: state.status,
       name: state.name,
@@ -871,6 +860,7 @@ export function CampaignEditorProvider({
     }),
     [
       senderConfig?.fromEmailDomainId,
+      tenant?.id,
       state.additionalCustomerIds,
       state.campaignId,
       state.campaignType,
@@ -984,6 +974,7 @@ export function CampaignEditorProvider({
       try {
         const saved = await persistCampaignDraft({
           ...payload,
+          campaignId: campaignIdRef.current ?? payload.campaignId,
           expectedUpdatedAt: lastUpdatedAtRef.current,
           status: requestedStatus,
         });
@@ -1107,6 +1098,7 @@ export function CampaignEditorProvider({
 
       try {
         await writeCampaignDraftSnapshot({
+          tenantId: tenant?.id ?? null,
           campaignId: savedCampaignId,
           campaignType: state.campaignType,
           trigger,
@@ -1125,6 +1117,7 @@ export function CampaignEditorProvider({
     },
     [
       saveDraft,
+      tenant?.id,
       state.additionalCustomerIds,
       state.campaignType,
       state.contentBlocks,
@@ -1245,6 +1238,50 @@ export function CampaignEditorProvider({
       };
     });
   }, []);
+
+  React.useEffect(() => {
+    if (
+      !campaignId ||
+      isLoading ||
+      state.campaignType !== "email" ||
+      state.isLocked ||
+      !senderConfig?.isVerified ||
+      !senderConfig.fromEmailDomainId ||
+      !senderConfig.senderEmail.trim()
+    ) {
+      return;
+    }
+    if (senderDefaultAppliedForRef.current === campaignId) {
+      return;
+    }
+    senderDefaultAppliedForRef.current = campaignId;
+    if (state.senderEmail.trim()) {
+      return;
+    }
+
+    // Existing draft created before domain verification: adopt the
+    // tenant's verified sender and let normal autosave persist the change.
+    // No DNS or provider checks are bypassed by this UI default.
+    updateSetup({
+      senderEmail: senderConfig.senderEmail.trim(),
+      replyTo:
+        state.replyTo.trim() ||
+        senderConfig.replyToEmail ||
+        senderConfig.senderEmail.trim(),
+    });
+  }, [
+    campaignId,
+    isLoading,
+    senderConfig?.fromEmailDomainId,
+    senderConfig?.isVerified,
+    senderConfig?.replyToEmail,
+    senderConfig?.senderEmail,
+    state.campaignType,
+    state.isLocked,
+    state.replyTo,
+    state.senderEmail,
+    updateSetup,
+  ]);
 
   const updateAudience = React.useCallback<
     CampaignEditorContextValue["updateAudience"]
@@ -1460,6 +1497,7 @@ export function CampaignEditorProvider({
 
         return await sending.sendCampaign({
           campaignId: savedCampaignId,
+          draftAlreadySaved: true,
           campaignName: state.name,
           subjectLine: state.subjectLine,
           preheaderText: state.preheaderText,
@@ -1554,6 +1592,7 @@ export function CampaignEditorProvider({
     () => ({
       ...state,
       isLoading,
+      isTenantReady: Boolean(tenant?.id),
       syncLiveCampaign,
       updateSetup,
       updateAudience,
@@ -1572,6 +1611,7 @@ export function CampaignEditorProvider({
       activate,
       cancel,
       isLoading,
+      tenant?.id,
       reload,
       resume,
       saveDraft,

@@ -877,6 +877,7 @@ export function BloomInputArea() {
                 files={files}
                 onRemove={removeFile}
                 onRetry={retryFile}
+                showCapabilityHint
               />
             </Box>
           ) : null}

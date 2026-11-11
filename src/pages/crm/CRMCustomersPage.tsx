@@ -15,12 +15,13 @@ import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  Calendar,
+  AlertCircle,
   ChevronDown,
   DollarSign,
   Download,
   Eye,
   GitMerge,
+  Layers3,
   Mail,
   MoreVertical,
   Phone,
@@ -40,6 +41,10 @@ import {
 } from "@/components/crm/catalog/CatalogStatsStrip";
 import { SyncFromCRMModal } from "@/components/crm/customers/SyncFromCRMModal";
 import { CustomerMergeReviewDialog } from "@/components/crm/customers/CustomerMergeReviewDialog";
+import {
+  CustomerListLastPurchaseCell,
+  CustomerListSpendCell,
+} from "@/components/crm/customers/CustomerListPurchaseCells";
 import { EnhancedSegmentImportDialog } from "@/components/crm/segments/EnhancedSegmentImportDialog";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -54,6 +59,8 @@ import {
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoySearchInput } from "@/components/joy/JoySearchInput";
+import { JoySelect } from "@/components/joy/JoySelect";
+import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import {
   JoyTable,
   JoyTableBody,
@@ -67,11 +74,13 @@ import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { useAllSegments } from "@/hooks/useAllSegments";
 import { useBulkCustomerOperations } from "@/hooks/useBulkCustomerOperations";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useCRMTags } from "@/hooks/useCRMTags";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
 import { useCustomerExport } from "@/hooks/useCustomerExport";
 import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const CUSTOMER_CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -84,6 +93,9 @@ export const CRMCustomersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [bulkTagId, setBulkTagId] = useState("");
+  const [bulkTagging, setBulkTagging] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSyncFromCRM, setShowSyncFromCRM] = useState(false);
   const [showMergeReview, setShowMergeReview] = useState(false);
@@ -117,14 +129,55 @@ export const CRMCustomersPage: React.FC = () => {
   const canExportCustomers = crmRole === "owner_admin";
   const canManageIntegrations = hasPermission("integrations.manage");
   const canDeleteCustomers = crmRole === "owner_admin";
+  const { tags: availableTags, loading: tagsLoading } = useCRMTags();
+  const selectedTag =
+    availableTags.find((tag) => tag.id === selectedTagId) ?? null;
+
+  const applyBulkTag = async (action: "add" | "remove") => {
+    if (!canWriteCustomers || !tenant?.id || bulkTagging || selectedIds.size === 0) return;
+    const tag = availableTags.find((item) => item.id === bulkTagId);
+    if (!tag) return;
+    setBulkTagging(true);
+    try {
+      const customerIds = Array.from(selectedIds);
+      if (action === "add") {
+        const { error } = await supabase.from("customer_tags").upsert(
+          customerIds.map((customerId) => ({ contact_id: customerId, tag_id: tag.id })),
+          { onConflict: "contact_id,tag_id", ignoreDuplicates: true },
+        );
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("customer_tags")
+          .delete().eq("tag_id", tag.id).in("contact_id", customerIds);
+        if (error) throw error;
+      }
+      await invalidateCustomers();
+      clearSelection();
+      toast.success(`Tag ${action === "add" ? "assigned" : "removed"} for selected contacts`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update tags");
+    } finally {
+      setBulkTagging(false);
+    }
+  };
+
+  // Never keep a tag filter after switching to a different company.
+  useEffect(() => {
+    setSelectedTagId(null);
+    setBulkTagId("");
+    setCurrentPage(1);
+    clearSelection();
+  }, [tenant?.id, clearSelection]);
 
   const {
     data: customers = [],
     totalCount = 0,
     isLoading,
+    error: customersError,
     invalidateCustomers,
   } = useCustomers({
     search: searchQuery,
+    tagId: selectedTag?.id ?? null,
     page: currentPage,
     pageSize,
     tenantId: tenant?.id,
@@ -371,6 +424,12 @@ export const CRMCustomersPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  const handleTagChange = useCallback((tagId: string | null) => {
+    setSelectedTagId(tagId);
+    setCurrentPage(1);
+    clearSelection();
+  }, [clearSelection]);
+
   const handleClearSearch = useCallback(() => {
     setSearchInput("");
     setSearchQuery("");
@@ -412,6 +471,15 @@ export const CRMCustomersPage: React.FC = () => {
             justifyContent={{ xs: "flex-start", md: "flex-end" }}
             sx={{ flexShrink: 0 }}
           >
+            <Button
+              variant="outlined"
+              color="neutral"
+              size="sm"
+              startDecorator={<Layers3 size={16} />}
+              onClick={() => navigate("/crm/segments")}
+            >
+              Manage segments
+            </Button>
             {canImportCustomers && tenant?.id ? (
               <Button variant="outlined" color="neutral" size="sm"
                 aria-expanded={showPOSPreferences} aria-controls="pos-email-preference-review"
@@ -537,7 +605,7 @@ export const CRMCustomersPage: React.FC = () => {
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                lg: "minmax(300px, 420px) minmax(0, 1fr)",
+                lg: "minmax(260px, 420px) minmax(190px, 250px) minmax(0, 1fr)",
               },
               gap: 1.5,
               alignItems: "start",
@@ -551,6 +619,19 @@ export const CRMCustomersPage: React.FC = () => {
               sx={{ width: "100%", minWidth: 0 }}
             />
 
+            <JoyAutocomplete
+              label="Filter by CRM tag"
+              placeholder="All tags"
+              options={availableTags}
+              value={selectedTag}
+              loading={tagsLoading}
+              getOptionLabel={(tag) => tag.name}
+              isOptionEqualToValue={(option, current) => option.id === current.id}
+              onValueChange={(tag) => handleTagChange(tag?.id ?? null)}
+              noOptionsText="No tags found"
+              formControlSx={{ minWidth: 0 }}
+            />
+
             <Box
               sx={{
                 minWidth: 0,
@@ -558,7 +639,7 @@ export const CRMCustomersPage: React.FC = () => {
                 justifyContent: { xs: "flex-start", lg: "flex-end" },
               }}
             >
-              {canDeleteCustomers && selectedIds.size > 0 ? (
+              {(canWriteCustomers || canDeleteCustomers) && selectedIds.size > 0 ? (
                 <Sheet
                   variant="soft"
                   color="warning"
@@ -575,14 +656,35 @@ export const CRMCustomersPage: React.FC = () => {
                   <Typography level="body-sm" sx={{ fontWeight: 600 }}>
                     {selectedIds.size} selected
                   </Typography>
-                  <JoyButton
-                    size="sm"
-                    bloomVariant="destructive"
-                    onClick={() => setBulkDeleteDialogOpen(true)}
-                    startDecorator={<Trash2 />}
-                  >
-                    Delete Selected
-                  </JoyButton>
+
+                  {canDeleteCustomers ? (
+                    <JoyButton
+                      size="sm"
+                      bloomVariant="destructive"
+                      onClick={() => setBulkDeleteDialogOpen(true)}
+                      startDecorator={<Trash2 />}
+                    >
+                      Delete Selected
+                    </JoyButton>
+                  ) : null}
+                  {canWriteCustomers && availableTags.length > 0 ? (
+                    <>
+                      <JoySelect
+                        value={bulkTagId}
+                        onValueChange={setBulkTagId}
+                        placeholder="Choose a tag"
+                        options={availableTags.map((tag) => ({ value: tag.id, label: tag.name }))}
+                        disabled={bulkTagging}
+                        formControlSx={{ width: 180 }}
+                      />
+                      <JoyButton size="sm" color="neutral" variant="outlined" disabled={!bulkTagId || bulkTagging} onClick={() => void applyBulkTag("add")}>
+                        Add tag
+                      </JoyButton>
+                      <JoyButton size="sm" color="neutral" variant="plain" disabled={!bulkTagId || bulkTagging} onClick={() => void applyBulkTag("remove")}>
+                        Remove tag
+                      </JoyButton>
+                    </>
+                  ) : null}
                   <JoyButton
                     size="sm"
                     variant="plain"
@@ -598,7 +700,18 @@ export const CRMCustomersPage: React.FC = () => {
         </Stack>
 
         <JoyDataSectionCard bodySx={{ p: 0 }}>
-        {isLoading ? (
+        {customersError ? (
+          <JoyEmptyState
+            icon={<AlertCircle />}
+            title="Couldn't load contacts"
+            description="Your contacts couldn't be loaded. Please try again."
+            primaryAction={{
+              label: "Retry",
+              size: "sm",
+              onClick: invalidateCustomers,
+            }}
+          />
+        ) : isLoading ? (
           <Stack
             direction="row"
             spacing={1.5}
@@ -613,12 +726,18 @@ export const CRMCustomersPage: React.FC = () => {
             icon={<Users />}
             title="No customers found"
             description={
-              searchQuery
-                ? "Try adjusting your search or add a new customer record."
+              searchQuery || selectedTag
+                ? "Try a different search or clear the tag filter."
                 : "Add your first customer or import a list to start building segments and personas."
             }
             primaryAction={
-              canWriteCustomers
+              selectedTag
+                ? {
+                    label: "Clear tag filter",
+                    size: "sm",
+                    onClick: () => handleTagChange(null),
+                  }
+                : canWriteCustomers
                 ? {
                     label: "Add Customer",
                     size: "sm",
@@ -633,7 +752,7 @@ export const CRMCustomersPage: React.FC = () => {
             <JoyTable stickyHeader data-testid="customers-table">
               <JoyTableHead>
                 <JoyTableRow>
-                  {canDeleteCustomers ? <JoyTableHeaderCell sx={{ width: 56 }}>
+                  {(canWriteCustomers || canDeleteCustomers) ? <JoyTableHeaderCell sx={{ width: 56 }}>
                     <Checkbox
                       size="sm"
                       color="primary"
@@ -687,7 +806,7 @@ export const CRMCustomersPage: React.FC = () => {
                           : undefined
                       }
                     >
-                      {canDeleteCustomers ? <JoyTableCell
+                      {(canWriteCustomers || canDeleteCustomers) ? <JoyTableCell
                         onClick={(event) => event.stopPropagation()}
                       >
                         <Checkbox
@@ -818,59 +937,10 @@ export const CRMCustomersPage: React.FC = () => {
                         )}
                       </JoyTableCell>
                       <JoyTableCell>
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          alignItems="center"
-                          justifyContent="flex-end"
-                        >
-                          <DollarSign
-                            size={12}
-                            strokeWidth={1.9}
-                            color="var(--joy-palette-neutral-400)"
-                          />
-                          <Typography
-                            sx={{
-                              fontFamily: "var(--joy-fontFamily-display)",
-                              fontSize: "14px",
-                              fontWeight: 500,
-                              color: "neutral.900",
-                            }}
-                          >
-                            {customer.total_spent
-                              ? customer.total_spent.toFixed(2)
-                              : "0.00"}
-                          </Typography>
-                        </Stack>
+                        <CustomerListSpendCell customer={customer} />
                       </JoyTableCell>
                       <JoyTableCell>
-                        {customer.last_purchase_date ? (
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            alignItems="center"
-                          >
-                            <Calendar
-                              size={12}
-                              strokeWidth={1.9}
-                              color="var(--joy-palette-neutral-400)"
-                            />
-                            <Typography
-                              sx={{ fontSize: "13px", color: "neutral.500" }}
-                            >
-                              {format(
-                                new Date(customer.last_purchase_date),
-                                "MMM d, yyyy",
-                              )}
-                            </Typography>
-                          </Stack>
-                        ) : (
-                          <Typography
-                            sx={{ fontSize: "13px", color: "neutral.500" }}
-                          >
-                            No purchases
-                          </Typography>
-                        )}
+                        <CustomerListLastPurchaseCell customer={customer} />
                       </JoyTableCell>
                       <JoyTableCell>
                         <Typography

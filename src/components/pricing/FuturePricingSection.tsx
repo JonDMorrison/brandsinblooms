@@ -86,7 +86,7 @@ export const FuturePricingSection = () => {
         </div>
 
         <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-4 bg-[#E1FFFE] rounded-xl border border-[#3E7C77]/25">
+          <div className="inline-flex items-center gap-3 px-6 py-4 bg-[#E4EEED] rounded-xl border border-[#3E7C77]/25">
             <Lock className="w-5 h-5 text-[#3E7C77]" />
             <p className="text-base font-semibold text-[#1F4341]">
               Founding customers remain locked into introductory pricing

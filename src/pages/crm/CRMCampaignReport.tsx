@@ -18,7 +18,7 @@ import {
   YAxis,
 } from "recharts";
 import {
-  AlertTriangle,
+  Info,
   ChevronLeft,
   Copy,
   FileDown,
@@ -1429,36 +1429,86 @@ export default function CRMCampaignReport() {
         {!reportQuery.isLoading &&
         failed + skipped + pending + unconfirmed > 0 ? (
           <Sheet
-            variant="soft"
-            color={failed > 0 ? "danger" : "warning"}
-            sx={{ borderRadius: "lg", p: 2.25 }}
+            variant="outlined"
+            color="neutral"
+            sx={{ borderRadius: "lg", p: { xs: 2, md: 2.25 } }}
           >
             <Stack direction="row" spacing={1.25} alignItems="flex-start">
-              <AlertTriangle size={20} />
-              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <Info size={20} style={{ flexShrink: 0, marginTop: 2 }} />
+              <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
                 <Typography level="title-sm">
+                  {pending > 0 ? "Sending in progress" : "Sending finished"}
+                </Typography>
+                <Typography level="body-sm" textColor="text.secondary">
                   {pending > 0
-                    ? "Campaign delivery is not complete"
-                    : unconfirmed > 0
-                      ? "Campaign delivery is not fully confirmed"
-                      : "Campaign did not reach every recipient"}
+                    ? `${pending.toLocaleString()} emails are still waiting to be sent.`
+                    : "There are no emails left in the sending queue."}
+                  {unconfirmed > 0
+                    ? ` Delivery confirmation is still unavailable for ${unconfirmed.toLocaleString()} sent emails. This does not mean they failed.`
+                    : ""}
                 </Typography>
-                <Typography level="body-sm">
-                  {failed.toLocaleString()} failed, {skipped.toLocaleString()}{" "}
-                  skipped, {pending.toLocaleString()} still pending, and{" "}
-                  {unconfirmed.toLocaleString()} awaiting provider delivery
-                  confirmation.
-                </Typography>
+                {failed + skipped > 0 ? (
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1.5}
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                  >
+                    <Typography level="body-sm">
+                      {[
+                        failed > 0
+                          ? `${failed.toLocaleString()} emails could not be sent`
+                          : null,
+                        skipped > 0
+                          ? `${skipped.toLocaleString()} recipients were skipped`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      .
+                    </Typography>
+                    <JoyButton
+                      variant="outlined"
+                      color="neutral"
+                      size="sm"
+                      onClick={() =>
+                        navigate(`/crm/campaigns/${campaignId}/recipients`)
+                      }
+                    >
+                      Review recipients
+                    </JoyButton>
+                  </Stack>
+                ) : null}
                 {report?.failureReasons.length ? (
-                  <Typography level="body-xs">
-                    Top failures:{" "}
-                    {report.failureReasons
-                      .map(
-                        ({ reason, count }) =>
-                          `${reason} (${count.toLocaleString()})`,
-                      )
-                      .join("; ")}
-                  </Typography>
+                  <Box
+                    component="details"
+                    sx={{
+                      color: "text.secondary",
+                      fontSize: "sm",
+                      "& summary": {
+                        cursor: "pointer",
+                        width: "fit-content",
+                        borderRadius: "sm",
+                      },
+                      "& summary:focus-visible": {
+                        outline: "2px solid",
+                        outlineColor: "primary.500",
+                        outlineOffset: 3,
+                      },
+                    }}
+                  >
+                    <Box component="summary">View delivery details</Box>
+                    <Stack spacing={0.75} sx={{ mt: 1 }}>
+                      {report.failureReasons.map(({ reason, count }) => (
+                        <Typography
+                          key={reason}
+                          level="body-xs"
+                          sx={{ overflowWrap: "anywhere" }}
+                        >
+                          {count.toLocaleString()} emails: {reason}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  </Box>
                 ) : null}
               </Stack>
             </Stack>

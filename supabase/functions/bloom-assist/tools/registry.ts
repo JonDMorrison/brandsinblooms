@@ -1,4 +1,7 @@
+import { loyaltyProgrammeTools } from "./loyalty-programme-registry.ts";
 import { customerExplorationTools, addIntelligenceScopeParameters } from "./customer-exploration-registry.ts";
+import { DIAGNOSTIC_AREAS } from "./implementations/support-tools.ts";
+import { SUITE_READ_KINDS } from "./implementations/suite-tools.ts";
 import type { BloomMode, JsonArray, JsonObject } from "../types.ts";
 import type {
   IntentClassification,
@@ -36,6 +39,14 @@ const IMAGE_MODES: BloomMode[] = ["image"];
 const NAVIGATION_MODES: BloomMode[] = ["standard", "reasoning", "research"];
 const SORT_ORDERS = ["asc", "desc"] as const;
 const EXPORT_FORMATS = ["csv", "json"] as const;
+const SUPPORT_KIND_HINTS = [
+  "question",
+  "bug",
+  "change",
+  "feature",
+  "other",
+] as const;
+const SUPPORT_URGENCIES = ["normal", "high"] as const;
 const CONTENT_TYPES = [
   "email_body",
   "subject_lines",
@@ -98,6 +109,17 @@ const NAVIGATION_TARGETS = [
   "integrations",
   "analytics",
   "settings",
+  "customer_import",
+  "team_settings",
+  "billing",
+  "customer_intelligence",
+] as const;
+const CUSTOMER_INTELLIGENCE_VIEWS = [
+  "overview",
+  "explore",
+  "growth",
+  "rewards",
+  "data",
 ] as const;
 const ANALYTICS_RANGES = [
   "today",
@@ -465,12 +487,33 @@ const productWriteFields = {
   status: stringSchema("Product status.", { enum: PRODUCT_STATUSES }),
   is_visible: booleanSchema("Whether product is visible to shoppers."),
 };
+const newsletterBriefSchema = objectSchema({
+  headline: stringSchema("Short headline.", { maxLength: 180 }),
+  subheading: stringSchema("Supporting sentence.", { maxLength: 400 }),
+  introduction: stringSchema("Personal introduction, using verified facts.", { maxLength: 5000 }),
+  heroImageUrl: stringSchema("Public image URL from this client's media, event/product record or user selection. Never invent a URL.", { maxLength: 2048 }),
+  heroImageAlt: stringSchema("Image description.", { maxLength: 300 }),
+  closing: stringSchema("Short personal closing.", { maxLength: 5000 }),
+  features: arraySchema("Verified event, product or story details; do not invent dates, availability or pricing.", objectSchema({
+    title: stringSchema("Feature title.", { maxLength: 180 }),
+    body: stringSchema("Verified details, including date/location or price when known.", { maxLength: 5000 }),
+    buttonText: stringSchema("Action label.", { maxLength: 80 }),
+    buttonUrl: stringSchema("Verified destination URL.", { maxLength: 2048 }),
+    imageUrl: stringSchema("Optional public feature photo URL.", { maxLength: 2048 }),
+    imageAlt: stringSchema("Image description.", { maxLength: 300 }),
+  }, ["title", "body", "buttonText", "buttonUrl"]), { minItems: 1, maxItems: 6 }),
+  images: arraySchema("Supporting photographs from this account or supplied by the user.", objectSchema({
+    url: stringSchema("Public image URL.", { maxLength: 2048 }),
+    alt: stringSchema("Image description.", { maxLength: 300 }),
+  }, ["url", "alt"]), { maxItems: 6 }),
+}, ["headline", "introduction", "features"]);
+
 const campaignWriteFields = {
   name: stringSchema("Campaign name.", { minLength: 1, maxLength: 180 }),
   subject_line: stringSchema("Email subject line.", { maxLength: 180 }),
   preheader_text: stringSchema("Email preheader text.", { maxLength: 220 }),
   content: stringSchema("Campaign body content.", { maxLength: 20000 }),
-  delivery_method: stringSchema("Campaign delivery channel.", {
+  delivery_method: stringSchema("Message channel: email or sms. Stored as metadata.campaignType; this is not the database sender-routing field.", {
     enum: CAMPAIGN_DELIVERY_METHODS,
   }),
   status: stringSchema("Campaign status.", { enum: CAMPAIGN_STATUSES }),
@@ -518,6 +561,7 @@ const segmentWriteFields = {
 
 export const TOOL_REGISTRY: ToolDefinition[] = [
   ...customerExplorationTools,
+  ...loyaltyProgrammeTools,
   defineTool({
     name: "query_customers",
     description:
@@ -812,7 +856,11 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     name: "create_campaign",
     description:
       "Create a new campaign, newsletter, email, SMS blast, promotion, announcement, or marketing message draft. Use when the user wants a campaign record created, not just content generated.",
-    parameters: objectSchema(campaignWriteFields, ["name", "delivery_method"]),
+    parameters: objectSchema({ ...campaignWriteFields,
+      photo_upload_id: stringSchema("A png or jpeg photo the user uploaded to this chat, by its attachment reference (or \"latest\" for the most recent photo). Bloom copies it into campaign images and uses it as the email's main photo. Never pass an uploaded file as an image URL.", { maxLength: 400 }),
+      template_id: stringSchema("Reusable editable newsletter design. Use Botanical Editorial for workshop invitations.", { enum: ["botanical-editorial", "botanical-seasonal", "botanical-product", "botanical-events"] }),
+      newsletter_brief: newsletterBriefSchema,
+    }, ["name", "delivery_method"]),
     category: "mutation",
     riskLevel: "low",
     requiresConfirmation: true,
@@ -998,6 +1046,20 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
       },
       ["tag_id", "customer_ids", "action"],
     ),
+    category: "mutation",
+    riskLevel: "medium",
+    requiresConfirmation: true,
+    allowedRoles: STAFF_PLUS,
+    allowedModes: STANDARD_REASONING,
+  }),
+  defineTool({
+    name: "import_customer_list",
+    description:
+      "Import the contacts in a CSV or Excel file the user uploaded to this chat as CRM customers. Use when the user asks to import, add or upload an attached list of contacts or customers. Returns a preview (new, updated and skipped rows) for the user to approve; nothing is written before approval.",
+    parameters: objectSchema({
+      upload_id: stringSchema("The spreadsheet's attachment reference from this conversation. Omit to use the most recent spreadsheet the user uploaded here.", { maxLength: 400 }),
+      column_mapping: jsonObjectSchema("Optional. Only when a column's purpose is unclear from its header: map the exact column header to a customer field (email, first_name, last_name, phone, tags, persona, sms_opt_in, email_opt_in, lifetime_value, first_purchase_date, last_purchase_date, external_id, city, state, postal_code, company_name, notes, skip, or custom:<name>). Headers are matched automatically otherwise."),
+    }),
     category: "mutation",
     riskLevel: "medium",
     requiresConfirmation: true,
@@ -1445,12 +1507,16 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "navigate_to",
     description:
-      "Navigate the user to a CRM page, customer record, product detail, campaign, segment, integration, dashboard, analytics, or settings screen. Use for go to, open, show me page, take me to, or deep-link requests.",
+      "Navigate the user to a CRM page, customer record, product detail, campaign, segment, integration, dashboard, analytics, or settings screen. Also opens customer import, locations and team settings, account and billing, and Customer Intelligence. Use for go to, open, show me page, take me to, where do I, or deep-link requests. Only these targets exist; never describe other menu paths.",
     parameters: objectSchema(
       {
         target: stringSchema("Navigation target.", {
           enum: NAVIGATION_TARGETS,
         }),
+        view: stringSchema(
+          "Customer Intelligence section, only for target customer_intelligence: overview, explore (Find customers), growth (Growth), rewards (Rewards), or data (Data & channels).",
+          { enum: CUSTOMER_INTELLIGENCE_VIEWS },
+        ),
         entity_id: stringSchema("Optional record ID for detail pages.", {
           pattern:
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
@@ -1535,6 +1601,109 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     requiresConfirmation: false,
     allowedRoles: ALL_ROLES,
     allowedModes: STANDARD_REASONING,
+  }),
+  defineTool({
+    name: "report_support_problem",
+    description:
+      "Send a problem report to the Bloom support team (a person) when something in BloomSuite seems broken, wrong or confusing, or the user asks for help from support. Run run_self_diagnostics first when something seems broken. Bloom attaches technical details automatically; describe only what the user saw.",
+    parameters: objectSchema(
+      {
+        subject: stringSchema("Short plain title for the problem.", {
+          maxLength: 120,
+        }),
+        what_happened: stringSchema(
+          "What the user saw or tried, in their own plain words, including what you already checked.",
+          { minLength: 10, maxLength: 4000 },
+        ),
+        expected: stringSchema("What the user expected to happen.", {
+          maxLength: 2000,
+        }),
+        kind_hint: stringSchema("Best guess at the kind of request.", {
+          enum: SUPPORT_KIND_HINTS,
+        }),
+        urgency: stringSchema(
+          "Use high only when the user cannot do their work at all.",
+          { enum: SUPPORT_URGENCIES },
+        ),
+      },
+      ["what_happened"],
+    ),
+    category: "mutation",
+    riskLevel: "low",
+    requiresConfirmation: true,
+    allowedRoles: ALL_ROLES,
+    allowedModes: STANDARD_REASONING,
+  }),
+  defineTool({
+    name: "check_support_request",
+    description:
+      "Check the status of the company's Bloom support requests. Give ticket_number for one request, or leave it out to list open requests.",
+    parameters: objectSchema({
+      ticket_number: integerSchema("Support request number, like 1042.", {
+        minimum: 1,
+      }),
+    }),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
+    name: "run_self_diagnostics",
+    description:
+      "Run read-only health checks on this company's BloomSuite data when the user says something is broken, missing or wrong: customers and purchase data, imports, segments, point-of-sale sync, email sending and recent Bloom failures. Changes nothing.",
+    parameters: objectSchema(
+      {
+        area: stringSchema("Which area to check. Use all when unsure.", {
+          enum: DIAGNOSTIC_AREAS,
+        }),
+      },
+      ["area"],
+    ),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
+    name: "verify_bloomsites_integrations",
+    description:
+      "For authorized Brands in Blooms staff only: verify a garden centre's BloomSites CounterPoint and Open Plant Data (OPD) integration. If the staff member names a client (for example 'Verify Lacoste CounterPoint'), pass client_name='Lacoste' even if another company is selected in CRM. Otherwise check the currently selected company. Resolves client names through the staff member's existing authorized Bloom Support accounts and refuses ambiguous or unlinked sites. Report live connection health, recent receipts, catalogue synchronization failures and approved/imported plant links. Read-only: does not sync, repair, approve, contact customers or prove a customer shop works end to end.",
+    parameters: objectSchema({
+      client_name: stringSchema("Optional garden centre name from the staff request, such as Lacoste, Horsford, or Triple Tree. Never invent an account ID."),
+      site_id: stringSchema("Optional BloomSites site ID only when staff are resolving multiple linked sites; never invent this value."),
+    }),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: STAFF_PLUS,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
+    name: "read_suite_data",
+    description:
+      "Read this company's BloomSites website or point of sale data: website details, pages and their publish state, events, POS products, stock levels by store, a sales summary for a date range (up to 93 days), one product variant's price changes (who changed it and when), or a private preview link for a website page's unpublished draft. Read-only, and only for the company the person is signed in to. Every signed-in user of the company can read the website, products and stock levels. The sales summary and price history are only for the company's account owner or an admin; anyone else gets a plain message saying so. If Bloom says there is no access or no connection, tell the user that plainly and do not retry.",
+    parameters: objectSchema(
+      {
+        kind: stringSchema("Which data to read.", { enum: SUITE_READ_KINDS }),
+        site_id: stringSchema("BloomSites site id, only when the company has more than one website."),
+        pos_tenant_id: stringSchema("POS business id, only when the company has more than one."),
+        store_id: stringSchema("POS store id, when the business has several stores."),
+        q: stringSchema("Product name or SKU to search for (POS products and stock)."),
+        variant_id: stringSchema("POS product variant id, for price history. Find it with pos.products first."),
+        content_id: stringSchema("Website page id, for a preview link. Find it with site.pages first."),
+        from: stringSchema("Sales summary start date, YYYY-MM-DD."),
+        to: stringSchema("Sales summary end date, YYYY-MM-DD."),
+      },
+      ["kind"],
+    ),
+    category: "query",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
   }),
 ];
 
@@ -1625,3 +1794,4 @@ export function getToolDefinitionsForIntent(
     toOpenAIToolDefinition,
   );
 }
+

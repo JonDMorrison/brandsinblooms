@@ -1,0 +1,94 @@
+name: Configure Bloom Support CMS connection
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/bloom-support-configure-cms.yml'
+      - 'scripts/bloom-support/configure-cms.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bloom-support-configure-cms.yml'
+      - 'scripts/bloom-support/configure-cms.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bloom-support-configure-cms
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: node --check scripts/bloom-support/configure-cms.mjs
+      - name: Verify configuration boundaries without credentials or network
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { createHmac } from 'node:crypto';
+          import { configureCms } from './scripts/bloom-support/configure-cms.mjs';
+          const intake = 'a'.repeat(64), ops = 'b'.repeat(64);
+          async function scenario(status, payload, invalid = false, unsignedStatus = 401) {
+            const calls = [];
+            const request = async (url, init) => {
+              calls.push({ url, init });
+              assert.equal(init.redirect, 'error');
+              if (calls.length === 1) {
+                assert.equal(url, 'https://api.supabase.com/v1/projects/udldmkqwnxhdeztyqcau/database/query');
+                return Response.json(invalid ? [{ name: 'unrelated', value: ops }] : [
+                  { name: 'bloom_support_intake_cms', value: intake },
+                  { name: 'bloom_support_ops_cms', value: ops },
+                ]);
+              }
+              if (calls.length === 2) {
+                assert.equal(url, 'https://api.supabase.com/v1/projects/isvcjikzheswgvpkfpfr/database/query');
+                const sql = JSON.parse(init.body).query;
+                assert(sql.includes(intake) && sql.includes(ops));
+                assert(!sql.includes('maintenance_key'));
+                return Response.json([]);
+              }
+              if (calls.length === 3) {
+                assert.equal(url, 'https://api.supabase.com/v1/projects/udldmkqwnxhdeztyqcau/secrets');
+                assert.deepEqual(JSON.parse(init.body).map(row => row.name), ['BLOOM_INTAKE_SECRET_CMS', 'BLOOM_OPS_SECRET_CMS', 'BLOOM_OPS_URL_CMS']);
+                return Response.json({});
+              }
+              assert.equal(url, 'https://bloomsites.app/api/internal/bloom/ops');
+              if (calls.length === 4) {
+                assert.equal(init.headers['x-bloom-signature'], undefined);
+                return Response.json({ error: unsignedStatus === 401 ? 'unauthenticated' : 'not_found' }, { status: unsignedStatus });
+              }
+              assert.equal(init.headers['x-bloom-signature'], createHmac('sha256', ops).update(init.headers['x-bloom-timestamp'] + '.' + init.body).digest('hex'));
+              assert.deepEqual(JSON.parse(init.body), { action: 'site.read', site_id: '00000000-0000-0000-0000-000000000000' });
+              return payload === null ? new Response('<html>missing</html>', { status }) : Response.json(payload, { status });
+            };
+            return configureCms({ token: 'fixture-only', request });
+          }
+          assert.deepEqual(await scenario(404, { error: 'not_found' }), { configurationPrepared: true, signedTenantGuardVerified: true, productionConnected: true, releaseRequired: false });
+          assert.deepEqual(await scenario(404, null), { configurationPrepared: true, signedTenantGuardVerified: false, productionConnected: false, releaseRequired: true });
+          assert.equal((await scenario(503, { error: 'not_configured' })).releaseRequired, true);
+          await assert.rejects(() => scenario(401, { error: 'unauthenticated' }), /verification failed/);
+          await assert.rejects(() => scenario(404, null, true), /secrets are invalid/);
+          await assert.rejects(() => configureCms({ token: '', request: () => { throw new Error('must not call'); } }), /not configured/);
+          await assert.rejects(() => scenario(404, { error: 'not_found' }, false, 200), /unsigned-request verification failed/);
+          console.log('Seven CMS configuration boundary checks passed');
+          JS
+  configure:
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Prepare dedicated CMS Vault entries and verify production availability
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/bloom-support/configure-cms.mjs

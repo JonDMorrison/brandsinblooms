@@ -56,6 +56,17 @@ const AdminAuditLogsPage = lazyRetry(
 const ReportedProblemsPage = lazyRetry(
   () => import("@/pages/admin/ReportedProblemsPage"),
 );
+const BloomSupportPage = lazyRetry(
+  () => import("@/pages/admin/BloomSupportPage"),
+);
+const BloomSupportConnectPage = lazyRetry(
+  () => import("@/pages/BloomSupportConnectPage"),
+);
+const PublicSupportContact = lazyNamed(
+  () => import("@/pages/PublicSupportPage"),
+  "PublicSupportContact",
+);
+const PublicSupportTrack = lazyRetry(() => import("@/pages/PublicSupportTrackPage"));
 const ReportedProblemDetailPage = lazyRetry(
   () => import("@/pages/admin/ReportedProblemDetailPage"),
 );
@@ -272,6 +283,9 @@ const CRMCampaignEditorPage = lazyRetry(
 );
 const CampaignStudioPage = lazyRetry(
   () => import("@/pages/crm/CampaignStudioPage"),
+);
+const ConnectedContentPage = lazyRetry(
+  () => import("@/pages/crm/ConnectedContentPage"),
 );
 const SavedBlocksPage = lazyNamed(
   () => import("@/pages/crm/SavedBlocksPage"),
@@ -531,6 +545,8 @@ function App() {
           <NavigationTracker />
           <Routes>
             {/* Public routes */}
+            <Route path="/signup" element={<Navigate to="/auth#signup" replace />} />
+            <Route path="/sign-up" element={<Navigate to="/auth#signup" replace />} />
             <Route element={<PublicLazyBoundary />}>
               <Route
                 path="/auth"
@@ -591,6 +607,8 @@ function App() {
               {/* Public compliance pages */}
               <Route path="/sms-program" element={<SmsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/support/contact" element={<PublicSupportContact />} />
+              <Route path="/support/track/:token" element={<PublicSupportTrack />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route
                 path="/platform-agreement"
@@ -773,6 +791,14 @@ function App() {
                 <CustomerDashboardPage />,
                 "form",
                 "customers.read",
+              )}
+            />
+            <Route
+              path="/crm/connected-content"
+              element={renderProtectedSidebarLazyPage(
+                <ConnectedContentPage />,
+                "full",
+                "campaigns.write",
               )}
             />
             <Route
@@ -1267,6 +1293,14 @@ function App() {
               )}
             />
             <Route
+              path="/bloom-support/connect"
+              element={renderProtectedSidebarLazyPage(
+                <BloomSupportConnectPage />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
+            />
+            <Route
               path="/support"
               element={renderProtectedSidebarLazyPage(
                 <SupportPage />,
@@ -1338,6 +1372,7 @@ function App() {
                 <Route path="reports" element={<AdminReportsPage />} />
                 <Route path="costs" element={<AdminCostsPage />} />
                 <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+                <Route path="bloom-support" element={<BloomSupportPage />} />
                 <Route
                   path="reported-problems"
                   element={<ReportedProblemsPage />}

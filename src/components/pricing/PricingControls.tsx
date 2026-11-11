@@ -68,7 +68,7 @@ export const PricingControls = ({
               "inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
               billingInterval === "annual"
                 ? "bg-[#3E7C77] text-white"
-                : "bg-[#E1FFFE] text-[#1F4341]",
+                : "bg-[#E4EEED] text-[#1F4341]",
             )}
           >
             Save 17%
