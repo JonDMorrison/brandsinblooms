@@ -279,7 +279,12 @@ describe("reviewed closure server contract", () => {
     expect(sql).toContain("bloom_support.require_ticket(p_actor,p_ticket)");
     expect(sql).toContain("receipt.request IS DISTINCT FROM p_request");
     expect(sql).toContain("jsonb_typeof(p_request->'idempotency_key') IS DISTINCT FROM 'string'");
-    expect(readFileSync("supabase/functions/_shared/bloom-support/runtime.ts", "utf8")).toContain('fn: "bloom_support_send_and_solve"');
+    const runtime = readFileSync("supabase/functions/_shared/bloom-support/runtime.ts", "utf8");
+    const directRpcFn = runtime.match(/export async function directRpc<[^>]+>\(fn:\s*([^,]+),\s*args:/)?.[1];
+    expect(directRpcFn).toBeDefined();
+    const allowedRpcNames = directRpcFn?.match(/"[^"]+"/g) ?? [];
+    expect(allowedRpcNames).toContain('"bloom_support_send_and_solve"');
+    expect(allowedRpcNames).toContain('"bloom_support_resume_release"');
     expect(sql.indexOf("'message:reviewed-close:'")).toBeLessThan(sql.indexOf("FOR UPDATE"));
     expect(sql.indexOf("sent := bloom_support.add_message")).toBeLessThan(sql.indexOf("PERFORM bloom_support.update_ticket"));
     expect(sql).toContain("FROM PUBLIC,anon,authenticated");
