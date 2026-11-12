@@ -102,9 +102,9 @@ export async function runRecipe(browser, origin) {
     assertions.controlAccepted = await controlChip.count() === 1 && await controlRemove.count() === 1 &&
       await page.getByRole('alert').count() === 0;
     if (!assertions.controlAccepted) throw new Error('200-character control was not cleanly accepted');
-    // The existing Joy chip decorator blocks pointer hits on its IconButton.
-    // Use its real accessible keyboard action, not force-click or DOM dispatch;
-    // this recipe proves the filename boundary, not that separate pointer bug.
+    // Use its real accessible keyboard action, not force-click or DOM dispatch.
+    // Pointer removal has a separate regression; this recipe isolates the
+    // filename boundary while still requiring complete control cleanup.
     stage = 'remove_200_character_control';
     if (!(await controlRemove.isEnabled())) throw new Error('Control removal is disabled');
     await controlRemove.focus();

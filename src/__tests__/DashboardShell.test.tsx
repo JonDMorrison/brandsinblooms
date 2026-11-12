@@ -683,6 +683,52 @@ describe("Bloom Support intake in the dashboard shell", () => {
     await waitFor(() => expect(email).toHaveFocus());
   });
 
+  it("removes only the chosen public attachment by pointer or keyboard without submitting", async () => {
+    const user = userEvent.setup();
+    render(<PublicSupportContact />);
+    // A valid form makes an accidental submit observable, not masked by Send being disabled.
+    await user.type(screen.getByRole("textbox", { name: "Your email" }), "qa@example.com");
+    await user.type(screen.getByRole("textbox", { name: "How can we help?" }), "Synthetic attachment removal check.");
+    await user.upload(screen.getByTestId("public-support-files"), [
+      new File(["png"], "first.png", { type: "image/png" }),
+      new File(["png"], "second.png", { type: "image/png" }),
+    ]);
+    const remove = screen.getByRole("button", { name: "Remove first.png" });
+    expect(remove).toHaveAttribute("type", "button");
+    // userEvent checks inherited pointer-events, unlike fireEvent.click.
+    await user.click(remove);
+    expect(screen.queryByRole("button", { name: "Remove first.png" })).not.toBeInTheDocument();
+    const remaining = screen.getByRole("button", { name: "Remove second.png" });
+    remaining.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("button", { name: "Remove second.png" })).not.toBeInTheDocument();
+    expect(supportMocks.publicRequest).not.toHaveBeenCalled();
+    expect(supportMocks.fileToUpload).not.toHaveBeenCalled();
+  });
+
+  it("keeps public attachment removal disabled in flight and after an uncertain send", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<Awaited<ReturnType<typeof supportMocks.publicRequest>>>();
+    supportMocks.publicRequest.mockImplementationOnce(() => pending.promise);
+    render(<PublicSupportContact />);
+    await user.type(screen.getByRole("textbox", { name: "Your email" }), "qa@example.com");
+    await user.type(screen.getByRole("textbox", { name: "How can we help?" }), "Synthetic immutable attachment check.");
+    await user.upload(screen.getByTestId("public-support-files"), new File(["png"], "locked.png", { type: "image/png" }));
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(supportMocks.publicRequest).toHaveBeenCalledTimes(1));
+    const remove = screen.getByRole("button", { name: "Remove locked.png" });
+    expect(remove).toBeDisabled();
+    fireEvent.click(remove);
+    fireEvent.keyDown(remove, { key: "Enter" });
+    expect(screen.getByText("locked.png")).toBeInTheDocument();
+    await act(async () => pending.reject(new Error("Uncertain response")));
+    expect(await screen.findByRole("button", { name: "Retry same request" })).toBeEnabled();
+    expect(remove).toBeDisabled();
+    fireEvent.click(remove);
+    expect(screen.getByText("locked.png")).toBeInTheDocument();
+    expect(supportMocks.publicRequest).toHaveBeenCalledTimes(1);
+  });
+
   it("lets people who cannot sign in attach checked screenshots and resends the same files on retry", async () => {
     const user = userEvent.setup({ applyAccept: false });
     supportMocks.publicRequest

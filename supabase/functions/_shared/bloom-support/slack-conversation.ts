@@ -79,9 +79,7 @@ async function evidence(c:Context,q:string):Promise<string>{
 }
 async function answer(c:Context,question:string):Promise<string>{
   const fallback=conversationFallback(c.route,question);
-  // Fast, deterministic acknowledgement of requested changes: no model and no silent action.
-  if(/\b(close|resolve|delete|refund|send|approve|publish|deploy)\b/i.test(question) && !c.ticket_id && !["projects","clients"].includes(c.route)) return fallback;
-  if(c.route==="finance" || c.route==="releases" || c.route==="alerts" || (c.route==="tickets"&&!c.ticket_id))return fallback;
+  // Even a limited answer uses the prior turns, so clarifications do not loop.
   const facts=await evidence(c,question);
   if(!facts.trim()) return fallback;
   const model=await completeJson<{answer:string}>({
