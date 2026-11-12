@@ -91,6 +91,15 @@ let dispatchFailNext = 0;
 let storageFailNext = 0;
 let vercelServingSha = "prior-serving-sha";
 let vercelRollbackRequested = false;
+let deploymentUrl = "https://app.test";
+let newerProductionBeforeRollback = false;
+let rollbackPreflightStarted = false;
+const descendantProductionSha = "5".repeat(40);
+const priorProductionSha = "1".repeat(40);
+function vercelDeployment(id: string, sha: string) {
+  return { id, uid: id, url: `${id}.vercel.app`, projectId: "prj_test", target: "production", readyState: "READY",
+    meta: { githubCommitSha: sha, githubOrg: "JonDMorrison", githubRepo: "brandsinblooms" } };
+}
 
 function githubStub(method: string, path: string, body: unknown): Response {
   githubCalls.push({ method, path, body });
@@ -141,7 +150,7 @@ function githubStub(method: string, path: string, body: unknown): Response {
     { id: 76, environment: "Preview – pull request", production_environment: false },
     { id: 75, environment: "Production – demo", production_environment: false },
   ]);
-  if (/\/deployments\/77\/statuses/.test(path)) return ok([{ state: deploymentState, environment_url: "https://app.test" }]);
+  if (/\/deployments\/77\/statuses/.test(path)) return ok([{ state: deploymentState, environment_url: deploymentUrl }]);
   return ok({ message: `unstubbed ${method} ${path}` }, 404);
 }
 
@@ -270,9 +279,16 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     vercelCalls.push({ method: req.method, path: url.pathname + url.search });
     if (req.method === "GET" && url.pathname === "/v6/deployments") {
       return new Response(JSON.stringify({ deployments: [
-        { uid: "dpl_current", url: "current.vercel.test", meta: { githubCommitSha: vercelServingSha } },
-        { uid: "dpl_previous", url: "previous.vercel.test", meta: { githubCommitSha: "prior-production-sha" } },
+        vercelDeployment("dpl_current", vercelServingSha),
+        vercelDeployment("dpl_descendant", descendantProductionSha),
+        vercelDeployment("dpl_previous", priorProductionSha),
       ] }), { status: 200 });
+    }
+    if (req.method === "GET" && url.pathname.startsWith("/v13/deployments/")) {
+      rollbackPreflightStarted = true;
+      if (url.pathname === "/v13/deployments/dpl_current.vercel.app") return Response.json(vercelDeployment("dpl_current", vercelServingSha));
+      if (url.pathname === "/v13/deployments/dpl_previous") return Response.json(vercelDeployment("dpl_previous", priorProductionSha));
+      return Response.json({ error: "unknown deployment" }, { status: 404 });
     }
     if (req.method === "POST" && /\/v1\/projects\/[^/]+\/rollback\/[^/]+$/.test(url.pathname)) {
       vercelRollbackRequested = true;
@@ -280,9 +296,12 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     }
     if (req.method === "GET" && /\/v9\/projects\/[^/]+$/.test(url.pathname)) {
       const serving = vercelRollbackRequested
-        ? { uid: "dpl_previous", url: "previous.vercel.test", meta: { githubCommitSha: "prior-production-sha" } }
-        : { uid: "dpl_current", url: "current.vercel.test", meta: { githubCommitSha: vercelServingSha } };
+        ? vercelDeployment("dpl_previous", priorProductionSha)
+        : vercelDeployment("dpl_current", vercelServingSha);
       return Response.json({
+        id: "prj_test",
+        targets: { production: newerProductionBeforeRollback && rollbackPreflightStarted
+          ? vercelDeployment("dpl_newer", "4".repeat(40)) : serving },
         alias: [
           { target: "PRODUCTION", domain: "bloomsuite.app", deployment: { ...serving, readyState: "READY" } },
           { target: "PRODUCTION", domain: "www.bloomsuite.app", deployment: { ...serving, readyState: "READY" } },
@@ -1663,108 +1682,125 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   });
 
   await t.step("a recovered manual merge restores a proven previous Vercel deployment when verification fails", async () => {
-    deploymentState = "success";
-    vercelRollbackRequested = false;
-    releasePolicyValue.verificationChecks["JonDMorrison/brandsinblooms"] = [{
-      url: "https://verify.test/rollback",
-      expect_status: 200,
-      contains: "never-present",
-    }];
-    await api("PUT", "/settings/release_policy", tok(U.jon), { value: releasePolicyValue });
-    const issueId = crypto.randomUUID();
-    const repository = "JonDMorrison/brandsinblooms";
-    const branch = `bloom/fix-${issueId.slice(0, 8)}`;
-    const mergeSha = "manual-main-merge-43";
-    vercelServingSha = "current-production-after-manual-43";
-    commitContainments.add(`${repository}:${mergeSha}:${vercelServingSha}`);
-    await sql!`
-      INSERT INTO bloom_support.engineering_issues(
-        id, title, product, repository, status, reproduction, branch, pr_number,
-        pr_url, head_sha, approved_head_sha, attempts
-      ) VALUES (
-        ${issueId}, 'Rollback verification fixture', 'crm', ${repository}, 'approved',
-        '{"reproduced":true,"verification":[{"url":"https://verify.test/rollback","expect_status":200,"contains":"never-present"}]}'::jsonb,
-        ${branch}, 43,
-        'https://github.com/JonDMorrison/brandsinblooms/pull/43',
-        'head43', 'head43', 1
-      )`;
-    prs[repository] = {
-      number: 43,
-      html_url: "https://github.com/JonDMorrison/brandsinblooms/pull/43",
-      state: "closed",
-      merged: true,
-      mergeable: null,
-      head: { ref: branch, sha: "head43" },
-      base: { ref: "main" },
-      user: { login: "bloom-repair[bot]" },
-      merge_commit_sha: mergeSha,
-      files: [
-        { filename: "src/components/crm/RollbackFixture.tsx", additions: 3, deletions: 1, status: "modified" },
-        { filename: "src/components/crm/RollbackFixture.regression.test.tsx", additions: 20, deletions: 0, status: "added" },
-      ],
-      checks: [
-        { name: "build", status: "completed", conclusion: "success" },
-        { name: "unit", status: "completed", conclusion: "success" },
-      ],
-      reviews: [{ state: "APPROVED", user: { login: "jeff-reviewer" }, commit_id: "head43" }],
-    };
-    await sql!`
-      INSERT INTO bloom_support.jobs(
-        kind, engineering_issue_id, lane, payload, idempotency_key, max_attempts,
-        timeout_seconds
-      ) VALUES (
-        'engineering_step', ${issueId}, ${"engineering:" + issueId},
-        '{"step":"evaluate"}', ${"e2e-rollback:" + issueId}, 5, 300
-      )`;
+    for (const newerProduction of [false, true]) {
+      deploymentState = "success";
+      newerProductionBeforeRollback = newerProduction;
+      rollbackPreflightStarted = false;
+      deploymentUrl = "https://dpl_current.vercel.app";
+      const callsBefore = vercelCalls.length;
+      vercelRollbackRequested = false;
+      releasePolicyValue.verificationChecks["JonDMorrison/brandsinblooms"] = [{
+        url: "https://verify.test/rollback",
+        expect_status: 200,
+        contains: "never-present",
+      }];
+      await api("PUT", "/settings/release_policy", tok(U.jon), { value: releasePolicyValue });
+      const issueId = crypto.randomUUID();
+      const repository = "JonDMorrison/brandsinblooms";
+      const branch = `bloom/fix-${issueId.slice(0, 8)}`;
+      const mergeSha = "2".repeat(40);
+      const headSha = "3".repeat(40);
+      vercelServingSha = mergeSha;
+      commitContainments.add(`${repository}:${mergeSha}:${descendantProductionSha}`);
+      await sql!`
+        INSERT INTO bloom_support.engineering_issues(
+          id, title, product, repository, status, reproduction, branch, pr_number,
+          pr_url, head_sha, approved_head_sha, attempts, evidence
+        ) VALUES (
+          ${issueId}, 'Rollback verification fixture', 'crm', ${repository}, 'approved',
+          '{"reproduced":true,"verification":[{"url":"https://verify.test/rollback","expect_status":200,"contains":"never-present"}]}'::jsonb,
+          ${branch}, 43,
+          'https://github.com/JonDMorrison/brandsinblooms/pull/43',
+          ${headSha}, ${headSha}, 1, '{"github_issue":{"number":143}}'::jsonb
+        )`;
+      const conversationId = crypto.randomUUID();
+      await sql!`INSERT INTO bloom_support.conversations(id,channel,subject) VALUES (${conversationId},'staff','Synthetic rollback fixture')`;
+      await sql!`INSERT INTO bloom_support.tickets(conversation_id,product,channel,kind,subject,summary,engineering_issue_id,automation,executor)
+        VALUES (${conversationId},'crm','staff','bug','Rollback fixture','Synthetic regression only',${issueId},'auto','bloom')`;
+      prs[repository] = {
+        number: 43,
+        html_url: "https://github.com/JonDMorrison/brandsinblooms/pull/43",
+        state: "closed",
+        merged: true,
+        mergeable: null,
+        head: { ref: branch, sha: headSha },
+        base: { ref: "main" },
+        user: { login: "bloom-repair[bot]" },
+        merge_commit_sha: mergeSha,
+        files: [
+          { filename: "src/components/crm/RollbackFixture.tsx", additions: 3, deletions: 1, status: "modified" },
+          { filename: "src/components/crm/RollbackFixture.regression.test.tsx", additions: 20, deletions: 0, status: "added" },
+        ],
+        checks: [
+          { name: "build", status: "completed", conclusion: "success" },
+          { name: "unit", status: "completed", conclusion: "success" },
+        ],
+        reviews: [{ state: "APPROVED", user: { login: "jeff-reviewer" }, commit_id: headSha }],
+      };
+      await sql!`
+        INSERT INTO bloom_support.jobs(
+          kind, engineering_issue_id, lane, payload, idempotency_key, max_attempts,
+          timeout_seconds
+        ) VALUES (
+          'engineering_step', ${issueId}, ${"engineering:" + issueId},
+          '{"step":"evaluate"}', ${"e2e-rollback:" + issueId}, 5, 300
+        )`;
 
-    await runWorkerUntilIdle(10);
+      await runWorkerUntilIdle(10);
 
-    const rolledBack = (await sql!`
-      SELECT status, rollback, verification
-      FROM bloom_support.engineering_issues
-      WHERE id = ${issueId}
-    `)[0];
-    assertEquals(rolledBack.status, "rolled_back", JSON.stringify(rolledBack));
-    assertEquals(rolledBack.rollback.previous_deployment_id, "dpl_previous");
-    assertExists(rolledBack.rollback.rolled_back_at);
-    assertEquals(rolledBack.rollback.status, "confirmed");
-    assertEquals(rolledBack.rollback.aliases_confirmed, 2);
-    assertEquals(rolledBack.rollback.recovery_verification.passed, true);
-    assertEquals(rolledBack.verification.passed, false);
-    assert(
-      vercelCalls.some((call) =>
-        call.method === "GET" &&
-        call.path.includes("/v6/deployments?projectId=prj_test")
-      ),
-      "the serving deployment is recorded before merge",
-    );
-    assert(
-      vercelCalls.some((call) =>
-        call.method === "POST" &&
-        call.path === "/v1/projects/prj_test/rollback/dpl_previous"
-      ),
-      "failed verification invokes the configured Vercel rollback",
-    );
-    assert(
-      vercelCalls.some((call) =>
-        call.method === "GET" &&
-        call.path.startsWith("/v9/projects/prj_test/rollback/aliases?")
-      ),
-      "rollback is not reported complete until every production alias is confirmed",
-    );
-    assert(
-      !githubCalls.some((call) =>
-        call.method === "PUT" && call.path.endsWith("/pulls/43/merge")
-      ),
-      "recovery observes the person's merge instead of merging again",
-    );
-    assert(
-      githubCalls.some((call) =>
-        call.path.endsWith(`/compare/${mergeSha}...current-production-after-manual-43`)
-      ),
-      "a later production commit is rejected by ancestry, not only SHA equality",
-    );
-    commitContainments.delete(`${repository}:${mergeSha}:${vercelServingSha}`);
+      const rolledBack = (await sql!`
+        SELECT status, rollback, verification
+        FROM bloom_support.engineering_issues
+        WHERE id = ${issueId}
+      `)[0];
+      if (newerProduction) {
+        assertEquals(rolledBack.status, "escalated", JSON.stringify(rolledBack));
+        assert(rollbackPreflightStarted, "negative case reaches authoritative provider identity checks");
+        assert(!vercelCalls.slice(callsBefore).some(call => call.method === "POST"), "newer production is never rolled back");
+        assertEquals(vercelRollbackRequested, false);
+      } else {
+      assertEquals(rolledBack.status, "rolled_back", JSON.stringify(rolledBack));
+      assertEquals(rolledBack.rollback.previous_deployment_id, "dpl_previous");
+      assertExists(rolledBack.rollback.rolled_back_at);
+      assertEquals(rolledBack.rollback.status, "confirmed");
+      assertEquals(rolledBack.rollback.aliases_confirmed, 2);
+      assertEquals(rolledBack.rollback.recovery_verification.passed, true);
+      assertEquals(rolledBack.verification.passed, false);
+      assert(
+        vercelCalls.some((call) =>
+          call.method === "GET" &&
+          call.path.includes("/v6/deployments?projectId=prj_test")
+        ),
+        "the serving deployment is recorded before merge",
+      );
+      assert(
+        vercelCalls.some((call) =>
+          call.method === "POST" &&
+          call.path === "/v1/projects/prj_test/rollback/dpl_previous"
+        ),
+        "failed verification invokes the configured Vercel rollback",
+      );
+      assert(
+        vercelCalls.some((call) =>
+          call.method === "GET" &&
+          call.path.startsWith("/v9/projects/prj_test/rollback/aliases?")
+        ),
+        "rollback is not reported complete until every production alias is confirmed",
+      );
+      assert(
+        !githubCalls.some((call) =>
+          call.method === "PUT" && call.path.endsWith("/pulls/43/merge")
+        ),
+        "recovery observes the person's merge instead of merging again",
+      );
+      }
+      assert(githubCalls.some(call => call.path.endsWith(`/compare/${mergeSha}...${descendantProductionSha}`)),
+        "READY history containing the failed repair is rejected by ancestry");
+      commitContainments.delete(`${repository}:${mergeSha}:${descendantProductionSha}`);
+    }
+    newerProductionBeforeRollback = false;
+    rollbackPreflightStarted = false;
+    deploymentUrl = "https://app.test";
     vercelServingSha = "prior-serving-sha";
     vercelRollbackRequested = false;
     releasePolicyValue.verificationChecks["JonDMorrison/brandsinblooms"] = [{
