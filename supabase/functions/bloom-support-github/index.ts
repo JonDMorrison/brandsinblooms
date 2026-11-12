@@ -1,3 +1,4 @@
+import { trustedRunEventHint } from "../_shared/bloom-support/trusted-reproduction.ts";
 // Verified GitHub events -> the existing Bloom Support notification queue.
 // No PR title/body, email address or confidential commit detail is sent to Slack.
 import { db, env } from "../_shared/bloom-support/runtime.ts";
@@ -38,7 +39,15 @@ Deno.serve(async (req) => {
 
   // Signature + repository checks above are mandatory for this service-only RPC.
   // Queue hints before Slack filtering: PR checks/reviews need not be announcements.
-  for (const hint of engineeringEventHints(event, payload)) {
+  const hints = engineeringEventHints(event, payload);
+  // workflow_dispatch runs are attached to trusted main, not the repair PR.
+  // Resolve their immutable observer proof before using a PR/head queue hint.
+  if (event === "workflow_run" && payload.action === "completed") {
+    const run = payload.workflow_run as { id?: unknown } | undefined;
+    const observed = await trustedRunEventHint(fullName, run?.id);
+    if (observed) hints.push({ ...observed, deployment: false });
+  }
+  for (const hint of hints) {
     const { error } = await db().rpc("bloom_support_enqueue_github_engineering", {
       p_delivery: delivery, p_repository: fullName, p_pr: hint.pr,
       p_sha: hint.sha, p_deployment: hint.deployment,

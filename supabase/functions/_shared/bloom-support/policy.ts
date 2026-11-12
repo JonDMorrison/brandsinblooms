@@ -494,6 +494,9 @@ export function evaluateRelease(policy: ReleasePolicy, issue: IssueFacts, pr: Pu
     if (!c) reasons.push(`required check missing: ${name}`);
     else if (c.status !== "completed" || c.conclusion !== "success") reasons.push(`required check not green: ${name}`);
   }
+  // A required green check cannot stand in for another current-head job.
+  // Shared by initial eligibility and the fresh check immediately before merge.
+  if (pr.checks.some((check) => check.status !== "completed")) reasons.push("checks still running");
   if (pr.checks.some((c) => c.status === "completed" && ["failure", "timed_out", "cancelled", "action_required"].includes(c.conclusion ?? ""))) {
     reasons.push("a check failed");
   }

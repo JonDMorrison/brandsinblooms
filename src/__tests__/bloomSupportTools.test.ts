@@ -116,6 +116,8 @@ vi.mock("../../supabase/functions/_shared/bloom-support/github.ts", () => ({
   GitHubError: class GitHubError extends Error {},
   findPullRequestForBranch: vi.fn(),
   gh: releaseMocks.gh,
+  // Artifact-backed evidence must be explicitly arranged by tests that use it.
+  ghArtifactBytes: vi.fn(async () => { throw new Error("Unexpected GitHub artifact download"); }),
   mergePullRequest: releaseMocks.mergePullRequest,
   productionCommitForRepair: releaseMocks.productionCommitForRepair,
   productionDeployment: releaseMocks.productionDeployment,

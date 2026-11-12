@@ -34,7 +34,7 @@ describe("production and CI runtime parity", () => {
 
   it("revalidates repairs with the trusted NUL-safe guard and resumes safely", () => {
     expect((repair.match(/bloom-repair-path-guard\.mjs" --base/g) ?? [])).toHaveLength(2);
-    expect(repair).toContain('git show "origin/$IN_BASE:.github/scripts/bloom-repair-path-guard.mjs"');
+    expect(repair).toContain('git show "$PINNED_BASE:.github/scripts/bloom-repair-path-guard.mjs"');
     expect(repair).toContain('git show "HEAD:.github/scripts/bloom-repair-path-guard.mjs"');
     expect(repair).not.toContain("awk '{print $NF}'");
     expect(repair).toContain('REMOTE_TREE=$(git rev-parse "refs/remotes/origin/$IN_BRANCH^{tree}")');

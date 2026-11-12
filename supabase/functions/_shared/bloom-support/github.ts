@@ -5,7 +5,7 @@ import { isProductionEnvironment } from "./github-events.ts";
 //    Issues: write, Actions: write, Contents: read, Pull requests: read.
 //  - BLOOM_GITHUB_RELEASE_TOKEN: reads PR facts and merges eligible PRs.
 //    Contents: write, Pull requests: write. Never passed to the repair workflow.
-import { BloomError, env } from "./runtime.ts";
+import { BloomError, env, readResponseBytes } from "./runtime.ts";
 import type { PullRequestFacts } from "./policy.ts";
 
 export type Credential = "repair" | "release";
@@ -232,4 +232,24 @@ export async function productionDeployment(repo: string, sha: string): Promise<D
     deployment_id: deployments[0]?.deployment_id ?? null,
     deployments,
   };
+}
+
+/** Only GitHub's authenticated artifact endpoint may choose the signed URL.
+ * Never forward credentials to storage, follow further redirects or accept a
+ * URL from a repair report, receipt or caller. */
+export async function ghArtifactBytes(repo: string, artifactId: number): Promise<Uint8Array> {
+  if (repo !== "JonDMorrison/brandsinblooms" || !Number.isSafeInteger(artifactId) || artifactId <= 0) throw new Error("Invalid artifact");
+  const response = await fetch(`https://api.github.com/repos/${repo}/actions/artifacts/${artifactId}/zip`, {
+    headers: { Authorization: `Bearer ${token("repair")}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    redirect: "manual", signal: AbortSignal.timeout(20000),
+  });
+  if (response.status !== 302) { await response.body?.cancel(); throw new Error("Artifact redirect unavailable"); }
+  const location = response.headers.get("location");
+  await response.body?.cancel();
+  const url = new URL(location ?? "");
+  if (url.protocol !== "https:" || url.username || url.password || url.port ||
+    !(/\.blob\.core\.windows\.net$/.test(url.hostname) || /\.actions\.githubusercontent\.com$/.test(url.hostname))) throw new Error("Unexpected artifact storage");
+  const archive = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(20000) });
+  if (!archive.ok) { await archive.body?.cancel(); throw new Error("Artifact unavailable"); }
+  return await readResponseBytes(archive, 32768);
 }

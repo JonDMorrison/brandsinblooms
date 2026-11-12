@@ -189,13 +189,13 @@ export async function readiness(caller: Caller) {
     { key: "repair", label: "Automatic investigation + repair PRs", implemented: true, configured: !!env("BLOOM_GITHUB_REPAIR_TOKEN"), missing: need("BLOOM_GITHUB_REPAIR_TOKEN"),
       tested: "e2e with GitHub stubbed", enabled: automation, live: repairLive,
       note: `${repairLive ? `Last accepted repair report: ${repairLive}` : "No successful repair report evidence in the last 90 days"}. Each repo also needs BLOOM_REPAIR_OPENAI_API_KEY, BLOOM_REPAIR_REPORT_KEY and the BLOOM_SUPPORT_API_URL variable` },
-    { key: "ticket_flow", label: "Affected-flow verification before automatic closure", implemented: true,
+    { key: "ticket_flow", label: "Affected-flow verification: HTTP route rules", implemented: true,
       configured: ticketFlowMissing.length === 0, missing: ticketFlowMissing.map((repository) => `settings.release_policy.ticketFlowChecks.${repository}`),
       tested: "unit: trusted route selection and ticket binding; e2e: unverified flow remains open", enabled: s.auto_release_enabled === true,
       live: ticketFlowLive,
       note: ticketFlowMissing.length
-        ? `No trusted flow rule for ${ticketFlowMissing.join(", ")}; releases may pass smoke checks, but affected tickets stay open for a person`
-        : (ticketFlowLive ? `Last verified affected flow: ${ticketFlowLive}` : "Configured, with no successful affected-flow evidence in the last 90 days") },
+        ? `No generic HTTP route rule for ${ticketFlowMissing.join(", ")}. Only explicitly assigned trusted browser recipes can verify their exact linked tickets; all other affected flows remain open for a person.`
+        : (ticketFlowLive ? `Last verified affected flow (HTTP or trusted browser): ${ticketFlowLive}` : "Configured, with no successful affected-flow evidence in the last 90 days") },
     { key: "release", label: "Automatic release of eligible fixes", implemented: true, configured: releaseMissing.length === 0,
       missing: releaseMissing, tested: "unit: policy; e2e: eligible, sensitive, failed deploy",
       enabled: s.auto_release_enabled === true, live: recent(f.last_seen.fix_verified, 90) },
