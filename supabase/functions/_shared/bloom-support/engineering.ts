@@ -12,8 +12,8 @@
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
 import { promotionObservationSchedule, type EngineeringNext } from "./engineering-schedule.ts";
 import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
-import { evaluateRelease, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Product } from "./policy.ts";
-import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts } from "./github.ts";
+import { evaluateRelease, linkedTicketReleaseFacts, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Product } from "./policy.ts";
+import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts, releaseLabels } from "./github.ts";
 
 export interface EngineeringIssue {
   id: string; title: string; product: Product; repository: string | null; status: string; version: number;
@@ -611,15 +611,39 @@ export async function evaluate(
   }
   const releasePolicy = await rpc("setting", { key: "release_policy" });
   const policy = resolvePolicy(releasePolicy, (await rpc("setting", { key: "auto_release_enabled" })) === true);
-  const kinds = issue.tickets.length ? "bug" : "unknown";
+  // list_engineering deliberately contains only ticket summaries. Read each
+  // authoritative ticket instead of inferring its kind/product from linkage.
+  const tickets: Array<{ kind?: unknown; product?: unknown } | null> = [];
+  if (issue.tickets.length <= 50) {
+    for (const linked of issue.tickets) {
+      try {
+        const ticket = await rpc<{ id?: string; kind?: unknown; product?: unknown }>("get_ticket", {
+          actor: release.principalId, ticket_id: linked.id,
+        });
+        tickets.push(ticket?.id === linked.id ? ticket : null);
+      } catch { tickets.push(null); }
+    }
+  }
+  const scope = linkedTicketReleaseFacts(tickets, issue.product, issue.repository);
+  let labels: string[] | null = null;
+  try {
+    const githubIssue = issue.evidence?.github_issue as { number?: unknown } | undefined;
+    labels = await releaseLabels(issue.repository, issue.pr_number, githubIssue?.number);
+  } catch {
+    // Missing GitHub permissions and API failures cannot clear release holds.
+  }
   // Automatic rollback exists only where Bloom can redeploy the previous production build.
   const rollbackTarget = await vercelTarget(issue.repository);
   const eligibility = evaluateRelease(policy, {
-    kind: kinds as "bug",
-    reproduced: !!issue.reproduction?.failing_test || issue.reproduction?.reproduced === true,
+    ...scope,
+    // Automatic reproduction remains unavailable until a trusted regression
+    // catalogue/recipe can establish it independently. Agent-authored tests,
+    // failing-test paths, booleans and reports are not release evidence.
+    // Current-head human approval remains available under the safeguards below.
+    reproduced: false,
     intendedBehaviourEstablished: issue.reproduction?.intended_behaviour_established === true,
-    productsTouched: 1,
-    labels: [],
+    labels: labels ?? [],
+    labelsVerified: labels !== null,
     hasProductionVerification: verificationChecksForPolicy(
       releasePolicy,
       issue.repository!,
@@ -631,7 +655,7 @@ export async function evaluate(
     // A person approved; still require green checks and no open threads.
     // Jon's approval replaces the policy's area/size/review limits, never CI: every existing check
     // must be complete and green, no review may request changes, and no thread may be open.
-    const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|no required checks configured|a check failed|unresolved|requested changes|not mergeable|empty change|no production verification|no supported rollback/.test(r));
+    const hardBlocks = eligibility.reasons.filter((r) => /required check (missing|not green)|no required checks configured|a check failed|unresolved|requested changes|not mergeable|empty change|no production verification|no supported rollback|project release hold|labels are not verified/.test(r));
     // The approval covers exactly the commit Jon reviewed. A new push needs a new approval.
     if (issue.approved_head_sha && issue.approved_head_sha !== pr.head.sha) {
       await update(release, issue, "awaiting_approval", { eligibility, head_sha: pr.head.sha }, "The pull request changed after approval; it needs approving again");

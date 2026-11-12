@@ -98,6 +98,19 @@ export async function pullRequestFacts(repo: string, number: number, repairLogin
   };
 }
 
+/** Fetch both label sets from GitHub, never from an agent report or PR body. */
+export async function releaseLabels(repo: string, prNumber: number, issueNumber: unknown): Promise<string[] | null> {
+  if (!Number.isSafeInteger(issueNumber) || Number(issueNumber) < 1) return null;
+  const labels: string[] = [];
+  for (const number of new Set([prNumber, Number(issueNumber)])) {
+    const rows = await gh<Array<{ name?: unknown }>>("release", "GET", `/repos/${repo}/issues/${number}/labels?per_page=100`);
+    // A full page may be truncated. Never silently ignore a hold on another page.
+    if (!Array.isArray(rows) || rows.length >= 100 || rows.some((row) => typeof row.name !== "string")) return null;
+    labels.push(...rows.map((row) => String(row.name)));
+  }
+  return [...new Set(labels)];
+}
+
 /** Merge pinned to the evaluated head SHA: a push after evaluation makes the merge fail. */
 export async function mergePullRequest(repo: string, number: number, sha: string, title: string): Promise<{ sha: string }> {
   const out = await gh<{ sha: string; merged: boolean }>("release", "PUT", `/repos/${repo}/pulls/${number}/merge`, { sha, merge_method: "squash", commit_title: title });

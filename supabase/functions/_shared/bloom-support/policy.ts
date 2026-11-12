@@ -369,8 +369,34 @@ export interface IssueFacts {
   intendedBehaviourEstablished: boolean;
   productsTouched: number;
   labels: string[];
+  labelsVerified: boolean;
+  scopeEstablished: boolean;
   hasProductionVerification: boolean;
   hasRollback: boolean;
+}
+
+/** Aggregate every linked report; missing or mixed evidence cannot become a bug. */
+export function linkedTicketReleaseFacts(
+  tickets: Array<{ kind?: unknown; product?: unknown } | null>,
+  issueProduct: Product,
+  repository: string,
+): Pick<IssueFacts, "kind" | "productsTouched" | "scopeEstablished"> {
+  const products = new Set(tickets.map((ticket) => ticket?.product));
+  const kinds = new Set(tickets.map((ticket) => ticket?.kind));
+  const kind = tickets[0]?.kind;
+  const knownKinds: readonly unknown[] = ["unknown", "question", "bug", "change", "incident", "feature", "other"];
+  const knownProducts = Object.keys(PRODUCT_REPOSITORIES);
+  const scopeEstablished = tickets.length > 0 && products.size > 0 &&
+    [...products].every((product) => typeof product === "string" && knownProducts.includes(product)) &&
+    products.has(issueProduct) &&
+    [...products].every((product) =>
+      PRODUCT_REPOSITORIES[product as keyof typeof PRODUCT_REPOSITORIES]?.repository.toLowerCase() === repository.toLowerCase()
+    );
+  return {
+    kind: kinds.size === 1 && knownKinds.includes(kind) ? kind as Kind : "unknown",
+    productsTouched: products.size,
+    scopeEstablished,
+  };
 }
 
 export interface Eligibility {
@@ -410,6 +436,9 @@ export function evaluateRelease(policy: ReleasePolicy, issue: IssueFacts, pr: Pu
   if (issue.kind !== "bug") reasons.push("only bugs are eligible; features and behaviour changes need review");
   if (!issue.reproduced) reasons.push("bug was not reproduced");
   if (!issue.intendedBehaviourEstablished) reasons.push("intended behaviour is not established");
+  if (!issue.scopeEstablished || !Number.isInteger(issue.productsTouched) || issue.productsTouched < 1) reasons.push("product scope is not established");
+  if (!issue.labelsVerified) reasons.push("PR and issue labels are not verified");
+  if (issue.labels.some((l) => /(?:hold|do[- ]not[- ]merge|no[- ]auto[- ]merge|blocked)/i.test(l))) reasons.push("project release hold");
   if (issue.productsTouched > 1) reasons.push("change spans more than one product");
   if (issue.labels.some((l) => /security|payment|tax|payout|migration|auth|data-repair|infra/i.test(l))) reasons.push("issue carries a sensitive label");
   if (!issue.hasProductionVerification) reasons.push("no production verification is defined");
