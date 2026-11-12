@@ -11,11 +11,11 @@ const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 // Reviewed source pins bind the complete isolated writer and dependency catalogue.
 // Unknown revisions deliberately disable the capability, not its release gates.
 export const TRUSTED_SOURCES: Readonly<Record<string, string>> = Object.freeze({
-  [WORKFLOW]: "94ec24c6414a38f7461417882375e360e6feba382b3f891413f87ea9b1f050fc",
+  [WORKFLOW]: "6987909915fd43fd10b2f8db1ac57247d01c6efc10b0bfb3412c6a19e6a56ef7",
   ".github/scripts/bloom-trusted-live.mjs": "5881fbc17d67aac4d9369cfbf4293aafe213b881ca346c3731b5994319d52d25",
   "package.json": "e58b04dc74b91eb5efc1c7488edf416a73dd36b15654b00b475da9b1747a56f1",
   "package-lock.json": "018bcb1f9eb26ef7882231aa845b613ab31a08275be7c8ff6f4d684b810e2493",
-  ".github/scripts/bloom-trusted-reproduction.mjs": "0c80f65ebac3a633dd3b7903af9f6a8ccfdafbafe8ef853bd101f1111ce5d9ee",
+  ".github/scripts/bloom-trusted-reproduction.mjs": "99af39ee90b2ba975e92cbb012e5c6f529da72aa6fe7b2d82af9840b41e186cf",
   ".github/scripts/bloom-public-attachment-recipe.mjs": "7bc01ecdd2c2ac4e961ffe64b565f92901399d5d8000f907a3bf59c33585371e",
 });
 type ObjectValue = Record<string, unknown>;
@@ -142,7 +142,7 @@ export async function readTrustedProof(binding: ProofBinding, runId: number, io:
     const { run, receipt, repoId } = envelope;
     const root = `/repos/${binding.repository}`;
     const pr = await io.api<ObjectValue>(`${root}/pulls/${binding.pr}`);
-    if (obj(pr.head).sha !== binding.head || obj(obj(pr.head).repo).id !== repoId || obj(obj(pr.base).repo).id !== repoId || obj(pr.base).ref !== "main") return null;
+    if (obj(pr.head).sha !== binding.head || obj(obj(pr.head).repo).id !== repoId || obj(obj(pr.base).repo).id !== repoId || obj(pr.base).ref !== "main" || obj(pr.base).sha !== run.head_sha) return null;
     const commit = await io.api<ObjectValue>(`${root}/git/commits/${binding.head}`);
     const tree = obj(commit.tree).sha;
     if (commit.sha !== binding.head || !SHA.test(String(tree)) || !Array.isArray(commit.parents) || commit.parents.length !== 1 || obj(commit.parents[0]).sha !== run.head_sha) return null;

@@ -60,7 +60,7 @@ test('live job has no repair execution, candidate checkout, Docker, or secret cr
   assert.match(job,/inputs.mode == 'verify'/);assert.match(job,/ref: "\$\{\{ github.sha \}\}"/);
   assert.doesNotMatch(job,/secrets\.|docker|inputs.head|inputs.deployed|contents: write/);
   assert.match(job,/VERIFICATION_CONTEXT: \$\{\{ inputs.verification_context \}\}/);
-  assert.match(workflow,/if: always\(\) && inputs.mode != 'verify'/);
+  assert.match(workflow,/if: always\(\) && inputs.mode == 'repair'/);
   const supervisor=readFileSync(new URL('./bloom-trusted-reproduction.mjs',import.meta.url),'utf8');
   assert.match(supervisor,/launchTrustedBrowser\(chromium\)/);
   assert.equal((supervisor.match(/await launchTrustedBrowser\(chromium\)/g) ?? []).length,1);

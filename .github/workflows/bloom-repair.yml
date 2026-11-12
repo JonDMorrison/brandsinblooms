@@ -18,7 +18,9 @@ run-name: ${{ inputs.mode == 'verify' && format('Bloom verify {0} {1}', inputs.e
 on:
   workflow_dispatch:
     inputs:
-      mode: { description: "repair or verify", default: repair, type: choice, options: [repair, verify] }
+      mode: { description: "repair, live verify, or read-only reproduce existing PR", default: repair, type: choice, options: [repair, verify, reproduce] }
+      expected_pr: { description: "Existing PR number for read-only reproduction only", required: false }
+      expected_head: { description: "Exact existing PR head SHA for read-only reproduction only", required: false }
       verification_nonce: { description: "Server-owned live verification nonce", required: false }
       verification_context: { description: "Server-owned bounded JSON identity binding", required: false }
       github_issue: { description: "GitHub issue number with sanitized evidence", required: false }
@@ -40,7 +42,7 @@ env:
 
 jobs:
   prepare:
-    if: inputs.mode != 'verify'
+    if: inputs.mode == 'repair'
     outputs:
       base_sha: ${{ steps.base.outputs.sha }}
     runs-on: ubuntu-latest
@@ -77,6 +79,7 @@ jobs:
         with: { name: evidence, path: bloom/issue.md, retention-days: 7 }
 
   agent:
+    if: inputs.mode == 'repair'
     needs: prepare
     env:
       PINNED_BASE: ${{ needs.prepare.outputs.base_sha }}
@@ -222,7 +225,7 @@ jobs:
     needs: [prepare, agent]
     env:
       PINNED_BASE: ${{ needs.prepare.outputs.base_sha }}
-    if: needs.agent.outputs.changed == 'true'
+    if: inputs.mode == 'repair' && needs.agent.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -315,11 +318,12 @@ jobs:
 
   trusted-reproduction:
     needs: publish
-    if: needs.publish.result == 'success' && needs.publish.outputs.recipe_applicable == 'true' && github.repository == 'JonDMorrison/brandsinblooms' && inputs.base == 'main'
+    if: always() && github.repository == 'JonDMorrison/brandsinblooms' && github.ref == 'refs/heads/main' && inputs.base == 'main' && ((inputs.mode == 'repair' && needs.publish.result == 'success' && needs.publish.outputs.recipe_applicable == 'true') || inputs.mode == 'reproduce')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -332,14 +336,33 @@ jobs:
         run: |
           npm ci --ignore-scripts
           docker pull node:24-bookworm-slim
+      - name: Bind existing generated patch for read-only reproduction
+        if: inputs.mode == 'reproduce'
+        id: recovery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode }}
+          RUN_REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+          TRUSTED_SHA: ${{ github.sha }}
+          EXPECTED_HEAD: ${{ inputs.expected_head }}
+          EXPECTED_PR: ${{ inputs.expected_pr }}
+          BRANCH: ${{ inputs.branch }}
+          BASE_BRANCH: ${{ inputs.base }}
+          ENGINEERING_ID: ${{ inputs.engineering_issue_id }}
+          ISSUE_NUMBER: ${{ inputs.github_issue }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node .github/scripts/bloom-trusted-reproduction.mjs --bind-reproduction
       - name: Observe fixed public recipe on isolated base and head builds
         env:
           REPOSITORY: ${{ github.repository }}
           REPOSITORY_ID: ${{ github.repository_id }}
           TRUSTED_SHA: ${{ github.sha }}
-          BASE_SHA: ${{ needs.publish.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.publish.outputs.head_sha }}
-          PR_NUMBER: ${{ needs.publish.outputs.pr_number }}
+          BASE_SHA: ${{ inputs.mode == 'reproduce' && steps.recovery.outputs.base_sha || needs.publish.outputs.base_sha }}
+          HEAD_SHA: ${{ inputs.mode == 'reproduce' && steps.recovery.outputs.head_sha || needs.publish.outputs.head_sha }}
+          PR_NUMBER: ${{ inputs.mode == 'reproduce' && steps.recovery.outputs.pr_number || needs.publish.outputs.pr_number }}
           ISSUE_NUMBER: ${{ inputs.github_issue }}
           ENGINEERING_ID: ${{ inputs.engineering_issue_id }}
           RUN_ID: ${{ github.run_id }}
@@ -391,7 +414,7 @@ jobs:
 
   report:
     needs: [prepare, agent, publish, trusted-reproduction]
-    if: always() && inputs.mode != 'verify'
+    if: always() && inputs.mode == 'repair'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
