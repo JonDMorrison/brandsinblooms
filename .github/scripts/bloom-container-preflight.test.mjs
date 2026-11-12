@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { BUILD, buildSnapshot, safeBuildFailure, pinnedBuildImage } from './bloom-trusted-reproduction.mjs';
+import { BUILD, buildSnapshot, safeBuildFailure, pinnedBuildImage, classifyBuildError } from './bloom-trusted-reproduction.mjs';
 
 test('diagnostics disclose only fixed stage/code/status/signal, never candidate text', () => {
-  for (const stage of ['setup', 'config-bundle', 'config-import', 'config-evaluation', 'vite-build']) {
+  for (const stage of ['setup', 'config-bundle', 'vite-import', 'config-import', 'config-evaluation', 'vite-build']) {
     const error = {status:1, stderr:Buffer.from(`SECRET raw stack\nBLOOM_BUILD_DIAGNOSTIC ${JSON.stringify({stage,code:'EACCES',message:'SECRET'})}\n`)};
     assert.equal(safeBuildFailure(error).message, `Sandbox build failed: stage=${stage} code=EACCES status=1 signal=none`);
   }
@@ -16,7 +16,7 @@ test('diagnostics disclose only fixed stage/code/status/signal, never candidate 
   }
   assert.match(safeBuildFailure({code:'ENOBUFS',status:null}).message, /code=ENOBUFS/);
   assert.doesNotThrow(() => new Function(BUILD));
-  for (const stage of ['config-bundle','config-import','config-evaluation','vite-build']) assert.ok(BUILD.includes(`stage = '${stage}'`));
+  for (const stage of ['config-bundle','vite-import','config-import','config-evaluation','vite-build']) assert.ok(BUILD.includes(`stage = '${stage}'`));
 });
 
 test('snapshot retains all restrictions, bounds, output validation and cleanup on success/failure', () => {
@@ -73,4 +73,29 @@ test('hosted preflight has its own clean job and exact observer install mode', (
   assert.match(preflight, /docker pull node:24-bookworm-slim/);
   assert.match(preflight, /node \.github\/scripts\/bloom-container-preflight\.mjs/);
   assert.doesNotMatch(preflight, /secrets\.|contents: write|needs:|npm run|run: npm ci\n/);
+});
+
+
+test('nested native diagnostics inspect bounded causes and arrays without exposing text', () => {
+  const missing = Object.assign(new Error('private path'), {code:'MODULE_NOT_FOUND'});
+  const dlopen = Object.assign(new Error('private native path'), {code:'ERR_DLOPEN_FAILED'});
+  assert.equal(classifyBuildError(new Error('Failed to load native binding', {cause:[missing,dlopen]})), 'ERR_DLOPEN_FAILED');
+  assert.equal(classifyBuildError({cause:[missing,{code:'PLUGIN_ERROR'},{code:'EROFS'}]}), 'EROFS');
+  assert.equal(classifyBuildError(new Error('Failed to load native binding', {cause:[missing]})), 'MODULE_NOT_FOUND');
+  assert.equal(classifyBuildError(new Error('private Rollup wrapper', {cause:Object.assign(new Error('private library'), {code:'ERR_DLOPEN_FAILED'})})), 'ERR_DLOPEN_FAILED');
+  assert.equal(classifyBuildError(new Error('Failed to load native binding SECRET')), 'NATIVE_BINDING_LOAD_FAILED');
+  assert.equal(classifyBuildError(new Error('Cannot find package SECRET')), 'MISSING_MODULE');
+  assert.equal(classifyBuildError(new Error('SECRET cannot open shared object file')), 'NATIVE_LIBRARY_LOAD_FAILED');
+  assert.equal(classifyBuildError({cause:{cause:{cause:missing}}}), 'MODULE_NOT_FOUND');
+  assert.equal(classifyBuildError({cause:{cause:{cause:{cause:missing}}}}), 'UNKNOWN');
+  assert.equal(classifyBuildError({cause:[...Array.from({length:6},()=>({})),missing]}), 'UNKNOWN');
+  const cycle = {}; cycle.cause = cycle;
+  assert.equal(classifyBuildError(cycle), 'UNKNOWN');
+  assert.equal(classifyBuildError({get code(){throw new Error('SECRET');}}), 'UNKNOWN');
+  assert.equal(classifyBuildError(new Error('x'.repeat(2048)+'Cannot find module SECRET')), 'UNKNOWN');
+  assert.equal(classifyBuildError({code:'SECRET',message:'SECRET'}), 'UNKNOWN');
+  // The in-container classifier is the same tested implementation, not a divergent copy.
+  assert.ok(BUILD.includes(classifyBuildError.toString()));
+  const error = safeBuildFailure({status:1,stderr:Buffer.from('BLOOM_BUILD_DIAGNOSTIC {"stage":"vite-import","code":"NATIVE_BINDING_LOAD_FAILED"}')});
+  assert.equal(error.message,'Sandbox build failed: stage=vite-import code=NATIVE_BINDING_LOAD_FAILED status=1 signal=none');
 });

@@ -44,8 +44,39 @@ export async function serve(files) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return { origin: `http://127.0.0.1:${server.address().port}`, close: () => new Promise(resolve => server.close(resolve)) };
 }
-const BUILD_STAGES = ['setup', 'config-bundle', 'config-import', 'config-evaluation', 'vite-build'];
-const BUILD_CODES = ['ENOENT', 'EACCES', 'EROFS', 'ENOMEM', 'ENOSPC', 'ERR_MODULE_NOT_FOUND', 'ERR_DLOPEN_FAILED', 'MODULE_NOT_FOUND', 'PLUGIN_ERROR', 'ENOBUFS', 'ETIMEDOUT'];
+const BUILD_STAGES = ['setup', 'config-bundle', 'vite-import', 'config-import', 'config-evaluation', 'vite-build'];
+const BUILD_CODES = ['ENOENT', 'EACCES', 'EROFS', 'ENOMEM', 'ENOSPC', 'ERR_MODULE_NOT_FOUND', 'ERR_DLOPEN_FAILED', 'MODULE_NOT_FOUND', 'PLUGIN_ERROR', 'ENOBUFS', 'ETIMEDOUT', 'NATIVE_BINDING_LOAD_FAILED', 'NATIVE_LIBRARY_LOAD_FAILED', 'MISSING_MODULE'];
+// Only fixed labels leave this traversal. Both graph size and message work are bounded.
+export function classifyBuildError(error, codes = BUILD_CODES) {
+  const queue = [{ value: error, depth: 0 }], seen = new Set();
+  let visited = 0, fallback = 'UNKNOWN';
+  const foundCodes = new Set();
+  while (queue.length && visited < 8) {
+    const { value, depth } = queue.shift();
+    if (!value || typeof value !== 'object' || seen.has(value)) continue;
+    seen.add(value); visited++;
+    try {
+      if (codes.includes(value.code)) foundCodes.add(value.code);
+      const message = typeof value.message === 'string' ? value.message.slice(0, 2048) : '';
+      if (fallback === 'UNKNOWN') {
+        if (/failed to load native binding/i.test(message)) fallback = 'NATIVE_BINDING_LOAD_FAILED';
+        else if (/cannot find (?:module|package)|module not found/i.test(message)) fallback = 'MISSING_MODULE';
+        else if (/cannot open shared object file|invalid ELF header|wrong ELF class|failed to map segment from shared object|GLIBC_[0-9.]+.*not found/i.test(message)) fallback = 'NATIVE_LIBRARY_LOAD_FAILED';
+      }
+      if (depth < 3) {
+        const children = Array.isArray(value) ? value.slice(0, 8) : [value.cause];
+        for (const child of children) {
+          if (queue.length + visited >= 8) break;
+          queue.push({ value: child, depth: depth + 1 });
+        }
+      }
+    } catch { /* Hostile getters must not expose candidate text or prevent a fixed diagnostic. */ }
+  }
+  // SWC probes a missing local binary before the actual installed native package.
+  // Prefer actionable underlying failures over that expected module-missing probe.
+  const priority = ['ERR_DLOPEN_FAILED', 'EACCES', 'EROFS', 'ENOMEM', 'ENOSPC', 'ENOBUFS', 'ETIMEDOUT', 'ENOENT', 'NATIVE_LIBRARY_LOAD_FAILED', 'NATIVE_BINDING_LOAD_FAILED', 'MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'MISSING_MODULE', 'PLUGIN_ERROR'];
+  return priority.find(code => foundCodes.has(code)) ?? fallback;
+}
 export const BUILD = `
 let stage = 'setup';
 (async()=>{
@@ -53,16 +84,16 @@ const fs = require('node:fs');
 fs.symlinkSync('/app/node_modules', '/tmp/node_modules');
 stage = 'config-bundle';
 require('/app/node_modules/esbuild').buildSync({entryPoints:['/app/vite.config.ts'],bundle:true,platform:'node',format:'esm',packages:'external',outfile:'/tmp/config.mjs',define:{__dirname:JSON.stringify('/app')}});
-stage = 'config-import';
+stage = 'vite-import';
 const {build}=await import('/app/node_modules/vite/dist/node/index.js');
+stage = 'config-import';
 let {default:config}=await import('file:///tmp/config.mjs');
 stage = 'config-evaluation';
 if(typeof config==='function')config=await config({command:'build',mode:'production'});
 stage = 'vite-build';
 await build({...config,configFile:false,root:'/app',build:{...config.build,outDir:'/out',emptyOutDir:true}});
 })().catch(error=>{
-const codes = ${JSON.stringify(BUILD_CODES)};
-const code = codes.includes(error?.code) ? error.code : 'UNKNOWN';
+const code = (${classifyBuildError.toString()})(error, ${JSON.stringify(BUILD_CODES)});
 process.stderr.write('\\nBLOOM_BUILD_DIAGNOSTIC '+JSON.stringify({stage,code})+'\\n');
 process.exit(1);
 });

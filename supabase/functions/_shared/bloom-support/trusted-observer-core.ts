@@ -15,7 +15,7 @@ export const TRUSTED_SOURCES: Readonly<Record<string, string>> = Object.freeze({
   ".github/scripts/bloom-trusted-live.mjs": "5881fbc17d67aac4d9369cfbf4293aafe213b881ca346c3731b5994319d52d25",
   "package.json": "e58b04dc74b91eb5efc1c7488edf416a73dd36b15654b00b475da9b1747a56f1",
   "package-lock.json": "018bcb1f9eb26ef7882231aa845b613ab31a08275be7c8ff6f4d684b810e2493",
-  ".github/scripts/bloom-trusted-reproduction.mjs": "281022c0cd1bd5ee83d9b824163bfec36b285c236f70335eb95d80d5ae48f59c",
+  ".github/scripts/bloom-trusted-reproduction.mjs": "139c15ebb4073dbeb71d5ea1f71b34d9916f137b87990c4e6f60e6197f8d95b1",
   ".github/scripts/bloom-public-attachment-recipe.mjs": "7bc01ecdd2c2ac4e961ffe64b565f92901399d5d8000f907a3bf59c33585371e",
 });
 type ObjectValue = Record<string, unknown>;
