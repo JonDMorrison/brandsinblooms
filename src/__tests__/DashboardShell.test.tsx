@@ -333,27 +333,28 @@ beforeEach(() => {
   scrollToMock.mockClear();
   signOutCompletelyMock.mockClear();
   if (typeof window.localStorage.clear === "function") window.localStorage.clear();
-  supportMocks.report.mockResolvedValue({
+  // Clearing calls alone leaves unconsumed one-shot responses after an interrupted test.
+  supportMocks.report.mockReset().mockResolvedValue({
     received: true,
     duplicate_delivery: false,
     ticket_id: "11111111-1111-4111-8111-111111111111",
     number: 1042,
     attachments: { stored: 0, failed: [] },
   });
-  supportMocks.publicRequest.mockResolvedValue({
+  supportMocks.publicRequest.mockReset().mockResolvedValue({
     received: true,
     duplicate_delivery: false,
     number: 1043,
     email_delivery: "pending",
   });
-  supportMocks.getTicket.mockResolvedValue(supportTicket);
-  supportMocks.listTickets.mockResolvedValue([supportTicket]);
-  supportMocks.me.mockResolvedValue(supportAgent);
-  supportMocks.addMessage.mockResolvedValue({
+  supportMocks.getTicket.mockReset().mockResolvedValue(supportTicket);
+  supportMocks.listTickets.mockReset().mockResolvedValue([supportTicket]);
+  supportMocks.me.mockReset().mockResolvedValue(supportAgent);
+  supportMocks.addMessage.mockReset().mockResolvedValue({
     message_id: "77777777-7777-4777-8777-777777777777",
     duplicate: false,
   });
-  supportMocks.uploadAttachment.mockResolvedValue({ id: "attachment-1" });
+  supportMocks.uploadAttachment.mockReset().mockResolvedValue({ id: "attachment-1" });
 });
 
 describe("DashboardShell", () => {
@@ -1257,7 +1258,10 @@ describe("Bloom Support staff workspace", () => {
     const reply = await screen.findByRole("textbox", { name: "Message" });
     expect(reply).toHaveAttribute("maxlength", "20000");
     expect(screen.getByText("0 / 20,000 characters")).toBeInTheDocument();
-    await user.type(reply, "Please restart the receipt printer and tell us what happens.");
+    // This exercises payload identity and retry, not character-by-character rendering speed.
+    await user.click(reply);
+    await user.paste("Please restart the receipt printer and tell us what happens.");
+    expect(reply).toHaveValue("Please restart the receipt printer and tell us what happens.");
     await user.click(screen.getByRole("button", { name: "Send to client" }));
 
     await waitFor(() => expect(supportMocks.addMessage).toHaveBeenCalledTimes(1));
@@ -1339,7 +1343,9 @@ describe("Bloom Support staff workspace", () => {
     renderConversation();
 
     const reply = await screen.findByRole("textbox", { name: "Message" });
-    await user.type(reply, "The first reply may already be saved.");
+    await user.click(reply);
+    await user.paste("The first reply may already be saved.");
+    expect(reply).toHaveValue("The first reply may already be saved.");
     await user.click(screen.getByRole("button", { name: "Send to client" }));
     await screen.findByRole("button", { name: "Retry same reply" });
     const firstPayload = supportMocks.addMessage.mock.calls[0][1];
@@ -1348,7 +1354,8 @@ describe("Bloom Support staff workspace", () => {
     expect(reply).toBeEnabled();
     await waitFor(() => expect(reply).toHaveFocus());
     await user.clear(reply);
-    await user.type(reply, "This is deliberately a new private note.");
+    await user.paste("This is deliberately a new private note.");
+    expect(reply).toHaveValue("This is deliberately a new private note.");
     await user.click(screen.getByRole("button", { name: "Internal note" }));
     await user.click(screen.getByRole("button", { name: "Add note" }));
 
