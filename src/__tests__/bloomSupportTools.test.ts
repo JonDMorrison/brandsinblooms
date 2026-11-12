@@ -40,6 +40,7 @@ import {
   approvedVerificationUrl,
   deploy as deployEngineeringRelease,
   evaluate as evaluateEngineeringRelease,
+  investigate as investigateEngineeringRepair,
   type EngineeringIssue,
   ticketFlowChecksForPolicy,
   verify as verifyEngineeringRelease,
@@ -50,6 +51,8 @@ import { actions as supportActions } from "../../supabase/functions/_shared/bloo
 const releaseMocks = vi.hoisted(() => ({
   commitContains: vi.fn(),
   env: vi.fn(),
+  gh: vi.fn(),
+  mergePullRequest: vi.fn(),
   productionCommitForRepair: vi.fn(),
   productionDeployment: vi.fn(),
   pullRequestFacts: vi.fn(),
@@ -106,8 +109,8 @@ vi.mock("../../supabase/functions/_shared/bloom-support/github.ts", () => ({
   commitContains: releaseMocks.commitContains,
   GitHubError: class GitHubError extends Error {},
   findPullRequestForBranch: vi.fn(),
-  gh: vi.fn(),
-  mergePullRequest: vi.fn(),
+  gh: releaseMocks.gh,
+  mergePullRequest: releaseMocks.mergePullRequest,
   productionCommitForRepair: releaseMocks.productionCommitForRepair,
   productionDeployment: releaseMocks.productionDeployment,
   pullRequestFacts: releaseMocks.pullRequestFacts,
@@ -694,6 +697,17 @@ describe("Bloom engineering release recovery", () => {
     tickets: [],
   });
 
+  // Release cases need the authoritative linked-ticket classification that
+  // list_engineering now supplies. Empty/unknown summaries are tested below.
+  const cmsIssue = (): EngineeringIssue => ({
+    ...baseIssue(), product: "cms", repository: cmsRepository,
+    tickets: [{
+      id: "cms-ticket", number: 1042, subject: "Broken CMS support flow",
+      account_id: "cms-account", status: "working", kind: "bug", product: "cms",
+      feature_request_id: null, feature_status: null, feature_product_approved: false,
+    }],
+  });
+
   function wireIssue(
     initial: EngineeringIssue,
     releasePolicy: Record<string, unknown> = policy,
@@ -703,6 +717,7 @@ describe("Bloom engineering release recovery", () => {
     releaseMocks.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
       if (fn === "list_engineering") return [structuredClone(issue)];
       if (fn === "setting") return args.key === "release_policy" ? releasePolicy : null;
+      if (fn === "repair_capacity") return { active: 0, max_active: 1, attempts: 0, max_attempts: 2 };
       if (fn === "get_ticket") {
         const ticket = tickets[String(args.ticket_id)];
         if (!ticket) throw new Error("ticket unavailable");
@@ -713,6 +728,7 @@ describe("Bloom engineering release recovery", () => {
         issue = {
           ...issue,
           ...(update.patch ?? {}),
+          evidence: { ...issue.evidence, ...update.patch?.evidence as Record<string, unknown> },
           ...(update.status ? { status: update.status } : {}),
           version: issue.version + 1,
         } as EngineeringIssue;
@@ -760,6 +776,8 @@ describe("Bloom engineering release recovery", () => {
     releaseMocks.productionDeployment.mockReset();
     releaseMocks.pullRequestFacts.mockReset();
     releaseMocks.releaseLabels.mockReset().mockResolvedValue([]);
+    releaseMocks.gh.mockReset();
+    releaseMocks.mergePullRequest.mockReset();
     releaseMocks.rpc.mockReset();
   });
 
@@ -882,7 +900,7 @@ describe("Bloom engineering release recovery", () => {
         state: "closed",
         head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
       },
-      facts: {},
+      facts: { baseBranch: "main" },
     });
     await expect(evaluateEngineeringRelease(releaseCaller, baseIssue().id)).resolves.toMatchObject({
       next: { step: "deploy" },
@@ -899,7 +917,7 @@ describe("Bloom engineering release recovery", () => {
         state: "closed",
         head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
       },
-      facts: {},
+      facts: { baseBranch: "main" },
     });
     await expect(evaluateEngineeringRelease(releaseCaller, baseIssue().id)).resolves.toEqual({
       next: { step: "evaluate", delaySeconds: 60 },
@@ -927,7 +945,7 @@ describe("Bloom engineering release recovery", () => {
         merge_commit_sha: null,
         head: { ref: "bloom/fix-11111111", sha: "reviewed-head" },
       },
-      facts: { checks: [], files: [] },
+      facts: { baseBranch: "main", checks: [], files: [] },
     });
 
     await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
@@ -939,6 +957,161 @@ describe("Bloom engineering release recovery", () => {
     });
   });
 
+  it("rejects PR retargeting to an unapproved branch before merging", async () => {
+    const issue = baseIssue();
+    const current = wireIssue(issue);
+    releaseMocks.pullRequestFacts.mockResolvedValue({
+      pr: {
+        merged: false, state: "open", merge_commit_sha: null,
+        head: { ref: issue.branch, sha: issue.head_sha },
+      },
+      facts: { baseBranch: "unreviewed", checks: [], files: [] },
+    });
+    await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
+      note: "unapproved pull request target",
+    });
+    expect(current()).toMatchObject({ status: "escalated" });
+  });
+
+  it.each([
+    { status: "open", evidence: {}, base: "main" },
+    { status: "investigating", evidence: { dispatch_pending: true }, base: "dev" },
+    { status: "investigating", evidence: { dispatch_pending: true, dispatch_base: "main" }, base: "main" },
+  ])("dispatches $status CMS repairs against their intended $base target", async ({ status, evidence, base }) => {
+    const issue = { ...cmsIssue(), status, evidence, pr_number: null, head_sha: null };
+    const current = wireIssue(issue, policy, {
+      "cms-ticket": { id: "cms-ticket", subject: "Broken CMS support flow", summary: "Synthetic repair evidence", context: {} },
+    });
+    releaseMocks.gh.mockImplementation(async (_credential: string, _method: string, apiPath: string) => {
+      if (apiPath.includes("/runs?")) return { workflow_runs: [] };
+      if (apiPath.endsWith("/issues")) return { number: 42, html_url: `https://github.com/${cmsRepository}/issues/42` };
+      if (apiPath.endsWith("/dispatches")) return undefined;
+      if (apiPath === `/repos/${cmsRepository}`) return { default_branch: "main" };
+      throw new Error(`unexpected GitHub request ${apiPath}`);
+    });
+    await expect(investigateEngineeringRepair(releaseCaller, releaseCaller, issue.id)).resolves.toMatchObject({
+      next: { step: "poll" },
+    });
+    expect(releaseMocks.gh).toHaveBeenCalledWith("repair", "POST", expect.stringMatching(/\/dispatches$/), {
+      ref: "main", inputs: expect.objectContaining({ base }),
+    });
+    expect(current().evidence).toMatchObject({ dispatch_base: base, dispatch_pending: false });
+  });
+
+  const cmsFacts = (base: "main" | "dev", independentApproval: boolean) => ({
+    factsComplete: true,
+    repository: cmsRepository,
+    baseBranch: base,
+    checks: [{ name: "unit", status: "completed", conclusion: "success" }],
+    files: [{ path: "src/component.ts", additions: 2, deletions: 1, status: "modified" }],
+    reviews: independentApproval ? [{ author: "reviewer", state: "APPROVED", independent: true }] : [],
+    mergeable: true,
+    unresolvedThreads: 0,
+    testFilesAdded: [],
+    testFilesModifiedOrDeleted: [],
+  });
+
+  it("rejects retargeting a CMS repair from dev to main at the same commit", async () => {
+    const issue = { ...cmsIssue(), eligibility: { base_branch: "dev" } };
+    const current = wireIssue(issue);
+    releaseMocks.pullRequestFacts.mockResolvedValue({ facts: cmsFacts("main", true) });
+    await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
+      note: "pull request target changed",
+    });
+    expect(current()).toMatchObject({ status: "escalated", eligibility: { base_branch: "dev" } });
+    expect(releaseMocks.mergePullRequest).not.toHaveBeenCalled();
+  });
+
+  it("asks for a fresh approval when the CMS PR target was never recorded", async () => {
+    const issue = cmsIssue();
+    const current = wireIssue(issue);
+    releaseMocks.pullRequestFacts.mockResolvedValue({
+      pr: { state: "open", merged: false, head: { sha: issue.head_sha } },
+      facts: cmsFacts("dev", true),
+    });
+    await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({ note: "re-approval needed" });
+    expect(current()).toMatchObject({ status: "awaiting_approval", eligibility: { base_branch: "dev" } });
+    expect(releaseMocks.mergePullRequest).not.toHaveBeenCalled();
+  });
+
+  it("keeps incomplete GitHub release facts blocked despite exact-head approval", async () => {
+    const issue = { ...cmsIssue(), eligibility: { base_branch: "main" } };
+    wireIssue(issue, { ...policy, requiredChecks: { [cmsRepository]: ["unit"] } });
+    releaseMocks.pullRequestFacts.mockResolvedValue({
+      pr: { state: "open", merged: false, head: { sha: issue.head_sha } },
+      facts: { ...cmsFacts("main", true), factsComplete: false },
+    });
+    await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
+      note: "approved, waiting: GitHub release facts are incomplete",
+    });
+    expect(releaseMocks.mergePullRequest).not.toHaveBeenCalled();
+  });
+
+  it.each(["empty", "unknown", "unapproved-feature"] as const)(
+    "keeps %s linked evidence blocked despite exact-head engineering approval", async (classification) => {
+      const issue = { ...cmsIssue(), eligibility: { base_branch: "main" } };
+      issue.tickets = classification === "empty" ? [] : issue.tickets.map((ticket) => ({
+        ...ticket,
+        kind: classification === "unknown" ? undefined : "feature" as const,
+        feature_request_id: classification === "unapproved-feature" ? "exact-feature" : null,
+        feature_status: classification === "unapproved-feature" ? "awaiting_decision" : null,
+      }));
+      const current = wireIssue(issue, { ...policy, requiredChecks: { [cmsRepository]: ["unit"] } });
+      releaseMocks.pullRequestFacts.mockResolvedValue({
+        pr: { state: "open", merged: false, head: { sha: issue.head_sha } },
+        facts: cmsFacts("main", true),
+      });
+      await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
+        note: "approved, waiting: feature requires a separate human product approval",
+      });
+      expect(current().status).toBe("approved");
+      expect(releaseMocks.mergePullRequest).not.toHaveBeenCalled();
+      expect(releaseMocks.rpc.mock.calls.some(([fn]) => fn === "get_ticket")).toBe(false);
+    },
+  );
+
+  it.each([
+    { independentApproval: false, currentBase: "main", note: "approved, waiting: no independent approving review" },
+    { independentApproval: true, currentBase: "dev", note: "pull request changed before merge" },
+    { independentApproval: true, currentBase: "main", note: "merged; tracking deployment" },
+  ])("checks CMS main review and the final PR base with independent review $independentApproval and base $currentBase", async ({ independentApproval, currentBase, note }) => {
+    const issue = {
+      ...cmsIssue(),
+      evidence: { dispatch_base: "main" },
+      eligibility: { base_branch: "main" },
+      rollback: { previous_deployment_id: "dpl_before_repair" },
+    };
+    const current = wireIssue(issue, { ...policy, requiredChecks: { [cmsRepository]: ["unit"] } });
+    const pr = { state: "open", merged: false, head: { sha: issue.head_sha } };
+    releaseMocks.pullRequestFacts.mockResolvedValue({ pr, facts: cmsFacts("main", independentApproval) });
+    releaseMocks.gh.mockResolvedValue({ ...pr, base: { ref: currentBase } });
+    releaseMocks.mergePullRequest.mockResolvedValue({ sha: "cms-main-merge" });
+
+    await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({ note });
+    if (independentApproval && currentBase === "main") {
+      expect(releaseMocks.mergePullRequest).toHaveBeenCalledWith(cmsRepository, issue.pr_number, issue.head_sha, expect.any(String));
+      expect(current()).toMatchObject({ status: "deploying", merge_sha: "cms-main-merge", eligibility: { base_branch: "main" } });
+    } else {
+      expect(releaseMocks.mergePullRequest).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each([
+    { base: "feature/unsafe-release", merged: true, merge_commit_sha: "stored-merge" },
+    { base: "main", merged: true, merge_commit_sha: "different-merge" },
+    { base: "main", merged: false, merge_commit_sha: "stored-merge" },
+    { base: "dev", merged: true, merge_commit_sha: "stored-merge" },
+  ])("holds production when the PR merge cannot be verified ($base, $merged, $merge_commit_sha)", async ({ base, merged, merge_commit_sha }) => {
+    const issue = { ...cmsIssue(), status: "deploying", merge_sha: "stored-merge", eligibility: { base_branch: "main" } };
+    const current = wireIssue(issue);
+    releaseMocks.gh.mockResolvedValue({ base: { ref: base }, merged, merge_commit_sha });
+    await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toEqual({
+      note: "unverified merged PR",
+    });
+    expect(current()).toMatchObject({ status: "escalated" });
+    expect(releaseMocks.productionDeployment).not.toHaveBeenCalled();
+  });
+
   it("observes a dev promotion and skips every rollback deployment that already contains the repair", async () => {
     const issue = {
       ...baseIssue(),
@@ -948,6 +1121,7 @@ describe("Bloom engineering release recovery", () => {
       merge_sha: "dev-merge-sha",
     };
     const current = wireIssue(issue);
+    releaseMocks.gh.mockResolvedValue({ base: { ref: "dev" }, merged: true, merge_commit_sha: issue.merge_sha });
     releaseMocks.productionCommitForRepair.mockResolvedValue("main-production-sha");
     releaseMocks.productionDeployment.mockResolvedValue({
       state: "success",
@@ -998,6 +1172,7 @@ describe("Bloom engineering release recovery", () => {
       merge_sha: "dev-merge-sha",
     };
     const current = wireIssue(issue);
+    releaseMocks.gh.mockResolvedValue({ base: { ref: "dev" }, merged: true, merge_commit_sha: issue.merge_sha });
     releaseMocks.productionCommitForRepair.mockResolvedValue(null);
     await expect(deployEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
       next: { step: "deploy", delaySeconds: 60 },
@@ -1024,6 +1199,7 @@ describe("Bloom engineering release recovery", () => {
       },
     };
     const current = wireIssue(issue);
+    releaseMocks.gh.mockResolvedValue({ base: { ref: "main" }, merged: true, merge_commit_sha: issue.merge_sha });
     releaseMocks.productionDeployment.mockResolvedValue({
       state: "success",
       environment: "Production – bloomsuite-crm",

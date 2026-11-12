@@ -1,10 +1,10 @@
 import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
 import {
   authorizedManualForwarder, classify, DEFAULT_RELEASE_POLICY, evaluateRelease, indicatesStillBroken, isAutomatedEmail, linkedTicketReleaseFacts, matchesAny, mergeModelClassification,
-  parseReferences, redactForEngineering, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
+  parseReferences, PRODUCT_REPOSITORIES, redactForEngineering, redactText, releaseBaseForPR, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
 } from "./policy.ts";
 import { signIntake, verifyIntakeSignature, verifySvix, hmacSha256 } from "./crypto.ts";
-import { isProductionEnvironment, productionCommitForRepair, releaseLabels } from "./github.ts";
+import { isProductionEnvironment, productionCommitForRepair, pullRequestFacts, releaseLabels } from "./github.ts";
 import { readBodyText, readJson } from "./runtime.ts";
 
 Deno.test("sanitizeContext keeps allow-listed fields and strips secrets", () => {
@@ -130,12 +130,13 @@ Deno.test("globs", () => {
   assertFalse(matchesAny("app/api/x.ts", ["app/components/**"]));
 });
 
-const goodIssue: IssueFacts = { kind: "bug", reproduced: true, intendedBehaviourEstablished: true, productsTouched: 1, labels: [], labelsVerified: true, scopeEstablished: true, hasProductionVerification: true, hasRollback: true };
+const goodIssue: IssueFacts = { kind: "bug", reproduced: true, intendedBehaviourEstablished: true, productsTouched: 1, labels: [], labelsVerified: true, scopeEstablished: true, featureProductApproved: true, hasProductionVerification: true, hasRollback: true };
 const repo = "Brands-In-Blooms/cms-brandsinblooms";
 const policy = { ...resolvePolicy({ approvedPaths: { [repo]: ["src/components/**"] }, requiredChecks: { [repo]: ["build", "unit"] } }, true) };
 function pr(over: Partial<PullRequestFacts> = {}): PullRequestFacts {
   return {
     repository: repo,
+    factsComplete: true,
     files: [{ path: "src/components/events/EventCard.tsx", additions: 6, deletions: 2, status: "modified" }, { path: "src/components/events/EventCard.regression.test.tsx", additions: 30, deletions: 0, status: "added" }],
     checks: [{ name: "build", status: "completed", conclusion: "success" }, { name: "unit", status: "completed", conclusion: "success" }],
     reviews: [{ state: "APPROVED", author: "jon", independent: true }],
@@ -283,10 +284,22 @@ Deno.test("manual forwarding aliases require aligned DKIM and grant no automatic
   assertFalse(authorizedManualForwarder("jon@brandsinblooms.com", true, false, []));
 });
 
+Deno.test("new BloomSites repairs target main without confusing already opened dev PRs", () => {
+  const cms = PRODUCT_REPOSITORIES.cms.repository;
+  assertEquals(PRODUCT_REPOSITORIES.cms.base, "main");
+  assertEquals(releaseBaseForPR(cms, "main"), "main");
+  assertEquals(releaseBaseForPR(cms, "dev"), "dev");
+  assertEquals(releaseBaseForPR(PRODUCT_REPOSITORIES.crm.repository, "dev"), null);
+  assertEquals(releaseBaseForPR(PRODUCT_REPOSITORIES.pos.repository, "dev"), null);
+  assertEquals(releaseBaseForPR(cms, "feature/unreviewed"), null);
+  assertEquals(releaseBaseForPR("Other/repository", "main"), null);
+  assertEquals(releaseBaseForPR(cms, undefined), null);
+});
+
 Deno.test("release eligibility requires complete ticket scope and verified labels", () => {
   const good = { kind: "bug", product: "cms" };
   assertEquals(linkedTicketReleaseFacts([good, good], "cms", repo), {
-    kind: "bug", productsTouched: 1, scopeEstablished: true,
+    kind: "bug", productsTouched: 1, scopeEstablished: true, featureProductApproved: true,
   });
   assertEquals(linkedTicketReleaseFacts([{ ...good, kind: "feature" }], "cms", repo).kind, "feature");
   for (const tickets of [[], [null], [good, null], [good, { kind: "feature", product: "cms" }]]) {
@@ -433,5 +446,80 @@ Deno.test("release labels include source-issue holds and reject incomplete label
     globalThis.fetch = originalFetch;
     if (originalToken === undefined) Deno.env.delete("BLOOM_GITHUB_RELEASE_TOKEN");
     else Deno.env.set("BLOOM_GITHUB_RELEASE_TOKEN", originalToken);
+  }
+});
+
+Deno.test("bounded GitHub fact pages must be complete before release evaluation", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = Deno.env.get("BLOOM_GITHUB_RELEASE_TOKEN");
+  Deno.env.set("BLOOM_GITHUB_RELEASE_TOKEN", "test-release-token");
+  let fullPage = "";
+  const repeated = <T>(page: string, value: T, bound = 100): T[] =>
+    Array.from({ length: fullPage === page ? bound : 1 }, () => value);
+  globalThis.fetch = (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const respond = (body: unknown) => Promise.resolve(Response.json(body));
+    if (url.pathname === "/graphql") return respond({ data: { repository: { pullRequest: {
+      reviewThreads: { nodes: repeated("threads", { isResolved: true }) },
+    } } } });
+    assertEquals(init?.method, "GET", "fact collection is read only");
+    if (url.pathname.endsWith("/pulls/42")) return respond({
+      number: 42, state: "open", merged: false, mergeable: true,
+      head: { ref: "repair", sha: "fixture-head" }, base: { ref: "main" }, user: { login: "author" },
+    });
+    if (url.pathname.endsWith("/files")) return respond(repeated("files", {
+      filename: "src/components/Card.tsx", additions: 1, deletions: 1, status: "modified",
+    }));
+    if (url.pathname.endsWith("/check-runs")) return respond({ check_runs: repeated("checks", {
+      name: "unit", status: "completed", conclusion: "success",
+    }) });
+    if (url.pathname.endsWith("/status")) return respond({ statuses: repeated("statuses", {
+      context: "build", state: "success",
+    }, 30) });
+    if (url.pathname.endsWith("/reviews")) return respond(repeated("reviews", {
+      state: "APPROVED", user: { login: "reviewer" }, commit_id: "fixture-head",
+    }));
+    throw new Error(`Unexpected read ${url.pathname}`);
+  };
+  try {
+    for (const page of ["", "files", "checks", "statuses", "reviews", "threads"]) {
+      fullPage = page;
+      const { facts } = await pullRequestFacts(repo, 42, []);
+      assertEquals(facts.factsComplete, page === "", page || "complete short pages");
+      const result = evaluateRelease(policy, goodIssue, facts);
+      assertEquals(result.reasons.includes("GitHub release facts are incomplete"), page !== "");
+    }
+    assert(evaluateRelease(policy, goodIssue, { ...pr(), factsComplete: false }).reasons.includes("GitHub release facts are incomplete"));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) Deno.env.delete("BLOOM_GITHUB_RELEASE_TOKEN");
+    else Deno.env.set("BLOOM_GITHUB_RELEASE_TOKEN", originalToken);
+  }
+});
+
+Deno.test("every linked feature needs its own positive human product decision", () => {
+  for (const tickets of [[], new Array<null>(1), [null]]) {
+    assertFalse(linkedTicketReleaseFacts(tickets, "cms", repo).featureProductApproved,
+      "empty or missing linked evidence cannot establish product approval");
+  }
+  const approved = { kind: "feature", product: "cms", feature_request_id: "exact-feature", feature_status: "accepted", feature_product_approved: true };
+  for (const status of ["accepted", "planned", "shipped"]) {
+    assertEquals(linkedTicketReleaseFacts([{ ...approved, feature_status: status }], "cms", repo).featureProductApproved, true);
+  }
+  for (const ticket of [
+    null,
+    {},
+    { kind: "unknown" },
+    { ...approved, feature_request_id: null },
+    { ...approved, feature_status: "declined" },
+    { ...approved, feature_status: "awaiting_decision" },
+    { ...approved, feature_status: "merged" },
+    { ...approved, feature_product_approved: false },
+    { ...approved, feature_product_approved: undefined },
+    { ...approved, kind: "bug", feature_product_approved: false },
+  ]) {
+    const scope = linkedTicketReleaseFacts([approved, ticket], "cms", repo);
+    assertFalse(scope.featureProductApproved, "another feature's approval cannot authorize this one");
+    assert(evaluateRelease(policy, { ...goodIssue, ...scope }, pr()).reasons.includes("feature requires a separate human product approval"));
   }
 });

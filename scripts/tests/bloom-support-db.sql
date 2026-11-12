@@ -2905,10 +2905,10 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert((
   SELECT bool_and(
     (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(ticket) key)
-      = ARRAY['account_id','automation','id','kind','number','product','status','subject']::text[]
+      = ARRAY['account_id','automation','feature_product_approved','feature_request_id','feature_status','id','kind','number','product','status','subject']::text[]
   )
   FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
-), 'release summary exposes only existing summary fields plus kind/product, not messages or context');
+), 'release summary exposes only classification and bound feature decision eligibility, not messages or context');
 SELECT pg_temp.assert(NOT EXISTS (
   SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_engineering', jsonb_build_object(
     'actor', :'release', 'status', 'approved'
@@ -2926,6 +2926,47 @@ SELECT pg_temp.expect_error(format(
   $q$SELECT public.bloom_support_rpc('list_engineering', '{"actor":"%s"}'::jsonb)$q$,
   :'intake'
 ), 'engineering.view');
+-- Product approval binds the exact feature linked to this engineering ticket.
+CREATE FUNCTION pg_temp.feature_release_approved(actor uuid, issue uuid, ticket uuid)
+RETURNS boolean LANGUAGE sql AS $$
+  SELECT (linked->>'feature_product_approved')::boolean
+  FROM jsonb_array_elements(bloom_support.list_engineering(actor, 'open')) engineering,
+       jsonb_array_elements(engineering->'tickets') linked
+  WHERE engineering->>'id' = issue::text AND linked->>'id' = ticket::text
+$$;
+INSERT INTO bloom_support.feature_requests(title, description, product)
+VALUES ('Exact release feature fixture', 'Only this feature may be approved', 'crm')
+RETURNING id AS release_product_feature \gset
+UPDATE bloom_support.tickets SET product = 'crm', feature_request_id = :'release_product_feature'
+WHERE id = :'release_summary_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'undecided feature cannot borrow engineering approval');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'release_product_feature', 'decision', 'accepted',
+  'note', 'Approve this exact fixture feature after reviewing the recommendation'
+));
+SELECT pg_temp.assert(pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'authorized human product acceptance is visible without full ticket reads');
+UPDATE bloom_support.feature_requests SET status = 'planned' WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'human product planning is a positive product decision, not technical release approval');
+UPDATE bloom_support.feature_requests SET status = 'declined' WHERE id = :'release_product_feature';
+INSERT INTO bloom_support.feature_requests(title, description, product, status, decided_by, decided_at)
+VALUES ('Unrelated approved feature', 'Must not authorize the linked feature', 'crm', 'accepted', :'jon', now());
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'declined exact feature cannot borrow approval from another feature');
+UPDATE bloom_support.feature_requests SET status = 'accepted', decided_by = :'release' WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'service identity is never human product approval');
+UPDATE bloom_support.feature_requests SET decided_by = :'jon', decided_at = NULL WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'missing decision timestamp fails closed');
+UPDATE bloom_support.feature_requests SET decided_at = now(), product = 'cms' WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'different product feature cannot authorize this release');
+UPDATE bloom_support.tickets SET feature_request_id = NULL WHERE id = :'release_summary_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'missing exact feature link fails closed');
 ROLLBACK;
 
 \echo 'bloom-support-db: all assertions passed'

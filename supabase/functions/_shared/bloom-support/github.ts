@@ -83,6 +83,12 @@ export async function pullRequestFacts(repo: string, number: number, repairLogin
     pr,
     facts: {
       repository: repo,
+      // A full bounded page may omit later blockers. Do not infer safety from
+      // only the first page, even after a person approved this exact head.
+      // Combined commit status uses GitHub's default page size of 30.
+      factsComplete: files.length < 100 && runs.check_runs.length < 100 &&
+        statuses.statuses.length < 30 && reviews.length < 100 &&
+        threads.repository.pullRequest.reviewThreads.nodes.length < 100,
       files: files.map((f) => ({ path: f.filename, additions: f.additions, deletions: f.deletions, status: f.status })),
       checks: [
         ...runs.check_runs.map((c) => ({ name: c.name, status: c.status, conclusion: c.conclusion })),
@@ -91,7 +97,7 @@ export async function pullRequestFacts(repo: string, number: number, repairLogin
       reviews: [...latest.values()].map((r) => ({ state: r.state, author: r.login, independent: r.login !== pr.user.login && !repairLogins.includes(r.login) })),
       unresolvedThreads: threads.repository.pullRequest.reviewThreads.nodes.filter((t) => !t.isResolved).length,
       mergeable: pr.mergeable,
-      baseBranch: pr.base.ref,
+      baseBranch: pr.base?.ref ?? "",
       testFilesAdded: files.filter((f) => isTest(f.filename) && f.status === "added").map((f) => f.filename),
       testFilesModifiedOrDeleted: files.filter((f) => isTest(f.filename) && f.status !== "added").map((f) => f.filename),
     },

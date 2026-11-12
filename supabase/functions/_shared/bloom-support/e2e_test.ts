@@ -119,8 +119,11 @@ function githubStub(method: string, path: string, body: unknown): Response {
   if ((m = path.match(/^\/repos\/(.+)\/pulls\/(\d+)\/reviews/))) return ok(prs[m[1]].reviews);
   if (path === "/graphql") return ok({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } });
   if ((m = path.match(/^\/repos\/(.+)\/pulls\/(\d+)\/merge$/)) && method === "PUT") {
+    const mergeSha = "merge" + m[2].padStart(36, "0");
     prs[m[1]].merged = true;
-    return ok({ merged: true, sha: "merge" + m[2].padStart(36, "0") });
+    prs[m[1]].state = "closed";
+    prs[m[1]].merge_commit_sha = mergeSha;
+    return ok({ merged: true, sha: mergeSha });
   }
   if ((m = path.match(/^\/repos\/([^/]+\/[^/]+)\/compare\/([^.]*)\.\.\.main$/)) && method === "GET") {
     const promotion = mainPromotions.get(m[1]);
