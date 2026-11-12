@@ -36,6 +36,14 @@ export class RpcLightspeedAuthorityRepository implements AuthorityRepository {
     return grantRow(await rpcValue(this.rpc,"lightspeed_authority_update_v1",{
       p_id:grant.id,p_version:grant.version,p_status:grant.status,p_patch:mutation}));
   }
+  async claimSale(grantId:string,siteId:string,orderId:string) {
+    return await rpcValue(this.rpc,"lightspeed_authority_sale_claim_v1",{
+      p_grant_id:grantId,p_site_id:siteId,p_order_id:orderId})===true;
+  }
+  async finishSale(grantId:string,orderId:string,status:"confirmed"|"needs_review",saleId:string|null) {
+    await rpcValue(this.rpc,"lightspeed_authority_sale_finish_v1",{
+      p_grant_id:grantId,p_order_id:orderId,p_status:status,p_provider_sale_id:saleId});
+  }
   async consumeNonce(grantId:string,nonceHash:string,validUntil:string) {
     return await rpcValue(this.rpc,"lightspeed_authority_nonce_v1",{
       p_grant_id:grantId,p_nonce_hash:nonceHash,p_valid_until:validUntil})===true;
