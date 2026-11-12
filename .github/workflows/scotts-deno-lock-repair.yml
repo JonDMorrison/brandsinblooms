@@ -1,0 +1,33 @@
+name: Regenerate Scott's Deno lock (one-time)
+on:
+  push:
+    branches:
+      - feature/scotts-lightspeed-stripe-paid-sale-contract-20261112
+    paths:
+      - .github/workflows/scotts-deno-lock-repair.yml
+permissions:
+  contents: write
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Regenerate frozen lock from actual imports
+        run: |
+          deno install --frozen=false
+          deno check --node-modules-dir=auto --frozen=true supabase/functions/lightspeed-storefront-bridge/index.ts
+      - name: Commit only verified lockfile
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add supabase/functions/deno.lock
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(deno): regenerate verified import integrity lock"
+            git push origin HEAD:feature/scotts-lightspeed-stripe-paid-sale-contract-20261112
+          fi
