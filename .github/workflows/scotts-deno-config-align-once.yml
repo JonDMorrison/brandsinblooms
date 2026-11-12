@@ -1,0 +1,36 @@
+name: Final Deno lock alignment for Scott's (one-time)
+on:
+  push:
+    branches:
+      - feature/scotts-lightspeed-stripe-paid-sale-contract-20261112
+    paths:
+      - .github/workflows/scotts-deno-config-align-once.yml
+permissions:
+  contents: write
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.8
+      - name: Regenerate and verify both frozen Deno configurations
+        run: |
+          deno install --config deno.json --frozen=false
+          deno check --node-modules-dir=auto --frozen=true supabase/functions/lightspeed-storefront-bridge/index.ts
+          deno info --config supabase/functions/deno.json --frozen-lockfile \
+            --allow-import=cdn.sheetjs.com,deno.land,esm.sh,jsr.io,registry.npmjs.org \
+            supabase/functions/lightspeed-storefront-bridge/index.ts >/dev/null
+      - name: Push only verified lockfile
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add supabase/functions/deno.lock
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(deno): align frozen imports across root and edge configs"
+            git push origin HEAD:feature/scotts-lightspeed-stripe-paid-sale-contract-20261112
+          fi
