@@ -12,7 +12,7 @@ import FormLabel from "@mui/joy/FormLabel";
 import Alert from "@mui/joy/Alert";
 import Sheet from "@mui/joy/Sheet";
 import Chip from "@mui/joy/Chip";
-import IconButton from "@mui/joy/IconButton";
+import ChipDelete from "@mui/joy/ChipDelete";
 import { ImagePlus, X } from "lucide-react";
 import { bloomSupport, fileToUpload, safeClientPageUrl } from "@/lib/bloomSupport/api";
 import {
@@ -136,10 +136,10 @@ export function PublicSupportContact() {
             }} />
           {files.map((f, i) => (
             <Chip key={`${f.name}-${i}`} size="sm" variant="soft" title={f.name} sx={{ maxWidth: "100%" }} endDecorator={
-              <IconButton type="button" size="sm" variant="plain" color="neutral" aria-label={`Remove ${f.name}`} disabled={payloadLocked}
-                onClick={() => setFiles((all) => all.filter((_, j) => j !== i))} sx={{ minWidth: 24, minHeight: 24, p: 0 }}>
+              <ChipDelete type="button" variant="plain" color="neutral" aria-label={`Remove ${f.name}`} disabled={payloadLocked}
+                onDelete={() => setFiles((all) => all.filter((_, j) => j !== i))} sx={{ minWidth: 24, minHeight: 24, p: 0 }}>
                 <X size={12} aria-hidden />
-              </IconButton>
+              </ChipDelete>
             }>{f.name}</Chip>
           ))}
         </Stack>

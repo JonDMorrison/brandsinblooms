@@ -75,5 +75,9 @@ BEGIN;
 COMMIT;
 BEGIN;
 \ir ../../supabase/migrations/20261112151241_bloom_support_ticket_flow_context.sql
+\ir ../../supabase/migrations/20261112163800_bloom_support_atomic_trusted_verification.sql
+COMMIT;
+BEGIN;
+\ir ../../supabase/migrations/20261112200000_bloom_support_trusted_bug_setup.sql
 COMMIT;
 \echo 'bloom-support e2e database ready'

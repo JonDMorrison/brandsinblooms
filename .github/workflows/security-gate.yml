@@ -40,8 +40,14 @@ jobs:
       - name: Verify production E2E orchestration safeguards
         run: node --test scripts/ci/wait-for-production-deployment.test.mjs scripts/ci/production-e2e-state.test.mjs e2e/utils/vercel-deployment-protection.test.mjs
 
-      - name: Run full unit and component test suite
-        run: npm test
+      - name: Verify frozen Bloom browser observer and receipt safeguards
+        run: node --test .github/scripts/bloom-*.test.mjs scripts/bloom-support/bloom-repair-path-guard.test.mjs
 
       - name: Build production application
         run: npm run build
+
+      - name: Preflight sandboxed Bloom browser against local production build
+        run: node .github/scripts/bloom-browser-preflight.mjs
+
+      - name: Run full unit and component test suite
+        run: npm test

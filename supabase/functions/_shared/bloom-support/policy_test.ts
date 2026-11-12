@@ -152,6 +152,41 @@ Deno.test("eligible contained bug fix passes", () => {
   assert(r.eligible);
 });
 
+Deno.test("automatic release waits for every current-head check, not only required checks", () => {
+  const green = pr();
+  assert(evaluateRelease(policy, goodIssue, green).eligible);
+  for (const status of ["queued", "in_progress", "pending", "waiting", "requested", "unknown"]) {
+    for (const name of ["additional-browser-check", "build"]) {
+      // Include a duplicate required name: the first green result must not hide
+      // another run of that check which is still running.
+      const checks = [...green.checks, { name, status, conclusion: null }];
+      const result = evaluateRelease(policy, goodIssue, { ...green, checks });
+      assertFalse(result.eligible, `${name}: ${status} blocks automatic release`);
+      assert(result.reasons.includes("checks still running"));
+    }
+  }
+  const staleConclusion = evaluateRelease(policy, goodIssue, {
+    ...green, checks: [...green.checks, { name: "additional-check", status: "queued", conclusion: "success" }],
+  });
+  assertFalse(staleConclusion.eligible, "a queued check's stale success does not establish completion");
+  // Preserve the existing policy for completed optional checks and independent review.
+  assert(evaluateRelease(policy, goodIssue, {
+    ...green, checks: [...green.checks, { name: "not-applicable", status: "completed", conclusion: "skipped" }],
+  }).eligible);
+  assertFalse(evaluateRelease(policy, goodIssue, { ...green, reviews: [] }).eligible);
+});
+
+Deno.test("fresh premerge eligibility rejects a check that started after an earlier green decision", () => {
+  const current = pr();
+  assert(evaluateRelease(policy, goodIssue, current).eligible);
+  current.checks.push({ name: "late-current-head-check", status: "in_progress", conclusion: null });
+  const refreshed = evaluateRelease(policy, goodIssue, current);
+  assertFalse(refreshed.eligible);
+  assertEquals(refreshed.reasons, ["checks still running"]);
+  current.checks[current.checks.length - 1] = { name: "late-current-head-check", status: "completed", conclusion: "success" };
+  assert(evaluateRelease(policy, goodIssue, current).eligible);
+});
+
 Deno.test("sensitive and policy-weakening changes always need review", () => {
   const cases: Array<[string, PullRequestFacts | IssueFacts]> = [
     ["migration", pr({ files: [{ path: "supabase/migrations/20261101_x.sql", additions: 3, deletions: 0, status: "added" }] })],

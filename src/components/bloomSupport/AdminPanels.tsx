@@ -1,3 +1,4 @@
+import { TrustedBugSetupCard } from "./TrustedBugSetupCard";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Stack from "@mui/joy/Stack";
@@ -1027,6 +1028,7 @@ export function SupportConfigPanel({ me }: { me: Whoami }) {
   return (
     <Stack spacing={1}>
       {error && <Alert color="danger">{error}</Alert>}
+      {canEdit && <TrustedBugSetupCard />}
       {CONFIG_KEYS.map((c) => (
         <Sheet key={c.key} variant="outlined" sx={{ p: 1.5, borderRadius: "md" }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">

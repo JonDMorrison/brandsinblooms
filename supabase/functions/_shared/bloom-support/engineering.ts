@@ -1,3 +1,5 @@
+import { dispatchLiveRequest, LIVE_ORIGIN, LIVE_PATH, observeLiveRequest, validLiveRequest, type LiveRequest } from "./trusted-live.ts";
+import { assignedReproduction, sha256, trustedReproduction } from "./trusted-reproduction.ts";
 // Bloom Support — automatic engineering pipeline.
 //
 //   investigate (repair identity)  → GitHub issue with sanitized evidence
@@ -683,11 +685,10 @@ export async function evaluate(
   const rollbackTarget = await vercelTarget(issue.repository);
   const evaluation = evaluateRelease(policy, {
     ...scope,
-    // Automatic reproduction remains unavailable until a trusted regression
-    // catalogue/recipe can establish it independently. Agent-authored tests,
-    // failing-test paths, booleans and reports are not release evidence.
-    // Current-head human approval remains available under the safeguards below.
-    reproduced: false,
+    // Only a frozen, isolated hosted observer can establish reproduction.
+    reproduced: assignedReproduction(releasePolicy, issue) && (await trustedReproduction({ repository: issue.repository, engineeringIssueId: issue.id,
+      githubIssue: Number((issue.evidence?.github_issue as { number?: unknown } | undefined)?.number),
+      pr: issue.pr_number, head: pr.head.sha })) !== null,
     intendedBehaviourEstablished: issue.reproduction?.intended_behaviour_established === true,
     labels: labels ?? [],
     labelsVerified: labels !== null,
@@ -942,7 +943,9 @@ async function merge(release: Caller, issueId: string, sha: string, base: "main"
   }
   const freshEligibility = evaluateRelease(policy, {
     ...linkedTicketReleaseFacts(current.tickets, current.product, current.repository!),
-    reproduced: false,
+    reproduced: assignedReproduction(releasePolicy, current) && (await trustedReproduction({ repository: current.repository!, engineeringIssueId: current.id,
+      githubIssue: Number((current.evidence?.github_issue as { number?: unknown } | undefined)?.number),
+      pr: current.pr_number!, head: sha })) !== null,
     intendedBehaviourEstablished: current.reproduction?.intended_behaviour_established === true,
     labels,
     labelsVerified: true,
@@ -1108,6 +1111,7 @@ async function runProductionChecks(
 }
 
 interface TicketFlowVerification {
+  startedAt?: string;
   attempted: boolean;
   passed: boolean;
   ticketIds: string[];
@@ -1349,6 +1353,99 @@ async function rollbackPreflight(release: Caller, issue: EngineeringIssue, targe
 }
 
 /** Production verification from release-owned smoke and affected-flow policy. */
+/** These before/after observations are not an atomic provider lock. A changed
+ * deployment, issue, assignment, ticket set or hold invalidates the receipt. */
+async function liveProviderContext(release: Caller, issue: EngineeringIssue, policy: unknown) {
+  if (issue.repository !== "JonDMorrison/brandsinblooms" || issue.status !== "verifying" || issue.deployment?.state !== "success" ||
+    !issue.head_sha || !issue.pr_number || !assignedReproduction(policy, issue) || !linkedFeatureProductApproved(issue.tickets)) return null;
+  const deployedSha = issue.deployment?.production_sha ?? issue.merge_sha;
+  if (typeof deployedSha !== "string" || !/^[a-f0-9]{40}$/.test(deployedSha)) return null;
+  if (await rpc("setting", { key: "automation_enabled" }) !== true || await rpc("setting", { key: "auto_release_enabled" }) !== true) return null;
+  const scopes = await rpc<Record<string, unknown> | null>("setting", { key: "automation_scopes" });
+  if (scopes?.engineering !== undefined && scopes.engineering !== true) return null;
+  const target = await vercelTarget(issue.repository);
+  if (!target) return null;
+  const labels = await releaseLabels(issue.repository, issue.pr_number, (issue.evidence.github_issue as { number?: unknown })?.number);
+  if (!labels || labels.some(label => /(?:hold|do[- ]not[- ]merge|no[- ]auto[- ]merge|blocked)/i.test(label))) return null;
+  const context = await directRpc<{ issue_id: string; head_sha: string; version: number; tickets_automatic: boolean; tickets: Array<{ id: string; kind: string; product: string; page_url: string | null }> }>("bloom_support_ticket_flow_context", {
+    p_actor: release.principalId, p_issue_id: issue.id, p_head_sha: issue.head_sha, p_version: issue.version,
+  });
+  if (context.issue_id !== issue.id || context.head_sha !== issue.head_sha || context.version !== issue.version || context.tickets_automatic !== true ||
+    !Array.isArray(context.tickets) || !context.tickets.length || context.tickets.length > 50 ||
+    context.tickets.length !== issue.tickets.length || new Set(context.tickets.map(t => t.id)).size !== context.tickets.length ||
+    context.tickets.some(t => !issue.tickets.some(i => i.id === t.id) || !["bug", "incident"].includes(t.kind) || t.product !== issue.product || (() => {
+      try { const url = new URL(t.page_url ?? ""); return url.origin !== LIVE_ORIGIN || url.pathname !== LIVE_PATH || !!url.username || !!url.password; }
+      catch { return true; }
+    })())) return null;
+  const alias = await vercel<{ deploymentId?: string; projectId?: string; redirect?: unknown }>("GET", "/v4/aliases/bloomsuite.app", target);
+  if (!alias.deploymentId || alias.projectId !== target.projectId || alias.redirect) return null;
+  const deployment = await vercel<RollbackDeployment>("GET", `/v13/deployments/${encodeURIComponent(alias.deploymentId)}`, target);
+  const project = await vercel<{ id?: string; targets?: { production?: RollbackDeployment } }>("GET", `/v9/projects/${encodeURIComponent(target.projectId)}`, target);
+  const matches = (d: RollbackDeployment | undefined) => d !== undefined && d.id === alias.deploymentId && d.readyState === "READY" &&
+    d.meta?.githubCommitSha === deployedSha && `${d.meta?.githubOrg}/${d.meta?.githubRepo}`.toLowerCase() === issue.repository!.toLowerCase();
+  if (!matches(deployment) || deployment.projectId !== target.projectId || deployment.target !== "production" ||
+    project.id !== target.projectId || !matches(project.targets?.production)) return null;
+  const freshPolicy = await rpc("setting", { key: "release_policy" });
+  const freshTarget = await vercelTarget(issue.repository);
+  const fresh = await loadIssue(release, issue.id);
+  if (!assignedReproduction(freshPolicy, fresh) || freshTarget?.projectId !== target.projectId || freshTarget?.teamId !== target.teamId ||
+    fresh.version !== issue.version || fresh.status !== "verifying" || fresh.head_sha !== issue.head_sha || fresh.merge_sha !== issue.merge_sha ||
+    JSON.stringify(fresh.deployment) !== JSON.stringify(issue.deployment)) return null;
+  // Provider reads may outlast a ticket/account/global pause. Reproject at the
+  // end; the final verified transition also checks/locks these rows in SQL.
+  const finalContext = await directRpc<typeof context>("bloom_support_ticket_flow_context", {
+    p_actor: release.principalId, p_issue_id: issue.id, p_head_sha: issue.head_sha, p_version: issue.version,
+  });
+  if (JSON.stringify(finalContext) !== JSON.stringify(context) || finalContext.tickets_automatic !== true) return null;
+  return { deployment_id: alias.deploymentId, deployed_sha: deployedSha, project_id: target.projectId, team_id: target.teamId ?? null,
+    ticket_binding: await sha256(new TextEncoder().encode(JSON.stringify(context.tickets.map(t => t.id).sort()))) };
+}
+
+export async function trustedBrowserFlow(release: Caller, issue: EngineeringIssue, policy: unknown, observe: typeof observeLiveRequest = observeLiveRequest): Promise<{ flow?: TicketFlowVerification; step?: StepResult }> {
+  const block = async (note: string) => {
+    await updateVersioned(release, issue, "escalated", {}, note);
+    return { step: { note } };
+  };
+  let provider: Awaited<ReturnType<typeof liveProviderContext>> = null;
+  try { provider = await liveProviderContext(release, issue, policy); } catch { /* fail closed */ }
+  if (!provider) return await block("Trusted live verification is blocked: current production, exact ticket scope or release holds could not be proved. No ticket was marked fixed.");
+  const existing = issue.verification?.trusted_browser_request;
+  if (existing === undefined) {
+    const request: LiveRequest = { ...provider, nonce: crypto.randomUUID(), engineering_issue_id: issue.id,
+      issue_version: issue.version + 1, head_sha: issue.head_sha!, pr_number: issue.pr_number!, created_at: new Date().toISOString() };
+    if (!validLiveRequest(request)) return await block("Trusted live request binding is invalid; human verification required.");
+    // Commit dispatch intent once, before the external call. A crash or timeout
+    // is reconciled by nonce, never retried blindly or marked successful.
+    await updateVersioned(release, issue, null, { verification: { ...issue.verification, trusted_browser_request: request } });
+    const saved = await loadIssue(release, issue.id);
+    const persisted = saved.verification?.trusted_browser_request;
+    // JSONB may reorder keys. Compare the complete scalar binding, not its
+    // serialization, while still rejecting missing, extra or changed fields.
+    if (saved.version !== request.issue_version || saved.status !== "verifying" ||
+      !validLiveRequest(persisted) || Object.keys(persisted).length !== Object.keys(request).length ||
+      Object.entries(request).some(([key, value]) => !Object.hasOwn(persisted, key) || persisted[key as keyof LiveRequest] !== value)) {
+      return { step: { note: "live request changed before dispatch" } };
+    }
+    try { await dispatchLiveRequest(request); } catch { /* uncertain: subsequent runs only reconcile this nonce */ }
+    return { step: { next: { step: "verify", delaySeconds: 30 }, note: "trusted live request recorded; reconciling hosted observation" } };
+  }
+  if (!validLiveRequest(existing) || existing.issue_version !== issue.version || existing.engineering_issue_id !== issue.id || existing.head_sha !== issue.head_sha || existing.pr_number !== issue.pr_number ||
+    Object.entries(provider).some(([k, v]) => existing[k as keyof LiveRequest] !== v)) return await block("Trusted live request became stale or production changed. No stale observation was accepted.");
+  const observed = await observe(existing);
+  if (observed.state === "pending") return { step: { next: { step: "verify", delaySeconds: 30 }, note: "waiting for trusted live browser evidence; dispatch not repeated" } };
+  if (observed.state !== "proved" || typeof observed.evidence.started_at !== "string" ||
+    !Number.isFinite(Date.parse(observed.evidence.started_at)) || Date.parse(observed.evidence.started_at) > Date.now()) {
+    return await block("Trusted live browser proof is missing, invalid or expired. No ticket was marked fixed.");
+  }
+  // This read happens after the authenticated receipt, not just after dispatch.
+  let after: Awaited<ReturnType<typeof liveProviderContext>> = null;
+  try { after = await liveProviderContext(release, issue, policy); } catch { /* fail closed */ }
+  if (!after || JSON.stringify(after) !== JSON.stringify(provider)) return await block("Production or release bindings changed during live verification. No stale observation was accepted.");
+  const checks = issue.tickets.map(t => ({ ticket_id: t.id, flow_path: LIVE_PATH, check_scope: "ticket_flow", url: `${LIVE_ORIGIN}${LIVE_PATH}`, pass: true, trusted_browser: observed.evidence }));
+  return { flow: { startedAt: observed.evidence.started_at, attempted: true, passed: true, ticketIds: issue.tickets.map(t => t.id), checks,
+    flows: issue.tickets.map(t => ({ ticket_id: t.id, path: LIVE_PATH, passed: true, checks: checks.filter(c => c.ticket_id === t.id) })) } };
+}
+
 export async function verify(release: Caller, issueId: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
   if (issue.status !== "verifying") return { note: `status ${issue.status}` };
@@ -1432,7 +1529,12 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
   const verificationStartedAt = new Date().toISOString();
   const results = await runProductionChecks(releasePolicy, issue.repository!, checks);
   const smokePassed = results.every((r) => r.pass);
-  const ticketFlow = smokePassed
+  let ticketFlow: TicketFlowVerification;
+  if (smokePassed && assignedReproduction(releasePolicy, issue)) {
+    const browser = await trustedBrowserFlow(release, issue, releasePolicy);
+    if (browser.step) return browser.step;
+    ticketFlow = browser.flow!;
+  } else ticketFlow = smokePassed
     ? await runTicketFlowVerification(release, issue, releasePolicy)
     : { attempted: false, passed: true, ticketIds: [], checks: [], flows: [] };
   const passed = smokePassed && ticketFlow.passed;
@@ -1446,7 +1548,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     ],
     release_smoke: { passed: smokePassed, checks: results },
     ticket_flows: ticketFlow.flows,
-    started_at: verificationStartedAt,
+    started_at: ticketFlow.startedAt ?? verificationStartedAt,
     at: new Date().toISOString(),
   };
   if (passed) {

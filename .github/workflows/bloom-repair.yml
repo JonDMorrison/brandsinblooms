@@ -1,6 +1,6 @@
 name: Bloom repair
 # The engineering issue id in the run name lets Bloom tell its own run apart when retrying a dispatch.
-run-name: Bloom repair ${{ inputs.engineering_issue_id }}
+run-name: ${{ inputs.mode == 'verify' && format('Bloom verify {0} {1}', inputs.engineering_issue_id, inputs.verification_nonce) || format('Bloom repair {0}', inputs.engineering_issue_id) }}
 # Dispatched by Bloom Support (repair identity) for one engineering issue, only
 # after a person started the repair in Bloom. Proposes a fix as a pull request.
 #
@@ -18,10 +18,13 @@ run-name: Bloom repair ${{ inputs.engineering_issue_id }}
 on:
   workflow_dispatch:
     inputs:
-      github_issue: { description: "GitHub issue number with sanitized evidence", required: true }
+      mode: { description: "repair or verify", default: repair, type: choice, options: [repair, verify] }
+      verification_nonce: { description: "Server-owned live verification nonce", required: false }
+      verification_context: { description: "Server-owned bounded JSON identity binding", required: false }
+      github_issue: { description: "GitHub issue number with sanitized evidence", required: false }
       engineering_issue_id: { description: "Bloom engineering issue id", required: true }
-      branch: { description: "Fix branch (bloom/fix-…)", required: true }
-      base: { description: "Base branch (main or dev)", required: true }
+      branch: { description: "Fix branch (bloom/fix-…)", required: false }
+      base: { description: "Base branch (main or dev)", required: false }
 
 permissions: {}
 
@@ -37,10 +40,14 @@ env:
 
 jobs:
   prepare:
+    if: inputs.mode != 'verify'
+    outputs:
+      base_sha: ${{ steps.base.outputs.sha }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       issues: read
+      contents: read
     steps:
       - name: Validate inputs
         env:
@@ -52,6 +59,13 @@ jobs:
           [[ "$IN_ISSUE" =~ ^[0-9]{1,9}$ ]] || { echo "::error::invalid issue"; exit 1; }
           [[ "$IN_BASE" == "main" || "$IN_BASE" == "dev" ]] || { echo "::error::base must be main or dev"; exit 1; }
           [[ "$RUN_REF" == "refs/heads/$DEFAULT_BRANCH" ]] || { echo "::error::run from the default branch only"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base == 'main' && github.sha || inputs.base }}
+          persist-credentials: false
+      - name: Pin base before any candidate execution
+        id: base
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Export evidence
         env:
           GH_TOKEN: ${{ github.token }}
@@ -64,6 +78,8 @@ jobs:
 
   agent:
     needs: prepare
+    env:
+      PINNED_BASE: ${{ needs.prepare.outputs.base_sha }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -72,7 +88,7 @@ jobs:
       changed: ${{ steps.guard.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
-        with: { ref: "${{ inputs.base }}", fetch-depth: 0, persist-credentials: false }
+        with: { ref: "${{ needs.prepare.outputs.base_sha }}", fetch-depth: 0, persist-credentials: false }
       - uses: actions/download-artifact@v4
         with: { name: evidence, path: .bloom }
       - uses: actions/setup-node@v4
@@ -101,6 +117,9 @@ jobs:
           Follow the repository's CLAUDE.md / AGENTS.md instructions.
           1. Reproduce first: add ONE new focused regression test file that fails before your fix.
           2. Fix the root cause with the smallest change. Do not change intended product behaviour.
+             For attachment filename validation in src/lib/bloomSupport/constants.ts, the one new
+             regression file must be src/lib/bloomSupport/constants.test.ts so the independent
+             catalogued browser gate can verify the exact two-file repair scope.
           3. NEVER modify or delete existing tests, CI workflows (.github/), migrations, edge functions under
              supabase/functions, auth, permissions, payment, tax, payout or checkout code, secrets, env files,
              lockfiles, package.json, or any release policy. If the fix needs any of those, stop, make no code
@@ -114,16 +133,16 @@ jobs:
       - name: Guard changes (whole working tree, no agent commits)
         id: guard
         run: |
-          if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$IN_BASE")" ]; then
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse "$PINNED_BASE")" ]; then
             echo "::error::The agent changed git history; only working-tree changes are accepted"; exit 1
           fi
           git add -A ':!.bloom'
-          if git diff --cached --quiet "origin/$IN_BASE"; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --cached --quiet "$PINNED_BASE"; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
           # Run the NUL-safe validator from the trusted base commit, never from
           # the agent-controlled working tree.
-          git show "origin/$IN_BASE:.github/scripts/bloom-repair-path-guard.mjs" > "$RUNNER_TEMP/bloom-repair-path-guard.mjs"
-          node "$RUNNER_TEMP/bloom-repair-path-guard.mjs" --base "origin/$IN_BASE"
-          git diff --cached --binary "origin/$IN_BASE" > .bloom/fix.patch
+          git show "$PINNED_BASE:.github/scripts/bloom-repair-path-guard.mjs" > "$RUNNER_TEMP/bloom-repair-path-guard.mjs"
+          node "$RUNNER_TEMP/bloom-repair-path-guard.mjs" --base "$PINNED_BASE"
+          git diff --cached --binary "$PINNED_BASE" > .bloom/fix.patch
           echo "changed=true" >> "$GITHUB_OUTPUT"
       - name: Repository checks (no secrets present)
         if: steps.guard.outputs.changed == 'true'
@@ -133,12 +152,12 @@ jobs:
           # widen its change), so only an increase over the base fails. Types and tests are unchanged.
           if grep -q '"verify:types"' package.json; then pnpm verify:types && node -e "$LINT_DELTA" && pnpm verify:test; \
           elif [ -f pnpm-workspace.yaml ]; then pnpm -r --if-present test; \
-          else npx vitest run --changed "origin/$IN_BASE"; fi
+          else npx vitest run --changed "$PINNED_BASE"; fi
         env:
           LINT_DELTA: |
             const { execFileSync, spawnSync } = require("child_process");
             const fs = require("fs");
-            const base = `origin/${process.env.IN_BASE}`;
+            const base = process.env.PINNED_BASE;
             const env = { ...process.env };
             if (!fs.readdirSync(".").some((f) => /^eslint\.config\.[cm]?[jt]s$/.test(f)) && fs.readdirSync(".").some((f) => /^\.eslintrc/.test(f))) env.ESLINT_USE_FLAT_CONFIG = "false";
             const changed = execFileSync("git", ["diff", "--cached", "--name-status", base], { encoding: "utf8" })
@@ -195,7 +214,14 @@ jobs:
           retention-days: 7
 
   publish:
-    needs: agent
+    outputs:
+      base_sha: ${{ steps.binding.outputs.base_sha }}
+      head_sha: ${{ steps.binding.outputs.head_sha }}
+      pr_number: ${{ steps.binding.outputs.pr_number }}
+      recipe_applicable: ${{ steps.binding.outputs.recipe_applicable }}
+    needs: [prepare, agent]
+    env:
+      PINNED_BASE: ${{ needs.prepare.outputs.base_sha }}
     if: needs.agent.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -203,7 +229,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with: { ref: "${{ inputs.base }}", fetch-depth: 1 }
+        with: { ref: "${{ needs.prepare.outputs.base_sha }}", fetch-depth: 1 }
       - uses: actions/download-artifact@v4
         with: { name: result, path: ../bloom-result }
       - name: Apply and re-check the patch (trusted code only)
@@ -263,9 +289,109 @@ jobs:
             gh pr create --base "$IN_BASE" --head "$IN_BRANCH" --title "fix: Bloom repair for #$IN_ISSUE" --body-file ../pr.md
           fi
 
+      - name: Pin published repair identity
+        id: binding
+        env:
+          GH_TOKEN: ${{ secrets.BLOOM_REPAIR_PR_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr list --state open --base "$IN_BASE" --head "$IN_BRANCH" --repo "$GITHUB_REPOSITORY" --json number,headRefOid,baseRefOid,isCrossRepository,headRefName,baseRefName,headRepository,headRepositoryOwner > "$RUNNER_TEMP/repair-pr.json"
+          node -e '
+            const fs=require("fs"), rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+            if(rows.length!==1)throw Error("Expected one repair PR");
+            const p=rows[0];
+            if(p.isCrossRepository!==false||p.headRefName!==process.env.IN_BRANCH||p.baseRefName!==process.env.IN_BASE||`${p.headRepositoryOwner?.login}/${p.headRepository?.name}`!==process.env.GITHUB_REPOSITORY)throw Error("Foreign or mismatched PR");
+            if(!/^[a-f0-9]{40}$/.test(p.headRefOid)||!/^[a-f0-9]{40}$/.test(p.baseRefOid)||!Number.isSafeInteger(p.number))throw Error("Invalid PR binding");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,`head_sha=${p.headRefOid}\nbase_sha=${process.env.PINNED_BASE}\npr_number=${p.number}\n`);
+          ' "$RUNNER_TEMP/repair-pr.json"
+          git fetch --no-tags origin "refs/heads/$IN_BRANCH:refs/remotes/origin/$IN_BRANCH"
+          git fetch --no-tags origin "$PINNED_BASE"
+          [ "$(git rev-parse "refs/remotes/origin/$IN_BRANCH^")" = "$PINNED_BASE" ] || { echo "Unexpected published parent"; exit 1; }
+          if git diff --name-only "$PINNED_BASE" "refs/remotes/origin/$IN_BRANCH" -- src/lib/bloomSupport/constants.ts | grep -Fxq src/lib/bloomSupport/constants.ts; then
+            echo 'recipe_applicable=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'recipe_applicable=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  trusted-reproduction:
+    needs: publish
+    if: needs.publish.result == 'success' && needs.publish.outputs.recipe_applicable == 'true' && github.repository == 'JonDMorrison/brandsinblooms' && inputs.base == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Install only trusted locked observer and build dependencies
+        run: |
+          npm ci --ignore-scripts
+          docker pull node:24-bookworm-slim
+      - name: Observe fixed public recipe on isolated base and head builds
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+          TRUSTED_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ needs.publish.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.publish.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.publish.outputs.pr_number }}
+          ISSUE_NUMBER: ${{ inputs.github_issue }}
+          ENGINEERING_ID: ${{ inputs.engineering_issue_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node .github/scripts/bloom-trusted-reproduction.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bloom-trusted-reproduction-v1
+          compression-level: 0
+          path: trusted-receipt/receipt.json
+          if-no-files-found: error
+          retention-days: 7
+
+  trusted-live-verification:
+    if: inputs.mode == 'verify' && github.repository == 'JonDMorrison/brandsinblooms' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Install trusted locked browser observer only
+        run: |
+          npm ci --ignore-scripts
+      - name: Observe fixed public flow without credentials or submission
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+          TRUSTED_SHA: ${{ github.sha }}
+          RUN_REF: ${{ github.ref }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          ENGINEERING_ID: ${{ inputs.engineering_issue_id }}
+          VERIFICATION_NONCE: ${{ inputs.verification_nonce }}
+          VERIFICATION_CONTEXT: ${{ inputs.verification_context }}
+        run: node .github/scripts/bloom-trusted-live.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bloom-trusted-live-v1
+          compression-level: 0
+          path: trusted-live-receipt/receipt.json
+          if-no-files-found: error
+          retention-days: 7
+
   report:
-    needs: [prepare, agent, publish]
-    if: always()
+    needs: [prepare, agent, publish, trusted-reproduction]
+    if: always() && inputs.mode != 'verify'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
