@@ -1,4 +1,5 @@
 import { lightspeedEdition, providerAuthorizationUrl, providerToken, providerScopes, providerRetailer, rSourcePage, type LightspeedEdition } from "./provider.ts";
+import { buildStripePaidLightspeedSale, type StripePaidSaleInput } from "./paid-sale-contract.ts";
 /**
  * Server-only behaviour expressed without runtime globals, for Deno and Node tests.
  * The authority owns retailer credentials. BloomSites receives only signed,
@@ -46,6 +47,7 @@ export interface AuthorityDependencies {
   credentials:(edition?:LightspeedEdition)=>{clientId:string;clientSecret:string};
   fetcher?:typeof fetch;
   now?:()=>number;
+  allowSaleWrite?:boolean;
 }
 class AuthorityError extends Error {
   constructor(readonly code:string,readonly status=400,readonly retryAfterMs:number|null=null) {
@@ -185,8 +187,13 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
           throw new AuthorityError("authorization_expired",410);
         }
         assertFresh(grant,now);
-        return json({ok:true,authorizationUrl:providerAuthorizationUrl(context.edition,{clientId:app.clientId,
-          redirectUri:AUTHORITY_CALLBACK,state})});
+        const authorizationUrl=new URL(providerAuthorizationUrl(context.edition,{clientId:app.clientId,
+          redirectUri:AUTHORITY_CALLBACK,state}));
+        if(deps.allowSaleWrite===true && context.edition==="x-series"){
+          authorizationUrl.searchParams.set("scope",[...providerScopes(context.edition),
+            "sales:read","sales:write","users:read","registers:read","taxes:read"].join(" "));
+        }
+        return json({ok:true,authorizationUrl:authorizationUrl.toString()});
       }
       if(body.action==="callback") {
         const state=stateValue(body.state);
@@ -225,7 +232,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
           return json({ok:true,returnUrl:await callbackUrl(saved,state,deps)});
         } catch(error){await invalidate(claimed,deps);throw error;}
       }
-      if(!["finalize","read","disconnect","status"].includes(body.action))throw new AuthorityError("invalid_request");
+      if(!["finalize","read","disconnect","status","sale"].includes(body.action))throw new AuthorityError("invalid_request");
       const grantId=safeId(body.grantId);
       let grant=await deps.repository.get(grantId);
       if(!grant)throw new AuthorityError("invalid_proof",403);
@@ -254,6 +261,54 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         return json({ok:true,...identity(grant)});
       }
       if(body.action==="status")return json({ok:true,...identity(grant)});
+      if(body.action==="sale"){
+        if(deps.allowSaleWrite!==true)throw new AuthorityError("sale_export_disabled",403);
+        if(lightspeedEdition(grant.edition)!=="x-series"||body.siteId!==grant.siteId)
+          throw new AuthorityError("invalid_proof",403);
+        const saleInput=body.sale as StripePaidSaleInput;
+        if(!saleInput||saleInput.siteId!==grant.siteId||saleInput.currency!==grant.currency)
+          throw new AuthorityError("sale_scope_mismatch",403);
+        const sale=buildStripePaidLightspeedSale(saleInput);
+        grant=await refreshIfExpired(grant,deps,now);
+        const access=await readTokens(grant,deps);
+        if(!["sales:read","sales:write"].every(scope=>access.scopes.includes(scope)))
+          throw new AuthorityError("insufficient_scope",403);
+        const headers={Accept:"application/json",Authorization:"Bearer "+access.accessToken};
+        const resourceUrl=new URL("/api/2026-07/sales/"+sale.id,lightspeedStoreOrigin(grant.prefix));
+        let existing:SourceRecord|null=null;
+        try{
+          const reply=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,resourceUrl,{method:"GET",headers}));
+          existing=asSourceRecord(reply?.data);
+          if(!existing)throw new AuthorityError("sale_readback_invalid",409);
+        }catch(error){
+          if(!(error instanceof LightspeedApiError&&error.status===404))throw error;
+        }
+        const verify=(saved:SourceRecord):void=>{
+          const source=asSourceRecord(saved.source);
+          const payments=Array.isArray(saved.payments)?saved.payments:[];
+          const matchingPayment=payments.some(item=>{
+            const row=asSourceRecord(item);
+            return (typeof row?.amount==="number"||typeof row?.amount==="string")
+              && Number(row.amount)===Number(sale.payments[0].amount);
+          });
+          if(saved.id!==sale.id||source?.id!==sale.id||!matchingPayment)
+            throw new AuthorityError("sale_reference_conflict",409);
+        };
+        if(existing){verify(existing);return json({ok:true,externalId:sale.id,alreadyExists:true});}
+        const createUrl=new URL("/api/2026-07/sales",lightspeedStoreOrigin(grant.prefix));
+        try{
+          const result=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,createUrl,{
+            method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(sale)}));
+          const saved=asSourceRecord(result?.data);
+          if(!saved||saved.id!==sale.id)throw new AuthorityError("sale_reconcile_required",409);
+          verify(saved);
+          return json({ok:true,externalId:sale.id,alreadyExists:false});
+        }catch(error){
+          if(error instanceof LightspeedApiError)
+            throw new AuthorityError("sale_reconcile_required",409);
+          throw error;
+        }
+      }
       const resource=body.resource;
       if(typeof resource!=="string"||!["products","inventory","outlets","retailer"].includes(resource)) {
         throw new AuthorityError("invalid_request");
