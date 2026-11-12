@@ -13,6 +13,7 @@ import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
+import { respondToSlackConversation } from "../_shared/bloom-support/slack-conversation.ts";
 import { postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
 import { actionableAlertMessage, missingAlertContextMessage } from "../_shared/bloom-support/actionable-alerts.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
@@ -773,6 +774,7 @@ async function postTicketThreadUpdate(job: Job, eventKind: string): Promise<stri
 
 /** Staff emails: watchdog alerts, previews, and notifications (when settings.notifications.email_staff is on). */
 async function notifyEmail(job: Job): Promise<string> {
+  if(job.payload.slack_conversation === true) return await respondToSlackConversation(job);
   // Existing, leased support job queue. No second poller or scheduled agent.
   // Slack delivery cannot block customer intake; retry/failure stays in this job.
   if (job.payload.slack_question === true) {
