@@ -7,6 +7,15 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 const CONTROL_NAME = `${'c'.repeat(196)}.png`;
 const OVERLONG_NAME = `${'r'.repeat(197)}.png`;
 
+// Ubuntu's packaged Chrome is AppArmor-allowlisted at its official path.
+// Never fall back to an unsandboxed or caller-supplied browser executable.
+export function launchTrustedBrowser(chromium) {
+  return chromium.launch({
+    channel: 'chrome', headless: true, chromiumSandbox: true,
+    args: ['--disable-background-networking', '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
+  });
+}
+
 export function allowedRequest(method, requestUrl, origin) {
   try {
     const url = new URL(requestUrl);

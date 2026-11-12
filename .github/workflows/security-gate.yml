@@ -48,3 +48,6 @@ jobs:
 
       - name: Build production application
         run: npm run build
+
+      - name: Preflight sandboxed Bloom browser against local production build
+        run: node .github/scripts/bloom-browser-preflight.mjs

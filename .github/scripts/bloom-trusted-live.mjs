@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runRecipe } from './bloom-public-attachment-recipe.mjs';
+import { launchTrustedBrowser, runRecipe } from './bloom-public-attachment-recipe.mjs';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export function liveBinding(e) {
   if(e.REPOSITORY!=='JonDMorrison/brandsinblooms'||!uuid.test(e.ENGINEERING_ID??'')||!uuid.test(e.VERIFICATION_NONCE??'')||
@@ -30,7 +30,8 @@ export async function main(e=process.env) {
   const digest=file=>createHash('sha256').update(readFileSync(path.join(root,file))).digest('hex');
   const started_at=new Date().toISOString();
   const { chromium }=await import('@playwright/test');
-  const browser=await chromium.launch({headless:true,chromiumSandbox:true,args:['--disable-background-networking','--force-webrtc-ip-handling-policy=disable_non_proxied_udp']});
+  const browser=await launchTrustedBrowser(chromium);
+  console.log(`Sandboxed observer Chrome ${browser.version()}`);
   let observation;
   try {observation=await runRecipe(browser,'https://bloomsuite.app');}
   finally {await browser.close();}

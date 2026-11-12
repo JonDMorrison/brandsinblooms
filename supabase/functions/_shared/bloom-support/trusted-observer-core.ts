@@ -11,12 +11,12 @@ const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 // Reviewed source pins bind the complete isolated writer and dependency catalogue.
 // Unknown revisions deliberately disable the capability, not its release gates.
 export const TRUSTED_SOURCES: Readonly<Record<string, string>> = Object.freeze({
-  [WORKFLOW]: "33f007473d3ac8ba1ac325ecc2bfc8885a3f90fa7a1787a1ff405f8ca56e1f09",
-  ".github/scripts/bloom-trusted-live.mjs": "154313c676c322adb62b9e97d38fb229ffa49d2f69c656a437ba64bbfc39c912",
+  [WORKFLOW]: "94ec24c6414a38f7461417882375e360e6feba382b3f891413f87ea9b1f050fc",
+  ".github/scripts/bloom-trusted-live.mjs": "5881fbc17d67aac4d9369cfbf4293aafe213b881ca346c3731b5994319d52d25",
   "package.json": "e58b04dc74b91eb5efc1c7488edf416a73dd36b15654b00b475da9b1747a56f1",
   "package-lock.json": "018bcb1f9eb26ef7882231aa845b613ab31a08275be7c8ff6f4d684b810e2493",
-  ".github/scripts/bloom-trusted-reproduction.mjs": "e19cce98c568a22b59be52d4e66d5369671ec7b23e4f971b7b22965154e486b9",
-  ".github/scripts/bloom-public-attachment-recipe.mjs": "d0862043b4c058012e6dfb462bbc5c0a9d2b631a3772952c435ec778959b3ac2",
+  ".github/scripts/bloom-trusted-reproduction.mjs": "667cc189576da29ab7fd145035c60c9dfebd4c224762aadaf740479ff16ac8b7",
+  ".github/scripts/bloom-public-attachment-recipe.mjs": "ab96ad8281a30a1c882476cc4cee8affd70a2ed542937045e95e1652851b8df9",
 });
 type ObjectValue = Record<string, unknown>;
 const obj = (v: unknown): ObjectValue => v && typeof v === "object" && !Array.isArray(v) ? v as ObjectValue : {};

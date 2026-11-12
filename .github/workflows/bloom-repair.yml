@@ -331,7 +331,6 @@ jobs:
       - name: Install only trusted locked observer and build dependencies
         run: |
           npm ci --ignore-scripts
-          node node_modules/@playwright/test/cli.js install chromium --with-deps
           docker pull node:24-bookworm-slim
       - name: Observe fixed public recipe on isolated base and head builds
         env:
@@ -369,7 +368,6 @@ jobs:
       - name: Install trusted locked browser observer only
         run: |
           npm ci --ignore-scripts
-          node node_modules/@playwright/test/cli.js install chromium --with-deps
       - name: Observe fixed public flow without credentials or submission
         env:
           REPOSITORY: ${{ github.repository }}

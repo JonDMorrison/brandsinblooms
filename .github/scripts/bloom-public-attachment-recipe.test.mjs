@@ -1,11 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allowedRequest, classifyResult, runRecipe } from './bloom-public-attachment-recipe.mjs';
+import { allowedRequest, classifyResult, runRecipe, launchTrustedBrowser } from './bloom-public-attachment-recipe.mjs';
 
 const safety = { nonGetAttempts: 0, externalGetBlocked: 0, webSocketAttempts: 0, serviceWorkerAttempts: 0, redirectsBlocked: 0, networkFailures: 0 };
 const control = { controlAccepted: true, controlRemoved: true, formUnsubmitted: true };
 const red = { ...control, overlongAccepted: true, overlongRejected: false, filenameLimitWarning: false };
 const green = { ...control, overlongAccepted: false, overlongRejected: true, filenameLimitWarning: true };
+
+test('shared launcher uses official system Chrome with its sandbox and no fallback', async () => {
+  let options;
+  const sentinel = {};
+  const browser = await launchTrustedBrowser({ launch(value) { options = value; return Promise.resolve(sentinel); } });
+  assert.equal(browser, sentinel);
+  assert.deepEqual(options, {
+    channel: 'chrome', headless: true, chromiumSandbox: true,
+    args: ['--disable-background-networking', '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
+  });
+  let attempts = 0;
+  await assert.rejects(launchTrustedBrowser({ launch() { attempts++; return Promise.reject(Error('sandbox unavailable')); } }), /sandbox unavailable/);
+  assert.equal(attempts, 1);
+});
+
+test('infrastructure preflight accepts only exact safe recipe observations, not release proof', async () => {
+  const { assertPreflightObservation } = await import('./bloom-browser-preflight.mjs');
+  const observation = { recipe: 'public-support-attachment-name-v1', outcome: 'green', assertions: green, safety };
+  assertPreflightObservation(observation);
+  assertPreflightObservation({ ...observation, outcome: 'reproduced', assertions: red });
+  for (const patch of [{ outcome: 'setup_failure' }, { outcome: 'unknown' }, { recipe: 'other' }, { assertions: red },
+    { safety: { ...safety, nonGetAttempts: 1 } }, { assertions: null }, { safety: null }]) {
+    assert.throws(() => assertPreflightObservation({ ...observation, ...patch }));
+  }
+  assert.throws(() => assertPreflightObservation(null));
+});
 
 test('only same-origin GET is allowed, never writes, credentials or external requests', () => {
   const origin = 'http://127.0.0.1:4173';

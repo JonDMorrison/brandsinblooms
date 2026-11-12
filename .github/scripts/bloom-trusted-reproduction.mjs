@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, chmodSync, readFileSync, writeFileSync, readdir
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runRecipe } from './bloom-public-attachment-recipe.mjs';
+import { launchTrustedBrowser, runRecipe } from './bloom-public-attachment-recipe.mjs';
 
 export const RECIPE = 'public-support-attachment-name-v1';
 export function validateBinding(e) {
@@ -69,7 +69,11 @@ export async function main(e = process.env) {
   if (!/^sha256:[a-f0-9]{64}$/.test(image)) throw Error('Unpinned Docker image');
   const observations = {};
   const mounts = [];
+  let browser;
   try {
+    // One process fixes the browser binary across both fresh recipe contexts.
+    browser = await launchTrustedBrowser(chromium);
+    console.log(`Sandboxed observer Chrome ${browser.version()}`);
     for (const [label, sha] of [['base', e.BASE_SHA], ['head', e.HEAD_SHA]]) {
       const source = path.join(temporary, label), out = path.join(temporary, `${label}-dist`);
       mkdirSync(source); mkdirSync(out);
@@ -88,9 +92,8 @@ export async function main(e = process.env) {
       } finally { try { execFileSync('docker', ['rm', '-f', container], { stdio: 'ignore' }); } catch {} }
       // No process retains output mounts; copy validated bytes into trusted memory before serving.
       const server = await serve(validatedFiles(out));
-      const browser = await chromium.launch({ headless: true, chromiumSandbox: true, args: ['--disable-background-networking', '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'] });
       try { observations[label] = await runRecipe(browser, server.origin); }
-      finally { await browser.close(); await server.close(); }
+      finally { await server.close(); }
     }
     const receipt = {
       schema: 1, recipe: RECIPE, repository: e.REPOSITORY, repository_id: e.REPOSITORY_ID,
@@ -110,8 +113,11 @@ export async function main(e = process.env) {
     writeFileSync(path.join(trusted, 'trusted-receipt/receipt.json'), JSON.stringify(receipt));
     if (observations.base.outcome !== 'reproduced' || observations.head.outcome !== 'green') throw Error('Trusted red/green not established');
   } finally {
-    for (const mount of mounts.reverse()) execFileSync('sudo', ['umount', mount], { stdio: 'ignore' });
-    rmSync(temporary, { recursive: true, force: true });
+    try { if (browser) await browser.close(); }
+    finally {
+      for (const mount of mounts.reverse()) execFileSync('sudo', ['umount', mount], { stdio: 'ignore' });
+      rmSync(temporary, { recursive: true, force: true });
+    }
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
