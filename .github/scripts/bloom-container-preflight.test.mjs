@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,7 +17,7 @@ test('diagnostics disclose only fixed stage/code/status/signal, never candidate 
       'Sandbox build failed: stage=container code=UNKNOWN status=unknown signal=none');
   }
   assert.match(safeBuildFailure({code:'ENOBUFS',status:null}).message, /code=ENOBUFS/);
-  assert.doesNotThrow(() => new Function(BUILD));
+  assert.match(BUILD, /const require = createRequire\('file:\/\/\/app\/package.json'\)/);
   for (const stage of ['config-bundle','vite-import','config-import','config-evaluation','vite-build']) assert.ok(BUILD.includes(`stage = '${stage}'`));
 });
 
@@ -38,7 +40,7 @@ test('snapshot retains all restrictions, bounds, output validation and cleanup o
       assert.deepEqual(calls.at(-1).args, ['umount',path.join(temporary,'baseline-dist')]);
       const docker = calls.find(c => c.command === 'docker' && c.args[0] === 'run');
       if (failure !== 'source') {
-        for (const flag of ['--network=none','--read-only','--user=65532:65532','--cap-drop=ALL','--security-opt=no-new-privileges','--pids-limit=128','--memory=4g','--cpus=2','fsize=268435456:268435456','/tmp:rw,noexec,nosuid,size=256m']) assert.ok(docker.args.includes(flag),flag);
+        for (const flag of ['--input-type=module','--network=none','--read-only','--user=65532:65532','--cap-drop=ALL','--security-opt=no-new-privileges','--pids-limit=128','--memory=4g','--cpus=2','fsize=268435456:268435456','/tmp:rw,noexec,nosuid,size=256m']) assert.ok(docker.args.includes(flag),flag);
         assert.ok(docker.args.includes('type=bind,src=/trusted/node_modules,dst=/app/node_modules,readonly'));
         assert.ok(docker.args.includes(`type=bind,src=${temporary}/baseline,dst=/app,readonly`));
         assert.deepEqual(docker.options,{timeout:240000,maxBuffer:1<<20,stdio:['ignore','ignore','pipe']});
@@ -98,4 +100,36 @@ test('nested native diagnostics inspect bounded causes and arrays without exposi
   assert.ok(BUILD.includes(classifyBuildError.toString()));
   const error = safeBuildFailure({status:1,stderr:Buffer.from('BLOOM_BUILD_DIAGNOSTIC {"stage":"vite-import","code":"NATIVE_BINDING_LOAD_FAILED"}')});
   assert.equal(error.message,'Sandbox build failed: stage=vite-import code=NATIVE_BINDING_LOAD_FAILED status=1 signal=none');
+});
+
+
+test('import/system codes and fixed error classes remain safe bounded diagnostics', () => {
+  for (const code of ['ERR_REQUIRE_ESM','ERR_REQUIRE_ASYNC_MODULE','ERR_INVALID_ARG_TYPE','ERR_INVALID_ARG_VALUE','ERR_PACKAGE_PATH_NOT_EXPORTED','ERR_PACKAGE_IMPORT_NOT_DEFINED','ERR_SYSTEM_ERROR','ERR_UNSUPPORTED_ESM_URL_SCHEME','ERR_UNKNOWN_FILE_EXTENSION','ERR_INTERNAL_ASSERTION','EPERM','EAGAIN','EMFILE','EINVAL','ENOTDIR','ENOTSUP']) {
+    assert.equal(classifyBuildError({cause:[{code:'MODULE_NOT_FOUND'},{code,message:'PRIVATE'}]}),code);
+    assert.match(safeBuildFailure({stderr:Buffer.from(`BLOOM_BUILD_DIAGNOSTIC ${JSON.stringify({stage:'config-import',code})}`)}).message,new RegExp(`code=${code} `));
+  }
+  for (const [error,label] of [[new ReferenceError('PRIVATE'),'REFERENCE_ERROR'],[new TypeError('PRIVATE'),'TYPE_ERROR'],[new SyntaxError('PRIVATE'),'SYNTAX_ERROR'],[new RangeError('PRIVATE'),'RANGE_ERROR']]) assert.equal(classifyBuildError(error),label);
+  assert.equal(classifyBuildError(new Error('Dynamic require of "PRIVATE" is not supported')), 'DYNAMIC_REQUIRE_UNSUPPORTED');
+  assert.equal(classifyBuildError(new Error("thread 'PRIVATE' panicked at PRIVATE")), 'NATIVE_PANIC');
+  assert.equal(classifyBuildError({name:'PRIVATE',message:'PRIVATE'}),'UNKNOWN');
+  assert.equal(classifyBuildError({name:'constructor'}),'UNKNOWN');
+});
+
+
+test('CommonJS eval leaks an invalid plugin filename; ESM eval preserves module-local require', () => {
+  const temporary = mkdtempSync(path.join(tmpdir(), 'bloom-eval-mode-'));
+  try {
+    const plugin = path.join(temporary, 'plugin.mjs');
+    // Exact import-time expression in @vitejs/plugin-react-swc, not a mocked outcome.
+    writeFileSync(plugin, `import { createRequire } from 'node:module';
+export const resolve = createRequire(typeof __filename !== 'undefined' ? __filename : import.meta.url).resolve;`);
+    const expression = `import(${JSON.stringify(pathToFileURL(plugin).href)}).catch(error => { process.stderr.write(error.code); process.exit(1); });`;
+    const red = spawnSync(process.execPath, ['-e',expression], {encoding:'utf8',timeout:10000});
+    assert.equal(red.status,1); assert.equal(red.stderr,'ERR_INVALID_ARG_VALUE');
+    const greenExpression = `import { createRequire } from 'node:module'; const require = createRequire(${JSON.stringify(pathToFileURL(path.join(temporary,'package.json')).href)}); require('node:fs'); ` + expression;
+    const green = spawnSync(process.execPath, ['--input-type=module','-e',greenExpression], {encoding:'utf8',timeout:10000});
+    assert.equal(green.status,0,green.stderr); assert.equal(green.stderr,'');
+    const syntax = spawnSync(process.execPath,['--input-type=module','--check'],{input:BUILD,encoding:'utf8',timeout:10000});
+    assert.equal(syntax.status,0,syntax.stderr);
+  } finally {rmSync(temporary,{recursive:true,force:true});}
 });

@@ -64,7 +64,7 @@ test('live job has no repair execution, candidate checkout, Docker, or secret cr
   const supervisor=readFileSync(new URL('./bloom-trusted-reproduction.mjs',import.meta.url),'utf8');
   assert.match(supervisor,/launchTrustedBrowser\(chromium\)/);
   assert.equal((supervisor.match(/await launchTrustedBrowser\(chromium\)/g) ?? []).length,1);
-  assert.match(supervisor,/image, 'node', '-e', BUILD/);
+  assert.match(supervisor,/image, 'node', '--input-type=module', '-e', BUILD/);
   assert.match(workflow,/PINNED_BASE: \$\{\{ needs.prepare.outputs.base_sha \}\}/);
 });
 

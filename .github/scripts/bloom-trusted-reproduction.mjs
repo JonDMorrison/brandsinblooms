@@ -45,11 +45,11 @@ export async function serve(files) {
   return { origin: `http://127.0.0.1:${server.address().port}`, close: () => new Promise(resolve => server.close(resolve)) };
 }
 const BUILD_STAGES = ['setup', 'config-bundle', 'vite-import', 'config-import', 'config-evaluation', 'vite-build'];
-const BUILD_CODES = ['ENOENT', 'EACCES', 'EROFS', 'ENOMEM', 'ENOSPC', 'ERR_MODULE_NOT_FOUND', 'ERR_DLOPEN_FAILED', 'MODULE_NOT_FOUND', 'PLUGIN_ERROR', 'ENOBUFS', 'ETIMEDOUT', 'NATIVE_BINDING_LOAD_FAILED', 'NATIVE_LIBRARY_LOAD_FAILED', 'MISSING_MODULE'];
+const BUILD_CODES = ['ENOENT', 'EACCES', 'EROFS', 'ENOMEM', 'ENOSPC', 'ERR_MODULE_NOT_FOUND', 'ERR_DLOPEN_FAILED', 'MODULE_NOT_FOUND', 'PLUGIN_ERROR', 'ENOBUFS', 'ETIMEDOUT', 'NATIVE_BINDING_LOAD_FAILED', 'NATIVE_LIBRARY_LOAD_FAILED', 'MISSING_MODULE', 'ERR_REQUIRE_ESM', 'ERR_REQUIRE_ASYNC_MODULE', 'ERR_INVALID_ARG_TYPE', 'ERR_INVALID_ARG_VALUE', 'ERR_PACKAGE_PATH_NOT_EXPORTED', 'ERR_PACKAGE_IMPORT_NOT_DEFINED', 'ERR_SYSTEM_ERROR', 'ERR_UNSUPPORTED_ESM_URL_SCHEME', 'ERR_UNKNOWN_FILE_EXTENSION', 'ERR_INTERNAL_ASSERTION', 'EPERM', 'EAGAIN', 'EMFILE', 'EINVAL', 'ENOTDIR', 'ENOTSUP', 'DYNAMIC_REQUIRE_UNSUPPORTED', 'NATIVE_PANIC', 'REFERENCE_ERROR', 'TYPE_ERROR', 'SYNTAX_ERROR', 'RANGE_ERROR', 'ASSERTION_ERROR'];
 // Only fixed labels leave this traversal. Both graph size and message work are bounded.
 export function classifyBuildError(error, codes = BUILD_CODES) {
   const queue = [{ value: error, depth: 0 }], seen = new Set();
-  let visited = 0, fallback = 'UNKNOWN';
+  let visited = 0, fallback = 'UNKNOWN', errorClass = 'UNKNOWN';
   const foundCodes = new Set();
   while (queue.length && visited < 8) {
     const { value, depth } = queue.shift();
@@ -58,8 +58,12 @@ export function classifyBuildError(error, codes = BUILD_CODES) {
     try {
       if (codes.includes(value.code)) foundCodes.add(value.code);
       const message = typeof value.message === 'string' ? value.message.slice(0, 2048) : '';
+      const classes = {ReferenceError:'REFERENCE_ERROR', TypeError:'TYPE_ERROR', SyntaxError:'SYNTAX_ERROR', RangeError:'RANGE_ERROR', AssertionError:'ASSERTION_ERROR'};
+      if (errorClass === 'UNKNOWN' && Object.hasOwn(classes, value.name)) errorClass = classes[value.name];
       if (fallback === 'UNKNOWN') {
-        if (/failed to load native binding/i.test(message)) fallback = 'NATIVE_BINDING_LOAD_FAILED';
+        if (/dynamic require of .* is not supported|require is not defined in ES module scope/i.test(message)) fallback = 'DYNAMIC_REQUIRE_UNSUPPORTED';
+        else if (/thread .*panicked|panic in a function that cannot unwind|failed to spawn thread|rayon.*thread pool/i.test(message)) fallback = 'NATIVE_PANIC';
+        else if (/failed to load native binding/i.test(message)) fallback = 'NATIVE_BINDING_LOAD_FAILED';
         else if (/cannot find (?:module|package)|module not found/i.test(message)) fallback = 'MISSING_MODULE';
         else if (/cannot open shared object file|invalid ELF header|wrong ELF class|failed to map segment from shared object|GLIBC_[0-9.]+.*not found/i.test(message)) fallback = 'NATIVE_LIBRARY_LOAD_FAILED';
       }
@@ -75,9 +79,14 @@ export function classifyBuildError(error, codes = BUILD_CODES) {
   // SWC probes a missing local binary before the actual installed native package.
   // Prefer actionable underlying failures over that expected module-missing probe.
   const priority = ['ERR_DLOPEN_FAILED', 'EACCES', 'EROFS', 'ENOMEM', 'ENOSPC', 'ENOBUFS', 'ETIMEDOUT', 'ENOENT', 'NATIVE_LIBRARY_LOAD_FAILED', 'NATIVE_BINDING_LOAD_FAILED', 'MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'MISSING_MODULE', 'PLUGIN_ERROR'];
-  return priority.find(code => foundCodes.has(code)) ?? fallback;
+  const lowPriority = ['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'MISSING_MODULE', 'PLUGIN_ERROR'];
+  const actionable = priority.filter(code => !lowPriority.includes(code));
+  for (const code of codes) if (!lowPriority.includes(code) && !actionable.includes(code)) actionable.push(code);
+  return [...actionable, ...lowPriority].find(code => foundCodes.has(code)) ?? (fallback !== 'UNKNOWN' ? fallback : errorClass);
 }
 export const BUILD = `
+import { createRequire } from 'node:module';
+const require = createRequire('file:///app/package.json');
 let stage = 'setup';
 (async()=>{
 const fs = require('node:fs');
@@ -133,7 +142,7 @@ export function buildSnapshot({ trusted, temporary, label, sha, image, container
     mkdirSync(path.join(source, 'node_modules'), { recursive: true });
     try {
       // Receipt and supervisor are never mounted; all candidate execution stays isolated.
-      run('docker', ['run', '--name', container, '--rm', '--network=none', '--read-only', '--user=65532:65532', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=128', '--memory=4g', '--cpus=2', '--ulimit', 'fsize=268435456:268435456', '--tmpfs', '/tmp:rw,noexec,nosuid,size=256m', '--mount', `type=bind,src=${source},dst=/app,readonly`, '--mount', `type=bind,src=${path.join(trusted, 'node_modules')},dst=/app/node_modules,readonly`, '--mount', `type=bind,src=${out},dst=/out`, '--workdir=/app', image, 'node', '-e', BUILD], { timeout: 240000, maxBuffer: 1 << 20, stdio: ['ignore', 'ignore', 'pipe'] });
+      run('docker', ['run', '--name', container, '--rm', '--network=none', '--read-only', '--user=65532:65532', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=128', '--memory=4g', '--cpus=2', '--ulimit', 'fsize=268435456:268435456', '--tmpfs', '/tmp:rw,noexec,nosuid,size=256m', '--mount', `type=bind,src=${source},dst=/app,readonly`, '--mount', `type=bind,src=${path.join(trusted, 'node_modules')},dst=/app/node_modules,readonly`, '--mount', `type=bind,src=${out},dst=/out`, '--workdir=/app', image, 'node', '--input-type=module', '-e', BUILD], { timeout: 240000, maxBuffer: 1 << 20, stdio: ['ignore', 'ignore', 'pipe'] });
     } catch (error) { throw safeBuildFailure(error); }
     finally { try { run('docker', ['rm', '-f', container], { stdio: 'ignore' }); } catch {} }
     // Copy bounded regular output to memory only after the container is gone.
