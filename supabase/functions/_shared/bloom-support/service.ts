@@ -168,6 +168,13 @@ export const actions = {
       },
     });
   },
+  sendAndSolve(c: Caller, id: string, input: Record<string, unknown>) {
+    requireWriteScope(c);
+    boundedString(input.body, "body", MAX_TICKET_BODY_LENGTH);
+    return directRpc("bloom_support_send_and_solve", {
+      p_actor: c.principalId, p_ticket: uuid(id, "ticket_id"), p_request: input,
+    });
+  },
   async updateTicket(c: Caller, id: string, patch: Record<string, unknown>) {
     requireWriteScope(c);
     const ticketId = uuid(id, "ticket_id");

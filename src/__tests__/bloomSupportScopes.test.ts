@@ -15,7 +15,7 @@ describe("Read-only Bloom Support keys stay read-only", () => {
 
   it("saving and deleting views need write scope", () => {
     const service = read("_shared/bloom-support/service.ts");
-    for (const fn of ["saveView(", "deleteView("]) {
+    for (const fn of ["saveView(", "deleteView(", "sendAndSolve("]) {
       const body = service.slice(service.indexOf(fn), service.indexOf("},", service.indexOf(fn)));
       expect(body).toContain("requireWriteScope(c)");
     }

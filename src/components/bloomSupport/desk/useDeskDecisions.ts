@@ -93,6 +93,26 @@ export function escalationProblem(reason: unknown, detail: unknown, subject: str
   return { problem: "Bloom needs a person to move this request forward.", finding };
 }
 
+interface EngineeringTicket {
+  id: string; number: number; subject: string; kind?: string;
+  feature_request_id?: string | null; feature_status?: string | null; feature_product_approved?: boolean;
+}
+
+/** Product permission and technical release review are separate decisions. */
+export function engineeringReviewCopy(tickets: EngineeringTicket[]) {
+  const features = tickets.filter((t) => t.kind === "feature" || t.feature_request_id);
+  const noun = features.length ? "feature change" : tickets.length && tickets.every((t) => ["bug", "incident"].includes(t.kind ?? "")) ? "fix" : "change";
+  const states: Record<string, string> = { awaiting_decision: "awaiting a decision", accepted: "accepted", planned: "planned", shipped: "shipped", declined: "declined" };
+  const product = features.map((t) => `Request #${t.number}: product decision ${states[t.feature_status ?? ""] ?? "not recorded"}${t.feature_product_approved === true ? "; product approval recorded" : "; product approval required"}.`).join(" ");
+  return {
+    noun,
+    problem: `A proposed ${noun} is waiting for technical release approval.`,
+    recommendation: features.length
+      ? `${product} Review the product decision and the proposed change separately. Technical release approval does not grant product approval.`
+      : "Review the change and its test evidence before it goes live, because releasing it changes the product for clients.",
+  };
+}
+
 /**
  * The decisions list shared by Today and the Decisions view. Every option runs
  * an existing endpoint (recordReviewDecision, decideFeature, updateEngineering,
@@ -147,14 +167,15 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
   const decisions: DeskDecision[] = [];
   for (const e of (engineering.data ?? []) as Row[]) {
     if (e.reviewOwned === true) continue;
-    const tickets = (e.tickets as Array<{ id: string; number: number; subject: string }>) ?? [];
+    const tickets = (e.tickets as EngineeringTicket[]) ?? [];
+    const copy = engineeringReviewCopy(tickets);
     const ids = tickets.map((t) => t.id);
     const items = ((escalations.data ?? []) as TodayEscalation[]).filter((x) => x.engineering_issue_id === e.id);
     const options: DecisionOption[] = [];
-    if (ids.length && canReview(items)) options.push({ ...take(ids, items, true, "I'll review the fix first"), detail: "Assign the review to me. Nothing goes live until it's approved.", done: "The review is yours. Nothing goes live until it's approved." });
+    if (ids.length && canReview(items)) options.push({ ...take(ids, items, true, `I'll review the ${copy.noun} first`), detail: "Assign the review to me. Nothing goes live until it's approved.", done: "The review is yours. Nothing goes live until it's approved." });
     if (can("engineering.approve")) options.push({
-      id: "approve", label: "Approve the fix now", done: "Approved. Bloom will release it, check it on the live site, then tell the client.",
-      detail: "Bloom releases it, checks it on the live site, then tells the client.",
+      id: "approve", label: `Approve the ${copy.noun} release`, done: "Technical release approved. Bloom will check the remaining release requirements before proceeding.",
+      detail: "Approve the technical release. Product approval and other release requirements still apply.",
       run: () => bloomSupport.updateEngineering(String(e.id), { status: "approved", note: "Approved from the Support desk" }),
     });
     decisions.push({
@@ -162,10 +183,10 @@ export function useDeskDecisions(me: Whoami, onOpenTicket: (id: string) => void)
       client: tickets[0] ? nameOf.get(tickets[0].id) ?? `Request #${tickets[0].number}` : "Proposed fix",
       ticket: tickets[0] ? `#${tickets[0].number} ${tickets[0].subject}` : undefined,
       when: ago(e.updated_at),
-      problem: "Bloom wrote and tested a fix. It is waiting for approval to go live.",
-      recommendation: "Review the change before it goes live, because releasing it changes the product for clients.",
+      problem: copy.problem,
+      recommendation: copy.recommendation,
       risk: e.risk ? plainSummary(e.risk) : undefined,
-      evidence: tickets.length ? `Fixes ${tickets.length} request${tickets.length === 1 ? "" : "s"}: ${tickets.map((t) => `#${t.number}`).join(", ")}` : undefined,
+      evidence: tickets.length ? `Linked to ${tickets.length} request${tickets.length === 1 ? "" : "s"}: ${tickets.map((t) => `#${t.number}`).join(", ")}` : undefined,
       options,
       other: other(ids, items),
       open: e.pr_url ? { label: "See the change", href: String(e.pr_url) } : tickets[0] ? { label: "Open request", onClick: () => onOpenTicket(tickets[0].id) } : undefined,

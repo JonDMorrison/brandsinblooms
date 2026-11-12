@@ -17,6 +17,7 @@ export function isNextAction(value: unknown): value is NextAction {
 }
 
 export interface NextStep {
+  evidenceReview?: boolean;
   action: NextAction;
   /** Primary button text in the email and on the Support page. */
   button: string;
@@ -87,6 +88,7 @@ export function nextStepForReason(reason: string, ticket?: { automation?: string
 }
 
 export interface EngineeringFacts {
+  version?: unknown;
   id?: unknown;
   status?: unknown;
   repair_started_at?: unknown;
@@ -100,6 +102,7 @@ export interface EngineeringFacts {
 }
 
 export interface LiveTicketState {
+  id?: string;
   status: string;
   automation?: string | null;
   pending_review?: string | null;
@@ -123,9 +126,9 @@ export function liveNextStep(t: LiveTicketState, hint?: NextAction | null): Next
   if (t.pending_review === "reply_after_resolution") valid.add("review-reply");
   if (eng?.id && engStatus === "awaiting_approval") valid.add("approve-fix");
   const startRequested = (t.escalations ?? []).some((e) => e.reason === "engineering_start_requested" && e.status !== "resolved");
-  const outcome = resolutionOutcome(eng);
+  const outcome = resolutionOutcome(eng, t.id);
   // A repair is pointless once the investigation could not reproduce the problem.
-  if (eng?.id && engStatus === "open" && !eng.repair_started_at && startRequested && outcome !== "not_reproduced") valid.add("start-repair");
+  if (eng?.id && engStatus === "open" && !eng.repair_started_at && startRequested && outcome !== "not_reproduced" && obj(eng.reproduction)?.result !== "not_reproduced") valid.add("start-repair");
   if ((t.operations ?? []).some((o) => o.status === "previewed")) valid.add("confirm-change");
   if (t.feature_request?.id && String(t.feature_request.status ?? "awaiting_decision") === "awaiting_decision") valid.add("decide-feature");
   if (t.status !== "resolved" && outcome) valid.add("send-and-solve");
@@ -136,6 +139,15 @@ export function liveNextStep(t: LiveTicketState, hint?: NextAction | null): Next
   if (hint && valid.has(hint)) return nextStepFor(hint);
   for (const a of ["review-reply", "approve-fix", "start-repair", "confirm-change", "decide-feature", "send-and-solve"] as const) {
     if (valid.has(a)) return nextStepFor(a);
+  }
+  if (t.status !== "resolved" && eng && !outcome &&
+      (engStatus === "verified" || engStatus === "not_reproduced" || (engStatus === "open" && obj(eng.reproduction)?.result === "not_reproduced"))) {
+    return {
+      ...nextStepFor(t.automation === "human" ? "reply" : "take-over"),
+      evidenceReview: true,
+      button: "Review the investigation",
+      recommendation: "Review the investigation and verify the current client report before closing. The stored evidence does not yet support a closing reply.",
+    };
   }
   // A ticket waiting on a person, or one a person opened from a "needs you" email,
   // falls back to the human step that is valid right now.
@@ -166,18 +178,23 @@ const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "
  * "not_reproduced" when Bloom investigated and could not reproduce it, "fixed"
  * when the linked fix is live and its check passed. Otherwise null.
  */
-export function resolutionOutcome(eng: EngineeringFacts | null | undefined): ResolutionOutcome | null {
-  if (!eng) return null;
+export function resolutionOutcome(eng: EngineeringFacts | null | undefined, ticketId?: string): ResolutionOutcome | null {
+  if (!eng || typeof eng.id !== "string" || !Number.isSafeInteger(eng.version) || Number(eng.version) < 1) return null;
   const status = typeof eng.status === "string" ? eng.status : "";
   const repro = obj(eng.reproduction);
   // Current release state wins over a historical investigation note. A status
   // label alone cannot prove the live check passed, even when a previous
   // investigation was unable to reproduce the original report.
-  if (status === "verified") return obj(eng.verification)?.passed === true ? "fixed" : null;
+  if (status === "verified") {
+    const verification = obj(eng.verification);
+    return ticketId && verification?.passed === true && typeof verification.started_at === "string" && Number.isFinite(Date.parse(verification.started_at)) && Date.parse(verification.started_at) <= Date.now() && verification.scope === "ticket_flow" &&
+      Array.isArray(verification.ticket_ids) && verification.ticket_ids.includes(ticketId) &&
+      obj(eng.deployment)?.state === "success" ? "fixed" : null;
+  }
   // Legacy investigations stored their result while the issue stayed open.
   // Do not let that note settle a later repair, failure, rollback or escalation.
   if (status === "not_reproduced" || (status === "open" && repro?.result === "not_reproduced")) {
-    return "not_reproduced";
+    return typeof repro?.checked_at === "string" && Number.isFinite(Date.parse(repro.checked_at)) && Date.parse(repro.checked_at) <= Date.now() ? "not_reproduced" : null;
   }
   return null;
 }
@@ -222,11 +239,12 @@ export interface ResolutionPlan {
  * records show. Returns null when the request is not settled.
  */
 export function resolutionPlan(input: {
+  ticketId?: string;
   engineering: EngineeringFacts | null | undefined;
   requesterName?: string | null;
   timeZone?: string;
 }): ResolutionPlan | null {
-  const outcome = resolutionOutcome(input.engineering);
+  const outcome = resolutionOutcome(input.engineering, input.ticketId);
   if (!outcome) return null;
   const tz = input.timeZone ?? "America/Toronto";
   const first = String(input.requesterName ?? "").trim().split(/\s+/)[0]?.replace(/[^\p{L}'-]/gu, "") ?? "";

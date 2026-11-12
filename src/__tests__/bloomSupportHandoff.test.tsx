@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { readFileSync } from "node:fs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,10 +16,13 @@ function ticket(id: string, extra: Partial<TicketDetail> = {}): TicketDetail {
     resolution_summary: null, automation: "auto", executor: "bloom", version: 3, merged_into: null, pending_review: null,
     engineering: null, operations: [], escalations: [], feature_request: null,
     summary: "", messages: [], attachments: [], conversation_tickets: [], ...extra,
+    ...(extra.engineering === verifiedFix ? { engineering: { ...verifiedFix,
+      verification: { passed: true, scope: "ticket_flow", started_at: "2026-11-08T00:00:00Z", ticket_ids: [id] },
+    } } : {}),
   } as TicketDetail;
 }
-const notReproduced = { id: "eng-1", status: "not_reproduced", reproduction: { result: "not_reproduced" } };
-const verifiedFix = { id: "eng-2", status: "verified", verification: { passed: true } };
+const notReproduced = { id: "eng-1", version: 4, status: "not_reproduced", reproduction: { result: "not_reproduced", checked_at: "2026-11-08T00:00:00Z" } };
+const verifiedFix = { id: "eng-2", version: 7, status: "verified", deployment: { state: "success" }, verification: { passed: true } };
 
 describe("what Bloom may take", () => {
   it("offers settled requests, preselected, with the stored draft", () => {
@@ -39,6 +43,28 @@ describe("what Bloom may take", () => {
   ])("does not close $status work using an old not-reproduced note", ({ status, verification }) => {
     const t = ticket("t-stale", { engineering: { ...notReproduced, status, verification } });
     expect(classifyForHandoff(t, ALL)?.item?.kind).not.toBe("send-and-solve");
+  });
+
+  it.each([
+    { passed: true, scope: "release_smoke" },
+    { passed: true, scope: "ticket_flow", ticket_ids: ["another-ticket"] },
+    { passed: true },
+  ])("never offers a fixed reply without affected-ticket proof: %j", (verification) => {
+    const t = ticket("unverified", { engineering: { ...verifiedFix, verification } });
+    expect(classifyForHandoff(t, ALL)?.item?.kind).not.toBe("send-and-solve");
+  });
+
+  it("includes stored production and affected-flow evidence in a fixed closure", async () => {
+    const t = ticket("bound", { engineering: verifiedFix });
+    const { api } = fakeApi({ bound: t });
+    await runHandoffItem(api, itemFor(t), { idempotencyKey: "k", permissions: ALL });
+    expect(api.sendAndSolve).toHaveBeenCalledWith("bound", expect.objectContaining({
+      resolution_evidence: expect.objectContaining({
+        deployment: { state: "success" },
+        engineering_issue_id: "eng-2", engineering_version: 7,
+        verification: { passed: true, scope: "ticket_flow", started_at: "2026-11-08T00:00:00Z", ticket_ids: ["bound"] },
+      }),
+    }));
   });
 
   it("offers person-owned work back to Bloom, never preselected", () => {
@@ -79,6 +105,7 @@ function fakeApi(tickets: Record<string, TicketDetail>, fail: Partial<Record<"ge
   const api: HandoffApi = {
     getTicket: vi.fn(async (id: string) => { calls.push(`get:${id}`); if (fail.get) throw fail.get; return structuredClone(tickets[id]); }),
     addMessage: vi.fn(async (id: string, input) => { calls.push(`message:${id}:${input.visibility}:${input.idempotency_key}`); if (fail.message) throw fail.message; return { message_id: "m1", duplicate: false }; }),
+    sendAndSolve: vi.fn(async (id: string, input) => { calls.push(`solve:${id}:${String(input.idempotency_key)}`); if (fail.update || fail.message) throw fail.update || fail.message; return {}; }),
     updateTicket: vi.fn(async (id: string, patch) => { calls.push(`update:${id}:${String(patch.status)}:${String(patch.version)}`); if (fail.update) throw fail.update; return {}; }),
     setAutomation: vi.fn(async (id: string, mode) => { calls.push(`automation:${id}:${mode}`); if (fail.automation) throw fail.automation; return {}; }),
   };
@@ -92,11 +119,32 @@ describe("running approved work", () => {
     const { api, calls } = fakeApi({ t20: t });
     const result = await runHandoffItem(api, itemFor(t), { body: "Hi Dana, edited.", idempotencyKey: "rk:solve:t20", permissions: ALL });
     expect(result).toEqual({ status: "done", message: "Reply sent. Marked solved with the evidence on file." });
-    expect(calls).toEqual(["get:t20", "message:t20:public:rk:solve:t20:reply", "get:t20", "update:t20:resolved:3"]);
-    expect(api.addMessage).toHaveBeenCalledWith("t20", expect.objectContaining({ body: "Hi Dana, edited." }));
-    expect(api.updateTicket).toHaveBeenCalledWith("t20", expect.objectContaining({
-      resolution_evidence: expect.objectContaining({ via: "send-and-solve", reply_message_id: "m1", verification: expect.objectContaining({ passed: true }) }),
+    expect(calls).toEqual(["get:t20", "solve:t20:rk:solve:t20"]);
+    expect(api.sendAndSolve).toHaveBeenCalledWith("t20", expect.objectContaining({ body: "Hi Dana, edited.", version: 3 }));
+    expect(api.addMessage).not.toHaveBeenCalled();
+    expect(api.updateTicket).not.toHaveBeenCalled();
+    expect(api.sendAndSolve).toHaveBeenCalledWith("t20", expect.objectContaining({
+      resolution_evidence: expect.objectContaining({ via: "send-and-solve", verification: expect.objectContaining({ passed: true }) }),
     }));
+  });
+
+  it("does not send a reviewed reply after its resolution evidence changes", async () => {
+    const reviewed = ticket("t30", { engineering: notReproduced });
+    const { api } = fakeApi({ t30: ticket("t30", { engineering: verifiedFix }) });
+    const result = await runHandoffItem(api, itemFor(reviewed), { idempotencyKey: "k", permissions: ALL });
+    expect(result.status).toBe("skipped");
+    expect(api.addMessage).not.toHaveBeenCalled();
+    expect(api.updateTicket).not.toHaveBeenCalled();
+  });
+
+  it("uses one atomic operation so rejected closure cannot leave a separate reply", async () => {
+    const t = ticket("t31", { engineering: verifiedFix });
+    const { api } = fakeApi({ t31: t }, { update: new BloomSupportError(409, "conflict", "evidence changed") });
+    const result = await runHandoffItem(api, itemFor(t), { idempotencyKey: "k", permissions: ALL });
+    expect(result.status).toBe("failed");
+    expect(api.sendAndSolve).toHaveBeenCalledTimes(1);
+    expect(api.addMessage).not.toHaveBeenCalled();
+    expect(api.updateTicket).not.toHaveBeenCalled();
   });
 
   it("uses the same idempotency key on retry, so a reply is never sent twice", async () => {
@@ -104,9 +152,9 @@ describe("running approved work", () => {
     const { api } = fakeApi({ t21: t }, { update: new BloomSupportError(409, "conflict", "conflict: version") });
     const first = await runHandoffItem(api, itemFor(t), { idempotencyKey: "rk:x", permissions: ALL });
     expect(first.status).toBe("failed");
-    expect(first.message).toBe("The reply was sent, but the request isn't marked solved. Someone changed this request while Bloom was working. Open it to review.");
+    expect(first.message).toBe("The combined reply and closure could not be confirmed. Someone changed this request while Bloom was working. Open it to review.");
     await runHandoffItem(api, itemFor(t), { idempotencyKey: "rk:x", permissions: ALL });
-    const keys = vi.mocked(api.addMessage).mock.calls.map((c) => c[1].idempotency_key);
+    const keys = vi.mocked(api.sendAndSolve).mock.calls.map((c) => c[1].idempotency_key);
     expect(new Set(keys).size).toBe(1);
   });
 
@@ -114,7 +162,7 @@ describe("running approved work", () => {
     const t = ticket("t22", { engineering: verifiedFix });
     const { api } = fakeApi({ t22: t }, { message: new BloomSupportError(502, "error", "provider said no <html>") });
     const result = await runHandoffItem(api, itemFor(t), { idempotencyKey: "k", permissions: ALL });
-    expect(result).toEqual({ status: "failed", message: "Nothing was sent. Bloom couldn't finish this step. Try again, or open the request." });
+    expect(result).toEqual({ status: "failed", message: "The combined reply and closure could not be confirmed. Bloom couldn't finish this step. Try again, or open the request." });
     expect(api.updateTicket).not.toHaveBeenCalled();
   });
 
@@ -149,11 +197,12 @@ describe("running approved work", () => {
   });
 });
 
-const api = vi.hoisted(() => ({ pageTickets: vi.fn(), getTicket: vi.fn(), addMessage: vi.fn(), updateTicket: vi.fn(), setAutomation: vi.fn() }));
+const api = vi.hoisted(() => ({ pageTickets: vi.fn(), getTicket: vi.fn(), addMessage: vi.fn(), sendAndSolve: vi.fn(), updateTicket: vi.fn(), setAutomation: vi.fn() }));
 vi.mock("@/lib/bloomSupport/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/bloomSupport/api")>();
   return { ...actual, bloomSupport: { ...actual.bloomSupport, ...api } };
 });
+import { BloomRecommends } from "@/components/bloomSupport/BloomRecommends";
 import { LetBloomHandle } from "@/components/bloomSupport/desk/LetBloomHandle";
 
 describe("Let Bloom handle it review", () => {
@@ -168,7 +217,7 @@ describe("Let Bloom handle it review", () => {
     api.pageTickets.mockResolvedValue({ items: Object.values(store), total: 4, next_cursor: null });
     api.getTicket.mockImplementation(async (id: string) => structuredClone(store[id]));
     api.addMessage.mockResolvedValue({ message_id: "m1", duplicate: false });
-    api.updateTicket.mockImplementation(async (id: string) => { store[id] = { ...store[id], status: "resolved" }; return {}; });
+    api.sendAndSolve.mockImplementation(async (id: string) => { store[id] = { ...store[id], status: "resolved" }; return {}; });
     api.setAutomation.mockImplementation(async (id: string) => {
       if (id === "h2") throw new BloomSupportError(409, "conflict", "conflict");
       store[id] = { ...store[id], automation: "auto" }; return {};
@@ -199,6 +248,78 @@ describe("Let Bloom handle it review", () => {
     api.setAutomation.mockResolvedValue({});
     fireEvent.click(screen.getByRole("button", { name: "Try the unfinished ones again" }));
     await waitFor(() => expect(screen.getByText("3 done.")).toBeInTheDocument());
-    expect(api.addMessage).toHaveBeenCalledTimes(1);
+    expect(api.sendAndSolve).toHaveBeenCalledTimes(1);
+    expect(api.addMessage).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("single-ticket recommendation closure parity", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it("rereads the reviewed evidence before sending from the recommendation", async () => {
+    const t = ticket("recommend", { engineering: notReproduced });
+    api.getTicket.mockResolvedValue({ ...t, engineering: { ...notReproduced, status: "rolled_back" } });
+    const me = { permissions: ALL } as Parameters<typeof BloomRecommends>[0]["me"];
+    let outcome: Promise<unknown> | undefined;
+    render(<BloomRecommends t={t} me={me} hint={null} busy={false}
+      run={(fn) => { outcome = fn().catch((error: Error) => error.message); }} onReply={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "Send this reply and mark solved" }));
+    expect(await outcome).toMatch(/changed since you reviewed/);
+    expect(api.getTicket).toHaveBeenCalledWith("recommend");
+    expect(api.addMessage).not.toHaveBeenCalled();
+    expect(api.updateTicket).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("reviewed closure server contract", () => {
+  it("queues the reply and guarded closure in one service-only transaction", () => {
+    const sql = readFileSync("supabase/migrations/20261112184000_bloom_support_atomic_closure.sql", "utf8");
+    expect(sql).toContain("bloom_support.require_permission(p_actor, 'tickets.write')");
+    expect(sql).toContain("bloom_support.require_ticket(p_actor,p_ticket)");
+    expect(sql).toContain("receipt.request IS DISTINCT FROM p_request");
+    expect(sql).toContain("jsonb_typeof(p_request->'idempotency_key') IS DISTINCT FROM 'string'");
+    expect(readFileSync("supabase/functions/_shared/bloom-support/runtime.ts", "utf8")).toContain('fn: "bloom_support_send_and_solve"');
+    expect(sql.indexOf("'message:reviewed-close:'")).toBeLessThan(sql.indexOf("FOR UPDATE"));
+    expect(sql.indexOf("sent := bloom_support.add_message")).toBeLessThan(sql.indexOf("PERFORM bloom_support.update_ticket"));
+    expect(sql).toContain("FROM PUBLIC,anon,authenticated");
+    expect(sql).not.toMatch(/EXCEPTION WHEN OTHERS/);
+  });
+  it("scopes the guard to suggested closures and locks exact engineering evidence", () => {
+    const sql = readFileSync("supabase/migrations/20261112180000_bloom_support_reviewed_closure.sql", "utf8");
+    expect(sql).toContain("IS DISTINCT FROM 'send-and-solve'");
+    expect(sql).toContain("FOR SHARE NOWAIT");
+    expect(sql).toContain("checked > statement_timestamp()");
+    expect(sql).toContain("e.verification->'passed' IS DISTINCT FROM 'true'::jsonb");
+    expect(sql).toContain("jsonb_typeof(e.verification->'started_at') IS DISTINCT FROM 'string'");
+    expect(sql).toContain("jsonb_typeof(e.reproduction->'checked_at') IS DISTINCT FROM 'string'");
+    expect(sql).toContain("'engineering_version' IS DISTINCT FROM e.version::text");
+    expect(sql).toContain("WITH RECURSIVE sources");
+    expect(sql).toContain("e.reproduction->>'checked_at'");
+    expect(sql).not.toContain("checked := e.updated_at");
+    expect(sql).toContain("NEW.resolution_evidence->'verification' IS DISTINCT FROM e.verification");
+  });
+  it.each([
+    { ...notReproduced, version: undefined },
+    { ...notReproduced, reproduction: { result: "not_reproduced" } },
+    { ...notReproduced, reproduction: { checked_at: "invalid" } },
+    { ...notReproduced, reproduction: { checked_at: "2999-01-01T00:00:00Z" } },
+    { ...verifiedFix, verification: { passed: true, scope: "ticket_flow", ticket_ids: ["missing-proof"], started_at: "2999-01-01T00:00:00Z" } },
+  ])("does not offer a closing reply with missing server-required proof", (engineering) => {
+    expect(classifyForHandoff(ticket("missing-proof", { engineering }), ALL)?.held?.reason).toContain("verify the current client report");
+  });
+});
+
+
+describe("client reply serialization migration", () => {
+  it("preserves the function contract and rereads ticket state only after advisory and row locks", () => {
+    const sql = readFileSync("supabase/migrations/20261112183000_bloom_support_message_ticket_lock.sql", "utf8");
+    expect(sql).toContain("pg_get_functiondef('bloom_support.add_message(uuid,uuid,jsonb)'::regprocedure)");
+    const replacement = sql.split("$replacement$")[1];
+    expect(replacement.indexOf("pg_advisory_xact_lock")).toBeLessThan(replacement.indexOf("FOR UPDATE"));
+    expect(replacement.indexOf("FOR UPDATE")).toBeLessThan(replacement.indexOf("t := bloom_support.require_ticket"));
+    expect(sql).toContain("initial ticket-read anchor not found");
+    const runner = readFileSync("scripts/tests/run-bloom-support-tests.sh", "utf8");
+    expect(runner).toContain("-f scripts/tests/bloom-support-message-closure-race.sql");
   });
 });

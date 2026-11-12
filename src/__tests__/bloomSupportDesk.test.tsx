@@ -207,7 +207,7 @@ describe("System status panel", () => {
   });
 });
 
-import { escalationProblem, firstSentence } from "@/components/bloomSupport/desk/useDeskDecisions";
+import { engineeringReviewCopy, escalationProblem, firstSentence } from "@/components/bloomSupport/desk/useDeskDecisions";
 
 describe("decision wording", () => {
   it("keeps long engineering notes to one readable sentence", () => {
@@ -260,5 +260,22 @@ describe("Bloom's plain escalation summary", () => {
     expect(readPlain({ problem: " A ", blocker: "" })).toEqual({ problem: "A", blocker: null });
     expect(readPlain({ blocker: "x" })).toBeNull();
     expect(readPlain("text")).toBeNull();
+  });
+});
+
+
+describe("engineering and product approval wording", () => {
+  it("keeps a feature's declined product decision distinct from release approval", () => {
+    const copy = engineeringReviewCopy([{ id: "t", number: 8, subject: "New flow", kind: "feature", feature_status: "declined", feature_product_approved: false }]);
+    expect(copy.noun).toBe("feature change");
+    expect(copy.problem).not.toMatch(/tested.*fix/);
+    expect(copy.recommendation).toContain("product decision declined");
+    expect(copy.recommendation).toContain("product approval required");
+    expect(copy.recommendation).toContain("Technical release approval does not grant product approval");
+  });
+  it("uses fix only for known bugs and incidents, without inventing test results", () => {
+    expect(engineeringReviewCopy([{ id: "t", number: 1, subject: "Broken", kind: "bug" }]).noun).toBe("fix");
+    expect(engineeringReviewCopy([{ id: "t", number: 1, subject: "Unknown" }]).noun).toBe("change");
+    expect(engineeringReviewCopy([]).problem).not.toContain("tested");
   });
 });
