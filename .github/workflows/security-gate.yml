@@ -43,11 +43,11 @@ jobs:
       - name: Verify frozen Bloom browser observer and receipt safeguards
         run: node --test .github/scripts/bloom-*.test.mjs scripts/bloom-support/bloom-repair-path-guard.test.mjs
 
-      - name: Run full unit and component test suite
-        run: npm test
-
       - name: Build production application
         run: npm run build
 
       - name: Preflight sandboxed Bloom browser against local production build
         run: node .github/scripts/bloom-browser-preflight.mjs
+
+      - name: Run full unit and component test suite
+        run: npm test

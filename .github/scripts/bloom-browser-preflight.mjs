@@ -21,6 +21,10 @@ export async function main() {
   try {
     browser = await launchTrustedBrowser(chromium);
     const observation = await runRecipe(browser, server.origin);
+    // Only trusted stage names, booleans and counters. Never page text, URLs,
+    // console output or exceptions controlled by the application under test.
+    console.log(JSON.stringify({ outcome: observation.outcome, stage: observation.stage,
+      assertions: observation.assertions, safety: observation.safety }));
     assertPreflightObservation(observation);
     console.log(`Sandboxed Chrome ${browser.version()}: local recipe infrastructure ready (${observation.outcome}). No release proof or live verification created.`);
   } finally {
