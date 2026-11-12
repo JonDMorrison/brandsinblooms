@@ -61,6 +61,7 @@ async function fixture(options={}){
         Response.json({error:'not_found'},{status:404});
       assert.equal(init.method,'POST');
       salePosts++;
+      if(options.saleFailure)throw new Error('SECRET uncertain upstream write');
       assert.equal(u.pathname,'/api/2026-07/sales');
       savedSale={...JSON.parse(init.body),
         id:'99d80083-9ef2-4314-9f8e-7f638be367d1'};
@@ -304,4 +305,18 @@ test('invalid Stripe state and wrong site do not reach provider sale API',async(
   assert.equal(bad.status,400);assert.equal(f.calls.length,n);
   const wrong=await f.signed({action:'sale',grantId,siteId:crypto.randomUUID(),sale:saleInput()});
   assert.equal(wrong.status,403);assert.equal(f.calls.length,n);
+});
+
+test('uncertain POS result is held for reconciliation and is never replayed',async()=>{
+  const f=await fixture({allowSaleWrite:true,saleFailure:true,
+    tokens:{scope:scopes+' sales:read sales:write'}});
+  const {grantId}=await f.activate();
+  const body={action:'sale',grantId,siteId:SITE,sale:saleInput()};
+  const first=await f.signed(body);
+  assert.equal(first.status,409);
+  assert.equal((await first.json()).error,'sale_reconcile_required');
+  assert.equal(f.salePosts,1);
+  const second=await f.signed(body);
+  assert.equal(second.status,409);
+  assert.equal(f.salePosts,1);
 });
