@@ -14,3 +14,11 @@ describe('analytical audience refresh plans',()=>{
  it('keeps missing dates unknown when refreshing a saved within-days rule',()=>{const follow={...saved,trail:[...saved.trail,{...saved.trail[0],rule:{mode:'purchased' as const,product:'Soil',within_days:30},label:'Soil afterward'}]};const undated=[{...fact('1','old'),purchased_at:null},{...fact('2','old','Soil'),purchased_at:null}];const r=planAudienceRefresh({...input,saved:follow,facts:undated,mode:'dynamic'});expect(r.member_ids).toEqual([]);expect(r.unknown_ids).toContain('old');});
  it('retains uncertainty from earlier steps in a multi-step rule',()=>{const second=explorePurchases({...scope,population:input.population,facts:input.facts,previous:saved,rule:{mode:'not_purchased',product:'Soil'},label:'Without soil',now:input.now});const r=planAudienceRefresh({...input,saved:second,mode:'dynamic'});expect(r.member_ids).toEqual(['new','old']);expect(r.unknown_ids).toEqual(['missing']);});
 });
+it('replays paid shopping activity without removing free coupon identification evidence',()=>{
+ const shopping=explorePurchases({...scope,population:input.population,facts:input.facts,rule:{mode:'purchased'},label:'Shoppers',now:input.now});
+ const revised=[{...fact('1','old'),net_amount:0},fact('2','new')];
+ const refreshed=planAudienceRefresh({...input,saved:shopping,facts:revised,mode:'dynamic'});
+ expect(refreshed.member_ids).toEqual(['new']);expect(refreshed.unknown_ids).toEqual(['missing']);
+ expect(planAudienceRefresh({...input,facts:revised,mode:'dynamic'}).member_ids).toEqual(['new','old']);
+ expect(revised[0].net_amount).toBe(0);
+});

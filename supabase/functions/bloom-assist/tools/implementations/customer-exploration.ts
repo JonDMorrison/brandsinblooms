@@ -13,6 +13,11 @@ import {currentSummaryImports,periodSummaryFacts,type PeriodSummaryEvent} from '
 import {loadCustomerProductHistory,ProductHistoryNotFound} from '../../../_shared/customer-intelligence/customer-product-history.ts';
 
 interface Customer {id: string; first_name: string | null; last_name: string | null; email: string | null; created_at: string | null;}
+// Identity imports reserve this domain for customers without an email address.
+// Inspect the current value, not email_is_placeholder, which can outlive a correction.
+function contactEmail(email: string | null): string | null {
+  return !email?.trim() || email.trim().toLowerCase().endsWith('@noemail.local') ? null : email;
+}
 export function analysisResult(data: unknown, count: number, message: string): ToolResult {
   return {success: true, data: data as JsonValue, count, message, error: null, block_type: 'data_table', confirmation_required: false, confirmation_details: null};
 }
@@ -60,6 +65,20 @@ export async function loadCustomerNames(context: ToolExecutionContext, ids: stri
   }
   return names;
 }
+/** Contact rows for an exact saved membership, never a tenant-wide fallback. */
+export async function loadCustomerSetContacts(context: ToolExecutionContext, ids: string[]): Promise<Customer[]> {
+  const client = await requireAnalysisAccess(context), contacts = new Map<string, Customer>();
+  const unique = [...new Set(ids)];
+  for (let offset = 0; offset < unique.length; offset += 100) {
+    const {data, error} = await client.from('crm_customers').select('id,first_name,last_name,email,created_at')
+      .eq('tenant_id', context.tenantId).in('id', unique.slice(offset, offset + 100))
+      .is('deleted_at', null).is('merged_into_customer_id', null);
+    if (error) throw new Error(error.message);
+    for (const customer of (data ?? []) as Customer[]) contacts.set(customer.id, {...customer, email:contactEmail(customer.email)});
+  }
+  if (unique.some(id => !contacts.has(id))) throw new Error('Some members of the saved audience are no longer accessible. No partial contact list was returned. Start a new search.');
+  return unique.map(id => contacts.get(id)!);
+}
 function snapshotStore(context: ToolExecutionContext): VerifiedSnapshotStore {
   const service = context.serviceClient;
   return {
@@ -102,7 +121,7 @@ function requireScope(params: JsonObject): 'all_customers' | 'previous_result' |
   if (params.scope !== 'saved_result' && params.set_id !== undefined) throw new Error('Use saved_result when specifying a result ID.');
   return params.scope as 'all_customers' | 'previous_result' | 'saved_result';
 }
-function name(customer: Customer) {return [customer.first_name,customer.last_name].filter(Boolean).join(' ') || customer.email || 'Customer';}
+function name(customer: Customer) {return [customer.first_name,customer.last_name].filter(Boolean).join(' ') || contactEmail(customer.email) || 'Customer';}
 function pageNumber(value: JsonValue | undefined) {if (value === undefined) return 1; if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 10000) throw new Error('Choose a valid page number.'); return value;}
 function publicSet(set: CustomerSet, customers: Customer[], page=1, bucket: 'included'|'excluded'|'unknown'='included') {
   return publicSetFrom(set,new Set(customers.map(c=>c.id)),new Map(customers.map(c=>[c.id,name(c)])),page,bucket);
@@ -236,15 +255,17 @@ export const inspectCustomerSet: ToolImplementation = async (params,context) => 
     if(!Array.isArray(ids)||ids.some(id=>!map.has(id)))throw new Error('Saved membership includes inaccessible customers. Review the audience before continuing.');
     const page=pageNumber(params.page);
     return analysisResult({kind:'customer_audience',bucket:String(params.bucket??'included'),audience_id:a.id,name:a.name,mode:a.mode,captured_at:snapshot.result.captured_at,last_refresh_at:a.refreshed_at,next_refresh_at:a.mode==='dynamic'?a.next_refresh_at:null,last_error:a.last_error,
-      total_count:ids.length,page,has_more:page*50<ids.length,rows:ids.slice((page-1)*50,page*50).map(id=>({customer_id:id,name:name(map.get(id)!),membership:String(params.bucket??'included')})),
+      total_count:ids.length,page,has_more:page*50<ids.length,rows:ids.slice((page-1)*50,page*50).map(id=>({customer_id:id,name:name(map.get(id)!),email:contactEmail(map.get(id)!.email),membership:String(params.bucket??'included')})),
       note:a.mode==='fixed'?'Fixed reviewed membership. No customer classifications or consent changed.':'Dynamic membership refreshes daily and after completed imports. Failed refreshes retain the last complete result. No customer classifications or consent changed.'},ids.length,'Showing the saved analytical audience.');
   }
 
-  const set = await loadCustomerSet(context,typeof params.set_id==='string'?params.set_id:undefined), visible = new Set(await loadAnalysisPopulation(context));
+  const set = await loadCustomerSet(context,typeof params.set_id==='string'?params.set_id:undefined);
   const bucket = params.bucket ?? 'included'; if (!['included','excluded','unknown'].includes(String(bucket))) throw new Error('Choose included, excluded, or unknown.');
+  const visible = new Set(await loadAnalysisPopulation(context, new Date().toISOString(), set[`${bucket as 'included'|'excluded'|'unknown'}_ids`]));
   const page = pageNumber(params.page), ids = set[`${bucket as 'included'|'excluded'|'unknown'}_ids`].slice((page-1)*50,page*50);
-  const data = publicSetFrom(set,visible,await loadCustomerNames(context,ids),page,bucket as 'included'|'excluded'|'unknown');
-  return analysisResult(data,data.total_count,`Showing ${bucket} customers from the saved result. Total ${data.total_count}; this is page ${data.page}.`);
+  const contacts = await loadCustomerSetContacts(context,ids), byId = new Map(contacts.map(customer=>[customer.id,customer]));
+  const data = publicSetFrom(set,visible,new Map(contacts.map(customer=>[customer.id,name(customer)])),page,bucket as 'included'|'excluded'|'unknown');
+  return analysisResult({...data,rows:data.rows.map(row=>({...row,email:byId.get(row.customer_id)!.email}))},data.total_count,`Showing ${bucket} customers from the saved result. Total ${data.total_count}; this is page ${data.page}.`);
 };
 async function loadEvidenceFacts(context: ToolExecutionContext, customerId: string, evidenceIds: string[]): Promise<PurchaseFact[]> {
   const client = await requireAnalysisAccess(context), wanted = new Set(evidenceIds);
@@ -517,7 +538,7 @@ export async function exploreCustomerReportedSpending(params: JsonObject,context
   set.included_ids=[];set.excluded_ids=[];set.unknown_ids=[];
   for(const id of population){const value=values.get(id);
     if(!value){set.unknown_ids.push(id);set.reasons[id]='no_purchase_history';}
-    else if(value.amount>=minimum&&value.transactions>=transactions){set.included_ids.push(id);set.reasons[id]='matching_purchase';set.evidence_ids[id]=[value.id];}
+    else if(value.amount>0&&value.amount>=minimum&&value.transactions>=transactions){set.included_ids.push(id);set.reasons[id]='matching_purchase';set.evidence_ids[id]=[value.id];}
     else {set.excluded_ids.push(id);set.reasons[id]='no_matching_purchase';}
   }
   set.included_ids.sort((a,b)=>values.get(b)!.amount-values.get(a)!.amount||a.localeCompare(b));

@@ -243,3 +243,133 @@ describe('durable saved-group references survive history compaction',()=>{
   expect(await loadSavedCustomerResultContext(slow,scope,1)).toBeNull();
  });
 });
+
+describe('saved-group email inspection and file export', () => {
+  const setId = '33333333-3333-4333-8333-333333333333';
+  function savedClient(options: {count?: number; missing?: boolean; allowed?: boolean; wrongOwner?: boolean; uploadError?: boolean; signError?: boolean; contactName?: string; contactOverrides?: Record<string, {email: string | null; first_name?: string | null; last_name?: string | null; custom_fields?: Record<string, unknown>}>} = {}) {
+    const calls: Call[] = [], uploaded: string[] = [];
+    const ids = Array.from({length: options.count ?? 53}, (_, i) => `member-${i}`);
+    const payload = {version:1,id:setId,tenant_id:options.wrongOwner?'other':TENANT,user_id:'user',conversation_id:'conversation',included_ids:ids,excluded_ids:[],unknown_ids:[],trail:[],reasons:Object.fromEntries(ids.map(id=>[id,'matching_purchase'])),evidence_ids:{}};
+    const client = {
+      rpc: async () => ({data: options.allowed !== false, error:null}),
+      from(table:string) {
+        let selected: string[] | undefined, range: number[] | undefined, exactId: unknown;
+        const q: Record<string,unknown> = {};
+        for (const method of ['select','eq','neq','order','limit','is','lte','in','range']) q[method] = (...args: unknown[]) => {
+          calls.push({table,method,args});
+          if(method==='in'&&args[0]==='id')selected=args[1] as string[];
+          if(method==='range')range=args as number[];
+          if(method==='eq'&&args[0]==='id')exactId=args[1];
+          return q;
+        };
+        q.maybeSingle=async()=>({data:table==='bloom_conversations'?{id:'conversation'}:exactId&&exactId!==setId?null:{id:setId,payload},error:null});
+        q.single=async()=>({data:{id:'audience',mode:'fixed',snapshot:{member_ids:ids,excluded_ids:[],unknown_ids:[],result:{captured_at:'2026-11-12T00:00:00Z'}}},error:null});
+        q.then=(resolve:(value:unknown)=>unknown)=> {
+          let rows=(selected??ids).filter(id=>!options.missing||id!=='member-0').map(id=>({id,first_name:options.contactName??'Synthetic',last_name:id,email:id==='member-1'?null:`${id}@example.com`,...options.contactOverrides?.[id]}));
+          if(range)rows=rows.slice(range[0],range[1]+1);
+          return Promise.resolve({data:rows,error:null}).then(resolve);
+        };
+        return q;
+      },
+      storage: {from: () => ({upload: async (_path:string, bytes:Uint8Array) => {uploaded.push(new TextDecoder().decode(bytes));return {error:options.uploadError?{message:'upload unavailable'}:null};},createSignedUrl: async(...args:unknown[])=>{calls.push({table:'storage',method:'createSignedUrl',args});return {data:options.signError?null:{signedUrl:'https://example.com/synthetic.csv'},error:options.signError?{message:'sign unavailable'}:null};}})},
+    } as unknown as PersistenceClient;
+    return {client,calls,uploaded,ids};
+  }
+  it('registers saved-group export scope without dropping approval or staff restrictions', async () => {
+    const {getRegisteredTool}=await import('../../supabase/functions/bloom-assist/tools/registry');
+    const tool=getRegisteredTool('export_data');
+    expect(tool).toMatchObject({requires_confirmation:true,allowed_roles:['admin','staff'],function:{parameters:{properties:{scope:{enum:['all_customers','previous_result','saved_result']},set_id:{format:'uuid'}}}}});
+  });
+  it('rejects an approved but unpinned latest-result export without accessing data', async () => {
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,calls,uploaded}=savedClient();
+    const result=await exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'previous_result'},{...context(client),approved:true});
+    expect(result).toMatchObject({success:false,error:'export_confirmation_required'});expect(calls).toEqual([]);expect(uploaded).toEqual([]);
+  });
+  it('shows recorded emails and missing emails on page two without changing membership', async () => {
+    const {inspectCustomerSet}=await import('../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const {client,calls}=savedClient();const result=await inspectCustomerSet({set_id:setId,page:2},context(client));
+    expect(result.data).toMatchObject({set_id:setId,total_count:53,page:2,rows:[{customer_id:'member-50',email:'member-50@example.com'},{customer_id:'member-51',email:'member-51@example.com'},{customer_id:'member-52',email:'member-52@example.com'}]});
+    expect(calls.filter(c=>c.method==='insert')).toEqual([]);
+    const first=await inspectCustomerSet({set_id:setId},context(client));
+    expect(first.data).toMatchObject({rows:expect.arrayContaining([expect.objectContaining({customer_id:'member-1',email:null})])});
+  });
+  it.each(['ideal-0123456789abcdef01234567@noemail.local',' CLOVER-synthetic@NOEMAIL.LOCAL ',null,'   '])('keeps missing-email members through inspection and CSV/JSON export: %j', async email => {
+    const {inspectCustomerSet}=await import('../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const contactOverrides={'member-50':{email,first_name:null,last_name:null}};
+    const {client,uploaded,ids,calls}=savedClient({contactOverrides});
+    const inspected=await inspectCustomerSet({set_id:setId,page:2},context(client));
+    expect(inspected).toMatchObject({count:53,data:{set_id:setId,total_count:53,rows:[{customer_id:'member-50',name:'Customer',email:null},{customer_id:'member-51',email:'member-51@example.com'},{customer_id:'member-52',email:'member-52@example.com'}]}});
+    const audience=await inspectCustomerSet({audience_id:'audience',page:2},context(client));
+    expect(audience).toMatchObject({count:53,data:{total_count:53,rows:expect.arrayContaining([expect.objectContaining({customer_id:'member-50',name:'Customer',email:null})])}});
+    for(const format of ['csv','json']) {
+      const result=await exportDataImplementation('export_data')!({entity:'customers',format,scope:'saved_result',set_id:setId},context(client));
+      expect(result).toMatchObject({success:true,count:53,data:{row_count:53,total_matching_count:53,truncated:false}});
+    }
+    expect(uploaded[0].split('\n')).toHaveLength(54);
+    expect(uploaded[0].split('\n')[51]).toBe('member-50,,,');
+    const json=JSON.parse(uploaded[1]) as {customer_id:string;email:string|null}[];
+    expect(json.map(row=>row.customer_id)).toEqual(ids);
+    expect(json[50].email).toBeNull();
+    expect(uploaded.join('')).not.toMatch(/@noemail\.local/i);
+    expect(contactOverrides['member-50'].email).toBe(email);
+    expect(calls.some(call=>['update','insert','upsert','delete'].includes(call.method))).toBe(false);
+  });
+  it.each(['Corrected@Example.com','ideal-customer@example.com','contact@noemail.local.example.com'])('preserves real current addresses despite a stale placeholder flag: %s', async email => {
+    const {inspectCustomerSet}=await import('../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,uploaded}=savedClient({count:1,contactOverrides:{'member-0':{email,custom_fields:{email_is_placeholder:true}}}});
+    const inspected=await inspectCustomerSet({set_id:setId},context(client));
+    expect(inspected).toMatchObject({count:1,data:{rows:[{customer_id:'member-0',email}]}});
+    await exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'saved_result',set_id:setId},context(client));
+    expect(uploaded[0].split('\n')[1]).toBe(`member-0,Synthetic,member-0,${email}`);
+  });
+  it.each(['=SUM(1,2)', '+cmd', '-1+2', '@SUM(1)', '\tformula', '  =SUM(1)'])('neutralizes spreadsheet formulas in CSV contact text but not JSON: %j', async contactName => {
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const csv=savedClient({count:1,contactName}), json=savedClient({count:1,contactName});
+    await exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'saved_result',set_id:setId},context(csv.client));
+    expect(csv.uploaded[0]).toContain("'"+contactName);
+    await exportDataImplementation('export_data')!({entity:'customers',format:'json',scope:'saved_result',set_id:setId},context(json.client));
+    expect(JSON.parse(json.uploaded[0])[0].first_name).toBe(contactName);
+  });
+  it.each(['csv','json'])('exports all 53 saved members, not the displayed page, as %s',async format=>{
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,calls,uploaded}=savedClient();
+    const result=await exportDataImplementation('export_data')!({entity:'customers',format,scope:'saved_result',set_id:setId},context(client));
+    expect(result).toMatchObject({success:true,count:53,data:{set_id:setId,row_count:53,total_matching_count:53,truncated:false,download_url:'https://example.com/synthetic.csv'}});
+    const metadata = result.data as {storage_path:string;file_name:string};
+    expect(calls).toContainEqual({table:'storage',method:'createSignedUrl',args:[metadata.storage_path,3600,{download:metadata.file_name}]});
+    expect(metadata.file_name).toMatch(new RegExp(`^customers-export-[a-zA-Z0-9._-]+\\.${format}$`));
+    expect(metadata.storage_path).toMatch(new RegExp(`/exports/[0-9a-f-]{36}_`));
+    expect(uploaded).toHaveLength(1);expect(uploaded[0]).toContain('member-52@example.com');expect(uploaded[0]).not.toContain('Unknown');
+    expect(calls).toContainEqual({table:'crm_customers',method:'eq',args:['tenant_id',TENANT]});
+    expect(calls).toContainEqual({table:'crm_customers',method:'is',args:['deleted_at',null]});
+    expect(calls).toContainEqual({table:'crm_customers',method:'is',args:['merged_into_customer_id',null]});
+    expect(calls.filter(c=>c.table==='crm_customers'&&c.method==='in')).toHaveLength(1);
+  });
+  it.each([{allowed:false},{wrongOwner:true},{missing:true}])('fails closed for inaccessible groups or members: %j',async options=>{
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,uploaded}=savedClient(options);
+    await expect(exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'saved_result',set_id:setId},context(client))).rejects.toThrow();expect(uploaded).toEqual([]);
+  });
+  it('never substitutes latest or all customers for an unknown exact saved ID',async()=>{
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,calls,uploaded}=savedClient();
+    await expect(exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'saved_result',set_id:CUSTOMER},context(client))).rejects.toThrow('exact saved customer result');
+    expect(calls.filter(c=>c.table==='crm_customers')).toEqual([]);expect(uploaded).toEqual([]);
+  });
+  it.each([{scope:'previous_result',filters:[{field:'email',operator:'is_not_null',entity:'customer'}]},{scope:'all_customers',set_id:setId},{scope:'saved_result',set_id:'previous_result'},{scope:'saved_result',set_id:setId,entity:'products'}])('rejects ambiguous or narrowed saved exports: %j',async invalid=>{
+    const {prepareExportDataParams}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,uploaded}=savedClient();await expect(prepareExportDataParams({entity:'customers',format:'csv',...invalid},context(client))).rejects.toThrow();expect(uploaded).toEqual([]);
+  });
+  it.each([0,5001])('does not claim success or create a partial file for %s members',async count=>{
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,uploaded}=savedClient({count});const result=await exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'previous_result'},context(client));
+    expect(result.success).toBe(false);expect(result.data).toBeNull();expect(uploaded).toEqual([]);
+  });
+  it.each([{uploadError:true},{signError:true}])('does not report a ready download on storage failure: %j',async options=>{
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client}=savedClient(options);await expect(exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'previous_result'},context(client))).rejects.toThrow();
+  });
+});

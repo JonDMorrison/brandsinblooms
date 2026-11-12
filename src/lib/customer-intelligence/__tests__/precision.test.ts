@@ -24,6 +24,29 @@ describe('deterministic follow-up customer exploration',()=>{
  it('matches exact SKU independently of a missing product name',()=>expect(search({mode:'purchased',product:'sku-c-h',product_match:'sku'}).included_ids).toEqual(['cara']));
  it('does not treat returns as new purchases',()=>expect(search({mode:'purchased',product:'Hydrangea'},undefined,[fact('a','alice','Hydrangea',{quantity:-1})]).included_ids).toEqual([]));
  it('keeps missing quantity unknown',()=>expect(search({mode:'purchased',product:'Hydrangea'},undefined,[fact('a','alice','Hydrangea',{quantity:null})]).unknown_ids).toContain('alice'));
+ it('keeps zero-value coupon stock searchable without counting it as general shopping',()=>{
+  const input=[fact('coupon','alice','Coupon',{net_amount:0})];
+  expect(search({mode:'purchased',product:'Coupon'},undefined,input).included_ids).toEqual(['alice']);
+  expect(search({mode:'purchased',product:'sku-coupon',product_match:'sku'},undefined,input).included_ids).toEqual(['alice']);
+  expect(search({mode:'purchased'},undefined,input).excluded_ids).toEqual(['alice']);
+  expect(search({mode:'all'},undefined,input).included_ids).toEqual(base.population);
+ });
+ it.each([0,-10,null,'bad'])('does not count %s value as general purchase activity',amount=>{
+  const result=search({mode:'purchased'},undefined,[fact('a','alice','Coupon',{net_amount:amount})]);
+  expect(result.included_ids).toEqual([]);
+  expect(amount===null||amount==='bad'?result.unknown_ids:result.excluded_ids).toContain('alice');
+ });
+ it('excludes coupon-only prior history from repeat year intersections for dated and imported evidence',()=>{
+  for(const summary of [false,true]){
+   const evidence=(id:string,customer:string,year:number,amount:number)=>fact(id,customer,'Synthetic item',{
+    net_amount:amount,purchased_at:summary?null:`${year}-09-01T19:00:00Z`,
+    ...(summary?{evidence_kind:'period_summary' as const,source_period_start:`${year}-01-01`,source_period_end:`${year}-12-31`}:{})});
+   const input=[evidence('a-old','alice',2025,0),evidence('a-now','alice',2026,50),evidence('b-old','bob',2025,20),evidence('b-now','bob',2026,30),evidence('c-old','cara',2025,20),evidence('c-now','cara',2026,0)];
+   const prior=search({mode:'purchased',start_date:'2025-01-01',end_date:'2025-12-31'},undefined,input);
+   expect(prior.included_ids).toEqual(['bob','cara']);
+   expect(search({mode:'purchased',start_date:'2026-01-01',end_date:'2026-12-31'},prior,input).included_ids).toEqual(['bob']);
+  }
+ });
  it('deduplicates repeated identical purchase rows',()=>expect(search({mode:'purchased',product:'Hydrangea'},undefined,[facts[0],facts[0]]).evidence_ids.alice).toEqual(['a-h']));
  it('rejects conflicting duplicate purchase identities',()=>expect(()=>search({mode:'all'},undefined,[facts[0],{...facts[0],quantity:2}])).toThrow(/Conflicting/));
  it('rejects cross-tenant facts',()=>expect(()=>search({mode:'all'},undefined,[{...facts[0],tenant_id:'other'}])).toThrow(/Cross-company/));
@@ -60,6 +83,14 @@ describe('customer-over-customer growth, not invented estimates',()=>{
  it('does not invent percentage growth from a zero baseline',()=>expect(growth([order('1','alice','2026-09-01')]).rows[0]).toMatchObject({growth_index:null,state:'newly_observed'}));
  it('identifies lapsed customers',()=>expect(growth([order('1','alice','2025-09-01')]).rows[0]).toMatchObject({growth_index:0,state:'lapsed'}));
  it('identifies reactivation only when earlier purchase history exists',()=>expect(growth([order('1','alice','2024-09-01'),order('2','alice','2026-09-01')]).rows[0].state).toBe('reactivated'));
+ it('excludes free and fully refunded visits from retention and reactivation',()=>{
+  for(const refunded of [false,true]){
+   const inactive=(id:string,date:string)=>order(id,'alice',date,refunded?50:0,refunded?{status:'refunded',refund_amount:50}:{});
+   expect(growth([inactive('old','2025-09-01'),order('paid','alice','2026-09-01')]).rows[0]).toMatchObject({state:'newly_observed',baseline_visits:0,current_visits:1});
+   expect(growth([inactive('earlier','2024-09-01'),order('paid','alice','2026-09-01')]).rows[0].state).toBe('newly_observed');
+   expect(growth([order('paid','alice','2025-09-01'),inactive('now','2026-09-01')]).rows[0]).toMatchObject({state:'lapsed',current_visits:0,current_spend:0});
+  }
+ });
  it('sums decimal currency exactly',()=>expect(growth([order('1','alice','2026-09-01','0.10'),order('2','alice','2026-09-02','0.20')]).rows[0].current_spend).toBe(.3));
  it('subtracts known partial refunds',()=>expect(growth([order('1','alice','2026-09-01',100,{refund_amount:20,status:'partially_refunded'})]).rows[0].current_spend).toBe(80));
  it('does not invent an unknown refund amount',()=>expect(growth([order('1','alice','2026-09-01',100,{status:'refunded'})]).rows[0].state).toBe('incomplete_data'));
@@ -120,6 +151,11 @@ describe('annual customer growth dashboard', () => {
   const report = breakdown();
   expect(report.reviewed).toMatchObject({ previous: 2, retained: 1, newCustomers: 1, recovered: 1, lost: 1, current: 3, net: 1, retentionPercent: 50, newPercent: 50, recoveredPercent: 50, lossPercent: 50, growthPercent: 50, retainedAverage: 120, newAverage: 60, recoveredAverage: 90, estimatedAnnualSalesEffect: 120 });
   expect(report.reviewed!.retentionPercent! + report.reviewed!.newPercent! + report.reviewed!.recoveredPercent! - 100).toBe(report.reviewed!.growthPercent);
+ });
+ it('does not let free stock establish new, retained, or recovered customer activity',()=>{
+  const input=[order('zero-prior','new','2024-01-01',0),order('paid-now','new','2025-01-01',20),order('zero-earlier','recovered','2023-01-01',0),order('recovered-now','recovered','2025-02-01',30),order('lost-prior','lost','2024-01-01',10),order('lost-free','lost','2025-01-01',0),order('free-only','retained','2025-01-01',0)];
+  expect(breakdown(input).reviewed).toMatchObject({previous:1,current:2,retained:0,recovered:0,newCustomers:2,lost:1,net:1});
+  expect(breakdown(input,{earlierHistory:unreviewedCoverage}).reviewed).toMatchObject({newCustomers:null,unclassified:2});
  });
  it('never equates first-observed with first-ever without earlier-history evidence', () => {
   const report = breakdown(undefined, { earlierHistory: unreviewedCoverage });

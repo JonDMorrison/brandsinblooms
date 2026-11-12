@@ -133,7 +133,7 @@ export function ExportResultCard({
                       href={action.href}
                       rel="noopener noreferrer"
                       size="sm"
-                      target="_blank"
+                      target={action.type === "download" ? undefined : "_blank"}
                       variant={index === 0 ? "soft" : "plain"}
                     >
                       {action.label}
