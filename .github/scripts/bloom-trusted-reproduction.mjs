@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
-import { mkdtempSync, mkdirSync, chmodSync, readFileSync, writeFileSync, readdirSync, lstatSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, chmodSync, readFileSync, writeFileSync, appendFileSync, readdirSync, lstatSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +15,59 @@ export function validateBinding(e) {
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(e.ENGINEERING_ID ?? '')) throw Error('Invalid engineering issue');
   if (e.REPOSITORY !== 'JonDMorrison/brandsinblooms') throw Error('Unsupported repository');
   if (e.BASE_SHA === e.HEAD_SHA) throw Error('No change');
+}
+/** Read-only recovery of an existing generated patch; never starts another repair. */
+export function validateRecoveryInputs(e) {
+  validateBinding({ ...e, BASE_SHA: e.TRUSTED_SHA, HEAD_SHA: e.EXPECTED_HEAD, PR_NUMBER: e.EXPECTED_PR });
+  if (e.MODE !== 'reproduce' || e.RUN_REF !== 'refs/heads/main' || e.BASE_BRANCH !== 'main' ||
+      e.BRANCH !== `bloom/fix-${e.ENGINEERING_ID.slice(0, 8)}`) throw Error('Invalid reproduction-only dispatch');
+}
+export function validateRecoveryPR(e, pr, currentMain) {
+  validateRecoveryInputs(e);
+  if (currentMain !== e.TRUSTED_SHA || pr.number !== Number(e.EXPECTED_PR) || pr.state !== 'open' || pr.merged === true ||
+      pr.head?.sha !== e.EXPECTED_HEAD || pr.head?.ref !== e.BRANCH || pr.base?.ref !== 'main' || pr.base?.sha !== e.TRUSTED_SHA ||
+      pr.head?.repo?.full_name !== e.REPOSITORY || pr.base?.repo?.full_name !== e.REPOSITORY ||
+      String(pr.head?.repo?.id) !== e.REPOSITORY_ID || String(pr.base?.repo?.id) !== e.REPOSITORY_ID) throw Error('Drifted or foreign recovery PR');
+  const body = typeof pr.body === 'string' && pr.body.length <= 65536 ? pr.body : '';
+  const engineering = body.split('\n').filter(line => line.includes('Bloom-Engineering-Issue:'));
+  const issues = body.split('\n').filter(line => line.includes('Automated fix proposed by Bloom for #'));
+  if (engineering.length !== 1 || engineering[0] !== `Bloom-Engineering-Issue: \`${e.ENGINEERING_ID}\`` ||
+      issues.length !== 1 || issues[0] !== `Automated fix proposed by Bloom for #${e.ISSUE_NUMBER}.`) throw Error('Ambiguous recovery PR markers');
+}
+export function validateRecoveryTree(e, git) {
+  if (git('rev-parse', 'HEAD').trim() !== e.TRUSTED_SHA ||
+      git('rev-list', '--parents', '-n', '1', e.EXPECTED_HEAD).trim() !== `${e.EXPECTED_HEAD} ${e.TRUSTED_SHA}`) throw Error('Recovery parent mismatch');
+  const files = git('diff', '--name-status', '-z', '--no-renames', e.TRUSTED_SHA, e.EXPECTED_HEAD);
+  if (files !== 'A\0src/lib/bloomSupport/constants.test.ts\0M\0src/lib/bloomSupport/constants.ts\0') throw Error('Recovery scope mismatch');
+  for (const file of ['src/lib/bloomSupport/constants.ts', 'src/lib/bloomSupport/constants.test.ts']) {
+    if (!/^100644 blob [a-f0-9]{40}\t/.test(git('ls-tree', e.EXPECTED_HEAD, '--', file))) throw Error('Nonregular recovery file');
+  }
+  for (const file of ['package.json', 'package-lock.json']) {
+    if (git('rev-parse', `${e.TRUSTED_SHA}:${file}`) !== git('rev-parse', `${e.EXPECTED_HEAD}:${file}`)) throw Error('Recovery dependency mismatch');
+  }
+  const message = git('show', '-s', '--format=%B', e.EXPECTED_HEAD);
+  const lines = message.split('\n');
+  if (lines[0] !== `fix: Bloom repair for #${e.ISSUE_NUMBER}` ||
+      lines.filter(line => line.includes('Bloom-Engineering-Issue:')).length !== 1 ||
+      !lines.includes(`Bloom-Engineering-Issue: ${e.ENGINEERING_ID}`)) throw Error('Recovery commit marker mismatch');
+}
+export function bindRecovery(e = process.env, run = execFileSync) {
+  validateRecoveryInputs(e);
+  const trusted = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+  const api = endpoint => JSON.parse(run('gh', ['api', '--method', 'GET', endpoint], { encoding: 'utf8', maxBuffer: 1 << 20, timeout: 30000 }));
+  const root = `repos/${e.REPOSITORY}`;
+  const pr = api(`${root}/pulls/${e.EXPECTED_PR}`);
+  const main = api(`${root}/git/ref/heads/main`);
+  validateRecoveryPR(e, pr, main.object?.sha);
+  // Fetch immutable objects only, never update a branch or checkout candidate code.
+  run('git', ['-C', trusted, 'fetch', '--no-tags', 'origin', e.EXPECTED_HEAD], { stdio: 'ignore', timeout: 60000 });
+  const git = (...args) => run('git', ['-C', trusted, ...args], { encoding: 'utf8', maxBuffer: 1 << 20, timeout: 30000 });
+  validateRecoveryTree(e, git);
+  // Re-read mutable GitHub state after fetching and inspecting the immutable tree.
+  const freshPR = api(`${root}/pulls/${e.EXPECTED_PR}`);
+  const freshMain = api(`${root}/git/ref/heads/main`);
+  validateRecoveryPR(e, freshPR, freshMain.object?.sha);
+  appendFileSync(e.GITHUB_OUTPUT, `base_sha=${e.TRUSTED_SHA}\nhead_sha=${e.EXPECTED_HEAD}\npr_number=${e.EXPECTED_PR}\n`);
 }
 export function validatedFiles(root) {
   const files = new Map(); let total = 0;
@@ -201,4 +254,8 @@ export async function main(e = process.env) {
     }
   }
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] === '--bind-reproduction') bindRecovery();
+  else if (process.argv.length === 2) await main();
+  else throw Error('Unsupported supervisor operation');
+}

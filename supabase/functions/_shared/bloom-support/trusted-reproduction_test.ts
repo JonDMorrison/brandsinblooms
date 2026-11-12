@@ -28,7 +28,7 @@ async function fixture(mutate?: (path: string, value: unknown) => unknown, value
     else if (path.includes("/actions/workflows/")) result = { id: 20, path: WORKFLOW };
     else if (path.includes("/attempts/1/jobs")) result = { total_count: 1, jobs: [{ name: JOB, run_id: 10, run_attempt: 1, head_sha: base, status: "completed", conclusion: "success" }] };
     else if (path.includes("/contents/")) { const key = path.split("/contents/")[1].split("?")[0]; const s = sources[key as keyof typeof sources]; result = { type: "file", encoding: "base64", content: btoa(s), size: s.length }; }
-    else if (path.endsWith("/pulls/8")) result = { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", repo: { id: 30 } } };
+    else if (path.endsWith("/pulls/8")) result = { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: base, repo: { id: 30 } } };
     else if (path.includes("/git/commits/")) result = { sha: head, tree: { sha: tree }, parents: [{ sha: base }] };
     else if (path.includes("/artifacts?")) result = { total_count: 1, artifacts: [{ id: 40, name: ARTIFACT, expired: false, size_in_bytes: bytes.length, digest, workflow_run: { id: 10, head_sha: base } }] };
     else throw Error(`Unexpected ${path}`);
@@ -62,6 +62,9 @@ Deno.test("proof independently reads source, immutable artifact, current PR and 
     (p, v) => p.includes("/jobs?") ? { total_count: 1, jobs: [{ name: JOB, run_id: 10, run_attempt: 1, head_sha: base, status: "completed", conclusion: "skipped" }] } : v,
     (p, v) => p.includes("/contents/") ? { ...v as object, content: btoa("forged") } : v,
     (p, v) => p.includes("/pulls/") ? { head: { sha: "d".repeat(40) }, base: { ref: "main" } } : v,
+    // An old successful run cannot authorize the same head against a moved main base.
+    (p, v) => p.includes("/pulls/") ? { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: "d".repeat(40), repo: { id: 30 } } } : v,
+    (p, v) => p.includes("/pulls/") ? { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", repo: { id: 30 } } } : v,
     (p, v) => p.includes("/git/commits/") ? { ...v as object, parents: [{ sha: "d".repeat(40) }] } : v,
     (p, v) => p.includes("/artifacts?") ? { total_count: 2, artifacts: [] } : v,
     (p, v) => p.includes("/artifacts?") ? { total_count: 1, artifacts: [{ ...(v as { artifacts: object[] }).artifacts[0], digest: `sha256:${"0".repeat(64)}` }] } : v,
