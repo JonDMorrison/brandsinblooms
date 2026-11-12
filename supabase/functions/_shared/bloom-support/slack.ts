@@ -153,3 +153,13 @@ export async function postSlackSupportNotification(input: {
   if (!message) return "skipped: no useful reviewed release summary";
   return await postSlackInternalText(route, message, input.jobId);
 }
+
+/** Replace only the progress message whose receipt the conversation job owns. */
+export async function updateSlackInternalText(route: SlackRoute | "ask", ts: string, text: string): Promise<void> {
+  const token=env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
+  const channel=slackChannelId(env("BLOOM_SUPPORT_SLACK_CHANNEL_"+route.toUpperCase()));
+  if(!token||!channel||!/^\d{10}\.\d{6}$/.test(ts)) throw new BloomError(503,"slack_update_config","Slack reply cannot be updated");
+  const r=await fetch("https://slack.com/api/chat.update",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json; charset=utf-8"},body:JSON.stringify({channel,ts,text:text.slice(0,2400),blocks:[],unfurl_links:false,unfurl_media:false}),signal:AbortSignal.timeout(8000)});
+  const result=await r.json().catch(()=>null);
+  if(!r.ok||result?.ok!==true)throw new BloomError(502,"slack_update","Slack reply update failed");
+}

@@ -21,7 +21,7 @@ These are **historical observations**, not an instruction to activate credential
 
 ## Security and authorization
 
-- The Slack event receiver verifies `X-Slack-Signature` against the raw request body using a five-minute timestamp window. Only matching workspace, known channel, `app_mention` event and exact allowlisted Slack user IDs may enqueue a question. Ordinary channel conversation must not be ingested.
+- The Slack event receiver verifies `X-Slack-Signature` against the raw request body using a five-minute timestamp window. Only matching workspace, known channel and exact allowlisted Slack user IDs may enqueue a question. A signed `app_mention` can start a conversation; a normal `message` can only continue a durable known thread. Ordinary channel conversation must not be ingested.
 - The bot never authorizes changes to funds, accounts, roles, access, mailings, customer records or deployments from a Slack message.
 - Github and CMS webhooks use separate signed receivers. Only three company GitHub repositories are accepted. Never include raw PR bodies, email addresses, private customer records, payment information, or proposals in Slack.
 - Feature answers use the service-role-only bounded SQL summary function; acceptance or planning does not mean the feature shipped. Project answers use a signed, read-only CMS operations bridge and a narrow field allowlist.
@@ -75,3 +75,36 @@ The signed Slack event ingress verifies the workspace, channel and allowlisted s
 Bloom replies in the original thread with a **Review & send invitation** link to the authenticated BloomSites route. The link is not a bearer token or authorization: the CMS must verify the current staff login, exact project, recipient and authorized account-creator role before the separate email-send action. Nothing is emailed merely by mentioning Bloom or opening the link. The invitation uses the standard BloomSuite-branded welcome email and its existing delivery records.
 
 Do not paste recipient emails, API keys or banking information into Slack. If the client has no verified owner address or linked website, correct the Major Project first. A successful Slack reply is evidence of a read-only handoff, **not** email delivery or client activation.
+
+## Staff conversations and visible progress (November 12 change)
+
+The eight existing Bloom channels accept signed staff mentions. Alerts, finance,
+releases and new-client channels no longer silently discard them; an unbound
+question in tickets receives guidance instead of guessing a customer ticket.
+A user can continue their own known Bloom thread without another mention when
+Slack delivers `message.channels` (public) or `message.groups` (private) events.
+**These subscriptions and their history scopes require explicit workspace-owner
+approval and app reinstallation. Deploying code alone does not enable them.**
+Unrelated messages, edits/deletes, bot messages, unknown channels and unknown
+threads remain ignored. No arbitrary channel history is fetched. Each answer
+uses at most six previous turns from the same staff user and exact thread.
+
+The signed receiver wakes the existing worker after durable enqueue. The worker
+posts “I’m checking this now…” and updates that one message to its answer. The
+one-minute cron remains a recovery fallback, not a second polling system. A
+lost Slack post receipt is marked uncertain and is not blindly posted again.
+Queue retries reuse saved message receipts. A failed evidence lookup produces a
+plain explanation, never a claim of a fix or a forever-running animation.
+
+Chat is read-only: it cannot close tickets, approve features, email customers,
+change access, publish or transfer money. Existing authorized product controls
+remain the action boundary. A Stripe bank payout is not a commission payment.
+Public answers use only approved public help or bounded feature summaries;
+private ticket data requires the exact durable ticket thread and a freshly
+verified staff principal. Answers use the existing bounded model budget, with
+a deterministic fallback on timeout, insufficient evidence or unsafe output.
+
+Verification must include a real mention and unmentioned follow-up in a
+clearly marked staff test thread, plus negative tests for other users, unknown
+threads, duplicate delivery and stale access. Never call a deployment alone a
+verified conversation test.

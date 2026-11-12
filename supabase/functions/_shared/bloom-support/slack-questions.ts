@@ -1,10 +1,14 @@
-export type SlackQuestionRoute = "ask" | "features" | "projects" | "tickets";
+export type SlackQuestionRoute = "ask" | "features" | "projects" | "tickets" | "alerts" | "finance" | "releases" | "clients";
 
 const QUESTION_CHANNELS: Record<string, SlackQuestionRoute> = {
   C0CFUG4LFLJ: "ask",
   C0CFWJDUQU9: "features",
   C0CFUHJ5ESW: "projects",
   C0CFNEQBS2X: "tickets",
+  C0CFUG4STS6: "alerts",
+  C0CGP4GPG8G: "finance",
+  C0CFYDVE4A0: "releases",
+  C0CFDBT8JAK: "clients",
 };
 
 export function slackQuestionRoute(channel: unknown): SlackQuestionRoute | null {
