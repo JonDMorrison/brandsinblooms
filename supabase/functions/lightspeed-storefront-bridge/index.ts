@@ -29,6 +29,8 @@ function makeHandler() {
   return createLightspeedAuthority({
     repository,
     encryption: { encrypt: encryptToken, decrypt: decryptToken },
+    // Separate, default-off operator-controlled sale write permission.
+    allowSaleWrite: Deno.env.get("LIGHTSPEED_SALES_WRITE_ENABLED") === "true",
     credentials: (edition) => edition === "r-series" ? {
       clientId: Deno.env.get("LIGHTSPEED_R_CLIENT_ID") ?? "",
       clientSecret: Deno.env.get("LIGHTSPEED_R_CLIENT_SECRET") ?? "",
