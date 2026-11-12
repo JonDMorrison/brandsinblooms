@@ -3,7 +3,7 @@
 begin;
 
 create table if not exists public.lightspeed_storefront_sale_exports (
-  grant_id uuid not null references public.lightspeed_storefront_grants(id),
+  grant_id uuid not null references public.lightspeed_storefront_grants(id) on delete cascade,
   site_id uuid not null,
   source_order_id uuid not null,
   status text not null default 'claimed' check(status in ('claimed','confirmed','needs_review')),
