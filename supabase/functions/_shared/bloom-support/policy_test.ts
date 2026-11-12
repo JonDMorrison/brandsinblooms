@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
 import {
   authorizedManualForwarder, classify, DEFAULT_RELEASE_POLICY, evaluateRelease, indicatesStillBroken, isAutomatedEmail, matchesAny, mergeModelClassification,
-  parseReferences, redactForEngineering, redactText, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
+  parseReferences, PRODUCT_REPOSITORIES, redactForEngineering, redactText, releaseBaseForPR, resolvePolicy, sanitizeContext, stripQuotedReply, ticketNumberFromSubject, type IssueFacts, type PullRequestFacts,
 } from "./policy.ts";
 import { signIntake, verifyIntakeSignature, verifySvix, hmacSha256 } from "./crypto.ts";
 import { isProductionEnvironment, productionCommitForRepair } from "./github.ts";
@@ -281,4 +281,16 @@ Deno.test("manual forwarding aliases require aligned DKIM and grant no automatic
   assertFalse(authorizedManualForwarder("attacker@example.com", true, false, aliases));
   assertFalse(authorizedManualForwarder("jon@brandsinblooms.com.attacker.test", true, false, aliases));
   assertFalse(authorizedManualForwarder("jon@brandsinblooms.com", true, false, []));
+});
+
+Deno.test("new BloomSites repairs target main without confusing already opened dev PRs", () => {
+  const cms = PRODUCT_REPOSITORIES.cms.repository;
+  assertEquals(PRODUCT_REPOSITORIES.cms.base, "main");
+  assertEquals(releaseBaseForPR(cms, "main"), "main");
+  assertEquals(releaseBaseForPR(cms, "dev"), "dev");
+  assertEquals(releaseBaseForPR(PRODUCT_REPOSITORIES.crm.repository, "dev"), null);
+  assertEquals(releaseBaseForPR(PRODUCT_REPOSITORIES.pos.repository, "dev"), null);
+  assertEquals(releaseBaseForPR(cms, "feature/unreviewed"), null);
+  assertEquals(releaseBaseForPR("Other/repository", "main"), null);
+  assertEquals(releaseBaseForPR(cms, undefined), null);
 });

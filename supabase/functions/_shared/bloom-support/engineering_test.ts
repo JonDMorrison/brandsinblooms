@@ -45,7 +45,7 @@ Deno.test("promotion polling backs off within five minutes without promoting or 
   for (const [key, value] of Object.entries(settings)) Deno.env.set(key, value);
   const actor = { principalId: "release-test", role: "release", via: "service" as const, scopes: [] };
   let issue = {
-    id: "promotion-test", repository: "Brands-In-Blooms/cms-brandsinblooms",
+    id: "promotion-test", pr_number: 42, repository: "Brands-In-Blooms/cms-brandsinblooms",
     merge_sha: "repair-sha", status: "deploying", deployment: {} as Record<string, unknown>,
   };
   let promoted = false;
@@ -70,6 +70,9 @@ Deno.test("promotion polling backs off within five minutes without promoting or 
     }
     calls.push(`${init?.method ?? "GET"} ${url.pathname}${url.search}`);
     assertEquals(init?.method, "GET", "deployment observation must never mutate GitHub or Vercel");
+    if (url.pathname.endsWith("/pulls/42")) return respond({
+      base: { ref: "dev" }, merged: true, merge_commit_sha: issue.merge_sha,
+    });
     if (url.pathname.includes("/compare/")) return respond({ status: promoted ? "ahead" : "diverged" });
     if (url.pathname.endsWith("/pulls")) return respond([]);
     if (url.pathname.endsWith("/branches/main")) return respond({ commit: { sha: "production-sha" } });
