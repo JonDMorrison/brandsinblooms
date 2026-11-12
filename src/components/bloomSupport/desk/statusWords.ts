@@ -23,7 +23,19 @@ const WAITING_NEXT: Record<WaitingReason, string> = {
   scheduled: "Bloom starts at the scheduled time.",
 };
 
-export function friendlyStatus(t: Pick<TicketSummary, "status" | "waiting_reason">): { label: string; tone: StatusTone } {
+type Ownership = Pick<TicketSummary, "automation" | "executor" | "owner" | "executor_person" | "taken_over_by">;
+
+const ownerName = (t: Ownership): string | null =>
+  t.executor_person?.name?.trim() || t.owner?.name?.trim() || t.taken_over_by?.name?.trim() || null;
+
+export function friendlyStatus(t: Pick<TicketSummary, "status" | "waiting_reason"> & Ownership): { label: string; tone: StatusTone } {
+  if (t.status !== "resolved" && t.status !== "needs_owner") {
+    if (t.automation === "paused") return { label: "Automation paused", tone: "waiting" };
+    if (t.automation === "human" || t.executor === "person") {
+      const person = ownerName(t);
+      return { label: person ? `With ${person}` : "Needs an owner", tone: person ? "waiting" : "attention" };
+    }
+  }
   switch (t.status) {
     case "new":
     case "received":
@@ -44,8 +56,13 @@ export function friendlyStatus(t: Pick<TicketSummary, "status" | "waiting_reason
 }
 
 /** What Bloom does next, in plain words. Stored next actions win; otherwise a sensible line per status. */
-export function bloomNextStep(t: Pick<TicketSummary, "status" | "waiting_reason" | "next_action" | "progress">): string {
+export function bloomNextStep(t: Pick<TicketSummary, "status" | "waiting_reason" | "next_action" | "progress"> & Ownership): string {
   if (t.next_action && t.next_action.trim()) return humanizeNextAction(t.next_action.trim());
+  if (t.automation === "paused") return "Review this request before resuming automatic work.";
+  if (t.automation === "human" || t.executor === "person") {
+    const person = ownerName(t);
+    return person ? `${person} needs to record the next action.` : "Assign an owner and record the next action.";
+  }
   if (t.progress && t.progress.trim()) return t.progress.trim();
   if (t.status === "waiting" && t.waiting_reason) return WAITING_NEXT[t.waiting_reason];
   if (t.status === "new") return "Bloom is reading the request.";

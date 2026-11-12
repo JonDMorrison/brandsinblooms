@@ -170,12 +170,15 @@ export function resolutionOutcome(eng: EngineeringFacts | null | undefined): Res
   if (!eng) return null;
   const status = typeof eng.status === "string" ? eng.status : "";
   const repro = obj(eng.reproduction);
-  if (status === "not_reproduced" || repro?.result === "not_reproduced") {
-    // A repair that is already under way or released wins over an old reproduction note.
-    if (["fixing", "awaiting_approval", "approved", "merging", "deploying", "verifying", "verified"].includes(status)) return status === "verified" ? "fixed" : null;
+  // Current release state wins over a historical investigation note. A status
+  // label alone cannot prove the live check passed, even when a previous
+  // investigation was unable to reproduce the original report.
+  if (status === "verified") return obj(eng.verification)?.passed === true ? "fixed" : null;
+  // Legacy investigations stored their result while the issue stayed open.
+  // Do not let that note settle a later repair, failure, rollback or escalation.
+  if (status === "not_reproduced" || (status === "open" && repro?.result === "not_reproduced")) {
     return "not_reproduced";
   }
-  if (status === "verified" && obj(eng.verification)?.passed === true) return "fixed";
   return null;
 }
 

@@ -120,6 +120,17 @@ describe("Bloom is handling wording", () => {
     }
   });
 
+  it("does not claim Bloom is working when the request is paused or person-owned", () => {
+    expect(friendlyStatus({ status: "working", automation: "paused" }).label).toBe("Automation paused");
+    expect(friendlyStatus({ status: "working", automation: "human" }).label).toBe("Needs an owner");
+    expect(friendlyStatus({ status: "working", executor: "person", owner: { id: "p", name: "Sam", role: "staff" } }).label).toBe("With Sam");
+    expect(friendlyStatus({ status: "resolved", automation: "paused" }).label).toBe("Solved");
+    expect(bloomNextStep({ status: "working", automation: "paused", progress: "We are working on this." })).toBe("Review this request before resuming automatic work.");
+    expect(bloomNextStep({ status: "waiting", waiting_reason: "customer", automation: "human", progress: "We are working on this." })).toBe("Assign an owner and record the next action.");
+    expect(bloomNextStep({ status: "working", automation: "human", progress: "We are working on this.", owner: { id: "p", name: "Sam", role: "staff" } })).toBe("Sam needs to record the next action.");
+    expect(bloomNextStep({ status: "working", automation: "paused", next_action: "Verify the download" })).toBe("Verify the download");
+  });
+
   it("says what Bloom does next from the stored step, or a plain default", () => {
     expect(bloomNextStep({ status: "working", next_action: "Compare the till sync log" })).toBe("Compare the till sync log");
     expect(bloomNextStep({ status: "working", next_action: "Jon/Jeff: client wants a refund" })).toBe("Admin: client wants a refund");

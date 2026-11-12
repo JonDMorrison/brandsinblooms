@@ -35,13 +35,8 @@ function RequestRow({ t, selected, selecting, checked, onOpen, onCheck }: {
   onCheck: (on: boolean) => void;
 }) {
   const f = t.flags;
-  const person = t.taken_over_by?.name ?? t.executor_person?.name ?? t.owner?.name ?? "a person";
-  // When a person has taken over, the row says so instead of "Bloom is on it".
-  const open = t.status !== "resolved" && t.status !== "needs_owner";
-  const status = open && t.automation === "human" ? { label: `With ${person}`, tone: "neutral" as const }
-    : open && t.automation === "paused" ? { label: "Bloom paused", tone: "neutral" as const }
-    : friendlyStatus(t);
-  const next = t.automation === "human" && !t.next_action?.trim() ? `${person === "a person" ? "A person" : person} is handling this.` : bloomNextStep(t);
+  const status = friendlyStatus(t);
+  const next = bloomNextStep(t);
   return (
     <Box
       role="listitem"

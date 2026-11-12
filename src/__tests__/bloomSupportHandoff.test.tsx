@@ -28,6 +28,19 @@ describe("what Bloom may take", () => {
     expect(classifyForHandoff(ticket("t2", { engineering: verifiedFix }), ALL)?.item?.action).toBe("Tell the client it's fixed, then mark it solved");
   });
 
+  it.each([
+    { status: "verified", verification: undefined },
+    { status: "verified", verification: { passed: false } },
+    { status: "reproduced", verification: undefined },
+    { status: "in_review", verification: undefined },
+    { status: "failed", verification: undefined },
+    { status: "escalated", verification: undefined },
+    { status: "rolled_back", verification: undefined },
+  ])("does not close $status work using an old not-reproduced note", ({ status, verification }) => {
+    const t = ticket("t-stale", { engineering: { ...notReproduced, status, verification } });
+    expect(classifyForHandoff(t, ALL)?.item?.kind).not.toBe("send-and-solve");
+  });
+
   it("offers person-owned work back to Bloom, never preselected", () => {
     expect(classifyForHandoff(ticket("t3", { automation: "human", executor: "person" }), ALL)?.item).toMatchObject({ kind: "hand-back", preselected: false });
     expect(classifyForHandoff(ticket("t4", { automation: "paused", executor: "person" }), ALL)?.item?.kind).toBe("hand-back");
