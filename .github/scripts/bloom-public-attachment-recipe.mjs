@@ -95,13 +95,20 @@ export async function runRecipe(browser, origin) {
     stage = 'control_200_character_name';
     await picker.setInputFiles({ name: CONTROL_NAME, mimeType: 'image/png', buffer: PNG });
     const controlChip = page.getByTitle(CONTROL_NAME, { exact: true });
-    const controlRemove = page.getByRole('button', { name: `Remove ${CONTROL_NAME}`, exact: true });
+    const controlRemove = page.getByRole('button', { name: `Remove ${CONTROL_NAME}`, exact: true })
+      .and(page.locator('button[type="button"]'));
     await controlChip.waitFor({ state: 'visible' });
     await controlRemove.waitFor({ state: 'visible' });
     assertions.controlAccepted = await controlChip.count() === 1 && await controlRemove.count() === 1 &&
       await page.getByRole('alert').count() === 0;
     if (!assertions.controlAccepted) throw new Error('200-character control was not cleanly accepted');
-    await controlRemove.click();
+    // The existing Joy chip decorator blocks pointer hits on its IconButton.
+    // Use its real accessible keyboard action, not force-click or DOM dispatch;
+    // this recipe proves the filename boundary, not that separate pointer bug.
+    stage = 'remove_200_character_control';
+    if (!(await controlRemove.isEnabled())) throw new Error('Control removal is disabled');
+    await controlRemove.focus();
+    await controlRemove.press('Enter');
     await controlChip.waitFor({ state: 'detached' });
     assertions.controlRemoved = await controlRemove.count() === 0;
 
