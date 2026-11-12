@@ -471,6 +471,7 @@ export const bloomSupport = {
   undoOperation: (id: string) => send<Record<string, unknown>>("POST", `/operations/${id}/undo`),
   jobs: (status?: string) => api<Array<Record<string, unknown>>>(`/jobs${status ? `?status=${status}` : ""}`),
   controlJob: (id: string, action: "retry" | "cancel") => send("POST", `/jobs/${id}/${action}`),
+  configureTrustedBug: (input: { issue_id: string; github_issue: number; ticket_ids: string[]; expected_policy: unknown }) => send<{ configured: boolean; issue_id: string; release_policy: Record<string, unknown> }>("POST", "/settings/trusted-bug", input),
   settings: () => api<Record<string, unknown>>("/settings"),
   setSetting: (key: string, value: unknown) => send("PUT", `/settings/${key}`, { value }),
   chatSpend: () => api<ChatSpendOverview>("/chat-spend"),

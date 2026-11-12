@@ -22,11 +22,11 @@ type ObjectValue = Record<string, unknown>;
 const obj = (v: unknown): ObjectValue => v && typeof v === "object" && !Array.isArray(v) ? v as ObjectValue : {};
 const id = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v > 0;
 export async function sha256(bytes: Uint8Array): Promise<string> {
-  return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), b => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes))), b => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** One bounded ZIP entry only. No filesystem extraction, paths or dependencies. */
-async function readResponseBytes(response: Response, limit: number): Promise<Uint8Array> {
+async function readResponseBytes(response: Response, limit: number): Promise<Uint8Array<ArrayBuffer>> {
   const reader = response.body?.getReader();
   if (!reader) throw Error("Missing decoded body");
   const chunks: Uint8Array[] = []; let length = 0;

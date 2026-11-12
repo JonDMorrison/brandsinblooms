@@ -31,7 +31,7 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
   const repo = "JonDMorrison/brandsinblooms";
   const issue = { id: issueId, title: "filename validation", version: 1, product: "crm", repository: repo, status: "verifying", pr_number: 8, head_sha: head, merge_sha: deployed, deployment: { state: "success", url: "https://immutable.vercel.app" }, verification: null as Record<string, unknown> | null, rollback: null, evidence: { github_issue: { number: 5 } }, tickets: [{ id: ticketId, kind: "bug", product: "crm" }] };
   const policy = { verificationOrigins: { [repo]: ["https://bloomsuite.app"] }, verificationChecks: { [repo]: [{ url: "https://bloomsuite.app/health" }] }, vercel: { [repo]: { projectId: "prj_test" } }, trustedReproductionIssues: { [issueId]: { recipe: RECIPE, github_issue: 5, ticket_ids: [ticketId] } } };
-  let dispatches = 0, changed = false, ticketsAutomatic = true, pauseDuringProvider = false;
+  let dispatches = 0, changed = false, ticketsAutomatic = true, pauseDuringProvider = false, driftPersistedRequest = false;
   globalThis.fetch = (input, init) => Promise.resolve().then(() => {
     const u = new URL(input instanceof Request ? input.url : String(input));
     if (u.pathname === "/rest/v1/rpc/bloom_support_rpc") {
@@ -40,7 +40,13 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
       if (p_fn === "setting") return Response.json(p.key === "release_policy" ? policy : p.key === "automation_scopes" ? { engineering: true } : true);
       if (p_fn === "update_engineering_issue") {
         assertEquals(p.update.version, issue.version);
-        Object.assign(issue, p.update.patch); if (p.update.status) issue.status = p.update.status; issue.version++;
+        // PostgreSQL JSONB does not preserve insertion order.
+        const patch = structuredClone(p.update.patch);
+        if (patch.verification?.trusted_browser_request) {
+          patch.verification.trusted_browser_request = Object.fromEntries(Object.entries(patch.verification.trusted_browser_request).reverse());
+          if (driftPersistedRequest) patch.verification.trusted_browser_request.nonce = "00000000-0000-0000-0000-000000000099";
+        }
+        Object.assign(issue, patch); if (p.update.status) issue.status = p.update.status; issue.version++;
         return Response.json(issue);
       }
     }
@@ -93,6 +99,11 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
     }));
     assertEquals(heldDuringProvider.flow, undefined); assertEquals(issue.status, "escalated");
     assertEquals(observedAfterHold, false, "final projection catches a pause after the initial hold read");
+    issue.status = "verifying"; issue.version = 1; issue.verification = null;
+    ticketsAutomatic = true; pauseDuringProvider = false; driftPersistedRequest = true;
+    const drifted = await trustedBrowserFlow(actor, current(), policy);
+    assertEquals(drifted.step?.note, "live request changed before dispatch");
+    assertEquals(dispatches, 1, "real field drift must prevent another dispatch");
   } finally {
     globalThis.fetch = originalFetch;
     Object.keys(keys).forEach(k => prior[k] === undefined ? Deno.env.delete(k) : Deno.env.set(k, prior[k]!));

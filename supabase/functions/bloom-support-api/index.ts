@@ -1,3 +1,4 @@
+import { configureTrustedBug } from "../_shared/bloom-support/trusted-bug-setup.ts";
 // Bloom Support REST API — used by the CRM Bloom Support dashboard, ChatGPT
 // (via API keys / Actions) and any other authenticated operator tooling.
 // Every route authenticates the caller and every action is re-authorized in
@@ -158,6 +159,7 @@ on("POST", "/operations/:id/undo", async (req, [id]) => actions.undoOperation(aw
 on("GET", "/jobs", async (req, _p, url) => actions.listJobs(await caller(req), q(url, "status")));
 on("POST", "/jobs/:id/:action", async (req, [id, action]) => actions.controlJob(await caller(req), id, action));
 
+on("POST", "/settings/trusted-bug", async (req) => configureTrustedBug(await caller(req), await readJson(req)));
 on("GET", "/settings", async (req) => actions.getSettings(await caller(req)));
 on("PUT", "/settings/:key", async (req, [key]) => actions.setSetting(await caller(req), key, (await readJson(req)).value));
 on("GET", "/chat-spend", async (req) => actions.chatSpend(await caller(req)));

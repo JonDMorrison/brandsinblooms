@@ -1381,7 +1381,7 @@ async function liveProviderContext(release: Caller, issue: EngineeringIssue, pol
   if (!alias.deploymentId || alias.projectId !== target.projectId || alias.redirect) return null;
   const deployment = await vercel<RollbackDeployment>("GET", `/v13/deployments/${encodeURIComponent(alias.deploymentId)}`, target);
   const project = await vercel<{ id?: string; targets?: { production?: RollbackDeployment } }>("GET", `/v9/projects/${encodeURIComponent(target.projectId)}`, target);
-  const matches = (d: RollbackDeployment | undefined) => d?.id === alias.deploymentId && d.readyState === "READY" &&
+  const matches = (d: RollbackDeployment | undefined) => d !== undefined && d.id === alias.deploymentId && d.readyState === "READY" &&
     d.meta?.githubCommitSha === deployedSha && `${d.meta?.githubOrg}/${d.meta?.githubRepo}`.toLowerCase() === issue.repository!.toLowerCase();
   if (!matches(deployment) || deployment.projectId !== target.projectId || deployment.target !== "production" ||
     project.id !== target.projectId || !matches(project.targets?.production)) return null;
@@ -1418,7 +1418,14 @@ export async function trustedBrowserFlow(release: Caller, issue: EngineeringIssu
     // is reconciled by nonce, never retried blindly or marked successful.
     await updateVersioned(release, issue, null, { verification: { ...issue.verification, trusted_browser_request: request } });
     const saved = await loadIssue(release, issue.id);
-    if (saved.version !== request.issue_version || saved.status !== "verifying" || JSON.stringify(saved.verification?.trusted_browser_request) !== JSON.stringify(request)) return { step: { note: "live request changed before dispatch" } };
+    const persisted = saved.verification?.trusted_browser_request;
+    // JSONB may reorder keys. Compare the complete scalar binding, not its
+    // serialization, while still rejecting missing, extra or changed fields.
+    if (saved.version !== request.issue_version || saved.status !== "verifying" ||
+      !validLiveRequest(persisted) || Object.keys(persisted).length !== Object.keys(request).length ||
+      Object.entries(request).some(([key, value]) => !Object.hasOwn(persisted, key) || persisted[key as keyof LiveRequest] !== value)) {
+      return { step: { note: "live request changed before dispatch" } };
+    }
     try { await dispatchLiveRequest(request); } catch { /* uncertain: subsequent runs only reconcile this nonce */ }
     return { step: { next: { step: "verify", delaySeconds: 30 }, note: "trusted live request recorded; reconciling hosted observation" } };
   }
