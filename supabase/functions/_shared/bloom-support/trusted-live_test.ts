@@ -31,6 +31,7 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
   const repo = "JonDMorrison/brandsinblooms";
   const issue = { id: issueId, title: "filename validation", version: 1, product: "crm", repository: repo, status: "verifying", pr_number: 8, head_sha: head, merge_sha: deployed, deployment: { state: "success", url: "https://immutable.vercel.app" }, verification: null as Record<string, unknown> | null, rollback: null, evidence: { github_issue: { number: 5 } }, tickets: [{ id: ticketId, kind: "bug", product: "crm" }] };
   const policy = { verificationOrigins: { [repo]: ["https://bloomsuite.app"] }, verificationChecks: { [repo]: [{ url: "https://bloomsuite.app/health" }] }, vercel: { [repo]: { projectId: "prj_test" } }, trustedReproductionIssues: { [issueId]: { recipe: RECIPE, github_issue: 5, ticket_ids: [ticketId] } } };
+  let deploymentProject: Record<string, unknown> = { projectId: "prj_test" };
   let dispatches = 0, changed = false, ticketsAutomatic = true, pauseDuringProvider = false, driftPersistedRequest = false;
   globalThis.fetch = (input, init) => Promise.resolve().then(() => {
     const u = new URL(input instanceof Request ? input.url : String(input));
@@ -55,7 +56,7 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
     if (u.pathname === "/health") return new Response("ok");
     if (u.pathname === "/v4/aliases/bloomsuite.app") return Response.json({ deploymentId: changed ? "dpl_newer" : "dpl_test", projectId: "prj_test" });
     const deployment = { id: changed ? "dpl_newer" : "dpl_test", projectId: "prj_test", target: "production", readyState: "READY", meta: { githubCommitSha: changed ? "e".repeat(40) : deployed, githubOrg: "JonDMorrison", githubRepo: "brandsinblooms" } };
-    if (u.pathname.startsWith("/v13/deployments/")) return Response.json(deployment);
+    if (u.pathname.startsWith("/v13/deployments/")) return Response.json({ ...deployment, projectId: undefined, ...deploymentProject });
     if (u.pathname === "/v9/projects/prj_test") {
       if (pauseDuringProvider) ticketsAutomatic = false;
       return Response.json({ id: "prj_test", targets: { production: deployment } });
@@ -77,6 +78,18 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
     assertEquals(successful.flow?.passed, true);
     assertEquals(successful.flow?.startedAt, "2026-11-12T01:00:00Z", "actual observation start must survive polling");
     assertEquals(issue.status, "verifying", "a flow result is not itself a state transition");
+    for (const projectBinding of [{ project: { id: "prj_test", name: "fixture" } }, { projectId: "prj_test", project: { id: "prj_test" } }]) {
+      deploymentProject = projectBinding;
+      const nested = await trustedBrowserFlow(actor, current(), policy, () => Promise.resolve({ state: "proved", evidence: { started_at: "2026-11-12T01:00:00Z" } }));
+      assertEquals(nested.flow?.passed, true, "documented project.id response remains exact-project bound");
+      assertEquals(dispatches, 1, "schema normalization cannot duplicate dispatch");
+    }
+    deploymentProject = { projectId: "prj_test", project: { id: "different" } };
+    const conflict = await trustedBrowserFlow(actor, current(), policy, () => Promise.resolve({ state: "proved", evidence: { started_at: "2026-11-12T01:00:00Z" } }));
+    assertEquals(conflict.flow, undefined); assertEquals(issue.status, "escalated");
+    assertEquals(dispatches, 1);
+    issue.status = "verifying"; issue.version = 2;
+    deploymentProject = { projectId: "prj_test" };
     const changedDuringObservation = await trustedBrowserFlow(actor, current(), policy, () => Promise.resolve().then(() => {
       changed = true;
       return { state: "proved" as const, evidence: { started_at: "2026-11-12T01:00:00Z" } };

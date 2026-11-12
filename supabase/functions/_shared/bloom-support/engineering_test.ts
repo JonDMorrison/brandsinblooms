@@ -1,5 +1,5 @@
 import { assertEquals, assertFalse, assertStringIncludes } from "@std/assert";
-import { engineeringIssuePayload } from "./engineering.ts";
+import { deploymentProjectMatches, engineeringIssuePayload } from "./engineering.ts";
 
 Deno.test("the final GitHub issue payload contains no client contact details or customer identifiers", () => {
   const issueId = "11111111-2222-4333-8444-555555555555";
@@ -176,12 +176,14 @@ Deno.test("rollback preflight refuses stale production, changed decisions and ho
     }
     if (url.hostname === "bloomsuite.app") return Promise.resolve(new Response("unhealthy", { status: 503 }));
     if (url.pathname.endsWith("/labels")) return respond(scenario === "project_hold" ? [{ name: "release-hold" }] : []);
-    if (url.pathname === "/v13/deployments/release.vercel.app") return respond({ ...released,
+    const projectBinding = scenario === "nested_project" ? { projectId: undefined, project: { id: "project" } }
+      : scenario === "conflicting_project" ? { projectId: "project", project: { id: "other" } } : {};
+    if (url.pathname === "/v13/deployments/release.vercel.app") return respond({ ...released, ...projectBinding,
       ...(scenario === "wrong_project" ? { projectId: "other" } : {}),
       ...(scenario === "wrong_repo" ? { meta: { ...meta, githubRepo: "other" } } : {}),
       ...(scenario === "mutable_alias" ? { url: "another.vercel.app" } : {}),
     });
-    if (url.pathname === "/v13/deployments/dpl_previous") return respond({ ...released, id: "dpl_previous", url: "previous.vercel.app", meta: { ...meta, githubCommitSha: "b".repeat(40) }, ...(scenario === "previous_project" ? { projectId: "other" } : {}) });
+    if (url.pathname === "/v13/deployments/dpl_previous") return respond({ ...released, ...projectBinding, id: "dpl_previous", url: "previous.vercel.app", meta: { ...meta, githubCommitSha: "b".repeat(40) }, ...(scenario === "previous_project" ? { projectId: "other" } : {}) });
     if (url.pathname === "/v9/projects/project") {
       if (scenario === "provider_error") throw new Error("provider unavailable");
       return respond({ id: "project", targets: scenario === "missing_target" ? {} : { production: { ...released,
@@ -195,13 +197,13 @@ Deno.test("rollback preflight refuses stale production, changed decisions and ho
     throw new Error(`Unexpected fetch ${url}`);
   };
   try {
-    for (scenario of ["unchanged", "newer_release", "same_sha_new_id", "wrong_project", "wrong_repo", "mutable_alias", "previous_project", "missing_target", "provider_error", "version", "status", "project_hold", "global_pause", "scope_pause", "ticket_hold", "resolved", "account_pause"]) {
+    for (scenario of ["unchanged", "nested_project", "conflicting_project", "newer_release", "same_sha_new_id", "wrong_project", "wrong_repo", "mutable_alias", "previous_project", "missing_target", "provider_error", "version", "status", "project_hold", "global_pause", "scope_pause", "ticket_hold", "resolved", "account_pause"]) {
       await t.step(scenario, async () => {
         posts = 0; issueReads = 0;
         issue = { id: "issue", version: 1, status: "verifying", repository: repo, pr_number: 42, head_sha: sha, merge_sha: sha, evidence: { github_issue: { number: 7 } }, tickets: [{ id: "ticket", status: "working", kind: "bug" }], deployment: { state: "success", url: "https://release.vercel.app", production_sha: sha }, rollback: { previous_deployment_id: "dpl_previous", previous_commit_sha: "b".repeat(40), provider: "vercel" } };
         try { await verify({ principalId: "release", role: "release", via: "service", scopes: [] }, "issue"); }
         catch (error) { if (scenario !== "version") throw error; }
-        assertEquals(posts, scenario === "unchanged" ? 1 : 0, "only the still-current unheld release may initiate rollback");
+        assertEquals(posts, ["unchanged", "nested_project"].includes(scenario) ? 1 : 0, "only the still-current unheld release may initiate rollback");
       });
     }
   } finally {
@@ -210,4 +212,17 @@ Deno.test("rollback preflight refuses stale production, changed decisions and ho
       if (value === undefined) Deno.env.delete(key); else Deno.env.set(key, value);
     }
   }
+});
+
+Deno.test("Vercel deployment project binding accepts documented shapes and rejects ambiguous identity", () => {
+  for (const value of [{ projectId: "prj_test" }, { project: { id: "prj_test", name: "fixture" } },
+    { projectId: "prj_test", project: { id: "prj_test" } }]) assertEquals(deploymentProjectMatches(value, "prj_test"), true);
+  for (const value of [null, [], "prj_test", {}, { projectId: "other" }, { project: { id: "other" } },
+    { projectId: "prj_test", project: { id: "other" } }, { projectId: "other", project: { id: "prj_test" } },
+    { projectId: null, project: { id: "prj_test" } }, { projectId: 1 }, { project: { id: ["prj_test"] } },
+    { projectId: "prj_test", project: null }, { projectId: "prj_test", project: {} },
+    { projectId: "prj_test", project: [{ id: "prj_test" }] }, { project: { name: "prj_test" } }]) {
+    assertEquals(deploymentProjectMatches(value, "prj_test"), false);
+  }
+  assertEquals(deploymentProjectMatches({ projectId: "" }, ""), false);
 });
