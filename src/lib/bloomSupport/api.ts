@@ -211,6 +211,15 @@ export class BloomSupportError extends Error {
   }
 }
 
+export interface ReconcileTicketLinksInput {
+  version: number;
+  expected: { duplicate_of: string; merged_into: string | null; problem_id: string | null; engineering_issue_id: string | null; feature_request_id: string | null };
+  clear_inherited: Array<"problem_id" | "engineering_issue_id" | "feature_request_id">;
+  reason: string;
+  next_action: string;
+  idempotency_key: string;
+}
+
 export interface SignedSupportIntakeResult {
   received: true;
   duplicate_delivery: boolean;
@@ -404,6 +413,7 @@ export const bloomSupport = {
   postReply: (id: string, decision: "reopen" | "new_ticket" | "dismiss" | "review", messageId?: string) => send("POST", `/tickets/${id}/post-reply`, { decision, message_id: messageId }),
   problems: () => api<Array<Record<string, unknown>>>("/problems"),
   createProblem: (input: Record<string, unknown>) => send<Record<string, unknown>>("POST", "/problems", input),
+  reconcileTicketLinks: (id: string, input: ReconcileTicketLinksInput) => send<{ ticket_id: string; version: number; detached_duplicate: string; cleared_inherited: string[] }>("POST", `/tickets/${id}/reconcile-links`, input),
   linkProblem: (id: string, problemId: string) => send("POST", `/tickets/${id}/problem`, { problem_id: problemId }),
   views: () => api<Array<{ id: string; name: string; filters: Record<string, string>; shared: boolean }>>("/views"),
   saveView: (name: string, filters: Record<string, unknown>, shared = false) => send("POST", "/views", { name, filters, shared }),

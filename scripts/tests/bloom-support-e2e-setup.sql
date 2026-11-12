@@ -71,5 +71,9 @@ BEGIN;
 \ir ../../supabase/migrations/20261112180000_bloom_support_reviewed_closure.sql
 \ir ../../supabase/migrations/20261112183000_bloom_support_message_ticket_lock.sql
 \ir ../../supabase/migrations/20261112184000_bloom_support_atomic_closure.sql
+\ir ../../supabase/migrations/20261112151238_bloom_support_reconcile_ticket_links.sql
+COMMIT;
+BEGIN;
+\ir ../../supabase/migrations/20261112151241_bloom_support_ticket_flow_context.sql
 COMMIT;
 \echo 'bloom-support e2e database ready'

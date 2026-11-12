@@ -134,3 +134,80 @@ Deno.test("promotion polling backs off within five minutes without promoting or 
     }
   }
 });
+
+Deno.test("rollback preflight refuses stale production, changed decisions and holds", async (t) => {
+  const { verify } = await import("./engineering.ts");
+  const originalFetch = globalThis.fetch;
+  const keys = { SUPABASE_URL: "https://bloom-poll.test", SUPABASE_SERVICE_ROLE_KEY: "test", BLOOM_GITHUB_RELEASE_TOKEN: "test", BLOOM_VERCEL_TOKEN: "test" };
+  const prior = Object.fromEntries(Object.keys(keys).map(key => [key, Deno.env.get(key)]));
+  for (const [key, value] of Object.entries(keys)) Deno.env.set(key, value);
+  const repo = "JonDMorrison/brandsinblooms", sha = "a".repeat(40);
+  const meta = { githubOrg: "JonDMorrison", githubRepo: "brandsinblooms", githubCommitSha: sha };
+  const released = { id: "dpl_release", url: "release.vercel.app", projectId: "project", readyState: "READY", target: "production", meta };
+  const policy = { verificationOrigins: { [repo]: ["https://bloomsuite.app"] }, verificationChecks: { [repo]: [{ url: "https://bloomsuite.app/health" }] }, vercel: { [repo]: { projectId: "project" } } };
+  let scenario = "unchanged", posts = 0, issueReads = 0;
+  let issue: Record<string, unknown>;
+  globalThis.fetch = (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const respond = (body: unknown) => Promise.resolve(Response.json(body));
+    if (url.pathname === "/rest/v1/rpc/bloom_support_ticket_flow_context") return respond({
+      issue_id: "issue", head_sha: sha, version: 1,
+      tickets_automatic: !["ticket_hold", "resolved", "account_pause"].includes(scenario),
+    });
+    if (url.pathname === "/rest/v1/rpc/bloom_support_rpc") {
+      const { p_fn, p } = JSON.parse(String(init?.body));
+      if (p_fn === "list_engineering") {
+        issueReads++;
+        if (issueReads > 1 && scenario === "version") issue.version = 2;
+        if (issueReads > 1 && scenario === "status") issue.status = "escalated";
+        return respond([issue]);
+      }
+      if (p_fn === "setting") return respond(p.key === "release_policy" ? policy
+        : p.key === "automation_scopes" ? { engineering: scenario !== "scope_pause" }
+        : scenario !== "global_pause");
+      if (p_fn === "get_ticket") return respond({ id: "ticket", status: scenario === "resolved" ? "resolved" : "working", automation: scenario === "ticket_hold" ? "human" : "auto", executor: "bloom", merged_into: null });
+      if (p_fn === "update_engineering_issue") {
+        if (p.update.version !== undefined && p.update.version !== issue.version) return Promise.resolve(Response.json({ code: "40001", message: "version conflict" }, { status: 409 }));
+        Object.assign(issue, p.update.patch);
+        if (p.update.status) issue.status = p.update.status;
+        return respond(issue);
+      }
+      throw new Error(`Unexpected RPC ${p_fn}`);
+    }
+    if (url.hostname === "bloomsuite.app") return Promise.resolve(new Response("unhealthy", { status: 503 }));
+    if (url.pathname.endsWith("/labels")) return respond(scenario === "project_hold" ? [{ name: "release-hold" }] : []);
+    if (url.pathname === "/v13/deployments/release.vercel.app") return respond({ ...released,
+      ...(scenario === "wrong_project" ? { projectId: "other" } : {}),
+      ...(scenario === "wrong_repo" ? { meta: { ...meta, githubRepo: "other" } } : {}),
+      ...(scenario === "mutable_alias" ? { url: "another.vercel.app" } : {}),
+    });
+    if (url.pathname === "/v13/deployments/dpl_previous") return respond({ ...released, id: "dpl_previous", url: "previous.vercel.app", meta: { ...meta, githubCommitSha: "b".repeat(40) }, ...(scenario === "previous_project" ? { projectId: "other" } : {}) });
+    if (url.pathname === "/v9/projects/project") {
+      if (scenario === "provider_error") throw new Error("provider unavailable");
+      return respond({ id: "project", targets: scenario === "missing_target" ? {} : { production: { ...released,
+        ...(scenario === "newer_release" ? { id: "dpl_newer", meta: { ...meta, githubCommitSha: "c".repeat(40) } } : {}),
+        ...(scenario === "same_sha_new_id" ? { id: "dpl_rebuilt" } : {}),
+      } } });
+    }
+    if (url.pathname === "/v1/projects/project/rollback/dpl_previous") {
+      assertEquals(init?.method, "POST"); posts++; return respond({});
+    }
+    throw new Error(`Unexpected fetch ${url}`);
+  };
+  try {
+    for (scenario of ["unchanged", "newer_release", "same_sha_new_id", "wrong_project", "wrong_repo", "mutable_alias", "previous_project", "missing_target", "provider_error", "version", "status", "project_hold", "global_pause", "scope_pause", "ticket_hold", "resolved", "account_pause"]) {
+      await t.step(scenario, async () => {
+        posts = 0; issueReads = 0;
+        issue = { id: "issue", version: 1, status: "verifying", repository: repo, pr_number: 42, head_sha: sha, merge_sha: sha, evidence: { github_issue: { number: 7 } }, tickets: [{ id: "ticket", status: "working", kind: "bug" }], deployment: { state: "success", url: "https://release.vercel.app", production_sha: sha }, rollback: { previous_deployment_id: "dpl_previous", previous_commit_sha: "b".repeat(40), provider: "vercel" } };
+        try { await verify({ principalId: "release", role: "release", via: "service", scopes: [] }, "issue"); }
+        catch (error) { if (scenario !== "version") throw error; }
+        assertEquals(posts, scenario === "unchanged" ? 1 : 0, "only the still-current unheld release may initiate rollback");
+      });
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) Deno.env.delete(key); else Deno.env.set(key, value);
+    }
+  }
+});
