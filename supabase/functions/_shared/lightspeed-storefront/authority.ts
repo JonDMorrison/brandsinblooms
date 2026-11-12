@@ -273,41 +273,33 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         const access=await readTokens(grant,deps);
         if(!["sales:read","sales:write"].every(scope=>access.scopes.includes(scope)))
           throw new AuthorityError("insufficient_scope",403);
+        // The 2026-07 API assigns the Lightspeed sale UUID. The BloomSites
+        // order UUID is preserved in source.id for independent reconciliation.
+        // The durable CMS queue enforces a single POST attempt. Never retry a
+        // possibly accepted request after a timeout or network failure.
         const headers={Accept:"application/json",Authorization:"Bearer "+access.accessToken};
-        const resourceUrl=new URL("/api/2026-07/sales/"+sale.id,lightspeedStoreOrigin(grant.prefix));
-        let existing:SourceRecord|null=null;
-        try{
-          const reply=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,resourceUrl,{method:"GET",headers}));
-          existing=asSourceRecord(reply?.data);
-          if(!existing)throw new AuthorityError("sale_readback_invalid",409);
-        }catch(error){
-          if(!(error instanceof LightspeedApiError&&error.status===404))throw error;
-        }
-        const verify=(saved:SourceRecord):void=>{
-          const source=asSourceRecord(saved.source);
-          const payments=Array.isArray(saved.payments)?saved.payments:[];
-          const matchingPayment=payments.some(item=>{
-            const row=asSourceRecord(item);
-            return (typeof row?.amount==="number"||typeof row?.amount==="string")
-              && Number(row.amount)===Number(sale.payments[0].amount);
-          });
-          if(saved.id!==sale.id||source?.id!==sale.id||!matchingPayment)
-            throw new AuthorityError("sale_reference_conflict",409);
-        };
-        if(existing){verify(existing);return json({ok:true,externalId:sale.id,alreadyExists:true});}
         const createUrl=new URL("/api/2026-07/sales",lightspeedStoreOrigin(grant.prefix));
+        let saved:SourceRecord|null=null;
         try{
           const result=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,createUrl,{
             method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(sale)}));
-          const saved=asSourceRecord(result?.data);
-          if(!saved||saved.id!==sale.id)throw new AuthorityError("sale_reconcile_required",409);
-          verify(saved);
-          return json({ok:true,externalId:sale.id,alreadyExists:false});
+          saved=asSourceRecord(result?.data);
         }catch(error){
-          if(error instanceof LightspeedApiError)
-            throw new AuthorityError("sale_reconcile_required",409);
+          // Unknown outcome is a manual reconciliation hold, never a retry.
+          if(error instanceof LightspeedApiError)throw new AuthorityError("sale_reconcile_required",409);
           throw error;
         }
+        const source=asSourceRecord(saved?.source);
+        const payments=Array.isArray(saved?.payments)?saved.payments:[];
+        const matchingPayment=payments.some(item=>{
+          const row=asSourceRecord(item);
+          return (typeof row?.amount==="number"||typeof row?.amount==="string")
+            && Number(row.amount)===Number(sale.payments[0].amount);
+        });
+        if(!saved||typeof saved.id!=="string"||!UUID.test(saved.id)||
+          source?.id!==sale.source.id||!matchingPayment)
+          throw new AuthorityError("sale_reconcile_required",409);
+        return json({ok:true,externalId:saved.id,externalSourceId:sale.source.id});
       }
       const resource=body.resource;
       if(typeof resource!=="string"||!["products","inventory","outlets","retailer"].includes(resource)) {
