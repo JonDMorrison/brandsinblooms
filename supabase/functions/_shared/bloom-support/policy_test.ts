@@ -347,7 +347,12 @@ Deno.test("evaluate uses authorized linked summaries, fails closed on agent clai
         ticketReads.push(p.ticket_id);
         throw new Error("Release principal must not read full tickets");
       }
-      if (p_fn === "update_engineering_issue") { eligibility = p.update.patch.eligibility; return respond(issue); }
+      if (p_fn === "update_engineering_issue") {
+        eligibility = p.update.patch.eligibility;
+        Object.assign(issue, p.update.patch);
+        if (p.update.status) issue.status = p.update.status;
+        return respond(issue);
+      }
       throw new Error(`Unexpected RPC ${p_fn}`);
     }
     if (url.pathname === "/v9/projects/test-project") return respond({ alias: [] });
@@ -392,8 +397,10 @@ Deno.test("evaluate uses authorized linked summaries, fails closed on agent clai
     // A person can approve the current head despite unavailable automatic
     // reproduction, but the existing rollback safeguard still prevents merge.
     assertEquals((await evaluate(actor, issue.id)).note, "merge blocked: rollback point could not be proven");
+    issue.status = "approved";
     issue.approved_head_sha = "older-head";
     assertEquals((await evaluate(actor, issue.id)).note, "re-approval needed");
+    issue.status = "approved";
     issue.approved_head_sha = "claimed-head";
     issue.evidence.github_issue.number = 0;
     assertEquals((await evaluate(actor, issue.id)).note, "approved, waiting: PR and issue labels are not verified");
