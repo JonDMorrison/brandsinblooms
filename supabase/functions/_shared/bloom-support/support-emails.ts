@@ -468,11 +468,12 @@ export function needsYouStep(x: EscalationFacts, t: StaffTicket): NextStep | nul
     if (f && STAFF_ONLY_STEPS.includes(f.kind)) return null;
   }
   const live = liveNextStep({
+    id: t.id,
     status: t.status, automation: t.automation, pending_review: t.pending_review, merged_into: t.merged_into, engineering: t.engineering,
     operations: t.operations, feature_request: t.feature_request, escalations: t.escalations,
   });
   // What the live ticket can do now wins over the escalation's original reason.
-  if (live && live.action !== "take-over" && live.action !== "reply") return live;
+  if (live && (live.evidenceReview || (live.action !== "take-over" && live.action !== "reply"))) return live;
   return nextStepForReason(x.reason, t);
 }
 
@@ -529,7 +530,7 @@ export function renderEscalationEmail(input: {
   const tz = input.timeZone ?? "America/Toronto";
   // Previews render even when nothing is actionable; real sends check needsYouStep first.
   const step = needsYouStep(x, t) ?? nextStepForReason(x.reason, t);
-  const plan = step.action === "send-and-solve" ? resolutionPlan({ engineering: t.engineering, requesterName: t.requester?.name, timeZone: tz }) : null;
+  const plan = step.action === "send-and-solve" ? resolutionPlan({ ticketId: t.id, engineering: t.engineering, requesterName: t.requester?.name, timeZone: tz }) : null;
   const client = clientNameOf(t);
   const { headline, why, findings } = needsYouCopy(x, t, step, plan, now);
   const age = t.created_at ? formatAge(now.getTime() - new Date(t.created_at).getTime()) : null;

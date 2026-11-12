@@ -9,6 +9,15 @@ cd "$(dirname "$0")/../.."
 dropdb --if-exists bloom_support_test && createdb --template=template0 --encoding=UTF8 bloom_support_test
 psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-db.sql > /tmp/bloom-support-db.log 2>&1 || { cat /tmp/bloom-support-db.log | tail -30; exit 1; }
 grep -q "all assertions passed" /tmp/bloom-support-db.log && echo "SQL contract: passed"
+psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-reviewed-closure.sql > /tmp/bloom-support-reviewed-closure.log 2>&1 || { tail -30 /tmp/bloom-support-reviewed-closure.log; exit 1; }
+grep -q "bloom-support-reviewed-closure: all assertions passed" /tmp/bloom-support-reviewed-closure.log || { cat /tmp/bloom-support-reviewed-closure.log; exit 1; }
+echo "Reviewed closure SQL contract: passed"
+psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-message-closure-race.sql > /tmp/bloom-support-message-closure-race.log 2>&1 || { tail -30 /tmp/bloom-support-message-closure-race.log; exit 1; }
+grep -q "bloom-support-message-closure-race: all assertions passed" /tmp/bloom-support-message-closure-race.log || { cat /tmp/bloom-support-message-closure-race.log; exit 1; }
+echo "Message closure concurrency: passed"
+psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-atomic-closure.sql > /tmp/bloom-support-atomic-closure.log 2>&1 || { tail -30 /tmp/bloom-support-atomic-closure.log; exit 1; }
+grep -q "bloom-support-atomic-closure: all assertions passed" /tmp/bloom-support-atomic-closure.log || { cat /tmp/bloom-support-atomic-closure.log; exit 1; }
+echo "Atomic closure SQL contract: passed"
 (cd supabase/functions && deno test -A _shared/bloom-support/policy_test.ts _shared/bloom-support/engineering_test.ts _shared/bloom-support/engineering-merge_test.ts _shared/bloom-support/engineering-schedule_test.ts _shared/bloom-support/dkim_test.ts _shared/bloom-support/support_emails_test.ts _shared/bloom-support/support_emails_brand_test.ts _shared/bloom-support/needs_you_test.ts _shared/bloom-support/vision_test.ts _shared/bloom-support/attachments_test.ts _shared/bloom-support/slack_test.ts _shared/bloom-support/actionable-alerts_test.ts _shared/bloom-support/slack-questions_test.ts _shared/bloom-support/ticket-slack_test.ts _shared/bloom-support/slack-ticket-migration_test.ts _shared/bloom-support/slack-question_test.ts _shared/bloom-support/github-events_test.ts _shared/bloom-support/integration-diagnostics_test.ts _shared/bloom-support/slack-language_test.ts _shared/bloom-support/release-notes_test.ts _shared/bloom-support/finance_test.ts _shared/bloom-support/webhook-auth_test.ts)
 # Chat spending cap: contract test, then 30 parallel reservations against a 25 USD cap
 # (1 USD each) must admit exactly 25 — the row lock keeps parallel calls from overshooting.

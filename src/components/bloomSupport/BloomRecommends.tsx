@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { Sprout } from "lucide-react";
 import { labelFor } from "@/components/admin/readableFormat";
 import { bloomSupport, type TicketDetail, type Whoami } from "@/lib/bloomSupport/api";
+import { classifyForHandoff, runHandoffItem } from "./desk/handoff";
 import { MAX_SUPPORT_BODY_LENGTH } from "@/lib/bloomSupport/constants";
 import { type EngineeringFacts, liveNextStep, type NextAction, resolutionPlan } from "../../../supabase/functions/_shared/bloom-support/next-step";
 
@@ -26,6 +27,7 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
   onReply: () => void;
 }) {
   const step = liveNextStep({
+    id: t.id,
     status: t.status,
     automation: t.automation,
     pending_review: t.pending_review,
@@ -36,7 +38,7 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
     escalations: t.escalations as Array<{ reason?: unknown; status?: unknown }> | undefined,
   }, hint);
   const plan = step?.action === "send-and-solve"
-    ? resolutionPlan({ engineering: t.engineering as EngineeringFacts | null | undefined, requesterName: t.requester?.name ?? null })
+    ? resolutionPlan({ ticketId: t.id, engineering: t.engineering as EngineeringFacts | null | undefined, requesterName: t.requester?.name ?? null })
     : null;
   // The drafted reply is the person's to edit; it is only sent when they confirm.
   const [draft, setDraft] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
   // A client's reply after resolution already has its own one-click choices below.
   if (!step || step.action === "review-reply") return null;
   // Everyday "take over / reply" is only suggested when a person was asked for.
-  if ((step.action === "take-over" || step.action === "reply") && !hint && t.status !== "needs_owner") return null;
+  if ((step.action === "take-over" || step.action === "reply") && !hint && t.status !== "needs_owner" && !step.evidenceReview) return null;
 
   const allowed = me.permissions.includes(step.permission);
   const eng = t.engineering as { id?: string } | null | undefined;
@@ -53,6 +55,7 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
   const note = `From Bloom's recommendation on #${t.number}`;
 
   const primary = (): void => {
+    if (step.evidenceReview) { onReply(); return; }
     switch (step.action) {
       case "approve-fix":
         if (eng?.id) run(() => bloomSupport.updateEngineering(eng.id!, { status: "approved", note }), "Fix approved. Bloom will release it, check it and tell the client.");
@@ -75,19 +78,12 @@ export function BloomRecommends({ t, me, hint, busy, run, onReply }: {
         const body = (draft ?? plan.draft).trim();
         if (!body) return;
         run(async () => {
-          // The existing reply and status endpoints; each checks the person's permission.
-          const sent = await bloomSupport.addMessage(t.id, { body, visibility: "public", idempotency_key: replyKey.current });
-          await bloomSupport.updateTicket(t.id, {
-            status: "resolved",
-            resolution_summary: plan.summary,
-            resolution_evidence: {
-              via: "send-and-solve",
-              reply_message_id: sent.message_id,
-              verification: { passed: true, note: plan.checked },
-              verified_note: plan.checked,
-              ...(plan.noDeployReason ? { no_deploy_reason: plan.noDeployReason } : {}),
-            },
+          const item = classifyForHandoff(t, me.permissions)?.item;
+          if (item?.kind !== "send-and-solve") throw new Error("This request changed. Open it to review.");
+          const result = await runHandoffItem(bloomSupport, item, {
+            body, idempotencyKey: replyKey.current, permissions: me.permissions,
           });
+          if (result.status !== "done") throw new Error(result.message);
         }, "Reply sent and the request is marked solved.");
         return;
       }

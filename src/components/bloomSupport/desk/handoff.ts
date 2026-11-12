@@ -3,9 +3,9 @@
  * the existing permission-checked endpoints, one request at a time.
  *
  * Pure planning plus a runner that takes the API as an argument, so both are
- * testable without a browser. No new server endpoint: every write here is one
- * the desk already makes (addMessage, updateTicket, setAutomation), and the
- * server re-checks permission and version on each.
+ * testable without a browser. Reviewed closure uses one transaction for its
+ * reply/outbox and guarded resolution. Ordinary hand-back keeps its existing
+ * permission-checked note and automation actions.
  */
 import type { TicketDetail } from "@/lib/bloomSupport/api";
 import { liveNextStep, resolutionPlan, type EngineeringFacts, type NextAction } from "../../../../supabase/functions/_shared/bloom-support/next-step";
@@ -30,6 +30,12 @@ export interface HandoffItem {
   summary?: string;
   checked?: string;
   noDeployReason?: string | null;
+  /** Evidence snapshot approved in this review, independent of the editable reply. */
+  resolutionFingerprint?: string;
+  engineeringId?: string;
+  engineeringVersion?: number;
+  verification?: Record<string, unknown>;
+  deployment?: Record<string, unknown>;
   /** Absent when the current person may approve this. */
   blocked?: string;
 }
@@ -62,6 +68,7 @@ type Live = Pick<TicketDetail, "id" | "number" | "subject" | "status" | "automat
 
 function stepFor(t: Live) {
   return liveNextStep({
+    id: t.id,
     status: t.status,
     automation: t.automation,
     pending_review: t.pending_review,
@@ -85,14 +92,22 @@ export function classifyForHandoff(t: Live, permissions: string[]): { item?: Han
   const blocked = permissions.includes("tickets.write") ? undefined : "Your role can't approve this. An admin can.";
   const step = stepFor(t);
 
+  if (step?.evidenceReview) return { held: { ...base, key: `held:${t.id}`, reason: step.recommendation } };
   if (step?.action === "send-and-solve") {
-    const plan = resolutionPlan({ engineering: t.engineering as EngineeringFacts | null | undefined, requesterName: t.requester?.name ?? null });
+    const plan = resolutionPlan({ ticketId: t.id, engineering: t.engineering as EngineeringFacts | null | undefined, requesterName: t.requester?.name ?? null });
     if (plan) {
       return {
         item: {
           ...base, key: `solve:${t.id}`, kind: "send-and-solve",
           action: plan.outcome === "fixed" ? "Tell the client it's fixed, then mark it solved" : "Tell the client we couldn't reproduce it, then mark it solved",
           reason: plan.findings.join(" "),
+          resolutionFingerprint: JSON.stringify([t.engineering, plan]),
+          engineeringId: typeof t.engineering?.id === "string" ? t.engineering.id : undefined,
+          engineeringVersion: typeof t.engineering?.version === "number" ? t.engineering.version : undefined,
+          ...(plan.outcome === "fixed" ? {
+            verification: t.engineering?.verification as Record<string, unknown>,
+            deployment: t.engineering?.deployment as Record<string, unknown>,
+          } : {}),
           preselected: true, draft: plan.draft, summary: plan.summary, checked: plan.checked, noDeployReason: plan.noDeployReason, blocked,
         },
       };
@@ -138,6 +153,7 @@ export interface HandoffApi {
   getTicket(id: string): Promise<TicketDetail>;
   addMessage(id: string, input: { body: string; visibility: "public" | "internal"; idempotency_key?: string }): Promise<{ message_id: string; duplicate: boolean }>;
   updateTicket(id: string, patch: Record<string, unknown>): Promise<unknown>;
+  sendAndSolve(id: string, input: Record<string, unknown>): Promise<unknown>;
   setAutomation(id: string, mode: "human" | "auto" | "paused", reason?: string): Promise<unknown>;
 }
 
@@ -174,38 +190,35 @@ export async function runHandoffItem(
     return { status: "failed", message: plainFailure(error) };
   }
   const now = classifyForHandoff(live, opts.permissions);
-  if (now?.item?.kind !== item.kind) {
+  if (now?.item?.kind !== item.kind || now.item.blocked ||
+      (item.kind === "send-and-solve" && (!item.resolutionFingerprint || now.item.resolutionFingerprint !== item.resolutionFingerprint))) {
     return { status: "skipped", message: "This request changed since you reviewed it. Bloom left it alone. Open it to review." };
   }
 
   if (item.kind === "send-and-solve") {
     const body = (opts.body ?? item.draft ?? "").trim();
     if (!body) return { status: "skipped", message: "The reply was empty, so nothing was sent." };
-    let sent: { message_id: string };
     try {
-      sent = await api.addMessage(item.ticketId, { body, visibility: "public", idempotency_key: `${opts.idempotencyKey}:reply` });
-    } catch (error) {
-      return { status: "failed", message: `Nothing was sent. ${plainFailure(error)}` };
-    }
-    try {
-      const fresh = await api.getTicket(item.ticketId);
-      await api.updateTicket(item.ticketId, {
-        ...(Number.isSafeInteger(fresh.version) ? { version: fresh.version } : {}),
-        status: "resolved",
+      await api.sendAndSolve(item.ticketId, {
+        version: live.version,
+        body,
+        idempotency_key: opts.idempotencyKey,
         resolution_summary: now.item.summary ?? item.summary,
         resolution_evidence: {
           // "send-and-solve" tells the worker this reply already told the client,
           // so no second resolution email goes out (resolutionAlreadyTold).
           via: "send-and-solve",
+          engineering_issue_id: now.item.engineeringId,
+          engineering_version: now.item.engineeringVersion,
           source: "let-bloom-handle-it",
-          reply_message_id: sent.message_id,
-          verification: { passed: true, note: now.item.checked ?? item.checked },
+          verification: now.item.verification ?? { passed: true, note: now.item.checked ?? item.checked },
+          ...(now.item.deployment ? { deployment: now.item.deployment } : {}),
           verified_note: now.item.checked ?? item.checked,
           ...(now.item.noDeployReason ? { no_deploy_reason: now.item.noDeployReason } : {}),
         },
       });
     } catch (error) {
-      return { status: "failed", message: `The reply was sent, but the request isn't marked solved. ${plainFailure(error)}` };
+      return { status: "failed", message: `The combined reply and closure could not be confirmed. ${plainFailure(error)}` };
     }
     return { status: "done", message: "Reply sent. Marked solved with the evidence on file." };
   }

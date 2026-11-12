@@ -120,6 +120,17 @@ describe("Bloom is handling wording", () => {
     }
   });
 
+  it("does not claim Bloom is working when the request is paused or person-owned", () => {
+    expect(friendlyStatus({ status: "working", automation: "paused" }).label).toBe("Automation paused");
+    expect(friendlyStatus({ status: "working", automation: "human" }).label).toBe("Needs an owner");
+    expect(friendlyStatus({ status: "working", executor: "person", owner: { id: "p", name: "Sam", role: "staff" } }).label).toBe("With Sam");
+    expect(friendlyStatus({ status: "resolved", automation: "paused" }).label).toBe("Solved");
+    expect(bloomNextStep({ status: "working", automation: "paused", progress: "We are working on this." })).toBe("Review this request before resuming automatic work.");
+    expect(bloomNextStep({ status: "waiting", waiting_reason: "customer", automation: "human", progress: "We are working on this." })).toBe("Assign an owner and record the next action.");
+    expect(bloomNextStep({ status: "working", automation: "human", progress: "We are working on this.", owner: { id: "p", name: "Sam", role: "staff" } })).toBe("Sam needs to record the next action.");
+    expect(bloomNextStep({ status: "working", automation: "paused", next_action: "Verify the download" })).toBe("Verify the download");
+  });
+
   it("says what Bloom does next from the stored step, or a plain default", () => {
     expect(bloomNextStep({ status: "working", next_action: "Compare the till sync log" })).toBe("Compare the till sync log");
     expect(bloomNextStep({ status: "working", next_action: "Jon/Jeff: client wants a refund" })).toBe("Admin: client wants a refund");
@@ -196,7 +207,7 @@ describe("System status panel", () => {
   });
 });
 
-import { escalationProblem, firstSentence } from "@/components/bloomSupport/desk/useDeskDecisions";
+import { engineeringReviewCopy, escalationProblem, firstSentence } from "@/components/bloomSupport/desk/useDeskDecisions";
 
 describe("decision wording", () => {
   it("keeps long engineering notes to one readable sentence", () => {
@@ -249,5 +260,22 @@ describe("Bloom's plain escalation summary", () => {
     expect(readPlain({ problem: " A ", blocker: "" })).toEqual({ problem: "A", blocker: null });
     expect(readPlain({ blocker: "x" })).toBeNull();
     expect(readPlain("text")).toBeNull();
+  });
+});
+
+
+describe("engineering and product approval wording", () => {
+  it("keeps a feature's declined product decision distinct from release approval", () => {
+    const copy = engineeringReviewCopy([{ id: "t", number: 8, subject: "New flow", kind: "feature", feature_status: "declined", feature_product_approved: false }]);
+    expect(copy.noun).toBe("feature change");
+    expect(copy.problem).not.toMatch(/tested.*fix/);
+    expect(copy.recommendation).toContain("product decision declined");
+    expect(copy.recommendation).toContain("product approval required");
+    expect(copy.recommendation).toContain("Technical release approval does not grant product approval");
+  });
+  it("uses fix only for known bugs and incidents, without inventing test results", () => {
+    expect(engineeringReviewCopy([{ id: "t", number: 1, subject: "Broken", kind: "bug" }]).noun).toBe("fix");
+    expect(engineeringReviewCopy([{ id: "t", number: 1, subject: "Unknown" }]).noun).toBe("change");
+    expect(engineeringReviewCopy([]).problem).not.toContain("tested");
   });
 });

@@ -418,6 +418,7 @@ export const bloomSupport = {
       true,
       parseSupportMessageResult,
     ),
+  sendAndSolve: (id: string, input: Record<string, unknown>) => send<{ message_id: string; status: "resolved" }>("POST", `/tickets/${id}/send-and-solve`, input),
   updateTicket: (id: string, patch: Record<string, unknown>) => send<TicketSummary>("PATCH", `/tickets/${id}`, patch),
   setAutomation: (id: string, mode: "human" | "auto" | "paused", reason?: string) => send("POST", `/tickets/${id}/automation`, { mode, reason }),
   link: (id: string, to: string, kind: string) => send("POST", `/tickets/${id}/link`, { to, kind }),

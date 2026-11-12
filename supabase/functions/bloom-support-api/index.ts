@@ -85,6 +85,7 @@ on("POST", "/tickets/:id/redact", async (req, [id]) => {
 on("POST", "/tickets", async (req) => actions.createTicket(await caller(req), await readJson(req)));
 on("GET", "/tickets/:id", async (req, [id]) => actions.getTicket(await caller(req), id));
 on("PATCH", "/tickets/:id", async (req, [id]) => actions.updateTicket(await caller(req), id, await readJson(req)));
+on("POST", "/tickets/:id/send-and-solve", async (req, [id]) => actions.sendAndSolve(await caller(req), id, await readJson(req)));
 on("POST", "/tickets/:id/messages", async (req, [id]) => actions.addMessage(await caller(req), id, await readJson(req)));
 on("POST", "/tickets/:id/automation", async (req, [id]) => {
   const b = await readJson(req);

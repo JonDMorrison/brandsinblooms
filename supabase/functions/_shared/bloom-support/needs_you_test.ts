@@ -28,6 +28,7 @@ function assertNoLeaks(s: string, label: string) {
 
 // Shaped like #1011 today: investigated, not reproduced, the client's later save worked (names anonymised).
 const notReproduced = {
+  version: 1,
   id: "43bd1617-4695-4abe-aafc-236a498a2e57",
   status: "open",
   repair_started_at: null,
@@ -92,8 +93,8 @@ Deno.test("send-and-solve is chosen when the investigation says not reproduced",
     assertEquals(step?.action, "send-and-solve", reason);
   }
   // Resolved: a live fix with a passing check.
-  const fixed = { id: "e", status: "verified", verification: { passed: true } };
-  assertEquals(resolutionOutcome(fixed), "fixed");
+  const fixed = { id: "e", version: 1, status: "verified", deployment: { state: "success" }, verification: { passed: true, scope: "ticket_flow", started_at: "2026-11-08T00:00:00Z", ticket_ids: [ticket.id] } };
+  assertEquals(resolutionOutcome(fixed, ticket.id), "fixed");
   assertEquals(needsYouStep(overdue, { ...fresh, engineering: fixed })?.action, "send-and-solve");
   // Not settled yet: no draft, the specific recommendation stays.
   assertEquals(resolutionOutcome({ id: "e", status: "investigating" }), null);
@@ -114,7 +115,7 @@ Deno.test("the drafted reply comes from stored facts with a fixed template", () 
   assertNoLeaks(plan.draft, "draft");
   assertEquals(resolutionPlan({ engineering: notReproduced, requesterName: "Dana Whitfield" }), plan, "deterministic");
   // Without evidence of a later success it claims only what it knows.
-  const bare = resolutionPlan({ engineering: { status: "not_reproduced" }, requesterName: null })!;
+  const bare = resolutionPlan({ engineering: { id: "e", version: 1, status: "not_reproduced", reproduction: { checked_at: "2026-11-08T00:00:00Z" } }, requesterName: null })!;
   assertMatch(bare.draft, /^Hi there,/);
   assertFalse(/saved successfully/.test(bare.draft));
 });
