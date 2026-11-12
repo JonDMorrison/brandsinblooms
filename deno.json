@@ -1,6 +1,6 @@
 {
     "lock": {
-        "path": "./supabase/functions/deno.lock",
+        "path": "./deno.lock",
         "frozen": true
     },
     "tasks": {
