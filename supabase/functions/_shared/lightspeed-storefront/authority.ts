@@ -176,7 +176,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
       const now=(deps.now??Date.now)();
       if(body.action==="readiness") {
         const ready=(edition:LightspeedEdition)=>{try{credentials(deps,edition);return true;}catch{return false;}};
-        return json({ok:true,editions:{"x-series":ready("x-series"),"r-series":ready("r-series")}});
+        return json({ok:true,editions:{"x-series":ready("x-series"),"r-series":ready("r-series")},salesWriteAvailable:deps.allowSaleWrite===true});
       }
       if(body.action==="start") {
         const state=stateValue(body.state);
