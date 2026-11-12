@@ -1288,9 +1288,26 @@ interface RollbackDeployment {
   id?: string;
   url?: string;
   projectId?: string;
+  project?: { id?: string };
   readyState?: string;
   target?: string;
   meta?: Record<string, unknown>;
+}
+
+/** Vercel v13 documents both owner (projectId) and reduced (project.id)
+ * deployment views. Every identity present must match; never hide a conflict.
+ */
+export function deploymentProjectMatches(value: unknown, expected: string): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value) || typeof expected !== "string" || !expected) return false;
+  const deployment = value as Record<string, unknown>;
+  const hasId = Object.hasOwn(deployment, "projectId"), hasProject = Object.hasOwn(deployment, "project");
+  if (hasId && deployment.projectId !== expected) return false;
+  if (hasProject) {
+    const project = deployment.project;
+    if (!project || typeof project !== "object" || Array.isArray(project) ||
+      !Object.hasOwn(project, "id") || (project as Record<string, unknown>).id !== expected) return false;
+  }
+  return hasId || hasProject;
 }
 
 /** Fail closed on stale releases. This is a bounded preflight, not a provider
@@ -1313,11 +1330,11 @@ async function rollbackPreflight(release: Caller, issue: EngineeringIssue, targe
   const released = await vercel<RollbackDeployment>("GET", `/v13/deployments/${encodeURIComponent(hostname)}`, target);
   // Only an immutable deployment hostname can establish the recorded provider ID;
   // a mutable production alias cannot stand in for this release's identity.
-  if (!released.id || released.url !== hostname || released.projectId !== target.projectId ||
+  if (!released.id || released.url !== hostname || !deploymentProjectMatches(released, target.projectId) ||
     released.target !== "production" || released.readyState !== "READY" || !matchesRepo(released) ||
     released.meta?.githubCommitSha !== sha || released.id === issue.rollback.previous_deployment_id) return false;
   const previous = await vercel<RollbackDeployment>("GET", `/v13/deployments/${encodeURIComponent(issue.rollback.previous_deployment_id)}`, target);
-  if (previous.id !== issue.rollback.previous_deployment_id || previous.projectId !== target.projectId ||
+  if (previous.id !== issue.rollback.previous_deployment_id || !deploymentProjectMatches(previous, target.projectId) ||
     previous.target !== "production" || previous.readyState !== "READY" || !matchesRepo(previous) ||
     !issue.rollback.previous_commit_sha || previous.meta?.githubCommitSha !== issue.rollback.previous_commit_sha) return false;
   const githubIssue = issue.evidence.github_issue as { number?: unknown } | undefined;
@@ -1383,7 +1400,7 @@ async function liveProviderContext(release: Caller, issue: EngineeringIssue, pol
   const project = await vercel<{ id?: string; targets?: { production?: RollbackDeployment } }>("GET", `/v9/projects/${encodeURIComponent(target.projectId)}`, target);
   const matches = (d: RollbackDeployment | undefined) => d !== undefined && d.id === alias.deploymentId && d.readyState === "READY" &&
     d.meta?.githubCommitSha === deployedSha && `${d.meta?.githubOrg}/${d.meta?.githubRepo}`.toLowerCase() === issue.repository!.toLowerCase();
-  if (!matches(deployment) || deployment.projectId !== target.projectId || deployment.target !== "production" ||
+  if (!matches(deployment) || !deploymentProjectMatches(deployment, target.projectId) || deployment.target !== "production" ||
     project.id !== target.projectId || !matches(project.targets?.production)) return null;
   const freshPolicy = await rpc("setting", { key: "release_policy" });
   const freshTarget = await vercelTarget(issue.repository);
