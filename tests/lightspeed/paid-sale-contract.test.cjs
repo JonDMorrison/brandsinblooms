@@ -18,7 +18,7 @@ function paid(overrides={}) {
 }
 test('builds a deterministic pending POS sale with a bookkeeping-only Stripe payment reference',()=>{
   const sale=buildStripePaidLightspeedSale(paid());
-  assert.equal(sale.id,ORDER);
+  assert.equal(sale.id,undefined); // Provider generates the sale UUID.
   assert.equal(sale.source.id,ORDER);
   assert.equal(sale.source.type,'BloomSites');
   assert.equal(sale.state,'pending');
