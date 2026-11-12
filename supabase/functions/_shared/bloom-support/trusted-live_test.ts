@@ -31,8 +31,8 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
   const repo = "JonDMorrison/brandsinblooms";
   const issue = { id: issueId, title: "filename validation", version: 1, product: "crm", repository: repo, status: "verifying", pr_number: 8, head_sha: head, merge_sha: deployed, deployment: { state: "success", url: "https://immutable.vercel.app" }, verification: null as Record<string, unknown> | null, rollback: null, evidence: { github_issue: { number: 5 } }, tickets: [{ id: ticketId, kind: "bug", product: "crm" }] };
   const policy = { verificationOrigins: { [repo]: ["https://bloomsuite.app"] }, verificationChecks: { [repo]: [{ url: "https://bloomsuite.app/health" }] }, vercel: { [repo]: { projectId: "prj_test" } }, trustedReproductionIssues: { [issueId]: { recipe: RECIPE, github_issue: 5, ticket_ids: [ticketId] } } };
-  let dispatches = 0, changed = false, ticketsAutomatic = true;
-  globalThis.fetch = async (input, init) => {
+  let dispatches = 0, changed = false, ticketsAutomatic = true, pauseDuringProvider = false;
+  globalThis.fetch = (input, init) => Promise.resolve().then(() => {
     const u = new URL(input instanceof Request ? input.url : String(input));
     if (u.pathname === "/rest/v1/rpc/bloom_support_rpc") {
       const { p_fn, p } = JSON.parse(String(init?.body));
@@ -50,11 +50,14 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
     if (u.pathname === "/v4/aliases/bloomsuite.app") return Response.json({ deploymentId: changed ? "dpl_newer" : "dpl_test", projectId: "prj_test" });
     const deployment = { id: changed ? "dpl_newer" : "dpl_test", projectId: "prj_test", target: "production", readyState: "READY", meta: { githubCommitSha: changed ? "e".repeat(40) : deployed, githubOrg: "JonDMorrison", githubRepo: "brandsinblooms" } };
     if (u.pathname.startsWith("/v13/deployments/")) return Response.json(deployment);
-    if (u.pathname === "/v9/projects/prj_test") return Response.json({ id: "prj_test", targets: { production: deployment } });
+    if (u.pathname === "/v9/projects/prj_test") {
+      if (pauseDuringProvider) ticketsAutomatic = false;
+      return Response.json({ id: "prj_test", targets: { production: deployment } });
+    }
     if (u.pathname.endsWith("/dispatches")) { dispatches++; assertEquals(issue.version, 2, "intent must precede dispatch"); assertEquals((JSON.parse(String(init?.body))).inputs.mode, "verify"); throw Error("uncertain network outcome"); }
     if (u.pathname.endsWith("/runs")) return Response.json({ workflow_runs: [] });
     throw Error(`Unexpected ${u.pathname}`);
-  };
+  });
   try {
     const actor = { principalId: "release-test", role: "release", via: "service" as const, scopes: [] };
     assertEquals((await verify(actor, issueId)).next?.step, "verify");
@@ -63,24 +66,33 @@ Deno.test("live dispatch intent is persisted once, uncertain dispatch never repe
     assertEquals((await verify(actor, issueId)).next?.step, "verify");
     assertEquals(dispatches, 1); assertEquals(issue.version, 2);
     const current = () => structuredClone(issue) as unknown as EngineeringIssue;
-    const successful = await trustedBrowserFlow(actor, current(), policy, async () => ({ state: "proved", evidence: { nonce: request.nonce } }));
+    const successful = await trustedBrowserFlow(actor, current(), policy, () => Promise.resolve({ state: "proved", evidence: { nonce: request.nonce, started_at: "2026-11-12T01:00:00Z" } }));
     assertEquals(successful.flow?.ticketIds, [ticketId]);
     assertEquals(successful.flow?.passed, true);
+    assertEquals(successful.flow?.startedAt, "2026-11-12T01:00:00Z", "actual observation start must survive polling");
     assertEquals(issue.status, "verifying", "a flow result is not itself a state transition");
-    const changedDuringObservation = await trustedBrowserFlow(actor, current(), policy, async () => {
+    const changedDuringObservation = await trustedBrowserFlow(actor, current(), policy, () => Promise.resolve().then(() => {
       changed = true;
-      return { state: "proved", evidence: {} };
-    });
+      return { state: "proved" as const, evidence: { started_at: "2026-11-12T01:00:00Z" } };
+    }));
     assertEquals(changedDuringObservation.flow, undefined); assertEquals(issue.status, "escalated");
     assertEquals(dispatches, 1);
     // Restore only the test fixture, with the original persisted request version.
     changed = false; issue.status = "verifying"; issue.version = 2;
-    const heldDuringObservation = await trustedBrowserFlow(actor, current(), policy, async () => {
+    const heldDuringObservation = await trustedBrowserFlow(actor, current(), policy, () => Promise.resolve().then(() => {
       ticketsAutomatic = false;
-      return { state: "proved", evidence: {} };
-    });
+      return { state: "proved" as const, evidence: { started_at: "2026-11-12T01:00:00Z" } };
+    }));
     assertEquals(heldDuringObservation.flow, undefined); assertEquals(issue.status, "escalated");
     assertEquals(dispatches, 1);
+    issue.status = "verifying"; issue.version = 2; ticketsAutomatic = true; pauseDuringProvider = true;
+    let observedAfterHold = false;
+    const heldDuringProvider = await trustedBrowserFlow(actor, current(), policy, () => Promise.resolve().then(() => {
+      observedAfterHold = true;
+      return { state: "proved" as const, evidence: { started_at: "2026-11-12T01:00:00Z" } };
+    }));
+    assertEquals(heldDuringProvider.flow, undefined); assertEquals(issue.status, "escalated");
+    assertEquals(observedAfterHold, false, "final projection catches a pause after the initial hold read");
   } finally {
     globalThis.fetch = originalFetch;
     Object.keys(keys).forEach(k => prior[k] === undefined ? Deno.env.delete(k) : Deno.env.set(k, prior[k]!));

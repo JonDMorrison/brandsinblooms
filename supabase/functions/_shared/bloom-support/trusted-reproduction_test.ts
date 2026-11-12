@@ -21,7 +21,7 @@ function zip(value: unknown, name = "receipt.json") {
 }
 async function fixture(mutate?: (path: string, value: unknown) => unknown, value: unknown = receipt): Promise<ProofReader> {
   const bytes = zip(value), digest = `sha256:${await sha256(bytes)}`;
-  return { now: () => now, artifact: async () => bytes, api: async <T>(path: string): Promise<T> => {
+  return { now: () => now, artifact: () => Promise.resolve(bytes), api: <T>(path: string): Promise<T> => Promise.resolve().then(() => {
     let result: unknown;
     if (path.endsWith(`/repos/${binding.repository}`)) result = { id: 30, full_name: binding.repository, default_branch: "main" };
     else if (path.endsWith("/actions/runs/10")) result = structuredClone(run);
@@ -33,7 +33,7 @@ async function fixture(mutate?: (path: string, value: unknown) => unknown, value
     else if (path.includes("/artifacts?")) result = { total_count: 1, artifacts: [{ id: 40, name: ARTIFACT, expired: false, size_in_bytes: bytes.length, digest, workflow_run: { id: 10, head_sha: base } }] };
     else throw Error(`Unexpected ${path}`);
     return (mutate ? mutate(path, result) : result) as T;
-  } };
+  }) };
 }
 Deno.test("receipt accepts only exact known baseline assertion failure and head success", () => {
   assertEquals(validReceipt(receipt, binding, run, 30, tree, pins, now), true);
@@ -91,7 +91,7 @@ Deno.test("artifact reader sends credentials only to GitHub and bounds storage r
   Deno.env.set("BLOOM_GITHUB_REPAIR_TOKEN", "test-only-not-a-real-credential");
   try {
     const bytes = zip(receipt); let calls = 0;
-    globalThis.fetch = async (input, init) => {
+    globalThis.fetch = (input, init) => Promise.resolve().then(() => {
       calls++;
       if (calls === 1) {
         assertEquals(String(input), `https://api.github.com/repos/${binding.repository}/actions/artifacts/40/zip`);
@@ -101,14 +101,14 @@ Deno.test("artifact reader sends credentials only to GitHub and bounds storage r
       }
       assertEquals(init?.headers, undefined); assertEquals(init?.redirect, "error");
       return new Response(bytes);
-    };
+    });
     assertEquals(await ghArtifactBytes(binding.repository, 40), bytes); assertEquals(calls, 2);
     for (const location of ["http://results.blob.core.windows.net/archive", "https://evil.test/archive", "https://results.blob.core.windows.net.evil.test/archive", "https://user@results.blob.core.windows.net/archive"]) {
-      globalThis.fetch = async () => new Response(null, { status: 302, headers: { location } });
+      globalThis.fetch = () => Promise.resolve(new Response(null, { status: 302, headers: { location } }));
       await assertRejects(() => ghArtifactBytes(binding.repository, 40));
     }
     let oversizedCalls = 0;
-    globalThis.fetch = async () => ++oversizedCalls === 1 ? new Response(null, { status: 302, headers: { location: "https://results.blob.core.windows.net/archive" } }) : new Response(new Uint8Array(32769));
+    globalThis.fetch = () => Promise.resolve(++oversizedCalls === 1 ? new Response(null, { status: 302, headers: { location: "https://results.blob.core.windows.net/archive" } }) : new Response(new Uint8Array(32769)));
     await assertRejects(() => ghArtifactBytes(binding.repository, 40));
   } finally {
     globalThis.fetch = fetchOriginal;

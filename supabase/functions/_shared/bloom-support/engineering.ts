@@ -1111,6 +1111,7 @@ async function runProductionChecks(
 }
 
 interface TicketFlowVerification {
+  startedAt?: string;
   attempted: boolean;
   passed: boolean;
   ticketIds: string[];
@@ -1390,6 +1391,12 @@ async function liveProviderContext(release: Caller, issue: EngineeringIssue, pol
   if (!assignedReproduction(freshPolicy, fresh) || freshTarget?.projectId !== target.projectId || freshTarget?.teamId !== target.teamId ||
     fresh.version !== issue.version || fresh.status !== "verifying" || fresh.head_sha !== issue.head_sha || fresh.merge_sha !== issue.merge_sha ||
     JSON.stringify(fresh.deployment) !== JSON.stringify(issue.deployment)) return null;
+  // Provider reads may outlast a ticket/account/global pause. Reproject at the
+  // end; the final verified transition also checks/locks these rows in SQL.
+  const finalContext = await directRpc<typeof context>("bloom_support_ticket_flow_context", {
+    p_actor: release.principalId, p_issue_id: issue.id, p_head_sha: issue.head_sha, p_version: issue.version,
+  });
+  if (JSON.stringify(finalContext) !== JSON.stringify(context) || finalContext.tickets_automatic !== true) return null;
   return { deployment_id: alias.deploymentId, deployed_sha: deployedSha, project_id: target.projectId, team_id: target.teamId ?? null,
     ticket_binding: await sha256(new TextEncoder().encode(JSON.stringify(context.tickets.map(t => t.id).sort()))) };
 }
@@ -1419,13 +1426,16 @@ export async function trustedBrowserFlow(release: Caller, issue: EngineeringIssu
     Object.entries(provider).some(([k, v]) => existing[k as keyof LiveRequest] !== v)) return await block("Trusted live request became stale or production changed. No stale observation was accepted.");
   const observed = await observe(existing);
   if (observed.state === "pending") return { step: { next: { step: "verify", delaySeconds: 30 }, note: "waiting for trusted live browser evidence; dispatch not repeated" } };
-  if (observed.state !== "proved") return await block("Trusted live browser proof is missing, invalid or expired. No ticket was marked fixed.");
+  if (observed.state !== "proved" || typeof observed.evidence.started_at !== "string" ||
+    !Number.isFinite(Date.parse(observed.evidence.started_at)) || Date.parse(observed.evidence.started_at) > Date.now()) {
+    return await block("Trusted live browser proof is missing, invalid or expired. No ticket was marked fixed.");
+  }
   // This read happens after the authenticated receipt, not just after dispatch.
   let after: Awaited<ReturnType<typeof liveProviderContext>> = null;
   try { after = await liveProviderContext(release, issue, policy); } catch { /* fail closed */ }
   if (!after || JSON.stringify(after) !== JSON.stringify(provider)) return await block("Production or release bindings changed during live verification. No stale observation was accepted.");
   const checks = issue.tickets.map(t => ({ ticket_id: t.id, flow_path: LIVE_PATH, check_scope: "ticket_flow", url: `${LIVE_ORIGIN}${LIVE_PATH}`, pass: true, trusted_browser: observed.evidence }));
-  return { flow: { attempted: true, passed: true, ticketIds: issue.tickets.map(t => t.id), checks,
+  return { flow: { startedAt: observed.evidence.started_at, attempted: true, passed: true, ticketIds: issue.tickets.map(t => t.id), checks,
     flows: issue.tickets.map(t => ({ ticket_id: t.id, path: LIVE_PATH, passed: true, checks: checks.filter(c => c.ticket_id === t.id) })) } };
 }
 
@@ -1531,7 +1541,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     ],
     release_smoke: { passed: smokePassed, checks: results },
     ticket_flows: ticketFlow.flows,
-    started_at: verificationStartedAt,
+    started_at: ticketFlow.startedAt ?? verificationStartedAt,
     at: new Date().toISOString(),
   };
   if (passed) {
