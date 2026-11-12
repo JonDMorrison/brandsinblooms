@@ -11,7 +11,7 @@ async function fixture(options={}){
   const keys=await protocol.createSigningKeyPair();
   const state='bs_'+protocol.randomProofToken();const stateHash=await protocol.sha256(state);
   const grants=new Map(),nonces=new Set(),calls=[];
-  let tokenCalls=0;let now=NOW;let savedSale=null;let salePosts=0;
+  let tokenCalls=0;let now=NOW;let savedSale=null;let salePosts=0;const claimedSales=new Set();
   const repo={
     async create(context){let row=[...grants.values()].find(x=>x.stateHash===context.stateHash);if(!row){row={...context,id:crypto.randomUUID(),status:'pending',version:1,
       codeHash:null,tokenCiphertext:null,receiptCiphertext:null,receiptHash:null,retailerId:null,currency:null,tokenExpiresAt:null,leaseId:null,leaseExpiresAt:null};grants.set(row.id,row);}return copy(row);},
@@ -19,6 +19,15 @@ async function fixture(options={}){
     async findByState(hash){return copy([...grants.values()].find(x=>x.stateHash===hash)??null);},
     async compareAndSwap(grant,patch){const current=grants.get(grant.id);if(!current||current.version!==grant.version||current.status!==grant.status)return null;
       const next={...current,...patch,version:current.version+1};grants.set(next.id,next);return copy(next);},
+    async claimSale(grantId,siteId,orderId){
+      assert.equal(siteId,SITE);const key=grantId+':'+orderId;
+      if(claimedSales.has(key))return false;claimedSales.add(key);return true;
+    },
+    async finishSale(grantId,orderId,status,saleId){
+      assert.ok(claimedSales.has(grantId+':'+orderId));
+      assert.ok(['confirmed','needs_review'].includes(status));
+      if(status==='confirmed')assert.equal(saleId,'99d80083-9ef2-4314-9f8e-7f638be367d1');
+    },
     async consumeNonce(id,hash){const key=id+':'+hash;if(nonces.has(key))return false;nonces.add(key);return true;},
   };
   const fetcher=async(url,init)=>{
@@ -53,7 +62,8 @@ async function fixture(options={}){
       assert.equal(init.method,'POST');
       salePosts++;
       assert.equal(u.pathname,'/api/2026-07/sales');
-      savedSale=JSON.parse(init.body);
+      savedSale={...JSON.parse(init.body),
+        id:'99d80083-9ef2-4314-9f8e-7f638be367d1'};
       return Response.json({data:savedSale});
     }
     if(options.readStatus)return new Response('SECRET upstream details',{status:options.readStatus,headers:{'Retry-After':'17'}});
@@ -260,25 +270,30 @@ test('active read-only grant cannot write a sale even if write feature flag is o
   assert.equal(r.status,403);assert.equal((await r.json()).error,'insufficient_scope');
   assert.equal(f.calls.length,n);
 });
-test('authorized signed sale writes once, readbacks on replay; no second payment capture',async()=>{
+test('authorized signed sale writes once with provider-generated ID and rejects replay',async()=>{
   const full=scopes+' sales:read sales:write users:read registers:read taxes:read';
   const f=await fixture({allowSaleWrite:true,tokens:{scope:full}});
   const {grantId}=await f.activate();
   const body={action:'sale',grantId,siteId:SITE,sale:saleInput()};
   const first=await f.signed(body);
   assert.equal(first.status,200);
-  assert.equal((await first.json()).alreadyExists,false);
+  const firstData=await first.json();
+  assert.equal(firstData.externalId,'99d80083-9ef2-4314-9f8e-7f638be367d1');
+  assert.equal(firstData.externalSourceId,PAID_ORDER);
   assert.equal(f.salePosts,1);
   const posted=f.calls.find(x=>x.url.endsWith('/api/2026-07/sales')&&x.init.method==='POST');
   assert.ok(posted);
   const sale=JSON.parse(posted.init.body);
-  assert.equal(sale.id,PAID_ORDER);
+  assert.equal(sale.id,undefined);
+  assert.equal(sale.source.id,PAID_ORDER);
   assert.equal(sale.state,'pending');
+  assert.deepEqual(sale.attributes,['pickup']);
   assert.equal(sale.payments.length,1);
   assert.equal(sale.payments[0].amount,'22.60');
   assert.equal(JSON.stringify(sale).includes('SECRET'),false);
   const again=await f.signed(body);
-  assert.equal(again.status,200);assert.equal((await again.json()).alreadyExists,true);
+  assert.equal(again.status,409);
+  assert.equal((await again.json()).error,'sale_reconcile_required');
   assert.equal(f.salePosts,1);
 });
 test('invalid Stripe state and wrong site do not reach provider sale API',async()=>{
