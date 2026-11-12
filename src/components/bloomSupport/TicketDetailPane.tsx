@@ -28,6 +28,7 @@ import {
   type BloomDiagnostics, type SupportStatus, type TicketDetail, type TicketMessage, type WaitingReason, type Whoami,
 } from "@/lib/bloomSupport/api";
 import { StatusChip, PriorityChip, AutomationChip } from "./chips";
+import { ReconcileTicketLinks } from "./ReconcileTicketLinks";
 import { statusPatch } from "./statusPatch";
 import { useAskDialog } from "./useAskDialog";
 import { ReadableData } from "@/components/admin/ReadableData";
@@ -438,6 +439,7 @@ export function TicketDetailPane({ ticketId, me, onOpenTicket, mode = "full" }: 
                 <AccordionSummary><DetailSectionSummary title="More actions" /></AccordionSummary>
                 <AccordionDetails>
                   <Stack spacing={0.75} alignItems="flex-start" sx={{ pb: 1 }}>
+                    {me.role !== "service" && me.permissions.includes("tickets.write") && <ReconcileTicketLinks key={t.id} ticket={t} />}
                     <Button size="sm" variant="plain" startDecorator={<Wrench size={14} />} onClick={() => run.mutate(() => bloomSupport.investigate(t.id))}>Investigate bug</Button>
                     <Button size="sm" variant="plain" color="neutral" onClick={async () => { const r = await ask({ title: "Escalate to an admin", fields: [{ name: "reason", label: "Why does this need an admin?", kind: "textarea", required: true }], confirmLabel: "Send to the admins" }); if (r) run.mutate(() => bloomSupport.escalate(t.id, "both", String(r.reason).trim())); }}>Escalate to an admin</Button>
                     <Button size="sm" variant="plain" onClick={() => run.mutate(() => bloomSupport.routeFeature(t.id))}>Send feature request to an admin</Button>

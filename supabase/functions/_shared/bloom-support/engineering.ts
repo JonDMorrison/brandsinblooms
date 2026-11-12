@@ -11,9 +11,11 @@
 // The repair side never holds merge credentials and cannot write eligibility.
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
 import { promotionObservationSchedule, type EngineeringNext } from "./engineering-schedule.ts";
-import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
+import { BloomError, type Caller, directRpc, env, readResponseBytes, readResponseText, rpc } from "./runtime.ts";
 import { evaluateRelease, linkedFeatureProductApproved, linkedTicketReleaseFacts, PRODUCT_REPOSITORIES, redactForEngineering, releaseBaseForPR, resolvePolicy, type Eligibility, type Kind, type Product, type PullRequestFacts } from "./policy.ts";
 import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, type PullRequest, pullRequestFacts, releaseLabels } from "./github.ts";
+
+import { invalidCalendarText, verifyICalendar } from "./calendar-verification.ts";
 
 export interface EngineeringIssue {
   id: string; title: string; product: Product; repository: string | null; status: string; version: number;
@@ -23,6 +25,7 @@ export interface EngineeringIssue {
   rollback?: {
     previous_deployment_id?: string;
     previous_url?: string;
+    previous_commit_sha?: string;
     provider?: string;
     status?: string;
     requested_at?: string;
@@ -137,6 +140,7 @@ interface VerificationCheck {
   expect_status?: number;
   contains?: string;
   not_contains?: string;
+  icalendar?: { expected_summaries: string[] };
 }
 
 interface TicketFlowRule {
@@ -168,8 +172,19 @@ function validatedVerificationChecks(
         (typeof check[key] !== "string" || (check[key] as string).length > 500)
       ) return null;
     }
+    let icalendar: VerificationCheck["icalendar"];
+    if (check.icalendar !== undefined) {
+      const spec = check.icalendar as Record<string, unknown> | null;
+      const expected = spec?.expected_summaries;
+      if (!spec || typeof spec !== "object" || Array.isArray(spec) ||
+        Object.keys(spec).some(key => key !== "expected_summaries") ||
+        !Array.isArray(expected) || expected.length < 1 || expected.length > 10 ||
+        expected.some(value => typeof value !== "string" || !value.length || value.length > 500 || invalidCalendarText(value))) return null;
+      icalendar = { expected_summaries: expected as string[] };
+    }
     checks.push({
       url,
+      ...(icalendar ? { icalendar } : {}),
       ...(check.expect_status !== undefined
         ? { expect_status: check.expect_status as number }
         : {}),
@@ -1072,10 +1087,14 @@ async function runProductionChecks(
         signal: AbortSignal.timeout(15000),
         headers: { "User-Agent": "bloom-support-verifier" },
       });
-      const text = await readResponseText(res, 1024 * 1024);
+      const text = c.icalendar
+        ? new TextDecoder("utf-8", { fatal: true }).decode(await readResponseBytes(res, 1024 * 1024))
+        : await readResponseText(res, 1024 * 1024);
       const pass = res.status === (c.expect_status ?? 200) &&
         (!c.contains || text.includes(c.contains)) &&
-        (!c.not_contains || !text.includes(c.not_contains));
+        (!c.not_contains || !text.includes(c.not_contains)) &&
+        (!c.icalendar || (/^text\/calendar(?:;|$)/i.test(res.headers.get("content-type") ?? "") &&
+          verifyICalendar(text, c.icalendar.expected_summaries)));
       results.push({ url: safeUrl, status: res.status, pass });
     } catch (e) {
       results.push({
@@ -1109,27 +1128,33 @@ async function runTicketFlowVerification(
   let passed = true;
   let checkBudget = 20;
 
-  // One issue can link many duplicate reports. Bound remote work and reuse an
-  // identical trusted flow check across every ticket on the same affected path.
-  for (const linked of issue.tickets.slice(0, 50)) {
-    let ticket: { id?: string; kind?: string; context?: { page_url?: unknown } };
-    try {
-      ticket = await rpc<typeof ticket>("get_ticket", {
-        actor: release.principalId,
-        ticket_id: linked.id,
-      });
-    } catch {
-      flows.push({ ticket_id: linked.id, passed: false, skipped: "ticket_unavailable" });
-      continue;
+  type FlowTicket = { id: string; kind: string; product: string; page_url: string | null };
+  let context: { issue_id: string; head_sha: string; version: number; tickets_automatic: boolean; tickets: FlowTicket[] };
+  try {
+    context = await directRpc("bloom_support_ticket_flow_context", {
+      p_actor: release.principalId, p_issue_id: issue.id,
+      p_head_sha: issue.head_sha, p_version: issue.version,
+    });
+    if (context.issue_id !== issue.id || context.head_sha !== issue.head_sha ||
+      context.version !== issue.version || context.tickets_automatic !== true || !Array.isArray(context.tickets) || context.tickets.length > 50 ||
+      new Set(context.tickets.map(ticket => ticket.id)).size !== context.tickets.length ||
+      context.tickets.length !== issue.tickets.length ||
+      context.tickets.some(ticket => !issue.tickets.some(linked => linked.id === ticket.id))) {
+      throw new Error("Stale or incomplete ticket flow context");
     }
-    if (!ticket || !["bug", "incident"].includes(String(ticket.kind))) {
-      flows.push({ ticket_id: linked.id, passed: false, skipped: "not_bug_or_incident" });
+  } catch {
+    return { attempted: false, passed: true, ticketIds: [], checks: [],
+      flows: issue.tickets.map(ticket => ({ ticket_id: ticket.id, passed: false, skipped: "ticket_context_unavailable" })) };
+  }
+  // Only the narrow, exact-head projection is available to the release identity.
+  for (const ticket of context.tickets) {
+    const linked = ticket;
+    if (!["bug", "incident"].includes(ticket.kind) || ticket.product !== issue.product) {
+      flows.push({ ticket_id: linked.id, passed: false, skipped: "not_matching_bug_or_incident" });
       continue;
     }
     const selected = ticketFlowChecksForPolicy(
-      releasePolicy,
-      issue.repository!,
-      ticket.context?.page_url,
+      releasePolicy, issue.repository!, ticket.page_url,
     );
     if (!selected) {
       flows.push({ ticket_id: linked.id, passed: false, skipped: "no_trusted_flow_check" });
@@ -1255,6 +1280,74 @@ async function confirmVercelRollback(
   return { state: "confirmed", polls, aliases: aliases.aliases.length };
 }
 
+interface RollbackDeployment {
+  id?: string;
+  url?: string;
+  projectId?: string;
+  readyState?: string;
+  target?: string;
+  meta?: Record<string, unknown>;
+}
+
+/** Fail closed on stale releases. This is a bounded preflight, not a provider
+ * compare-and-swap: Vercel's rollback endpoint has no expected-current parameter.
+ * An external promotion can still race the final read and POST. */
+async function rollbackPreflight(release: Caller, issue: EngineeringIssue, target: VercelTarget): Promise<boolean> {
+  if (!issue.repository || !issue.pr_number || issue.deployment?.state !== "success" ||
+    !issue.rollback?.previous_deployment_id || !issue.tickets.length || issue.tickets.length > 50) return false;
+  const sha = issue.deployment.production_sha ?? issue.merge_sha;
+  if (typeof sha !== "string" || !/^[a-f0-9]{40}$/i.test(sha)) return false;
+  let hostname: string;
+  try {
+    const url = new URL(String(issue.deployment.url));
+    if (url.protocol !== "https:" || url.username || url.password || url.port ||
+      url.pathname !== "/" || url.search || url.hash || !url.hostname.endsWith(".vercel.app")) return false;
+    hostname = url.hostname;
+  } catch { return false; }
+  const matchesRepo = (deployment: RollbackDeployment) =>
+    `${deployment.meta?.githubOrg}/${deployment.meta?.githubRepo}`.toLowerCase() === issue.repository!.toLowerCase();
+  const released = await vercel<RollbackDeployment>("GET", `/v13/deployments/${encodeURIComponent(hostname)}`, target);
+  // Only an immutable deployment hostname can establish the recorded provider ID;
+  // a mutable production alias cannot stand in for this release's identity.
+  if (!released.id || released.url !== hostname || released.projectId !== target.projectId ||
+    released.target !== "production" || released.readyState !== "READY" || !matchesRepo(released) ||
+    released.meta?.githubCommitSha !== sha || released.id === issue.rollback.previous_deployment_id) return false;
+  const previous = await vercel<RollbackDeployment>("GET", `/v13/deployments/${encodeURIComponent(issue.rollback.previous_deployment_id)}`, target);
+  if (previous.id !== issue.rollback.previous_deployment_id || previous.projectId !== target.projectId ||
+    previous.target !== "production" || previous.readyState !== "READY" || !matchesRepo(previous) ||
+    !issue.rollback.previous_commit_sha || previous.meta?.githubCommitSha !== issue.rollback.previous_commit_sha) return false;
+  const githubIssue = issue.evidence.github_issue as { number?: unknown } | undefined;
+  const labels = await releaseLabels(issue.repository, issue.pr_number, githubIssue?.number);
+  if (!labels || labels.some((label) => /(?:hold|do[- ]not[- ]merge|no[- ]auto[- ]merge|blocked)/i.test(label))) return false;
+  if (await rpc("setting", { key: "automation_enabled" }) !== true ||
+    await rpc("setting", { key: "auto_release_enabled" }) !== true) return false;
+  const scopes = await rpc<Record<string, unknown> | null>("setting", { key: "automation_scopes" });
+  if (scopes?.engineering !== undefined && scopes.engineering !== true) return false;
+  const currentTarget = await vercelTarget(issue.repository);
+  if (currentTarget?.projectId !== target.projectId || currentTarget?.teamId !== target.teamId) return false;
+  const project = await vercel<{ id?: string; targets?: { production?: RollbackDeployment } }>(
+    "GET", `/v9/projects/${encodeURIComponent(target.projectId)}`, target,
+  );
+  const serving = project.targets?.production;
+  if (project.id !== target.projectId || !serving || serving.id !== released.id ||
+    serving.readyState !== "READY" || serving.meta?.githubCommitSha !== sha || !matchesRepo(serving)) return false;
+  const current = await loadIssue(release, issue.id);
+  if (current.version !== issue.version || current.status !== "verifying" ||
+    current.repository !== issue.repository || current.merge_sha !== issue.merge_sha ||
+    JSON.stringify(current.deployment) !== JSON.stringify(issue.deployment) ||
+    JSON.stringify(current.rollback) !== JSON.stringify(issue.rollback)) return false;
+  // Final database projection checks the exact head/version and every linked
+  // ticket/account hold without granting the release principal private reads.
+  const context = await directRpc<{ issue_id: string; head_sha: string; version: number; tickets_automatic: boolean }>(
+    "bloom_support_ticket_flow_context", {
+      p_actor: release.principalId, p_issue_id: issue.id,
+      p_head_sha: issue.head_sha, p_version: issue.version,
+    },
+  );
+  return context.issue_id === issue.id && context.head_sha === issue.head_sha &&
+    context.version === issue.version && context.tickets_automatic === true;
+}
+
 /** Production verification from release-owned smoke and affected-flow policy. */
 export async function verify(release: Caller, issueId: string): Promise<StepResult> {
   const issue = await loadIssue(release, issueId);
@@ -1262,7 +1355,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
   const releasePolicy = await rpc("setting", { key: "release_policy" });
   const checks = verificationChecksForPolicy(releasePolicy, issue.repository!);
   if (!checks) {
-    await update(release, issue, "escalated", {}, "Deployed, but no production verification is defined — a person must verify");
+    await updateVersioned(release, issue, "escalated", {}, "Deployed, but no production verification is defined — a person must verify");
     return { note: "no checks" };
   }
   const target = await vercelTarget(issue.repository!);
@@ -1271,7 +1364,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     try {
       const confirmation = await confirmVercelRollback(target, issue.rollback);
       if (confirmation.state === "pending") {
-        await update(release, issue, null, {
+        await updateVersioned(release, issue, null, {
           rollback: { ...issue.rollback, polls: confirmation.polls },
         });
         return {
@@ -1280,7 +1373,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
         };
       }
       if (confirmation.state === "failed") {
-        await update(release, issue, "failed", {
+        await updateVersioned(release, issue, "failed", {
           rollback: {
             ...issue.rollback,
             status: "confirmation_failed",
@@ -1295,7 +1388,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
         checks,
       );
       if (!recoveryResults.every((result) => result.pass)) {
-        await update(release, issue, "failed", {
+        await updateVersioned(release, issue, "failed", {
           rollback: {
             ...issue.rollback,
             status: "smoke_failed",
@@ -1311,7 +1404,7 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
         }, "Vercel confirmed the rollback aliases, but the recovery smoke checks still failed. Production needs immediate human investigation.");
         return { note: "rollback recovery smoke failed" };
       }
-      await update(release, issue, "rolled_back", {
+      await updateVersioned(release, issue, "rolled_back", {
         rollback: {
           ...issue.rollback,
           status: "confirmed",
@@ -1328,7 +1421,9 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
       }, "Production verification failed; Vercel confirmed every production alias was restored to the previous deployment and Bloom's recovery smoke checks passed. The fix still needs a person.");
       return { note: "verification failed; rollback confirmed" };
     } catch (e) {
-      await update(release, issue, "failed", {
+      // A concurrent decision owns the newer state; never rewrite it as a verification failure.
+      if (e instanceof BloomError && e.code === "conflict") throw e;
+      await updateVersioned(release, issue, "failed", {
         rollback: { ...issue.rollback, status: "confirmation_failed" },
       }, `Vercel accepted rollback, but confirmation failed (${e instanceof Error ? e.message : e}). Check production and complete rollback manually now.`);
       return { note: "rollback confirmation failed" };
@@ -1355,16 +1450,27 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
     at: new Date().toISOString(),
   };
   if (passed) {
-    await update(release, issue, "verified", {
+    await updateVersioned(release, issue, "verified", {
       verification,
     });
     return { note: "verified" };
   }
   // Supported rollback: Vercel instant rollback to the deployment recorded before the merge.
   if (target && previous) {
+    let safe = false;
+    try { safe = await rollbackPreflight(release, issue, target); }
+    catch { /* Unavailable evidence never authorizes a rollback. */ }
+    if (!safe) {
+      const current = await loadIssue(release, issue.id);
+      if (current.version === issue.version && current.status === "verifying") {
+        await updateVersioned(release, issue, "escalated", { verification },
+          "Verification failed, but the release or current production target changed, is held, or could not be proved. No rollback was requested; a person must assess current production.");
+      }
+      return { note: "rollback held: current release could not be proved" };
+    }
     try {
-      await vercel("POST", `/v1/projects/${target.projectId}/rollback/${previous}`, target);
-      await update(release, issue, null, {
+      await vercel("POST", `/v1/projects/${encodeURIComponent(target.projectId)}/rollback/${encodeURIComponent(previous)}`, target);
+      await updateVersioned(release, issue, null, {
         verification,
         rollback: {
           ...issue.rollback,
@@ -1380,11 +1486,13 @@ export async function verify(release: Caller, issueId: string): Promise<StepResu
         note: "verification failed; rollback requested",
       };
     } catch (e) {
-      await update(release, issue, "failed", { verification }, `Verification failed and automatic rollback failed (${e instanceof Error ? e.message : e}). Roll back in Vercel now.`);
+      // A concurrent decision owns the newer state; never rewrite it as a verification failure.
+      if (e instanceof BloomError && e.code === "conflict") throw e;
+      await updateVersioned(release, issue, "failed", { verification }, `Verification failed and automatic rollback failed (${e instanceof Error ? e.message : e}). Roll back in Vercel now.`);
       return { note: "verification failed; rollback failed" };
     }
   }
-  await update(release, issue, "failed", { verification },
+  await updateVersioned(release, issue, "failed", { verification },
     "Production verification failed after release. No automatic rollback is configured for this repository: roll back with Vercel instant rollback to the previous production deployment, then decide.");
   return { note: "verification failed" };
 }

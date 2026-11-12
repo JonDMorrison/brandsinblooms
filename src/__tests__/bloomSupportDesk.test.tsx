@@ -279,3 +279,75 @@ describe("engineering and product approval wording", () => {
     expect(engineeringReviewCopy([]).problem).not.toContain("tested");
   });
 });
+
+import { ReconcileTicketLinks } from "@/components/bloomSupport/ReconcileTicketLinks";
+import type { TicketDetail } from "@/lib/bloomSupport/api";
+import { waitFor } from "@testing-library/react";
+
+describe("mistaken duplicate correction", () => {
+  const ticket = { id: "bulk", number: 1029, subject: "Bulk selling", version: 5, status: "working", duplicate_of: "wreath", merged_into: null,
+    problem_id: "problem", engineering_issue_id: "engineering", feature_request_id: "feature", next_action: "Verify bulk flow",
+    links: [{ kind: "duplicate", ticket_id: "wreath", number: 1027, subject: "Wreath checkout", status: "working" }],
+    problem: { title: "Wreath problem" }, engineering: { title: "Wreath repair" }, feature_request: { title: "Wreath feature" },
+  } as TicketDetail;
+  const setup = () => {
+    vi.spyOn(bloomSupport, "getTicket").mockResolvedValue(ticket);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const view = render(<QueryClientProvider client={client}><ReconcileTicketLinks ticket={ticket} /></QueryClientProvider>);
+    return { ...view, invalidate };
+  };
+  it("previews fresh exact links, defaults clears off, and submits only explicit selections", async () => {
+    const save = vi.spyOn(bloomSupport, "reconcileTicketLinks").mockResolvedValue({ ticket_id: "bulk", version: 6, detached_duplicate: "wreath", cleared_inherited: ["feature_request_id"] });
+    const { unmount, invalidate } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Correct mistaken duplicate" }));
+    expect(await screen.findByText(/Reviewed version 5/)).toBeInTheDocument();
+    expect(screen.getByText(/#1027: Wreath checkout/)).toBeInTheDocument();
+    const clears = screen.getAllByRole("checkbox");
+    clears.forEach((c) => expect(c).not.toBeChecked());
+    expect(screen.getByRole("button", { name: "Detach duplicate and save" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Reason for correction/), { target: { value: "Different deliverables" } });
+    fireEvent.click(screen.getByLabelText("Clear inherited feature request"));
+    fireEvent.click(screen.getByRole("button", { name: "Detach duplicate and save" }));
+    await screen.findByRole("status");
+    expect(save).toHaveBeenLastCalledWith("bulk", { version: 5, expected: { duplicate_of: "wreath", merged_into: null, problem_id: "problem", engineering_issue_id: "engineering", feature_request_id: "feature" }, clear_inherited: ["feature_request_id"], reason: "Different deliverables", next_action: "Verify bulk flow", idempotency_key: expect.any(String) });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["bloom-support"] });
+    unmount(); vi.restoreAllMocks();
+  });
+  it("keeps failed requests frozen and retries exactly", async () => {
+    const save = vi.spyOn(bloomSupport, "reconcileTicketLinks").mockRejectedValueOnce(new Error("conflict: independent evidence")).mockResolvedValue({ ticket_id: "bulk", version: 6, detached_duplicate: "wreath", cleared_inherited: [] });
+    const { unmount } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Correct mistaken duplicate" }));
+    await screen.findByText(/Reviewed version 5/);
+    fireEvent.change(screen.getByLabelText(/Reason for correction/), { target: { value: "Separate request" } });
+    fireEvent.click(screen.getByRole("button", { name: "Detach duplicate and save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("independent evidence");
+    expect(screen.getByLabelText(/Reason for correction/)).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Retry same correction" }));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    expect(save.mock.calls[1]).toEqual(save.mock.calls[0]);
+    await screen.findByRole("status");
+    unmount(); vi.restoreAllMocks();
+  });
+  it("does not write when the fresh request stopped being a duplicate", async () => {
+    const save = vi.spyOn(bloomSupport, "reconcileTicketLinks");
+    const { unmount } = setup();
+    vi.mocked(bloomSupport.getTicket).mockResolvedValue({ ...ticket, duplicate_of: null, version: 6 });
+    fireEvent.click(screen.getByRole("button", { name: "Correct mistaken duplicate" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("no longer an active duplicate");
+    expect(save).not.toHaveBeenCalled();
+    unmount(); vi.restoreAllMocks();
+  });
+  it("offers the control only to staff with existing write permission", () => {
+    const source = readFileSync("src/components/bloomSupport/TicketDetailPane.tsx", "utf8");
+    expect(source).toContain('me.role !== "service" && me.permissions.includes("tickets.write")');
+    expect(source).toContain('<ReconcileTicketLinks key={t.id} ticket={t} />');
+  });
+  it("does not offer resolved, merged or nonduplicate requests", () => {
+    for (const patch of [{ status: "resolved" }, { merged_into: "other" }, { duplicate_of: null }]) {
+      const view = render(<QueryClientProvider client={new QueryClient()}><ReconcileTicketLinks ticket={{ ...ticket, ...patch } as TicketDetail} /></QueryClientProvider>);
+      expect(screen.queryByRole("button", { name: "Correct mistaken duplicate" })).toBeNull();
+      view.unmount();
+    }
+  });
+});

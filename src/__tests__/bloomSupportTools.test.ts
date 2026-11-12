@@ -58,6 +58,7 @@ const releaseMocks = vi.hoisted(() => ({
   pullRequestFacts: vi.fn(),
   releaseLabels: vi.fn(),
   rpc: vi.fn(),
+  directRpc: vi.fn(),
 }));
 
 vi.mock("../../supabase/functions/_shared/bloom-support/runtime.ts", () => {
@@ -69,9 +70,14 @@ vi.mock("../../supabase/functions/_shared/bloom-support/runtime.ts", () => {
   return {
     BloomError,
     db: vi.fn(),
-    directRpc: vi.fn(),
+    directRpc: (...args: unknown[]) => releaseMocks.directRpc(...args),
     env: (...args: unknown[]) => releaseMocks.env(...args),
     mutationRpc: (_caller: unknown, fn: unknown, args: unknown) => releaseMocks.rpc(fn, args),
+    readResponseBytes: async (response: globalThis.Response, limit: number) => {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.length > limit) throw new BloomError(413, "too_large", "Response too large");
+      return bytes;
+    },
     readResponseText: async (response: globalThis.Response, limit: number) => {
       const reader = response.body?.getReader();
       if (!reader) return "";
@@ -714,6 +720,18 @@ describe("Bloom engineering release recovery", () => {
     tickets: Record<string, Record<string, unknown>> = {},
   ) {
     let issue = structuredClone(initial);
+    releaseMocks.directRpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      if (fn !== "bloom_support_ticket_flow_context") throw new Error(`unexpected direct RPC ${fn}`);
+      expect(args).toEqual({ p_actor: releaseCaller.principalId, p_issue_id: issue.id,
+        p_head_sha: issue.head_sha, p_version: issue.version });
+      return { issue_id: issue.id, head_sha: issue.head_sha, version: issue.version, tickets_automatic: true,
+        tickets: issue.tickets.map(linked => {
+          const ticket = tickets[linked.id];
+          const page = (ticket?.context as { page_url?: string } | undefined)?.page_url;
+          return { id: linked.id, kind: ticket?.kind ?? linked.kind, product: ticket?.product ?? issue.product,
+            page_url: page ? page.split(/[?#]/)[0] : null };
+        }) };
+    });
     releaseMocks.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
       if (fn === "list_engineering") return [structuredClone(issue)];
       if (fn === "setting") return args.key === "release_policy" ? releasePolicy : null;
@@ -779,6 +797,7 @@ describe("Bloom engineering release recovery", () => {
     releaseMocks.gh.mockReset();
     releaseMocks.mergePullRequest.mockReset();
     releaseMocks.rpc.mockReset();
+    releaseMocks.directRpc.mockReset();
   });
 
   afterEach(() => {
@@ -813,6 +832,63 @@ describe("Bloom engineering release recovery", () => {
       },
     }, repository, "https://bloomsuite.app/campaigns/123")).toBeNull();
   });
+
+  it("rejects malformed release-owned calendar assertions", () => {
+    for (const icalendar of [null, {}, { expected_summaries: [] }, { expected_summaries: [42] },
+      { expected_summaries: ["ok"], url: "https://attacker.example" }]) {
+      expect(verificationChecksForPolicy({ ...policy, verificationChecks: {
+        [repository]: [{ url: "https://bloomsuite.app/health", icalendar }],
+      } }, repository)).toBeNull();
+    }
+  });
+
+  it.each(["denied", "held", "wrong-head", "wrong-issue", "wrong-ticket", "wrong-version"])(
+    "does not certify ticket flow from %s context", async (failure) => {
+      const ticketId = "33333333-3333-4333-8333-333333333333";
+      const issue = { ...baseIssue(), status: "verifying", tickets: [{ id: ticketId,
+        number: 1042, subject: "Broken flow", status: "working", account_id: null }] };
+      const current = wireIssue(issue);
+      releaseMocks.directRpc.mockImplementation(async () => {
+        if (failure === "denied") throw new Error("forbidden");
+        return { issue_id: failure === "wrong-issue" ? "other" : issue.id,
+          head_sha: failure === "wrong-head" ? "other" : issue.head_sha,
+          version: failure === "wrong-version" ? 99 : issue.version, tickets_automatic: failure !== "held",
+          tickets: [{ id: failure === "wrong-ticket" ? "other" : ticketId,
+            kind: "bug", product: "crm", page_url: "https://bloomsuite.app/campaigns/123" }] };
+      });
+      const fetched = vi.fn().mockResolvedValue(new Response("healthy"));
+      vi.stubGlobal("fetch", fetched);
+      await verifyEngineeringRelease(releaseCaller, issue.id);
+      expect(current().verification).toMatchObject({ scope: "release_smoke", ticket_ids: [],
+        ticket_flows: [{ skipped: "ticket_context_unavailable" }] });
+      expect(fetched).toHaveBeenCalledTimes(1);
+      expect(releaseMocks.rpc.mock.calls.some(([fn]) => fn === "get_ticket")).toBe(false);
+    },
+  );
+
+  it.each(["valid", "invalid-utf8", "overlong", "wrong-summary"])(
+    "validates trusted ICS byte-level assertions: %s", async (mode) => {
+      const ticketId = "33333333-3333-4333-8333-333333333333";
+      const issue = { ...baseIssue(), status: "verifying", tickets: [{ id: ticketId,
+        number: 1042, subject: "Calendar folding", status: "working", account_id: null }] };
+      const flowPolicy = { ...policy, ticketFlowChecks: { [repository]: [{ path_prefix: "/calendar",
+        checks: [{ url: "https://bloomsuite.app/calendar/feed.ics", icalendar: { expected_summaries: ["Garden 🌱"] } }],
+      }] } };
+      const current = wireIssue(issue, flowPolicy, { [ticketId]: { id: ticketId, kind: "bug",
+        context: { page_url: "https://bloomsuite.app/calendar/123" } } });
+      vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+        if (String(input).endsWith("/health")) return new Response("healthy");
+        const summary = mode === "overlong" ? "é".repeat(50) : mode === "wrong-summary" ? "Other" : "Garden 🌱";
+        return new Response(mode === "invalid-utf8" ? new Uint8Array([0xff]) :
+          `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:${summary}\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`,
+          { headers: { "Content-Type": "text/calendar; charset=utf-8" } });
+      }));
+      await verifyEngineeringRelease(releaseCaller, issue.id);
+      expect(current().verification).toMatchObject({ passed: mode === "valid", scope: "ticket_flow",
+        ticket_ids: mode === "valid" ? [ticketId] : [] });
+      expect(current().status === "verified").toBe(mode === "valid");
+    },
+  );
 
   it("binds a trusted affected-flow check to the exact linked ticket", async () => {
     const ticketId = "33333333-3333-4333-8333-333333333333";
@@ -853,6 +929,11 @@ describe("Bloom engineering release recovery", () => {
       },
     });
     expect(JSON.stringify(current().verification)).not.toContain("token=private");
+    expect(releaseMocks.rpc.mock.calls.some(([fn]) => fn === "get_ticket")).toBe(false);
+    expect(releaseMocks.directRpc).toHaveBeenCalledWith("bloom_support_ticket_flow_context", {
+      p_actor: releaseCaller.principalId, p_issue_id: issue.id, p_head_sha: issue.head_sha, p_version: 1,
+    });
+    expect(releaseMocks.rpc.mock.calls.find(([fn]) => fn === "update_engineering_issue")?.[1].update.version).toBe(1);
     const verification = current().verification as { started_at: string; at: string };
     expect(Number.isFinite(Date.parse(verification.started_at))).toBe(true);
     expect(Date.parse(verification.started_at)).toBeLessThanOrEqual(Date.parse(verification.at));
@@ -1313,21 +1394,84 @@ describe("Bloom engineering release recovery", () => {
   });
 
   it("records Vercel's 201 rollback response as requested, not restored", async () => {
-    const issue = { ...rollbackIssue(), rollback: { ...rollbackIssue().rollback, status: undefined } };
+    const sha = "a".repeat(40);
+    const issue = { ...rollbackIssue(), head_sha: sha, merge_sha: sha,
+      evidence: { github_issue: { number: 7 } },
+      deployment: { state: "success", production_sha: sha, url: "https://release.vercel.app" },
+      tickets: [{ id: "ticket", number: 1042, subject: "Broken flow", account_id: null,
+        status: "working", kind: "bug" as const, product: "crm" as const }],
+      rollback: { ...rollbackIssue().rollback, previous_commit_sha: "b".repeat(40), status: undefined } };
     const current = wireIssue(issue);
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+    const originalRpc = releaseMocks.rpc.getMockImplementation()!;
+    releaseMocks.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      if (fn === "setting" && ["automation_enabled", "auto_release_enabled"].includes(String(args.key))) return true;
+      if (fn === "setting" && args.key === "automation_scopes") return { engineering: true };
+      return originalRpc(fn, args);
+    });
+    const deployment = (id: string, url: string, commit: string) => ({ id, url,
+      projectId: "prj_test", target: "production", readyState: "READY",
+      meta: { githubOrg: "JonDMorrison", githubRepo: "brandsinblooms", githubCommitSha: commit } });
+    const released = deployment("dpl_released", "release.vercel.app", sha);
+    const fetched = vi.fn().mockImplementation(async (input: string | URL | Request) => {
       const url = new URL(String(input));
       if (url.hostname === "bloomsuite.app") return new Response("still broken", { status: 200 });
+      if (url.pathname === "/v13/deployments/release.vercel.app") return Response.json(released);
+      if (url.pathname === "/v13/deployments/dpl_previous") return Response.json(deployment("dpl_previous", "previous.vercel.app", "b".repeat(40)));
+      if (url.pathname === "/v9/projects/prj_test") return Response.json({ id: "prj_test", targets: { production: released } });
       if (url.pathname.includes("/rollback/")) return new Response(null, { status: 201 });
       throw new Error(`unexpected request ${url}`);
-    }));
-
+    });
+    vi.stubGlobal("fetch", fetched);
     await expect(verifyEngineeringRelease(releaseCaller, issue.id)).resolves.toMatchObject({
       next: { step: "verify", delaySeconds: 30 },
     });
+    expect(fetched.mock.calls.some(([, options]) => options.method === "POST")).toBe(true);
     expect(current()).toMatchObject({ status: "verifying", rollback: { status: "requested", polls: 0 } });
     expect(current().rollback).not.toHaveProperty("rolled_back_at");
   });
+
+  it.each(["no-checks", "no-rollback", "rollback-pending", "rollback-failed", "rollback-confirmed", "rollback-provider-error"])(
+    "does not overwrite a newer decision after %s verification", async (scenario) => {
+      const { BloomError } = await import("../../supabase/functions/_shared/bloom-support/runtime.ts");
+      const issue = scenario.startsWith("rollback-")
+        ? rollbackIssue() : { ...baseIssue(), status: "verifying" };
+      const newer = { ...issue, version: issue.version + 1, status: "escalated" };
+      let changed = false;
+      const writes: Array<{ version?: number; status?: string }> = [];
+      releaseMocks.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+        if (fn === "list_engineering") return [structuredClone(changed ? newer : issue)];
+        if (fn === "setting") {
+          if (scenario === "no-checks") { changed = true; return {}; }
+          return policy;
+        }
+        if (fn === "update_engineering_issue") {
+          const update = args.update as { version?: number; status?: string };
+          writes.push(update);
+          if (update.version !== newer.version) throw new BloomError(409, "conflict", "newer decision");
+          throw new Error("Stale verification unexpectedly wrote newer state");
+        }
+        throw new Error(`unexpected RPC ${fn}`);
+      });
+      vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
+        changed = true;
+        const url = new URL(String(input));
+        if (scenario === "rollback-provider-error") throw new Error("provider unavailable");
+        if (url.hostname === "bloomsuite.app") return new Response(scenario === "no-rollback" ? "broken" : "healthy");
+        if (url.pathname.endsWith("/rollback/aliases")) return Response.json({
+          aliases: [{ alias: { alias: "bloomsuite.app", deploymentId: "dpl_previous" }, status: "completed" }],
+          pagination: { next: null },
+        });
+        return Response.json({ lastAliasRequest: { type: "rollback",
+          jobStatus: scenario === "rollback-pending" ? "pending" : scenario === "rollback-failed" ? "failed" : "succeeded",
+          requestedAt: Date.now(), toDeploymentId: "dpl_previous" } });
+      }));
+      await expect(verifyEngineeringRelease(releaseCaller, issue.id)).rejects.toMatchObject({ code: "conflict" });
+      expect(changed).toBe(true);
+      expect(writes).toHaveLength(1);
+      expect(writes[0].version).toBe(issue.version);
+      expect(newer.status).toBe("escalated");
+    },
+  );
 
   it("keeps an accepted rollback pending while Vercel remaps aliases", async () => {
     const issue = rollbackIssue();

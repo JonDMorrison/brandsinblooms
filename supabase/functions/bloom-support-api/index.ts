@@ -52,6 +52,7 @@ on("POST", "/tickets/:id/merge", async (req, [id]) => {
   const b = await readJson(req);
   return actions.mergeTickets(await caller(req), id, String(b.target_id), str(b.reason, 500));
 });
+on("POST", "/tickets/:id/reconcile-links", async (req, [id]) => actions.reconcileTicketLinks(await caller(req), id, await readJson(req)));
 on("POST", "/tickets/:id/spam", async (req, [id]) => actions.setSpam(await caller(req), id, (await readJson(req)).spam !== false));
 on("POST", "/tickets/:id/client-action", async (req, [id]) => {
   const b = await readJson(req);

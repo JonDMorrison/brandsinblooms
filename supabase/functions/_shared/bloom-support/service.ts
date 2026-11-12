@@ -67,6 +67,15 @@ export const actions = {
     requireWriteScope(c);
     return mutationRpc(c, "merge_tickets", { ...A(c), source_id: uuid(source, "source_id"), target_id: uuid(target, "target_id"), reason: reason ?? null });
   },
+  reconcileTicketLinks(c: Caller, id: string, input: Record<string, unknown>) {
+    requireWriteScope(c);
+    if (!["platform_admin", "platform_operator", "support"].includes(c.role)) {
+      throw new BloomError(403, "forbidden", "A staff person must reconcile ticket links");
+    }
+    return directRpc("bloom_support_reconcile_ticket_links", {
+      p_actor: c.principalId, p_ticket: uuid(id, "ticket_id"), p_request: input,
+    });
+  },
   setSpam(c: Caller, id: string, spam: boolean) {
     requireWriteScope(c);
     return mutationRpc(c, "set_spam", { ...A(c), ticket_id: uuid(id, "ticket_id"), spam });
