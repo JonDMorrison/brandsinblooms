@@ -11,27 +11,29 @@ CREATE FUNCTION pg_temp.reviewed_close(t uuid, evidence jsonb, expected_error te
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   BEGIN
-    UPDATE bloom_support.tickets SET status='resolved', resolution_evidence=evidence WHERE id=t;
+    UPDATE bloom_support.tickets SET status='resolved', stage='resolved', resolved_at=now(),
+      resolution_summary='Reviewed closure fixture', resolution_evidence=evidence WHERE id=t;
   EXCEPTION WHEN OTHERS THEN
     IF expected_error IS NOT NULL AND position(expected_error IN SQLERRM)>0 THEN RETURN; END IF;
     RAISE;
   END;
   IF expected_error IS NOT NULL THEN RAISE EXCEPTION 'expected rejection: %', expected_error; END IF;
-  UPDATE bloom_support.tickets SET status='working' WHERE id=t;
+  UPDATE bloom_support.tickets SET status='working', stage='triage', resolved_at=NULL,
+    resolution_evidence=NULL WHERE id=t;
 END $$;
 DO $$
-DECLARE c uuid; e uuid; t uuid; child uuid; proof jsonb; verification jsonb;
+DECLARE c uuid; e uuid; t uuid; child uuid; proof jsonb; verified_snapshot jsonb;
 BEGIN
   INSERT INTO bloom_support.conversations(channel,subject) VALUES ('staff','Closure contract') RETURNING id INTO c;
   INSERT INTO bloom_support.engineering_issues(title,product,status,version)
     VALUES ('Closure contract','crm','verified',7) RETURNING id INTO e;
   INSERT INTO bloom_support.tickets(conversation_id,engineering_issue_id,product,kind,channel,subject,summary,status,created_at)
     VALUES(c,e,'crm','bug','staff','Closure contract','','working',now()-interval '2 hours') RETURNING id INTO t;
-  verification := jsonb_build_object('passed',true,'scope','ticket_flow','ticket_ids',jsonb_build_array(t::text),'started_at',now()-interval '1 hour');
+  verified_snapshot := jsonb_build_object('passed',true,'scope','ticket_flow','ticket_ids',jsonb_build_array(t::text),'started_at',now()-interval '1 hour');
   UPDATE bloom_support.engineering_issues SET verification=jsonb_build_object('passed',true,'scope','ticket_flow','ticket_ids',jsonb_build_array(t::text),'started_at',now()-interval '1 hour') WHERE id=e;
   UPDATE bloom_support.engineering_issues SET deployment='{"state":"success"}' WHERE id=e;
   proof := jsonb_build_object('via','send-and-solve','resolved_by','person','engineering_issue_id',e,'engineering_version',7,
-    'verification',verification,'deployment',jsonb_build_object('state','success'));
+    'verification',verified_snapshot,'deployment',jsonb_build_object('state','success'));
   PERFORM pg_temp.reviewed_close(t,proof);
   UPDATE bloom_support.engineering_issues SET verification=jsonb_set(verification,'{passed}','"true"') WHERE id=e;
   PERFORM pg_temp.reviewed_close(t,proof || jsonb_build_object('verification',(SELECT verification FROM bloom_support.engineering_issues WHERE id=e)), 'ticket-bound production evidence');

@@ -31,7 +31,9 @@ BEGIN
   BEGIN
     PERFORM public.bloom_support_send_and_solve(actor,t,request);
     RAISE EXCEPTION 'stale evidence unexpectedly closed';
-  EXCEPTION WHEN check_violation THEN NULL; END;
+  EXCEPTION WHEN check_violation THEN
+    IF position('current client evidence requires a fresh investigation or verification' IN SQLERRM)=0 THEN RAISE; END IF;
+  END;
   IF (SELECT count(*) FROM bloom_support.messages WHERE ticket_id=t)<>before_messages
     OR (SELECT count(*) FROM bloom_support.jobs WHERE ticket_id=t)<>before_jobs
     OR EXISTS(SELECT 1 FROM bloom_support.reviewed_closure_receipts WHERE actor_id=actor)

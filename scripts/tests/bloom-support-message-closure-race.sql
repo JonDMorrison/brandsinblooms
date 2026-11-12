@@ -23,7 +23,7 @@ SELECT dblink_connect('client_reply', :'test_connection');
 SELECT pid AS reply_pid FROM dblink('client_reply','SELECT pg_backend_pid()') AS p(pid integer) \gset
 SELECT dblink_exec('closure_owner','BEGIN');
 SELECT dblink_exec('closure_owner',$sql$
-  UPDATE bloom_support.tickets SET status='resolved',resolution_evidence='{"resolved_by":"person"}',resolution_summary='Manual close'
+  UPDATE bloom_support.tickets SET status='resolved',stage='resolved',resolved_at=now(),resolution_evidence='{"resolved_by":"person"}',resolution_summary='Manual close'
   WHERE id='fa000000-0000-4000-8000-000000000003'
 $sql$);
 SELECT dblink_send_query('client_reply',$sql$
