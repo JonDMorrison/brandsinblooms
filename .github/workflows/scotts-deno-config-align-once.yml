@@ -1,20 +1,20 @@
 name: Final Deno lock alignment for Scott's (one-time)
 on:
-  push:
-    branches:
-      - feature/scotts-lightspeed-stripe-paid-sale-contract-20261112
+  pull_request:
     paths:
       - .github/workflows/scotts-deno-config-align-once.yml
 permissions:
   contents: write
 jobs:
   align:
+    if: github.head_ref == 'feature/scotts-lightspeed-stripe-paid-sale-contract-20261112'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
+          ref: feature/scotts-lightspeed-stripe-paid-sale-contract-20261112
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.9.8
