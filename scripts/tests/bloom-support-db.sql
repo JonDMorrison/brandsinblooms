@@ -3012,4 +3012,51 @@ SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release
   'missing exact feature link fails closed');
 ROLLBACK;
 
+BEGIN;
+\ir ../../supabase/migrations/20261112120000_bloom_support_github_engineering_events.sql
+DO $$
+DECLARE e uuid := gen_random_uuid(); c uuid; t uuid; n integer; j uuid; repo text := 'JonDMorrison/brandsinblooms'; sha text := repeat('a',40); d text := gen_random_uuid()::text;
+BEGIN
+ INSERT INTO bloom_support.engineering_issues(id,title,product,repository,status,pr_number,head_sha,attempts)
+ VALUES(e,'Webhook fixture','crm',repo,'in_review',424242,sha,2);
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Webhook fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,engineering_issue_id)
+ VALUES(c,'crm','crm','Webhook fixture','Fixture',e) RETURNING id INTO t;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424243,sha,false)<>0 OR
+ public.bloom_support_enqueue_github_engineering(d,repo,424242,repeat('b',40),false)<>0 OR
+ public.bloom_support_enqueue_github_engineering(d,'Brands-In-Blooms/bloomtill',424242,sha,false)<>0 THEN RAISE EXCEPTION 'mismatched event accepted'; END IF;
+ UPDATE bloom_support.tickets SET automation='human',executor='person' WHERE id=t;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'human hold bypassed'; END IF;
+ UPDATE bloom_support.tickets SET automation='auto',executor='bloom' WHERE id=t;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424242,sha,false)<>1 THEN RAISE EXCEPTION 'matching event did not queue'; END IF;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'duplicate accepted'; END IF;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'event burst not coalesced'; END IF;
+ SELECT id INTO j FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='engineering_step';
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ UPDATE bloom_support.jobs SET run_after=now()+interval '10 minutes' WHERE id=j;
+ PERFORM public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false);
+ IF (SELECT run_after>now() FROM bloom_support.jobs WHERE id=j) THEN RAISE EXCEPTION 'queued work not accelerated'; END IF;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ UPDATE bloom_support.jobs SET status='running',attempts=1 WHERE id=j;
+ PERFORM public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false);
+ IF (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='engineering_step')<>1 THEN RAISE EXCEPTION 'running chain duplicated'; END IF;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ UPDATE bloom_support.jobs SET status='queued',run_after=now()+interval '10 minutes' WHERE id=j;
+ PERFORM public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false);
+ IF (SELECT run_after<=now() FROM bloom_support.jobs WHERE id=j) THEN RAISE EXCEPTION 'retry backoff reset'; END IF;
+ UPDATE bloom_support.jobs SET status='dead' WHERE id=j;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'exhausted retry budget reset'; END IF;
+ UPDATE bloom_support.jobs SET status='succeeded' WHERE id=j;
+ UPDATE bloom_support.engineering_issues SET status='deploying',merge_sha=repeat('c',40),deployment='{"polls":7}' WHERE id=e;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,NULL,sha,true)<>0 THEN RAISE EXCEPTION 'unrelated deployment accepted'; END IF;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,NULL,repeat('c',40),true)<>1 THEN RAISE EXCEPTION 'matching deployment did not queue'; END IF;
+ IF (SELECT attempts<>2 OR deployment->>'polls'<>'7' OR status<>'deploying' FROM bloom_support.engineering_issues WHERE id=e) THEN RAISE EXCEPTION 'event changed state or budgets'; END IF;
+ IF has_function_privilege('authenticated','public.bloom_support_enqueue_github_engineering(text,text,integer,text,boolean)','EXECUTE') OR has_function_privilege('anon','public.bloom_support_enqueue_github_engineering(text,text,integer,text,boolean)','EXECUTE') THEN RAISE EXCEPTION 'public enqueue privilege'; END IF;
+END $$;
+
+
+ROLLBACK;
+
 \echo 'bloom-support-db: all assertions passed'

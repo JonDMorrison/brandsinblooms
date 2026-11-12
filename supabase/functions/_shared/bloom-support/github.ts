@@ -1,3 +1,4 @@
+import { isProductionEnvironment } from "./github-events.ts";
 // Minimal GitHub REST client. Two credentials, never mixed:
 //  - BLOOM_GITHUB_REPAIR_TOKEN: issues + workflow dispatch + read (the untrusted
 //    repair side). It cannot merge: give it a fine-grained token with
@@ -132,16 +133,7 @@ export interface DeploymentState {
   deployments?: Array<{ deployment_id: number; environment: string; state: "pending" | "success" | "failure"; url: string | null }>;
 }
 
-/** Vercel uses both "Production" and product-qualified names such as "Production – BloomSuite". */
-export function isProductionEnvironment(deployment: { environment: string; production_environment?: boolean }): boolean {
-  const name = deployment.environment.trim();
-  // Vercel can mark demo/preview deployments with production_environment=true;
-  // the explicit non-production name wins over that provider flag.
-  if (/(?:^|[\s–—-])(preview|demo|staging|development|test)(?:[\s–—-]|$)/i.test(name)) return false;
-  if (deployment.production_environment === true) return true;
-  if (!/^production(?:\s|$|[-–—])/i.test(name)) return false;
-  return true;
-}
+export { isProductionEnvironment } from "./github-events.ts";
 
 /**
  * Returns the current production-branch commit once `commit` is an ancestor of it.
