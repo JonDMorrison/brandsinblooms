@@ -2785,6 +2785,7 @@ BEGIN;
 \ir ../../supabase/migrations/20261108133500_bloom_support_slack_diagnostic_staff.sql
 \ir ../../supabase/migrations/20261108162000_bloom_support_slack_ticket_threads.sql
 \ir ../../supabase/migrations/20261110211500_bloom_support_slack_repair_decisions.sql
+\ir ../../supabase/migrations/20261110224000_bloom_support_resume_release.sql
 DO $$
 DECLARE a uuid:=gen_random_uuid(); c uuid; t uuid; e uuid; j uuid; d uuid; r jsonb; n int;
 BEGIN
@@ -2828,6 +2829,233 @@ BEGIN
  END LOOP;
  IF has_function_privilege('authenticated','public.bloom_support_apply_slack_repair(uuid,text,text,text,text)','EXECUTE') THEN RAISE EXCEPTION 'public execution allowed'; END IF;
 END $$;
+
+DO $$
+DECLARE a uuid:=gen_random_uuid(); c uuid; t uuid; e uuid; v integer; r jsonb; original uuid;
+BEGIN
+ INSERT INTO bloom_support.principals(id,kind,auth_user_id,product,email,display_name,role) VALUES(a,'user',gen_random_uuid(),'crm','resume-fixture@example.test','Resume fixture','platform_admin');
+ INSERT INTO bloom_support.engineering_issues(title,product,status,repository,merge_sha) VALUES('Resume fixture','crm','merged','JonDMorrison/brandsinblooms',repeat('a',40)) RETURNING id,version INTO e,v;
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Resume fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,status,stage,engineering_issue_id,automation,executor)
+ VALUES(c,'crm','crm','Resume fixture','Fixture','bug','working','releasing',e,'paused','person') RETURNING id INTO t;
+ -- Deployment tracking now binds GitHub's recorded PR as well as its merge.
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'missing PR reported resumed'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ IF EXISTS(SELECT 1 FROM bloom_support.jobs WHERE engineering_issue_id=e) THEN RAISE EXCEPTION 'missing PR queued'; END IF;
+ UPDATE bloom_support.engineering_issues SET pr_number=424242 WHERE id=e;
+ r:=public.bloom_support_resume_release(a,e,v); original:=(r->>'job_id')::uuid;
+ IF r->>'queued'<>'true' OR (SELECT payload->>'step' FROM bloom_support.jobs WHERE id=original)<>'deploy' THEN RAISE EXCEPTION 'not queued: %',r; END IF;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'reason'<>'already_tracking' OR (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e)<>1 THEN RAISE EXCEPTION 'duplicate observer'; END IF;
+ IF (SELECT executor||':'||automation FROM bloom_support.tickets WHERE id=t)<>'person:paused' OR (SELECT version FROM bloom_support.engineering_issues WHERE id=e)<>v THEN RAISE EXCEPTION 'ownership/state changed'; END IF;
+ UPDATE bloom_support.jobs SET status='running' WHERE id=original;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'reason'<>'already_tracking' THEN RAISE EXCEPTION 'running lease ignored'; END IF;
+ UPDATE bloom_support.jobs SET status='succeeded' WHERE id=original;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'status'<>'succeeded' OR (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e)<>1 THEN RAISE EXCEPTION 'completed replay duplicated'; END IF;
+ UPDATE bloom_support.jobs SET status='dead',attempts=3 WHERE id=original;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF r->>'status'<>'dead' OR (SELECT attempts FROM bloom_support.jobs WHERE id=original)<>3 THEN RAISE EXCEPTION 'exhausted retry reset'; END IF;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v+1); RAISE EXCEPTION 'stale version accepted'; EXCEPTION WHEN serialization_failure THEN NULL; END;
+ UPDATE bloom_support.engineering_issues SET status='verifying',version=version+1 WHERE id=e RETURNING version INTO v;
+ r:=public.bloom_support_resume_release(a,e,v);
+ IF (SELECT payload->>'step' FROM bloom_support.jobs WHERE id=(r->>'job_id')::uuid)<>'verify' THEN RAISE EXCEPTION 'wrong continuation'; END IF;
+ UPDATE bloom_support.engineering_issues SET status='in_review',version=version+1 WHERE id=e RETURNING version INTO v;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'unmerged accepted'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ UPDATE bloom_support.principals SET role='client' WHERE id=a;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'client accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ UPDATE bloom_support.principals SET role='service',kind='service',auth_user_id=NULL,grants=ARRAY['automation.control','engineering.approve'] WHERE id=a;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'service accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ UPDATE bloom_support.principals SET role='platform_admin',kind='user',auth_user_id=gen_random_uuid(),active=false WHERE id=a;
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'disabled principal accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ IF has_function_privilege('authenticated','public.bloom_support_resume_release(uuid,uuid,integer)','EXECUTE') OR has_function_privilege('anon','public.bloom_support_resume_release(uuid,uuid,integer)','EXECUTE') THEN RAISE EXCEPTION 'public execution allowed'; END IF;
+END $$;
+
+
+ROLLBACK;
+
+-- Release evaluation reads minimal authoritative ticket facts through the
+-- already-authorized engineering summary, never through full ticket access.
+BEGIN;
+CREATE TEMP TABLE release_summary_function_boundary AS
+SELECT proowner, proacl, prosecdef, proconfig
+FROM pg_proc
+WHERE oid = 'bloom_support.list_engineering(uuid,text)'::regprocedure;
+\ir ../../supabase/migrations/20261112153000_bloom_support_release_ticket_facts.sql
+SELECT pg_temp.assert((
+  SELECT current.proowner = previous.proowner
+    AND current.proacl IS NOT DISTINCT FROM previous.proacl
+    AND current.prosecdef = previous.prosecdef
+    AND current.proconfig IS NOT DISTINCT FROM previous.proconfig
+  FROM pg_proc current CROSS JOIN release_summary_function_boundary previous
+  WHERE current.oid = 'bloom_support.list_engineering(uuid,text)'::regprocedure
+), 'release summary migration preserves function ownership, grants and security configuration');
+SELECT pg_temp.assert(
+  bloom_support.has_permission(:'release', 'engineering.view')
+    AND NOT bloom_support.has_permission(:'release', 'tickets.read_all')
+    AND NOT bloom_support.has_permission(:'release', 'tickets.read_own'),
+  'release retains engineering visibility without full ticket-read permission');
+
+INSERT INTO bloom_support.engineering_issues(title, product, status)
+VALUES ('Release summary classification fixture', 'crm', 'open')
+RETURNING id AS release_summary_issue \gset
+INSERT INTO bloom_support.conversations(channel, subject)
+VALUES ('crm', 'Release summary classification fixture')
+RETURNING id AS release_summary_conversation \gset
+INSERT INTO bloom_support.tickets(
+  conversation_id, engineering_issue_id, account_id, product, kind, channel,
+  subject, summary, context
+) VALUES (
+  :'release_summary_conversation', :'release_summary_issue', :'greenleaf',
+  'crm', 'bug', 'crm', 'Linked CRM bug', 'Private summary must not be projected',
+  '{"private_fixture":"must not be projected"}'::jsonb
+) RETURNING id AS release_summary_bug \gset
+INSERT INTO bloom_support.tickets(
+  conversation_id, engineering_issue_id, account_id, product, kind, channel,
+  subject, summary
+) VALUES (
+  :'release_summary_conversation', :'release_summary_issue', :'rose',
+  'cms', 'feature', 'cms', 'Linked CMS feature', 'Another private summary'
+) RETURNING id AS release_summary_feature \gset
+INSERT INTO bloom_support.tickets(
+  conversation_id, account_id, product, kind, channel, subject, summary
+) VALUES (
+  :'release_summary_conversation', :'greenleaf', 'crm', 'bug', 'crm',
+  'Unlinked report in the same conversation', 'Must not enter engineering scope'
+) RETURNING id AS release_summary_unlinked \gset
+SELECT item AS release_summary
+FROM jsonb_array_elements(pg_temp.rpc('list_engineering', jsonb_build_object(
+  'actor', :'release', 'status', 'open'
+))) item
+WHERE item->>'id' = :'release_summary_issue' \gset
+SELECT pg_temp.assert(
+  jsonb_array_length(:'release_summary'::jsonb->'tickets') = 2
+    AND EXISTS (
+      SELECT 1 FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+      WHERE ticket->>'id' = :'release_summary_bug'
+        AND ticket->>'kind' = 'bug' AND ticket->>'product' = 'crm'
+    )
+    AND EXISTS (
+      SELECT 1 FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+      WHERE ticket->>'id' = :'release_summary_feature'
+        AND ticket->>'kind' = 'feature' AND ticket->>'product' = 'cms'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+      WHERE ticket->>'id' = :'release_summary_unlinked'
+    ),
+  'release summary includes exact persisted linked kinds/products and excludes unrelated tickets');
+SELECT pg_temp.assert((
+  SELECT bool_and(
+    (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(ticket) key)
+      = ARRAY['account_id','automation','feature_product_approved','feature_request_id','feature_status','id','kind','number','product','status','subject']::text[]
+  )
+  FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+), 'release summary exposes only classification and bound feature decision eligibility, not messages or context');
+SELECT pg_temp.assert(NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_engineering', jsonb_build_object(
+    'actor', :'release', 'status', 'approved'
+  ))) item WHERE item->>'id' = :'release_summary_issue'
+), 'release summary retains the existing status filter');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('get_ticket', '{"actor":"%s","ticket_id":"%s"}'::jsonb)$q$,
+  :'release', :'release_summary_bug'
+), 'forbidden: ticket');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('list_engineering', '{"actor":"%s"}'::jsonb)$q$,
+  :'gail'
+), 'engineering.view');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('list_engineering', '{"actor":"%s"}'::jsonb)$q$,
+  :'intake'
+), 'engineering.view');
+-- Product approval binds the exact feature linked to this engineering ticket.
+CREATE FUNCTION pg_temp.feature_release_approved(actor uuid, issue uuid, ticket uuid)
+RETURNS boolean LANGUAGE sql AS $$
+  SELECT (linked->>'feature_product_approved')::boolean
+  FROM jsonb_array_elements(bloom_support.list_engineering(actor, 'open')) engineering,
+       jsonb_array_elements(engineering->'tickets') linked
+  WHERE engineering->>'id' = issue::text AND linked->>'id' = ticket::text
+$$;
+INSERT INTO bloom_support.feature_requests(title, description, product)
+VALUES ('Exact release feature fixture', 'Only this feature may be approved', 'crm')
+RETURNING id AS release_product_feature \gset
+UPDATE bloom_support.tickets SET product = 'crm', feature_request_id = :'release_product_feature'
+WHERE id = :'release_summary_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'undecided feature cannot borrow engineering approval');
+SELECT pg_temp.rpc('decide_feature_request', jsonb_build_object(
+  'actor', :'jon', 'feature_request_id', :'release_product_feature', 'decision', 'accepted',
+  'note', 'Approve this exact fixture feature after reviewing the recommendation'
+));
+SELECT pg_temp.assert(pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'authorized human product acceptance is visible without full ticket reads');
+UPDATE bloom_support.feature_requests SET status = 'planned' WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'human product planning is a positive product decision, not technical release approval');
+UPDATE bloom_support.feature_requests SET status = 'declined' WHERE id = :'release_product_feature';
+INSERT INTO bloom_support.feature_requests(title, description, product, status, decided_by, decided_at)
+VALUES ('Unrelated approved feature', 'Must not authorize the linked feature', 'crm', 'accepted', :'jon', now());
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'declined exact feature cannot borrow approval from another feature');
+UPDATE bloom_support.feature_requests SET status = 'accepted', decided_by = :'release' WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'service identity is never human product approval');
+UPDATE bloom_support.feature_requests SET decided_by = :'jon', decided_at = NULL WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'missing decision timestamp fails closed');
+UPDATE bloom_support.feature_requests SET decided_at = now(), product = 'cms' WHERE id = :'release_product_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'different product feature cannot authorize this release');
+UPDATE bloom_support.tickets SET feature_request_id = NULL WHERE id = :'release_summary_feature';
+SELECT pg_temp.assert(NOT pg_temp.feature_release_approved(:'release', :'release_summary_issue', :'release_summary_feature'),
+  'missing exact feature link fails closed');
+ROLLBACK;
+
+BEGIN;
+\ir ../../supabase/migrations/20261112120000_bloom_support_github_engineering_events.sql
+DO $$
+DECLARE e uuid := gen_random_uuid(); c uuid; t uuid; n integer; j uuid; repo text := 'JonDMorrison/brandsinblooms'; sha text := repeat('a',40); d text := gen_random_uuid()::text;
+BEGIN
+ INSERT INTO bloom_support.engineering_issues(id,title,product,repository,status,pr_number,head_sha,attempts)
+ VALUES(e,'Webhook fixture','crm',repo,'in_review',424242,sha,2);
+ INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Webhook fixture') RETURNING id INTO c;
+ INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,engineering_issue_id)
+ VALUES(c,'crm','crm','Webhook fixture','Fixture',e) RETURNING id INTO t;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424243,sha,false)<>0 OR
+ public.bloom_support_enqueue_github_engineering(d,repo,424242,repeat('b',40),false)<>0 OR
+ public.bloom_support_enqueue_github_engineering(d,'Brands-In-Blooms/bloomtill',424242,sha,false)<>0 THEN RAISE EXCEPTION 'mismatched event accepted'; END IF;
+ UPDATE bloom_support.tickets SET automation='human',executor='person' WHERE id=t;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'human hold bypassed'; END IF;
+ UPDATE bloom_support.tickets SET automation='auto',executor='bloom' WHERE id=t;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424242,sha,false)<>1 THEN RAISE EXCEPTION 'matching event did not queue'; END IF;
+ IF public.bloom_support_enqueue_github_engineering(d,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'duplicate accepted'; END IF;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'event burst not coalesced'; END IF;
+ SELECT id INTO j FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='engineering_step';
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ UPDATE bloom_support.jobs SET run_after=now()+interval '10 minutes' WHERE id=j;
+ PERFORM public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false);
+ IF (SELECT run_after>now() FROM bloom_support.jobs WHERE id=j) THEN RAISE EXCEPTION 'queued work not accelerated'; END IF;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ UPDATE bloom_support.jobs SET status='running',attempts=1 WHERE id=j;
+ PERFORM public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false);
+ IF (SELECT count(*) FROM bloom_support.jobs WHERE engineering_issue_id=e AND kind='engineering_step')<>1 THEN RAISE EXCEPTION 'running chain duplicated'; END IF;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ UPDATE bloom_support.jobs SET status='queued',run_after=now()+interval '10 minutes' WHERE id=j;
+ PERFORM public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false);
+ IF (SELECT run_after<=now() FROM bloom_support.jobs WHERE id=j) THEN RAISE EXCEPTION 'retry backoff reset'; END IF;
+ UPDATE bloom_support.jobs SET status='dead' WHERE id=j;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,424242,sha,false)<>0 THEN RAISE EXCEPTION 'exhausted retry budget reset'; END IF;
+ UPDATE bloom_support.jobs SET status='succeeded' WHERE id=j;
+ UPDATE bloom_support.engineering_issues SET status='deploying',merge_sha=repeat('c',40),deployment='{"polls":7}' WHERE id=e;
+ UPDATE bloom_support.github_engineering_receipts SET created_at=now()-interval '2 minutes' WHERE engineering_issue_id=e;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,NULL,sha,true)<>0 THEN RAISE EXCEPTION 'unrelated deployment accepted'; END IF;
+ IF public.bloom_support_enqueue_github_engineering(gen_random_uuid()::text,repo,NULL,repeat('c',40),true)<>1 THEN RAISE EXCEPTION 'matching deployment did not queue'; END IF;
+ IF (SELECT attempts<>2 OR deployment->>'polls'<>'7' OR status<>'deploying' FROM bloom_support.engineering_issues WHERE id=e) THEN RAISE EXCEPTION 'event changed state or budgets'; END IF;
+ IF has_function_privilege('authenticated','public.bloom_support_enqueue_github_engineering(text,text,integer,text,boolean)','EXECUTE') OR has_function_privilege('anon','public.bloom_support_enqueue_github_engineering(text,text,integer,text,boolean)','EXECUTE') THEN RAISE EXCEPTION 'public enqueue privilege'; END IF;
+END $$;
+
 
 ROLLBACK;
 

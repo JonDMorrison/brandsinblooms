@@ -66,6 +66,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 COMMIT;
+\ir ../../supabase/migrations/20261112153000_bloom_support_release_ticket_facts.sql
 BEGIN;
 \ir ../../supabase/migrations/20261112180000_bloom_support_reviewed_closure.sql
 \ir ../../supabase/migrations/20261112183000_bloom_support_message_ticket_lock.sql

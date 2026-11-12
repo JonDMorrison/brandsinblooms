@@ -245,6 +245,15 @@ export const actions = {
     requireWriteScope(c);
     return mutationRpc(c, "update_engineering_issue", { ...A(c), issue_id: uuid(id, "issue_id"), update });
   },
+  resumeRelease(c: Caller, id: string, version: number) {
+    requireWriteScope(c);
+    if (!Number.isSafeInteger(version) || version < 1) {
+      throw new BloomError(400, "invalid", "An exact current engineering version is required");
+    }
+    return directRpc("bloom_support_resume_release", {
+      p_actor: c.principalId, p_issue: uuid(id, "issue_id"), p_version: version,
+    });
+  },
   listFeatures: (c: Caller, status?: string) => rpc("list_features", { ...A(c), status: status ?? null }),
   decideFeature(c: Caller, id: string, decision: string, note?: string) {
     requireWriteScope(c);
