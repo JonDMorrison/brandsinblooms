@@ -2831,4 +2831,101 @@ END $$;
 
 ROLLBACK;
 
+-- Release evaluation reads minimal authoritative ticket facts through the
+-- already-authorized engineering summary, never through full ticket access.
+BEGIN;
+CREATE TEMP TABLE release_summary_function_boundary AS
+SELECT proowner, proacl, prosecdef, proconfig
+FROM pg_proc
+WHERE oid = 'bloom_support.list_engineering(uuid,text)'::regprocedure;
+\ir ../../supabase/migrations/20261112153000_bloom_support_release_ticket_facts.sql
+SELECT pg_temp.assert((
+  SELECT current.proowner = previous.proowner
+    AND current.proacl IS NOT DISTINCT FROM previous.proacl
+    AND current.prosecdef = previous.prosecdef
+    AND current.proconfig IS NOT DISTINCT FROM previous.proconfig
+  FROM pg_proc current CROSS JOIN release_summary_function_boundary previous
+  WHERE current.oid = 'bloom_support.list_engineering(uuid,text)'::regprocedure
+), 'release summary migration preserves function ownership, grants and security configuration');
+SELECT pg_temp.assert(
+  bloom_support.has_permission(:'release', 'engineering.view')
+    AND NOT bloom_support.has_permission(:'release', 'tickets.read_all')
+    AND NOT bloom_support.has_permission(:'release', 'tickets.read_own'),
+  'release retains engineering visibility without full ticket-read permission');
+
+INSERT INTO bloom_support.engineering_issues(title, product, status)
+VALUES ('Release summary classification fixture', 'crm', 'open')
+RETURNING id AS release_summary_issue \gset
+INSERT INTO bloom_support.conversations(channel, subject)
+VALUES ('crm', 'Release summary classification fixture')
+RETURNING id AS release_summary_conversation \gset
+INSERT INTO bloom_support.tickets(
+  conversation_id, engineering_issue_id, account_id, product, kind, channel,
+  subject, summary, context
+) VALUES (
+  :'release_summary_conversation', :'release_summary_issue', :'greenleaf',
+  'crm', 'bug', 'crm', 'Linked CRM bug', 'Private summary must not be projected',
+  '{"private_fixture":"must not be projected"}'::jsonb
+) RETURNING id AS release_summary_bug \gset
+INSERT INTO bloom_support.tickets(
+  conversation_id, engineering_issue_id, account_id, product, kind, channel,
+  subject, summary
+) VALUES (
+  :'release_summary_conversation', :'release_summary_issue', :'rose',
+  'cms', 'feature', 'cms', 'Linked CMS feature', 'Another private summary'
+) RETURNING id AS release_summary_feature \gset
+INSERT INTO bloom_support.tickets(
+  conversation_id, account_id, product, kind, channel, subject, summary
+) VALUES (
+  :'release_summary_conversation', :'greenleaf', 'crm', 'bug', 'crm',
+  'Unlinked report in the same conversation', 'Must not enter engineering scope'
+) RETURNING id AS release_summary_unlinked \gset
+SELECT item AS release_summary
+FROM jsonb_array_elements(pg_temp.rpc('list_engineering', jsonb_build_object(
+  'actor', :'release', 'status', 'open'
+))) item
+WHERE item->>'id' = :'release_summary_issue' \gset
+SELECT pg_temp.assert(
+  jsonb_array_length(:'release_summary'::jsonb->'tickets') = 2
+    AND EXISTS (
+      SELECT 1 FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+      WHERE ticket->>'id' = :'release_summary_bug'
+        AND ticket->>'kind' = 'bug' AND ticket->>'product' = 'crm'
+    )
+    AND EXISTS (
+      SELECT 1 FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+      WHERE ticket->>'id' = :'release_summary_feature'
+        AND ticket->>'kind' = 'feature' AND ticket->>'product' = 'cms'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+      WHERE ticket->>'id' = :'release_summary_unlinked'
+    ),
+  'release summary includes exact persisted linked kinds/products and excludes unrelated tickets');
+SELECT pg_temp.assert((
+  SELECT bool_and(
+    (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(ticket) key)
+      = ARRAY['account_id','automation','id','kind','number','product','status','subject']::text[]
+  )
+  FROM jsonb_array_elements(:'release_summary'::jsonb->'tickets') ticket
+), 'release summary exposes only existing summary fields plus kind/product, not messages or context');
+SELECT pg_temp.assert(NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements(pg_temp.rpc('list_engineering', jsonb_build_object(
+    'actor', :'release', 'status', 'approved'
+  ))) item WHERE item->>'id' = :'release_summary_issue'
+), 'release summary retains the existing status filter');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('get_ticket', '{"actor":"%s","ticket_id":"%s"}'::jsonb)$q$,
+  :'release', :'release_summary_bug'
+), 'forbidden: ticket');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('list_engineering', '{"actor":"%s"}'::jsonb)$q$,
+  :'gail'
+), 'engineering.view');
+SELECT pg_temp.expect_error(format(
+  $q$SELECT public.bloom_support_rpc('list_engineering', '{"actor":"%s"}'::jsonb)$q$,
+  :'intake'
+), 'engineering.view');
+ROLLBACK;
+
 \echo 'bloom-support-db: all assertions passed'

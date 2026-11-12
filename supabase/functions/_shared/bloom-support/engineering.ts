@@ -12,7 +12,7 @@
 // Every step is an idempotent job; state lives in bloom_support.engineering_issues.
 import { promotionObservationSchedule, type EngineeringNext } from "./engineering-schedule.ts";
 import { BloomError, type Caller, env, readResponseText, rpc } from "./runtime.ts";
-import { evaluateRelease, linkedTicketReleaseFacts, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Product } from "./policy.ts";
+import { evaluateRelease, linkedTicketReleaseFacts, PRODUCT_REPOSITORIES, redactForEngineering, resolvePolicy, type Kind, type Product } from "./policy.ts";
 import { commitContains, findPullRequestForBranch, gh, GitHubError, mergePullRequest, productionCommitForRepair, productionDeployment, pullRequestFacts, releaseLabels } from "./github.ts";
 
 export interface EngineeringIssue {
@@ -29,7 +29,7 @@ export interface EngineeringIssue {
     polls?: number;
   } | null;
   attempts: number; approved_head_sha?: string | null;
-  tickets: Array<{ id: string; number: number; subject: string; account_id: string | null; status: string }>;
+  tickets: Array<{ id: string; number: number; subject: string; account_id: string | null; status: string; kind?: Kind; product?: Product }>;
 }
 
 export type StepResult = { next?: EngineeringNext; note: string };
@@ -611,20 +611,11 @@ export async function evaluate(
   }
   const releasePolicy = await rpc("setting", { key: "release_policy" });
   const policy = resolvePolicy(releasePolicy, (await rpc("setting", { key: "auto_release_enabled" })) === true);
-  // list_engineering deliberately contains only ticket summaries. Read each
-  // authoritative ticket instead of inferring its kind/product from linkage.
-  const tickets: Array<{ kind?: unknown; product?: unknown } | null> = [];
-  if (issue.tickets.length <= 50) {
-    for (const linked of issue.tickets) {
-      try {
-        const ticket = await rpc<{ id?: string; kind?: unknown; product?: unknown }>("get_ticket", {
-          actor: release.principalId, ticket_id: linked.id,
-        });
-        tickets.push(ticket?.id === linked.id ? ticket : null);
-      } catch { tickets.push(null); }
-    }
-  }
-  const scope = linkedTicketReleaseFacts(tickets, issue.product, issue.repository);
+  // The release-authorized engineering summary carries only the linked
+  // tickets' authoritative classification. Never read full ticket conversations
+  // or widen the release principal's permissions to obtain these facts.
+  // Older/missing summary fields remain unknown and fail closed.
+  const scope = linkedTicketReleaseFacts(issue.tickets, issue.product, issue.repository);
   let labels: string[] | null = null;
   try {
     const githubIssue = issue.evidence?.github_issue as { number?: unknown } | undefined;

@@ -53,6 +53,7 @@ const releaseMocks = vi.hoisted(() => ({
   productionCommitForRepair: vi.fn(),
   productionDeployment: vi.fn(),
   pullRequestFacts: vi.fn(),
+  releaseLabels: vi.fn(),
   rpc: vi.fn(),
 }));
 
@@ -110,6 +111,7 @@ vi.mock("../../supabase/functions/_shared/bloom-support/github.ts", () => ({
   productionCommitForRepair: releaseMocks.productionCommitForRepair,
   productionDeployment: releaseMocks.productionDeployment,
   pullRequestFacts: releaseMocks.pullRequestFacts,
+  releaseLabels: releaseMocks.releaseLabels,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -757,6 +759,7 @@ describe("Bloom engineering release recovery", () => {
     releaseMocks.productionCommitForRepair.mockReset();
     releaseMocks.productionDeployment.mockReset();
     releaseMocks.pullRequestFacts.mockReset();
+    releaseMocks.releaseLabels.mockReset().mockResolvedValue([]);
     releaseMocks.rpc.mockReset();
   });
 

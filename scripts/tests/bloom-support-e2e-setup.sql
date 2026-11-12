@@ -66,4 +66,5 @@ DO $$ BEGIN
   END IF;
 END $$;
 COMMIT;
+\ir ../../supabase/migrations/20261112153000_bloom_support_release_ticket_facts.sql
 \echo 'bloom-support e2e database ready'

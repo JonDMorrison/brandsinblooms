@@ -308,7 +308,7 @@ Deno.test("release eligibility requires complete ticket scope and verified label
   }
 });
 
-Deno.test("evaluate reads linked tickets, fails closed on agent claims and preserves approved release holds", async () => {
+Deno.test("evaluate uses authorized linked summaries, fails closed on agent claims and preserves approved release holds", async () => {
   const { evaluate } = await import("./engineering.ts");
   const originalFetch = globalThis.fetch;
   const keys = { SUPABASE_URL: "https://bloom-poll.test", SUPABASE_SERVICE_ROLE_KEY: "test-service-key", BLOOM_GITHUB_RELEASE_TOKEN: "test-release-token", BLOOM_VERCEL_TOKEN: "test-vercel-token" };
@@ -336,11 +336,16 @@ Deno.test("evaluate reads linked tickets, fails closed on agent claims and prese
     const respond = (body: unknown) => Promise.resolve(Response.json(body));
     if (url.pathname === "/rest/v1/rpc/bloom_support_rpc") {
       const { p_fn, p } = JSON.parse(String(init?.body));
-      if (p_fn === "list_engineering") return respond([issue]);
+      if (p_fn === "list_engineering") return respond([{
+        ...issue,
+        tickets: issue.tickets.map((ticket) => missing ? ticket : {
+          ...ticket, kind: ticket.id === "ticket-1" ? "bug" : kind, product,
+        }),
+      }]);
       if (p_fn === "setting") return respond(p.key === "release_policy" ? policy : true);
       if (p_fn === "get_ticket") {
         ticketReads.push(p.ticket_id);
-        return respond(missing ? null : { id: p.ticket_id, kind: p.ticket_id === "ticket-1" ? "bug" : kind, product });
+        throw new Error("Release principal must not read full tickets");
       }
       if (p_fn === "update_engineering_issue") { eligibility = p.update.patch.eligibility; return respond(issue); }
       throw new Error(`Unexpected RPC ${p_fn}`);
@@ -363,7 +368,7 @@ Deno.test("evaluate reads linked tickets, fails closed on agent claims and prese
   const check = async () => {
     eligibility = null; ticketReads.length = 0;
     assertEquals((await evaluate(actor, issue.id)).note, "awaiting approval");
-    assertEquals(ticketReads, ["ticket-1", "ticket-2"]);
+    assertEquals(ticketReads, [], "release evaluation uses summaries, never full ticket reads");
     const result = eligibility as { eligible: boolean; reasons: string[] } | null;
     assertEquals(result?.eligible, false);
     assertEquals(result?.reasons.includes("bug was not reproduced"), true);
