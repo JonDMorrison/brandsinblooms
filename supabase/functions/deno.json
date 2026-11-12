@@ -11,6 +11,7 @@
         "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
         "jose": "npm:jose@6.2.2",
         "bcryptjs": "npm:bcryptjs@^2.4.3",
-        "sanitize-html": "npm:sanitize-html@2.18.1"
+        "sanitize-html": "npm:sanitize-html@2.18.1",
+        "https://esm.sh/tslib@2.8.1/denonext/tslib.mjs": "npm:tslib@2.8.1/tslib.es6.mjs"
     }
 }

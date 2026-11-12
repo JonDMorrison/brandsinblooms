@@ -3062,4 +3062,6 @@ ROLLBACK;
 \ir bloom-support-ticket-link-reconciliation.sql
 \ir bloom-support-ticket-flow.sql
 
+\ir bloom-support-slack-conversations.sql
+
 \echo 'bloom-support-db: all assertions passed'
