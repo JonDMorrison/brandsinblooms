@@ -1096,6 +1096,81 @@ describe("Bloom engineering release recovery", () => {
     }
   });
 
+  it.each(["open", "merged", "changed-head", "changed-base", "unavailable"])(
+    "reconciles interrupted merging as %s without repeating the merge", async (recovery) => {
+      const issue = { ...cmsIssue(), eligibility: { base_branch: "main" }, rollback: { previous_deployment_id: "dpl_previous" } };
+      const current = wireIssue(issue, { ...policy, requiredChecks: { [cmsRepository]: ["unit"] } });
+      const originalRpc = releaseMocks.rpc.getMockImplementation()!;
+      let policyReads = 0;
+      releaseMocks.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+        if (fn === "setting" && args.key === "release_policy" && ++policyReads === 4) {
+          throw new Error("synthetic policy outage after merge claim");
+        }
+        return originalRpc(fn, args);
+      });
+      const pr = { state: "open", merged: false, merge_commit_sha: null as string | null, head: { sha: issue.head_sha }, base: { ref: "main" } };
+      releaseMocks.pullRequestFacts.mockResolvedValue({ pr, facts: cmsFacts("main", true) });
+      await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).rejects.toThrow("synthetic policy outage");
+      expect(current().status).toBe("merging");
+      expect(releaseMocks.mergePullRequest).not.toHaveBeenCalled();
+      const recoveredPr = { ...pr, merged: recovery === "merged", state: recovery === "merged" ? "closed" : "open", merge_commit_sha: recovery === "merged" ? "confirmed-merge" : null,
+        head: { sha: recovery === "changed-head" ? "different-head" : issue.head_sha } };
+      releaseMocks.pullRequestFacts.mockResolvedValue({ pr: recoveredPr, facts: cmsFacts(recovery === "changed-base" ? "dev" : "main", true) });
+      if (recovery === "unavailable") {
+        releaseMocks.pullRequestFacts.mockRejectedValueOnce(new Error("synthetic GitHub outage"));
+        await expect(evaluateEngineeringRelease(releaseCaller, issue.id)).rejects.toThrow("synthetic GitHub outage");
+        expect(current().status).toBe("merging");
+      }
+      const result = await evaluateEngineeringRelease(releaseCaller, issue.id);
+      expect(current().status).toBe(recovery === "merged" ? "deploying" : "escalated");
+      if (recovery === "merged") {
+        expect(current().merge_sha).toBe("confirmed-merge");
+        expect(result.next?.step).toBe("deploy");
+      }
+      expect(releaseMocks.mergePullRequest).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["failed-check", "running-check", "requested-changes", "unresolved-thread", "revoked-review", "incomplete", "unavailable", "missing-check", "not-mergeable", "unchanged"])(
+    "refreshes same-head %s facts after rollback discovery", async (change) => {
+      const issue = { ...cmsIssue(), eligibility: { base_branch: "main" } };
+      const current = wireIssue(issue, { ...policy, requiredChecks: { [cmsRepository]: ["unit"] } });
+      const pr = { state: "open", merged: false, head: { sha: issue.head_sha }, base: { ref: "main" } };
+      let rollbackObserved = false;
+      releaseMocks.pullRequestFacts.mockImplementation(async () => {
+        const facts = cmsFacts("main", true);
+        if (rollbackObserved) {
+          if (change === "unavailable") throw new Error("synthetic GitHub outage");
+          if (change === "missing-check") facts.checks = [];
+          if (change === "not-mergeable") facts.mergeable = false;
+          if (change === "failed-check") facts.checks[0].conclusion = "failure";
+          if (change === "running-check") facts.checks[0].status = "in_progress";
+          if (change === "requested-changes") facts.reviews[0].state = "CHANGES_REQUESTED";
+          if (change === "unresolved-thread") facts.unresolvedThreads = 1;
+          if (change === "revoked-review") facts.reviews = [];
+          if (change === "incomplete") facts.factsComplete = false;
+        }
+        return { pr, facts };
+      });
+      const previous = { uid: "dpl_previous", url: "previous.example.test", meta: { githubCommitSha: "previous-sha" } };
+      vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+        if (url.pathname === "/v9/projects/prj_cms") {
+          rollbackObserved = true;
+          return Response.json({ alias: [productionAlias(previous)] });
+        }
+        if (url.pathname === "/v6/deployments") return Response.json({ deployments: [previous] });
+        throw new Error(`unexpected synthetic request ${url}`);
+      }));
+      releaseMocks.gh.mockResolvedValue(pr);
+      releaseMocks.mergePullRequest.mockResolvedValue({ sha: "cms-merge" });
+      await evaluateEngineeringRelease(releaseCaller, issue.id);
+      expect(rollbackObserved).toBe(true);
+      expect(releaseMocks.mergePullRequest).toHaveBeenCalledTimes(change === "unchanged" ? 1 : 0);
+      expect(current().status).toBe(change === "unchanged" ? "deploying" : "escalated");
+    },
+  );
+
   it.each([
     { base: "feature/unsafe-release", merged: true, merge_commit_sha: "stored-merge" },
     { base: "main", merged: true, merge_commit_sha: "different-merge" },
