@@ -27,6 +27,7 @@
     "npm:resend@2.1.0": "2.1.0",
     "npm:sanitize-html@2.18.1": "2.18.1",
     "npm:stripe@14.25.0": "14.25.0",
+    "npm:tslib@2.8.1": "2.8.1",
     "npm:web-push@3.6.7": "3.6.7"
   },
   "jsr": {
@@ -1394,7 +1395,8 @@
       "npm:@supabase/supabase-js@2",
       "npm:bcryptjs@^2.4.3",
       "npm:jose@6.2.2",
-      "npm:sanitize-html@2.18.1"
+      "npm:sanitize-html@2.18.1",
+      "npm:tslib@2.8.1"
     ],
     "links": {
       "npm:vite_react_shadcn_ts@0.0.0": {
