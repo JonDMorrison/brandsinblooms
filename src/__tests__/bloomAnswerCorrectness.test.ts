@@ -22,6 +22,9 @@ import { BASE_SYSTEM_PROMPT } from "../../supabase/functions/bloom-assist/prompt
 import { buildPurchaseBehaviorLines } from "../../supabase/functions/generate-customer-insights/purchase-lines";
 import type { ToolExecutionContext } from "../../supabase/functions/bloom-assist/tools/types";
 
+// Executor schema tests never invoke mutations or location checks.
+vi.mock("../../supabase/functions/_shared/locationGuard.ts", () => ({}));
+
 type Call = { table: string; method: string; args: unknown[] };
 type TableData = Record<string, unknown[]>;
 
@@ -294,4 +297,44 @@ it("routes repeat buyers to scoped purchases and refuses unknown-as-zero answers
   expect(BASE_SYSTEM_PROMPT).toContain('scope=previous_result');
   expect(BASE_SYSTEM_PROMPT).toContain('never "0 customers bought"');
   expect(BASE_SYSTEM_PROMPT).toContain('status=unavailable has no measured spending or growth result');
+});
+
+// Actual Nov 11 follow-ups confused a cohort reference with a literal UUID and
+// supplied its 810-member count as top_n. Preserve intent without weakening validation.
+describe('saved audience argument contracts', () => {
+  it.each(['previous_result', 'previous_result_id'])('resolves the explicit %s alias only for latest-result reads', async alias => {
+    const {normalizeCustomerExplorationParams} = await import('../../supabase/functions/bloom-assist/tools/customer-exploration-registry');
+    expect(normalizeCustomerExplorationParams('inspect_customer_set', {set_id:alias,page:1})).toEqual({page:1});
+    expect(normalizeCustomerExplorationParams('analyze_customer_basket', {set_id:alias})).toEqual({});
+    expect(normalizeCustomerExplorationParams('explore_customer_reported_spending', {scope:'previous_result',set_id:alias,calendar_year:2025})).toEqual({scope:'previous_result',calendar_year:2025});
+    expect(normalizeCustomerExplorationParams('explore_customer_purchases', {scope:'saved_result',set_id:alias})).toEqual({scope:'saved_result',set_id:alias});
+    expect(normalizeCustomerExplorationParams('save_customer_set_segment', {set_id:alias})).toEqual({set_id:alias});
+  });
+  it('never silently substitutes a different group or invents missing criteria', async () => {
+    const {normalizeCustomerExplorationParams} = await import('../../supabase/functions/bloom-assist/tools/customer-exploration-registry');
+    const id='d7f3b8c4-7f12-4d3f-8a3b-5d3e8e5f9e1a';
+    const params={scope:'previous_result',set_id:id,top_n:810,criteria:{start_date:'2026-01-01',end_date:'2026-11-02'}};
+    expect(normalizeCustomerExplorationParams('explore_customer_purchases',params)).toEqual(params);
+    expect(normalizeCustomerExplorationParams('analyze_customer_basket',{set_id:id})).toEqual({set_id:id});
+  });
+  it('rejects the malformed original call and accepts the corrected full-cohort call', async () => {
+    const {getRegisteredTool} = await import('../../supabase/functions/bloom-assist/tools/registry');
+    const {normalizeToolParams,validateToolParams} = await import('../../supabase/functions/bloom-assist/tools/executor');
+    const tool=getRegisteredTool('explore_customer_purchases')!;
+    const failed=validateToolParams(tool,{scope:'previous_result',label:'Non-shoppers',top_n:810,criteria:{start_date:'2026-01-01',end_date:'2026-11-02'}});
+    expect(failed).toMatchObject({ok:false,issues:expect.arrayContaining([expect.objectContaining({path:'$.criteria.mode'}),expect.objectContaining({path:'$.top_n'})])});
+    expect(validateToolParams(tool,{scope:'previous_result',label:'Non-shoppers',criteria:{mode:'not_purchased',start_date:'2026-01-01',end_date:'2026-11-02'}})).toMatchObject({ok:true});
+    const inspect=getRegisteredTool('inspect_customer_set')!;
+    expect(validateToolParams(inspect,normalizeToolParams(inspect,{set_id:'previous_result',page:1}))).toMatchObject({ok:true,value:{page:1}});
+    expect(validateToolParams(inspect,{set_id:'not-a-uuid'})).toMatchObject({ok:false,issues:[{path:'$.set_id'}]});
+  });
+  it('keeps inspection product filters explicit and directs the model to the original purchase step', async () => {
+    const {getRegisteredTool} = await import('../../supabase/functions/bloom-assist/tools/registry');
+    const {validateToolParams} = await import('../../supabase/functions/bloom-assist/tools/executor');
+    const basket=getRegisteredTool('analyze_customer_basket')!;
+    expect(validateToolParams(basket,{criteria:{mode:'purchased',product:'wreath',start_date:'2025-01-01',end_date:'2025-12-31'}})).toMatchObject({ok:true});
+    expect(validateToolParams(basket,{criteria:{mode:'not_purchased'}})).toMatchObject({ok:false});
+    expect(BASE_SYSTEM_PROMPT).toContain('top_n is only for an explicitly requested top-N buyer subset');
+    expect(BASE_SYSTEM_PROMPT).toContain('inspect_customer_set with no set_id retrieves the latest result');
+  });
 });

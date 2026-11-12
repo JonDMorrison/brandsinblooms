@@ -760,7 +760,9 @@ export function generateTaskPlan(
         /^task_[0-9]+$/.test(taskId),
       ),
       editable_fields: tool
-        ? editableFieldsFromSchema(tool.function.parameters)
+        ? editableFieldsFromSchema(tool.function.parameters).filter((field) =>
+            toolResult.tool_name !== "export_data" || !["scope", "entity"].includes(field)
+          )
         : [],
       validation_annotations: [],
       ...(notice ? { notice } : {}),

@@ -2,7 +2,7 @@
 import { assert, assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { getAttestationOption } from "../../../../../src/lib/crm/importAttestationOptions.ts";
 import { pathBelongsTo, resolveConversationUpload } from "../../conversation-uploads.ts";
-import type { PersistenceClient } from "../../types.ts";
+import type { JsonObject, PersistenceClient } from "../../types.ts";
 import type { ToolExecutionContext } from "../types.ts";
 import {
   applyPhotoToCampaignParams,
@@ -40,6 +40,11 @@ function fakeClient(tables: Tables, rpc: (fn: string, args: Row) => { data: unkn
       const run = () => (tables[table] ?? []).filter((row) => filters.every((f) => f(row))).slice(0, limit);
       const builder = {
         select: () => builder,
+        insert: (row: Row) => {
+          (tables[table] ??= []).push(row);
+          return Promise.resolve({ error: null });
+        },
+        neq: (key: string, value: unknown) => (filters.push((row) => row[key] !== value), builder),
         eq: (key: string, value: unknown) => (filters.push((row) => row[key] === value), builder),
         in: (key: string, values: unknown[]) => (filters.push((row) => values.includes(row[key])), builder),
         is: (key: string, value: unknown) => (filters.push((row) => (row[key] ?? null) === value), builder),
@@ -419,4 +424,78 @@ Deno.test("two email-looking columns are not guessed between", () => {
   const rows = [["a@work.com", "a@home.com"]];
   const resolved = resolveColumnMapping(headers, rows, undefined);
   assertStringIncludes(resolved.error ?? "", "No column in this file is an email address");
+});
+
+
+// Export approvals use the same preview-to-persisted-plan contract as imports.
+const EXPORT_SET = "55555555-5555-4555-8555-555555555555";
+const NEW_EXPORT_SET = "66666666-6666-4666-8666-666666666666";
+function exportSnapshot(id = EXPORT_SET): Row {
+  return { id, tenant_id: TENANT, user_id: USER, conversation_id: CONVERSATION,
+    payload: { version: 1, id, tenant_id: TENANT, user_id: USER,
+      conversation_id: CONVERSATION, included_ids: ["customer-1"] } };
+}
+async function exportApproval() {
+  const { executeTool } = await import("../executor.ts");
+  const { generateTaskPlan } = await import("../../task-plan/generator.ts");
+  const tables = conversationTables({ bloom_customer_sets: [exportSnapshot()] });
+  const { client, uploads } = fakeClient(tables, () => ({ data: true, error: null }));
+  const context = contextFor(client, client);
+  const params = { entity: "customers", format: "csv", scope: "previous_result" };
+  const result = await executeTool("export_data", params, context);
+  assert(result.success, result.message);
+  assert(result.confirmation_required);
+  const plan = generateTaskPlan([{
+    tool_call_id: "export-call", tool_name: "export_data", tool_params: params,
+    tool_result: { ...result, confirmation_details: result.confirmation_details ? { ...result.confirmation_details } : null },
+    block_type: "confirmation", execution_time_ms: 1, error_message: null, iteration: 1,
+  }], context);
+  return { plan, tables, context, uploads, result };
+}
+
+Deno.test("export confirmation pins the exact saved group before a later result replaces latest", async () => {
+  const { prepareExportDataParams } = await import("./export-data.ts");
+  const { plan, tables, context, uploads, result } = await exportApproval();
+  const task = plan.tasks[0];
+  assertEquals(task.tool_params.scope, "saved_result");
+  assertEquals(task.tool_params.set_id, EXPORT_SET);
+  assertEquals((result.data as JsonObject).tool_params, task.tool_params);
+  assertEquals(uploads.length, 0);
+  for (const field of ["scope", "set_id", "entity"]) assert(!task.editable_fields.includes(field));
+  assert(task.editable_fields.includes("format"));
+  assertStringIncludes(task.description, "selected saved group");
+  tables.bloom_customer_sets.unshift(exportSnapshot(NEW_EXPORT_SET));
+  const bound = await prepareExportDataParams(task.tool_params, { ...context, approved: true });
+  assertEquals(bound.set_id, EXPORT_SET);
+});
+
+Deno.test("export approval rejects audience edits and preserves the original binding for retry", async () => {
+  const { preparePlanForApproval } = await import("../../task-plan/executor.ts");
+  const { plan } = await exportApproval();
+  const task = plan.tasks[0];
+  const audienceEdits: JsonObject[] = [{ scope: "all_customers" }, { set_id: NEW_EXPORT_SET }, { entity: "products" }];
+  for (const edits of audienceEdits) {
+    const rejected = preparePlanForApproval(plan, [task.task_id], [], { [task.task_id]: edits }, null);
+    assertEquals(rejected.plan.tasks[0].status, "failed");
+    assertEquals(rejected.plan.tasks[0].tool_params, task.tool_params);
+    assertStringIncludes(rejected.plan.tasks[0].error_message ?? "", "audience cannot change");
+    const retry = preparePlanForApproval(rejected.plan, [], [], {}, task.task_id);
+    assertEquals(retry.plan.tasks[0].status, "approved");
+    assertEquals(retry.plan.tasks[0].tool_params.set_id, EXPORT_SET);
+  }
+  const formatEdit = preparePlanForApproval(plan, [task.task_id], [], { [task.task_id]: { format: "json" } }, null);
+  assertEquals(formatEdit.plan.tasks[0].status, "approved");
+  assertEquals(formatEdit.plan.tasks[0].tool_params.format, "json");
+  assertEquals(formatEdit.plan.tasks[0].tool_params.set_id, EXPORT_SET);
+});
+
+Deno.test("unavailable export group produces no approval card or export", async () => {
+  const { executeTool } = await import("../executor.ts");
+  for (const row of [null, { ...exportSnapshot(), user_id: "other-user" }, { ...exportSnapshot(), tenant_id: OTHER_TENANT }, { ...exportSnapshot(), conversation_id: "other-chat" }]) {
+    const { client, uploads } = fakeClient(conversationTables({ bloom_customer_sets: row ? [row] : [] }), () => ({ data: true, error: null }));
+    const result = await executeTool("export_data", { entity: "customers", format: "csv", scope: "saved_result", set_id: EXPORT_SET }, contextFor(client, client));
+    assertEquals(result.success, false);
+    assertEquals(result.confirmation_required, false);
+    assertEquals(uploads.length, 0);
+  }
 });

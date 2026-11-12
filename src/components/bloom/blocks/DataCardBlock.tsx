@@ -216,7 +216,7 @@ function ActionBar({
               }
               href={action.url}
               rel="noopener noreferrer"
-              target="_blank"
+              target={action.type === "download" ? undefined : "_blank"}
               variant={index === 0 ? "soft" : "plain"}
             >
               {action.label}
