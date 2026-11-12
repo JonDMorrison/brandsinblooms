@@ -13,6 +13,11 @@ import {currentSummaryImports,periodSummaryFacts,type PeriodSummaryEvent} from '
 import {loadCustomerProductHistory,ProductHistoryNotFound} from '../../../_shared/customer-intelligence/customer-product-history.ts';
 
 interface Customer {id: string; first_name: string | null; last_name: string | null; email: string | null; created_at: string | null;}
+// Identity imports reserve this domain for customers without an email address.
+// Inspect the current value, not email_is_placeholder, which can outlive a correction.
+function contactEmail(email: string | null): string | null {
+  return !email?.trim() || email.trim().toLowerCase().endsWith('@noemail.local') ? null : email;
+}
 export function analysisResult(data: unknown, count: number, message: string): ToolResult {
   return {success: true, data: data as JsonValue, count, message, error: null, block_type: 'data_table', confirmation_required: false, confirmation_details: null};
 }
@@ -69,7 +74,7 @@ export async function loadCustomerSetContacts(context: ToolExecutionContext, ids
       .eq('tenant_id', context.tenantId).in('id', unique.slice(offset, offset + 100))
       .is('deleted_at', null).is('merged_into_customer_id', null);
     if (error) throw new Error(error.message);
-    for (const customer of (data ?? []) as Customer[]) contacts.set(customer.id, customer);
+    for (const customer of (data ?? []) as Customer[]) contacts.set(customer.id, {...customer, email:contactEmail(customer.email)});
   }
   if (unique.some(id => !contacts.has(id))) throw new Error('Some members of the saved audience are no longer accessible. No partial contact list was returned. Start a new search.');
   return unique.map(id => contacts.get(id)!);
@@ -116,7 +121,7 @@ function requireScope(params: JsonObject): 'all_customers' | 'previous_result' |
   if (params.scope !== 'saved_result' && params.set_id !== undefined) throw new Error('Use saved_result when specifying a result ID.');
   return params.scope as 'all_customers' | 'previous_result' | 'saved_result';
 }
-function name(customer: Customer) {return [customer.first_name,customer.last_name].filter(Boolean).join(' ') || customer.email || 'Customer';}
+function name(customer: Customer) {return [customer.first_name,customer.last_name].filter(Boolean).join(' ') || contactEmail(customer.email) || 'Customer';}
 function pageNumber(value: JsonValue | undefined) {if (value === undefined) return 1; if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 10000) throw new Error('Choose a valid page number.'); return value;}
 function publicSet(set: CustomerSet, customers: Customer[], page=1, bucket: 'included'|'excluded'|'unknown'='included') {
   return publicSetFrom(set,new Set(customers.map(c=>c.id)),new Map(customers.map(c=>[c.id,name(c)])),page,bucket);
@@ -250,7 +255,7 @@ export const inspectCustomerSet: ToolImplementation = async (params,context) => 
     if(!Array.isArray(ids)||ids.some(id=>!map.has(id)))throw new Error('Saved membership includes inaccessible customers. Review the audience before continuing.');
     const page=pageNumber(params.page);
     return analysisResult({kind:'customer_audience',bucket:String(params.bucket??'included'),audience_id:a.id,name:a.name,mode:a.mode,captured_at:snapshot.result.captured_at,last_refresh_at:a.refreshed_at,next_refresh_at:a.mode==='dynamic'?a.next_refresh_at:null,last_error:a.last_error,
-      total_count:ids.length,page,has_more:page*50<ids.length,rows:ids.slice((page-1)*50,page*50).map(id=>({customer_id:id,name:name(map.get(id)!),email:map.get(id)!.email,membership:String(params.bucket??'included')})),
+      total_count:ids.length,page,has_more:page*50<ids.length,rows:ids.slice((page-1)*50,page*50).map(id=>({customer_id:id,name:name(map.get(id)!),email:contactEmail(map.get(id)!.email),membership:String(params.bucket??'included')})),
       note:a.mode==='fixed'?'Fixed reviewed membership. No customer classifications or consent changed.':'Dynamic membership refreshes daily and after completed imports. Failed refreshes retain the last complete result. No customer classifications or consent changed.'},ids.length,'Showing the saved analytical audience.');
   }
 

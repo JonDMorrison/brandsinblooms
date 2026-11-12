@@ -246,7 +246,7 @@ describe('durable saved-group references survive history compaction',()=>{
 
 describe('saved-group email inspection and file export', () => {
   const setId = '33333333-3333-4333-8333-333333333333';
-  function savedClient(options: {count?: number; missing?: boolean; allowed?: boolean; wrongOwner?: boolean; uploadError?: boolean; signError?: boolean; contactName?: string} = {}) {
+  function savedClient(options: {count?: number; missing?: boolean; allowed?: boolean; wrongOwner?: boolean; uploadError?: boolean; signError?: boolean; contactName?: string; contactOverrides?: Record<string, {email: string | null; first_name?: string | null; last_name?: string | null; custom_fields?: Record<string, unknown>}>} = {}) {
     const calls: Call[] = [], uploaded: string[] = [];
     const ids = Array.from({length: options.count ?? 53}, (_, i) => `member-${i}`);
     const payload = {version:1,id:setId,tenant_id:options.wrongOwner?'other':TENANT,user_id:'user',conversation_id:'conversation',included_ids:ids,excluded_ids:[],unknown_ids:[],trail:[],reasons:Object.fromEntries(ids.map(id=>[id,'matching_purchase'])),evidence_ids:{}};
@@ -263,8 +263,9 @@ describe('saved-group email inspection and file export', () => {
           return q;
         };
         q.maybeSingle=async()=>({data:table==='bloom_conversations'?{id:'conversation'}:exactId&&exactId!==setId?null:{id:setId,payload},error:null});
+        q.single=async()=>({data:{id:'audience',mode:'fixed',snapshot:{member_ids:ids,excluded_ids:[],unknown_ids:[],result:{captured_at:'2026-11-12T00:00:00Z'}}},error:null});
         q.then=(resolve:(value:unknown)=>unknown)=> {
-          let rows=(selected??ids).filter(id=>!options.missing||id!=='member-0').map(id=>({id,first_name:options.contactName??'Synthetic',last_name:id,email:id==='member-1'?null:`${id}@example.com`}));
+          let rows=(selected??ids).filter(id=>!options.missing||id!=='member-0').map(id=>({id,first_name:options.contactName??'Synthetic',last_name:id,email:id==='member-1'?null:`${id}@example.com`,...options.contactOverrides?.[id]}));
           if(range)rows=rows.slice(range[0],range[1]+1);
           return Promise.resolve({data:rows,error:null}).then(resolve);
         };
@@ -292,6 +293,37 @@ describe('saved-group email inspection and file export', () => {
     expect(calls.filter(c=>c.method==='insert')).toEqual([]);
     const first=await inspectCustomerSet({set_id:setId},context(client));
     expect(first.data).toMatchObject({rows:expect.arrayContaining([expect.objectContaining({customer_id:'member-1',email:null})])});
+  });
+  it.each(['ideal-0123456789abcdef01234567@noemail.local',' CLOVER-synthetic@NOEMAIL.LOCAL ',null,'   '])('keeps missing-email members through inspection and CSV/JSON export: %j', async email => {
+    const {inspectCustomerSet}=await import('../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const contactOverrides={'member-50':{email,first_name:null,last_name:null}};
+    const {client,uploaded,ids,calls}=savedClient({contactOverrides});
+    const inspected=await inspectCustomerSet({set_id:setId,page:2},context(client));
+    expect(inspected).toMatchObject({count:53,data:{set_id:setId,total_count:53,rows:[{customer_id:'member-50',name:'Customer',email:null},{customer_id:'member-51',email:'member-51@example.com'},{customer_id:'member-52',email:'member-52@example.com'}]}});
+    const audience=await inspectCustomerSet({audience_id:'audience',page:2},context(client));
+    expect(audience).toMatchObject({count:53,data:{total_count:53,rows:expect.arrayContaining([expect.objectContaining({customer_id:'member-50',name:'Customer',email:null})])}});
+    for(const format of ['csv','json']) {
+      const result=await exportDataImplementation('export_data')!({entity:'customers',format,scope:'saved_result',set_id:setId},context(client));
+      expect(result).toMatchObject({success:true,count:53,data:{row_count:53,total_matching_count:53,truncated:false}});
+    }
+    expect(uploaded[0].split('\n')).toHaveLength(54);
+    expect(uploaded[0].split('\n')[51]).toBe('member-50,,,');
+    const json=JSON.parse(uploaded[1]) as {customer_id:string;email:string|null}[];
+    expect(json.map(row=>row.customer_id)).toEqual(ids);
+    expect(json[50].email).toBeNull();
+    expect(uploaded.join('')).not.toMatch(/@noemail\.local/i);
+    expect(contactOverrides['member-50'].email).toBe(email);
+    expect(calls.some(call=>['update','insert','upsert','delete'].includes(call.method))).toBe(false);
+  });
+  it.each(['Corrected@Example.com','ideal-customer@example.com','contact@noemail.local.example.com'])('preserves real current addresses despite a stale placeholder flag: %s', async email => {
+    const {inspectCustomerSet}=await import('../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
+    const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
+    const {client,uploaded}=savedClient({count:1,contactOverrides:{'member-0':{email,custom_fields:{email_is_placeholder:true}}}});
+    const inspected=await inspectCustomerSet({set_id:setId},context(client));
+    expect(inspected).toMatchObject({count:1,data:{rows:[{customer_id:'member-0',email}]}});
+    await exportDataImplementation('export_data')!({entity:'customers',format:'csv',scope:'saved_result',set_id:setId},context(client));
+    expect(uploaded[0].split('\n')[1]).toBe(`member-0,Synthetic,member-0,${email}`);
   });
   it.each(['=SUM(1,2)', '+cmd', '-1+2', '@SUM(1)', '\tformula', '  =SUM(1)'])('neutralizes spreadsheet formulas in CSV contact text but not JSON: %j', async contactName => {
     const {exportDataImplementation}=await import('../../supabase/functions/bloom-assist/tools/implementations/export-data');
