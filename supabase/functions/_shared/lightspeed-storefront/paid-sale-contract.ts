@@ -82,8 +82,11 @@ export function buildStripePaidLightspeedSale(input: StripePaidSaleInput) {
   // unsupported tax rounding or coupon cannot silently disappear in the POS.
   if(computed!==expected)fail("total_mismatch");
   return {
-    id:orderId, state:"pending" as const,
+    // Lightspeed generates the sale UUID. BloomSites UUID is the external source.id.
+    state:"pending" as const,
     source:{id:orderId,type:"BloomSites",author_id:input.authorId,register_id:input.registerId,outlet_id:input.outletId},
+    attributes:["pickup"],
+    fulfillment_details:[{type:"PICKUP" as const}],
     fulfillment_outlet_id:input.outletId,
     note:"Stripe-paid BloomSites order "+orderId+"; payment reference "+input.stripePaymentIntentId+
       "; bookkeeper record only, do not charge again.",
