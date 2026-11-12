@@ -35,6 +35,8 @@ export interface AuthorityRepository {
   /** Compare-and-swap always increments version and validates the expected state. */
   compareAndSwap(grant:AuthorityGrant,mutation:AuthorityMutation):Promise<AuthorityGrant|null>;
   consumeNonce(grantId:string,nonceHash:string,validUntil:string):Promise<boolean>;
+  claimSale(grantId:string,siteId:string,orderId:string):Promise<boolean>;
+  finishSale(grantId:string,orderId:string,status:"confirmed"|"needs_review",saleId:string|null):Promise<void>;
 }
 export interface AuthorityCrypto {
   encrypt(value:string):Promise<string>;
@@ -273,33 +275,36 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         const access=await readTokens(grant,deps);
         if(!["sales:read","sales:write"].every(scope=>access.scopes.includes(scope)))
           throw new AuthorityError("insufficient_scope",403);
-        // The 2026-07 API assigns the Lightspeed sale UUID. The BloomSites
-        // order UUID is preserved in source.id for independent reconciliation.
-        // The durable CMS queue enforces a single POST attempt. Never retry a
-        // possibly accepted request after a timeout or network failure.
+        // The CRM authority durably claims this source order BEFORE any POS
+        // network write; duplicate signed requests can never create two sales.
+        if(!await deps.repository.claimSale(grant.id,grant.siteId,sale.source.id))
+          throw new AuthorityError("sale_reconcile_required",409);
         const headers={Accept:"application/json",Authorization:"Bearer "+access.accessToken};
         const createUrl=new URL("/api/2026-07/sales",lightspeedStoreOrigin(grant.prefix));
-        let saved:SourceRecord|null=null;
         try{
-          const result=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,createUrl,{
+          const reply=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,createUrl,{
             method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(sale)}));
-          saved=asSourceRecord(result?.data);
+          const saved=asSourceRecord(reply?.data);
+          const source=asSourceRecord(saved?.source);
+          const payments=Array.isArray(saved?.payments)?saved.payments:[];
+          const matchingPayment=payments.some(item=>{
+            const row=asSourceRecord(item);
+            return (typeof row?.amount==="number"||typeof row?.amount==="string")
+              && Number(row.amount)===Number(sale.payments[0].amount);
+          });
+          if(!saved||typeof saved.id!=="string"||!UUID.test(saved.id)||
+            source?.id!==sale.source.id||!matchingPayment)
+            throw new AuthorityError("sale_reconcile_required",409);
+          await deps.repository.finishSale(grant.id,sale.source.id,"confirmed",saved.id);
+          return json({ok:true,externalId:saved.id,externalSourceId:sale.source.id});
         }catch(error){
-          // Unknown outcome is a manual reconciliation hold, never a retry.
-          if(error instanceof LightspeedApiError)throw new AuthorityError("sale_reconcile_required",409);
-          throw error;
-        }
-        const source=asSourceRecord(saved?.source);
-        const payments=Array.isArray(saved?.payments)?saved.payments:[];
-        const matchingPayment=payments.some(item=>{
-          const row=asSourceRecord(item);
-          return (typeof row?.amount==="number"||typeof row?.amount==="string")
-            && Number(row.amount)===Number(sale.payments[0].amount);
-        });
-        if(!saved||typeof saved.id!=="string"||!UUID.test(saved.id)||
-          source?.id!==sale.source.id||!matchingPayment)
+          // An HTTP error or timeout may follow successful creation. Never
+          // re-POST. Leave the one-shot ledger in needs_review.
+          try{await deps.repository.finishSale(grant.id,sale.source.id,"needs_review",null);}
+          catch{/* durable claimed row also prohibits a repeat */ }
+          if(error instanceof AuthorityError)throw error;
           throw new AuthorityError("sale_reconcile_required",409);
-        return json({ok:true,externalId:saved.id,externalSourceId:sale.source.id});
+        }
       }
       const resource=body.resource;
       if(typeof resource!=="string"||!["products","inventory","outlets","retailer"].includes(resource)) {
