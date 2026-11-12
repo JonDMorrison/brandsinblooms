@@ -2838,6 +2838,10 @@ BEGIN
  INSERT INTO bloom_support.conversations(channel,subject) VALUES('crm','Resume fixture') RETURNING id INTO c;
  INSERT INTO bloom_support.tickets(conversation_id,product,channel,subject,summary,kind,status,stage,engineering_issue_id,automation,executor)
  VALUES(c,'crm','crm','Resume fixture','Fixture','bug','working','releasing',e,'paused','person') RETURNING id INTO t;
+ -- Deployment tracking now binds GitHub's recorded PR as well as its merge.
+ BEGIN PERFORM public.bloom_support_resume_release(a,e,v); RAISE EXCEPTION 'missing PR reported resumed'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ IF EXISTS(SELECT 1 FROM bloom_support.jobs WHERE engineering_issue_id=e) THEN RAISE EXCEPTION 'missing PR queued'; END IF;
+ UPDATE bloom_support.engineering_issues SET pr_number=424242 WHERE id=e;
  r:=public.bloom_support_resume_release(a,e,v); original:=(r->>'job_id')::uuid;
  IF r->>'queued'<>'true' OR (SELECT payload->>'step' FROM bloom_support.jobs WHERE id=original)<>'deploy' THEN RAISE EXCEPTION 'not queued: %',r; END IF;
  r:=public.bloom_support_resume_release(a,e,v);

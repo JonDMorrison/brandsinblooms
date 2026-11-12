@@ -1255,6 +1255,12 @@ describe("Bloom support continuity", () => {
 });
 
 describe("release tracking replay boundary", () => {
+  it("refuses deployment tracking before enqueue when its recorded PR is missing", () => {
+    const sql = fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20261110224000_bloom_support_resume_release.sql"), "utf8");
+    const guard = sql.indexOf("(step = 'deploy' AND e.pr_number IS NULL)");
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(sql.indexOf("job_id := bloom_support.enqueue_job"));
+  });
   const caller = { principalId: "staff-principal", role: "platform_admin", via: "crm_session" as const, scopes: [] };
   it("rejects a narrowed read-only credential before calling the database", () => {
     expect(() => supportActions.resumeRelease({ ...caller, scopes: ["read"] }, "11111111-1111-4111-8111-111111111111", 1)).toThrow("read-only");

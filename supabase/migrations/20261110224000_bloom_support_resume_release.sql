@@ -18,7 +18,8 @@ BEGIN
     RAISE EXCEPTION 'conflict: engineering issue changed' USING ERRCODE = '40001';
   END IF;
   step := CASE WHEN e.status IN ('merged','deploying') THEN 'deploy' WHEN e.status = 'verifying' THEN 'verify' END;
-  IF step IS NULL OR e.repository IS NULL OR e.merge_sha IS NULL THEN
+  IF step IS NULL OR e.repository IS NULL OR e.merge_sha IS NULL
+    OR (step = 'deploy' AND e.pr_number IS NULL) THEN
     RAISE EXCEPTION 'blocked: only a recorded merged release can resume tracking' USING ERRCODE = '22023';
   END IF;
   SELECT * INTO t FROM bloom_support.tickets
