@@ -44,12 +44,71 @@ export async function serve(files) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return { origin: `http://127.0.0.1:${server.address().port}`, close: () => new Promise(resolve => server.close(resolve)) };
 }
-const BUILD = `
+const BUILD_STAGES = ['setup', 'config-bundle', 'config-import', 'config-evaluation', 'vite-build'];
+const BUILD_CODES = ['ENOENT', 'EACCES', 'EROFS', 'ENOMEM', 'ENOSPC', 'ERR_MODULE_NOT_FOUND', 'ERR_DLOPEN_FAILED', 'MODULE_NOT_FOUND', 'PLUGIN_ERROR', 'ENOBUFS', 'ETIMEDOUT'];
+export const BUILD = `
+let stage = 'setup';
+(async()=>{
 const fs = require('node:fs');
 fs.symlinkSync('/app/node_modules', '/tmp/node_modules');
+stage = 'config-bundle';
 require('/app/node_modules/esbuild').buildSync({entryPoints:['/app/vite.config.ts'],bundle:true,platform:'node',format:'esm',packages:'external',outfile:'/tmp/config.mjs',define:{__dirname:JSON.stringify('/app')}});
-(async()=>{const {build}=await import('/app/node_modules/vite/dist/node/index.js');let {default:config}=await import('file:///tmp/config.mjs');if(typeof config==='function')config=await config({command:'build',mode:'production'});await build({...config,configFile:false,root:'/app',build:{...config.build,outDir:'/out',emptyOutDir:true}})})().catch(()=>process.exit(1));
+stage = 'config-import';
+const {build}=await import('/app/node_modules/vite/dist/node/index.js');
+let {default:config}=await import('file:///tmp/config.mjs');
+stage = 'config-evaluation';
+if(typeof config==='function')config=await config({command:'build',mode:'production'});
+stage = 'vite-build';
+await build({...config,configFile:false,root:'/app',build:{...config.build,outDir:'/out',emptyOutDir:true}});
+})().catch(error=>{
+const codes = ${JSON.stringify(BUILD_CODES)};
+const code = codes.includes(error?.code) ? error.code : 'UNKNOWN';
+process.stderr.write('\\nBLOOM_BUILD_DIAGNOSTIC '+JSON.stringify({stage,code})+'\\n');
+process.exit(1);
+});
 `;
+// Candidate text is never relayed. Markers are untrusted diagnostics, never proof.
+export function safeBuildFailure(error) {
+  let stage = 'container', code = BUILD_CODES.includes(error?.code) ? error.code : 'UNKNOWN';
+  const stderr = Buffer.isBuffer(error?.stderr) ? error.stderr.subarray(0, 1 << 20).toString('utf8') : '';
+  for (const line of stderr.split('\n')) {
+    if (!line.startsWith('BLOOM_BUILD_DIAGNOSTIC ') || line.length > 256) continue;
+    try {
+      const diagnostic = JSON.parse(line.slice('BLOOM_BUILD_DIAGNOSTIC '.length));
+      if (BUILD_STAGES.includes(diagnostic.stage) && [...BUILD_CODES, 'UNKNOWN'].includes(diagnostic.code)) {
+        stage = diagnostic.stage; code = diagnostic.code;
+      }
+    } catch {}
+  }
+  const status = Number.isInteger(error?.status) && error.status >= 0 && error.status <= 255 ? error.status : 'unknown';
+  const signal = ['SIGTERM', 'SIGKILL', 'SIGABRT', 'SIGSEGV'].includes(error?.signal) ? error.signal : 'none';
+  return new Error(`Sandbox build failed: stage=${stage} code=${code} status=${status} signal=${signal}`);
+}
+export function pinnedBuildImage(run = execFileSync) {
+  const image = run('docker', ['image', 'inspect', '--format={{.Id}}', 'node:24-bookworm-slim'], { encoding: 'utf8' }).trim();
+  if (!/^sha256:[a-f0-9]{64}$/.test(image)) throw Error('Unpinned Docker image');
+  return image;
+}
+export function buildSnapshot({ trusted, temporary, label, sha, image, container }, run = execFileSync) {
+  const source = path.join(temporary, label), out = path.join(temporary, `${label}-dist`);
+  mkdirSync(source); mkdirSync(out);
+  // Dedicated ephemeral-runner tmpfs bounds total output, including before validation.
+  run('sudo', ['mount', '-t', 'tmpfs', '-o', 'size=256m,mode=0777,nosuid,nodev,noexec', 'tmpfs', out], { stdio: 'ignore' });
+  try {
+    const entries = run('git', ['-C', trusted, 'ls-tree', '-r', sha], { encoding: 'utf8', maxBuffer: 64 << 20 }).trim().split('\n');
+    if (entries.some(line => !/^(100644|100755) blob [a-f0-9]{40}\t/.test(line))) throw Error('Nonregular source entry');
+    const archive = run('git', ['-C', trusted, 'archive', '--format=tar', sha], { maxBuffer: 128 << 20 });
+    run('tar', ['-x', '-C', source, '--no-same-owner', '--no-same-permissions'], { input: archive });
+    mkdirSync(path.join(source, 'node_modules'), { recursive: true });
+    try {
+      // Receipt and supervisor are never mounted; all candidate execution stays isolated.
+      run('docker', ['run', '--name', container, '--rm', '--network=none', '--read-only', '--user=65532:65532', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=128', '--memory=4g', '--cpus=2', '--ulimit', 'fsize=268435456:268435456', '--tmpfs', '/tmp:rw,noexec,nosuid,size=256m', '--mount', `type=bind,src=${source},dst=/app,readonly`, '--mount', `type=bind,src=${path.join(trusted, 'node_modules')},dst=/app/node_modules,readonly`, '--mount', `type=bind,src=${out},dst=/out`, '--workdir=/app', image, 'node', '-e', BUILD], { timeout: 240000, maxBuffer: 1 << 20, stdio: ['ignore', 'ignore', 'pipe'] });
+    } catch (error) { throw safeBuildFailure(error); }
+    finally { try { run('docker', ['rm', '-f', container], { stdio: 'ignore' }); } catch {} }
+    // Copy bounded regular output to memory only after the container is gone.
+    return validatedFiles(out);
+  } finally { run('sudo', ['umount', out], { stdio: 'ignore' }); }
+}
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function main(e = process.env) {
   validateBinding(e);
@@ -65,33 +124,16 @@ export async function main(e = process.env) {
   const { chromium } = await import('@playwright/test');
   const temporary = mkdtempSync(path.join(tmpdir(), 'bloom-repro-'));
   chmodSync(temporary, 0o755);
-  const image = execFileSync('docker', ['image', 'inspect', '--format={{.Id}}', 'node:24-bookworm-slim'], { encoding: 'utf8' }).trim();
-  if (!/^sha256:[a-f0-9]{64}$/.test(image)) throw Error('Unpinned Docker image');
+  const image = pinnedBuildImage();
   const observations = {};
-  const mounts = [];
   let browser;
   try {
     // One process fixes the browser binary across both fresh recipe contexts.
     browser = await launchTrustedBrowser(chromium);
     console.log(`Sandboxed observer Chrome ${browser.version()}`);
     for (const [label, sha] of [['base', e.BASE_SHA], ['head', e.HEAD_SHA]]) {
-      const source = path.join(temporary, label), out = path.join(temporary, `${label}-dist`);
-      mkdirSync(source); mkdirSync(out);
-      // Dedicated ephemeral-runner tmpfs gives a total disk bound, not merely a per-file bound.
-      execFileSync('sudo', ['mount', '-t', 'tmpfs', '-o', 'size=256m,mode=0777,nosuid,nodev,noexec', 'tmpfs', out], { stdio: 'ignore' });
-      mounts.push(out);
-      const entries = git('ls-tree', '-r', sha).split('\n');
-      if (entries.some(line => !/^(100644|100755) blob [a-f0-9]{40}\t/.test(line))) throw Error('Nonregular source entry');
-      const archive = execFileSync('git', ['-C', trusted, 'archive', '--format=tar', sha], { maxBuffer: 128 << 20 });
-      execFileSync('tar', ['-x', '-C', source, '--no-same-owner', '--no-same-permissions'], { input: archive });
-      mkdirSync(path.join(source, 'node_modules'), { recursive: true });
-      const container = `bloom-repro-${e.RUN_ID}-${e.RUN_ATTEMPT}-${label}`;
-      try {
-        // Output is a single dedicated disposable directory. Receipt and supervisor are never mounted.
-        execFileSync('docker', ['run', '--name', container, '--rm', '--network=none', '--read-only', '--user=65532:65532', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=128', '--memory=4g', '--cpus=2', '--ulimit', 'fsize=268435456:268435456', '--tmpfs', '/tmp:rw,noexec,nosuid,size=256m', '--mount', `type=bind,src=${source},dst=/app,readonly`, '--mount', `type=bind,src=${path.join(trusted, 'node_modules')},dst=/app/node_modules,readonly`, '--mount', `type=bind,src=${out},dst=/out`, '--workdir=/app', image, 'node', '-e', BUILD], { timeout: 240000, stdio: 'ignore' });
-      } finally { try { execFileSync('docker', ['rm', '-f', container], { stdio: 'ignore' }); } catch {} }
-      // No process retains output mounts; copy validated bytes into trusted memory before serving.
-      const server = await serve(validatedFiles(out));
+      const files = buildSnapshot({ trusted, temporary, label, sha, image, container: `bloom-repro-${e.RUN_ID}-${e.RUN_ATTEMPT}-${label}` });
+      const server = await serve(files);
       try { observations[label] = await runRecipe(browser, server.origin); }
       finally { await server.close(); }
     }
@@ -115,7 +157,6 @@ export async function main(e = process.env) {
   } finally {
     try { if (browser) await browser.close(); }
     finally {
-      for (const mount of mounts.reverse()) execFileSync('sudo', ['umount', mount], { stdio: 'ignore' });
       rmSync(temporary, { recursive: true, force: true });
     }
   }
