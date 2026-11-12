@@ -352,6 +352,8 @@ export const DEFAULT_SENSITIVE_PATHS = [
 
 export interface PullRequestFacts {
   repository: string;
+  /** Every bounded authoritative collection was read completely. */
+  factsComplete: boolean;
   files: Array<{ path: string; additions: number; deletions: number; status: string }>;
   checks: Array<{ name: string; conclusion: string | null; status: string }>;
   reviews: Array<{ state: string; author: string; independent: boolean }>;
@@ -369,8 +371,58 @@ export interface IssueFacts {
   intendedBehaviourEstablished: boolean;
   productsTouched: number;
   labels: string[];
+  labelsVerified: boolean;
+  scopeEstablished: boolean;
+  featureProductApproved: boolean;
   hasProductionVerification: boolean;
   hasRollback: boolean;
+}
+
+export interface LinkedTicketReleaseFacts {
+  kind?: unknown;
+  product?: unknown;
+  feature_request_id?: unknown;
+  feature_status?: unknown;
+  feature_product_approved?: unknown;
+}
+
+/** A release approval never substitutes for the exact feature's product decision. */
+export function linkedFeatureProductApproved(tickets: Array<LinkedTicketReleaseFacts | null>): boolean {
+  // An empty summary proves nothing. Materialize sparse slots so every
+  // missing entry is rejected rather than skipped by Array.every.
+  return tickets.length > 0 && Array.from(tickets).every((ticket) => {
+    // Legacy or missing classification cannot prove this is not a feature.
+    if (!ticket || !["bug", "incident", "question", "change", "other", "feature"].includes(String(ticket.kind))) return false;
+    if (ticket.kind !== "feature" && !ticket.feature_request_id) return true;
+    return typeof ticket.feature_request_id === "string" && ticket.feature_request_id.length > 0 &&
+      ["accepted", "planned", "shipped"].includes(String(ticket.feature_status)) &&
+      ticket.feature_product_approved === true;
+  });
+}
+
+/** Aggregate every linked report; missing or mixed evidence cannot become a bug. */
+export function linkedTicketReleaseFacts(
+  tickets: Array<LinkedTicketReleaseFacts | null>,
+  issueProduct: Product,
+  repository: string,
+): Pick<IssueFacts, "kind" | "productsTouched" | "scopeEstablished" | "featureProductApproved"> {
+  const products = new Set(tickets.map((ticket) => ticket?.product));
+  const kinds = new Set(tickets.map((ticket) => ticket?.kind));
+  const kind = tickets[0]?.kind;
+  const knownKinds: readonly unknown[] = ["unknown", "question", "bug", "change", "incident", "feature", "other"];
+  const knownProducts = Object.keys(PRODUCT_REPOSITORIES);
+  const scopeEstablished = tickets.length > 0 && products.size > 0 &&
+    [...products].every((product) => typeof product === "string" && knownProducts.includes(product)) &&
+    products.has(issueProduct) &&
+    [...products].every((product) =>
+      PRODUCT_REPOSITORIES[product as keyof typeof PRODUCT_REPOSITORIES]?.repository.toLowerCase() === repository.toLowerCase()
+    );
+  return {
+    kind: kinds.size === 1 && knownKinds.includes(kind) ? kind as Kind : "unknown",
+    productsTouched: products.size,
+    scopeEstablished,
+    featureProductApproved: linkedFeatureProductApproved(tickets),
+  };
 }
 
 export interface Eligibility {
@@ -406,10 +458,15 @@ export function matchesAny(path: string, globs: string[]): boolean {
 export function evaluateRelease(policy: ReleasePolicy, issue: IssueFacts, pr: PullRequestFacts, now = new Date()): Eligibility {
   const reasons: string[] = [];
   const sensitive: string[] = [];
+  if (pr.factsComplete !== true) reasons.push("GitHub release facts are incomplete");
   if (!policy.autoReleaseEnabled) reasons.push("automatic release is switched off");
   if (issue.kind !== "bug") reasons.push("only bugs are eligible; features and behaviour changes need review");
+  if (issue.featureProductApproved !== true) reasons.push("feature requires a separate human product approval");
   if (!issue.reproduced) reasons.push("bug was not reproduced");
   if (!issue.intendedBehaviourEstablished) reasons.push("intended behaviour is not established");
+  if (!issue.scopeEstablished || !Number.isInteger(issue.productsTouched) || issue.productsTouched < 1) reasons.push("product scope is not established");
+  if (!issue.labelsVerified) reasons.push("PR and issue labels are not verified");
+  if (issue.labels.some((l) => /(?:hold|do[- ]not[- ]merge|no[- ]auto[- ]merge|blocked)/i.test(l))) reasons.push("project release hold");
   if (issue.productsTouched > 1) reasons.push("change spans more than one product");
   if (issue.labels.some((l) => /security|payment|tax|payout|migration|auth|data-repair|infra/i.test(l))) reasons.push("issue carries a sensitive label");
   if (!issue.hasProductionVerification) reasons.push("no production verification is defined");

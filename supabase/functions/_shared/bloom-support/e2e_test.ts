@@ -34,7 +34,10 @@ const sql = DB_URL ? postgres(DB_URL, { max: 4, onnotice: () => {} }) : null;
 // ---------------------------------------------------------------------------
 // In-process Supabase shim
 // ---------------------------------------------------------------------------
+const ticketReadActors: string[] = [];
 async function rpcCall(fn: string, args: Record<string, unknown>) {
+  const payload = args.p as Record<string, unknown> | undefined;
+  if (fn === "bloom_support_rpc" && args.p_fn === "get_ticket") ticketReadActors.push(String(payload?.actor));
   const keys = Object.keys(args);
   // postgres.js serializes objects itself for a ::jsonb parameter.
   const params = keys.map((k) => args[k]);
@@ -94,6 +97,9 @@ function githubStub(method: string, path: string, body: unknown): Response {
   const ok = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json" } });
   let m: RegExpMatchArray | null;
   if (method === "POST" && (m = path.match(/^\/repos\/(.+)\/issues$/))) return ok({ number: 100 + githubCalls.length, html_url: `https://github.com/${m[1]}/issues/${100 + githubCalls.length}` }, 201);
+  if (method === "GET" && /^\/repos\/[^/]+\/[^/]+\/issues\/\d+\/labels\?per_page=100$/.test(path)) {
+    return ok([{ name: "bloom-repair" }]);
+  }
   if (method === "POST" && /\/actions\/workflows\/.+\/dispatches$/.test(path)) {
     if (dispatchFailNext > 0) { dispatchFailNext--; return ok({ message: "Server Error" }, 500); }
     return new Response(null, { status: 204 });
@@ -1547,8 +1553,9 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assert(j.attempts >= 2 && String(j.last_error).includes("lease expired"));
   });
 
-  await t.step("eligible repair: smoke verification keeps the release but requires affected-flow confirmation", async () => {
-    // Automatic release needs a rollback target (Vercel) and required checks for the repository.
+  await t.step("reported repair awaits owner approval before smoke verification and affected-flow confirmation", async () => {
+    // Human-approved release still needs a rollback target (Vercel) and required checks for the repository.
+    const githubCallsAtStart = githubCalls.length;
     Deno.env.set("BLOOM_VERCEL_TOKEN", "test-vercel-token");
     releasePolicyValue = {
       approvedPaths: { "JonDMorrison/brandsinblooms": ["src/components/**"] },
@@ -1584,13 +1591,39 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       checks: [{ name: "build", status: "completed", conclusion: "success" }, { name: "unit", status: "completed", conclusion: "success" }],
       reviews: [{ state: "APPROVED", user: { login: "jeff-reviewer" }, commit_id: "head42" }],
     };
+    const { servicePrincipal } = await import("./runtime.ts");
+    const releaseActor = await servicePrincipal("release");
+    const engineering = await api("GET", "/engineering", keys.release);
+    assertEquals(engineering.status, 200, JSON.stringify(engineering.json));
+    const summary = engineering.json.find((issue: { id: string }) => issue.id === eng);
+    assertExists(summary);
+    const linkedTicket = summary.tickets.find((ticket: { id: string }) => ticket.id === crmTicket);
+    assertExists(linkedTicket);
+    assertEquals([linkedTicket.id, linkedTicket.kind, linkedTicket.product], [crmTicket, "bug", "crm"], "release-authorized engineering summaries expose the needed ticket classification");
+    assertEquals((await api("GET", `/tickets/${crmTicket}`, keys.release)).status, 403, "release summary access does not grant private ticket reads");
+    const ticketReadsBeforeEvaluation = ticketReadActors.length;
     const staleEscalation = crypto.randomUUID();
     await sql!`UPDATE bloom_support.tickets SET next_action = 'Support: review and reply', next_action_due_at = now() - interval '1 hour', waiting_reason = 'internal' WHERE id = ${crmTicket}`;
     await sql!`INSERT INTO bloom_support.escalations(id, ticket_id, audience, reason, detail, dedupe_key) VALUES (${staleEscalation}, ${crmTicket}, 'both', 'ticket_overdue', 'Regression fixture', ${"e2e-overdue:" + crmTicket})`;
     await runWorkerUntilIdle(10);
+    const waiting = (await sql!`SELECT * FROM bloom_support.engineering_issues WHERE id = ${eng}`)[0];
+    assertEquals(waiting.status, "awaiting_approval", JSON.stringify({ status: waiting.status, eligibility: waiting.eligibility }));
+    assertEquals(waiting.eligibility.eligible, false, "agent-reported reproduction never authorizes automatic release");
+    assert(!ticketReadActors.slice(ticketReadsBeforeEvaluation).includes(releaseActor.principalId), "release evaluation never requests a private ticket through get_ticket");
+    assert(waiting.eligibility.reasons.includes("bug was not reproduced"));
+    assert(!waiting.eligibility.reasons.includes("product scope is not established"), "release sees authoritative linked-ticket scope without private ticket access");
+    assert(!waiting.eligibility.reasons.includes("PR and issue labels are not verified"), "both GitHub label sets are verified");
+    for (const number of [42, waiting.evidence.github_issue.number]) {
+      assert(githubCalls.slice(githubCallsAtStart).some((c) => c.method === "GET" && c.path === `/repos/JonDMorrison/brandsinblooms/issues/${number}/labels?per_page=100`), "both PR and source-issue labels were fetched");
+    }
+    assert(!githubCalls.slice(githubCallsAtStart).some((c) => c.method === "PUT" && c.path.endsWith("/pulls/42/merge")), "no merge before owner approval");
+    const approved = await mcp(keys.jon, "approve_fix", { issue_id: eng, note: "Reviewed the current head and regression evidence" });
+    assert(!approved.isError, approved.content[0].text);
+    assertEquals((await sql!`SELECT approved_head_sha FROM bloom_support.engineering_issues WHERE id = ${eng}`)[0].approved_head_sha, "head42", "owner approval binds the current PR head");
+    await runWorkerUntilIdle(10);
     const e = (await sql!`SELECT * FROM bloom_support.engineering_issues WHERE id = ${eng}`)[0];
     assertEquals(e.status, "verified", JSON.stringify({ status: e.status, eligibility: e.eligibility, verification: e.verification }));
-    assert(githubCalls.some((c) => c.method === "PUT" && c.path.endsWith("/pulls/42/merge") && (c.body as Any).sha === "head42"), "merge pinned to evaluated SHA");
+    assert(githubCalls.slice(githubCallsAtStart).some((c) => c.method === "PUT" && c.path.endsWith("/pulls/42/merge") && (c.body as Any).sha === "head42"), "merge pinned to evaluated SHA");
     const tk = await ticketRow(crmTicket);
     assert(tk.status !== "resolved", "generic repository smoke checks never resolve the client ticket");
     assertEquals(tk.resolution_verified, false);

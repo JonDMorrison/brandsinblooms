@@ -83,6 +83,12 @@ export async function pullRequestFacts(repo: string, number: number, repairLogin
     pr,
     facts: {
       repository: repo,
+      // A full bounded page may omit later blockers. Do not infer safety from
+      // only the first page, even after a person approved this exact head.
+      // Combined commit status uses GitHub's default page size of 30.
+      factsComplete: files.length < 100 && runs.check_runs.length < 100 &&
+        statuses.statuses.length < 30 && reviews.length < 100 &&
+        threads.repository.pullRequest.reviewThreads.nodes.length < 100,
       files: files.map((f) => ({ path: f.filename, additions: f.additions, deletions: f.deletions, status: f.status })),
       checks: [
         ...runs.check_runs.map((c) => ({ name: c.name, status: c.status, conclusion: c.conclusion })),
@@ -96,6 +102,19 @@ export async function pullRequestFacts(repo: string, number: number, repairLogin
       testFilesModifiedOrDeleted: files.filter((f) => isTest(f.filename) && f.status !== "added").map((f) => f.filename),
     },
   };
+}
+
+/** Fetch both label sets from GitHub, never from an agent report or PR body. */
+export async function releaseLabels(repo: string, prNumber: number, issueNumber: unknown): Promise<string[] | null> {
+  if (!Number.isSafeInteger(issueNumber) || Number(issueNumber) < 1) return null;
+  const labels: string[] = [];
+  for (const number of new Set([prNumber, Number(issueNumber)])) {
+    const rows = await gh<Array<{ name?: unknown }>>("release", "GET", `/repos/${repo}/issues/${number}/labels?per_page=100`);
+    // A full page may be truncated. Never silently ignore a hold on another page.
+    if (!Array.isArray(rows) || rows.length >= 100 || rows.some((row) => typeof row.name !== "string")) return null;
+    labels.push(...rows.map((row) => String(row.name)));
+  }
+  return [...new Set(labels)];
 }
 
 /** Merge pinned to the evaluated head SHA: a push after evaluation makes the merge fail. */
