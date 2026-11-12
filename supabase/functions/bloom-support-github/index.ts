@@ -4,7 +4,7 @@ import { db, env } from "../_shared/bloom-support/runtime.ts";
 import { verifyGithubWebhook } from "../_shared/bloom-support/webhook-auth.ts";
 import { githubMilestoneFromKind } from "../_shared/bloom-support/slack-language.ts";
 import { githubSourceLink } from "../_shared/bloom-support/slack.ts";
-import { failedMainCheckSuite } from "../_shared/bloom-support/github-events.ts";
+import { failedMainCheckSuite, engineeringEventHints, isProductionEnvironment } from "../_shared/bloom-support/github-events.ts";
 import { announceableMainMerge } from "../_shared/bloom-support/release-notes.ts";
 
 const ALLOWED = new Set([
@@ -36,6 +36,19 @@ Deno.serve(async (req) => {
   const fullName = typeof repoInfo?.full_name === "string" ? repoInfo.full_name : "";
   if (!ALLOWED.has(fullName)) return respond({ok:true, ignored:"other repository"});
 
+  // Signature + repository checks above are mandatory for this service-only RPC.
+  // Queue hints before Slack filtering: PR checks/reviews need not be announcements.
+  for (const hint of engineeringEventHints(event, payload)) {
+    const { error } = await db().rpc("bloom_support_enqueue_github_engineering", {
+      p_delivery: delivery, p_repository: fullName, p_pr: hint.pr,
+      p_sha: hint.sha, p_deployment: hint.deployment,
+    });
+    if (error) {
+      console.error("GitHub engineering queue failed", error.code);
+      return respond({ error: "queue unavailable" }, 503);
+    }
+  }
+
   let kind: string | null = null;
   let source: string | null = null;
   let eventId = delivery;
@@ -64,9 +77,9 @@ Deno.serve(async (req) => {
       eventId = `check_suite_${suite.id}_${suite.sha}`;
     }
   } else if (event === "deployment_status") {
-    const d = payload.deployment as {ref?:string;environment?:string;id?:number} | undefined;
+    const d = payload.deployment as {ref?:string;environment?:string;production_environment?:boolean;id?:number} | undefined;
     const status = payload.deployment_status as {state?:string} | undefined;
-    if (d?.ref === "main" && d?.environment?.toLowerCase() === "production") {
+    if (d && typeof d.environment === "string" && isProductionEnvironment({ environment: d.environment, production_environment: d.production_environment })) {
       kind = status?.state === "success" ? "github.deployment_succeeded" :
         status?.state === "failure" || status?.state === "error" ? "github.deployment_failed" : null;
       if (kind && Number.isSafeInteger(d.id))
