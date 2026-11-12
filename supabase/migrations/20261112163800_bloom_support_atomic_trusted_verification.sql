@@ -64,7 +64,7 @@ BEGIN
   IF claimed IS DISTINCT FROM ids OR request->>'ticket_binding' IS DISTINCT FROM binding OR
      assignment->>'recipe' IS DISTINCT FROM 'public-support-attachment-name-v1' OR
      assignment->'github_issue' IS DISTINCT FROM OLD.evidence#>'{github_issue,number}' OR
-     NOT (assignment->'ticket_ids' @> ids AND ids @> assignment->'ticket_ids') OR
+     NOT ((assignment->'ticket_ids') @> ids AND ids @> (assignment->'ticket_ids')) OR
      jsonb_array_length(assignment->'ticket_ids') IS DISTINCT FROM count_tickets THEN
     RAISE EXCEPTION 'blocked: trusted browser assignment or ticket binding changed' USING ERRCODE='23514';
   END IF;
