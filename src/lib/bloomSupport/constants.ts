@@ -45,6 +45,7 @@ export function checkAttachments(files: File[]): { accepted: File[]; rejected: s
   for (const file of files) {
     const identity = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
     if (acceptedIdentities.has(identity)) rejected.push(`${file.name}: this file was already selected`);
+    else if (file.name.trim().length > 200) rejected.push(`${file.name}: filenames must be 200 characters or fewer`);
     else if (!allowed.has(file.type)) rejected.push(`${file.name}: this file type can't be attached`);
     else if (file.size === 0 || file.size > MAX_ATTACHMENT_BYTES) rejected.push(`${file.name}: files must be 8 MB or smaller`);
     else if (accepted.length >= MAX_ATTACHMENTS) rejected.push(`${file.name}: up to ${MAX_ATTACHMENTS} files per request`);
