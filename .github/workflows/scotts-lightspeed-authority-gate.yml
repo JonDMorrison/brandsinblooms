@@ -46,7 +46,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with: {deno-version: v2.x}
       - name: Type-check isolated authority endpoint
-        run: deno check --node-modules-dir=auto supabase/functions/lightspeed-storefront-bridge/index.ts
+        run: deno check --config supabase/functions/deno.json --frozen=true supabase/functions/lightspeed-storefront-bridge/index.ts
   behavioral-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 15
