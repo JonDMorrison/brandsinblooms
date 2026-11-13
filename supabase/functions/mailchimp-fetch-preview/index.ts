@@ -162,39 +162,50 @@ export async function handleMailchimpFetchPreview(
         memberCount: segment.memberCount,
       }));
 
-      estimatedImportCount = selectedSegments.reduce(
-        (sum, segment) => sum + segment.memberCount,
-        0,
-      );
       const parentListIds = [...new Set(segmentIds.map(extractListId).filter(
         (id): id is string => Boolean(id),
       ))];
-      resolvedListInfos = await Promise.all(
-        parentListIds.map(async (parentListId) => {
-          const selectedList = parentListId === resolvedListInfo.id
-            ? listInfo
-            : await client.getList(parentListId);
-          return {
-            id: selectedList.id,
-            name: selectedList.name,
-            totalMembers: selectedList.stats?.member_count ?? 0,
-          };
-        }),
+      // Match the importer: a selected list without selected segments is a
+      // full-list work item, even when other lists have selected segments.
+      const fullListIds = [...new Set(listIds)].filter(
+        (id) => !parentListIds.includes(id),
       );
-      const sampleSizePerSegment = getListPreviewSampleSize(segmentIds.length);
-      const segmentSamples = await Promise.all(
-        segmentIds.map(async (selection) => {
+      const selectedListIds = [...new Set([...parentListIds, ...fullListIds])];
+      const sampleSize = getListPreviewSampleSize(
+        segmentIds.length + fullListIds.length,
+      );
+      const [allLists, segmentSamples, fullListSamples] = await Promise.all([
+        Promise.all(selectedListIds.map(async (id) =>
+          id === resolvedListInfo.id ? listInfo : await client.getList(id)
+        )),
+        Promise.all(segmentIds.map(async (selection) => {
           const parentListId = extractListId(selection);
           const segmentId = extractSegmentId(selection);
           if (!parentListId || !segmentId) {
             throw new Error("Invalid Mailchimp segment selection");
           }
           return (await client.getSegmentMembers(
-            parentListId, segmentId, 0, sampleSizePerSegment,
+            parentListId, segmentId, 0, sampleSize,
           )).members;
-        }),
+        })),
+        Promise.all(fullListIds.map(async (id) =>
+          (await client.getListMembers(id, 0, sampleSize)).members
+        )),
+      ]);
+      resolvedListInfos = allLists.map((selectedList) => ({
+        id: selectedList.id,
+        name: selectedList.name,
+        totalMembers: selectedList.stats?.member_count ?? 0,
+      }));
+      const memberCountByList = new Map(
+        resolvedListInfos.map((entry) => [entry.id, entry.totalMembers]),
       );
-      previewMembers = dedupePreviewMembersByEmail(segmentSamples.flat());
+      estimatedImportCount =
+        selectedSegments.reduce((sum, segment) => sum + segment.memberCount, 0) +
+        fullListIds.reduce((sum, id) => sum + (memberCountByList.get(id) ?? 0), 0);
+      previewMembers = dedupePreviewMembersByEmail(
+        [...segmentSamples, ...fullListSamples].flat(),
+      );
       resolvedListInfo = resolvedListInfos.length === 1
         ? resolvedListInfos[0]
         : {
