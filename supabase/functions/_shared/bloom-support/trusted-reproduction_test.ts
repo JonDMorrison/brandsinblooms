@@ -62,10 +62,10 @@ Deno.test("proof independently reads source, immutable artifact, current PR and 
     (p, v) => p.endsWith("/actions/runs/10") ? { ...v as object, run_attempt: 2 } : v,
     (p, v) => p.includes("/jobs?") ? { total_count: 1, jobs: [{ name: JOB, run_id: 10, run_attempt: 1, head_sha: base, status: "completed", conclusion: "skipped" }] } : v,
     (p, v) => p.includes("/contents/") ? { ...v as object, content: btoa("forged") } : v,
-    (p, v) => p.includes("/pulls/") ? { head: { sha: "d".repeat(40) }, base: { ref: "main" } } : v,
+    (p, v) => p.includes("/pulls/") ? { state: "open", merged: false, head: { sha: "d".repeat(40), repo: { id: 30 } }, base: { ref: "main", sha: base, repo: { id: 30 } } } : v,
     // An old successful run cannot authorize the same head against a moved main base.
-    (p, v) => p.includes("/pulls/") ? { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: "d".repeat(40), repo: { id: 30 } } } : v,
-    (p, v) => p.includes("/pulls/") ? { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", repo: { id: 30 } } } : v,
+    (p, v) => p.includes("/pulls/") ? { state: "open", merged: false, head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: "d".repeat(40), repo: { id: 30 } } } : v,
+    (p, v) => p.includes("/pulls/") ? { state: "open", merged: false, head: { sha: head, repo: { id: 30 } }, base: { ref: "main", repo: { id: 30 } } } : v,
     (p, v) => p.includes("/git/commits/") ? { ...v as object, parents: [{ sha: "d".repeat(40) }] } : v,
     (p, v) => p.includes("/artifacts?") ? { total_count: 2, artifacts: [] } : v,
     (p, v) => p.includes("/artifacts?") ? { total_count: 1, artifacts: [{ ...(v as { artifacts: object[] }).artifacts[0], digest: `sha256:${"0".repeat(64)}` }] } : v,

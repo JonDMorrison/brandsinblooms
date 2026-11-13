@@ -9,9 +9,12 @@ Deno.test("pre-merge recheck preserves holds and changed release decisions after
     const repository = "JonDMorrison/brandsinblooms";
     const issue = { id: "race", title: "race", version: 1, product: "crm", repository, status: "approved", pr_number: 42, head_sha: "head", approved_head_sha: "head", eligibility: { base_branch: "main" }, evidence: { github_issue: { number: 7 } }, reproduction: {}, tickets: [{ id: "t", kind: "bug", product: "crm", feature_request_id: null as string | null, feature_status: null as string | null, feature_product_approved: false }] };
     const policy = { requiredChecks: { [repository]: ["unit"] }, verificationOrigins: { [repository]: ["https://bloomsuite.app"] }, verificationChecks: { [repository]: [{ url: "https://bloomsuite.app/health" }] }, vercel: { [repository]: { projectId: "test-project" } } };
-    let hold = false, merges = 0;
+    let hold = false, merges = 0, projectReads = 0;
     let scenario = "hold";
-    const serving = { uid: "previous", url: "previous.test", readyState: "READY", meta: { githubCommitSha: "previous-sha" } };
+    const serving = {
+        id: "previous", uid: "previous", url: "previous.test", projectId: "test-project", target: "production", readyState: "READY",
+        alias: ["bloomsuite.app"], meta: { githubCommitSha: "1".repeat(40), githubOrg: "JonDMorrison", githubRepo: "brandsinblooms" },
+    };
     globalThis.fetch = (input, init) => {
         const url = new URL(input instanceof Request ? input.url : String(input));
         const respond = (body: unknown) => Promise.resolve(Response.json(body));
@@ -33,18 +36,30 @@ Deno.test("pre-merge recheck preserves holds and changed release decisions after
             throw new Error(`Unexpected RPC ${p_fn}`);
         }
         if (url.pathname === "/v9/projects/test-project") {
+            projectReads++;
             hold = true;
-            if (scenario === "revoked") {
+            // Inject each concurrent decision once during discovery, not once
+            // per repeated provider snapshot used to detect traffic drift.
+            if (scenario === "revoked" && projectReads === 1) {
                 issue.status = "escalated";
                 issue.version++;
             }
-            if (scenario === "empty_after") issue.tickets = [];
-            if (scenario === "feature_revoked") {
+            if (scenario === "empty_after" && projectReads === 1) issue.tickets = [];
+            if (scenario === "feature_revoked" && projectReads === 1) {
                 issue.tickets[0].feature_status = "declined";
                 issue.tickets[0].feature_product_approved = false;
             }
-            return respond({ alias: [{ target: "PRODUCTION", deployment: serving }] });
+            return respond({ id: "test-project", alias: [], targets: { production: serving } });
         }
+        if (url.pathname === "/v13/deployments/previous")
+            return respond(serving);
+        if (url.pathname === "/v9/projects/test-project/domains")
+            return respond({
+                domains: [{ name: "bloomsuite.app", projectId: "test-project", verified: true, gitBranch: null, customEnvironmentId: null, redirect: null }],
+                pagination: { count: 1, next: null },
+            });
+        if (url.pathname === "/v4/aliases/bloomsuite.app")
+            return respond({ alias: "bloomsuite.app", projectId: "test-project", deploymentId: serving.id, deployment: { id: serving.id }, redirect: null });
         if (url.pathname === "/v6/deployments")
             return respond({ deployments: [serving] });
         if (url.pathname.includes("/compare/"))
@@ -77,6 +92,7 @@ Deno.test("pre-merge recheck preserves holds and changed release decisions after
             await t.step(scenario, async () => {
                 hold = false;
                 merges = 0;
+                projectReads = 0;
                 Object.assign(issue, { status: "approved", rollback: null, eligibility: { base_branch: "main" } });
                 const feature = scenario.startsWith("feature_");
                 const productApproved = scenario === "feature_approved" || scenario === "feature_revoked";
