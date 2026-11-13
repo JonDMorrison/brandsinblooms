@@ -29,6 +29,12 @@ function makeHandler() {
   return createLightspeedAuthority({
     repository,
     encryption: { encrypt: encryptToken, decrypt: decryptToken },
+    // Scope requests and POS writes are separate controls. The site allowlist
+    // prevents a global setting from asking every Lightspeed merchant for extra access.
+    allowSalesScopeRequest: Deno.env.get("LIGHTSPEED_SALES_SCOPE_REQUEST_ENABLED") === "true",
+    salesScopeSiteIds: new Set((Deno.env.get("LIGHTSPEED_SALES_SCOPE_SITE_IDS") ?? "")
+      .split(",").map((value) => value.trim().toLowerCase())
+      .filter((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))),
     // Separate, default-off operator-controlled sale write permission.
     allowSaleWrite: Deno.env.get("LIGHTSPEED_SALES_WRITE_ENABLED") === "true",
     credentials: (edition) => edition === "r-series" ? {
