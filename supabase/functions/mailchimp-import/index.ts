@@ -1261,7 +1261,7 @@ export async function processBatch(
   runtimeState: RuntimeState,
 ): Promise<BatchOutcome> {
   const errorMessages: string[] = [];
-  const processableMembers: MailchimpMember[] = [];
+  const membersByEmail = new Map<string, MailchimpMember>();
   let skippedCount = 0;
   let failedCount = 0;
 
@@ -1273,23 +1273,44 @@ export async function processBatch(
       continue;
     }
 
-    if (runtimeState.seenEmails.has(email)) {
-      skippedCount += 1;
-      continue;
-    }
-
     if (!EMAIL_PATTERN.test(email)) {
       failedCount += 1;
       errorMessages.push(`Invalid email format: ${email}`);
       continue;
     }
 
-    runtimeState.seenEmails.add(email);
-    processableMembers.push({
-      ...member,
-      email_address: email,
-    });
+    if (runtimeState.seenEmails.has(email)) {
+      skippedCount += 1;
+      continue;
+    }
+
+    const prior = membersByEmail.get(email);
+    if (prior) {
+      skippedCount += 1;
+      // Duplicate records in this batch must retain every audience tag,
+      // and the more restrictive marketing status wins. Preserve the first
+      // identity and profile instead of arbitrarily overwriting it.
+      const tagsByName = new Map(
+        [...prior.tags, ...member.tags]
+          .filter((tag) => Boolean(tag.name))
+          .map((tag) => [tag.name, tag] as const),
+      );
+      const priority = { subscribed: 0, pending: 1, unsubscribed: 2, cleaned: 3 };
+      const restrictive = priority[member.status] > priority[prior.status]
+        ? member
+        : prior;
+      membersByEmail.set(email, {
+        ...prior,
+        status: restrictive.status,
+        timestamp_opt: restrictive.timestamp_opt ?? prior.timestamp_opt,
+        tags: [...tagsByName.values()],
+      });
+      continue;
+    }
+
+    membersByEmail.set(email, { ...member, email_address: email });
   }
+  const processableMembers = [...membersByEmail.values()];
 
   if (processableMembers.length === 0) {
     return {
@@ -1323,6 +1344,12 @@ export async function processBatch(
         `Batch upsert error: ${error?.message ?? "Unknown CRM customer error"}`,
       ],
     };
+  }
+
+  // Only mark successfully resolved contacts as seen; a failed CRM upsert
+  // must never make the next audience silently skip its first usable record.
+  for (const email of emailToCustomerId.keys()) {
+    runtimeState.seenEmails.add(normalizeEmail(email));
   }
 
   const importedCount = emailToCustomerId.size;
