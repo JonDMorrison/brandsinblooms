@@ -4,6 +4,7 @@ import {
   buildImportJobStartUpdate,
   buildWorkItems,
   getImportStartDecision,
+  linkPreviouslySeenMailchimpMembers,
   processBatch,
   runMailchimpImport,
 } from "../index.ts";
@@ -527,5 +528,56 @@ Deno.test(
       unknown
     >;
     assertEquals(connectionPayload.status, "expired");
+  },
+);
+
+Deno.test(
+  "mailchimp-import keeps overlapping audiences linked and never rewrites a repeated CRM profile",
+  async () => {
+    const { client, recorder } = createMockSupabaseClient({
+      "crm_customers:select": {
+        data: [{ id: "cust-1", email: "both@example.com" }],
+        error: null,
+      },
+      "crm_tags:select": { data: [], error: null },
+      "crm_tags:upsert": {
+        data: [{ id: "tag-newsletter", name: "Newsletter" }],
+        error: null,
+      },
+      "customer_tags:upsert": { data: null, error: null },
+      "customer_consents:upsert": { data: null, error: null },
+      "suppression_list:upsert": { data: null, error: null },
+    });
+    const result = await linkPreviouslySeenMailchimpMembers(
+      client as never,
+      "tenant-1",
+      [{
+        id: "member-newsletter",
+        email_address: "BOTH@EXAMPLE.COM",
+        status: "unsubscribed",
+        merge_fields: { FNAME: "Should Not Replace" },
+        tags: [{ id: 2, name: "Newsletter" }],
+      }],
+      {
+        knownTagNames: new Set<string>(),
+        seenEmails: new Set(["both@example.com"]),
+      },
+    );
+    assertEquals(result.customerIds, ["cust-1"]);
+    assertEquals(result.tagsCreated, 1);
+    assertEquals(result.consentsRecorded, 1);
+    assertEquals(recorder.some((entry) =>
+      entry.table === "crm_customers" && entry.operation === "upsert"
+    ), false);
+    assertEquals(recorder.some((entry) =>
+      entry.table === "customer_tags" && entry.operation === "upsert"
+    ), true);
+    const consent = recorder.find((entry) =>
+      entry.table === "customer_consents" && entry.operation === "upsert"
+    )?.payload as Array<Record<string, unknown>>;
+    assertEquals(consent[0].status, "opted_out");
+    assertEquals(recorder.some((entry) =>
+      entry.table === "suppression_list" && entry.operation === "upsert"
+    ), true);
   },
 );
