@@ -11,7 +11,7 @@ async function fixture(options={}){
   const keys=await protocol.createSigningKeyPair();
   const state='bs_'+protocol.randomProofToken();const stateHash=await protocol.sha256(state);
   const grants=new Map(),nonces=new Set(),calls=[];
-  let tokenCalls=0;let now=NOW;
+  let tokenCalls=0;let now=NOW;let savedSale=null;let salePosts=0;const claimedSales=new Set();
   const repo={
     async create(context){let row=[...grants.values()].find(x=>x.stateHash===context.stateHash);if(!row){row={...context,id:crypto.randomUUID(),status:'pending',version:1,
       codeHash:null,tokenCiphertext:null,receiptCiphertext:null,receiptHash:null,retailerId:null,currency:null,tokenExpiresAt:null,leaseId:null,leaseExpiresAt:null};grants.set(row.id,row);}return copy(row);},
@@ -19,6 +19,15 @@ async function fixture(options={}){
     async findByState(hash){return copy([...grants.values()].find(x=>x.stateHash===hash)??null);},
     async compareAndSwap(grant,patch){const current=grants.get(grant.id);if(!current||current.version!==grant.version||current.status!==grant.status)return null;
       const next={...current,...patch,version:current.version+1};grants.set(next.id,next);return copy(next);},
+    async claimSale(grantId,siteId,orderId){
+      assert.equal(siteId,SITE);const key=grantId+':'+orderId;
+      if(claimedSales.has(key))return false;claimedSales.add(key);return true;
+    },
+    async finishSale(grantId,orderId,status,saleId){
+      assert.ok(claimedSales.has(grantId+':'+orderId));
+      assert.ok(['confirmed','needs_review'].includes(status));
+      if(status==='confirmed')assert.equal(saleId,'99d80083-9ef2-4314-9f8e-7f638be367d1');
+    },
     async consumeNonce(id,hash){const key=id+':'+hash;if(nonces.has(key))return false;nonces.add(key);return true;},
   };
   const fetcher=async(url,init)=>{
@@ -47,11 +56,22 @@ async function fixture(options={}){
       return Response.json({access_token:'SECRET_ACCESS_'+tokenCalls,refresh_token:'SECRET_REFRESH_'+tokenCalls,
         token_type:'Bearer',expires:now/1000+3600,domain_prefix:'scotts-test',scope:scopes,...(options.tokens??{})});}
     if(u.pathname==='/api/2.0/retailer')return Response.json({data:{id:'retailer-uuid',currency:'CAD',...(options.retailer??{})}});
+    if(u.pathname.startsWith('/api/2026-07/sales')) {
+      if(init.method==='GET')return savedSale ? Response.json({data:savedSale}) :
+        Response.json({error:'not_found'},{status:404});
+      assert.equal(init.method,'POST');
+      salePosts++;
+      if(options.saleFailure)throw new Error('SECRET uncertain upstream write');
+      assert.equal(u.pathname,'/api/2026-07/sales');
+      savedSale={...JSON.parse(init.body),
+        id:'99d80083-9ef2-4314-9f8e-7f638be367d1'};
+      return Response.json({data:savedSale});
+    }
     if(options.readStatus)return new Response('SECRET upstream details',{status:options.readStatus,headers:{'Retry-After':'17'}});
     return Response.json({data:[],version:{max:1}});
   };
   const encryption={async encrypt(v){return 'sealed:'+Buffer.from(v).toString('base64');},async decrypt(v){assert.ok(v.startsWith('sealed:'));return Buffer.from(v.slice(7),'base64').toString();}};
-  const deps={repository:repo,encryption,credentials:()=>({clientId:'known-app',clientSecret:'SECRET_CLIENT'}),fetcher,now:()=>now};
+  const deps={repository:repo,encryption,credentials:()=>({clientId:'known-app',clientSecret:'SECRET_CLIENT'}),fetcher,now:()=>now,allowSaleWrite:options.allowSaleWrite===true};
   const handler=createLightspeedAuthority(deps);
   const request=async(body,headers={})=>handler(new Request('https://authority.example',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)}));
   const signed=async(body,nonce)=>{const text=JSON.stringify(body);return request(body,await protocol.signBridgeRequest({grantId:body.grantId,privateKey:keys.privateKey,body:text,now,nonce}));};
@@ -60,7 +80,7 @@ async function fixture(options={}){
   const activate=async()=>{assert.equal((await start()).status,200);const response=await callback();assert.equal(response.status,200);
     const payload=await response.json();const url=new URL(payload.returnUrl);const grantId=url.searchParams.get('grant'),receipt=url.searchParams.get('receipt');
     const final=await signed({action:'finalize',grantId,receipt});assert.equal(final.status,200);return {grantId,receipt};};
-  return {keys,state,stateHash,grants,nonces,calls,repo,deps,handler,request,signed,start,callback,activate,get tokenCalls(){return tokenCalls;},setNow(v){now=v;}};
+  return {keys,state,stateHash,grants,nonces,calls,repo,deps,handler,request,signed,start,callback,activate,get tokenCalls(){return tokenCalls;},get salePosts(){return salePosts;},setNow(v){now=v;}};
 }
 test('existing registered callback is reused and scopes stay read-only',async()=>{
   const f=await fixture();const r=await f.start();assert.equal(r.status,200);const body=await r.json();const url=new URL(body.authorizationUrl);
@@ -218,4 +238,85 @@ test('malformed currency objects still fail closed',async()=>{
     const response=await f.callback();assert.equal(response.status,409);
     assert.equal([...f.grants.values()][0].status,'reconnect_required');
   }
+});
+
+
+const PAID_ORDER='2c9c6edf-ea51-41b3-a0b7-6a68751781ee';
+const POS_ID='1e0d30b2-92e1-4a1f-ae25-f42095bc8441';
+const POS_OTHER='f199983e-ed31-4b25-8e0f-fb796a24b526';
+function saleInput(){
+  return {orderId:PAID_ORDER,siteId:SITE,stripePaymentIntentId:'pi_3abcdef12345678',
+    stripePaymentSucceeded:true,orderPaymentStatus:'paid',currency:'CAD',totalMinor:2260,
+    authorId:POS_ID,outletId:POS_OTHER,registerId:POS_ID,externalPaymentTypeConfigId:POS_OTHER,
+    externalPaymentTypeVerified:true,outletVerified:true,taxMappingVerified:true,sourceStockFresh:true,
+    lines:[{productId:POS_ID,sku:'SKU-1',quantity:2,unitPriceMinor:1000,
+      unitDiscountMinor:0,unitTaxMinor:130,taxId:POS_OTHER}]};
+}
+test('sales-write stays off for previously connected read-only merchants',async()=>{
+  const f=await fixture();const {grantId}=await f.activate();const before=f.calls.length;
+  const r=await f.signed({action:'sale',grantId,siteId:SITE,sale:saleInput()});
+  assert.equal(r.status,403);assert.equal((await r.json()).error,'sale_export_disabled');
+  assert.equal(f.calls.length,before);
+});
+test('new write permission is requested only when sale export is explicitly enabled',async()=>{
+  const f=await fixture({allowSaleWrite:true});const r=await f.start();
+  const url=new URL((await r.json()).authorizationUrl);
+  assert.ok(url.searchParams.get('scope').includes('sales:write'));
+  assert.ok(url.searchParams.get('scope').includes('sales:read'));
+  assert.ok(url.searchParams.get('scope').includes('taxes:read'));
+});
+test('active read-only grant cannot write a sale even if write feature flag is on',async()=>{
+  const f=await fixture({allowSaleWrite:true});const {grantId}=await f.activate();const n=f.calls.length;
+  const r=await f.signed({action:'sale',grantId,siteId:SITE,sale:saleInput()});
+  assert.equal(r.status,403);assert.equal((await r.json()).error,'insufficient_scope');
+  assert.equal(f.calls.length,n);
+});
+test('authorized signed sale writes once with provider-generated ID and rejects replay',async()=>{
+  const full=scopes+' sales:read sales:write users:read registers:read taxes:read';
+  const f=await fixture({allowSaleWrite:true,tokens:{scope:full}});
+  const {grantId}=await f.activate();
+  const body={action:'sale',grantId,siteId:SITE,sale:saleInput()};
+  const first=await f.signed(body);
+  assert.equal(first.status,200);
+  const firstData=await first.json();
+  assert.equal(firstData.externalId,'99d80083-9ef2-4314-9f8e-7f638be367d1');
+  assert.equal(firstData.externalSourceId,PAID_ORDER);
+  assert.equal(f.salePosts,1);
+  const posted=f.calls.find(x=>x.url.endsWith('/api/2026-07/sales')&&x.init.method==='POST');
+  assert.ok(posted);
+  const sale=JSON.parse(posted.init.body);
+  assert.equal(sale.id,undefined);
+  assert.equal(sale.source.id,PAID_ORDER);
+  assert.equal(sale.state,'pending');
+  assert.deepEqual(sale.attributes,['pickup']);
+  assert.equal(sale.payments.length,1);
+  assert.equal(sale.payments[0].amount,'22.60');
+  assert.equal(JSON.stringify(sale).includes('SECRET'),false);
+  const again=await f.signed(body);
+  assert.equal(again.status,409);
+  assert.equal((await again.json()).error,'sale_reconcile_required');
+  assert.equal(f.salePosts,1);
+});
+test('invalid Stripe state and wrong site do not reach provider sale API',async()=>{
+  const full=scopes+' sales:read sales:write';
+  const f=await fixture({allowSaleWrite:true,tokens:{scope:full}});
+  const {grantId}=await f.activate();const n=f.calls.length;
+  const bad=await f.signed({action:'sale',grantId,siteId:SITE,sale:{...saleInput(),stripePaymentSucceeded:false}});
+  assert.equal(bad.status,400);assert.equal(f.calls.length,n);
+  const wrong=await f.signed({action:'sale',grantId,siteId:crypto.randomUUID(),sale:saleInput()});
+  assert.equal(wrong.status,403);assert.equal(f.calls.length,n);
+});
+
+test('uncertain POS result is held for reconciliation and is never replayed',async()=>{
+  const f=await fixture({allowSaleWrite:true,saleFailure:true,
+    tokens:{scope:scopes+' sales:read sales:write'}});
+  const {grantId}=await f.activate();
+  const body={action:'sale',grantId,siteId:SITE,sale:saleInput()};
+  const first=await f.signed(body);
+  assert.equal(first.status,409);
+  assert.equal((await first.json()).error,'sale_reconcile_required');
+  assert.equal(f.salePosts,1);
+  const second=await f.signed(body);
+  assert.equal(second.status,409);
+  assert.equal(f.salePosts,1);
 });

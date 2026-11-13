@@ -11,6 +11,8 @@ on:
       - 'tests/lightspeed-storefront-authority.sql'
       - 'tests/lightspeed/**'
       - 'supabase/migrations/*lightspeed_editions.sql'
+      - 'supabase/migrations/*lightspeed_sale_write_claim.sql'
+      - 'tests/lightspeed-sale-write.sql'
       - '.github/workflows/scotts-lightspeed-authority-gate.yml'
 permissions:
   contents: read
@@ -33,7 +35,9 @@ jobs:
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role LOGIN BYPASSRLS;"
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261009161000_lightspeed_storefront_authority.sql
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261020181144_lightspeed_editions.sql
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261112190000_lightspeed_sale_write_claim.sql
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f tests/lightspeed-storefront-authority.sql
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f tests/lightspeed-sale-write.sql
   deno-check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -42,7 +46,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with: {deno-version: v2.x}
       - name: Type-check isolated authority endpoint
-        run: deno check --node-modules-dir=auto supabase/functions/lightspeed-storefront-bridge/index.ts
+        run: deno check --config supabase/functions/deno.json --frozen=true supabase/functions/lightspeed-storefront-bridge/index.ts
   behavioral-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 15
