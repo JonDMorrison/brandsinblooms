@@ -18,6 +18,7 @@ import {
   Typography,
 } from "@mui/joy";
 import { Download, FileSpreadsheet } from "lucide-react";
+import { NewsletterMatchReviewPanel } from "./NewsletterMatchReviewPanel";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { readAllPages } from "../../../../supabase/functions/_shared/customer-intelligence/query-pages";
@@ -46,7 +47,10 @@ export function IdealCustomerTypeExportPanel({
   )
     return null;
   return (
-    <IdealCustomerTypeExportWorksheet key={tenantId} tenantId={tenantId} />
+    <Stack spacing={2}>
+      <NewsletterMatchReviewPanel key={tenantId + "-newsletter-match"} />
+      <IdealCustomerTypeExportWorksheet key={tenantId} tenantId={tenantId} />
+    </Stack>
   );
 }
 
