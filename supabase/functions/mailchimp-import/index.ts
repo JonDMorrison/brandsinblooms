@@ -977,6 +977,11 @@ export async function runMailchimpImport(params: {
       }
 
       const result = fetchResult.result;
+      // A contact may belong to several selected Mailchimp audiences.
+      // Preserve their later segment/tag links without rewriting their CRM profile.
+      const previouslySeenMembers = result.members.filter((member) =>
+        runtimeState.seenEmails.has(normalizeEmail(member.email_address))
+      );
       scopeKnownTotalRows = Math.max(
         scopeKnownTotalRows ?? 0,
         Number(result.total_items ?? 0),
@@ -998,6 +1003,17 @@ export async function runMailchimpImport(params: {
           userId,
           runtimeState,
         );
+        if (previouslySeenMembers.length > 0) {
+          const repeated = await linkPreviouslySeenMailchimpMembers(
+            supabase,
+            tenantId,
+            previouslySeenMembers,
+            runtimeState,
+          );
+          batchOutcome.customerIds.push(...repeated.customerIds);
+          batchOutcome.tagsCreated += repeated.tagsCreated;
+          batchOutcome.consentsRecorded += repeated.consentsRecorded;
+        }
       } catch (error: any) {
         batchOutcome = {
           importedCount: 0,
@@ -1359,6 +1375,54 @@ export async function processBatch(
     customerIds: Array.from(emailToCustomerId.values()),
     errorMessages,
   };
+}
+
+/**
+ * Reuse the exact tenant-scoped contact already imported in this job.
+ * Later audiences may add tags and segment membership, but must not overwrite
+ * previously imported profile fields or restore someone who opted out.
+ */
+export async function linkPreviouslySeenMailchimpMembers(
+  supabase: SupabaseClient,
+  tenantId: string,
+  members: MailchimpMember[],
+  runtimeState: RuntimeState,
+): Promise<{ customerIds: string[]; tagsCreated: number; consentsRecorded: number }> {
+  const byEmail = new Map<string, MailchimpMember>();
+  for (const member of members) {
+    const email = normalizeEmail(member.email_address);
+    if (EMAIL_PATTERN.test(email)) byEmail.set(email, { ...member, email_address: email });
+  }
+  if (byEmail.size === 0) return { customerIds: [], tagsCreated: 0, consentsRecorded: 0 };
+
+  const { data, error } = await supabase
+    .from("crm_customers")
+    .select("id, email")
+    .eq("tenant_id", tenantId)
+    .in("email", [...byEmail.keys()]);
+  if (error) throw error;
+  const idsByEmail = new Map<string, string>(
+    (data ?? []).map((row: { id: string; email: string }) => [normalizeEmail(row.email), row.id]),
+  );
+  if ([...byEmail.keys()].some((email) => !idsByEmail.has(email))) {
+    throw new Error("Repeated Mailchimp member was not found in the current company");
+  }
+
+  const selectedMembers = [...byEmail.values()];
+  const tagsCreated = await batchUpsertTags(
+    supabase, tenantId, selectedMembers, idsByEmail, runtimeState,
+  );
+  // A later audience may introduce an unsubscribe/bounce; never undo one.
+  const restrictiveMembers = selectedMembers.filter((member) =>
+    member.status === "unsubscribed" || member.status === "cleaned"
+  );
+  const consentsRecorded = restrictiveMembers.length
+    ? await batchUpsertConsents(supabase, restrictiveMembers, idsByEmail)
+    : 0;
+  if (restrictiveMembers.length) {
+    await batchUpsertSuppressions(supabase, tenantId, restrictiveMembers);
+  }
+  return { customerIds: [...new Set(idsByEmail.values())], tagsCreated, consentsRecorded };
 }
 
 async function batchUpsertContacts(
