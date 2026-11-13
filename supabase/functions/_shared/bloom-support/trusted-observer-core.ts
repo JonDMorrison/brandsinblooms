@@ -137,16 +137,33 @@ export async function readTrustedEnvelope(repository: string, runId: number, tit
 export async function readTrustedProof(binding: ProofBinding, runId: number, io: ProofReader, pins = TRUSTED_SOURCES): Promise<TrustedProof | null> {
   try {
     if (binding.repository !== REPO || !UUID.test(binding.engineeringIssueId) || !id(binding.githubIssue) || !id(binding.pr) || !SHA.test(binding.head)) return null;
+    const root = `/repos/${binding.repository}`;
+    const pr = await io.api<ObjectValue>(`${root}/pulls/${binding.pr}`);
+    const open = pr.state === "open" && pr.merged === false;
+    const historical = pr.state === "closed" && pr.merged === true;
+    if (!open && !historical) return null;
+    // PR base.sha may be a stale synchronization snapshot, not current main.
+    // Only explicitly merged PRs may use a historical baseline after main moves.
+    const mainMatches = async (baseline: unknown) => {
+      const main = await io.api<ObjectValue>(`${root}/git/ref/heads/main`);
+      return SHA.test(String(baseline)) && obj(main).ref === "refs/heads/main" &&
+        obj(obj(main).object).type === "commit" && obj(obj(main).object).sha === baseline;
+    };
+    if (open && !await mainMatches(obj(pr.base).sha)) return null;
     const envelope = await readTrustedEnvelope(binding.repository, runId, `Bloom repair ${binding.engineeringIssueId}`, JOB, ARTIFACT, io, pins);
     if (!envelope) return null;
     const { run, receipt, repoId } = envelope;
-    const root = `/repos/${binding.repository}`;
-    const pr = await io.api<ObjectValue>(`${root}/pulls/${binding.pr}`);
-    if (obj(pr.head).sha !== binding.head || obj(obj(pr.head).repo).id !== repoId || obj(obj(pr.base).repo).id !== repoId || obj(pr.base).ref !== "main" || obj(pr.base).sha !== run.head_sha) return null;
+    const matchesPR = (value: ObjectValue) => value.state === pr.state && value.merged === pr.merged &&
+      obj(value.head).sha === binding.head && obj(obj(value.head).repo).id === repoId &&
+      obj(obj(value.base).repo).id === repoId && obj(value.base).ref === "main" && obj(value.base).sha === run.head_sha;
+    if (!matchesPR(pr)) return null;
     const commit = await io.api<ObjectValue>(`${root}/git/commits/${binding.head}`);
     const tree = obj(commit.tree).sha;
     if (commit.sha !== binding.head || !SHA.test(String(tree)) || !Array.isArray(commit.parents) || commit.parents.length !== 1 || obj(commit.parents[0]).sha !== run.head_sha) return null;
     if (!validReceipt(receipt, binding, run, repoId, tree as string, pins, io.now())) return null;
+    const freshPR = await io.api<ObjectValue>(`${root}/pulls/${binding.pr}`);
+    if (!matchesPR(freshPR) || (open && !await mainMatches(run.head_sha))) return null;
+    // Bounded freshness checks, not an atomic merge precondition.
     return { runId, attempt: envelope.attempt, artifactId: envelope.artifactId, artifactDigest: envelope.artifactDigest, base: run.head_sha as string, head: binding.head, tree: tree as string, recipe: RECIPE };
   } catch { return null; }
 }

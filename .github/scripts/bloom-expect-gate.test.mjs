@@ -13,8 +13,9 @@ function event() {
 const files = () => [{ filename: HELPER, status: 'modified' }, { filename: FIXTURE, status: 'added' }];
 function harness(e = event()) {
   let now = 0;
-  const state = { pr: e.pull_request, files: files(), runs: [], sleeps: 0, proofs: 0 };
+  const state = { pr: e.pull_request, files: files(), main: { ref: 'refs/heads/main', object: { type: 'commit', sha: base } }, runs: [], sleeps: 0, proofs: 0 };
   const io = { now: () => now, sleep: async ms => { now += ms; state.sleeps++; }, api: async path => {
+    if (path.endsWith('/git/ref/heads/main')) return state.main;
     if (path.endsWith('/files?per_page=100')) return state.files;
     if (path.includes('/actions/workflows/')) return { workflow_runs: state.runs };
     return state.pr;
@@ -107,4 +108,19 @@ test('new dispatch or rerun while verifying invalidates proof', async () => {
     const { state, io } = harness(); state.runs = [run()];
     await assert.rejects(waitForProof(event(), io, { proofReader: async () => { mutate(state); return proof(); } }), /changed during proof/);
   }
+});
+
+
+test('authoritative main rejects stale PR base snapshots before and after proof', async () => {
+  for (const main of [null, {}, {ref:'refs/heads/main',object:{type:'commit',sha:'d'.repeat(40)}}, {ref:'refs/heads/main',object:{type:'tag',sha:base}}, {ref:'refs/heads/other',object:{type:'commit',sha:base}}]) {
+    const {state,io}=harness(); state.runs=[run()]; state.main=main;
+    let read=false;
+    await assert.rejects(waitForProof(event(),io,{proofReader:async()=>{read=true;return proof();}}));
+    assert.equal(read,false,'stale main is refused before proof reading');
+  }
+  const {state,io}=harness(); state.runs=[run()];
+  await assert.rejects(waitForProof(event(),io,{proofReader:async()=>{
+    state.main.object.sha='d'.repeat(40);return proof();
+  }}), /main/);
+  assert.equal(state.pr.base.sha,base,'PR base snapshot did not move');
 });

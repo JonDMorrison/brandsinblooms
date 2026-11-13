@@ -778,14 +778,28 @@ describe("Bloom engineering release recovery", () => {
     },
   });
 
-  const productionAlias = (deployment: {
-    uid: string;
-    url: string;
-    meta: Record<string, unknown>;
-  }) => ({
-    target: "PRODUCTION",
-    deployment: { ...deployment, readyState: "READY" },
-  });
+  type ProviderDeployment = { uid: string; url: string; meta: Record<string, unknown> };
+  // Raw Vercel project targets, hydrated deployments, complete domains and alias
+  // mappings are separate reads. An empty legacy alias list is valid production.
+  const productionCaptureProvider = (projectId: string, repo: string, serving: ProviderDeployment, history: ProviderDeployment[]) => {
+    const [githubOrg, githubRepo] = repo.split("/");
+    const hostname = projectId === "prj_cms" ? "winderberry.bloomsites.app" : "bloomsuite.app";
+    const full = (deployment: ProviderDeployment) => ({ ...deployment, id: deployment.uid,
+      projectId, target: "production", readyState: "READY", alias: [hostname],
+      meta: { ...deployment.meta, githubOrg, githubRepo } });
+    return (url: URL) => {
+      if (url.pathname === `/v9/projects/${projectId}`) return Response.json({ id: projectId, alias: [], targets: { production: full(serving) } });
+      if (url.pathname === `/v9/projects/${projectId}/domains`) return Response.json({
+        domains: [{ name: hostname, projectId, verified: true, gitBranch: null, customEnvironmentId: null, redirect: null }],
+        pagination: { count: 1, next: null },
+      });
+      if (url.pathname === `/v4/aliases/${hostname}`) return Response.json({ alias: hostname, projectId,
+        deploymentId: serving.uid, deployment: { id: serving.uid }, redirect: null });
+      if (url.pathname === "/v6/deployments") return Response.json({ deployments: history.map(full) });
+      const deployment = history.find(item => url.pathname === `/v13/deployments/${item.uid}`);
+      return deployment ? Response.json(full(deployment)) : null;
+    };
+  };
 
   beforeEach(() => {
     releaseMocks.commitContains.mockReset().mockResolvedValue(false);
@@ -1235,14 +1249,13 @@ describe("Bloom engineering release recovery", () => {
         }
         return { pr, facts };
       });
-      const previous = { uid: "dpl_previous", url: "previous.example.test", meta: { githubCommitSha: "previous-sha" } };
+      const previous = { uid: "dpl_previous", url: "previous.example.test", meta: { githubCommitSha: "a".repeat(40) } };
+      const provider = productionCaptureProvider("prj_cms", cmsRepository, previous, [previous]);
       vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
         const url = new URL(String(input));
-        if (url.pathname === "/v9/projects/prj_cms") {
-          rollbackObserved = true;
-          return Response.json({ alias: [productionAlias(previous)] });
-        }
-        if (url.pathname === "/v6/deployments") return Response.json({ deployments: [previous] });
+        if (url.pathname === "/v9/projects/prj_cms") rollbackObserved = true;
+        const response = provider(url);
+        if (response) return response;
         throw new Error(`unexpected synthetic request ${url}`);
       }));
       releaseMocks.gh.mockResolvedValue(pr);
@@ -1289,26 +1302,23 @@ describe("Bloom engineering release recovery", () => {
     });
     releaseMocks.commitContains.mockImplementation(
       async (_repository: string, marker: string, candidate: string) =>
-        marker === "dev-merge-sha" && candidate === "promotion-production-sha",
+        marker === "dev-merge-sha" && candidate === "b".repeat(40),
     );
     const promoted = {
       uid: "dpl_contains_repair",
       url: "promotion.example.test",
-      meta: { githubCommitSha: "promotion-production-sha" },
+      meta: { githubCommitSha: "b".repeat(40) },
     };
     const previous = {
       uid: "dpl_safe_previous",
       url: "previous.example.test",
-      meta: { githubCommitSha: "previous-production-sha" },
+      meta: { githubCommitSha: "c".repeat(40) },
     };
+    const provider = productionCaptureProvider("prj_cms", cmsRepository, promoted, [promoted, previous]);
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
       const url = new URL(String(input));
-      if (url.pathname === "/v9/projects/prj_cms") {
-        return Response.json({ alias: [productionAlias(promoted)] });
-      }
-      if (url.pathname === "/v6/deployments") {
-        return Response.json({ deployments: [promoted, previous] });
-      }
+      const response = provider(url);
+      if (response) return response;
       throw new Error(`unexpected request ${url}`);
     }));
 
@@ -1367,21 +1377,18 @@ describe("Bloom engineering release recovery", () => {
     const failedHistory = {
       uid: "dpl_failed_c",
       url: "failed-c.example.test",
-      meta: { githubCommitSha: "failed-release-c" },
+      meta: { githubCommitSha: "e".repeat(40) },
     };
     const serving = {
       uid: "dpl_intervening_b",
       url: "good-b.example.test",
-      meta: { githubCommitSha: "good-release-b" },
+      meta: { githubCommitSha: "d".repeat(40) },
     };
+    const provider = productionCaptureProvider("prj_test", repository, serving, [failedHistory, serving]);
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: string | URL | Request) => {
       const url = new URL(String(input));
-      if (url.pathname === "/v9/projects/prj_test") {
-        return Response.json({ alias: [productionAlias(serving)] });
-      }
-      if (url.pathname === "/v6/deployments") {
-        return Response.json({ deployments: [failedHistory, serving] });
-      }
+      const response = provider(url);
+      if (response) return response;
       throw new Error(`unexpected request ${url}`);
     }));
 
@@ -1390,7 +1397,7 @@ describe("Bloom engineering release recovery", () => {
       status: "verifying",
       rollback: {
         previous_deployment_id: "dpl_intervening_b",
-        previous_commit_sha: "good-release-b",
+        previous_commit_sha: "d".repeat(40),
       },
     });
   });

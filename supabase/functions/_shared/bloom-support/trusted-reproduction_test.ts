@@ -28,7 +28,8 @@ async function fixture(mutate?: (path: string, value: unknown) => unknown, value
     else if (path.includes("/actions/workflows/")) result = { id: 20, path: WORKFLOW };
     else if (path.includes("/attempts/1/jobs")) result = { total_count: 1, jobs: [{ name: JOB, run_id: 10, run_attempt: 1, head_sha: base, status: "completed", conclusion: "success" }] };
     else if (path.includes("/contents/")) { const key = path.split("/contents/")[1].split("?")[0]; const s = sources[key as keyof typeof sources]; result = { type: "file", encoding: "base64", content: btoa(s), size: s.length }; }
-    else if (path.endsWith("/pulls/8")) result = { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: base, repo: { id: 30 } } };
+    else if (path.endsWith("/pulls/8")) result = { state: "open", merged: false, head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: base, repo: { id: 30 } } };
+    else if (path.endsWith("/git/ref/heads/main")) result = { ref: "refs/heads/main", object: { type: "commit", sha: base } };
     else if (path.includes("/git/commits/")) result = { sha: head, tree: { sha: tree }, parents: [{ sha: base }] };
     else if (path.includes("/artifacts?")) result = { total_count: 1, artifacts: [{ id: 40, name: ARTIFACT, expired: false, size_in_bytes: bytes.length, digest, workflow_run: { id: 10, head_sha: base } }] };
     else throw Error(`Unexpected ${path}`);
@@ -61,10 +62,10 @@ Deno.test("proof independently reads source, immutable artifact, current PR and 
     (p, v) => p.endsWith("/actions/runs/10") ? { ...v as object, run_attempt: 2 } : v,
     (p, v) => p.includes("/jobs?") ? { total_count: 1, jobs: [{ name: JOB, run_id: 10, run_attempt: 1, head_sha: base, status: "completed", conclusion: "skipped" }] } : v,
     (p, v) => p.includes("/contents/") ? { ...v as object, content: btoa("forged") } : v,
-    (p, v) => p.includes("/pulls/") ? { head: { sha: "d".repeat(40) }, base: { ref: "main" } } : v,
+    (p, v) => p.includes("/pulls/") ? { state: "open", merged: false, head: { sha: "d".repeat(40), repo: { id: 30 } }, base: { ref: "main", sha: base, repo: { id: 30 } } } : v,
     // An old successful run cannot authorize the same head against a moved main base.
-    (p, v) => p.includes("/pulls/") ? { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: "d".repeat(40), repo: { id: 30 } } } : v,
-    (p, v) => p.includes("/pulls/") ? { head: { sha: head, repo: { id: 30 } }, base: { ref: "main", repo: { id: 30 } } } : v,
+    (p, v) => p.includes("/pulls/") ? { state: "open", merged: false, head: { sha: head, repo: { id: 30 } }, base: { ref: "main", sha: "d".repeat(40), repo: { id: 30 } } } : v,
+    (p, v) => p.includes("/pulls/") ? { state: "open", merged: false, head: { sha: head, repo: { id: 30 } }, base: { ref: "main", repo: { id: 30 } } } : v,
     (p, v) => p.includes("/git/commits/") ? { ...v as object, parents: [{ sha: "d".repeat(40) }] } : v,
     (p, v) => p.includes("/artifacts?") ? { total_count: 2, artifacts: [] } : v,
     (p, v) => p.includes("/artifacts?") ? { total_count: 1, artifacts: [{ ...(v as { artifacts: object[] }).artifacts[0], digest: `sha256:${"0".repeat(64)}` }] } : v,
@@ -138,4 +139,32 @@ Deno.test("ZIP reader handles bounded native raw deflate and rejects a decompres
   // A dishonest advertised size must not bypass the streamed output limit.
   d.setUint32(22, 10, true); d.setUint32(central + 24, 10, true);
   await assertRejects(() => receiptFromZip(bomb));
+});
+
+
+Deno.test("open proof requires authoritative main before and after verification despite stale PR base", async () => {
+  for (const main of [null, {}, {ref:"refs/heads/main",object:{type:"commit",sha:"d".repeat(40)}}, {ref:"refs/heads/main",object:{type:"tag",sha:base}}, {ref:"refs/heads/other",object:{type:"commit",sha:base}}]) {
+    assertEquals(await readTrustedProof(binding,10,await fixture((p,v)=>p.endsWith("/git/ref/heads/main")?main:v),pins),null);
+  }
+  let mainReads=0;
+  assertEquals(await readTrustedProof(binding,10,await fixture((p,v)=>p.endsWith("/git/ref/heads/main") && ++mainReads>1
+    ? {ref:"refs/heads/main",object:{type:"commit",sha:"d".repeat(40)}}:v),pins),null);
+  assertEquals(mainReads,2,"actual main is re-read after proof validation");
+  for (const patch of [{head:{sha:"d".repeat(40),repo:{id:30}}},{state:"closed",merged:false},{state:"closed",merged:true}]) {
+    let prReads=0;
+    assertEquals(await readTrustedProof(binding,10,await fixture((p,v)=>p.endsWith("/pulls/8") && ++prReads>1?{...v as object,...patch}:v),pins),null);
+  }
+});
+
+Deno.test("only explicit merged PRs preserve historical proof without requiring current main", async () => {
+  let mainReads=0;
+  const merged=await fixture((p,v)=>{
+    if(p.endsWith("/git/ref/heads/main")){mainReads++;return {ref:"refs/heads/main",object:{type:"commit",sha:"d".repeat(40)}};}
+    return p.endsWith("/pulls/8")?{...v as object,state:"closed",merged:true}:v;
+  });
+  assertEquals((await readTrustedProof(binding,10,merged,pins))?.head,head);
+  assertEquals(mainReads,0,"historical merged receipts are not compared with later main");
+  for(const patch of [{state:"closed",merged:false},{state:undefined,merged:undefined},{state:"open",merged:true},{state:"closed",merged:"true"}]) {
+    assertEquals(await readTrustedProof(binding,10,await fixture((p,v)=>p.endsWith("/pulls/8")?{...v as object,...patch}:v),pins),null);
+  }
 });
