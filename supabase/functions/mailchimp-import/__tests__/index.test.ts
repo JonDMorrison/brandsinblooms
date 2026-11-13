@@ -677,3 +677,102 @@ Deno.test(
     ), false);
   },
 );
+
+Deno.test(
+  "mailchimp-import combines duplicate emails in one page without losing tags or unsubscribe",
+  async () => {
+    const { client, recorder } = createMockSupabaseClient({
+      "crm_customers:upsert": {
+        data: [{ id: "cust-both", email: "both@example.com" }],
+        error: null,
+      },
+      "customer_consents:upsert": { data: null, error: null },
+      "suppression_list:upsert": { data: null, error: null },
+      "crm_tags:select": { data: [], error: null },
+      "crm_tags:upsert": {
+        data: [
+          { id: "tag-vip", name: "VIP" },
+          { id: "tag-newsletter", name: "Newsletter" },
+        ],
+        error: null,
+      },
+      "customer_tags:upsert": { data: null, error: null },
+      "customer_sources:upsert": { data: null, error: null },
+    });
+    const runtimeState = {
+      knownTagNames: new Set<string>(),
+      seenEmails: new Set<string>(),
+    };
+    const outcome = await processBatch(
+      client as never,
+      [
+        {
+          id: "first",
+          email_address: "BOTH@example.com",
+          status: "subscribed",
+          merge_fields: { FNAME: "Correct" },
+          tags: [{ id: 1, name: "VIP" }],
+        },
+        {
+          id: "second",
+          email_address: "both@EXAMPLE.com",
+          status: "unsubscribed",
+          merge_fields: { FNAME: "Do Not Overwrite" },
+          tags: [{ id: 2, name: "Newsletter" }],
+        },
+      ],
+      "list-1",
+      "tenant-1",
+      "user-1",
+      runtimeState,
+    );
+    assertEquals(outcome.importedCount, 1);
+    assertEquals(outcome.skippedCount, 1);
+    const customers = recorder.find((entry) =>
+      entry.table === "crm_customers" && entry.operation === "upsert"
+    )?.payload as Array<Record<string, unknown>>;
+    assertEquals(customers.length, 1);
+    assertEquals(customers[0].first_name, "Correct");
+    const tagLinks = recorder.find((entry) =>
+      entry.table === "customer_tags" && entry.operation === "upsert"
+    )?.payload as Array<Record<string, unknown>>;
+    assertEquals(tagLinks.length, 2);
+    const consent = recorder.find((entry) =>
+      entry.table === "customer_consents" && entry.operation === "upsert"
+    )?.payload as Array<Record<string, unknown>>;
+    assertEquals(consent[0].status, "opted_out");
+    assertEquals(runtimeState.seenEmails.has("both@example.com"), true);
+  },
+);
+
+Deno.test(
+  "mailchimp-import failed profile upsert does not mark an email as processed",
+  async () => {
+    const { client } = createMockSupabaseClient({
+      "crm_customers:upsert": {
+        data: null,
+        error: { message: "temporary write failure" },
+      },
+    });
+    const runtimeState = {
+      knownTagNames: new Set<string>(),
+      seenEmails: new Set<string>(),
+    };
+    const outcome = await processBatch(
+      client as never,
+      [{
+        id: "first",
+        email_address: "again@example.com",
+        status: "subscribed",
+        merge_fields: {},
+        tags: [],
+      }],
+      "list-1",
+      "tenant-1",
+      "user-1",
+      runtimeState,
+    );
+    assertEquals(outcome.failedCount, 1);
+    assertEquals(runtimeState.seenEmails.has("again@example.com"), false);
+  },
+);
