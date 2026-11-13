@@ -95,3 +95,11 @@ jobs:
           fi
 
           echo "### ✅ All $checked edge function graphs resolve" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Test Mailchimp import overlap and consent handling
+        run: |
+          deno test \
+            --config supabase/functions/deno.json \
+            --frozen-lockfile \
+            --allow-env \
+            supabase/functions/mailchimp-import/__tests__/index.test.ts
