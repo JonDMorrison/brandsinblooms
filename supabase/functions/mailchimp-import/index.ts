@@ -1332,6 +1332,7 @@ export async function processBatch(
   try {
     consentsRecorded = await batchUpsertConsents(
       supabase,
+      tenantId,
       processableMembers,
       emailToCustomerId,
     );
@@ -1428,7 +1429,7 @@ export async function linkPreviouslySeenMailchimpMembers(
     member.status === "unsubscribed" || member.status === "cleaned"
   );
   const consentsRecorded = restrictiveMembers.length
-    ? await batchUpsertConsents(supabase, restrictiveMembers, idsByEmail)
+    ? await batchUpsertConsents(supabase, tenantId, restrictiveMembers, idsByEmail)
     : 0;
   if (restrictiveMembers.length) {
     await batchUpsertSuppressions(supabase, tenantId, restrictiveMembers);
@@ -1478,9 +1479,52 @@ async function batchUpsertContacts(
 
 async function batchUpsertConsents(
   supabase: SupabaseClient,
+  tenantId: string,
   members: MailchimpMember[],
   emailToCustomerId: Map<string, string>,
 ): Promise<number> {
+  // A re-import must never silently undo an earlier unsubscribe or bounce.
+  // Check the current CRM consent and active suppression state before any
+  // subscribed status writes, including overlapping newsletter/VIP audiences.
+  const subscribed = members.filter((member) =>
+    member.status === "subscribed" &&
+    emailToCustomerId.has(member.email_address)
+  );
+  const protectedCustomerIds = new Set<string>();
+  const protectedEmails = new Set<string>();
+  if (subscribed.length > 0) {
+    const ids = [...new Set(subscribed.map((member) =>
+      emailToCustomerId.get(member.email_address)!
+    ))];
+    const emails = [...new Set(subscribed.map((member) => member.email_address))];
+    const [{ data: consents, error: consentError }, {
+      data: suppressions, error: suppressionError,
+    }] = await Promise.all([
+      supabase.from("customer_consents")
+        .select("customer_id,status")
+        .eq("channel", "email")
+        .in("customer_id", ids),
+      supabase.from("suppression_list")
+        .select("email")
+        .eq("tenant_id", tenantId)
+        .eq("channel", "email")
+        .is("lifted_at", null)
+        .in("email", emails),
+    ]);
+    // No consent upgrade is safe when the protection check is unavailable.
+    if (consentError || suppressionError) {
+      throw consentError ?? suppressionError;
+    }
+    for (const consent of consents ?? []) {
+      if (["opted_out", "suppressed", "unsubscribed", "revoked"].includes(
+        String(consent.status).toLowerCase()
+      )) protectedCustomerIds.add(String(consent.customer_id));
+    }
+    for (const suppression of suppressions ?? []) {
+      protectedEmails.add(normalizeEmail(suppression.email));
+    }
+  }
+
   const consentRows = members.flatMap((member) => {
     const customerId = emailToCustomerId.get(member.email_address);
     if (!customerId) {
@@ -1488,6 +1532,8 @@ async function batchUpsertConsents(
     }
 
     if (member.status === "subscribed") {
+      if (protectedCustomerIds.has(customerId) ||
+        protectedEmails.has(member.email_address)) return [];
       return [
         {
           customer_id: customerId,

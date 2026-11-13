@@ -172,8 +172,8 @@ export const PreviewStep = ({
       <div>
         <h2 className="text-2xl font-semibold mb-2">Preview Import Data</h2>
         <p className="text-muted-foreground">
-          Review sample data before importing. This preview shows the first 10
-          contacts from the previewed scope.
+          Review sample contacts before importing. When you choose multiple
+          lists or segments, the preview includes a small sample from each.
         </p>
       </div>
 
@@ -191,8 +191,8 @@ export const PreviewStep = ({
           </div>
           {previewIsRepresentative && (
             <p className="text-sm text-muted-foreground md:max-w-xs md:text-right">
-              This sample represents the first selected Mailchimp scope. The
-              full import still processes every selected list and segment.
+              The sample includes your selected groups. Counts are estimates
+              before removing overlaps; review the final import report.
             </p>
           )}
         </div>
@@ -218,7 +218,7 @@ export const PreviewStep = ({
               <p className="text-2xl font-bold">
                 {preview.newContacts.toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">New Contacts</p>
+              <p className="text-sm text-muted-foreground">Estimated New Contacts</p>
             </div>
           </div>
         </Card>
@@ -229,7 +229,7 @@ export const PreviewStep = ({
               <p className="text-2xl font-bold">
                 {preview.alreadyInCRM.toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">Already In CRM</p>
+              <p className="text-sm text-muted-foreground">Estimated Already In CRM</p>
             </div>
           </div>
         </Card>

@@ -581,3 +581,99 @@ Deno.test(
     ), true);
   },
 );
+
+Deno.test(
+  "mailchimp-import never restores subscription over an existing opt-out or active suppression",
+  async () => {
+    const { client, recorder } = createMockSupabaseClient({
+      "crm_customers:upsert": {
+        data: [
+          { id: "cust-1", email: "optout@example.com" },
+          { id: "cust-2", email: "bounced@example.com" },
+        ],
+        error: null,
+      },
+      "customer_consents:select": {
+        data: [{ customer_id: "cust-1", status: "opted_out" }],
+        error: null,
+      },
+      "suppression_list:select": {
+        data: [{ email: "bounced@example.com" }],
+        error: null,
+      },
+      "crm_tags:select": { data: [], error: null },
+      "customer_sources:upsert": { data: null, error: null },
+    });
+    const outcome = await processBatch(
+      client as never,
+      [
+        {
+          id: "old-optout",
+          email_address: "optout@example.com",
+          status: "subscribed",
+          merge_fields: {},
+          tags: [],
+        },
+        {
+          id: "old-bounce",
+          email_address: "bounced@example.com",
+          status: "subscribed",
+          merge_fields: {},
+          tags: [],
+        },
+      ],
+      "list-1",
+      "tenant-1",
+      "user-1",
+      { knownTagNames: new Set<string>(), seenEmails: new Set<string>() },
+    );
+    assertEquals(outcome.importedCount, 2);
+    assertEquals(outcome.consentsRecorded, 0);
+    assertEquals(recorder.some((entry) =>
+      entry.table === "customer_consents" && entry.operation === "upsert"
+    ), false);
+    assertEquals(recorder.some((entry) =>
+      entry.table === "suppression_list" && entry.operation === "upsert"
+    ), false);
+    assertEquals(recorder.filter((entry) =>
+      entry.table === "suppression_list" && entry.operation === "select"
+    ).length, 1);
+  },
+);
+
+Deno.test(
+  "mailchimp-import blocks consent upgrades when suppression checks fail",
+  async () => {
+    const { client, recorder } = createMockSupabaseClient({
+      "crm_customers:upsert": {
+        data: [{ id: "cust-1", email: "person@example.com" }],
+        error: null,
+      },
+      "customer_consents:select": { data: [], error: null },
+      "suppression_list:select": {
+        data: null, error: { message: "Read unavailable" },
+      },
+    });
+    const outcome = await processBatch(
+      client as never,
+      [{
+        id: "member-1",
+        email_address: "person@example.com",
+        status: "subscribed",
+        merge_fields: {},
+        tags: [],
+      }],
+      "list-1",
+      "tenant-1",
+      "user-1",
+      { knownTagNames: new Set<string>(), seenEmails: new Set<string>() },
+    );
+    assertEquals(outcome.consentsRecorded, 0);
+    assertEquals(outcome.errorMessages.some((message) =>
+      message.includes("Consent write error")
+    ), true);
+    assertEquals(recorder.some((entry) =>
+      entry.table === "customer_consents" && entry.operation === "upsert"
+    ), false);
+  },
+);
