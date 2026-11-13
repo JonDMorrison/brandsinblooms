@@ -751,18 +751,6 @@ interface VercelDeployment {
   readyState?: string;
 }
 
-interface VercelProjectAlias {
-  target?: string;
-  redirect?: string | null;
-  deployment?: {
-    id?: string;
-    uid?: string;
-    url?: string;
-    meta?: Record<string, unknown>;
-    readyState?: string;
-  } | null;
-}
-
 function vercelDeploymentCommit(deployment: VercelDeployment): string | null {
   for (const key of ["githubCommitSha", "gitCommitSha", "commitSha"]) {
     const value = deployment.meta?.[key];
@@ -771,16 +759,81 @@ function vercelDeploymentCommit(deployment: VercelDeployment): string | null {
   return null;
 }
 
-function projectAliasDeployment(alias: VercelProjectAlias): VercelDeployment | null {
-  const deployment = alias.deployment;
-  const uid = deployment?.uid ?? deployment?.id;
-  if (!deployment || !uid || !deployment.url || deployment.readyState !== "READY") return null;
-  return {
-    uid,
-    url: deployment.url,
-    meta: deployment.meta,
-    readyState: deployment.readyState,
+type ProviderGet = <T>(path: string) => Promise<T>;
+interface CaptureDeployment extends RollbackDeployment { ownerId?: string; alias?: string[] }
+interface CaptureProject { id?: string; accountId?: string; targets?: { production?: CaptureDeployment } }
+interface CaptureDomains {
+  domains?: Array<{ name?: string; projectId?: string; verified?: boolean; gitBranch?: string | null; customEnvironmentId?: string | null; redirect?: string | null }>;
+  pagination?: { count?: number; next?: number | null };
+}
+
+function captureRepositoryMatches(deployment: CaptureDeployment, repository: string): boolean {
+  const meta = deployment.meta;
+  if (!meta || typeof meta.githubOrg !== "string" || typeof meta.githubRepo !== "string" ||
+    `${meta.githubOrg}/${meta.githubRepo}`.toLowerCase() !== repository.toLowerCase()) return false;
+  if (Object.hasOwn(meta, "githubCommitOrg") || Object.hasOwn(meta, "githubCommitRepo")) {
+    if (typeof meta.githubCommitOrg !== "string" || typeof meta.githubCommitRepo !== "string" ||
+      `${meta.githubCommitOrg}/${meta.githubCommitRepo}`.toLowerCase() !== repository.toLowerCase()) return false;
+  }
+  return true;
+}
+
+/** The legacy project.alias list can be empty for a healthy production project.
+ * Prove the actual production target AND every production domain/attached alias.
+ * Two complete snapshots bound mutable-state drift; this is not a provider lock.
+ * The injected reader is GET-only and remains scoped to the configured team. */
+export async function captureProductionSnapshot(target: VercelTarget, repository: string, get: ProviderGet): Promise<(VercelDeployment & { binding: string }) | null> {
+  const matchesRepo = (deployment: CaptureDeployment) => captureRepositoryMatches(deployment, repository);
+  const host = (value: unknown): value is string => typeof value === "string" && value.length <= 253 &&
+    /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(value) && value.includes(".") && !value.includes("..");
+  const read = async () => {
+    const project = await get<CaptureProject>(`/v9/projects/${encodeURIComponent(target.projectId)}`);
+    const serving = project.targets?.production;
+    if (project.id !== target.projectId || (project.accountId !== undefined && (typeof project.accountId !== "string" || !project.accountId)) || (target.teamId !== undefined && project.accountId !== undefined && project.accountId !== target.teamId) ||
+      !serving?.id || serving.target !== "production" || serving.readyState !== "READY" || !serving.url || !matchesRepo(serving) ||
+      ((Object.hasOwn(serving, "projectId") || Object.hasOwn(serving, "project")) && !deploymentProjectMatches(serving, target.projectId)) ||
+      (target.teamId !== undefined && serving.ownerId !== undefined && serving.ownerId !== target.teamId) ||
+      typeof serving.meta?.githubCommitSha !== "string" || !/^[a-f0-9]{40}$/.test(serving.meta.githubCommitSha)) return null;
+    const deployment = await get<CaptureDeployment>(`/v13/deployments/${encodeURIComponent(serving.id)}`);
+    if (deployment.id !== serving.id || deployment.url !== serving.url || deployment.readyState !== "READY" || deployment.target !== "production" ||
+      !deploymentProjectMatches(deployment, target.projectId) || !matchesRepo(deployment) ||
+      deployment.meta?.githubCommitSha !== serving.meta.githubCommitSha ||
+      (target.teamId !== undefined && deployment.ownerId !== target.teamId) ||
+      (project.accountId !== undefined && deployment.ownerId !== project.accountId) ||
+      !Array.isArray(deployment.alias) || deployment.alias.length === 0 || deployment.alias.length > 20 ||
+      deployment.alias.some(alias => !host(alias)) || new Set(deployment.alias).size !== deployment.alias.length) return null;
+    const domains = await get<CaptureDomains>(`/v9/projects/${encodeURIComponent(target.projectId)}/domains?limit=100`);
+    // Refuse partial pagination instead of silently proving only the first page.
+    if (!Array.isArray(domains.domains) || domains.domains.length === 0 || domains.domains.length > 100 ||
+      !domains.pagination || domains.pagination.count !== domains.domains.length || domains.pagination.next !== null) return null;
+    const names = new Set<string>();
+    for (const domain of domains.domains) {
+      if (!host(domain.name) || names.has(domain.name) || domain.projectId !== target.projectId) return null;
+      names.add(domain.name);
+      for (const key of ["gitBranch", "customEnvironmentId", "redirect"] as const) {
+        if (domain[key] != null && (typeof domain[key] !== "string" || !domain[key])) return null;
+      }
+    }
+    const production = domains.domains.filter(domain => !domain.gitBranch && !domain.customEnvironmentId && !domain.redirect);
+    if (!production.length || production.some(domain => domain.verified !== true)) return null;
+    const aliases = [...new Set([...production.map(domain => domain.name!), ...deployment.alias])].sort();
+    if (aliases.length > 20) return null;
+    // Fixed fan-out bounds latency without creating unbounded provider traffic.
+    for (let offset = 0; offset < aliases.length; offset += 4) {
+      const batch = aliases.slice(offset, offset + 4);
+      const results = await Promise.all(batch.map(name => get<{ alias?: string; deploymentId?: string; deployment?: { id?: string }; projectId?: string; redirect?: string | null }>(`/v4/aliases/${encodeURIComponent(name)}`)));
+      if (results.some((alias, index) => alias.alias !== batch[index] || alias.projectId !== target.projectId || alias.deploymentId !== deployment.id || alias.redirect != null ||
+        (alias.deployment !== undefined && alias.deployment?.id !== deployment.id))) return null;
+    }
+    return { deployment, aliases, domains: domains.domains.map(domain => [domain.name, domain.verified, domain.gitBranch ?? null, domain.customEnvironmentId ?? null, domain.redirect ?? null]).sort((a,b) => String(a[0]).localeCompare(String(b[0]))) };
   };
+  const before = await read();
+  if (!before) return null;
+  const after = await read();
+  if (!after || before.deployment.id !== after.deployment.id || before.deployment.url !== after.deployment.url ||
+    before.deployment.meta?.githubCommitSha !== after.deployment.meta?.githubCommitSha ||
+    JSON.stringify(before.aliases) !== JSON.stringify(after.aliases) || JSON.stringify(before.domains) !== JSON.stringify(after.domains)) return null;
+  return { uid: after.deployment.id!, url: after.deployment.url!, meta: after.deployment.meta, readyState: after.deployment.readyState, binding: JSON.stringify({ aliases: after.aliases, domains: after.domains }) };
 }
 
 async function deploymentContainsAny(
@@ -811,23 +864,10 @@ async function recordPreviousProductionDeployment(
   if (issue.rollback?.previous_deployment_id && !replaceExisting) return true;
   const excluded = new Set(excludeShas.map((sha) => sha.toLowerCase()));
   try {
-    // READY deployment history is not authoritative: a failed deployment stays
-    // READY after its aliases are rolled back. First prove which deployment is
-    // serving every production alias, then consider only that deployment or
-    // older history if the repair is already live.
-    const project = await vercel<{ alias?: VercelProjectAlias[] }>(
-      "GET",
-      `/v9/projects/${encodeURIComponent(target.projectId)}`,
-      target,
-    );
-    const productionAliases = (project.alias ?? []).filter((alias) =>
-      alias.target?.toUpperCase() === "PRODUCTION" && !alias.redirect
-    );
-    if (productionAliases.length === 0) return false;
-    const servingDeployments = productionAliases.map(projectAliasDeployment);
-    if (servingDeployments.some((deployment) => deployment === null)) return false;
-    const serving = servingDeployments[0]!;
-    if (servingDeployments.some((deployment) => deployment!.uid !== serving.uid)) return false;
+    // READY history does not establish current traffic. Production target and
+    // every current domain/alias must agree before considering rollback history.
+    const serving = await captureProductionSnapshot(target, issue.repository!, path => vercel("GET", path, target));
+    if (!serving) return false;
 
     const list = await vercel<{ deployments: VercelDeployment[] }>(
       "GET",
@@ -862,7 +902,18 @@ async function recordPreviousProductionDeployment(
         }
       }
     }
-    if (!previous) return false;
+    if (!previous || typeof previous.uid !== "string" || !previous.uid || typeof previous.url !== "string" || !previous.url) return false;
+    if (previous.uid !== serving.uid) {
+      const hydrated = await vercel<CaptureDeployment>("GET", `/v13/deployments/${encodeURIComponent(previous.uid)}`, target);
+      if (hydrated.id !== previous.uid || hydrated.url !== previous.url || !deploymentProjectMatches(hydrated, target.projectId) ||
+        hydrated.readyState !== "READY" || hydrated.target !== "production" ||
+        (target.teamId !== undefined && hydrated.ownerId !== target.teamId) ||
+        !captureRepositoryMatches(hydrated, issue.repository!) ||
+        typeof hydrated.meta?.githubCommitSha !== "string" || !/^[a-f0-9]{40}$/.test(hydrated.meta.githubCommitSha) ||
+        hydrated.meta.githubCommitSha !== vercelDeploymentCommit(previous)) return false;
+    }
+    const fresh = await captureProductionSnapshot(target, issue.repository!, path => vercel("GET", path, target));
+    if (!fresh || fresh.uid !== serving.uid || fresh.url !== serving.url || fresh.binding !== serving.binding || vercelDeploymentCommit(fresh) !== vercelDeploymentCommit(serving)) return false;
     await update(release, issue, null, {
       rollback: {
         previous_deployment_id: previous.uid,

@@ -25,6 +25,8 @@ export function eventBinding(event) {
 }
 
 export async function assertCurrentScope(binding, api) {
+  const main = await api(`/repos/${REPOSITORY}/git/ref/heads/main`);
+  if (main?.ref !== 'refs/heads/main' || main.object?.type !== 'commit' || main.object?.sha !== binding.base) fail('Current main differs from proven baseline');
   const root = `/repos/${REPOSITORY}/pulls/${binding.pr}`;
   const pr = await api(root);
   if (pr.number !== binding.pr || pr.state !== 'open' || pr.head?.sha !== binding.head || pr.base?.sha !== binding.base ||

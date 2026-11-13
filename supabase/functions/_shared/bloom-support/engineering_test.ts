@@ -1,5 +1,5 @@
 import { assertEquals, assertFalse, assertStringIncludes } from "@std/assert";
-import { deploymentProjectMatches, engineeringIssuePayload } from "./engineering.ts";
+import { captureProductionSnapshot, deploymentProjectMatches, engineeringIssuePayload } from "./engineering.ts";
 
 Deno.test("the final GitHub issue payload contains no client contact details or customer identifiers", () => {
   const issueId = "11111111-2222-4333-8444-555555555555";
@@ -225,4 +225,78 @@ Deno.test("Vercel deployment project binding accepts documented shapes and rejec
     assertEquals(deploymentProjectMatches(value, "prj_test"), false);
   }
   assertEquals(deploymentProjectMatches({ projectId: "" }, ""), false);
+});
+
+
+Deno.test("rollback capture proves raw production target despite empty legacy aliases and rejects incomplete or drifting traffic", async () => {
+  const target = { projectId: "prj_test", teamId: "team_test" }, repository = "JonDMorrison/brandsinblooms";
+  const sha = "a".repeat(40);
+  const names = ["bloomsuite.app", "www.bloomsuite.app", "brandsinblooms.vercel.app"];
+  const aliases = [...names, "brandsinblooms-brands-in-blooms.vercel.app", "brandsinblooms-git-main-brands-in-blooms.vercel.app"];
+  const deployment = { id: "dpl_current", url: "immutable.vercel.app", projectId: target.projectId, ownerId: target.teamId,
+    target: "production", readyState: "READY", alias: aliases,
+    meta: { githubOrg: "JonDMorrison", githubRepo: "brandsinblooms", githubCommitOrg: "JonDMorrison", githubCommitRepo: "brandsinblooms", githubCommitSha: sha } };
+  const project = { id: target.projectId, accountId: target.teamId, alias: [], targets: { production: deployment } };
+  const domains = { domains: names.map(name => ({ name, projectId: target.projectId, verified: true, gitBranch: null, customEnvironmentId: null, redirect: null })), pagination: { count: 3, next: null, prev: 1775489492443 } };
+  const run = async (mutate: (path: string, value: unknown, projectReads: number) => unknown = (_path,value) => value) => {
+    const reads: string[] = []; let projectReads = 0, activeAliases = 0, peakAliases = 0;
+    const get = <T>(path: string): Promise<T> => {
+      reads.push(path); let value: unknown;
+      if (path === "/v9/projects/prj_test") { projectReads++; value = project; }
+      else if (path.startsWith("/v9/projects/prj_test/domains?")) value = domains;
+      else if (path === "/v13/deployments/dpl_current") value = deployment;
+      else if (path.startsWith("/v4/aliases/")) value = { alias: decodeURIComponent(path.split("/").at(-1)!), projectId: target.projectId, deploymentId: deployment.id, deployment: { id: deployment.id }, redirect: null };
+      else throw Error(`Unexpected ${path}`);
+      const isAlias = path.startsWith("/v4/aliases/");
+      if (isAlias) { activeAliases++; peakAliases = Math.max(peakAliases, activeAliases); }
+      return Promise.resolve(mutate(path, structuredClone(value), projectReads) as T).finally(() => { if (isAlias) activeAliases--; });
+    };
+    return { result: await captureProductionSnapshot(target, repository, get), reads, peakAliases };
+  };
+  const success = await run();
+  assertEquals(success.result?.uid, deployment.id);
+  assertEquals(success.peakAliases, 4, "provider alias fan-out is capped at four");
+  assertEquals(success.result?.meta?.githubCommitSha, sha);
+  assertEquals(success.reads.filter(path => path.startsWith("/v4/aliases/")).length, 10, "every actual alias is checked before and after");
+  assertFalse(success.reads.some(path => path.startsWith("/v6/deployments")), "READY history cannot establish current traffic");
+  for (const scenario of ["missing_target", "wrong_project", "wrong_team", "not_ready", "wrong_repo", "conflicting_repo", "malformed_repo", "wrong_sha", "partial_domains", "missing_next", "missing_pagination", "empty_domains", "unverified", "foreign_domain", "duplicate_domain", "malformed_scope", "alias_missing", "alias_split", "alias_foreign", "alias_redirect", "alias_nested_conflict", "too_many_aliases", "new_target", "new_domain", "changed_alias_list"]) {
+    const outcome = await run((path, value, projectReads) => {
+      const v = value as Record<string, unknown>;
+      if (path === "/v9/projects/prj_test") {
+        if (scenario === "missing_target") return { ...project, targets: {} };
+        if (scenario === "wrong_project") return { ...project, id: "other" };
+        if (scenario === "new_target" && projectReads > 1) return { ...project, targets: { production: { ...deployment, id: "dpl_new" } } };
+      }
+      if (path === "/v13/deployments/dpl_current") {
+        if (scenario === "wrong_team") return { ...deployment, ownerId: "team_other" };
+        if (scenario === "not_ready") return { ...deployment, readyState: "BUILDING" };
+        if (scenario === "wrong_repo") return { ...deployment, meta: { ...deployment.meta, githubRepo: "other" } };
+        if (scenario === "conflicting_repo") return { ...deployment, meta: { ...deployment.meta, githubCommitRepo: "other" } };
+        if (scenario === "malformed_repo") return { ...deployment, meta: { ...deployment.meta, githubOrg: ["JonDMorrison"] } };
+        if (scenario === "wrong_sha") return { ...deployment, meta: { ...deployment.meta, githubCommitSha: "b".repeat(40) } };
+        if (scenario === "alias_missing") return { ...deployment, alias: [] };
+        if (scenario === "too_many_aliases") return { ...deployment, alias: Array.from({length:21},(_,i)=>`host${i}.test`) };
+        if (scenario === "changed_alias_list" && projectReads > 1) return { ...deployment, alias: aliases.slice(0,3) };
+      }
+      if (path.includes("/domains?")) {
+        if (scenario === "partial_domains") return { ...domains, pagination: { count:3,next:123 } };
+        if (scenario === "missing_next") return { ...domains, pagination: { count:3 } };
+        if (scenario === "missing_pagination") return { domains: domains.domains };
+        if (scenario === "empty_domains") return { domains: [], pagination: {count:0,next:null} };
+        if (scenario === "unverified") return { ...domains, domains: domains.domains.map(d => ({...d,verified:false})) };
+        if (scenario === "foreign_domain") return { ...domains, domains: domains.domains.map(d => ({...d,projectId:"other"})) };
+        if (scenario === "duplicate_domain") return { ...domains, domains: [domains.domains[0], domains.domains[0], domains.domains[2]] };
+        if (scenario === "malformed_scope") return { ...domains, domains: domains.domains.map(d => ({...d,gitBranch:[]})) };
+        if (scenario === "new_domain" && projectReads > 1) return { ...domains, domains: domains.domains.slice(0,2), pagination:{count:2,next:null} };
+      }
+      if (path.startsWith("/v4/aliases/") && path.endsWith("www.bloomsuite.app")) {
+        if (scenario === "alias_split") return {...v,deploymentId:"dpl_other"};
+        if (scenario === "alias_foreign") return {...v,projectId:"other"};
+        if (scenario === "alias_redirect") return {...v,redirect:"other.test"};
+        if (scenario === "alias_nested_conflict") return {...v,deployment:{id:"other"}};
+      }
+      return value;
+    }).catch(() => ({result:null,reads:[]}));
+    assertEquals(outcome.result,null,scenario);
+  }
 });

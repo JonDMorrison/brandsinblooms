@@ -89,16 +89,22 @@ const commitContainments = new Set<string>();
 let deploymentState: "success" | "failure" = "success";
 let dispatchFailNext = 0;
 let storageFailNext = 0;
-let vercelServingSha = "prior-serving-sha";
+let vercelServingSha = "0".repeat(40);
 let vercelRollbackRequested = false;
 let deploymentUrl = "https://app.test";
 let newerProductionBeforeRollback = false;
 let rollbackPreflightStarted = false;
 const descendantProductionSha = "5".repeat(40);
 const priorProductionSha = "1".repeat(40);
-function vercelDeployment(id: string, sha: string) {
-  return { id, uid: id, url: `${id}.vercel.app`, projectId: "prj_test", target: "production", readyState: "READY",
-    meta: { githubCommitSha: sha, githubOrg: "JonDMorrison", githubRepo: "brandsinblooms" } };
+function vercelProjectFixture(projectId: string) {
+  return projectId === "prj_pos_test"
+    ? { projectId, prefix: "dpl_pos", domains: ["pos.bloom.test", "www.pos.bloom.test"], githubOrg: "Brands-In-Blooms", githubRepo: "bloomtill" }
+    : { projectId: "prj_test", prefix: "dpl", domains: ["bloomsuite.app", "www.bloomsuite.app"], githubOrg: "JonDMorrison", githubRepo: "brandsinblooms" };
+}
+function vercelDeployment(id: string, sha: string, projectId = "prj_test") {
+  const fixture = vercelProjectFixture(projectId);
+  return { id, uid: id, url: `${id}.vercel.app`, projectId, target: "production", readyState: "READY", alias: fixture.domains,
+    meta: { githubCommitSha: sha, githubOrg: fixture.githubOrg, githubRepo: fixture.githubRepo } };
 }
 
 function githubStub(method: string, path: string, body: unknown): Response {
@@ -278,34 +284,56 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
   if (url.hostname === "api.vercel.com") {
     vercelCalls.push({ method: req.method, path: url.pathname + url.search });
     if (req.method === "GET" && url.pathname === "/v6/deployments") {
+      const fixture = vercelProjectFixture(url.searchParams.get("projectId") ?? "prj_test");
       return new Response(JSON.stringify({ deployments: [
-        vercelDeployment("dpl_current", vercelServingSha),
-        vercelDeployment("dpl_descendant", descendantProductionSha),
-        vercelDeployment("dpl_previous", priorProductionSha),
+        vercelDeployment(`${fixture.prefix}_current`, vercelServingSha, fixture.projectId),
+        vercelDeployment(`${fixture.prefix}_descendant`, descendantProductionSha, fixture.projectId),
+        vercelDeployment(`${fixture.prefix}_previous`, priorProductionSha, fixture.projectId),
       ] }), { status: 200 });
     }
     if (req.method === "GET" && url.pathname.startsWith("/v13/deployments/")) {
-      rollbackPreflightStarted = true;
-      if (url.pathname === "/v13/deployments/dpl_current.vercel.app") return Response.json(vercelDeployment("dpl_current", vercelServingSha));
-      if (url.pathname === "/v13/deployments/dpl_previous") return Response.json(vercelDeployment("dpl_previous", priorProductionSha));
+      // Only the rollback-execution preflight's immutable hostname read triggers
+      // the concurrent-production scenario, not capture's new ID hydration.
+      if (url.pathname === "/v13/deployments/dpl_current.vercel.app") {
+        rollbackPreflightStarted = true;
+        return Response.json(vercelDeployment("dpl_current", vercelServingSha));
+      }
+      const id = url.pathname.slice("/v13/deployments/".length);
+      const fixture = vercelProjectFixture(id.startsWith("dpl_pos_") ? "prj_pos_test" : "prj_test");
+      if (id === `${fixture.prefix}_current`) return Response.json(vercelDeployment(id, vercelServingSha, fixture.projectId));
+      if (id === `${fixture.prefix}_descendant`) return Response.json(vercelDeployment(id, descendantProductionSha, fixture.projectId));
+      if (id === `${fixture.prefix}_previous`) return Response.json(vercelDeployment(id, priorProductionSha, fixture.projectId));
       return Response.json({ error: "unknown deployment" }, { status: 404 });
+    }
+    if (req.method === "GET" && /^\/v9\/projects\/[^/]+\/domains$/.test(url.pathname)) {
+      const fixture = vercelProjectFixture(url.pathname.split("/")[3]);
+      return Response.json({
+        domains: fixture.domains.map(name => ({ name, projectId: fixture.projectId, verified: true, gitBranch: null, customEnvironmentId: null, redirect: null })),
+        pagination: { count: fixture.domains.length, next: null },
+      });
+    }
+    if (req.method === "GET" && url.pathname.startsWith("/v4/aliases/")) {
+      const name = decodeURIComponent(url.pathname.slice("/v4/aliases/".length));
+      const fixture = vercelProjectFixture(name === "pos.bloom.test" || name === "www.pos.bloom.test" ? "prj_pos_test" : "prj_test");
+      if (!fixture.domains.includes(name)) return Response.json({ error: "unknown alias" }, { status: 404 });
+      const deploymentId = `${fixture.prefix}_${vercelRollbackRequested ? "previous" : "current"}`;
+      return Response.json({ alias: name, projectId: fixture.projectId, deploymentId, deployment: { id: deploymentId }, redirect: null });
     }
     if (req.method === "POST" && /\/v1\/projects\/[^/]+\/rollback\/[^/]+$/.test(url.pathname)) {
       vercelRollbackRequested = true;
       return new Response(null, { status: 201 });
     }
     if (req.method === "GET" && /\/v9\/projects\/[^/]+$/.test(url.pathname)) {
+      const fixture = vercelProjectFixture(url.pathname.split("/").at(-1)!);
       const serving = vercelRollbackRequested
-        ? vercelDeployment("dpl_previous", priorProductionSha)
-        : vercelDeployment("dpl_current", vercelServingSha);
+        ? vercelDeployment(`${fixture.prefix}_previous`, priorProductionSha, fixture.projectId)
+        : vercelDeployment(`${fixture.prefix}_current`, vercelServingSha, fixture.projectId);
       return Response.json({
-        id: "prj_test",
+        id: fixture.projectId,
         targets: { production: newerProductionBeforeRollback && rollbackPreflightStarted
           ? vercelDeployment("dpl_newer", "4".repeat(40)) : serving },
-        alias: [
-          { target: "PRODUCTION", domain: "bloomsuite.app", deployment: { ...serving, readyState: "READY" } },
-          { target: "PRODUCTION", domain: "www.bloomsuite.app", deployment: { ...serving, readyState: "READY" } },
-        ],
+        // Real Vercel projects can have no legacy aliases while serving normally.
+        alias: [],
         lastAliasRequest: vercelRollbackRequested
           ? {
             type: "rollback",
@@ -1801,7 +1829,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     newerProductionBeforeRollback = false;
     rollbackPreflightStarted = false;
     deploymentUrl = "https://app.test";
-    vercelServingSha = "prior-serving-sha";
+    vercelServingSha = "0".repeat(40);
     vercelRollbackRequested = false;
     releasePolicyValue.verificationChecks["JonDMorrison/brandsinblooms"] = [{
       url: "https://bloomsuite.app/campaigns/preview",
