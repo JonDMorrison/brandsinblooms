@@ -1004,15 +1004,26 @@ export async function runMailchimpImport(params: {
           runtimeState,
         );
         if (previouslySeenMembers.length > 0) {
-          const repeated = await linkPreviouslySeenMailchimpMembers(
-            supabase,
-            tenantId,
-            previouslySeenMembers,
-            runtimeState,
-          );
-          batchOutcome.customerIds.push(...repeated.customerIds);
-          batchOutcome.tagsCreated += repeated.tagsCreated;
-          batchOutcome.consentsRecorded += repeated.consentsRecorded;
+          try {
+            const repeated = await linkPreviouslySeenMailchimpMembers(
+              supabase,
+              tenantId,
+              previouslySeenMembers,
+              runtimeState,
+            );
+            batchOutcome.customerIds.push(...repeated.customerIds);
+            batchOutcome.tagsCreated += repeated.tagsCreated;
+            batchOutcome.consentsRecorded += repeated.consentsRecorded;
+          } catch (repeatError) {
+            // Preserve successfully processed new members and report the
+            // missing repeat-membership work for explicit reconciliation.
+            batchOutcome.errorMessages.push(
+              `Repeated audience membership failed: ${
+                repeatError instanceof Error ? repeatError.message : "unknown error"
+              }`,
+            );
+            batchOutcome.failedCount += previouslySeenMembers.length;
+          }
         }
       } catch (error: any) {
         batchOutcome = {
