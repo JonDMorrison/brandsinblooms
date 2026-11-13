@@ -102,5 +102,5 @@ jobs:
             --config supabase/functions/deno.json \
             --frozen-lockfile \
             --allow-env \
-            supabase/functions/mailchimp-import/__tests__/index.test.ts
+            supabase/functions/mailchimp-import/__tests__/index.test.ts \
             supabase/functions/mailchimp-fetch-preview/__tests__/index.test.ts
