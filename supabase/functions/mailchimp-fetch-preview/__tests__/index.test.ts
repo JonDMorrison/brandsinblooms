@@ -309,3 +309,84 @@ Deno.test(
     assertEquals(response.status, 500);
   },
 );
+
+Deno.test(
+  "mailchimp-fetch-preview samples all selected segments using their own parent lists",
+  async () => {
+    const { client: authClient } = createMockSupabaseClient({
+      "auth:getUser": { data: { user: { id: "user-1" } }, error: null },
+    });
+    const { client: serviceClient } = createMockSupabaseClient({
+      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+      "import_jobs:select": {
+        data: { config: {
+          listIds: ["list-other"],
+          segmentIds: ["list-vip:10", "list-newsletter:20"],
+        } },
+        error: null,
+      },
+      "provider_connections:select": {
+        data: { encrypted_access_token: "encrypted", metadata: { dc: "us1" } },
+        error: null,
+      },
+      "provider_artifacts:select": {
+        data: [
+          { external_id: "list-vip:10", name: "VIP", member_count: 30 },
+          { external_id: "list-newsletter:20", name: "Newsletter", member_count: 60 },
+        ],
+        error: null,
+      },
+      "crm_customers:select": { data: [], error: null },
+    });
+    const requestedSegments: string[] = [];
+    const response = await handleMailchimpFetchPreview(
+      jsonRequest(
+        "https://example.test",
+        { jobId: "job-1" },
+        { headers: { Authorization: "Bearer token" } },
+      ),
+      {
+        createClient: createClientFactory(authClient, serviceClient) as never,
+        envGet: makeEnv({
+          SUPABASE_URL: "https://supabase.test",
+          SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+          SUPABASE_ANON_KEY: "anon-key",
+        }),
+        mailchimpFromConnection: async () => ({
+          getList: async (id: string) => ({
+            id, name: id, stats: { member_count: 100 },
+          }),
+          getSegmentMembers: async (list: string, segment: string) => {
+            requestedSegments.push(`${list}:${segment}`);
+            return {
+              total_items: 40,
+              members: [
+                {
+                  email_address: "overlap@example.com",
+                  merge_fields: {},
+                  tags: [],
+                  status: "subscribed",
+                },
+                {
+                  email_address: `${segment}@example.com`,
+                  merge_fields: {},
+                  tags: [],
+                  status: "subscribed",
+                },
+              ],
+            };
+          },
+        }) as never,
+      },
+    );
+    assertEquals(response.status, 200);
+    const body = await response.json();
+    assertEquals(requestedSegments, ["list-vip:10", "list-newsletter:20"]);
+    assertEquals(body.listInfos.map((item: {id: string}) => item.id), [
+      "list-vip", "list-newsletter",
+    ]);
+    assertEquals(body.selectedSegments.length, 2);
+    assertEquals(body.estimatedImportCount, 90);
+    assertEquals(body.sampleContacts.length, 3);
+  },
+);
