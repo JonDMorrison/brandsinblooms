@@ -9,6 +9,8 @@ customer request and sent time. Use a stable message permalink/ID. Never infer
 response delivery from a draft, acknowledgement, internal note or client claim.
 Only active platform administrators/operators with ticket access may attest;
 there is no public RPC, automatic Gmail ingestion or new client permission.
+A reply predating a forwarded handoff keeps its actual sent time in the audit;
+the first-response metric is clamped to ticket creation to avoid negative time.
 Repeated identical evidence is harmless, changed timestamps conflict. This
 records response timing and an audit entry without sending mail, changing ticket
 status, taking ownership or resuming paused automation. A next-action deadline

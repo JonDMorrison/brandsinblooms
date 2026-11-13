@@ -72,7 +72,7 @@ BEGIN
   END IF;
   t := bloom_support.require_ticket(p_actor, p_ticket);
   SELECT * INTO t FROM bloom_support.tickets WHERE id = p_ticket FOR UPDATE;
-  IF p_responded_at IS NULL OR p_responded_at < t.created_at OR p_responded_at > now()
+  IF p_responded_at IS NULL OR p_responded_at > now()
     OR length(btrim(coalesce(p_source_ref,''))) NOT BETWEEN 8 AND 2000 THEN
     RAISE EXCEPTION 'invalid: sent time and source reference required' USING ERRCODE = '22023';
   END IF;
@@ -86,7 +86,7 @@ BEGIN
     RETURN jsonb_build_object('recorded', true, 'duplicate', true);
   END IF;
   UPDATE bloom_support.tickets SET
-    first_response_at = least(first_response_at, p_responded_at),
+    first_response_at = least(first_response_at, greatest(t.created_at, p_responded_at)),
     last_team_message_at = greatest(last_team_message_at, p_responded_at),
     version = version + 1, updated_at = now()
     WHERE id = p_ticket;

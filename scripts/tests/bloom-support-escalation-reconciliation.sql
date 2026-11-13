@@ -27,6 +27,10 @@ BEGIN
   PERFORM bloom_support.sweep_deadlines();
   IF (SELECT status FROM bloom_support.escalations WHERE id=e)<>'resolved' THEN RAISE EXCEPTION 'stale response escalation survives'; END IF;
   IF (SELECT status FROM bloom_support.tickets WHERE id=t)<>'working' THEN RAISE EXCEPTION 'work incorrectly closed'; END IF;
+  -- A forwarded handoff may be created after the customer already received
+  -- the reply. Preserve actual evidence time without negative response metrics.
+  PERFORM bloom_support.record_external_response(a,t,now()-interval '16 days','gmail:sent:pre-handoff');
+  IF NOT (SELECT first_response_at=created_at AND last_team_message_at=responded FROM bloom_support.tickets WHERE id=t) THEN RAISE EXCEPTION 'pre-handoff response timing incorrect'; END IF;
   -- A new, genuinely overdue next step must escalate again, despite the old
   -- escalation having been resolved. The paused human owner is not exempt.
   UPDATE bloom_support.tickets SET next_action='Investigate remaining issue',next_action_due_at=now()-interval '1 minute' WHERE id=t;
