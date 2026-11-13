@@ -49,6 +49,11 @@ export interface AuthorityDependencies {
   credentials:(edition?:LightspeedEdition)=>{clientId:string;clientSecret:string};
   fetcher?:typeof fetch;
   now?:()=>number;
+  /** Master gate for requesting write-related OAuth scopes; off by default. */
+  allowSalesScopeRequest?:boolean;
+  /** Explicitly approved site IDs; empty or absent means no site may request/write sales scopes. */
+  salesScopeSiteIds?:ReadonlySet<string>;
+  /** Separate master gate for sale POSTs; must remain off until end-to-end readiness passes. */
   allowSaleWrite?:boolean;
 }
 class AuthorityError extends Error {
@@ -176,7 +181,9 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
       const now=(deps.now??Date.now)();
       if(body.action==="readiness") {
         const ready=(edition:LightspeedEdition)=>{try{credentials(deps,edition);return true;}catch{return false;}};
-        return json({ok:true,editions:{"x-series":ready("x-series"),"r-series":ready("r-series")},salesWriteAvailable:deps.allowSaleWrite===true});
+        return json({ok:true,editions:{"x-series":ready("x-series"),"r-series":ready("r-series")},
+          salesScopeRequestConfigured:deps.allowSalesScopeRequest===true&&(deps.salesScopeSiteIds?.size??0)>0,
+          salesWriteAvailable:deps.allowSaleWrite===true});
       }
       if(body.action==="start") {
         const state=stateValue(body.state);
@@ -191,7 +198,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         assertFresh(grant,now);
         const authorizationUrl=new URL(providerAuthorizationUrl(context.edition,{clientId:app.clientId,
           redirectUri:AUTHORITY_CALLBACK,state}));
-        if(deps.allowSaleWrite===true && context.edition==="x-series"){
+        if(deps.allowSalesScopeRequest===true && deps.salesScopeSiteIds?.has(context.siteId) && context.edition==="x-series"){
           authorizationUrl.searchParams.set("scope",[...providerScopes(context.edition),
             "sales:read","sales:write","users:read","registers:read","taxes:read"].join(" "));
         }
@@ -264,7 +271,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
       }
       if(body.action==="status")return json({ok:true,...identity(grant)});
       if(body.action==="sale"){
-        if(deps.allowSaleWrite!==true)throw new AuthorityError("sale_export_disabled",403);
+        if(deps.allowSaleWrite!==true || !deps.salesScopeSiteIds?.has(grant.siteId))throw new AuthorityError("sale_export_disabled",403);
         if(lightspeedEdition(grant.edition)!=="x-series"||body.siteId!==grant.siteId)
           throw new AuthorityError("invalid_proof",403);
         const saleInput=body.sale as StripePaidSaleInput;
