@@ -37,7 +37,13 @@ export function diagnosticClientHint(question: string): string | null {
 
 const normalize = (value: string): string => " " + value.toLowerCase()
   .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim() + " ";
-const generic = new Set(["garden","gardens","centre","center","nursery","nurseries","the","ltd","inc","store","flower","plants"]);
+// Common operational words in diagnostic instructions must not be mistaken for customer names.
+const generic = new Set([
+  "garden","gardens","centre","center","nursery","nurseries","the","ltd",
+  "inc","store","flower","plants","company","test","testing","integration",
+  "integrations","sync","health","verify","check","report","status",
+  "counterpoint","opd","november","read","only",
+]);
 const isUuid = (value: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 

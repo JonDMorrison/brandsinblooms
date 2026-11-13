@@ -72,3 +72,15 @@ Deno.test("unmentioned garden centres cannot be selected from unrelated message 
   assertEquals(diagnosticClientHint("Integration test, report health, site and tickets; verify CounterPoint for noone"), "noone");
   assertEquals(findDiagnosticAccount("noone", accounts), null);
 });
+
+Deno.test("ignores integration-test instructions when selecting the real garden centre", () => {
+  const siteId = "f599e50e-4245-43d2-954c-e5b05777ec22";
+  const list = [
+    {id:"test1", name:"Acceptance Test Garden Centre", links:[{product:"cms", external_id:"11111111-1111-4111-8111-111111111111"}]},
+    {id:"lacoste", name:"Lacoste Garden Centre", links:[{product:"cms", external_id:siteId}]},
+    {id:"test2", name:"Acceptance Test Garden Centre", links:[{product:"cms", external_id:"22222222-2222-4222-8222-222222222222"}]},
+  ];
+  const message = "Integration test (read-only, November 8, 2026): Verify Lacoste CounterPoint and OPD integration. Report recorded health and synchronization evidence only.";
+  assertEquals(findDiagnosticAccount(message, list)?.siteId, siteId);
+  assertEquals(findDiagnosticAccount("Verify integration test for the test garden", list), null);
+});
