@@ -356,6 +356,18 @@ Deno.test(
           getList: async (id: string) => ({
             id, name: id, stats: { member_count: 100 },
           }),
+          getListMembers: async (id: string) => {
+            assertEquals(id, "list-other");
+            return {
+              total_items: 100,
+              members: [{
+                email_address: "full-list@example.com",
+                merge_fields: {},
+                tags: [],
+                status: "subscribed",
+              }],
+            };
+          },
           getSegmentMembers: async (list: string, segment: string) => {
             requestedSegments.push(`${list}:${segment}`);
             return {
@@ -383,10 +395,10 @@ Deno.test(
     const body = await response.json();
     assertEquals(requestedSegments, ["list-vip:10", "list-newsletter:20"]);
     assertEquals(body.listInfos.map((item: {id: string}) => item.id), [
-      "list-vip", "list-newsletter",
+      "list-vip", "list-newsletter", "list-other",
     ]);
     assertEquals(body.selectedSegments.length, 2);
-    assertEquals(body.estimatedImportCount, 90);
-    assertEquals(body.sampleContacts.length, 3);
+    assertEquals(body.estimatedImportCount, 190);
+    assertEquals(body.sampleContacts.length, 4);
   },
 );
