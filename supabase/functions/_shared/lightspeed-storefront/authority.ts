@@ -198,7 +198,9 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         assertFresh(grant,now);
         const authorizationUrl=new URL(providerAuthorizationUrl(context.edition,{clientId:app.clientId,
           redirectUri:AUTHORITY_CALLBACK,state}));
-        if(deps.allowSalesScopeRequest===true && deps.salesScopeSiteIds?.has(context.siteId) && context.edition==="x-series"){
+        const requestSalesScopes=deps.allowSalesScopeRequest ?? deps.allowSaleWrite===true;
+        const siteAllowed=deps.salesScopeSiteIds===undefined || deps.salesScopeSiteIds.has(context.siteId);
+        if(requestSalesScopes && siteAllowed && context.edition==="x-series"){
           authorizationUrl.searchParams.set("scope",[...providerScopes(context.edition),
             "sales:read","sales:write","users:read","registers:read","taxes:read"].join(" "));
         }
