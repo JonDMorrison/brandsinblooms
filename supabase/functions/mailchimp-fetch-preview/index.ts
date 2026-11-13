@@ -124,7 +124,9 @@ export async function handleMailchimpFetchPreview(
     const config = asObject(job.config);
     const listIds = asStringArray(config?.listIds);
     const segmentIds = asStringArray(config?.segmentIds);
-    const listId = listIds[0] ?? extractListId(segmentIds[0]);
+    const listId = segmentIds.length > 0
+      ? extractListId(segmentIds[0])
+      : listIds[0];
 
     if (!listId) {
       throw new Error("No Mailchimp list selected for preview");
@@ -164,15 +166,42 @@ export async function handleMailchimpFetchPreview(
         (sum, segment) => sum + segment.memberCount,
         0,
       );
-      resolvedListInfos = [resolvedListInfo];
-      previewMembers = (
-        await client.getSegmentMembers(
-          listId,
-          extractSegmentId(segmentIds[0]) ?? "",
-          0,
-          10,
-        )
-      ).members;
+      const parentListIds = [...new Set(segmentIds.map(extractListId).filter(
+        (id): id is string => Boolean(id),
+      ))];
+      resolvedListInfos = await Promise.all(
+        parentListIds.map(async (parentListId) => {
+          const selectedList = parentListId === resolvedListInfo.id
+            ? listInfo
+            : await client.getList(parentListId);
+          return {
+            id: selectedList.id,
+            name: selectedList.name,
+            totalMembers: selectedList.stats?.member_count ?? 0,
+          };
+        }),
+      );
+      const sampleSizePerSegment = getListPreviewSampleSize(segmentIds.length);
+      const segmentSamples = await Promise.all(
+        segmentIds.map(async (selection) => {
+          const parentListId = extractListId(selection);
+          const segmentId = extractSegmentId(selection);
+          if (!parentListId || !segmentId) {
+            throw new Error("Invalid Mailchimp segment selection");
+          }
+          return (await client.getSegmentMembers(
+            parentListId, segmentId, 0, sampleSizePerSegment,
+          )).members;
+        }),
+      );
+      previewMembers = dedupePreviewMembersByEmail(segmentSamples.flat());
+      resolvedListInfo = resolvedListInfos.length === 1
+        ? resolvedListInfos[0]
+        : {
+            id: "multiple",
+            name: `${resolvedListInfos.length} selected lists`,
+            totalMembers: estimatedImportCount,
+          };
     } else {
       const sampleSizePerList = getListPreviewSampleSize(listIds.length);
       const resolvedLists = await Promise.all(
