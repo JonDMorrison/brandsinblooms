@@ -50,7 +50,7 @@ export function IdealCustomerTypeExportPanel({
   return (
     <Stack spacing={2}>
       <NewsletterMatchReviewPanel key={tenantId + "-newsletter-match"} />
-      <CustomerRefreshReviewPanel key={tenantId + "-customer-refresh"} />
+      <CustomerRefreshReviewPanel key={tenantId + "-customer-refresh"} tenantId={tenantId} />
       <IdealCustomerTypeExportWorksheet key={tenantId} tenantId={tenantId} />
     </Stack>
   );

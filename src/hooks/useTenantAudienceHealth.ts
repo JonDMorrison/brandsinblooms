@@ -26,7 +26,9 @@ function buildBaseQuery(tenantId: string) {
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId)
     .is("deleted_at", null)
+    .is("merged_into_customer_id", null)
     .not("email", "is", null)
+    .neq("email", "")
     .not("email", "ilike", "%@noemail.local");
 }
 
@@ -148,6 +150,7 @@ export async function fetchCampaignAudienceHealth(
       .select("id, email, email_opt_in, email_consent_method, suppressed")
       .eq("tenant_id", options.tenantId)
       .is("deleted_at", null)
+      .is("merged_into_customer_id", null)
       .not("email", "is", null)
       .in("id", chunk);
 
