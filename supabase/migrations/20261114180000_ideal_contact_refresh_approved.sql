@@ -90,7 +90,7 @@ BEGIN
  THEN RAISE EXCEPTION 'Company-wide customer write permission required'; END IF;
  IF p_source_sha256 IS NULL OR p_source_sha256 !~ '^[a-f0-9]{64}$'
  THEN RAISE EXCEPTION 'Original source fingerprint required'; END IF;
- IF jsonb_typeof(p_changes) <> 'array'
+ IF p_changes IS NULL OR jsonb_typeof(p_changes) <> 'array'
     OR jsonb_array_length(p_changes) < 1 OR jsonb_array_length(p_changes) > 200
  THEN RAISE EXCEPTION 'Review a batch of 1–200 exact changes'; END IF;
  FOR entry IN SELECT value FROM jsonb_array_elements(p_changes) LOOP
@@ -143,12 +143,20 @@ BEGIN
    THEN RAISE EXCEPTION 'Customer field changed since source export; manual review required'; END IF;
    IF existing_value = new_value THEN RAISE EXCEPTION 'No actual customer update'; END IF;
    -- Permission follows the verified address/device, never a replacement contact field.
+   -- An external import may have changed the authoritative source email.
+   -- Never overwrite newer source provenance with a stale till export.
+   IF field_name='EMAIL' AND coalesce(person.custom_fields->>'ideal_source_email','')
+        IS DISTINCT FROM old_value
+        AND NOT (old_value='' AND coalesce(person.custom_fields->>'ideal_source_email','')='')
+   THEN RAISE EXCEPTION 'IdealPOS email source has changed; manual reconciliation required'; END IF;
    IF field_name='EMAIL' AND (
         person.email_opt_in IS TRUE OR person.email_consent_source IS NOT NULL OR
         EXISTS(SELECT 1 FROM public.customer_consents
                WHERE customer_id=person.id AND channel='email' AND status='opted_in')
    ) THEN RAISE EXCEPTION 'Verified email permission requires separate address verification'; END IF;
-   IF field_name='MOBILE' AND person.sms_opt_in IS TRUE
+   IF field_name='MOBILE' AND (person.sms_opt_in IS TRUE OR
+       EXISTS(SELECT 1 FROM public.customer_consents
+              WHERE customer_id=person.id AND channel='sms' AND status='opted_in'))
    THEN RAISE EXCEPTION 'Verified SMS permission requires separate phone verification'; END IF;
    IF field_name='EMAIL' AND EXISTS (
        SELECT 1 FROM public.crm_customers other
@@ -220,6 +228,11 @@ BEGIN
    END;
    IF existing_value IS DISTINCT FROM old_value
    THEN RAISE EXCEPTION 'Customer field changed after review; no changes applied'; END IF;
+   IF field_name='EMAIL' AND coalesce(person.custom_fields->>'ideal_source_email','')
+      IS DISTINCT FROM old_value AND NOT
+      (coalesce(person.custom_fields->>'ideal_source_email','')='' AND
+       (old_value='' OR lower(old_value) LIKE '%@noemail.local'))
+   THEN RAISE EXCEPTION 'IdealPOS source changed after review'; END IF;
    IF field_name='EMAIL' AND (
      person.email_opt_in IS TRUE OR person.email_consent_source IS NOT NULL OR
      EXISTS(SELECT 1 FROM public.customer_consents
@@ -229,12 +242,16 @@ BEGIN
              AND other.deleted_at IS NULL AND other.merged_into_customer_id IS NULL
              AND lower(btrim(coalesce(other.email,'')))=lower(btrim(new_value)))
    ) THEN RAISE EXCEPTION 'Email identity or consent changed; no updates applied'; END IF;
-   IF field_name='MOBILE' AND person.sms_opt_in IS TRUE
+   IF field_name='MOBILE' AND (person.sms_opt_in IS TRUE OR
+      EXISTS(SELECT 1 FROM public.customer_consents
+             WHERE customer_id=person.id AND channel='sms' AND status='opted_in'))
    THEN RAISE EXCEPTION 'SMS permission requires re-verification'; END IF;
    UPDATE public.crm_customers SET
       email = CASE WHEN field_name='EMAIL' THEN new_value ELSE email END,
       phone = CASE WHEN field_name='MOBILE' THEN new_value ELSE phone END,
-      custom_fields = CASE WHEN field_name='TYPE'
+      custom_fields = CASE WHEN field_name='EMAIL'
+        THEN jsonb_set(coalesce(custom_fields,'{}'::jsonb),'{ideal_source_email}',to_jsonb(new_value),true)
+        WHEN field_name='TYPE'
         THEN jsonb_set(coalesce(custom_fields,'{}'::jsonb),'{ideal_customer_type}',to_jsonb(new_value),true)
         WHEN field_name='MAILOUT'
         THEN jsonb_set(coalesce(custom_fields,'{}'::jsonb),'{ideal_mailout}',to_jsonb(new_value),true)
