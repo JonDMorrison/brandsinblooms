@@ -152,11 +152,11 @@ BEGIN
    IF field_name='EMAIL' AND (
         person.email_opt_in IS TRUE OR person.email_consent_source IS NOT NULL OR
         EXISTS(SELECT 1 FROM public.customer_consents
-               WHERE customer_id=person.id AND channel='email' AND status='opted_in')
+               WHERE customer_id=person.id AND channel='email')
    ) THEN RAISE EXCEPTION 'Verified email permission requires separate address verification'; END IF;
    IF field_name='MOBILE' AND (person.sms_opt_in IS TRUE OR
        EXISTS(SELECT 1 FROM public.customer_consents
-              WHERE customer_id=person.id AND channel='sms' AND status='opted_in'))
+              WHERE customer_id=person.id AND channel='sms'))
    THEN RAISE EXCEPTION 'Verified SMS permission requires separate phone verification'; END IF;
    IF field_name='EMAIL' AND EXISTS (
        SELECT 1 FROM public.crm_customers other
@@ -236,7 +236,7 @@ BEGIN
    IF field_name='EMAIL' AND (
      person.email_opt_in IS TRUE OR person.email_consent_source IS NOT NULL OR
      EXISTS(SELECT 1 FROM public.customer_consents
-            WHERE customer_id=person.id AND channel='email' AND status='opted_in') OR
+            WHERE customer_id=person.id AND channel='email') OR
      EXISTS(SELECT 1 FROM public.crm_customers other
            WHERE other.tenant_id=p_tenant AND other.id<>person.id
              AND other.deleted_at IS NULL AND other.merged_into_customer_id IS NULL
@@ -244,7 +244,7 @@ BEGIN
    ) THEN RAISE EXCEPTION 'Email identity or consent changed; no updates applied'; END IF;
    IF field_name='MOBILE' AND (person.sms_opt_in IS TRUE OR
       EXISTS(SELECT 1 FROM public.customer_consents
-             WHERE customer_id=person.id AND channel='sms' AND status='opted_in'))
+             WHERE customer_id=person.id AND channel='sms'))
    THEN RAISE EXCEPTION 'SMS permission requires re-verification'; END IF;
    UPDATE public.crm_customers SET
       email = CASE WHEN field_name='EMAIL' THEN new_value ELSE email END,
