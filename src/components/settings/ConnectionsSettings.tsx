@@ -6,7 +6,6 @@ import DialogContent from "@mui/joy/DialogContent";
 import DialogTitle from "@mui/joy/DialogTitle";
 import Divider from "@mui/joy/Divider";
 import Dropdown from "@mui/joy/Dropdown";
-import IconButton from "@mui/joy/IconButton";
 import ListItemDecorator from "@mui/joy/ListItemDecorator";
 import Menu from "@mui/joy/Menu";
 import MenuButton from "@mui/joy/MenuButton";
@@ -19,23 +18,22 @@ import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
-  CheckCircle2,
-  ExternalLink,
-  FileText,
+  ArrowUpRight,
+  Blocks,
+  ChevronDown,
+  FileSpreadsheet,
   HelpCircle,
-  MoreHorizontal,
+  type LucideIcon,
   Plus,
   RefreshCw,
   ScrollText,
-  Square,
   Store,
   Trash2,
-  Users,
-  Zap,
 } from "lucide-react";
 import { Link as RouterLink } from "react-router-dom";
 import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { POSConnectionHelp } from "@/components/crm/pos/POSConnectionHelp";
+import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
 import {
   type POSConnection,
   usePOSConnections,
@@ -43,17 +41,35 @@ import {
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useToast } from "@/hooks/use-toast";
 import {
-  SettingsEmptyState,
   SettingsInlineError,
+  SettingsEmptyState,
   SettingsSectionCard,
 } from "./SettingsSurface";
+
+type LogoFit = "cover" | "contain";
+
+interface PlatformLogoSource {
+  /** Partner mark from the shared integrations logo registry. */
+  src?: string;
+  /** "cover" for full-bleed square marks (e.g. Zapier), "contain" for marks needing padding. */
+  fit?: LogoFit;
+  /** Used when no partner mark exists (CSV upload, unknown platforms). */
+  fallbackIcon: LucideIcon;
+}
 
 interface POSPlatform {
   id: string;
   name: string;
-  icon: React.ReactNode;
+  logo: PlatformLogoSource;
   description: string;
   category: "pos" | "integration";
+}
+
+interface IntegrationPreview {
+  id: string;
+  name: string;
+  logo: PlatformLogoSource;
+  description: string;
 }
 
 interface POSSyncLog {
@@ -69,25 +85,34 @@ type POSConnectionWithLogs = POSConnection & {
   pos_sync_logs?: POSSyncLog[];
 };
 
+type StatusColor = "success" | "neutral" | "warning" | "danger";
+
 const LEGACY_SHOPIFY_DEPRECATED = true;
 
-const panelCardSx = {
-  borderRadius: "20px",
-  border: "1px solid",
-  borderColor: "neutral.200",
-  bgcolor: "background.level1",
-  p: 2,
+const LOGO_TILE_SIZE = 40;
+
+const platformCardSx = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 3,
+  borderRadius: "16px",
+  borderColor: "neutral.outlinedBorder",
+  bgcolor: "background.surface",
+  p: 4,
   boxShadow: "none",
-};
+} as const;
+
+const mutedPlatformCardSx = {
+  ...platformCardSx,
+  bgcolor: "background.level1",
+  borderStyle: "dashed",
+} as const;
 
 const platformGridSx = {
   display: "grid",
-  gridTemplateColumns: {
-    xs: "minmax(0, 1fr)",
-    md: "repeat(2, minmax(0, 1fr))",
-  },
-  gap: 1.5,
-};
+  gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))",
+  gap: 3,
+} as const;
 
 const formatPlatformLabel = (value: string) =>
   value
@@ -120,37 +145,131 @@ const getLatestLog = (connection: POSConnectionWithLogs) => {
   })[0];
 };
 
+const PlatformLogo = ({ logo, name }: { logo: PlatformLogoSource; name: string }) => {
+  const FallbackIcon = logo.fallbackIcon;
+  const isCover = logo.fit === "cover";
+
+  return (
+    <Box
+      sx={{
+        width: LOGO_TILE_SIZE,
+        height: LOGO_TILE_SIZE,
+        flexShrink: 0,
+        display: "grid",
+        placeItems: "center",
+        overflow: "hidden",
+        borderRadius: "10px",
+        border: "1px solid",
+        borderColor: "neutral.outlinedBorder",
+        // Partner marks are designed for light backgrounds, so the tile stays
+        // white in both colour schemes; icon fallbacks follow the theme.
+        bgcolor: logo.src ? "common.white" : "neutral.softBg",
+        color: "text.secondary",
+      }}
+    >
+      {logo.src ? (
+        <Box
+          component="img"
+          src={logo.src}
+          alt={`${name} logo`}
+          loading="lazy"
+          sx={{
+            width: isCover ? "100%" : "68%",
+            height: isCover ? "100%" : "68%",
+            objectFit: isCover ? "cover" : "contain",
+            display: "block",
+          }}
+        />
+      ) : (
+        <FallbackIcon aria-hidden size={20} strokeWidth={1.8} />
+      )}
+    </Box>
+  );
+};
+
+interface PlatformCardProps {
+  logo: PlatformLogoSource;
+  name: string;
+  description: string;
+  status?: { label: string; color: StatusColor; variant?: "soft" | "outlined" };
+  action?: React.ReactNode;
+  details?: React.ReactNode;
+  footer?: React.ReactNode;
+  muted?: boolean;
+}
+
+const PlatformCard = ({
+  logo,
+  name,
+  description,
+  status,
+  action,
+  details,
+  footer,
+  muted = false,
+}: PlatformCardProps) => (
+  <Sheet component="article" variant="outlined" sx={muted ? mutedPlatformCardSx : platformCardSx}>
+    <Stack direction="row" spacing={3} alignItems="center">
+      <PlatformLogo logo={logo} name={name} />
+      <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
+        <Typography level="title-sm" noWrap>
+          {name}
+        </Typography>
+        {status ? (
+          <Chip
+            color={status.color}
+            size="sm"
+            variant={status.variant ?? "soft"}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            {status.label}
+          </Chip>
+        ) : null}
+      </Stack>
+      {action ? <Box sx={{ flexShrink: 0 }}>{action}</Box> : null}
+    </Stack>
+
+    <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+      {description}
+    </Typography>
+
+    {details}
+
+    {footer ? <Box sx={{ mt: "auto" }}>{footer}</Box> : null}
+  </Sheet>
+);
+
 const renderLoadingCards = (count: number) => (
   <Box sx={platformGridSx}>
     {Array.from({ length: count }).map((_, index) => (
-      <Sheet key={index} variant="outlined" sx={panelCardSx}>
-        <Stack spacing={1.25}>
-          <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <Skeleton variant="circular" width={36} height={36} />
-              <Stack spacing={0.5}>
-                <Skeleton animation="wave" variant="text" width={120} />
-                <Skeleton animation="wave" variant="text" width={96} />
-              </Stack>
-            </Stack>
-            <Skeleton variant="rectangular" width={80} height={24} sx={{ borderRadius: "999px" }} />
+      <Sheet key={index} variant="outlined" sx={platformCardSx}>
+        <Stack direction="row" spacing={3} alignItems="center">
+          <Skeleton
+            variant="rectangular"
+            width={LOGO_TILE_SIZE}
+            height={LOGO_TILE_SIZE}
+            sx={{ borderRadius: "10px" }}
+          />
+          <Stack spacing={1} sx={{ flex: 1 }}>
+            <Skeleton animation="wave" variant="text" width={120} />
+            <Skeleton animation="wave" variant="text" width={72} />
           </Stack>
-          <Skeleton animation="wave" variant="text" width="100%" />
-          <Skeleton animation="wave" variant="text" width="74%" />
-          <Skeleton variant="rectangular" width={116} height={34} sx={{ borderRadius: "md" }} />
+          <Skeleton variant="rectangular" width={84} height={32} sx={{ borderRadius: "md" }} />
         </Stack>
+        <Skeleton animation="wave" variant="text" width="100%" />
+        <Skeleton animation="wave" variant="text" width="64%" />
       </Sheet>
     ))}
   </Box>
 );
 
-const getPosPlatformConfig = (platformId: string, availablePlatforms: POSPlatform[]) => {
+const getPosPlatformConfig = (platformId: string, availablePlatforms: POSPlatform[]): POSPlatform => {
   return (
     availablePlatforms.find((platform) => platform.id === platformId) ?? {
       id: platformId,
       name: formatPlatformLabel(platformId),
       description: "Connected platform",
-      icon: <Store className="h-6 w-6 text-green-600" />,
+      logo: { src: providerLogoAssets[platformId], fit: "contain", fallbackIcon: Store },
       category: "pos" as const,
     }
   );
@@ -170,44 +289,44 @@ export const ConnectionsSettings = () => {
         {
           id: "shopify",
           name: "Shopify",
-          icon: <Store className="h-6 w-6 text-green-600" />,
+          logo: { src: providerLogoAssets.shopify, fit: "contain", fallbackIcon: Store },
           description: "Connect your Shopify store to sync customers and orders.",
           category: "pos",
-        },
+        } satisfies POSPlatform,
         {
           id: "square",
           name: "Square",
-          icon: <Square className="h-6 w-6 text-blue-600" />,
+          logo: { src: providerLogoAssets.square, fit: "contain", fallbackIcon: Store },
           description:
             "Connect your Square POS to sync customer, catalog, and transaction data.",
           category: "pos",
-        },
+        } satisfies POSPlatform,
         {
           id: "vmx",
           name: "VMX / CSV Upload",
-          icon: <FileText className="h-6 w-6 text-purple-600" />,
+          logo: { fallbackIcon: FileSpreadsheet },
           description: "Upload customer data manually through CSV imports.",
           category: "pos",
-        },
+        } satisfies POSPlatform,
       ].filter(
         (platform) => !(platform.id === "shopify" && LEGACY_SHOPIFY_DEPRECATED),
       ),
     [],
   );
 
-  const integrationPreviews = useMemo(
+  const integrationPreviews: IntegrationPreview[] = useMemo(
     () => [
       {
         id: "zapier",
         name: "Zapier",
         description: "Connect BloomSuite workflows to thousands of partner apps.",
-        icon: <Zap className="h-6 w-6 text-orange-600" />,
+        logo: { src: providerLogoAssets.zapier, fit: "cover", fallbackIcon: Blocks },
       },
       {
         id: "mailchimp",
         name: "Mailchimp",
         description: "Extend newsletter and audience sync workflows from the integration hub.",
-        icon: <Users className="h-6 w-6 text-blue-600" />,
+        logo: { src: providerLogoAssets.mailchimp, fit: "cover", fallbackIcon: Blocks },
       },
     ],
     [],
@@ -225,10 +344,18 @@ export const ConnectionsSettings = () => {
   const posConnections = (rawPosConnections as POSConnectionWithLogs[] | undefined) ?? [];
   const posLoadFailed = !posLoading && rawPosConnections === undefined;
   const connectedPOSIds = new Set(posConnections.map((connection) => connection.platform));
+  const unconnectedPlatforms = availablePlatforms.filter(
+    (platform) => !connectedPOSIds.has(platform.id),
+  );
 
   const handleConnectPOS = (platform: string) => {
     setSelectedPlatform(platform);
     setShowConnectionForm(true);
+  };
+
+  const handleShowHelp = (platform: string) => {
+    setSelectedPlatform(platform);
+    setShowHelp(true);
   };
 
   const handlePOSConnectionSuccess = () => {
@@ -251,6 +378,109 @@ export const ConnectionsSettings = () => {
 
   const selectedLog = selectedLogConnection ? getLatestLog(selectedLogConnection) : null;
 
+  const renderConnectionCard = (connection: POSConnectionWithLogs) => {
+    const platform = getPosPlatformConfig(connection.platform, availablePlatforms);
+    const latestLog = getLatestLog(connection);
+    const needsAttention =
+      latestLog?.status === "failed" || connection.sync_status === "failed";
+    const statusColor: StatusColor = isSyncing
+      ? "neutral"
+      : !connection.is_active
+        ? "warning"
+        : needsAttention
+          ? "danger"
+          : "success";
+    const statusLabel = isSyncing
+      ? "Syncing"
+      : !connection.is_active
+        ? "Inactive"
+        : needsAttention
+          ? "Needs attention"
+          : "Connected";
+    const syncSummary = latestLog
+      ? latestLog.status === "failed"
+        ? latestLog.error_message ?? "The last sync did not complete successfully."
+        : latestLog.status === "running"
+          ? "A sync is currently in progress."
+          : `Last sync imported ${latestLog.customers_synced ?? 0} customers and ${latestLog.orders_synced ?? 0} orders.`
+      : connection.last_sync_at
+        ? `Last synced ${formatTimestamp(connection.last_sync_at)}.`
+        : "Run your first sync to import customer and sales data.";
+
+    return (
+      <PlatformCard
+        key={connection.id}
+        action={
+          <Dropdown>
+            <MenuButton
+              color="neutral"
+              endDecorator={<ChevronDown size={14} />}
+              size="sm"
+              variant="outlined"
+            >
+              Manage
+            </MenuButton>
+            <Menu
+              placement="bottom-end"
+              size="sm"
+              sx={{
+                borderRadius: "16px",
+                border: "1px solid",
+                borderColor: "neutral.outlinedBorder",
+                bgcolor: "background.surface",
+                boxShadow: "md",
+              }}
+            >
+              <MenuItem disabled={isSyncing} onClick={() => handleSyncPOS(connection.id)}>
+                <ListItemDecorator>
+                  <RefreshCw size={15} />
+                </ListItemDecorator>
+                Sync Now
+              </MenuItem>
+              <MenuItem onClick={() => setSelectedLogConnection(connection)}>
+                <ListItemDecorator>
+                  <ScrollText size={15} />
+                </ListItemDecorator>
+                View Logs
+              </MenuItem>
+              <MenuItem color="danger" onClick={() => handleDisconnectPOS(connection.id)}>
+                <ListItemDecorator>
+                  <Trash2 size={15} />
+                </ListItemDecorator>
+                Disconnect
+              </MenuItem>
+            </Menu>
+          </Dropdown>
+        }
+        description={platform.description}
+        details={
+          <Stack
+            spacing={1}
+            sx={{
+              pt: 3,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography
+              level="body-xs"
+              sx={{ color: needsAttention ? "danger.plainColor" : "text.tertiary" }}
+            >
+              {syncSummary}
+            </Typography>
+            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+              Last sync:{" "}
+              {formatTimestamp(latestLog?.completed_at ?? latestLog?.started_at ?? connection.last_sync_at)}
+            </Typography>
+          </Stack>
+        }
+        logo={platform.logo}
+        name={connection.name || platform.name}
+        status={{ label: statusLabel, color: statusColor }}
+      />
+    );
+  };
+
   return (
     <Stack spacing={3} key={posRetryKey}>
       <SettingsSectionCard
@@ -271,277 +501,77 @@ export const ConnectionsSettings = () => {
             onRetry={() => setPosRetryKey((current) => current + 1)}
           />
         ) : (
-          <Stack spacing={2.5}>
-            {posConnections.length > 0 ? (
-              <Stack spacing={1.5}>
-                {posConnections.map((connection) => {
-                  const platform = getPosPlatformConfig(connection.platform, availablePlatforms);
-                  const latestLog = getLatestLog(connection);
-                  const needsAttention =
-                    latestLog?.status === "failed" || connection.sync_status === "failed";
-                  const statusColor = isSyncing
-                    ? "neutral"
-                    : !connection.is_active
-                      ? "warning"
-                      : needsAttention
-                        ? "danger"
-                        : "success";
-                  const statusLabel = isSyncing
-                    ? "Syncing"
-                    : !connection.is_active
-                      ? "Inactive"
-                      : needsAttention
-                        ? "Needs attention"
-                        : "Connected";
-                  const syncSummary = latestLog
-                    ? latestLog.status === "failed"
-                      ? latestLog.error_message ?? "The last sync did not complete successfully."
-                      : latestLog.status === "running"
-                        ? "A sync is currently in progress."
-                        : `Last sync imported ${latestLog.customers_synced ?? 0} customers and ${latestLog.orders_synced ?? 0} orders.`
-                    : connection.last_sync_at
-                      ? `Last synced ${formatTimestamp(connection.last_sync_at)}.`
-                      : "Run your first sync to import customer and sales data.";
+          <Stack spacing={3}>
+            {posConnections.length === 0 ? (
+              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                No POS platform is connected yet. Start with Square, or upload a CSV to bring
+                customer data into BloomSuite.
+              </Typography>
+            ) : null}
 
-                  return (
-                    <Sheet key={connection.id} variant="outlined" sx={panelCardSx}>
-                      <Stack
-                        direction={{ xs: "column", lg: "row" }}
-                        spacing={2}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", lg: "center" }}
-                      >
-                        <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
-                          <Box
-                            sx={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: "16px",
-                              display: "grid",
-                              placeItems: "center",
-                              bgcolor: "background.surface",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {platform.icon}
-                          </Box>
+            <Box sx={platformGridSx}>
+              {posConnections.map(renderConnectionCard)}
 
-                          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                            <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-                              <Typography level="title-sm">{connection.name || platform.name}</Typography>
-                              <Chip color={statusColor} size="sm" variant="soft">
-                                {statusLabel}
-                              </Chip>
-                            </Stack>
-                            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                              {platform.description}
-                            </Typography>
-                            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                              {syncSummary}
-                            </Typography>
-                            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                              Last sync: {formatTimestamp(latestLog?.completed_at ?? latestLog?.started_at ?? connection.last_sync_at)}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        <Dropdown>
-                          <MenuButton
-                            slots={{ root: IconButton }}
-                            slotProps={{
-                              root: { color: "neutral", size: "sm", variant: "plain" },
-                            }}
-                          >
-                            <MoreHorizontal size={16} />
-                          </MenuButton>
-                          <Menu
-                            placement="bottom-end"
-                            size="sm"
-                            sx={{
-                              borderRadius: "16px",
-                              border: "1px solid",
-                              borderColor: "neutral.200",
-                              bgcolor: "background.surface",
-                              boxShadow: "md",
-                            }}
-                          >
-                            <MenuItem disabled={isSyncing} onClick={() => handleSyncPOS(connection.id)}>
-                              <ListItemDecorator>
-                                <RefreshCw size={15} />
-                              </ListItemDecorator>
-                              Sync Now
-                            </MenuItem>
-                            <MenuItem onClick={() => setSelectedLogConnection(connection)}>
-                              <ListItemDecorator>
-                                <ScrollText size={15} />
-                              </ListItemDecorator>
-                              View Logs
-                            </MenuItem>
-                            <MenuItem color="danger" onClick={() => handleDisconnectPOS(connection.id)}>
-                              <ListItemDecorator>
-                                <Trash2 size={15} />
-                              </ListItemDecorator>
-                              Disconnect
-                            </MenuItem>
-                          </Menu>
-                        </Dropdown>
-                      </Stack>
-                    </Sheet>
-                  );
-                })}
-              </Stack>
-            ) : (
-              <SettingsEmptyState
-                description="No POS platform is connected yet. Start with Square or use a CSV upload to bring customer data into BloomSuite."
-                icon={Store}
-                primaryAction={{
-                  label: "Connect Square",
-                  onClick: () => handleConnectPOS("square"),
-                  startDecorator: <Plus size={16} />,
-                }}
-                secondaryAction={{
-                  label: "View Setup Help",
-                  onClick: () => {
-                    setSelectedPlatform("square");
-                    setShowHelp(true);
-                  },
-                  startDecorator: <HelpCircle size={16} />,
-                  variant: "outline",
-                  color: "neutral",
-                }}
-                title="No POS connected yet"
-              />
-            )}
-
-            <Divider />
-
-            <Stack spacing={1.25}>
-              <Typography level="title-sm">Available Platforms</Typography>
-              <Box sx={platformGridSx}>
-                {availablePlatforms.map((platform) => {
-                  const isConnected = connectedPOSIds.has(platform.id);
-
-                  return (
-                    <Sheet key={platform.id} variant="outlined" sx={panelCardSx}>
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-                          <Stack direction="row" spacing={1.25} alignItems="center">
-                            <Box
-                              sx={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: "16px",
-                                display: "grid",
-                                placeItems: "center",
-                                bgcolor: "background.surface",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {platform.icon}
-                            </Box>
-                            <Stack spacing={0.25}>
-                              <Typography level="title-sm">{platform.name}</Typography>
-                              <Chip
-                                color={isConnected ? "success" : "neutral"}
-                                size="sm"
-                                variant="soft"
-                              >
-                                {isConnected ? "Connected" : "Available"}
-                              </Chip>
-                            </Stack>
-                          </Stack>
-
-                          {!isConnected ? (
-                            <IconButton
-                              color="neutral"
-                              onClick={() => {
-                                setSelectedPlatform(platform.id);
-                                setShowHelp(true);
-                              }}
-                              size="sm"
-                              variant="plain"
-                            >
-                              <HelpCircle size={16} />
-                            </IconButton>
-                          ) : null}
-                        </Stack>
-
-                        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                          {platform.description}
-                        </Typography>
-
-                        <JoyButton
-                          disabled={isConnected}
-                          onClick={() => handleConnectPOS(platform.id)}
-                          startDecorator={isConnected ? <CheckCircle2 size={16} /> : <Plus size={16} />}
-                          variant={isConnected ? "secondary" : "outline"}
-                        >
-                          {isConnected ? "Connected" : "Connect"}
-                        </JoyButton>
-                      </Stack>
-                    </Sheet>
-                  );
-                })}
-              </Box>
-            </Stack>
+              {unconnectedPlatforms.map((platform) => (
+                <PlatformCard
+                  key={platform.id}
+                  action={
+                    <JoyButton
+                      onClick={() => handleConnectPOS(platform.id)}
+                      size="sm"
+                      startDecorator={<Plus size={16} />}
+                    >
+                      Connect
+                    </JoyButton>
+                  }
+                  description={platform.description}
+                  footer={
+                    <JoyButton
+                      onClick={() => handleShowHelp(platform.id)}
+                      size="sm"
+                      startDecorator={<HelpCircle size={14} />}
+                      variant="link"
+                    >
+                      Setup guide
+                    </JoyButton>
+                  }
+                  logo={platform.logo}
+                  name={platform.name}
+                />
+              ))}
+            </Box>
           </Stack>
         )}
       </SettingsSectionCard>
 
       <SettingsSectionCard
-        description="Explore additional workflow integrations and partner connections from the integration hub."
+        description="More partner integrations are on the way. Explore everything available today in the integration hub."
         headerActions={
-          <Chip color="neutral" size="sm" variant="soft">
-            Coming soon
-          </Chip>
-        }
-        startDecorator={<Zap size={18} />}
-        title="Integrations"
-      >
-        <Stack spacing={2.5}>
-          <Box sx={platformGridSx}>
-            {integrationPreviews.map((integration) => (
-              <Sheet key={integration.id} variant="outlined" sx={panelCardSx}>
-                <Stack spacing={1.5}>
-                  <Stack direction="row" spacing={1.25} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "16px",
-                        display: "grid",
-                        placeItems: "center",
-                        bgcolor: "background.surface",
-                      }}
-                    >
-                      {integration.icon}
-                    </Box>
-                    <Stack spacing={0.25}>
-                      <Typography level="title-sm">{integration.name}</Typography>
-                      <Chip color="neutral" size="sm" variant="soft">
-                        Preview
-                      </Chip>
-                    </Stack>
-                  </Stack>
-
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    {integration.description}
-                  </Typography>
-
-                  <JoyButton disabled startDecorator={<Plus size={16} />} variant="outline">
-                    Coming soon
-                  </JoyButton>
-                </Stack>
-              </Sheet>
-            ))}
-          </Box>
-
-          <Box component={RouterLink} sx={{ textDecoration: "none", alignSelf: "flex-start" }} to="/integrations">
-            <JoyButton startDecorator={<ExternalLink size={16} />} variant="outline">
+          <Box component={RouterLink} sx={{ textDecoration: "none" }} to="/integrations">
+            <JoyButton endDecorator={<ArrowUpRight size={16} />} size="sm" variant="outline">
               Open Integration Hub
             </JoyButton>
           </Box>
-        </Stack>
+        }
+        startDecorator={<Blocks size={18} />}
+        title="Integrations"
+      >
+        <Box sx={platformGridSx}>
+          {integrationPreviews.map((integration) => (
+            <PlatformCard
+              key={integration.id}
+              description={integration.description}
+              logo={integration.logo}
+              muted
+              name={integration.name}
+              action={
+                <Chip color="neutral" size="sm" variant="outlined">
+                  Coming soon
+                </Chip>
+              }
+            />
+          ))}
+        </Box>
       </SettingsSectionCard>
 
       {showConnectionForm && selectedPlatform && (
