@@ -105,7 +105,7 @@ export interface CampaignAudienceHealthOptions {
 export function hasUsableCampaignEmail(value: string | null | undefined): boolean {
   if (!value) return false;
   const email = value.trim();
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) &&
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
     !email.toLowerCase().endsWith("@noemail.local");
 }
 
