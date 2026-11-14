@@ -42,6 +42,7 @@ import { LoyaltyProgrammeWorkspace } from "@/components/crm/customer-intelligenc
 import { IdealCustomerTypeExportPanel } from "@/components/crm/customer-intelligence/IdealCustomerTypeExportPanel";
 import { PushPilotPanel } from "@/components/crm/customer-intelligence/PushPilotPanel";
 import { PushReadinessPanel } from "@/components/crm/customer-intelligence/PushReadinessPanel";
+import { CampaignReadinessPanel } from "@/components/crm/customer-intelligence/CampaignReadinessPanel";
 import {
   loadIntelligenceHome,
   type IntelligenceRow,
@@ -1534,6 +1535,7 @@ export default function CustomerIntelligencePage() {
                     Consent and delivery status are not inferred from a
                     purchase.
                   </Typography>
+                  {tenantId && <CampaignReadinessPanel key={tenantId + "-email-readiness"} tenantId={tenantId} />}
                   <PushReadinessPanel />
                   <Divider />
                   <Button
