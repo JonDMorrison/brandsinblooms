@@ -42,10 +42,10 @@ describe("campaign-scoped consent health", () => {
   it("counts only resolved customers and excludes suppression from eligibility", async () => {
     resolveIds.mockResolvedValue(["a", "b", "c", "d"]);
     idQuery.mockResolvedValue({ data: [
-      { id: "a", email_opt_in: true, email_consent_method: "form", suppressed: false },
-      { id: "b", email_opt_in: true, email_consent_method: "form", suppressed: true },
-      { id: "c", email_opt_in: false, email_consent_method: "pending_confirmation", suppressed: false },
-      { id: "d", email_opt_in: false, email_consent_method: "opt_out", suppressed: true },
+      { id: "a", email: "a@example.com", email_opt_in: true, email_consent_method: "form", suppressed: false },
+      { id: "b", email: "b@example.com", email_opt_in: true, email_consent_method: "form", suppressed: true },
+      { id: "c", email: "c@example.com", email_opt_in: false, email_consent_method: "pending_confirmation", suppressed: false },
+      { id: "d", email: "d@example.com", email_opt_in: false, email_consent_method: "opt_out", suppressed: true },
     ], error: null });
     expect(await fetchCampaignAudienceHealth(options)).toEqual({
       total: 4, confirmed: 2, pending: 1, optedOut: 1, suppressed: 2, eligible: 1,
