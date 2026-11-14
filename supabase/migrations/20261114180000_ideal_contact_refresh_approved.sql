@@ -1,5 +1,7 @@
 -- #503: reviewed, exact-CODE IdealPOS contact refresh. No automatic imports.
 -- Customer data is changed only by a separate explicit application of a staged digest.
+-- Privileged implementation lives outside the Data API exposed public schema.
+CREATE SCHEMA IF NOT EXISTS ideal_refresh;
 CREATE TABLE public.ideal_contact_refresh_plans (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL,
@@ -35,15 +37,15 @@ ALTER TABLE public.ideal_contact_refresh_audit ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.ideal_contact_refresh_audit FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT ON public.ideal_contact_refresh_audit TO service_role;
 
-CREATE FUNCTION public.ideal_contact_refresh_immutable() RETURNS trigger
+CREATE FUNCTION ideal_refresh.ideal_contact_refresh_immutable() RETURNS trigger
 LANGUAGE plpgsql SET search_path=pg_catalog AS $$
 BEGIN
   RAISE EXCEPTION 'An IdealPOS refresh audit or plan cannot be altered';
 END $$;
 CREATE TRIGGER ideal_contact_refresh_audit_immutable
 BEFORE UPDATE OR DELETE ON public.ideal_contact_refresh_audit
-FOR EACH ROW EXECUTE FUNCTION public.ideal_contact_refresh_immutable();
-CREATE FUNCTION public.ideal_contact_refresh_plan_guard() RETURNS trigger
+FOR EACH ROW EXECUTE FUNCTION ideal_refresh.ideal_contact_refresh_immutable();
+CREATE FUNCTION ideal_refresh.ideal_contact_refresh_plan_guard() RETURNS trigger
 LANGUAGE plpgsql SET search_path=pg_catalog AS $$
 BEGIN
  IF TG_OP = 'DELETE' THEN
@@ -63,9 +65,9 @@ BEGIN
 END $$;
 CREATE TRIGGER ideal_contact_refresh_plan_guard
 BEFORE UPDATE OR DELETE ON public.ideal_contact_refresh_plans
-FOR EACH ROW EXECUTE FUNCTION public.ideal_contact_refresh_plan_guard();
+FOR EACH ROW EXECUTE FUNCTION ideal_refresh.ideal_contact_refresh_plan_guard();
 
-CREATE FUNCTION public.stage_ideal_contact_refresh(
+CREATE FUNCTION ideal_refresh.stage_ideal_contact_refresh_internal(
  p_tenant uuid, p_source_sha256 text, p_changes jsonb
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
@@ -170,7 +172,7 @@ BEGIN
    'count',jsonb_array_length(assembled),'expiresInMinutes',30);
 END $$;
 
-CREATE FUNCTION public.apply_ideal_contact_refresh(
+CREATE FUNCTION ideal_refresh.apply_ideal_contact_refresh_internal(
  p_tenant uuid, p_plan_id uuid, p_digest text
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
@@ -250,6 +252,26 @@ BEGIN
  WHERE id=plan.id AND tenant_id=p_tenant;
  RETURN jsonb_build_object('planId',plan.id,'status','applied','updatedFields',committed);
 END $$;
+-- Public entrypoints are invoker-only; the privileged implementations are
+-- in the unexposed ideal_refresh schema with explicit internal authorization.
+REVOKE ALL ON SCHEMA ideal_refresh FROM PUBLIC;
+GRANT USAGE ON SCHEMA ideal_refresh TO authenticated;
+REVOKE ALL ON FUNCTION ideal_refresh.stage_ideal_contact_refresh_internal(uuid,text,jsonb),
+ ideal_refresh.apply_ideal_contact_refresh_internal(uuid,uuid,text),
+ ideal_refresh.ideal_contact_refresh_immutable(),
+ ideal_refresh.ideal_contact_refresh_plan_guard() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION ideal_refresh.stage_ideal_contact_refresh_internal(uuid,text,jsonb),
+ ideal_refresh.apply_ideal_contact_refresh_internal(uuid,uuid,text) TO authenticated;
+CREATE FUNCTION public.stage_ideal_contact_refresh(
+ p_tenant uuid,p_source_sha256 text,p_changes jsonb
+) RETURNS jsonb LANGUAGE sql SECURITY INVOKER SET search_path=pg_catalog AS $
+ SELECT ideal_refresh.stage_ideal_contact_refresh_internal($1,$2,$3);
+$;
+CREATE FUNCTION public.apply_ideal_contact_refresh(
+ p_tenant uuid,p_plan_id uuid,p_digest text
+) RETURNS jsonb LANGUAGE sql SECURITY INVOKER SET search_path=pg_catalog AS $
+ SELECT ideal_refresh.apply_ideal_contact_refresh_internal($1,$2,$3);
+$;
 REVOKE ALL ON FUNCTION public.stage_ideal_contact_refresh(uuid,text,jsonb),
  public.apply_ideal_contact_refresh(uuid,uuid,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.stage_ideal_contact_refresh(uuid,text,jsonb),
