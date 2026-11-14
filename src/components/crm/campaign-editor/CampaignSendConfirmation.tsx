@@ -106,6 +106,11 @@ function normalizeEmail(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
+/** Missing or unknown consent never grants permission to send marketing email. */
+export function hasConfirmedEmailConsent(optIn: boolean | null | undefined): boolean {
+  return optIn === true;
+}
+
 function hasBlockingSuppression(
   suppressionTypes: string[],
   bypassTypes: Set<string>,
@@ -321,7 +326,7 @@ async function fetchAudiencePreflightSummary(params: {
       suppressionTypes,
       overrideBypassTypes,
     );
-    const isConsentExcluded = customer.email_opt_in === false;
+    const isConsentExcluded = !hasConfirmedEmailConsent(customer.email_opt_in);
 
     if (isConsentExcluded) {
       consentExcludedCount += 1;
@@ -345,7 +350,7 @@ async function fetchAudiencePreflightSummary(params: {
       lastApprovedEmail = customer.normalizedEmail;
     }
 
-    if (!blockedWithOverride) {
+    if (!isConsentExcluded && !blockedWithOverride) {
       overrideRecipientCount += 1;
       if (!isConsentExcluded && blockedNormally) {
         suppressionBypassRecipientCount += 1;
