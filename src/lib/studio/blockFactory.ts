@@ -136,7 +136,7 @@ export function createStudioBlock(
         ...base,
         links: [{ id: crypto.randomUUID(), label: "", url: "" }],
         buttonColor: primaryColor || "#1f4341",
-        buttonTextColor: "#ffffff",
+        buttonTextColor: type === "navigation" ? primaryColor || "#1f4341" : "#ffffff",
         appearance: { padding: { top: 12, right: 16, bottom: 12, left: 16 } },
       };
     case "text-columns":
@@ -242,7 +242,7 @@ export function createStudioBlock(
         imageUrl: "",
         imageAlt: "",
         linkUrl: "",
-        imageFit: "cover",
+        imageFit: "contain",
         imageFocalX: 50,
         imageFocalY: 50,
         maxHeight: 400,
@@ -283,7 +283,7 @@ export function createStudioBlock(
         showCaption: false,
         captionAlignment: "center",
         captionColor: "#6b7280",
-        imageFit: "cover",
+        imageFit: "contain",
         imageFocalX: 50,
         imageFocalY: 50,
         maxHeight: 400,
@@ -324,7 +324,7 @@ export function createStudioBlock(
         imageUrl: "",
         imageAlt: "",
         imagePosition: "left",
-        imageFit: "cover",
+        imageFit: "contain",
         imageFocalX: 50,
         imageFocalY: 50,
         imageRatio: "auto",
@@ -474,8 +474,8 @@ export function createStudioBlock(
         textColor: brandTextColor || "#111827",
         textAlign: "center",
         verticalPadding: 32,
-        layout: "centered-hero",
-        layoutPreset: "cta-centered-hero",
+        layout: "inline-button-only",
+        layoutPreset: "cta-inline-button",
       };
     case "social-follow":
       return {

@@ -3,7 +3,7 @@ import AudienceControls from "./newsletter/AudienceControls";
 import ExtendedBlockProperties, {
   AdditionalBlockFields,
 } from "./newsletter/ExtendedBlockProperties";
-import AppearanceControls, { Field } from "./newsletter/AppearanceControls";
+import AppearanceControls, { ButtonPaddingFields, Field, ImageSpacingFields, NumericField, VerticalAlignmentField } from "./newsletter/AppearanceControls";
 import { useNewsletterDesign } from "./newsletter/NewsletterDesignContext";
 import * as React from "react";
 import Box from "@mui/joy/Box";
@@ -468,42 +468,6 @@ function applyPreset(
       value as StudioBlock[keyof StudioBlock],
     );
   });
-}
-
-function HeroStyleIcon({
-  variant,
-  block,
-}: {
-  variant: string;
-  block: StudioBlock;
-}) {
-  const background =
-    variant === "gradient"
-      ? `linear-gradient(135deg, ${block.gradientFrom ?? "#ff6b6b"}, ${block.gradientTo ?? "#ffd93d"})`
-      : variant === "image-overlay"
-        ? `linear-gradient(135deg, color-mix(in srgb, ${block.overlayColor ?? "#000000"} 65%, transparent), rgba(0,0,0,0.18)), linear-gradient(45deg, rgba(96,125,139,0.75), rgba(38,50,56,0.9))`
-        : variant === "image-bottom"
-          ? `linear-gradient(to bottom, ${block.backgroundColor ?? "#f8f9fa"} 0 56%, rgba(203,213,225,0.95) 56% 100%)`
-          : (block.backgroundColor ?? "#1a1a2e");
-
-  return (
-    <Box
-      sx={{
-        width: 12,
-        height: 12,
-        borderRadius: "4px",
-        background:
-          variant === "image-overlay" && block.imageUrl
-            ? `linear-gradient(135deg, color-mix(in srgb, ${block.overlayColor ?? "#000000"} 62%, transparent), rgba(0,0,0,0.16)), url(${block.imageUrl}) center / cover`
-            : variant === "image-bottom" && block.imageUrl
-              ? `linear-gradient(to bottom, ${block.backgroundColor ?? "#f8f9fa"} 0 52%, transparent 52% 100%), url(${block.imageUrl}) center bottom / cover`
-              : background,
-        border: variant === "image-bottom" ? "1px solid" : 0,
-        borderColor: "neutral.200",
-        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.24)",
-      }}
-    />
-  );
 }
 
 function ButtonSizeVisual({ width }: { width: number }) {
@@ -1280,7 +1244,7 @@ function ImageGalleryManager({
                   }
                 />
                 <StudioTextField
-                  label="Link URL"
+                  label="Destination URL"
                   placeholder="https://..."
                   type="url"
                   value={activeImage.linkUrl ?? ""}
@@ -1714,7 +1678,7 @@ function ProductGalleryManager({
                     }
                   />
                   <StudioTextField
-                    label="Button URL"
+                    label="Destination URL"
                     placeholder="https://..."
                     type="url"
                     value={product.buttonUrl ?? ""}
@@ -1932,6 +1896,7 @@ function PanelContent({
   campaignType,
   onTrackCampaignImageUsage,
   onUpdateBlockField,
+  onUpdateBlockFields,
   onRequestAIImage,
   resolveCampaignImageFieldSource,
 }: {
@@ -1941,10 +1906,12 @@ function PanelContent({
   campaignType: EditorCampaignType;
   onTrackCampaignImageUsage?: TrackCampaignImageUsage;
   onUpdateBlockField: OnUpdateBlockField;
+  onUpdateBlockFields?: BlockPropertiesPanelProps["onUpdateBlockFields"];
   onRequestAIImage?: RequestAIImage;
   resolveCampaignImageFieldSource?: ResolveCampaignImageFieldSource;
 }) {
   const { designSystem } = useDesignSystem();
+  const { settings } = useNewsletterDesign();
   const {
     heroPresets,
     graphicHeroPresets,
@@ -1959,12 +1926,17 @@ function PanelContent({
     ctaPresets,
     socialFollowPresets,
     dividerPresets,
-    spacerPresets,
     footerPresets,
   } = React.useMemo(() => getStudioLayoutPresets(designSystem), [designSystem]);
   const updateField = React.useCallback(
     (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => {
       onUpdateBlockField(block.id, field, value);
+      if (field === "backgroundColor" && block.type !== "footer" &&
+          (block.appearance?.background || settings?.defaults?.background)) {
+        onUpdateBlockField(block.id, "appearance", {
+          ...block.appearance, background: typeof value === "string" ? value : undefined,
+        });
+      }
       // A manual button colour takes priority over automatic account branding.
       // Without this, the email renderer silently replaces the chosen colour.
       if (field === "buttonColor" || field === "buttonTextColor")
@@ -1972,8 +1944,24 @@ function PanelContent({
       if (field === "logoSize")
         onUpdateBlockField(block.id, "logoSizeExplicit", true);
     },
-    [block.id, onUpdateBlockField],
+    [block.id, block.type, block.appearance, settings?.defaults?.background, onUpdateBlockField],
   );
+  const backgroundColor = block.type === "footer"
+    ? block.backgroundColor
+    : block.appearance?.background ?? settings?.defaults?.background ?? block.backgroundColor;
+  const appearanceFields = {
+    value: block.appearance,
+    onChange: (value: StudioBlock["appearance"]) => updateField("appearance", value),
+  };
+  const imageTextLayout = block.layout ?? (
+    block.layoutPreset === "image-text-top" ? "image-top"
+    : block.layoutPreset === "image-text-overlay" ? "image-overlay"
+    : block.layoutPreset === "image-text-minimal" ? "minimal-card"
+    : "image-left"
+  );
+  const sideBySide = imageTextLayout === "image-left" || imageTextLayout === "image-right";
+  const hasCtaCopy = Boolean(block.headline || block.subheading || block.body);
+  const splitCta = block.layout === "split" || block.layout === "banner";
   const buildAIUploadProps = React.useCallback(
     ({
       aiAspectRatioHint,
@@ -2018,8 +2006,14 @@ function PanelContent({
     ],
   );
   const selectPreset = React.useCallback(
-    (preset: LayoutPreset) => applyPreset(block, preset, onUpdateBlockField),
-    [block, onUpdateBlockField],
+    (preset: LayoutPreset) => {
+      if (onUpdateBlockFields) {
+        onUpdateBlockFields(block.id, { ...preset.fields, layoutPreset: preset.key });
+      } else {
+        applyPreset(block, preset, onUpdateBlockField);
+      }
+    },
+    [block, onUpdateBlockField, onUpdateBlockFields],
   );
 
   if (
@@ -2091,6 +2085,7 @@ function PanelContent({
                       value={block.imageAlt ?? ""}
                       onChange={(value) => updateField("imageAlt", value)}
                     />
+                    {block.heroStyle === "image-bottom" && <ImageSpacingFields {...appearanceFields} />}
                     <Typography level="body-xs" sx={{ color: "neutral.600" }}>
                       Add a photo from your device or image library. Text and
                       buttons stay editable.
@@ -2145,50 +2140,6 @@ function PanelContent({
                 title: "Hero Layout",
                 content: (
                   <>
-                    <StudioToggleField
-                      label="Hero Style"
-                      options={[
-                        {
-                          label: "Solid",
-                          value: "solid",
-                          icon: <HeroStyleIcon variant="solid" block={block} />,
-                        },
-                        {
-                          label: "Gradient",
-                          value: "gradient",
-                          icon: (
-                            <HeroStyleIcon variant="gradient" block={block} />
-                          ),
-                        },
-                        {
-                          label: "Overlay",
-                          value: "image-overlay",
-                          icon: (
-                            <HeroStyleIcon
-                              variant="image-overlay"
-                              block={block}
-                            />
-                          ),
-                        },
-                        {
-                          label: "Image",
-                          value: "image-bottom",
-                          icon: (
-                            <HeroStyleIcon
-                              variant="image-bottom"
-                              block={block}
-                            />
-                          ),
-                        },
-                      ]}
-                      value={block.heroStyle ?? "solid"}
-                      onChange={(value) =>
-                        updateField(
-                          "heroStyle",
-                          value as StudioBlock["heroStyle"],
-                        )
-                      }
-                    />
                     <StudioAlignmentToggle
                       label="Text Alignment"
                       value={block.textAlign ?? "center"}
@@ -2220,7 +2171,7 @@ function PanelContent({
                     ) : (
                       <StudioColorPicker
                         label="Background Color"
-                        value={block.backgroundColor ?? "#1a1a2e"}
+                        value={backgroundColor ?? "#1a1a2e"}
                         onChange={(value) =>
                           updateField("backgroundColor", value)
                         }
@@ -2267,7 +2218,7 @@ function PanelContent({
                       onChange={(value) => updateField("buttonText", value)}
                     />
                     <StudioTextField
-                      label="Button URL"
+                      label="Destination URL"
                       placeholder="https://..."
                       type="url"
                       value={block.buttonUrl ?? ""}
@@ -2314,6 +2265,7 @@ function PanelContent({
                         updateField("buttonTextColor", value)
                       }
                     />
+                    <ButtonPaddingFields {...appearanceFields} />
                     <StudioSwitchField
                       label="Rounded Corners"
                       checked={block.buttonRounded ?? true}
@@ -2366,6 +2318,22 @@ function PanelContent({
                       value={block.imageAlt ?? ""}
                       onChange={(value) => updateField("imageAlt", value)}
                     />
+                    {imageTextLayout !== "image-overlay" && (<>
+                    <StudioSwitchField
+                      label="Link image"
+                      checked={block.imageLinkEnabled ?? Boolean(block.linkUrl)}
+                      onChange={(value) => updateField("imageLinkEnabled", value)}
+                    />
+                    {(block.imageLinkEnabled ?? Boolean(block.linkUrl)) && (
+                      <StudioTextField
+                        label="Image link URL"
+                        type="url"
+                        placeholder="https://..."
+                        value={block.linkUrl ?? ""}
+                        onChange={(value) => updateField("linkUrl", value)}
+                      />
+                    )}
+                    </>)}
                     <StudioToggleField
                       label="Image Fit"
                       options={[
@@ -2384,6 +2352,7 @@ function PanelContent({
                       block={block}
                       updateField={updateField}
                     />
+                    {imageTextLayout !== "image-overlay" && <ImageSpacingFields {...appearanceFields} />}
                     <StudioSliderField
                       label="Image Border Radius"
                       min={0}
@@ -2400,6 +2369,7 @@ function PanelContent({
                         { label: "1:1", value: "1:1" },
                         { label: "4:3", value: "4:3" },
                         { label: "16:9", value: "16:9" },
+                        { label: "9:16", value: "9:16" },
                       ]}
                       value={block.imageRatio ?? "auto"}
                       onChange={(value) =>
@@ -2448,6 +2418,7 @@ function PanelContent({
                       value={block.textAlign ?? "left"}
                       onChange={(value) => updateField("textAlign", value)}
                     />
+                    {sideBySide && <VerticalAlignmentField {...appearanceFields} />}
                     <StudioTextField
                       label="Button Text"
                       placeholder="Learn more"
@@ -2455,7 +2426,7 @@ function PanelContent({
                       onChange={(value) => updateField("buttonText", value)}
                     />
                     <StudioTextField
-                      label="Button URL"
+                      label="Destination URL"
                       placeholder="https://..."
                       type="url"
                       value={block.buttonUrl ?? ""}
@@ -2534,6 +2505,7 @@ function PanelContent({
                               )
                             }
                           />
+                          <ButtonPaddingFields {...appearanceFields} />
                           <StudioSwitchField
                             label="Rounded"
                             checked={block.buttonRounded ?? true}
@@ -2597,7 +2569,7 @@ function PanelContent({
                   <>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -2611,12 +2583,14 @@ function PanelContent({
                       value={block.contentPadding ?? 24}
                       onChange={(value) => updateField("contentPadding", value)}
                     />
-                    <StudioToggleField
+                    {sideBySide && <StudioToggleField
                       label="Column Split"
                       options={[
+                        { label: "30/70", value: "30/70" },
                         { label: "40/60", value: "40/60" },
                         { label: "50/50", value: "50/50" },
                         { label: "60/40", value: "60/40" },
+                        { label: "70/30", value: "70/30" },
                       ]}
                       value={block.columnSplit ?? "50/50"}
                       onChange={(value) =>
@@ -2625,7 +2599,7 @@ function PanelContent({
                           value as StudioBlock["columnSplit"],
                         )
                       }
-                    />
+                    />}
                   </>
                 ),
               },
@@ -2662,103 +2636,46 @@ function PanelContent({
                   />
                 ),
               },
+              ...(block.buttonText || block.buttonUrl
+                ? [{
+                    id: "button",
+                    title: "Existing button",
+                    content: (
+                      <>
+                        <StudioTextField
+                          label="Button Text"
+                          value={block.buttonText ?? ""}
+                          onChange={(value) => updateField("buttonText", value)}
+                        />
+                        <StudioTextField
+                          label="Destination URL"
+                          type="url"
+                          value={block.buttonUrl ?? ""}
+                          onChange={(value) => updateField("buttonUrl", value)}
+                        />
+                        <StudioColorPicker
+                          label="Button Color"
+                          value={block.buttonColor ?? "#111827"}
+                          onChange={(value) => updateField("buttonColor", value)}
+                        />
+                        <StudioColorPicker
+                          label="Button Text Color"
+                          value={block.buttonTextColor ?? "#ffffff"}
+                          onChange={(value) => updateField("buttonTextColor", value)}
+                        />
+                      </>
+                    ),
+                  }]
+                : []),
               {
-                id: "button",
-                title: "Button (optional)",
+                id: "alignment",
+                title: "Alignment",
                 content: (
-                  <>
-                    <StudioTextField label="Button Text" placeholder="Learn more" value={block.buttonText ?? ""} onChange={(value) => updateField("buttonText", value)} />
-                    <StudioTextField label="Button URL" placeholder="https://..." type="url" value={block.buttonUrl ?? ""} onChange={(value) => updateField("buttonUrl", value)} />
-                    <StudioColorPicker label="Button Color" value={block.buttonColor ?? "#111827"} onChange={(value) => updateField("buttonColor", value)} />
-                    <StudioColorPicker label="Button Text Color" value={block.buttonTextColor ?? "#ffffff"} onChange={(value) => updateField("buttonTextColor", value)} />
-                  </>
-                ),
-              },
-              {
-                id: "typography",
-                title: "Typography",
-                content: (
-                  <>
-                    <StudioToggleField
-                      label="Font Size"
-                      options={[
-                        { label: "Small", value: "sm" },
-                        { label: "Medium", value: "md" },
-                        { label: "Large", value: "lg" },
-                      ]}
-                      value={block.fontSizePreset ?? block.fontSize ?? "md"}
-                      onChange={(value) => {
-                        updateField(
-                          "fontSizePreset",
-                          value as StudioBlock["fontSizePreset"],
-                        );
-                        updateField(
-                          "fontSize",
-                          value as StudioBlock["fontSize"],
-                        );
-                      }}
-                    />
-                    <StudioSliderField
-                      label="Line Height"
-                      min={1.3}
-                      max={2.2}
-                      step={0.1}
-                      defaultValue={1.6}
-                      value={block.lineHeightValue ?? block.lineHeight ?? 1.6}
-                      onChange={(value) => {
-                        updateField("lineHeightValue", value);
-                        updateField("lineHeight", value);
-                      }}
-                    />
-                    <StudioToggleField
-                      label="Font Weight"
-                      options={[
-                        { label: "Normal", value: "normal" },
-                        { label: "Medium", value: "medium" },
-                      ]}
-                      value={block.fontWeightPreset ?? "normal"}
-                      onChange={(value) =>
-                        updateField(
-                          "fontWeightPreset",
-                          value as StudioBlock["fontWeightPreset"],
-                        )
-                      }
-                    />
-                  </>
-                ),
-              },
-              {
-                id: "style",
-                title: "Style",
-                content: (
-                  <>
-                    <StudioColorPicker
-                      label="Text Color"
-                      value={block.textColor ?? "#111827"}
-                      onChange={(value) => updateField("textColor", value)}
-                    />
-                    <StudioColorPicker
-                      label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
-                      onChange={(value) =>
-                        updateField("backgroundColor", value)
-                      }
-                    />
-                    <StudioAlignmentToggle
-                      label="Text Alignment"
-                      value={block.textAlign ?? "left"}
-                      onChange={(value) => updateField("textAlign", value)}
-                    />
-                    <StudioSliderField
-                      label="Content Padding"
-                      min={12}
-                      max={56}
-                      step={4}
-                      defaultValue={28}
-                      value={block.contentPadding ?? 28}
-                      onChange={(value) => updateField("contentPadding", value)}
-                    />
-                  </>
+                  <StudioAlignmentToggle
+                    label="Text Alignment"
+                    value={block.textAlign ?? "left"}
+                    onChange={(value) => updateField("textAlign", value)}
+                  />
                 ),
               },
               ...(block.layout === "side-accent" || block.layout === "boxed"
@@ -2818,17 +2735,17 @@ function PanelContent({
           spacing={0.75}
           sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
         >
-          <LayoutPresetPicker
+          {hasCtaCopy && <LayoutPresetPicker
             presets={ctaPresets}
             selectedKey={block.layoutPreset}
             onSelect={selectPreset}
-          />
+          />}
           <Stack
             spacing={0.75}
             sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
           >
             {renderSections([
-              {
+              ...(hasCtaCopy && block.layout !== "inline-button-only" ? [{
                 id: "content",
                 title: "Content",
                 content: (
@@ -2840,6 +2757,11 @@ function PanelContent({
                       onChange={(value) => updateField("headline", value)}
                       aiDecorator
                     />
+                    <StudioTextField
+                      label="Subheading"
+                      value={block.subheading ?? ""}
+                      onChange={(value) => updateField("subheading", value)}
+                    />
                     <StudioRichTextField
                       label="Description"
                       minRows={2}
@@ -2847,9 +2769,18 @@ function PanelContent({
                       onChange={(value) => updateField("body", value)}
                       placeholder="Add a short description"
                     />
+                    <StudioAlignmentToggle
+                      label="Text alignment"
+                      value={block.textAlign ?? "center"}
+                      onChange={(value) => {
+                        // Older drafts used textAlign for both text and button placement.
+                        if (!block.buttonAlign) updateField("buttonAlign", splitCta ? "right" : block.textAlign ?? "center");
+                        updateField("textAlign", value);
+                      }}
+                    />
                   </>
                 ),
-              },
+              }] : []),
               {
                 id: "primary-button",
                 title: "Primary Button",
@@ -2862,7 +2793,7 @@ function PanelContent({
                       onChange={(value) => updateField("buttonText", value)}
                     />
                     <StudioTextField
-                      label="Button URL"
+                      label="Destination URL"
                       placeholder="https://..."
                       type="url"
                       value={block.buttonUrl ?? ""}
@@ -2929,6 +2860,13 @@ function PanelContent({
                       checked={block.buttonRounded ?? true}
                       onChange={(value) => updateField("buttonRounded", value)}
                     />
+                    <ButtonPaddingFields {...appearanceFields} />
+                    <StudioAlignmentToggle
+                      label="Button alignment"
+                      value={block.buttonAlign ?? (splitCta ? "right" : block.textAlign ?? "center")}
+                      onChange={(value) => updateField("buttonAlign", value)}
+                    />
+                    {splitCta && hasCtaCopy && <VerticalAlignmentField {...appearanceFields} />}
                     <StudioSwitchField
                       label="Full Width"
                       checked={block.fullWidthButton ?? false}
@@ -2959,7 +2897,7 @@ function PanelContent({
                       }
                     />
                     <StudioTextField
-                      label="Link URL"
+                      label="Destination URL"
                       placeholder="https://..."
                       type="url"
                       value={block.secondaryLinkUrl ?? ""}
@@ -2968,7 +2906,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Link Color"
+                      label="Secondary link colour"
                       value={block.linkColor ?? block.textColor ?? "#111827"}
                       onChange={(value) => updateField("linkColor", value)}
                     />
@@ -2982,30 +2920,9 @@ function PanelContent({
                   <>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
-                      }
-                    />
-                    <StudioColorPicker
-                      label="Text Color"
-                      value={block.textColor ?? "#111827"}
-                      onChange={(value) => updateField("textColor", value)}
-                    />
-                    <StudioAlignmentToggle
-                      label="Text Alignment"
-                      value={block.textAlign ?? "center"}
-                      onChange={(value) => updateField("textAlign", value)}
-                    />
-                    <StudioSliderField
-                      label="Vertical Padding"
-                      min={12}
-                      max={64}
-                      step={4}
-                      defaultValue={32}
-                      value={block.verticalPadding ?? 32}
-                      onChange={(value) =>
-                        updateField("verticalPadding", value)
                       }
                     />
                   </>
@@ -3060,7 +2977,7 @@ function PanelContent({
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
                     >
                       <StudioTextField
-                        label="Link URL"
+                        label="Destination URL"
                         placeholder="https://..."
                         type="url"
                         value={block.linkUrl ?? ""}
@@ -3149,11 +3066,13 @@ function PanelContent({
                       onChange={(value) => updateField("overlayOpacity", value)}
                     />
                     <StudioToggleField
-                      label="Gradient Direction"
+                      label="Overlay direction"
                       options={[
                         { label: "Uniform", value: "uniform" },
                         { label: "Top Fade", value: "top-to-bottom" },
                         { label: "Bottom Fade", value: "bottom-to-top" },
+                        { label: "Left Fade", value: "left-to-right" },
+                        { label: "Right Fade", value: "right-to-left" },
                       ]}
                       value={block.overlayGradientDirection ?? "uniform"}
                       onChange={(value) =>
@@ -3243,7 +3162,7 @@ function PanelContent({
                       onChange={(value) => updateField("buttonText", value)}
                     />
                     <StudioTextField
-                      label="Button URL"
+                      label="Destination URL"
                       placeholder="https://..."
                       type="url"
                       value={block.buttonUrl ?? ""}
@@ -3305,6 +3224,7 @@ function PanelContent({
                         )
                       }
                     />
+                    <ButtonPaddingFields {...appearanceFields} />
                     <StudioSwitchField
                       label="Rounded Corners"
                       checked={block.buttonRounded ?? true}
@@ -3358,7 +3278,7 @@ function PanelContent({
                     ) : null}
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -3415,7 +3335,7 @@ function PanelContent({
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
                     >
                       <StudioTextField
-                        label="Link URL"
+                        label="Destination URL"
                         placeholder="https://..."
                         type="url"
                         value={block.linkUrl ?? ""}
@@ -3446,6 +3366,7 @@ function PanelContent({
                         )
                       }
                     />
+                    <ImageSpacingFields {...appearanceFields} />
                     <ImageCropControls
                       block={block}
                       updateField={updateField}
@@ -3525,7 +3446,7 @@ function PanelContent({
                     />
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -3698,7 +3619,7 @@ function PanelContent({
                     </CollapsibleSection>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -3825,7 +3746,7 @@ function PanelContent({
                     />
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -3949,7 +3870,7 @@ function PanelContent({
                   <>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -4143,7 +4064,7 @@ function PanelContent({
                   <>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -4207,6 +4128,14 @@ function PanelContent({
                       onChange={(value) => updateField("address", value)}
                     />
                     <StudioTextField
+                      label="Hours of operation"
+                      placeholder="Monday–Saturday, 9 am–5 pm"
+                      multiline
+                      minRows={2}
+                      value={block.hoursOfOperation ?? ""}
+                      onChange={(value) => updateField("hoursOfOperation", value)}
+                    />
+                    <StudioTextField
                       label="Copyright Text"
                       placeholder="© 2026 Your Business"
                       value={block.copyright ?? block.copyrightText ?? ""}
@@ -4243,20 +4172,17 @@ function PanelContent({
                         value: block.logoUrl ?? "",
                       })}
                     />
-                    <StudioSliderField
-                      label="Logo Size"
-                      min={24}
-                      max={80}
-                      step={4}
-                      defaultValue={64}
-                      value={
-                        block.logoSize === 40 ? 64 : (block.logoSize ?? 64)
-                      }
-                      onChange={(value) => updateField("logoSize", value)}
+                    <NumericField
+                      label="Logo width (% of block)"
+                      min={1}
+                      max={100}
+                      value={block.logoWidthPercent}
+                      placeholder="Use original size"
+                      onChange={(value) => updateField("logoWidthPercent", value)}
                     />
                     <StudioAlignmentToggle
                       label="Logo Alignment"
-                      value={block.logoAlignment ?? "left"}
+                      value={block.logoAlignment ?? (block.layout === "centered-branded" ? "center" : "left")}
                       onChange={(value) => updateField("logoAlignment", value)}
                     />
                   </>
@@ -4347,7 +4273,7 @@ function PanelContent({
                   <>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#1e293b"}
+                      value={backgroundColor ?? "#1e293b"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -4418,16 +4344,16 @@ function PanelContent({
                       aiDecorator
                     />
                     <StudioTextField
+                      label="Subtitle"
+                      placeholder="Your weekly garden update"
+                      value={block.subheading ?? block.tagline ?? ""}
+                      onChange={(value) => updateField("subheading", value)}
+                    />
+                    <StudioTextField
                       label="Date Label"
                       placeholder="May 2026"
                       value={block.dateLabel ?? ""}
                       onChange={(value) => updateField("dateLabel", value)}
-                    />
-                    <StudioTextField
-                      label="Tagline"
-                      placeholder="Your weekly garden update"
-                      value={block.tagline ?? ""}
-                      onChange={(value) => updateField("tagline", value)}
                     />
                   </>
                 ),
@@ -4450,21 +4376,31 @@ function PanelContent({
                         value: block.logoUrl ?? "",
                       })}
                     />
-                    <StudioSliderField
-                      label="Logo Size"
+                    <NumericField
+                      label="Logo size (px)"
                       min={24}
-                      max={80}
-                      step={4}
-                      defaultValue={56}
-                      value={
-                        block.logoSize === 40 ? 56 : (block.logoSize ?? 56)
-                      }
+                      max={320}
+                      value={block.logoSize === 40 && !block.logoSizeExplicit
+                        ? (block.layout === "banner" ? 48 : 56)
+                        : block.logoSize}
                       onChange={(value) => updateField("logoSize", value)}
                     />
                     <StudioAlignmentToggle
                       label="Logo Alignment"
-                      value={block.logoAlignment ?? "left"}
+                      value={block.logoAlignment ?? (block.layout === "centered" ? "center" : "left")}
                       onChange={(value) => updateField("logoAlignment", value)}
+                    />
+                    <StudioImageUpload
+                      label="Full-width header banner"
+                      emptyText="Add banner"
+                      value={block.headerBannerUrl ?? ""}
+                      onChange={(value) => updateField("headerBannerUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "landscape",
+                        blockContext: "Newsletter header banner",
+                        fieldKey: `${block.id}:headerBannerUrl`,
+                        value: block.headerBannerUrl,
+                      })}
                     />
                     <StudioToggleField
                       label="Logo Shape"
@@ -4491,7 +4427,7 @@ function PanelContent({
                   <>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -4641,7 +4577,7 @@ function PanelContent({
                     />
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -4965,7 +4901,7 @@ function PanelContent({
                       onChange={(value) => updateField("buttonText", value)}
                     />
                     <StudioTextField
-                      label="Button URL"
+                      label="Destination URL"
                       placeholder="https://..."
                       type="url"
                       value={block.buttonUrl ?? ""}
@@ -5015,7 +4951,7 @@ function PanelContent({
                   <>
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "#ffffff"}
+                      value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -5057,11 +4993,6 @@ function PanelContent({
           spacing={0.75}
           sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
         >
-          <LayoutPresetPicker
-            presets={spacerPresets}
-            selectedKey={block.layoutPreset}
-            onSelect={selectPreset}
-          />
           <Stack
             spacing={0.75}
             sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
@@ -5127,7 +5058,7 @@ function PanelContent({
                     />
                     <StudioColorPicker
                       label="Background Color"
-                      value={block.backgroundColor ?? "transparent"}
+                      value={backgroundColor ?? "transparent"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
@@ -5357,6 +5288,7 @@ export default function BlockPropertiesPanel({
             onTrackCampaignImageUsage={onTrackCampaignImageUsage}
             onRequestAIImage={onRequestAIImage}
             onUpdateBlockField={onUpdateBlockField}
+            onUpdateBlockFields={onUpdateBlockFields}
             resolveCampaignImageFieldSource={resolveCampaignImageFieldSource}
           />
         ) : null}
@@ -5379,6 +5311,8 @@ export default function BlockPropertiesPanel({
         {block && (
           <Box sx={{ px: 2.5, pb: 3 }}>
             <AppearanceControls
+              key={block.id}
+              block={block}
               value={block.appearance}
               onChange={(value) => {
                 onUpdateBlockField(block.id, "appearance", value);

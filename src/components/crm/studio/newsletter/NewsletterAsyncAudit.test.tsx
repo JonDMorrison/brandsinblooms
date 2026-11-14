@@ -46,6 +46,10 @@ describe("graphic hero image upload", () => {
     await waitFor(() =>
       expect(update).toHaveBeenCalledWith(block.id, "imageUrl", "https://example.com/hero-upload.png"),
     );
+    view.rerender(<SharedEmailBlockPreview block={{ ...block, imageUrl: "https://example.com/hero-upload.png" }} onUpdateBlockField={update} />);
+    const background = view.container.querySelector('.nl-preview td[background="https://example.com/hero-upload.png"]');
+    expect(background).toBeVisible();
+    expect((background as HTMLElement).style.backgroundSize).toBe("contain");
     click.mockRestore();
     view.unmount();
   });

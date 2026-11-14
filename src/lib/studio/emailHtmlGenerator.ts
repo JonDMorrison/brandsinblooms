@@ -16,6 +16,7 @@ import {
   emailFont,
   mergeAppearance,
   normalizeNewsletterSettings,
+  navigationLinkColor,
   safeEmailUrl,
   textCss,
 } from "./newsletter/settings.ts";
@@ -247,6 +248,8 @@ function getFooterContactLines(
     .split(/\n+/)
     .map((line) => stripEmailFragmentsFromAddressLine(stringValue(line)))
     .filter(Boolean);
+
+  lines.push(...stringValue(block.hoursOfOperation).split(/\n+/).map((line) => line.trim()).filter(Boolean));
 
   if (stringValue(designSystem?.company.phone)) {
     lines.push(stringValue(designSystem?.company.phone));
@@ -551,6 +554,11 @@ function getAlignment(
     : fallback;
 }
 
+function logoMargin(align: StudioBlock["logoAlignment"]) {
+  if (align === "right") return "0 0 0 auto";
+  return align === "center" ? "0 auto" : "0";
+}
+
 function getButtonPadding(size: StudioBlock["buttonSize"]) {
   switch (size) {
     case "sm":
@@ -641,13 +649,13 @@ function renderGraphicHeroContent(
 
   if (headline) {
     pieces.push(
-      `<div style="font-family:${headlineFont};font-size:${options.compact ? 16 : 28}px;line-height:${options.compact ? 1.35 : 1.2};font-weight:700;color:${textColor};margin:0 0 ${subheading ? 6 : 0}px;text-align:${align};">${textBlock(headline)}</div>`,
+      `<div data-newsletter-role="heading" style="font-family:${headlineFont};font-size:${options.compact ? 16 : 28}px;line-height:${options.compact ? 1.35 : 1.2};font-weight:700;color:${textColor};margin:0 0 ${subheading ? 6 : 0}px;text-align:${align};">${textBlock(headline)}</div>`,
     );
   }
 
   if (subheading) {
     pieces.push(
-      `<div style="font-family:${subheadingFont};font-size:${options.compact ? 13 : 16}px;line-height:1.5;color:${colorWithOpacity(textColor, options.compact ? 0.72 : 0.82)};margin:0;text-align:${align};">${textBlock(subheading)}</div>`,
+      `<div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:${options.compact ? 13 : 16}px;line-height:1.5;color:${colorWithOpacity(textColor, options.compact ? 0.72 : 0.82)};margin:0;text-align:${align};">${textBlock(subheading)}</div>`,
     );
   }
 
@@ -730,6 +738,8 @@ function getImageHeightForRatio(
       return Math.round((width * 3) / 4);
     case "16:9":
       return Math.round((width * 9) / 16);
+    case "9:16":
+      return Math.round((width * 16) / 9);
     default:
       return null;
   }
@@ -842,10 +852,10 @@ function renderTextContent(
 function renderButton(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
-  options: { marginTop?: number; align?: "left" | "center" | "right" } = {},
+  options: { marginTop?: number; align?: "left" | "center" | "right"; allowUnlinked?: boolean } = {},
 ) {
-  if (block.appearance || block.fullWidthButton) {
-    const button = renderNewsletterButton(block);
+  if (block.appearance || block.fullWidthButton || (options.allowUnlinked && !safeUrl(block.buttonUrl))) {
+    const button = renderNewsletterButton(block, block.buttonText, block.buttonUrl, options.allowUnlinked);
     return button
       ? `<div style="margin-top:${options.marginTop ?? 24}px;text-align:${options.align || block.textAlign || "center"};">${button}</div>`
       : "";
@@ -925,12 +935,13 @@ function renderCouponBlock(
 function renderHeroBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
+  editing: boolean,
 ) {
   const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
   const textColor = safeColor(block.textColor, "#1a1a2e");
   const align = getAlignment(block.textAlign, "center");
   const heroStyle = block.heroStyle || "solid";
-  const imageUrl = safeUrl(block.imageUrl, { image: true });
+  const imageUrl = safeUrl(block.imageUrl, { image: true }) || (editing ? "/images/newsletter-fallback.jpg" : "");
   const padding = block.appearance?.padding ? "0" : "48px 32px";
   const background =
     heroStyle === "gradient"
@@ -941,7 +952,7 @@ function renderHeroBlock(
   if (heroStyle === "image-overlay" && block.layout === "editorial-panel") {
     // Solid panel keeps live copy readable with blocked images and in Outlook.
     const photo = imageUrl ? ` background="${escapeAttribute(imageUrl)}"` : "";
-    const photoStyle = imageUrl ? `background-image:url('${escapeAttribute(imageUrl)}');background-size:cover;background-position:${getImageObjectPosition(block.imageFocalX, block.imageFocalY)};` : "";
+    const photoStyle = imageUrl ? `background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-size:cover;background-position:${getImageObjectPosition(block.imageFocalX, block.imageFocalY)};` : "";
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td${photo} bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};${photoStyle}padding:${imageUrl ? 180 : 24}px 24px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:24px;background-color:${backgroundColor};">${content}</td></tr></table></td></tr></table>`;
   }
 
@@ -949,7 +960,7 @@ function renderHeroBlock(
     const overlayOpacity =
       Math.max(0, Math.min(100, numberValue(block.overlayOpacity, 45))) / 100;
     const overlayColor = safeColor(block.overlayColor, "#000000");
-    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl)}');background-position:center center;background-size:cover;background-repeat:no-repeat;"><!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:${EMAIL_WIDTH}px;"><v:fill type="frame" src="${escapeAttribute(imageUrl)}" color="${escapeAttribute(backgroundColor)}" /><v:textbox inset="0,0,0,0"><![endif]--><div style="background-color:${colorWithOpacity(overlayColor, overlayOpacity)};padding:${padding};">${content}</div><!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr></table>`;
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-position:center center;background-size:cover;background-repeat:no-repeat;"><!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:${EMAIL_WIDTH}px;"><v:fill type="frame" src="${escapeAttribute(imageUrl)}" color="${escapeAttribute(backgroundColor)}" /><v:textbox inset="0,0,0,0"><![endif]--><div style="background-color:${colorWithOpacity(overlayColor, overlayOpacity)};padding:${padding};">${content}</div><!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr></table>`;
   }
 
   if (heroStyle === "image-bottom") {
@@ -971,14 +982,16 @@ function renderHeroBlock(
 function renderGraphicImageBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
+  editing: boolean,
 ) {
-  const imageUrl = safeUrl(block.imageUrl, { image: true });
+  const imageUrl = safeUrl(block.imageUrl, { image: true }) ||
+    (editing && block.type === "graphic-hero" ? "/images/newsletter-fallback.jpg" : "");
   if (!imageUrl) return "";
 
   if (block.type !== "graphic-hero") {
     const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
     const radius = numberValue(block.borderRadius, 0);
-    const padding = block.imagePadding ? 16 : 0;
+    const padding = (block.insetPadding ?? block.imagePadding) ? 16 : 0;
     const maxHeight = Math.max(
       150,
       Math.min(600, numberValue(block.maxHeight, 400)),
@@ -988,12 +1001,13 @@ function renderGraphicImageBlock(
       block.imageFocalY,
     );
     const contain = block.imageFit === "contain";
-    const image = `<img class="responsive-image${contain ? "" : " responsive-crop-image"}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${EMAIL_WIDTH - padding * 2}"${contain ? "" : ` height="${maxHeight}"`} style="display:block;width:100%;max-width:${EMAIL_WIDTH - padding * 2}px;${contain ? "height:auto;" : `height:${maxHeight}px;object-fit:cover;`}object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />`;
+    const shadow = block.showShadow ? "box-shadow:0 4px 16px rgba(0,0,0,0.12);" : "";
+    const image = `<img class="responsive-image${contain ? "" : " responsive-crop-image"}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${EMAIL_WIDTH - padding * 2}"${contain ? "" : ` height="${maxHeight}"`} style="display:block;width:100%;max-width:${EMAIL_WIDTH - padding * 2}px;${contain ? "height:auto;" : `height:${maxHeight}px;object-fit:cover;`}object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;${shadow}" />`;
     const linked = safeUrl(block.linkUrl)
       ? `<a href="${escapeAttribute(safeUrl(block.linkUrl))}" target="_blank" style="text-decoration:none;">${image}</a>`
       : image;
-    const caption = stringValue(block.caption)
-      ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.5;color:${safeColor(block.textColor, "#64748b")};text-align:center;padding:10px 0 0;">${textBlock(block.caption)}</div>`
+    const caption = block.showCaption !== false && stringValue(block.caption)
+      ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.5;color:${safeColor(block.captionColor || block.textColor, "#64748b")};text-align:${getAlignment(block.captionAlignment, "center")};padding:10px 0 0;">${textBlock(block.caption)}</div>`
       : "";
 
     return renderSection(
@@ -1022,7 +1036,7 @@ function renderGraphicImageBlock(
     block.imageFocalX,
     block.imageFocalY,
   );
-  const imageCellBackground = `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl)}');background-position:${objectPosition};background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
+  const imageCellBackground = `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-position:${objectPosition};background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
   const overlayStyle = block.showOverlay
     ? getGraphicHeroOverlayStyle(block)
     : "";
@@ -1101,8 +1115,9 @@ function renderNewsletterHeaderLogoHtml(
     ? size
     : Math.max(placeholderWidth, Math.round(size * 2.6));
 
+  const margin = logoMargin(block.logoAlignment ?? (block.layout === "centered" ? "center" : "left"));
   if (logoUrl) {
-    return `<img src="${escapeAttribute(logoUrl)}" alt="${escapeAttribute(title)} logo" style="display:block;width:${isCircle ? `${size}px` : "auto"};max-width:${maxWidth}px;height:${size}px;object-fit:${isCircle ? "cover" : "contain"};border:0;outline:none;text-decoration:none;border-radius:${getNewsletterHeaderLogoRadius(block)};" />`;
+    return `<img src="${escapeAttribute(logoUrl)}" alt="${escapeAttribute(title)} logo" style="display:block;margin:${margin};width:${isCircle ? `${size}px` : "auto"};max-width:${maxWidth}px;height:${size}px;object-fit:${isCircle ? "cover" : "contain"};border:0;outline:none;text-decoration:none;border-radius:${getNewsletterHeaderLogoRadius(block)};" />`;
   }
 
   if (!showPlaceholder) {
@@ -1163,6 +1178,10 @@ function renderNewsletterHeaderBlock(
       size: layout === "banner" ? 48 : 56,
     },
   );
+  const logoAlign = getAlignment(block.logoAlignment, layout === "centered" ? "center" : "left");
+  const logoRow = logoHtml
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="${logoAlign}" style="text-align:${logoAlign};padding-bottom:8px;">${logoHtml}</td></tr></table>`
+    : "";
   const dividerRow = showDivider
     ? `<tr><td valign="middle" style="padding:0 24px;"><div style="height:1px;background-color:${dividerColor};${layout === "banner" ? "opacity:0.45;" : ""}"></div></td></tr>`
     : "";
@@ -1170,7 +1189,7 @@ function renderNewsletterHeaderBlock(
   if (layout === "centered") {
     return renderSection(
       backgroundColor,
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" align="center" style="padding:${paddingY}px ${paddingX}px;text-align:center;vertical-align:middle;">${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ""}<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:22px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.4;color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin-top:4px;">${textBlock(dateLabel)}</div></td></tr>${dividerRow}</table>`,
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" align="center" style="padding:${paddingY}px ${paddingX}px;text-align:center;vertical-align:middle;">${logoRow}<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:22px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:13px;line-height:1.4;color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin-top:4px;">${textBlock(dateLabel)}</div></td></tr>${dividerRow}</table>`,
     );
   }
 
@@ -1181,30 +1200,16 @@ function renderNewsletterHeaderBlock(
 
     return renderSection(
       backgroundColor,
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px ${paddingX}px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;"><div data-newsletter-role="heading" style="font-family:${titleFont};font-size:18px;line-height:1.2;font-weight:600;color:${titleColor};margin:0;">${textBlock(title)}</div></td><td class="responsive-column" width="96" valign="middle" align="right" style="width:96px;vertical-align:middle;text-align:right;padding-left:16px;"><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin:0;white-space:nowrap;">${textBlock(dateLabel)}</div></td></tr></table>${minimalTagline}</td></tr>${dividerRow}</table>`,
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px ${paddingX}px;vertical-align:middle;">${logoRow}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;"><div data-newsletter-role="heading" style="font-family:${titleFont};font-size:18px;line-height:1.2;font-weight:600;color:${titleColor};margin:0;">${textBlock(title)}</div></td><td class="responsive-column" width="96" valign="middle" align="right" style="width:96px;vertical-align:middle;text-align:right;padding-left:16px;"><div style="font-family:${bodyFont};font-size:12px;line-height:1.35;color:${dateColor};margin:0;white-space:nowrap;">${textBlock(dateLabel)}</div></td></tr></table>${minimalTagline}</td></tr>${dividerRow}</table>`,
     );
   }
 
   const contentHtml = `<div data-newsletter-role="heading" style="font-family:${titleFont};font-size:${layout === "banner" ? 18 : 20}px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div data-newsletter-role="subheading" style="font-family:${subheadingFont};font-size:${layout === "banner" ? 12 : 13}px;line-height:${layout === "banner" ? 1.35 : 1.3};color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div>`;
-  const logoCellWidth = Math.max(
-    48,
-    (numberValue(block.logoSize, layout === "banner" ? 48 : 56) === 40 &&
-    !block.logoSizeExplicit
-      ? layout === "banner"
-        ? 48
-        : 56
-      : numberValue(block.logoSize, layout === "banner" ? 48 : 56)) + 12,
-  );
-  const leadingContent = logoHtml
-    ? block.logoAlignment === "right"
-      ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;padding-right:12px;">${contentHtml}</td><td class="responsive-column" width="${logoCellWidth}" valign="middle" style="width:${logoCellWidth}px;vertical-align:middle;padding-left:12px;">${logoHtml}</td></tr></table>`
-      : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" width="${logoCellWidth}" valign="middle" style="width:${logoCellWidth}px;vertical-align:middle;padding-right:12px;">${logoHtml}</td><td class="responsive-column" valign="middle" style="vertical-align:middle;">${contentHtml}</td></tr></table>`
-    : contentHtml;
   const dateHtml = `<div style="font-family:${bodyFont};font-size:${layout === "banner" ? 12 : 13}px;line-height:1.35;color:${dateColor};margin:0;white-space:nowrap;">${textBlock(dateLabel)}</div>`;
 
   return renderSection(
     backgroundColor,
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px ${paddingX}px;vertical-align:middle;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;">${leadingContent}</td><td class="responsive-column" width="${layout === "banner" ? 92 : 110}" valign="middle" align="right" style="width:${layout === "banner" ? 92 : 110}px;vertical-align:middle;text-align:right;padding-left:16px;">${dateHtml}</td></tr></table></td></tr>${dividerRow}</table>`,
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td valign="middle" style="padding:${paddingY}px ${paddingX}px;vertical-align:middle;">${logoRow}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="responsive-column" valign="middle" style="vertical-align:middle;">${contentHtml}</td><td class="responsive-column" width="${layout === "banner" ? 92 : 110}" valign="middle" align="right" style="width:${layout === "banner" ? 92 : 110}px;vertical-align:middle;text-align:right;padding-left:16px;">${dateHtml}</td></tr></table></td></tr>${dividerRow}</table>`,
   );
 }
 
@@ -1226,6 +1231,7 @@ function renderPlainTextBlock(
     block.layout === "boxed"
       ? "background-color:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:20px;"
       : "";
+  const weight = block.fontWeightPreset === "medium" ? 500 : 400;
   const body = stringValue(block.body)
     ? sanitizeRichHtml(block.body || "", designSystem, {
         bodyLineHeight: lineHeight,
@@ -1234,7 +1240,7 @@ function renderPlainTextBlock(
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};"><div style="${boxed}${accent}font-family:${getFontStack(designSystem, "body")};font-size:${fontSize}px;line-height:${lineHeight};color:${textColor};text-align:${align};">${body}${renderButton(block, designSystem, { align })}</div></div>`,
+    `<div class="mobile-padding" style="padding:${padding}px 24px;background-color:${backgroundColor};"><div style="${boxed}${accent}text-align:${align};"><div data-newsletter-role="body" style="font-family:${getFontStack(designSystem, "body")};font-size:${fontSize}px;font-weight:${weight};line-height:${lineHeight};color:${textColor};">${body}</div>${renderButton(block, designSystem, { align })}</div></div>`,
   );
 }
 
@@ -1255,6 +1261,8 @@ function renderImageTextBlock(
     block.imageFocalX,
     block.imageFocalY,
   );
+  const cropClass = block.imageRatio === "9:16" ? "portrait-ratio-image" : "responsive-crop-image";
+  const portraitAspect = block.imageRatio === "9:16" ? "aspect-ratio:9/16;" : "";
   const content = `${renderTextContent({ ...block, textColor }, designSystem)}${renderButton(block, designSystem, { align })}`;
 
   if (layout === "image-overlay" && imageUrl) {
@@ -1263,7 +1271,7 @@ function renderImageTextBlock(
     const overlayColor = safeColor(block.overlayColor, "#000000");
     return renderSection(
       backgroundColor,
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl)}');background-position:${objectPosition};background-size:${block.imageFit === "contain" ? "contain" : "cover"};background-repeat:no-repeat;border-radius:${radius}px;overflow:hidden;"><!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:${EMAIL_WIDTH}px;"><v:fill type="frame" src="${escapeAttribute(imageUrl)}" color="${escapeAttribute(backgroundColor)}" /><v:textbox inset="0,0,0,0"><![endif]--><div style="background-color:${colorWithOpacity(overlayColor, overlayOpacity)};padding:${padding}px;"><div style="max-width:420px;">${content}</div></div><!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr></table>`,
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-position:${objectPosition};background-size:${block.imageFit === "contain" ? "contain" : "cover"};background-repeat:no-repeat;border-radius:${radius}px;overflow:hidden;"><!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:${EMAIL_WIDTH}px;"><v:fill type="frame" src="${escapeAttribute(imageUrl)}" color="${escapeAttribute(backgroundColor)}" /><v:textbox inset="0,0,0,0"><![endif]--><div style="background-color:${colorWithOpacity(overlayColor, overlayOpacity)};padding:${padding}px;"><div style="max-width:420px;">${content}</div></div><!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr></table>`,
     );
   }
 
@@ -1275,10 +1283,10 @@ function renderImageTextBlock(
       block.imageRatio,
     );
     const cropDimensions = renderedHeight
-      ? ` height="${renderedHeight}" style="display:block;width:100%;height:${renderedHeight}px;object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`
+      ? ` height="${renderedHeight}" style="display:block;width:100%;height:${renderedHeight}px;${portraitAspect}object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`
       : ` style="display:block;width:100%;height:auto;object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`;
     const imageHtml = imageUrl
-      ? `<img class="responsive-image${renderedHeight ? " responsive-crop-image" : ""}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${renderedWidth}"${cropDimensions} />`
+      ? `<img class="responsive-image${renderedHeight ? " " + cropClass : ""}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${renderedWidth}"${cropDimensions} />`
       : "";
 
     return renderSection(
@@ -1291,10 +1299,10 @@ function renderImageTextBlock(
   const imageWidth = Math.floor(availableWidth * (split.image / 100));
   const imageHeight = getImageHeightForRatio(imageWidth, block.imageRatio);
   const imageStyle = imageHeight
-    ? `height:${imageHeight}px;object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};`
+    ? `height:${imageHeight}px;${portraitAspect}object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};`
     : `height:auto;object-position:${objectPosition};`;
   const imageClass = imageHeight
-    ? "responsive-image responsive-crop-image"
+    ? `responsive-image ${cropClass}`
     : "responsive-image";
   const reverse = layout === "image-right";
   // Image-first source order prevents alternating desktop layouts from becoming
@@ -1541,34 +1549,31 @@ function renderCtaBlock(
 ) {
   const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
   const textColor = safeColor(block.textColor, "#111827");
-  const align = getAlignment(block.textAlign, "center");
-  const paddingY = numberValue(block.verticalPadding, 32);
   const layout = block.layout || "centered-hero";
-  const copy = renderTextContent({ ...block, textColor }, designSystem, {
+  const split = layout === "banner" || layout === "split";
+  const textAlign = getAlignment(block.textAlign, "center");
+  const buttonAlign = getAlignment(block.buttonAlign, split ? "right" : textAlign);
+  const paddingY = numberValue(block.verticalPadding, 32);
+  const copy = layout === "inline-button-only" ? "" : renderTextContent(block, designSystem, {
     compact: layout === "banner",
   });
+  const showColumns = split && Boolean(copy);
+  const button = renderButton(block, designSystem, { align: buttonAlign, marginTop: 0, allowUnlinked: true });
+  const linkColor = safeColor(block.linkColor, textColor);
   const secondary =
     block.showSecondaryLink && stringValue(block.secondaryLinkText)
-      ? `<div style="font-family:${getFontStack(designSystem, "button")};font-size:14px;line-height:1.4;font-weight:700;margin-top:12px;"><a href="${escapeAttribute(safeUrl(block.secondaryLinkUrl) || "#")}" target="_blank" style="color:${textColor};text-decoration:underline;">${textBlock(block.secondaryLinkText)}</a></div>`
+      ? `<div style="font-family:${getFontStack(designSystem, "button")};font-size:14px;line-height:1.4;font-weight:700;margin-top:12px;"><a${block.linkColor ? ' data-newsletter-secondary-color="true"' : ""} href="${escapeAttribute(safeUrl(block.secondaryLinkUrl) || "#")}" target="_blank" style="color:${linkColor};text-decoration:underline;">${textBlock(block.secondaryLinkText)}</a></div>`
       : "";
-
-  if (layout === "inline-button-only") {
-    return renderSection(
-      backgroundColor,
-      `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};text-align:${align};">${renderButton(block, designSystem, { align, marginTop: 0 })}${secondary}</div>`,
-    );
-  }
-
-  if (layout === "banner" || layout === "split") {
-    return renderSection(
-      backgroundColor,
-      `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="62%" valign="middle" style="width:62%;vertical-align:middle;padding-right:18px;">${copy}</td><td class="responsive-column" width="38%" valign="middle" align="right" style="width:38%;vertical-align:middle;text-align:right;">${renderButton(block, designSystem, { align: "right", marginTop: 0 })}${secondary}</td></tr></table></div>`,
-    );
-  }
+  const actions = `<div style="text-align:${buttonAlign};">${button}${secondary}</div>`;
+  const vertical = block.appearance?.verticalAlign === "top" || block.appearance?.verticalAlign === "bottom"
+    ? block.appearance.verticalAlign : "middle";
+  const inner = showColumns
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding-right:18px;">${copy}</td><td class="responsive-column" width="38%" valign="${vertical}" style="width:38%;vertical-align:${vertical};">${actions}</td></tr></table>`
+    : `${copy ? `<div style="max-width:540px;margin:${textAlign === "center" ? "0 auto" : textAlign === "right" ? "0 0 0 auto" : "0"};padding-bottom:24px;">${copy}</div>` : ""}${actions}`;
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};text-align:${align};"><div style="max-width:540px;margin:${align === "center" ? "0 auto" : align === "right" ? "0 0 0 auto" : "0"};">${copy}${renderButton(block, designSystem, { align, marginTop: 24 })}${secondary}</div></div>`,
+    `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};">${inner}</div>`,
   );
 }
 
@@ -1745,9 +1750,14 @@ function renderFooterLogo(
   // 40px read as undersized next to the business name in real inboxes; 56 is
   // the common footer logo height. An explicit block.logoSize still wins.
   const requestedSize = numberValue(block.logoSize, 64);
-  const size = Math.max(24, requestedSize === 40 ? 64 : requestedSize);
+  const margin = logoMargin(block.logoAlignment ?? (resolveFooterLayout(block) === "centered-branded" ? "center" : "left"));
+  const size = Math.max(24, requestedSize === 40 && !block.logoSizeExplicit ? 64 : requestedSize);
+  if (logoUrl && Number.isFinite(block.logoWidthPercent)) {
+    const width = clampNumber(block.logoWidthPercent, 25, 1, 100);
+    return `<img src="${escapeAttribute(logoUrl)}" alt="${escapeAttribute(businessName)} logo" width="${width}%" style="display:block;margin:${margin};width:${width}%;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;" />`;
+  }
   if (logoUrl) {
-    return `<img src="${escapeAttribute(logoUrl)}" alt="${escapeAttribute(businessName)} logo" width="${Math.round(size * 2.6)}" height="${size}" style="display:block;width:auto;max-width:${Math.round(size * 2.6)}px;height:${size}px;object-fit:contain;border:0;outline:none;text-decoration:none;" />`;
+    return `<img src="${escapeAttribute(logoUrl)}" alt="${escapeAttribute(businessName)} logo" width="${Math.round(size * 2.6)}" height="${size}" style="display:block;margin:${margin};width:auto;max-width:${Math.round(size * 2.6)}px;height:${size}px;object-fit:contain;border:0;outline:none;text-decoration:none;" />`;
   }
 
   const logoBackgroundColor = safeColor(
@@ -1759,7 +1769,7 @@ function renderFooterLogo(
     dark ? "#ffffff" : "#111827",
   );
 
-  return `<div style="width:${size}px;height:${size}px;border-radius:10px;background-color:${logoBackgroundColor};border:1px solid ${dark ? "rgba(255,255,255,0.18)" : "#e5e7eb"};color:${logoTextColor};font-family:${getFontStack(designSystem, "brand")};font-size:14px;font-weight:800;line-height:${size}px;text-align:center;">${escapeHtml(getCompanyInitials(businessName))}</div>`;
+  return `<div style="margin:${margin};width:${size}px;height:${size}px;border-radius:10px;background-color:${logoBackgroundColor};border:1px solid ${dark ? "rgba(255,255,255,0.18)" : "#e5e7eb"};color:${logoTextColor};font-family:${getFontStack(designSystem, "brand")};font-size:14px;font-weight:800;line-height:${size}px;text-align:center;">${escapeHtml(getCompanyInitials(businessName))}</div>`;
 }
 
 function getFooterSocialLinks(
@@ -1961,15 +1971,18 @@ export function renderFooterBlockToEmailHtml(
   const contactInline = renderFooterContactContent(block, designSystem, true);
   const contactStack = renderFooterContactContent(block, designSystem);
 
+  const logoAlign = getAlignment(block.logoAlignment, centered ? "center" : "left");
+  const logoRow = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:10px;"><tr><td align="${logoAlign}" style="text-align:${logoAlign};">${renderFooterLogo(block, designSystem, dark)}</td></tr></table>`;
+
   if (layout === "light-minimal") {
-    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-bottom:10px;"><tr><td style="padding-right:12px;">${renderFooterLogo(block, designSystem, dark)}</td><td valign="middle" style="vertical-align:middle;font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</td></tr></table><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.5;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactInline}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
+    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};">${logoRow}<div style="font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.5;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactInline}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
   }
 
   if (centered) {
-    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};text-align:center;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse;margin:0 auto 12px;"><tr><td align="center">${renderFooterLogo(block, designSystem, dark)}</td></tr></table><div style="font-family:${getFontStack(designSystem, "headline")};font-size:16px;line-height:1.35;font-weight:800;color:${textColor};margin-bottom:4px;">${escapeHtml(businessName)}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactStack}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="height:1px;background-color:${dividerColor};margin:0 auto 12px;max-width:520px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:12px;">${complianceHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
+    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};text-align:center;">${logoRow}<div style="font-family:${getFontStack(designSystem, "headline")};font-size:16px;line-height:1.35;font-weight:800;color:${textColor};margin-bottom:4px;">${escapeHtml(businessName)}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactStack}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="height:1px;background-color:${dividerColor};margin:0 auto 12px;max-width:520px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:12px;">${complianceHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
   }
 
-  return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:16px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="padding-right:12px;">${renderFooterLogo(block, designSystem, dark)}</td><td valign="middle" style="vertical-align:middle;font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</td></tr></table></td><td class="responsive-column" width="50%" valign="top" align="right" style="width:50%;vertical-align:top;text-align:right;font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};">${contactStack}</td></tr></table><div style="height:1px;background-color:${dividerColor};margin:16px 0 12px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 12}px;">${complianceHtml}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
+  return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};">${logoRow}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:16px;"><div style="font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</div></td><td class="responsive-column" width="50%" valign="top" align="right" style="width:50%;vertical-align:top;text-align:right;font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};">${contactStack}</td></tr></table><div style="height:1px;background-color:${dividerColor};margin:16px 0 12px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 12}px;">${complianceHtml}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
 }
 
 export function createFooterBlockFromDesignSystem(
@@ -2075,6 +2088,7 @@ export function createFooterBlockFromProfile(
 function renderLegacyBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
+  editing: boolean,
 ): string {
   if (block.visible === false) return "";
 
@@ -2083,11 +2097,11 @@ function renderLegacyBlock(
       return renderCouponBlock(block, designSystem);
     case "email-safe-hero":
     case "header":
-      return renderHeroBlock(block, designSystem);
+      return renderHeroBlock(block, designSystem, editing);
     case "graphic-hero":
     case "full-width-image":
     case "image":
-      return renderGraphicImageBlock(block, designSystem);
+      return renderGraphicImageBlock(block, designSystem, editing);
     case "newsletter-header":
       return renderNewsletterHeaderBlock(block, designSystem);
     case "image-text":
@@ -2125,6 +2139,7 @@ export function renderNewsletterBlock(
   block: StudioBlock,
   designSystem?: StudioDesignSystem | null,
   settings?: NewsletterSettings,
+  { editing = false }: { editing?: boolean } = {},
 ): string {
   if (block.visible === false || block.type === "footer") return "";
   const resolved = normalizeNewsletterSettings(settings);
@@ -2159,6 +2174,14 @@ export function renderNewsletterBlock(
       : undefined;
   const prepared: StudioBlock = {
     ...block,
+    ...(block.type === "navigation" ? {
+      linkColor: navigationLinkColor(block, appearance?.background, resolved.contentBackgroundColor),
+    } : {}),
+    ...(editing && block.type === "call-to-action" && !stringValue(block.buttonText) ? { buttonText: "Button label" } : {}),
+    ...(editing && (block.type === "email-safe-hero" || block.type === "graphic-hero") &&
+      ![block.headline, block.subheading, block.body, block.tagLabel, block.buttonText].some((value) => stringValue(value))
+      ? { headline: "Your headline", subheading: "Your subheading" }
+      : {}),
     appearance,
     ...(appearance?.background
       ? { backgroundColor: appearance.background }
@@ -2247,17 +2270,18 @@ export function renderNewsletterBlock(
       }
     : brandedPrepared;
   let html =
-    renderExtendedBlock(extendedBlock, resolved.width) ??
-    renderLegacyBlock(brandedPrepared, designSystem);
+    renderExtendedBlock(extendedBlock, resolved.width, editing) ??
+    renderLegacyBlock(brandedPrepared, designSystem, editing);
   if (
     prepared.type === "newsletter-header" &&
     safeEmailUrl(prepared.headerBannerUrl, true)
   )
     html += `<img data-newsletter-image="headerBannerUrl" class="responsive-image" src="${escapeAttribute(safeEmailUrl(prepared.headerBannerUrl, true))}" alt="${escapeAttribute(prepared.imageAlt || "")}" width="${resolved.width}" style="display:block;width:100%;height:auto;border:0;" />`;
-  if (prepared.type === "image-text") {
+  if (prepared.type === "image-text" || prepared.type === "full-width-image" ||
+      (prepared.type === "email-safe-hero" && prepared.heroStyle === "image-bottom")) {
     html = html.replace(/<img\b[^>]*>/g, (image) => {
       const spacing = `<div style="padding:${edgeCss(appearance?.imagePadding)};margin:${edgeCss(appearance?.imageMargin)};">${image}</div>`;
-      const href = safeEmailUrl(prepared.linkUrl);
+      const href = prepared.type === "image-text" && prepared.imageLinkEnabled !== false ? safeEmailUrl(prepared.linkUrl) : "";
       return href
         ? `<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">${spacing}</a>`
         : spacing;
