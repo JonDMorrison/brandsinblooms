@@ -350,7 +350,9 @@ async function fetchAudiencePreflightSummary(params: {
       lastApprovedEmail = customer.normalizedEmail;
     }
 
-    if (!isConsentExcluded && !blockedWithOverride) {
+    // The separate, explicitly acknowledged consent review can include
+    // otherwise-unconfirmed records. Default send counts never do.
+    if (!blockedWithOverride) {
       overrideRecipientCount += 1;
       if (!isConsentExcluded && blockedNormally) {
         suppressionBypassRecipientCount += 1;
