@@ -195,7 +195,7 @@ export default function SharedEmailBlockPreview({
           }}
           sx={{
             position: hasVisibleContent ? "absolute" : "relative",
-            top: hasVisibleContent ? 8 : undefined,
+            bottom: hasVisibleContent ? 12 : undefined,
             right: hasVisibleContent ? 8 : undefined,
             display: "block",
             mx: hasVisibleContent ? 0 : "auto",

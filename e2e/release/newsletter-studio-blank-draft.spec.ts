@@ -176,14 +176,18 @@ test("a new newsletter opens Design Studio and previews Graphic Hero, button and
     const hero = page.locator("[data-studio-block-slot]").filter({
       has: page.getByRole("button", { name: "Upload Graphic Hero image" }),
     }).last();
-    const uploaded = page.waitForResponse((response) =>
-      response.request().method() === "POST" &&
-      new URL(response.url()).pathname.startsWith("/storage/v1/object/campaign-images/"),
-    );
-    const chooser = page.waitForEvent("filechooser");
-    await hero.getByRole("button", { name: "Upload Graphic Hero image" }).click();
-    await (await chooser).setFiles("public/images/newsletter-fallback.jpg");
-    const upload = await uploaded;
+    const [chooser] = await Promise.all([
+      page.waitForEvent("filechooser", { timeout: 12_000 }),
+      hero.getByRole("button", { name: "Upload Graphic Hero image" }).click({ timeout: 10_000 }),
+    ]);
+    const [upload] = await Promise.all([
+      page.waitForResponse((response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname.startsWith("/storage/v1/object/campaign-images/"),
+        { timeout: 20_000 },
+      ),
+      chooser.setFiles("public/images/newsletter-fallback.jpg"),
+    ]);
     expect(upload.ok(), "Graphic Hero image upload").toBeTruthy();
     const path = new URL(upload.url()).pathname;
     uploadedObjectPath = path.slice("/storage/v1/object/campaign-images/".length);
