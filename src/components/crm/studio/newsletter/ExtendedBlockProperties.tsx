@@ -14,7 +14,8 @@ import StudioImageUpload, {
 } from "../fields/StudioImageUpload";
 import StudioRichTextField from "../fields/StudioRichTextField";
 import StudioSwitchField from "../fields/StudioSwitchField";
-import { Field, NumericField, Choice, ColorField } from "./AppearanceControls";
+import { ButtonPaddingFields, Field, NumericField, Choice, ColorField } from "./AppearanceControls";
+import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { upcAImage } from "@/lib/studio/newsletter/barcode";
 import { validUpcA } from "@/lib/studio/newsletter/renderExtensions";
 
@@ -79,6 +80,13 @@ function LinksEditor({
                 onChange={(textColor) => change(link.id, { textColor })}
               />
             </>
+          )}
+          {block.type === "navigation" && link.textColor && (
+            <ColorField
+              label="Link colour override"
+              value={link.textColor}
+              onChange={(textColor) => change(link.id, { textColor })}
+            />
           )}
           <button
             type="button"
@@ -219,7 +227,7 @@ function ButtonFields({
         onChange={(value) => update("buttonText", value)}
       />
       <Field
-        label="Website URL"
+        label="Destination URL"
         value={block.buttonUrl}
         onChange={(value) => update("buttonUrl", value)}
       />
@@ -735,6 +743,7 @@ export default function ExtendedBlockProperties({
   block: StudioBlock;
   update: Update;
 }) {
+  const { settings } = useNewsletterDesign();
   const textField = (
     label: string,
     key: keyof StudioBlock,
@@ -826,10 +835,12 @@ export default function ExtendedBlockProperties({
               />
             </>
           )}
-          <p className="nl-note">
-            The line style is configured once. Use the shared Spacing and Border
-            controls below for the surrounding block.
-          </p>
+          <ColorField
+            label="Block background"
+            transparent
+            value={block.appearance?.background ?? settings?.defaults?.background ?? block.backgroundColor}
+            onChange={(background) => update("appearance", { ...block.appearance, background })}
+          />
         </>
       );
       break;
@@ -892,12 +903,27 @@ export default function ExtendedBlockProperties({
     case "button-group":
       content = (
         <>
-          {textField("Heading (optional)", "headline")}
-          {textField("Subheading (optional)", "subheading")}
+          {(block.type === "navigation" || block.headline || block.subheading) && (
+            <>
+              {textField("Heading", "headline")}
+              {textField("Subheading", "subheading")}
+            </>
+          )}
           <LinksEditor
             block={block}
             update={update}
             max={block.type === "navigation" ? 5 : 3}
+          />
+          {block.type === "navigation" && (
+            <ColorField
+              label="Link colour"
+              value={block.buttonTextColor}
+              onChange={(color) => update("buttonTextColor", color)}
+            />
+          )}
+          <ButtonPaddingFields
+            value={block.appearance}
+            onChange={(appearance) => update("appearance", appearance)}
           />
         </>
       );
@@ -1083,105 +1109,26 @@ export function AdditionalBlockFields({
   block: StudioBlock;
   update: Update;
 }) {
+  if (block.type !== "product-card") return null;
   return (
     <div className="nl-controls" style={{ padding: "0 20px" }}>
-      {block.type === "newsletter-header" && (
-        <>
-          <Field
-            label="Subtitle"
-            value={block.subheading}
-            onChange={(value) => update("subheading", value)}
-          />
-          <NumericField
-            label="Logo size (px)"
-            min={24}
-            max={320}
-            value={block.logoSize}
-            onChange={(value) => {
-              update("logoSize", value);
-              update("logoSizeExplicit", true);
-            }}
-          />
-          <StudioImageUpload
-            label="Full-width header banner"
-            value={block.headerBannerUrl || ""}
-            onChange={(value) => update("headerBannerUrl", value)}
-          />
-        </>
-      )}
-      {block.type === "product-card" && (
-        <>
-          <Field
-            label="Subtitle / botanical name"
-            value={block.productSubtitle}
-            onChange={(value) => update("productSubtitle", value)}
-          />
-          <Choice
-            label="Image placement"
-            value={block.imagePosition || "left"}
-            options={["left", "right", "top"].map((value) => ({
-              value,
-              label: value,
-            }))}
-            onChange={(value) =>
-              update("imagePosition", value as StudioBlock["imagePosition"])
-            }
-          />
-          <BadgeFields block={block} update={update} />
-        </>
-      )}
-      {block.type === "image-text" && (
-        <>
-          <Choice
-            label="Image / text column split"
-            value={block.columnSplit || "50/50"}
-            options={["30/70", "40/60", "50/50", "60/40", "70/30"].map(
-              (value) => ({ value, label: value }),
-            )}
-            onChange={(value) =>
-              update("columnSplit", value as StudioBlock["columnSplit"])
-            }
-          />
-          <Field
-            label="Image destination URL"
-            value={block.linkUrl}
-            onChange={(value) => update("linkUrl", value)}
-          />
-        </>
-      )}
-      {block.type === "call-to-action" && (
-        <>
-          <Field
-            label="Subheading"
-            value={block.subheading}
-            onChange={(value) => update("subheading", value)}
-          />
-          <StudioSwitchField
-            label="Full-width button"
-            checked={Boolean(block.fullWidthButton)}
-            onChange={(value) => update("fullWidthButton", value)}
-          />
-        </>
-      )}
-      {block.type === "graphic-hero" && (
-        <Choice
-          label="Overlay direction"
-          value={block.overlayGradientDirection || "uniform"}
-          options={[
-            { value: "uniform", label: "Uniform" },
-            { value: "top-to-bottom", label: "Top to bottom" },
-            { value: "bottom-to-top", label: "Bottom to top" },
-            { value: "left-to-right", label: "Left to right" },
-            { value: "right-to-left", label: "Right to left" },
-          ]}
-          onChange={(value) =>
-            update(
-              "overlayGradientDirection",
-              value as StudioBlock["overlayGradientDirection"],
-            )
-          }
-        />
-      )}
+      <Field
+        label="Subtitle / botanical name"
+        value={block.productSubtitle}
+        onChange={(value) => update("productSubtitle", value)}
+      />
+      <Choice
+        label="Image placement"
+        value={block.imagePosition || "left"}
+        options={["left", "right", "top"].map((value) => ({
+          value,
+          label: value,
+        }))}
+        onChange={(value) =>
+          update("imagePosition", value as StudioBlock["imagePosition"])
+        }
+      />
+      <BadgeFields block={block} update={update} />
     </div>
   );
 }

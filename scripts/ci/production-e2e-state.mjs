@@ -165,6 +165,23 @@ export async function deleteMarkedCampaignsWithClient(
   return deletedIds;
 }
 
+// The test passes the object path from its own successful Studio upload.
+export async function deleteStudioTestUpload({ email, password, path }) {
+  const { client, user } = await authenticatedClient({ email, password });
+  const [owner, folder, name, ...extra] = path.split("/");
+  if (owner !== user.id || folder !== "studio" || extra.length ||
+      !/^\d{13}-[a-f0-9-]{36}\.jpe?g$/i.test(name)) {
+    throw new Error("Unexpected Studio test upload path");
+  }
+  const removed = assertQuery(
+    await client.storage.from("campaign-images").remove([path]),
+    "Could not remove Studio test image",
+  );
+  if (!removed.some((item) => item.name === name || item.name === path)) {
+    throw new Error("Studio test image cleanup could not be verified");
+  }
+}
+
 export async function deleteMarkedCampaigns({
   email,
   password,

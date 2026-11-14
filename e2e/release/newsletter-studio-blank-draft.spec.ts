@@ -5,7 +5,7 @@ import {
   type Page,
   type Response,
 } from "@playwright/test";
-import { deleteMarkedCampaigns } from "../../scripts/ci/production-e2e-state.mjs";
+import { deleteMarkedCampaigns, deleteStudioTestUpload } from "../../scripts/ci/production-e2e-state.mjs";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL || "https://www.bloomsuite.app";
@@ -135,9 +135,10 @@ test.afterAll(async ({ browser }) => {
   }
 });
 
-test("a new newsletter opens Design Studio without subject or preview", async ({
+test("a new newsletter opens Design Studio and previews Graphic Hero, button and navigation edits", async ({
   page,
 }) => {
+  test.setTimeout(65_000);
   const email = process.env.E2E_EMAIL;
   const password = process.env.E2E_PASSWORD;
   if (!email || !password) {
@@ -156,6 +157,7 @@ test("a new newsletter opens Design Studio without subject or preview", async ({
   await expect(studioEntry).toBeVisible();
   await expect(studioEntry).not.toHaveAttribute("aria-disabled", "true");
   let campaignId: string | null = null;
+  let uploadedObjectPath: string | null = null;
   try {
     await studioEntry.click();
     await expect(page).toHaveURL(
@@ -169,15 +171,55 @@ test("a new newsletter opens Design Studio without subject or preview", async ({
     await expect(
       page.getByText("Could not create your newsletter draft"),
     ).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Add Graphic Hero", exact: true }).click();
+    const hero = page.locator("[data-studio-block-slot]").filter({
+      has: page.getByRole("button", { name: "Upload Graphic Hero image" }),
+    }).last();
+    const uploaded = page.waitForResponse((response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname.startsWith("/storage/v1/object/campaign-images/"),
+    );
+    const chooser = page.waitForEvent("filechooser");
+    await hero.getByRole("button", { name: "Upload Graphic Hero image" }).click();
+    await (await chooser).setFiles("public/images/newsletter-fallback.jpg");
+    const upload = await uploaded;
+    expect(upload.ok(), "Graphic Hero image upload").toBeTruthy();
+    const path = new URL(upload.url()).pathname;
+    uploadedObjectPath = path.slice("/storage/v1/object/campaign-images/".length);
+    const selectedImage = page.locator(`.nl-preview td[background$="/${uploadedObjectPath}"]`).last();
+    await expect(selectedImage).toBeVisible();
+    await expect(selectedImage).toHaveCSS("background-size", "contain");
+
+    await page.getByRole("button", { name: "Add Button / Call to Action" }).click();
+    const buttonSlot = page.locator("[data-studio-block-slot]").filter({
+      hasText: "Button / Call to Action",
+    }).last();
+    await buttonSlot.click({ position: { x: 8, y: 8 } });
+    await page.getByPlaceholder("Get Started").fill("View opening hours");
+    await page.getByLabel("Full Width", { exact: true }).check();
+    await expect(buttonSlot.locator(".nl-preview").getByText("View opening hours", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Add Navigation", exact: true }).click();
+    const navigation = page.locator("[data-studio-block-slot]").filter({ hasText: "Navigation" }).last();
+    await navigation.click({ position: { x: 8, y: 8 } });
+    await page.getByRole("textbox", { name: "Label", exact: true }).first().fill("Visit the nursery");
+    await expect(navigation.locator(".nl-preview").getByText("Visit the nursery", { exact: true })).toBeVisible();
   } finally {
     const navigatedCampaignId = page
       .url()
       .match(/\/crm\/campaigns\/([0-9a-f-]+)\/studio(?:\?|$)/)?.[1];
-    await deleteMarkedCampaigns({
-      email,
-      password,
-      marker: ARTIFACT_MARKER,
-      expectedCampaignId: campaignId ?? navigatedCampaignId ?? null,
-    });
+    try {
+      if (uploadedObjectPath) {
+        await deleteStudioTestUpload({ email, password, path: uploadedObjectPath });
+      }
+    } finally {
+      await deleteMarkedCampaigns({
+        email,
+        password,
+        marker: ARTIFACT_MARKER,
+        expectedCampaignId: campaignId ?? navigatedCampaignId ?? null,
+      });
+    }
   }
 });
