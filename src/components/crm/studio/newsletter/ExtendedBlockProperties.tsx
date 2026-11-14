@@ -15,6 +15,7 @@ import StudioImageUpload, {
 import StudioRichTextField from "../fields/StudioRichTextField";
 import StudioSwitchField from "../fields/StudioSwitchField";
 import { ButtonPaddingFields, Field, NumericField, Choice, ColorField } from "./AppearanceControls";
+import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { upcAImage } from "@/lib/studio/newsletter/barcode";
 import { validUpcA } from "@/lib/studio/newsletter/renderExtensions";
@@ -917,8 +918,8 @@ export default function ExtendedBlockProperties({
           {block.type === "navigation" && (
             <ColorField
               label="Link colour"
-              value={block.buttonTextColor}
-              onChange={(color) => update("buttonTextColor", color)}
+              value={navigationLinkColor(block, block.appearance?.background ?? settings?.defaults?.background, settings?.contentBackgroundColor)}
+              onChange={(color) => update("linkColor", color)}
             />
           )}
           <ButtonPaddingFields

@@ -72,6 +72,15 @@ describe("newsletter block controls", () => {
     expect(doc.querySelector('td[valign="bottom"]')).toBeTruthy();
   });
 
+  it("makes old white-on-white navigation readable and respects deliberately chosen colours", () => {
+    const old = block("navigation", { buttonTextColor: "#fff", buttonColor: "#214832",
+      links: [{ id: "link", label: "Classes", url: destination }] });
+    const colour = (item: StudioBlock) => markup(renderNewsletterBlock(item)).querySelector("a")?.style.color;
+    expect(colour(old)).toBe("rgb(33, 72, 50)");
+    expect(colour({ ...old, appearance: { background: "#111827" } })).toBe("rgb(255, 255, 255)");
+    expect(colour({ ...old, linkColor: "#f00" })).toBe("rgb(255, 0, 0)");
+  });
+
   it("previews navigation labels while URLs are entered and preserves safe final links", () => {
     const nav = block("navigation", { links: [{ id: "1", label: "Classes", url: "" }], appearance: { buttonPaddingX: 20, buttonPaddingY: 8 } });
     const draft = markup(renderNewsletterBlock(nav, null, undefined, { editing: true }));

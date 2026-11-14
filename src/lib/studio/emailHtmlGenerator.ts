@@ -16,6 +16,7 @@ import {
   emailFont,
   mergeAppearance,
   normalizeNewsletterSettings,
+  navigationLinkColor,
   safeEmailUrl,
   textCss,
 } from "./newsletter/settings.ts";
@@ -2173,6 +2174,9 @@ export function renderNewsletterBlock(
       : undefined;
   const prepared: StudioBlock = {
     ...block,
+    ...(block.type === "navigation" ? {
+      linkColor: navigationLinkColor(block, appearance?.background, resolved.contentBackgroundColor),
+    } : {}),
     ...(editing && block.type === "call-to-action" && !stringValue(block.buttonText) ? { buttonText: "Button label" } : {}),
     ...(editing && (block.type === "email-safe-hero" || block.type === "graphic-hero") &&
       ![block.headline, block.subheading, block.body, block.tagLabel, block.buttonText].some((value) => stringValue(value))

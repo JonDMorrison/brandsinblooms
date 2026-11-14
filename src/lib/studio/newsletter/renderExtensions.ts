@@ -451,7 +451,7 @@ export function renderExtendedBlock(
         const button = renderNewsletterButton({
           ...block,
           buttonColor: link.color || block.buttonColor,
-          buttonTextColor: link.textColor || block.buttonTextColor,
+          buttonTextColor: link.textColor || (navigation ? block.linkColor : undefined) || block.buttonTextColor,
           buttonStyle: navigation ? "link" : block.buttonStyle,
           fullWidthButton: block.fullWidthButton ?? true,
         }, link.label, link.url, editing);
