@@ -287,14 +287,14 @@ Deno.test("digest merges repeat firings of the same escalation alert into one li
   };
   const mail = renderDigestEmail(report, { appUrl: APP, date: "Thu, Nov 5" })!;
   const escLines = mail.text.split("\n").filter((l) => /escalated request/i.test(l));
-  assertEquals(escLines, ["• An escalated request still has no reply from a person (flagged 5 times)"]);
-  assertEquals((mail.html.match(/escalated request still has no reply/g) ?? []).length, 1);
+  assertEquals(escLines, ["• An escalated request still needs a decision (flagged 5 times)"]);
+  assertEquals((mail.html.match(/escalated request still needs a decision/g) ?? []).length, 1);
   assertMatch(mail.text, /Some of Bloom's automatic steps gave up/);
   assertNotMatch(mail.html, new RegExp(`${esc}|escalation_unanswered|ticket_overdue`));
 
   // A second, different escalation shares the line rather than repeating it.
   const two = renderDigestEmail({ ...report, alerts: [...report.alerts, { condition: "escalation_unanswered", at: "2026-11-05T13:30:00Z", detail: { reason: "ticket_overdue", escalation_id: "ae67e02c-361d-410c-9e49-54c6596891df" } as unknown as AlertFinding }] }, { appUrl: APP, date: "Thu, Nov 5" })!;
-  assertEquals(two.text.split("\n").filter((l) => /escalated request/i.test(l)), ["• An escalated request still has no reply from a person (2 cases, flagged 6 times)"]);
+  assertEquals(two.text.split("\n").filter((l) => /escalated request/i.test(l)), ["• An escalated request still needs a decision (2 cases, flagged 6 times)"]);
 });
 
 Deno.test("alert grouping keeps different escalations and checks apart and counts repeats", () => {
@@ -306,4 +306,50 @@ Deno.test("alert grouping keeps different escalations and checks apart and count
   assertEquals(groups.map((g) => [g.key, g.count]), [
     ["escalation_unanswered:a", 2], ["escalation_unanswered:b", 1], ["watchdog_check_failed:x", 1], ["watchdog_check_failed:y", 1],
   ]);
+});
+
+Deno.test("digest keeps a blocked internal test visible without claiming customer silence or resolution", () => {
+  const report: DigestReport = {
+    needs_you: [], resolved: [], said: [], repairs: [], alerts: [],
+    internal_tests: [{
+      id: ticket1011.id, number: 1026, subject: "Internal end-to-end test", status: "working", stage: "releasing",
+      engineering_status: "escalated", deployment_state: "rollback_point_unproven", verification_summary: "No check recorded",
+      first_response_at: null,
+      communication: { acknowledgement_sent: 1, acknowledgement_delivered: 1, progress_sent: 5, progress_delivered: 2 },
+    }],
+  };
+  const mail = renderDigestEmail(report, { appUrl: APP, date: "Nov 14" })!;
+  assertMatch(mail.subject, /1 internal test to review/);
+  for (const content of [mail.text, readable(mail.html)]) {
+    assertMatch(content, /Internal tests/);
+    assertMatch(content, /working \/ releasing/);
+    assertMatch(content, /Rollback point is unproven/);
+    assertMatch(content, /affected-flow verification need staff review/);
+    assertMatch(content, /Acknowledgement emails sent: 1 \(1 delivered\)/);
+    assertMatch(content, /progress emails sent: 5 \(2 delivered\)/);
+    assertMatch(content, /Substantive response not recorded/);
+    assertNotMatch(content, /nobody has replied|Nothing needs you|solved by Bloom|fix live and checked/);
+  }
+  assertMatch(mail.text, /Bloom resolved 0, sent messages to clients on 0 requests, and has 0 repairs/);
+  assert(mail.html.includes(supportLink(APP, ticket1011.id)));
+  assertNoLeaks(mail.html, "internal test HTML");
+  assertNoLeaks(mail.text, "internal test text");
+});
+
+Deno.test("customer digest distinguishes progress delivery from a substantive response", () => {
+  const mail = renderDigestEmail({
+    ...digest, needs_you: [{ ...digest.needs_you[0], first_response_at: null,
+      communication: { acknowledgement_sent: 1, acknowledgement_delivered: 1, progress_sent: 5, progress_delivered: 0 } }],
+    said: [{ ...digest.said[0], purpose: "progress", delivery: "sent", meaningful: false }],
+  }, { appUrl: APP, date: "Nov 14" })!;
+  assertMatch(mail.text, /overdue response or next-action deadline/);
+  assertMatch(mail.text, /Substantive response not recorded/);
+  assertMatch(mail.text, /Sent progress update · not a substantive response/);
+  assertNotMatch(mail.text, /nobody has replied|Delivered progress/);
+});
+
+Deno.test("older digest payload never invents delivery confirmation", () => {
+  const mail = renderDigestEmail(digest, { appUrl: APP, date: "Nov 14" })!;
+  assertMatch(mail.text, /Delivery not reported for message/);
+  assertNotMatch(mail.text, /Sent message|Delivered message/);
 });
