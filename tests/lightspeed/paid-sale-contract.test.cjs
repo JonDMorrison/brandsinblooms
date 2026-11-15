@@ -50,3 +50,16 @@ test('requires exact line sum and does not infer tax or delivery amounts',()=>{
   assert.equal(buildStripePaidLightspeedSale(sale).payments[0].amount,'11.30');
   assert.throws(()=>buildStripePaidLightspeedSale(paid({lines:[{...paid().lines[0],unitTaxMinor:0}]})),/total_mismatch/);
 });
+
+test('accepts documented X-Series identifier variants while local IDs and malformed provider IDs stay blocked',()=>{
+  const provider='067d4bf7-fca2-11f1-ed25-26f5063b32aa';
+  const input=paid({authorId:provider,outletId:provider,registerId:provider,externalPaymentTypeConfigId:provider,
+    lines:[{...paid().lines[0],productId:provider,taxId:provider}]});
+  const sale=buildStripePaidLightspeedSale(input);
+  assert.equal(sale.source.outlet_id,provider);
+  assert.equal(sale.line_items[0].tax.id,provider);
+  for(const field of ['authorId','outletId','registerId','externalPaymentTypeConfigId'])
+    for(const value of ['unknown',provider+'/sales',provider.replace('067d','xyz!')])
+      assert.throws(()=>buildStripePaidLightspeedSale({...input,[field]:value}));
+  for(const field of ['orderId','siteId'])assert.throws(()=>buildStripePaidLightspeedSale({...input,[field]:provider}));
+});

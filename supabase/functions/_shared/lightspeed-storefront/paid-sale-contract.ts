@@ -39,6 +39,12 @@ function uuid(value: unknown, name: string): string {
   if(typeof value!=="string"||!UUID.test(value))fail(name+"_invalid");
   return value as string;
 }
+// X-Series identifiers retain UUID shape but can use non-RFC variant bits.
+// Validate provider IDs as opaque hex identifiers; keep local order/site UUIDs strict.
+function providerId(value: unknown, name: string): string {
+  if(typeof value!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))fail(name+"_invalid");
+  return value as string;
+}
 function integer(value: unknown, name: string, positive = false): number {
   if(typeof value!=="number"||!Number.isSafeInteger(value)||value<0||(positive&&value===0))fail(name+"_invalid");
   return value as number;
@@ -49,10 +55,10 @@ function money(minor: number): string {
 export function buildStripePaidLightspeedSale(input: StripePaidSaleInput) {
   const orderId=uuid(input.orderId,"order_id");
   uuid(input.siteId,"site_id");
-  uuid(input.authorId,"author");
-  uuid(input.outletId,"outlet");
-  uuid(input.registerId,"register");
-  uuid(input.externalPaymentTypeConfigId,"external_payment_type");
+  providerId(input.authorId,"author");
+  providerId(input.outletId,"outlet");
+  providerId(input.registerId,"register");
+  providerId(input.externalPaymentTypeConfigId,"external_payment_type");
   if(!/^pi_[A-Za-z0-9_]{8,200}$/.test(input.stripePaymentIntentId))fail("stripe_identity_invalid");
   if(input.stripePaymentSucceeded!==true||input.orderPaymentStatus!=="paid")fail("not_paid");
   if(input.currency!=="CAD")fail("currency_not_confirmed");
@@ -64,8 +70,8 @@ export function buildStripePaidLightspeedSale(input: StripePaidSaleInput) {
   if(!Array.isArray(input.lines)||input.lines.length<1||input.lines.length>200)fail("line_count_invalid");
   let computed=0;
   const line_items=input.lines.map((item,index)=>{
-    uuid(item.productId,"product_"+index);
-    uuid(item.taxId,"tax_"+index);
+    providerId(item.productId,"product_"+index);
+    providerId(item.taxId,"tax_"+index);
     if(typeof item.sku!=="string"||!item.sku.trim()||item.sku.length>128)fail("sku_"+index);
     const quantity=integer(item.quantity,"quantity_"+index,true);
     const unitPrice=integer(item.unitPriceMinor,"price_"+index,true);
