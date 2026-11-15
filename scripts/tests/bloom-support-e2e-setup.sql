@@ -80,4 +80,5 @@ COMMIT;
 BEGIN;
 \ir ../../supabase/migrations/20261112200000_bloom_support_trusted_bug_setup.sql
 COMMIT;
+\ir ../../supabase/migrations/20261115185804_bloom_support_verified_email_threads.sql
 \echo 'bloom-support e2e database ready'
