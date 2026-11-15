@@ -67,7 +67,7 @@ export function deploymentNotice(repository: string, payload: Record<string, unk
       typeof d.sha !== "string" || !/^[0-9a-f]{40}$/i.test(d.sha) ||
       typeof d.environment !== "string" ||
       !isProductionEnvironment({ environment: d.environment, production_environment: d.production_environment === true }) ||
-      !["success", "failure", "error"].includes(String(state))) return null;
+      typeof state !== "string" || !["success", "failure", "error"].includes(state)) return null;
   const kind = state === "success" ? "github.deployment_succeeded" : "github.deployment_failed";
   return { id: d.id, kind, identity: JSON.stringify([repository.toLowerCase(), d.id, d.sha.toLowerCase(), kind]) };
 }

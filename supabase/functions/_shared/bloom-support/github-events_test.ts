@@ -61,6 +61,7 @@ Deno.test("deployment notices fail closed without trustworthy production identit
     assertEquals(deploymentNotice(repo, { ...payload, deployment: { ...payload.deployment, ...patch } }), null);
   }
   assertEquals(deploymentNotice(repo, { ...payload, deployment_status: { state: "pending" } }), null);
+  assertEquals(deploymentNotice(repo, { ...payload, deployment_status: { state: ["success"] } }), null);
   assertEquals(deploymentNotice(repo, {}), null);
   assertEquals(deploymentNotice("untrusted/../repo", payload), null);
 });
