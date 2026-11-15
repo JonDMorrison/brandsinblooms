@@ -992,7 +992,8 @@ function renderGraphicImageBlock(
     const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
     const radius = numberValue(block.borderRadius, 0);
     const padding = (block.insetPadding ?? block.imagePadding) ? 16 : 0;
-    const maxHeight = Math.max(
+    const ratioHeight = getImageHeightForRatio(EMAIL_WIDTH - padding * 2, block.imageRatio);
+    const maxHeight = ratioHeight ?? Math.max(
       150,
       Math.min(600, numberValue(block.maxHeight, 400)),
     );

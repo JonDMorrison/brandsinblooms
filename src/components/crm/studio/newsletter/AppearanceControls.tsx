@@ -289,6 +289,8 @@ function textRolesForBlock(block: StudioBlock): TextRole[] | undefined {
       if (block.body && block.type === "call-to-action") roles.push("body");
       return roles;
     }
+    case "headline":
+      return ["heading"];
     default:
       return undefined;
   }
@@ -341,7 +343,7 @@ export default function AppearanceControls({
   return (
     <div className="nl-controls">
       <details>
-        <summary>{master ? "Spacing: padding & margins" : "Block spacing and margins"}</summary>
+        <summary>{master ? "Spacing: padding & margins" : "Block Spacing and Margins"}</summary>
         <Edges
           title="Margin"
           value={value.margin}
@@ -531,12 +533,17 @@ export default function AppearanceControls({
         </details>
       )}
       {!master && !blockRoles && (
-        <details>
-          <summary>Image & button spacing</summary>
-          <ImageSpacingFields value={value} onChange={onChange} />
-          <VerticalAlignmentField value={value} onChange={onChange} />
-          <ButtonPaddingFields value={value} onChange={onChange} />
-        </details>
+        <>
+          <details>
+            <summary>Image Spacing</summary>
+            <ImageSpacingFields value={value} onChange={onChange} />
+            <VerticalAlignmentField value={value} onChange={onChange} />
+          </details>
+          <details>
+            <summary>Button Spacing</summary>
+            <ButtonPaddingFields value={value} onChange={onChange} />
+          </details>
+        </>
       )}
     </div>
   );
