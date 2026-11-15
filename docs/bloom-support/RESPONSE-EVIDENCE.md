@@ -75,3 +75,19 @@ contains no production backfill, including for ticket #1026. Classification is n
 a substitute for proving the rollback point and affected-flow verification.
 Classification and customer communication require their own authorization;
 merging this reporting change does not authorize either action.
+
+## Completed engineering episodes
+
+The sweep retires old machine-generated engineering failure, escalation and
+approval episodes only when current production verification covers every linked
+ticket and each ticket has a verified resolution with matching engineering,
+merge, deployment and verification evidence. The episode must predate the
+verification. A newer failure/approval, unresolved shared ticket, pending reply
+review, missing evidence or rollback blocker keeps it open. Contended evidence
+is skipped for a later sweep. This does not approve or close customer work.
+
+Reconciliation audits the engineering and ticket versions and cancels only queued
+jobs for that episode. Running jobs keep their leases and use the existing live
+escalation/ticket checks before sending. Historical alerts for a reconciled episode
+are excluded from current digest warnings without deleting the audit history.
+Messages already submitted to a provider cannot be recalled.
