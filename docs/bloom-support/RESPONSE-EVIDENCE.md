@@ -91,3 +91,29 @@ jobs for that episode. Running jobs keep their leases and use the existing live
 escalation/ticket checks before sending. Historical alerts for a reconciled episode
 are excluded from current digest warnings without deleting the audit history.
 Messages already submitted to a provider cannot be recalled.
+
+## Verified email-thread reconciliation
+
+Incoming replies must have an aligned, verified sender signature, one unambiguous
+known message-reference chain, and the sender's existing ticket access before
+being attached. Subject ticket numbers are only review hints. Conflicting,
+overlong, redacted or cyclic reference chains are not guessed. Missing or
+unverifiable references create a paused review item with an internal explanation,
+which also exposes correspondence that may never have reached Support intake.
+These items do not acknowledge, reply to or close customer work automatically.
+Staff must verify sender, account and original message references before linking
+or replying. Existing sender/message replay protection rejects changed payloads;
+the review note retries idempotently after a partial intake failure.
+
+This does not import Gmail sent mail or prove a substantive response from an
+acknowledgement. Operator attestation still requires the actual sent message and
+verified recipient/request match described above. No historical ticket is
+reclassified or backfilled by this release. Senders whose mail cannot be
+authenticated or whose mail client drops references may now need staff review.
+
+Release this email change in two parts: deploy and verify the new handler FIRST,
+then apply the strict matching migration. The old handler would create an
+automatic ticket when the new matcher rejects an ambiguous/subject-only reply.
+The new handler is compatible with the old matcher (passes no subject fallback)
+and holds unverified/unmatched replies. Do not claim complete unique-reference
+matching until both components are verified.

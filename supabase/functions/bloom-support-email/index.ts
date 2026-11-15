@@ -319,6 +319,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
   // on a ticket originally created through signed product intake.
   let attachmentActor = intake.principalId;
   let outcome = "created";
+  let threadReviewReason: "unverified_sender" | "unmatched_thread" | "ticket_access_unverified" | null = null;
 
   // A BloomSites or BloomTill report that fell back to email carries the key the product already
   // used with Bloom. If that report reached Bloom, do not open a second ticket. Only an
@@ -339,20 +340,36 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
 
   if (!ticketId && !forwarded) {
     const refs = parseReferences(headers);
-    const matched = await rpc<string | null>("match_email_thread", { refs, number: ticketNumberFromSubject(mail.subject) });
-    if (matched) {
-      try {
-        await rpc("append_inbound_email", { actor: who.principal_id, ticket_id: matched, body, message_id: messageId, in_reply_to: inReplyTo });
-        ticketId = matched;
-        attachmentActor = who.principal_id;
-        outcome = indicatesStillBroken(body) ? "reply:reopen-signal" : "reply";
-      } catch (e) {
-        // Sender may not read that ticket (e.g. a different person replied with the number): start a new one.
-        if (!(e instanceof BloomError && e.status === 403)) throw e;
+    const number = ticketNumberFromSubject(mail.subject);
+    // A subject number cannot establish identity or bind an external thread.
+    // Ambiguous/unmatched replies are preserved for review without contacting
+    // the named client or appending their contents to a guessed ticket.
+    if (refs.length || number !== null) {
+      if (refs.length > 50) {
+        threadReviewReason = "unmatched_thread";
+      } else if (!domainAuthenticated) {
+        threadReviewReason = "unverified_sender";
+      } else {
+        const matched = await rpc<string | null>("match_email_thread", { refs, number: null });
+        if (!matched) {
+          threadReviewReason = "unmatched_thread";
+        } else {
+          try {
+            await rpc("append_inbound_email", { actor: who.principal_id, ticket_id: matched, body, message_id: messageId, in_reply_to: inReplyTo });
+            ticketId = matched;
+            attachmentActor = who.principal_id;
+            outcome = indicatesStillBroken(body) ? "reply:reopen-signal" : "reply";
+          } catch (e) {
+            if (!(e instanceof BloomError && e.status === 403)) throw e;
+            threadReviewReason = "ticket_access_unverified";
+          }
+        }
       }
     }
   }
+  const reviewRequired = manualForwardReview || threadReviewReason !== null;
   if (!ticketId) {
+    const intakeAccount = threadReviewReason && (!domainAuthenticated || who.match !== "membership") ? null : who.account_id;
     const subject = mail.subject.replace(/^(re|fwd?):\s*/i, "").trim().slice(0, 300);
     // First sight of a standalone sender is reported as `none`; the exact
     // retry resolves the principal created by that first delivery. Treat both
@@ -363,6 +380,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       forwarded_by: forwarded ? sender.email : undefined,
       forward_authorized: forwarded ? forwardHonoured : undefined,
       manual_forward_review: manualForwardReview || undefined,
+      email_thread_review: threadReviewReason || undefined,
     };
     const email = {
       message_id: messageId,
@@ -379,7 +397,7 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       channel: "email",
       subject,
       body,
-      account_id: who.account_id,
+      account_id: intakeAccount,
       requester_id: who.principal_id,
       context,
       email,
@@ -397,8 +415,8 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       actor: intake.principalId,
       ticket: {
         product: "unknown", channel: "email", subject, body,
-        account_id: who.account_id, requester_id: who.principal_id,
-        context, automation: manualForwardReview ? "paused" : undefined,
+        account_id: intakeAccount, requester_id: who.principal_id,
+        context, automation: reviewRequired ? "paused" : undefined,
         dedupe_key: `email:${who.principal_id}:${messageId}`,
         intake_fingerprint: intakeFingerprint,
         email,
@@ -408,15 +426,24 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
     attachmentActor = who.principal_id;
     outcome = created.duplicate_delivery
       ? "duplicate"
+      : threadReviewReason
+      ? "created:thread-review"
       : manualForwardReview
       ? "created:forwarded-review"
       : forwarded
       ? "created:forwarded"
       : "created";
+    if (threadReviewReason) {
+      const automation = await servicePrincipal("automation");
+      await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: {
+        body: "This email appears to be a reply, but Bloom could not verify a unique thread and authorized sender. It is held for staff review and no client reply has been sent. Verify the sender, customer account and original message references before linking or replying. A subject number alone is not evidence.",
+        visibility: "internal", idempotency_key: `email-thread-review:${who.principal_id}:${messageId}`,
+      } });
+    }
     if (forwarded && !created.duplicate_delivery) {
       const automation = await servicePrincipal("automation").catch(() => null);
       if (automation) {
-        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: manualForwardReview
+        await rpc("add_message", { actor: automation.principalId, ticket_id: ticketId, message: { body: reviewRequired
           ? `Forwarded from approved mailbox ${sender.email} (DKIM verified). This is evidence only; the mailbox gained no staff role. Bloom has not contacted the named client. Review the request, then take it over or hand it to Bloom before replying.`
           : trustedRelay
           ? `Relayed by ${sender.email} (DKIM verified relay). The visitor's address is self-reported; confirm identity before any account change.`
@@ -440,12 +467,12 @@ async function handle(evt: Record<string, unknown>, eventId: string): Promise<Re
       actor: automation.principalId,
       ticket_id: ticketId,
       message: {
-        body: manualForwardReview
-          ? `Bloom could not accept these attachments from the forwarded email:\n${preparedAttachments.rejected.map((line) => `- ${line}`).join("\n")}\nAsk for a supported file after reviewing the request if it is still needed.`
+        body: reviewRequired
+          ? `Bloom could not accept these attachments from the ${manualForwardReview ? "forwarded" : "received"} email:\n${preparedAttachments.rejected.map((line) => `- ${line}`).join("\n")}\nAsk for a supported file after reviewing the request if it is still needed.`
           : bloomAttachmentRejection(preparedAttachments.rejected),
-        visibility: manualForwardReview ? "internal" : "public",
-        purpose: manualForwardReview ? "progress" : "clarification",
-        notify_client: !manualForwardReview,
+        visibility: reviewRequired ? "internal" : "public",
+        purpose: reviewRequired ? "progress" : "clarification",
+        notify_client: !reviewRequired,
         idempotency_key: `email-attachment-rejections:${messageId}`,
       },
     });
