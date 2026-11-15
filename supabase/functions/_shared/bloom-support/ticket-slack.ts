@@ -108,9 +108,9 @@ export function ticketProblem(t: TicketFacts): string {
 function releaseNoticeLines(t: TicketFacts, eventKind: string): string[] {
   if (eventKind !== "engineering.release_observed") return [];
   const source = githubSourceLink(typeof t.release_source === "string" ? t.release_source : undefined);
-  const outcome = t.release_kind === "deployment_failed" ? "Deployment failed. The support owner needs to check the release failure."
-    : t.release_kind === "deployment_success" ? "Deployment succeeded. The affected task still needs checking."
-    : t.release_kind === "pr_merged" ? "The code change was merged. Deployment and the affected task still need checking." : null;
+  const outcome = t.release_kind === "github.deployment_failed" ? "Deployment failed. The support owner needs to check the release failure."
+    : t.release_kind === "github.deployment_succeeded" ? "Deployment succeeded. The affected task still needs checking."
+    : t.release_kind === "github.pr_merged" ? "The code change was merged. Deployment and the affected task still need checking." : null;
   return source && outcome ? [`*Release update:* ${outcome} This notice does not verify the customer result.`, `<${source}|View linked release>`] : [];
 }
 export function ticketRootMessage(t: TicketFacts, eventKind = "ticket.created"): string {
