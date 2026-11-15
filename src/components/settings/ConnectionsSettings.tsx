@@ -2,9 +2,11 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { BookOpen, LayoutGrid, Plug, Plus, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, LayoutGrid, Plug, Plus, ShieldCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { POSConnectionHelp } from "@/components/crm/pos/POSConnectionHelp";
+import { useLightspeedConnectionSummary } from "@/hooks/useLightspeedConnectionSummary";
 import { usePOSConnections } from "@/hooks/usePOSConnections";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -12,12 +14,13 @@ import { JoyDialog, JoyDialogActions, JoyDialogContent } from "@/components/joy/
 import { useToast } from "@/hooks/use-toast";
 import { SettingsEmptyState, SettingsInlineError, SettingsSectionCard } from "./SettingsSurface";
 import {
-  type ConnectionInsight,
   comingSoonIntegrations,
   getConnectionInsight,
   getConnectionsOverview,
+  getLightspeedInsight,
   getPlatformEntry,
   hubIntegrations,
+  type OverviewIssue,
   wizardPlatforms,
 } from "./connections/connectionsModel";
 import {
@@ -28,6 +31,7 @@ import {
   ConnectionsHealthOverview,
   ConnectionsHealthOverviewSkeleton,
 } from "./connections/ConnectionsHealthOverview";
+import { HubConnectionCard } from "./connections/HubConnectionCard";
 import { IntegrationCatalog } from "./connections/IntegrationCatalog";
 import { softPressSx } from "./connections/connectionsStyles";
 import { SyncHistoryDialog } from "./connections/SyncHistoryDialog";
@@ -50,25 +54,44 @@ export const ConnectionsSettings = () => {
     runSync,
     disconnectPOS,
   } = usePOSConnections();
+  const {
+    connection: lightspeedConnection,
+    isLoading: lightspeedLoading,
+    isError: lightspeedError,
+    refetch: refetchLightspeed,
+  } = useLightspeedConnectionSummary();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const insights = useMemo(
     () => (connections ?? []).map((connection) => getConnectionInsight(connection, syncingConnectionId)),
     [connections, syncingConnectionId],
   );
-  const overview = useMemo(() => getConnectionsOverview(insights), [insights]);
+  const hubInsights = useMemo(
+    () => (lightspeedConnection ? [getLightspeedInsight(lightspeedConnection)] : []),
+    [lightspeedConnection],
+  );
+  const overview = useMemo(() => getConnectionsOverview(insights, hubInsights), [insights, hubInsights]);
+  const totalConnections = insights.length + hubInsights.length;
   const connectedPlatformIds = useMemo(
     () => new Set(insights.map((insight) => insight.connection.platform)),
     [insights],
   );
   const availableCatalog = useMemo(
-    () => [...wizardPlatforms.filter((platform) => !connectedPlatformIds.has(platform.id)), ...hubIntegrations],
-    [connectedPlatformIds],
+    () =>
+      [
+        ...wizardPlatforms.filter((platform) => !connectedPlatformIds.has(platform.id)),
+        ...hubIntegrations.filter((entry) => !(entry.id === "lightspeed" && lightspeedConnection)),
+      ].sort(
+        // Point-of-sale systems first; otherwise keep the declared order.
+        (left, right) => Number(right.category === "Point of sale") - Number(left.category === "Point of sale"),
+      ),
+    [connectedPlatformIds, lightspeedConnection],
   );
 
   const historyInsight = insights.find((insight) => insight.connection.id === historyConnectionId) ?? null;
   const disconnectInsight = insights.find((insight) => insight.connection.id === disconnectConnectionId) ?? null;
-  const showLoading = isLoading && !connections;
+  const showLoading = (isLoading && !connections) || lightspeedLoading;
   const loadFailed = isError && !connections;
 
   const handleConnect = (platformId: string) => {
@@ -84,15 +107,15 @@ export const ConnectionsSettings = () => {
     });
   };
 
-  const handleFix = useCallback((insight: ConnectionInsight) => {
-    const card = cardRefs.current.get(insight.connection.id);
+  const handleFix = useCallback((issue: OverviewIssue) => {
+    const card = cardRefs.current.get(issue.id);
     if (card) {
       const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       card.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" });
       card.focus({ preventScroll: true });
       return;
     }
-    setHistoryConnectionId(insight.connection.id);
+    setHistoryConnectionId(issue.id);
   }, []);
 
   const handleConfirmDisconnect = () => {
@@ -114,7 +137,7 @@ export const ConnectionsSettings = () => {
     <Stack spacing={3}>
       {showLoading ? (
         <ConnectionsHealthOverviewSkeleton />
-      ) : !loadFailed && insights.length > 0 ? (
+      ) : !loadFailed && totalConnections > 0 ? (
         <ConnectionsHealthOverview onFix={handleFix} overview={overview} />
       ) : null}
 
@@ -128,15 +151,26 @@ export const ConnectionsSettings = () => {
             <ConnectedIntegrationCardSkeleton />
             <ConnectedIntegrationCardSkeleton />
           </Stack>
-        ) : loadFailed ? (
+        ) : loadFailed || lightspeedError ? (
           <SettingsInlineError
             message="We couldn't load your connections. Nothing has changed with them — try again in a moment."
             onRetry={() => {
-              void refetch();
+              if (loadFailed) void refetch();
+              if (lightspeedError) void refetchLightspeed();
             }}
           />
-        ) : insights.length > 0 ? (
+        ) : totalConnections > 0 ? (
           <Stack spacing={1.5}>
+            {hubInsights.map((insight) => (
+              <HubConnectionCard
+                key={insight.id}
+                ref={(node) => {
+                  if (node) cardRefs.current.set(insight.id, node);
+                  else cardRefs.current.delete(insight.id);
+                }}
+                insight={insight}
+              />
+            ))}
             {insights.map((insight) => (
               <ConnectedIntegrationCard
                 key={insight.connection.id}
@@ -158,14 +192,14 @@ export const ConnectionsSettings = () => {
             description="Connect your point of sale so BloomSuite can see who your customers are and what they buy."
             icon={Plug}
             primaryAction={{
+              label: "Connect Lightspeed",
+              onClick: () => navigate("/integrations/lightspeed/connect"),
+              startDecorator: <ArrowUpRight size={16} />,
+            }}
+            secondaryAction={{
               label: "Import from VMX or CSV",
               onClick: () => handleConnect("vmx"),
               startDecorator: <Plus size={16} />,
-            }}
-            secondaryAction={{
-              label: "Setup guide",
-              onClick: () => setHelpPlatform("vmx"),
-              startDecorator: <BookOpen size={16} />,
               variant: "outline",
               color: "neutral",
             }}
