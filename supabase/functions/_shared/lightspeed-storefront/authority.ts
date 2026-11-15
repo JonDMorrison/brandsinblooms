@@ -1,6 +1,6 @@
 import { ORDER_METADATA_SCOPES, orderMetadataResource, projectOrderMetadata } from "./order-metadata.ts";
 import { lightspeedEdition, providerAuthorizationUrl, providerToken, providerScopes, providerRetailer, rSourcePage, type LightspeedEdition } from "./provider.ts";
-import { buildStripePaidLightspeedSale, type StripePaidSaleInput } from "./paid-sale-contract.ts";
+import { buildStripePaidLightspeedSale, isLightspeedProviderId, type StripePaidSaleInput } from "./paid-sale-contract.ts";
 /**
  * Server-only behaviour expressed without runtime globals, for Deno and Node tests.
  * The authority owns retailer credentials. BloomSites receives only signed,
@@ -325,7 +325,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
             return (typeof row?.amount==="number"||typeof row?.amount==="string")
               && Number(row.amount)===Number(sale.payments[0].amount);
           });
-          if(!saved||typeof saved.id!=="string"||!UUID.test(saved.id)||
+          if(!saved||!isLightspeedProviderId(saved.id)||
             source?.id!==sale.source.id||!matchingPayment)
             throw new AuthorityError("sale_reconcile_required",409);
           await deps.repository.finishSale(grant.id,sale.source.id,"confirmed",saved.id);

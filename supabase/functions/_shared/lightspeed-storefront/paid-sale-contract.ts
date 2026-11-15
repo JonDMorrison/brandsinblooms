@@ -41,8 +41,11 @@ function uuid(value: unknown, name: string): string {
 }
 // X-Series identifiers retain UUID shape but can use non-RFC variant bits.
 // Validate provider IDs as opaque hex identifiers; keep local order/site UUIDs strict.
+export function isLightspeedProviderId(value: unknown): value is string {
+  return typeof value==="string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
 function providerId(value: unknown, name: string): string {
-  if(typeof value!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))fail(name+"_invalid");
+  if(!isLightspeedProviderId(value))fail(name+"_invalid");
   return value as string;
 }
 function integer(value: unknown, name: string, positive = false): number {

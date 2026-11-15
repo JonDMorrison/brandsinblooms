@@ -26,7 +26,7 @@ async function fixture(options={}){
     async finishSale(grantId,orderId,status,saleId){
       assert.ok(claimedSales.has(grantId+':'+orderId));
       assert.ok(['confirmed','needs_review'].includes(status));
-      if(status==='confirmed')assert.equal(saleId,'99d80083-9ef2-4314-9f8e-7f638be367d1');
+      if(status==='confirmed')assert.equal(saleId,options.saleId??'99d80083-9ef2-4314-9f8e-7f638be367d1');
     },
     async consumeNonce(id,hash){const key=id+':'+hash;if(nonces.has(key))return false;nonces.add(key);return true;},
   };
@@ -64,7 +64,7 @@ async function fixture(options={}){
       if(options.saleFailure)throw new Error('SECRET uncertain upstream write');
       assert.equal(u.pathname,'/api/2026-07/sales');
       savedSale={...JSON.parse(init.body),
-        id:'99d80083-9ef2-4314-9f8e-7f638be367d1'};
+        id:options.saleId??'99d80083-9ef2-4314-9f8e-7f638be367d1'};
       return Response.json({data:savedSale});
     }
     if(options.readStatus)return new Response('SECRET upstream details',{status:options.readStatus,headers:{'Retry-After':'17'}});
@@ -386,4 +386,13 @@ test('metadata projects all supported resources and rejects stalled cursors',()=
   assert.deepEqual(projectOrderMetadata('registers',{data:[],version:{max:null}},'12'),{records:[],nextCursor:null,complete:true});
   assert.throws(()=>projectOrderMetadata('registers',page({id:'r'}),'12'));
   assert.throws(()=>projectOrderMetadata('users',page({id:'u',display_name:{token:'SECRET'}}),null));
+});
+
+test('provider sale ID variants reconcile once while malformed IDs remain held',async()=>{
+  for(const saleId of ['067d4bf7-fca2-11f1-ed25-26f5063b32aa','invalid/sale']) {
+    const f=await fixture({allowSaleWrite:true,saleId,tokens:{scope:scopes+' sales:read sales:write'}});
+    const {grantId}=await f.activate();const body={action:'sale',grantId,siteId:SITE,sale:saleInput()};
+    const first=await f.signed(body);assert.equal(first.status,saleId==='invalid/sale'?409:200);
+    assert.equal((await f.signed(body)).status,409);assert.equal(f.salePosts,1);
+  }
 });
