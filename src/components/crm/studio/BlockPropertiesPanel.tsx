@@ -1916,6 +1916,7 @@ function PanelContent({
     heroPresets,
     graphicHeroPresets,
     fullWidthImagePresets,
+    navigationPresets,
     newsletterHeaderPresets,
     imageTextPresets,
     plainTextPresets,
@@ -2015,6 +2016,19 @@ function PanelContent({
     },
     [block, onUpdateBlockField, onUpdateBlockFields],
   );
+
+  if (block.type === "navigation") {
+    return (
+      <Stack spacing={0.75} sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
+        <LayoutPresetPicker
+          presets={navigationPresets}
+          selectedKey={block.layoutPreset}
+          onSelect={selectPreset}
+        />
+        <ExtendedBlockProperties block={block} update={updateField} />
+      </Stack>
+    );
+  }
 
   if (
     [
@@ -3366,15 +3380,33 @@ function PanelContent({
                         )
                       }
                     />
+                    <StudioToggleField
+                      label="Aspect Ratio"
+                      options={[
+                        { label: "Original", value: "auto" },
+                        { label: "16:9", value: "16:9" },
+                        { label: "4:3", value: "4:3" },
+                        { label: "1:1", value: "1:1" },
+                        { label: "9:16", value: "9:16" },
+                      ]}
+                      value={block.imageRatio ?? "auto"}
+                      onChange={(value) =>
+                        updateField(
+                          "imageRatio",
+                          value as StudioBlock["imageRatio"],
+                        )
+                      }
+                    />
                     <ImageSpacingFields {...appearanceFields} />
                     <ImageCropControls
                       block={block}
                       updateField={updateField}
                     />
-                    {block.imageFit === "contain" ? (
-                      <Typography level="body-xs">Shows the full image at its natural proportions. Choose Cover to crop to a fixed height.</Typography>
-                    ) : (
+                    {block.imageFit !== "contain" && (block.imageRatio == null || block.imageRatio === "auto") && (
                       <StudioSliderField label="Image height" min={150} max={600} step={10} defaultValue={400} value={block.maxHeight ?? 400} onChange={(value) => updateField("maxHeight", value)} />
+                    )}
+                    {block.imageFit === "contain" && (
+                      <Typography level="body-xs">Shows the full image at its natural proportions.</Typography>
                     )}
                   </>
                 ),

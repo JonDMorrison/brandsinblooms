@@ -149,7 +149,7 @@ describe("block-specific appearance", () => {
     "shows relevant spacing controls for %s",
     (type) => {
       render(<AppearanceControls block={createStudioBlock(type)} onChange={vi.fn()} />);
-      expect(screen.getByText("Block spacing and margins")).toBeInTheDocument();
+      expect(screen.getByText("Block Spacing and Margins")).toBeInTheDocument();
       expect(screen.queryByText("Typography & colours")).toBeNull();
       expect(screen.queryByLabelText("Button horizontal padding")).toBeNull();
       if (type !== "full-width-image") expect(screen.queryByText("Border & label")).toBeNull();

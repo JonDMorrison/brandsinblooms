@@ -173,6 +173,17 @@ function getBrandPresetOverrides(
           : "#ffffff",
         ...getReversedBrandButtonFields(designSystem, "#ffffff", "#111827"),
       };
+    case "nav-left":
+    case "nav-centered":
+    case "nav-right":
+      return {
+        textColor: getBrandTextColor(designSystem, "#111827"),
+      };
+    case "nav-pills":
+      return {
+        textColor: getBrandTextColor(designSystem, "#111827"),
+        ...getBrandButtonFields(designSystem, "#111827", "#ffffff"),
+      };
     case "social-icon-row":
     case "social-label-row":
       return {
@@ -283,6 +294,9 @@ export function getStudioLayoutPresets(
       withBrandPreset(preset, designSystem),
     ),
     dividerPresets: dividerPresets.map((preset) =>
+      withBrandPreset(preset, designSystem),
+    ),
+    navigationPresets: navigationPresets.map((preset) =>
       withBrandPreset(preset, designSystem),
     ),
     spacerPresets: spacerPresets.map((preset) =>
@@ -1358,6 +1372,37 @@ export const spacerPresets: LayoutPreset[] = [
       backgroundColor: "transparent",
       showDottedOutline: true,
     },
+  },
+];
+
+export const navigationPresets: LayoutPreset[] = [
+  {
+    key: "nav-left",
+    name: "Left",
+    thumbnail: "nav-left",
+    description: "Navigation links aligned to the left",
+    fields: { textAlign: "left" },
+  },
+  {
+    key: "nav-centered",
+    name: "Centred",
+    thumbnail: "nav-centered",
+    description: "Navigation links centered",
+    fields: { textAlign: "center" },
+  },
+  {
+    key: "nav-right",
+    name: "Right",
+    thumbnail: "nav-right",
+    description: "Navigation links aligned to the right",
+    fields: { textAlign: "right" },
+  },
+  {
+    key: "nav-pills",
+    name: "Pills",
+    thumbnail: "nav-pills",
+    description: "Navigation links as pill-shaped buttons",
+    fields: { textAlign: "center", buttonStyle: "outlined" },
   },
 ];
 
