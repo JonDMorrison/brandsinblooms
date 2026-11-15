@@ -558,3 +558,8 @@ Deno.test("every linked feature needs its own positive human product decision", 
     assert(evaluateRelease(policy, { ...goodIssue, ...scope }, pr()).reasons.includes("feature requires a separate human product approval"));
   }
 });
+
+Deno.test("email reference overflow remains visible to the fail-closed matcher", () => {
+  const refs = Array.from({ length: 51 }, (_, i) => `<reference-${i}@example.test>`).join(" ");
+  assertEquals(parseReferences({ References: refs }).length, 51);
+});

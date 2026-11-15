@@ -35,9 +35,15 @@ const sql = DB_URL ? postgres(DB_URL, { max: 4, onnotice: () => {} }) : null;
 // In-process Supabase shim
 // ---------------------------------------------------------------------------
 const ticketReadActors: string[] = [];
+let failThreadReviewNoteOnce = false;
 async function rpcCall(fn: string, args: Record<string, unknown>) {
   const payload = args.p as Record<string, unknown> | undefined;
   if (fn === "bloom_support_rpc" && args.p_fn === "get_ticket") ticketReadActors.push(String(payload?.actor));
+  const message = payload?.message as Record<string, unknown> | undefined;
+  if (fn === "bloom_support_rpc" && args.p_fn === "add_message" && failThreadReviewNoteOnce && String(message?.idempotency_key).startsWith("email-thread-review:")) {
+    failThreadReviewNoteOnce = false;
+    return new Response(JSON.stringify({ code: "XX000", message: "Transient review note fixture" }), { status: 503 });
+  }
   const keys = Object.keys(args);
   // postgres.js serializes objects itself for a ::jsonb parameter.
   const params = keys.map((k) => args[k]);
@@ -1464,8 +1470,40 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(forwardedRouteTicket.automation, "auto", "recipient routing preserves automation for mail the client sent directly to support");
     const crm = await ticketRow(crmTicket);
     ackId = resendSent.find((m) => m.to[0] === "gail@greenleaf.test")!.headers["Message-ID"];
-    const reply = await inbound("msg_1", { email_id: "e1", from: "Gail Green <gail@greenleaf.test>", to: ["support@bloom.test"], subject: `Re: [Bloom #${crm.number}] Campaign preview button broken`, text: `It happens in Chrome too.\n\nOn Tue, Bloom wrote:\n> Thanks`, message_id: "<g1@greenleaf.test>", headers: { "In-Reply-To": ackId } });
+    const reply = await inbound("msg_1", await dkimSigned("msg_1", { email_id: "e1", from: "Gail Green <gail@greenleaf.test>", to: ["support@bloom.test"], subject: `Re: [Bloom #${crm.number}] Campaign preview button broken`, text: `It happens in Chrome too.\n\nOn Tue, Bloom wrote:\n> Thanks`, message_id: "<g1@greenleaf.test>", headers: { "In-Reply-To": ackId } }));
     assertEquals(reply.json.ticket_id, crmTicket, JSON.stringify(reply.json));
+    const authenticatedRetry = await inbound("msg_1_new_delivery", await dkimSigned("msg_1_new_delivery", {
+      email_id: "e1", from: "Gail Green <gail@greenleaf.test>", subject: `Re: [Bloom #${crm.number}] Campaign preview button broken`,
+      text: `It happens in Chrome too.\n\nOn Tue, Bloom wrote:\n> Thanks`, message_id: "<g1@greenleaf.test>", headers: { "In-Reply-To": ackId },
+    }));
+    assertEquals(authenticatedRetry.json.ticket_id, crmTicket);
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${crmTicket} AND email_message_id='<g1@greenleaf.test>'`)[0].n), 1);
+    const noteRetryData = await dkimSigned("note-retry", { email_id: "note-retry", from: "gail@greenleaf.test", subject: "Re: Note retry fixture", text: "Untracked thread held for review", message_id: "<note-retry@greenleaf.test>", headers: { "In-Reply-To": "<unknown-note-thread@greenleaf.test>" } });
+    failThreadReviewNoteOnce = true;
+    const failedNote = await inbound("msg_note_retry", noteRetryData);
+    assert(failedNote.status >= 500, JSON.stringify(failedNote.json));
+    const retryNote = await inbound("msg_note_retry", noteRetryData);
+    assertEquals(retryNote.status, 200, JSON.stringify(retryNote.json));
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.tickets WHERE subject='Note retry fixture'`)[0].n), 1);
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${retryNote.json.ticket_id} AND body LIKE 'This email appears to be a reply%'`)[0].n), 1);
+    const heldIds: string[] = [retryNote.json.ticket_id];
+    for (const [name, signed, refs] of [["unsigned-thread", false, ackId], ["subject-only", true, null], ["missing-intake", true, "<external-unknown@greenleaf.test>"]] as const) {
+      const data = { email_id: name, from: "gail@greenleaf.test", subject: `Re: [Bloom #${crm.number}] Campaign preview`,
+        text: "Checkout works but shipment is still missing. Do not close the request.", message_id: `<${name}@greenleaf.test>`,
+        headers: refs ? { "In-Reply-To": refs } : {} };
+      const held = await inbound(`msg_${name}`, signed ? await dkimSigned(name, data) : data);
+      assertEquals(held.status, 200, JSON.stringify(held.json));
+      assert(held.json.ticket_id !== crmTicket, "unverified correspondence cannot overwrite an existing request");
+      heldIds.push(held.json.ticket_id);
+      const heldTicket = await ticketRow(held.json.ticket_id);
+      assertEquals(heldTicket.automation, "paused");
+      if (!signed) assertEquals(heldTicket.account_id, null, "unverified sender cannot select a tenant through its From address");
+      assert(heldTicket.context.email_thread_review);
+      assertEquals(heldTicket.resolution_verified, false);
+      assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${held.json.ticket_id} AND visibility='internal' AND body LIKE 'This email appears to be a reply%'`)[0].n), 1);
+    }
+    await runWorkerUntilIdle();
+    assertEquals(Number((await sql!`SELECT count(*) AS n FROM bloom_support.outbound_emails WHERE ticket_id=ANY(${heldIds}::uuid[]) AND status IN ('sent','delivered')`)[0].n), 0, "review-held mail never triggers an acknowledgement or reply");
     const dup = await inbound("msg_1", { email_id: "e1", from: "gail@greenleaf.test", subject: "x", text: "x" });
     assert(dup.json.duplicate, "duplicate webhook delivery ignored");
 
@@ -1585,7 +1623,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(sentNow[0].headers["Auto-Submitted"], undefined, "a person's reply is not labelled as an automatic response");
     assertEquals(sentNow[0].headers["In-Reply-To"], "<n1@example.org>", "reply threads onto the client's email");
     const before2 = resendSent.length;
-    await inbound("msg_4", { email_id: "e4", from: "newperson@example.org", subject: "Re: invoices", text: "Thanks! One more thing.", message_id: "<n2@example.org>", headers: { "In-Reply-To": sentNow[0].headers["Message-ID"] } });
+    await inbound("msg_4", await dkimSigned("msg_4", { email_id: "e4", from: "newperson@example.org", subject: "Re: invoices", text: "Thanks! One more thing.", message_id: "<n2@example.org>", headers: { "In-Reply-To": sentNow[0].headers["Message-ID"] } }));
     await runWorkerUntilIdle();
     assertEquals(resendSent.slice(before2).filter((m) => m.to[0] === "newperson@example.org").length, 0, "Bloom sends nothing after a human took over");
   });
@@ -1915,7 +1953,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
   await t.step("client reports it persists → ticket reopens", async () => {
     const tk = await ticketRow(crmTicket);
     const lastOut = (await sql!`SELECT rfc_message_id FROM bloom_support.outbound_emails WHERE ticket_id = ${crmTicket} AND purpose = 'resolution'`)[0].rfc_message_id;
-    const r = await inbound("msg_5", { email_id: "e5", from: "gail@greenleaf.test", subject: `Re: [Bloom #${tk.number}] Campaign preview button broken`, text: "It's still broken on Safari.", message_id: "<g2@greenleaf.test>", headers: { "In-Reply-To": lastOut } });
+    const r = await inbound("msg_5", await dkimSigned("msg_5", { email_id: "e5", from: "gail@greenleaf.test", subject: `Re: [Bloom #${tk.number}] Campaign preview button broken`, text: "It's still broken on Safari.", message_id: "<g2@greenleaf.test>", headers: { "In-Reply-To": lastOut } }));
     assertEquals(r.json.outcome, "reply:reopen-signal", JSON.stringify(r.json));
     const mid = await ticketRow(crmTicket);
     assertEquals(mid.pending_review, "reply_after_resolution", `routed, not blindly reopened: ${mid.status}/${mid.pending_review}`);
@@ -2110,8 +2148,9 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     await sql!`INSERT INTO public.users(id, tenant_id, full_name, role) VALUES ('a0000000-0000-4000-8000-000000000009', ${T.greenleaf}, 'Buyer', 'member')`;
     await api("GET", "/me", tok("a0000000-0000-4000-8000-000000000009"));
     const tq = await ticketRow(qid);
-    await inbound("msg_cc", { email_id: "ecc", from: "gail@greenleaf.test", to: ["support@bloom.test"], subject: `Re: [Bloom #${tq.number}] x`, text: "Adding our buyer. Also cc my friend.", message_id: "<cc1@greenleaf.test>",
-      headers: { Cc: "Buyer <buyer@greenleaf.test>, stranger@evil.example" } });
+    const ccReference = (await sql!`SELECT rfc_message_id FROM bloom_support.outbound_emails WHERE ticket_id=${qid} AND status IN ('sent','delivered') ORDER BY created_at DESC LIMIT 1`)[0].rfc_message_id;
+    await inbound("msg_cc", await dkimSigned("msg_cc", { email_id: "ecc", from: "gail@greenleaf.test", to: ["support@bloom.test"], subject: `Re: [Bloom #${tq.number}] x`, text: "Adding our buyer. Also cc my friend.", message_id: "<cc1@greenleaf.test>",
+      headers: { "In-Reply-To": ccReference, Cc: "Buyer <buyer@greenleaf.test>, stranger@evil.example" } }));
     const cc = (await sql!`SELECT c.cc_emails FROM bloom_support.conversations c JOIN bloom_support.tickets t ON t.conversation_id = c.id WHERE t.id = ${qid}`)[0].cc_emails;
     assertEquals(cc, ["buyer@greenleaf.test"], "only verified same-client contacts are kept on CC");
     // Even a verified customer CC must be blocked when outside the test allowlist.

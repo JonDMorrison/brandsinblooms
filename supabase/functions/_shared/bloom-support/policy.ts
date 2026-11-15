@@ -303,7 +303,7 @@ export function stripQuotedReply(text: string): string {
   return out.join("\n").trim();
 }
 
-/** "[Bloom #1234]" in a subject identifies the ticket for clients whose mail client drops headers. */
+/** A subject number signals a reply needing review; it never proves the matching ticket. */
 export function ticketNumberFromSubject(subject: string): number | null {
   const m = subject.match(/\[Bloom #(\d{1,12})\]/i);
   return m ? Number(m[1]) : null;
@@ -312,7 +312,9 @@ export function ticketNumberFromSubject(subject: string): number | null {
 export function parseReferences(headers: InboundHeaders): string[] {
   const h = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v ?? ""]));
   const ids = `${h["in-reply-to"] ?? ""} ${h["references"] ?? ""}`.match(/<[^<>\s]+>/g) ?? [];
-  return [...new Set(ids)].slice(0, 50);
+  // Keep one overflow entry so the SQL matcher rejects an oversized chain
+  // instead of silently dropping a potentially conflicting reference.
+  return [...new Set(ids)].slice(0, 51);
 }
 
 export function parseAddress(value: string): { email: string; name: string | null } {
