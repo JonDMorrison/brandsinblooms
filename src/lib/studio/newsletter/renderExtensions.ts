@@ -447,15 +447,16 @@ export function renderExtendedBlock(
         .filter((link) => present(link.label) && (editing || safeEmailUrl(link.url)));
       const copy = heading(block) + paragraph(block, block.subheading, "subheading", 17);
       if (!links.length) return copy;
+      const navAlign = block.textAlign || "center";
       const cells = links.map((link) => {
         const button = renderNewsletterButton({
           ...block,
           buttonColor: link.color || block.buttonColor,
           buttonTextColor: link.textColor || (navigation ? block.linkColor : undefined) || block.buttonTextColor,
-          buttonStyle: navigation ? "link" : block.buttonStyle,
+          buttonStyle: navigation ? (block.buttonStyle ?? "link") : block.buttonStyle,
           fullWidthButton: block.fullWidthButton ?? true,
         }, link.label, link.url, editing);
-        return `<td class="responsive-column" valign="middle" align="center" width="${100 / links.length}%" style="padding:6px;">${button}</td>`;
+        return `<td class="responsive-column" valign="middle" align="${navAlign}" width="${100 / links.length}%" style="padding:6px;">${button}</td>`;
       });
       return copy + table(`<tr>${cells.join("")}</tr>`);
     }
