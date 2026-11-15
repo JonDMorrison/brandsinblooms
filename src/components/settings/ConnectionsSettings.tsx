@@ -158,13 +158,13 @@ export const ConnectionsSettings = () => {
             description="Connect your point of sale so BloomSuite can see who your customers are and what they buy."
             icon={Plug}
             primaryAction={{
-              label: "Connect Square",
-              onClick: () => handleConnect("square"),
+              label: "Import from VMX or CSV",
+              onClick: () => handleConnect("vmx"),
               startDecorator: <Plus size={16} />,
             }}
             secondaryAction={{
               label: "Setup guide",
-              onClick: () => setHelpPlatform("square"),
+              onClick: () => setHelpPlatform("vmx"),
               startDecorator: <BookOpen size={16} />,
               variant: "outline",
               color: "neutral",
@@ -215,7 +215,9 @@ export const ConnectionsSettings = () => {
           <JoyButton color="neutral" onClick={() => setHelpPlatform(null)} sx={softPressSx} variant="plain">
             Close
           </JoyButton>
-          {helpPlatform && !connectedPlatformIds.has(helpPlatform) ? (
+          {helpPlatform &&
+          !connectedPlatformIds.has(helpPlatform) &&
+          wizardPlatforms.some((platform) => platform.id === helpPlatform) ? (
             <JoyButton onClick={() => handleConnect(helpPlatform)} startDecorator={<Plus size={16} />} sx={softPressSx}>
               Start setup
             </JoyButton>

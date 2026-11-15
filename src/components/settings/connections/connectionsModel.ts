@@ -7,6 +7,12 @@ import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
  */
 export const LEGACY_SHOPIFY_DEPRECATED = true;
 
+/**
+ * The setup wizard no longer offers Square: it stored pasted access tokens
+ * unencrypted. Square returns to the catalog once Square sign-in is reachable.
+ */
+const RETIRED_WIZARD_PLATFORMS = new Set(["square", ...(LEGACY_SHOPIFY_DEPRECATED ? ["shopify"] : [])]);
+
 export type IntegrationLogoKey = "square" | "shopify" | "vmx" | "mailchimp" | "zapier" | "generic";
 
 export type IntegrationCategory = "Point of sale" | "Data import" | "Email" | "Automation";
@@ -80,7 +86,7 @@ const WIZARD_PLATFORMS: WizardCatalogEntry[] = [
 ];
 
 export const wizardPlatforms = WIZARD_PLATFORMS.filter(
-  (platform) => !(platform.id === "shopify" && LEGACY_SHOPIFY_DEPRECATED),
+  (platform) => !RETIRED_WIZARD_PLATFORMS.has(platform.id),
 );
 
 export const hubIntegrations: HubCatalogEntry[] = [
@@ -99,6 +105,16 @@ export const hubIntegrations: HubCatalogEntry[] = [
 ];
 
 export const comingSoonIntegrations: ComingSoonCatalogEntry[] = [
+  {
+    kind: "coming-soon",
+    id: "square",
+    name: "Square",
+    shortName: "Square",
+    category: "Point of sale",
+    valueProp: "Sign in with Square to sync customers, catalog and sales automatically.",
+    logo: "square",
+    dataScopes: ["Customers", "Catalog", "Sales"],
+  },
   {
     kind: "coming-soon",
     id: "zapier",
