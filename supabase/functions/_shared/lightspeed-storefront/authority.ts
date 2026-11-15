@@ -1,5 +1,6 @@
+import { ORDER_METADATA_SCOPES, orderMetadataResource, projectOrderMetadata } from "./order-metadata.ts";
 import { lightspeedEdition, providerAuthorizationUrl, providerToken, providerScopes, providerRetailer, rSourcePage, type LightspeedEdition } from "./provider.ts";
-import { buildStripePaidLightspeedSale, type StripePaidSaleInput } from "./paid-sale-contract.ts";
+import { buildStripePaidLightspeedSale, isLightspeedProviderId, type StripePaidSaleInput } from "./paid-sale-contract.ts";
 /**
  * Server-only behaviour expressed without runtime globals, for Deno and Node tests.
  * The authority owns retailer credentials. BloomSites receives only signed,
@@ -243,7 +244,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
           return json({ok:true,returnUrl:await callbackUrl(saved,state,deps)});
         } catch(error){await invalidate(claimed,deps);throw error;}
       }
-      if(!["finalize","read","disconnect","status","sale"].includes(body.action))throw new AuthorityError("invalid_request");
+      if(!["finalize","read","disconnect","status","sale","order_metadata"].includes(body.action))throw new AuthorityError("invalid_request");
       const grantId=safeId(body.grantId);
       let grant=await deps.repository.get(grantId);
       if(!grant)throw new AuthorityError("invalid_proof",403);
@@ -272,6 +273,29 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         return json({ok:true,...identity(grant)});
       }
       if(body.action==="status")return json({ok:true,...identity(grant)});
+      if(body.action==="order_metadata") {
+        // Existing signed proof, explicit site allowlist and already-granted
+        // provider scopes only. This action never refreshes tokens or writes POS data.
+        if(body.siteId!==grant.siteId||lightspeedEdition(grant.edition)!=="x-series"||
+          !deps.salesScopeSiteIds?.has(grant.siteId))throw new AuthorityError("invalid_proof",403);
+        if(grant.status!=="active")throw new AuthorityError("grant_not_active",409);
+        const resource=body.resource;
+        if(resource!=="permissions"&&!orderMetadataResource(resource))throw new AuthorityError("invalid_request");
+        const access=await readTokens(grant,deps);
+        if(resource==="permissions")return json({ok:true,...identity(grant),resource,
+          permissions:Object.fromEntries([...Object.values(ORDER_METADATA_SCOPES),"sales:read","sales:write"]
+            .map(scope=>[scope,access.scopes.includes(scope)])),
+          tokenCurrent:Date.parse(grant.tokenExpiresAt??"")>now,salesWriteAvailable:deps.allowSaleWrite===true});
+        if(Date.parse(grant.tokenExpiresAt??"")<=now||!Number.isFinite(Date.parse(grant.tokenExpiresAt??"")))
+          throw new AuthorityError("grant_not_active",409);
+        if(!access.scopes.includes(ORDER_METADATA_SCOPES[resource]))throw new AuthorityError("insufficient_scope",403);
+        const cursor=versionCursor(body.cursor);
+        const url=new URL(`/api/2026-10/${resource}`,lightspeedStoreOrigin(grant.prefix));
+        url.searchParams.set("page_size","200");if(cursor!==null)url.searchParams.set("after",cursor);
+        const payload=await lightspeedRequest(deps.fetcher??fetch,url,{method:"GET",headers:{
+          Accept:"application/json",Authorization:`Bearer ${access.accessToken}`}});
+        return json({ok:true,...identity(grant),resource,...projectOrderMetadata(resource,payload,cursor)});
+      }
       if(body.action==="sale"){
         if(deps.allowSaleWrite!==true)throw new AuthorityError("sale_export_disabled",403);
         if(lightspeedEdition(grant.edition)!=="x-series"||body.siteId!==grant.siteId)
@@ -293,16 +317,25 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         try{
           const reply=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,createUrl,{
             method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(sale)}));
-          const saved=asSourceRecord(reply?.data);
+          const created=asSourceRecord(reply?.data);
+          if(!created||!isLightspeedProviderId(created.id))throw new AuthorityError("sale_reconcile_required",409);
+          // Create returns only an ID in the documented schema. Verify a separate
+          // readback before confirming; never retry the POST if readback fails.
+          const readUrl=new URL(`/api/2026-07/sales/${created.id}`,lightspeedStoreOrigin(grant.prefix));
+          const readback=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,readUrl,{method:"GET",headers}));
+          const saved=asSourceRecord(readback?.data);
           const source=asSourceRecord(saved?.source);
           const payments=Array.isArray(saved?.payments)?saved.payments:[];
           const matchingPayment=payments.some(item=>{
             const row=asSourceRecord(item);
             return (typeof row?.amount==="number"||typeof row?.amount==="string")
-              && Number(row.amount)===Number(sale.payments[0].amount);
+              && Number(row.amount)===Number(sale.payments[0].amount)
+              && asSourceRecord(row.type)?.config_id===sale.payments[0].type.config_id
+              && !row.deleted_at;
           });
-          if(!saved||typeof saved.id!=="string"||!UUID.test(saved.id)||
-            source?.id!==sale.source.id||!matchingPayment)
+          if(!saved||saved.id!==created.id||payments.length!==1||
+            source?.id!==sale.source.id||source?.type!==sale.source.type||
+            source?.register_id!==sale.source.register_id||source?.outlet_id!==sale.source.outlet_id||!matchingPayment)
             throw new AuthorityError("sale_reconcile_required",409);
           await deps.repository.finishSale(grant.id,sale.source.id,"confirmed",saved.id);
           return json({ok:true,externalId:saved.id,externalSourceId:sale.source.id});

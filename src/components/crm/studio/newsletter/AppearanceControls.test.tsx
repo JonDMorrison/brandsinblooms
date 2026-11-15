@@ -2,7 +2,10 @@ import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import StudioColorPicker from "../fields/StudioColorPicker";
-import { ColorField, NumericField } from "./AppearanceControls";
+import AppearanceControls, { ColorField, NumericField } from "./AppearanceControls";
+
+import { createStudioBlock } from "@/lib/studio/blockFactory";
+import { NewsletterDesignContext } from "./NewsletterDesignContext";
 
 vi.mock("@/contexts/DesignSystemContext", () => ({
   useOptionalDesignSystem: () => ({
@@ -138,5 +141,53 @@ describe("newsletter pixel inputs", () => {
     expect(input.value).toBe("999");
     fireEvent.blur(input);
     expect(input.value).toBe("800");
+  });
+});
+
+describe("block-specific appearance", () => {
+  it.each(["divider", "spacer", "full-width-image"] as const)(
+    "shows relevant spacing controls for %s",
+    (type) => {
+      render(<AppearanceControls block={createStudioBlock(type)} onChange={vi.fn()} />);
+      expect(screen.getByText("Block Spacing and Margins")).toBeInTheDocument();
+      expect(screen.queryByText("Typography & colours")).toBeNull();
+      expect(screen.queryByLabelText("Button horizontal padding")).toBeNull();
+      if (type !== "full-width-image") expect(screen.queryByText("Border & label")).toBeNull();
+    },
+  );
+
+  it("keeps body typography and the original sides when one padding edge is changed", () => {
+    const update = vi.fn();
+    const block = { ...createStudioBlock("plain-text"), contentPadding: 32 };
+    render(<AppearanceControls block={block} onChange={update} />);
+    expect(screen.queryByLabelText("Text element")).toBeNull();
+    expect(screen.queryByLabelText("Image margin left")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Weight"), { target: { value: "700" } });
+    expect(update).toHaveBeenCalledWith({ text: { body: { weight: 700 } } });
+    fireEvent.change(screen.getByLabelText("Padding left"), { target: { value: "12" } });
+    expect(update).toHaveBeenCalledWith({ padding: { top: 32, bottom: 32, left: 12, right: 24 } });
+  });
+
+  it("keeps newsletter padding inheritable when editing one edge of a text block", () => {
+    const update = vi.fn();
+    render(
+      <NewsletterDesignContext.Provider value={{
+        settings: { version: 1, defaults: { padding: { top: 18, left: 16 } } },
+      }}>
+        <AppearanceControls block={createStudioBlock("plain-text")} onChange={update} />
+      </NewsletterDesignContext.Provider>,
+    );
+    const field = screen.getByLabelText("Padding left");
+    expect(field).toHaveAttribute("placeholder", "16");
+    fireEvent.change(field, { target: { value: "12" } });
+    expect(update).toHaveBeenCalledWith({ padding: { left: 12 } });
+  });
+
+  it("keeps the full typography role list in newsletter settings", () => {
+    render(<AppearanceControls master onChange={vi.fn()} />);
+    const choices = Array.from(screen.getByLabelText<HTMLSelectElement>("Text element").options);
+    expect(choices.map((option) => option.value)).toEqual(
+      expect.arrayContaining(["h1", "h6", "body", "button", "smallPrint"]),
+    );
   });
 });

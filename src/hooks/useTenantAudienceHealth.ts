@@ -26,7 +26,10 @@ function buildBaseQuery(tenantId: string) {
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId)
     .is("deleted_at", null)
-    .not("email", "is", null);
+    .is("merged_into_customer_id", null)
+    .not("email", "is", null)
+    .neq("email", "")
+    .not("email", "ilike", "%@noemail.local");
 }
 
 export async function fetchTenantAudienceHealth(
@@ -100,6 +103,14 @@ export interface CampaignAudienceHealthOptions {
   enabled?: boolean;
 }
 
+/** Imported IdealPOS placeholders are not deliverable email addresses. */
+export function hasUsableCampaignEmail(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const email = value.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+    !email.toLowerCase().endsWith("@noemail.local");
+}
+
 const AUDIENCE_HEALTH_CHUNK_SIZE = 500;
 
 export async function fetchCampaignAudienceHealth(
@@ -139,6 +150,7 @@ export async function fetchCampaignAudienceHealth(
       .select("id, email, email_opt_in, email_consent_method, suppressed")
       .eq("tenant_id", options.tenantId)
       .is("deleted_at", null)
+      .is("merged_into_customer_id", null)
       .not("email", "is", null)
       .in("id", chunk);
 
@@ -149,21 +161,22 @@ export async function fetchCampaignAudienceHealth(
     customers.push(...(data ?? []));
   }
 
-  const total = customers.length;
-  const confirmed = customers.filter((customer) => customer.email_opt_in === true).length;
-  const pending = customers.filter(
+  const contactable = customers.filter((customer) => hasUsableCampaignEmail(customer.email));
+  const total = contactable.length;
+  const confirmed = contactable.filter((customer) => customer.email_opt_in === true).length;
+  const pending = contactable.filter(
     (customer) =>
       customer.email_opt_in === false &&
       customer.email_consent_method === "pending_confirmation",
   ).length;
-  const optedOut = customers.filter(
+  const optedOut = contactable.filter(
     (customer) =>
       customer.email_opt_in === false &&
       customer.email_consent_method !== null &&
       customer.email_consent_method !== "pending_confirmation",
   ).length;
-  const suppressed = customers.filter((customer) => customer.suppressed === true).length;
-  const eligible = customers.filter(
+  const suppressed = contactable.filter((customer) => customer.suppressed === true).length;
+  const eligible = contactable.filter(
     (customer) => customer.email_opt_in === true && customer.suppressed !== true,
   ).length;
 

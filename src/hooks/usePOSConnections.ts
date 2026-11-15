@@ -3,19 +3,40 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface POSConnection {
   id: string;
   name: string;
   platform: string;
   credentials_encrypted: string | null;
-  settings: any;
+  settings: Json;
   is_active: boolean;
   last_sync_at: string | null;
   sync_status: string | null;
   created_at: string;
   updated_at: string;
   user_id: string;
+  sync_error?: string | null;
+  pos_sync_logs?: POSSyncLog[];
+}
+
+export interface POSSyncLog {
+  id: string;
+  status: string;
+  sync_type: string;
+  started_at: string;
+  completed_at: string | null;
+  customers_synced: number | null;
+  orders_synced: number | null;
+  error_message: string | null;
+}
+
+/** Most recent sync logs fetched per connection (newest first). */
+export const POS_SYNC_LOG_HISTORY_LIMIT = 10;
+
+interface DisconnectOptions {
+  onSuccess?: () => void;
 }
 
 export interface SyncResult {
@@ -33,7 +54,12 @@ export const usePOSConnections = () => {
   const queryClient = useQueryClient();
 
   // Fetch POS connections with latest sync status
-  const { data: connections, isLoading } = useQuery({
+  const {
+    data: connections,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["pos-connections", user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -43,8 +69,10 @@ export const usePOSConnections = () => {
         .select(
           `
           *,
-          pos_sync_logs!inner(
+          pos_sync_logs(
+            id,
             status,
+            sync_type,
             started_at,
             completed_at,
             customers_synced,
@@ -54,7 +82,14 @@ export const usePOSConnections = () => {
         `,
         )
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .order("started_at", {
+          ascending: false,
+          referencedTable: "pos_sync_logs",
+        })
+        .limit(POS_SYNC_LOG_HISTORY_LIMIT, {
+          referencedTable: "pos_sync_logs",
+        });
 
       if (error) throw error;
       return data as POSConnection[];
@@ -66,7 +101,7 @@ export const usePOSConnections = () => {
   // Track analytics events - simplified without database logging for now
   const trackSyncEvent = async (
     eventType: string,
-    properties: Record<string, any>,
+    properties: Record<string, unknown>,
   ) => {
     // Log to console for debugging - in production this could be sent to analytics service
   };
@@ -137,7 +172,7 @@ export const usePOSConnections = () => {
       queryClient.invalidateQueries({ queryKey: ["pos-connections"] });
       queryClient.invalidateQueries({ queryKey: ["crm-customers"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setIsSyncing(false);
       toast({
         title: "Sync Failed",
@@ -150,11 +185,12 @@ export const usePOSConnections = () => {
   // Disconnect POS system
   const disconnectMutation = useMutation({
     mutationFn: async (connectionId: string) => {
+      if (!user) throw new Error("You need to be signed in to disconnect.");
       const { error } = await supabase
         .from("pos_connections")
         .delete()
         .eq("id", connectionId)
-        .eq("user_id", user?.id);
+        .eq("user_id", user.id);
 
       if (error) throw error;
     },
@@ -165,7 +201,7 @@ export const usePOSConnections = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["pos-connections"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to Disconnect",
         description: error.message,
@@ -177,9 +213,19 @@ export const usePOSConnections = () => {
   return {
     connections,
     isLoading,
+    isError,
+    refetch,
     isSyncing,
+    syncingConnectionId: runSyncMutation.isPending
+      ? (runSyncMutation.variables ?? null)
+      : null,
+    disconnectingConnectionId: disconnectMutation.isPending
+      ? (disconnectMutation.variables ?? null)
+      : null,
     runSync: (connectionId: string) => runSyncMutation.mutate(connectionId),
-    disconnectPOS: (connectionId: string) =>
-      disconnectMutation.mutate(connectionId),
+    disconnectPOS: (connectionId: string, options?: DisconnectOptions) =>
+      disconnectMutation.mutate(connectionId, {
+        onSuccess: options?.onSuccess,
+      }),
   };
 };

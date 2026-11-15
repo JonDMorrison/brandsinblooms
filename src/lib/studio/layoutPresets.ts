@@ -173,6 +173,17 @@ function getBrandPresetOverrides(
           : "#ffffff",
         ...getReversedBrandButtonFields(designSystem, "#ffffff", "#111827"),
       };
+    case "nav-left":
+    case "nav-centered":
+    case "nav-right":
+      return {
+        textColor: getBrandTextColor(designSystem, "#111827"),
+      };
+    case "nav-pills":
+      return {
+        textColor: getBrandTextColor(designSystem, "#111827"),
+        ...getBrandButtonFields(designSystem, "#111827", "#ffffff"),
+      };
     case "social-icon-row":
     case "social-label-row":
       return {
@@ -285,6 +296,9 @@ export function getStudioLayoutPresets(
     dividerPresets: dividerPresets.map((preset) =>
       withBrandPreset(preset, designSystem),
     ),
+    navigationPresets: navigationPresets.map((preset) =>
+      withBrandPreset(preset, designSystem),
+    ),
     spacerPresets: spacerPresets.map((preset) =>
       withBrandPreset(preset, designSystem),
     ),
@@ -340,6 +354,18 @@ export const heroPresets: LayoutPreset[] = [
     },
   },
   {
+    key: "hero-image-bottom",
+    name: "Image Below",
+    thumbnail: "image-full-width",
+    description: "Headline and text above a full-width image",
+    fields: {
+      heroStyle: "image-bottom",
+      backgroundColor: "#ffffff",
+      textColor: "#1a1a2e",
+      textAlign: "center",
+    },
+  },
+  {
     key: "hero-light-minimal",
     name: "Light Minimal",
     thumbnail: "light-minimal",
@@ -377,7 +403,7 @@ export const graphicHeroPresets: LayoutPreset[] = [
     description: "Image reaches the full email width",
     fields: {
       layout: "full-bleed",
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       borderRadius: 0,
       insetPadding: false,
@@ -397,7 +423,7 @@ export const graphicHeroPresets: LayoutPreset[] = [
     description: "Rounded image with a clean white frame",
     fields: {
       layout: "rounded-card",
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       borderRadius: 12,
       insetPadding: true,
@@ -417,7 +443,7 @@ export const graphicHeroPresets: LayoutPreset[] = [
     description: "Darkened image with optional headline and CTA on top",
     fields: {
       layout: "text-overlay",
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       borderRadius: 0,
       insetPadding: false,
@@ -446,7 +472,7 @@ export const graphicHeroPresets: LayoutPreset[] = [
     description: "Image with a caption and CTA bar below",
     fields: {
       layout: "caption-bar",
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       borderRadius: 0,
       insetPadding: false,
@@ -468,7 +494,7 @@ export const graphicHeroPresets: LayoutPreset[] = [
     description: "Framed image with generous padding and soft shadow",
     fields: {
       layout: "framed-shadow",
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       borderRadius: 16,
       insetPadding: true,
@@ -497,7 +523,7 @@ export const fullWidthImagePresets: LayoutPreset[] = [
       showShadow: false,
       showCaption: false,
       caption: "",
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       backgroundColor: "#ffffff",
     },
@@ -514,7 +540,7 @@ export const fullWidthImagePresets: LayoutPreset[] = [
       imagePadding: false,
       showShadow: false,
       showCaption: false,
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       backgroundColor: "#ffffff",
     },
@@ -531,7 +557,7 @@ export const fullWidthImagePresets: LayoutPreset[] = [
       imagePadding: true,
       showShadow: true,
       showCaption: false,
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       backgroundColor: "#f8fafc",
     },
@@ -550,7 +576,7 @@ export const fullWidthImagePresets: LayoutPreset[] = [
       showCaption: true,
       captionAlignment: "center",
       captionColor: "#6b7280",
-      imageFit: "cover",
+      imageFit: "contain",
       maxHeight: 400,
       backgroundColor: "#ffffff",
     },
@@ -640,7 +666,7 @@ export const imageTextPresets: LayoutPreset[] = [
     fields: {
       layout: "image-left",
       imagePosition: "left",
-      imageFit: "cover",
+      imageFit: "contain",
       imageRatio: "4:3",
       borderRadius: 8,
       columnSplit: "50/50",
@@ -659,7 +685,7 @@ export const imageTextPresets: LayoutPreset[] = [
     fields: {
       layout: "image-right",
       imagePosition: "right",
-      imageFit: "cover",
+      imageFit: "contain",
       imageRatio: "4:3",
       borderRadius: 8,
       columnSplit: "50/50",
@@ -678,7 +704,7 @@ export const imageTextPresets: LayoutPreset[] = [
     fields: {
       layout: "image-top",
       imagePosition: "top",
-      imageFit: "cover",
+      imageFit: "contain",
       imageRatio: "16:9",
       borderRadius: 8,
       columnSplit: "50/50",
@@ -697,7 +723,7 @@ export const imageTextPresets: LayoutPreset[] = [
     fields: {
       layout: "image-overlay",
       imagePosition: "overlay",
-      imageFit: "cover",
+      imageFit: "contain",
       imageRatio: "16:9",
       borderRadius: 8,
       columnSplit: "50/50",
@@ -721,7 +747,7 @@ export const imageTextPresets: LayoutPreset[] = [
     fields: {
       layout: "minimal-card",
       imagePosition: "top",
-      imageFit: "cover",
+      imageFit: "contain",
       imageRatio: "1:1",
       borderRadius: 16,
       columnSplit: "50/50",
@@ -1346,6 +1372,37 @@ export const spacerPresets: LayoutPreset[] = [
       backgroundColor: "transparent",
       showDottedOutline: true,
     },
+  },
+];
+
+export const navigationPresets: LayoutPreset[] = [
+  {
+    key: "nav-left",
+    name: "Left",
+    thumbnail: "nav-left",
+    description: "Navigation links aligned to the left",
+    fields: { textAlign: "left" },
+  },
+  {
+    key: "nav-centered",
+    name: "Centred",
+    thumbnail: "nav-centered",
+    description: "Navigation links centered",
+    fields: { textAlign: "center" },
+  },
+  {
+    key: "nav-right",
+    name: "Right",
+    thumbnail: "nav-right",
+    description: "Navigation links aligned to the right",
+    fields: { textAlign: "right" },
+  },
+  {
+    key: "nav-pills",
+    name: "Pills",
+    thumbnail: "nav-pills",
+    description: "Navigation links as pill-shaped buttons",
+    fields: { textAlign: "center", buttonStyle: "outlined" },
   },
 ];
 

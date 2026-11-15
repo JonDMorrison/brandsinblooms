@@ -4,7 +4,7 @@ import Typography from "@mui/joy/Typography";
 import DOMPurify from "dompurify";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
-import { renderNewsletterBlock } from "@/lib/studio/emailHtmlGenerator";
+import { renderFooterBlockToEmailHtml, renderNewsletterBlock } from "@/lib/studio/emailHtmlGenerator";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { uploadStudioImageFile } from "../fields/StudioImageUpload";
 import { STUDIO_BLOCK_LOOKUP } from "../blockLibraryData";
@@ -42,24 +42,25 @@ export default function SharedEmailBlockPreview({
   }, []);
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const html = React.useMemo(
-    () =>
-      DOMPurify.sanitize(renderNewsletterBlock(block, designSystem, settings), {
+  const html = React.useMemo(() => {
+    const markup = block.type === "footer"
+      ? renderFooterBlockToEmailHtml(block, {}, designSystem)
+      : renderNewsletterBlock(block, designSystem, settings, { editing: true });
+    return DOMPurify.sanitize(markup, {
         ADD_ATTR: [
           "data-newsletter-image",
           "data-newsletter-index",
           "data-newsletter-role",
         ],
         FORBID_TAGS: ["script", "iframe", "form", "input", "style", "link"],
-      }),
-    [block, designSystem, settings],
-  );
+    });
+  }, [block, designSystem, settings]);
   const hasVisibleContent = Boolean(
     html
       .replace(/<[^>]*>/g, "")
       .replace(/&nbsp;/g, "")
       .trim() ||
-    /<img\b/i.test(html) ||
+    /<(?:img\b|td\b[^>]*\sbackground=)/i.test(html) ||
     ["divider", "spacer"].includes(block.type),
   );
   // A Graphic Hero is an email background image, not an <img>. The generic
@@ -194,7 +195,7 @@ export default function SharedEmailBlockPreview({
           }}
           sx={{
             position: hasVisibleContent ? "absolute" : "relative",
-            top: hasVisibleContent ? 8 : undefined,
+            bottom: hasVisibleContent ? 12 : undefined,
             right: hasVisibleContent ? 8 : undefined,
             display: "block",
             mx: hasVisibleContent ? 0 : "auto",

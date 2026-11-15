@@ -57,9 +57,10 @@ export function renderNewsletterButton(
   block: StudioBlock,
   label = block.buttonText,
   url = block.buttonUrl,
+  allowUnlinked = false,
 ): string {
   const href = safeEmailUrl(url);
-  if (!href || !present(label)) return "";
+  if ((!href && !allowUnlinked) || !present(label)) return "";
   const link = block.buttonStyle === "link";
   const outlined =
     block.buttonStyle === "outlined" || block.buttonStyle === "ghost";
@@ -72,10 +73,11 @@ export function renderNewsletterButton(
     block.buttonSize === "sm" ? 9 : block.buttonSize === "lg" ? 16 : 12;
   const defaultX =
     block.buttonSize === "sm" ? 16 : block.buttonSize === "lg" ? 30 : 22;
-  const padding = link
-    ? "0"
-    : `${clampNumber(block.appearance?.buttonPaddingY, defaultY, 0, 48)}px ${clampNumber(block.appearance?.buttonPaddingX, defaultX, 0, 96)}px`;
-  return `<a data-newsletter-role="button" href="${attr(href)}" target="_blank" rel="noopener noreferrer" style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</a>`;
+  const padding = `${clampNumber(block.appearance?.buttonPaddingY, link ? 0 : defaultY, 0, 48)}px ${clampNumber(block.appearance?.buttonPaddingX, link ? 0 : defaultX, 0, 96)}px`;
+  // Never turn an unfinished or invalid destination into a clickable link.
+  const tag = href ? "a" : "span";
+  const destination = href ? ` href="${attr(href)}" target="_blank" rel="noopener noreferrer"` : "";
+  return `<${tag} data-newsletter-role="button"${destination} style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</${tag}>`;
 }
 function picture(block: StudioBlock, width = 220): string {
   const url = safeEmailUrl(block.imageUrl, true);
@@ -257,6 +259,7 @@ export function youtubeVideoId(value: string): string | null {
 export function renderExtendedBlock(
   block: StudioBlock,
   width = 640,
+  editing = false,
 ): string | null {
   switch (block.type) {
     case "product-card": {
@@ -438,17 +441,24 @@ export function renderExtendedBlock(
     }
     case "navigation":
     case "button-group": {
+      const navigation = block.type === "navigation";
       const links = (block.links || [])
-        .slice(0, block.type === "navigation" ? 5 : 3)
-        .filter((link) => present(link.label) && safeEmailUrl(link.url));
-      if (!links.length) return "";
-      return (
-        heading(block) +
-        paragraph(block, block.subheading, "subheading", 17) +
-        table(
-          `<tr>${links.map((link) => `<td class="responsive-column" valign="middle" align="center" width="${100 / links.length}%" style="padding:6px;">${renderNewsletterButton({ ...block, buttonColor: link.color || block.buttonColor, buttonTextColor: link.textColor || block.buttonTextColor, buttonStyle: block.type === "navigation" ? "link" : block.buttonStyle, fullWidthButton: true }, link.label, link.url)}</td>`).join("")}</tr>`,
-        )
-      );
+        .slice(0, navigation ? 5 : 3)
+        .filter((link) => present(link.label) && (editing || safeEmailUrl(link.url)));
+      const copy = heading(block) + paragraph(block, block.subheading, "subheading", 17);
+      if (!links.length) return copy;
+      const navAlign = block.textAlign || "center";
+      const cells = links.map((link) => {
+        const button = renderNewsletterButton({
+          ...block,
+          buttonColor: link.color || block.buttonColor,
+          buttonTextColor: link.textColor || (navigation ? block.linkColor : undefined) || block.buttonTextColor,
+          buttonStyle: navigation ? (block.buttonStyle ?? "link") : block.buttonStyle,
+          fullWidthButton: block.fullWidthButton ?? true,
+        }, link.label, link.url, editing);
+        return `<td class="responsive-column" valign="middle" align="${navAlign}" width="${100 / links.length}%" style="padding:6px;">${button}</td>`;
+      });
+      return copy + table(`<tr>${cells.join("")}</tr>`);
     }
     case "text-columns": {
       const columns = (block.textColumns || [""]).slice(0, 3);
@@ -554,14 +564,14 @@ export function applyBlockAppearance(
         ? textCss(additionsForRole)
         : "";
       if (tag === "a" && explicit !== "button") {
-        if (appearance.linkColor)
+        if (appearance.linkColor && !attrs.includes('data-newsletter-secondary-color="true"'))
           additions += `color:${emailColor(appearance.linkColor)};`;
         if (appearance.linkDecoration)
           additions += `text-decoration:${appearance.linkDecoration === "none" ? "none" : "underline"};`;
       }
       if (!additions) return whole;
       return /\sstyle="[^"]*"/.test(attrs)
-        ? `<${tag}${attrs.replace(/\sstyle="([^"]*)"/, (_m: string, css: string) => ` style="${css};${additions}"`)}>`
+        ? `<${tag}${attrs.replace(/\sstyle="([^"]*)"/, (_m: string, css: string) => ` style="${css.trimEnd().replace(/;?$/, ";")}${additions}"`)}>`
         : `<${tag}${attrs} style="${additions}">`;
     },
   );

@@ -91,7 +91,7 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message: string;
-    preview?: any;
+    preview?: { customers?: number; orders?: number } | null;
   } | null>(null);
   const { toast } = useToast();
 
@@ -135,49 +135,8 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
           },
         }
       : {}),
-    square: {
-      title: "Square",
-      icon: <div className="h-6 w-6 bg-blue-600 rounded" />,
-      description:
-        "Connect your Square POS to sync customer transactions, payment data, and customer profiles.",
-      benefits: [
-        "Transaction history sync",
-        "Customer payment preferences",
-        "Sales analytics integration",
-        "Inventory management",
-      ],
-      fields: [
-        {
-          key: "application_id",
-          label: "Application ID",
-          placeholder: "sandbox-sq0idb-...",
-          type: "text",
-          help: "Your Square application ID from the developer dashboard",
-        },
-        {
-          key: "access_token",
-          label: "Access Token",
-          placeholder: "EAAAEOurQbdhG8Q...",
-          type: "password",
-          help: "Personal access token or OAuth token",
-        },
-        {
-          key: "environment",
-          label: "Environment",
-          placeholder: "sandbox or production",
-          type: "text",
-          help: 'Use "sandbox" for testing, "production" for live data',
-        },
-      ],
-      helpLink:
-        "https://developer.squareup.com/docs/build-basics/access-tokens",
-      setupInstructions: [
-        "Visit Square Developer Dashboard",
-        "Create a new application or select existing",
-        "Generate access token with required permissions",
-        "Copy application ID and access token",
-      ],
-    },
+    // Square is intentionally absent: this wizard stored pasted access tokens
+    // unencrypted. Square connects through Square sign-in (square-oauth-start).
     vmx: {
       title: "VMX / CSV Upload",
       icon: (
@@ -205,7 +164,7 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
   };
 
   const config = platformConfig[platform as keyof typeof platformConfig];
-  const totalSteps = config.fields.length > 0 ? 4 : 3; // Adjust for VMX which has no credential fields
+  const totalSteps = config && config.fields.length > 0 ? 4 : 3; // Adjust for VMX which has no credential fields
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
@@ -229,7 +188,7 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
       return false;
     }
 
-    if (currentStep === 3 && config.fields.length > 0) {
+    if (currentStep === 3 && config && config.fields.length > 0) {
       const missingFields = config.fields.filter(
         (field) => !credentials[field.key]?.trim(),
       );

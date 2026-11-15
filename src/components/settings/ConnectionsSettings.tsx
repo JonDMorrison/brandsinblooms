@@ -1,679 +1,298 @@
-import React, { useMemo, useState } from "react";
-import Alert from "@mui/joy/Alert";
-import Box from "@mui/joy/Box";
-import Chip from "@mui/joy/Chip";
-import DialogContent from "@mui/joy/DialogContent";
-import DialogTitle from "@mui/joy/DialogTitle";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Divider from "@mui/joy/Divider";
-import Dropdown from "@mui/joy/Dropdown";
-import IconButton from "@mui/joy/IconButton";
-import ListItemDecorator from "@mui/joy/ListItemDecorator";
-import Menu from "@mui/joy/Menu";
-import MenuButton from "@mui/joy/MenuButton";
-import MenuItem from "@mui/joy/MenuItem";
-import Modal from "@mui/joy/Modal";
-import ModalClose from "@mui/joy/ModalClose";
-import ModalDialog from "@mui/joy/ModalDialog";
-import Sheet from "@mui/joy/Sheet";
-import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import {
-  CheckCircle2,
-  ExternalLink,
-  FileText,
-  HelpCircle,
-  MoreHorizontal,
-  Plus,
-  RefreshCw,
-  ScrollText,
-  Square,
-  Store,
-  Trash2,
-  Users,
-  Zap,
-} from "lucide-react";
-import { Link as RouterLink } from "react-router-dom";
+import { ArrowUpRight, LayoutGrid, Plug, Plus, ShieldCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { POSConnectionHelp } from "@/components/crm/pos/POSConnectionHelp";
-import {
-  type POSConnection,
-  usePOSConnections,
-} from "@/hooks/usePOSConnections";
+import { useLightspeedConnectionSummary } from "@/hooks/useLightspeedConnectionSummary";
+import { usePOSConnections } from "@/hooks/usePOSConnections";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyDialog, JoyDialogActions, JoyDialogContent } from "@/components/joy/JoyDialog";
 import { useToast } from "@/hooks/use-toast";
+import { SettingsEmptyState, SettingsInlineError, SettingsSectionCard } from "./SettingsSurface";
 import {
-  SettingsEmptyState,
-  SettingsInlineError,
-  SettingsSectionCard,
-} from "./SettingsSurface";
-
-interface POSPlatform {
-  id: string;
-  name: string;
-  icon: React.ReactNode;
-  description: string;
-  category: "pos" | "integration";
-}
-
-interface POSSyncLog {
-  status?: string | null;
-  started_at?: string | null;
-  completed_at?: string | null;
-  customers_synced?: number | null;
-  orders_synced?: number | null;
-  error_message?: string | null;
-}
-
-type POSConnectionWithLogs = POSConnection & {
-  pos_sync_logs?: POSSyncLog[];
-};
-
-const LEGACY_SHOPIFY_DEPRECATED = true;
-
-const panelCardSx = {
-  borderRadius: "20px",
-  border: "1px solid",
-  borderColor: "neutral.200",
-  bgcolor: "background.level1",
-  p: 2,
-  boxShadow: "none",
-};
-
-const platformGridSx = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "minmax(0, 1fr)",
-    md: "repeat(2, minmax(0, 1fr))",
-  },
-  gap: 1.5,
-};
-
-const formatPlatformLabel = (value: string) =>
-  value
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
-const formatTimestamp = (value?: string | null) => {
-  if (!value) {
-    return "Never";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-};
-
-const getLatestLog = (connection: POSConnectionWithLogs) => {
-  const logs = connection.pos_sync_logs ?? [];
-
-  return [...logs].sort((left, right) => {
-    const leftTime = new Date(left.completed_at ?? left.started_at ?? 0).getTime();
-    const rightTime = new Date(right.completed_at ?? right.started_at ?? 0).getTime();
-    return rightTime - leftTime;
-  })[0];
-};
-
-const renderLoadingCards = (count: number) => (
-  <Box sx={platformGridSx}>
-    {Array.from({ length: count }).map((_, index) => (
-      <Sheet key={index} variant="outlined" sx={panelCardSx}>
-        <Stack spacing={1.25}>
-          <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <Skeleton variant="circular" width={36} height={36} />
-              <Stack spacing={0.5}>
-                <Skeleton animation="wave" variant="text" width={120} />
-                <Skeleton animation="wave" variant="text" width={96} />
-              </Stack>
-            </Stack>
-            <Skeleton variant="rectangular" width={80} height={24} sx={{ borderRadius: "999px" }} />
-          </Stack>
-          <Skeleton animation="wave" variant="text" width="100%" />
-          <Skeleton animation="wave" variant="text" width="74%" />
-          <Skeleton variant="rectangular" width={116} height={34} sx={{ borderRadius: "md" }} />
-        </Stack>
-      </Sheet>
-    ))}
-  </Box>
-);
-
-const getPosPlatformConfig = (platformId: string, availablePlatforms: POSPlatform[]) => {
-  return (
-    availablePlatforms.find((platform) => platform.id === platformId) ?? {
-      id: platformId,
-      name: formatPlatformLabel(platformId),
-      description: "Connected platform",
-      icon: <Store className="h-6 w-6 text-green-600" />,
-      category: "pos" as const,
-    }
-  );
-};
+  comingSoonIntegrations,
+  getConnectionInsight,
+  getConnectionsOverview,
+  getLightspeedInsight,
+  getPlatformEntry,
+  hubIntegrations,
+  type OverviewIssue,
+  wizardPlatforms,
+} from "./connections/connectionsModel";
+import {
+  ConnectedIntegrationCard,
+  ConnectedIntegrationCardSkeleton,
+} from "./connections/ConnectedIntegrationCard";
+import {
+  ConnectionsHealthOverview,
+  ConnectionsHealthOverviewSkeleton,
+} from "./connections/ConnectionsHealthOverview";
+import { HubConnectionCard } from "./connections/HubConnectionCard";
+import { IntegrationCatalog } from "./connections/IntegrationCatalog";
+import { softPressSx } from "./connections/connectionsStyles";
+import { SyncHistoryDialog } from "./connections/SyncHistoryDialog";
 
 export const ConnectionsSettings = () => {
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [showConnectionForm, setShowConnectionForm] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [posRetryKey, setPosRetryKey] = useState(0);
-  const [selectedLogConnection, setSelectedLogConnection] =
-    useState<POSConnectionWithLogs | null>(null);
-
-  const availablePlatforms: POSPlatform[] = useMemo(
-    () =>
-      [
-        {
-          id: "shopify",
-          name: "Shopify",
-          icon: <Store className="h-6 w-6 text-green-600" />,
-          description: "Connect your Shopify store to sync customers and orders.",
-          category: "pos",
-        },
-        {
-          id: "square",
-          name: "Square",
-          icon: <Square className="h-6 w-6 text-blue-600" />,
-          description:
-            "Connect your Square POS to sync customer, catalog, and transaction data.",
-          category: "pos",
-        },
-        {
-          id: "vmx",
-          name: "VMX / CSV Upload",
-          icon: <FileText className="h-6 w-6 text-purple-600" />,
-          description: "Upload customer data manually through CSV imports.",
-          category: "pos",
-        },
-      ].filter(
-        (platform) => !(platform.id === "shopify" && LEGACY_SHOPIFY_DEPRECATED),
-      ),
-    [],
-  );
-
-  const integrationPreviews = useMemo(
-    () => [
-      {
-        id: "zapier",
-        name: "Zapier",
-        description: "Connect BloomSuite workflows to thousands of partner apps.",
-        icon: <Zap className="h-6 w-6 text-orange-600" />,
-      },
-      {
-        id: "mailchimp",
-        name: "Mailchimp",
-        description: "Extend newsletter and audience sync workflows from the integration hub.",
-        icon: <Users className="h-6 w-6 text-blue-600" />,
-      },
-    ],
-    [],
-  );
+  const [wizardPlatform, setWizardPlatform] = useState<string | null>(null);
+  const [helpPlatform, setHelpPlatform] = useState<string | null>(null);
+  const [historyConnectionId, setHistoryConnectionId] = useState<string | null>(null);
+  const [disconnectConnectionId, setDisconnectConnectionId] = useState<string | null>(null);
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
 
   const {
-    connections: rawPosConnections,
-    isLoading: posLoading,
+    connections,
+    isLoading,
+    isError,
+    refetch,
     isSyncing,
+    syncingConnectionId,
+    disconnectingConnectionId,
     runSync,
     disconnectPOS,
   } = usePOSConnections();
+  const {
+    connection: lightspeedConnection,
+    isLoading: lightspeedLoading,
+    isError: lightspeedError,
+    refetch: refetchLightspeed,
+  } = useLightspeedConnectionSummary();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const posConnections = (rawPosConnections as POSConnectionWithLogs[] | undefined) ?? [];
-  const posLoadFailed = !posLoading && rawPosConnections === undefined;
-  const connectedPOSIds = new Set(posConnections.map((connection) => connection.platform));
+  const insights = useMemo(
+    () => (connections ?? []).map((connection) => getConnectionInsight(connection, syncingConnectionId)),
+    [connections, syncingConnectionId],
+  );
+  const hubInsights = useMemo(
+    () => (lightspeedConnection ? [getLightspeedInsight(lightspeedConnection)] : []),
+    [lightspeedConnection],
+  );
+  const overview = useMemo(() => getConnectionsOverview(insights, hubInsights), [insights, hubInsights]);
+  const totalConnections = insights.length + hubInsights.length;
+  const connectedPlatformIds = useMemo(
+    () => new Set(insights.map((insight) => insight.connection.platform)),
+    [insights],
+  );
+  const availableCatalog = useMemo(
+    () =>
+      [
+        ...wizardPlatforms.filter((platform) => !connectedPlatformIds.has(platform.id)),
+        ...hubIntegrations.filter((entry) => !(entry.id === "lightspeed" && lightspeedConnection)),
+      ].sort(
+        // Point-of-sale systems first; otherwise keep the declared order.
+        (left, right) => Number(right.category === "Point of sale") - Number(left.category === "Point of sale"),
+      ),
+    [connectedPlatformIds, lightspeedConnection],
+  );
 
-  const handleConnectPOS = (platform: string) => {
-    setSelectedPlatform(platform);
-    setShowConnectionForm(true);
+  const historyInsight = insights.find((insight) => insight.connection.id === historyConnectionId) ?? null;
+  const disconnectInsight = insights.find((insight) => insight.connection.id === disconnectConnectionId) ?? null;
+  const showLoading = (isLoading && !connections) || lightspeedLoading;
+  const loadFailed = isError && !connections;
+
+  const handleConnect = (platformId: string) => {
+    setHelpPlatform(null);
+    setWizardPlatform(platformId);
   };
 
-  const handlePOSConnectionSuccess = () => {
-    setShowConnectionForm(false);
-    setSelectedPlatform(null);
+  const handleConnectionSuccess = () => {
+    setWizardPlatform(null);
     toast({
       title: "POS Connected",
-      description:
-        "Your POS system has been successfully connected and is ready to sync data.",
+      description: "Your POS system has been successfully connected and is ready to sync data.",
     });
   };
 
-  const handleSyncPOS = (connectionId: string) => {
-    runSync(connectionId);
+  const handleFix = useCallback((issue: OverviewIssue) => {
+    const card = cardRefs.current.get(issue.id);
+    if (card) {
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      card.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" });
+      card.focus({ preventScroll: true });
+      return;
+    }
+    setHistoryConnectionId(issue.id);
+  }, []);
+
+  const handleConfirmDisconnect = () => {
+    if (!disconnectInsight) return;
+    const connectionId = disconnectInsight.connection.id;
+    disconnectPOS(connectionId, {
+      onSuccess: () => {
+        setDisconnectConnectionId(null);
+        if (historyConnectionId === connectionId) setHistoryConnectionId(null);
+      },
+    });
   };
 
-  const handleDisconnectPOS = (connectionId: string) => {
-    disconnectPOS(connectionId);
-  };
-
-  const selectedLog = selectedLogConnection ? getLatestLog(selectedLogConnection) : null;
+  const disconnectName = disconnectInsight
+    ? disconnectInsight.connection.name || disconnectInsight.platform.name
+    : "";
 
   return (
-    <Stack spacing={3} key={posRetryKey}>
+    <Stack spacing={3}>
+      {showLoading ? (
+        <ConnectionsHealthOverviewSkeleton />
+      ) : !loadFailed && totalConnections > 0 ? (
+        <ConnectionsHealthOverview onFix={handleFix} overview={overview} />
+      ) : null}
+
       <SettingsSectionCard
-        description="Connect one or more POS platforms to keep customer, catalog, and order data in sync."
-        headerActions={
-          <Chip color={posConnections.length > 0 ? "success" : "neutral"} size="sm" variant="soft">
-            {posConnections.length} connected
-          </Chip>
-        }
-        startDecorator={<Store size={18} />}
-        title="POS Connections"
+        description="The systems feeding customer, catalog and sales data into BloomSuite."
+        startDecorator={<Plug size={18} />}
+        title="Connected integrations"
       >
-        {posLoading ? (
-          renderLoadingCards(2)
-        ) : posLoadFailed ? (
-          <SettingsInlineError
-            message="POS connections could not be loaded."
-            onRetry={() => setPosRetryKey((current) => current + 1)}
-          />
-        ) : (
-          <Stack spacing={2.5}>
-            {posConnections.length > 0 ? (
-              <Stack spacing={1.5}>
-                {posConnections.map((connection) => {
-                  const platform = getPosPlatformConfig(connection.platform, availablePlatforms);
-                  const latestLog = getLatestLog(connection);
-                  const needsAttention =
-                    latestLog?.status === "failed" || connection.sync_status === "failed";
-                  const statusColor = isSyncing
-                    ? "neutral"
-                    : !connection.is_active
-                      ? "warning"
-                      : needsAttention
-                        ? "danger"
-                        : "success";
-                  const statusLabel = isSyncing
-                    ? "Syncing"
-                    : !connection.is_active
-                      ? "Inactive"
-                      : needsAttention
-                        ? "Needs attention"
-                        : "Connected";
-                  const syncSummary = latestLog
-                    ? latestLog.status === "failed"
-                      ? latestLog.error_message ?? "The last sync did not complete successfully."
-                      : latestLog.status === "running"
-                        ? "A sync is currently in progress."
-                        : `Last sync imported ${latestLog.customers_synced ?? 0} customers and ${latestLog.orders_synced ?? 0} orders.`
-                    : connection.last_sync_at
-                      ? `Last synced ${formatTimestamp(connection.last_sync_at)}.`
-                      : "Run your first sync to import customer and sales data.";
-
-                  return (
-                    <Sheet key={connection.id} variant="outlined" sx={panelCardSx}>
-                      <Stack
-                        direction={{ xs: "column", lg: "row" }}
-                        spacing={2}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", lg: "center" }}
-                      >
-                        <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
-                          <Box
-                            sx={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: "16px",
-                              display: "grid",
-                              placeItems: "center",
-                              bgcolor: "background.surface",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {platform.icon}
-                          </Box>
-
-                          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                            <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-                              <Typography level="title-sm">{connection.name || platform.name}</Typography>
-                              <Chip color={statusColor} size="sm" variant="soft">
-                                {statusLabel}
-                              </Chip>
-                            </Stack>
-                            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                              {platform.description}
-                            </Typography>
-                            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                              {syncSummary}
-                            </Typography>
-                            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                              Last sync: {formatTimestamp(latestLog?.completed_at ?? latestLog?.started_at ?? connection.last_sync_at)}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        <Dropdown>
-                          <MenuButton
-                            slots={{ root: IconButton }}
-                            slotProps={{
-                              root: { color: "neutral", size: "sm", variant: "plain" },
-                            }}
-                          >
-                            <MoreHorizontal size={16} />
-                          </MenuButton>
-                          <Menu
-                            placement="bottom-end"
-                            size="sm"
-                            sx={{
-                              borderRadius: "16px",
-                              border: "1px solid",
-                              borderColor: "neutral.200",
-                              bgcolor: "background.surface",
-                              boxShadow: "md",
-                            }}
-                          >
-                            <MenuItem disabled={isSyncing} onClick={() => handleSyncPOS(connection.id)}>
-                              <ListItemDecorator>
-                                <RefreshCw size={15} />
-                              </ListItemDecorator>
-                              Sync Now
-                            </MenuItem>
-                            <MenuItem onClick={() => setSelectedLogConnection(connection)}>
-                              <ListItemDecorator>
-                                <ScrollText size={15} />
-                              </ListItemDecorator>
-                              View Logs
-                            </MenuItem>
-                            <MenuItem color="danger" onClick={() => handleDisconnectPOS(connection.id)}>
-                              <ListItemDecorator>
-                                <Trash2 size={15} />
-                              </ListItemDecorator>
-                              Disconnect
-                            </MenuItem>
-                          </Menu>
-                        </Dropdown>
-                      </Stack>
-                    </Sheet>
-                  );
-                })}
-              </Stack>
-            ) : (
-              <SettingsEmptyState
-                description="No POS platform is connected yet. Start with Square or use a CSV upload to bring customer data into BloomSuite."
-                icon={Store}
-                primaryAction={{
-                  label: "Connect Square",
-                  onClick: () => handleConnectPOS("square"),
-                  startDecorator: <Plus size={16} />,
-                }}
-                secondaryAction={{
-                  label: "View Setup Help",
-                  onClick: () => {
-                    setSelectedPlatform("square");
-                    setShowHelp(true);
-                  },
-                  startDecorator: <HelpCircle size={16} />,
-                  variant: "outline",
-                  color: "neutral",
-                }}
-                title="No POS connected yet"
-              />
-            )}
-
-            <Divider />
-
-            <Stack spacing={1.25}>
-              <Typography level="title-sm">Available Platforms</Typography>
-              <Box sx={platformGridSx}>
-                {availablePlatforms.map((platform) => {
-                  const isConnected = connectedPOSIds.has(platform.id);
-
-                  return (
-                    <Sheet key={platform.id} variant="outlined" sx={panelCardSx}>
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-                          <Stack direction="row" spacing={1.25} alignItems="center">
-                            <Box
-                              sx={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: "16px",
-                                display: "grid",
-                                placeItems: "center",
-                                bgcolor: "background.surface",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {platform.icon}
-                            </Box>
-                            <Stack spacing={0.25}>
-                              <Typography level="title-sm">{platform.name}</Typography>
-                              <Chip
-                                color={isConnected ? "success" : "neutral"}
-                                size="sm"
-                                variant="soft"
-                              >
-                                {isConnected ? "Connected" : "Available"}
-                              </Chip>
-                            </Stack>
-                          </Stack>
-
-                          {!isConnected ? (
-                            <IconButton
-                              color="neutral"
-                              onClick={() => {
-                                setSelectedPlatform(platform.id);
-                                setShowHelp(true);
-                              }}
-                              size="sm"
-                              variant="plain"
-                            >
-                              <HelpCircle size={16} />
-                            </IconButton>
-                          ) : null}
-                        </Stack>
-
-                        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                          {platform.description}
-                        </Typography>
-
-                        <JoyButton
-                          disabled={isConnected}
-                          onClick={() => handleConnectPOS(platform.id)}
-                          startDecorator={isConnected ? <CheckCircle2 size={16} /> : <Plus size={16} />}
-                          variant={isConnected ? "secondary" : "outline"}
-                        >
-                          {isConnected ? "Connected" : "Connect"}
-                        </JoyButton>
-                      </Stack>
-                    </Sheet>
-                  );
-                })}
-              </Box>
-            </Stack>
+        {showLoading ? (
+          <Stack spacing={1.5}>
+            <ConnectedIntegrationCardSkeleton />
+            <ConnectedIntegrationCardSkeleton />
           </Stack>
+        ) : loadFailed || lightspeedError ? (
+          <SettingsInlineError
+            message="We couldn't load your connections. Nothing has changed with them — try again in a moment."
+            onRetry={() => {
+              if (loadFailed) void refetch();
+              if (lightspeedError) void refetchLightspeed();
+            }}
+          />
+        ) : totalConnections > 0 ? (
+          <Stack spacing={1.5}>
+            {hubInsights.map((insight) => (
+              <HubConnectionCard
+                key={insight.id}
+                ref={(node) => {
+                  if (node) cardRefs.current.set(insight.id, node);
+                  else cardRefs.current.delete(insight.id);
+                }}
+                insight={insight}
+              />
+            ))}
+            {insights.map((insight) => (
+              <ConnectedIntegrationCard
+                key={insight.connection.id}
+                ref={(node) => {
+                  if (node) cardRefs.current.set(insight.connection.id, node);
+                  else cardRefs.current.delete(insight.connection.id);
+                }}
+                insight={insight}
+                onDisconnect={() => setDisconnectConnectionId(insight.connection.id)}
+                onOpenGuide={() => setHelpPlatform(insight.connection.platform)}
+                onOpenHistory={() => setHistoryConnectionId(insight.connection.id)}
+                onSync={() => runSync(insight.connection.id)}
+                syncDisabled={isSyncing}
+              />
+            ))}
+          </Stack>
+        ) : (
+          <SettingsEmptyState
+            description="Connect your point of sale so BloomSuite can see who your customers are and what they buy."
+            icon={Plug}
+            primaryAction={{
+              label: "Connect Lightspeed",
+              onClick: () => navigate("/integrations/lightspeed/connect"),
+              startDecorator: <ArrowUpRight size={16} />,
+            }}
+            secondaryAction={{
+              label: "Import from VMX or CSV",
+              onClick: () => handleConnect("vmx"),
+              startDecorator: <Plus size={16} />,
+              variant: "outline",
+              color: "neutral",
+            }}
+            title="Nothing connected yet"
+          />
         )}
       </SettingsSectionCard>
 
       <SettingsSectionCard
-        description="Explore additional workflow integrations and partner connections from the integration hub."
-        headerActions={
-          <Chip color="neutral" size="sm" variant="soft">
-            Coming soon
-          </Chip>
-        }
-        startDecorator={<Zap size={18} />}
-        title="Integrations"
+        description="Bring more of your business into BloomSuite. Each connection takes a few minutes."
+        startDecorator={<LayoutGrid size={18} />}
+        title="Add an integration"
       >
-        <Stack spacing={2.5}>
-          <Box sx={platformGridSx}>
-            {integrationPreviews.map((integration) => (
-              <Sheet key={integration.id} variant="outlined" sx={panelCardSx}>
-                <Stack spacing={1.5}>
-                  <Stack direction="row" spacing={1.25} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "16px",
-                        display: "grid",
-                        placeItems: "center",
-                        bgcolor: "background.surface",
-                      }}
-                    >
-                      {integration.icon}
-                    </Box>
-                    <Stack spacing={0.25}>
-                      <Typography level="title-sm">{integration.name}</Typography>
-                      <Chip color="neutral" size="sm" variant="soft">
-                        Preview
-                      </Chip>
-                    </Stack>
-                  </Stack>
-
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    {integration.description}
-                  </Typography>
-
-                  <JoyButton disabled startDecorator={<Plus size={16} />} variant="outline">
-                    Coming soon
-                  </JoyButton>
-                </Stack>
-              </Sheet>
-            ))}
-          </Box>
-
-          <Box component={RouterLink} sx={{ textDecoration: "none", alignSelf: "flex-start" }} to="/integrations">
-            <JoyButton startDecorator={<ExternalLink size={16} />} variant="outline">
-              Open Integration Hub
-            </JoyButton>
-          </Box>
-        </Stack>
+        <IntegrationCatalog
+          available={availableCatalog}
+          comingSoon={comingSoonIntegrations}
+          onConnect={handleConnect}
+          onOpenGuide={setHelpPlatform}
+        />
       </SettingsSectionCard>
 
-      {showConnectionForm && selectedPlatform && (
+      <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ px: { xs: 0.5, md: 1 }, color: "text.tertiary" }}>
+        <ShieldCheck aria-hidden size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+        <Typography level="body-xs" sx={{ color: "text.tertiary", maxWidth: 760 }}>
+          BloomSuite uses each connection only to import the customer, catalog and sales records shown above. Access is
+          scoped to your account, and you can disconnect at any time to stop syncing immediately.
+        </Typography>
+      </Stack>
+
+      {wizardPlatform ? (
         <POSSetupWizard
-          platform={selectedPlatform}
-          onSuccess={handlePOSConnectionSuccess}
-          onCancel={() => {
-            setShowConnectionForm(false);
-            setSelectedPlatform(null);
-          }}
+          onCancel={() => setWizardPlatform(null)}
+          onSuccess={handleConnectionSuccess}
+          platform={wizardPlatform}
         />
-      )}
+      ) : null}
 
-      {showHelp && selectedPlatform && (
-        <Modal onClose={() => setShowHelp(false)} open={showHelp}>
-          <ModalDialog
-            sx={{
-              maxWidth: 960,
-              width: "calc(100vw - 32px)",
-              maxHeight: "88vh",
-              overflowY: "auto",
-              borderRadius: "24px",
-              bgcolor: "background.surface",
-            }}
-            variant="outlined"
-          >
-            <ModalClose />
-            <DialogTitle>Setup Guide</DialogTitle>
-            <DialogContent>
-              <Stack spacing={2.5}>
-                <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                  Step-by-step instructions for connecting your POS system.
-                </Typography>
-                <POSConnectionHelp platform={selectedPlatform} />
-                <Divider />
-                <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-                  <JoyButton color="neutral" onClick={() => setShowHelp(false)} variant="outline">
-                    Close
-                  </JoyButton>
-                  <JoyButton
-                    onClick={() => {
-                      setShowHelp(false);
-                      handleConnectPOS(selectedPlatform);
-                    }}
-                    startDecorator={<Plus size={16} />}
-                  >
-                    Start Setup
-                  </JoyButton>
-                </Stack>
-              </Stack>
-            </DialogContent>
-          </ModalDialog>
-        </Modal>
-      )}
+      <JoyDialog
+        description="Step-by-step instructions for connecting your system."
+        onClose={() => setHelpPlatform(null)}
+        open={Boolean(helpPlatform)}
+        size="xl"
+        title={helpPlatform ? `${getPlatformEntry(helpPlatform).name} setup guide` : "Setup guide"}
+      >
+        <JoyDialogContent>{helpPlatform ? <POSConnectionHelp platform={helpPlatform} /> : null}</JoyDialogContent>
+        <JoyDialogActions>
+          <JoyButton color="neutral" onClick={() => setHelpPlatform(null)} sx={softPressSx} variant="plain">
+            Close
+          </JoyButton>
+          {helpPlatform &&
+          !connectedPlatformIds.has(helpPlatform) &&
+          wizardPlatforms.some((platform) => platform.id === helpPlatform) ? (
+            <JoyButton onClick={() => handleConnect(helpPlatform)} startDecorator={<Plus size={16} />} sx={softPressSx}>
+              Start setup
+            </JoyButton>
+          ) : null}
+        </JoyDialogActions>
+      </JoyDialog>
 
-      <Modal onClose={() => setSelectedLogConnection(null)} open={Boolean(selectedLogConnection)}>
-        <ModalDialog
-          sx={{
-            maxWidth: 520,
-            width: "calc(100vw - 32px)",
-            borderRadius: "24px",
-            bgcolor: "background.surface",
-          }}
-          variant="outlined"
-        >
-          <ModalClose />
-          <DialogTitle>Latest Sync Log</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2}>
-              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                {selectedLogConnection
-                  ? `${getPosPlatformConfig(selectedLogConnection.platform, availablePlatforms).name} connection activity`
-                  : "Connection activity"}
-              </Typography>
+      <SyncHistoryDialog
+        insight={historyInsight}
+        onClose={() => setHistoryConnectionId(null)}
+        onOpenGuide={() => {
+          if (!historyInsight) return;
+          setHelpPlatform(historyInsight.connection.platform);
+          setHistoryConnectionId(null);
+        }}
+        onSync={() => {
+          if (historyInsight) runSync(historyInsight.connection.id);
+        }}
+        syncDisabled={isSyncing}
+      />
 
-              {selectedLog ? (
-                <>
-                  {selectedLog.status === "failed" && selectedLog.error_message ? (
-                    <Alert color="danger" size="sm" variant="soft">
-                      {selectedLog.error_message}
-                    </Alert>
-                  ) : null}
-
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: {
-                        xs: "minmax(0, 1fr)",
-                        sm: "repeat(2, minmax(0, 1fr))",
-                      },
-                      gap: 1.5,
-                    }}
-                  >
-                    <Sheet variant="soft" sx={{ borderRadius: "18px", p: 1.5 }}>
-                      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                        Status
-                      </Typography>
-                      <Typography level="title-sm">{formatPlatformLabel(selectedLog.status ?? "unknown")}</Typography>
-                    </Sheet>
-                    <Sheet variant="soft" sx={{ borderRadius: "18px", p: 1.5 }}>
-                      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                        Started
-                      </Typography>
-                      <Typography level="title-sm">{formatTimestamp(selectedLog.started_at)}</Typography>
-                    </Sheet>
-                    <Sheet variant="soft" sx={{ borderRadius: "18px", p: 1.5 }}>
-                      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                        Completed
-                      </Typography>
-                      <Typography level="title-sm">{formatTimestamp(selectedLog.completed_at)}</Typography>
-                    </Sheet>
-                    <Sheet variant="soft" sx={{ borderRadius: "18px", p: 1.5 }}>
-                      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                        Imported
-                      </Typography>
-                      <Typography level="title-sm">
-                        {selectedLog.customers_synced ?? 0} customers • {selectedLog.orders_synced ?? 0} orders
-                      </Typography>
-                    </Sheet>
-                  </Box>
-                </>
-              ) : (
-                <SettingsEmptyState
-                  description="No sync log has been recorded for this connection yet. Run a sync from the action menu when you are ready."
-                  icon={ScrollText}
-                  title="No sync log yet"
-                />
-              )}
-            </Stack>
-          </DialogContent>
-        </ModalDialog>
-      </Modal>
+      <JoyAlertDialog
+        confirmLabel="Disconnect"
+        description={`BloomSuite will stop syncing from ${disconnectName}.`}
+        loading={Boolean(disconnectingConnectionId)}
+        onClose={() => setDisconnectConnectionId(null)}
+        onConfirm={handleConfirmDisconnect}
+        open={Boolean(disconnectInsight)}
+        size="md"
+        title={`Disconnect ${disconnectName}?`}
+        variant="danger"
+      >
+        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          The raw records imported through this connection — orders, receipts, product catalog and sync history — are
+          removed from BloomSuite. Customer profiles already in your CRM stay.
+        </Typography>
+        <Divider />
+        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          You can reconnect any time. A fresh sync will import your data again.
+        </Typography>
+      </JoyAlertDialog>
     </Stack>
   );
 };

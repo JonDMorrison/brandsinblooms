@@ -37,6 +37,7 @@ vi.mock("@/components/crm/campaign-editor/CampaignSendConfirmation", async () =>
 import {
   LowCountConfirmDialog,
   ReviewExcludedDialog,
+  hasConfirmedEmailConsent,
   // re-export the dialog for direct testing
 } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
 
@@ -194,5 +195,15 @@ describe("ReviewExcludedDialog", () => {
     expect(screen.getByRole("checkbox", { name: /Retry temporary delivery problems/ })).not.toBeChecked();
     fireEvent.click(screen.getByRole("button", { name: "Include selected contacts" }));
     expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe("email send preflight consent", () => {
+  it("includes only confirmed opt-ins by default", () => {
+    expect(hasConfirmedEmailConsent(true)).toBe(true);
+    expect(hasConfirmedEmailConsent(false)).toBe(false);
+    expect(hasConfirmedEmailConsent(null)).toBe(false);
+    expect(hasConfirmedEmailConsent(undefined)).toBe(false);
   });
 });

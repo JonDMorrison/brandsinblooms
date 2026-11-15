@@ -66,6 +66,29 @@ beforeEach(() => {
   fixture.remove.mockResolvedValue({});
 });
 describe("newsletter editing controls", () => {
+  it("edits navigation copy, destination and link padding in the same panel", () => {
+    const update = vi.fn();
+    const block = createStudioBlock("navigation");
+    render(<ExtendedBlockProperties block={block} update={update} />);
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Garden centre" } });
+    expect(update).toHaveBeenCalledWith("links", [{ ...block.links![0], label: "Garden centre" }]);
+    fireEvent.change(screen.getByLabelText("Destination URL"), { target: { value: "https://example.com" } });
+    expect(update).toHaveBeenCalledWith("links", [{ ...block.links![0], url: "https://example.com" }]);
+    fireEvent.change(screen.getByLabelText("Button vertical padding"), { target: { value: "8" } });
+    expect(update).toHaveBeenCalledWith("appearance", { ...block.appearance, buttonPaddingY: 8 });
+  });
+
+  it("exposes existing button-group copy without adding copy controls to new groups", () => {
+    const block = createStudioBlock("button-group");
+    const update = vi.fn();
+    const { rerender } = render(<ExtendedBlockProperties block={block} update={update} />);
+    expect(screen.queryByLabelText("Heading")).toBeNull();
+    expect(screen.getByLabelText("Destination URL")).toBeInTheDocument();
+    rerender(<ExtendedBlockProperties block={{ ...block, headline: "Visit us" }} update={update} />);
+    expect(screen.getByLabelText("Heading")).toHaveValue("Visit us");
+    expect(screen.getByLabelText("Subheading")).toBeInTheDocument();
+  });
+
   it("offers all coupon presets in a labelled dropdown", () => {
     const update = vi.fn();
     render(

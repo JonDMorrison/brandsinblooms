@@ -47,7 +47,7 @@ export type StudioHeroStyle =
   "solid" | "gradient" | "image-overlay" | "image-bottom";
 export type StudioImageFit = "cover" | "contain" | "fill";
 export type StudioImagePosition = "left" | "right" | "top" | "overlay";
-export type StudioImageRatio = "auto" | "1:1" | "4:3" | "16:9";
+export type StudioImageRatio = "auto" | "1:1" | "4:3" | "16:9" | "9:16";
 export type StudioColumnSplit = "30/70" | "40/60" | "50/50" | "60/40" | "70/30";
 export type StudioOverlayGradientDirection =
   | "uniform"
@@ -175,6 +175,7 @@ export interface StudioBlock {
   captionColor?: string;
   businessName?: string;
   address?: string;
+  hoursOfOperation?: string;
   copyright?: string;
   copyrightText?: string;
   complianceText?: string;
@@ -190,6 +191,7 @@ export interface StudioBlock {
   /** Keep CTA colours synced with the account brand unless explicitly disabled. */
   useBrandButtonColor?: boolean;
   buttonSize?: StudioButtonSize;
+  buttonAlign?: StudioTextAlign;
   buttonStyle?: StudioButtonStyle;
   buttonRounded?: boolean;
   fullWidthButton?: boolean;
@@ -214,6 +216,7 @@ export interface StudioBlock {
   logoUrl?: string;
   logoAlignment?: StudioLogoAlignment;
   logoSize?: number;
+  logoWidthPercent?: number;
   /** Set by the editor when a user chooses an exact size, including 40px. */
   logoSizeExplicit?: boolean;
   logoShape?: StudioLogoShape;
@@ -223,6 +226,7 @@ export interface StudioBlock {
   contentPadding?: number;
   verticalPadding?: number;
   imageFit?: StudioImageFit;
+  imageLinkEnabled?: boolean;
   imageFocalX?: number;
   imageFocalY?: number;
   imagePosition?: StudioImagePosition;

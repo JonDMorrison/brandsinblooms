@@ -1,3 +1,5 @@
+import { getContrastingTextColor } from "../designSystem.ts";
+import type { StudioBlock } from "../../../types/studioBlocks.ts";
 import type {
   BlockAppearance,
   EdgeSpacing,
@@ -40,6 +42,20 @@ export const clampNumber = (
   typeof value === "number" && Number.isFinite(value)
     ? Math.min(max, Math.max(min, value))
     : fallback;
+// Navigation used to save white button text on a transparent, usually white row.
+// Preserve intentional white-on-dark designs and any explicitly selected link colour.
+export function navigationLinkColor(block: StudioBlock, blockBackground?: string, contentBackground = DEFAULT_NEWSLETTER_SETTINGS.contentBackgroundColor): string {
+  if (block.linkColor) return block.linkColor;
+  const white = (color: string | undefined) =>
+    /^#(?:fff|ffffff)$/i.test(color?.trim() ?? "");
+  const surface = blockBackground && blockBackground !== "transparent" ? blockBackground : contentBackground;
+  if (white(block.buttonTextColor) && getContrastingTextColor(surface) === "#111827") {
+    return block.buttonColor && getContrastingTextColor(block.buttonColor) === "#ffffff"
+      ? block.buttonColor : "#1f4341";
+  }
+  return block.buttonTextColor || block.buttonColor || "#1f4341";
+}
+
 export function emailColor(value: unknown, fallback = "#172d2c"): string {
   if (typeof value !== "string") return fallback;
   const color = value.trim();

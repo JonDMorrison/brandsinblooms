@@ -440,6 +440,8 @@ function buildCtaBlock(
 
   return {
     ...block,
+    layout: "centered-hero",
+    layoutPreset: "cta-centered-hero",
     headline: "Continue shaping this newsletter",
     body: `Review the seeded draft for ${idea.title}, refine the copy, and add any final links or visuals before you send.`,
     buttonText: "Review the draft",
@@ -556,6 +558,8 @@ function mapTemplateBlockToStudioBlock(
       const block = createStudioBlock("call-to-action", designSystem);
       return {
         ...block,
+        layout: "centered-hero",
+        layoutPreset: "cta-centered-hero",
         headline: title || "Take the next step",
         body: body || `Continue building the ${idea.title} campaign in Studio.`,
         buttonText: buttonText || "Open the draft",

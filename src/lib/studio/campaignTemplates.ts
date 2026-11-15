@@ -311,6 +311,7 @@ function createCta(
     buttonTextColor: primaryColor,
     useBrandButtonColor: false,
     layout: options.layout || "centered-hero",
+    layoutPreset: options.layout ? undefined : "cta-centered-hero",
     verticalPadding: 36,
   } satisfies StudioBlock;
 }

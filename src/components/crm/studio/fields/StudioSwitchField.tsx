@@ -57,6 +57,7 @@ export default function StudioSwitchField({
           size="sm"
           color="primary"
           disabled={disabled}
+          slotProps={{ input: { "aria-label": label } }}
           checked={resolvedChecked}
           onChange={(event) => commitChecked(event.target.checked)}
           sx={{

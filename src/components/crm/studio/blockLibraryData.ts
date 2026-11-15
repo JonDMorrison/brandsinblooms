@@ -85,7 +85,7 @@ export const BLOCK_CATEGORIES: BlockCategory[] = [
       {
         type: "call-to-action",
         name: "Button / Call to Action",
-        description: "A button with optional heading and supporting copy",
+        description: "A button with an optional secondary link",
         icon: MousePointerClick,
       },
       {
