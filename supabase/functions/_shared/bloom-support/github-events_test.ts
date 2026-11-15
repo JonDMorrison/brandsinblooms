@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { failedMainCheckSuite, engineeringEventHints, isProductionEnvironment, deploymentNotice } from "./github-events.ts";
+import { failedMainCheckSuite, engineeringEventHints, isProductionEnvironment, deploymentNotice, releaseMatchesEngineering } from "./github-events.ts";
 
 const sha = "a".repeat(40);
 Deno.test("report failed checks from the release branch with a stable source", () => {
@@ -64,4 +64,13 @@ Deno.test("deployment notices fail closed without trustworthy production identit
   assertEquals(deploymentNotice(repo, { ...payload, deployment_status: { state: ["success"] } }), null);
   assertEquals(deploymentNotice(repo, {}), null);
   assertEquals(deploymentNotice("untrusted/../repo", payload), null);
+});
+
+Deno.test("release links use recorded repository and provider identity, never titles", () => {
+  const e = { repository: "JonDMorrison/brandsinblooms", pr_number: 42, deployment: { deployment_id: 123, deployments: [{ deployment_id: 124 }] } };
+  assertEquals(releaseMatchesEngineering("https://github.com/JonDMorrison/brandsinblooms/pull/42", e), true);
+  assertEquals(releaseMatchesEngineering("https://github.com/JonDMorrison/brandsinblooms/deployments/123", e), true);
+  assertEquals(releaseMatchesEngineering("https://github.com/JonDMorrison/brandsinblooms/deployments/124", e), true);
+  for (const source of ["https://github.com/Brands-In-Blooms/bloomtill/pull/42", "https://github.com/JonDMorrison/brandsinblooms/pull/43", "https://github.com/JonDMorrison/brandsinblooms/deployments/125", "https://github.com/JonDMorrison/brandsinblooms/pull/42?ticket=42", "https://evil.test/pull/42"]) assertEquals(releaseMatchesEngineering(source, e), false);
+  assertEquals(releaseMatchesEngineering("https://github.com/JonDMorrison/brandsinblooms/pull/42", { title: "Fix ticket42" }), false);
 });

@@ -4,6 +4,7 @@
  * The canonical record and full customer conversation stay in Bloom Support.
  * Only a short, redacted operational brief can be sent to Slack.
  */
+import { githubSourceLink } from "./slack.ts";
 import { redactForEngineering } from "./policy.ts";
 
 export interface TicketFacts {
@@ -12,7 +13,7 @@ export interface TicketFacts {
   status?: unknown; stage?: unknown; automation?: unknown;
   executor?: unknown; owner?: unknown; executor_person?: unknown;
   next_action?: unknown; resolution_summary?: unknown; resolution_verified?: unknown;
-  jobs?: unknown; history?: unknown; updated_at?: unknown;
+  jobs?: unknown; history?: unknown; updated_at?: unknown; release_source?: unknown; release_kind?: unknown;
 }
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const PHONE = /(?:\+?1[\s().-]*)?\(?[2-9]\d{2}\)?[\s().-]*[2-9]\d{2}[\s.-]*\d{4}\b/g;
@@ -104,6 +105,14 @@ export function ticketProblem(t: TicketFacts): string {
   // long header; never quote the complete raw message or attachments.
   return body || subject || "The full description is available in Bloom Support.";
 }
+function releaseNoticeLines(t: TicketFacts, eventKind: string): string[] {
+  if (eventKind !== "engineering.release_observed") return [];
+  const source = githubSourceLink(typeof t.release_source === "string" ? t.release_source : undefined);
+  const outcome = t.release_kind === "deployment_failed" ? "Deployment failed. The support owner needs to check the release failure."
+    : t.release_kind === "deployment_success" ? "Deployment succeeded. The affected task still needs checking."
+    : t.release_kind === "pr_merged" ? "The code change was merged. Deployment and the affected task still need checking." : null;
+  return source && outcome ? [`*Release update:* ${outcome} This notice does not verify the customer result.`, `<${source}|View linked release>`] : [];
+}
 export function ticketRootMessage(t: TicketFacts, eventKind = "ticket.created"): string {
   const n=safeNumber(t.number);
   if(!n || !UUID.test(clean(t.id))) throw new Error("invalid ticket for Slack");
@@ -120,6 +129,7 @@ export function ticketRootMessage(t: TicketFacts, eventKind = "ticket.created"):
     "*Who is handling it:* "+ticketOwnership(t),
     "*What Bloom is doing:* "+ticketBloomStatus(t),
     "*Next step:* "+ticketNextAction(t),
+    ...releaseNoticeLines(t,eventKind),
     "_Reply in this thread with @Bloom to ask about this ticket. Open the dashboard only to edit, approve or view sensitive details._",
     "<"+supportTicketLink(t.id)+"|Open ticket and actions>",
   ].join("\n");
@@ -136,6 +146,7 @@ export function ticketUpdateMessage(t: TicketFacts, eventKind: string): string {
     "*Handling it:* "+who,
     "*What Bloom is doing:* "+ticketBloomStatus(t),
     "*Next step:* "+ticketNextAction(t),
+    ...releaseNoticeLines(t,eventKind),
     eventKind==="engineering.verified" ?
       "*Verification:* Engineering reported verification. Confirm the affected customer workflow in the linked record." : "",
     "_Ask @Bloom in this thread for the current status, recorded problem or next action._",

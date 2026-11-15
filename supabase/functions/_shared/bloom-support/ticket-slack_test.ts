@@ -139,3 +139,18 @@ Deno.test("Slack results do not claim stale, rejected or duplicate decisions sta
   assertStringIncludes(slackDecisionReceipt({applied:true,choice:"reject"}),"no repair was started");
   assertStringIncludes(slackDecisionReceipt({applied:true,choice:"do"}),"Release and safety checks still apply");
 });
+
+Deno.test("correlated release updates preserve current owner and blocker without verification claims", () => {
+  const ticket = { id: "a0000000-0000-4000-8000-000000000001", number: 1026, status: "working", automation: "paused", executor: "person", owner: { name: "Support owner" }, next_action: "Verify the shipment", release_kind: "deployment_success", release_source: "https://github.com/JonDMorrison/brandsinblooms/deployments/123" };
+  const message = ticketUpdateMessage(ticket, "engineering.release_observed");
+  assertStringIncludes(message, "Support owner");
+  assertStringIncludes(message, "Verify the shipment");
+  assertStringIncludes(message, "does not verify the customer result");
+  assertStringIncludes(message, "View linked release");
+  assertStringIncludes(message, "Deployment succeeded");
+  assertStringIncludes(ticketUpdateMessage({...ticket, release_kind:"deployment_failed"}, "engineering.release_observed"), "Deployment failed");
+  assertStringIncludes(ticketUpdateMessage({...ticket, release_kind:"pr_merged"}, "engineering.release_observed"), "code change was merged");
+  assertEquals(ticketUpdateMessage({...ticket, release_kind:"arbitrary text"}, "engineering.release_observed").includes("Release update:"),false);
+  const unsafe = ticketUpdateMessage({ ...ticket, release_source: "https://evil.test/?email=private@example.test" }, "engineering.release_observed");
+  assertEquals(unsafe.includes("evil.test"), false);
+});
