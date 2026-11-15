@@ -1,6 +1,6 @@
 import { ORDER_METADATA_SCOPES, orderMetadataResource, projectOrderMetadata } from "./order-metadata.ts";
 import { lightspeedEdition, providerAuthorizationUrl, providerToken, providerScopes, providerRetailer, rSourcePage, type LightspeedEdition } from "./provider.ts";
-import { buildStripePaidLightspeedSale, type StripePaidSaleInput } from "./paid-sale-contract.ts";
+import { buildStripePaidLightspeedSale, isLightspeedProviderId, type StripePaidSaleInput } from "./paid-sale-contract.ts";
 /**
  * Server-only behaviour expressed without runtime globals, for Deno and Node tests.
  * The authority owns retailer credentials. BloomSites receives only signed,
@@ -317,16 +317,25 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         try{
           const reply=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,createUrl,{
             method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(sale)}));
-          const saved=asSourceRecord(reply?.data);
+          const created=asSourceRecord(reply?.data);
+          if(!created||!isLightspeedProviderId(created.id))throw new AuthorityError("sale_reconcile_required",409);
+          // Create returns only an ID in the documented schema. Verify a separate
+          // readback before confirming; never retry the POST if readback fails.
+          const readUrl=new URL(`/api/2026-07/sales/${created.id}`,lightspeedStoreOrigin(grant.prefix));
+          const readback=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,readUrl,{method:"GET",headers}));
+          const saved=asSourceRecord(readback?.data);
           const source=asSourceRecord(saved?.source);
           const payments=Array.isArray(saved?.payments)?saved.payments:[];
           const matchingPayment=payments.some(item=>{
             const row=asSourceRecord(item);
             return (typeof row?.amount==="number"||typeof row?.amount==="string")
-              && Number(row.amount)===Number(sale.payments[0].amount);
+              && Number(row.amount)===Number(sale.payments[0].amount)
+              && asSourceRecord(row.type)?.config_id===sale.payments[0].type.config_id
+              && !row.deleted_at;
           });
-          if(!saved||typeof saved.id!=="string"||!UUID.test(saved.id)||
-            source?.id!==sale.source.id||!matchingPayment)
+          if(!saved||saved.id!==created.id||payments.length!==1||
+            source?.id!==sale.source.id||source?.type!==sale.source.type||
+            source?.register_id!==sale.source.register_id||source?.outlet_id!==sale.source.outlet_id||!matchingPayment)
             throw new AuthorityError("sale_reconcile_required",409);
           await deps.repository.finishSale(grant.id,sale.source.id,"confirmed",saved.id);
           return json({ok:true,externalId:saved.id,externalSourceId:sale.source.id});
