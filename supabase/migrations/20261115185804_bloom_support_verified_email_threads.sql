@@ -1,4 +1,5 @@
 -- Subject tokens are hints for review, never evidence that two requests match.
+-- p_number is retained for gateway compatibility and intentionally ignored.
 -- The caller must still authenticate the sender and require ticket access.
 CREATE OR REPLACE FUNCTION bloom_support.match_email_thread(p_refs text[], p_number bigint)
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
