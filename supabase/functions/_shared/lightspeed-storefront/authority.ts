@@ -1,3 +1,4 @@
+import { ORDER_METADATA_SCOPES, orderMetadataResource, projectOrderMetadata } from "./order-metadata.ts";
 import { lightspeedEdition, providerAuthorizationUrl, providerToken, providerScopes, providerRetailer, rSourcePage, type LightspeedEdition } from "./provider.ts";
 import { buildStripePaidLightspeedSale, type StripePaidSaleInput } from "./paid-sale-contract.ts";
 /**
@@ -243,7 +244,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
           return json({ok:true,returnUrl:await callbackUrl(saved,state,deps)});
         } catch(error){await invalidate(claimed,deps);throw error;}
       }
-      if(!["finalize","read","disconnect","status","sale"].includes(body.action))throw new AuthorityError("invalid_request");
+      if(!["finalize","read","disconnect","status","sale","order_metadata"].includes(body.action))throw new AuthorityError("invalid_request");
       const grantId=safeId(body.grantId);
       let grant=await deps.repository.get(grantId);
       if(!grant)throw new AuthorityError("invalid_proof",403);
@@ -272,6 +273,29 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         return json({ok:true,...identity(grant)});
       }
       if(body.action==="status")return json({ok:true,...identity(grant)});
+      if(body.action==="order_metadata") {
+        // Existing signed proof, explicit site allowlist and already-granted
+        // provider scopes only. This action never refreshes tokens or writes POS data.
+        if(body.siteId!==grant.siteId||lightspeedEdition(grant.edition)!=="x-series"||
+          !deps.salesScopeSiteIds?.has(grant.siteId))throw new AuthorityError("invalid_proof",403);
+        if(grant.status!=="active")throw new AuthorityError("grant_not_active",409);
+        const resource=body.resource;
+        if(resource!=="permissions"&&!orderMetadataResource(resource))throw new AuthorityError("invalid_request");
+        const access=await readTokens(grant,deps);
+        if(resource==="permissions")return json({ok:true,...identity(grant),resource,
+          permissions:Object.fromEntries([...Object.values(ORDER_METADATA_SCOPES),"sales:read","sales:write"]
+            .map(scope=>[scope,access.scopes.includes(scope)])),
+          tokenCurrent:Date.parse(grant.tokenExpiresAt??"")>now,salesWriteAvailable:deps.allowSaleWrite===true});
+        if(Date.parse(grant.tokenExpiresAt??"")<=now||!Number.isFinite(Date.parse(grant.tokenExpiresAt??"")))
+          throw new AuthorityError("grant_not_active",409);
+        if(!access.scopes.includes(ORDER_METADATA_SCOPES[resource]))throw new AuthorityError("insufficient_scope",403);
+        const cursor=versionCursor(body.cursor);
+        const url=new URL(`/api/2026-10/${resource}`,lightspeedStoreOrigin(grant.prefix));
+        url.searchParams.set("page_size","200");if(cursor!==null)url.searchParams.set("after",cursor);
+        const payload=await lightspeedRequest(deps.fetcher??fetch,url,{method:"GET",headers:{
+          Accept:"application/json",Authorization:`Bearer ${access.accessToken}`}});
+        return json({ok:true,...identity(grant),resource,...projectOrderMetadata(resource,payload,cursor)});
+      }
       if(body.action==="sale"){
         if(deps.allowSaleWrite!==true)throw new AuthorityError("sale_export_disabled",403);
         if(lightspeedEdition(grant.edition)!=="x-series"||body.siteId!==grant.siteId)
