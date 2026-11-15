@@ -337,7 +337,7 @@ export function reasonSentence(reason: string, detail?: string | null): string {
   const d = cleanStaffText(detail, 240);
   const failedAuth = /\b(auth|credential|token|permission denied|401|403)\b/i.test(String(detail ?? ""));
   switch (reason) {
-    case "ticket_overdue": return "This request is past its response target and nobody has replied yet.";
+    case "ticket_overdue": return "This request has an overdue response or next-action deadline.";
     case "engineering_start_requested": return "Bloom found what looks like a bug and needs your OK before an automatic repair can start.";
     case "engineering_awaiting_approval": return "A fix is written and tested. It needs your approval before it goes live.";
     case "engineering_failed":
@@ -833,8 +833,8 @@ const ALERT_COPY: Record<string, Omit<AlertCopy, "lines"> & { line?: (f: AlertFi
     doing: "The other checks are still running.", button: "Check Bloom's health", path: "/admin/bloom-support?view=readiness",
   },
   escalation_unanswered: {
-    headline: "An escalated request still has no reply from a person", impact: "A client is waiting on Brands in Blooms staff.",
-    doing: "At each missed deadline Bloom moves it to the other owner and reminds you both.", button: "Open Support", path: "/support",
+    headline: "An escalated request still needs a decision", impact: "An open support blocker needs staff attention.",
+    doing: "Bloom keeps the blocker open and sends bounded reminders to staff.", button: "Open Support", path: "/support",
     line: (f) => (typeof f.reason === "string" && f.reason ? reasonSentence(f.reason) : ""),
   },
   email_reputation_low: {
@@ -916,17 +916,35 @@ export function renderAlertEmail(group: AlertGroup, opts: { appUrl: string; prev
 // ---------------------------------------------------------------------------
 // Staff: daily digest
 // ---------------------------------------------------------------------------
+export interface DigestCommunication {
+  acknowledgement_sent: number;
+  acknowledgement_delivered: number;
+  progress_sent: number;
+  progress_delivered: number;
+}
+
+function communicationSummary(c?: DigestCommunication, response?: string | null): string {
+  if (!c) return ""; // An older report did not provide delivery evidence.
+  return `Acknowledgement emails sent: ${c.acknowledgement_sent} (${c.acknowledgement_delivered} delivered); progress emails sent: ${c.progress_sent} (${c.progress_delivered} delivered). ${response ? "Substantive response recorded." : "Substantive response not recorded."}`;
+}
+
 export interface DigestReport {
-  needs_you: Array<{ id: string; number: number; subject: string; client: string | null; reason: string; since: string }>;
+  needs_you: Array<{ id: string; number: number; subject: string; client: string | null; reason: string; since: string; first_response_at?: string | null; communication?: DigestCommunication }>;
   resolved: Array<{ number: number; subject: string; client: string | null; by_bloom: boolean; summary: string | null }>;
-  said: Array<{ number: number; subject: string; client: string | null; body: string; at: string }>;
+  said: Array<{ number: number; subject: string; client: string | null; body: string; at: string; purpose?: string | null; delivery?: string; meaningful?: boolean }>;
   repairs: Array<{ title: string; status: string; client: string | null }>;
   alerts: Array<{ condition: string; detail: AlertFinding; at: string }>;
+  internal_tests?: Array<{
+    id: string; number: number; subject: string; status: string; stage: string;
+    next_action?: string | null; engineering_status?: string | null;
+    deployment_state?: string | null; verification_summary?: string | null;
+    first_response_at?: string | null; communication?: DigestCommunication;
+  }>;
   counts?: { new?: number; open?: number };
 }
 
 export function digestIsEmpty(r: DigestReport): boolean {
-  return !r.needs_you.length && !r.resolved.length && !r.said.length && !r.repairs.length && !r.alerts.length;
+  return !r.needs_you.length && !r.resolved.length && !r.said.length && !r.repairs.length && !r.alerts.length && !r.internal_tests?.length;
 }
 
 /**
@@ -958,7 +976,7 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
   const needs = r.needs_you.slice(0, 8).map((n) => {
     const step = nextStepForReason(n.reason, null);
     return {
-      line: `${n.client ?? "A client"} · #${n.number} ${shortTopic(n.subject, 60)} · ${clip(reasonSentence(n.reason), 140)} (${formatAge(now.getTime() - new Date(n.since).getTime())})`,
+      line: `${n.client ?? "A client"} · #${n.number} ${shortTopic(n.subject, 60)} · ${clip(reasonSentence(n.reason), 140)} (${formatAge(now.getTime() - new Date(n.since).getTime())}). ${communicationSummary(n.communication, n.first_response_at)}`.trim(),
       button: step.button,
       url: supportLink(base, n.id, step.action as NextAction),
     };
@@ -971,21 +989,36 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
   const saidByTicket = new Map<number, typeof r.said>();
   for (const s of r.said) saidByTicket.set(s.number, [...(saidByTicket.get(s.number) ?? []), s]);
 
+  const internalTests = r.internal_tests ?? [];
+  const internalLines = internalTests.map((t) => {
+    const blocker = t.deployment_state === "rollback_point_unproven"
+      ? "Rollback point is unproven; release and affected-flow verification need staff review."
+      : t.next_action ? cleanStaffText(t.next_action, 240) : "Review the test's current evidence and next step.";
+    return `#${t.number} ${shortTopic(t.subject, 60)} · ${words(t.status)} / ${words(t.stage)}${t.engineering_status ? ` · repair: ${ENGINEERING_WORDS[t.engineering_status] ?? words(t.engineering_status)}` : ""}. ${blocker} Verification: ${cleanStaffText(t.verification_summary) || "not reported"}. ${communicationSummary(t.communication, t.first_response_at)}`;
+  });
   const title = needs.length
     ? `${needs.length} request${needs.length === 1 ? "" : "s"} need${needs.length === 1 ? "s" : ""} you today`
-    : "Nothing needs you today";
-  const intro = `${weekly ? "This week" : "In the last day"} Bloom resolved ${r.resolved.length}, talked to clients on ${saidByTicket.size} request${saidByTicket.size === 1 ? "" : "s"}, and has ${r.repairs.length} repair${r.repairs.length === 1 ? "" : "s"} in progress.`;
+    : internalTests.length ? `${internalTests.length} internal test${internalTests.length === 1 ? "" : "s"} to review` : "Nothing needs you today";
+  const deliveryKnown = r.said.every((message) => message.delivery === "sent" || message.delivery === "delivered");
+  const intro = `${weekly ? "This week" : "In the last day"} Bloom resolved ${r.resolved.length}, ${deliveryKnown ? "sent messages to clients on" : "recorded messages on"} ${saidByTicket.size} request${saidByTicket.size === 1 ? "" : "s"}, and has ${r.repairs.length} repair${r.repairs.length === 1 ? "" : "s"} in progress.${internalTests.length ? ` ${internalTests.length} staff-classified internal test${internalTests.length === 1 ? " is" : "s are"} listed separately from customer totals.` : ""}`;
 
   const needsHtml = needs.map((n) =>
     botanicalEmailParagraph(n.line, { size: 14, margin: "8px 0 0" }) + botanicalEmailButton(n.button, n.url).replace("margin:20px 0 8px", "margin:8px 0 14px")
   ).join("");
+  const internalHtml = internalLines.map((line, index) =>
+    botanicalEmailParagraph(line, { size: 14, margin: "8px 0 0" }) +
+    botanicalEmailButton("Review test", supportLink(base, internalTests[index].id))
+  ).join("");
+  const saidLabel = (message: DigestReport["said"][number]) =>
+    `${message.delivery === "delivered" ? "Delivered" : message.delivery === "sent" ? "Sent" : "Delivery not reported for"} ${message.purpose === "acknowledgement" ? "acknowledgement" : message.purpose === "progress" ? "progress update" : "message"}${message.meaningful === false ? " · not a substantive response" : ""}`;
   const saidHtml = [...saidByTicket.entries()].slice(0, 8).map(([number, list]) => {
     const last = list[list.length - 1];
-    return botanicalEmailQuote(clip(last.body.trim(), 280), `${last.client ?? "A client"} · #${number} ${shortTopic(last.subject, 50)} · ${formatWhen(last.at, tz)}`);
+    return botanicalEmailQuote(clip(last.body.trim(), 280), `${last.client ?? "A client"} · #${number} ${shortTopic(last.subject, 50)} · ${formatWhen(last.at, tz)} · ${saidLabel(last)}`);
   }).join("");
 
   const bodyHtml =
     (needs.length ? botanicalEmailSection("What needs you", needsHtml, "alert") : "") +
+    (internalHtml ? botanicalEmailSection("Internal tests — staff review", internalHtml, "alert") : "") +
     (resolvedLines.length ? botanicalEmailSection("What Bloom resolved", botanicalEmailList(resolvedLines), "check") : "") +
     (saidHtml ? botanicalEmailSection("What Bloom said to clients", saidHtml, "mail") : "") +
     (repairLines.length ? botanicalEmailSection("Repairs in progress", botanicalEmailList(repairLines), "leaf") : "") +
@@ -1006,9 +1039,10 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
   const text = [
     title, intro, "",
     needs.length ? "What needs you" : "", ...needs.map((n) => `• ${n.line}\n  ${n.button}: ${n.url}`),
+    internalLines.length ? "\nInternal tests — staff review" : "", ...internalLines.map((line, index) => `• ${line}\n  Review test: ${supportLink(base, internalTests[index].id)}`),
     resolvedLines.length ? "\nWhat Bloom resolved" : "", ...resolvedLines.map((l) => `• ${l}`),
     saidByTicket.size ? "\nWhat Bloom said to clients" : "",
-    ...[...saidByTicket.entries()].slice(0, 8).map(([n, list]) => `• #${n}: “${clip(list[list.length - 1].body.trim(), 280)}”`),
+    ...[...saidByTicket.entries()].slice(0, 8).map(([n, list]) => `• #${n}: “${clip(list[list.length - 1].body.trim(), 280)}” (${saidLabel(list[list.length - 1])})`),
     repairLines.length ? "\nRepairs in progress" : "", ...repairLines.map((l) => `• ${l}`),
     alertLines.length ? "\nAlerts" : "", ...alertLines.map((l) => `• ${l}`),
     "", `Open Support: ${base}/support`,
