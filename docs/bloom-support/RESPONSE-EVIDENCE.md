@@ -124,7 +124,8 @@ Signed GitHub events can update the existing private ticket thread only when the
 allowlisted repository and exact PR or provider deployment ID already match the
 linked engineering record. The worker rechecks that binding immediately before
 rendering. Merged, deployment succeeded and deployment failed are distinct;
-none proves affected-flow or customer verification. Current owner and next action
+the renderer uses the canonical `github.*` queue outcomes. None proves
+affected-flow or customer verification. Current owner and next action
 remain visible. This is a read-before-send snapshot, not an atomic transaction
 with Slack. Existing privacy and interactive approval controls still apply.
 
