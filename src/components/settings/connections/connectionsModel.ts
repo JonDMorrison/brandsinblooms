@@ -1,3 +1,4 @@
+import type { LightspeedConnectionSummary } from "@/hooks/useLightspeedConnectionSummary";
 import type { POSConnection, POSSyncLog } from "@/hooks/usePOSConnections";
 import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 
@@ -13,7 +14,15 @@ export const LEGACY_SHOPIFY_DEPRECATED = true;
  */
 const RETIRED_WIZARD_PLATFORMS = new Set(["square", ...(LEGACY_SHOPIFY_DEPRECATED ? ["shopify"] : [])]);
 
-export type IntegrationLogoKey = "square" | "shopify" | "vmx" | "mailchimp" | "zapier" | "generic";
+export type IntegrationLogoKey =
+  | "square"
+  | "shopify"
+  | "lightspeed"
+  | "clover"
+  | "vmx"
+  | "mailchimp"
+  | "zapier"
+  | "generic";
 
 export type IntegrationCategory = "Point of sale" | "Data import" | "Email" | "Automation";
 
@@ -89,7 +98,21 @@ export const wizardPlatforms = WIZARD_PLATFORMS.filter(
   (platform) => !RETIRED_WIZARD_PLATFORMS.has(platform.id),
 );
 
+export const LIGHTSPEED_MANAGE_PATH = "/integrations/lightspeed";
+
 export const hubIntegrations: HubCatalogEntry[] = [
+  {
+    kind: "hub",
+    id: "lightspeed",
+    name: "Lightspeed X-Series",
+    shortName: "Lightspeed",
+    category: "Point of sale",
+    valueProp: "Sign in with Lightspeed to sync customers, products and sales.",
+    logo: "lightspeed",
+    dataScopes: ["Customers", "Products", "Sales"],
+    connectPath: "/integrations/lightspeed/connect",
+    guidePath: "/integrations/lightspeed/guide",
+  },
   {
     kind: "hub",
     id: "mailchimp",
@@ -105,6 +128,16 @@ export const hubIntegrations: HubCatalogEntry[] = [
 ];
 
 export const comingSoonIntegrations: ComingSoonCatalogEntry[] = [
+  {
+    kind: "coming-soon",
+    id: "clover",
+    name: "Clover",
+    shortName: "Clover",
+    category: "Point of sale",
+    valueProp: "Sync customers and orders from your Clover POS.",
+    logo: "clover",
+    dataScopes: ["Customers", "Orders"],
+  },
   {
     kind: "coming-soon",
     id: "square",
@@ -329,20 +362,94 @@ export const getFailureGuidance = (
 /* Overview                                                            */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Hub-managed connections (own tables, managed in the Integration Hub) */
+/* ------------------------------------------------------------------ */
+
+export interface HubConnectionInsight {
+  id: string;
+  name: string;
+  platformName: string;
+  category: IntegrationCategory;
+  logo: IntegrationLogoKey;
+  dataScopes: string[];
+  health: ConnectionHealth;
+  lastSuccessAt: string | null;
+  /** Running totals synced so far, e.g. "1,204 customers · 380 products". */
+  totalsSummary: string | null;
+  attentionSummary: string | null;
+  managePath: string;
+  reconnectPath: string;
+  guidePath: string;
+}
+
+const latestTimestamp = (values: Array<string | null | undefined>) =>
+  values
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+
+const pluralize = (count: number, singular: string, plural: string) =>
+  `${formatCount(count)} ${count === 1 ? singular : plural}`;
+
+export const getLightspeedInsight = (connection: LightspeedConnectionSummary): HubConnectionInsight => {
+  const lastSuccessAt = latestTimestamp([
+    connection.last_synced_at,
+    connection.last_customer_sync,
+    connection.last_product_sync,
+    connection.last_sales_sync,
+  ]);
+  const isConnected = (connection.status ?? "").toLowerCase() === "connected";
+
+  const totals = [
+    connection.customers_synced !== null ? pluralize(connection.customers_synced, "customer", "customers") : null,
+    connection.products_synced !== null ? pluralize(connection.products_synced, "product", "products") : null,
+    connection.sales_synced !== null ? pluralize(connection.sales_synced, "sale", "sales") : null,
+  ].filter(Boolean);
+
+  return {
+    id: connection.id,
+    name: connection.retailer_name || connection.domain_prefix || "Lightspeed X-Series",
+    platformName: "Lightspeed X-Series",
+    category: "Point of sale",
+    logo: "lightspeed",
+    dataScopes: ["Customers", "Products", "Sales"],
+    health: !isConnected ? "attention" : lastSuccessAt ? "healthy" : "pending",
+    lastSuccessAt,
+    totalsSummary: totals.length > 0 ? `${totals.join(" · ")} synced` : null,
+    attentionSummary: isConnected
+      ? null
+      : "Lightspeed is no longer connected. Reconnect it in the Integration Hub to resume syncing.",
+    managePath: LIGHTSPEED_MANAGE_PATH,
+    reconnectPath: "/integrations/lightspeed/connect",
+    guidePath: "/integrations/lightspeed/guide",
+  };
+};
+
+/* ------------------------------------------------------------------ */
+/* Overview                                                            */
+/* ------------------------------------------------------------------ */
+
+export interface OverviewIssue {
+  id: string;
+  name: string;
+}
+
 export interface ConnectionsOverview {
   total: number;
-  needsAttention: ConnectionInsight[];
+  needsAttention: OverviewIssue[];
   syncingCount: number;
   lastSuccessAt: string | null;
   lastImport: { customers: number; orders: number; at: string } | null;
 }
 
-export const getConnectionsOverview = (insights: ConnectionInsight[]): ConnectionsOverview => {
-  const lastSuccessAt =
-    insights
-      .map((insight) => insight.lastSuccessAt)
-      .filter((value): value is string => Boolean(value))
-      .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+export const getConnectionsOverview = (
+  insights: ConnectionInsight[],
+  hubInsights: HubConnectionInsight[] = [],
+): ConnectionsOverview => {
+  const lastSuccessAt = latestTimestamp([
+    ...insights.map((insight) => insight.lastSuccessAt),
+    ...hubInsights.map((insight) => insight.lastSuccessAt),
+  ]);
 
   const latestSuccessfulLog = insights
     .map((insight) => insight.lastSuccessfulLog)
@@ -354,8 +461,15 @@ export const getConnectionsOverview = (insights: ConnectionInsight[]): Connectio
     (latestSuccessfulLog.customers_synced !== null || latestSuccessfulLog.orders_synced !== null);
 
   return {
-    total: insights.length,
-    needsAttention: insights.filter((insight) => insight.health === "attention"),
+    total: insights.length + hubInsights.length,
+    needsAttention: [
+      ...insights
+        .filter((insight) => insight.health === "attention")
+        .map((insight) => ({ id: insight.connection.id, name: insight.connection.name || insight.platform.name })),
+      ...hubInsights
+        .filter((insight) => insight.health === "attention")
+        .map((insight) => ({ id: insight.id, name: insight.name })),
+    ],
     syncingCount: insights.filter((insight) => insight.health === "syncing").length,
     lastSuccessAt,
     lastImport: hasCounts

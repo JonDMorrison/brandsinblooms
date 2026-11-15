@@ -7,7 +7,7 @@ import { AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { formatDateTimeValue } from "@/components/integrations/shared/dataTabPrimitives";
-import { type ConnectionInsight, type ConnectionsOverview, formatCount } from "./connectionsModel";
+import { type ConnectionsOverview, formatCount, type OverviewIssue } from "./connectionsModel";
 import { RelativeTime } from "./ConnectionsPrimitives";
 import { softPressSx } from "./connectionsStyles";
 
@@ -54,7 +54,7 @@ const Metric = ({ index, label, children }: { index: number; label: string; chil
 
 interface ConnectionsHealthOverviewProps {
   overview: ConnectionsOverview;
-  onFix: (insight: ConnectionInsight) => void;
+  onFix: (issue: OverviewIssue) => void;
 }
 
 export const ConnectionsHealthOverview = ({ overview, onFix }: ConnectionsHealthOverviewProps) => {
@@ -64,7 +64,7 @@ export const ConnectionsHealthOverview = ({ overview, onFix }: ConnectionsHealth
 
   const headline = hasIssue
     ? failing.length === 1
-      ? `${firstFailing.connection.name || firstFailing.platform.name} needs attention`
+      ? `${firstFailing.name} needs attention`
       : `${failing.length} connections need attention`
     : overview.syncingCount > 0
       ? "Sync in progress"
@@ -150,7 +150,7 @@ export const ConnectionsHealthOverview = ({ overview, onFix }: ConnectionsHealth
               —
             </Typography>
             <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-              Counts appear after a sync
+              {overview.total > 0 ? "Totals are shown on each connection" : "Counts appear after a sync"}
             </Typography>
           </>
         )}

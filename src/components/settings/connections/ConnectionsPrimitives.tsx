@@ -4,6 +4,8 @@ import CircularProgress from "@mui/joy/CircularProgress";
 import Typography, { type TypographyProps } from "@mui/joy/Typography";
 import { FileSpreadsheet, Plug } from "lucide-react";
 import mailchimpLogo from "@/assets/logos/mailchimp-new.png";
+import cloverLogo from "@/assets/logos/clover.svg";
+import lightspeedLogo from "@/assets/logos/lightspeed-x-series.svg";
 import shopifyLogo from "@/assets/logos/shopify.svg";
 import squareMark from "@/assets/logos/square-mark.svg";
 import zapierLogo from "@/assets/logos/zapier.jpeg";
@@ -17,6 +19,8 @@ type LogoSource = { kind: "image"; src: string; fill: boolean } | { kind: "icon"
 const LOGO_SOURCES: Record<IntegrationLogoKey, LogoSource> = {
   square: { kind: "image", src: squareMark, fill: false },
   shopify: { kind: "image", src: shopifyLogo, fill: false },
+  lightspeed: { kind: "image", src: lightspeedLogo, fill: false },
+  clover: { kind: "image", src: cloverLogo, fill: false },
   // Official app-icon tiles: render edge to edge.
   zapier: { kind: "image", src: zapierLogo, fill: true },
   mailchimp: { kind: "image", src: mailchimpLogo, fill: true },
