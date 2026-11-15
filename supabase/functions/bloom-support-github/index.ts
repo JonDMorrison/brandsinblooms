@@ -1,3 +1,4 @@
+import { sha256Hex } from "../_shared/bloom-support/crypto.ts";
 import { trustedRunEventHint } from "../_shared/bloom-support/trusted-reproduction.ts";
 // Verified GitHub events -> the existing Bloom Support notification queue.
 // No PR title/body, email address or confidential commit detail is sent to Slack.
@@ -5,7 +6,7 @@ import { db, env } from "../_shared/bloom-support/runtime.ts";
 import { verifyGithubWebhook } from "../_shared/bloom-support/webhook-auth.ts";
 import { githubMilestoneFromKind } from "../_shared/bloom-support/slack-language.ts";
 import { githubSourceLink } from "../_shared/bloom-support/slack.ts";
-import { failedMainCheckSuite, engineeringEventHints, isProductionEnvironment } from "../_shared/bloom-support/github-events.ts";
+import { failedMainCheckSuite, engineeringEventHints, deploymentNotice } from "../_shared/bloom-support/github-events.ts";
 import { announceableMainMerge } from "../_shared/bloom-support/release-notes.ts";
 
 const ALLOWED = new Set([
@@ -86,13 +87,11 @@ Deno.serve(async (req) => {
       eventId = `check_suite_${suite.id}_${suite.sha}`;
     }
   } else if (event === "deployment_status") {
-    const d = payload.deployment as {ref?:string;environment?:string;production_environment?:boolean;id?:number} | undefined;
-    const status = payload.deployment_status as {state?:string} | undefined;
-    if (d && typeof d.environment === "string" && isProductionEnvironment({ environment: d.environment, production_environment: d.production_environment })) {
-      kind = status?.state === "success" ? "github.deployment_succeeded" :
-        status?.state === "failure" || status?.state === "error" ? "github.deployment_failed" : null;
-      if (kind && Number.isSafeInteger(d.id))
-        source = githubSourceLink("https://github.com/" + fullName + "/deployments/" + d.id);
+    const notice = deploymentNotice(fullName, payload);
+    if (notice) {
+      kind = notice.kind;
+      source = githubSourceLink(`https://github.com/${fullName}/deployments/${notice.id}`);
+      eventId = `deployment_${await sha256Hex(notice.identity)}`;
     }
   }
   if (!kind || !githubMilestoneFromKind(kind)) return respond({ok:true,ignored:true});

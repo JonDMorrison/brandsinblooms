@@ -52,3 +52,22 @@ export function engineeringEventHints(event: string, payload: Record<string, unk
     return hint(run.head_sha, pr.number);
   });
 }
+
+/** Semantic identity for a signed deployment notice, independent of delivery ID.
+ * Each outcome of each deployment is announced once; a failure is distinct from
+ * success and a new deployment (even of the same commit) remains visible.
+ */
+export function deploymentNotice(repository: string, payload: Record<string, unknown>): {
+  identity: string; id: number; kind: "github.deployment_succeeded" | "github.deployment_failed";
+} | null {
+  const d = object(payload.deployment);
+  const state = object(payload.deployment_status).state;
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) ||
+      typeof d.id !== "number" || !Number.isSafeInteger(d.id) || d.id <= 0 ||
+      typeof d.sha !== "string" || !/^[0-9a-f]{40}$/i.test(d.sha) ||
+      typeof d.environment !== "string" ||
+      !isProductionEnvironment({ environment: d.environment, production_environment: d.production_environment === true }) ||
+      !["success", "failure", "error"].includes(String(state))) return null;
+  const kind = state === "success" ? "github.deployment_succeeded" : "github.deployment_failed";
+  return { id: d.id, kind, identity: JSON.stringify([repository.toLowerCase(), d.id, d.sha.toLowerCase(), kind]) };
+}
