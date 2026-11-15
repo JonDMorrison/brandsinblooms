@@ -320,3 +320,70 @@ test('uncertain POS result is held for reconciliation and is never replayed',asy
   assert.equal(second.status,409);
   assert.equal(f.salePosts,1);
 });
+
+// The setup reader is deliberately separate from sale writing and token refresh.
+async function metadataFixture(options={}) {
+  const f=await fixture({tokens:{scope:scopes+' users:read registers:read taxes:read sales:read sales:write'},...options});
+  const {grantId}=await f.activate();
+  f.deps.salesScopeSiteIds=new Set([SITE]);
+  f.calls.length=0;
+  const request=(resource='permissions',extra={})=>f.signed({action:'order_metadata',grantId,siteId:SITE,resource,...extra});
+  return {...f,f,grantId,request};
+}
+test('metadata reports only relevant granted flags while posting remains off',async()=>{
+  const {f,request}=await metadataFixture();const r=await request();const body=await r.json();
+  assert.equal(r.status,200);assert.equal(body.permissions['registers:read'],true);
+  assert.equal(body.salesWriteAvailable,false);assert.equal(body.tokenCurrent,true);
+  assert.equal(f.calls.length,0);assert.ok(!JSON.stringify(body).includes('SECRET'));
+});
+test('metadata uses fixed GET endpoints, pagination and minimum fields without payment configuration',async()=>{
+  const {f,request}=await metadataFixture();
+  f.deps.fetcher=async(url,init)=>{
+    assert.equal(init.method,'GET');assert.equal(init.body,undefined);
+    assert.equal(new URL(url).origin,'https://scotts-test.retail.lightspeed.app');
+    assert.equal(new URL(url).pathname,'/api/2026-10/payment_types');
+    assert.equal(new URL(url).searchParams.get('after'),'10');
+    assert.equal(new URL(url).searchParams.get('page_size'),'200');
+    return Response.json({data:[{id:'payment',name:'Online Paid by Stirpe',gateway:false,disabled:false,
+      config:{secret:'SECRET'},payment_type:{id:1,name:'Cash',configuration_url:'SECRET'}}],version:{max:11}});
+  };
+  const r=await request('payment_types',{cursor:'10',url:'https://attacker.example',prefix:'attacker'});
+  const body=await r.json();assert.equal(r.status,200);assert.equal(body.nextCursor,'11');
+  assert.equal(body.complete,false);assert.equal(body.records[0].name,'Online Paid by Stirpe');
+  assert.ok(!JSON.stringify(body).includes('SECRET'));assert.equal(f.salePosts,0);assert.equal(f.tokenCalls,1);
+});
+test('metadata remains blocked for missing scopes without provider calls or token refresh',async()=>{
+  const {f,request}=await metadataFixture({tokens:{scope:scopes}});
+  const r=await request('registers');assert.equal(r.status,403);
+  assert.equal((await r.json()).error,'insufficient_scope');assert.equal(f.calls.length,0);assert.equal(f.tokenCalls,1);
+});
+test('metadata rejects cross-site, missing allowlist, unsupported resource, expired or revoked grants',async()=>{
+  for(const scenario of ['site','allowlist','resource','expired','revoked','edition','missing-token']) {
+    const {f,request,grantId}=await metadataFixture();const row=f.grants.get(grantId);
+    if(scenario==='allowlist')f.deps.salesScopeSiteIds=new Set();
+    if(scenario==='expired')row.tokenExpiresAt=new Date(NOW-1).toISOString();
+    if(scenario==='revoked')row.status='revoked';
+    if(scenario==='edition')row.edition='r-series';
+    if(scenario==='missing-token')row.tokenCiphertext=null;
+    const r=await request(scenario==='resource'?'sales':'registers',scenario==='site'?{siteId:crypto.randomUUID()}:{});
+    assert.notEqual(r.status,200,scenario);assert.equal(f.calls.length,0,scenario);assert.equal(f.tokenCalls,1,scenario);
+  }
+});
+test('metadata requires a valid signed bound grant and rejects replay',async()=>{
+  const {f,grantId}=await metadataFixture();const body={action:'order_metadata',grantId,siteId:SITE,resource:'permissions'};
+  assert.equal((await f.request(body)).status,403);
+  assert.equal((await f.signed({...body,grantId:crypto.randomUUID()})).status,403);
+  const nonce=protocol.randomProofToken();assert.equal((await f.signed(body,nonce)).status,200);
+  assert.equal((await f.signed(body,nonce)).status,409);assert.equal(f.calls.length,0);
+});
+test('metadata projects all supported resources and rejects stalled cursors',()=>{
+  const {projectOrderMetadata}=require('../../supabase/functions/_shared/lightspeed-storefront/order-metadata.ts');
+  const page=row=>({data:[row],version:{max:12}});
+  const user=projectOrderMetadata('users',page({id:'u',display_name:'Asha',enabled:true,email:'SECRET',enabled_mfa:{secret:'SECRET'},restricted_outlet_ids:[]}),null);
+  assert.deepEqual(user.records,[{id:'u',display_name:'Asha',enabled:true,restricted_outlet_ids:[]}]);
+  assert.deepEqual(projectOrderMetadata('registers',page({id:'r',name:'Head Office',outlet_id:'o',is_open:false,deleted_at:null}),null).records[0],{id:'r',name:'Head Office',outlet_id:'o',is_open:false,deleted_at:null});
+  assert.equal(projectOrderMetadata('taxes',page({id:'t',name:'HST',rates:[{id:'rate',rate:.13,rules:[]}]}),null).records[0].rates[0].rate,.13);
+  assert.deepEqual(projectOrderMetadata('registers',{data:[],version:{max:null}},'12'),{records:[],nextCursor:null,complete:true});
+  assert.throws(()=>projectOrderMetadata('registers',page({id:'r'}),'12'));
+  assert.throws(()=>projectOrderMetadata('users',page({id:'u',display_name:{token:'SECRET'}}),null));
+});
