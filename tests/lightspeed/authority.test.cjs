@@ -57,7 +57,7 @@ async function fixture(options={}){
         token_type:'Bearer',expires:now/1000+3600,domain_prefix:'scotts-test',scope:scopes,...(options.tokens??{})});}
     if(u.pathname==='/api/2.0/retailer')return Response.json({data:{id:'retailer-uuid',currency:'CAD',...(options.retailer??{})}});
     if(u.pathname.startsWith('/api/2026-07/sales')) {
-      if(init.method==='GET')return savedSale ? Response.json({data:savedSale}) :
+      if(init.method==='GET')return savedSale && !options.readbackFailure ? Response.json({data:options.readbackPatch?{...savedSale,...options.readbackPatch}:savedSale}) :
         Response.json({error:'not_found'},{status:404});
       assert.equal(init.method,'POST');
       salePosts++;
@@ -65,7 +65,7 @@ async function fixture(options={}){
       assert.equal(u.pathname,'/api/2026-07/sales');
       savedSale={...JSON.parse(init.body),
         id:options.saleId??'99d80083-9ef2-4314-9f8e-7f638be367d1'};
-      return Response.json({data:savedSale});
+      return Response.json({data:{id:savedSale.id}});
     }
     if(options.readStatus)return new Response('SECRET upstream details',{status:options.readStatus,headers:{'Retry-After':'17'}});
     return Response.json({data:[],version:{max:1}});
@@ -393,6 +393,18 @@ test('provider sale ID variants reconcile once while malformed IDs remain held',
     const f=await fixture({allowSaleWrite:true,saleId,tokens:{scope:scopes+' sales:read sales:write'}});
     const {grantId}=await f.activate();const body={action:'sale',grantId,siteId:SITE,sale:saleInput()};
     const first=await f.signed(body);assert.equal(first.status,saleId==='invalid/sale'?409:200);
+    assert.equal((await f.signed(body)).status,409);assert.equal(f.salePosts,1);
+  }
+});
+
+test('ID-only create response requires an exact readback and never causes a second POST',async()=>{
+  for(const failure of [null,{readbackFailure:true},{readbackPatch:{source:{id:'wrong'}}},
+    {readbackPatch:{payments:[{amount:'22.60',type:{config_id:'wrong'}}]}},
+    {readbackPatch:{id:'067d4bf7-fca2-11f1-ed25-26f5063b32aa'}}]) {
+    const f=await fixture({allowSaleWrite:true,tokens:{scope:scopes+' sales:read sales:write'},...failure});
+    const {grantId}=await f.activate();const body={action:'sale',grantId,siteId:SITE,sale:saleInput()};
+    const first=await f.signed(body);assert.equal(first.status,failure?409:200);
+    assert.ok(f.calls.some(x=>x.init.method==='GET'&&x.url.endsWith('/api/2026-07/sales/99d80083-9ef2-4314-9f8e-7f638be367d1')));
     assert.equal((await f.signed(body)).status,409);assert.equal(f.salePosts,1);
   }
 });
