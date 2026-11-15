@@ -117,3 +117,34 @@ automatic ticket when the new matcher rejects an ambiguous/subject-only reply.
 The new handler is compatible with the old matcher (passes no subject fallback)
 and holds unverified/unmatched replies. Do not claim complete unique-reference
 matching until both components are verified.
+
+## Recorded release links and intake audit
+
+Signed GitHub events can update the existing private ticket thread only when the
+allowlisted repository and exact PR or provider deployment ID already match the
+linked engineering record. The worker rechecks that binding immediately before
+rendering. Merged, deployment succeeded and deployment failed are distinct;
+the renderer uses the canonical `github.*` queue outcomes. None proves
+affected-flow or customer verification. Current owner and next action
+remain visible. This is a read-before-send snapshot, not an atomic transaction
+with Slack. Existing privacy and interactive approval controls still apply.
+
+An event receipt fixes its original routing and rejects changed-content replay.
+Concurrent duplicate delivery creates one job per linked ticket. Existing global
+jobs are adopted rather than re-routed. Unmatched events retain the existing
+product-level notice; more than 50 matching tickets produce one review notice.
+No ticket, engineering status, approval, or client message is changed.
+
+For a scoped maintenance audit, authorized operators can inspect the private
+`bloom_support.unlinked_release_report(actor, since)` function (maximum 31 days,
+100 metadata-only results). These are candidates for intake review, not proof
+that client work is missing. Coverage starts at migration installation and only
+includes release events received while Slack is enabled. There is no historical
+email import or automatic ticket creation. The function is not exposed to clients
+or granted directly to the service role.
+
+Rollout: deploy and read back the worker changes in PR #525 FIRST. Allow older
+invocations to drain before applying migration 20261115191247. The new worker is
+compatible with the old queue; old workers would consume the new event without
+its current-binding check and release wording. Verify the migration, private
+permissions and worker health after release. No live Slack probe is required.
