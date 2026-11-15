@@ -2,6 +2,7 @@
 // Claims leased jobs, runs them with a timeout, and records success or a
 // bounded retry. Survives restarts: an expired lease is re-queued by
 // claim_jobs, and every handler is idempotent.
+import { releaseMatchesEngineering } from "../_shared/bloom-support/github-events.ts";
 import { clientResolutionText } from "../../../src/lib/bloomSupport/clientWording.ts";
 import { BloomError, type Caller, db, directRpc, errorResponse, json, rpc, servicePrincipal } from "../_shared/bloom-support/runtime.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
@@ -756,6 +757,13 @@ async function postTicketThreadUpdate(job: Job, eventKind: string): Promise<stri
   const ticket = await rpc<Record<string, unknown>>("get_ticket", {
     actor: bot.principalId, ticket_id: job.ticket_id,
   });
+  if (eventKind === "engineering.release_observed") {
+    const issue = ticket.engineering as Record<string, unknown> | null;
+    if (!job.engineering_issue_id || issue?.id !== job.engineering_issue_id || !releaseMatchesEngineering(job.payload.github_url, issue))
+      return "skipped: release no longer matches this ticket's engineering record";
+    ticket.release_source = job.payload.github_url;
+    ticket.release_kind = job.payload.github_kind;
+  }
   if (ticket.spam === true || ticket.merged_into || !ticket.id)
     return "skipped: unavailable ticket";
   if (stored.thread_ts) {

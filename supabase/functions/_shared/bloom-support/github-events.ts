@@ -71,3 +71,15 @@ export function deploymentNotice(repository: string, payload: Record<string, unk
   const kind = state === "success" ? "github.deployment_succeeded" : "github.deployment_failed";
   return { id: d.id, kind, identity: JSON.stringify([repository.toLowerCase(), d.id, d.sha.toLowerCase(), kind]) };
 }
+
+/** Recheck a queued release link against the current engineering record. */
+export function releaseMatchesEngineering(source: unknown, engineering: unknown): boolean {
+  if (typeof source !== "string") return false;
+  const match = /^https:\/\/github\.com\/(JonDMorrison\/brandsinblooms|Brands-In-Blooms\/cms-brandsinblooms|Brands-In-Blooms\/bloomtill)\/(pull|deployments)\/([1-9][0-9]*)$/.exec(source);
+  const e = object(engineering);
+  if (!match || e.repository !== match[1]) return false;
+  if (match[2] === "pull") return String(e.pr_number) === match[3];
+  const deployment = object(e.deployment);
+  return String(deployment.deployment_id) === match[3] ||
+    (Array.isArray(deployment.deployments) && deployment.deployments.some(d => String(object(d).deployment_id) === match[3]));
+}

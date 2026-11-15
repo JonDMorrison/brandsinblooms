@@ -94,8 +94,11 @@ export function slackSafeMessage(
       state.whatItMeans,
       "*What happens next:* " + state.nextStep,
     ];
-    if ((milestone === "checks_failed" || milestone === "deployment_failed") && source)
-      lines.push("<" + source + "|Details for the team>");
+    if (source) {
+      const product = source.includes("/JonDMorrison/brandsinblooms/") ? "BloomSuite CRM" :
+        source.includes("/cms-brandsinblooms/") ? "BloomSites" : "BloomSuite POS";
+      lines.push("*Product:* " + product, "<" + source + "|View release record>");
+    }
     return lines.join("\n");
   }
   const base = "https://bloomsuite.app/support";
