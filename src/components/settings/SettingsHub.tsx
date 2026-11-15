@@ -17,7 +17,6 @@ import { ComplianceSettings } from "./ComplianceSettings";
 import { DebugSettings } from "./DebugSettings";
 import { SupportSettings } from "./SupportSettings";
 import { OrganizationAccessSettings } from "./OrganizationAccessSettings";
-import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { usePOSConnection } from "@/hooks/usePOSConnection";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { useDomains } from "@/hooks/useDomains";
@@ -185,7 +184,6 @@ const SettingsStatusItem = ({
 export const SettingsHub = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTabId>("connections");
-  const [showPOSWizard, setShowPOSWizard] = useState(false);
   const tabParam = searchParams.get("tab");
 
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
@@ -296,7 +294,7 @@ export const SettingsHub = () => {
           <SettingsStatusItem
             icon={Store}
             label="POS"
-            onClick={() => setShowPOSWizard(true)}
+            onClick={() => handleTabChange("connections")}
             status={
               hasPOSConnection
                 ? { color: "success", label: "Connected", variant: "soft" }
@@ -395,16 +393,6 @@ export const SettingsHub = () => {
         </TabPanel>
       </Tabs>
 
-      {showPOSWizard ? (
-        <POSSetupWizard
-          platform="square"
-          onSuccess={() => {
-            setShowPOSWizard(false);
-            handleTabChange("connections");
-          }}
-          onCancel={() => setShowPOSWizard(false)}
-        />
-      ) : null}
     </Stack>
   );
 };
