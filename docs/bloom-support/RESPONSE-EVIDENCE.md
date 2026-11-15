@@ -66,10 +66,12 @@ idempotency and delivery cooldown still apply; a daily queue entry does not
 promise a fresh email.
 
 Release sequence: verify all required checks and independent review for the exact
-head; deploy the compatible `bloom-support-worker` renderer before applying the
-reviewed migration; verify the report and staff-only boundaries before any
-separately authorized classification. An older renderer ignores the new internal
+head; allow the migration and compatible `bloom-support-worker` renderer to
+deploy, then verify both the report and staff-only boundaries before any
+separately authorized classification. The migration defaults every ticket to
+unclassified, so classification must wait for the compatible renderer. An older renderer ignores the new internal
 section, so do not classify tests until both components are verified. This change
 contains no production backfill, including for ticket #1026. Classification is not
 a substitute for proving the rollback point and affected-flow verification.
-No merge or release is authorized by this implementation task.
+Classification and customer communication require their own authorization;
+merging this reporting change does not authorize either action.
