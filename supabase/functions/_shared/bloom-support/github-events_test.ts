@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { failedMainCheckSuite, engineeringEventHints, isProductionEnvironment } from "./github-events.ts";
+import { failedMainCheckSuite, engineeringEventHints, isProductionEnvironment, deploymentNotice } from "./github-events.ts";
 
 const sha = "a".repeat(40);
 Deno.test("report failed checks from the release branch with a stable source", () => {
@@ -39,4 +39,29 @@ Deno.test("production deployment hints accept qualified names and exact SHA, not
     assertEquals(isProductionEnvironment({ environment, production_environment: true }), false);
     assertEquals(engineeringEventHints("deployment_status", { ...payload, deployment: { sha, environment, production_environment: true } }), []);
   }
+});
+
+Deno.test("deployment notices dedupe deliveries without losing new failures or deployments", () => {
+  const repo = "JonDMorrison/brandsinblooms";
+  const payload = { deployment: { id: 123, sha, environment: "Production" }, deployment_status: { id: 1, state: "success" } };
+  const first = deploymentNotice(repo, payload)!;
+  assertEquals(deploymentNotice(repo, { ...payload, deployment_status: { id: 2, state: "success" } }), first);
+  const failed = deploymentNotice(repo, { ...payload, deployment_status: { state: "failure" } })!;
+  assertEquals(failed.identity === first.identity, false);
+  assertEquals(deploymentNotice(repo, { ...payload, deployment_status: { state: "error" } })!.identity, failed.identity);
+  assertEquals(deploymentNotice(repo, { ...payload, deployment: { ...payload.deployment, id: 124 } })!.identity === first.identity, false);
+  assertEquals(deploymentNotice(repo, { ...payload, deployment: { ...payload.deployment, sha: "b".repeat(40) } })!.identity === first.identity, false);
+  assertEquals(deploymentNotice("Brands-In-Blooms/bloomtill", payload)!.identity === first.identity, false);
+  assertEquals(deploymentNotice(repo, { ...payload, deployment: { ...payload.deployment, sha: sha.toUpperCase() } }), first);
+});
+Deno.test("deployment notices fail closed without trustworthy production identity", () => {
+  const repo = "JonDMorrison/brandsinblooms";
+  const payload = { deployment: { id: 123, sha, environment: "Production" }, deployment_status: { state: "success" } };
+  for (const patch of [{ id: 0 }, { id: "123" }, { sha: "main" }, { sha: undefined }, { environment: "Preview", production_environment: true }]) {
+    assertEquals(deploymentNotice(repo, { ...payload, deployment: { ...payload.deployment, ...patch } }), null);
+  }
+  assertEquals(deploymentNotice(repo, { ...payload, deployment_status: { state: "pending" } }), null);
+  assertEquals(deploymentNotice(repo, { ...payload, deployment_status: { state: ["success"] } }), null);
+  assertEquals(deploymentNotice(repo, {}), null);
+  assertEquals(deploymentNotice("untrusted/../repo", payload), null);
 });
