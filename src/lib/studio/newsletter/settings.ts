@@ -44,7 +44,7 @@ export const clampNumber = (
     : fallback;
 // Navigation used to save white button text on a transparent, usually white row.
 // Preserve intentional white-on-dark designs and any explicitly selected link colour.
-export function navigationLinkColor(block: StudioBlock, blockBackground?: string, contentBackground = DEFAULT_NEWSLETTER_SETTINGS.contentBackgroundColor): string {
+export function navigationLinkColor(block: StudioBlock, blockBackground?: string, contentBackground = DEFAULT_NEWSLETTER_SETTINGS.contentBackgroundColor ?? "#fbfaf6"): string {
   if (block.linkColor) return block.linkColor;
   const white = (color: string | undefined) =>
     /^#(?:fff|ffffff)$/i.test(color?.trim() ?? "");
