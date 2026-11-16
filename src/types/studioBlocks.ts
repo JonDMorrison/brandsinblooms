@@ -1,6 +1,7 @@
 import type {
   BlockAppearance,
   BlockAudience,
+  EdgeSpacing,
   ChartPoint,
   CouponOffer,
   HeadingLevel,
@@ -83,6 +84,8 @@ export interface GalleryImage {
   alt: string;
   caption?: string;
   linkUrl?: string;
+  imagePadding?: EdgeSpacing;
+  imageMargin?: EdgeSpacing;
 }
 
 export interface GalleryProduct {
@@ -96,6 +99,9 @@ export interface GalleryProduct {
   description?: string;
   badgeText?: string;
   badgeColor?: string;
+  badgeTextColor?: string;
+  imagePadding?: EdgeSpacing;
+  imageMargin?: EdgeSpacing;
   buttonText?: string;
   buttonUrl?: string;
 }
