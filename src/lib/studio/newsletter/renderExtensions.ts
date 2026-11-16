@@ -77,7 +77,7 @@ export function renderNewsletterButton(
   // Never turn an unfinished or invalid destination into a clickable link.
   const tag = href ? "a" : "span";
   const destination = href ? ` href="${attr(href)}" target="_blank" rel="noopener noreferrer"` : "";
-  return `<${tag} data-newsletter-role="button"${destination} style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</${tag}>`;
+  return `<${tag} data-newsletter-role="button"${destination} style="display:${block.fullWidthButton ? "block" : "inline-block"};box-sizing:border-box;${block.fullWidthButton ? "width:100%;" : ""}text-align:center;text-decoration:${link ? (block.appearance?.linkDecoration === "none" ? "none" : "underline") : "none"};padding:${padding};border:${outlined ? `1px solid ${fill}` : "0"};background-color:${link || outlined ? "transparent" : fill};border-radius:${block.layoutPreset === "nav-pills" ? "999" : block.buttonRounded === false ? "4" : "8"}px;${role(block, "button", 14, 700)}color:${color};">${text(label)}</${tag}>`;
 }
 function picture(block: StudioBlock, width = 220): string {
   const url = safeEmailUrl(block.imageUrl, true);
@@ -473,10 +473,19 @@ export function renderExtendedBlock(
           buttonColor: link.color || block.buttonColor,
           buttonTextColor: link.textColor || (navigation ? block.linkColor : undefined) || block.buttonTextColor,
           buttonStyle: navigation ? (block.buttonStyle ?? "link") : block.buttonStyle,
-          fullWidthButton: block.fullWidthButton ?? true,
+          // Navigation links should never occupy their own full-width buttons.
+          // Retain the historical button-group rendering below.
+          fullWidthButton: navigation && block.layoutPreset ? false : (block.fullWidthButton ?? true),
         }, link.label, link.url, editing);
         return `<td class="responsive-column" valign="middle" align="${navAlign}" width="${100 / links.length}%" style="padding:6px;">${button}</td>`;
       });
+      // A single aligned cell makes Left/Centred/Right presets move the entire
+      // navigation rather than only adjusting text within equal-width columns.
+      // Keep existing newsletters with no preset on their original table layout.
+      if (navigation && block.layoutPreset?.startsWith("nav-")) {
+        const items = cells.map((cell) => cell.replace(/^<td[^>]*>/, "").replace("</td>", ""));
+        return copy + table(`<tr><td align="${navAlign}" style="text-align:${navAlign};padding:6px;">${items.map((item) => `<span style="display:inline-block;padding:0 6px 8px 0;">${item}</span>`).join("")}</td></tr>`);
+      }
       return copy + table(`<tr>${cells.join("")}</tr>`);
     }
     case "text-columns": {
