@@ -1699,6 +1699,7 @@ function CampaignEditorScreen() {
           </Stack>
         </Stack>
       </Sheet>
+      {(campaignType !== "email" || reviewingNewsletter || isLocked) && (
       <CampaignBlockerRow
         senderUnverified={blockerSignals.senderUnverified}
         audienceEmpty={false}
@@ -1711,6 +1712,7 @@ function CampaignEditorScreen() {
         onScrollToSubject={focusSubjectInput}
         onReload={handleReloadDraft}
       />
+      )}
 
       <CollapsibleSection
         id="campaign-editor-content"
@@ -1875,7 +1877,7 @@ function CampaignEditorScreen() {
           summary={
             subjectLine || "Suggested after you add your newsletter content"
           }
-          defaultExpanded
+          defaultExpanded={reviewingNewsletter || isLocked}
         >
           {reviewingNewsletter || isLocked ? (
             <NewsletterInboxReview
@@ -1950,7 +1952,7 @@ function CampaignEditorScreen() {
             audienceDetail
           )
         }
-        defaultExpanded={audienceInitiallyExpanded}
+        defaultExpanded={campaignType !== "email" || (reviewingNewsletter && audienceInitiallyExpanded)}
         badge={
           <Chip variant="soft" color="neutral" size="sm">
             {isAudienceLoading

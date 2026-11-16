@@ -58,6 +58,7 @@ describe("IntentPicker", () => {
         onApplyBuiltInTemplate={onApplyBuiltInTemplate}
       />,
     );
+    await user.click(screen.getByText("Browse Botanical Editorial templates"));
     expect(
       screen.getAllByRole("button", { name: /^Use Botanical/ }),
     ).toHaveLength(4);
@@ -69,22 +70,23 @@ describe("IntentPicker", () => {
     );
   });
 
-  it("renders all seven intent cards", () => {
-    const handlers = noopHandlers();
-    render(<IntentPicker savedTemplates={[]} {...handlers} />);
-
-    expect(screen.getByTestId("intent-card-newsletter")).toBeInTheDocument();
-    expect(screen.getByTestId("intent-card-showcase")).toBeInTheDocument();
-    expect(screen.getByTestId("intent-card-sale")).toBeInTheDocument();
-    expect(screen.getByTestId("intent-card-new-arrivals")).toBeInTheDocument();
-    expect(screen.getByTestId("intent-card-event")).toBeInTheDocument();
-    expect(screen.getByTestId("intent-card-thank-you")).toBeInTheDocument();
-    expect(screen.getByTestId("intent-card-blank")).toBeInTheDocument();
+  it("starts with four recommendations and lets users browse all designs", async () => {
+    const user = userEvent.setup();
+    render(<IntentPicker savedTemplates={[]} {...noopHandlers()} />);
+    expect(screen.getByTestId("intent-picker-recommended").querySelectorAll('[data-testid^="intent-card-"]')).toHaveLength(4);
+    for (const intent of ["newsletter", "sale", "event", "blank"])
+      expect(screen.getByTestId(`intent-card-${intent}`)).toBeVisible();
+    expect(screen.getByTestId("intent-card-showcase")).not.toBeVisible();
+    await user.click(screen.getByText("Explore more newsletter designs"));
+    for (const intent of ["showcase", "new-arrivals", "thank-you"])
+      expect(screen.getByTestId(`intent-card-${intent}`)).toBeVisible();
   });
 
-  it("names the applied design and summarizes its structure", () => {
+  it("names the applied design and summarizes its structure", async () => {
+    const user = userEvent.setup();
     render(<IntentPicker savedTemplates={[]} {...noopHandlers()} />);
 
+    await user.click(screen.getByText("Explore more newsletter designs"));
     expect(screen.getAllByText("Seasonal Showcase").length).toBeGreaterThan(0);
     expect(
       screen.getByText("Image-led · 3 stories · Closing CTA"),

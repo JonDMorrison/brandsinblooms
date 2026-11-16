@@ -94,8 +94,8 @@ const cardBaseSx = {
   position: "relative",
   display: "flex",
   flexDirection: "column",
-  gap: 1.5,
-  p: 2.5,
+  gap: 1,
+  p: 1.75,
   borderRadius: "var(--joy-radius-lg)",
   border: "1px solid",
   borderColor: "neutral.200",
@@ -116,7 +116,7 @@ const cardSelectedSx = {
   borderColor: "#244d46",
   backgroundColor: "#FFFFFF",
   boxShadow: "0 0 0 1px #244d46",
-  p: "calc(20px - 1px)",
+  p: "calc(14px - 1px)",
 } as const;
 
 const cardDisabledSx = {
@@ -436,54 +436,15 @@ export function IntentPicker({
     <Stack spacing={2.5} data-testid="intent-picker">
       <Stack spacing={0.5}>
         <Typography level="h2" sx={{ fontSize: 24, fontWeight: 700 }}>
-          Choose your starting point
+          What would you like to create?
         </Typography>
         <Typography
           level="body-sm"
           sx={{ color: "neutral.600", maxWidth: 620 }}
         >
-          Pick what you want to send. You can edit everything afterward.
+          Choose a starting design, then edit everything in Design Studio. Nothing sends until you review it.
         </Typography>
       </Stack>
-
-      {onApplyBuiltInTemplate ? (
-        <Stack spacing={1.5}>
-          <Typography level="title-md">
-            Botanical Editorial collection
-          </Typography>
-          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-            Photographic layouts with your branding. Replace the photos and
-            copy, then save your own version in My templates.
-          </Typography>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-              },
-              gap: 1.5,
-            }}
-          >
-            {CAMPAIGN_TEMPLATES.filter((template) =>
-              template.id.startsWith("botanical-"),
-            ).map((template) => (
-              <Box key={template.id} sx={{ ...cardBaseSx, cursor: "default" }}>
-                <IntentCardThumbnail template={template} />
-                <Typography level="title-sm">{template.name}</Typography>
-                <JoyButton
-                  variant="outlined"
-                  color="neutral"
-                  disabled={disabled}
-                  onClick={() => onApplyBuiltInTemplate(template)}
-                >
-                  Use {template.name}
-                </JoyButton>
-              </Box>
-            ))}
-          </Box>
-        </Stack>
-      ) : null}
 
       {hasSavedTemplates ? (
         <Stack spacing={1.5} data-testid="intent-picker-my-templates">
@@ -537,25 +498,67 @@ export function IntentPicker({
       ) : null}
 
       <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
-          },
-          gap: 2.5,
-        }}
+        data-testid="intent-picker-recommended"
+        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.5 }}
       >
-        {intentEntries.map((entry) => (
-          <IntentCard
-            key={entry.key}
-            entry={entry}
-            selected={entry.key === selectedIntent}
-            disabled={disabled}
-            onSelect={onSelectIntent}
-          />
+        {intentEntries.filter((entry) => ["newsletter", "sale", "event", "blank"].includes(entry.key)).map((entry) => (
+          <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
         ))}
+      </Box>
+      {onApplyBuiltInTemplate ? (
+        <Box component="details" data-testid="botanical-template-library" sx={{ border: "1px solid", borderColor: "neutral.200", borderRadius: "lg", p: 1.5 }}>
+          <Box component="summary" sx={{ cursor: "pointer", fontWeight: 650, color: "neutral.800", py: 0.5 }}>
+            Browse Botanical Editorial templates
+          </Box>
+          <Stack spacing={1.5} sx={{ pt: 1.5 }}>
+          <Typography level="title-md">
+            Botanical Editorial collection
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            Photographic layouts with your branding. Replace the photos and
+            copy, then save your own version in My templates.
+          </Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            {CAMPAIGN_TEMPLATES.filter((template) =>
+              template.id.startsWith("botanical-"),
+            ).map((template) => (
+              <Box key={template.id} sx={{ ...cardBaseSx, cursor: "default" }}>
+                <IntentCardThumbnail template={template} />
+                <Typography level="title-sm">{template.name}</Typography>
+                <JoyButton
+                  variant="outlined"
+                  color="neutral"
+                  disabled={disabled}
+                  onClick={() => onApplyBuiltInTemplate(template)}
+                >
+                  Use {template.name}
+                </JoyButton>
+              </Box>
+            ))}
+          </Box>
+          </Stack>
+        </Box>
+      ) : null}
+
+
+      <Box component="details" data-testid="intent-picker-more-designs" sx={{ border: "1px solid", borderColor: "neutral.200", borderRadius: "lg", p: 1.5 }}>
+        <Box component="summary" sx={{ cursor: "pointer", fontWeight: 650, color: "neutral.800", py: 0.5 }}>
+          Explore more newsletter designs
+        </Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1.5, pt: 1.5 }}>
+          {intentEntries.filter((entry) => !["newsletter", "sale", "event", "blank"].includes(entry.key)).map((entry) => (
+            <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
+          ))}
+        </Box>
       </Box>
     </Stack>
   );
