@@ -82,7 +82,7 @@ export function renderNewsletterButton(
 function picture(block: StudioBlock, width = 220): string {
   const url = safeEmailUrl(block.imageUrl, true);
   if (!url) return "";
-  const image = `<img data-newsletter-image="imageUrl" class="responsive-image" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
+  const image = `<img data-newsletter-image="imageUrl" class="responsive-image" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}" style="display:block;width:100%;max-width:${width}px;height:${block.type === "product-card" ? `${clampNumber(block.imageHeight, 220, 120, 480)}px` : "auto"};object-fit:${block.imageFit ?? "contain"};border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
   const linked = safeEmailUrl(block.linkUrl)
     ? `<a href="${attr(safeEmailUrl(block.linkUrl))}" target="_blank" rel="noopener noreferrer">${image}</a>`
     : image;
@@ -132,7 +132,7 @@ function imageAndContent(
   const imageCell = `<td dir="ltr" class="responsive-column" width="38%" valign="top" style="width:38%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
   const contentCell = `<td dir="ltr" class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
   return table(
-    `<tr${side === "right" ? ' dir="rtl"' : ""}>${imageCell + contentCell}</tr>`,
+    `<tr>${side === "right" ? contentCell + imageCell : imageCell + contentCell}</tr>`,
   );
 }
 
@@ -264,7 +264,7 @@ export function renderExtendedBlock(
   switch (block.type) {
     case "product-card": {
       const content =
-        badges(block) +
+        (block.showBadges === false ? "" : `<div style="text-align:${block.badgePosition === "top-right" ? "right" : "left"};">${badges(block)}</div>`) +
         heading(block, block.productName ?? block.headline) +
         paragraph(
           block,
@@ -276,7 +276,7 @@ export function renderExtendedBlock(
           ? `<div data-newsletter-role="price" style="margin:8px 0;${role(block, "price", 22, 700)}">${text(block.productPrice)}${block.originalPrice ? ` <s style="font-size:14px;font-weight:400;">${text(block.originalPrice)}</s>` : ""}</div>`
           : "") +
         paragraph(block, block.productDescription ?? block.body) +
-        renderNewsletterButton(block);
+        `<div style="text-align:${block.buttonAlign ?? "left"};">${renderNewsletterButton(block, undefined, undefined, editing)}</div>`;
       const side =
         block.imagePosition === "left" ||
         block.imagePosition === "right" ||
@@ -293,7 +293,9 @@ export function renderExtendedBlock(
         block.showCardBorder === false
           ? "none"
           : "1px solid #cbd5e1";
-      return `<div style="padding:${block.appearance?.padding ? "0" : "24px"};border:${border};border-radius:${clampNumber(block.cardBorderRadius, 10, 0, 48)}px;background:${emailColor(block.backgroundColor, "#ffffff")};">${imageAndContent(block, content, side, width - 48)}</div>`;
+      const displayContent = block.layout === "centered" ? `<div style="text-align:center;">${content}</div>` : content;
+      const displayBlock = block.layout === "minimal" ? { ...block, imageUrl: "" } : block;
+      return `<div style="padding:${block.appearance?.padding ? "0" : "24px"};border:${border};border-radius:${clampNumber(block.cardBorderRadius, 10, 0, 48)}px;background:${emailColor(block.backgroundColor, "#ffffff")};">${imageAndContent(displayBlock, displayContent, side, width - 48)}</div>`;
     }
     case "product-gallery": {
       const columns = Math.floor(clampNumber(block.gridColumns, 3, 1, 4));
