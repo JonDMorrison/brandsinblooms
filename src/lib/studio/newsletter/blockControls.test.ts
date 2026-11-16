@@ -92,6 +92,43 @@ describe("newsletter block controls", () => {
     expect(ready.querySelector("a")?.style.color).toBe("rgb(31, 67, 65)");
   });
 
+  it.each([
+    ["nav-left", "left"],
+    ["nav-centered", "center"],
+    ["nav-right", "right"],
+    ["nav-pills", "center"],
+  ] as const)("aligns the entire %s navigation in previews and sent email", (preset, alignment) => {
+    const nav = block("navigation", {
+      layoutPreset: preset,
+      textAlign: alignment,
+      buttonStyle: preset === "nav-pills" ? "outlined" : "link",
+      links: [
+        { id: "classes", label: "Classes", url: destination },
+        { id: "shop", label: "Shop", url: "https://example.com/shop" },
+      ],
+    });
+    for (const editing of [true, false]) {
+      const doc = markup(renderNewsletterBlock(nav, null, undefined, { editing }));
+      const outer = doc.querySelector<HTMLTableCellElement>('td[align="' + alignment + '"]');
+      expect(outer?.style.textAlign).toBe(alignment);
+      expect(outer?.querySelectorAll("a")).toHaveLength(2);
+      expect(outer?.querySelector("a")?.style.display).toBe("inline-block");
+      expect(outer?.querySelector("a")?.getAttribute("href")).toBe(destination);
+      if (preset === "nav-pills") expect(outer?.querySelector("a")?.style.borderRadius).toBe("999px");
+    }
+  });
+
+  it("does not rearrange existing navigation without a layout preset", () => {
+    const nav = block("navigation", {
+      layoutPreset: undefined,
+      textAlign: "right",
+      links: [{ id: "one", label: "One", url: destination }, { id: "two", label: "Two", url: destination }],
+    });
+    const doc = markup(renderNewsletterBlock(nav));
+    expect(doc.querySelectorAll('td[width="50%"]')).toHaveLength(2);
+    expect(doc.querySelectorAll("a")).toHaveLength(2);
+  });
+
   it("gives empty hero presets preview content without adding sample text or photos to email", () => {
     for (const [type, presets] of [["email-safe-hero", heroPresets], ["graphic-hero", graphicHeroPresets]] as const) {
       const previews = presets.map((preset) => {
