@@ -483,7 +483,7 @@ export function renderExtendedBlock(
       // navigation rather than only adjusting text within equal-width columns.
       // Keep existing newsletters with no preset on their original table layout.
       if (navigation && block.layoutPreset?.startsWith("nav-")) {
-        const items = cells.map((cell) => cell.replace(/^<td[^>]*>/, "").replace(/<\\/td>$/, ""));
+        const items = cells.map((cell) => cell.replace(/^<td[^>]*>/, "").replace("</td>", ""));
         return copy + table(`<tr><td align="${navAlign}" style="text-align:${navAlign};padding:6px;">${items.map((item) => `<span style="display:inline-block;padding:0 6px 8px 0;">${item}</span>`).join("")}</td></tr>`);
       }
       return copy + table(`<tr>${cells.join("")}</tr>`);
