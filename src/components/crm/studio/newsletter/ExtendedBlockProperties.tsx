@@ -135,7 +135,7 @@ export function BadgeFields({
     );
   return (
     <details className="nl-controls">
-      <summary>Image badges (up to three)</summary>
+      <summary>Badges (up to three)</summary>
       {badges.map((badge, index) => (
         <fieldset key={badge.id} className="nl-fieldset">
           <legend>Badge {index + 1}</legend>
