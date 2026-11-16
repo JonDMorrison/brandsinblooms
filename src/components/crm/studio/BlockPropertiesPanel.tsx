@@ -4783,7 +4783,7 @@ function PanelContent({
                   <CollapsibleSection
                     label="Show Badge"
                     enabled={
-                      block.showBadges ?? Boolean(block.badgeText?.trim())
+                      block.showBadges ?? Boolean(block.badgeText?.trim() || block.badges?.length)
                     }
                     onToggle={(value) => updateField("showBadges", value)}
                   >
