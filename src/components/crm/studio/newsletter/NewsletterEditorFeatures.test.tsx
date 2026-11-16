@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DndContext } from "@dnd-kit/core";
 import BlockLibrary from "../BlockLibrary";
 import ExtendedBlockProperties from "./ExtendedBlockProperties";
+import { Field } from "./AppearanceControls";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
 import type { StudioBlock } from "@/types/studioBlocks";
 const fixture = vi.hoisted(() => ({
@@ -140,6 +141,56 @@ describe("newsletter editing controls", () => {
     expect(update).not.toHaveBeenCalledWith("galleryImages", expect.anything());
   });
 });
+describe("Arts Nursery November 15 editor controls", () => {
+  it("lets a user enter literal tab separators in data table headings", () => {
+    const update = vi.fn();
+    render(<ExtendedBlockProperties block={createStudioBlock("data-table")} update={update} />);
+    const headings = screen.getByLabelText("Column headings (type Tab between columns)") as HTMLTextAreaElement;
+    fireEvent.change(headings, { target: { value: "Product" } });
+    headings.focus();
+    headings.setSelectionRange(7, 7);
+    fireEvent.keyDown(headings, { key: "Tab" });
+    expect(update).toHaveBeenCalledWith("tableHeaders", ["Product", ""]);
+  });
+
+  it("shows a single image spacing section alongside each image, with a clear link label", () => {
+    const update = vi.fn();
+    const image = { id: "img-1", url: "https://example.com/maple.png", alt: "Maple" };
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("image-gallery"), galleryImages: [image] }} update={update} />);
+    expect(screen.getByLabelText("Image link URL")).toBeInTheDocument();
+    expect(screen.queryByText("Image spacing")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Image padding top"), { target: { value: "8" } });
+    expect(update).toHaveBeenCalledWith("galleryImages", [{ ...image, imagePadding: { top: 8 }, imageMargin: undefined }]);
+    expect(screen.queryByLabelText("Button horizontal padding")).toBeNull();
+  });
+
+  it("gives product galleries badge colours, button alignment and full width in one section", () => {
+    const update = vi.fn();
+    const product = { id: "p", name: "Maple", price: "$19", imageUrl: "" };
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("product-gallery"), galleryProducts: [product], gridColumns: 1 }} update={update} />);
+    expect(screen.getByLabelText("Badge colour")).toBeInTheDocument();
+    expect(screen.getByLabelText("Badge text colour")).toBeInTheDocument();
+    expect(screen.getByLabelText("Image link URL")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Button alignment"), { target: { value: "center" } });
+    expect(update).toHaveBeenCalledWith("buttonAlign", "center");
+    fireEvent.click(screen.getByLabelText("Full width buttons"));
+    expect(update).toHaveBeenCalledWith("fullWidthButton", true);
+  });
+
+  it("shows native event date/time and admission fee fields", () => {
+    const update = vi.fn();
+    render(<ExtendedBlockProperties block={createStudioBlock("event")} update={update} />);
+    const date = screen.getByLabelText("Event date") as HTMLInputElement;
+    const time = screen.getByLabelText("Start time") as HTMLInputElement;
+    expect(date.type).toBe("date");
+    expect(time.type).toBe("time");
+    fireEvent.change(date, { target: { value: "2026-12-07" } });
+    expect(update).toHaveBeenCalledWith("eventStartDate", "2026-12-07");
+    fireEvent.change(screen.getByLabelText("Fee / admission"), { target: { value: "free" } });
+    expect(update).toHaveBeenCalledWith("eventFeeType", "free");
+  });
+});
+
 describe("named account library and outline", () => {
   const setup = (extra: Record<string, unknown> = {}) => {
     const source = {
