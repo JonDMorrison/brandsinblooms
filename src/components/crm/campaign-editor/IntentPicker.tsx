@@ -499,11 +499,58 @@ export function IntentPicker({
 
       <Box
         data-testid="intent-picker-recommended"
-        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.5 }}
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
+          },
+          gap: 1.5,
+        }}
       >
-        {intentEntries.filter((entry) => ["newsletter", "sale", "event", "blank"].includes(entry.key)).map((entry) => (
-          <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
+        {intentEntries.map((entry) => (
+          <IntentCard
+            key={entry.key}
+            entry={entry}
+            selected={entry.key === selectedIntent}
+            disabled={disabled}
+            onSelect={onSelectIntent}
+          />
         ))}
+        {onApplyBuiltInTemplate && CAMPAIGN_TEMPLATES.find((template) => template.id === "botanical-seasonal") ? (
+          <Box
+            role="button"
+            tabIndex={disabled ? -1 : 0}
+            aria-disabled={disabled || undefined}
+            data-testid="intent-card-botanical-seasonal"
+            onClick={() => {
+              if (!disabled) {
+                const template = CAMPAIGN_TEMPLATES.find((entry) => entry.id === "botanical-seasonal");
+                if (template) onApplyBuiltInTemplate(template);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (!disabled && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                const template = CAMPAIGN_TEMPLATES.find((entry) => entry.id === "botanical-seasonal");
+                if (template) onApplyBuiltInTemplate(template);
+              }
+            }}
+            sx={{ ...cardBaseSx, ...(disabled ? cardDisabledSx : {}) }}
+          >
+            <IntentCardThumbnail template={CAMPAIGN_TEMPLATES.find((template) => template.id === "botanical-seasonal") ?? null} />
+            <Typography level="title-sm" sx={{ fontWeight: 650, color: "neutral.800" }}>
+              Botanical Seasonal Newsletter
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              A polished photographic garden newsletter
+            </Typography>
+            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+              Ready to edit in Design Studio
+            </Typography>
+          </Box>
+        ) : null}
       </Box>
       {onApplyBuiltInTemplate ? (
         <Box component="details" data-testid="botanical-template-library" sx={{ border: "1px solid", borderColor: "neutral.200", borderRadius: "lg", p: 1.5 }}>
@@ -550,16 +597,6 @@ export function IntentPicker({
       ) : null}
 
 
-      <Box component="details" data-testid="intent-picker-more-designs" sx={{ border: "1px solid", borderColor: "neutral.200", borderRadius: "lg", p: 1.5 }}>
-        <Box component="summary" sx={{ cursor: "pointer", fontWeight: 650, color: "neutral.800", py: 0.5 }}>
-          Explore more newsletter designs
-        </Box>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1.5, pt: 1.5 }}>
-          {intentEntries.filter((entry) => !["newsletter", "sale", "event", "blank"].includes(entry.key)).map((entry) => (
-            <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
-          ))}
-        </Box>
-      </Box>
     </Stack>
   );
 }
