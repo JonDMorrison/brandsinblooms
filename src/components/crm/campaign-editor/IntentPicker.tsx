@@ -506,34 +506,28 @@ export function IntentPicker({
         ))}
       </Box>
       {onApplyBuiltInTemplate ? (
-        <Box component="details" data-testid="botanical-template-library" sx={{ border: "1px solid", borderColor: "neutral.200", borderRadius: "lg", p: 1.5 }}>
-          <Box component="summary" sx={{ cursor: "pointer", fontWeight: 650, color: "neutral.800", py: 0.5 }}>
-            Browse Botanical Editorial templates
-          </Box>
-          <Stack spacing={1.5} sx={{ pt: 1.5 }}>
-          <Typography level="title-md">
-            Botanical Editorial collection
-          </Typography>
-          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-            Photographic layouts with your branding. Replace the photos and
-            copy, then save your own version in My templates.
-          </Typography>
+        <Stack spacing={1.5} component="section" data-testid="botanical-template-library" aria-label="Ready-made newsletter designs">
+          <Stack spacing={0.5}>
+            <Typography level="title-lg" sx={{ color: "neutral.900", fontWeight: 700 }}>
+              Ready-made newsletter designs
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              Start with a complete layout, then replace the photos and words with your own.
+            </Typography>
+          </Stack>
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-              },
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
               gap: 1.5,
             }}
           >
-            {CAMPAIGN_TEMPLATES.filter((template) =>
-              template.id.startsWith("botanical-"),
-            ).map((template) => (
-              <Box key={template.id} sx={{ ...cardBaseSx, cursor: "default" }}>
+            {CAMPAIGN_TEMPLATES.filter((template) => template.id.startsWith("botanical-")).map((template) => (
+              <Box key={template.id} sx={{ ...cardBaseSx, cursor: "default" }} data-testid={`botanical-template-${template.id}`}>
                 <IntentCardThumbnail template={template} />
-                <Typography level="title-sm">{template.name}</Typography>
+                <Typography level="title-sm" sx={{ color: "neutral.900", fontWeight: 650 }}>
+                  {template.name}
+                </Typography>
                 <JoyButton
                   variant="outlined"
                   color="neutral"
@@ -545,10 +539,8 @@ export function IntentPicker({
               </Box>
             ))}
           </Box>
-          </Stack>
-        </Box>
+        </Stack>
       ) : null}
-
 
       <Box component="details" data-testid="intent-picker-more-designs" sx={{ border: "1px solid", borderColor: "neutral.200", borderRadius: "lg", p: 1.5 }}>
         <Box component="summary" sx={{ cursor: "pointer", fontWeight: 650, color: "neutral.800", py: 0.5 }}>

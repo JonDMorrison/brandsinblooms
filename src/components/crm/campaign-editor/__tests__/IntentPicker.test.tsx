@@ -58,13 +58,13 @@ describe("IntentPicker", () => {
         onApplyBuiltInTemplate={onApplyBuiltInTemplate}
       />,
     );
-    await user.click(screen.getByText("Browse Botanical Editorial templates"));
-    expect(
-      screen.getAllByRole("button", { name: /^Use Botanical/ }),
-    ).toHaveLength(4);
-    await user.click(
-      screen.getByRole("button", { name: "Use Botanical Event Roundup" }),
-    );
+    expect(screen.getByText("Ready-made newsletter designs")).toBeVisible();
+    expect(screen.getByTestId("botanical-template-library")).toBeVisible();
+    expect(screen.getAllByRole("button", { name: /^Use (Garden Invitation|Seasonal Newsletter|Product Spotlight|Event Roundup)$/ })).toHaveLength(4);
+    for (const id of ["botanical-editorial", "botanical-seasonal", "botanical-product", "botanical-events"]) {
+      expect(screen.getByTestId(`botanical-template-${id}`)).toBeVisible();
+    }
+    await user.click(screen.getByRole("button", { name: "Use Event Roundup" }));
     expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(
       expect.objectContaining({ id: "botanical-events" }),
     );
