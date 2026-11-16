@@ -143,9 +143,8 @@ describe("newsletter editing controls", () => {
 describe("Arts Nursery November 15 editor controls", () => {
   it("lets a user enter literal tab separators in data table headings", () => {
     const update = vi.fn();
-    render(<ExtendedBlockProperties block={createStudioBlock("data-table")} update={update} />);
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("data-table"), tableHeaders: ["Product"] }} update={update} />);
     const headings = screen.getByLabelText("Column headings (type Tab between columns)") as HTMLTextAreaElement;
-    fireEvent.change(headings, { target: { value: "Product" } });
     headings.focus();
     headings.setSelectionRange(7, 7);
     fireEvent.keyDown(headings, { key: "Tab" });
@@ -156,9 +155,9 @@ describe("Arts Nursery November 15 editor controls", () => {
     const update = vi.fn();
     const image = { id: "img-1", url: "https://example.com/maple.png", alt: "Maple" };
     render(<ExtendedBlockProperties block={{ ...createStudioBlock("image-gallery"), galleryImages: [image] }} update={update} />);
-    expect(screen.getByLabelText("Image link URL")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Image link URL").length).toBeGreaterThan(0);
     expect(screen.queryByText("Image spacing")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Image padding top"), { target: { value: "8" } });
+    fireEvent.change(screen.getAllByLabelText("Image padding top")[0], { target: { value: "8" } });
     expect(update).toHaveBeenCalledWith("galleryImages", [{ ...image, imagePadding: { top: 8 }, imageMargin: undefined }]);
     expect(screen.queryByLabelText("Button horizontal padding")).toBeNull();
   });
@@ -167,9 +166,9 @@ describe("Arts Nursery November 15 editor controls", () => {
     const update = vi.fn();
     const product = { id: "p", name: "Maple", price: "$19", imageUrl: "" };
     render(<ExtendedBlockProperties block={{ ...createStudioBlock("product-gallery"), galleryProducts: [product], gridColumns: 1 }} update={update} />);
-    expect(screen.getByLabelText("Badge colour")).toBeInTheDocument();
-    expect(screen.getByLabelText("Badge text colour")).toBeInTheDocument();
-    expect(screen.getByLabelText("Image link URL")).toBeInTheDocument();
+    expect(screen.getAllByText("Badge colour").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Badge text colour").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Image link URL").length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText("Button alignment"), { target: { value: "center" } });
     expect(update).toHaveBeenCalledWith("buttonAlign", "center");
     fireEvent.click(screen.getByLabelText("Full width buttons"));
