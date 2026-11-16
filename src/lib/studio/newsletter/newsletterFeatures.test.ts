@@ -203,7 +203,7 @@ describe("newsletter design and safety", () => {
     expect(output).toContain('height="252"');
     expect(output).toContain("text-transform:uppercase");
   });
-  it("keeps right-aligned event images before their copy in source order", () => {
+  it("places right-aligned event photos after their copy without RTL reordering", () => {
     const output = renderNewsletterBlock(
       block("event", {
         headline: "Holiday Planter Parties",
@@ -211,9 +211,11 @@ describe("newsletter design and safety", () => {
         imagePosition: "right",
       }),
     );
-    expect(output).toContain('<tr dir="rtl">');
-    expect(output.indexOf('data-newsletter-image="imageUrl"')).toBeLessThan(
-      output.indexOf("Holiday Planter Parties"),
+    // Explicit table-cell order keeps text left-to-right on desktop and on
+    // narrow email layouts. RTL previously reversed multiple client layouts.
+    expect(output).not.toContain('<tr dir="rtl">');
+    expect(output.indexOf("Holiday Planter Parties")).toBeLessThan(
+      output.indexOf('data-newsletter-image="imageUrl"'),
     );
   });
   it("keeps image-right image/text blocks image-first for mobile clients", () => {
