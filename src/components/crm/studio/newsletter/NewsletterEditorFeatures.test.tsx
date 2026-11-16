@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DndContext } from "@dnd-kit/core";
 import BlockLibrary from "../BlockLibrary";
 import ExtendedBlockProperties from "./ExtendedBlockProperties";
-import { Field } from "./AppearanceControls";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
 import type { StudioBlock } from "@/types/studioBlocks";
 const fixture = vi.hoisted(() => ({
