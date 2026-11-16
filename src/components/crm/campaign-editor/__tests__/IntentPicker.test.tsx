@@ -70,27 +70,25 @@ describe("IntentPicker", () => {
     );
   });
 
-  it("starts with four recommendations and lets users browse all designs", async () => {
+  it("shows all eight starting designs without opening another menu", async () => {
     const user = userEvent.setup();
-    render(<IntentPicker savedTemplates={[]} {...noopHandlers()} />);
-    expect(screen.getByTestId("intent-picker-recommended").querySelectorAll('[data-testid^="intent-card-"]')).toHaveLength(4);
-    for (const intent of ["newsletter", "sale", "event", "blank"])
-      expect(screen.getByTestId(`intent-card-${intent}`)).toBeVisible();
-    expect(screen.getByTestId("intent-card-showcase")).not.toBeVisible();
-    await user.click(screen.getByText("Explore more newsletter designs"));
-    for (const intent of ["showcase", "new-arrivals", "thank-you"])
-      expect(screen.getByTestId(`intent-card-${intent}`)).toBeVisible();
+    const onApplyBuiltInTemplate = vi.fn();
+    render(
+      <IntentPicker savedTemplates={[]} {...noopHandlers()} onApplyBuiltInTemplate={onApplyBuiltInTemplate} />,
+    );
+    const gallery = screen.getByTestId("intent-picker-recommended");
+    expect(gallery.querySelectorAll('[data-testid^="intent-card-"]')).toHaveLength(8);
+    for (const key of ["newsletter", "showcase", "sale", "new-arrivals", "event", "thank-you", "blank", "botanical-seasonal"]) {
+      expect(screen.getByTestId(`intent-card-${key}`)).toBeVisible();
+    }
+    await user.click(screen.getByTestId("intent-card-botanical-seasonal"));
+    expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: "botanical-seasonal" }));
   });
 
-  it("names the applied design and summarizes its structure", async () => {
-    const user = userEvent.setup();
+  it("keeps every existing intent available on the first screen", () => {
     render(<IntentPicker savedTemplates={[]} {...noopHandlers()} />);
-
-    await user.click(screen.getByText("Explore more newsletter designs"));
     expect(screen.getAllByText("Seasonal Showcase").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText("Image-led · 3 stories · Closing CTA"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Image-led · 3 stories · Closing CTA")).toBeInTheDocument();
   });
 
   it("hides My templates section when there are no saved templates", () => {
