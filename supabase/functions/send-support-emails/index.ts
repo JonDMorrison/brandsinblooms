@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { reconcileActivity } from "./activity.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -238,7 +238,7 @@ async function fetchTrialRecords(notionKey: string): Promise<NotionTrialRecord[]
 
 // ── Main handler ────────────────────────────────────────────────────
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -255,6 +255,19 @@ serve(async (req) => {
         JSON.stringify({ error: "Missing required environment variables" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // Verification mode returns before every trial email and onboarding mutation.
+    if (new URL(req.url).searchParams.get("dry_run") === "true") {
+      if (req.headers.get("authorization") !== `Bearer ${serviceKey}` && req.headers.get("apikey") !== serviceKey)
+        return new Response("Unauthorized", { status: 401 });
+      const activity = await reconcileActivity({
+        notionKey: Deno.env.get("NOTION_TOKEN") || notionKey,
+        databaseId: Deno.env.get("NOTION_PIPELINE_DB_ID") || "ffbcd532-783d-48a2-b60a-d78866910cd1",
+        supabaseUrl, serviceKey, resendKey: resendApiKey,
+        recipient: Deno.env.get("INTERNAL_ALERT_EMAIL") || "jon@getclear.ca",
+      }, true);
+      return Response.json(activity);
     }
 
     const resend = new Resend(resendApiKey);
@@ -380,99 +393,12 @@ serve(async (req) => {
       'Notion-Version': '2022-06-28'
     }
 
-    // Block A: Sync Last Login
-    try {
-      const { data: { users } } = await sb.auth.admin.listUsers()
-
-      for (const user of users) {
-        if (!user.last_sign_in_at || !user.email) continue
-
-        const lastLogin = new Date(user.last_sign_in_at).toISOString().split('T')[0]
-
-        const notionRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB_ID_VAL}/query`, {
-          method: 'POST',
-          headers: notionHdrs,
-          body: JSON.stringify({
-            filter: { property: 'Email', email: { equals: user.email } }
-          })
-        })
-        const notionData = await notionRes.json()
-        if (!notionData.results?.length) continue
-
-        const pageId = notionData.results[0].id
-        await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
-          method: 'PATCH',
-          headers: notionHdrs,
-          body: JSON.stringify({
-            properties: {
-              'Last Login': { date: { start: lastLogin } }
-            }
-          })
-        })
-      }
-      console.log('[cron] Last Login sync complete')
-    } catch (e) {
-      console.error('[cron] Last Login sync failed:', e)
-    }
-
-    // Block B: Flag clients inactive 14+ days
-    try {
-      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-      const inactiveRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB_ID_VAL}/query`, {
-        method: 'POST',
-        headers: notionHdrs,
-        body: JSON.stringify({
-          filter: {
-            and: [
-              { property: 'Stage', select: { equals: 'Active' } },
-              { property: 'Last Login', date: { before: fourteenDaysAgo } }
-            ]
-          }
-        })
-      })
-      const inactiveData = await inactiveRes.json()
-      const inactiveClients = inactiveData.results || []
-
-      if (inactiveClients.length > 0) {
-        const list = inactiveClients.map((p: any) => {
-          const name = p.properties['Garden Center']?.title?.[0]?.plain_text || 'Unknown'
-          const lastLogin = p.properties['Last Login']?.date?.start || 'Never'
-          const mrr = p.properties['MRR']?.number || 0
-          return `<li><strong>${name}</strong> — Last login: ${lastLogin} — MRR: ${mrr}</li>`
-        }).join('')
-
-        for (const page of inactiveClients) {
-          const currentNextAction = page.properties['Next Action']?.rich_text?.[0]?.plain_text || ''
-          if (!currentNextAction.toLowerCase().includes('re-engagement')) {
-            await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
-              method: 'PATCH',
-              headers: notionHdrs,
-              body: JSON.stringify({
-                properties: {
-                  'Next Action': { rich_text: [{ text: { content: 'Re-engagement call — client inactive 14+ days' } }] },
-                  'Next Action Date': { date: { start: new Date().toISOString().split('T')[0] } }
-                }
-              })
-            })
-          }
-        }
-
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: 'BloomSuite System <system@bloomsuite.app>',
-            to: ALERT_EMAIL,
-            subject: `🚨 ${inactiveClients.length} client(s) inactive 14+ days`,
-            html: `<h2>Inactive Clients</h2><p>These active clients haven't logged in for 14+ days:</p><ul>${list}</ul>`
-          })
-        })
-      }
-      console.log(`[cron] Inactive check complete — ${inactiveClients.length} flagged`)
-    } catch (e) {
-      console.error('[cron] Inactive client check failed:', e)
-    }
+    // Read-only tenant activity reconciliation. Never match billing email to a login
+    // or overwrite Notion Last Login / Next Action from an inferred activity signal.
+    const activity = await reconcileActivity({
+      notionKey: NOTION_TOKEN_VAL, databaseId: NOTION_DB_ID_VAL,
+      supabaseUrl, serviceKey, resendKey: RESEND_KEY, recipient: ALERT_EMAIL,
+    }, false);
 
     // Block C: Onboarding timeline checks
     try {
@@ -513,8 +439,6 @@ serve(async (req) => {
             body: JSON.stringify({
               properties: {
                 'Notes': { rich_text: [{ text: { content: notes + '\nDAY3-BREACH: Kickoff not booked 3 days post-Won.' } }] },
-                'Next Action': { rich_text: [{ text: { content: 'OVERDUE: Book kickoff call immediately' } }] },
-                'Next Action Date': { date: { start: today.toISOString().split('T')[0] } }
               }
             })
           })
@@ -565,7 +489,7 @@ serve(async (req) => {
       console.error('[cron] Timeline check failed:', e)
     }
 
-    return new Response(JSON.stringify({ success: true, ...summary }), {
+    return new Response(JSON.stringify({ success: true, ...summary, activity }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -573,7 +497,7 @@ serve(async (req) => {
     logStep("Unexpected error", { error: String(err) });
     return new Response(
       JSON.stringify({ error: "Internal error", message: String(err) }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
