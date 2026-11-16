@@ -48,49 +48,42 @@ function makeSavedTemplate(
 }
 
 describe("IntentPicker", () => {
-  it("offers all Botanical designs and applies the chosen editable template", async () => {
+  it("shows every available starting layout in one unified gallery", async () => {
     const user = userEvent.setup();
     const onApplyBuiltInTemplate = vi.fn();
+    const handlers = noopHandlers();
     render(
-      <IntentPicker
-        savedTemplates={[]}
-        {...noopHandlers()}
-        onApplyBuiltInTemplate={onApplyBuiltInTemplate}
-      />,
+      <IntentPicker savedTemplates={[]} {...handlers} onApplyBuiltInTemplate={onApplyBuiltInTemplate} />,
     );
-    expect(screen.getByText("Ready-made newsletter designs")).toBeVisible();
-    expect(screen.getByTestId("botanical-template-library")).toBeVisible();
-    expect(screen.getAllByRole("button", { name: /^Use (Garden Invitation|Seasonal Newsletter|Product Spotlight|Event Roundup)$/ })).toHaveLength(4);
+    const gallery = screen.getByTestId("campaign-design-gallery");
+    expect(screen.getByText("Choose a design")).toBeVisible();
+    expect(gallery.querySelectorAll('[data-testid^="intent-card-"]')).toHaveLength(7);
+    expect(gallery.querySelectorAll('[data-testid^="botanical-template-"]')).toHaveLength(4);
+    expect(screen.queryByText("Ready-made newsletter designs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Explore more newsletter designs")).not.toBeInTheDocument();
     for (const id of ["botanical-editorial", "botanical-seasonal", "botanical-product", "botanical-events"]) {
       expect(screen.getByTestId(`botanical-template-${id}`)).toBeVisible();
     }
     await user.click(screen.getByRole("button", { name: "Use Event Roundup" }));
-    expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "botanical-events" }),
-    );
+    expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: "botanical-events" }));
+    await user.click(screen.getByTestId("intent-card-sale"));
+    expect(handlers.onSelectIntent).toHaveBeenCalledWith("sale");
   });
 
-  it("starts with four recommendations and lets users browse all designs", async () => {
-    const user = userEvent.setup();
+  it("shows the seasonal showcase and its format within the same gallery", () => {
     render(<IntentPicker savedTemplates={[]} {...noopHandlers()} />);
-    expect(screen.getByTestId("intent-picker-recommended").querySelectorAll('[data-testid^="intent-card-"]')).toHaveLength(4);
-    for (const intent of ["newsletter", "sale", "event", "blank"])
-      expect(screen.getByTestId(`intent-card-${intent}`)).toBeVisible();
-    expect(screen.getByTestId("intent-card-showcase")).not.toBeVisible();
-    await user.click(screen.getByText("Explore more newsletter designs"));
-    for (const intent of ["showcase", "new-arrivals", "thank-you"])
-      expect(screen.getByTestId(`intent-card-${intent}`)).toBeVisible();
+    expect(screen.getByTestId("intent-card-showcase")).toBeVisible();
+    expect(screen.getByText("Seasonal Showcase")).toBeVisible();
   });
 
-  it("names the applied design and summarizes its structure", async () => {
+  it("keeps all template choices keyboard accessible", async () => {
     const user = userEvent.setup();
-    render(<IntentPicker savedTemplates={[]} {...noopHandlers()} />);
-
-    await user.click(screen.getByText("Explore more newsletter designs"));
-    expect(screen.getAllByText("Seasonal Showcase").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText("Image-led · 3 stories · Closing CTA"),
-    ).toBeInTheDocument();
+    const onApplyBuiltInTemplate = vi.fn();
+    render(<IntentPicker savedTemplates={[]} {...noopHandlers()} onApplyBuiltInTemplate={onApplyBuiltInTemplate} />);
+    const card = screen.getByTestId("botanical-template-botanical-product");
+    card.focus();
+    await user.keyboard("{Enter}");
+    expect(onApplyBuiltInTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: "botanical-product" }));
   });
 
   it("hides My templates section when there are no saved templates", () => {
@@ -99,7 +92,7 @@ describe("IntentPicker", () => {
     expect(
       screen.queryByTestId("intent-picker-my-templates"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("My templates")).not.toBeInTheDocument();
+    expect(screen.queryByText("Your saved designs")).not.toBeInTheDocument();
   });
 
   it("renders My templates section when at least one is saved", () => {
@@ -109,7 +102,7 @@ describe("IntentPicker", () => {
     expect(
       screen.getByTestId("intent-picker-my-templates"),
     ).toBeInTheDocument();
-    expect(screen.getByText("My templates")).toBeInTheDocument();
+    expect(screen.getByText("Your saved designs")).toBeInTheDocument();
     expect(
       screen.getByTestId(`saved-template-card-${template.id}`),
     ).toBeInTheDocument();
