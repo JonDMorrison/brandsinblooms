@@ -18,6 +18,7 @@ export function Field({
   multiline = false,
   placeholder,
   type = "text",
+  captureTab = false,
 }: {
   label: string;
   value?: string;
@@ -25,6 +26,7 @@ export function Field({
   multiline?: boolean;
   placeholder?: string;
   type?: string;
+  captureTab?: boolean;
 }) {
   const id = React.useId();
   return (
@@ -37,6 +39,15 @@ export function Field({
           onChange={(e) => onChange(e.target.value)}
           rows={3}
           placeholder={placeholder}
+          onKeyDown={(event) => {
+            if (!captureTab || event.key !== "Tab" || event.shiftKey || event.ctrlKey || event.metaKey) return;
+            event.preventDefault();
+            const field = event.currentTarget;
+            const start = field.selectionStart;
+            const end = field.selectionEnd;
+            onChange(`${field.value.slice(0, start)}\t${field.value.slice(end)}`);
+            requestAnimationFrame(() => { field.setSelectionRange(start + 1, start + 1); });
+          }}
         />
       ) : (
         <input
@@ -203,9 +214,7 @@ type AppearanceFieldsProps = {
 export function ImageSpacingFields({ value = {}, onChange }: AppearanceFieldsProps) {
   return (
     <div className="nl-controls">
-      <details>
-        <summary>Image spacing</summary>
-        <Edges
+      <Edges
           title="Image padding"
           value={value.imagePadding}
           onChange={(imagePadding) => onChange({ ...value, imagePadding })}
@@ -215,7 +224,6 @@ export function ImageSpacingFields({ value = {}, onChange }: AppearanceFieldsPro
           value={value.imageMargin}
           onChange={(imageMargin) => onChange({ ...value, imageMargin })}
         />
-      </details>
     </div>
   );
 }
@@ -269,6 +277,8 @@ function textRolesForBlock(block: StudioBlock): TextRole[] | undefined {
       return [];
     case "newsletter-header":
       return ["heading", "subheading"];
+    case "social-follow":
+      return [];
     case "image-text":
       return ["body", "heading", "subheading", "button"];
     case "email-safe-hero":
@@ -310,6 +320,12 @@ export default function AppearanceControls({
   const { settings } = useNewsletterDesign();
   const [selectedRole, setRole] = React.useState<TextRole>("body");
   const blockRoles = block && textRolesForBlock(block);
+  // Dedicated gallery, product, social, event and coupon editors place image/button
+  // spacing with the content it affects. Never render the generic copies below.
+  const hasDedicatedSpacing = Boolean(block && [
+    "image-gallery", "product-gallery", "product-card", "social-follow",
+    "event", "blog", "announcement", "coupon",
+  ].includes(block.type));
   const roles: TextRole[] = blockRoles ?? [
     ...(Object.keys(HEADING_SIZES) as TextRole[]),
     ...(!master ? ["heading", "subheading"] as const : []),
@@ -532,7 +548,7 @@ export default function AppearanceControls({
           />
         </details>
       )}
-      {!master && !blockRoles && (
+      {!master && !blockRoles && !hasDedicatedSpacing && (
         <>
           <details>
             <summary>Image Spacing</summary>
