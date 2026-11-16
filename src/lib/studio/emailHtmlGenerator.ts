@@ -1624,27 +1624,20 @@ function renderSocialFollowBlock(
   const textColor = safeColor(block.textColor, "#111827");
   const align = getAlignment(block.textAlign, "center");
   const paddingY = numberValue(block.verticalPadding, 24);
-  const { links, placeholder } = getResolvedSocialFollowLinks(
-    block,
-    designSystem,
-  );
+  const { links, placeholder } = getResolvedSocialFollowLinks(block, designSystem);
   if (links.length === 0) return "";
   const label = stringValue(block.socialLabel);
-  const iconSize =
-    block.socialIconSize === "lg"
-      ? 36
-      : block.socialIconSize === "sm"
-        ? 24
-        : 30;
+  const size = block.iconSize ?? block.socialIconSize;
+  const iconSize = size === "lg" ? 36 : size === "sm" ? 24 : 30;
+  const iconSpacing = Math.max(0, Math.min(40, numberValue(block.iconSpacing, 12)));
   const iconCells = links
-    .map((link) => renderSocialLink(link, block, iconSize, designSystem))
+    .map((link) => renderSocialLink(link, block, iconSize, designSystem, false, placeholder, true, iconSpacing))
     .join("");
 
   if (block.layout === "vertical-list") {
     const rows = links
-      .map(
-        (link) =>
-          `<tr><td align="${align}" style="padding:5px 0;">${renderSocialLink(link, block, iconSize, designSystem, true, placeholder, false)}</td></tr>`,
+      .map((link) =>
+        `<tr><td align="${align}" style="padding:5px 0;">${renderSocialLink(link, block, iconSize, designSystem, true, placeholder, false, iconSpacing)}</td></tr>`,
       )
       .join("");
     return renderSection(
@@ -1652,7 +1645,6 @@ function renderSocialFollowBlock(
       `<div class="mobile-padding" style="padding:${paddingY}px 16px;background-color:${backgroundColor};text-align:${align};">${label ? `<div style="font-family:${getFontStack(designSystem, "subheading")};font-size:14px;font-weight:700;color:${textColor};margin-bottom:10px;">${textBlock(label)}</div>` : ""}<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="border-collapse:collapse;">${rows}</table></div>`,
     );
   }
-
   return renderSection(
     backgroundColor,
     `<div class="mobile-padding" style="padding:${paddingY}px 16px;background-color:${backgroundColor};text-align:${align};">${label || block.layout === "label-row" ? `<div style="font-family:${getFontStack(designSystem, "subheading")};font-size:14px;font-weight:700;color:${textColor};margin-bottom:12px;">${textBlock(label || "Follow us")}</div>` : ""}<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="border-collapse:collapse;"><tr>${iconCells}</tr></table></div>`,
@@ -1667,29 +1659,44 @@ function renderSocialLink(
   withLabel = false,
   placeholder = false,
   wrapInCell = true,
+  spacing = 12,
 ) {
-  const href = safeUrl(link.url) || "#";
-  const brandColor =
-    block.socialColorMode === "custom"
-      ? safeColor(block.customIconColor, "#111827")
-      : block.socialColorMode === "monochrome"
-        ? safeColor(designSystem?.colors.text || block.textColor, "#111827")
-        : SOCIAL_COLORS[link.platform];
+  // The outgoing email must reflect the same icon settings as the editor.
+  // Remote brand PNGs cannot be safely recoloured in email clients, so use
+  // email-safe lettermarks when the customer chooses monochrome/custom.
+  const href = safeUrl(link.url);
+  const mode = block.iconColorMode ??
+    (block.socialColorMode === "monochrome" ? "mono" : block.socialColorMode) ?? "brand";
+  const shape = block.iconStyle ?? block.socialIconStyle ?? "filled";
+  const colour = mode === "custom"
+    ? safeColor(block.customIconColor, "#111827")
+    : mode === "mono"
+      ? safeColor(designSystem?.colors.text || block.textColor, "#111827")
+      : SOCIAL_COLORS[link.platform];
   const iconUrl = SOCIAL_ICON_URLS[link.platform];
-  const icon = iconUrl
-    ? `<img src="${escapeAttribute(iconUrl)}" alt="${escapeAttribute(SOCIAL_LABELS[link.platform])}" width="${size}" height="${size}" style="display:block;width:${size}px;height:${size}px;border:0;outline:none;text-decoration:none;" />`
-    : `<span style="display:inline-block;width:${size}px;height:${size}px;line-height:${size}px;text-align:center;border-radius:${block.socialIconStyle === "square" ? "6px" : "999px"};background-color:${brandColor};color:#ffffff;font-family:${getFontStack(designSystem, "button")};font-size:${Math.max(11, Math.round(size * 0.42))}px;font-weight:700;">${link.platform === "twitter" ? "X" : "Th"}</span>`;
-  const content = withLabel
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="padding-right:8px;">${icon}</td><td style="font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.3;font-weight:700;color:${safeColor(block.textColor, "#111827")};">${escapeHtml(SOCIAL_LABELS[link.platform])}</td></tr></table>`
-    : icon;
-
-  const anchor = `<a href="${escapeAttribute(href)}" target="_blank" style="display:inline-block;text-decoration:none;">${content}</a>`;
-
-  if (!wrapInCell) {
-    return anchor;
-  }
-
-  return `<td align="center" style="padding:0 6px;opacity:${placeholder ? 0.34 : 1};">${anchor}</td>`;
+  const mark: Record<SocialLink["platform"], string> = {
+    facebook: "f", instagram: "IG", twitter: "X", linkedin: "in",
+    youtube: "YT", tiktok: "TT", pinterest: "P", threads: "@",
+  };
+  const hasBrandImage = mode === "brand" && Boolean(iconUrl);
+  const isMinimal = shape === "minimal";
+  const isOutline = shape === "outlined";
+  const bg = hasBrandImage || isOutline || isMinimal ? "transparent" : colour;
+  const radius = shape === "square" ? "5px" : shape === "minimal" ? "0" : "999px";
+  const border = isOutline ? `1px solid ${colour}` : "0";
+  const markColour = isOutline || isMinimal ? colour : "#ffffff";
+  const icon = hasBrandImage
+    ? `<span style="display:inline-block;vertical-align:middle;border:${border};border-radius:${radius};padding:${isOutline ? "2px" : "0"};"><img src="${escapeAttribute(iconUrl)}" alt="${escapeAttribute(SOCIAL_LABELS[link.platform])}" width="${size}" height="${size}" style="display:block;width:${size}px;height:${size}px;border:0;border-radius:${radius};"/></span>`
+    : `<span style="display:inline-block;box-sizing:border-box;min-width:${size}px;height:${size}px;line-height:${size - (isOutline ? 2 : 0)}px;text-align:center;border:${border};border-radius:${radius};background-color:${bg};color:${markColour};font-family:Arial,sans-serif;font-size:${Math.max(10, Math.round(size * 0.4))}px;font-weight:700;">${escapeHtml(mark[link.platform])}</span>`;
+  const labelText = withLabel
+    ? `<span style="display:inline-block;vertical-align:middle;padding-left:8px;font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.3;font-weight:700;color:${safeColor(block.textColor, "#111827")};">${escapeHtml(SOCIAL_LABELS[link.platform])}</span>`
+    : "";
+  const content = `${icon}${labelText}`;
+  const anchor = href
+    ? `<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;">${content}</a>`
+    : `<span style="display:inline-block;">${content}</span>`;
+  if (!wrapInCell) return anchor;
+  return `<td align="center" style="padding:0 ${spacing / 2}px;opacity:${placeholder ? 0.34 : 1};">${anchor}</td>`;
 }
 
 function renderDividerBlock(
