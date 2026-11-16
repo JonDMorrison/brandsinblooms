@@ -335,6 +335,10 @@ export function renderExtendedBlock(
           buttonUrl: product.buttonUrl,
           badgeText: product.badgeText,
           badgeColor: product.badgeColor,
+          badgeTextColor: product.badgeTextColor,
+          appearance: { ...block.appearance,
+            imagePadding: product.imagePadding ?? block.appearance?.imagePadding,
+            imageMargin: product.imageMargin ?? block.appearance?.imageMargin },
           badges: undefined,
         };
         const image = picture(
@@ -355,7 +359,7 @@ export function renderExtendedBlock(
             ? paragraph(block, product.description, "body", 13)
             : "") +
           (block.showCtaButtons !== false
-            ? renderNewsletterButton(productBlock)
+            ? `<div style="text-align:${block.buttonAlign ?? "left"};">${renderNewsletterButton(productBlock, undefined, undefined, editing)}</div>`
             : "");
         return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};"><tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr></table></td>`;
       });
@@ -378,11 +382,12 @@ export function renderExtendedBlock(
         const url = safeEmailUrl(item.image.url, true);
         if (!url) return "";
         const image = `<img data-newsletter-image="galleryImages" data-newsletter-index="${item.index}" class="responsive-image" src="${attr(url)}" alt="${attr(item.image.alt || "")}" width="${Math.floor(available)}" style="display:block;width:100%;height:auto;border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;"/>`;
+        const spacedImage = `<div style="padding:${edgeCss(item.image.imagePadding ?? block.appearance?.imagePadding)};margin:${edgeCss(item.image.imageMargin ?? block.appearance?.imageMargin)};">${image}</div>`;
         const link = safeEmailUrl(item.image.linkUrl);
         return (
           (link
-            ? `<a href="${attr(link)}" target="_blank" rel="noopener noreferrer">${image}</a>`
-            : image) + paragraph(block, item.image.caption, "smallPrint", 12)
+            ? `<a href="${attr(link)}" target="_blank" rel="noopener noreferrer">${spacedImage}</a>`
+            : spacedImage) + paragraph(block, item.image.caption, "smallPrint", 12)
         );
       };
       if (
