@@ -138,6 +138,11 @@ export interface StudioBlock {
   chartUnit?: string;
   videoUrl?: string;
   eventDate?: string;
+  /** ISO date and local time selected in the editor; older eventDate remains supported. */
+  eventStartDate?: string;
+  eventStartTime?: string;
+  eventFeeType?: "unspecified" | "free" | "donation" | "paid";
+  eventFeeAmount?: string;
   eventLocation?: string;
   headerBannerUrl?: string;
   newsletterSettings?: NewsletterSettings;
