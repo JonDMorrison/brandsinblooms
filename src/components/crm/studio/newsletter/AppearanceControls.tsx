@@ -279,6 +279,11 @@ function textRolesForBlock(block: StudioBlock): TextRole[] | undefined {
       return ["heading", "subheading"];
     case "social-follow":
       return [];
+    case "image-gallery":
+      return ["smallPrint"]; // Gallery captions, without unrelated button controls.
+    case "product-gallery":
+    case "product-card":
+      return ["heading", "subheading", "body", "price", "button"];
     case "image-text":
       return ["body", "heading", "subheading", "button"];
     case "email-safe-hero":
