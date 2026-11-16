@@ -396,7 +396,7 @@ export function createStudioBlock(
         productDescription: "",
         imageUrl: "",
         imageAlt: "",
-        imageFit: "cover",
+        imageFit: "contain",
         imageFocalX: 50,
         imageFocalY: 50,
         badgeText: "",

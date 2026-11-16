@@ -14,7 +14,8 @@ import StudioImageUpload, {
 } from "../fields/StudioImageUpload";
 import StudioRichTextField from "../fields/StudioRichTextField";
 import StudioSwitchField from "../fields/StudioSwitchField";
-import { ButtonPaddingFields, Field, NumericField, Choice, ColorField } from "./AppearanceControls";
+import { ButtonPaddingFields, ImageSpacingFields, Field, NumericField, Choice, ColorField } from "./AppearanceControls";
+import { safeEmailUrl } from "@/lib/studio/newsletter/settings";
 import { navigationLinkColor } from "@/lib/studio/newsletter/settings";
 import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { upcAImage } from "@/lib/studio/newsletter/barcode";
@@ -134,7 +135,7 @@ export function BadgeFields({
     );
   return (
     <details className="nl-controls">
-      <summary>Image badges (up to three)</summary>
+      <summary>Badges (up to three)</summary>
       {badges.map((badge, index) => (
         <fieldset key={badge.id} className="nl-fieldset">
           <legend>Badge {index + 1}</legend>
@@ -232,6 +233,13 @@ function ButtonFields({
         value={block.buttonUrl}
         onChange={(value) => update("buttonUrl", value)}
       />
+      {block.buttonUrl?.trim() && (
+        <div className="nl-note">
+          {safeEmailUrl(block.buttonUrl) ? (
+            <a href={safeEmailUrl(block.buttonUrl)} target="_blank" rel="noopener noreferrer">Open destination to check link</a>
+          ) : "Enter a public website address, such as example.com/page."}
+        </div>
+      )}
       <Choice
         label="Link appearance"
         value={block.buttonStyle || "filled"}
@@ -260,6 +268,7 @@ function ButtonFields({
         checked={Boolean(block.fullWidthButton)}
         onChange={(value) => update("fullWidthButton", value)}
       />
+      <ButtonPaddingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
     </fieldset>
   );
 }
@@ -420,6 +429,7 @@ function CouponFields({
           update("couponImageSide", value as StudioBlock["couponImageSide"])
         }
       />
+      <ImageSpacingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
       <StudioSwitchField
         label="Coupon border"
         checked={block.couponBorder !== false}
@@ -607,6 +617,17 @@ function GalleryFields({
           />
         </details>
       )}
+      {product && (
+        <fieldset className="nl-fieldset">
+          <legend>Gallery buttons</legend>
+          <Choice label="Button alignment" value={block.buttonAlign || "left"}
+            options={["left", "center", "right"].map((value) => ({ value, label: value === "center" ? "Centre" : value[0].toUpperCase() + value.slice(1) }))}
+            onChange={(value) => update("buttonAlign", value as StudioBlock["buttonAlign"])} />
+          <StudioSwitchField label="Full width buttons" checked={Boolean(block.fullWidthButton)}
+            onChange={(value) => update("fullWidthButton", value)} />
+          <ButtonPaddingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
+        </fieldset>
+      )}
       {Array.from(
         { length: Math.max(count, product ? products.length : images.length) },
         (_, index) => (
@@ -631,6 +652,15 @@ function GalleryFields({
                   ? patchProduct(index, { imageUrl: value })
                   : patchImage(index, { url: value })
               }
+            />
+            <ImageSpacingFields
+              value={{
+                imagePadding: product ? products[index]?.imagePadding : images[index]?.imagePadding,
+                imageMargin: product ? products[index]?.imageMargin : images[index]?.imageMargin,
+              }}
+              onChange={(next) => product
+                ? patchProduct(index, { imagePadding: next.imagePadding, imageMargin: next.imageMargin })
+                : patchImage(index, { imagePadding: next.imagePadding, imageMargin: next.imageMargin })}
             />
             {product ? (
               <>
@@ -665,7 +695,7 @@ function GalleryFields({
                   }
                 />
                 <Field
-                  label="Image destination URL"
+                  label="Image link URL"
                   value={products[index]?.linkUrl}
                   onChange={(linkUrl) => patchProduct(index, { linkUrl })}
                 />
@@ -680,10 +710,14 @@ function GalleryFields({
                   onChange={(buttonUrl) => patchProduct(index, { buttonUrl })}
                 />
                 <Field
-                  label="Badge"
+                  label="Badge text"
                   value={products[index]?.badgeText}
                   onChange={(badgeText) => patchProduct(index, { badgeText })}
                 />
+                <ColorField label="Badge colour" value={products[index]?.badgeColor}
+                  onChange={(badgeColor) => patchProduct(index, { badgeColor })} />
+                <ColorField label="Badge text colour" value={products[index]?.badgeTextColor}
+                  onChange={(badgeTextColor) => patchProduct(index, { badgeTextColor })} />
               </>
             ) : (
               <>
@@ -698,7 +732,7 @@ function GalleryFields({
                   onChange={(caption) => patchImage(index, { caption })}
                 />
                 <Field
-                  label="Image destination URL"
+                  label="Image link URL"
                   value={images[index]?.linkUrl}
                   onChange={(linkUrl) => patchImage(index, { linkUrl })}
                 />
@@ -992,7 +1026,9 @@ export default function ExtendedBlockProperties({
         <>
           {textField("Table caption", "tableCaption")}
           <Field
-            label="Column headings (separate with tabs)"
+            label="Column headings (type Tab between columns)"
+            multiline
+            captureTab
             value={(block.tableHeaders || []).join("\t")}
             onChange={(value) =>
               update("tableHeaders", value.split("\t").slice(0, 12))
@@ -1073,7 +1109,21 @@ export default function ExtendedBlockProperties({
           />
           {block.type === "event" && (
             <>
-              {textField("Date and time", "eventDate")}
+              <Field label="Event date" type="date" value={block.eventStartDate}
+                onChange={(value) => update("eventStartDate", value)} />
+              <Field label="Start time" type="time" value={block.eventStartTime}
+                onChange={(value) => update("eventStartTime", value)} />
+              {!block.eventStartDate && block.eventDate && textField("Existing date label", "eventDate")}
+              <Choice label="Fee / admission" value={block.eventFeeType || "unspecified"}
+                options={[
+                  { value: "unspecified", label: "Not specified" },
+                  { value: "free", label: "Free" },
+                  { value: "donation", label: "By donation" },
+                  { value: "paid", label: "Price" },
+                ]}
+                onChange={(value) => update("eventFeeType", value as StudioBlock["eventFeeType"])} />
+              {block.eventFeeType === "paid" && <Field label="Fee / price" placeholder="$25.00"
+                value={block.eventFeeAmount} onChange={(value) => update("eventFeeAmount", value)} />}
               {textField("Location", "eventLocation")}
             </>
           )}
@@ -1093,6 +1143,7 @@ export default function ExtendedBlockProperties({
               update("imagePosition", value as StudioBlock["imagePosition"])
             }
           />
+          <ImageSpacingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
           <ButtonFields block={block} update={update} />
         </>
       );
@@ -1103,33 +1154,9 @@ export default function ExtendedBlockProperties({
     </div>
   );
 }
-export function AdditionalBlockFields({
-  block,
-  update,
-}: {
-  block: StudioBlock;
-  update: Update;
-}) {
-  if (block.type !== "product-card") return null;
-  return (
-    <div className="nl-controls" style={{ padding: "0 20px" }}>
-      <Field
-        label="Subtitle / botanical name"
-        value={block.productSubtitle}
-        onChange={(value) => update("productSubtitle", value)}
-      />
-      <Choice
-        label="Image placement"
-        value={block.imagePosition || "left"}
-        options={["left", "right", "top"].map((value) => ({
-          value,
-          label: value,
-        }))}
-        onChange={(value) =>
-          update("imagePosition", value as StudioBlock["imagePosition"])
-        }
-      />
-      <BadgeFields block={block} update={update} />
-    </div>
-  );
+export function AdditionalBlockFields({ block, update }: { block: StudioBlock; update: Update }) {
+  // All Product Card controls live in the main panel; no second badge editor.
+  void block;
+  void update;
+  return null;
 }

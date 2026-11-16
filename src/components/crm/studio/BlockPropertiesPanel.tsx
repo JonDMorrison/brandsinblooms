@@ -2,6 +2,7 @@ import { buildConnectedContentBlock, connectedContentRequest, type ConnectedCont
 import AudienceControls from "./newsletter/AudienceControls";
 import ExtendedBlockProperties, {
   AdditionalBlockFields,
+  BadgeFields,
 } from "./newsletter/ExtendedBlockProperties";
 import AppearanceControls, { ButtonPaddingFields, Field, ImageSpacingFields, NumericField, VerticalAlignmentField } from "./newsletter/AppearanceControls";
 import { useNewsletterDesign } from "./newsletter/NewsletterDesignContext";
@@ -4776,6 +4777,56 @@ function PanelContent({
           >
             {renderSections([
               {
+                id: "badge",
+                title: "Badge",
+                content: (
+                  <CollapsibleSection
+                    label="Show Badge"
+                    enabled={
+                      block.showBadges ?? Boolean(block.badgeText?.trim() || block.badges?.length)
+                    }
+                    onToggle={(value) => updateField("showBadges", value)}
+                  >
+                    {block.badges?.length ? (
+                      <BadgeFields block={block} update={updateField} />
+                    ) : (
+                      <>
+                    <StudioTextField
+                      label="Badge Text"
+                      placeholder="SALE"
+                      value={block.badgeText ?? ""}
+                      onChange={(value) => updateField("badgeText", value)}
+                    />
+                    <StudioColorPicker
+                      label="Badge Color"
+                      value={block.badgeColor ?? "#111827"}
+                      onChange={(value) => updateField("badgeColor", value)}
+                    />
+                    <StudioColorPicker
+                      label="Badge Text Color"
+                      value={block.badgeTextColor ?? "#ffffff"}
+                      onChange={(value) => updateField("badgeTextColor", value)}
+                    />
+                      </>
+                    )}
+                    <StudioToggleField
+                      label="Badge Position"
+                      options={[
+                        { label: "Top Left", value: "top-left" },
+                        { label: "Top Right", value: "top-right" },
+                      ]}
+                      value={block.badgePosition ?? "top-left"}
+                      onChange={(value) =>
+                        updateField(
+                          "badgePosition",
+                          value as StudioBlock["badgePosition"],
+                        )
+                      }
+                    />
+                  </CollapsibleSection>
+                ),
+              },
+              {
                 id: "product",
                 title: "Product",
                 content: (
@@ -4786,6 +4837,12 @@ function PanelContent({
                       value={block.productName ?? ""}
                       onChange={(value) => updateField("productName", value)}
                       aiDecorator
+                    />
+                    <StudioTextField
+                      label="Subtitle / botanical name"
+                      placeholder="Optional botanical name or subtitle"
+                      value={block.productSubtitle ?? block.subheading ?? ""}
+                      onChange={(value) => updateField("productSubtitle", value)}
                     />
                     <StudioTextField
                       label="Price"
@@ -4830,50 +4887,6 @@ function PanelContent({
                 ),
               },
               {
-                id: "badge",
-                title: "Badge",
-                content: (
-                  <CollapsibleSection
-                    label="Show Badge"
-                    enabled={
-                      block.showBadges ?? Boolean(block.badgeText?.trim())
-                    }
-                    onToggle={(value) => updateField("showBadges", value)}
-                  >
-                    <StudioTextField
-                      label="Badge Text"
-                      placeholder="SALE"
-                      value={block.badgeText ?? ""}
-                      onChange={(value) => updateField("badgeText", value)}
-                    />
-                    <StudioColorPicker
-                      label="Badge Color"
-                      value={block.badgeColor ?? "#111827"}
-                      onChange={(value) => updateField("badgeColor", value)}
-                    />
-                    <StudioColorPicker
-                      label="Badge Text Color"
-                      value={block.badgeTextColor ?? "#ffffff"}
-                      onChange={(value) => updateField("badgeTextColor", value)}
-                    />
-                    <StudioToggleField
-                      label="Badge Position"
-                      options={[
-                        { label: "Top Left", value: "top-left" },
-                        { label: "Top Right", value: "top-right" },
-                      ]}
-                      value={block.badgePosition ?? "top-left"}
-                      onChange={(value) =>
-                        updateField(
-                          "badgePosition",
-                          value as StudioBlock["badgePosition"],
-                        )
-                      }
-                    />
-                  </CollapsibleSection>
-                ),
-              },
-              {
                 id: "image",
                 title: "Image",
                 content: (
@@ -4892,12 +4905,22 @@ function PanelContent({
                       })}
                     />
                     <StudioToggleField
+                      label="Image Placement"
+                      options={[
+                        { label: "Left", value: "left" },
+                        { label: "Right", value: "right" },
+                        { label: "Top", value: "top" },
+                      ]}
+                      value={block.imagePosition ?? (block.layout === "centered" ? "top" : "left")}
+                      onChange={(value) => updateField("imagePosition", value as StudioBlock["imagePosition"])}
+                    />
+                    <StudioToggleField
                       label="Image Fit"
                       options={[
                         { label: "Cover", value: "cover" },
                         { label: "Contain", value: "contain" },
                       ]}
-                      value={block.imageFit ?? "cover"}
+                      value={block.imageFit ?? "contain"}
                       onChange={(value) =>
                         updateField(
                           "imageFit",
@@ -4909,6 +4932,7 @@ function PanelContent({
                       block={block}
                       updateField={updateField}
                     />
+                    <ImageSpacingFields {...appearanceFields} />
                     <StudioSliderField
                       label="Image Border Radius"
                       min={0}
@@ -4973,6 +4997,7 @@ function PanelContent({
                         updateField("fullWidthButton", value)
                       }
                     />
+                    <ButtonPaddingFields {...appearanceFields} />
                   </>
                 ),
               },

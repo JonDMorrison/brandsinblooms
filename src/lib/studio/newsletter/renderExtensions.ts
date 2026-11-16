@@ -82,7 +82,7 @@ export function renderNewsletterButton(
 function picture(block: StudioBlock, width = 220): string {
   const url = safeEmailUrl(block.imageUrl, true);
   if (!url) return "";
-  const image = `<img data-newsletter-image="imageUrl" class="responsive-image" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
+  const image = `<img data-newsletter-image="imageUrl" class="responsive-image" src="${attr(url)}" alt="${attr(block.imageAlt || block.headline || block.productName || "")}" width="${width}" style="display:block;width:100%;max-width:${width}px;height:${block.type === "product-card" ? `${clampNumber(block.imageHeight, 220, 120, 480)}px` : "auto"};object-fit:${block.imageFit ?? "contain"};border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;" />`;
   const linked = safeEmailUrl(block.linkUrl)
     ? `<a href="${attr(safeEmailUrl(block.linkUrl))}" target="_blank" rel="noopener noreferrer">${image}</a>`
     : image;
@@ -132,20 +132,28 @@ function imageAndContent(
   const imageCell = `<td dir="ltr" class="responsive-column" width="38%" valign="top" style="width:38%;padding:${side === "right" ? "0 0 0 12px" : "0 12px 0 0"};">${photo}</td>`;
   const contentCell = `<td dir="ltr" class="responsive-column" width="62%" valign="${vertical}" style="width:62%;vertical-align:${vertical};padding:${side === "right" ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
   return table(
-    `<tr${side === "right" ? ' dir="rtl"' : ""}>${imageCell + contentCell}</tr>`,
+    `<tr>${side === "right" ? contentCell + imageCell : imageCell + contentCell}</tr>`,
   );
 }
 
-function renderEventCard(block: StudioBlock, width: number): string {
+function renderEventCard(block: StudioBlock, width: number, editing = false): string {
   const imageUrl = safeEmailUrl(block.imageUrl, true);
   const imageSide = block.imagePosition === "right" ? "right" : "left";
   const imageWidth = Math.floor(width * 0.42);
   const image = imageUrl
     ? `<img data-newsletter-image="imageUrl" class="responsive-image responsive-crop-image" src="${attr(imageUrl)}" alt="${attr(block.imageAlt || block.headline || "Event photo")}" width="${imageWidth}" height="252" style="display:block;width:100%;max-width:${imageWidth}px;height:252px;object-fit:cover;object-position:50% 50%;border:0;outline:none;text-decoration:none;border-radius:12px;" />`
     : "";
-  const date = present(block.eventDate)
-    ? `<div data-newsletter-role="label" style="margin:0 0 5px;letter-spacing:0.06em;text-transform:uppercase;${role(block, "label", 12, 700)}">${text(block.eventDate)}</div>`
+  const chosenDate = /^\d{4}-\d{2}-\d{2}$/.test(block.eventStartDate ?? "")
+    ? new Date(`${block.eventStartDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
     : "";
+  const chosenTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(block.eventStartTime ?? "")
+    ? new Date(`2000-01-01T${block.eventStartTime}:00Z`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })
+    : "";
+  const dateLabel = [chosenDate, chosenTime].filter(Boolean).join(" at ") || block.eventDate;
+  const date = present(dateLabel)
+    ? `<div data-newsletter-role="label" style="margin:0 0 5px;letter-spacing:0.06em;text-transform:uppercase;${role(block, "label", 12, 700)}">${text(dateLabel)}</div>`
+    : "";
+  const fee = block.eventFeeType === "free" ? "Free" : block.eventFeeType === "donation" ? "By donation" : block.eventFeeType === "paid" ? block.eventFeeAmount || "Price to be announced" : "";
   const location = present(block.eventLocation)
     ? `<div data-newsletter-role="label" style="margin:0 0 14px;opacity:0.68;${role(block, "label", 13, 400)}">${text(block.eventLocation)}</div>`
     : "";
@@ -155,8 +163,9 @@ function renderEventCard(block: StudioBlock, width: number): string {
     paragraph(block, block.subheading, "subheading", 16) +
     date +
     location +
+    paragraph(block, fee, "label", 13) +
     paragraph(block, block.body) +
-    renderNewsletterButton(block);
+    renderNewsletterButton(block, undefined, undefined, editing);
 
   if (!image) {
     return `<div class="mobile-padding" style="padding:28px 30px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${content}</div>`;
@@ -164,7 +173,10 @@ function renderEventCard(block: StudioBlock, width: number): string {
 
   const imageCell = `<td dir="ltr" class="responsive-column product-card-image" width="42%" valign="middle" style="width:42%;vertical-align:middle;padding:${imageSide === "right" ? "22px 22px 22px 11px" : "22px 11px 22px 22px"};">${image}</td>`;
   const contentCell = `<td dir="ltr" class="responsive-column product-card-details" width="58%" valign="middle" style="width:58%;vertical-align:middle;padding:${imageSide === "right" ? "26px 11px 26px 26px" : "26px 26px 26px 11px"};">${content}</td>`;
-  return `<table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};"><tr${imageSide === "right" ? ' dir="rtl"' : ""}>${imageCell + contentCell}</tr></table>`;
+  if (block.imagePosition === "top") {
+    return `<div class="mobile-padding" style="padding:18px;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};">${image}<div style="padding:18px 8px;">${content}</div></div>`;
+  }
+  return `<table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #e4e7e2;border-radius:14px;background-color:${emailColor(block.backgroundColor, "#ffffff")};"><tr>${imageSide === "right" ? contentCell + imageCell : imageCell + contentCell}</tr></table>`;
 }
 export function couponOfferLabel(block: StudioBlock): string {
   switch (block.couponOffer) {
@@ -202,7 +214,7 @@ export function validUpcA(code: string): boolean {
     .reduce((n, d, i) => n + Number(d) * (i % 2 === 0 ? 3 : 1), 0);
   return (10 - (sum % 10)) % 10 === Number(code[11]);
 }
-export function renderCoupon(block: StudioBlock, width: number): string {
+export function renderCoupon(block: StudioBlock, width: number, editing = false): string {
   const price = couponOfferLabel(block);
   const finePrint =
     paragraph(block, block.couponConditions, "smallPrint", 11) +
@@ -225,7 +237,7 @@ export function renderCoupon(block: StudioBlock, width: number): string {
     paragraph(block, block.body) +
     `${price ? `<div data-newsletter-role="price" style="margin:12px 0;${role(block, "price", 28, 800)}">${text(price)}</div>` : ""}${block.originalPrice ? `<div style="margin-bottom:8px;"><s>${text(block.originalPrice)}</s></div>` : ""}${block.couponPrice && block.couponOffer !== "price" && block.couponOffer !== "tiered" ? paragraph(block, block.couponPrice, "price", 20) : ""}` +
     paragraph(block, block.couponSizing, "label", 13) +
-    renderNewsletterButton(block) +
+    renderNewsletterButton(block, undefined, undefined, editing) +
     `<div style="padding-top:12px;">${finePrint}</div>` +
     barcode;
   const border =
@@ -264,7 +276,7 @@ export function renderExtendedBlock(
   switch (block.type) {
     case "product-card": {
       const content =
-        badges(block) +
+        (block.showBadges === false ? "" : `<div style="text-align:${block.badgePosition === "top-right" ? "right" : "left"};">${badges(block)}</div>`) +
         heading(block, block.productName ?? block.headline) +
         paragraph(
           block,
@@ -276,7 +288,7 @@ export function renderExtendedBlock(
           ? `<div data-newsletter-role="price" style="margin:8px 0;${role(block, "price", 22, 700)}">${text(block.productPrice)}${block.originalPrice ? ` <s style="font-size:14px;font-weight:400;">${text(block.originalPrice)}</s>` : ""}</div>`
           : "") +
         paragraph(block, block.productDescription ?? block.body) +
-        renderNewsletterButton(block);
+        `<div style="text-align:${block.buttonAlign ?? "left"};">${renderNewsletterButton(block, undefined, undefined, editing)}</div>`;
       const side =
         block.imagePosition === "left" ||
         block.imagePosition === "right" ||
@@ -293,7 +305,9 @@ export function renderExtendedBlock(
         block.showCardBorder === false
           ? "none"
           : "1px solid #cbd5e1";
-      return `<div style="padding:${block.appearance?.padding ? "0" : "24px"};border:${border};border-radius:${clampNumber(block.cardBorderRadius, 10, 0, 48)}px;background:${emailColor(block.backgroundColor, "#ffffff")};">${imageAndContent(block, content, side, width - 48)}</div>`;
+      const displayContent = block.layout === "centered" ? `<div style="text-align:center;">${content}</div>` : content;
+      const displayBlock = block.layout === "minimal" ? { ...block, imageUrl: "" } : block;
+      return `<div style="padding:${block.appearance?.padding ? "0" : "24px"};border:${border};border-radius:${clampNumber(block.cardBorderRadius, 10, 0, 48)}px;background:${emailColor(block.backgroundColor, "#ffffff")};">${imageAndContent(displayBlock, displayContent, side, width - 48)}</div>`;
     }
     case "product-gallery": {
       const columns = Math.floor(clampNumber(block.gridColumns, 3, 1, 4));
@@ -321,6 +335,10 @@ export function renderExtendedBlock(
           buttonUrl: product.buttonUrl,
           badgeText: product.badgeText,
           badgeColor: product.badgeColor,
+          badgeTextColor: product.badgeTextColor,
+          appearance: { ...block.appearance,
+            imagePadding: product.imagePadding ?? block.appearance?.imagePadding,
+            imageMargin: product.imageMargin ?? block.appearance?.imageMargin },
           badges: undefined,
         };
         const image = picture(
@@ -341,7 +359,7 @@ export function renderExtendedBlock(
             ? paragraph(block, product.description, "body", 13)
             : "") +
           (block.showCtaButtons !== false
-            ? renderNewsletterButton(productBlock)
+            ? `<div style="text-align:${block.buttonAlign ?? "left"};">${renderNewsletterButton(productBlock, undefined, undefined, editing)}</div>`
             : "");
         return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};"><tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr></table></td>`;
       });
@@ -364,11 +382,12 @@ export function renderExtendedBlock(
         const url = safeEmailUrl(item.image.url, true);
         if (!url) return "";
         const image = `<img data-newsletter-image="galleryImages" data-newsletter-index="${item.index}" class="responsive-image" src="${attr(url)}" alt="${attr(item.image.alt || "")}" width="${Math.floor(available)}" style="display:block;width:100%;height:auto;border:0;border-radius:${clampNumber(block.borderRadius, 6, 0, 48)}px;"/>`;
+        const spacedImage = `<div style="padding:${edgeCss(item.image.imagePadding ?? block.appearance?.imagePadding)};margin:${edgeCss(item.image.imageMargin ?? block.appearance?.imageMargin)};">${image}</div>`;
         const link = safeEmailUrl(item.image.linkUrl);
         return (
           (link
-            ? `<a href="${attr(link)}" target="_blank" rel="noopener noreferrer">${image}</a>`
-            : image) + paragraph(block, item.image.caption, "smallPrint", 12)
+            ? `<a href="${attr(link)}" target="_blank" rel="noopener noreferrer">${spacedImage}</a>`
+            : spacedImage) + paragraph(block, item.image.caption, "smallPrint", 12)
         );
       };
       if (
@@ -417,7 +436,7 @@ export function renderExtendedBlock(
     }
 
     case "coupon":
-      return renderCoupon(block, width);
+      return renderCoupon(block, width, editing);
     case "preheader":
       return paragraph(block, block.body, "smallPrint", 12);
     case "headline":
@@ -513,7 +532,7 @@ export function renderExtendedBlock(
       );
     }
     case "event":
-      return renderEventCard(block, width);
+      return renderEventCard(block, width, editing);
     case "blog":
     case "announcement":
       return imageAndContent(
@@ -524,7 +543,7 @@ export function renderExtendedBlock(
           paragraph(block, block.eventDate, "label", 13) +
           paragraph(block, block.eventLocation, "label", 13) +
           paragraph(block, block.body) +
-          renderNewsletterButton(block),
+          renderNewsletterButton(block, undefined, undefined, editing),
         block.imagePosition === "right"
           ? "right"
           : block.imagePosition === "left"

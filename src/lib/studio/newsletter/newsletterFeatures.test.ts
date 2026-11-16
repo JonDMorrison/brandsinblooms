@@ -203,7 +203,7 @@ describe("newsletter design and safety", () => {
     expect(output).toContain('height="252"');
     expect(output).toContain("text-transform:uppercase");
   });
-  it("keeps right-aligned event images before their copy in source order", () => {
+  it("places right-aligned event photos after their copy without RTL reordering", () => {
     const output = renderNewsletterBlock(
       block("event", {
         headline: "Holiday Planter Parties",
@@ -211,9 +211,11 @@ describe("newsletter design and safety", () => {
         imagePosition: "right",
       }),
     );
-    expect(output).toContain('<tr dir="rtl">');
-    expect(output.indexOf('data-newsletter-image="imageUrl"')).toBeLessThan(
-      output.indexOf("Holiday Planter Parties"),
+    // Explicit table-cell order keeps text left-to-right on desktop and on
+    // narrow email layouts. RTL previously reversed multiple client layouts.
+    expect(output).not.toContain('<tr dir="rtl">');
+    expect(output.indexOf("Holiday Planter Parties")).toBeLessThan(
+      output.indexOf('data-newsletter-image="imageUrl"'),
     );
   });
   it("keeps image-right image/text blocks image-first for mobile clients", () => {
@@ -597,6 +599,118 @@ describe("import safeguards", () => {
     ).toThrow();
   });
 });
+describe("Arts Nursery November 15 Design Studio regressions", () => {
+  it("allows safe bare-domain links but never makes dangerous schemes clickable", () => {
+    expect(safeEmailUrl("artsnursery.com/events")).toBe("https://artsnursery.com/events");
+    expect(safeEmailUrl("www.example.com/offer?code=1")).toBe("https://www.example.com/offer?code=1");
+    expect(safeEmailUrl("javascript:alert(1)")).toBe("");
+    expect(safeEmailUrl("//evil.test/path")).toBe("");
+    expect(safeEmailUrl("example.com/script", true)).toBe("");
+  });
+
+  it.each(["event", "blog", "announcement", "coupon", "product-card"] as const)(
+    "shows a draft button without a destination on %s, but never sends it",
+    (type) => {
+      const draft = block(type, { headline: "Fall offers", productName: "Ferns",
+        buttonText: "Read more", buttonUrl: "" });
+      const preview = renderNewsletterBlock(draft, undefined, undefined, { editing: true });
+      const outbound = renderNewsletterBlock(draft);
+      expect(preview).toContain("Read more");
+      expect(preview).toContain('data-newsletter-role="button"');
+      expect(outbound).not.toContain('data-newsletter-role="button"');
+    },
+  );
+
+  it("keeps product gallery CTA visible in the editor and supports badge and button options", () => {
+    const draft = block("product-gallery", {
+      buttonAlign: "right",
+      fullWidthButton: true,
+      galleryProducts: [{
+        id: "1", name: "Japanese Maple", price: "$39", imageUrl: "https://example.com/maple.png",
+        badgeText: "Rare", badgeColor: "#123456", badgeTextColor: "#abcdef",
+        buttonText: "View plant", buttonUrl: "",
+        imagePadding: { top: 4, left: 8 },
+      }],
+    });
+    const preview = renderNewsletterBlock(draft, undefined, undefined, { editing: true });
+    expect(preview).toContain("View plant");
+    expect(preview).toContain("text-align:right");
+    expect(preview).toContain("width:100%");
+    expect(preview).toContain("background:#123456;color:#abcdef");
+    expect(preview).toContain("padding:4px 0px 0px 8px");
+    expect(renderNewsletterBlock(draft)).not.toContain("View plant");
+  });
+
+  it("places individual gallery image margins and padding in email HTML", () => {
+    const draft = block("image-gallery", { galleryImages: [
+      { id: "one", url: "https://example.com/a.jpg", alt: "Maple",
+        linkUrl: "artsnursery.com/maple", imagePadding: { top: 2, right: 4 },
+        imageMargin: { bottom: 6 } },
+    ] });
+    const rendered = renderNewsletterBlock(draft);
+    expect(rendered).toContain('href="https://artsnursery.com/maple"');
+    expect(rendered).toContain("padding:2px 4px 0px 0px");
+    expect(rendered).toContain("margin:0px 0px 6px 0px");
+  });
+
+  it("makes product layouts and badges visibly different while preserving old crops", () => {
+    const newCard = createStudioBlock("product-card");
+    expect(newCard.imageFit).toBe("contain");
+    const draft = block("product-card", {
+      productName: "Maple", badgeText: "Rare", showBadges: true,
+      badgePosition: "top-right",
+      imageUrl: "https://example.com/maple.jpg", imagePosition: "right",
+      buttonText: "Shop", buttonUrl: "artsnursery.com/maple",
+    });
+    const right = renderNewsletterBlock(draft);
+    expect(right).toContain("text-align:right");
+    expect(right).toContain('href="https://artsnursery.com/maple"');
+    expect(right).not.toContain('dir="rtl"');
+    const centered = renderNewsletterBlock({ ...draft, layout: "centered", imagePosition: "top" });
+    expect(centered).toContain("text-align:center");
+    const minimal = renderNewsletterBlock({ ...draft, layout: "minimal" });
+    expect(minimal).not.toContain("https://example.com/maple.jpg");
+    expect(renderNewsletterBlock({ ...draft, imageFit: "cover" })).toContain("object-fit:cover");
+  });
+
+  it("supports event date, time and admission without requiring a button URL", () => {
+    const event = block("event", {
+      headline: "Workshop", eventStartDate: "2026-12-05", eventStartTime: "14:30",
+      eventFeeType: "donation", buttonText: "Reserve", buttonUrl: "",
+    });
+    const preview = renderNewsletterBlock(event, undefined, undefined, { editing: true });
+    expect(preview).toContain("December 5, 2026");
+    expect(preview).toContain("2:30 PM");
+    expect(preview).toContain("By donation");
+    expect(preview).toContain("Reserve");
+    const outbound = renderNewsletterBlock(event);
+    expect(outbound).not.toContain('data-newsletter-role="button"');
+    const legacy = renderNewsletterBlock(block("event", { eventDate: "Saturday afternoon" }));
+    expect(legacy).toContain("Saturday afternoon");
+  });
+
+  it("uses social icon shape, spacing and monochrome/custom colour in sent HTML", () => {
+    const links: StudioBlock["socialLinks"] = [
+      { platform: "facebook", url: "https://facebook.com/example", enabled: true },
+      { platform: "instagram", url: "https://instagram.com/example", enabled: true },
+    ];
+    const mono = renderNewsletterBlock(block("social-follow", {
+      socialLinks: links, iconColorMode: "custom", iconStyle: "square",
+      customIconColor: "#123456", iconSpacing: 28,
+    }));
+    expect(mono).toContain("background-color:#123456");
+    expect(mono).toContain("padding:0 14px");
+    expect(mono).toContain("border-radius:5px");
+    expect(mono).toContain("IG");
+    const outline = renderNewsletterBlock(block("social-follow", {
+      socialLinks: links, iconColorMode: "mono", iconStyle: "outlined",
+      textColor: "#987654",
+    }));
+    expect(outline).toContain("border:1px solid #987654");
+    expect(outline).toContain("href=\"https://instagram.com/example\"");
+  });
+});
+
 describe("named Saved Blocks", () => {
   it("deep clones gallery content and assigns fresh nested IDs", () => {
     const original = block("product-gallery", {

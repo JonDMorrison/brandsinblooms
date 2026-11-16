@@ -140,6 +140,57 @@ describe("newsletter editing controls", () => {
     expect(update).not.toHaveBeenCalledWith("galleryImages", expect.anything());
   });
 });
+describe("Arts Nursery November 15 editor controls", () => {
+  it("lets a user enter literal tab separators in data table headings", () => {
+    const update = vi.fn();
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("data-table"), tableHeaders: ["Product"] }} update={update} />);
+    const headings = screen.getByLabelText("Column headings (type Tab between columns)") as HTMLTextAreaElement;
+    headings.focus();
+    headings.setSelectionRange(7, 7);
+    fireEvent.keyDown(headings, { key: "Tab" });
+    expect(update).toHaveBeenCalledWith("tableHeaders", ["Product", ""]);
+  });
+
+  it("shows a single image spacing section alongside each image, with a clear link label", () => {
+    const update = vi.fn();
+    const image = { id: "img-1", url: "https://example.com/maple.png", alt: "Maple" };
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("image-gallery"), galleryImages: [image] }} update={update} />);
+    expect(screen.getAllByLabelText("Image link URL").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Image spacing")).toBeNull();
+    fireEvent.change(screen.getAllByLabelText("Image padding top")[0], { target: { value: "8" } });
+    expect(update).toHaveBeenCalledWith("galleryImages", expect.arrayContaining([
+      expect.objectContaining({ ...image, imagePadding: { top: 8 } }),
+    ]));
+    expect(screen.queryByLabelText("Button horizontal padding")).toBeNull();
+  });
+
+  it("gives product galleries badge colours, button alignment and full width in one section", () => {
+    const update = vi.fn();
+    const product = { id: "p", name: "Maple", price: "$19", imageUrl: "" };
+    render(<ExtendedBlockProperties block={{ ...createStudioBlock("product-gallery"), galleryProducts: [product], gridColumns: 1 }} update={update} />);
+    expect(screen.getAllByText("Badge colour").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Badge text colour").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Image link URL").length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText("Button alignment"), { target: { value: "center" } });
+    expect(update).toHaveBeenCalledWith("buttonAlign", "center");
+    fireEvent.click(screen.getByLabelText("Full width buttons"));
+    expect(update).toHaveBeenCalledWith("fullWidthButton", true);
+  });
+
+  it("shows native event date/time and admission fee fields", () => {
+    const update = vi.fn();
+    render(<ExtendedBlockProperties block={createStudioBlock("event")} update={update} />);
+    const date = screen.getByLabelText("Event date") as HTMLInputElement;
+    const time = screen.getByLabelText("Start time") as HTMLInputElement;
+    expect(date.type).toBe("date");
+    expect(time.type).toBe("time");
+    fireEvent.change(date, { target: { value: "2026-12-07" } });
+    expect(update).toHaveBeenCalledWith("eventStartDate", "2026-12-07");
+    fireEvent.change(screen.getByLabelText("Fee / admission"), { target: { value: "free" } });
+    expect(update).toHaveBeenCalledWith("eventFeeType", "free");
+  });
+});
+
 describe("named account library and outline", () => {
   const setup = (extra: Record<string, unknown> = {}) => {
     const source = {

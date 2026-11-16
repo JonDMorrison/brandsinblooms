@@ -1,6 +1,7 @@
 import type {
   BlockAppearance,
   BlockAudience,
+  EdgeSpacing,
   ChartPoint,
   CouponOffer,
   HeadingLevel,
@@ -83,6 +84,8 @@ export interface GalleryImage {
   alt: string;
   caption?: string;
   linkUrl?: string;
+  imagePadding?: EdgeSpacing;
+  imageMargin?: EdgeSpacing;
 }
 
 export interface GalleryProduct {
@@ -96,6 +99,9 @@ export interface GalleryProduct {
   description?: string;
   badgeText?: string;
   badgeColor?: string;
+  badgeTextColor?: string;
+  imagePadding?: EdgeSpacing;
+  imageMargin?: EdgeSpacing;
   buttonText?: string;
   buttonUrl?: string;
 }
@@ -132,6 +138,11 @@ export interface StudioBlock {
   chartUnit?: string;
   videoUrl?: string;
   eventDate?: string;
+  /** ISO date and local time selected in the editor; older eventDate remains supported. */
+  eventStartDate?: string;
+  eventStartTime?: string;
+  eventFeeType?: "unspecified" | "free" | "donation" | "paid";
+  eventFeeAmount?: string;
   eventLocation?: string;
   headerBannerUrl?: string;
   newsletterSettings?: NewsletterSettings;

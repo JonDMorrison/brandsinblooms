@@ -904,7 +904,8 @@ export const productCardPresets: LayoutPreset[] = [
     description: "Image left with product details right",
     fields: {
       layout: "standard",
-      imageFit: "cover",
+      imagePosition: "left",
+      imageFit: "contain",
       buttonStyle: "filled",
       backgroundColor: "#ffffff",
       textColor: "#111827",
@@ -921,7 +922,8 @@ export const productCardPresets: LayoutPreset[] = [
     description: "Stacked centered product card",
     fields: {
       layout: "centered",
-      imageFit: "cover",
+      imagePosition: "top",
+      imageFit: "contain",
       buttonStyle: "filled",
       backgroundColor: "#ffffff",
       textColor: "#111827",
@@ -938,6 +940,7 @@ export const productCardPresets: LayoutPreset[] = [
     description: "Text-only product card",
     fields: {
       layout: "minimal",
+      imagePosition: "top",
       buttonStyle: "link",
       backgroundColor: "#ffffff",
       textColor: "#111827",
