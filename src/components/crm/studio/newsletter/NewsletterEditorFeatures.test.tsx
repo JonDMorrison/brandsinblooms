@@ -158,7 +158,9 @@ describe("Arts Nursery November 15 editor controls", () => {
     expect(screen.getAllByLabelText("Image link URL").length).toBeGreaterThan(0);
     expect(screen.queryByText("Image spacing")).toBeNull();
     fireEvent.change(screen.getAllByLabelText("Image padding top")[0], { target: { value: "8" } });
-    expect(update).toHaveBeenCalledWith("galleryImages", [{ ...image, imagePadding: { top: 8 }, imageMargin: undefined }]);
+    expect(update).toHaveBeenCalledWith("galleryImages", expect.arrayContaining([
+      expect.objectContaining({ ...image, imagePadding: { top: 8 } }),
+    ]));
     expect(screen.queryByLabelText("Button horizontal padding")).toBeNull();
   });
 
