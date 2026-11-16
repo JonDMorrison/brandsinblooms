@@ -197,7 +197,13 @@ export function safeEmailUrl(value: unknown, image = false): string {
   )
     return "";
   try {
-    const url = new URL(value.trim());
+    const entered = value.trim();
+    // A bare public domain in an editable destination is an HTTPS link. Never
+    // infer protocols for image sources, relative paths or non-web schemes.
+    const normalized = !image && !/^[a-z][a-z\d+.-]*:/i.test(entered) &&
+      /^(?:[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?\.)+[a-z]{2,}(?::\d{2,5})?(?:[/?#][^\s]*)?$/i.test(entered)
+      ? `https://${entered}` : entered;
+    const url = new URL(normalized);
     if (url.username || url.password) return "";
     if (url.protocol === "https:" || url.protocol === "http:") return url.href;
     if (!image && ["mailto:", "tel:"].includes(url.protocol)) return url.href;
