@@ -4,10 +4,10 @@ import { createFooterBlockFromDesignSystem } from "./emailHtmlGenerator.ts";
 import { safeEmailUrl } from "./newsletter/settings.ts";
 
 export const BOTANICAL_TEMPLATES = [
-  { id: "botanical-editorial", name: "Botanical Editorial", tags: ["event", "workshop", "invite"], heading: "Make something beautiful.", label: "You're invited" },
-  { id: "botanical-seasonal", name: "Botanical Seasonal Newsletter", tags: ["newsletter", "editorial", "monthly"], heading: "A fresh season of inspiration.", label: "Seasonal notes" },
-  { id: "botanical-product", name: "Botanical Product Feature", tags: ["new arrivals", "curated", "merchandising"], heading: "Something worth a closer look.", label: "In the spotlight" },
-  { id: "botanical-events", name: "Botanical Event Roundup", tags: ["event", "newsletter"], heading: "Make room for something lovely.", label: "What's coming up" },
+  { id: "botanical-editorial", name: "Garden Invitation", tags: ["event", "workshop", "invite"], heading: "Make something beautiful.", label: "You're invited" },
+  { id: "botanical-seasonal", name: "Seasonal Newsletter", tags: ["newsletter", "editorial", "monthly"], heading: "A fresh season of inspiration.", label: "Seasonal notes" },
+  { id: "botanical-product", name: "Product Spotlight", tags: ["new arrivals", "curated", "merchandising"], heading: "Something worth a closer look.", label: "In the spotlight" },
+  { id: "botanical-events", name: "Event Roundup", tags: ["event", "newsletter"], heading: "Make room for something lovely.", label: "What's coming up" },
 ] as const;
 
 export type BotanicalTemplateId = typeof BOTANICAL_TEMPLATES[number]["id"];
