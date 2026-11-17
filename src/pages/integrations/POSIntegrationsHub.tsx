@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { PROVIDERS } from "@/components/integrations/pos/providers";
+import { PROVIDERS, type POSProvider } from "@/components/integrations/pos/providers";
 import { ProviderCard } from "@/components/integrations/pos/ProviderCard";
 import { VmxConnectDialog } from "@/components/integrations/pos/VmxConnectDialog";
 import { POSCheckoutSmsConsentDialog } from "@/components/integrations/pos/POSCheckoutSmsConsentDialog";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useUnifiedPOSConnections } from "@/hooks/useUnifiedPOSConnections";
 
-export default function POSIntegrationsHub() {
+export default function POSIntegrationsHub({ providerFilter }: { providerFilter?: POSProvider["id"] } = {}) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { connections, isLoading, refetch } = useUnifiedPOSConnections();
@@ -124,16 +124,17 @@ export default function POSIntegrationsHub() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
-          POS Integrations
+          {providerFilter === "vmx" ? "VMX POS setup" : "POS Integrations"}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Connect your point-of-sale system to sync customers, transactions, and
-          loyalty data automatically.
+          {providerFilter === "vmx"
+            ? "Connect VMX with a store-specific API key, or upload an exported CSV. Sync status and errors are shown below."
+            : "Connect your point-of-sale system to sync customers, transactions, and loyalty data automatically."}
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {PROVIDERS.map((provider) => (
+        {PROVIDERS.filter((provider) => !providerFilter || provider.id === providerFilter).map((provider) => (
           <ProviderCard
             key={provider.id}
             provider={provider}
