@@ -1722,7 +1722,9 @@ function CampaignEditorScreen() {
         summary={
           campaignType === "email"
             ? hasMeaningfulEmailContent
-              ? `${meaningfulEmailBlockCount} block${meaningfulEmailBlockCount === 1 ? "" : "s"}`
+              ? // Count the footer too, so this matches the number shown in
+                // the studio.
+                `${meaningfulEmailBlockCount + (hasComplianceFooter ? 1 : 0)} blocks`
               : "No email blocks yet"
             : smsMessage.trim()
               ? `${smsMessage.length} characters · ${computeSmsSegments(smsMessage)} segment(s)`

@@ -417,6 +417,9 @@ export default function StudioTopBar({
                   />
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {subjectLine.length} characters
+                    {/\{\{\s*first_name\s*\}\}/.test(subjectLine)
+                      ? " · {{ first_name }} becomes each customer's first name"
+                      : ""}
                   </Typography>
                 </Stack>
 

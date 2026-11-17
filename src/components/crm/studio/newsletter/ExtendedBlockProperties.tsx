@@ -306,7 +306,7 @@ function CouponFields({
         label="Second line (like the botanical name)"
         value={block.subheading}
         onChange={(value) => update("subheading", value)}
-        placeholder="Skimmia japonica"
+        placeholder="Example: Skimmia japonica"
       />
       <StudioRichTextField
         label="Description"
