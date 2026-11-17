@@ -329,7 +329,7 @@ export default function StudioPreviewDialog({
                     return (
                       <Tooltip
                         key={option.value}
-                        title={`${option.label} ${option.width}px`}
+                        title={`See it on a ${option.label === "Desktop" ? "computer" : option.label === "Tablet" ? "tablet" : "phone"}`}
                       >
                         <IconButton
                           variant={selected ? "solid" : "outlined"}

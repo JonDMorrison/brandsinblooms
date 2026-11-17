@@ -102,7 +102,7 @@ describe("newsletter editing controls", () => {
     fireEvent.change(select, { target: { value: "tiered" } });
     expect(update).toHaveBeenCalledWith("couponOffer", "tiered");
     expect(screen.getByLabelText("Introduction")).toBeTruthy();
-    expect(screen.getByLabelText("Subtitle / botanical name")).toBeTruthy();
+    expect(screen.getByLabelText("Second line (like the botanical name)")).toBeTruthy();
     expect(screen.getByLabelText("Expiry")).toBeTruthy();
   });
   it("makes each feature-grid image slot separately editable", () => {

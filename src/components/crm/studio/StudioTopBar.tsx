@@ -348,9 +348,9 @@ export default function StudioTopBar({
                 justifyContent="space-between"
               >
                 <Stack spacing={0.25}>
-                  <Typography level="title-md">Campaign settings</Typography>
+                  <Typography level="title-md">Subject line and sender</Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Edit inbox details and review save information.
+                    This is what customers see in their inbox before they open your email.
                   </Typography>
                 </Stack>
                 <IconButton
@@ -477,12 +477,13 @@ export default function StudioTopBar({
                     onChange={(event) =>
                       onSenderEmailChange(event.target.value)
                     }
+                    placeholder="The email address your customers will see"
                     sx={metadataInputSx}
                   />
                 </Stack>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Changes remain in this campaign until saved.
+                    Click Save changes when you are done.
                   </Typography>
                   <Button
                     color="primary"

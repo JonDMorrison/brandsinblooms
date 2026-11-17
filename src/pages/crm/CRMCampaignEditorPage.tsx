@@ -1212,7 +1212,9 @@ function CampaignEditorScreen() {
   // always wins because CollapsibleSection owns its own toggle state.
 
   const audienceInitiallyExpanded = true;
-  const contentInitiallyExpanded = true;
+  // When someone arrives to review and send, keep the design picker closed so
+  // it does not look like they must choose a design again.
+  const contentInitiallyExpanded = !reviewingNewsletter;
 
   // Keep the large email preview collapsed until explicitly requested.
   // The send controls now remain visible without forcing a long scroll.

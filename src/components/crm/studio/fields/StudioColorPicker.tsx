@@ -266,23 +266,6 @@ export default function StudioColorPicker({
             boxSizing: "border-box",
           }}
         >
-          <Box
-            aria-hidden="true"
-            sx={{
-              width: 18,
-              height: 18,
-              flexShrink: 0,
-              borderRadius: "5px",
-              bgcolor: resolvedColor === "transparent" ? "#ffffff" : resolvedColor,
-              backgroundImage: resolvedColor === "transparent"
-                ? "repeating-conic-gradient(#d9dee2 0% 25%, #fff 0% 50%)"
-                : undefined,
-              backgroundSize: "8px 8px",
-              border: "1px solid",
-              borderColor: "neutral.200",
-              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.6)",
-            }}
-          />
           <input
             type="color"
             aria-label={`Choose custom colour for ${label}`}

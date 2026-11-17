@@ -352,7 +352,11 @@ export function IntentCardThumbnail({
                     fontWeight="700"
                     fill={green}
                   >
-                    The garden journal
+                    {/* Show the template's own name so cards that share this
+                        layout can still be told apart. */}
+                    {template?.name && template.name.length <= 22
+                      ? template.name
+                      : "The garden journal"}
                   </text>
                   {[87, 117].map((y, i) => (
                     <g key={y}>

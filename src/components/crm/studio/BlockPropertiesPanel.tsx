@@ -5170,6 +5170,40 @@ export default function BlockPropertiesPanel({
     }
   }, [panelVisible, restoreScrollPosition, selectedBlockId]);
 
+  // Start a different block's drawer at the top, so its first fields are in
+  // view. Re-opening the same block still restores where the person was.
+  const previousSelectedBlockIdRef = React.useRef(selectedBlockId);
+  React.useEffect(() => {
+    const previous = previousSelectedBlockIdRef.current;
+    previousSelectedBlockIdRef.current = selectedBlockId;
+    if (previous && selectedBlockId && previous !== selectedBlockId) {
+      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [selectedBlockId]);
+
+  // Auto-sizing text boxes measure themselves while the drawer is still
+  // sliding open, which left some far too tall. Ask them to measure again
+  // once the drawer has settled.
+  React.useEffect(() => {
+    if (!panelVisible) return;
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 280);
+    return () => window.clearTimeout(timer);
+  }, [panelVisible, selectedBlockId]);
+
+  // A button with words but no usable web address is left out of the sent
+  // email. Say so, calmly, before the person finds out from a customer.
+  const buttonLink = (block?.buttonUrl || "").trim();
+  const buttonIsOn =
+    Boolean((block?.buttonText || "").trim()) &&
+    (block?.type !== "graphic-hero" || block?.showButton === true);
+  const buttonNeedsLink =
+    Boolean(block) &&
+    block?.type !== "footer" &&
+    buttonIsOn &&
+    (!buttonLink || buttonLink.startsWith("#"));
+
   return (
     <Sheet
       onTransitionEnd={(event) => {
@@ -5316,6 +5350,27 @@ export default function BlockPropertiesPanel({
           pointerEvents: panelVisible ? "auto" : "none",
         }}
       >
+        {buttonNeedsLink ? (
+          <Box
+            role="note"
+            sx={{
+              mx: 2.5,
+              mt: 1.5,
+              p: 1.25,
+              borderRadius: "10px",
+              bgcolor: "primary.50",
+              border: "1px solid",
+              borderColor: "primary.100",
+              color: "neutral.800",
+              fontSize: "13px",
+              lineHeight: 1.45,
+            }}
+          >
+            This block has a button, but the button has no web address yet.
+            Customers will not see the button until you add one, like
+            www.yourstore.com.
+          </Box>
+        ) : null}
         {block?.connectedContent?.type === "event" && onUpdateBlockFields ? <ConnectedEventRefresh key={block.id} block={block} onUpdate={onUpdateBlockFields} /> : null}
         {block ? (
           <PanelContent
