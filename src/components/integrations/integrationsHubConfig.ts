@@ -103,7 +103,7 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     slug: "vmx",
     name: "VMX POS",
     description:
-      "Connect your VMX garden-centre POS with an API key, or import customer data from VMX CSV files.",
+      "Connect your VMX garden-centre POS securely with its API credentials. Ask support about reviewed CSV migrations.",
     category: "pos-systems",
     categoryLabel: "POS Systems",
     defaultStatus: "available",
