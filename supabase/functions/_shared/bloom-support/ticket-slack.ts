@@ -13,7 +13,8 @@ export interface TicketFacts {
   status?: unknown; stage?: unknown; automation?: unknown;
   executor?: unknown; owner?: unknown; executor_person?: unknown;
   next_action?: unknown; resolution_summary?: unknown; resolution_verified?: unknown;
-  jobs?: unknown; history?: unknown; updated_at?: unknown; release_source?: unknown; release_kind?: unknown;
+  jobs?: unknown; history?: unknown; updated_at?: unknown; created_at?: unknown;
+  release_source?: unknown; release_kind?: unknown;
 }
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const PHONE = /(?:\+?1[\s().-]*)?\(?[2-9]\d{2}\)?[\s().-]*[2-9]\d{2}[\s.-]*\d{4}\b/g;
@@ -98,6 +99,21 @@ export function ticketNextAction(t: TicketFacts): string {
   if(clean(t.automation)==="auto") return "Bloom is handling the initial review; check its recorded progress.";
   return "Assign a support person and decide what should happen next.";
 }
+/** Returns a human-readable age from a ticket's created_at timestamp for Slack context. */
+export function ticketAge(createdAt: unknown): string | null {
+  const raw = typeof createdAt === "string" ? createdAt : typeof createdAt === "number" ? new Date(createdAt).toISOString() : null;
+  if (!raw) return null;
+  const ms = Date.now() - Date.parse(raw);
+  if (!isFinite(ms) || ms < 0) return null;
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return "just now";
+  if (hours < 24) return hours === 1 ? "1h old" : `${hours}h old`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "1 day old";
+  if (days < 14) return `${days} days old`;
+  return `${Math.floor(days / 7)}wk old`;
+}
+
 export function ticketProblem(t: TicketFacts): string {
   const body=text(t.summary,440);
   const subject=text(t.subject,130);
@@ -118,7 +134,9 @@ export function ticketRootMessage(t: TicketFacts, eventKind = "ticket.created"):
   if(!n || !UUID.test(clean(t.id))) throw new Error("invalid ticket for Slack");
   const account=name(t.account);
   const category=productLabels[clean(t.product)] ?? productLabels.unknown;
-  const title = eventKind==="ticket.created" ? "New support ticket" : "Support ticket";
+  const isNew = eventKind === "ticket.created";
+  const age = isNew ? null : ticketAge(t.created_at);
+  const title = isNew ? "New support ticket" : `Support ticket${age ? ` · ${age}` : ""}`;
   const priority=clean(t.priority);
   return [
     "*"+title+" #"+n+"*",

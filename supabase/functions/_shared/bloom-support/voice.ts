@@ -12,16 +12,46 @@ export const BLOOM_ANSWER_SYSTEM_PROMPT = [
 ].join(" ");
 
 export function bloomAcknowledgement(ticketNumber: number): string {
-  return `${BLOOM_ROLE_DISCLOSURE} I've received your request (#${ticketNumber}). I'll take the first look. If this needs a person, I'll hand it over.`;
+  return `${BLOOM_ROLE_DISCLOSURE} Your request #${ticketNumber} is with me now. I'll work through it and let you know what I find — or pass it to a person on our support team if that's what it needs.`;
 }
 
 export function bloomClarification(details: string[]): string {
   const questions = details.map((detail) => detail.trim()).filter(Boolean).slice(0, 5);
   return [
-    "I need a little more detail so I can move this forward:",
+    "To move this forward, I need a few quick details:",
     ...questions.map((question) => `• ${question}`),
     "Reply here and I'll pick it up from there.",
   ].join("\n");
+}
+
+/**
+ * Returns true when a customer's message explicitly asks to speak with a human.
+ * Natural phrasing: "I want a real person", "can I talk to someone", "stop the bot", etc.
+ * Conservative: ambiguous or borderline messages return false to avoid false escalation.
+ */
+export function wantsHumanContact(text: string): boolean {
+  if (!text || text.length > 10_000) return false;
+  const t = text.toLowerCase().replace(/[^\w\s]/g, " ");
+  // "speak/talk/chat/connect with a person/human/agent/staff/someone" (communication verbs)
+  if (/\b(speak|talk|chat|connect|deal)\b.{0,30}\b(person|human|someone|somebody|agent|staff|representative|rep)\b/.test(t)) return true;
+  // "I want/need/prefer a *real/actual/human* person/agent" — explicit qualifier required to avoid
+  // false positives like "I need help adding a person to my account"
+  if (/\b(want|need|prefer|like)\b.{0,20}\b(real|actual|human)\b.{0,15}\b(person|agent|staff|representative|rep)\b/.test(t)) return true;
+  // "I want/need a human" — without a following noun, "human" alone is unambiguous
+  if (/\b(want|need|prefer|like)\b.{0,20}\bhuman\b/.test(t)) return true;
+  // "not a bot / no ai / no bot / stop the bot / talk to a person"
+  if (/\b(not\s+(?:a\s+)?bot|no\s+bot|no\s+ai|not\s+ai|stop\s+(?:the\s+)?bot|no\s+automated|talk\s+to\s+a\s+person)\b/.test(t)) return true;
+  // "get me a (real/human) person/agent/representative"
+  if (/\b(get\s+(?:me\s+)?a\s+(?:real\s+|human\s+)?(?:person|agent|representative|staff)|please.{0,20}human|human.{0,20}please)\b/.test(t)) return true;
+  return false;
+}
+
+/**
+ * Sent when a customer has explicitly asked to speak with a person.
+ * Full context transfer is confirmed: they never need to repeat themselves.
+ */
+export function bloomHumanRequested(): string {
+  return "I've passed this to a person on our support team. They'll have everything you've shared here — the full conversation and all the details you provided — so there's no need to repeat yourself. Someone will be in touch with you shortly.";
 }
 
 export function bloomFeatureReceived(): string {
@@ -83,12 +113,12 @@ export function bloomResolution(summary?: string | null): string {
   return [
     "Good news — this is resolved.",
     result,
-    "If anything still isn't right, reply to this email. I'll reopen the request and continue from here.",
+    "If anything still isn't right, reply to this email and I'll reopen the request right away.",
   ].filter(Boolean).join("\n\n");
 }
 
 export function bloomReopened(): string {
-  return "Thanks for letting me know. I've reopened this request and I'm taking another look. You don't need to start over — the earlier conversation and details are still here.";
+  return "Thanks for letting me know. I've reopened the request and I'm looking at it again. You don't need to start over — the earlier conversation and everything you shared are still here.";
 }
 
 export function bloomAttachmentRejection(rejected: string[]): string {
@@ -101,7 +131,7 @@ export function bloomAttachmentRejection(rejected: string[]): string {
 
 export function bloomHandoff(reason: string): string {
   const why = reason.trim().replace(/[\s.]+$/, "");
-  return `${why}. I'm handing this to a person on our support team rather than guessing. They'll continue with you here.`;
+  return `${why}. I'm passing this to a person on our support team rather than guessing. They'll have everything you've shared here, so there's no need to start over.`;
 }
 
 /** Announce a human handoff only after durable routing proves it is active. */
