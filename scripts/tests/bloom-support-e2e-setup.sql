@@ -81,4 +81,10 @@ BEGIN;
 \ir ../../supabase/migrations/20261112200000_bloom_support_trusted_bug_setup.sql
 COMMIT;
 \ir ../../supabase/migrations/20261115185804_bloom_support_verified_email_threads.sql
+\ir ../../supabase/migrations/20261115191247_bloom_support_release_ticket_links.sql
+\ir ../../supabase/migrations/20261115235416_bloom_support_activity_reconciliation.sql
+\ir ../../supabase/migrations/20261116231018_bloom_support_pre_breach_alerting.sql
+\ir ../../supabase/migrations/20261117000001_bloom_support_approval_queue.sql
+\ir ../../supabase/migrations/20261117010000_bloom_support_digest_approvals_pending.sql
+\ir ../../supabase/migrations/20261117020000_bloom_support_approval_security.sql
 \echo 'bloom-support e2e database ready'

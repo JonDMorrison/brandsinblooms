@@ -400,7 +400,9 @@ async function answer(job: Job): Promise<string> {
           actor: bot.principalId,
           ticket_id: t.id,
           audience: "both",
-          reason: "review the stopped repair and determine the next step",
+          reason: ["escalated", "failed", "rolled_back"].includes(status)
+            ? "review the stopped repair and determine the next step"
+            : "Engineering review needed",
           detail: `The repair reached ${status.replaceAll("_", " ")}; a person needs to continue the request.`,
           dedupe_key: `engineering-handoff:${job.engineering_issue_id ?? t.engineering_issue_id ?? job.id}:${t.id}:${status}`,
         }),
