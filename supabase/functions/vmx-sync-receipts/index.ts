@@ -34,7 +34,7 @@ serve(async (req) => {
     if (connErr || !conn) throw new Error("Connection not found");
     if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
     await authorizeVmxConnectionRequest(req, conn.tenant_id);
-    if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
+    if (!conn.is_active) throw new Error("Connection is inactive");
 
     // Decrypt API key
     const creds = JSON.parse(conn.credentials_encrypted);
