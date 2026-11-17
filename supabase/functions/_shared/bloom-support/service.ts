@@ -388,20 +388,12 @@ export const actions = {
 
   async approveQueuedReply(c: Caller, entryId: string) {
     requireWriteScope(c);
-    const entry = await mutationRpc<{ id: string; ticket_id: string; message_id: string | null; status: string }>(
+    // bloom_support_review_queued_reply atomically transitions pending→approved and
+    // enqueues the send_email job in the same DB transaction; no separate enqueue needed.
+    return mutationRpc<{ id: string; ticket_id: string; message_id: string | null; status: string }>(
       c, "bloom_support_review_queued_reply",
       { p_actor: c.principalId, p_entry_id: uuid(entryId, "entry_id"), p_action: "approved", p_reason: null },
     );
-    // Re-enqueue the original send_email job so the worker delivers the email.
-    // The approved_queue_id bypasses the hold check in sendEmail().
-    if (entry.status === "approved") {
-      await rpc("enqueue_job", {
-        actor: c.principalId, kind: "send_email", ticket_id: entry.ticket_id, lane: "auto",
-        payload: { message_id: entry.message_id ?? null, approved_queue_id: entry.id },
-        idempotency_key: `approved_reply:${entry.id}`, run_after: null, max_attempts: 3, timeout_seconds: 60,
-      }).catch(() => { /* job enqueue failure is non-fatal; staff can retry */ });
-    }
-    return entry;
   },
 
   rejectQueuedReply(c: Caller, entryId: string, reason?: string) {

@@ -400,7 +400,7 @@ async function answer(job: Job): Promise<string> {
           actor: bot.principalId,
           ticket_id: t.id,
           audience: "both",
-          reason: "Engineering review needed",
+          reason: "review the stopped repair and determine the next step",
           detail: `The repair reached ${status.replaceAll("_", " ")}; a person needs to continue the request.`,
           dedupe_key: `engineering-handoff:${job.engineering_issue_id ?? t.engineering_issue_id ?? job.id}:${t.id}:${status}`,
         }),
@@ -525,8 +525,37 @@ async function sendEmail(job: Job): Promise<string> {
   });
   // Sensitive replies require human approval — NEVER auto-send regardless of Gmail availability.
   // Exception: job was explicitly approved from the approval queue by a staff member.
-  const alreadyApproved = !!job.payload.approved_queue_id;
-  if (!alreadyApproved && shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
+  const approvedQueueId = typeof job.payload.approved_queue_id === "string" ? job.payload.approved_queue_id : null;
+  if (approvedQueueId) {
+    // Validate the queue entry before using its frozen content.
+    const entry = await directRpc<{
+      id: string; ticket_id: string; message_id: string | null;
+      to_email: string; subject: string; text_body: string; html_body: string | null;
+      status: string; sent_at: string | null;
+    } | null>("bloom_support_fetch_approval_entry", { p_entry_id: approvedQueueId });
+    if (!entry) return "approval queue entry not found; cannot send";
+    if (entry.status !== "approved") return `skipped: approval entry status is ${entry.status}`;
+    if (entry.ticket_id !== t.id) return "skipped: approval entry ticket_id mismatch";
+    if (entry.to_email !== to) return "skipped: approval entry to_email mismatch";
+    if (entry.sent_at) return "skipped: approval entry already sent";
+    // Use frozen content — do not re-render, so post-approval content changes have no effect.
+    const frozenText = entry.text_body;
+    const frozenHtml = entry.html_body ?? undefined;
+    const result = await sendSupportEmail({
+      ticketId: t.id, messageId: (job.payload.message_id as string) ?? null, purpose: purpose as "reply", to,
+      subject: subjectFor(t.number, t.subject), text: frozenText, html: frozenHtml,
+      threadRoot: ctx.thread.root ?? ticketThreadRoot(t.id, emailConfig().replyDomain),
+      inReplyTo: ctx.thread.last_inbound ?? ctx.thread.last_outbound ?? null, references: [ctx.thread.root, ctx.thread.last_outbound].filter(Boolean) as string[],
+      coveredMessageIds: covered,
+      cc: ctx.cc ?? [],
+      idempotencyKey: `approved:${approvedQueueId}`, bloomInitiated, humanAuthored, toClient: true,
+    });
+    requireRetryableEmailOutcome(result);
+    // Close the audit trail regardless of downstream delivery status.
+    await directRpc<void>("bloom_support_mark_approval_sent", { p_entry_id: approvedQueueId }).catch(() => undefined);
+    return `email ${result.status} (approved queue ${approvedQueueId})${result.reason ? ` (${result.reason})` : ""}`;
+  }
+  if (shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
     const emailInput = {
       to, subject: subjectFor(t.number, t.subject), textBody: rendered.text, htmlBody: rendered.html,
       inReplyTo: ctx.thread.last_inbound ?? ctx.thread.last_outbound ?? undefined,
@@ -1209,8 +1238,23 @@ async function notifyEmail(job: Job): Promise<string> {
 
 async function handleSlackCommand(job: Job): Promise<string> {
   const text = String(job.payload.text ?? "").trim().toLowerCase();
+  const slackUserId = String(job.payload.user_id ?? "");
   const responseUrl = String(job.payload.response_url ?? "");
   if (!responseUrl || !/^https:\/\/hooks\.slack\.com\//.test(responseUrl)) return "skipped: missing or invalid response_url";
+
+  // Verify the Slack user maps to an authorized staff principal before exposing support data.
+  const identity = slackUserId
+    ? await directRpc<{ principal_id: string; role: string } | null>("bloom_support_slack_staff_actor", { p_slack_user_id: slackUserId })
+    : null;
+  if (!identity?.principal_id) {
+    await fetch(responseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "You don't have a Bloom Support staff account linked to this Slack user.", response_type: "ephemeral" }),
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => undefined);
+    return "skipped: no authorized staff actor";
+  }
 
   let reply: string;
   if (/queue|open|how many/.test(text)) {
@@ -1266,18 +1310,12 @@ async function handleSlackInteraction(job: Job): Promise<string> {
     return "skipped: no authorized staff actor";
   }
 
+  // bloom_support_review_queued_reply atomically transitions pending→approved/rejected
+  // and enqueues the send_email job on approval; no separate enqueue step needed.
   const entry = await rpc<{ id: string; ticket_id: string; message_id: string | null; status: string }>(
     "bloom_support_review_queued_reply",
     { p_actor: identity.principal_id, p_entry_id: entryId, p_action: action === "approve" ? "approved" : "rejected", p_reason: null },
   );
-
-  if (action === "approve" && entry.status === "approved") {
-    await rpc("enqueue_job", {
-      actor: identity.principal_id, kind: "send_email", ticket_id: entry.ticket_id, lane: "auto",
-      payload: { message_id: entry.message_id ?? null, approved_queue_id: entry.id },
-      idempotency_key: `approved_reply:${entry.id}`, run_after: null, max_attempts: 3, timeout_seconds: 60,
-    }).catch(() => undefined);
-  }
 
   const confirmText = action === "approve" ? "Reply approved and queued for delivery." : "Reply rejected and removed from the queue.";
   if (responseUrl) {
