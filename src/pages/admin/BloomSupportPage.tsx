@@ -19,7 +19,7 @@ import { bloomSupport, type Whoami } from "@/lib/bloomSupport/api";
 import { TicketDetailPane } from "@/components/bloomSupport/TicketDetailPane";
 import { QueueList } from "@/components/bloomSupport/QueueList";
 import { KnowledgePanel } from "@/components/bloomSupport/KnowledgePanel";
-import { ClientsPanel, EngineeringPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
+import { ApprovalQueuePanel, ClientsPanel, EngineeringPanel, FeaturesPanel, OperationsPanel, ProblemsPanel, ReportsPanel, SettingsPanel } from "@/components/bloomSupport/AdminPanels";
 import { DeskNav } from "@/components/bloomSupport/desk/DeskNav";
 import { DecisionsView } from "@/components/bloomSupport/desk/DecisionsView";
 import { LetBloomHandle } from "@/components/bloomSupport/desk/LetBloomHandle";
@@ -32,6 +32,7 @@ import { deskCardSx, deskScaleSx } from "@/components/bloomSupport/desk/deskStyl
 const VIEW_HELP: Partial<Record<DeskView, string>> = {
   queue: "Every open request. Filter, assign, and reply to clients.",
   escalations: "Things Bloom could not decide on its own. Bloom recommends a next step for each one.",
+  approvals: "Replies Bloom prepared on sensitive or escalated tickets. Review each one before it is sent to the client.",
   features: "Ideas clients asked for, with who asked. Decide whether to plan them.",
   clients: "Each client's requests, contacts and linked accounts.",
   knowledge: "Approved answers Bloom can reuse when it replies to clients.",
@@ -145,6 +146,7 @@ export default function BloomSupportPage() {
       )}
       <Box sx={{ overflow: "auto", minHeight: 0, flex: 1, display: view === "queue" || view === "today" ? "none" : "block" }}>
         {view === "escalations" && <DecisionsView me={me.data!} onOpenTicket={openTicket} onOpenDesk={() => go({ view: "queue", ticket: null })} />}
+        {view === "approvals" && <ApprovalQueuePanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "engineering" && <EngineeringPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "features" && <FeaturesPanel me={me.data!} onOpenTicket={openTicket} />}
         {view === "clients" && <ClientsPanel onOpenTicket={openTicket} />}

@@ -3,13 +3,14 @@ import { configureTrustedBug } from "../_shared/bloom-support/trusted-bug-setup.
 // (via API keys / Actions) and any other authenticated operator tooling.
 // Every route authenticates the caller and every action is re-authorized in
 // the database for that caller's principal.
-import { authenticate, BloomError, cors, db, errorResponse, json, readJson, rpc, str } from "../_shared/bloom-support/runtime.ts";
+import { authenticate, BloomError, cors, db, errorResponse, json, readJson, rpc, servicePrincipal, str } from "../_shared/bloom-support/runtime.ts";
 import { actions, requireWriteScope } from "../_shared/bloom-support/service.ts";
 import { attachmentUrl, decodeBase64File, storeAttachment } from "../_shared/bloom-support/attachments.ts";
 import { readiness } from "../_shared/bloom-support/readiness.ts";
 import { approve, authorizationServerMetadata, authorize, register, token } from "../_shared/bloom-support/oauth.ts";
 import { actOnTicket, attachmentLink, renewLink, replyToTicket, TRACK_HEADERS, viewTicket } from "../_shared/bloom-support/track.ts";
 import { startIntegrationTask } from "../_shared/bloom-support/integration-tasks.ts";
+import { verifySlackWebhook } from "../_shared/bloom-support/webhook-auth.ts";
 
 type Handler = (req: Request, params: string[], url: URL) => Promise<unknown>;
 const routes: Array<[string, RegExp, Handler]> = [];
@@ -176,6 +177,13 @@ on("POST", "/service-identities", async (req) => {
   const b = await readJson(req);
   return actions.createServiceIdentity(await caller(req), String(b.name ?? "Bloom service"), String(b.scope));
 });
+on("GET", "/approval-queue", async (req, _p, url) => actions.listApprovalQueue(await caller(req), q(url, "status") ?? "pending"));
+on("POST", "/approval-queue/:id/approve", async (req, [id]) => actions.approveQueuedReply(await caller(req), id));
+on("POST", "/approval-queue/:id/reject", async (req, [id]) => {
+  const b = await readJson(req);
+  return actions.rejectQueuedReply(await caller(req), id, str(b.reason, 500));
+});
+
 on("GET", "/knowledge", async (req) => actions.listKnowledge(await caller(req)));
 on("POST", "/knowledge", async (req) => actions.saveKnowledge(await caller(req), await readJson(req)));
 
@@ -198,10 +206,75 @@ on("POST", "/track/:token/action", (req, [token]) => actOnTicket(req, token));
 on("GET", "/track/:token/attachments/:id", (_req, [token, id]) => attachmentLink(token, id));
 on("POST", "/track/:token/renew", (req, [token]) => renewLink(req, token));
 
+/** Shared Slack webhook verifier — returns raw body or null on failure. */
+async function readSlackBody(req: Request): Promise<string | null> {
+  const secret = Deno.env.get("SLACK_SIGNING_SECRET") ?? "";
+  if (!secret) return null;
+  const size = Number(req.headers.get("content-length") ?? 0);
+  if (size > 32768) return null;
+  const raw = await req.text();
+  if (new TextEncoder().encode(raw).length > 32768) return null;
+  const ok = await verifySlackWebhook(raw, req.headers.get("x-slack-request-timestamp"), req.headers.get("x-slack-signature"), secret);
+  return ok ? raw : null;
+}
+
+const slackJson = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json;charset=utf-8" } });
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/bloom-support-api/, "") || "/";
+
+  // Slack slash-command ingress — verified by signing secret, not API keys.
+  if (req.method === "POST" && path === "/slack/command") {
+    const raw = await readSlackBody(req);
+    if (raw === null) return slackJson({ error: "unauthenticated" }, 401);
+    const params = new URLSearchParams(raw);
+    const text = (params.get("text") ?? "").trim().slice(0, 500);
+    const userId = params.get("user_id") ?? "";
+    const responseUrl = params.get("response_url") ?? "";
+    if (!/^https:\/\/hooks\.slack\.com\//.test(responseUrl)) return slackJson({ error: "invalid" }, 400);
+    const bot = await servicePrincipal("automation").catch(() => null);
+    if (!bot) return slackJson({ error: "service unavailable" }, 503);
+    await rpc("enqueue_job", {
+      actor: bot.principalId, kind: "slack_command", ticket_id: null, lane: "slack",
+      payload: { text, user_id: userId, response_url: responseUrl },
+      idempotency_key: `slack_cmd:${userId}:${Date.now()}`,
+      max_attempts: 2, timeout_seconds: 25,
+    });
+    return slackJson({ response_type: "ephemeral", text: "On it…" });
+  }
+
+  // Slack interactive component payloads — button clicks on approval-queue holds.
+  if (req.method === "POST" && path === "/slack/interactive") {
+    const raw = await readSlackBody(req);
+    if (raw === null) return slackJson({ error: "unauthenticated" }, 401);
+    let payload: Record<string, unknown>;
+    try {
+      const body = req.headers.get("content-type")?.split(";")[0].trim() === "application/x-www-form-urlencoded"
+        ? new URLSearchParams(raw).get("payload")
+        : raw;
+      payload = JSON.parse(body ?? "");
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw Error("invalid");
+    } catch { return slackJson({ error: "invalid" }, 400); }
+    if (payload.type !== "block_actions") return slackJson({ ok: true, ignored: true });
+    const actions = Array.isArray(payload.actions) ? payload.actions : [];
+    const first = actions[0] as Record<string, unknown> | undefined;
+    const actionId = String(first?.action_id ?? "");
+    const slackUserId = String((payload.user as Record<string, unknown> | undefined)?.id ?? "");
+    const responseUrl = String(payload.response_url ?? "");
+    if (!/^(approve|reject):[0-9a-f-]{36}$/i.test(actionId)) return slackJson({ ok: true, ignored: true });
+    const bot = await servicePrincipal("automation").catch(() => null);
+    if (!bot) return slackJson({ error: "service unavailable" }, 503);
+    await rpc("enqueue_job", {
+      actor: bot.principalId, kind: "slack_interaction", ticket_id: null, lane: "slack",
+      payload: { action_id: actionId, slack_user_id: slackUserId, response_url: responseUrl },
+      idempotency_key: `slack_ia:${actionId}:${slackUserId}`,
+      max_attempts: 2, timeout_seconds: 25,
+    });
+    return slackJson({ ok: true });
+  }
   const extra = path.startsWith("/track/") ? TRACK_HEADERS : {};
   try {
     if (req.method === "GET" && path === "/oauth/authorize") return await authorize(url);

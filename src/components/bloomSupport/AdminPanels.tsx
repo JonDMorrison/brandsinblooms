@@ -17,14 +17,14 @@ import Link from "@mui/joy/Link";
 import Skeleton from "@mui/joy/Skeleton";
 import Box from "@mui/joy/Box";
 import { formatDistanceToNow } from "date-fns";
-import { bloomSupport, PRODUCT_LABEL, type Whoami } from "@/lib/bloomSupport/api";
+import { bloomSupport, PRODUCT_LABEL, type ApprovalQueueEntry, type Whoami } from "@/lib/bloomSupport/api";
 import { deskCardSx } from "./desk/deskStyles";
 import { verifiedHistoricalNotificationFailure } from "./desk/resolvedFailures";
 import { StatusPill } from "./desk/StatusPill";
 import { ADMIN_INBOX_KEYS, adminAudienceLabel, adminInboxNames } from "@/lib/bloomSupport/adminLabels";
 import { useAdminInboxNames } from "./useAdminInboxNames";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
-import { CheckCircle2, ChevronDown, Inbox, Search } from "lucide-react";
+import { CheckCircle2, ChevronDown, Inbox, Mail, Search } from "lucide-react";
 import { splitList, useAskDialog } from "./useAskDialog";
 import { ClientPicker, type PickedClient } from "./ClientPicker";
 import { ChatSpendPanel } from "./ChatSpendPanel";
@@ -1046,6 +1046,99 @@ export function SupportConfigPanel({ me }: { me: Whoami }) {
           ) : (
             <Box sx={{ mt: 1 }}><ReadableData value={settings.data?.[c.key] ?? null} /></Box>
           )}
+        </Sheet>
+      ))}
+    </Stack>
+  );
+}
+
+function HoldReasonChip({ reason }: { reason: string | null }) {
+  const label = reason === "needs_owner" ? "Needs admin" : reason === "sensitive_next_action" ? "Sensitive action" : "Sensitive";
+  return <Chip size="sm" color="warning" variant="soft">{label}</Chip>;
+}
+
+export function ApprovalQueuePanel({ me, onOpenTicket }: { me: Whoami; onOpenTicket: (id: string) => void }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["bloom-support", "approval-queue"], queryFn: () => bloomSupport.listApprovalQueue("pending") });
+  const { ask, dialog } = useAskDialog();
+  const [error, setError] = useState<string | null>(null);
+
+  const act = useMutation({
+    mutationFn: (fn: () => Promise<unknown>) => fn(),
+    onSuccess: () => { setError(null); qc.invalidateQueries({ queryKey: ["bloom-support"] }); },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const canReview = me.role === "platform_admin" || me.role === "platform_operator";
+
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <Alert color="danger">{(q.error as Error).message}</Alert>;
+
+  const entries: ApprovalQueueEntry[] = (q.data as ApprovalQueueEntry[] | undefined) ?? [];
+  if (!entries.length) {
+    return (
+      <JoyEmptyState
+        icon={<Inbox size={28} />}
+        title="No replies waiting for approval"
+        description="When Bloom prepares a reply on a sensitive or escalated ticket, it pauses here for staff review before sending."
+      />
+    );
+  }
+
+  return (
+    <Stack spacing={2}>
+      {dialog}
+      {error && <Alert color="danger" sx={{ mb: 1 }}>{error}</Alert>}
+      {entries.map((entry) => (
+        <Sheet key={entry.id} variant="outlined" sx={{ p: 2, borderRadius: "md" }}>
+          <Stack spacing={1.5}>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <HoldReasonChip reason={entry.hold_reason} />
+              {entry.ticket && (
+                <Link level="body-sm" component="button" onClick={() => onOpenTicket(entry.ticket_id)}>
+                  #{entry.ticket.number} {entry.ticket.subject}
+                </Link>
+              )}
+              <Typography level="body-xs" textColor="text.tertiary" sx={{ ml: "auto" }}>
+                {ago(entry.created_at)}
+              </Typography>
+            </Stack>
+
+            <Box sx={{ bgcolor: "neutral.50", p: 2, borderRadius: "sm" }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Mail size={14} />
+                <Typography level="body-xs" textColor="text.secondary">To: {entry.to_email}</Typography>
+                <Typography level="body-xs" textColor="text.secondary">· {entry.subject}</Typography>
+              </Stack>
+              <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap", maxHeight: 160, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {entry.text_body.slice(0, 500)}{entry.text_body.length > 500 ? "…" : ""}
+              </Typography>
+            </Box>
+
+            {canReview && (
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button
+                  size="sm" variant="outlined" color="danger"
+                  onClick={async () => {
+                    const r = await ask({ title: "Reject this reply", description: "The reply will not be sent. Add a note explaining why (optional).", fields: [{ name: "reason", label: "Reason (optional)", kind: "textarea" }], confirmLabel: "Reject" });
+                    if (r !== null) act.mutate(() => bloomSupport.rejectQueuedReply(entry.id, r?.reason as string | undefined));
+                  }}
+                >
+                  Reject
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => act.mutate(() => bloomSupport.approveQueuedReply(entry.id))}
+                  loading={act.isPending}
+                >
+                  Approve &amp; send
+                </Button>
+              </Stack>
+            )}
+            {!canReview && (
+              <Typography level="body-xs" textColor="text.tertiary">Only admins and operators can approve or reject replies.</Typography>
+            )}
+          </Stack>
         </Sheet>
       ))}
     </Stack>

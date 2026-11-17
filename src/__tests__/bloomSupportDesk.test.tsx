@@ -9,12 +9,12 @@ import { DeskHeader } from "@/components/bloomSupport/desk/DeskHeader";
 describe("Support desk navigation", () => {
   it("shows only the five everyday destinations, with specialist tools under More", () => {
     expect(MAIN_VIEWS.map((v) => v.label)).toEqual(["Today", "Requests", "Decisions", "Clients", "Reports"]);
-    expect(MORE_VIEWS.map((v) => v.label)).toEqual(["Feature requests", "Saved answers", "Shared problems", "Fixes in progress", "Account changes", "System status", "Settings"]);
+    expect(MORE_VIEWS.map((v) => v.label)).toEqual(["Reply approvals", "Feature requests", "Saved answers", "Shared problems", "Fixes in progress", "Account changes", "System status", "Settings"]);
     expect(MORE_VIEWS.some((v) => /setup check/i.test(v.label))).toBe(false);
   });
 
   it("keeps every old view value working and falls back to Today for unknown links", () => {
-    for (const v of ["today", "queue", "escalations", "features", "clients", "knowledge", "reports", "problems", "engineering", "operations", "readiness", "settings"]) {
+    for (const v of ["today", "queue", "escalations", "features", "clients", "knowledge", "reports", "problems", "engineering", "operations", "readiness", "settings", "approvals"]) {
       expect(parseDeskView(v)).toBe(v);
     }
     expect(parseDeskView(null)).toBe("today");
