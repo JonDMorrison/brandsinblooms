@@ -282,7 +282,7 @@ export default function CanvasBlockSlot({
               position: "absolute",
               right: -8,
               top: -8,
-              display: "flex",
+              display: isFooterBlock ? "none" : "flex",
               alignItems: "center",
               gap: "2px",
               p: "4px",
@@ -342,6 +342,9 @@ export default function CanvasBlockSlot({
                 <ChevronDown size={14} />
               </IconButton>
             ) : null}
+            {/* The footer holds the required unsubscribe link, so it cannot
+                be deleted from the email. */}
+            {isFooterBlock ? null : (
             <IconButton
               variant="plain"
               color="neutral"
@@ -357,6 +360,7 @@ export default function CanvasBlockSlot({
             >
               <Trash2 size={14} />
             </IconButton>
+            )}
           </Sheet>
         </Box>
       </Box>

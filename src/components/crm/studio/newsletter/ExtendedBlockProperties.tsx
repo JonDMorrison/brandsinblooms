@@ -26,15 +26,15 @@ type Update = (
   value: StudioBlock[keyof StudioBlock],
 ) => void;
 const offers: Array<{ value: CouponOffer; label: string }> = [
-  { value: "price", label: "Just a price" },
-  { value: "percent", label: "Percentage off" },
-  { value: "amount", label: "Dollar amount off" },
-  { value: "bogo", label: "Buy one, get one free" },
-  { value: "buy-x-get-one", label: "Buy X, get one free" },
-  { value: "multi-buy", label: "X for a bundle price" },
-  { value: "tiered", label: "Quantity price / regular price" },
   { value: "25", label: "25% off" },
   { value: "50", label: "50% off" },
+  { value: "percent", label: "Another percentage off" },
+  { value: "amount", label: "Dollars off (like $5 off)" },
+  { value: "price", label: "A sale price (like $19.99)" },
+  { value: "bogo", label: "Buy one, get one free" },
+  { value: "buy-x-get-one", label: "Buy a few, get one free" },
+  { value: "multi-buy", label: "A deal for buying several (like 3 for $10)" },
+  { value: "tiered", label: "A lower price when you buy more" },
 ];
 function LinksEditor({
   block,
@@ -287,13 +287,13 @@ function CouponFields({
         label="Introduction"
         value={block.tagLabel}
         onChange={(value) => update("tagLabel", value)}
-        placeholder="Summer savings"
+        placeholder="Example: Summer savings"
       />
       <Field
         label="Title"
         value={block.headline}
         onChange={(value) => update("headline", value)}
-        placeholder="Japanese Skimmia"
+        placeholder="Example: Japanese Skimmia"
       />
       <Field
         label="Subtitle / botanical name"
@@ -307,7 +307,7 @@ function CouponFields({
         onChange={(value) => update("body", value)}
       />
       <Choice
-        label="Offer preset"
+        label="What is the offer?"
         value={block.couponOffer || "25"}
         onChange={(value) => update("couponOffer", value as CouponOffer)}
         options={offers}
@@ -1026,7 +1026,7 @@ export default function ExtendedBlockProperties({
         <>
           {textField("Table caption", "tableCaption")}
           <Field
-            label="Column headings (type Tab between columns)"
+            label="Column titles (press Tab to start the next column)"
             multiline
             captureTab
             value={(block.tableHeaders || []).join("\t")}
@@ -1035,8 +1035,9 @@ export default function ExtendedBlockProperties({
             }
           />
           <Field
-            label="Rows (paste from a spreadsheet)"
+            label="Rows (paste from a spreadsheet, or press Tab between columns)"
             multiline
+            captureTab
             value={(block.tableRows || [])
               .map((row) => row.join("\t"))
               .join("\n")}

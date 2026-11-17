@@ -247,7 +247,7 @@ export default function StudioColorPicker({
                 },
               }}
             >
-              + More
+              More colours
             </Button>
           ) : null}
         </Stack>
@@ -289,7 +289,7 @@ export default function StudioColorPicker({
             style={{ width: 32, height: 32, minWidth: 32, padding: 2, borderRadius: 8, cursor: "pointer" }}
           />
           <Typography level="body-xs" sx={{ color: "neutral.600", fontWeight: 700, whiteSpace: "nowrap" }}>
-            HEX
+            Colour code
           </Typography>
           <Input
             size="sm"

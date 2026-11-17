@@ -97,7 +97,7 @@ describe("newsletter editing controls", () => {
         update={update}
       />,
     );
-    const select = screen.getByRole("combobox", { name: "Offer preset" });
+    const select = screen.getByRole("combobox", { name: "What is the offer?" });
     expect(select.querySelectorAll("option")).toHaveLength(9);
     fireEvent.change(select, { target: { value: "tiered" } });
     expect(update).toHaveBeenCalledWith("couponOffer", "tiered");
@@ -144,7 +144,7 @@ describe("Arts Nursery November 15 editor controls", () => {
   it("lets a user enter literal tab separators in data table headings", () => {
     const update = vi.fn();
     render(<ExtendedBlockProperties block={{ ...createStudioBlock("data-table"), tableHeaders: ["Product"] }} update={update} />);
-    const headings = screen.getByLabelText("Column headings (type Tab between columns)") as HTMLTextAreaElement;
+    const headings = screen.getByLabelText("Column titles (press Tab to start the next column)") as HTMLTextAreaElement;
     headings.focus();
     headings.setSelectionRange(7, 7);
     fireEvent.keyDown(headings, { key: "Tab" });

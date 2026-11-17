@@ -1663,7 +1663,7 @@ function ProductGalleryManager({
                   />
                   {product.badgeText?.trim() ? (
                     <StudioColorPicker
-                      label="Badge Color"
+                      label="Badge Colour"
                       value={product.badgeColor ?? "#111827"}
                       onChange={(value) =>
                         updateProduct(product.id, { badgeColor: value })
@@ -2165,7 +2165,7 @@ function PanelContent({
               },
               {
                 id: "hero-style",
-                title: "Colors",
+                title: "Colours",
                 content: (
                   <>
                     {block.heroStyle === "gradient" ? (
@@ -2185,7 +2185,7 @@ function PanelContent({
                       </>
                     ) : (
                       <StudioColorPicker
-                        label="Background Color"
+                        label="Background Colour"
                         value={backgroundColor ?? "#1a1a2e"}
                         onChange={(value) =>
                           updateField("backgroundColor", value)
@@ -2205,7 +2205,7 @@ function PanelContent({
                           }
                         />
                         <StudioColorPicker
-                          label="Overlay Color"
+                          label="Overlay Colour"
                           value={block.overlayColor ?? "#000000"}
                           onChange={(value) =>
                             updateField("overlayColor", value)
@@ -2214,7 +2214,7 @@ function PanelContent({
                       </>
                     ) : null}
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#ffffff"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -2269,12 +2269,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Color"
+                      label="Button Colour"
                       value={block.buttonColor ?? "#ffffff"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Color"
+                      label="Button Text Colour"
                       value={block.buttonTextColor ?? "#1a1a2e"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -2424,7 +2424,7 @@ function PanelContent({
                       placeholder="Write the main message..."
                     />
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -2478,14 +2478,14 @@ function PanelContent({
                             }
                           />
                           <StudioColorPicker
-                            label="Button Color"
+                            label="Button Colour"
                             value={block.buttonColor ?? "#111827"}
                             onChange={(value) =>
                               updateField("buttonColor", value)
                             }
                           />
                           <StudioColorPicker
-                            label="Button Text Color"
+                            label="Button Text Colour"
                             value={block.buttonTextColor ?? "#ffffff"}
                             onChange={(value) =>
                               updateField("buttonTextColor", value)
@@ -2555,7 +2555,7 @@ function PanelContent({
                           }
                         >
                           <StudioColorPicker
-                            label="Overlay Color"
+                            label="Overlay Colour"
                             value={block.overlayColor ?? "#000000"}
                             onChange={(value) =>
                               updateField("overlayColor", value)
@@ -2583,7 +2583,7 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
@@ -2669,12 +2669,12 @@ function PanelContent({
                           onChange={(value) => updateField("buttonUrl", value)}
                         />
                         <StudioColorPicker
-                          label="Button Color"
+                          label="Button Colour"
                           value={block.buttonColor ?? "#111827"}
                           onChange={(value) => updateField("buttonColor", value)}
                         />
                         <StudioColorPicker
-                          label="Button Text Color"
+                          label="Button Text Colour"
                           value={block.buttonTextColor ?? "#ffffff"}
                           onChange={(value) => updateField("buttonTextColor", value)}
                         />
@@ -2705,7 +2705,7 @@ function PanelContent({
                           onToggle={(value) => updateField("showAccent", value)}
                         >
                           <StudioColorPicker
-                            label="Accent Color"
+                            label="Accent Colour"
                             value={block.accentColor ?? "#111827"}
                             onChange={(value) =>
                               updateField("accentColor", value)
@@ -2859,12 +2859,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Color"
+                      label="Button Colour"
                       value={block.buttonColor ?? "#111827"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Color"
+                      label="Button Text Colour"
                       value={block.buttonTextColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -2934,7 +2934,7 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
@@ -3065,7 +3065,7 @@ function PanelContent({
                     onToggle={(value) => updateField("showOverlay", value)}
                   >
                     <StudioColorPicker
-                      label="Overlay Color"
+                      label="Overlay Colour"
                       value={block.overlayColor ?? "#000000"}
                       onChange={(value) => updateField("overlayColor", value)}
                       presets={GRAPHIC_HERO_OVERLAY_COLOR_PRESETS}
@@ -3149,7 +3149,7 @@ function PanelContent({
                       onChange={(value) => updateField("textAlign", value)}
                     />
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#ffffff"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -3199,12 +3199,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Color"
+                      label="Button Colour"
                       value={block.buttonColor ?? "#ffffff"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Color"
+                      label="Button Text Colour"
                       value={block.buttonTextColor ?? "#000000"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -3284,7 +3284,7 @@ function PanelContent({
                     />
                     {block.showCaptionBar ? (
                       <StudioColorPicker
-                        label="Caption Bar Color"
+                        label="Caption Bar Colour"
                         value={block.captionBarColor ?? "#1e293b"}
                         onChange={(value) =>
                           updateField("captionBarColor", value)
@@ -3292,7 +3292,7 @@ function PanelContent({
                       />
                     ) : null}
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
@@ -3438,7 +3438,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Caption Color"
+                      label="Caption Colour"
                       value={block.captionColor ?? block.textColor ?? "#6b7280"}
                       onChange={(value) => {
                         updateField("captionColor", value);
@@ -3478,7 +3478,7 @@ function PanelContent({
                       onChange={(value) => updateField("showShadow", value)}
                     />
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
@@ -3573,7 +3573,7 @@ function PanelContent({
                       }}
                     />
                     <StudioColorPicker
-                      label="Line Color"
+                      label="Line Colour"
                       value={block.lineColor ?? "#d1d5db"}
                       onChange={(value) => updateField("lineColor", value)}
                     />
@@ -3634,7 +3634,7 @@ function PanelContent({
                         }
                       />
                       <StudioColorPicker
-                        label="Ornament Color"
+                        label="Ornament Colour"
                         value={block.ornamentColor ?? "#111827"}
                         onChange={(value) =>
                           updateField("ornamentColor", value)
@@ -3651,7 +3651,7 @@ function PanelContent({
                       />
                     </CollapsibleSection>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
@@ -3778,7 +3778,7 @@ function PanelContent({
                       onChange={(value) => updateField("showShadow", value)}
                     />
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
@@ -3902,7 +3902,7 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
@@ -4071,7 +4071,7 @@ function PanelContent({
                         ? "mono"
                         : block.socialColorMode)) === "custom" ? (
                       <StudioColorPicker
-                        label="Custom Icon Color"
+                        label="Custom Icon Colour"
                         value={block.customIconColor ?? "#111827"}
                         onChange={(value) =>
                           updateField("customIconColor", value)
@@ -4096,14 +4096,14 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
                     />
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -4290,7 +4290,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Icon Color"
+                      label="Icon Colour"
                       value={block.footerIconColor ?? "#cbd5e1"}
                       onChange={(value) =>
                         updateField("footerIconColor", value)
@@ -4305,24 +4305,24 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#1e293b"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
                     />
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#ffffff"}
                       onChange={(value) => updateField("textColor", value)}
                     />
                     <StudioColorPicker
-                      label="Link Color"
+                      label="Link Colour"
                       value={block.linkColor ?? "#cbd5e1"}
                       onChange={(value) => updateField("linkColor", value)}
                     />
                     <StudioColorPicker
-                      label="Divider Color"
+                      label="Divider Colour"
                       value={
                         block.dividerBelowColor ?? "rgba(255,255,255,0.16)"
                       }
@@ -4459,14 +4459,14 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
                     />
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#1a1a2e"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -4482,7 +4482,7 @@ function PanelContent({
                     />
                     {(block.showDividerBelow ?? block.showDivider) ? (
                       <StudioColorPicker
-                        label="Divider Color"
+                        label="Divider Colour"
                         value={block.dividerBelowColor ?? "#e2e8f0"}
                         onChange={(value) =>
                           updateField("dividerBelowColor", value)
@@ -4604,19 +4604,19 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Accent Color"
+                      label="Accent Colour"
                       value={block.accentColor ?? "#111827"}
                       onChange={(value) => updateField("accentColor", value)}
                     />
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
                     />
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -4798,12 +4798,12 @@ function PanelContent({
                       onChange={(value) => updateField("badgeText", value)}
                     />
                     <StudioColorPicker
-                      label="Badge Color"
+                      label="Badge Colour"
                       value={block.badgeColor ?? "#111827"}
                       onChange={(value) => updateField("badgeColor", value)}
                     />
                     <StudioColorPicker
-                      label="Badge Text Color"
+                      label="Badge Text Colour"
                       value={block.badgeTextColor ?? "#ffffff"}
                       onChange={(value) => updateField("badgeTextColor", value)}
                     />
@@ -4979,12 +4979,12 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Button Color"
+                      label="Button Colour"
                       value={block.buttonColor ?? "#111827"}
                       onChange={(value) => updateField("buttonColor", value)}
                     />
                     <StudioColorPicker
-                      label="Button Text Color"
+                      label="Button Text Colour"
                       value={block.buttonTextColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("buttonTextColor", value)
@@ -5007,14 +5007,14 @@ function PanelContent({
                 content: (
                   <>
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "#ffffff"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)
                       }
                     />
                     <StudioColorPicker
-                      label="Text Color"
+                      label="Text Colour"
                       value={block.textColor ?? "#111827"}
                       onChange={(value) => updateField("textColor", value)}
                     />
@@ -5114,7 +5114,7 @@ function PanelContent({
                       }
                     />
                     <StudioColorPicker
-                      label="Background Color"
+                      label="Background Colour"
                       value={backgroundColor ?? "transparent"}
                       onChange={(value) =>
                         updateField("backgroundColor", value)

@@ -308,25 +308,25 @@ export default function StudioTopBar({
             {campaignStatus}
           </Chip>
 
-          <IconButton
-            variant="plain"
+          {/* The subject line decides whether an email gets opened, so it is
+              a labelled button and not a bare gear icon. */}
+          <Button
+            variant="outlined"
             color="neutral"
             size="sm"
             aria-label="Campaign settings"
+            title="Subject line, preview text and sender"
+            startDecorator={<Settings size={16} />}
             onClick={() => setSettingsOpen(true)}
             sx={{
               borderRadius: "8px",
-              minWidth: 30,
               minHeight: 30,
-              transition: "transform 300ms ease, background-color 120ms ease",
-              "&:hover": {
-                bgcolor: "neutral.100",
-                transform: "rotate(30deg)",
-              },
+              whiteSpace: "nowrap",
+              fontWeight: 600,
             }}
           >
-            <Settings size={16} />
-          </IconButton>
+            Subject line
+          </Button>
 
           <NewsletterSettingsButton />
           <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)}>
@@ -520,6 +520,7 @@ export default function StudioTopBar({
                   color="neutral"
                   size="sm"
                   aria-label={option.label}
+                  title={option.label}
                   onClick={() => onDeviceModeChange(option.value)}
                   sx={{
                     width: 28,

@@ -304,7 +304,7 @@ export default function StudioCanvas({
                 ?.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
-            Top
+            Go to top
           </button>
           <button
             type="button"
@@ -320,7 +320,7 @@ export default function StudioCanvas({
               });
             }}
           >
-            Bottom
+            Go to bottom
           </button>
         </Box>
       </Box>

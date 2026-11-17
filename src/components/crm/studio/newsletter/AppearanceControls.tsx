@@ -68,7 +68,7 @@ export function NumericField({
   min = 0,
   max = 160,
   step = 1,
-  placeholder = "Inherit",
+  placeholder = "Auto",
 }: {
   label: string;
   value?: number;
@@ -142,7 +142,7 @@ export function Choice({
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {option.label.charAt(0).toUpperCase() + option.label.slice(1)}
           </option>
         ))}
       </select>
@@ -198,7 +198,7 @@ function Edges({
             key={edge}
             label={`${title} ${edge}`}
             value={value?.[edge]}
-            placeholder={String(fallback?.[edge] ?? "Inherit")}
+            placeholder={String(fallback?.[edge] ?? "Auto")}
             onChange={(next) => onChange({ ...initial, ...value, [edge]: next })}
           />
         ))}
@@ -211,8 +211,12 @@ type AppearanceFieldsProps = {
   onChange: (next: BlockAppearance) => void;
 };
 
-export function ImageSpacingFields({ value = {}, onChange }: AppearanceFieldsProps) {
-  return (
+export function ImageSpacingFields({
+  value = {},
+  onChange,
+  collapsible = true,
+}: AppearanceFieldsProps & { collapsible?: boolean }) {
+  const fields = (
     <div className="nl-controls">
       <Edges
           title="Image padding"
@@ -226,10 +230,24 @@ export function ImageSpacingFields({ value = {}, onChange }: AppearanceFieldsPro
         />
     </div>
   );
+  // Most people never need these eight number boxes, so they stay folded
+  // away until someone asks for them.
+  return collapsible ? (
+    <details className="nl-controls">
+      <summary>Adjust the space around the photo</summary>
+      {fields}
+    </details>
+  ) : (
+    fields
+  );
 }
 
-export function ButtonPaddingFields({ value = {}, onChange }: AppearanceFieldsProps) {
-  return (
+export function ButtonPaddingFields({
+  value = {},
+  onChange,
+  collapsible = true,
+}: AppearanceFieldsProps & { collapsible?: boolean }) {
+  const fields = (
     <div className="nl-grid-2">
       <NumericField
         label="Button horizontal padding"
@@ -244,6 +262,14 @@ export function ButtonPaddingFields({ value = {}, onChange }: AppearanceFieldsPr
         onChange={(buttonPaddingY) => onChange({ ...value, buttonPaddingY })}
       />
     </div>
+  );
+  return collapsible ? (
+    <details className="nl-controls">
+      <summary>Adjust the button size</summary>
+      {fields}
+    </details>
+  ) : (
+    fields
   );
 }
 
@@ -407,7 +433,7 @@ export default function AppearanceControls({
             <NumericField
               label="Size (px)"
               value={appearance.size}
-              placeholder={String(inherited?.text?.body?.size ?? legacySize ?? "Inherit")}
+              placeholder={String(inherited?.text?.body?.size ?? legacySize ?? "Auto")}
               min={8}
               max={96}
               onChange={(size) => updateText({ size })}
@@ -415,7 +441,7 @@ export default function AppearanceControls({
             <NumericField
               label="Line height"
               value={appearance.lineHeight}
-              placeholder={String(inherited?.text?.body?.lineHeight ?? plain?.lineHeight ?? "Inherit")}
+              placeholder={String(inherited?.text?.body?.lineHeight ?? plain?.lineHeight ?? "Auto")}
               min={1}
               max={3}
               step={0.05}
@@ -429,7 +455,7 @@ export default function AppearanceControls({
               updateText({ weight: next ? Number(next) : undefined })
             }
             options={[
-              { value: "", label: plain ? `Inherit (${inheritedWeight})` : "Inherit" },
+              { value: "", label: plain ? `Auto (${inheritedWeight})` : "Auto" },
               ...[300, 400, 500, 600, 700, 800, 900].map((n) => ({
                 value: String(n),
                 label: String(n),
@@ -443,7 +469,7 @@ export default function AppearanceControls({
               updateText({ fontFamily: fontFamily || undefined })
             }
             options={[
-              { value: "", label: "Inherit newsletter font" },
+              { value: "", label: "Same as the rest of the email" },
               ...fonts.map((font) => ({
                 value: font,
                 label: font.split(",")[0],
@@ -487,7 +513,7 @@ export default function AppearanceControls({
                   })
                 }
                 options={[
-                  { value: "", label: "Inherit" },
+                  { value: "", label: "Auto" },
                   { value: "underline", label: "Underlined" },
                   { value: "none", label: "No underline" },
                 ]}
@@ -557,12 +583,12 @@ export default function AppearanceControls({
         <>
           <details>
             <summary>Image Spacing</summary>
-            <ImageSpacingFields value={value} onChange={onChange} />
+            <ImageSpacingFields value={value} onChange={onChange} collapsible={false} />
             <VerticalAlignmentField value={value} onChange={onChange} />
           </details>
           <details>
             <summary>Button Spacing</summary>
-            <ButtonPaddingFields value={value} onChange={onChange} />
+            <ButtonPaddingFields value={value} onChange={onChange} collapsible={false} />
           </details>
         </>
       )}
