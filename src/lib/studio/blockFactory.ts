@@ -556,3 +556,49 @@ export function createStudioBlock(
       return base;
   }
 }
+
+// Starter words for a block a person adds by hand, so it does not appear
+// blank. Every line is written to be safe if it is sent unchanged: no
+// "your text here" filler, no invented prices, dates or quotes. Blocks that
+// need real facts (coupons, events, products, quotes) still start empty.
+export function withStarterContent(
+  block: StudioBlock,
+  designSystem?: StudioDesignSystem | null,
+): StudioBlock {
+  const companyName = stringValue(designSystem?.company.name);
+  const businessName =
+    companyName && companyName !== "Your Business" && companyName !== "Your Company"
+      ? companyName
+      : "";
+  const websiteUrl = stringValue(designSystem?.company.websiteUrl);
+  const newsHeadline = businessName ? `News from ${businessName}` : "Our latest news";
+
+  switch (block.type) {
+    case "headline":
+      return { ...block, headline: newsHeadline };
+    case "plain-text":
+      return {
+        ...block,
+        body: "<p>Hello {{first_name}},</p><p>Thank you for being a customer. Here is what is new with us this week.</p>",
+      };
+    case "email-safe-hero":
+      return {
+        ...block,
+        headline: newsHeadline,
+        subheading: "Here is what is new with us this week.",
+      };
+    case "announcement":
+      return {
+        ...block,
+        headline: businessName ? `An update from ${businessName}` : "An update from us",
+      };
+    case "newsletter-header":
+      return businessName ? { ...block, headline: businessName } : block;
+    case "call-to-action":
+      return websiteUrl
+        ? { ...block, buttonText: "Visit our website", buttonUrl: websiteUrl }
+        : block;
+    default:
+      return block;
+  }
+}

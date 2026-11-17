@@ -229,7 +229,7 @@ function ButtonFields({
 }) {
   return (
     <fieldset className="nl-fieldset">
-      <legend>Website link / button</legend>
+      <legend>Button</legend>
       <Field
         label="Link text"
         value={block.buttonText}
@@ -1109,7 +1109,8 @@ export default function ExtendedBlockProperties({
     default:
       content = (
         <>
-          {textField("Introduction", "tagLabel")}
+          <p className="nl-section-title">Words</p>
+          {textField("Small label above the headline", "tagLabel")}
           {textField("Headline", "headline")}
           {textField("Subheading", "subheading")}
           <StudioRichTextField
@@ -1119,6 +1120,7 @@ export default function ExtendedBlockProperties({
           />
           {block.type === "event" && (
             <>
+              <p className="nl-section-title">Date and place</p>
               <Field label="Event date" type="date" value={block.eventStartDate}
                 onChange={(value) => update("eventStartDate", value)} />
               <Field label="Start time" type="time" value={block.eventStartTime}
@@ -1137,13 +1139,14 @@ export default function ExtendedBlockProperties({
               {textField("Location", "eventLocation")}
             </>
           )}
+          <p className="nl-section-title">Photo</p>
           <StudioImageUpload
-            label="Feature image"
+            label="Photo"
             value={block.imageUrl || ""}
             onChange={(value) => update("imageUrl", value)}
           />
           <Choice
-            label="Image placement"
+            label="Where the photo goes"
             value={block.imagePosition || "top"}
             options={["top", "left", "right"].map((value) => ({
               value,

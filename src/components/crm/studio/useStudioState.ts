@@ -6,7 +6,10 @@ import {
   type StudioBlockType,
   STUDIO_BLOCK_LOOKUP,
 } from "@/components/crm/studio/blockLibraryData";
-import { createStudioBlock } from "@/lib/studio/blockFactory";
+import {
+  createStudioBlock,
+  withStarterContent,
+} from "@/lib/studio/blockFactory";
 import type { StudioDesignSystem } from "@/lib/studio/designSystem";
 import {
   ensureFooterBlockCompliance,
@@ -388,8 +391,11 @@ export function useStudioState({
       // Create the block before queuing the state update. React can run the
       // updater later, so an id captured inside it is not reliable here and
       // the new block was sometimes left unselected.
-      const nextBlock = hydrateFooterBlockWithDesignSystem(
-        createStudioBlock(blockType, designSystem),
+      const nextBlock = withStarterContent(
+        hydrateFooterBlockWithDesignSystem(
+          createStudioBlock(blockType, designSystem),
+          designSystem,
+        ),
         designSystem,
       );
 
