@@ -9,6 +9,31 @@
 const DEFAULT_BASE_URL = "https://bcg.vmxllc.com/pos/api";
 const PAGE_SIZE = 1000;
 
+/**
+ * VMX has a store-specific API host. Never reuse Burnett's host for a new
+ * merchant and never allow untrusted URLs to become server-side fetch targets.
+ */
+export function normalizeVmxApiBaseUrl(value: string): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("Ask VMX for your store-specific API URL.");
+  }
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error("Enter the complete HTTPS VMX API URL.");
+  }
+  const host = url.hostname.toLowerCase();
+  if (url.protocol !== "https:" ||
+      !/^[a-z0-9-]+\.vmxllc\.com$/.test(host) ||
+      url.port || url.username || url.password ||
+      url.search || url.hash ||
+      url.pathname.replace(/\/+$/, "") !== "/pos/api") {
+    throw new Error("Use the store-specific https://<store>.vmxllc.com/pos/api URL supplied by VMX.");
+  }
+  return `https://${host}/pos/api`;
+}
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface VmxCustomer {
@@ -135,7 +160,7 @@ export function parseVmxDate(vmxDate: string | null): string | null {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function createVmxClient(apiKey: string, baseUrl?: string) {
-  const base = baseUrl || DEFAULT_BASE_URL;
+  const base = normalizeVmxApiBaseUrl(baseUrl || DEFAULT_BASE_URL);
 
   async function vmxFetch<T>(
     endpoint: string,
@@ -154,6 +179,9 @@ export function createVmxClient(apiKey: string, baseUrl?: string) {
 
       const res = await fetch(url.toString(), {
         method: "GET",
+        // VMX may use a redirect for invalid credentials. Do not follow it to
+        // a login page or disclose the Client ID to another origin.
+        redirect: "manual",
         headers: {
           "VMX-Client-ID": apiKey,
           "VMX-API-Version": "1.11.0",
