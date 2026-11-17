@@ -216,9 +216,9 @@ function ContentWorkspace() {
           ):null}
           <Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",md:"repeat(2,minmax(0,1fr))",xl:"repeat(3,minmax(0,1fr))"},gap:2}}>
             {(data?.items??[]).map(item=><Sheet key={item.siteId+item.id} variant="outlined"
-              sx={{p:2,borderRadius:"lg",bgcolor:promoteId===item.id?"neutral.50":"background.surface"}}>
-              <Stack spacing={1.5}>
-                <Box sx={{height:142,borderRadius:"md",overflow:"hidden",bgcolor:"neutral.100",display:"grid",placeItems:"center"}}>
+              sx={{p:2,borderRadius:"lg",aspectRatio:{xs:"auto",sm:"1 / 1"},minHeight:{xs:360,sm:0},bgcolor:promoteId===item.id?"neutral.50":"background.surface"}}>
+              <Stack spacing={1.5} sx={{height:"100%"}}>
+                <Box sx={{flex:"1 1 0",minHeight:140,borderRadius:"md",overflow:"hidden",bgcolor:"neutral.100",display:"grid",placeItems:"center"}}>
                   {item.imageUrl?<Box component="img" src={item.imageUrl} alt="" sx={{width:"100%",height:"100%",objectFit:"cover"}}/>
                     :<Globe2 size={32} color="var(--joy-palette-neutral-400)"/>}
                 </Box>
