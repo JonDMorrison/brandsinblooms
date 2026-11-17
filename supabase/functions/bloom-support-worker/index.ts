@@ -146,9 +146,20 @@ async function holdForApproval(opts: {
       `A reply was prepared but held for staff review (approval queue entry ${result.id}). It will not be sent until a staff member approves it in Bloom Support → Approvals. Reason: ${opts.holdReason}.`,
       `approval-hold:${opts.job.id}`);
     try {
-      await postSlackInternalText("tickets",
+      await postSlackInternalMessage("tickets",
         `Reply held on ticket #${opts.ticket.number} — needs approval before sending (${opts.holdReason}). Review in Bloom Support → Approvals.`,
-        `approval-hold-slack:${opts.job.id}`);
+        `approval-hold-slack:${opts.job.id}`,
+        undefined,
+        [
+          {
+            type: "actions",
+            elements: [
+              { type: "button", style: "primary", text: { type: "plain_text", text: "Approve", emoji: true }, action_id: `approve:${result.id}` },
+              { type: "button", style: "danger",   text: { type: "plain_text", text: "Reject",  emoji: true }, action_id: `reject:${result.id}` },
+            ],
+          },
+        ],
+      );
     } catch { /* Slack notification is best-effort; hold is already durable */ }
   }
   return result.id;
@@ -1196,6 +1207,90 @@ async function notifyEmail(job: Job): Promise<string> {
   return `notified ${to.length}`;
 }
 
+async function handleSlackCommand(job: Job): Promise<string> {
+  const text = String(job.payload.text ?? "").trim().toLowerCase();
+  const responseUrl = String(job.payload.response_url ?? "");
+  if (!responseUrl || !/^https:\/\/hooks\.slack\.com\//.test(responseUrl)) return "skipped: missing or invalid response_url";
+
+  let reply: string;
+  if (/queue|open|how many/.test(text)) {
+    const summary = await rpc<{ open?: number; total?: number }>("queue_summary", { actor: bot.principalId });
+    reply = `*Open tickets:* ${summary.open ?? 0}`;
+  } else if (/urgent/.test(text)) {
+    const tickets = await rpc<Array<{ priority: string }>>("list_tickets", { actor: bot.principalId, filters: { priority: "urgent", status: "open", limit: 1000 } });
+    const count = Array.isArray(tickets) ? tickets.length : 0;
+    reply = `*Urgent tickets:* ${count}`;
+  } else if (/approval|pending|review/.test(text)) {
+    const queue = await rpc<Array<unknown>>("bloom_support_list_approval_queue", { p_actor: bot.principalId, p_status: "pending" });
+    const count = Array.isArray(queue) ? queue.length : 0;
+    reply = `*Pending approvals:* ${count}`;
+  } else if (/status|state|bloom/.test(text)) {
+    const summary = await rpc<Record<string, unknown>>("queue_summary", { actor: bot.principalId });
+    const open = Number(summary.open ?? 0);
+    const urgent = Number(summary.urgent ?? 0);
+    reply = `*Bloom Support status:* ${open} open ticket${open === 1 ? "" : "s"}${urgent ? `, ${urgent} urgent` : ""}.`;
+  } else {
+    reply = [
+      "*Bloom slash commands:*",
+      "• `queue` / `open` / `how many` — open ticket count",
+      "• `urgent` — urgent ticket count",
+      "• `approval` / `pending` / `review` — approval queue count",
+      "• `status` / `state` / `bloom` — system summary",
+      "• `help` — this message",
+    ].join("\n");
+  }
+
+  await fetch(responseUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: reply, response_type: "ephemeral" }),
+    signal: AbortSignal.timeout(5000),
+  });
+  return `slack_command answered: ${text.slice(0, 60)}`;
+}
+
+async function handleSlackInteraction(job: Job): Promise<string> {
+  const actionId = String(job.payload.action_id ?? "");
+  const slackUserId = String(job.payload.slack_user_id ?? "");
+  const responseUrl = String(job.payload.response_url ?? "");
+
+  const match = /^(approve|reject):([0-9a-f-]{36})$/i.exec(actionId);
+  if (!match) return "skipped: unrecognised action_id";
+  const [, action, entryId] = match;
+
+  const identity = slackUserId
+    ? await directRpc<{ principal_id: string; role: string } | null>("bloom_support_slack_staff_actor", { p_slack_user_id: slackUserId })
+    : null;
+  if (!identity?.principal_id) {
+    if (responseUrl) await fetch(responseUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "You don't have a Bloom Support staff account linked to this Slack user.", replace_original: false }), signal: AbortSignal.timeout(5000) }).catch(() => undefined);
+    return "skipped: no authorized staff actor";
+  }
+
+  const entry = await rpc<{ id: string; ticket_id: string; message_id: string | null; status: string }>(
+    "bloom_support_review_queued_reply",
+    { p_actor: identity.principal_id, p_entry_id: entryId, p_action: action === "approve" ? "approved" : "rejected", p_reason: null },
+  );
+
+  if (action === "approve" && entry.status === "approved") {
+    await rpc("enqueue_job", {
+      actor: identity.principal_id, kind: "send_email", ticket_id: entry.ticket_id, lane: "auto",
+      payload: { message_id: entry.message_id ?? null, approved_queue_id: entry.id },
+      idempotency_key: `approved_reply:${entry.id}`, run_after: null, max_attempts: 3, timeout_seconds: 60,
+    }).catch(() => undefined);
+  }
+
+  const confirmText = action === "approve" ? "Reply approved and queued for delivery." : "Reply rejected and removed from the queue.";
+  if (responseUrl) {
+    await fetch(responseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: confirmText, replace_original: false }),
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => undefined);
+  }
+  return `slack_interaction: ${action} on ${entryId}`;
+}
+
 const HANDLERS: Record<string, (j: Job) => Promise<string>> = {
   triage, answer, send_email: sendEmail, verify_resolution: verifyResolution, escalate: escalateEmail,
   investigate: engineeringStep, engineering_step: engineeringStep,
@@ -1204,6 +1299,8 @@ const HANDLERS: Record<string, (j: Job) => Promise<string>> = {
   digest,
   maintain,
   post_resolution_reply: postResolutionReply,
+  slack_command: handleSlackCommand,
+  slack_interaction: handleSlackInteraction,
 };
 
 async function runOne(job: Job) {
