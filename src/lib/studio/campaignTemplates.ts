@@ -213,7 +213,8 @@ function createHero(
     buttonText: options.buttonText || "Learn more",
     buttonUrl: options.buttonUrl || getWebsiteUrl(designSystem, "#preview"),
     buttonColor: "#fffaf1",
-    buttonTextColor: primaryColor,
+    // Dark text on the cream button. Brand green on cream was hard to read.
+    buttonTextColor: "#1f2f2b",
     useBrandButtonColor: false,
     heroStyle: "solid",
     textAlign: "left",
@@ -434,9 +435,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "evergreen",
     tags: ["newsletter", "showcase", "seasonal stories"],
     accentColor: "#315a46",
-    subjectLine: "A fresh seasonal edit for {{ first_name }}",
+    subjectLine: "What is new this season",
     previewText:
-      "Three visual stories, thoughtful pacing, and one clear next step.",
+      "Stories, ideas and what is new at the garden centre.",
     formatLabel: "Image-led · 3 stories · Closing CTA",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
@@ -524,9 +525,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "spring",
     tags: ["launch", "editorial"],
     accentColor: "#6ea85c",
-    subjectLine: "A lighter spring edit is ready for {{ first_name }}",
+    subjectLine: "Spring has arrived, {{ first_name }}",
     previewText:
-      "Clean storytelling, soft contrast, and one clear call to action.",
+      "New plants are in. Come see what is blooming this week.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "hero", height: 44 },
@@ -561,9 +562,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "spring",
     tags: ["vip", "early access"],
     accentColor: "#4b9872",
-    subjectLine: "Early access opens quietly today",
+    subjectLine: "You get the first look",
     previewText:
-      "A restrained client preview with real Studio blocks and immediate send parity.",
+      "New plants arrive this week. Shop them before anyone else.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "hero", height: 48 },
@@ -597,9 +598,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "summer",
     tags: ["drop", "announcement"],
     accentColor: "#2d8aa9",
-    subjectLine: "The summer launch window is now open",
+    subjectLine: "Summer is here at the garden centre",
     previewText:
-      "A monochrome launch template built for product edits and campaign parity.",
+      "Our summer plants and supplies are in.",
     thumbnailBlocks: [
       { kind: "eyebrow", width: "28%", height: 10 },
       { kind: "hero", height: 48 },
@@ -638,9 +639,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     // only in this file), so per design spec defaulting both summer
     // cards to the cool blue for consistency.
     accentColor: "#2d8aa9",
-    subjectLine: "Your weekend note is ready",
+    subjectLine: "Happening this weekend",
     previewText:
-      "A compact layout for short seasonal sends and event reminders.",
+      "Stop by this weekend. Here is what we have planned.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "image-text", height: 34 },
@@ -674,9 +675,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "autumn",
     tags: ["capsule", "curated"],
     accentColor: "#c97834",
-    subjectLine: "A new autumn capsule is ready to review",
+    subjectLine: "Our fall favourites are in",
     previewText:
-      "Editorial structure with enough contrast to support a curated release.",
+      "Mums, bulbs and everything you need for fall planting.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "hero", height: 48 },
@@ -711,9 +712,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "autumn",
     tags: ["retention", "thank you"],
     accentColor: "#99572d",
-    subjectLine: "A quieter thank-you for your best clients",
+    subjectLine: "Thank you for a great season",
     previewText:
-      "Retention-focused seasonal template with editorial spacing and a polished CTA.",
+      "A small thank-you from all of us.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "quote" },
@@ -747,9 +748,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "winter",
     tags: ["gift", "holiday"],
     accentColor: "#4172b8",
-    subjectLine: "A winter gift edit is ready for {{ first_name }}",
+    subjectLine: "Gift ideas for the gardener in your life",
     previewText:
-      "A premium winter template with concise hierarchy and live preview parity.",
+      "Gifts, wreaths and holiday plants are in store now.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "hero", height: 50 },
@@ -784,9 +785,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "winter",
     tags: ["year end", "founder note"],
     accentColor: "#2a677f",
-    subjectLine: "A measured year-end note for your audience",
+    subjectLine: "A look back at our year",
     previewText:
-      "Monochrome structure for reflective updates and close-of-year storytelling.",
+      "Thank you for growing with us this year.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "hero", height: 44 },
@@ -821,9 +822,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "evergreen",
     tags: ["story", "always on"],
     accentColor: "#4e7d63",
-    subjectLine: "A composed story-led campaign is ready",
+    subjectLine: "The story behind our garden centre",
     previewText:
-      "Evergreen editorial structure with real Studio blocks and restrained contrast.",
+      "How we started and what we care about.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "hero", height: 46 },
@@ -857,9 +858,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "evergreen",
     tags: ["new arrivals", "merchandising"],
     accentColor: "#3c8a7f",
-    subjectLine: "A new arrivals edit is ready to send",
+    subjectLine: "Fresh arrivals this week",
     previewText:
-      "A versatile merchandising layout with restrained monochrome styling.",
+      "New plants just came in. Here are a few we love.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "product-gallery", height: 34 },
@@ -894,9 +895,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "evergreen",
     tags: ["services", "booking"],
     accentColor: "#33696a",
-    subjectLine: "A polished appointment invite is ready",
+    subjectLine: "Book a time with our team",
     previewText:
-      "Use this template for bookings, demos, or service-led campaigns.",
+      "Need help with a garden plan? We can help.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "image-text", height: 34 },
@@ -930,9 +931,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     season: "evergreen",
     tags: ["retention", "loyalty"],
     accentColor: "#8e6a3f",
-    subjectLine: "A quieter loyalty note is ready to send",
+    subjectLine: "Thank you for being a loyal customer",
     previewText:
-      "Retention-focused layout with enough space for a personal tone.",
+      "Here is something special for you.",
     thumbnailBlocks: [
       { kind: "newsletter-header" },
       { kind: "quote" },

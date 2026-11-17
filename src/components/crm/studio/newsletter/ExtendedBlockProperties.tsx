@@ -142,7 +142,7 @@ export function BadgeFields({
     );
   return (
     <details className="nl-controls">
-      <summary>Badges (up to three)</summary>
+      <summary>Add a small tag, like "New" or "Sale"</summary>
       {badges.map((badge, index) => (
         <fieldset key={badge.id} className="nl-fieldset">
           <legend>Badge {index + 1}</legend>
@@ -231,7 +231,7 @@ function ButtonFields({
     <fieldset className="nl-fieldset">
       <legend>Button</legend>
       <Field
-        label="Link text"
+        label="Words on the button"
         value={block.buttonText}
         onChange={(value) => update("buttonText", value)}
       />
@@ -248,7 +248,7 @@ function ButtonFields({
         </div>
       )}
       <Choice
-        label="Link appearance"
+        label="How the button looks"
         value={block.buttonStyle || "filled"}
         onChange={(value) =>
           update("buttonStyle", value as StudioBlock["buttonStyle"])
@@ -303,7 +303,7 @@ function CouponFields({
         placeholder="Example: Japanese Skimmia"
       />
       <Field
-        label="Subtitle / botanical name"
+        label="Second line (like the botanical name)"
         value={block.subheading}
         onChange={(value) => update("subheading", value)}
         placeholder="Skimmia japonica"
@@ -365,11 +365,11 @@ function CouponFields({
         label={
           block.couponOffer === "tiered"
             ? "Price per item at minimum quantity"
-            : "Price (optional, include currency)"
+            : "Price (optional)"
         }
         value={block.couponPrice}
         onChange={(value) => update("couponPrice", value)}
-        placeholder="$19.99"
+        placeholder="Example: $19.99"
       />
       {block.couponOffer === "tiered" && (
         <>
@@ -389,15 +389,15 @@ function CouponFields({
         </>
       )}
       <Field
-        label="Original price (strikethrough)"
+        label="Old price (shown crossed out)"
         value={block.originalPrice}
         onChange={(value) => update("originalPrice", value)}
       />
       <Field
-        label="Sizing / variant"
+        label="Size or type this applies to"
         value={block.couponSizing}
         onChange={(value) => update("couponSizing", value)}
-        placeholder="#2 pot size only"
+        placeholder="Example: #2 pot size only"
       />
       <Field
         label="Conditions"
@@ -409,11 +409,11 @@ function CouponFields({
         label="Expiry"
         value={block.couponExpiry}
         onChange={(value) => update("couponExpiry", value)}
-        placeholder="October 31, 2026"
+        placeholder="Example: October 31, 2026"
       />
       <p className="nl-note">
-        Conditions and expiry appear after the link. Set their colour and size
-        under Typography → Conditions / small print.
+        The conditions and expiry show in small print at the bottom of the
+        coupon.
       </p>
       <StudioImageUpload
         label="Coupon image"
@@ -421,7 +421,7 @@ function CouponFields({
         onChange={(value) => update("imageUrl", value)}
       />
       <Field
-        label="Image alt text"
+        label="Describe the photo"
         value={block.imageAlt}
         onChange={(value) => update("imageAlt", value)}
       />
@@ -450,9 +450,9 @@ function CouponFields({
       <BadgeFields block={block} update={update} />
       <ButtonFields block={block} update={update} />
       <details>
-        <summary>Printable UPC barcode</summary>
+        <summary>Add a barcode your till can scan</summary>
         <Field
-          label="Existing 12-digit UPC-A coupon code"
+          label="12-digit coupon code from your till"
           value={block.couponBarcode}
           onChange={(value) => {
             update("couponBarcode", value);

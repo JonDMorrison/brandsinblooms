@@ -50,7 +50,7 @@ const MESSAGES: {
     FAILED:
       "DNS verification failed for your sending domain. Sending will likely fail. Check your DNS records in Settings → Sender/Domain.",
     NO_SENDER:
-      "No sender configured. Set up your sending domain in Settings → Sender/Domain.",
+      "No sender configured yet. Before you can send, add the email address your emails come from. Go to Settings, then Sender/Domain.",
     DOMAIN_NOT_REGISTERED:
       "The sender email's domain is not registered in your account. Add it in Settings → Sender/Domain before sending.",
   },
