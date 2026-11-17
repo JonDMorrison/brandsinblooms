@@ -354,6 +354,22 @@ export function parseSupportMessageResult(
   };
 }
 
+export interface ApprovalQueueEntry {
+  id: string;
+  ticket_id: string;
+  original_job_id: string;
+  message_id: string | null;
+  to_email: string;
+  subject: string;
+  text_body: string;
+  hold_reason: string | null;
+  status: "pending" | "approved" | "rejected" | "sent";
+  created_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  ticket: { number: number; subject: string; status: string } | null;
+}
+
 /** Bloom chat month-to-date model spend per company (micro-USD: 1 USD = 1,000,000). */
 export interface ChatSpendRow {
   tenant_id: string;
@@ -485,6 +501,9 @@ export const bloomSupport = {
   notifications: () => api<Array<{ id: string; kind: string; title: string; ticket_id: string | null; read_at: string | null; created_at: string }>>("/notifications"),
   knowledge: () => api<KnowledgeArticle[]>("/knowledge"),
   saveKnowledge: (article: KnowledgeWrite) => send<KnowledgeArticle>("POST", "/knowledge", article),
+  listApprovalQueue: (status?: "pending" | "all") => api<ApprovalQueueEntry[]>(`/approval-queue${status ? `?status=${status}` : ""}`),
+  approveQueuedReply: (id: string) => send<{ id: string; status: string }>("POST", `/approval-queue/${id}/approve`),
+  rejectQueuedReply: (id: string, reason?: string) => send<{ id: string; status: string }>("POST", `/approval-queue/${id}/reject`, { reason }),
   publicKnowledge: (product?: KnowledgeProduct) => call<PublicKnowledgeArticle[]>("bloom-support-api", `/help${product ? `?product=${encodeURIComponent(product)}` : ""}`, {}, false),
 
   /** Intake: the signed-in CRM user reports a problem or asks for help. */

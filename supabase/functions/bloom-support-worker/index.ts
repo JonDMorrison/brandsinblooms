@@ -123,6 +123,36 @@ async function bloomSays(t: TicketView, body: string, purpose: string, key: stri
 async function note(t: TicketView, body: string, key?: string) {
   return await rpc("add_message", { actor: bot.principalId, ticket_id: t.id, message: { body, visibility: "internal", idempotency_key: key ?? null } });
 }
+
+/** Hold a Bloom-prepared reply in the approval queue instead of sending.
+ * This is the safety net: sensitive replies NEVER auto-send, regardless of Gmail availability. */
+async function holdForApproval(opts: {
+  ticket: TicketView; job: Job; to: string; subject: string;
+  textBody: string; htmlBody: string; holdReason: string; messageId?: string | null;
+}): Promise<string> {
+  const result = await rpc<{ id: string; created: boolean }>("bloom_support_insert_approval_queue_entry", {
+    p_ticket_id: opts.ticket.id,
+    p_original_job_id: opts.job.id,
+    p_message_id: opts.messageId ?? null,
+    p_to_email: opts.to,
+    p_subject: opts.subject,
+    p_text_body: opts.textBody,
+    p_html_body: opts.htmlBody,
+    p_hold_reason: opts.holdReason,
+    p_idempotency_key: `hold:${opts.job.id}`,
+  });
+  if (result.created) {
+    await note(opts.ticket,
+      `A reply was prepared but held for staff review (approval queue entry ${result.id}). It will not be sent until a staff member approves it in Bloom Support → Approvals. Reason: ${opts.holdReason}.`,
+      `approval-hold:${opts.job.id}`);
+    try {
+      await postSlackInternalText("tickets",
+        `Reply held on ticket #${opts.ticket.number} — needs approval before sending (${opts.holdReason}). Review in Bloom Support → Approvals.`,
+        `approval-hold-slack:${opts.job.id}`);
+    } catch { /* Slack notification is best-effort; hold is already durable */ }
+  }
+  return result.id;
+}
 async function patch(t: TicketView, p: Record<string, unknown>) {
   return await rpc("update_ticket", { actor: bot.principalId, ticket_id: t.id, patch: p });
 }
@@ -482,22 +512,34 @@ async function sendEmail(job: Job): Promise<string> {
     number: t.number, subject: t.subject, status: t.status, waitingReason: t.waiting_reason ?? null, purpose: design, bodies, trackUrl: link, client,
     requesterName: t.requester?.name ?? null, sender: bloomInitiated ? "bloom" : "team",
   });
-  // Prompt 2: sensitive replies go to Gmail drafts for staff review before sending.
-  if (gmailDraftQueueAvailable() && shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
-    const draftResult = await createGmailDraft({
+  // Sensitive replies require human approval — NEVER auto-send regardless of Gmail availability.
+  if (shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
+    const emailInput = {
       to, subject: subjectFor(t.number, t.subject), textBody: rendered.text, htmlBody: rendered.html,
       inReplyTo: ctx.thread.last_inbound ?? ctx.thread.last_outbound ?? undefined,
       references: [ctx.thread.root, ctx.thread.last_outbound].filter(Boolean) as string[],
       idempotencyKey: `job:${job.id}`,
+    };
+    if (gmailDraftQueueAvailable()) {
+      const draftResult = await createGmailDraft(emailInput);
+      if (draftResult.status === "created") {
+        await note(t, `A draft reply was prepared and held for staff review (Gmail draft ${draftResult.draftId}). Review and send from Gmail, then mark this ticket resolved or reply here if the client's issue is settled.`, `gmail-draft:${job.id}`);
+        return `email held as Gmail draft (${draftResult.draftId})`;
+      }
+      if (draftResult.status === "failed") {
+        await note(t, `Gmail draft creation failed: ${draftResult.reason}. Storing in approval queue instead.`, `gmail-draft-fail:${job.id}`);
+      }
+    }
+    // Gmail not configured or failed — store in durable approval queue; never auto-send.
+    const holdReason = t.status === "needs_owner" ? "needs_owner"
+      : /\b(refund|legal|billing|chargeback|fraud|dispute|complaint)\b/i.test(t.next_action ?? "") ? "sensitive_next_action"
+      : "sensitive";
+    const queueId = await holdForApproval({
+      ticket: t, job, to, subject: subjectFor(t.number, t.subject),
+      textBody: rendered.text, htmlBody: rendered.html,
+      holdReason, messageId: job.payload.message_id as string | null | undefined,
     });
-    if (draftResult.status === "created") {
-      await note(t, `A draft reply was prepared and held for staff review (Gmail draft ${draftResult.draftId}). Review and send from Gmail, then mark this ticket resolved or reply here if the client's issue is settled.`, `gmail-draft:${job.id}`);
-      return `email held as Gmail draft (${draftResult.draftId})`;
-    }
-    if (draftResult.status === "failed") {
-      await note(t, `Gmail draft creation failed: ${draftResult.reason}. Falling back to sending directly.`, `gmail-draft-fail:${job.id}`);
-    }
-    // not_configured or failed: fall through to sendSupportEmail
+    return `email held in approval queue (${queueId})`;
   }
   const result = await sendSupportEmail({
     ticketId: t.id, messageId: (job.payload.message_id as string) ?? null, purpose: purpose as "reply", to,

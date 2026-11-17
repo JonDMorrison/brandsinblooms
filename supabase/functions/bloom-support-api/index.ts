@@ -176,6 +176,13 @@ on("POST", "/service-identities", async (req) => {
   const b = await readJson(req);
   return actions.createServiceIdentity(await caller(req), String(b.name ?? "Bloom service"), String(b.scope));
 });
+on("GET", "/approval-queue", async (req, _p, url) => actions.listApprovalQueue(await caller(req), q(url, "status") ?? "pending"));
+on("POST", "/approval-queue/:id/approve", async (req, [id]) => actions.approveQueuedReply(await caller(req), id));
+on("POST", "/approval-queue/:id/reject", async (req, [id]) => {
+  const b = await readJson(req);
+  return actions.rejectQueuedReply(await caller(req), id, str(b.reason, 500));
+});
+
 on("GET", "/knowledge", async (req) => actions.listKnowledge(await caller(req)));
 on("POST", "/knowledge", async (req) => actions.saveKnowledge(await caller(req), await readJson(req)));
 
