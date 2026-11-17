@@ -9,7 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,14 +18,12 @@ interface VmxConnectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  onSwitchToCsv: () => void;
 }
 
 export const VmxConnectDialog: React.FC<VmxConnectDialogProps> = ({
   open,
   onOpenChange,
   onSuccess,
-  onSwitchToCsv,
 }) => {
   const [apiKey, setApiKey] = useState("");
   const [apiUrl, setApiUrl] = useState("");
@@ -178,29 +177,11 @@ export const VmxConnectDialog: React.FC<VmxConnectDialogProps> = ({
             )}
           </Button>
 
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-background px-2 text-muted-foreground">
-                or
-              </span>
-            </div>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-muted-foreground"
-            onClick={() => {
-              onOpenChange(false);
-              onSwitchToCsv();
-            }}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload a CSV file instead
-          </Button>
+          <p className="text-xs text-muted-foreground">
+            Need help getting a VMX API Client ID or bringing over existing CSV records?
+            Email <a className="underline" href={`mailto:${SUPPORT_EMAIL}?subject=VMX%20POS%20setup`}>BloomSuite support</a>.
+            We will review the source before importing customer data.
+          </p>
         </div>
       </DialogContent>
     </Dialog>
