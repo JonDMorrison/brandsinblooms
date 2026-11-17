@@ -125,7 +125,7 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     categoryLabel: "POS Systems",
     defaultStatus: "available",
     icon: Database,
-    keywords: ["ideal", "ideal computer systems", "pos", "api", "customer intelligence", "reports"],
+    keywords: ["ideal", "ideal pos", "idealpos", "ideal computer systems", "pos", "api", "customer intelligence", "reports"],
     syncScopeLabel: "Customers + Sales + Loyalty + Coupons",
     canDisconnect: true,
     targetPath: "/integrations/pos",

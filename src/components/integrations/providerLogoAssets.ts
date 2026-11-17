@@ -3,6 +3,7 @@ import cloverLogo from "@/assets/logos/clover.svg";
 import constantContactLogo from "@/assets/logos/constant-contact.svg";
 import googleAnalytics4Logo from "@/assets/logos/google-analytics-4.png";
 import hubspotLogo from "@/assets/logos/hubspot.svg";
+import idealPosLogo from "@/assets/logos/ideal-pos.png";
 import klaviyoLogo from "@/assets/logos/klaviyo.jpeg";
 import lightspeedLogo from "@/assets/logos/lightspeed-x-series.svg";
 import mailchimpLogo from "@/assets/logos/mailchimp-new.png";
@@ -18,6 +19,9 @@ export const providerLogoAssets: Partial<Record<string, string>> = {
   clover: cloverLogo,
   lightspeed: lightspeedLogo,
   "vmx-pos": vmxPosLogo,
+  // The integrations hub lists these by their hub slugs ("vmx", "ideal").
+  vmx: vmxPosLogo,
+  ideal: idealPosLogo,
   "google-analytics": googleAnalytics4Logo,
   mailchimp: mailchimpLogo,
   klaviyo: klaviyoLogo,
