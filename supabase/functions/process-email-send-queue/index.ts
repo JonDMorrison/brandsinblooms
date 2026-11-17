@@ -630,6 +630,7 @@ async function resendSendBatchRequest(
     const serverErrorBackoffMs = [1000, 4000, 16000];
     let lastError: string | undefined;
     let lastStatus: number | undefined;
+    let uncertainAttempt = false;
 
     // Idempotency key is per API request (batch), not per email.
     const idem = await sha256Base64Url(batchIdempotencyKeySeed);
@@ -653,6 +654,7 @@ async function resendSendBatchRequest(
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
+        if (uncertainAttempt) return { error: "delivery_unconfirmed_requires_reconciliation" };
         const msg =
           json?.message || json?.error || res.statusText || "Resend API error";
         lastError = truncateError(String(msg));
@@ -677,6 +679,7 @@ async function resendSendBatchRequest(
           res.status < 600 &&
           attempt < serverErrorBackoffMs.length
         ) {
+          uncertainAttempt = true;
           await sleep(serverErrorBackoffMs[attempt]);
           continue;
         }

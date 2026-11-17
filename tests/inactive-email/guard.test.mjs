@@ -51,3 +51,8 @@ test('actual provider retry loop checks lifecycle again after ambiguous500 and m
  const result=await request('test-only-key',[{to:'nobody@example.test'}],'stable',undefined,async()=>{checks++;await assertActiveEmailCustomers(db([current]),[{tenant_id:'tenant',customer_id:'active'}])});
  assert.equal(calls,1);assert.equal(checks,2);assert.match(result.error,/deleted or merged/);assert.equal(confirmedDeliveryOutcome(result),false);
 });
+
+test('later429 or422 cannot clear or split an earlier ambiguous500 attempt',async()=>{
+ const {stripTypeScriptTypes}=await import('node:module');const source=readFileSync('supabase/functions/process-email-send-queue/index.ts','utf8');const fn=source.slice(source.indexOf('async function resendSendBatchRequest('),source.indexOf('async function resendSendBatch('));
+ for(const later of [429,422,400]){let calls=0;const request=new Function('fetch','sha256Base64Url','sleep','truncateError','isRateLimitErrorMessage',stripTypeScriptTypes(fn)+';return resendSendBatchRequest;')(async()=>Response.json({message:'validation'}, {status:++calls===1?500:later}),async()=> 'key',async()=>{},String,()=>false);const result=await request('test',[{}],'seed',undefined,async()=>{});assert.equal(calls,2);assert.equal(result.status,undefined);assert.equal(confirmedDeliveryOutcome(result),false);assert.match(result.error,/reconciliation/);}
+});
