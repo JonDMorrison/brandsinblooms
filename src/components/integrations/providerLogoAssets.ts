@@ -12,6 +12,8 @@ import slackLogo from "@/assets/logos/slack.jpeg";
 import squareLogo from "@/assets/logos/square-new.png";
 import vmxPosLogo from "@/assets/logos/vmx-pos.png";
 import zapierLogo from "@/assets/logos/zapier.jpeg";
+import idealPosMark from "@/assets/logos/ideal-pos-mark.png";
+import vmxPosMark from "@/assets/logos/vmx-pos-mark.png";
 
 export const providerLogoAssets: Partial<Record<string, string>> = {
   counterpoint: counterpointLogo,
@@ -30,4 +32,14 @@ export const providerLogoAssets: Partial<Record<string, string>> = {
   hubspot: hubspotLogo,
   zapier: zapierLogo,
   slack: slackLogo,
+};
+
+/**
+ * Square icon marks for providers whose primary logo is a wide wordmark.
+ * Small logo tiles (hub cards) prefer these so the mark stays legible.
+ */
+export const providerMarkAssets: Partial<Record<string, string>> = {
+  "vmx-pos": vmxPosMark,
+  vmx: vmxPosMark,
+  ideal: idealPosMark,
 };
