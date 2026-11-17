@@ -82,7 +82,13 @@ export default function SharedEmailBlockPreview({
         FORBID_TAGS: ["script", "iframe", "form", "input", "style", "link"],
     }));
   }, [block, designSystem, settings]);
-  const hasVisibleContent = Boolean(
+  // With every network switched off, the block used to show faded example
+  // icons that looked like real links. Show the plain "this block is empty"
+  // message until at least one network is turned on.
+  const socialHasNothingOn =
+    block.type === "social-follow" &&
+    !(block.socialLinks || []).some((link) => link.enabled);
+  const hasVisibleContent = !socialHasNothingOn && Boolean(
     html
       .replace(/<[^>]*>/g, "")
       .replace(/&nbsp;/g, "")

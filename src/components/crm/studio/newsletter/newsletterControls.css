@@ -140,3 +140,14 @@
     height: auto !important;
   }
 }
+
+/* Section titles in the flat forms, matching the older drawer sections. */
+.nl-section-title {
+  margin: 18px 0 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2f33;
+}
+.nl-section-title:first-child {
+  margin-top: 4px;
+}
