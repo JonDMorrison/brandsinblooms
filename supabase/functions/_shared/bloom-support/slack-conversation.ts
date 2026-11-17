@@ -78,7 +78,21 @@ async function evidence(c:Context,q:string):Promise<string>{
   }
   return conversationFallback(c.route,q);
 }
+/**
+ * Internal support navigation must not be answered from customer-facing
+ * knowledge articles or tracking links. This answer describes where staff
+ * should look; it never implies that a ticket is assigned or resolved.
+ */
+export function internalSupportQueueAnswer(route:Route, role:string, question:string):string|null {
+  if(route!=="ask" || !["platform_admin","platform_operator","support"].includes(role)) return null;
+  const q=question.toLowerCase();
+  if(!/\b(?:staff|internal|our team|our support team|team dashboard)\b/.test(q)) return null;
+  if(!/\b(?:support|tickets?|requests?|escalat\w*|humans?|persons?)\b/.test(q)) return null;
+  return "For our internal team, open the Bloom Support desk at https://bloomsuite.app/admin/bloom-support. Start with Today for items needing attention and Requests to review open tickets and owners. Decisions is for approvals and other team decisions. A customer email tracking link shows the customer-facing conversation, not the staff queue. I haven't changed any tickets.";
+}
 async function answer(c:Context,question:string):Promise<string>{
+  const internalQueue = internalSupportQueueAnswer(c.route,c.role,question);
+  if(internalQueue) return internalQueue;
   const fallback=conversationFallback(c.route,question);
   // Even a limited answer uses the prior turns, so clarifications do not loop.
   const facts=await evidence(c,question);
