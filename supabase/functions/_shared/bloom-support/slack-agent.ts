@@ -23,19 +23,28 @@ const pick = (r: Row, fields: string[]): Row => Object.fromEntries(fields.filter
 const DESK = "https://bloomsuite.app/admin/bloom-support";
 const PUBLIC_SOURCE = "https://bloomsuite.app/support";
 
+/** Metadata only: never log tokens, channel content, member lists or API bodies. */
+export function privacyDiagnostic(channel: string, data: unknown): Record<string, unknown> {
+  const r = row(data), ch = row(r.channel);
+  const label = (v: unknown) => typeof v === "string" && /^[a-zA-Z0-9_:, -]{1,160}$/.test(v) ? v : undefined;
+  return { event: "bloom_slack_privacy_check", channel, error: label(r.error), needed: label(r.needed), provided: label(r.provided),
+    id_matches: ch.id === channel, is_private: ch.is_private === true, is_shared: ch.is_shared === true, is_ext_shared: ch.is_ext_shared === true };
+}
 /** A staff identity does not make a public channel a safe disclosure target. */
 export async function isPrivateStaffChannel(channel: string): Promise<boolean> {
   const token = env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
-  if (!token) return false;
+  if (!token) { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: "not_configured" }))); return false; }
   try {
     const res = await fetch(`https://slack.com/api/conversations.info?channel=${encodeURIComponent(channel)}`, {
       headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(4000),
     });
-    if (!res.ok) return false;
+    if (!res.ok) { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: `http_${res.status}` }))); await res.body?.cancel(); return false; }
     const data = await res.json();
-    return data.ok === true && data.channel?.id === channel && data.channel?.is_private === true
+    const allowed = data.ok === true && data.channel?.id === channel && data.channel?.is_private === true
       && data.channel?.is_ext_shared !== true && data.channel?.is_shared !== true;
-  } catch { return false; }
+    if (!allowed && (data.ok !== true || data.channel?.id !== channel || data.channel?.is_private === true)) console.warn(JSON.stringify(privacyDiagnostic(channel, data)));
+    return allowed;
+  } catch { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: "lookup_unavailable" }))); return false; }
 }
 
 export async function answerWithSlackAgent(c: SlackAgentContext, question: string, jobId: string): Promise<string | null> {
