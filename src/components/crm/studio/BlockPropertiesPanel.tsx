@@ -2152,7 +2152,7 @@ function PanelContent({
               },
               {
                 id: "hero-layout",
-                title: "Hero Layout",
+                title: "Line up the words",
                 content: (
                   <>
                     <StudioAlignmentToggle

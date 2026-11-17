@@ -14,6 +14,16 @@ import {
 } from "@/lib/crm/newsletterInbox";
 
 type Suggestion = { subject: string; preview: string; reason: string };
+// The inbox preview shows what a customer sees, so the first-name code is
+// shown as an example name. The subject box keeps the real code.
+const FIRST_NAME_TAG = /\{\{\s*first_name\s*\}\}/g;
+function showSampleFirstName(text: string) {
+  return text.replace(FIRST_NAME_TAG, "Jane");
+}
+function hasFirstNameTag(text: string) {
+  return /\{\{\s*first_name\s*\}\}/.test(text);
+}
+
 export function NewsletterInboxReview({
   blocks,
   subject,
@@ -164,7 +174,11 @@ export function NewsletterInboxReview({
           value={subject}
           disabled={disabled}
           onValueChange={(value) => onChange({ subjectLine: value })}
-          helperText={`${subject.length} characters · Aim for 40–60`}
+          helperText={
+            hasFirstNameTag(subject)
+              ? `${subject.length} characters · {{ first_name }} becomes each customer's first name`
+              : `${subject.length} characters · Aim for 40–60`
+          }
         />
         <JoyInput
           label="Preview text"
@@ -187,11 +201,16 @@ export function NewsletterInboxReview({
           INBOX PREVIEW
         </Typography>
         <Typography sx={{ fontWeight: 700 }}>
-          {subject || "Your subject will appear here"}
+          {showSampleFirstName(subject) || "Your subject will appear here"}
         </Typography>
         <Typography level="body-sm" textColor="text.secondary">
-          {preview || "Your preview text will appear here"}
+          {showSampleFirstName(preview) || "Your preview text will appear here"}
         </Typography>
+        {hasFirstNameTag(subject) || hasFirstNameTag(preview) ? (
+          <Typography level="body-xs" sx={{ color: "neutral.600", mt: 1 }}>
+            "Jane" is an example. Each customer sees their own first name.
+          </Typography>
+        ) : null}
       </Box>
       {tips.length ? (
         <Stack spacing={0.75}>
