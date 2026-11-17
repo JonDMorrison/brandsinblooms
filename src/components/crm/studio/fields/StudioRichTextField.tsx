@@ -261,7 +261,7 @@ export default function StudioRichTextField({
         ) : null}
       </Stack>
       <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-        Use Personalize to add first name (FNAME), email, and more.
+        Click Personalize to greet each customer by their first name.
       </Typography>
       <Sheet
         variant="plain"
@@ -510,8 +510,7 @@ export default function StudioRichTextField({
             userSelect: "none",
           }}
         >
-          Enter for a new paragraph · Shift + Enter for a soft line break · use
-          the list buttons in the toolbar for bullets
+          Press Enter to start a new paragraph.
         </Typography>
       </Sheet>
     </Stack>

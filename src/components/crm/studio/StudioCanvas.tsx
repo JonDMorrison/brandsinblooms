@@ -291,7 +291,7 @@ export default function StudioCanvas({
         }}
       >
         <Typography level="body-sm" sx={{ fontWeight: 700, color: "#263d42" }}>
-          Block builder
+          Your email
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           <button
@@ -358,7 +358,7 @@ export default function StudioCanvas({
                 textTransform: "uppercase",
               }}
             >
-              {canvasWidth}px content width
+              Start of your email
             </Typography>
             <Box
               sx={{

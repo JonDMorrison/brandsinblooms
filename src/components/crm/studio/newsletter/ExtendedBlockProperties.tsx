@@ -64,7 +64,7 @@ function LinksEditor({
             onChange={(label) => change(link.id, { label })}
           />
           <Field
-            label="Destination URL"
+            label="Link (web address)"
             value={link.url}
             onChange={(url) => change(link.id, { url })}
           />
@@ -229,7 +229,7 @@ function ButtonFields({
         onChange={(value) => update("buttonText", value)}
       />
       <Field
-        label="Destination URL"
+        label="Link (web address)"
         value={block.buttonUrl}
         onChange={(value) => update("buttonUrl", value)}
       />

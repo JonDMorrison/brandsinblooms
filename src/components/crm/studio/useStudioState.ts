@@ -373,35 +373,54 @@ export function useStudioState({
 
   const addBlock = React.useCallback(
     (blockType: StudioBlockType, insertAtIndex?: number) => {
-      let nextSelectedBlockId: string | null = null;
+      // Only one footer is allowed. Selecting the existing one is the helpful
+      // response when someone tries to add a second.
+      const existingFooter =
+        blockType === "footer"
+          ? blocks.find((block) => block.type === "footer")
+          : undefined;
+
+      if (existingFooter) {
+        setSelectedBlockId(existingFooter.id);
+        return;
+      }
+
+      // Create the block before queuing the state update. React can run the
+      // updater later, so an id captured inside it is not reliable here and
+      // the new block was sometimes left unselected.
+      const nextBlock = hydrateFooterBlockWithDesignSystem(
+        createStudioBlock(blockType, designSystem),
+        designSystem,
+      );
 
       setBlocks((current) => {
-        if (blockType === "footer") {
-          const existingFooter = current.find(
-            (block) => block.type === "footer",
-          );
-
-          if (existingFooter) {
-            nextSelectedBlockId = existingFooter.id;
-            return current;
-          }
+        if (
+          blockType === "footer" &&
+          current.some((block) => block.type === "footer")
+        ) {
+          return current;
         }
 
-        const nextBlock = hydrateFooterBlockWithDesignSystem(
-          createStudioBlock(blockType, designSystem),
-          designSystem,
-        );
-        nextSelectedBlockId = nextBlock.id;
         const footerIndex = current.findIndex(
           (block) => block.type === "footer",
         );
         const lastContentIndex =
           footerIndex === -1 ? current.length : footerIndex;
+        // With no explicit position, place the new block directly below the
+        // block being edited so it appears where the person is working.
+        const selectedIndex =
+          selectedBlockId == null
+            ? -1
+            : current.findIndex((block) => block.id === selectedBlockId);
+        const defaultIndex =
+          selectedIndex === -1
+            ? lastContentIndex
+            : Math.min(selectedIndex + 1, lastContentIndex);
         const nextIndex =
           blockType === "footer"
             ? current.length
             : insertAtIndex == null
-              ? lastContentIndex
+              ? defaultIndex
               : Math.max(0, Math.min(insertAtIndex, lastContentIndex));
         const nextBlocks = [...current];
 
@@ -409,18 +428,10 @@ export function useStudioState({
         return normalizeBlocks(reindexBlocks(nextBlocks), designSystem);
       });
 
-      if (nextSelectedBlockId) {
-        setSelectedBlockId(nextSelectedBlockId);
-
-        if (
-          blockType !== "footer" ||
-          !blocks.some((block) => block.id === nextSelectedBlockId)
-        ) {
-          pulseInsertedBlock(nextSelectedBlockId);
-        }
-      }
+      setSelectedBlockId(nextBlock.id);
+      pulseInsertedBlock(nextBlock.id);
     },
-    [blocks, designSystem, pulseInsertedBlock],
+    [blocks, designSystem, pulseInsertedBlock, selectedBlockId],
   );
 
   const insertSavedBlock = React.useCallback(

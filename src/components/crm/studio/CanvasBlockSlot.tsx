@@ -98,6 +98,18 @@ export default function CanvasBlockSlot({
 
   const showAffordances = !isRemoving && (isHovered || isSelected);
 
+  // Bring a block that was just added into view so the person never has to
+  // hunt for it further down the email.
+  React.useEffect(() => {
+    if (!isNewlyAdded) return;
+    const node = document.querySelector<HTMLElement>(
+      `[data-studio-block-id="${block.id}"]`,
+    );
+    if (typeof node?.scrollIntoView === "function") {
+      node.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [block.id, isNewlyAdded]);
+
   return (
     <Box
       ref={setNodeRef}
