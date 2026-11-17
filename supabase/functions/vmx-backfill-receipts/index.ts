@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient, parseVmxDate } from "../_shared/vmx/client.ts";
+import { authorizeVmxConnectionRequest } from "../_shared/vmx/authorize.ts";
 
 /**
  * vmx-backfill-receipts
@@ -31,6 +32,8 @@ serve(async (req) => {
       .single();
 
     if (connErr || !conn) throw new Error("Connection not found");
+    if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
+    await authorizeVmxConnectionRequest(req, conn.tenant_id);
 
     if (!conn.backfill_mode) {
       return new Response(
@@ -48,7 +51,9 @@ serve(async (req) => {
     const totalProcessed = conn.backfill_receipts_processed || 0;
 
     // Pull ONE page
-    const client = createVmxClient(apiKey);
+    // New VMX merchants use their own validated API host. Legacy Burnett
+    // connections without a saved host retain the existing endpoint.
+    const client = createVmxClient(apiKey, conn.settings?.base_url);
     const result = await client.listReceipts({ start: startDate, page: currentPage });
 
     // Batch upsert

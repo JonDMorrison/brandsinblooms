@@ -27,6 +27,7 @@ type IntegrationsHubQueryData = {
     squareConnection: unknown;
     cloverConnection: unknown;
     lightspeedConnection: unknown;
+    vmxConnection: unknown;
     mailchimpConnection: unknown;
     klaviyoConnection: unknown;
     constantContactConnection: unknown;
@@ -197,6 +198,7 @@ export function useIntegrationsHubData() {
         squareResult,
         cloverResult,
         lightspeedResult,
+        vmxResult,
         mailchimpConnectionResult,
         marketingConnectionsResult,
         googleAnalyticsResult,
@@ -239,6 +241,15 @@ export function useIntegrationsHubData() {
               .limit(1)
           : Promise.resolve({ data: [], error: null }),
         tenant?.id
+          ? supabase
+              .from("pos_connections")
+              .select("id, name, sync_status, is_active, last_sync_at, updated_at, tenant_id")
+              .eq("tenant_id", tenant.id)
+              .eq("platform", "vmx")
+              .order("updated_at", { ascending: false })
+              .limit(1)
+          : Promise.resolve({ data: [], error: null }),
+        tenant?.id
           ? loadMailchimpConnection(tenant.id)
           : Promise.resolve({ data: [], error: null }),
         tenant?.id && user?.id
@@ -263,6 +274,7 @@ export function useIntegrationsHubData() {
         squareResult.error,
         cloverResult.error,
         lightspeedResult.error,
+        vmxResult.error,
         mailchimpConnectionResult.error,
         marketingConnectionsResult.error,
         googleAnalyticsResult.error,
@@ -277,6 +289,7 @@ export function useIntegrationsHubData() {
       const squareConnection = squareResult.data?.[0] ?? null;
       const cloverConnection = cloverResult.data?.[0] ?? null;
       const lightspeedConnection = lightspeedResult.data?.[0] ?? null;
+      const vmxConnection = vmxResult.data?.[0] ?? null;
       const providerConnections = [
         ...(mailchimpConnectionResult.data ?? []),
         ...(marketingConnectionsResult.data ?? []),
@@ -325,6 +338,27 @@ export function useIntegrationsHubData() {
             : (lightspeedConnection.retailer_name ?? "Lightspeed retailer"),
           actionLabel: "Configure",
           targetPath: "/integrations/lightspeed/guide",
+        });
+      }
+
+      if (vmxConnection) {
+        const syncStatus = String(vmxConnection.sync_status ?? "").toLowerCase();
+        const healthy = vmxConnection.is_active === true &&
+          ["success", "connected", "active"].includes(syncStatus);
+        const needsAttention = vmxConnection.is_active === true && syncStatus === "error";
+        items = withPatchedItem(items, "vmx", {
+          // An API credential or an old successful sync is not proof that the
+          // current connection works. Only successful active syncs are connected.
+          status: healthy ? "connected" : "available",
+          connectedSince: healthy ? vmxConnection.last_sync_at : null,
+          metaLabel: needsAttention
+            ? "Sync needs attention"
+            : !vmxConnection.is_active
+              ? "Connection paused"
+              : syncStatus === "pending" || syncStatus === "syncing"
+                ? "First sync pending"
+                : vmxConnection.name || "VMX POS",
+          actionLabel: healthy ? "Manage" : "Check setup",
         });
       }
 
@@ -399,6 +433,7 @@ export function useIntegrationsHubData() {
           squareConnection,
           cloverConnection,
           lightspeedConnection,
+          vmxConnection,
           mailchimpConnection,
           klaviyoConnection,
           constantContactConnection,

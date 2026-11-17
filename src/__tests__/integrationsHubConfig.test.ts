@@ -12,6 +12,17 @@ describe("integrations hub config helpers", () => {
     status: seed.slug === "square" ? "connected" : seed.defaultStatus,
   }));
 
+  it("includes a VMX POS entry pointing to the real connection setup flow", () => {
+    const vmx = getIntegrationSeeds().find((item) => item.slug === "vmx");
+    expect(vmx).toMatchObject({
+      name: "VMX POS",
+      category: "pos-systems",
+      defaultStatus: "available",
+      targetPath: "/integrations/pos/vmx",
+    });
+    expect(filterIntegrations(items, "pos-systems", "vmx").map((item) => item.slug)).toContain("vmx");
+  });
+
   it("filters by provider keywords", () => {
     const results = filterIntegrations(items, "all", "mailchimp");
 

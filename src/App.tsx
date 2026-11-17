@@ -87,6 +87,9 @@ const IntegrationsPage = lazyRetry(() => import("@/pages/IntegrationsPage"));
 const POSIntegrationsPage = lazyRetry(
   () => import("@/pages/integrations/POSIntegrationsPage"),
 );
+const VMXSetupPage = lazyRetry(
+  () => import("@/pages/integrations/VMXSetupPage"),
+);
 const CRMIntegrationsPage = lazyRetry(
   () => import("@/pages/integrations/CRMIntegrationsPage"),
 );
@@ -1150,6 +1153,7 @@ function App() {
               <Route element={<IntegrationsLazyBoundary />}>
                 <Route index element={<IntegrationsPage />} />
                 <Route path="pos" element={<POSIntegrationsPage />} />
+                <Route path="pos/vmx" element={<VMXSetupPage />} />
                 <Route path="crm" element={<CRMIntegrationsPage />} />
                 <Route
                   path="social"

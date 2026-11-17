@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient, parseVmxDate } from "../_shared/vmx/client.ts";
+import { authorizeVmxConnectionRequest } from "../_shared/vmx/authorize.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,7 @@ serve(async (req) => {
 
   const startTime = Date.now();
   let connectionId = "";
+  let authorizedConnection = false;
 
   try {
     const supabase = createClient(
@@ -32,6 +34,9 @@ serve(async (req) => {
 
     if (connErr || !conn) throw new Error("Connection not found");
     if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
+    await authorizeVmxConnectionRequest(req, conn.tenant_id);
+    authorizedConnection = true;
+    if (!conn.is_active) throw new Error("Connection is inactive");
 
     // Decrypt API key
     const creds = JSON.parse(conn.credentials_encrypted);
@@ -49,7 +54,9 @@ serve(async (req) => {
       .update({ sync_status: "syncing", updated_at: new Date().toISOString() })
       .eq("id", connection_id);
 
-    const client = createVmxClient(apiKey);
+    // New VMX merchants use their own validated API host. Legacy Burnett
+    // connections without a saved host retain the existing endpoint.
+    const client = createVmxClient(apiKey, conn.settings?.base_url);
     let page = 1;
     let totalProcessed = 0;
     let hasMore = true;
@@ -204,7 +211,7 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("vmx-sync-receipts error:", err);
-    if (connectionId) {
+    if (authorizedConnection && connectionId) {
       const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await supabase.from("pos_connections").update({
         sync_status: "error",

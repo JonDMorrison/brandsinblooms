@@ -100,6 +100,23 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
       "Square keeps BloomSuite aligned with your live customer and order activity.",
   },
   {
+    slug: "vmx",
+    name: "VMX POS",
+    description:
+      "Connect your VMX garden-centre POS securely with its API credentials. Ask support about reviewed CSV migrations.",
+    category: "pos-systems",
+    categoryLabel: "POS Systems",
+    defaultStatus: "available",
+    icon: Store,
+    keywords: ["vmx", "vmx pos", "garden center", "garden centre", "api key", "csv", "customers", "receipts"],
+    syncScopeLabel: "Customers + Receipts",
+    targetPath: "/integrations/pos/vmx",
+    actionLabel: "Set up",
+    detailActionLabel: "Open VMX setup",
+    detailSummary:
+      "VMX setup supports authenticated API import and a CSV fallback. Connection status reflects the latest recorded sync; API access is supplied by VMX.",
+  },
+  {
     slug: "ideal",
     name: "Ideal",
     description:

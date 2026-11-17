@@ -183,7 +183,12 @@ describe("customer identity resolution release gate", () => {
 
     expect(vmxCustomerSync).toContain("byExternalId");
     expect(vmxCustomerSync).toContain("resolve_vmx_customer_identity_batch");
-    expect(vmxCustomerSync).toContain('.eq("tenant_id", userData.tenant_id)');
+    // VMX also has an internal cron worker. Protect both entry paths by
+    // requiring the exact connection tenant and integration permission.
+    const vmxAuthorization = readSource("supabase/functions/_shared/vmx/authorize.ts");
+    expect(vmxCustomerSync).toContain("authorizeVmxConnectionRequest(req, conn.tenant_id)");
+    expect(vmxAuthorization).toContain("access.tenantId !== tenantId");
+    expect(vmxAuthorization).toContain('permissions.includes("integrations.manage")');
     expect(vmxCustomerSync).not.toContain("seenEmails");
     expect(vmxCustomerSync).not.toContain("email_consent:");
     expect(vmxCustomerSync).not.toContain("sms_consent:");
