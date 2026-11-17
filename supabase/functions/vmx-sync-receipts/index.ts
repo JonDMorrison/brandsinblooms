@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient, parseVmxDate } from "../_shared/vmx/client.ts";
+import { authorizeVmxConnectionRequest } from "../_shared/vmx/authorize.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,8 @@ serve(async (req) => {
       .single();
 
     if (connErr || !conn) throw new Error("Connection not found");
+    if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
+    await authorizeVmxConnectionRequest(req, conn.tenant_id);
     if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
 
     // Decrypt API key
