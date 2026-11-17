@@ -59,12 +59,12 @@ export function buildBotanicalEditorial(
       ...base("newsletter-header", "Brand header"),
       headline: designSystem?.company.name || "", logoUrl: designSystem?.company.logoUrl || "",
       logoAlignment: "center", layout: "centered", logoSize: 76,
-      showDividerBelow: false, backgroundColor: "#f8f9fb", dateLabel: "",
+      showDividerBelow: false, backgroundColor: paper, dateLabel: "",
     },
     {
       ...base("email-safe-hero", "Photographic opening"),
       headline: brief.headline || template.heading, subheading: brief.subheading || "",
-      tagLabel: template.label, heroStyle: "image-overlay", layout: "editorial-panel",
+      tagLabel: template.label, heroStyle: brief.heroImageUrl ? "image-overlay" : "solid", layout: "editorial-panel",
       imageUrl: safeEmailUrl(brief.heroImageUrl, true), imageAlt: brief.heroImageAlt || "",
       backgroundColor: ink, textColor: "#fffaf2", overlayColor: ink,
       textAlign: "left", buttonText: "", buttonUrl: "",
@@ -72,9 +72,9 @@ export function buildBotanicalEditorial(
     },
     text("Personal introduction", brief.introduction || "Hello {{ first_name }},"),
   ];
-  const features = brief.features?.length ? brief.features : [{
-    title: "", body: "", buttonText: "Learn more", buttonUrl: "",
-  }];
+  // New drafts should not contain a dead button or an empty promotional panel.
+  // Once real feature details are supplied, keep the same editable CTA blocks.
+  const features = brief.features || [];
   for (const [index, feature] of features.entries()) {
     if (feature.imageUrl) blocks.push({
       ...base("full-width-image", "Feature photograph"),
@@ -96,8 +96,9 @@ export function buildBotanicalEditorial(
     });
   }
   const images = (brief.images || []).filter((image) => safeEmailUrl(image.url, true));
-  // Keep an editable image slot when starting from the template gallery.
-  blocks.push({
+  // An empty gallery is a large placeholder in Studio. Add it only when
+  // photographs exist; users can insert a Gallery from the block library.
+  if (images.length) blocks.push({
     ...base("image-gallery", "Supporting photographs"),
     galleryImages: images.map((image) => ({ ...image, id: crypto.randomUUID(), url: safeEmailUrl(image.url, true) })),
     gridColumns: 2, layout: "row-2", imageHeight: 270, gridGap: 10, borderRadius: 0,
@@ -105,7 +106,7 @@ export function buildBotanicalEditorial(
   });
   blocks.push(text("Personal closing", brief.closing || ""));
   blocks.push({
-    ...base("divider", "Brand accent"), lineColor: accent, lineThickness: 6,
+    ...base("divider", "Brand accent"), lineColor: accent, lineThickness: 1,
     paddingTop: 0, paddingBottom: 0, lineWidth: 100,
   });
   blocks.push(createFooterBlockFromDesignSystem(designSystem, {

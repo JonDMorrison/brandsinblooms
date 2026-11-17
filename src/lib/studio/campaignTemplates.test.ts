@@ -3,7 +3,7 @@ import {
   BOTANICAL_TEMPLATES,
   parseBotanicalBrief,
 } from "./botanicalEditorial";
-import { generateEmailHtml } from "./emailHtmlGenerator";
+import { generateEmailHtml, renderNewsletterBlock } from "./emailHtmlGenerator";
 import { buildStudioDesignSystem } from "./designSystem";
 import { renderContentBlocksToEmailHtml } from "../../../supabase/functions/_shared/campaignEmailSource";
 import { describe, expect, it } from "vitest";
@@ -114,7 +114,7 @@ describe("Botanical Editorial reusable newsletter", () => {
       const second = template.buildBlocks();
       expect(first[1]).toMatchObject({
         type: "email-safe-hero",
-        heroStyle: "image-overlay",
+        heroStyle: "solid",
         layout: "editorial-panel",
         imageUrl: "",
       });
@@ -130,6 +130,41 @@ describe("Botanical Editorial reusable newsletter", () => {
       ).toMatchObject({ blockGap: 0, width: 640 });
     }
   });
+  it("starts clean without invented photos, dead actions or empty galleries", () => {
+    for (const entry of BOTANICAL_TEMPLATES) {
+      const blocks = buildBotanicalEditorial(entry.id);
+      expect(blocks.some((block) => block.type === "call-to-action")).toBe(false);
+      expect(blocks.some((block) => block.type === "image-gallery")).toBe(false);
+      const hero = blocks.find((block) => block.type === "email-safe-hero")!;
+      expect(hero.heroStyle).toBe("solid");
+      expect(hero.imageUrl).toBe("");
+      const preview = renderNewsletterBlock(hero, null, undefined, { editing: true });
+      const sent = renderNewsletterBlock(hero);
+      for (const html of [preview, sent]) {
+        expect(html).toContain(entry.heading);
+        expect(html).toContain("background-color:#243c32");
+        expect(html).not.toContain("newsletter-fallback.jpg");
+        expect(html).not.toContain("Newsletter");
+      }
+    }
+  });
+
+  it("does not substitute the generic photo for historical photo-less editorial panels", () => {
+    const legacy = {
+      ...buildBotanicalEditorial("botanical-seasonal", null, brief)[1],
+      imageUrl: "",
+      heroStyle: "image-overlay" as const,
+      layout: "editorial-panel",
+    };
+    const preview = renderNewsletterBlock(legacy, null, undefined, { editing: true });
+    const sent = renderNewsletterBlock(legacy);
+    for (const html of [preview, sent]) {
+      expect(html).toContain(brief.headline);
+      expect(html).not.toContain("newsletter-fallback.jpg");
+      expect(html).toContain("background-color:#243c32");
+    }
+  });
+
   it("renders supplied photos, live text, one action and compliance through the send renderer", () => {
     const blocks = buildBotanicalEditorial("botanical-editorial", null, brief);
     const html = generateEmailHtml({

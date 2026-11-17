@@ -941,7 +941,11 @@ function renderHeroBlock(
   const textColor = safeColor(block.textColor, "#1a1a2e");
   const align = getAlignment(block.textAlign, "center");
   const heroStyle = block.heroStyle || "solid";
-  const imageUrl = safeUrl(block.imageUrl, { image: true }) || (editing ? "/images/newsletter-fallback.jpg" : "");
+  // An editorial panel with no photo must not invent a huge fake pink
+  // background. The regular hero presets retain their preview fallback.
+  const imageUrl = safeUrl(block.imageUrl, { image: true }) ||
+    (editing && !(heroStyle === "image-overlay" && block.layout === "editorial-panel")
+      ? "/images/newsletter-fallback.jpg" : "");
   const padding = block.appearance?.padding ? "0" : "48px 32px";
   const background =
     heroStyle === "gradient"
@@ -950,6 +954,12 @@ function renderHeroBlock(
   const content = `<div style="max-width:560px;margin:${align === "center" ? "0 auto" : align === "right" ? "0 0 0 auto" : "0"};text-align:${align};color:${textColor};">${renderTextContent({ ...block, textColor }, designSystem, { compact: false })}${renderButton(block, designSystem, { align })}</div>`;
 
   if (heroStyle === "image-overlay" && block.layout === "editorial-panel") {
+    // Saved editorial layouts without a photo stay readable in both Studio
+    // and sent email. Do not show the generic Newsletter test image.
+    if (!imageUrl) {
+      return renderSection(backgroundColor,
+        `<div class="mobile-padding" style="background-color:${backgroundColor};padding:34px 28px;">${content}</div>`);
+    }
     // Solid panel keeps live copy readable with blocked images and in Outlook.
     const photo = imageUrl ? ` background="${escapeAttribute(imageUrl)}"` : "";
     const photoStyle = imageUrl ? `background-image:url('${escapeAttribute(imageUrl.replace(/'/g, "%27"))}');background-size:cover;background-position:${getImageObjectPosition(block.imageFocalX, block.imageFocalY)};` : "";
