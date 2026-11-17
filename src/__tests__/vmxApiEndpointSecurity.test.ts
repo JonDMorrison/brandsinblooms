@@ -46,9 +46,11 @@ describe("VMX store-specific API security", () => {
 
   it("does not expose example customer credentials or unsafe CSV imports in setup", () => {
     const dialog = source("src/components/integrations/pos/VmxConnectDialog.tsx");
-    const hub = source("src/pages/integrations/POSIntegrationsHub.tsx");
+    const hub = source("src/pages/integrations/VMXSetupPage.tsx");
+    const app = source("src/App.tsx");
+    expect(app).toContain('<Route path="pos/vmx" element={<VMXSetupPage />} />');
     expect(dialog).toContain('type="password"');
-    expect(dialog).toContain('api_url: apiUrl.trim()');
+    expect(hub).toContain('api_url: apiUrl.trim()');
     expect(dialog).toContain("VMX-issued API Client ID");
     expect(hub).not.toContain("VMXUploader");
   });
