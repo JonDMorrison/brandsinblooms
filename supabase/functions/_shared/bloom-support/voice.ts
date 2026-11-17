@@ -55,13 +55,13 @@ export function bloomHumanRequested(): string {
 }
 
 export function bloomFeatureReceived(): string {
-  return "I've logged this as a feature idea. Jon and Jeff review these and decide what gets built — I can't promise a date or outcome, but I'll update you on this request when there's a decision.";
+  return "I've logged this as a feature idea. Our team reviews these and decides what gets built — I can't promise a date or outcome, but I'll update you on this request when there's a decision.";
 }
 
 export function bloomInvestigationStarted(kind: "bug" | "incident"): string {
   return kind === "incident"
-    ? "I've flagged this as a possible service incident and noted the urgency. Jon or Jeff will see this — I'll keep updating you here and you don't need to file another report."
-    : "I've flagged this as a possible product bug and recorded the details. Before anything is released, Jon or Jeff needs to review and approve the fix — I'll keep you updated here as it moves forward.";
+    ? "I've flagged this as a possible service incident and noted the urgency. Our support team will see this — I'll keep updating you here and you don't need to file another report."
+    : "I've flagged this as a possible product bug and recorded the details. Before anything is released, a member of our team needs to review and approve the fix — I'll keep you updated here as it moves forward.";
 }
 
 export function bloomEngineeringProgress(status: string): string | null {
@@ -74,7 +74,7 @@ export function bloomEngineeringProgress(status: string): string | null {
       return "The problem is confirmed and a fix is in progress. It still needs to pass review and testing before it reaches the app — I'll let you know when that happens.";
     case "in_review":
     case "awaiting_approval":
-      return "A fix is ready and is being reviewed. Nothing goes live until it passes the checks and Jon or Jeff gives the go-ahead.";
+      return "A fix is ready and is being reviewed. Nothing goes live until it passes the checks and our team gives the go-ahead.";
     case "approved":
     case "merging":
     case "deploying":
@@ -82,12 +82,12 @@ export function bloomEngineeringProgress(status: string): string | null {
     case "verifying":
       return "The fix is live and the affected steps are being checked now. I won't mark this resolved until that verification passes.";
     case "not_reproduced":
-      return "I wasn't able to reproduce this reliably, so I've passed the details to Jon or Jeff for a closer look. You don't need to send anything again — they have everything I recorded.";
+      return "I wasn't able to reproduce this reliably, so I've passed the details to our support team for a closer look. You don't need to send anything again — they have everything I recorded.";
     case "failed":
     case "escalated":
-      return "The automated repair process has stopped — it hit a problem it can't safely resolve on its own. Jon or Jeff will review this and decide what happens next. You don't need to do anything; I'll keep you updated here.";
+      return "The automated repair process has stopped — it hit a problem it can't safely resolve on its own. Our support team will review this and decide what happens next. You don't need to do anything; I'll keep you updated here.";
     case "rolled_back":
-      return "The live check didn't pass, so the change has been rolled back — the app is as it was before. Jon or Jeff has been alerted and will decide the next step. I'll keep this request open.";
+      return "The live check didn't pass, so the change has been rolled back — the app is as it was before. Our support team has been alerted and will decide the next step. I'll keep this request open.";
     default:
       return null;
   }
@@ -96,15 +96,15 @@ export function bloomEngineeringProgress(status: string): string | null {
 export function bloomFeatureDecision(decision: string): string {
   switch (decision) {
     case "accepted":
-      return "Jon and Jeff have reviewed your idea and added it to the product backlog. There's no date yet, but your request is linked to it — I'll let you know if that changes.";
+      return "Our team has reviewed your idea and added it to the product backlog. There's no date yet, but your request is linked to it — I'll let you know if that changes.";
     case "planned":
-      return "Good news — Jon and Jeff have decided to build this. No date yet, but your request is linked to it and I'll update you when it ships.";
+      return "Good news — our team has decided to build this. No date yet, but your request is linked to it and I'll update you when it ships.";
     case "shipped":
       return "Good news — this feature is now available. If you'd like help finding or using it, reply here and I'll help you get started.";
     case "declined":
-      return "Jon and Jeff reviewed your idea and decided not to build it right now. I know that might not be what you were hoping for. If you tell me more about what you're trying to do, I'll see if there's another way.";
+      return "Our team reviewed your idea and decided not to build it right now. I know that might not be what you were hoping for. If you tell me more about what you're trying to do, I'll see if there's another way.";
     default:
-      return "Jon and Jeff have made a decision on your idea. Reply here if you'd like help with the next step.";
+      return "Our team has made a decision on your idea. Reply here if you'd like help with the next step.";
   }
 }
 
