@@ -2,12 +2,13 @@ import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Typography, { type TypographyProps } from "@mui/joy/Typography";
-import { FileSpreadsheet, Plug } from "lucide-react";
+import { Plug } from "lucide-react";
 import mailchimpLogo from "@/assets/logos/mailchimp-new.png";
 import cloverLogo from "@/assets/logos/clover.svg";
 import lightspeedLogo from "@/assets/logos/lightspeed-x-series.svg";
 import shopifyLogo from "@/assets/logos/shopify.svg";
 import squareMark from "@/assets/logos/square-mark.svg";
+import vmxMark from "@/assets/logos/vmx-mark.png";
 import zapierLogo from "@/assets/logos/zapier.jpeg";
 import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import { mergeSx } from "@/components/joy/mergeSx";
@@ -24,7 +25,7 @@ const LOGO_SOURCES: Record<IntegrationLogoKey, LogoSource> = {
   // Official app-icon tiles: render edge to edge.
   zapier: { kind: "image", src: zapierLogo, fill: true },
   mailchimp: { kind: "image", src: mailchimpLogo, fill: true },
-  vmx: { kind: "icon", icon: FileSpreadsheet },
+  vmx: { kind: "image", src: vmxMark, fill: true },
   generic: { kind: "icon", icon: Plug },
 };
 
