@@ -1,15 +1,20 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
-import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
+import { ChevronRight } from "lucide-react";
 import type { IntegrationDefinition } from "@/components/integrations/integrationsHubConfig";
-import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
+import {
+  providerLogoAssets,
+  providerMarkAssets,
+} from "@/components/integrations/providerLogoAssets";
 
 type ChipColor = "success" | "neutral" | "warning" | "danger";
 type ChipVariant = "soft" | "outlined";
+const LOGO_TILE_SIZE = 40;
+
 type HubStatusTone = "connected" | "not-connected" | "attention" | "error";
 
 export interface HubIntegrationCardProps {
@@ -155,7 +160,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
   const categoryLabel = isHubProps(props)
     ? (CATEGORY_SHORT_LABELS[props.item.category] ?? props.item.categoryLabel)
     : null;
-  const statusPresentation = isHubProps(props)
+  const statusPresentation: StatusPresentation = isHubProps(props)
     ? getHubStatusPresentation(props.item, props.statusTone, props.statusLabel)
     : {
         label: props.isConnected ? "Connected" : "Not connected",
@@ -169,7 +174,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
         : null))
     : null;
   const logoSrc = isHubProps(props)
-    ? providerLogoAssets[props.item.slug]
+    ? (providerMarkAssets[props.item.slug] ?? providerLogoAssets[props.item.slug])
     : null;
   const legacyIcon = !isHubProps(props) ? props.icon : null;
 
@@ -214,22 +219,25 @@ export function IntegrationCard(props: IntegrationCardProps) {
     <Sheet
       component="article"
       color="neutral"
-      variant={featured ? "soft" : "outlined"}
+      variant="outlined"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role={clickable ? "button" : undefined}
       tabIndex={clickable ? 0 : undefined}
+      aria-label={clickable ? `${title}: ${statusPresentation.label}. Open details` : undefined}
       sx={{
         position: "relative",
         display: "flex",
         flexDirection: "column",
-        gap: 1.75,
-        minHeight: 248,
-        p: 2.5,
+        // Grid parents use bare `1fr` tracks; without this the no-wrap title
+        // sets the track's minimum width and overflows narrow viewports.
+        minWidth: 0,
+        gap: 3,
+        p: 4,
         borderRadius: "xl",
-        borderColor: featured ? "neutral.outlinedBorder" : "neutral.200",
-        bgcolor: featured ? "neutral.softBg" : "background.surface",
-        boxShadow: "sm",
+        borderColor: "neutral.outlinedBorder",
+        bgcolor: "background.surface",
+        boxShadow: "xs",
         cursor: clickable ? "pointer" : "default",
         transition:
           "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease",
@@ -237,8 +245,11 @@ export function IntegrationCard(props: IntegrationCardProps) {
           ? {
               transform: "translateY(-2px)",
               boxShadow: "md",
-              borderColor: "neutral.300",
+              borderColor: "neutral.outlinedHoverBorder",
             }
+          : undefined,
+        "&:hover .integration-card-chevron": clickable
+          ? { color: "text.primary", transform: "translateX(2px)" }
           : undefined,
         "&:focus-visible": clickable
           ? {
@@ -249,25 +260,37 @@ export function IntegrationCard(props: IntegrationCardProps) {
           : undefined,
       }}
     >
-      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-        <Avatar
-          color="neutral"
-          size="lg"
-          variant={logoSrc ? "soft" : "outlined"}
+      <Stack direction="row" spacing={3} alignItems="center" sx={{ minWidth: 0 }}>
+        <Box
           sx={{
-            bgcolor: logoSrc ? "background.surface" : "neutral.softBg",
-            color: "text.primary",
+            width: LOGO_TILE_SIZE,
+            height: LOGO_TILE_SIZE,
+            flexShrink: 0,
+            display: "grid",
+            placeItems: "center",
+            overflow: "hidden",
+            borderRadius: "10px",
+            border: "1px solid",
+            borderColor: "neutral.outlinedBorder",
+            // Partner marks are drawn for light backgrounds, so the tile stays
+            // white in every colour scheme; icon and initials fallbacks follow the theme.
+            bgcolor: logoSrc ? "common.white" : "neutral.softBg",
+            color: "text.secondary",
+            fontWeight: "lg",
+            fontSize: "sm",
           }}
         >
           {logoSrc ? (
             <Box
               component="img"
               src={logoSrc}
-              alt={`${title} logo`}
+              alt=""
+              loading="lazy"
               sx={{
-                width: "70%",
-                height: "70%",
+                width: "72%",
+                height: "72%",
                 objectFit: "contain",
+                display: "block",
               }}
             />
           ) : legacyIcon ? (
@@ -275,33 +298,64 @@ export function IntegrationCard(props: IntegrationCardProps) {
           ) : (
             getInitials(title)
           )}
-        </Avatar>
+        </Box>
 
-        {featured ? (
-          <Chip color="neutral" size="sm" variant="soft">
-            Featured
+        <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            useFlexGap
+            flexWrap="wrap"
+            sx={{ minWidth: 0 }}
+          >
+            <Typography
+              component="h3"
+              level="title-md"
+              sx={{ fontWeight: 700, lineHeight: 1.25, overflowWrap: "anywhere" }}
+            >
+              {title}
+            </Typography>
+            {featured ? (
+              <Chip color="primary" size="sm" variant="soft" sx={{ flexShrink: 0 }}>
+                Featured
+              </Chip>
+            ) : null}
+          </Stack>
+          {categoryLabel ? (
+            <Typography level="body-xs" sx={{ color: "text.tertiary" }} noWrap>
+              {categoryLabel}
+            </Typography>
+          ) : null}
+        </Stack>
+
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+          <Chip
+            color={statusPresentation.color}
+            size="sm"
+            variant={statusPresentation.variant}
+          >
+            {statusPresentation.label}
           </Chip>
-        ) : null}
+          {clickable ? (
+            <Box
+              aria-hidden
+              className="integration-card-chevron"
+              sx={{
+                display: "flex",
+                color: "text.tertiary",
+                transition: "color 180ms ease, transform 180ms ease",
+              }}
+            >
+              <ChevronRight size={18} />
+            </Box>
+          ) : null}
+        </Stack>
       </Stack>
 
-      <Stack spacing={1.1}>
-        <Typography component="h3" level="title-md" sx={{ fontWeight: 700 }}>
-          {title}
-        </Typography>
+      {!isHubProps(props) && props.badge ? props.badge : null}
 
-        {categoryLabel ? (
-          <Chip
-            color="neutral"
-            size="sm"
-            variant="soft"
-            sx={{ alignSelf: "flex-start", fontWeight: 600 }}
-          >
-            {categoryLabel}
-          </Chip>
-        ) : null}
-
-        {!isHubProps(props) && props.badge ? props.badge : null}
-
+      <Stack spacing={1}>
         <Typography
           level="body-sm"
           sx={{ color: "text.secondary", lineHeight: 1.55 }}
@@ -334,25 +388,11 @@ export function IntegrationCard(props: IntegrationCardProps) {
         <Box sx={{ mt: "auto" }}>{props.children}</Box>
       ) : null}
 
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        spacing={1.5}
-        sx={{ mt: "auto", pt: 0.5 }}
-      >
-        <Chip
-          color={statusPresentation.color}
-          size="sm"
-          variant={statusPresentation.variant}
-        >
-          {statusPresentation.label}
-        </Chip>
-
-        <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-          {activityLabel ? `Last sync ${activityLabel}` : "Open details"}
+      {activityLabel ? (
+        <Typography level="body-xs" sx={{ color: "text.tertiary", mt: "auto" }}>
+          Last sync {activityLabel}
         </Typography>
-      </Stack>
+      ) : null}
     </Sheet>
   );
 }
