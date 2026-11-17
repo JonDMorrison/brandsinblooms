@@ -741,30 +741,38 @@ export default function StudioTopBar({
             Preview & Test
           </Button>
 
-          <Button
-            variant={hasUnsavedChanges ? "solid" : "outlined"}
-            color={
-              saveStatus === "conflict" ||
-              saveStatus === "error" ||
-              saveStatus === "failed"
-                ? "warning"
-                : "primary"
-            }
-            size="sm"
-            onClick={onSave}
-            loading={saveStatus === "saving"}
-            sx={{
-              height: 32,
-              minHeight: 32,
-              borderRadius: "8px",
-              fontWeight: 600,
-              fontSize: "13px",
-            }}
-          >
-            {saveStatus === "failed" || saveStatus === "error"
-              ? "Retry save"
-              : "Save"}
-          </Button>
+          {/* The email saves by itself. The Save button only appears when there
+              is something left to save or a save needs another try. */}
+          {hasUnsavedChanges ||
+          saveStatus === "saving" ||
+          saveStatus === "conflict" ||
+          saveStatus === "error" ||
+          saveStatus === "failed" ? (
+            <Button
+              variant={hasUnsavedChanges ? "solid" : "outlined"}
+              color={
+                saveStatus === "conflict" ||
+                saveStatus === "error" ||
+                saveStatus === "failed"
+                  ? "warning"
+                  : "primary"
+              }
+              size="sm"
+              onClick={onSave}
+              loading={saveStatus === "saving"}
+              sx={{
+                height: 32,
+                minHeight: 32,
+                borderRadius: "8px",
+                fontWeight: 600,
+                fontSize: "13px",
+              }}
+            >
+              {saveStatus === "failed" || saveStatus === "error"
+                ? "Retry save"
+                : "Save"}
+            </Button>
+          ) : null}
 
           <Typography
             level="body-xs"

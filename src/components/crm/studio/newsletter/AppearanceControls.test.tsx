@@ -47,6 +47,7 @@ describe("newsletter colour controls", () => {
     ]);
     expect(swatches[4]).toHaveAttribute("aria-pressed", "true");
     expect(swatches.filter((button) => button.title === "Brand primary · #112233")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Pick any colour, or type a colour code" }));
     const hex = screen.getByRole("textbox", { name: "Button colour hex colour" });
     expect(swatches[5].compareDocumentPosition(hex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -73,6 +74,7 @@ describe("newsletter colour controls", () => {
     expect(change).toHaveBeenCalledWith("transparent");
     fireEvent.click(swatches[1]);
     expect(change).toHaveBeenCalledWith("#000000");
+    fireEvent.click(screen.getByRole("button", { name: "Pick any colour, or type a colour code" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Button colour hex colour" }), {
       target: { value: "#abc123" },
     });

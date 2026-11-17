@@ -3509,7 +3509,7 @@ function PanelContent({
             {renderSections([
               {
                 id: "variant",
-                title: "Variant",
+                title: "Line style",
                 content: (
                   <>
                     <StudioToggleField
@@ -3974,16 +3974,6 @@ function PanelContent({
                       placeholder="Follow us"
                       value={block.socialLabel ?? ""}
                       onChange={(value) => updateField("socialLabel", value)}
-                    />
-                    <StudioToggleField
-                      label="Variant"
-                      options={[
-                        { label: "Icons", value: "icon-row" },
-                        { label: "Label", value: "label-row" },
-                        { label: "List", value: "vertical-list" },
-                      ]}
-                      value={block.layout ?? "icon-row"}
-                      onChange={(value) => updateField("layout", value)}
                     />
                     <StudioAlignmentToggle
                       label="Alignment"
@@ -5057,7 +5047,7 @@ function PanelContent({
             {renderSections([
               {
                 id: "layout",
-                title: "Layout",
+                title: "Space",
                 content: (
                   <>
                     <Stack spacing={0.5}>
@@ -5071,7 +5061,7 @@ function PanelContent({
                           letterSpacing: "0.04em",
                         }}
                       >
-                        Quick heights
+                        How much space?
                       </Typography>
                       <Stack
                         direction="row"
@@ -5098,7 +5088,7 @@ function PanelContent({
                       </Stack>
                     </Stack>
                     <StudioSliderField
-                      label="Spacer Height"
+                      label="Exact amount of space"
                       min={0}
                       max={120}
                       step={4}
@@ -5107,7 +5097,7 @@ function PanelContent({
                       onChange={(value) => updateField("spacerHeight", value)}
                     />
                     <StudioSwitchField
-                      label="Show Dotted Outline"
+                      label="Show an outline while editing (customers never see it)"
                       checked={block.showDottedOutline ?? true}
                       onChange={(value) =>
                         updateField("showDottedOutline", value)

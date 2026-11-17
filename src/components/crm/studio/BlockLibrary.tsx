@@ -402,6 +402,7 @@ export default function BlockLibrary({
                       </IconButton>
                       <IconButton
                         size="sm"
+                        title="Move down"
                         aria-label={`Move ${block.label} down`}
                         disabled={editable.at(-1)?.id === block.id}
                         onClick={() => onMoveBlock?.(block.id, "down")}
@@ -410,6 +411,7 @@ export default function BlockLibrary({
                       </IconButton>
                       <IconButton
                         size="sm"
+                        title="Make a copy"
                         aria-label={`Duplicate ${block.label}`}
                         onClick={() => onDuplicateBlock?.(block.id)}
                       >
@@ -417,6 +419,7 @@ export default function BlockLibrary({
                       </IconButton>
                       <IconButton
                         size="sm"
+                        title="Save this block to use again later"
                         aria-label={`Save ${block.label}`}
                         onClick={() => openSave(block)}
                       >
@@ -424,6 +427,7 @@ export default function BlockLibrary({
                       </IconButton>
                       <IconButton
                         size="sm"
+                        title="Delete"
                         aria-label={`Delete ${block.label}`}
                         onClick={() => {
                           if (
