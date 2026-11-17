@@ -1,5 +1,6 @@
 import { db, env, rpc, BloomError } from "./runtime.ts";
 import { completeJson } from "./ai.ts";
+import { answerWithSlackAgent } from "./slack-agent.ts";
 import { postSlackInternalMessage, updateSlackInternalText, type SlackRoute } from "./slack.ts";
 import { projectQuestionAnswer, featureQuestionAnswer } from "./slack-questions.ts";
 import { safeTicketText, ticketQuestionAnswer } from "./ticket-slack.ts";
@@ -26,7 +27,7 @@ export function conversationFallback(route:Route, question:string):string {
 }
 export function safeConversationAnswer(value:unknown):string|null {
   if(typeof value!=="string" || !value.trim() || value.length>1800) return null;
-  // The model is explanatory only. Never render arbitrary URLs, mentions or contact data.
+  // The legacy model is explanatory only. Action receipts belong to the tool agent.
   if(/(?:https?:\/\/|www\.|<[@!#]|\bBearer\s|xox[baprs]-|sk_(?:live|test)_|gh[pousr]_|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i.test(value))return null;
   if(/\b(?:I|I've|we|we've)\s+(?:have\s+)?(?:closed|resolved|deployed|merged|published|sent|deleted|refunded|approved|changed|fixed)\b/i.test(value))return null;
   return safeTicketText(value,1800).replace(/@(here|channel|everyone)/gi,"$1");
@@ -78,23 +79,22 @@ async function evidence(c:Context,q:string):Promise<string>{
   }
   return conversationFallback(c.route,q);
 }
-/**
- * Internal support navigation must not be answered from customer-facing
- * knowledge articles or tracking links. This answer describes where staff
- * should look; it never implies that a ticket is assigned or resolved.
- */
+/** Staff navigation is not a substitute for answering an operational question. */
 export function internalSupportQueueAnswer(route:Route, role:string, question:string):string|null {
   if(route!=="ask" || !["platform_admin","platform_operator","support"].includes(role)) return null;
   const q=question.toLowerCase();
   if(!/\b(?:staff|internal|our team|our support team|team dashboard)\b/.test(q)) return null;
   if(!/\b(?:support|tickets?|requests?|escalat\w*|humans?|persons?)\b/.test(q)) return null;
+  if(!/\b(?:where|which screen|which page|how to find|how do i find)\b/.test(q)) return null;
   return "For our internal team, open the Bloom Support desk at https://bloomsuite.app/admin/bloom-support. Start with Today for items needing attention and Requests to review open tickets and owners. Decisions is for approvals and other team decisions. A customer email tracking link shows the customer-facing conversation, not the staff queue. I haven't changed any tickets.";
 }
-async function answer(c:Context,question:string):Promise<string>{
+async function answer(c:Context,question:string,jobId:string):Promise<string>{
   const internalQueue = internalSupportQueueAnswer(c.route,c.role,question);
   if(internalQueue) return internalQueue;
+  const agentAnswer=await answerWithSlackAgent(c,question,jobId);
+  if(agentAnswer!==null)return agentAnswer;
   const fallback=conversationFallback(c.route,question);
-  // Even a limited answer uses the prior turns, so clarifications do not loop.
+  // The rollout switch retains the existing responder as an immediate rollback.
   const facts=await evidence(c,question);
   if(!facts.trim()) return fallback;
   const model=await completeJson<{answer:string}>({
@@ -130,9 +130,10 @@ export async function respondToSlackConversation(job:{id:string;payload:Record<s
     }
   }
   const question = String(job.payload.question ?? "");
-  // Prompt 3: execute safe ticket actions from Slack before falling back to read-only answers.
   let text: string;
-  const slackAction = c.ticket_id && slackActionsAllowed(c.route, c.role)
+  // A negated or hypothetical question must never trigger the legacy shortcuts.
+  const deniedAction=/\b(?:do not|don't|don’t|never|without|not yet|how (?:do|can|would)|what (?:would|if)|example|hypothetical)\b/i.test(question);
+  const slackAction = !deniedAction && c.ticket_id && slackActionsAllowed(c.route, c.role)
     ? detectSlackAction(question) : null;
   if (slackAction) {
     try {
@@ -143,16 +144,16 @@ export async function respondToSlackConversation(job:{id:string;payload:Record<s
       );
       text = result.message;
     } catch {
-      text = "I couldn't complete that action right now. Nothing was changed. Try again or use the dashboard.";
+      text = "I couldn't confirm that action. Please check the ticket's current state before retrying.";
     }
   } else {
-    try{text=await answer(c,question);}
-    catch{text="I couldn't finish checking the records just now. Nothing was changed. Please try again in this thread; if this is urgent, open the ticket in Bloom Support.";}
+    try{text=await answer(c,question,job.id);}
+    catch{text="I couldn't finish checking the records. Please check the ticket for any recorded work before retrying; if this is urgent, use the human support option.";}
   }
   // Recheck actor/binding immediately before disclosing the answer.
   const current=await sql<Context>("bloom_support_slack_conversation_context",{p_job:job.id});
   if(current.delivery_state==="final")return "already answered in Slack";
-  if(!current.allowed)text="I can no longer verify your access to this conversation. No changes were made.";
+  if(!current.allowed)text="I can no longer verify your access to this conversation. Please check the authorized support desk for any recorded work.";
   await updateSlackInternalText(c.route,replyTs!,text);
   const saved=await sql<{recorded:boolean}>("bloom_support_record_slack_reply",{p_job:job.id,p_reply_ts:replyTs,p_answer:text});
   if(!saved.recorded)throw new BloomError(409,"slack_receipt_conflict","Slack final receipt was not recorded");
