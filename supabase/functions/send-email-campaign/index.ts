@@ -1093,6 +1093,8 @@ serve(async (req: Request) => {
           "id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at",
         )
         .eq("tenant_id", campaignTenantId)
+        .is("deleted_at", null)
+        .is("merged_into_customer_id", null)
         .not("email", "is", null);
 
       if (!forceBypassConsent) {
@@ -1142,7 +1144,9 @@ serve(async (req: Request) => {
         const to = from + PAGE_SIZE - 1;
         const { data: segmentCustomers, error: segErr } = await supabase
           .from("customer_segments")
-          .select("customer_id")
+          .select("customer_id, crm_segments!inner(id)")
+          .eq("crm_segments.tenant_id", campaignTenantId)
+          .is("crm_segments.deleted_at", null)
           .in("segment_id", segmentIds)
           .range(from, to);
 

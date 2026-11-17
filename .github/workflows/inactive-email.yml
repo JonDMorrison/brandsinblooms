@@ -1,0 +1,30 @@
+name: Inactive customer email guards
+on:
+  pull_request:
+    paths: ['supabase/functions/send-email-campaign/**', 'supabase/functions/process-email-send-queue/**', 'supabase/functions/_shared/activeEmailCustomers.ts', 'supabase/migrations/*bloom_support*', 'tests/inactive-email/**', '.github/workflows/inactive-email.yml']
+  push:
+    branches: [main]
+    paths: ['supabase/functions/send-email-campaign/**', 'supabase/functions/process-email-send-queue/**', 'supabase/functions/_shared/activeEmailCustomers.ts', 'supabase/migrations/*bloom_support*', 'tests/inactive-email/**', '.github/workflows/inactive-email.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_HOST_AUTH_METHOD: trust}
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: node --test tests/inactive-email/*.test.mjs
+      - name: Native watchdog archived-group regression
+        env: {PGHOST: localhost, PGPORT: '5432', PGUSER: postgres}
+        run: |
+          createdb inactive_email_test
+          psql -v ON_ERROR_STOP=1 -d inactive_email_test -f tests/inactive-email/watchdog.sql

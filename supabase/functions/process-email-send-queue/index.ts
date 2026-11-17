@@ -1,3 +1,4 @@
+import { activeEmailCustomerIds, prepareCustomerDelivery, confirmedDeliveryOutcome } from "../_shared/activeEmailCustomers.ts";
 import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
 import { isolateBatchValidation, type BatchSendResult } from "../_shared/isolateBatchValidation.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -617,6 +618,7 @@ async function resendSendBatchRequest(
   payloads: any[],
   batchIdempotencyKeySeed: string,
   limiter?: { acquire: () => Promise<void> },
+  beforeAttempt?: (items: any[]) => Promise<void>,
 ): Promise<{
   ids?: Array<{ id: string }>;
   error?: string;
@@ -628,6 +630,7 @@ async function resendSendBatchRequest(
     const serverErrorBackoffMs = [1000, 4000, 16000];
     let lastError: string | undefined;
     let lastStatus: number | undefined;
+    let uncertainAttempt = false;
 
     // Idempotency key is per API request (batch), not per email.
     const idem = await sha256Base64Url(batchIdempotencyKeySeed);
@@ -635,6 +638,7 @@ async function resendSendBatchRequest(
 
     for (let attempt = 0; attempt <= serverErrorBackoffMs.length; attempt++) {
       if (limiter) await limiter.acquire();
+      if (beforeAttempt) await beforeAttempt(payloads);
 
       const res = await fetch("https://api.resend.com/emails/batch", {
         method: "POST",
@@ -650,6 +654,7 @@ async function resendSendBatchRequest(
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
+        if (uncertainAttempt) return { error: "delivery_unconfirmed_requires_reconciliation" };
         const msg =
           json?.message || json?.error || res.statusText || "Resend API error";
         lastError = truncateError(String(msg));
@@ -674,6 +679,7 @@ async function resendSendBatchRequest(
           res.status < 600 &&
           attempt < serverErrorBackoffMs.length
         ) {
+          uncertainAttempt = true;
           await sleep(serverErrorBackoffMs[attempt]);
           continue;
         }
@@ -705,9 +711,10 @@ async function resendSendBatch(
   payloads: any[],
   seed: string,
   limiter?: { acquire: () => Promise<void> },
+  beforeAttempt?: (items: any[]) => Promise<void>,
 ): Promise<BatchSendResult> {
   return isolateBatchValidation(payloads, seed, (items, key) =>
-    resendSendBatchRequest(apiKey, items, key, limiter));
+    resendSendBatchRequest(apiKey, items, key, limiter, beforeAttempt));
 }
 
 serve((req: Request) => {
@@ -1544,7 +1551,7 @@ serve((req: Request) => {
               const { data: messages, error: msgFetchError } = await supabase
                 .from("email_messages")
                 .select(
-                  "id, tenant_id, campaign_id, customer_id, domain_id, email, payload, status, resend_id, attempts, dead_lettered_at, claimed_at",
+                  "id, tenant_id, campaign_id, customer_id, domain_id, email, payload, status, resend_id, attempts, dead_lettered_at, delivery_reconciliation_required, claimed_at",
                 )
                 .in("id", messageIds);
 
@@ -1577,7 +1584,7 @@ serve((req: Request) => {
               ).toISOString();
 
               const sendable = (messages || []).filter((m: any) => {
-                if (m.dead_lettered_at) return false;
+                if (m.dead_lettered_at || m.delivery_reconciliation_required) return false;
                 if (m.status === "queued") {
                   // ok
                 } else if (m.status === "sending") {
@@ -1736,6 +1743,25 @@ serve((req: Request) => {
                   claimedForSend = remaining;
                 }
               }
+
+              // Retire inactive/missing recipients before building any payload. This cannot
+              // be overridden by suppression or consent bypasses.
+              const lifecycleRemaining: any[] = [];
+              for (const tenantId of new Set(claimedForSend.map((m: any) => String(m.tenant_id || "")))) {
+                const rows = claimedForSend.filter((m: any) => String(m.tenant_id || "") === tenantId);
+                const active = await activeEmailCustomerIds(supabase, tenantId, rows.map((m: any) => m.customer_id));
+                const excluded = rows.filter((m: any) => !active.has(m.customer_id));
+                if (excluded.length) {
+                  const { error } = await supabase.from("email_messages").update({
+                    status: "skipped", error_message: "customer_missing_deleted_or_merged",
+                    claim_token: null, claimed_at: null, claimed_by: null, updated_at: new Date().toISOString(),
+                  }).in("id", excluded.map((m: any) => m.id)).eq("claim_token", claimToken).is("resend_id", null);
+                  if (error) throw new Error("Failed to retire inactive customer messages");
+                  await recordCampaignProgress(campaignIdForJob, 0, 0, excluded.length);
+                }
+                lifecycleRemaining.push(...rows.filter((m: any) => active.has(m.customer_id)));
+              }
+              claimedForSend = lifecycleRemaining;
 
               const needsPayloadBuild = claimedForSend.some((m: any) => {
                 const payload = m?.payload;
@@ -2181,6 +2207,15 @@ serve((req: Request) => {
                     payloads,
                     idemSeed,
                     jobResendLimiter,
+                    async (items) => {
+                      const identities = items.map((item) => {
+                        const index = payloads.indexOf(item);
+                        const message = sendable.find((m: any) => m.id === msgIds[index]);
+                        if (!message) throw new Error("Missing delivery customer identity");
+                        return { id: message.id, tenant_id: message.tenant_id, customer_id: message.customer_id };
+                      });
+                      await prepareCustomerDelivery(supabase, identities, claimToken);
+                    },
                   );
 
                   if (batchResp.rateLimited) {
@@ -2252,7 +2287,7 @@ serve((req: Request) => {
                     msg_id: r.msgId,
                     resend_id: r.resendId || null,
                     error_message: errMsg,
-                    attempts: r.attempts || 1,
+                    attempts: confirmedDeliveryOutcome(r) ? (r.attempts || 1) : MAX_ATTEMPTS,
                     is_rate_limited: isRateLimited,
                   };
                 });
@@ -2272,6 +2307,19 @@ serve((req: Request) => {
                     applyErr.message,
                   );
                   // Fallback: keep going, but counts will be best-effort.
+                }
+
+                // Release the pre-send hold only for a definite provider outcome
+                // after the receipt/rejection has been persisted. Ambiguous batches
+                // remain excluded from future claims even if this worker crashes.
+                if (!applyErr) {
+                  const confirmedIds = results.filter(confirmedDeliveryOutcome).map(r => r.msgId);
+                  if (confirmedIds.length) {
+                    const { error: releaseError } = await supabase.from("email_messages")
+                      .update({ dead_lettered_at: null, delivery_reconciliation_required: false }).in("id", confirmedIds)
+                      .is("claim_token", null);
+                    if (releaseError) console.error("Delivery hold release failed; reconciliation required");
+                  }
                 }
 
                 const appliedRow = Array.isArray(applied)
