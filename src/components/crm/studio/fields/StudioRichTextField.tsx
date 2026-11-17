@@ -46,7 +46,17 @@ const MERGE_TAGS = [
 
 function ToolbarDivider() {
   return (
-    <Box sx={{ width: 1, height: 18, bgcolor: "neutral.200", mx: 0.25 }} />
+    // In Joy's sx, width: 1 means 100%, which drew a wide grey box. A divider
+    // is a 1px line.
+    <Box
+      sx={{
+        width: "1px",
+        height: 18,
+        flexShrink: 0,
+        bgcolor: "neutral.200",
+        mx: 0.25,
+      }}
+    />
   );
 }
 
