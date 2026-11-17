@@ -7,13 +7,6 @@ import { PROVIDERS, type POSProvider } from "@/components/integrations/pos/provi
 import { ProviderCard } from "@/components/integrations/pos/ProviderCard";
 import { VmxConnectDialog } from "@/components/integrations/pos/VmxConnectDialog";
 import { POSCheckoutSmsConsentDialog } from "@/components/integrations/pos/POSCheckoutSmsConsentDialog";
-import { VMXUploader } from "@/components/crm/pos/VMXUploader";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useUnifiedPOSConnections } from "@/hooks/useUnifiedPOSConnections";
 
 export default function POSIntegrationsHub({ providerFilter }: { providerFilter?: POSProvider["id"] } = {}) {
@@ -22,7 +15,6 @@ export default function POSIntegrationsHub({ providerFilter }: { providerFilter?
   const { connections, isLoading, refetch } = useUnifiedPOSConnections();
 
   const [vmxDialogOpen, setVmxDialogOpen] = useState(false);
-  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [pendingConsentProvider, setPendingConsentProvider] = useState<string | null>(null);
   const [isSavingConsent, setIsSavingConsent] = useState(false);
 
@@ -128,7 +120,7 @@ export default function POSIntegrationsHub({ providerFilter }: { providerFilter?
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           {providerFilter === "vmx"
-            ? "Connect VMX with a store-specific API key, or upload an exported CSV. Sync status and errors are shown below."
+            ? "Connect VMX using the API Client ID and store-specific URL supplied by VMX. Sync status and errors appear below."
             : "Connect your point-of-sale system to sync customers, transactions, and loyalty data automatically."}
         </p>
       </div>
@@ -150,7 +142,6 @@ export default function POSIntegrationsHub({ providerFilter }: { providerFilter?
         open={vmxDialogOpen}
         onOpenChange={setVmxDialogOpen}
         onSuccess={refetch}
-        onSwitchToCsv={() => setCsvDialogOpen(true)}
       />
 
       <POSCheckoutSmsConsentDialog
@@ -161,21 +152,6 @@ export default function POSIntegrationsHub({ providerFilter }: { providerFilter?
         onConfirm={handleConsentConfirm}
       />
 
-      {/* VMX CSV Upload Dialog (fallback) */}
-      <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Upload VMX CSV</DialogTitle>
-          </DialogHeader>
-          <VMXUploader
-            onSuccess={() => {
-              setCsvDialogOpen(false);
-              refetch();
-              toast({ title: "Import complete", description: "Customers imported from CSV." });
-            }}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
