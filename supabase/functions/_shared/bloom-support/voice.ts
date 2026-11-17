@@ -55,13 +55,13 @@ export function bloomHumanRequested(): string {
 }
 
 export function bloomFeatureReceived(): string {
-  return "I've recorded this as a feature idea and sent it to our product team for a decision. I can't promise it will be built, but I'll share the outcome on this request.";
+  return "I've logged this as a feature idea. Jon and Jeff review these and decide what gets built — I can't promise a date or outcome, but I'll update you on this request when there's a decision.";
 }
 
 export function bloomInvestigationStarted(kind: "bug" | "incident"): string {
   return kind === "incident"
-    ? "I've flagged this as a possible incident and alerted our support team so they can assess the impact. I'll keep this request tied to any investigation they approve."
-    : "I've logged this as a possible product problem and sent the evidence to our support team for review. Any repair must be approved, tested and checked before it goes live.";
+    ? "I've flagged this as a possible service incident and noted the urgency. Jon or Jeff will see this — I'll keep updating you here and you don't need to file another report."
+    : "I've flagged this as a possible product bug and recorded the details. Before anything is released, Jon or Jeff needs to review and approve the fix — I'll keep you updated here as it moves forward.";
 }
 
 export function bloomEngineeringProgress(status: string): string | null {
@@ -69,25 +69,25 @@ export function bloomEngineeringProgress(status: string): string | null {
     case "investigating":
       return "I've started the technical investigation and I'm checking the affected workflow against the evidence on your request.";
     case "reproduced":
-      return "I've confirmed the problem. The investigation is now focused on a safe fix, with your request linked to the repair.";
+      return "I've been able to reproduce the problem you described. The investigation is now focused on a safe fix.";
     case "fixing":
-      return "The problem is confirmed and a fix is being prepared. It still needs to pass testing and review before anything can go live.";
+      return "The problem is confirmed and a fix is in progress. It still needs to pass review and testing before it reaches the app — I'll let you know when that happens.";
     case "in_review":
     case "awaiting_approval":
-      return "A fix has been prepared and is being reviewed. Nothing will be released until the checks and approval are complete.";
+      return "A fix is ready and is being reviewed. Nothing goes live until it passes the checks and Jon or Jeff gives the go-ahead.";
     case "approved":
     case "merging":
     case "deploying":
-      return "The fix has passed review and is moving through release. I'll keep the request open until the affected workflow is checked live.";
+      return "The fix has been approved and is being released now. I'll keep this request open until we've confirmed it's working in the app — that check happens before I mark this resolved.";
     case "verifying":
       return "The fix is live and the affected steps are being checked now. I won't mark this resolved until that verification passes.";
     case "not_reproduced":
-      return "I couldn't reproduce the problem reliably, so I've handed the evidence to a person on our support team for a closer look.";
+      return "I wasn't able to reproduce this reliably, so I've passed the details to Jon or Jeff for a closer look. You don't need to send anything again — they have everything I recorded.";
     case "failed":
     case "escalated":
-      return "The automatic repair has stopped. This request is in our support team's review queue. The next step is for an admin to choose how to continue; you don't need to submit it again.";
+      return "The automated repair process has stopped — it hit a problem it can't safely resolve on its own. Jon or Jeff will review this and decide what happens next. You don't need to do anything; I'll keep you updated here.";
     case "rolled_back":
-      return "The live check did not pass, so the change was rolled back. A person on our support team has been alerted, and the request remains open.";
+      return "The live check didn't pass, so the change has been rolled back — the app is as it was before. Jon or Jeff has been alerted and will decide the next step. I'll keep this request open.";
     default:
       return null;
   }
@@ -96,15 +96,15 @@ export function bloomEngineeringProgress(status: string): string | null {
 export function bloomFeatureDecision(decision: string): string {
   switch (decision) {
     case "accepted":
-      return "Our product team has accepted your idea for further consideration. It isn't scheduled yet, so I can't promise a date, but your request is now linked to it.";
+      return "Jon and Jeff have reviewed your idea and added it to the product backlog. There's no date yet, but your request is linked to it — I'll let you know if that changes.";
     case "planned":
-      return "Good news — our product team plans to build this. There isn't a date I can promise yet, but your request will stay linked to the feature.";
+      return "Good news — Jon and Jeff have decided to build this. No date yet, but your request is linked to it and I'll update you when it ships.";
     case "shipped":
       return "Good news — this feature is now available. If you'd like help finding or using it, reply here and I'll help you get started.";
     case "declined":
-      return "Our product team reviewed the idea and decided not to add it right now. I know that may not be the answer you hoped for. If you tell me more about the outcome you need, I'll help look for another way.";
+      return "Jon and Jeff reviewed your idea and decided not to build it right now. I know that might not be what you were hoping for. If you tell me more about what you're trying to do, I'll see if there's another way.";
     default:
-      return "Our product team has made a decision on your idea. Reply here if you'd like help with the next step.";
+      return "Jon and Jeff have made a decision on your idea. Reply here if you'd like help with the next step.";
   }
 }
 
@@ -118,20 +118,20 @@ export function bloomResolution(summary?: string | null): string {
 }
 
 export function bloomReopened(): string {
-  return "Thanks for letting me know. I've reopened the request and I'm looking at it again. You don't need to start over — the earlier conversation and everything you shared are still here.";
+  return "Got it — I've reopened this request and I'm looking at it again. Everything from before is still here; you don't need to repeat yourself.";
 }
 
 export function bloomAttachmentRejection(rejected: string[]): string {
   return [
-    "I received your email, but I couldn't safely accept these attachments:",
+    "I received your message, but couldn't accept these attachments:",
     ...rejected.map((line) => `• ${line}`),
-    "Please reply with a supported file if it is still needed. Your request is already open, so you don't need to send everything again.",
+    "If a file is still needed, reply with a supported format. Your request is already open — you don't need to resend everything else.",
   ].join("\n");
 }
 
 export function bloomHandoff(reason: string): string {
   const why = reason.trim().replace(/[\s.]+$/, "");
-  return `${why}. I'm passing this to a person on our support team rather than guessing. They'll have everything you've shared here, so there's no need to start over.`;
+  return `${why}. I'm passing this to a person on our support team rather than guessing. They'll have everything you've shared here — the full conversation and all the details — so there's no need to start over.`;
 }
 
 /** Announce a human handoff only after durable routing proves it is active. */

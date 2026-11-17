@@ -7,6 +7,7 @@ import { diagnosticClientHint, findDiagnosticAccount, isIntegrationDiagnosticQue
 import { majorProjectInvitationIntent, findMajorProjectInvitationTarget, projectInviteSlackAnswer } from "./major-project-invitations.ts";
 import { taskNumberFromQuestion, taskStatusText } from "./integration-tasks.ts";
 import { callProduct, runRead } from "./operations.ts";
+import { detectSlackAction, executeSlackAction, slackActionsAllowed } from "./slack-actions.ts";
 
 type Route = SlackRoute | "ask";
 interface Context { allowed:boolean; principal_id:string; role:string; channel:string; route:Route; root_ts:string; user_id:string; ticket_id:string|null; history:Array<{question:string;answer:string}>; delivery_state:string; reply_ts:string|null }
@@ -114,9 +115,26 @@ export async function respondToSlackConversation(job:{id:string;payload:Record<s
       }
     }
   }
-  let text:string;
-  try{text=await answer(c,String(job.payload.question??""));}
-  catch{text="I couldn't finish checking the records just now. Nothing was changed. Please try again in this thread; if this is urgent, open the ticket in Bloom Support.";}
+  const question = String(job.payload.question ?? "");
+  // Prompt 3: execute safe ticket actions from Slack before falling back to read-only answers.
+  let text: string;
+  const slackAction = c.ticket_id && slackActionsAllowed(c.route, c.role)
+    ? detectSlackAction(question) : null;
+  if (slackAction) {
+    try {
+      const result = await executeSlackAction(
+        slackAction,
+        { principalId: c.principal_id, ticketId: c.ticket_id!, jobId: job.id, slackUserId: c.user_id },
+        (name, args) => rpc(name, args),
+      );
+      text = result.message;
+    } catch {
+      text = "I couldn't complete that action right now. Nothing was changed. Try again or use the dashboard.";
+    }
+  } else {
+    try{text=await answer(c,question);}
+    catch{text="I couldn't finish checking the records just now. Nothing was changed. Please try again in this thread; if this is urgent, open the ticket in Bloom Support.";}
+  }
   // Recheck actor/binding immediately before disclosing the answer.
   const current=await sql<Context>("bloom_support_slack_conversation_context",{p_job:job.id});
   if(current.delivery_state==="final")return "already answered in Slack";
