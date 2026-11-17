@@ -56,6 +56,19 @@ describe("IntentCardThumbnail", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses responsive full-width artwork without stretching or cropping", () => {
+    const template = CAMPAIGN_TEMPLATES[0];
+    inJoy(<IntentCardThumbnail template={template} />);
+    const preview = screen.getByTestId(`intent-thumbnail-${template.id}`);
+    const svg = preview.querySelector("svg");
+    expect(preview).toHaveStyle({ width: "100%", aspectRatio: "200 / 176" });
+    expect(preview.style.height).toBe("");
+    expect(svg).toHaveAttribute("viewBox", "20 0 200 176");
+    expect(svg).toHaveAttribute("preserveAspectRatio", "xMidYMid meet");
+    expect(svg).toHaveAttribute("width", "100%");
+    expect(svg).toHaveAttribute("height", "100%");
+  });
+
   it("produces at least one rendered row for every known campaign template", () => {
     // Guard against a future template adding a new `kind` value that the
     // wireframe mapper doesn't recognise. If this fails, add the missing kind
