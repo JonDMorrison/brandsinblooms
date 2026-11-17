@@ -61,7 +61,8 @@ describe("IntentCardThumbnail", () => {
     inJoy(<IntentCardThumbnail template={template} />);
     const preview = screen.getByTestId(`intent-thumbnail-${template.id}`);
     const svg = preview.querySelector("svg");
-    expect(preview).toHaveStyle({ width: "100%", aspectRatio: "200 / 176" });
+    expect(preview.getAttribute("style")).toContain("width: 100%");
+    expect(preview.getAttribute("style")).toContain("aspect-ratio: 200 / 176");
     expect(preview.style.height).toBe("");
     expect(svg).toHaveAttribute("viewBox", "20 0 200 176");
     expect(svg).toHaveAttribute("preserveAspectRatio", "xMidYMid meet");
