@@ -308,6 +308,11 @@ export function IntegrationCard(props: IntegrationCardProps) {
         >
           {description}
         </Typography>
+        {isHubProps(props) && props.item.metaLabel ? (
+          <Typography level="body-xs" sx={{ color: "neutral.600", fontWeight: 600 }}>
+            {props.item.metaLabel}
+          </Typography>
+        ) : null}
       </Stack>
 
       {isHubProps(props) && props.item.children?.length ? (
