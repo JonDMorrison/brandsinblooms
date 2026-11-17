@@ -513,7 +513,9 @@ async function sendEmail(job: Job): Promise<string> {
     requesterName: t.requester?.name ?? null, sender: bloomInitiated ? "bloom" : "team",
   });
   // Sensitive replies require human approval — NEVER auto-send regardless of Gmail availability.
-  if (shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
+  // Exception: job was explicitly approved from the approval queue by a staff member.
+  const alreadyApproved = !!job.payload.approved_queue_id;
+  if (!alreadyApproved && shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
     const emailInput = {
       to, subject: subjectFor(t.number, t.subject), textBody: rendered.text, htmlBody: rendered.html,
       inReplyTo: ctx.thread.last_inbound ?? ctx.thread.last_outbound ?? undefined,
