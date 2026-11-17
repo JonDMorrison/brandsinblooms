@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireVmxServiceRequest } from "../_shared/vmx/authorize.ts";
 
 /**
  * vmx-sync-all
@@ -8,7 +9,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
  * Iterates all active VMX connections and triggers sync for each.
  */
 
-serve(async () => {
+serve(async (req) => {
+  try {
+    requireVmxServiceRequest(req);
+    if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  } catch {
+    return new Response("Unauthorized VMX scheduler request", { status: 401 });
+  }
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -45,12 +52,18 @@ serve(async () => {
         const custRes = await supabase.functions.invoke("vmx-sync-customers", {
           body: { connection_id: conn.id },
         });
+        if (custRes.error || custRes.data?.error) {
+          throw new Error("VMX customer sync failed");
+        }
         const custData = custRes.data;
 
         // Then sync receipts
         const rcptRes = await supabase.functions.invoke("vmx-sync-receipts", {
           body: { connection_id: conn.id },
         });
+        if (rcptRes.error || rcptRes.data?.error) {
+          throw new Error("VMX receipt sync failed");
+        }
         const rcptData = rcptRes.data;
 
         results.push({
