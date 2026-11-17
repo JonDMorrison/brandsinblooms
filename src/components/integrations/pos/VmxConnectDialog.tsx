@@ -27,12 +27,21 @@ export const VmxConnectDialog: React.FC<VmxConnectDialogProps> = ({
   onSwitchToCsv,
 }) => {
   const [apiKey, setApiKey] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
   const [connectionName, setConnectionName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleConnect = async () => {
+    if (!apiUrl.trim()) {
+      setError("Ask VMX for your store-specific API URL.");
+      return;
+    }
+    if (!/^https:\/\/[a-z0-9-]+\.vmxllc\.com\/pos\/api\/?$/i.test(apiUrl.trim())) {
+      setError("Enter the HTTPS /pos/api URL VMX supplied for this store.");
+      return;
+    }
     if (!apiKey.trim()) {
       setError("API key is required");
       return;
@@ -46,6 +55,7 @@ export const VmxConnectDialog: React.FC<VmxConnectDialogProps> = ({
         "vmx-connect",
         {
           body: {
+            api_url: apiUrl.trim(),
             api_key: apiKey.trim(),
             connection_name: connectionName.trim() || "VMX POS",
           },
@@ -66,7 +76,7 @@ export const VmxConnectDialog: React.FC<VmxConnectDialogProps> = ({
       onOpenChange(false);
       toast({
         title: "VMX connected",
-        description: "Initial sync starting. Customers will appear in a few minutes.",
+        description: "Connection saved. Check sync status before relying on imported customers.",
       });
       onSuccess();
 
@@ -91,22 +101,42 @@ export const VmxConnectDialog: React.FC<VmxConnectDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Connect VMX POS</DialogTitle>
           <DialogDescription>
-            Enter your VMX API key. Your IT team or VMX contact can provide
-            this.
+            Ask VMX for this garden centre's API URL and API Client ID.
+            A regular VMX sign-in link is not an API credential.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="vmx-api-key">API Key</Label>
+            <Label htmlFor="vmx-api-url">Store API URL</Label>
+            <Input
+              id="vmx-api-url"
+              type="url"
+              autoComplete="off"
+              value={apiUrl}
+              onChange={(e) => {
+                setApiUrl(e.target.value);
+                setError(null);
+              }}
+              placeholder="https://your-store.vmxllc.com/pos/api"
+              disabled={loading}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use the exact API address supplied by VMX for this location.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="vmx-api-key">VMX API Client ID</Label>
             <Input
               id="vmx-api-key"
+              type="password"
+              autoComplete="new-password"
               value={apiKey}
               onChange={(e) => {
                 setApiKey(e.target.value);
                 setError(null);
               }}
-              placeholder="e.g. 71f1206d6c223bec13a3af984019cf0d"
+              placeholder="Enter the VMX-issued API Client ID"
               disabled={loading}
             />
           </div>
@@ -136,7 +166,7 @@ export const VmxConnectDialog: React.FC<VmxConnectDialogProps> = ({
           <Button
             className="w-full"
             onClick={handleConnect}
-            disabled={loading || !apiKey.trim()}
+            disabled={loading || !apiKey.trim() || !apiUrl.trim()}
           >
             {loading ? (
               <>
