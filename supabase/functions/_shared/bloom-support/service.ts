@@ -386,7 +386,7 @@ export const actions = {
   listApprovalQueue: (c: Caller, status = "pending") =>
     rpc("bloom_support_list_approval_queue", { p_actor: c.principalId, p_status: status }),
 
-  async approveQueuedReply(c: Caller, entryId: string) {
+  approveQueuedReply(c: Caller, entryId: string) {
     requireWriteScope(c);
     // bloom_support_review_queued_reply atomically transitions pending→approved and
     // enqueues the send_email job in the same DB transaction; no separate enqueue needed.

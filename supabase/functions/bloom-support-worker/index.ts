@@ -1314,7 +1314,7 @@ async function handleSlackInteraction(job: Job): Promise<string> {
 
   // bloom_support_review_queued_reply atomically transitions pending→approved/rejected
   // and enqueues the send_email job on approval; no separate enqueue step needed.
-  const entry = await rpc<{ id: string; ticket_id: string; message_id: string | null; status: string }>(
+  await rpc(
     "bloom_support_review_queued_reply",
     { p_actor: identity.principal_id, p_entry_id: entryId, p_action: action === "approve" ? "approved" : "rejected", p_reason: null },
   );
