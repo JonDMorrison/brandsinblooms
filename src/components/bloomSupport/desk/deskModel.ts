@@ -2,7 +2,7 @@
 
 export type DeskView =
   | "today" | "queue" | "escalations" | "clients" | "reports"
-  | "features" | "knowledge" | "problems" | "engineering" | "operations" | "readiness" | "settings";
+  | "approvals" | "features" | "knowledge" | "problems" | "engineering" | "operations" | "readiness" | "settings";
 
 /** Destinations used every day. Everything else lives under "More". */
 export const MAIN_VIEWS: Array<{ value: DeskView; label: string }> = [
@@ -14,6 +14,7 @@ export const MAIN_VIEWS: Array<{ value: DeskView; label: string }> = [
 ];
 
 export const MORE_VIEWS: Array<{ value: DeskView; label: string; short: string }> = [
+  { value: "approvals", label: "Reply approvals", short: "Replies Bloom prepared and held for your review" },
   { value: "features", label: "Feature requests", short: "Ideas clients asked for, and who asked" },
   { value: "knowledge", label: "Saved answers", short: "Approved answers Bloom can reuse" },
   { value: "problems", label: "Shared problems", short: "One issue affecting several clients" },

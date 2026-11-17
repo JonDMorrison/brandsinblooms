@@ -14,7 +14,8 @@ export function renderSlackDigestBlocks(
   opts: { appUrl: string; date: string },
 ): SlackDigest | null {
   const { needs_you, resolved, said, repairs, alerts } = r;
-  if (!needs_you.length && !resolved.length && !said.length && !repairs.length && !alerts.length) {
+  const approvalsPending = r.approvals_pending ?? 0;
+  if (!needs_you.length && !resolved.length && !said.length && !repairs.length && !alerts.length && !approvalsPending) {
     return null;
   }
 
@@ -32,6 +33,7 @@ export function renderSlackDigestBlocks(
   if (said.length) statParts.push(`talked to ${said.length} client${said.length === 1 ? "" : "s"}`);
   if (repairs.length) statParts.push(`${repairs.length} repair${repairs.length === 1 ? "" : "s"} in progress`);
   if (alerts.length) statParts.push(`⚠ ${alerts.length} alert${alerts.length === 1 ? "" : "s"}`);
+  if (approvalsPending) statParts.push(`📬 ${approvalsPending} repl${approvalsPending === 1 ? "y" : "ies"} need review`);
 
   const blocks: Record<string, unknown>[] = [];
 

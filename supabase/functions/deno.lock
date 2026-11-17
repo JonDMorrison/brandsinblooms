@@ -17,14 +17,14 @@
     "npm:@supabase/postgrest-js@2.119.0": "2.119.0",
     "npm:@supabase/realtime-js@2.119.0": "2.119.0",
     "npm:@supabase/storage-js@2.119.0": "2.119.0",
-    "npm:@supabase/supabase-js@2": "2.117.2",
+    "npm:@supabase/supabase-js@2": "2.117.2_@opentelemetry+api@1.9.1",
     "npm:@supabase/supabase-js@2.105.1": "2.105.1",
-    "npm:@supabase/supabase-js@2.117.2": "2.117.2",
+    "npm:@supabase/supabase-js@2.117.2": "2.117.2_@opentelemetry+api@1.9.1",
     "npm:@supabase/supabase-js@2.58.0": "2.58.0",
     "npm:@types/bcryptjs@2.4.6": "2.4.6",
     "npm:bcryptjs@^2.4.3": "2.4.3",
     "npm:jose@6.2.2": "6.2.2",
-    "npm:openai@^4.52.5": "4.104.0",
+    "npm:openai@^4.52.5": "4.104.0_zod@4.6.7",
     "npm:postgres@3.4.4": "3.4.4",
     "npm:resend@*": "2.1.0",
     "npm:resend@2.0.0": "2.0.0",
@@ -103,6 +103,9 @@
     },
     "@one-ini/wasm@0.1.1": {
       "integrity": "sha512-XuySG1E38YScSJoMlqovLru4KTUNSjgVTIjyh7qMX6aNN5HY5Ct5LhRJdxO79JtTzKfzV/bnWpz+zquYrISsvw=="
+    },
+    "@opentelemetry/api@1.9.1": {
+      "integrity": "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="
     },
     "@pkgjs/parseargs@0.11.0": {
       "integrity": "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg=="
@@ -273,14 +276,18 @@
         "@supabase/storage-js@2.105.1"
       ]
     },
-    "@supabase/supabase-js@2.117.2": {
+    "@supabase/supabase-js@2.117.2_@opentelemetry+api@1.9.1": {
       "integrity": "sha512-eSG2VKnHR+Clp1PmidZ1/weJ8PJwoybjva3L2GgKqFG4YDS1Iqmc61psKGZP5xw6OMT2O7ZorPR42PY6q1BOXg==",
       "dependencies": [
+        "@opentelemetry/api",
         "@supabase/auth-js@2.117.2",
         "@supabase/functions-js@2.117.2",
         "@supabase/postgrest-js@2.117.2",
         "@supabase/realtime-js@2.117.2",
         "@supabase/storage-js@2.117.2"
+      ],
+      "optionalPeers": [
+        "@opentelemetry/api"
       ]
     },
     "@supabase/supabase-js@2.58.0": {
@@ -851,7 +858,7 @@
     "object-inspect@1.13.4": {
       "integrity": "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew=="
     },
-    "openai@4.104.0": {
+    "openai@4.104.0_zod@4.6.7": {
       "integrity": "sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA==",
       "dependencies": [
         "@types/node",
@@ -860,7 +867,11 @@
         "agentkeepalive",
         "form-data-encoder",
         "formdata-node",
-        "node-fetch"
+        "node-fetch",
+        "zod"
+      ],
+      "optionalPeers": [
+        "zod"
       ],
       "bin": true
     },
@@ -893,8 +904,8 @@
     "picocolors@1.1.1": {
       "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="
     },
-    "postcss@8.5.32": {
-      "integrity": "sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==",
+    "postcss@8.5.33": {
+      "integrity": "sha512-RVHEU9/Pp1Fnjr/MpAJsZoADukCKhfIi15OunEYiGktIkYLkPVvC1sioWolGDS7XByMTx9m/IGbro0Js13zhnQ==",
       "dependencies": [
         "nanoid",
         "picocolors",
@@ -1125,6 +1136,9 @@
     },
     "ws@8.20.0": {
       "integrity": "sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA=="
+    },
+    "zod@4.6.7": {
+      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
     }
   },
   "redirects": {

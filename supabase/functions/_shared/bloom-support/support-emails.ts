@@ -956,10 +956,11 @@ export interface DigestReport {
     first_response_at?: string | null; communication?: DigestCommunication;
   }>;
   counts?: { new?: number; open?: number };
+  approvals_pending?: number;
 }
 
 export function digestIsEmpty(r: DigestReport): boolean {
-  return !r.needs_you.length && !r.resolved.length && !r.said.length && !r.repairs.length && !r.alerts.length && !r.internal_tests?.length;
+  return !r.needs_you.length && !r.resolved.length && !r.said.length && !r.repairs.length && !r.alerts.length && !r.internal_tests?.length && !(r.approvals_pending ?? 0);
 }
 
 /**
@@ -1004,6 +1005,7 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
   const saidByTicket = new Map<number, typeof r.said>();
   for (const s of r.said) saidByTicket.set(s.number, [...(saidByTicket.get(s.number) ?? []), s]);
 
+  const approvalsPending = r.approvals_pending ?? 0;
   const internalTests = r.internal_tests ?? [];
   const internalLines = internalTests.map((t) => {
     const blocker = t.deployment_state === "rollback_point_unproven"
@@ -1015,7 +1017,7 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
     ? `${needs.length} request${needs.length === 1 ? "" : "s"} need${needs.length === 1 ? "s" : ""} you today`
     : internalTests.length ? `${internalTests.length} internal test${internalTests.length === 1 ? "" : "s"} to review` : "Nothing needs you today";
   const deliveryKnown = r.said.every((message) => message.delivery === "sent" || message.delivery === "delivered");
-  const intro = `${weekly ? "This week" : "In the last day"} Bloom resolved ${r.resolved.length}, ${deliveryKnown ? "sent messages to clients on" : "recorded messages on"} ${saidByTicket.size} request${saidByTicket.size === 1 ? "" : "s"}, and has ${r.repairs.length} repair${r.repairs.length === 1 ? "" : "s"} in progress.${internalTests.length ? ` ${internalTests.length} staff-classified internal test${internalTests.length === 1 ? " is" : "s are"} listed separately from customer totals.` : ""}`;
+  const intro = `${weekly ? "This week" : "In the last day"} Bloom resolved ${r.resolved.length}, ${deliveryKnown ? "sent messages to clients on" : "recorded messages on"} ${saidByTicket.size} request${saidByTicket.size === 1 ? "" : "s"}, and has ${r.repairs.length} repair${r.repairs.length === 1 ? "" : "s"} in progress.${internalTests.length ? ` ${internalTests.length} staff-classified internal test${internalTests.length === 1 ? " is" : "s are"} listed separately from customer totals.` : ""}${approvalsPending ? ` ${approvalsPending} repl${approvalsPending === 1 ? "y is" : "ies are"} held for your review before sending.` : ""}`;
 
   const needsHtml = needs.map((n) =>
     botanicalEmailParagraph(n.line, { size: 14, margin: "8px 0 0" }) + botanicalEmailButton(n.button, n.url).replace("margin:20px 0 8px", "margin:8px 0 14px")
@@ -1031,8 +1033,17 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
     return botanicalEmailQuote(clip(last.body.trim(), 280), `${last.client ?? "A client"} · #${number} ${shortTopic(last.subject, 50)} · ${formatWhen(last.at, tz)} · ${saidLabel(last)}`);
   }).join("");
 
+  const approvalsHtml = approvalsPending
+    ? botanicalEmailSection(
+        "Replies held for review",
+        botanicalEmailList([`${approvalsPending} repl${approvalsPending === 1 ? "y is" : "ies are"} waiting in the approval queue — review before Bloom sends.`]) +
+          botanicalEmailButton("Review queue", `${base}/admin/bloom-support`).replace("margin:20px 0 8px", "margin:8px 0 14px"),
+        "alert",
+      )
+    : "";
   const bodyHtml =
     (needs.length ? botanicalEmailSection("What needs you", needsHtml, "alert") : "") +
+    approvalsHtml +
     (internalHtml ? botanicalEmailSection("Internal tests — staff review", internalHtml, "alert") : "") +
     (resolvedLines.length ? botanicalEmailSection("What Bloom resolved", botanicalEmailList(resolvedLines), "check") : "") +
     (saidHtml ? botanicalEmailSection("What Bloom said to clients", saidHtml, "mail") : "") +
@@ -1054,6 +1065,7 @@ export function renderDigestEmail(r: DigestReport, opts: { appUrl: string; date:
   const text = [
     title, intro, "",
     needs.length ? "What needs you" : "", ...needs.map((n) => `• ${n.line}\n  ${n.button}: ${n.url}`),
+    approvalsPending ? `\nReplies held for review\n• ${approvalsPending} repl${approvalsPending === 1 ? "y is" : "ies are"} waiting — review: ${base}/admin/bloom-support` : "",
     internalLines.length ? "\nInternal tests — staff review" : "", ...internalLines.map((line, index) => `• ${line}\n  Review test: ${supportLink(base, internalTests[index].id)}`),
     resolvedLines.length ? "\nWhat Bloom resolved" : "", ...resolvedLines.map((l) => `• ${l}`),
     saidByTicket.size ? "\nWhat Bloom said to clients" : "",

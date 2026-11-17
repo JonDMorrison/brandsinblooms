@@ -383,6 +383,26 @@ export const actions = {
     requireWriteScope(c);
     return rpc("upsert_knowledge", { ...A(c), article });
   },
+  listApprovalQueue: (c: Caller, status = "pending") =>
+    rpc("bloom_support_list_approval_queue", { p_actor: c.principalId, p_status: status }),
+
+  approveQueuedReply(c: Caller, entryId: string) {
+    requireWriteScope(c);
+    // bloom_support_review_queued_reply atomically transitions pending→approved and
+    // enqueues the send_email job in the same DB transaction; no separate enqueue needed.
+    return mutationRpc<{ id: string; ticket_id: string; message_id: string | null; status: string }>(
+      c, "bloom_support_review_queued_reply",
+      { p_actor: c.principalId, p_entry_id: uuid(entryId, "entry_id"), p_action: "approved", p_reason: null },
+    );
+  },
+
+  rejectQueuedReply(c: Caller, entryId: string, reason?: string) {
+    requireWriteScope(c);
+    return mutationRpc(c, "bloom_support_review_queued_reply", {
+      p_actor: c.principalId, p_entry_id: uuid(entryId, "entry_id"), p_action: "rejected", p_reason: reason ?? null,
+    });
+  },
+
   async health(c: Caller) {
     await rpc("queue_summary", A(c));
     const ai = await aiConfig();
