@@ -15,6 +15,7 @@ serve(async (req) => {
 
   const startTime = Date.now();
   let connectionId = "";
+  let authorizedConnection = false;
 
   try {
     const supabase = createClient(
@@ -36,6 +37,7 @@ serve(async (req) => {
     if (connErr || !conn) throw new Error("Connection not found");
     if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
     await authorizeVmxConnectionRequest(req, conn.tenant_id);
+    authorizedConnection = true;
     if (!conn.is_active) throw new Error("Connection is inactive");
 
     // Decrypt API key
@@ -177,7 +179,7 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("vmx-sync-customers error:", err);
-    if (connectionId) {
+    if (authorizedConnection && connectionId) {
       const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await supabase.from("pos_connections").update({
         sync_status: "error",
