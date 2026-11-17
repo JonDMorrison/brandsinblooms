@@ -2416,7 +2416,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertEquals(row.status, "needs_owner", "feature news preserves engineering handoff");
     assertExists(row.owner_id, "stopped work has a named accountable owner");
     assertExists(row.next_action_due_at, "stopped work has a follow-up deadline");
-    assertEquals(true, String(row.next_action).includes("review the stopped repair"), `next_action was: ${JSON.stringify(row.next_action)}; status=${row.status} owner_id=${row.owner_id}`);
+    assert(String(row.next_action).includes("review the stopped repair"));
     assertNotEquals(row.waiting_reason, "customer", "no customer response was requested");
     const stopCount = async () => Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${ticketId} AND body LIKE 'The automated repair process has stopped%'`)[0].n);
     assertEquals(await stopCount(), 1);

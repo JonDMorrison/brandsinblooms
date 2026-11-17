@@ -130,7 +130,7 @@ async function holdForApproval(opts: {
   ticket: TicketView; job: Job; to: string; subject: string;
   textBody: string; htmlBody: string; holdReason: string; messageId?: string | null;
 }): Promise<string> {
-  const result = await rpc<{ id: string; created: boolean }>("bloom_support_insert_approval_queue_entry", {
+  const result = await directRpc<{ id: string; created: boolean }>("bloom_support_insert_approval_queue_entry", {
     p_ticket_id: opts.ticket.id,
     p_original_job_id: opts.job.id,
     p_message_id: opts.messageId ?? null,
@@ -1267,7 +1267,7 @@ async function handleSlackCommand(job: Job): Promise<string> {
     const count = Array.isArray(tickets) ? tickets.length : 0;
     reply = `*Urgent tickets:* ${count}`;
   } else if (/approval|pending|review/.test(text)) {
-    const queue = await rpc<Array<unknown>>("bloom_support_list_approval_queue", { p_actor: bot.principalId, p_status: "pending" });
+    const queue = await directRpc<Array<unknown>>("bloom_support_list_approval_queue", { p_actor: bot.principalId, p_status: "pending" });
     const count = Array.isArray(queue) ? queue.length : 0;
     reply = `*Pending approvals:* ${count}`;
   } else if (/status|state|bloom/.test(text)) {
@@ -1314,7 +1314,7 @@ async function handleSlackInteraction(job: Job): Promise<string> {
 
   // bloom_support_review_queued_reply atomically transitions pending→approved/rejected
   // and enqueues the send_email job on approval; no separate enqueue step needed.
-  await rpc(
+  await directRpc(
     "bloom_support_review_queued_reply",
     { p_actor: identity.principal_id, p_entry_id: entryId, p_action: action === "approve" ? "approved" : "rejected", p_reason: null },
   );
