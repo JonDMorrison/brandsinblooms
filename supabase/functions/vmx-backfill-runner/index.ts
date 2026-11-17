@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireVmxServiceRequest } from "../_shared/vmx/authorize.ts";
 
 /**
  * vmx-backfill-runner
@@ -8,7 +9,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
  * and invokes vmx-backfill-receipts for each, sequentially.
  */
 
-serve(async () => {
+serve(async (req) => {
+  try {
+    requireVmxServiceRequest(req);
+    if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  } catch {
+    return new Response("Unauthorized VMX scheduler request", { status: 401 });
+  }
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
