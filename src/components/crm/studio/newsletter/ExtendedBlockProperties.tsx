@@ -36,6 +36,13 @@ const offers: Array<{ value: CouponOffer; label: string }> = [
   { value: "multi-buy", label: "A deal for buying several (like 3 for $10)" },
   { value: "tiered", label: "A lower price when you buy more" },
 ];
+// A new table starts with empty cells. Joining those gave a box that already
+// held a tab, so the first thing typed landed in the second column. An
+// all-empty table shows as an empty box.
+function tableCellsToText(rows: string[][]) {
+  const text = rows.map((row) => row.join("\t")).join("\n");
+  return text.replace(/[\t\n]/g, "") === "" ? "" : text;
+}
 function LinksEditor({
   block,
   update,
@@ -1033,7 +1040,7 @@ export default function ExtendedBlockProperties({
             label="Column titles (press Tab to start the next column)"
             multiline
             captureTab
-            value={(block.tableHeaders || []).join("\t")}
+            value={tableCellsToText([block.tableHeaders || []])}
             onChange={(value) =>
               update("tableHeaders", value.split("\t").slice(0, 12))
             }
@@ -1042,9 +1049,7 @@ export default function ExtendedBlockProperties({
             label="Rows (paste from a spreadsheet, or press Tab between columns)"
             multiline
             captureTab
-            value={(block.tableRows || [])
-              .map((row) => row.join("\t"))
-              .join("\n")}
+            value={tableCellsToText(block.tableRows || [])}
             onChange={(value) =>
               update(
                 "tableRows",
@@ -1056,8 +1061,8 @@ export default function ExtendedBlockProperties({
             }
           />
           <p className="nl-note">
-            Tab-separated columns, one row per line. Up to 12 columns and 100
-            rows.
+            One row per line. Press Tab to move to the next column. Up to 12
+            columns and 100 rows.
           </p>
         </>
       );
