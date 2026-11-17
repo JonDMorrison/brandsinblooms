@@ -15,7 +15,8 @@ import Dropdown from "@mui/joy/Dropdown";
 import MenuButton from "@mui/joy/MenuButton";
 import Menu from "@mui/joy/Menu";
 import MenuItem from "@mui/joy/MenuItem";
-import { CheckSquare, Search, SlidersHorizontal } from "lucide-react";
+import IconButton from "@mui/joy/IconButton";
+import { CheckSquare, MoreHorizontal, Search, SlidersHorizontal } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { bloomSupport, KIND_LABEL, PRODUCT_LABEL, QUEUE_VIEWS, STATUS_LABEL, type SupportStatus, type TicketSummary, type Whoami } from "@/lib/bloomSupport/api";
 import { useAskDialog } from "./useAskDialog";
@@ -26,13 +27,14 @@ import { StatusPill } from "./desk/StatusPill";
 type Filters = { view: string; q?: string; product?: string; priority?: string; kind?: string; owner?: string; sort: string; age_days_min?: string };
 
 /** One calm line per request: who, what, where it stands, and what happens next. */
-function RequestRow({ t, selected, selecting, checked, onOpen, onCheck }: {
+function RequestRow({ t, selected, selecting, checked, onOpen, onCheck, onQuickAction }: {
   t: TicketSummary;
   selected: boolean;
   selecting: boolean;
   checked: boolean;
   onOpen: () => void;
   onCheck: (on: boolean) => void;
+  onQuickAction: (action: "assign_me" | "working" | "waiting" | "resolve") => void;
 }) {
   const f = t.flags;
   const status = friendlyStatus(t);
@@ -51,7 +53,7 @@ function RequestRow({ t, selected, selecting, checked, onOpen, onCheck }: {
         borderLeft: "3px solid", borderLeftColor: selected ? "primary.500" : "transparent",
         bgcolor: selected ? "primary.50" : undefined,
         transition: "background-color 120ms ease",
-        "&:hover": { bgcolor: selected ? "primary.50" : "neutral.50" },
+        "&:hover": { bgcolor: selected ? "primary.50" : "neutral.50", "& [data-quick-actions]": { opacity: 1 } },
         "&:focus-visible": { outline: "3px solid", outlineColor: "primary.500", outlineOffset: -3 },
       }}
     >
@@ -88,6 +90,22 @@ function RequestRow({ t, selected, selecting, checked, onOpen, onCheck }: {
           </Typography>
         )}
       </Stack>
+      {!selecting && (
+        <Box data-quick-actions sx={{ opacity: 0, transition: "opacity 120ms ease", alignSelf: "flex-start", mt: 0.5 }} onClick={(e) => e.stopPropagation()}>
+          <Dropdown>
+            <MenuButton slots={{ root: IconButton }} slotProps={{ root: { size: "sm", variant: "plain", color: "neutral", "aria-label": `Quick actions for #${t.number}` } }}>
+              <MoreHorizontal size={18} aria-hidden />
+            </MenuButton>
+            <Menu size="sm" placement="bottom-end">
+              {!t.owner && <MenuItem onClick={() => onQuickAction("assign_me")}>Assign to me</MenuItem>}
+              {t.owner && <MenuItem onClick={() => onQuickAction("assign_me")}>Reassign to me</MenuItem>}
+              {t.status !== "working" && <MenuItem onClick={() => onQuickAction("working")}>Mark working</MenuItem>}
+              {t.status !== "waiting" && <MenuItem onClick={() => onQuickAction("waiting")}>Mark waiting…</MenuItem>}
+              {t.status !== "resolved" && <MenuItem color="success" onClick={() => onQuickAction("resolve")}>Resolve…</MenuItem>}
+            </Menu>
+          </Dropdown>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -130,6 +148,27 @@ export function QueueList({ me, selectedId, onOpen, initialView }: { me: Whoami;
     onError: (e: Error) => setNotice({ color: "warning", text: e.message }),
   });
   const { ask, dialog } = useAskDialog();
+
+  const quick = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) => bloomSupport.updateTicket(id, patch),
+    onSuccess: () => { setNotice({ color: "success", text: "Updated." }); qc.invalidateQueries({ queryKey: ["bloom-support"] }); },
+    onError: (e: Error) => setNotice({ color: "warning", text: e.message }),
+  });
+  const runQuick = async (t: TicketSummary, action: "assign_me" | "working" | "waiting" | "resolve") => {
+    if (action === "assign_me") { quick.mutate({ id: t.id, patch: { owner_id: me.id } }); return; }
+    if (action === "working") { quick.mutate({ id: t.id, patch: { status: "working" } }); return; }
+    if (action === "waiting") {
+      const r = await ask({ title: "Waiting on whom?", fields: [{ name: "reason", label: "Waiting on", kind: "select", required: true, initial: "customer", options: WAITING_OPTIONS }], confirmLabel: "Set to waiting" });
+      if (r) quick.mutate({ id: t.id, patch: { status: "waiting", waiting_reason: String(r.reason) } });
+      return;
+    }
+    if (action === "resolve") {
+      const r = await ask({ title: "Resolve this request", description: "A brief summary is sent to the client.", fields: [{ name: "summary", label: "What can the client do now?", kind: "textarea", required: true, helper: "Plain words, no technical terms." }], confirmLabel: "Resolve" });
+      if (r) quick.mutate({ id: t.id, patch: { status: "resolved", resolution_summary: String(r.summary).trim() } });
+      return;
+    }
+  };
+
   const runBulk = async (b: Record<string, unknown>, consequential = false) => {
     const n = checked.size;
     if (consequential || n > 20) {
@@ -298,6 +337,7 @@ export function QueueList({ me, selectedId, onOpen, initialView }: { me: Whoami;
             checked={checked.has(t.id)}
             onOpen={() => onOpen(t.id)}
             onCheck={(on) => setChecked((s) => { const n = new Set(s); if (on) n.add(t.id); else n.delete(t.id); return n; })}
+            onQuickAction={(action) => runQuick(t, action)}
           />
         ))}
         {pages.hasNextPage && (
