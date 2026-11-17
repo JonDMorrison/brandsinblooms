@@ -91,6 +91,9 @@ export default function StudioColorPicker({
     [designSystemPresets?.expanded, expandedPresets],
   );
   const [expanded, setExpanded] = React.useState(false);
+  // Colour codes are for people who already know one. Everyone else picks a
+  // swatch, so the code box stays hidden until it is asked for.
+  const [codeOpen, setCodeOpen] = React.useState(false);
   const [selectedColor, setSelectedColor] = React.useState(
     defaultColor ?? primaryPreset,
   );
@@ -288,9 +291,23 @@ export default function StudioColorPicker({
             onChange={(event) => commitColor(event.target.value)}
             style={{ width: 32, height: 32, minWidth: 32, padding: 2, borderRadius: 8, cursor: "pointer" }}
           />
+          {!codeOpen ? (
+            <Button
+              variant="plain"
+              color="neutral"
+              size="sm"
+              onClick={() => setCodeOpen(true)}
+              sx={{ minHeight: 26, px: 0.75, fontSize: "11px", fontWeight: 600 }}
+            >
+              Pick any colour, or type a colour code
+            </Button>
+          ) : null}
+          {codeOpen ? (
           <Typography level="body-xs" sx={{ color: "neutral.600", fontWeight: 700, whiteSpace: "nowrap" }}>
             Colour code
           </Typography>
+          ) : null}
+          {codeOpen ? (
           <Input
             size="sm"
             variant="outlined"
@@ -329,6 +346,7 @@ export default function StudioColorPicker({
               },
             }}
           />
+          ) : null}
         </Stack>
       </Stack>
     </Stack>

@@ -14,6 +14,33 @@ type Update = (
   field: keyof StudioBlock,
   value: StudioBlock[keyof StudioBlock],
 ) => void;
+// While editing, show personalisation as a readable chip ("Customer's first
+// name") and not as raw code such as {{ first_name }}. This only changes what
+// the canvas displays. The stored block and the sent email keep the real tag.
+const FRIENDLY_MERGE_TAGS: Record<string, string> = {
+  first_name: "Customer's first name",
+  last_name: "Customer's last name",
+  business_name: "Your business name",
+  email: "Customer's email",
+  city: "Customer's city",
+};
+
+function showFriendlyMergeTags(html: string) {
+  return html
+    .split(/(<[^>]+>)/)
+    .map((part) =>
+      part.startsWith("<")
+        ? part
+        : part.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key: string) => {
+            const label = FRIENDLY_MERGE_TAGS[key];
+            return label
+              ? `<span data-newsletter-readonly style="display:inline-block;padding:0 6px;border-radius:6px;background:rgba(49,92,88,0.14);border:1px solid rgba(49,92,88,0.35);font-size:0.9em;line-height:1.5;">${label}</span>`
+              : match;
+          }),
+    )
+    .join("");
+}
+
 export default function SharedEmailBlockPreview({
   block,
   onUpdateBlockField,
@@ -46,14 +73,14 @@ export default function SharedEmailBlockPreview({
     const markup = block.type === "footer"
       ? renderFooterBlockToEmailHtml(block, {}, designSystem)
       : renderNewsletterBlock(block, designSystem, settings, { editing: true });
-    return DOMPurify.sanitize(markup, {
+    return showFriendlyMergeTags(DOMPurify.sanitize(markup, {
         ADD_ATTR: [
           "data-newsletter-image",
           "data-newsletter-index",
           "data-newsletter-role",
         ],
         FORBID_TAGS: ["script", "iframe", "form", "input", "style", "link"],
-    });
+    }));
   }, [block, designSystem, settings]);
   const hasVisibleContent = Boolean(
     html

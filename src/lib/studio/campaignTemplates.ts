@@ -210,7 +210,7 @@ function createHero(
     tagLabel: options.tagLabel,
     backgroundColor: options.backgroundColor || "#171717",
     textColor: options.textColor || "#fafafa",
-    buttonText: options.buttonText || "View the edit",
+    buttonText: options.buttonText || "Learn more",
     buttonUrl: options.buttonUrl || getWebsiteUrl(designSystem, "#preview"),
     buttonColor: "#fffaf1",
     buttonTextColor: primaryColor,
@@ -303,7 +303,7 @@ function createCta(
     ...block,
     headline: options.headline,
     body: options.body,
-    buttonText: options.buttonText || "Open the collection",
+    buttonText: options.buttonText || "Learn more",
     buttonUrl: options.buttonUrl || getWebsiteUrl(designSystem, "#collection"),
     backgroundColor: primaryColor,
     textColor: designSystem?.colors.primaryContrastText || "#ffffff",
@@ -361,7 +361,7 @@ function buildEditorialTemplate(
   return finalizeBlocks([
     createHeader(designSystem, {
       headline: designSystem?.company.name || "Seasonal Notes",
-      tagLabel: "Curated release",
+      tagLabel: "Newsletter",
       backgroundColor: config.surfaceColor,
       textColor: "#18181b",
     }),
@@ -394,7 +394,7 @@ function buildEditorialTemplate(
     createCta(designSystem, {
       headline: config.ctaLabel,
       body: config.ctaBody,
-      buttonText: "Open the campaign",
+      buttonText: "Learn more",
       buttonUrl: getWebsiteUrl(designSystem, config.fallbackUrl),
       accentColor: config.accentColor,
       backgroundColor: config.surfaceColor,
@@ -460,7 +460,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
           headline: "A season worth slowing down for.",
           subheading:
             "Lead with one beautiful idea, then guide readers through a curated mix of stories and highlights.",
-          body: "Designed like a small magazine: visual, spacious, and easy to scan on every screen.",
+          body: "Click any part of this email to change the words and photos.",
           tagLabel: "The seasonal showcase",
           backgroundColor: accentColor,
           textColor: "#fffaf1",
@@ -518,9 +518,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "spring-studio-introduction",
-    name: "Spring Studio Introduction",
+    name: "Spring Welcome",
     summary:
-      "Soft seasonal launch with editorial pacing and a welcoming lead-in.",
+      "Welcome customers back for spring.",
     season: "spring",
     tags: ["launch", "editorial"],
     accentColor: "#6ea85c",
@@ -555,9 +555,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "spring-client-preview",
-    name: "Spring Client Preview",
+    name: "Early Look for Best Customers",
     summary:
-      "Reserved preview layout for members, VIP lists, or early access drops.",
+      "Give your best customers a first look at something new.",
     season: "spring",
     tags: ["vip", "early access"],
     accentColor: "#4b9872",
@@ -574,16 +574,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A private preview for your first look list.",
+        heading: "You get the first look",
         summary:
-          "Use this for membership launches, appointment-first releases, or an understated early-access note.",
+          "New plants arrive this week. As a valued customer, you can shop them first.",
         quote:
-          "A preview email works best when the hierarchy is clear: one opening statement, one reason to care, one place to act.",
-        authorName: "Client Services",
-        authorTitle: "Private access team",
-        ctaLabel: "Unlock the preview window",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "Shop the early look",
         ctaBody:
-          "Point the CTA at a hidden collection, an RSVP link, or a booking page.",
+          "Tell customers when the early look ends and how to shop it.",
         accentColor: "#4b9872",
         surfaceColor: "#eef8f3",
         heroColor: "#22503e",
@@ -592,8 +592,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "summer-launch-window",
-    name: "Summer Launch Window",
-    summary: "High-clarity summer drop layout with a stronger opening hero.",
+    name: "Summer Is Here",
+    summary: "Announce your summer plants, products or hours.",
     season: "summer",
     tags: ["drop", "announcement"],
     accentColor: "#2d8aa9",
@@ -609,16 +609,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A focused summer launch, framed with room to breathe.",
+        heading: "Summer is here at the garden centre",
         summary:
-          "Built for product drops, event windows, or a short summer campaign with one clear primary action.",
+          "Our summer plants and supplies are in. Here is what is new.",
         quote:
-          "If a campaign only needs one decisive action, the layout should support that instead of competing with it.",
-        authorName: "Launch Planning",
-        authorTitle: "Campaign operations",
-        ctaLabel: "Open the launch page",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "See what is new for summer",
         ctaBody:
-          "Pair with a live product release, a booking slot, or a short seasonal offer.",
+          "Add your store hours here, or link this button to your website.",
         accentColor: "#2d8aa9",
         surfaceColor: "#eef8fb",
         heroColor: "#1f4d63",
@@ -627,9 +627,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "summer-weekend-note",
-    name: "Summer Weekend Note",
+    name: "This Weekend",
     summary:
-      "Concise weekend send for light programming, events, or reminders.",
+      "A short note about what is happening this weekend.",
     season: "summer",
     tags: ["weekend", "event"],
     // Unified summer hue. Previously #ef8b4e (warm peach) but the
@@ -650,16 +650,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A short weekend send with a measured tone.",
+        heading: "Happening this weekend",
         summary:
-          "Ideal for event reminders, appointment nudges, or a calm end-of-week note to your audience.",
+          "Stop by this weekend. Here is what we have planned.",
         quote:
-          "Short sends work best when the layout feels intentional rather than stripped down.",
-        authorName: "Events Desk",
-        authorTitle: "Weekend programming",
-        ctaLabel: "Open the weekend brief",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "Plan your visit",
         ctaBody:
-          "Replace this section with your event timing, RSVP details, or visit window.",
+          "Add the day, the time and anything customers should bring.",
         accentColor: "#2d8aa9",
         surfaceColor: "#eef8fb",
         heroColor: "#1f4d63",
@@ -668,9 +668,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "autumn-capsule-edit",
-    name: "Autumn Capsule Edit",
+    name: "Fall Favourites",
     summary:
-      "Structured autumn release for curated product or service highlights.",
+      "Show a few favourite fall plants or products.",
     season: "autumn",
     tags: ["capsule", "curated"],
     accentColor: "#c97834",
@@ -687,16 +687,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A quieter autumn edit with a curated point of view.",
+        heading: "Our fall favourites are in",
         summary:
-          "Use this for capsule collections, service bundles, or a refined seasonal announcement.",
+          "Mums, bulbs and everything you need for fall planting.",
         quote:
-          "The message feels premium when the hierarchy is disciplined: headline, context, then action.",
-        authorName: "Merchandising",
-        authorTitle: "Curated collection team",
-        ctaLabel: "Open the autumn capsule",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "Shop fall favourites",
         ctaBody:
-          "Point this CTA at a curated release, a lookbook, or a booking sequence.",
+          "Link this button to your website, or invite customers to visit in store.",
         accentColor: "#c97834",
         surfaceColor: "#fff2e7",
         heroColor: "#6e3b1f",
@@ -705,9 +705,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "autumn-client-appreciation",
-    name: "Autumn Client Appreciation",
+    name: "Thank You to Customers",
     summary:
-      "Warm but restrained thank-you note for loyalty or reorder campaigns.",
+      "A warm thank-you note for your customers.",
     season: "autumn",
     tags: ["retention", "thank you"],
     accentColor: "#99572d",
@@ -723,16 +723,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A client note that feels composed, not promotional.",
+        heading: "Thank you for a great season",
         summary:
-          "Designed for appreciation campaigns, reorder reminders, or a soft loyalty message at the turn of the season.",
+          "We are grateful for every visit. Here is a small thank-you from us.",
         quote:
-          "The best retention emails feel personal because the layout leaves enough space for the message to land.",
-        authorName: "Relationship Team",
-        authorTitle: "Client care",
-        ctaLabel: "Continue the client conversation",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "See your thank-you offer",
         ctaBody:
-          "Send readers to a loyalty offer, a reorder path, or a reserved booking page.",
+          "Add a thank-you offer here, or simply invite customers back.",
         accentColor: "#99572d",
         surfaceColor: "#fdf0e7",
         heroColor: "#5c341d",
@@ -741,9 +741,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "winter-gift-edit",
-    name: "Winter Gift Edit",
+    name: "Holiday Gift Ideas",
     summary:
-      "High-contrast winter send for gifting, premium bundles, or last-mile curation.",
+      "Share gift ideas for the holidays.",
     season: "winter",
     tags: ["gift", "holiday"],
     accentColor: "#4172b8",
@@ -760,16 +760,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A winter gift edit with deliberate contrast.",
+        heading: "Gift ideas for the gardener in your life",
         summary:
-          "Use this for premium gifting, bundled services, or a final high-intent seasonal push.",
+          "Find gifts, wreaths and holiday plants in store now.",
         quote:
-          "A gift campaign can feel premium without becoming loud. Contrast and spacing do most of the work.",
-        authorName: "Seasonal Team",
-        authorTitle: "Holiday merchandising",
-        ctaLabel: "Open the winter gift edit",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "See gift ideas",
         ctaBody:
-          "Drive readers to a curated gift page, concierge request flow, or high-intent offer.",
+          "Remind customers of your holiday hours and the last day to order.",
         accentColor: "#4172b8",
         surfaceColor: "#eef4ff",
         heroColor: "#1f3d6a",
@@ -778,9 +778,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "winter-year-end-note",
-    name: "Winter Year-End Note",
+    name: "Year-End Note",
     summary:
-      "Reflective close-of-year template for milestones, updates, or a founder note.",
+      "Look back on the year and thank your customers.",
     season: "winter",
     tags: ["year end", "founder note"],
     accentColor: "#2a677f",
@@ -797,16 +797,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A year-end note with clear structure and a calm finish.",
+        heading: "A look back at our year",
         summary:
-          "Useful for milestone recaps, a founder letter, or a forward-looking seasonal close.",
+          "Thank you for growing with us this year. Here is what is coming next.",
         quote:
-          "When the message is reflective, the layout should be quieter than the copy.",
-        authorName: "Founder's Office",
-        authorTitle: "Year-end update",
-        ctaLabel: "Share the next step",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "See what is coming next spring",
         ctaBody:
-          "Point readers to the next chapter: bookings, new releases, or an annual recap page.",
+          "Tell customers when you reopen or what to look forward to.",
         accentColor: "#2a677f",
         surfaceColor: "#edf8fc",
         heroColor: "#1c4150",
@@ -815,9 +815,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "evergreen-brand-story",
-    name: "Evergreen Brand Story",
+    name: "Our Story",
     summary:
-      "Always-on editorial template for narrative campaigns and founder notes.",
+      "Tell customers the story behind your garden centre.",
     season: "evergreen",
     tags: ["story", "always on"],
     accentColor: "#4e7d63",
@@ -834,15 +834,15 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A story-led layout built for composed campaigns.",
+        heading: "The story behind our garden centre",
         summary:
-          "Use this for a founder note, a brand story, or any campaign where the narrative should carry the page.",
-        quote: "The template should support the story, not compete with it.",
-        authorName: "Brand Team",
-        authorTitle: "Editorial direction",
-        ctaLabel: "Continue the story",
+          "Share how you started, who your team is, or what you care about.",
+        quote: "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "Come and say hello",
         ctaBody:
-          "Send readers to a story page, a new collection, or an editorial landing surface.",
+          "Invite customers to visit, or link to the About page on your website.",
         accentColor: "#4e7d63",
         surfaceColor: "#f0f7f3",
         heroColor: "#234735",
@@ -851,9 +851,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "evergreen-new-arrivals",
-    name: "Evergreen New Arrivals",
+    name: "New Arrivals",
     summary:
-      "Flexible release template for new arrivals, restocks, or featured edits.",
+      "Show customers what just arrived.",
     season: "evergreen",
     tags: ["new arrivals", "merchandising"],
     accentColor: "#3c8a7f",
@@ -870,16 +870,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
         heading:
-          "A composed new-arrivals layout with one strong primary action.",
+          "Fresh arrivals this week",
         summary:
-          "Built for restocks, releases, or a short merchandising edit that still feels premium.",
+          "New plants just came in. Here are a few we love.",
         quote:
-          "Clarity matters most when the campaign asks readers to decide quickly.",
-        authorName: "Merchandising",
-        authorTitle: "Weekly release",
-        ctaLabel: "Open the arrivals edit",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "See what just arrived",
         ctaBody:
-          "Drive to a collection, restock page, or an editorially grouped set of featured items.",
+          "Link this button to your website, or invite customers to visit in store.",
         accentColor: "#3c8a7f",
         surfaceColor: "#eef9f8",
         heroColor: "#24534d",
@@ -888,9 +888,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "evergreen-appointment-invite",
-    name: "Evergreen Appointment Invite",
+    name: "Book a Visit",
     summary:
-      "Clean service-booking template for consultations, appointments, or demos.",
+      "Invite customers to book a consultation or service.",
     season: "evergreen",
     tags: ["services", "booking"],
     accentColor: "#33696a",
@@ -906,16 +906,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "An appointment-led campaign with disciplined hierarchy.",
+        heading: "Book a time with our team",
         summary:
-          "Designed for consultations, demos, service windows, or any campaign that leads directly into booking.",
+          "Need help with a garden plan? Book a time and we will help you.",
         quote:
-          "A booking email should feel easy to scan and confident enough to trust.",
-        authorName: "Scheduling Team",
-        authorTitle: "Appointments",
-        ctaLabel: "Open the booking path",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "Book your time",
         ctaBody:
-          "Swap in your scheduling link, request form, or consultation calendar.",
+          "Tell customers how to book. Add a phone number or a booking link.",
         accentColor: "#33696a",
         surfaceColor: "#edf7f6",
         heroColor: "#1f4647",
@@ -924,9 +924,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     id: "evergreen-loyalty-thank-you",
-    name: "Evergreen Loyalty Thank You",
+    name: "Loyalty Thank You",
     summary:
-      "Retention note for loyalty moments, re-engagement, or a measured thank-you.",
+      "Thank your loyal customers and invite them back.",
     season: "evergreen",
     tags: ["retention", "loyalty"],
     accentColor: "#8e6a3f",
@@ -942,16 +942,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A loyalty note that leaves room for sincerity.",
+        heading: "Thank you for being a loyal customer",
         summary:
-          "Use this for retention campaigns, reorder nudges, or a thank-you email that should feel personal.",
+          "You keep us growing. Here is something special for you.",
         quote:
-          "The strongest loyalty campaigns often say less, with more care.",
-        authorName: "Client Team",
-        authorTitle: "Loyalty and retention",
-        ctaLabel: "Continue the relationship",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "See your reward",
         ctaBody:
-          "Send readers to a loyalty offer, a refill path, or a return visit campaign.",
+          "Describe the reward and how customers can use it.",
         accentColor: "#8e6a3f",
         surfaceColor: "#fbf4eb",
         heroColor: "#5c4322",
