@@ -48,7 +48,9 @@ serve(async (req) => {
     const totalProcessed = conn.backfill_receipts_processed || 0;
 
     // Pull ONE page
-    const client = createVmxClient(apiKey);
+    // New VMX merchants use their own validated API host. Legacy Burnett
+    // connections without a saved host retain the existing endpoint.
+    const client = createVmxClient(apiKey, conn.settings?.base_url);
     const result = await client.listReceipts({ start: startDate, page: currentPage });
 
     // Batch upsert
