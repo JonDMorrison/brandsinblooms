@@ -172,6 +172,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
     ? providerLogoAssets[props.item.slug]
     : null;
   const legacyIcon = !isHubProps(props) ? props.icon : null;
+  const HubFallbackIcon = isHubProps(props) && !logoSrc ? props.item.icon : null;
 
   const handleActivate = () => {
     if (!clickable) {
@@ -272,6 +273,8 @@ export function IntegrationCard(props: IntegrationCardProps) {
             />
           ) : legacyIcon ? (
             legacyIcon
+          ) : HubFallbackIcon ? (
+            <HubFallbackIcon aria-label={`${title} logo`} role="img" size={22} strokeWidth={1.75} />
           ) : (
             getInitials(title)
           )}
