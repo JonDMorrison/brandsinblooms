@@ -15,7 +15,8 @@ import {
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
 import { respondToSlackConversation } from "../_shared/bloom-support/slack-conversation.ts";
-import { postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
+import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
+import { renderSlackDigestBlocks } from "../_shared/bloom-support/slack-digest.ts";
 import { actionableAlertMessage, missingAlertContextMessage } from "../_shared/bloom-support/actionable-alerts.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
@@ -657,17 +658,39 @@ async function digest(job: Job): Promise<string> {
   const optOut = new Set((cfg.opt_out ?? []).map((e) => e.toLowerCase()));
   const wanted = (cfg.recipients?.length ? cfg.recipients : report.staff).map((e) => e.toLowerCase());
   const to = [...new Set(wanted)].filter((e) => staff.has(e) && !optOut.has(e));
-  if (!to.length) return "no staff recipients";
   const tz = await staffTimeZone();
   const date = new Intl.DateTimeFormat("en-CA", { timeZone: tz, weekday: "short", month: "short", day: "numeric" }).format(new Date());
-  const mail = renderDigestEmail(report, { appUrl: appUrl(), date, timeZone: tz, period: period === "weekly" ? "weekly" : "daily" });
-  if (!mail) return "nothing to report; digest skipped";
-  for (const addr of to) {
-    const result = await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
-      subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `digest:${job.id}:${addr}` });
-    requireRetryableEmailOutcome(result);
+  const outcomes: string[] = [];
+
+  if (!to.length) {
+    outcomes.push("no staff recipients");
+  } else {
+    const mail = renderDigestEmail(report, { appUrl: appUrl(), date, timeZone: tz, period: period === "weekly" ? "weekly" : "daily" });
+    if (!mail) {
+      outcomes.push("nothing to report; digest skipped");
+    } else {
+      for (const addr of to) {
+        const result = await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
+          subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `digest:${job.id}:${addr}` });
+        requireRetryableEmailOutcome(result);
+      }
+      outcomes.push(`digest sent to ${to.length}`);
+    }
   }
-  return `digest sent to ${to.length}`;
+
+  if (period === "daily") {
+    const slack = renderSlackDigestBlocks(report, { appUrl: appUrl(), date });
+    if (slack) {
+      try {
+        await postSlackInternalMessage("digest", slack.text, `${job.id}:slack`, undefined, slack.blocks);
+        outcomes.push("Slack digest posted");
+      } catch (e) {
+        console.log("bloom-support-worker: Slack morning digest skipped:", e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
+
+  return outcomes.join("; ");
 }
 
 async function ownerEmails(audience: string): Promise<string[]> {
