@@ -109,6 +109,18 @@ function buildSampleMergeData(
   };
 }
 
+// Show the subject and preview text the way a customer sees them, with a
+// sample name in place of raw merge tags such as {{ first_name }}.
+function fillSampleMergeTags(
+  text: string,
+  sampleData: Record<string, string | number | undefined>,
+) {
+  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key: string) => {
+    const value = sampleData[key];
+    return value == null || value === "" ? match : String(value);
+  });
+}
+
 export default function StudioPreviewDialog({
   open,
   onClose,
@@ -243,7 +255,7 @@ export default function StudioPreviewDialog({
               Preview & Test
             </DialogTitle>
             <Typography level="body-xs" noWrap sx={{ color: "neutral.500" }}>
-              {subjectLine || "Untitled Campaign"}
+              {fillSampleMergeTags(subjectLine || "Untitled Campaign", sampleMergeData)}
             </Typography>
           </Stack>
           <IconButton
@@ -345,14 +357,14 @@ export default function StudioPreviewDialog({
                 </Typography>
                 <Sheet variant="soft" sx={{ p: 1.25, borderRadius: "8px" }}>
                   <Typography level="body-xs" fontWeight={700} noWrap>
-                    {subjectLine || "Untitled Campaign"}
+                    {fillSampleMergeTags(subjectLine || "Untitled Campaign", sampleMergeData)}
                   </Typography>
                   <Typography
                     level="body-xs"
                     noWrap
                     sx={{ color: "neutral.500" }}
                   >
-                    {previewText || "Preview text appears here"}
+                    {fillSampleMergeTags(previewText || "Preview text appears here", sampleMergeData)}
                   </Typography>
                 </Sheet>
               </Stack>

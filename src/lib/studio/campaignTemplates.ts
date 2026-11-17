@@ -368,16 +368,16 @@ function buildEditorialTemplate(
     createHero(designSystem, {
       headline: config.heading,
       subheading: config.summary,
-      body: "A restrained campaign layout with real Studio blocks, ready for fine edits in Campaign Studio.",
-      tagLabel: "Seasonal template",
+      body: "Click this banner to change the words. Tell customers what is new this week.",
+      tagLabel: "This week at the garden centre",
       backgroundColor: config.heroColor,
       textColor: "#fafafa",
       accentColor: config.accentColor,
-      buttonText: "Review the edit",
+      buttonText: "See what is new",
       buttonUrl: getWebsiteUrl(designSystem, config.fallbackUrl),
     }),
     createText(designSystem, {
-      body: "Hello {{ first_name }},<br /><br />This layout gives you a clean editorial cadence: a strong opening statement, generous spacing, and one decisive call to action. Swap in your own studio copy, add imagery, or keep the monochrome tone intact.",
+      body: "Hello {{ first_name }},<br /><br />Write a short, friendly note here. Tell customers what is fresh in store, what is on sale, or what to plant this month.",
       backgroundColor: TEMPLATE_PAPER,
       textColor: "#27272a",
       accentColor: config.accentColor,
@@ -537,16 +537,16 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     ],
     buildBlocks: (designSystem) =>
       buildEditorialTemplate(designSystem, {
-        heading: "A quieter spring release, paced for attention.",
+        heading: "Spring has arrived at the garden centre",
         summary:
-          "Introduce a seasonal collection, a service window, or a new editorial moment without overwhelming the inbox.",
+          "New plants are in. Come see what is blooming this week.",
         quote:
-          "We wanted the message to feel composed, not crowded. This template keeps the tone measured while still giving the campaign a strong point of view.",
-        authorName: "Studio Team",
-        authorTitle: "Seasonal campaign lead",
-        ctaLabel: "Open the spring release",
+          "Add a kind word from a happy customer here. Real quotes help people trust you.",
+        authorName: "Customer name",
+        authorTitle: "Local gardener",
+        ctaLabel: "Visit us this week",
         ctaBody:
-          "Replace this CTA with your featured collection, booking flow, or seasonal landing page.",
+          "Add your store hours here, or link this button to your website.",
         accentColor: "#6ea85c",
         surfaceColor: "#f4f8ef",
         heroColor: "#2f5130",

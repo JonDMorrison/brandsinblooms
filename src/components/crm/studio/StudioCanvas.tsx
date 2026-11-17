@@ -291,7 +291,7 @@ export default function StudioCanvas({
         }}
       >
         <Typography level="body-sm" sx={{ fontWeight: 700, color: "#263d42" }}>
-          Block builder
+          Your email
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           <button
@@ -304,7 +304,7 @@ export default function StudioCanvas({
                 ?.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
-            Top
+            Go to top
           </button>
           <button
             type="button"
@@ -320,7 +320,7 @@ export default function StudioCanvas({
               });
             }}
           >
-            Bottom
+            Go to bottom
           </button>
         </Box>
       </Box>
@@ -358,7 +358,7 @@ export default function StudioCanvas({
                 textTransform: "uppercase",
               }}
             >
-              {canvasWidth}px content width
+              Start of your email
             </Typography>
             <Box
               sx={{

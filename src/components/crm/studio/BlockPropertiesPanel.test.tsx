@@ -48,7 +48,7 @@ describe("hero photo discoverability", () => {
       />,
     );
     const photo = screen.getByRole("button", {
-      name: heroStyle === "image-overlay" ? "Background photo" : "Hero photo",
+      name: heroStyle === "image-overlay" ? "Background photo" : "Banner photo",
     });
     const headline = screen.getByText("Headline");
     expect(

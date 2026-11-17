@@ -206,7 +206,7 @@ export default function BlockLibrary({
     >
       <Box sx={{ p: 2, borderBottom: "1px solid #d6dfd9" }}>
         <Typography level="title-md" sx={{ color: "#243c41", mb: 1.5 }}>
-          Newsletter builder
+          Build your email
         </Typography>
         <Box
           role="tablist"
@@ -248,7 +248,7 @@ export default function BlockLibrary({
               ? "Find a block…"
               : tab === "saved"
                 ? "Search saved blocks…"
-                : "Search available blocks…"
+                : "Search blocks…"
           }
           startDecorator={<Search size={16} />}
           sx={{
@@ -269,7 +269,7 @@ export default function BlockLibrary({
               level="body-xs"
               sx={{ fontWeight: 700, color: "#344b50", mb: 1 }}
             >
-              Available blocks
+              Click a block to add it to your email
             </Typography>
             {categories.map((category) => (
               <details key={category.id} open style={{ marginBottom: 14 }}>
@@ -364,13 +364,24 @@ export default function BlockLibrary({
                     {blocks.indexOf(block) + 1}.{" "}
                     {block.label || STUDIO_BLOCK_LOOKUP[block.type]?.name}
                   </button>
-                  <Typography level="body-xs" sx={{ color: "#526b72", px: 1 }}>
-                    {STUDIO_BLOCK_LOOKUP[block.type]?.name}
-                    {block.visible === false ? " · Hidden" : ""}
-                    {block.audience?.mode === "segments"
-                      ? " · Conditional"
-                      : ""}
-                  </Typography>
+                  {(() => {
+                    const typeName = STUDIO_BLOCK_LOOKUP[block.type]?.name;
+                    const details = [
+                      block.label && block.label !== typeName ? typeName : "",
+                      block.visible === false ? "Hidden" : "",
+                      block.audience?.mode === "segments"
+                        ? "Only some customers see this"
+                        : "",
+                    ].filter(Boolean);
+                    return details.length ? (
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "#526b72", px: 1 }}
+                      >
+                        {details.join(" · ")}
+                      </Typography>
+                    ) : null;
+                  })()}
                   {block.type !== "footer" && (
                     <Box
                       sx={{

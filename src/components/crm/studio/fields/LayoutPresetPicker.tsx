@@ -812,7 +812,7 @@ export default function LayoutPresetPicker({
           color: "primary.400",
         }}
       >
-        Layout Presets
+        Pick a look
       </Typography>
       <Box
         sx={{

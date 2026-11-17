@@ -98,6 +98,18 @@ export default function CanvasBlockSlot({
 
   const showAffordances = !isRemoving && (isHovered || isSelected);
 
+  // Bring a block that was just added into view so the person never has to
+  // hunt for it further down the email.
+  React.useEffect(() => {
+    if (!isNewlyAdded) return;
+    const node = document.querySelector<HTMLElement>(
+      `[data-studio-block-id="${block.id}"]`,
+    );
+    if (typeof node?.scrollIntoView === "function") {
+      node.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [block.id, isNewlyAdded]);
+
   return (
     <Box
       ref={setNodeRef}
@@ -270,7 +282,7 @@ export default function CanvasBlockSlot({
               position: "absolute",
               right: -8,
               top: -8,
-              display: "flex",
+              display: isFooterBlock ? "none" : "flex",
               alignItems: "center",
               gap: "2px",
               p: "4px",
@@ -330,6 +342,9 @@ export default function CanvasBlockSlot({
                 <ChevronDown size={14} />
               </IconButton>
             ) : null}
+            {/* The footer holds the required unsubscribe link, so it cannot
+                be deleted from the email. */}
+            {isFooterBlock ? null : (
             <IconButton
               variant="plain"
               color="neutral"
@@ -345,6 +360,7 @@ export default function CanvasBlockSlot({
             >
               <Trash2 size={14} />
             </IconButton>
+            )}
           </Sheet>
         </Box>
       </Box>

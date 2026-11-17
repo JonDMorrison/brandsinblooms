@@ -13,7 +13,7 @@ export default function ImageUrlField({
   const [error, setError] = React.useState("");
   return (
     <details className="nl-controls">
-      <summary>Use an image URL</summary>
+      <summary>Paste a link to a photo instead</summary>
       {Boolean(settings?.assetLocations?.length) && (
         <Choice
           label="Image location"
@@ -29,7 +29,7 @@ export default function ImageUrlField({
         />
       )}
       <Field
-        label={base ? "Image filename" : "Public image URL"}
+        label={base ? "Image filename" : "Photo link"}
         value={input}
         onChange={setInput}
         placeholder={

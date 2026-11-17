@@ -179,7 +179,10 @@ export default function SharedEmailBlockPreview({
             {STUDIO_BLOCK_LOOKUP[block.type]?.name || block.label}
           </Typography>
           <Typography level="body-xs" sx={{ mt: 0.5, color: "#526b72" }}>
-            Select this block to add its content in Properties.
+            This block is empty. Click it, then fill in the boxes on the right.
+          </Typography>
+          <Typography level="body-xs" sx={{ mt: 0.25, color: "#6b7f85" }}>
+            Customers will not see it until you add something.
           </Typography>
         </Box>
       )}

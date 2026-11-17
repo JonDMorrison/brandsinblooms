@@ -72,7 +72,7 @@ describe("newsletter editing controls", () => {
     render(<ExtendedBlockProperties block={block} update={update} />);
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Garden centre" } });
     expect(update).toHaveBeenCalledWith("links", [{ ...block.links![0], label: "Garden centre" }]);
-    fireEvent.change(screen.getByLabelText("Destination URL"), { target: { value: "https://example.com" } });
+    fireEvent.change(screen.getByLabelText("Link (web address)"), { target: { value: "https://example.com" } });
     expect(update).toHaveBeenCalledWith("links", [{ ...block.links![0], url: "https://example.com" }]);
     fireEvent.change(screen.getByLabelText("Button vertical padding"), { target: { value: "8" } });
     expect(update).toHaveBeenCalledWith("appearance", { ...block.appearance, buttonPaddingY: 8 });
@@ -83,7 +83,7 @@ describe("newsletter editing controls", () => {
     const update = vi.fn();
     const { rerender } = render(<ExtendedBlockProperties block={block} update={update} />);
     expect(screen.queryByLabelText("Heading")).toBeNull();
-    expect(screen.getByLabelText("Destination URL")).toBeInTheDocument();
+    expect(screen.getByLabelText("Link (web address)")).toBeInTheDocument();
     rerender(<ExtendedBlockProperties block={{ ...block, headline: "Visit us" }} update={update} />);
     expect(screen.getByLabelText("Heading")).toHaveValue("Visit us");
     expect(screen.getByLabelText("Subheading")).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe("newsletter editing controls", () => {
         update={update}
       />,
     );
-    const select = screen.getByRole("combobox", { name: "Offer preset" });
+    const select = screen.getByRole("combobox", { name: "What is the offer?" });
     expect(select.querySelectorAll("option")).toHaveLength(9);
     fireEvent.change(select, { target: { value: "tiered" } });
     expect(update).toHaveBeenCalledWith("couponOffer", "tiered");
@@ -144,7 +144,7 @@ describe("Arts Nursery November 15 editor controls", () => {
   it("lets a user enter literal tab separators in data table headings", () => {
     const update = vi.fn();
     render(<ExtendedBlockProperties block={{ ...createStudioBlock("data-table"), tableHeaders: ["Product"] }} update={update} />);
-    const headings = screen.getByLabelText("Column headings (type Tab between columns)") as HTMLTextAreaElement;
+    const headings = screen.getByLabelText("Column titles (press Tab to start the next column)") as HTMLTextAreaElement;
     headings.focus();
     headings.setSelectionRange(7, 7);
     fireEvent.keyDown(headings, { key: "Tab" });
