@@ -65,9 +65,8 @@ export function IntentCardThumbnail({
               ? "saved-template-thumbnail"
               : "intent-thumbnail-empty"
       }
+      style={{ width: "100%", aspectRatio: "200 / 176" }}
       sx={{
-        width: "100%",
-        aspectRatio: "200 / 176",
         borderRadius: "md",
         bgcolor: "#f0f3f2",
         border: "1px solid",
