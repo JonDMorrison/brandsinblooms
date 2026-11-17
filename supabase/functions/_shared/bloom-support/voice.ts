@@ -1,5 +1,5 @@
 /** One customer-facing voice for Bloom across intake, answers and handoff. */
-export const BLOOM_ROLE_DISCLOSURE = "I'm Bloom, the BloomSuite support agent.";
+export const BLOOM_ROLE_DISCLOSURE = "I'm Bloom, the BloomSuite AI support agent.";
 export const BLOOM_SIGNATURE = "Bloom\nBloomSuite support agent";
 
 export const BLOOM_ANSWER_SYSTEM_PROMPT = [
@@ -24,34 +24,28 @@ export function bloomClarification(details: string[]): string {
   ].join("\n");
 }
 
-/**
- * Returns true when a customer's message explicitly asks to speak with a human.
- * Natural phrasing: "I want a real person", "can I talk to someone", "stop the bot", etc.
- * Conservative: ambiguous or borderline messages return false to avoid false escalation.
- */
+/** Explicit human/callback requests take priority over model classification. */
 export function wantsHumanContact(text: string): boolean {
   if (!text || text.length > 10_000) return false;
-  const t = text.toLowerCase().replace(/[^\w\s]/g, " ");
-  // "speak/talk/chat/connect with a person/human/agent/staff/someone" (communication verbs)
-  if (/\b(speak|talk|chat|connect|deal)\b.{0,30}\b(person|human|someone|somebody|agent|staff|representative|rep)\b/.test(t)) return true;
-  // "I want/need/prefer a *real/actual/human* person/agent" — explicit qualifier required to avoid
-  // false positives like "I need help adding a person to my account"
-  if (/\b(want|need|prefer|like)\b.{0,20}\b(real|actual|human)\b.{0,15}\b(person|agent|staff|representative|rep)\b/.test(t)) return true;
-  // "I want/need a human" — without a following noun, "human" alone is unambiguous
-  if (/\b(want|need|prefer|like)\b.{0,20}\bhuman\b/.test(t)) return true;
-  // "not a bot / no ai / no bot / stop the bot / talk to a person"
-  if (/\b(not\s+(?:a\s+)?bot|no\s+bot|no\s+ai|not\s+ai|stop\s+(?:the\s+)?bot|no\s+automated|talk\s+to\s+a\s+person)\b/.test(t)) return true;
-  // "get me a (real/human) person/agent/representative"
-  if (/\b(get\s+(?:me\s+)?a\s+(?:real\s+|human\s+)?(?:person|agent|representative|staff)|please.{0,20}human|human.{0,20}please)\b/.test(t)) return true;
+  const normalized = text.toLowerCase().replace(/[’‘]/g, "'").replace(/[^\w\s']/g, " ").replace(/\s+/g, " ");
+  // Ignore a negated request, but allow a later explicit change of mind.
+  for (const t of normalized.split(/\b(?:but|however|instead)\b/)) {
+    if (/\b(?:don'?t|do not|never|no need to)\b.{0,35}\b(?:human|person|agent|representative|call|phone|contact)\b/.test(t)) continue;
+    if (/\b(?:speak|talk|chat|connect|deal)\b.{0,30}\b(?:person|human|someone|somebody|agent|staff|representative|rep)\b/.test(t)) return true;
+    if (/\b(?:want|need|prefer|like)\b.{0,20}\b(?:real|actual|human)\b.{0,15}\b(?:person|agent|staff|representative|rep)\b/.test(t)) return true;
+    if (/\b(?:want|need|prefer|like)\b.{0,20}\bhuman\b/.test(t)) return true;
+    if (/\b(?:not\s+(?:a\s+)?bot|no\s+bot|no\s+ai|not\s+ai|stop\s+(?:the\s+)?bot|stop\s+(?:the\s+)?automated\s+(?:answers|replies)|no\s+automated|talk\s+to\s+a\s+person)\b/.test(t)) return true;
+    if (/\b(?:get\s+(?:me\s+)?a\s+(?:real\s+|human\s+)?(?:person|agent|representative|staff)|please.{0,20}human|human.{0,20}please)\b/.test(t)) return true;
+    if (/\b(?:someone|somebody|a person|a representative|a team member)\b.{0,25}\b(?:call|phone|contact)\s+(?:me|us)\b/.test(t)) return true;
+    if (/\b(?:please|could you|can you|would you)\s+(?:call|phone)\s+(?:me|us)\b/.test(t)) return true;
+    if (/\b(?:want|need|like|request)\b.{0,15}\b(?:a callback|a call back|someone to call)\b/.test(t)) return true;
+  }
   return false;
 }
 
-/**
- * Sent when a customer has explicitly asked to speak with a person.
- * Full context transfer is confirmed: they never need to repeat themselves.
- */
+/** Publish only after durable routing confirms an active human escalation. */
 export function bloomHumanRequested(): string {
-  return "I've passed this to a person on our support team. They'll have everything you've shared here — the full conversation and all the details you provided — so there's no need to repeat yourself. Someone will be in touch with you shortly.";
+  return "I've recorded your request for a person on our support team. They'll have everything you've shared here, so you don't need to repeat yourself. Your request remains open for the team to pick up. I don't have a confirmed response time yet.";
 }
 
 export function bloomFeatureReceived(): string {
