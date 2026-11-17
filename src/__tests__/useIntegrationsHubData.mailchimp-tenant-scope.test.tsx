@@ -24,12 +24,31 @@ type QueryState = {
   is: Map<string, unknown>;
 };
 
+let vmxSyncStatus = "error";
+
 let authState: AuthState;
 let tenantState: TenantState;
 
 const fromMock = vi.fn();
 
 function buildResult(table: string, state: QueryState) {
+  if (table === "pos_connections") {
+    // Only the tenant-filtered VMX connection may affect the current hub.
+    const correctlyScoped = state.eq.get("tenant_id") === "tenant-1" &&
+      state.eq.get("platform") === "vmx";
+    return {
+      data: correctlyScoped ? [{
+        id: "vmx-connected-1",
+        name: "Test VMX garden centre",
+        tenant_id: "tenant-1",
+        is_active: true,
+        sync_status: vmxSyncStatus,
+        last_sync_at: "2026-09-21T12:49:41Z",
+        updated_at: "2026-09-21T14:50:00Z",
+      }] : [],
+      error: null,
+    };
+  }
   if (table === "provider_connections") {
     const provider = state.eq.get("provider");
     const providers = state.in.get("provider") ?? [];
@@ -156,6 +175,7 @@ import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 function MailchimpHubProbe() {
   const { itemMap, isLoading } = useIntegrationsHubData();
   const mailchimpItem = itemMap.get("mailchimp");
+  const vmxItem = itemMap.get("vmx");
 
   if (isLoading) {
     return <div data-testid="hub-state">loading</div>;
@@ -173,6 +193,9 @@ function MailchimpHubProbe() {
       <div data-testid="mailchimp-meta">
         {mailchimpItem?.metaLabel ?? "missing"}
       </div>
+      <div data-testid="vmx-status">{vmxItem?.status ?? "missing"}</div>
+      <div data-testid="vmx-meta">{vmxItem?.metaLabel ?? "missing"}</div>
+      <div data-testid="vmx-action">{vmxItem?.actionLabel ?? "missing"}</div>
     </div>
   );
 }
@@ -195,6 +218,7 @@ function renderProbe() {
 describe("useIntegrationsHubData Mailchimp tenant scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vmxSyncStatus = "error";
 
     authState = {
       user: {
@@ -210,6 +234,22 @@ describe("useIntegrationsHubData Mailchimp tenant scope", () => {
     };
 
     fromMock.mockImplementation((table: string) => createQueryBuilder(table));
+  });
+
+  it("shows VMX as needing attention instead of healthy when sync failed", async () => {
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("hub-state")).toHaveTextContent("ready"));
+    expect(screen.getByTestId("vmx-status")).toHaveTextContent("available");
+    expect(screen.getByTestId("vmx-meta")).toHaveTextContent("Sync needs attention");
+    expect(screen.getByTestId("vmx-action")).toHaveTextContent("Check setup");
+  });
+
+  it("shows connected VMX only after a successful active sync", async () => {
+    vmxSyncStatus = "success";
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("hub-state")).toHaveTextContent("ready"));
+    expect(screen.getByTestId("vmx-status")).toHaveTextContent("connected");
+    expect(screen.getByTestId("vmx-action")).toHaveTextContent("Manage");
   });
 
   it("treats Mailchimp as connected when the tenant connection belongs to another teammate", async () => {
