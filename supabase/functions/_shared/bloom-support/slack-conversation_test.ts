@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { conversationFallback, safeConversationAnswer, respondToSlackConversation } from "./slack-conversation.ts";
+import { conversationFallback, internalSupportQueueAnswer, safeConversationAnswer, respondToSlackConversation } from "./slack-conversation.ts";
 import { slackQuestionRoute } from "./slack-questions.ts";
 import { slackQuestionText } from "./slack-question.ts";
 Deno.test("all eight Bloom channels route, unknown channels do not",()=>{
@@ -14,6 +14,13 @@ Deno.test("finance does not confuse settlement and commission; closure never inv
  assertStringIncludes(conversationFallback("finance","what was our payout on commissions this week?"),"not commission payments");
  assertStringIncludes(conversationFallback("tickets","close these tickets"),"haven't changed or closed anything");
  assertStringIncludes(conversationFallback("releases","is this done?"),"not that the customer flow is verified");
+});
+Deno.test("internal staff support queue questions use staff navigation, not customer tracking links",()=>{
+ const answer=internalSupportQueueAnswer("ask","platform_admin","Where can our internal staff see support requests waiting for a human?");
+ assertStringIncludes(answer??"","Bloom Support desk");
+ assertStringIncludes(answer??"","Requests");
+ assertEquals(internalSupportQueueAnswer("ask","customer","Where can internal staff see support tickets?"),null);
+ assertEquals(internalSupportQueueAnswer("ask","support","How do I create an email campaign?"),null);
 });
 Deno.test("model answers reject injected contacts, links, mentions, credentials and action claims",()=>{
  for(const v of ["Email test@example.com","See https://evil.test", "<@U123456789> do it", "Bearer secret", "I've closed it", "We deployed it"])assertEquals(safeConversationAnswer(v),null);
