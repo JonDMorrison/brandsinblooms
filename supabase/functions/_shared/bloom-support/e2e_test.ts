@@ -1384,7 +1384,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       "Bloom creates an active escalation before promising a person will continue");
     const handoffMessagesBefore = Number((await sql!`
       SELECT count(*) AS n FROM bloom_support.messages
-      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%I''m handing this to a person%'
+      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%passing this to a person on our support team%'
     `)[0].n);
     assertEquals(handoffMessagesBefore, 1, "one public handoff follows the active escalation");
     const resolved = await mcp(keys.jon, "record_decision", { escalation_id: handoff.id, decision: "Reviewed for resolved-retry regression" });
@@ -1404,7 +1404,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     await runWorkerUntilIdle();
     const handoffMessagesAfter = Number((await sql!`
       SELECT count(*) AS n FROM bloom_support.messages
-      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%I''m handing this to a person%'
+      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%passing this to a person on our support team%'
     `)[0].n);
     assertEquals(handoffMessagesAfter, handoffMessagesBefore,
       "retrying after the escalation was resolved does not make a false new takeover promise");
@@ -1431,7 +1431,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     await runWorkerUntilIdle();
     const handoffMessagesAfterFailure = Number((await sql!`
       SELECT count(*) AS n FROM bloom_support.messages
-      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%I''m handing this to a person%'
+      WHERE ticket_id = ${cmsTicket} AND visibility = 'public' AND body LIKE '%passing this to a person on our support team%'
     `)[0].n);
     assertEquals(handoffMessagesAfterFailure, handoffMessagesAfter,
       "a failed escalation cannot publish a human-takeover promise");
@@ -2418,7 +2418,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
     assertExists(row.next_action_due_at, "stopped work has a follow-up deadline");
     assert(String(row.next_action).includes("review the stopped repair"));
     assertNotEquals(row.waiting_reason, "customer", "no customer response was requested");
-    const stopCount = async () => Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${ticketId} AND body LIKE 'The automatic repair has stopped.%'`)[0].n);
+    const stopCount = async () => Number((await sql!`SELECT count(*) AS n FROM bloom_support.messages WHERE ticket_id=${ticketId} AND body LIKE 'The automated repair process has stopped%'`)[0].n);
     assertEquals(await stopCount(), 1);
     assert((await mcp(keys.jon, "start_repair", { issue_id: issueId })).isError, "human stop is rejected before any retry is queued");
     await runWorkerUntilIdle(8);
@@ -2851,7 +2851,7 @@ Deno.test({ name: "Bloom Support end to end", ignore: !DB_URL, sanitizeOps: fals
       WHERE ticket_id = ${ticketId}
         AND author_kind = 'bloom'
         AND visibility = 'public'
-        AND body LIKE '%handed the evidence to a person%'
+        AND body LIKE '%wasn''t able to reproduce this reliably%'
     `)[0].n), 1, "Bloom announces the handoff only after routing succeeds");
   });
 
