@@ -706,7 +706,8 @@ export interface AlertFinding {
   condition: string;
   summary?: string;
   tools?: Array<{ tenant_id?: string | null; tenant_name?: string | null; tool_name: string; calls?: number; failed?: number; timeouts?: number }>;
-  tenants?: Array<{ tenant_id?: string | null; tenant_name?: string | null; errors?: number; access_denied?: number; answers?: number; score?: number }>;
+  // SQL findings use either a company count or company-detail rows. Validate at the rendering boundary.
+  tenants?: unknown;
   [key: string]: unknown;
 }
 
@@ -875,15 +876,29 @@ function alertCopy(g: AlertGroup): AlertCopy {
       button: "Check Bloom's health", path: "/admin/bloom-support?view=readiness",
     };
   }
-  const tenantLines = (f.tenants ?? []).slice(0, 6).map((t) => {
-    const name = t.tenant_name?.trim() || "an unnamed company";
-    if (f.condition === "bloom_request_errors") return `${name}: ${t.errors ?? 0} failed requests${t.access_denied ? `, ${t.access_denied} refused access` : ""} in the last hour`;
-    if (f.condition === "bloom_negative_feedback") return `${name}: ${t.answers ?? 0} answers marked unhelpful`;
-    if (f.condition === "email_reputation_low") return `${name}: reputation score ${Number(t.score ?? 0)} of 100`;
-    return name;
-  });
+  const tenantLines: string[] = [];
+  let incomplete = false;
+  if (Array.isArray(f.tenants)) {
+    for (const value of f.tenants.slice(0, 6)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) { incomplete = true; continue; }
+      const t = value as Record<string, unknown>;
+      const name = typeof t.tenant_name === "string" ? t.tenant_name.trim() || "an unnamed company" : "an unnamed company";
+      if (t.tenant_name != null && typeof t.tenant_name !== "string") incomplete = true;
+      const count = (key: string): string => typeof t[key] === "number" && Number.isFinite(t[key]) && t[key] >= 0 ? String(t[key]) : "not reported";
+      if (f.condition === "bloom_request_errors") tenantLines.push(`${name}: ${count("errors")} failed requests${typeof t.access_denied === "number" && t.access_denied > 0 ? `, ${count("access_denied")} refused access` : ""} in the last hour`);
+      else if (f.condition === "bloom_negative_feedback") tenantLines.push(`${name}: ${count("answers")} answers marked unhelpful`);
+      else if (f.condition === "email_reputation_low") tenantLines.push(`${name}: reputation score ${count("score")} of 100`);
+      else tenantLines.push(name);
+    }
+  } else if (typeof f.tenants === "number" && Number.isSafeInteger(f.tenants) && f.tenants >= 0) {
+    if (fallbackLine) tenantLines.push(fallbackLine);
+    tenantLines.push(`Affected companies: ${f.tenants}.`);
+  } else if (f.tenants != null) {
+    incomplete = true;
+  }
   const lines = [c.line ? c.line(f) : "", ...tenantLines].filter(Boolean);
-  if (!lines.length && fallbackLine) lines.push(fallbackLine);
+  if ((!lines.length || incomplete) && fallbackLine && !lines.includes(fallbackLine)) lines.push(fallbackLine);
+  if (incomplete) lines.push("Some affected-company details could not be read. Review the finding in Bloom Support.");
   return { headline: c.headline, lines, impact: c.impact, doing: c.doing, button: c.button, path: c.path };
 }
 
