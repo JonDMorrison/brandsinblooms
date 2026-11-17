@@ -28,6 +28,7 @@ export default function NewsletterSettingsButton() {
         color="neutral"
         startDecorator={<SlidersHorizontal size={15} />}
         onClick={() => setOpen(true)}
+        sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
       >
         Design & spacing
       </Button>

@@ -245,3 +245,32 @@ export const STUDIO_BLOCK_LOOKUP = BLOCK_CATEGORIES.flatMap(
   },
   {} as Record<StudioBlockType, StudioBlockDefinition>,
 );
+
+// Block names changed to plain language. Blocks created before that still
+// store the old default name as their label, so show the current name for
+// those. A name the person typed themselves is always kept.
+const LEGACY_DEFAULT_BLOCK_NAMES: Partial<Record<StudioBlockType, string>> = {
+  preheader: "Preview Text",
+  "email-safe-hero": "Email Safe Hero",
+  "graphic-hero": "Graphic Hero",
+  "call-to-action": "Button / Call to Action",
+  navigation: "Navigation",
+  blog: "Blog Feature",
+  "data-table": "Data Table",
+  chart: "Bar Chart",
+  "social-follow": "Social Follow",
+  spacer: "Spacer",
+  divider: "Divider",
+};
+
+export function getBlockDisplayLabel(block: {
+  type: StudioBlockType;
+  label?: string | null;
+}) {
+  const currentName = STUDIO_BLOCK_LOOKUP[block.type]?.name ?? block.type;
+  const label = (block.label || "").trim();
+  if (!label || label === LEGACY_DEFAULT_BLOCK_NAMES[block.type]) {
+    return currentName;
+  }
+  return label;
+}

@@ -12,6 +12,7 @@ import {
   GripVertical,
   Trash2,
 } from "lucide-react";
+import { getBlockDisplayLabel } from "@/components/crm/studio/blockLibraryData";
 import BlockRenderer from "@/components/crm/studio/blocks/BlockRenderer";
 import type {
   CanvasReorderInstruction,
@@ -78,6 +79,7 @@ export default function CanvasBlockSlot({
 }: CanvasBlockSlotProps) {
   const [isHovered, setIsHovered] = React.useState(false);
   const isFooterBlock = block.type === "footer";
+  const displayLabel = getBlockDisplayLabel(block);
 
   const {
     attributes,
@@ -186,7 +188,7 @@ export default function CanvasBlockSlot({
                 variant="plain"
                 color="neutral"
                 size="sm"
-                aria-label={`Drag ${block.label}`}
+                aria-label={`Drag ${displayLabel}`}
                 onClick={(event) => event.stopPropagation()}
                 sx={{
                   cursor: isDragging ? "grabbing" : "grab",
@@ -227,7 +229,7 @@ export default function CanvasBlockSlot({
               level="body-xs"
               sx={{ color: "primary.600", fontSize: "10px", fontWeight: 600 }}
             >
-              {block.label}
+              {displayLabel}
             </Typography>
           </Sheet>
 
@@ -302,7 +304,7 @@ export default function CanvasBlockSlot({
                 variant="plain"
                 color="neutral"
                 size="sm"
-                aria-label={`Duplicate ${block.label}`}
+                aria-label={`Duplicate ${displayLabel}`}
                 onClick={() => onDuplicate(block.id)}
               >
                 <Copy size={14} />
@@ -313,7 +315,7 @@ export default function CanvasBlockSlot({
                 variant="plain"
                 color="neutral"
                 size="sm"
-                aria-label={`Move ${block.label} up`}
+                aria-label={`Move ${displayLabel} up`}
                 disabled={isFirst}
                 onClick={() =>
                   onReorder(block.id, {
@@ -330,7 +332,7 @@ export default function CanvasBlockSlot({
                 variant="plain"
                 color="neutral"
                 size="sm"
-                aria-label={`Move ${block.label} down`}
+                aria-label={`Move ${displayLabel} down`}
                 disabled={isLast}
                 onClick={() =>
                   onReorder(block.id, {
@@ -349,7 +351,7 @@ export default function CanvasBlockSlot({
               variant="plain"
               color="neutral"
               size="sm"
-              aria-label={`Delete ${block.label}`}
+              aria-label={`Delete ${displayLabel}`}
               onClick={() => onDelete(block.id)}
               sx={{
                 "&:hover": {

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import {
   BLOCK_CATEGORIES,
+  getBlockDisplayLabel,
   STUDIO_BLOCK_LOOKUP,
   type StudioBlockDefinition,
   type StudioBlockType,
@@ -362,12 +363,12 @@ export default function BlockLibrary({
                     onClick={() => onSelectBlock(block.id)}
                   >
                     {blocks.indexOf(block) + 1}.{" "}
-                    {block.label || STUDIO_BLOCK_LOOKUP[block.type]?.name}
+                    {getBlockDisplayLabel(block)}
                   </button>
                   {(() => {
                     const typeName = STUDIO_BLOCK_LOOKUP[block.type]?.name;
                     const details = [
-                      block.label && block.label !== typeName ? typeName : "",
+                      getBlockDisplayLabel(block) !== typeName ? typeName : "",
                       block.visible === false ? "Hidden" : "",
                       block.audience?.mode === "segments"
                         ? "Only some customers see this"
