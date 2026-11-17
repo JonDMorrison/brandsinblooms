@@ -892,12 +892,16 @@ export default function ExtendedBlockProperties({
         <>
           {textField("Headline", "headline")}
           <Choice
-            label="Heading level"
+            label="How big should it be?"
             value={block.headingLevel || "h2"}
-            options={["h1", "h2", "h3", "h4", "h5", "h6"].map((value) => ({
-              value,
-              label: value.toUpperCase(),
-            }))}
+            options={[
+              { value: "h1", label: "Biggest" },
+              { value: "h2", label: "Big" },
+              { value: "h3", label: "Medium" },
+              { value: "h4", label: "Small" },
+              { value: "h5", label: "Smaller" },
+              { value: "h6", label: "Smallest" },
+            ]}
             onChange={(value) =>
               update("headingLevel", value as StudioBlock["headingLevel"])
             }

@@ -204,7 +204,7 @@ export default function StudioTopBar({
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            lg: "minmax(160px, 1fr) auto minmax(0, 2fr)",
+            lg: "auto auto minmax(0, 1fr)",
           },
           alignItems: "center",
           gap: 2,
@@ -322,6 +322,7 @@ export default function StudioTopBar({
               borderRadius: "8px",
               minHeight: 30,
               whiteSpace: "nowrap",
+              flexShrink: 0,
               fontWeight: 600,
             }}
           >
