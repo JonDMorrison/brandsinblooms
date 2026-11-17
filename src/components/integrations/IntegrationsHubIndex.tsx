@@ -20,6 +20,7 @@ import { IntegrationsSkeletonLoader } from "@/components/integrations/Integratio
 import {
   INTEGRATION_CATEGORIES,
   INTEGRATION_STATUS_ORDER,
+  filterIntegrations,
   type IntegrationCategory,
   type IntegrationDefinition,
   type IntegrationTabValue,
@@ -136,19 +137,9 @@ function filterItems(
   activeTab: IntegrationTabValue,
   searchQuery: string,
 ) {
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-
-  return items.filter((item) => {
-    if (activeTab !== "all" && item.category !== activeTab) {
-      return false;
-    }
-
-    if (!normalizedQuery) {
-      return true;
-    }
-
-    return item.name.toLowerCase().includes(normalizedQuery);
-  });
+  // Use the catalogue's shared keyword/category matcher. Searching "garden
+  // centre", "receipts", or "API key" must discover VMX, not only "VMX".
+  return filterIntegrations(items, activeTab, searchQuery);
 }
 
 function sortItems(
