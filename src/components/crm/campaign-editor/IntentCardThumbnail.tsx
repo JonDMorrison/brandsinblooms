@@ -66,7 +66,8 @@ export function IntentCardThumbnail({
               : "intent-thumbnail-empty"
       }
       sx={{
-        height: 176,
+        width: "100%",
+        aspectRatio: "200 / 176",
         borderRadius: "md",
         bgcolor: "#f0f3f2",
         border: "1px solid",
@@ -82,9 +83,11 @@ export function IntentCardThumbnail({
         </Box>
       ) : (
         <svg
-          viewBox="0 0 240 176"
+          viewBox="20 0 200 176"
           width="100%"
           height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ display: "block" }}
           fontFamily="Arial, sans-serif"
         >
           <rect
