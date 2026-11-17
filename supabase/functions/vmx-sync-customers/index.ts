@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient } from "../_shared/vmx/client.ts";
+import { authorizeVmxConnectionRequest } from "../_shared/vmx/authorize.ts";
 import { syncProviderLoyaltyBalances } from "../_shared/loyalty/syncProviderBalances.ts";
 
 const corsHeaders = {
@@ -16,24 +17,6 @@ serve(async (req) => {
   let connectionId = "";
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing authorization header");
-
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) throw new Error("Unauthorized");
-
-    const { data: userData, error: tenantError } = await userClient
-      .from("users")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .single();
-    if (tenantError || !userData?.tenant_id) throw new Error("No tenant found");
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -48,11 +31,11 @@ serve(async (req) => {
       .from("pos_connections")
       .select("*")
       .eq("id", connection_id)
-      .eq("tenant_id", userData.tenant_id)
       .single();
 
     if (connErr || !conn) throw new Error("Connection not found");
     if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
+    await authorizeVmxConnectionRequest(req, conn.tenant_id);
     if (!conn.is_active) throw new Error("Connection is inactive");
 
     // Decrypt API key
