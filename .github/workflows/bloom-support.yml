@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
-        with: { deno-version: v2.x }
+        with: { deno-version: v2.9.8 }
       - name: Lint and type-check Bloom Support functions
         working-directory: supabase/functions
         run: |

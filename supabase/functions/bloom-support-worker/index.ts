@@ -14,6 +14,7 @@ import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
+import { createGmailDraft, gmailDraftQueueAvailable, shouldQueueAsDraft } from "../_shared/bloom-support/gmail-drafts.ts";
 import { respondToSlackConversation } from "../_shared/bloom-support/slack-conversation.ts";
 import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
 import { renderSlackDigestBlocks } from "../_shared/bloom-support/slack-digest.ts";
@@ -61,7 +62,7 @@ interface TicketView {
   priority: string; automation: string; account: { id: string; name: string } | null; resolution_summary: string | null;
   engineering_issue_id: string | null; feature_request_id: string | null; feature_request?: { status?: string } | null; reopen_count: number; version: number;
   messages: Array<{ id: string; ticket_id?: string | null; author_kind: string; visibility: string; body: string; created_at: string; delivery?: string; purpose?: string | null }>;
-  created_at?: string; waiting_reason?: string | null; requester?: { name?: string | null; email?: string | null } | null;
+  created_at?: string; next_action?: string | null; waiting_reason?: string | null; requester?: { name?: string | null; email?: string | null } | null;
   merged_tickets?: Array<{ id: string }>;
   engineering?: { status?: unknown; pr_url?: unknown } | null; escalations?: Array<Record<string, unknown>>; resolution_evidence?: unknown;
   attachments?: TicketAttachment[];
@@ -481,6 +482,23 @@ async function sendEmail(job: Job): Promise<string> {
     number: t.number, subject: t.subject, status: t.status, waitingReason: t.waiting_reason ?? null, purpose: design, bodies, trackUrl: link, client,
     requesterName: t.requester?.name ?? null, sender: bloomInitiated ? "bloom" : "team",
   });
+  // Prompt 2: sensitive replies go to Gmail drafts for staff review before sending.
+  if (gmailDraftQueueAvailable() && shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
+    const draftResult = await createGmailDraft({
+      to, subject: subjectFor(t.number, t.subject), textBody: rendered.text, htmlBody: rendered.html,
+      inReplyTo: ctx.thread.last_inbound ?? ctx.thread.last_outbound ?? undefined,
+      references: [ctx.thread.root, ctx.thread.last_outbound].filter(Boolean) as string[],
+      idempotencyKey: `job:${job.id}`,
+    });
+    if (draftResult.status === "created") {
+      await note(t, `A draft reply was prepared and held for staff review (Gmail draft ${draftResult.draftId}). Review and send from Gmail, then mark this ticket resolved or reply here if the client's issue is settled.`, `gmail-draft:${job.id}`);
+      return `email held as Gmail draft (${draftResult.draftId})`;
+    }
+    if (draftResult.status === "failed") {
+      await note(t, `Gmail draft creation failed: ${draftResult.reason}. Falling back to sending directly.`, `gmail-draft-fail:${job.id}`);
+    }
+    // not_configured or failed: fall through to sendSupportEmail
+  }
   const result = await sendSupportEmail({
     ticketId: t.id, messageId: (job.payload.message_id as string) ?? null, purpose: purpose as "reply", to,
     subject: subjectFor(t.number, t.subject), text: rendered.text, html: rendered.html,

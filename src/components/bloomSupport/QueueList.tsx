@@ -77,6 +77,11 @@ function RequestRow({ t, selected, selecting, checked, onOpen, onCheck }: {
           {t.pending_review && <StatusPill tone="active">Client replied</StatusPill>}
           <Typography level="body-xs" textColor="text.tertiary">#{t.number}</Typography>
         </Stack>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Typography level="body-xs" textColor={t.owner ? "text.secondary" : "text.tertiary"}>
+            {t.owner ? t.owner.name ?? "Staff" : "Unassigned"}
+          </Typography>
+        </Stack>
         {t.status !== "resolved" && (
           <Typography level="body-sm" textColor="text.secondary" noWrap>
             <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>Next: </Box>{next}
