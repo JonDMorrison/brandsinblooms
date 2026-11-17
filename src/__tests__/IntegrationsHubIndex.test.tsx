@@ -75,6 +75,18 @@ describe("IntegrationsHubIndex", () => {
     mockHubData();
   });
 
+  it("shows VMX POS in the main catalogue and opens its detail page", async () => {
+    const user = userEvent.setup();
+    mockHubData({ items: [buildItem("vmx", { status: "available", metaLabel: "Sync needs attention" })] });
+    renderPage();
+    const card = screen.getByRole("heading", { name: "VMX POS" }).closest("article");
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText("POS")).toBeInTheDocument();
+    expect(within(card!).getByText("Sync needs attention")).toBeInTheDocument();
+    await user.click(card!);
+    expect(screen.getByTestId("location-display")).toHaveTextContent("/integrations/vmx");
+  });
+
   it("renders the Lightspeed X-Series logo from the shared local asset", () => {
     mockHubData({
       items: [buildItem("lightspeed", { status: "available" })],
