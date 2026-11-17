@@ -49,7 +49,9 @@ serve(async (req) => {
       .update({ sync_status: "syncing", updated_at: new Date().toISOString() })
       .eq("id", connection_id);
 
-    const client = createVmxClient(apiKey);
+    // New VMX merchants use their own validated API host. Legacy Burnett
+    // connections without a saved host retain the existing endpoint.
+    const client = createVmxClient(apiKey, conn.settings?.base_url);
     let page = 1;
     let totalProcessed = 0;
     let hasMore = true;
