@@ -14,8 +14,10 @@ import {
   buildVisionInput, clientAttachments, IMAGE_SAFETY_RULE, type LoadedImage, NO_VISION, type TicketAttachment, type VisionInput, visionPromptText,
 } from "../_shared/bloom-support/vision.ts";
 import { emailConfig, sendSupportEmail, subjectFor, trackingLink, type SendResult } from "../_shared/bloom-support/email.ts";
+import { createGmailDraft, gmailDraftQueueAvailable, shouldQueueAsDraft } from "../_shared/bloom-support/gmail-drafts.ts";
 import { respondToSlackConversation } from "../_shared/bloom-support/slack-conversation.ts";
-import { postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
+import { postSlackInternalMessage, postSlackInternalText, postSlackSupportNotification, slackRoute } from "../_shared/bloom-support/slack.ts";
+import { renderSlackDigestBlocks } from "../_shared/bloom-support/slack-digest.ts";
 import { actionableAlertMessage, missingAlertContextMessage } from "../_shared/bloom-support/actionable-alerts.ts";
 import { stripeDailyPayoutBrief } from "../_shared/bloom-support/finance.ts";
 import {
@@ -43,9 +45,11 @@ import {
   bloomFeatureDecision,
   bloomFeatureReceived,
   bloomHandoff,
+  bloomHumanRequested,
   bloomInvestigationStarted,
   bloomReopened,
   bloomResolution,
+  wantsHumanContact,
 } from "../_shared/bloom-support/voice.ts";
 
 interface Job {
@@ -58,7 +62,7 @@ interface TicketView {
   priority: string; automation: string; account: { id: string; name: string } | null; resolution_summary: string | null;
   engineering_issue_id: string | null; feature_request_id: string | null; feature_request?: { status?: string } | null; reopen_count: number; version: number;
   messages: Array<{ id: string; ticket_id?: string | null; author_kind: string; visibility: string; body: string; created_at: string; delivery?: string; purpose?: string | null }>;
-  created_at?: string; waiting_reason?: string | null; requester?: { name?: string | null; email?: string | null } | null;
+  created_at?: string; next_action?: string | null; waiting_reason?: string | null; requester?: { name?: string | null; email?: string | null } | null;
   merged_tickets?: Array<{ id: string }>;
   engineering?: { status?: unknown; pr_url?: unknown } | null; escalations?: Array<Record<string, unknown>>; resolution_evidence?: unknown;
   attachments?: TicketAttachment[];
@@ -186,6 +190,23 @@ async function triage(job: Job): Promise<string> {
     return ["verified", "closed"].includes(linkedEngineeringStatus)
       ? "skipped: completed engineering link is historical"
       : "skipped: linked engineering work still owns the request";
+  }
+  // §4: If the customer explicitly asks to speak with a person, honour it immediately — before model triage.
+  if (lastClient && wantsHumanContact(String(lastClient.body ?? ""))) {
+    await announceAfterActiveHandoff(
+      () => rpc<{ escalation_id: string; status: string }>("escalate", {
+        actor: bot.principalId, ticket_id: latest.id, audience: "both",
+        reason: "Customer asked to speak with a person",
+        detail: "The customer's most recent message explicitly requested a human. All conversation context has been preserved.",
+        dedupe_key: `human-requested:${latest.id}:${lastClient.id}`,
+      }),
+      () => bloomSays(latest, bloomHumanRequested(), "progress", `human-requested:${latest.id}:${lastClient.id}`),
+    );
+    await patch(latest, {
+      stage: "triage",
+      next_action: "Customer asked for a person — introduce yourself and continue from here",
+    });
+    return "escalated: customer requested human contact";
   }
   const text = job.payload.reason === "client_reply" && lastClient ? lastClient.body : t.summary;
   const rules = classify(t.subject, text, t.product);
@@ -461,6 +482,23 @@ async function sendEmail(job: Job): Promise<string> {
     number: t.number, subject: t.subject, status: t.status, waitingReason: t.waiting_reason ?? null, purpose: design, bodies, trackUrl: link, client,
     requesterName: t.requester?.name ?? null, sender: bloomInitiated ? "bloom" : "team",
   });
+  // Prompt 2: sensitive replies go to Gmail drafts for staff review before sending.
+  if (gmailDraftQueueAvailable() && shouldQueueAsDraft({ ticketStatus: t.status, executor: t.executor, nextAction: t.next_action ?? null })) {
+    const draftResult = await createGmailDraft({
+      to, subject: subjectFor(t.number, t.subject), textBody: rendered.text, htmlBody: rendered.html,
+      inReplyTo: ctx.thread.last_inbound ?? ctx.thread.last_outbound ?? undefined,
+      references: [ctx.thread.root, ctx.thread.last_outbound].filter(Boolean) as string[],
+      idempotencyKey: `job:${job.id}`,
+    });
+    if (draftResult.status === "created") {
+      await note(t, `A draft reply was prepared and held for staff review (Gmail draft ${draftResult.draftId}). Review and send from Gmail, then mark this ticket resolved or reply here if the client's issue is settled.`, `gmail-draft:${job.id}`);
+      return `email held as Gmail draft (${draftResult.draftId})`;
+    }
+    if (draftResult.status === "failed") {
+      await note(t, `Gmail draft creation failed: ${draftResult.reason}. Falling back to sending directly.`, `gmail-draft-fail:${job.id}`);
+    }
+    // not_configured or failed: fall through to sendSupportEmail
+  }
   const result = await sendSupportEmail({
     ticketId: t.id, messageId: (job.payload.message_id as string) ?? null, purpose: purpose as "reply", to,
     subject: subjectFor(t.number, t.subject), text: rendered.text, html: rendered.html,
@@ -657,17 +695,121 @@ async function digest(job: Job): Promise<string> {
   const optOut = new Set((cfg.opt_out ?? []).map((e) => e.toLowerCase()));
   const wanted = (cfg.recipients?.length ? cfg.recipients : report.staff).map((e) => e.toLowerCase());
   const to = [...new Set(wanted)].filter((e) => staff.has(e) && !optOut.has(e));
-  if (!to.length) return "no staff recipients";
   const tz = await staffTimeZone();
   const date = new Intl.DateTimeFormat("en-CA", { timeZone: tz, weekday: "short", month: "short", day: "numeric" }).format(new Date());
-  const mail = renderDigestEmail(report, { appUrl: appUrl(), date, timeZone: tz, period: period === "weekly" ? "weekly" : "daily" });
-  if (!mail) return "nothing to report; digest skipped";
-  for (const addr of to) {
-    const result = await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
-      subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `digest:${job.id}:${addr}` });
-    requireRetryableEmailOutcome(result);
+  const outcomes: string[] = [];
+
+  if (!to.length) {
+    outcomes.push("no staff recipients");
+  } else {
+    const mail = renderDigestEmail(report, { appUrl: appUrl(), date, timeZone: tz, period: period === "weekly" ? "weekly" : "daily" });
+    if (!mail) {
+      outcomes.push("nothing to report; digest skipped");
+    } else {
+      for (const addr of to) {
+        const result = await sendSupportEmail({ ticketId: null, purpose: "notification", to: addr, toClient: false, bloomInitiated: true,
+          subject: mail.subject, text: mail.text, html: mail.html, idempotencyKey: `digest:${job.id}:${addr}` });
+        requireRetryableEmailOutcome(result);
+      }
+      outcomes.push(`digest sent to ${to.length}`);
+    }
   }
-  return `digest sent to ${to.length}`;
+
+  if (period === "daily") {
+    const slack = renderSlackDigestBlocks(report, { appUrl: appUrl(), date });
+    if (slack) {
+      try {
+        await postSlackInternalMessage("digest", slack.text, `${job.id}:slack`, undefined, slack.blocks);
+        outcomes.push("Slack digest posted");
+      } catch (e) {
+        console.log("bloom-support-worker: Slack morning digest skipped:", e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
+
+  return outcomes.join("; ");
+}
+
+/**
+ * Overnight maintenance scan: flags tickets that have gone stale without a confirmed next step.
+ * Never modifies ticket content, closes tickets, or sends customer-facing messages.
+ * Only adds internal notes and updates next_action on tickets that need staff attention.
+ *
+ * Run conditions (all configurable via settings.maintenance):
+ * - unresponded_hours: ticket with no Bloom or staff reply after N hours (default 48)
+ * - stale_days: "working" ticket with no movement in N days (default 5)
+ *
+ * Posts a summary to the #alerts Slack channel when stale tickets are found.
+ */
+async function maintain(job: Job): Promise<string> {
+  const cfg = (await rpc<{ unresponded_hours?: number; stale_days?: number } | null>("setting", { key: "maintenance" })) ?? {};
+  const unrespondedHours = Number(cfg.unresponded_hours ?? 48);
+  const staleDays = Number(cfg.stale_days ?? 5);
+  const staleCutoff = new Date(Date.now() - staleDays * 86_400_000).toISOString();
+  const unrespondedCutoff = new Date(Date.now() - unrespondedHours * 3_600_000).toISOString();
+
+  const staleTickets = await rpc<Array<{
+    id: string; number: number; status: string; stage: string;
+    next_action: string | null; updated_at: string; account: { name: string } | null;
+  }>>("list_tickets", {
+    actor: bot.principalId,
+    filters: { status: "working", updated_before: staleCutoff, limit: 50 },
+  });
+
+  const unrespondedTickets = await rpc<Array<{
+    id: string; number: number; status: string; created_at: string;
+    account: { name: string } | null;
+  }>>("list_tickets", {
+    actor: bot.principalId,
+    filters: { status: "new", created_before: unrespondedCutoff, limit: 50 },
+  });
+
+  const noteKey = (prefix: string, id: string) => `maintain:${prefix}:${id}:${new Date().toISOString().slice(0, 10)}`;
+  let nudged = 0;
+
+  for (const t of staleTickets) {
+    await rpc("add_message", {
+      actor: bot.principalId, ticket_id: t.id,
+      message: {
+        body: `Maintenance notice: this ticket has been in progress for over ${staleDays} days without a recorded next step. A support person should review whether it is waiting, blocked or needs to be closed.`,
+        visibility: "internal",
+        idempotency_key: noteKey("stale", t.id),
+      },
+    }).catch(() => undefined);
+    nudged++;
+  }
+
+  for (const t of unrespondedTickets) {
+    await rpc("add_message", {
+      actor: bot.principalId, ticket_id: t.id,
+      message: {
+        body: `Maintenance notice: this ticket has had no response for over ${unrespondedHours} hours. Bloom may not have been able to reach this customer or the initial reply was missed.`,
+        visibility: "internal",
+        idempotency_key: noteKey("unresponded", t.id),
+      },
+    }).catch(() => undefined);
+    nudged++;
+  }
+
+  const totalStale = staleTickets.length;
+  const totalUnresponded = unrespondedTickets.length;
+
+  if (totalStale > 0 || totalUnresponded > 0) {
+    const summary = [
+      `*Overnight maintenance scan*`,
+      totalStale > 0 ? `• ${totalStale} ticket${totalStale === 1 ? "" : "s"} stale (>${staleDays} days with no movement)` : null,
+      totalUnresponded > 0 ? `• ${totalUnresponded} ticket${totalUnresponded === 1 ? "" : "s"} unresponded (>${unrespondedHours}h, still new)` : null,
+      `Internal notes added. No customer messages sent.`,
+      `<${appUrl()}/admin/bloom-support|Review in Bloom Support>`,
+    ].filter(Boolean).join("\n");
+    try {
+      await postSlackInternalText("alerts", summary, `${job.id}:maintain`);
+    } catch (e) {
+      console.log("bloom-support-worker: maintenance Slack alert skipped:", e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return `maintenance: ${totalStale} stale, ${totalUnresponded} unresponded, ${nudged} nudged`;
 }
 
 async function ownerEmails(audience: string): Promise<string[]> {
@@ -1016,6 +1158,7 @@ const HANDLERS: Record<string, (j: Job) => Promise<string>> = {
   operate: () => Promise.resolve("operations are executed by people from the dashboard"),
   notify: notifyEmail,
   digest,
+  maintain,
   post_resolution_reply: postResolutionReply,
 };
 

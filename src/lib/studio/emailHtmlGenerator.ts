@@ -1683,7 +1683,7 @@ function renderSocialLink(
     : mode === "mono"
       ? safeColor(designSystem?.colors.text || block.textColor, "#111827")
       : SOCIAL_COLORS[link.platform];
-  const iconUrl = SOCIAL_ICON_URLS[link.platform];
+  const iconUrl = SOCIAL_ICON_URLS[link.platform] ?? "";
   const mark: Record<SocialLink["platform"], string> = {
     facebook: "f", instagram: "IG", twitter: "X", linkedin: "in",
     youtube: "YT", tiktok: "TT", pinterest: "P", threads: "@",

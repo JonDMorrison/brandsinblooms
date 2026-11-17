@@ -4,7 +4,7 @@ import { BloomError, env } from "./runtime.ts";
 import { explainSupportEvent, explainGithubMilestone, githubMilestoneFromKind } from "./slack-language.ts";
 import { isPublicReleaseCategory, publicReleaseNote } from "./release-notes.ts";
 
-export type SlackRoute = "tickets" | "features" | "alerts" | "releases" | "projects" | "clients" | "finance";
+export type SlackRoute = "tickets" | "features" | "alerts" | "releases" | "projects" | "clients" | "finance" | "digest";
 
 /** Only known staff events are allowed into Slack; unrelated notifications stay in-app. */
 export function slackRoute(kind: string): SlackRoute | null {
