@@ -9,7 +9,6 @@ import Typography from "@mui/joy/Typography";
 import { ChevronDown, Maximize2, Plus, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { JoyTooltip } from "@/components/joy/JoyTooltip";
-import { DASHBOARD_TOPBAR_HEIGHT } from "@/components/navigation/DashboardTopBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +20,26 @@ const RECENT_LIMIT = 5;
 const SEARCH_LIMIT = 10;
 const FETCH_LIMIT = 50;
 const GROUP_THRESHOLD = 5;
+
+const headerFontFamily = "var(--joy-fontFamily-display)";
+
+const headerIconButtonSx = {
+  width: 40,
+  height: 40,
+  minWidth: 40,
+  minHeight: 40,
+  borderRadius: "50%",
+  color: "common.white",
+  bgcolor: "rgba(255, 255, 255, 0.08)",
+  border: "1px solid rgba(255, 255, 255, 0.18)",
+  opacity: 1,
+  "&:hover": { bgcolor: "rgba(255, 255, 255, 0.16)", color: "common.white" },
+  "&:active": { bgcolor: "rgba(255, 255, 255, 0.22)" },
+  "&:focus-visible": {
+    outline: "2px solid var(--joy-palette-common-white)",
+    outlineOffset: "2px",
+  },
+} as const;
 
 interface AskBloomConversationListItem {
   id: string;
@@ -587,85 +606,154 @@ export function AskBloomHeader() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        p: "8px 12px",
-        height: `${DASHBOARD_TOPBAR_HEIGHT}px`,
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        background: "white",
+        gap: "12px",
+        p: "16px 14px 16px 20px",
+        minHeight: 72,
+        background:
+          "linear-gradient(100deg, var(--joy-palette-brandNavy-800) 0%, var(--joy-palette-brandNavy-600) 100%)",
+        color: "common.white",
+        fontFamily: headerFontFamily,
         flexShrink: 0,
         position: "relative",
       }}
     >
+      {/*
+       * Decorative rings live in their own clipped layer: clipping the band
+       * itself would also clip the conversation dropdown that hangs below it.
+       */}
       <Box
-        component="button"
-        type="button"
-        ref={triggerRef}
-        aria-haspopup="listbox"
-        aria-expanded={isDropdownOpen}
-        aria-label="Switch conversation"
-        onClick={() => (isDropdownOpen ? closeDropdown() : openDropdown())}
-        onKeyDown={handleTriggerKeyDown}
+        aria-hidden="true"
         sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "4px",
-          p: "4px 8px",
-          border: "none",
-          borderRadius: "sm",
-          background: "transparent",
-          cursor: "pointer",
-          maxWidth: TRIGGER_MAX_WIDTH,
-          minWidth: 0,
-          font: "inherit",
-          transition: "background 150ms ease",
-          "&:hover": { background: "background.level1" },
-          "&:focus-visible": {
-            outline: "2px solid var(--joy-palette-focusVisible)",
-            outlineOffset: "2px",
-          },
+          position: "absolute",
+          inset: 0,
+          overflow: "hidden",
+          pointerEvents: "none",
         }}
       >
-        <Typography
-          level="body-sm"
-          noWrap
-          sx={{
-            fontWeight: 600,
-            color: "text.primary",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            flexShrink: 1,
-            minWidth: 0,
-          }}
-        >
-          {triggerLabel}
-        </Typography>
         <Box
-          component={ChevronDown}
-          size={14}
-          strokeWidth={2}
           sx={{
-            color: "text.tertiary",
-            flexShrink: 0,
-            transition: "transform 200ms ease",
-            transform: isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+            position: "absolute",
+            top: -150,
+            right: -90,
+            width: 260,
+            height: 260,
+            borderRadius: "50%",
+            border: "28px solid rgba(255, 255, 255, 0.05)",
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            top: -54,
+            right: 24,
+            width: 140,
+            height: 140,
+            borderRadius: "50%",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         />
       </Box>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: "2px" }}>
+      <Box
+        sx={{
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: "2px",
+          minWidth: 0,
+        }}
+      >
+        <Typography
+          component="h2"
+          sx={{
+            fontFamily: headerFontFamily,
+            fontSize: "21px",
+            fontWeight: 700,
+            lineHeight: 1.2,
+            color: "common.white",
+          }}
+        >
+          Ask Bloom
+        </Typography>
+        <Box
+          component="button"
+          type="button"
+          ref={triggerRef}
+          aria-haspopup="listbox"
+          aria-expanded={isDropdownOpen}
+          aria-label="Switch conversation"
+          onClick={() => (isDropdownOpen ? closeDropdown() : openDropdown())}
+          onKeyDown={handleTriggerKeyDown}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+            p: "2px 6px",
+            ml: "-6px",
+            border: "none",
+            borderRadius: "sm",
+            background: "transparent",
+            cursor: "pointer",
+            maxWidth: TRIGGER_MAX_WIDTH,
+            minWidth: 0,
+            font: "inherit",
+            fontFamily: headerFontFamily,
+            color: "#D5E1EA",
+            transition: "background 150ms ease",
+            "&:hover": { background: "rgba(255, 255, 255, 0.08)" },
+            "&:focus-visible": {
+              outline: "2px solid var(--joy-palette-common-white)",
+              outlineOffset: "2px",
+            },
+          }}
+        >
+          <Typography
+            noWrap
+            sx={{
+              fontFamily: headerFontFamily,
+              fontSize: "13px",
+              fontWeight: 500,
+              lineHeight: 1.4,
+              color: "inherit",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flexShrink: 1,
+              minWidth: 0,
+            }}
+          >
+            {triggerLabel}
+          </Typography>
+          <Box
+            component={ChevronDown}
+            size={14}
+            strokeWidth={2}
+            sx={{
+              color: "inherit",
+              flexShrink: 0,
+              transition: "transform 200ms ease",
+              transform: isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          />
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          flexShrink: 0,
+        }}
+      >
         <JoyTooltip title="New conversation" placement="bottom">
           <IconButton
             aria-label="New conversation"
             variant="plain"
-            color="neutral"
-            size="sm"
             onClick={handleNewConversation}
-            sx={{
-              borderRadius: "sm",
-              opacity: 0.6,
-              "&:hover": { opacity: 1, background: "background.level1" },
-            }}
+            sx={headerIconButtonSx}
           >
             <Plus size={16} strokeWidth={2} />
           </IconButton>
@@ -675,14 +763,8 @@ export function AskBloomHeader() {
           <IconButton
             aria-label="Open in Bloom"
             variant="plain"
-            color="neutral"
-            size="sm"
             onClick={handleOpenInBloom}
-            sx={{
-              borderRadius: "sm",
-              opacity: 0.6,
-              "&:hover": { opacity: 1, background: "background.level1" },
-            }}
+            sx={headerIconButtonSx}
           >
             <Maximize2 size={16} strokeWidth={2} />
           </IconButton>
@@ -692,14 +774,8 @@ export function AskBloomHeader() {
           <IconButton
             aria-label="Close"
             variant="plain"
-            color="neutral"
-            size="sm"
             onClick={askBloom.close}
-            sx={{
-              borderRadius: "sm",
-              opacity: 0.6,
-              "&:hover": { opacity: 1, background: "background.level1" },
-            }}
+            sx={headerIconButtonSx}
           >
             <X size={16} strokeWidth={2} />
           </IconButton>
@@ -714,7 +790,7 @@ export function AskBloomHeader() {
           sx={{
             position: "absolute",
             top: "100%",
-            left: 0,
+            left: 14,
             mt: "4px",
             width: 320,
             maxWidth: "calc(100% - 24px)",

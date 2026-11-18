@@ -26,11 +26,7 @@ const panelSurfaceSx = {
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
-  bgcolor: "background.surface",
-  backgroundImage:
-    "radial-gradient(var(--joy-palette-neutral-300) 1px, transparent 1px)",
-  backgroundSize: "10px 10px",
-  backgroundPosition: "center",
+  bgcolor: "#EEF4F6",
 } as const;
 
 function AskBloomPanelBody() {

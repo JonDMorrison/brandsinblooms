@@ -57,6 +57,7 @@ import {
   Pencil,
   Pin,
   Plus,
+  Send,
   SlidersHorizontal,
   Square,
   X,
@@ -294,6 +295,45 @@ const toolbarIconButtonSx = {
     bgcolor: "background.level2",
     opacity: 0.75,
   },
+} as const;
+
+const sendSpinnerSx = {
+  "--CircularProgress-size": "16px",
+  "--CircularProgress-trackThickness": "2px",
+  "--CircularProgress-progressThickness": "2px",
+  "--CircularProgress-trackColor": "rgba(255, 255, 255, 0.3)",
+} as const;
+
+/** Solid brand-navy treatment shared by the send pill and icon send button. */
+const sendButtonBaseSx = {
+  borderRadius: "12px",
+  bgcolor: "brandNavy.700",
+  color: "common.white",
+  transition:
+    "background-color 150ms ease, color 150ms ease, transform 150ms ease, opacity 150ms ease",
+  "&:hover": { bgcolor: "brandNavy.800", transform: "scale(1.03)" },
+  "&:active": { transform: "scale(0.97)" },
+  "&.Mui-disabled": {
+    bgcolor: "brandNavy.700",
+    color: "common.white",
+    opacity: 0.35,
+    cursor: "not-allowed",
+    transform: "none",
+  },
+  "&.Mui-disabled:hover": { transform: "none" },
+} as const;
+
+const sendButtonShapeSx = {
+  width: 40,
+  height: 40,
+  minWidth: 40,
+  minHeight: 40,
+  borderRadius: "12px",
+  p: 0,
+  transition:
+    "background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease, opacity 150ms ease",
+  "&:active": { transform: "scale(0.95)" },
+  "&.Mui-disabled": { opacity: 0.35, cursor: "not-allowed", transform: "none" },
 } as const;
 
 type AskBloomOptionsPopoverProps = {
@@ -571,6 +611,12 @@ function AskBloomInput() {
   const trimmedValue = inputValue.trim();
   const effectiveWidth = measuredWidth ?? state.panelWidth;
   const isCompact = effectiveWidth < 360;
+  const isWelcome =
+    state.messages.length === 0 &&
+    !state.isSendingMessage &&
+    !state.isStreaming &&
+    !state.isLoadingConversation;
+  const textareaId = React.useId();
 
   const showSnackbar = React.useCallback((message: string) => {
     setSnackbarMessage(message);
@@ -636,6 +682,12 @@ function AskBloomInput() {
   const sendDisabled = !hasSubmitContent || isSendInProgress || hasUnreadyFiles;
   const attachDisabled =
     isSendInProgress || files.length >= MAX_BLOOM_ATTACHMENTS;
+  const sendButtonLabel = state.isStreaming
+    ? "Stop response"
+    : state.isSendingMessage
+      ? "Sending message"
+      : "Send message";
+  const showWelcomeSendPill = isWelcome && !isCompact;
   const activeModeOption = getModeOption(activeMode);
   const activeModelOption = getModelOption(modelPreference);
   const showModePill = activeMode !== DEFAULT_MODE;
@@ -1069,11 +1121,9 @@ function AskBloomInput() {
           position: "relative",
           bgcolor: "background.surface",
           border: "1px solid",
-          borderColor: isFocused
-            ? "primary.outlinedColor"
-            : "neutral.outlinedBorder",
-          borderRadius: "var(--joy-radius-lg)",
-          padding: "12px 14px 8px 14px",
+          borderColor: isFocused ? "primary.outlinedColor" : "brandNavy.200",
+          borderRadius: "18px",
+          padding: "14px 14px 10px 14px",
           boxShadow: isFocused
             ? "0 0 0 1px var(--joy-palette-primary-outlinedColor), var(--joy-shadow-lg)"
             : "var(--joy-shadow-md)",
@@ -1165,13 +1215,35 @@ function AskBloomInput() {
               </Typography>
             </Box>
           ) : (
+            <>
+            {isWelcome ? (
+              <Typography
+                component="label"
+                htmlFor={textareaId}
+                sx={{
+                  display: "block",
+                  mb: "6px",
+                  fontFamily: "var(--joy-fontFamily-display)",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  color: "brandNavy.900",
+                }}
+              >
+                What can I help with?
+              </Typography>
+            ) : null}
             <Box
               component="textarea"
+              id={textareaId}
               ref={textareaRef}
-              aria-label="Ask Bloom message"
+              aria-label={isWelcome ? undefined : "Ask Bloom message"}
               aria-disabled={isSendInProgress}
               data-ask-bloom-panel-input="true"
-              placeholder="What can we help you with?"
+              placeholder={
+                isWelcome
+                  ? "Ask how to do something, or about your store..."
+                  : "Ask a follow-up..."
+              }
               value={inputValue}
               onBlur={() => setIsFocused(false)}
               onChange={handleInputChange}
@@ -1202,6 +1274,7 @@ function AskBloomInput() {
                 },
               }}
             />
+            </>
           )}
         </Box>
 
@@ -1376,88 +1449,87 @@ function AskBloomInput() {
             </JoyTooltip>
           ) : null}
 
-          <JoyTooltip
-            title={
-              state.isStreaming
-                ? "Stop response"
-                : state.isSendingMessage
-                  ? "Sending message"
-                  : "Send message"
-            }
-            placement="top"
-          >
+          <JoyTooltip title={sendButtonLabel} placement="top">
             <Box sx={{ display: "inline-flex", flexShrink: 0 }}>
-              <IconButton
-                aria-label={
-                  state.isStreaming
-                    ? "Stop response"
-                    : state.isSendingMessage
-                      ? "Sending message"
-                      : "Send message"
-                }
-                color={state.isStreaming ? "danger" : "primary"}
-                disabled={!state.isStreaming && sendDisabled}
-                size="sm"
-                variant={state.isStreaming ? "outlined" : "solid"}
-                onClick={
-                  state.isStreaming ? stopStreaming : () => void submitMessage()
-                }
-                sx={{
-                  width: 30,
-                  height: 30,
-                  minWidth: 30,
-                  minHeight: 30,
-                  borderRadius: "50%",
-                  p: 0,
-                  transition:
-                    "background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease, opacity 150ms ease",
-                  "&:hover": state.isStreaming
-                    ? {
-                        bgcolor: "danger.softBg",
-                        transform: "scale(1.06)",
-                      }
-                    : {
-                        transform: "scale(1.06)",
-                      },
-                  "&:active": {
-                    transform: "scale(0.95)",
-                  },
-                  "&.Mui-disabled": {
-                    opacity: 0.35,
-                    cursor: "not-allowed",
-                    transform: "none",
-                  },
-                  "&.Mui-disabled:hover": {
-                    transform: "none",
-                  },
-                }}
-              >
-                {state.isStreaming ? (
-                  <Square size={12} fill="currentColor" strokeWidth={0} />
-                ) : state.isSendingMessage ? (
-                  <CircularProgress
-                    color="primary"
-                    size="sm"
-                    sx={{
-                      "--CircularProgress-size": "16px",
-                      "--CircularProgress-trackThickness": "2px",
-                      "--CircularProgress-progressThickness": "2px",
-                    }}
-                  />
-                ) : isUploading ? (
-                  <CircularProgress
-                    color="primary"
-                    size="sm"
-                    sx={{
-                      "--CircularProgress-size": "16px",
-                      "--CircularProgress-trackThickness": "2px",
-                      "--CircularProgress-progressThickness": "2px",
-                    }}
-                  />
-                ) : (
-                  <ArrowUp size={16} strokeWidth={2.5} />
-                )}
-              </IconButton>
+              {showWelcomeSendPill ? (
+                <Button
+                  aria-label={sendButtonLabel}
+                  disabled={!state.isStreaming && sendDisabled}
+                  onClick={
+                    state.isStreaming
+                      ? stopStreaming
+                      : () => void submitMessage()
+                  }
+                  startDecorator={
+                    isUploading ? (
+                      <CircularProgress
+                        size="sm"
+                        sx={{
+                          ...sendSpinnerSx,
+                          "--CircularProgress-progressColor":
+                            "var(--joy-palette-common-white)",
+                        }}
+                      />
+                    ) : (
+                      <Send size={16} strokeWidth={2} />
+                    )
+                  }
+                  sx={{
+                    ...sendButtonBaseSx,
+                    height: 44,
+                    minHeight: 44,
+                    px: "16px",
+                    gap: "8px",
+                    fontFamily: "var(--joy-fontFamily-display)",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Ask Bloom
+                </Button>
+              ) : (
+                <IconButton
+                  aria-label={sendButtonLabel}
+                  color={state.isStreaming ? "danger" : "primary"}
+                  disabled={!state.isStreaming && sendDisabled}
+                  size="sm"
+                  variant={state.isStreaming ? "outlined" : "solid"}
+                  onClick={
+                    state.isStreaming
+                      ? stopStreaming
+                      : () => void submitMessage()
+                  }
+                  sx={
+                    state.isStreaming
+                      ? {
+                          ...sendButtonShapeSx,
+                          "&:hover": {
+                            bgcolor: "danger.softBg",
+                            transform: "scale(1.06)",
+                          },
+                        }
+                      : {
+                          ...sendButtonShapeSx,
+                          ...sendButtonBaseSx,
+                        }
+                  }
+                >
+                  {state.isStreaming ? (
+                    <Square size={12} fill="currentColor" strokeWidth={0} />
+                  ) : state.isSendingMessage || isUploading ? (
+                    <CircularProgress
+                      size="sm"
+                      sx={{
+                        ...sendSpinnerSx,
+                        "--CircularProgress-progressColor":
+                          "var(--joy-palette-common-white)",
+                      }}
+                    />
+                  ) : (
+                    <ArrowUp size={16} strokeWidth={2.5} />
+                  )}
+                </IconButton>
+              )}
             </Box>
           </JoyTooltip>
         </Box>

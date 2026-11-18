@@ -181,32 +181,52 @@ const RESOURCE_STARTERS: Record<AskBloomResourceType, ResourceStarterConfig> = {
 };
 
 const GENERAL_STARTERS: ResourceStarterConfig = {
-  greeting: "How can I help you today?",
+  greeting: "Good decisions start with a clear view.",
   starters: [
     {
-      label: "Ask about a customer",
-      description: "Find a customer and review their profile.",
-      prompt: "I'd like to look up a customer. Can you help me find them?",
-      icon: "User",
+      label: "Best customers",
+      description: "See who buys the most",
+      prompt: "Who are my best customers?",
+      icon: "Users",
     },
     {
-      label: "Check inventory",
-      description: "See stock levels and low-inventory alerts.",
-      prompt:
-        "Give me a summary of my current inventory status, including any low-stock alerts.",
-      icon: "Package",
+      label: "Who to win back",
+      description: "Customers who stopped coming in",
+      prompt: "Which customers have not shopped with us in a while?",
+      icon: "Clock",
     },
     {
-      label: "Campaign insights",
-      description: "Review recent campaign performance.",
-      prompt: "Show me how my recent campaigns are performing.",
+      label: "Last email",
+      description: "See how your last campaign did",
+      prompt: "How did my last email campaign do?",
       icon: "Mail",
     },
     {
-      label: "Draft content",
-      description: "Generate marketing copy for your store.",
-      prompt: "Help me draft marketing content for my store.",
+      label: "Write an email",
+      description: "Draft your next campaign",
+      prompt: "Help me write an email to my customers.",
       icon: "PenLine",
+    },
+  ],
+  // Secondary prompts render as plain rows, so they carry no description.
+  secondaryStarters: [
+    {
+      label: "Look up a customer",
+      description: "",
+      prompt: "I want to look up a customer.",
+      icon: "User",
+    },
+    {
+      label: "Check low stock",
+      description: "",
+      prompt: "What is running low on stock?",
+      icon: "Package",
+    },
+    {
+      label: "Something is not working",
+      description: "",
+      prompt: "I need help with a problem in BloomSuite.",
+      icon: "Search",
     },
   ],
 };
