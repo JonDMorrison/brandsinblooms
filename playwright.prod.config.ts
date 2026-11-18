@@ -26,6 +26,8 @@ export default defineConfig({
   timeout: 30000,
   retries: 0,
   workers: 1,
+  // Do not upload the legacy checked-in playwright-report as this run\'s evidence.
+  reporter: [["list"], ["html", { outputFolder: "playwright-live-report", open: "never" }]],
   use: {
     baseURL: BASE_URL,
     headless: true,

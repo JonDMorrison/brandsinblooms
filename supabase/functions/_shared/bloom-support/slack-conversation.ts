@@ -1,6 +1,6 @@
 import { db, env, rpc, BloomError } from "./runtime.ts";
 import { completeJson } from "./ai.ts";
-import { answerWithSlackAgent } from "./slack-agent.ts";
+import { answerWithSlackAgent, isPrivateStaffChannel } from "./slack-agent.ts";
 import { postSlackInternalMessage, updateSlackInternalText, type SlackRoute } from "./slack.ts";
 import { projectQuestionAnswer, featureQuestionAnswer } from "./slack-questions.ts";
 import { safeTicketText, ticketQuestionAnswer } from "./ticket-slack.ts";
@@ -12,6 +12,11 @@ import { detectSlackAction, executeSlackAction, slackActionsAllowed } from "./sl
 
 type Route = SlackRoute | "ask";
 interface Context { allowed:boolean; principal_id:string; role:string; channel:string; route:Route; root_ts:string; user_id:string; ticket_id:string|null; history:Array<{question:string;answer:string}>; delivery_state:string; reply_ts:string|null }
+function sameConversationAccess(original:Context,current:Context):boolean {
+  return current.allowed && current.principal_id===original.principal_id && current.role===original.role
+    && current.channel===original.channel && current.route===original.route && current.root_ts===original.root_ts
+    && current.user_id===original.user_id && current.ticket_id===original.ticket_id;
+}
 async function sql<T>(name:string,args:Record<string,unknown>):Promise<T>{
   const {data,error}=await db().rpc(name,args);
   if(error) throw new BloomError(503,"slack_state","Slack conversation state unavailable");
@@ -130,12 +135,22 @@ export async function respondToSlackConversation(job:{id:string;payload:Record<s
     }
   }
   const question = String(job.payload.question ?? "");
+  // The privacy boundary applies to every responder, including rollback and
+  // deterministic shortcuts. A configured channel ID alone is not evidence
+  // that the destination is still private or unshared.
+  const privateChannel = await isPrivateStaffChannel(c.channel);
+  const beforeWork=await sql<Context>("bloom_support_slack_conversation_context",{p_job:job.id});
+  if(beforeWork.delivery_state==="final")return "already answered in Slack";
   let text: string;
   // A negated or hypothetical question must never trigger the legacy shortcuts.
   const deniedAction=/\b(?:do not|don't|don’t|never|without|not yet|how (?:do|can|would)|what (?:would|if)|example|hypothetical)\b/i.test(question);
   const slackAction = !deniedAction && c.ticket_id && slackActionsAllowed(c.route, c.role)
     ? detectSlackAction(question) : null;
-  if (slackAction) {
+  if (!sameConversationAccess(c,beforeWork)) {
+    text = "I can no longer verify your access to this conversation. Please check the authorized support desk for any recorded work.";
+  } else if (!privateChannel && (c.ticket_id || c.route !== "ask")) {
+    text = "I can't verify this as a private, unshared staff channel. Please use the signed-in Bloom Support desk for client records and ticket actions. If this is the private support channel, its Slack app permissions may need attention.";
+  } else if (slackAction) {
     try {
       const result = await executeSlackAction(
         slackAction,
@@ -147,13 +162,16 @@ export async function respondToSlackConversation(job:{id:string;payload:Record<s
       text = "I couldn't confirm that action. Please check the ticket's current state before retrying.";
     }
   } else {
-    try{text=await answer(c,question,job.id);}
+    // A channel can have been made public since an earlier private answer.
+    // Never reuse those earlier turns as public knowledge-search/model input.
+    try{text=await answer(privateChannel ? c : {...c,history:[]},question,job.id);}
     catch{text="I couldn't finish checking the records. Please check the ticket for any recorded work before retrying; if this is urgent, use the human support option.";}
   }
   // Recheck actor/binding immediately before disclosing the answer.
   const current=await sql<Context>("bloom_support_slack_conversation_context",{p_job:job.id});
   if(current.delivery_state==="final")return "already answered in Slack";
-  if(!current.allowed)text="I can no longer verify your access to this conversation. Please check the authorized support desk for any recorded work.";
+  if(!sameConversationAccess(c,current) || (privateChannel && !await isPrivateStaffChannel(c.channel)))
+    text="I can no longer verify your access to this conversation. Please check the authorized support desk for any recorded work.";
   await updateSlackInternalText(c.route,replyTs!,text);
   const saved=await sql<{recorded:boolean}>("bloom_support_record_slack_reply",{p_job:job.id,p_reply_ts:replyTs,p_answer:text});
   if(!saved.recorded)throw new BloomError(409,"slack_receipt_conflict","Slack final receipt was not recorded");

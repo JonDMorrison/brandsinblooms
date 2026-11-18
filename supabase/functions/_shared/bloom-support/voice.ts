@@ -27,10 +27,13 @@ export function bloomClarification(details: string[]): string {
 /** Explicit human/callback requests take priority over model classification. */
 export function wantsHumanContact(text: string): boolean {
   if (!text || text.length > 10_000) return false;
-  const normalized = text.toLowerCase().replace(/[’‘]/g, "'").replace(/[^\w\s']/g, " ").replace(/\s+/g, " ");
-  // Ignore a negated request, but allow a later explicit change of mind.
-  for (const t of normalized.split(/\b(?:but|however|instead)\b/)) {
-    if (/\b(?:don'?t|do not|never|no need to)\b.{0,35}\b(?:human|person|agent|representative|call|phone|contact)\b/.test(t)) continue;
+  const normalized = text.toLowerCase().replace(/[’‘]/g, "'");
+  // Preserve independent requests: declining a phone call must not suppress a
+  // later request to chat, and declining email must not suppress a callback.
+  const clauses = normalized.split(/[.!?;,\n]+|\b(?:but|however|instead)\b|\band\s+(?=(?:please|connect|call|phone|contact|get|(?:can|could|would)\s+you)\b)/);
+  for (const clause of clauses) {
+    const t = clause.replace(/[^\w\s']/g, " ").replace(/\s+/g, " ").trim();
+    if (/\b(?:don'?t|do not|never|no need(?: to| for)?)\b.{0,60}\b(?:human|person|someone|somebody|agent|staff|representative|rep|team member|callback|call|phone|contact|bot|ai|automated)\b/.test(t)) continue;
     if (/\b(?:speak|talk|chat|connect|deal)\b.{0,30}\b(?:person|human|someone|somebody|agent|staff|representative|rep)\b/.test(t)) return true;
     if (/\b(?:want|need|prefer|like)\b.{0,20}\b(?:real|actual|human)\b.{0,15}\b(?:person|agent|staff|representative|rep)\b/.test(t)) return true;
     if (/\b(?:want|need|prefer|like)\b.{0,20}\bhuman\b/.test(t)) return true;

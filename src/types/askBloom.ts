@@ -96,6 +96,8 @@ export interface AskBloomInsight {
 export interface ResourceStarterConfig {
   greeting: string;
   starters: AskBloomStarterPrompt[];
+  /** Lower-priority prompts shown behind the "More help and actions" toggle. */
+  secondaryStarters?: AskBloomStarterPrompt[];
 }
 
 export type AskBloomActionCardStatus =

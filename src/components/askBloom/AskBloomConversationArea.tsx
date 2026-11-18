@@ -13,15 +13,16 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   AlertTriangle,
+  ArrowUpRight,
   BarChart3,
   Check,
   ChevronDown,
-  ChevronRight,
   Clock,
   Copy,
   FileText,
   GitCompare,
   Info,
+  LifeBuoy,
   Lightbulb,
   Mail,
   Package,
@@ -61,7 +62,6 @@ import {
 import { stripToolJsonFromText } from "@/components/bloom/utils/stripToolJson";
 import { useAskBloomInsights } from "@/hooks/askBloom/useAskBloomInsights";
 import { useAskBloom } from "@/providers/AskBloomProvider";
-import bloomLogo from "@/assets/logos/bloom-logo.png";
 import type {
   AskBloomActiveToolCall,
   AskBloomBlock,
@@ -309,10 +309,15 @@ const hiddenScrollbarSx = {
   },
 } as const;
 
-function StarterIcon({ name }: { name: string }) {
+function StarterIcon({ name, size = 15 }: { name: string; size?: number }) {
   const Icon = STARTER_ICON_MAP[name] ?? Sparkles;
-  return <Icon aria-hidden="true" size={15} strokeWidth={1.8} />;
+  return <Icon aria-hidden="true" size={size} strokeWidth={1.8} />;
 }
+
+const welcomeFontFamily = "var(--joy-fontFamily-display)";
+
+const GENERAL_WELCOME_BODY =
+  "Ask a question in everyday language. Bloom checks your customer, sales, and campaign records and points you to the source.";
 
 function InsightIcon({ type }: { type: AskBloomInsight["type"] }) {
   const iconByType: Record<AskBloomInsight["type"], LucideIcon> = {
@@ -340,38 +345,6 @@ function InsightIcon({ type }: { type: AskBloomInsight["type"] }) {
       }}
     >
       <Icon aria-hidden="true" size={18} strokeWidth={1.8} />
-    </Box>
-  );
-}
-
-function WelcomeBloomLogo() {
-  return (
-    <Box
-      aria-hidden="true"
-      sx={{
-        width: 92,
-        height: 92,
-        mx: "auto",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        filter:
-          "drop-shadow(0 12px 22px rgba(var(--joy-palette-primary-mainChannel) / 0.18))",
-      }}
-    >
-      <Box
-        component="img"
-        src={bloomLogo}
-        alt=""
-        draggable={false}
-        sx={{
-          width: "100%",
-          height: "100%",
-          display: "block",
-          objectFit: "contain",
-          userSelect: "none",
-        }}
-      />
     </Box>
   );
 }
@@ -598,169 +571,312 @@ function WelcomeState() {
     [insights],
   );
 
+  const isGeneral = !resourceFocus;
+  const secondaryStarters = starterConfig.secondaryStarters ?? [];
+  const [isMoreHelpOpen, setIsMoreHelpOpen] = React.useState(false);
+  const moreHelpRegionId = React.useId();
+
   return (
     <Stack
-      spacing={2.25}
+      spacing={2}
       sx={{
         width: "100%",
-        maxWidth: 292,
-        mx: "auto",
-        px: 0,
+        px: "4px",
         py: 2,
+        fontFamily: welcomeFontFamily,
+        "& .MuiTypography-root": { fontFamily: welcomeFontFamily },
       }}
     >
-      <Stack spacing={1.25} sx={{ alignItems: "center", textAlign: "center" }}>
-        <WelcomeBloomLogo />
+      <Stack spacing={1}>
         <Typography
-          level="title-md"
           sx={{
+            fontSize: "11px",
             fontWeight: 700,
-            letterSpacing: 0,
-            color: "text.primary",
-            lineHeight: 1.15,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "primary.900",
+          }}
+        >
+          Your store guide
+        </Typography>
+        <Typography
+          component="h3"
+          sx={{
+            fontSize: "20px",
+            fontWeight: 700,
+            lineHeight: 1.25,
+            color: "brandNavy.900",
+            textAlign: "left",
           }}
         >
           {starterConfig.greeting}
         </Typography>
+        {isGeneral ? (
+          <Typography
+            sx={{ fontSize: "13.5px", lineHeight: 1.5, color: "neutral.600" }}
+          >
+            {GENERAL_WELCOME_BODY}
+          </Typography>
+        ) : null}
       </Stack>
 
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.75,
-        }}
-      >
-        {starterConfig.starters.map((starter) => (
-          <Button
-            key={starter.label}
-            color="neutral"
-            variant="outlined"
-            onClick={() => askBloom.sendMessage(starter.prompt)}
-            sx={{
-              "--Button-gap": "0px",
-              width: "100%",
-              minHeight: 50,
-              px: 1,
-              py: 0.85,
-              justifyContent: "flex-start",
-              textAlign: "left",
-              borderRadius: "12px",
-              borderColor: "neutral.outlinedBorder",
-              bgcolor: "background.surface",
-              boxShadow:
-                "0 1px 0 rgba(var(--joy-palette-neutral-darkChannel) / 0.02)",
-              overflow: "hidden",
-              transition:
-                "background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
-              "&:hover": {
-                bgcolor: "background.surface",
-                borderColor: "primary.outlinedBorder",
-                boxShadow:
-                  "0 8px 24px rgba(var(--joy-palette-neutral-darkChannel) / 0.08)",
-                transform: "translateY(-1px)",
-              },
-              "&:hover .AskBloomStarter-iconBox": {
-                bgcolor: "primary.softBg",
-                color: "primary.plainColor",
-              },
-              "&:hover .AskBloomStarter-title": {
-                color: "primary.plainColor",
-              },
-              "&:hover .AskBloomStarter-description": {
-                color: "primary.600",
-              },
-              "&:hover .AskBloomStarter-chevron": {
-                color: "primary.plainColor",
-                opacity: 1,
-              },
-            }}
+      <Stack spacing={1.25}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Typography
+            sx={{ fontSize: "13px", fontWeight: 700, color: "brandNavy.900" }}
           >
+            Try asking
+          </Typography>
+          <Typography sx={{ fontSize: "12px", color: "neutral.600" }}>
+            One tap to ask
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: "10px",
+          }}
+        >
+          {starterConfig.starters.map((starter) => (
             <Box
+              key={starter.label}
+              component="button"
+              type="button"
+              onClick={() => askBloom.sendMessage(starter.prompt)}
               sx={{
+                appearance: "none",
                 display: "flex",
-                alignItems: "center",
-                gap: 1,
-                width: "100%",
+                flexDirection: "column",
+                alignItems: "stretch",
+                gap: "8px",
                 minWidth: 0,
+                p: "12px",
+                textAlign: "left",
+                font: "inherit",
+                fontFamily: welcomeFontFamily,
+                cursor: "pointer",
+                bgcolor: "common.white",
+                border: "1px solid",
+                borderColor: "brandNavy.200",
+                borderRadius: "16px",
+                color: "brandNavy.900",
+                transition:
+                  "border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
+                "&:hover": {
+                  borderColor: "primary.500",
+                  boxShadow:
+                    "0 6px 18px rgba(var(--joy-palette-neutral-darkChannel) / 0.08)",
+                },
+                "&:active": { transform: "translateY(1px)" },
+                "&:focus-visible": {
+                  outline: "2px solid var(--joy-palette-focusVisible)",
+                  outlineOffset: "2px",
+                },
               }}
             >
               <Box
-                className="AskBloomStarter-iconBox"
                 sx={{
-                  flexShrink: 0,
-                  width: 28,
-                  height: 28,
-                  borderRadius: "9px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "background.level1",
-                  color: "text.secondary",
-                  transition: "background-color 150ms ease, color 150ms ease",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
                 }}
               >
-                <StarterIcon name={starter.icon} />
-              </Box>
-              <Box
-                component="div"
-                sx={{
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                <Typography
-                  className="AskBloomStarter-title"
-                  level="body-sm"
+                <Box
                   sx={{
-                    textAlign: "left",
+                    width: 34,
+                    height: 34,
+                    borderRadius: "10px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: "primary.100",
+                    color: "primary.900",
+                    flexShrink: 0,
+                  }}
+                >
+                  <StarterIcon name={starter.icon} size={17} />
+                </Box>
+                <Box
+                  aria-hidden="true"
+                  sx={{ display: "inline-flex", color: "neutral.600" }}
+                >
+                  <ArrowUpRight size={14} strokeWidth={2} />
+                </Box>
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    fontSize: "14px",
                     fontWeight: 700,
-                    color: "text.primary",
-                    fontSize: "0.75rem",
-                    lineHeight: 1.2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    lineHeight: 1.3,
+                    color: "brandNavy.900",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {starter.label}
                 </Typography>
                 <Typography
-                  className="AskBloomStarter-description"
-                  level="body-xs"
                   sx={{
-                    mt: 0.15,
-                    textAlign: "left",
-                    color: "text.secondary",
-                    fontSize: "0.69rem",
-                    lineHeight: 1.25,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    transition: "color 150ms ease",
+                    mt: "2px",
+                    fontSize: "12.5px",
+                    lineHeight: 1.4,
+                    color: "neutral.600",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {starter.description}
                 </Typography>
               </Box>
-              <Box
-                className="AskBloomStarter-chevron"
-                aria-hidden="true"
+            </Box>
+          ))}
+        </Box>
+
+        <Typography
+          sx={{ fontSize: "11.5px", color: "neutral.600", textAlign: "center" }}
+        >
+          Sourced answers · You approve every change
+        </Typography>
+      </Stack>
+
+      {isGeneral && secondaryStarters.length > 0 ? (
+        <Box
+          sx={{
+            bgcolor: "common.white",
+            border: "1px solid",
+            borderColor: "brandNavy.200",
+            borderRadius: "16px",
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            component="button"
+            type="button"
+            aria-expanded={isMoreHelpOpen}
+            aria-controls={moreHelpRegionId}
+            onClick={() => setIsMoreHelpOpen((current) => !current)}
+            sx={{
+              appearance: "none",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              p: "12px",
+              border: "none",
+              bgcolor: "transparent",
+              textAlign: "left",
+              font: "inherit",
+              fontFamily: welcomeFontFamily,
+              cursor: "pointer",
+              "&:focus-visible": {
+                outline: "2px solid var(--joy-palette-focusVisible)",
+                outlineOffset: "-2px",
+              },
+            }}
+          >
+            <Box
+              aria-hidden="true"
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: "10px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "primary.100",
+                color: "primary.900",
+                flexShrink: 0,
+              }}
+            >
+              <LifeBuoy size={17} strokeWidth={1.8} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
                 sx={{
-                  flexShrink: 0,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  color: "text.tertiary",
-                  opacity: 0.6,
-                  transition: "color 150ms ease, opacity 150ms ease",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  color: "brandNavy.900",
                 }}
               >
-                <ChevronRight size={16} strokeWidth={1.8} />
-              </Box>
+                More help and actions
+              </Typography>
+              <Typography sx={{ fontSize: "12.5px", color: "neutral.600" }}>
+                Look up a customer, check stock, or fix a problem
+              </Typography>
             </Box>
-          </Button>
-        ))}
-      </Box>
+            <Box
+              aria-hidden="true"
+              sx={{
+                display: "inline-flex",
+                color: "neutral.600",
+                flexShrink: 0,
+                transition: "transform 200ms ease",
+                transform: isMoreHelpOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            >
+              <ChevronDown size={16} strokeWidth={2} />
+            </Box>
+          </Box>
+          {isMoreHelpOpen ? (
+            <Box
+              id={moreHelpRegionId}
+              sx={{
+                borderTop: "1px solid",
+                borderColor: "brandNavy.200",
+                py: "4px",
+              }}
+            >
+              {secondaryStarters.map((starter) => (
+                <Box
+                  key={starter.label}
+                  component="button"
+                  type="button"
+                  onClick={() => askBloom.sendMessage(starter.prompt)}
+                  sx={{
+                    appearance: "none",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    p: "10px 14px",
+                    border: "none",
+                    bgcolor: "transparent",
+                    textAlign: "left",
+                    font: "inherit",
+                    fontFamily: welcomeFontFamily,
+                    fontSize: "13.5px",
+                    fontWeight: 500,
+                    color: "brandNavy.900",
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: "brandNavy.50" },
+                    "&:focus-visible": {
+                      outline: "2px solid var(--joy-palette-focusVisible)",
+                      outlineOffset: "-2px",
+                    },
+                  }}
+                >
+                  <Box
+                    component="span"
+                    aria-hidden="true"
+                    sx={{ display: "inline-flex", color: "primary.900" }}
+                  >
+                    <StarterIcon name={starter.icon} />
+                  </Box>
+                  {starter.label}
+                </Box>
+              ))}
+            </Box>
+          ) : null}
+        </Box>
+      ) : null}
 
       {resourceFocus ? (
         isLoading ? (
@@ -1656,8 +1772,6 @@ export function AskBloomConversationArea() {
     resourceKey: string | null;
   }>({ conversationId: null, resourceKey: null });
   const shouldAutoScrollRef = React.useRef(true);
-  const dotOverlayRef = React.useRef<HTMLDivElement | null>(null);
-  const pointerRafRef = React.useRef<number | null>(null);
   const evidenceLatchTimerRef = React.useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -1707,46 +1821,6 @@ export function AskBloomConversationArea() {
       }
       if (evidenceLatchTimerRef.current !== null) {
         clearTimeout(evidenceLatchTimerRef.current);
-      }
-    },
-    [],
-  );
-
-  const handleDotPointerMove = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const overlay = dotOverlayRef.current;
-      if (!overlay) {
-        return;
-      }
-
-      const rect = overlay.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-
-      if (pointerRafRef.current !== null) {
-        cancelAnimationFrame(pointerRafRef.current);
-      }
-
-      pointerRafRef.current = requestAnimationFrame(() => {
-        overlay.style.setProperty("--dot-mask-x", `${x}px`);
-        overlay.style.setProperty("--dot-mask-y", `${y}px`);
-        overlay.style.setProperty("--dot-mask-opacity", "1");
-      });
-    },
-    [],
-  );
-
-  const handleDotPointerLeave = React.useCallback(() => {
-    const overlay = dotOverlayRef.current;
-    if (overlay) {
-      overlay.style.setProperty("--dot-mask-opacity", "0");
-    }
-  }, []);
-
-  React.useEffect(
-    () => () => {
-      if (pointerRafRef.current !== null) {
-        cancelAnimationFrame(pointerRafRef.current);
       }
     },
     [],
@@ -1935,8 +2009,6 @@ export function AskBloomConversationArea() {
       </Box>
       <Box
         aria-hidden={!shouldShowWelcome}
-        onPointerMove={handleDotPointerMove}
-        onPointerLeave={handleDotPointerLeave}
         sx={{
           position: "absolute",
           inset: 0,
@@ -1953,30 +2025,12 @@ export function AskBloomConversationArea() {
         }}
       >
         <Box
-          ref={dotOverlayRef}
-          aria-hidden="true"
-          sx={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 0,
-            pointerEvents: "none",
-            opacity: "var(--dot-mask-opacity, 0)",
-            transition: "opacity 320ms ease",
-            backgroundImage: `radial-gradient(var(--joy-palette-primary-500) 1px, transparent 1px)`,
-            backgroundSize: "10px 10px",
-            backgroundPosition: "center",
-            WebkitMaskImage: `radial-gradient(130px circle at var(--dot-mask-x, -200px) var(--dot-mask-y, -200px), #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 72%)`,
-            maskImage: `radial-gradient(130px circle at var(--dot-mask-x, -200px) var(--dot-mask-y, -200px), #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 72%)`,
-          }}
-        />
-        <Box
           sx={{
             position: "relative",
             zIndex: 1,
             minHeight: "100%",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center",
           }}
         >
           <NavigationPromptCard />

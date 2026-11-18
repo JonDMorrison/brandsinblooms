@@ -15,7 +15,20 @@ import { toast } from "sonner";
 import "@/components/suite/posDemo.css";
 import { productGuideContext } from "@/components/suite/productGuideContext";
 import { posDemoMessage } from "@/components/suite/posDemoContext";
-import { Mail, CheckCircle } from "lucide-react";
+import {
+  Mail,
+  CheckCircle,
+  Check,
+  Leaf,
+  MessageCircleHeart,
+  Send,
+  Sprout,
+} from "lucide-react";
+import { BrandFoliage } from "@/components/brand";
+// Token scope import. Without it the .hp-token-scope wrapper has no --hp-*
+// values to hand to contactPage.css.
+import "@/components/homepage-three/homepageTokens.css";
+import "@/components/contact/contactPage.css";
 
 const contactFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
@@ -55,14 +68,15 @@ const ContactPage = () => {
   });
 
   const inquiryOptions = [
-    { id: "pos", label: "BloomSuite POS Demonstration" },
-    { id: "support", label: "Support & Technical Help" },
-    { id: "signup", label: "Signing Up & Getting Started" },
-    { id: "general", label: "General Inquiry" },
-    { id: "other", label: "Other" }
+    { id: "pos", label: "BloomSuite POS Demonstration", friendly: "See a POS demo" },
+    { id: "support", label: "Support & Technical Help", friendly: "I need help with something" },
+    { id: "signup", label: "Signing Up & Getting Started", friendly: "Getting started" },
+    { id: "general", label: "General Inquiry", friendly: "A general question" },
+    { id: "other", label: "Other", friendly: "Something else" }
   ];
 
   const watchedInquiryTypes = watch("inquiryTypes") || [];
+  const messageLength = (watch("message") || "").length;
 
   const handleInquiryTypeChange = (inquiryId: string, checked: boolean) => {
     if (checked) {
@@ -96,6 +110,239 @@ const ContactPage = () => {
   };
 
   const pageHeader = isPosDemo ? <header className="pos-demo-header"><a className="pos-demo-brand" href="/pos"><img src="/pos/features-assets/bloomsuite-logo.png" width="36" height="36" alt="" />BloomSuite<span>POS</span></a><a href="/pos">Back to POS</a></header> : <LandingPageHeader onLogin={() => navigate('/auth')} />;
+
+  // The POS demo arrives from the POS site and keeps that site's own look.
+  // Everything else uses the BloomSuite marketing look below.
+  if (!isPosDemo) {
+    const heroTitle = isSuiteReview
+      ? "Let’s review your BloomSuite setup"
+      : "We’d love to hear from you";
+    const heroLead = isSuiteReview
+      ? "Your draft setup is included below. Add your details and send it when you’re ready. We’ll confirm fit, regional pricing and implementation costs."
+      : "Have a question about BloomSuite, or want to see if it fits your garden centre? Send us a note. A member of our team will read it and write back.";
+
+    return (
+      <div className="hp-token-scope">
+        <div className="contact-page">
+          <LandingPageHeader onLogin={() => navigate('/auth')} />
+
+          <section className="contact-hero">
+            <BrandFoliage className="contact-foliage" />
+            <BrandFoliage className="contact-foliage contact-foliage--left" />
+            <div className="contact-hero__inner">
+              <p className="contact-eyebrow">
+                <Leaf size={15} aria-hidden="true" />
+                Contact BloomSuite
+              </p>
+              <h1>{isSubmitted ? "Thank you for reaching out" : heroTitle}</h1>
+              <p className="contact-hero__lead">
+                {isSubmitted
+                  ? "Your message is on its way to our team."
+                  : heroLead}
+              </p>
+            </div>
+          </section>
+
+          {isSubmitted ? (
+            <section className="contact-card contact-sent" aria-live="polite">
+              <div className="contact-sent__icon">
+                <CheckCircle size={36} aria-hidden="true" />
+              </div>
+              <h2>Message sent</h2>
+              <p>
+                We have your note. Our team will read it and reply to the
+                email address you gave us.
+              </p>
+              <div className="contact-sent__actions">
+                <button type="button" onClick={() => setIsSubmitted(false)}>
+                  Send another message
+                </button>
+                <button
+                  type="button"
+                  className="is-primary"
+                  onClick={() => navigate('/faq')}
+                >
+                  Read common questions
+                </button>
+              </div>
+            </section>
+          ) : (
+            <section className="contact-body">
+              <aside className="contact-card contact-aside">
+                <h2>What happens next</h2>
+                <p className="contact-aside__intro">
+                  Here is what to expect after you press send.
+                </p>
+                <ul className="contact-steps">
+                  <li>
+                    <div className="contact-steps__icon">
+                      <Send size={20} aria-hidden="true" />
+                    </div>
+                    <div>
+                      <strong>You send us a note</strong>
+                      <span>Tell us what you need in your own words.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="contact-steps__icon">
+                      <MessageCircleHeart size={20} aria-hidden="true" />
+                    </div>
+                    <div>
+                      <strong>Our team reads it</strong>
+                      <span>Your message goes straight to the BloomSuite team.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="contact-steps__icon">
+                      <Sprout size={20} aria-hidden="true" />
+                    </div>
+                    <div>
+                      <strong>We write back</strong>
+                      <span>We reply to your email with clear next steps.</span>
+                    </div>
+                  </li>
+                </ul>
+
+                <a className="contact-email" href="mailto:bloom@bloomsuite.app">
+                  <Mail size={20} aria-hidden="true" />
+                  <span>
+                    <small>Prefer email?</small>
+                    bloom@bloomsuite.app
+                  </span>
+                </a>
+
+                <div className="contact-links">
+                  <a href="/faq">Common questions</a>
+                  <a href="/pricing">See pricing</a>
+                </div>
+              </aside>
+
+              <div className="contact-card contact-form-card">
+                <h2>Send us a message</h2>
+                <p className="contact-form-card__intro">
+                  Fill in the three parts below. It takes about a minute.
+                </p>
+
+                <form
+                  onSubmit={handleSubmit(onSubmit)}
+                  className="contact-form"
+                  noValidate
+                >
+                  <div className="contact-form__row">
+                    <div className="contact-field">
+                      <label htmlFor="name">Your name</label>
+                      <input
+                        id="name"
+                        autoComplete="name"
+                        placeholder="Jane Smith"
+                        aria-invalid={errors.name ? "true" : "false"}
+                        {...register("name")}
+                      />
+                      {errors.name && (
+                        <p className="contact-error">{errors.name.message}</p>
+                      )}
+                    </div>
+
+                    <div className="contact-field">
+                      <label htmlFor="email">Your email</label>
+                      <input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="jane@yourgardencentre.com"
+                        aria-invalid={errors.email ? "true" : "false"}
+                        {...register("email")}
+                      />
+                      {errors.email && (
+                        <p className="contact-error">{errors.email.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <fieldset className="contact-fieldset">
+                    <legend>What can we help you with?</legend>
+                    <p className="contact-fieldset__hint">
+                      Pick one or more.
+                    </p>
+                    <div className="contact-chips">
+                      {inquiryOptions.map((option) => (
+                        <label key={option.id} className="contact-chip">
+                          <input
+                            type="checkbox"
+                            checked={watchedInquiryTypes.includes(option.id)}
+                            onChange={(event) =>
+                              handleInquiryTypeChange(
+                                option.id,
+                                event.target.checked,
+                              )
+                            }
+                          />
+                          <span>
+                            <Check
+                              size={15}
+                              className="contact-chip__check"
+                              aria-hidden="true"
+                            />
+                            {option.friendly}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.inquiryTypes && (
+                      <p className="contact-error" style={{ marginTop: 10 }}>
+                        Please pick at least one.
+                      </p>
+                    )}
+                  </fieldset>
+
+                  <div className="contact-field">
+                    <label htmlFor="message">Your message</label>
+                    <textarea
+                      id="message"
+                      maxLength={1000}
+                      placeholder="Tell us a little about your garden centre and what you would like to know."
+                      aria-invalid={errors.message ? "true" : "false"}
+                      {...register("message")}
+                    />
+                    <div className="contact-field__meta">
+                      <span>
+                        {errors.message ? (
+                          <span className="contact-error">
+                            {errors.message.message}
+                          </span>
+                        ) : (
+                          "A sentence or two is plenty."
+                        )}
+                      </span>
+                      <span>{messageLength} / 1000</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="contact-submit"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="contact-submit__spinner" aria-hidden="true" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={18} aria-hidden="true" />
+                        Send my message
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (isSubmitted) {
     return (

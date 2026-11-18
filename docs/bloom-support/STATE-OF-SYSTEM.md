@@ -1,8 +1,16 @@
-# Bloom Support — State of the System
+# Bloom Support: system inventory and current evidence
 
-Updated 2026-11-16. Based on HANDOVER.md (2026-11-01) and current code.
+## Current evidence: November 18, 2026
 
-**Overall status:** Deployed and working in limited mode. Background worker runs every minute. Email, ChatGPT OAuth, and cross-product intake are not yet activated.
+The earlier inventory below contains stale configuration assumptions. Do not use its "Not activated" labels to decide which credentials or connections need setup. The authenticated **System status** view and current production records are the source of truth.
+
+Production `readiness_facts` checked at `2026-11-18T18:42Z` shows a running worker, zero queued/running/retrying/dead jobs, 50 approved client articles, actual inbound/outbound email evidence, CMS intake evidence and recent authenticated MCP/API use. The `automation_enabled` and `slack_agent.enabled` settings are true. OpenAI is configured as `gpt-4o-mini`, with existing 200-per-account/day and 1,000-total/day call limits. This records observed evidence, not certification of every client workflow.
+
+The conversational release in PRs #556 and #557 is deployed. Public knowledge retrieval and unmentioned follow-ups have live evidence. Private Slack operations require the two missing channel-metadata scopes and a verified reinstall; that step remains unfinished. See [the staff guide](SLACK-OPERATIONS-STAFF-GUIDE.md), [agent design](CONVERSATIONAL-AGENT.md), and [knowledge source record](KNOWLEDGE-COVERAGE-2026-11-17.md). PR #558 tracks the remaining runtime test, human-contact and privacy corrections. Tracker #550 records release and live verification separately.
+
+## Historical inventory: November 16
+
+The following is preserved as a historical code inventory based on `HANDOVER.md` from November 1. Its environment/configuration statements were not a current production audit and are superseded by the evidence above.
 
 ---
 

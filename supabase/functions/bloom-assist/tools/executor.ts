@@ -1074,6 +1074,7 @@ export async function executeTool(
   if (isCacheableTool(tool.function.name)) {
     const cachedResult = cacheGet(
       context.tenantId,
+      context.userId,
       tool.function.name,
       validation.value,
       context.cacheAuditScopeId,
@@ -1125,6 +1126,7 @@ export async function executeTool(
       if (isCacheableTool(tool.function.name)) {
         cacheSet(
           context.tenantId,
+          context.userId,
           tool.function.name,
           validation.value,
           result,

@@ -46,6 +46,7 @@ import {
 } from "@/hooks/bloom/useBloomCompactMode";
 import useMediaQuery from "@/hooks/use-media-query";
 import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
+import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
 
 const LazyCommandPalette = lazy(() =>
   import("@/components/search/CommandPalette").then((module) => ({
@@ -160,6 +161,13 @@ export function DashboardShell({
   const isBloomRoute = pathname.startsWith("/bloom");
   // The floating help button would sit on top of the reply composer, and these pages are already support.
   const isSupportRoute = /^\/(support|admin\/bloom-support)(\/|$)/.test(pathname);
+  // The shell also renders outside AskBloomProvider (admin routes), so read the
+  // panel state optionally. The fixed help button would cover the panel's
+  // composer send button while the panel is open.
+  const askBloom = useOptionalAskBloom();
+  const isAskBloomPanelOpen = Boolean(
+    askBloom?.state.isOpen && !askBloom.state.isCollapsed,
+  );
   const showBotanicalCanvas = mode !== "admin" &&
     /^\/(dashboard|analytics|crm)(\/|$)/.test(pathname) &&
     !/studio|email-builder/.test(pathname);
@@ -458,7 +466,9 @@ export function DashboardShell({
           <DashboardMobileSidebarBackdrop open={isMobileSidebarOpen} />
         )}
         {isMobile && <DashboardMobileSidebarSlot mode={mode} />}
-        {!isBloomRoute && !isSupportRoute && <HelpWidget />}
+        {!isBloomRoute && !isSupportRoute && !isAskBloomPanelOpen && (
+          <HelpWidget />
+        )}
       </Box>
       {hasRequestedCommandPalette ? (
         <ChunkErrorBoundary>

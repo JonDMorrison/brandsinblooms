@@ -39,4 +39,10 @@ https://docs.slack.dev/messaging/retrieving-messages/
 
 PR #556 merged at `7862633747cc25d28452a4bbdff11c747c5c1ea1`; production migration and Edge Function deployments passed. The new agent was activated using the existing `slack_agent` setting. PR #557 merged at `fe5df834123bb8b89d56af8afbc54d690f53cf1e`; the diagnostic deployment succeeded. Public knowledge retrieval and public-channel privacy refusal have been verified. Private operational lookups remain blocked until the Slack metadata scopes are granted and the live test passes.
 
-The rollback setting is `slack_agent.enabled=false`, which returns conversation answers to the prior responder. Do not undo the database approval fixes: they corrected references to a nonexistent identity table. No recurring coding agent or new paid service is required for the conversational runtime.
+The rollback setting is `slack_agent.enabled=false`, which returns conversation answers to the prior responder while preserving the same live private-channel checks. Prior private conversation history is excluded from public requests. Deterministic claim/pause/resume shortcuts also require verified privacy and a current staff/thread binding. Do not undo the database approval fixes: they corrected references to a nonexistent identity table. No recurring coding agent or new paid service is required for the conversational runtime.
+
+## November 18 continuation
+
+PR #558 incorporates the newer external-response tests from main and executes the agent, approval, privacy, held-draft and voice suites. The continuation adds regression coverage for legacy fallback/shortcut privacy, revoked Slack mappings, a channel changing from private to public during a response, and public requests excluding earlier private history. Human callback detection preserves sentence/clause boundaries, so declining a call does not suppress a separate request to chat with a person. Marketing suggestions explicitly qualify incentives and require current consent/suppression checks.
+
+The app-settings attempt reached Slack sign-in; authentication was cancelled before any permission change or reinstall. Existing logs still show the original missing-scope error. This is an access prerequisite, not a reason to remove the privacy check. The final source checks, production deployment and live evidence are recorded in PR #558 and tracker #550.

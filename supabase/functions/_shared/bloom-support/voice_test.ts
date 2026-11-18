@@ -46,6 +46,10 @@ Deno.test("human contact detection covers natural requests and callbacks", () =>
     "I'd prefer to chat with an agent", "Can you get me a representative?", "Can you have someone call me?",
     "Please call me", "Could you phone us?", "I would like a callback", "Stop the automated answers",
     "I don't need help with stock, but please have someone contact me",
+    "Please don't call me; I'd prefer to chat with an agent.",
+    "Do not send another email. Please call me.",
+    "I do not want a call, please connect me with a human",
+    "Do not send another email and please call me",
   ]) assert(wantsHumanContact(text), text);
 });
 Deno.test("human contact detection rejects ordinary tasks and negated requests", () => {
@@ -53,6 +57,8 @@ Deno.test("human contact detection rejects ordinary tasks and negated requests",
     "My checkout is broken", "Can you help me with this?", "I need help adding a person to my account",
     "The human resources module isn't working", "I don't need a human", "Please don't call me",
     "Do not get me a representative", "No need to phone us", "", "a".repeat(10_001),
+    "I don't need a callback", "I don't want to speak with staff", "No need to talk to someone",
+    "I never want to speak with someone", "Please don't stop the bot",
   ]) assertFalse(wantsHumanContact(text), text.slice(0, 100));
 });
 Deno.test("human handoff preserves context without an invented response time", () => {

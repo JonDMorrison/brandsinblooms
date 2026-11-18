@@ -69,6 +69,20 @@ const TOOLS: Tool[] = [
       return actions.updateTicket(c, String(ticket_id), patch);
     },
   },
+  {
+    name: "reconcile_external_response", readOnly: false,
+    description: "Operator-only manual evidence import for a substantive Gmail reply already sent. First review get_ticket and the actual sent message, exact recipient and inbound request. Supply current version and account_id (null for unlinked intake). Existing staff mailbox identity required. Preserves owner/status; rejects newer inbound or changed version. Records true timing, not delivery/read, and retires only satisfied first-response escalation. Never sends, closes or triggers repair.",
+    inputSchema: S({ ticket_id: id(), version: { type: "integer", minimum: 1 },
+      account_id: { type: ["string", "null"] }, inbound_message_id: id(),
+      provider: str("Provider", ["gmail"]), mailbox: str("Verified existing staff sender address", undefined, 320),
+      provider_message_id: str("Immutable provider message ID, not thread ID", undefined, 200),
+      recipient: str("Verified exact requester recipient", undefined, 320),
+      sent_at: str("Actual provider sent timestamp including timezone", undefined, 80),
+      source_ref: str("Private verified evidence reference", undefined, 2000),
+      substantive: { type: "boolean", enum: [true] },
+    }, ["ticket_id", "version", "account_id", "inbound_message_id", "provider", "mailbox", "provider_message_id", "recipient", "sent_at", "source_ref", "substantive"]),
+    run: (c, a) => { const { ticket_id, ...request } = a; return actions.reconcileExternalResponse(c, String(ticket_id), request); },
+  },
   { name: "take_over_ticket", readOnly: false, description: "Take a ticket over from Bloom (mode=human), pause Bloom (paused), or hand it back (auto).", inputSchema: S({ ticket_id: id(), mode: str("Mode", ["human", "paused", "auto"]), reason: str("Reason") }, ["ticket_id", "mode"]), run: (c, a) => actions.setAutomation(c, String(a.ticket_id), String(a.mode), a.reason as string) },
   { name: "link_tickets", readOnly: false, description: "Link two tickets (related, duplicate, follow_up). duplicate makes the first follow the second's fix.", inputSchema: S({ ticket_id: id(), to_ticket_id: id(), kind: str("Kind", ["related", "duplicate", "follow_up"]) }, ["ticket_id", "to_ticket_id", "kind"]), run: (c, a) => actions.linkTickets(c, String(a.ticket_id), String(a.to_ticket_id), String(a.kind)) },
   {

@@ -67,6 +67,16 @@ export const actions = {
     requireWriteScope(c);
     return mutationRpc(c, "merge_tickets", { ...A(c), source_id: uuid(source, "source_id"), target_id: uuid(target, "target_id"), reason: reason ?? null });
   },
+  reconcileExternalResponse(c: Caller, id: string, input: Record<string, unknown>) {
+    requireWriteScope(c);
+    if (!["platform_admin", "platform_operator"].includes(c.role)) {
+      throw new BloomError(403, "forbidden", "An authorized operator must attest external response evidence");
+    }
+    const { idempotency_key: _key, ...request } = input;
+    return directRpc("bloom_support_reconcile_external_response", {
+      p_actor: c.principalId, p_ticket: uuid(id, "ticket_id"), p_request: request,
+    });
+  },
   reconcileTicketLinks(c: Caller, id: string, input: Record<string, unknown>) {
     requireWriteScope(c);
     if (!["platform_admin", "platform_operator", "support"].includes(c.role)) {

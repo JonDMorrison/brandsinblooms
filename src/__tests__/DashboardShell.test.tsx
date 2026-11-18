@@ -107,6 +107,20 @@ vi.mock("@/components/TrialBanner", () => ({
   TrialBanner: () => <div data-testid="trial-banner">Trial banner</div>,
 }));
 
+const askBloomPanelMock = vi.hoisted(() => ({
+  state: null as { isOpen: boolean; isCollapsed: boolean } | null,
+}));
+
+vi.mock("@/providers/AskBloomProvider", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/providers/AskBloomProvider")>();
+  return {
+    ...actual,
+    useOptionalAskBloom: () =>
+      askBloomPanelMock.state ? { state: askBloomPanelMock.state } : null,
+  };
+});
+
 vi.mock("@/components/ui/HelpWidget", () => ({
   HelpWidget: () => <div data-testid="help-widget">Help widget</div>,
 }));
@@ -330,6 +344,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  askBloomPanelMock.state = null;
   scrollToMock.mockClear();
   signOutCompletelyMock.mockClear();
   if (typeof window.localStorage.clear === "function") window.localStorage.clear();
@@ -394,6 +409,26 @@ describe("DashboardShell", () => {
     renderShell("/admin/bloom-support");
     expect(screen.getByText("Support desk page")).toBeInTheDocument();
     expect(screen.queryByTestId("help-widget")).not.toBeInTheDocument();
+  });
+
+  it("hides the floating help button while the Ask Bloom panel is open so it never covers the composer", () => {
+    setViewportWidth(1440);
+
+    askBloomPanelMock.state = { isOpen: true, isCollapsed: false };
+    const { unmount } = renderShell();
+    expect(screen.getByText("Admin hub page")).toBeInTheDocument();
+    expect(screen.queryByTestId("help-widget")).not.toBeInTheDocument();
+    unmount();
+
+    // A collapsed panel is a thin rail, so the help button comes back.
+    askBloomPanelMock.state = { isOpen: true, isCollapsed: true };
+    const collapsed = renderShell();
+    expect(screen.getByTestId("help-widget")).toBeInTheDocument();
+    collapsed.unmount();
+
+    askBloomPanelMock.state = { isOpen: false, isCollapsed: false };
+    renderShell();
+    expect(screen.getByTestId("help-widget")).toBeInTheDocument();
   });
 
   it("renders the tablet shell with the sidebar collapsed by default", async () => {

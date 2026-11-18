@@ -148,3 +148,45 @@ invocations to drain before applying migration 20261115191247. The new worker is
 compatible with the old queue; old workers would consume the new event without
 its current-binding check and release wording. Verify the migration, private
 permissions and worker health after release. No live Slack probe is required.
+
+## Manual external-response reconciliation
+
+`reconcile_external_response` is the operator-facing path for a verified substantive
+Gmail reply already sent. Review the current ticket and original sent evidence
+first. Supply the exact ticket version/account, inbound Support message UUID,
+provider message ID (not only a thread ID), existing staff mailbox address,
+requester recipient, actual timezone-qualified sent time and private source
+reference. This is a manual attestation, not automatic Gmail ingestion. It needs
+an active administrator/operator with ticket access and write scope; sender
+aliases absent from the existing staff identity model fail closed.
+
+The operation reuses the private #501 timing helper, stores immutable provider
+identity and actual sent/import times separately in restricted receipts, and
+returns an opaque evidence receipt. Gmail SENT is recorded as sent evidence;
+delivery/read remain unverified. It does not insert a fabricated Support email,
+change ownership/status, send mail, close work or trigger repair. Provider-message
+replay returns the original result even with a different transport retry key;
+changed evidence or cross-ticket reuse conflicts.
+
+A stale ticket version, ambiguous recipient/account match, or newer inbound
+message rejects the entire import for fresh review. Messages sent before Support
+ingested the referenced inquiry are conservatively rejected: ingestion time is
+not proof of the original provider inbound time. The legacy private helper's
+pre-ticket clamp remains unchanged; this new path does not invent that missing
+ordering evidence. Historical timing corrections never use import time.
+
+Only satisfied first-response `ticket_overdue` episodes are retired, and only
+when there is no independent next-action deadline. Queued notices for those
+episodes are cancelled; engineering/approval blockers remain. Recording the
+first substantive response removes the ticket from future first-response
+pre-breach watchdog candidates. Historical alert rows remain immutable; the digest removes only externally satisfied
+response rows and retains unrelated/unknown findings. Already emitted alerts remain historical facts;
+no previously submitted provider message is recalled. New inbound questions and
+future next-action reminders retain normal handling.
+
+Release requires SQL/concurrency and boundary tests, exact-head hosted checks,
+independent review, migration before the MCP function deployment, and restricted
+permission/source readback. Test only synthetic rollback fixtures; importing a
+real historical customer response requires separately verified evidence and
+explicit authorization. No mailbox permissions or production backfill accompany
+this release.
