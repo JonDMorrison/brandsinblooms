@@ -23,6 +23,23 @@ describe("segment recompute compatibility", () => {
     expect(source).not.toContain("evaluateConditions(");
   });
 
+  it("accepts internal secret-key callers by apikey and keeps the user tenant check", () => {
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        "supabase/functions/recompute-segment-memberships/index.ts",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      'import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts"',
+    );
+    expect(source).toContain("const isInternalCaller = requireInternalApiKey(req) === null");
+    expect(source).toContain("if (!isInternalCaller && token !== serviceRoleKey)");
+    expect(source).toContain('.eq("tenant_id", tenant_id)');
+  });
+
   it("evaluates current nested rules against imported custom fields", () => {
     const rules = normalizeSegmentRuleGroup({
       kind: "group",

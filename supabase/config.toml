@@ -631,3 +631,6 @@ verify_jwt = false
 
 [functions.connected-content]
 verify_jwt = true
+
+[functions.send-support-emails]
+verify_jwt = false

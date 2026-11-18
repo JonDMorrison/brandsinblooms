@@ -2,6 +2,7 @@ import { reconcileActivity } from "./activity.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { renderBloomSystemEmail, bloomEmailEscape, bloomEmailCard } from "../../../src/lib/email/premiumBotanical.ts";
 
 /**
@@ -243,6 +244,10 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Every path emails real recipients or reads the CRM: internal callers only.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
+
   try {
     const notionKey = Deno.env.get("NOTION_API_KEY");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -259,8 +264,6 @@ Deno.serve(async (req) => {
 
     // Verification mode returns before every trial email and onboarding mutation.
     if (new URL(req.url).searchParams.get("dry_run") === "true") {
-      if (req.headers.get("authorization") !== `Bearer ${serviceKey}` && req.headers.get("apikey") !== serviceKey)
-        return new Response("Unauthorized", { status: 401 });
       const activity = await reconcileActivity({
         notionKey: Deno.env.get("NOTION_TOKEN") || notionKey,
         databaseId: Deno.env.get("NOTION_PIPELINE_DB_ID") || "ffbcd532-783d-48a2-b60a-d78866910cd1",
@@ -295,13 +298,24 @@ Deno.serve(async (req) => {
 
       for (const condition of CONDITIONS) {
         // Check if this email was already sent
-        const { data: existing } = await sb
+        const { data: existing, error: dedupeError } = await sb
           .from("sent_support_emails")
           .select("id")
           .eq("tenant_id", trial.tenantId)
           .eq("condition_key", condition.key)
           .maybeSingle();
 
+        // Without a working send ledger this would email the same trial every
+        // day, so an unreadable ledger skips the send.
+        if (dedupeError) {
+          logStep("Send ledger unavailable; skipping", {
+            tenant: trial.tenantId,
+            condition: condition.key,
+            error: dedupeError.message,
+          });
+          errors++;
+          continue;
+        }
         if (existing) continue;
 
         // Evaluate the condition
@@ -354,10 +368,17 @@ Deno.serve(async (req) => {
           }
 
           // Record that we sent this email
-          await sb.from("sent_support_emails").insert({
+          const { error: ledgerError } = await sb.from("sent_support_emails").insert({
             tenant_id: trial.tenantId,
             condition_key: condition.key,
           });
+          if (ledgerError) {
+            logStep("Sent but not recorded in ledger", {
+              tenant: trial.tenantId,
+              condition: condition.key,
+              error: ledgerError.message,
+            });
+          }
 
           logStep("Sent support email", {
             tenant: trial.tenantId,

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEligibleEmailCustomerIds } from "../_shared/eligibleEmailAudience.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import {
   collectReferencedSegmentIds,
   evaluateSegmentRule,
@@ -85,17 +86,22 @@ serve(async (req) => {
     const { tenant_id, segment_ids, customer_ids } = await req.json();
     if (!tenant_id) throw new Error("tenant_id is required");
 
+    // Internal callers (the segment worker, POS syncs, Bloom imports) use a
+    // server secret key. With sb_secret_ keys the gateway replaces the
+    // Authorization header with a minted JWT, so identify them by the apikey
+    // header instead, compared in constant time against this project's keys.
+    const isInternalCaller = requireInternalApiKey(req) === null;
     const authHeader = req.headers.get("Authorization");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!isInternalCaller && !authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const token = authHeader.slice("Bearer ".length);
-    if (token !== serviceRoleKey) {
+    const token = authHeader?.slice("Bearer ".length) ?? "";
+    if (!isInternalCaller && token !== serviceRoleKey) {
       const {
         data: { user },
         error: userError,
