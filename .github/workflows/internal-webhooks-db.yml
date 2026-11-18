@@ -1,0 +1,46 @@
+name: Internal webhooks DB
+
+# Database contract for internal database webhooks: invoke_internal_notion_sync()
+# must post only to this project's own functions and never reach another
+# project (supabase/migrations/20261118190000_internal_notion_sync_own_project.sql).
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*notion*'
+      - 'scripts/tests/internal-notion-sync-own-project.sql'
+      - '.github/workflows/internal-webhooks-db.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/*notion*'
+      - 'scripts/tests/internal-notion-sync-own-project.sql'
+      - '.github/workflows/internal-webhooks-db.yml'
+permissions:
+  contents: read
+jobs:
+  database-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: bloom_internal_webhooks_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify Notion sync never posts to another project
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: bloom_internal_webhooks_test
+        run: psql -v ON_ERROR_STOP=1 -f scripts/tests/internal-notion-sync-own-project.sql
