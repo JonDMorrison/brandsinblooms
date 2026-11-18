@@ -56,7 +56,7 @@ Deno.test("one progress message updates to final; final and unknown deliveries n
 });
 Deno.test("limited finance follow-ups use sanitized prior turns instead of repeating a canned question",async()=>{
  const old=globalThis.fetch;const vars=["SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","BLOOM_SUPPORT_SLACK_BOT_TOKEN","BLOOM_SUPPORT_SLACK_CHANNEL_FINANCE","OPENAI_API_KEY","BLOOM_AI_BASE_URL"];const before=vars.map(k=>Deno.env.get(k));
- vars.forEach((k,i)=>Deno.env.set(k,["https://supabase.test","service","bot","C0CGP4GPG8G","test-model-key","https://model.test/v1"][i]));
+ vars.forEach((k,i)=>Deno.env.set(k,["https://supabase.test","service","bot","C0CGP4GPG8G","test-model-key","https://api.openai.com/v1"][i]));
  let modelCalls=0;let answer="";
  globalThis.fetch=(input,init)=>{
   const u=String(input);const b=JSON.parse(String(init?.body??"{}"));let data:unknown={};
@@ -92,7 +92,7 @@ async function privacyFixture(
 ):Promise<{calls:ConversationCall[];answer:string}> {
   const vars:Record<string,string>={SUPABASE_URL:"https://supabase.test",SUPABASE_SERVICE_ROLE_KEY:"test-service",
     BLOOM_SUPPORT_SLACK_BOT_TOKEN:"test-bot",BLOOM_SUPPORT_SLACK_CHANNEL_TICKETS:privacyChannel,
-    BLOOM_SUPPORT_SLACK_CHANNEL_ASK:privacyChannel,OPENAI_API_KEY:"test-model",BLOOM_AI_BASE_URL:"https://model.test/v1"};
+    BLOOM_SUPPORT_SLACK_CHANNEL_ASK:privacyChannel,OPENAI_API_KEY:"test-model",BLOOM_AI_BASE_URL:"https://api.openai.com/v1"};
   const prior=Object.fromEntries(Object.keys(vars).map(k=>[k,Deno.env.get(k)]));
   const oldFetch=globalThis.fetch;const calls:ConversationCall[]=[];let answer="";
   for(const [k,v] of Object.entries(vars))Deno.env.set(k,v);
@@ -172,4 +172,20 @@ Deno.test("public legacy knowledge lookup and model never receive earlier privat
   assertStringIncludes(result.answer,"Choose Reopen sales");
   const privateInputs=JSON.stringify(result.calls.filter(c=>c.body.p_fn==="search_knowledge"||c.url.endsWith("chat/completions")));
   assertEquals(privateInputs.includes("CONFIDENTIAL_"),false);
+});
+Deno.test("a provider rejected by the agent cannot receive ticket facts through legacy fallback",async()=>{
+  const result=await privacyFixture("What is the problem?",(url,body)=>{
+    if(url.includes("conversations.info")){
+      Deno.env.set("BLOOM_AI_BASE_URL","https://untrusted.example/v1");
+      return privateMetadata;
+    }
+    if(url.endsWith("bloom_support_rpc")){
+      if(body.p_fn==="setting")return (body.p as Record<string,unknown>).key==="slack_agent"?{enabled:true}:{provider:"openai",model:"gpt-4o-mini"};
+      if(body.p_fn==="get_ticket")return {id:privacyContext.ticket_id,number:42,subject:"Recorded ticket evidence",status:"working",messages:[]};
+    }
+    throw Error("Unexpected provider request: "+url);
+  });
+  assertEquals(result.calls.filter(c=>c.body.p_fn==="get_ticket").length,1);
+  assertEquals(result.calls.some(c=>c.url.includes("untrusted.example")||c.url.endsWith("chat/completions")),false);
+  assertEquals(result.answer.includes("couldn't finish checking"),false);
 });

@@ -23,6 +23,15 @@ const pick = (r: Row, fields: string[]): Row => Object.fromEntries(fields.filter
 const DESK = "https://bloomsuite.app/admin/bloom-support";
 const PUBLIC_SOURCE = "https://bloomsuite.app/support";
 
+/** Both conversation implementations share the same model destination boundary. */
+export function isSlackModelEndpoint(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.origin === "https://api.openai.com" && !url.username && !url.password
+      && url.pathname.replace(/\/$/, "") === "/v1" && !url.search && !url.hash;
+  } catch { return false; }
+}
+
 /** Metadata only: never log tokens, channel content, member lists or API bodies. */
 export function privacyDiagnostic(channel: string, data: unknown): Record<string, unknown> {
   const r = row(data), ch = row(r.channel);
@@ -52,8 +61,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   if (config.enabled !== true) return null;
   const cfg = await aiConfig();
   if (cfg.provider !== "openai" || !env("OPENAI_API_KEY")) return null;
-  const apiUrl = new URL(cfg.baseUrl);
-  if (apiUrl.protocol !== "https:" || apiUrl.hostname !== "api.openai.com" || apiUrl.username || apiUrl.password) return null;
+  if (!isSlackModelEndpoint(cfg.baseUrl)) return null;
   const privateChannel = await isPrivateStaffChannel(c.channel);
   const ctx: AgentContext = {
     jobId, principalId: c.principal_id, role: c.role, channel: c.channel, route: c.route,
