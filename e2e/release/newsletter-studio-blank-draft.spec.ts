@@ -135,10 +135,12 @@ test.afterAll(async ({ browser }) => {
   }
 });
 
-test("a new newsletter opens Design Studio and previews Graphic Hero, button and navigation edits", async ({
+test("a new newsletter opens Design Studio and previews Photo Banner, button and website-link edits", async ({
   page,
 }) => {
   test.setTimeout(65_000);
+  // Fail at the missing control, not the whole-test deadline, if labels drift.
+  page.setDefaultTimeout(10_000);
   const email = process.env.E2E_EMAIL;
   const password = process.env.E2E_PASSWORD;
   if (!email || !password) {
@@ -172,7 +174,7 @@ test("a new newsletter opens Design Studio and previews Graphic Hero, button and
       page.getByText("Could not create your newsletter draft"),
     ).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Add Graphic Hero", exact: true }).click();
+    await page.getByRole("button", { name: "Add Photo Banner", exact: true }).click();
     const hero = page.locator("[data-studio-block-slot]").filter({
       has: page.getByRole("button", { name: "Upload Graphic Hero image" }),
     }).last();
@@ -195,17 +197,17 @@ test("a new newsletter opens Design Studio and previews Graphic Hero, button and
     await expect(selectedImage).toBeVisible();
     await expect(selectedImage).toHaveCSS("background-size", "contain");
 
-    await page.getByRole("button", { name: "Add Button / Call to Action" }).click();
+    await page.getByRole("button", { name: "Add Button", exact: true }).click();
     const buttonSlot = page.locator("[data-studio-block-slot]").filter({
-      hasText: "Button / Call to Action",
+      has: page.getByRole("button", { name: "Drag Button", exact: true }),
     }).last();
     await buttonSlot.click({ position: { x: 8, y: 8 } });
     await page.getByPlaceholder("Get Started").fill("View opening hours");
     await page.getByLabel("Full Width", { exact: true }).check();
     await expect(buttonSlot.locator(".nl-preview").getByText("View opening hours", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Add Navigation", exact: true }).click();
-    const navigation = page.locator("[data-studio-block-slot]").filter({ hasText: "Navigation" }).last();
+    await page.getByRole("button", { name: "Add Website Links", exact: true }).click();
+    const navigation = page.locator("[data-studio-block-slot]").filter({ has: page.getByRole("button", { name: "Drag Website Links", exact: true }) }).last();
     await navigation.click({ position: { x: 8, y: 8 } });
     await page.getByRole("textbox", { name: "Label", exact: true }).first().fill("Visit the nursery");
     await expect(navigation.locator(".nl-preview").getByText("Visit the nursery", { exact: true })).toBeVisible();
