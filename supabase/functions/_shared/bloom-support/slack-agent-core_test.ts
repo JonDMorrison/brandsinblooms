@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertThrows, assertStringIncludes } from "@std/assert";
-import { availableTools, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
+import { availableTools, composeSlackAgentReply, explicitIntent, openAiTools, runAgent, safeAgentAnswer, scrub, TOOL_SPECS, validateArguments, type AgentContext, type AgentDependencies, type ChatMessage } from "./slack-agent-core.ts";
 const context = (patch: Partial<AgentContext> = {}): AgentContext => ({
   jobId: "job", principalId: "staff", role: "platform_admin", channel: "private", route: "tickets", rootTs: "1.000001",
   ticketId: null, question: "What needs attention?", history: [], privateChannel: true, ...patch,
@@ -79,6 +79,19 @@ Deno.test("sensitive fields and credential-bearing text are removed before the m
 Deno.test("generated completion claims and arbitrary links are rejected", () => {
   for (const s of ["I sent the reply", "We've deployed it", "I queued every request", "I saved that", "Visit https://evil.test", "Email x@example.com", "<@U123> hi"]) assertEquals(safeAgentAnswer(s), null);
   assertEquals(safeAgentAnswer("A deployment is recorded; customer verification is missing."), "A deployment is recorded; customer verification is missing.");
+});
+Deno.test("long Slack replies fit durable storage while preserving complete receipts and source links",()=>{
+  const receipt="Recorded: A reply draft is recorded in Reply approvals. It has not been sent. Review its exact recipient and text before approving.";
+  const links="Checked sources: <https://bloomsuite.app/admin/bloom-support?view=approvals|Reply approvals>";
+  const reply=composeSlackAgentReply("Verified context. ".repeat(200),[receipt,links]);
+  assert(reply.length<=2400);
+  assertStringIncludes(reply,receipt);
+  assert(reply.endsWith(links));
+  assertStringIncludes(reply,"…\n\nRecorded:");
+  assertEquals(composeSlackAgentReply("Short answer",["",links,""]),"Short answer\n\n"+links);
+  const unicode=composeSlackAgentReply("🌱".repeat(2000),[receipt,links]);
+  assert(unicode.length<=2400);
+  assertEquals([...unicode].some(char=>char.length===1&&/[\uD800-\uDFFF]/.test(char)),false);
 });
 Deno.test("native function results are returned to the model with source and audit", async () => {
   const h = harness([call("support_overview"), answer()]);

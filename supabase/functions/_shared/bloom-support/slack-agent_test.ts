@@ -114,3 +114,19 @@ Deno.test("daily budget exhaustion prevents OpenAI requests", async () => {
     assert(!calls.some(c => c.url.endsWith("chat/completions")));
   }, (url, body) => body.p_fn === "consume_usage" ? false : standard(url, body));
 });
+Deno.test("the native agent's final answer stays inside the database receipt limit",async()=>{
+  let modelCalls=0;
+  await fixture(async()=>{
+    const result=await answerWithSlackAgent(context,"What needs attention?","job");
+    assert(result!==null&&result.length<=2400);
+    assertStringIncludes(result!,"Recorded support context.");
+    assertStringIncludes(result!,"…\n\nChecked sources:");
+    assertStringIncludes(result!,"Checked sources:");
+    assert(result!.endsWith("|Live support overview>"));
+  },(url,body)=>{
+    if(url.endsWith("chat/completions"))return {choices:[{message:++modelCalls===1
+      ?{role:"assistant",content:null,tool_calls:[{id:"c1",type:"function",function:{name:"support_overview",arguments:"{}"}}]}
+      :{role:"assistant",content:"Recorded support context. ".repeat(95)}}]};
+    return standard(url,body);
+  });
+});
