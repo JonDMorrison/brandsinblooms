@@ -1,20 +1,28 @@
 name: Internal webhooks DB
 
-# Database contract for internal database webhooks: invoke_internal_notion_sync()
-# must post only to this project's own functions and never reach another
-# project (supabase/migrations/20261118190000_internal_notion_sync_own_project.sql).
+# Database contract for internal function calls from the database: the Notion
+# sync trigger, pg_cron worker jobs, unsubscribe links and trial reminders must
+# use only this project's own functions and never reach another project
+# (supabase/migrations/20261118190000_internal_notion_sync_own_project.sql and
+# 20261118200000_internal_functions_own_project.sql).
 
 on:
   pull_request:
     paths:
       - 'supabase/migrations/*notion*'
+      - 'supabase/migrations/*internal_function*'
+      - 'supabase/migrations/*unsubscribe*'
       - 'scripts/tests/internal-notion-sync-own-project.sql'
+      - 'scripts/tests/internal-functions-own-project.sql'
       - '.github/workflows/internal-webhooks-db.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/*notion*'
+      - 'supabase/migrations/*internal_function*'
+      - 'supabase/migrations/*unsubscribe*'
       - 'scripts/tests/internal-notion-sync-own-project.sql'
+      - 'scripts/tests/internal-functions-own-project.sql'
       - '.github/workflows/internal-webhooks-db.yml'
 permissions:
   contents: read
@@ -44,3 +52,10 @@ jobs:
           PGUSER: postgres
           PGDATABASE: bloom_internal_webhooks_test
         run: psql -v ON_ERROR_STOP=1 -f scripts/tests/internal-notion-sync-own-project.sql
+      - name: Verify cron jobs, unsubscribe links and trial reminders use this project only
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: bloom_internal_webhooks_test
+        run: psql -v ON_ERROR_STOP=1 -f scripts/tests/internal-functions-own-project.sql
