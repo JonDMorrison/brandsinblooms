@@ -188,5 +188,33 @@ DO $$ BEGIN
   END;
 END $$;
 
+-- 7. send-support-emails: Vault key instead of the placeholder, and a ledger
+-- only the server can use.
+\ir ../../supabase/migrations/20261118210000_send_support_emails_internal_auth.sql
+DO $$ BEGIN
+  ASSERT (SELECT command FROM cron.job WHERE jobname = 'send-support-emails') NOT LIKE '%YOUR_SERVICE_ROLE_KEY%',
+    'the placeholder token is gone';
+  ASSERT (SELECT command FROM cron.job WHERE jobname = 'send-support-emails') LIKE '%''apikey'', public.get_service_role_key()%',
+    'the job sends the Vault key in the apikey header';
+  ASSERT (SELECT command FROM cron.job WHERE jobname = 'send-support-emails') LIKE '%public.internal_function_url(''send-support-emails'')%',
+    'the job still posts to this project''s function';
+  ASSERT to_regclass('public.sent_support_emails') IS NOT NULL, 'the send ledger exists';
+  ASSERT NOT has_table_privilege('authenticated', 'public.sent_support_emails', 'SELECT'), 'signed-in users cannot read the ledger';
+  ASSERT NOT has_table_privilege('anon', 'public.sent_support_emails', 'INSERT'), 'anon cannot write the ledger';
+  ASSERT has_table_privilege('service_role', 'public.sent_support_emails', 'INSERT'), 'the function can record sends';
+END $$;
+TRUNCATE net.captured_requests;
+UPDATE vault.decrypted_secrets SET decrypted_secret = 'https://stagingprojectref00a.supabase.co' WHERE name = 'internal_functions_base_url';
+INSERT INTO vault.decrypted_secrets VALUES ('internal_functions_base_url', 'https://stagingprojectref00a.supabase.co') ON CONFLICT (name) DO NOTHING;
+INSERT INTO vault.decrypted_secrets VALUES ('service_role_key', 'sb_secret_test_key_000000000000') ON CONFLICT (name) DO NOTHING;
+DO $$ DECLARE v_cmd text; BEGIN
+  SELECT command INTO v_cmd FROM cron.job WHERE jobname = 'send-support-emails';
+  EXECUTE v_cmd;
+  ASSERT (SELECT url FROM net.captured_requests) = 'https://stagingprojectref00a.supabase.co/functions/v1/send-support-emails',
+    'running the job posts to this project';
+  ASSERT (SELECT headers->>'apikey' FROM net.captured_requests) = public.get_service_role_key(),
+    'running the job sends the Vault key';
+END $$;
+
 \echo 'internal functions use this project only: ok'
 ROLLBACK;
