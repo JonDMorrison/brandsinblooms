@@ -75,13 +75,24 @@ function hashString(value: string): string {
   return hash.toString(16).padStart(8, "0");
 }
 
-function cacheKey(tenantId: string, toolName: string, params: unknown): string {
-  return `${tenantId}:${toolName}:${hashString(stableStringify(params))}`;
+/**
+ * Entries are scoped to the user as well as the tenant. Tools read through the
+ * user's own client, so row-level security decides what each person sees:
+ * location-limited roles (store_manager, staff) see fewer customers than an
+ * owner. A tenant-wide key would hand one user's results to another.
+ */
+function cacheKey(
+  tenantId: string,
+  userId: string,
+  toolName: string,
+  params: unknown,
+): string {
+  return `${tenantId}:${userId}:${toolName}:${hashString(stableStringify(params))}`;
 }
 
 function parseToolNameFromCacheKey(key: string): string | null {
   const parts = key.split(":");
-  return parts.length >= 3 ? parts[1] : null;
+  return parts.length >= 4 ? parts[2] : null;
 }
 
 function normalizeEntityType(entityType: string): string {
@@ -144,16 +155,17 @@ export function getCacheTTL(toolName: string): number {
 
 export function cacheGet(
   tenantId: string,
+  userId: string,
   toolName: string,
   params: unknown,
   auditScopeId?: string,
 ): ToolResult | null {
   const ttlSeconds = getCacheTTL(toolName);
-  if (ttlSeconds <= 0) {
+  if (ttlSeconds <= 0 || !userId) {
     return null;
   }
 
-  const key = cacheKey(tenantId, toolName, params);
+  const key = cacheKey(tenantId, userId, toolName, params);
   const entry = toolCache.get(key);
   if (!entry) {
     incrementCacheStat(auditScopeId, "misses");
@@ -172,6 +184,7 @@ export function cacheGet(
 
 export function cacheSet(
   tenantId: string,
+  userId: string,
   toolName: string,
   params: unknown,
   result: ToolResult,
@@ -180,11 +193,11 @@ export function cacheSet(
     return;
   }
 
-  if (getCacheTTL(toolName) <= 0) {
+  if (getCacheTTL(toolName) <= 0 || !userId) {
     return;
   }
 
-  toolCache.set(cacheKey(tenantId, toolName, params), {
+  toolCache.set(cacheKey(tenantId, userId, toolName, params), {
     result,
     timestamp: Date.now(),
   });
@@ -200,6 +213,7 @@ export function cacheInvalidate(
   const explicitToolNames = new Set(
     ENTITY_CACHE_TOOLS[normalizedEntityType] ?? [],
   );
+  // A change made by anyone in the tenant clears every user's entries for it.
   const tenantPrefix = `${tenantId}:`;
 
   for (const key of toolCache.keys()) {

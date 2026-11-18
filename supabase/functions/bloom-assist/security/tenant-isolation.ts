@@ -14,12 +14,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function firstEntityRecord(value: unknown): Record<string, unknown> | null {
+/**
+ * Every top-level record a tool returned: each row of an array result, or the
+ * single object. Checking only the first row would let a foreign row hide
+ * behind a legitimate one.
+ */
+function entityRecords(value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) {
-    return isRecord(value[0]) ? value[0] : null;
+    return value.filter(isRecord);
   }
 
-  return isRecord(value) ? value : null;
+  return isRecord(value) ? [value] : [];
 }
 
 export function isTenantIsolationExemptTool(toolName: ToolName): boolean {
@@ -58,17 +63,15 @@ export function validateTenantIsolation(
     resultRecord && "data" in resultRecord
       ? (resultRecord.data as JsonValue | null)
       : null;
-  const entity = firstEntityRecord(data);
+  const foreign = entityRecords(data).find(
+    (entity) => "tenant_id" in entity && entity.tenant_id !== expectedTenantId,
+  );
 
-  if (!entity || !("tenant_id" in entity)) {
+  if (!foreign) {
     return { valid: true, violationDetails: null };
   }
 
-  const foundTenantId = entity.tenant_id;
-  if (foundTenantId === expectedTenantId) {
-    return { valid: true, violationDetails: null };
-  }
-
+  const foundTenantId = foreign.tenant_id;
   return {
     valid: false,
     violationDetails:
