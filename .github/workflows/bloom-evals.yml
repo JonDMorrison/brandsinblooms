@@ -1,0 +1,154 @@
+name: Bloom Evals
+
+# Checks Bloom's behaviour, not just its code: grounded answers, role limits,
+# company isolation, prompt injection (typed and hidden in customer data) and
+# that changes always stop for approval. See scripts/bloom-evals/.
+#
+# Two jobs:
+# - harness: offline tests of the eval harness and scorer. Always runs. Also
+#   fails if a new approval-required Bloom tool is added without updating
+#   scripts/bloom-evals/scorer.mjs.
+# - live: deploys this branch's bloom-assist to a NON-production eval project,
+#   seeds two synthetic companies, asks Bloom ~30 questions as real users and
+#   fails on any security breach or when quality drops below 80%.
+#   It is skipped, with a warning, until these repository secrets exist:
+#     BLOOM_EVAL_SUPABASE_URL, BLOOM_EVAL_ANON_KEY, BLOOM_EVAL_SERVICE_ROLE_KEY
+#   and, to test the PR's own code instead of what is already deployed:
+#     BLOOM_EVAL_PROJECT_REF, BLOOM_EVAL_SUPABASE_ACCESS_TOKEN
+#   The eval project needs the production migrations applied and the
+#   bloom-assist function secrets set (including OPENAI_API_KEY). Never point
+#   these secrets at production: the harness refuses the production project.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/functions/bloom-assist/**"
+      - "supabase/functions/_shared/**"
+      - "scripts/bloom-evals/**"
+      - ".github/workflows/bloom-evals.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/bloom-assist/**"
+      - "supabase/functions/_shared/**"
+      - "scripts/bloom-evals/**"
+      - ".github/workflows/bloom-evals.yml"
+  schedule:
+    # Weekly, to catch model-side drift with no code change. Mondays 06:17 UTC.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: "Optional comma-separated case ids or groups (grounding, permissions, injection, indirect, approval)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Test the eval harness and scorer
+        run: npm run test:bloom-evals
+
+  live:
+    needs: harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # One run at a time: every run resets the same eval companies.
+    concurrency:
+      group: bloom-evals-live
+      cancel-in-progress: false
+    env:
+      BLOOM_EVAL_SUPABASE_URL: ${{ secrets.BLOOM_EVAL_SUPABASE_URL }}
+      BLOOM_EVAL_ANON_KEY: ${{ secrets.BLOOM_EVAL_ANON_KEY }}
+      BLOOM_EVAL_SERVICE_ROLE_KEY: ${{ secrets.BLOOM_EVAL_SERVICE_ROLE_KEY }}
+      BLOOM_EVAL_PROJECT_REF: ${{ secrets.BLOOM_EVAL_PROJECT_REF }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.BLOOM_EVAL_SUPABASE_ACCESS_TOKEN }}
+      BLOOM_EVAL_CASES: ${{ github.event.inputs.cases }}
+    steps:
+      - name: Check eval configuration
+        id: config
+        shell: bash
+        run: |
+          missing=""
+          for name in BLOOM_EVAL_SUPABASE_URL BLOOM_EVAL_ANON_KEY BLOOM_EVAL_SERVICE_ROLE_KEY; do
+            [[ -n "${!name}" ]] || missing="$missing $name"
+          done
+          if [[ -n "$missing" ]]; then
+            echo "::warning title=Bloom evals not configured::Live Bloom evals were skipped. Missing secrets:$missing"
+            {
+              echo "## Bloom evals: SKIPPED"
+              echo ""
+              echo "Live evals need a non-production eval project. Missing repository secrets:$missing"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -n "$BLOOM_EVAL_PROJECT_REF" && -n "$SUPABASE_ACCESS_TOKEN" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Bloom evals::No BLOOM_EVAL_PROJECT_REF / BLOOM_EVAL_SUPABASE_ACCESS_TOKEN, so this run tests the bloom-assist already deployed to the eval project, not this branch."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.config.outputs.enabled == 'true'
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.config.outputs.enabled == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.config.outputs.enabled == 'true'
+        run: npm ci --ignore-scripts
+
+      # Same pinned CLI as deploy-edge-functions.yml.
+      - name: Setup Supabase CLI
+        if: steps.config.outputs.deploy == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+
+      - name: Deploy this branch's bloom-assist to the eval project
+        if: steps.config.outputs.deploy == 'true'
+        shell: bash
+        run: |
+          if [[ "$BLOOM_EVAL_PROJECT_REF" == "udldmkqwnxhdeztyqcau" ]]; then
+            echo "::error::BLOOM_EVAL_PROJECT_REF points at production. Use a separate eval project."
+            exit 1
+          fi
+          supabase functions deploy bloom-assist --project-ref "$BLOOM_EVAL_PROJECT_REF" --yes
+
+      - name: Run Bloom evals
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          BLOOM_EVAL_REPORT: bloom-evals-report.json
+        run: node scripts/bloom-evals/run.mjs
+
+      - name: Upload eval report
+        if: always() && steps.config.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bloom-evals-report
+          path: bloom-evals-report.json
+          if-no-files-found: ignore
+          retention-days: 30
