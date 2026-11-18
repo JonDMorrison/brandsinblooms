@@ -23,6 +23,18 @@ Deno.test("public or unverified channels have product knowledge only", () => {
   assertEquals(availableTools(context({ role: "client" })), []);
   assertEquals(availableTools(context({ role: "platform_admin_evil" })), []);
 });
+Deno.test("public model requests exclude history and ticket bindings from previously private conversations", async () => {
+  const h = harness([answer("Please ask the product question again in this channel.")]);
+  await runAgent(context({ privateChannel: false, ticketId: "private-ticket-sentinel", history: [{
+    question: "Which client needs help?", answer: "Confidential client and support issue sentinel",
+  }] }), h.deps);
+  const sent = JSON.stringify(h.requests);
+  assert(!sent.includes("Confidential client"));
+  assert(!sent.includes("private-ticket-sentinel"));
+  const user = JSON.parse(h.requests[0][1].content!);
+  assertEquals(user.history, []);
+  assertEquals(user.bound_ticket_id, null);
+});
 Deno.test("bound threads cannot enumerate other clients or the global inbox", () => {
   const tools = availableTools(context({ ticketId: "bound" })).map(t => t.name);
   for (const name of ["find_clients", "find_tickets", "support_overview", "pending_replies", "release_status", "process_support_inbox"]) assert(!tools.includes(name));

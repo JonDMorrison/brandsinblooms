@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Runs every Bloom Support check against disposable local databases:
-#   1. SQL contract test (authorization, state machine, jobs, email ledger)
-#   2. Deno unit tests (policy, sanitization, signatures)
-#   3. End-to-end harness (real Edge Function handlers + Postgres; external services stubbed)
+# Runs Bloom Support checks against disposable local databases.
 # Requires: psql/createdb pointing at a disposable Postgres (PG* env vars), deno.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -30,8 +27,16 @@ psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-
 psql -q -v ON_ERROR_STOP=1 -d bloom_support_test -f scripts/tests/bloom-support-release-links-race.sql
 
 (cd supabase/functions && deno test -A _shared/bloom-support/external-response_test.ts _shared/bloom-support/trusted-bug-setup_test.ts _shared/bloom-support/trusted-reproduction_test.ts _shared/bloom-support/trusted-live_test.ts _shared/bloom-support/policy_test.ts _shared/bloom-support/engineering_test.ts _shared/bloom-support/calendar-verification_test.ts _shared/bloom-support/engineering-merge_test.ts _shared/bloom-support/engineering-schedule_test.ts _shared/bloom-support/dkim_test.ts _shared/bloom-support/support_emails_test.ts _shared/bloom-support/support_emails_brand_test.ts _shared/bloom-support/needs_you_test.ts _shared/bloom-support/vision_test.ts _shared/bloom-support/attachments_test.ts _shared/bloom-support/slack_test.ts _shared/bloom-support/actionable-alerts_test.ts _shared/bloom-support/slack-questions_test.ts _shared/bloom-support/ticket-slack_test.ts _shared/bloom-support/slack-ticket-migration_test.ts _shared/bloom-support/slack-question_test.ts _shared/bloom-support/slack-conversation_test.ts _shared/bloom-support/slack-conversation-migration_test.ts _shared/bloom-support/github-events_test.ts _shared/bloom-support/integration-diagnostics_test.ts _shared/bloom-support/slack-language_test.ts _shared/bloom-support/release-notes_test.ts _shared/bloom-support/finance_test.ts _shared/bloom-support/webhook-auth_test.ts)
-# Chat spending cap: contract test, then 30 parallel reservations against a 25 USD cap
-# (1 USD each) must admit exactly 25 — the row lock keeps parallel calls from overshooting.
+# These are executed, not merely included in deno check. Keep this block with
+# the operational agent so new security tests cannot silently be typecheck-only.
+(cd supabase/functions && deno test -A \
+  _shared/bloom-support/slack-agent-core_test.ts \
+  _shared/bloom-support/slack-agent_test.ts \
+  _shared/bloom-support/slack-privacy-diagnostics_test.ts \
+  _shared/bloom-support/approval-delivery_test.ts \
+  _shared/bloom-support/gmail-drafts_test.ts \
+  _shared/bloom-support/voice_test.ts)
+# Chat spending cap: 30 parallel reservations against a 25 USD cap must admit 25.
 dropdb --if-exists bloom_support_spend_test && createdb --template=template0 --encoding=UTF8 bloom_support_spend_test
 psql -q -v ON_ERROR_STOP=1 -d bloom_support_spend_test -f scripts/tests/bloom-support-chat-spend.sql > /tmp/bloom-support-spend.log 2>&1 || { tail -30 /tmp/bloom-support-spend.log; exit 1; }
 grep -q "all assertions passed" /tmp/bloom-support-spend.log && echo "Chat spend contract: passed"

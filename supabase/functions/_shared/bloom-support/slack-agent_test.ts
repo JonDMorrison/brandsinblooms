@@ -1,8 +1,14 @@
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
-import { answerWithSlackAgent, isPrivateStaffChannel, type SlackAgentContext } from "./slack-agent.ts";
+import { answerWithSlackAgent, isPrivateStaffChannel, isSlackModelEndpoint, type SlackAgentContext } from "./slack-agent.ts";
 const channel = "C0CFNEQBS2X";
 const principal = "10000000-0000-4000-8000-000000000001";
 const context: SlackAgentContext = { allowed: true, principal_id: principal, role: "platform_admin", channel, route: "tickets", root_ts: "1794936205.974579", user_id: "U06VD9ZGA4U", ticket_id: null, history: [] };
+Deno.test("Slack model endpoints stay on the official API without credentials or alternate origins",()=>{
+  assert(isSlackModelEndpoint("https://api.openai.com/v1"));
+  assert(isSlackModelEndpoint("https://api.openai.com/v1/"));
+  for(const value of ["https://untrusted.example/v1","http://api.openai.com/v1","https://user:secret@api.openai.com/v1","https://api.openai.com:8443/v1","https://api.openai.com/v1?proxy=other","not a url"])
+    assertEquals(isSlackModelEndpoint(value),false,value);
+});
 async function fixture(run: (calls: Array<{ url: string; body: Record<string, unknown> }>) => Promise<void>, respond: (url: string, body: Record<string, unknown>) => unknown, overrides: Record<string, string> = {}) {
   const vars: Record<string, string> = { SUPABASE_URL: "https://supabase.test", SUPABASE_SERVICE_ROLE_KEY: "test-service", OPENAI_API_KEY: "test-model-key", BLOOM_AI_BASE_URL: "https://api.openai.com/v1", BLOOM_SUPPORT_SLACK_BOT_TOKEN: "test-slack-token", ...overrides };
   const prior = Object.fromEntries(Object.keys(vars).map(k => [k, Deno.env.get(k)]));

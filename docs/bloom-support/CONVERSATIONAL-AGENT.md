@@ -10,6 +10,10 @@ Bloom is a capable, human-first garden-centre assistant. Slack is the internal c
 
 The existing signed Slack event endpoint, staff mappings, thread bindings, durable notify jobs, progress messages and final-reply receipts remain in use. `slack-conversation.ts` invokes the new native tool-calling agent only when `bloom_support.settings.slack_agent.enabled` is true. The existing responder remains the rollback path.
 
+The live private/unshared-channel boundary also applies to that rollback responder and the deterministic ticket shortcuts. Staff identity and thread binding are rechecked after the channel lookup, before work, and before disclosure. Public requests exclude prior conversation history and private ticket identifiers, since a channel may have changed visibility since those earlier turns.
+
+Both responders restrict model requests to the official OpenAI API endpoint. If a configured destination is rejected, the legacy responder returns sanitized deterministic evidence; it cannot forward those records to the rejected provider.
+
 `slack-agent-core.ts` owns finite tool schemas, current-message intent checks, redaction, bounded planning and receipts. `slack-agent.ts` binds every operation to the authenticated staff principal and conversation. New SQL functions derive the actor/ticket from the durable job rather than trusting model arguments. Nothing grants arbitrary SQL, shell, email-send, credential, payment or production-deployment access.
 
 Enable only after required CI, merge and the production worker deployment are verified. An authorized admin uses `bloom_support.set_setting(actor, 'slack_agent', '{"enabled":true}')`. Disable the same setting to return to the previous responder. Keep the database fixes in place; reverting the missing-principals fix would break approvals again. No new recurring job or paid service is introduced.
@@ -21,6 +25,8 @@ There are 19 finite tools. Public or unverified channels receive approved produc
 A client is selected from a live account lookup. Ambiguous names require clarification. A ticket thread cannot enumerate other clients or the global inbox. Customer lookup stays within one verified CRM tenant, returns at most five name matches, and requires selection before a profile read. Profiles omit email, phone and address; they expose recorded preferences and purchase metrics, including freshness/coverage warnings. A recorded opt-in is not permission to bypass campaign suppression or sending rules. Null purchase history is unknown, not zero.
 
 Marketing help can combine recorded client context, campaign/product information and customer-data coverage with explicitly labelled recommendations. It must not invent stock, offers, prices, service availability, seasonal claims, financial results or complete lifetime histories. The model is not an unrestricted internet browser.
+
+Default suggestions use verified existing capabilities and need no new discount or loyalty program. Incentives require merchant approval, margin/stock checks and product support before implementation or customer-facing offer copy. Campaign eligibility requires current consent and suppression checks; aggregate opt-in counts are insufficient.
 
 ## Natural-language actions
 
