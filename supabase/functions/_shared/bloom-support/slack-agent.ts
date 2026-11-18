@@ -5,7 +5,7 @@ import { aiConfig } from "./ai.ts";
 import { actions } from "./service.ts";
 import { callProduct, runRead } from "./operations.ts";
 import { safeTicketText } from "./ticket-slack.ts";
-import { type AgentContext, type ChatMessage, type ToolResult, openAiTools, runAgent } from "./slack-agent-core.ts";
+import { type AgentContext, type ChatMessage, type ToolResult, composeSlackAgentReply, openAiTools, runAgent } from "./slack-agent-core.ts";
 
 export interface SlackAgentContext {
   allowed: boolean; principal_id: string; role: string; channel: string; route: string;
@@ -238,5 +238,5 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const receipts = result.receipts.map(r => `Recorded: ${r}`).join("\n");
   const links = result.sources.slice(0, 4).filter(s => sources.has(s)).map(s => `<${sources.get(s)}|${safeTicketText(s, 80)}>`).join(" · ");
   const scope = !privateChannel ? "Client records and operational actions belong in the private Bloom support channel or the signed-in support desk." : "";
-  return [result.text, receipts, links ? `Checked sources: ${links}` : "", scope].filter(Boolean).join("\n\n").slice(0, 3900);
+  return composeSlackAgentReply(result.text, [receipts, links ? `Checked sources: ${links}` : "", scope]);
 }
