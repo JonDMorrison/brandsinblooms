@@ -39,21 +39,41 @@ export function privacyDiagnostic(channel: string, data: unknown): Record<string
   return { event: "bloom_slack_privacy_check", channel, error: label(r.error), needed: label(r.needed), provided: label(r.provided),
     id_matches: ch.id === channel, is_private: ch.is_private === true, is_shared: ch.is_shared === true, is_ext_shared: ch.is_ext_shared === true };
 }
-/** A staff identity does not make a public channel a safe disclosure target. */
-export async function isPrivateStaffChannel(channel: string): Promise<boolean> {
+export type StaffChannelReason = "ok" | "public" | "shared" | "lookup_failed" | "not_configured";
+export interface StaffChannelCheck { allowed: boolean; reason: StaffChannelReason }
+
+/** slack_agent.allow_any_staff_channel; anything but an explicit true is off. */
+async function allowAnyStaffChannel(): Promise<boolean> {
+  try { return row(await rpc("setting", { key: "slack_agent" })).allow_any_staff_channel === true; }
+  catch { return false; }
+}
+
+/**
+ * The single disclosure rule for Bloom's Slack conversations. Staff identity
+ * and route binding decide who may ask; this decides whether the channel may
+ * receive ticket and client records. Shared channels and failed lookups are
+ * always refused. Private internal channels are allowed. Public internal
+ * channels are allowed only when slack_agent.allow_any_staff_channel is true.
+ */
+export async function checkStaffChannel(channel: string): Promise<StaffChannelCheck> {
   const token = env("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
-  if (!token) { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: "not_configured" }))); return false; }
+  if (!token) { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: "not_configured" }))); return { allowed: false, reason: "not_configured" }; }
+  let data: Row;
   try {
     const res = await fetch(`https://slack.com/api/conversations.info?channel=${encodeURIComponent(channel)}`, {
       headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(4000),
     });
-    if (!res.ok) { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: `http_${res.status}` }))); await res.body?.cancel(); return false; }
-    const data = await res.json();
-    const allowed = data.ok === true && data.channel?.id === channel && data.channel?.is_private === true
-      && data.channel?.is_ext_shared !== true && data.channel?.is_shared !== true;
-    if (!allowed && (data.ok !== true || data.channel?.id !== channel || data.channel?.is_private === true)) console.warn(JSON.stringify(privacyDiagnostic(channel, data)));
-    return allowed;
-  } catch { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: "lookup_unavailable" }))); return false; }
+    if (!res.ok) { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: `http_${res.status}` }))); await res.body?.cancel(); return { allowed: false, reason: "lookup_failed" }; }
+    data = row(await res.json());
+  } catch { console.warn(JSON.stringify(privacyDiagnostic(channel, { error: "lookup_unavailable" }))); return { allowed: false, reason: "lookup_failed" }; }
+  const ch = row(data.channel);
+  if (data.ok !== true || ch.id !== channel) { console.warn(JSON.stringify(privacyDiagnostic(channel, data))); return { allowed: false, reason: "lookup_failed" }; }
+  if (ch.is_shared === true || ch.is_ext_shared === true) {
+    if (ch.is_private === true) console.warn(JSON.stringify(privacyDiagnostic(channel, data)));
+    return { allowed: false, reason: "shared" };
+  }
+  if (ch.is_private === true) return { allowed: true, reason: "ok" };
+  return await allowAnyStaffChannel() ? { allowed: true, reason: "ok" } : { allowed: false, reason: "public" };
 }
 
 export async function answerWithSlackAgent(c: SlackAgentContext, question: string, jobId: string): Promise<string | null> {
@@ -62,7 +82,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const cfg = await aiConfig();
   if (cfg.provider !== "openai" || !env("OPENAI_API_KEY")) return null;
   if (!isSlackModelEndpoint(cfg.baseUrl)) return null;
-  const privateChannel = await isPrivateStaffChannel(c.channel);
+  const privateChannel = (await checkStaffChannel(c.channel)).allowed;
   const ctx: AgentContext = {
     jobId, principalId: c.principal_id, role: c.role, channel: c.channel, route: c.route,
     rootTs: c.root_ts, ticketId: c.ticket_id, question, history: c.history, privateChannel,
@@ -234,7 +254,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
       return message as ChatMessage;
     },
   });
-  if (!await authorize() || (privateChannel && !await isPrivateStaffChannel(c.channel))) return "I can no longer verify this conversation's access. Please use the authorized support desk to check any recorded work.";
+  if (!await authorize() || (privateChannel && !(await checkStaffChannel(c.channel)).allowed)) return "I can no longer verify this conversation's access. Please use the authorized support desk to check any recorded work.";
   const receipts = result.receipts.map(r => `Recorded: ${r}`).join("\n");
   const links = result.sources.slice(0, 4).filter(s => sources.has(s)).map(s => `<${sources.get(s)}|${safeTicketText(s, 80)}>`).join(" · ");
   const scope = !privateChannel ? "Client records and operational actions belong in the private Bloom support channel or the signed-in support desk." : "";
