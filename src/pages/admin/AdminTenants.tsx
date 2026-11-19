@@ -23,7 +23,6 @@ import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
 import { JoyStatusChip } from "@/components/joy/JoyChip";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyTablePagination } from "@/components/joy/JoyTable";
-import { ADMIN_SESSION_BACKUP_STORAGE_KEY } from "@/hooks/useImpersonation";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -31,8 +30,8 @@ import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
 
 interface ImpersonateUserResponse {
   success?: boolean;
-  token_hash?: string | null;
-  type?: string;
+  grant_id?: string;
+  nonce?: string;
   redirect_to?: string;
   target_email?: string;
   target_user_id?: string;
@@ -154,7 +153,6 @@ const AdminPage = () => {
           {
             body: {
               target_user_email: tenant.primary_contact_email,
-              target_tenant_id: tenant.tenant_id,
               redirect_origin: window.location.origin,
             },
           },
@@ -164,8 +162,8 @@ const AdminPage = () => {
         error ||
         data?.error ||
         !data?.success ||
-        !data?.token_hash ||
-        !data?.type ||
+        !data?.grant_id ||
+        !data?.nonce ||
         !data?.target_email
       ) {
         sonnerToast.error(
@@ -174,30 +172,13 @@ const AdminPage = () => {
         return;
       }
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        sonnerToast.error(
-          sessionError?.message ||
-            "Unable to back up the current admin session.",
-        );
-        return;
-      }
-
-      sessionStorage.setItem(
-        ADMIN_SESSION_BACKUP_STORAGE_KEY,
-        JSON.stringify(session),
-      );
-
+      // The new tab redeems this one-time grant with this admin's own session (crm-r1-F07). The grant travels in
+      // the fragment, which is never sent to a server; no admin session is copied anywhere (crm-r1-F04).
       const callbackParams = new URLSearchParams({
-        token_hash: data.token_hash,
-        type: data.type,
-        target_email: data.target_email,
+        grant: data.grant_id,
+        nonce: data.nonce,
       });
-      const callbackUrl = `${window.location.origin}/admin/impersonate/callback?${callbackParams.toString()}`;
+      const callbackUrl = `${window.location.origin}/admin/impersonate/callback#${callbackParams.toString()}`;
       const impersonationWindow = window.open(callbackUrl, "_blank");
 
       if (!impersonationWindow) {

@@ -1,10 +1,16 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
 import { isCustomerEligibleForEmailAudience } from "../_shared/eligibleEmailAudience.ts";
 import {
   evaluateSegmentRule,
   normalizeSegmentRuleGroup,
 } from "../_shared/segmentEvaluator.ts";
+import {
+  loadCustomerStoreLocations,
+  loadSegmentStoreTargets,
+  segmentStoreScopeAllows,
+} from "../_shared/segmentLocationScope.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +28,8 @@ interface Segment {
   include_all_customers: boolean;
   status?: string | null;
   deleted_at?: string | null;
+  location_scope?: string | null;
+  primary_location_id?: string | null;
 }
 
 interface Customer {
@@ -30,6 +38,7 @@ interface Customer {
   first_name?: string | null;
   last_name?: string | null;
   email?: string | null;
+  primary_location_id?: string | null;
   [key: string]: unknown;
 }
 
@@ -184,10 +193,34 @@ Deno.serve(async (req) => {
       );
     }
 
+    // The customer's stores: its primary store plus every store it has activity at (tenant-scoped).
+    const customerStores =
+      (await loadCustomerStoreLocations(supabase, tenant_id, [customer as Customer])).get(customer_id) ??
+        new Set<string>();
+
+    if (callerUserId) {
+      // central-login 59 (crm-r2-F46): rewriting a customer's memberships needs customer.write on that customer, the
+      // rule of crm_customers_update_by_scope (its primary store, or any store it has activity at), asked as the
+      // caller before any membership write. Service-role callers (update-email-preference, submit-form) keep their path.
+      const primaryLocationId = typeof customer.primary_location_id === "string" ? customer.primary_location_id : null;
+      let canWriteCustomer = await callerHasTenantPermission(authHeader, tenant_id, "customer.write", primaryLocationId);
+      for (const locationId of customerStores) {
+        if (canWriteCustomer) break;
+        if (locationId === primaryLocationId) continue;
+        canWriteCustomer = await callerHasTenantPermission(authHeader, tenant_id, "customer.write", locationId);
+      }
+      if (!canWriteCustomer) {
+        return new Response(JSON.stringify({ error: "You do not have permission to update this customer." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const { data: segments, error: segmentsError } = await supabase
       .from("crm_segments")
       .select(
-        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at",
+        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at, location_scope, primary_location_id",
       )
       .eq("tenant_id", tenant_id)
       .eq("auto_update", true)
@@ -235,21 +268,26 @@ Deno.serve(async (req) => {
       },
     );
 
+    // Store scope (central-login 59, crm-r2-F84): a store-scoped segment only holds customers of its stores.
+    const segmentTargets = await loadSegmentStoreTargets(supabase, tenant_id, segments as Segment[]);
+
     const segmentsJoined: string[] = [];
     const segmentsLeft: string[] = [];
     const segmentsJoinedNames: string[] = [];
     const segmentsLeftNames: string[] = [];
 
     for (const segment of sortSegmentsByDependencies(segments as Segment[])) {
-      const matches = segment.include_all_customers
-        ? eligibleForAllCustomers
-        : evaluateSegmentRule(
-            normalizeSegmentRuleGroup(segment.conditions),
-            customer as Customer,
-            {
-              customerSegmentsByCustomerId: membershipMap,
-            },
-          );
+      const matches =
+        segmentStoreScopeAllows(segment, customerStores, segmentTargets) &&
+        (segment.include_all_customers
+          ? eligibleForAllCustomers
+          : evaluateSegmentRule(
+              normalizeSegmentRuleGroup(segment.conditions),
+              customer as Customer,
+              {
+                customerSegmentsByCustomerId: membershipMap,
+              },
+            ));
       const isMember = currentSegmentIds.has(segment.id);
 
       if (matches && !isMember) {

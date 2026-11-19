@@ -15,29 +15,31 @@ import {
   AlertTriangle,
   RefreshCw
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/hooks/useTenant';
 import { getConsentStats, ConsentStats } from '@/lib/crm/emailConsent';
 import { OptInRequestModal } from './OptInRequestModal';
 import { toast } from 'sonner';
 
 export function EmailConsentManager() {
-  const { user } = useAuth();
+  // The company comes from the server (public.users, or the admin's selected company), never from user_metadata.
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id ?? null;
   const [stats, setStats] = useState<ConsentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showOptInModal, setShowOptInModal] = useState(false);
 
   const fetchStats = async () => {
-    if (!user?.user_metadata?.tenant_id) return;
-    
+    if (!tenantId) return;
+
     setLoading(true);
-    const data = await getConsentStats(user.user_metadata.tenant_id);
+    const data = await getConsentStats(tenantId);
     setStats(data);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchStats();
-  }, [user]);
+  }, [tenantId]);
 
   const getOptInPercentage = () => {
     if (!stats || stats.total_customers === 0) return 0;

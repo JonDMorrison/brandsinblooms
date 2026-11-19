@@ -47,7 +47,12 @@ serve(async (req) => {
   try {
     const { fromEmail, subject, body }: EmailDeleteRequest = await req.json();
 
-    if (!fromEmail || !isDeleteRequest(subject, body)) {
+    // A deletion request is only ever about the caller's own account (crm-r2-F34): an address that isn't the
+    // caller's gets the same refusal as a malformed request, and no other account is looked up.
+    const callerEmail = (user.email ?? '').trim().toLowerCase();
+    const requestedEmail = typeof fromEmail === 'string' ? fromEmail.trim().toLowerCase() : '';
+
+    if (!requestedEmail || !callerEmail || requestedEmail !== callerEmail || !isDeleteRequest(subject, body)) {
       return new Response(
         JSON.stringify({ error: 'Invalid deletion request' }),
         {
@@ -57,22 +62,13 @@ serve(async (req) => {
       );
     }
 
-    // Find user by email
-    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
-    
-    if (userError) {
-      throw new Error('Failed to lookup user');
-    }
-
-    const user = userData.users.find(u => u.email === fromEmail);
-    
-    if (!user) {
-      console.log(`No user found for email: ${fromEmail}`);
-      return new Response(
+    // One answer whatever the address's state (crm-r1-F14): no account, a pending deletion, a processed request and
+    // a failed one all look the same to the caller; the outcome is only logged.
+    const processed = () =>
+      new Response(
         JSON.stringify({ message: 'Request processed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
 
     // Check if user already has a pending deletion request
     const { data: existingRequest } = await supabase
@@ -84,10 +80,7 @@ serve(async (req) => {
 
     if (existingRequest) {
       console.log(`User ${user.id} already has pending deletion request`);
-      return new Response(
-        JSON.stringify({ message: 'Request already processed' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return processed();
     }
 
     // Trigger the same deletion process as self-service
@@ -101,27 +94,19 @@ serve(async (req) => {
     });
 
     if (!deleteResponse.ok) {
-      throw new Error('Failed to process deletion request');
+      console.error(`delete-request: deletion for user ${user.id} was not processed (${deleteResponse.status})`);
+      return processed();
     }
 
-    console.log(`Processed email deletion request for user ${user.id} (${fromEmail})`);
+    console.log(`Processed email deletion request for user ${user.id}`);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Deletion request processed successfully' 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return processed();
 
   } catch (error) {
-    console.error('Email deletion request error:', error);
+    console.error('Email deletion request error:', error instanceof Error ? error.message : 'unknown');
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      JSON.stringify({ message: 'Request processed' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

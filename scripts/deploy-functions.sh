@@ -79,7 +79,9 @@ echo ""
 for fn in "${FUNCTIONS_TO_DEPLOY[@]}"; do
   printf "[%d/%d] Deploying %-40s " "$((succeeded + failed + 1))" "$total" "$fn"
 
-  if npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt 2>/dev/null; then
+  # Respect each function's verify_jwt in supabase/config.toml, as the CI deploy does (crm-r1-F01).
+  # A global --no-verify-jwt here silently turned the gateway check off for functions configured true.
+  if npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" 2>/dev/null; then
     echo "✓"
     ((succeeded++))
   else

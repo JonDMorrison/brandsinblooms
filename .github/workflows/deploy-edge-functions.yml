@@ -252,6 +252,57 @@ jobs:
             exit 1
           fi
 
+      # Deleting a function's folder never undeploys it, so retired functions
+      # (debug readers, the April OAuth server) could stay live and unreviewed
+      # (central-login 59: crm-r2-F01, crm-r2-F02). After every deploy, compare
+      # the hosted function list with source and fail on any deployed name that
+      # has no supabase/functions/<name>/index.ts and is not listed in
+      # RETAINED_HOSTED_FUNCTIONS (space-separated; keep it empty unless a
+      # hosted-only function is deliberate). Fix by undeploying it
+      # (supabase functions delete <name> --project-ref <ref>) or restoring its
+      # source. A failed listing fails the step.
+      - name: Reconcile hosted functions with source
+        id: reconcile
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          RETAINED_HOSTED_FUNCTIONS: ""
+        run: |
+          set -euo pipefail
+          listing="$(supabase functions list --project-ref "$PROJECT_ID" --output json)"
+          hosted="$(printf '%s' "$listing" | python3 -c '
+          import json, sys
+          rows = json.load(sys.stdin)
+          if not isinstance(rows, list):
+              raise SystemExit("unexpected functions list output")
+          for row in rows:
+              print(row.get("slug") or row.get("name") or "<unnamed>")
+          ')"
+          extra=""
+          for fn in $hosted; do
+            if [[ "$fn" =~ ^[A-Za-z0-9_-]+$ && -f "supabase/functions/$fn/index.ts" ]]; then
+              continue
+            fi
+            if [[ " $RETAINED_HOSTED_FUNCTIONS " == *" $fn "* ]]; then
+              continue
+            fi
+            extra="$extra $fn"
+          done
+          extra="$(echo "$extra" | xargs || true)"
+          echo "extra_names=$extra" >> "$GITHUB_OUTPUT"
+          if [[ -n "$extra" ]]; then
+            echo "::error title=Hosted functions missing from source::$extra"
+            {
+              echo ""
+              echo "**Deployed on the hosted project but absent from source:** $extra"
+              echo ""
+              echo "Undeploy each one or restore its source; a deliberate hosted-only"
+              echo "function goes in RETAINED_HOSTED_FUNCTIONS."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Hosted function list matches source ($(echo "$hosted" | wc -w | tr -d ' ') functions)."
+
       # A red check on a post-merge workflow is easy to miss — the change is
       # already merged and nobody is watching the run. Open an issue so an
       # undeployed function is impossible to overlook.
@@ -261,12 +312,18 @@ jobs:
         with:
           script: |
             const failed = '${{ steps.deploy.outputs.failed_names }}'.trim();
+            const extra = '${{ steps.reconcile.outputs.extra_names }}'.trim();
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const title = 'Edge function deploy failed — functions are stale in production';
             const body = [
               failed
                 ? `The following functions failed to deploy and are still running their previous version in production:\n\n${failed.split(/\s+/).map((f) => `- \`${f}\``).join('\n')}`
-                : 'The edge function deploy workflow failed before reporting which functions were affected.',
+                : extra
+                  ? 'Every changed function deployed, but the hosted project runs functions that are absent from source.'
+                  : 'The edge function deploy workflow failed before reporting which functions were affected.',
+              ...(extra
+                ? ['', `Deployed but absent from source (undeploy or restore):\n\n${extra.split(/\s+/).map((f) => `- \`${f}\``).join('\n')}`]
+                : []),
               '',
               `Commit: ${context.sha}`,
               `Run: ${runUrl}`,

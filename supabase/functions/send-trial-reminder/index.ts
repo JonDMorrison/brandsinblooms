@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { Resend } from "npm:resend@2.1.0";
 import {renderBloomSystemEmail,bloomEmailEscape,bloomEmailCard} from "../../../src/lib/email/premiumBotanical.ts";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -24,6 +25,11 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Scheduler-only job (central-login 59, crm-r2-F92): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   try {
     console.log('[TRIAL-REMINDER] Function started');

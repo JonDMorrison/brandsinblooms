@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import {
   renderMergeTags,
   convertLegacyTags,
@@ -59,29 +60,11 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // FIX: [issue #19] - Add auth check to prevent unauthenticated access
-  const authHeader = req.headers.get("Authorization");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (
-    !authHeader ||
-    (authHeader !== `Bearer ${serviceRoleKey}` &&
-      !authHeader.startsWith("Bearer "))
-  ) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const token = authHeader.replace("Bearer ", "");
-    const { error: authErr } = await supabase.auth.getUser(token);
-    if (authErr) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-  }
+  // FIX: [issue #19], central-login 59 (crm-r2-F87): the runner works across every tenant with the
+  // service role, so only a configured server key (apikey or Bearer) starts it; a signed-in user's
+  // token is refused.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   try {
     console.log("🚀 Starting automation runner...");

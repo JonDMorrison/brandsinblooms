@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.1.0";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
 
 interface CreateDomainRequest {
   tenantId: string;
@@ -21,6 +22,14 @@ interface CloudflareRecord {
   priority?: number;
   ttl?: number;
 }
+
+// central-login 59 (crm-r2-F44): the platform's own sender domains, and every name under them, are never set up
+// (or adopted from the shared provider account) by a workspace.
+const RESERVED_PLATFORM_SENDER_DOMAINS = ['bloomsuite.app', 'bloomsuite.com', 'brandsinblooms.com'];
+const isReservedPlatformSenderDomain = (domain: string) => {
+  const name = domain.replace(/\.+$/, '');
+  return RESERVED_PLATFORM_SENDER_DOMAINS.some((reserved) => name === reserved || name.endsWith(`.${reserved}`));
+};
 
 // Normalized DNS record from Resend
 interface NormalizedDnsRecord {
@@ -61,6 +70,15 @@ const handler = async (req: Request): Promise<Response> => {
       return corsJsonResponse({ error: 'Tenant ID is required' }, { status: 400 });
     }
 
+    // central-login 59 (crm-r2-F41): the caller must manage integrations for this tenant (asked as the caller, through
+    // the same has_tenant_permission the CRM's policies use) before any service-role read or write.
+    if (!(await callerHasTenantPermission(authHeader, tenantId, 'integrations.manage'))) {
+      return corsJsonResponse({
+        error: 'Forbidden',
+        message: 'You do not have permission to manage sending domains for this account.'
+      }, { status: 403 });
+    }
+
     console.log(`📧 Processing domain request - Sandbox: ${useSandbox}, Domain: ${domain}`);
 
     let finalDomain: string;
@@ -95,6 +113,13 @@ const handler = async (req: Request): Promise<Response> => {
       env = 'prod';
       is_sandbox = false;
       finalProvider = provider || Deno.env.get('DEV_TEST_PROVIDER') || 'cloudflare';
+
+      if (isReservedPlatformSenderDomain(finalDomain)) {
+        return corsJsonResponse({
+          error: 'Domain reserved',
+          message: 'This domain is reserved for the platform. Please use a domain your business owns.'
+        }, { status: 409 });
+      }
     }
 
     // Check for existing domain conflicts
@@ -172,6 +197,26 @@ const handler = async (req: Request): Promise<Response> => {
       const existingResendDomain = domains?.data?.find(d => d.name === finalDomain);
       
       if (existingResendDomain) {
+        // central-login 59 (crm-r2-F44): a domain that already exists in the shared provider account carries someone
+        // else's DNS proof unless one of this workspace's own rows already holds that provider id; never adopt it.
+        const { data: ownedProviderRow, error: ownedProviderError } = await supabase
+          .from('email_domains')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('resend_domain_id', existingResendDomain.id)
+          .limit(1)
+          .maybeSingle();
+        if (ownedProviderError) {
+          console.error('❌ Provider domain ownership check error:', ownedProviderError);
+          return corsJsonResponse({ error: 'Database error checking domain' }, { status: 500 });
+        }
+        if (!ownedProviderRow) {
+          return corsJsonResponse({
+            error: 'Domain already registered with the email provider',
+            message: 'This domain is already set up with our email provider outside this workspace. Please contact support.'
+          }, { status: 409 });
+        }
+
         resendDomainId = existingResendDomain.id;
         console.log(`✅ Found existing Resend domain: ${resendDomainId}`);
         
@@ -411,8 +456,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`✅ Created ${dnsRecords.length} DNS records`);
 
-    // Apply Cloudflare DNS if using cloudflare provider
-    if (finalProvider === 'cloudflare') {
+    // Apply Cloudflare DNS for the platform sandbox only (central-login 59, crm-r2-F43): the platform
+    // CLOUDFLARE_API_TOKEN writes only in the DEV_TEST_ROOT_DOMAIN zone, never in a zone chosen by the body domain.
+    // A production domain gets its records for the workspace to publish (manual / Entri).
+    if (finalProvider === 'cloudflare' && is_sandbox) {
       const cloudflareToken = Deno.env.get('CLOUDFLARE_API_TOKEN');
       if (cloudflareToken) {
         console.log(`☁️ Applying Cloudflare DNS for ${finalDomain}`);
@@ -420,31 +467,15 @@ const handler = async (req: Request): Promise<Response> => {
         try {
           let zoneId: string | null = null;
           
-          if (is_sandbox) {
-            const rootDomain = Deno.env.get('DEV_TEST_ROOT_DOMAIN');
-            if (rootDomain) {
-              const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${rootDomain}`, {
-                headers: { 'Authorization': `Bearer ${cloudflareToken}` },
-                signal: AbortSignal.timeout(10000)
-              });
-              const zoneData = await zoneResponse.json();
-              if (zoneData.result && zoneData.result.length > 0) {
-                zoneId = zoneData.result[0].id;
-              }
-            }
-          } else {
-            const domainParts = finalDomain.split('.');
-            for (let i = 0; i < domainParts.length - 1; i++) {
-              const testDomain = domainParts.slice(i).join('.');
-              const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${testDomain}`, {
-                headers: { 'Authorization': `Bearer ${cloudflareToken}` },
-                signal: AbortSignal.timeout(10000)
-              });
-              const zoneData = await zoneResponse.json();
-              if (zoneData.result && zoneData.result.length > 0) {
-                zoneId = zoneData.result[0].id;
-                break;
-              }
+          const rootDomain = Deno.env.get('DEV_TEST_ROOT_DOMAIN');
+          if (rootDomain) {
+            const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${rootDomain}`, {
+              headers: { 'Authorization': `Bearer ${cloudflareToken}` },
+              signal: AbortSignal.timeout(10000)
+            });
+            const zoneData = await zoneResponse.json();
+            if (zoneData.result && zoneData.result.length > 0) {
+              zoneId = zoneData.result[0].id;
             }
           }
 

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * send-seasonal-prompt
@@ -113,6 +114,11 @@ function escapeHtml(str: string): string {
 }
 
 Deno.serve(async (req) => {
+  // Scheduler-only job (central-login 59, crm-r2-F19): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
+
   try {
     const { season } = await req.json();
     const content = seasonalContent[season];

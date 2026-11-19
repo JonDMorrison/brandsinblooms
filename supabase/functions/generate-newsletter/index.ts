@@ -3,6 +3,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { fetchCampaignContent } from './content-processor.ts';
+import { callerTenantId } from '../_shared/callerTenantPermission.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,9 +17,18 @@ serve(async (req) => {
 
   try {
     // SECURITY: [E17] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // central-login 59 (crm-r2-F51): the token is verified, and a body userId may only name the caller's own account.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+    const callerClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
     const { campaignId, userId } = await req.json();
@@ -28,10 +38,32 @@ serve(async (req) => {
     if (!userId) {
       throw new Error('User ID is required');
     }
+    if (userId && userId !== user.id) {
+      return new Response(JSON.stringify({ error: 'You can only generate content for your own account.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // A named campaign must belong to the caller's own tenant before any of its content is read.
+    if (campaignId && campaignId !== 'undefined') {
+      const tenantId = await callerTenantId(authHeader);
+      const { data: campaignRow, error: campaignError } = await supabase
+        .from('campaigns')
+        .select('tenant_id')
+        .eq('id', campaignId)
+        .maybeSingle();
+      if (!tenantId || campaignError || !campaignRow || campaignRow.tenant_id !== tenantId) {
+        return new Response(JSON.stringify({ error: 'You do not have access to this campaign.' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Fetch campaign content with improved error handling
     const contentResult = await fetchCampaignContent(supabase, campaignId, userId);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Stack from "@mui/joy/Stack";
@@ -20,6 +20,31 @@ const ROLE_LABEL: Record<string, string> = {
   support: "Support",
 };
 
+// crm-r2-F07: Allow works only after the consent has been visible, with the window focused, for this long.
+const ALLOW_ARM_DELAY_MS = 500;
+
+// crm-r2-F08: the page navigates only to a redirect the OAuth server could have registered (https, or
+// http on localhost/127.0.0.1, as bloom_support.oauth_register_client allows); never a script URL.
+function safeRedirect(value: string): URL | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:") return url;
+    if (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) return url;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// crm-r2-F204: a consent page shown inside another page's frame offers no choice at all.
+function isFramed(): boolean {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * OAuth approval for connecting ChatGPT (or another MCP client) to Bloom
  * Support as the signed-in person. The connection carries exactly this
@@ -38,13 +63,72 @@ export default function BloomSupportConnectPage() {
     code_challenge: params.get("code_challenge") ?? "",
     state: params.get("state") ?? undefined,
   }), [params]);
-  const valid = request.client_id && request.redirect_uri && request.code_challenge;
-  let redirectHost = "";
-  try {
-    redirectHost = new URL(request.redirect_uri).host;
-  } catch {
-    redirectHost = "";
-  }
+  const redirect = useMemo(() => safeRedirect(request.redirect_uri), [request.redirect_uri]);
+  const valid = Boolean(request.client_id && request.code_challenge && redirect);
+  const redirectHost = redirect?.host ?? "";
+  const [framed] = useState(isFramed);
+  const showConsent = !framed && valid && Boolean(me.data && me.data.role !== "client");
+
+  // crm-r2-F07: Allow is armed only once the consent has been shown, with the page visible and the
+  // window focused, for ALLOW_ARM_DELAY_MS. Hiding or blurring the page disarms it, and a press that
+  // began before arming (a click carried over from another window) is ignored.
+  const [armed, setArmed] = useState(false);
+  const armedAtRef = useRef<number | null>(null);
+  const lastPointerDownAtRef = useRef<number>(Number.NEGATIVE_INFINITY);
+
+  useEffect(() => {
+    if (!showConsent) {
+      armedAtRef.current = null;
+      setArmed(false);
+      return undefined;
+    }
+    let focused = document.hasFocus();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const update = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+      if (document.visibilityState === "visible" && focused) {
+        timer = setTimeout(() => {
+          armedAtRef.current = performance.now();
+          setArmed(true);
+        }, ALLOW_ARM_DELAY_MS);
+      } else {
+        armedAtRef.current = null;
+        setArmed(false);
+      }
+    };
+    const onFocus = () => {
+      focused = true;
+      update();
+    };
+    const onBlur = () => {
+      focused = false;
+      update();
+    };
+    const onPointerDown = () => {
+      lastPointerDownAtRef.current = performance.now();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", update);
+    window.addEventListener("pointerdown", onPointerDown, true);
+    update();
+    return () => {
+      if (timer !== undefined) clearTimeout(timer);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", update);
+      window.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [showConsent]);
+
+  const onAllowClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    const armedAt = armedAtRef.current;
+    if (!armed || armedAt === null) return;
+    // detail is 0 for a keyboard activation, which has no pointer press to check.
+    if (event.detail > 0 && lastPointerDownAtRef.current < armedAt) return;
+    void approve();
+  };
 
   const approve = async () => {
     setBusy(true);
@@ -66,8 +150,8 @@ export default function BloomSupportConnectPage() {
   };
 
   const deny = () => {
-    if (!valid) return;
-    const back = new URL(request.redirect_uri);
+    if (!valid || !redirect) return;
+    const back = new URL(redirect.href);
     back.searchParams.set("error", "access_denied");
     if (request.state) back.searchParams.set("state", request.state);
     window.location.assign(back.toString());
@@ -78,10 +162,15 @@ export default function BloomSupportConnectPage() {
       <Sheet variant="outlined" sx={{ p: 3, borderRadius: "lg" }}>
         <Stack spacing={2}>
           <Typography level="h3">Connect {request.client_name} to Bloom Support</Typography>
-          {!valid && <Alert color="danger">This link is incomplete. Start the connection again from your assistant.</Alert>}
-          {me.isLoading && <Skeleton variant="rectangular" height={80} />}
-          {me.data && me.data.role === "client" && <Alert color="danger">Only Brands in Blooms staff can connect an assistant to Bloom Support.</Alert>}
-          {me.data && me.data.role !== "client" && (
+          {framed && (
+            <Alert color="danger">
+              This page cannot be used inside a frame or embedded in another site. Open it directly in your browser to connect the assistant.
+            </Alert>
+          )}
+          {!framed && !valid && <Alert color="danger">This link is incomplete. Start the connection again from your assistant.</Alert>}
+          {!framed && me.isLoading && <Skeleton variant="rectangular" height={80} />}
+          {!framed && me.data && me.data.role === "client" && <Alert color="danger">Only Brands in Blooms staff can connect an assistant to Bloom Support.</Alert>}
+          {!framed && me.data && me.data.role !== "client" && (
             <>
               <Typography level="body-md">
                 {request.client_name} will act as <strong>{me.data.name ?? me.data.email}</strong> ({ROLE_LABEL[me.data.role] ?? me.data.role}) and can do only what you can do.
@@ -98,7 +187,7 @@ export default function BloomSupportConnectPage() {
               {error && <Alert color="danger">{error}</Alert>}
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Button variant="plain" color="neutral" onClick={deny} disabled={!valid}>Deny</Button>
-                <Button loading={busy} disabled={!valid} onClick={approve}>Allow</Button>
+                <Button loading={busy} disabled={!valid || !armed} onClick={onAllowClick}>Allow</Button>
               </Stack>
             </>
           )}

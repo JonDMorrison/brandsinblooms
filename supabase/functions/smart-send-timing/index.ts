@@ -1,6 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts';
+import { callerHasTenantPermission } from '../_shared/callerTenantPermission.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -35,6 +37,17 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // central-login 59 (crm-r2-F86): a signed-in caller is required (a configured server key keeps internal
+  // callers working); campaign.read for the campaign is checked as the caller before its tenant's data is read.
+  const authHeader = req.headers.get('Authorization');
+  const isInternal = requireInternalApiKey(req) === null;
+  if (!isInternal && !authHeader?.toLowerCase().startsWith('bearer ')) {
+    return new Response(JSON.stringify({ error: 'Authorization required', success: false }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { campaignId, personaTags = [], audienceData = {} } = await req.json();
 
@@ -49,6 +62,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (campaignError || !campaign) {
       throw new Error(`Campaign not found: ${campaignError?.message}`);
+    }
+
+    const campaignLocationId = campaign.location_scope === 'one_location' ? campaign.primary_location_id ?? null : null;
+    if (!isInternal && !(await callerHasTenantPermission(authHeader, campaign.tenant_id, 'campaign.read', campaignLocationId))) {
+      return new Response(JSON.stringify({ error: 'Campaign access required', success: false }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get user's timezone and preferences

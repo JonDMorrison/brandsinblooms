@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { detectEnvironment, getEnvSecret } from "../_shared/environment.ts";
+import { isConfiguredAppOrigin } from "../_shared/cors.ts";
+import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,15 +111,21 @@ export async function handleOAuthAuthorize(
       );
     }
 
-    // Get tenant_id
-    const { data: userData } = await supabase
-      .from("users")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!userData?.tenant_id) {
-      throw new Error("No tenant found for user");
+    // Connecting a provider replaces the tenant's connection: integrations.manage only (crm-r2-F71).
+    let tenantId: string;
+    try {
+      tenantId = await requireImportTenant(supabase);
+    } catch {
+      return new Response(
+        JSON.stringify({
+          error: true,
+          message: "Integration management permission required.",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        },
+      );
     }
 
     const environment = detectEnvironment(req);
@@ -148,10 +156,11 @@ export async function handleOAuthAuthorize(
     // Build callback redirect URI
     const redirectUri = `${deps.envGet("SUPABASE_URL")}/functions/v1/migrations-oauth-callback?provider=${provider}`;
 
-    // Determine app origin (for popup redirect back to SPA)
+    // Determine app origin (for popup redirect back to SPA): a request origin only when it is one of the
+    // configured app origins, else the configured app origin (crm-r2-F70).
     const requestOrigin =
       req.headers.get("origin") || req.headers.get("referer") || "";
-    const appOrigin = requestOrigin
+    const appOrigin = isConfiguredAppOrigin(requestOrigin, deps.envGet)
       ? new URL(requestOrigin).origin
       : deps.envGet("APP_ORIGIN") ||
         deps.envGet("APP_BASE_URL") ||
@@ -182,6 +191,7 @@ export async function handleOAuthAuthorize(
 
     const statePayload = {
       uid: user.id,
+      tid: tenantId,
       provider,
       nonce: deps.randomUUID(),
       ts: Date.now(),

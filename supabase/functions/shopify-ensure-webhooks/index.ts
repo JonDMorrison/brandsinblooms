@@ -1,11 +1,18 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, corsJsonResponse, handleCorsPrelight } from '../_shared/cors.ts';
 import { ensureShopifyWebhooks } from '../_shared/webhooks/ensureShopifyWebhooks.ts';
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPrelight(req);
   if (preflight) {
     return preflight;
+  }
+
+  // Internal only: shopify-oauth-callback invokes it with the server key (crm-r2-F94).
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) {
+    return unauthorized;
   }
 
   try {

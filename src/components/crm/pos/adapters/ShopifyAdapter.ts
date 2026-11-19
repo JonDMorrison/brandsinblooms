@@ -1,28 +1,47 @@
 import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter.ts';
 
+const SHOPIFY_SHOP_DOMAIN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/;
+const SHOPIFY_TIMEOUT_MS = 10_000;
+
+/** The store's *.myshopify.com host, normalised; null for anything else (central-login 59, crm-r2-F79). */
+function normalizeShopifyShopDomain(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const domain = value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return SHOPIFY_SHOP_DOMAIN.test(domain) ? domain : null;
+}
+
 export class ShopifyAdapter extends POSAdapter {
   private baseUrl: string;
   private accessToken: string;
 
   constructor(shopDomain: string, accessToken: string) {
     super();
-    this.baseUrl = `https://${shopDomain}/admin/api/2024-01`;
+    // Requests carry the caller's token: only a Shopify store host is ever contacted (crm-r2-F79).
+    const domain = normalizeShopifyShopDomain(shopDomain);
+    if (!domain) throw new Error('Enter a valid Shopify store domain (for example, mystore.myshopify.com).');
+    this.baseUrl = `https://${domain}/admin/api/2024-01`;
     this.accessToken = accessToken;
+  }
+
+  private shopifyFetch(url: string): Promise<Response> {
+    return fetch(url, {
+      headers: {
+        'X-Shopify-Access-Token': this.accessToken,
+        'Content-Type': 'application/json',
+      },
+      redirect: 'error',
+      signal: AbortSignal.timeout(SHOPIFY_TIMEOUT_MS),
+    });
   }
 
   async testConnection(credentials: any): Promise<TestConnectionResult> {
     try {
-      const response = await fetch(`${this.baseUrl}/shop.json`, {
-        headers: {
-          'X-Shopify-Access-Token': this.accessToken,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await this.shopifyFetch(`${this.baseUrl}/shop.json`);
 
       if (!response.ok) {
         return {
           success: false,
-          message: `Shopify API error: ${response.status} ${response.statusText}`
+          message: `Shopify API error: ${response.status}`
         };
       }
 
@@ -36,10 +55,10 @@ export class ShopifyAdapter extends POSAdapter {
           features: ['customers', 'orders', 'products']
         }
       };
-    } catch (error) {
+    } catch {
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown connection error'
+        message: 'Could not reach Shopify. Check the store domain and access token.'
       };
     }
   }
@@ -54,12 +73,7 @@ export class ShopifyAdapter extends POSAdapter {
       url += `&page_info=${options.cursor}`;
     }
 
-    const response = await fetch(url, {
-      headers: {
-        'X-Shopify-Access-Token': this.accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await this.shopifyFetch(url);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -89,12 +103,7 @@ export class ShopifyAdapter extends POSAdapter {
       url += `&page_info=${options.cursor}`;
     }
 
-    const response = await fetch(url, {
-      headers: {
-        'X-Shopify-Access-Token': this.accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await this.shopifyFetch(url);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -124,12 +133,7 @@ export class ShopifyAdapter extends POSAdapter {
       url += `&page_info=${options.cursor}`;
     }
 
-    const response = await fetch(url, {
-      headers: {
-        'X-Shopify-Access-Token': this.accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await this.shopifyFetch(url);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

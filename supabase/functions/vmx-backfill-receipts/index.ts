@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient, parseVmxDate } from "../_shared/vmx/client.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * vmx-backfill-receipts
@@ -12,6 +13,11 @@ import { createVmxClient, parseVmxDate } from "../_shared/vmx/client.ts";
  */
 
 serve(async (req) => {
+  // Scheduler-only job (central-login 59, crm-r2-F116): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
+
   const startTime = Date.now();
 
   try {

@@ -24,6 +24,26 @@ export interface SenderResolutionOptions {
 }
 
 /**
+ * crm-r2-F190: email_domains.default_from_email is tenant-editable text. It is used as the From address
+ * only when it is a plain address on the row's own domain; otherwise the row's own mail@<domain> is
+ * used, so no tenant can send as another tenant's (or the platform's) domain.
+ */
+function fromEmailOnDomain(domain: { domain: string; default_from_email: string | null }): string {
+  const ownDomain = String(domain.domain ?? '').trim().toLowerCase();
+  const stored = String(domain.default_from_email ?? '').trim();
+  const at = stored.lastIndexOf('@');
+  if (
+    ownDomain &&
+    at > 0 &&
+    /^[^\s<>@",;:()[\]\\]+$/.test(stored.slice(0, at)) &&
+    stored.slice(at + 1).toLowerCase() === ownDomain
+  ) {
+    return stored;
+  }
+  return `mail@${domain.domain}`;
+}
+
+/**
  * Resolves the sender configuration for a tenant.
  *
  * Priority order:
@@ -46,12 +66,14 @@ export async function resolveSender(
   // Valid statuses for sending emails (active or warming_up)
   const validStatuses = ['active', 'warming_up'];
 
-  // Step 1: Check for preferred domain first (if specified)
+  // Step 1: Check for preferred domain first (if specified). The id comes from the caller, so the row
+  // must belong to this tenant (central-login 59, the crm-r2-F190 delta lead).
   if (preferredDomainId) {
     const { data: domain, error: domainError } = await supabase
       .from('email_domains')
       .select('id, domain, status, default_from_email, default_from_name, default_reply_to, manual_pause, investigation_mode')
       .eq('id', preferredDomainId)
+      .eq('tenant_id', tenantId)
       .in('status', validStatuses)
       .eq('manual_pause', false)
       .eq('investigation_mode', false)
@@ -59,7 +81,7 @@ export async function resolveSender(
 
     if (!domainError && domain) {
       console.log(`[SenderResolver] Using preferred custom domain: ${domain.domain} (status: ${domain.status})`);
-      const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
+      const fromEmail = fromEmailOnDomain(domain);
       return {
         fromEmail,
         fromName: domain.default_from_name || 'Your Business',
@@ -87,7 +109,7 @@ export async function resolveSender(
   if (!usableError && usableDomains && usableDomains.length > 0) {
     const domain = usableDomains[0];
     console.log(`[SenderResolver] Using custom domain: ${domain.domain} (status: ${domain.status})`);
-    const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
+    const fromEmail = fromEmailOnDomain(domain);
     return {
       fromEmail,
       fromName: domain.default_from_name || 'Your Business',

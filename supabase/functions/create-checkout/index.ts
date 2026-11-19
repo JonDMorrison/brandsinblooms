@@ -151,50 +151,66 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     logStep("Stripe initialized");
 
-    // Check for stored Stripe customer ID first, then fall back to email lookup
-    let customerId;
+    // crm-r2-F31: the Stripe customer is the one stored for this account, or a new one created here
+    // and tagged with the account (metadata.user_id). It is never looked up by email: another Stripe
+    // customer can carry the same address. A failed read fails closed.
+    let customerId: string | undefined;
     try {
-      // Check for stored Stripe customer ID first
-      const { data: sub } = await supabaseClient
+      const { data: sub, error: subError } = await supabaseClient
         .from('subscriptions')
-        .select('stripe_customer_id')
+        .select('id, stripe_customer_id')
         .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
+
+      if (subError) {
+        throw new Error(`Failed to read the stored Stripe customer: ${subError.message}`);
+      }
 
       if (sub?.stripe_customer_id) {
         customerId = sub.stripe_customer_id;
         logStep("Using stored Stripe customer ID", { customerId });
-      } else {
-        const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-        if (customers.data.length > 0) {
-          customerId = customers.data[0].id;
-          logStep("Existing customer found via email lookup", { customerId });
+      } else if (sub?.id) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: { user_id: user.id },
+        });
 
-          // Persist for future use. Upsert so a brand-new user
-          // without a subscriptions row still ends up with the
-          // customer ID saved (the prior update() silently no-op'd
-          // when no row existed).
-          const { error: upsertErr } = await supabaseClient
-            .from('subscriptions')
-            .upsert(
-              {
-                user_id: user.id,
-                stripe_customer_id: customerId,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'user_id' },
-            );
-          if (upsertErr) {
-            logStep("WARN: Failed to persist stripe_customer_id", { error: upsertErr.message });
-          } else {
-            logStep("Saved stripe_customer_id to subscriptions");
-          }
-        } else {
-          logStep("No existing customer found");
+        // Store it only where none is stored yet; if a parallel checkout stored one first, use that.
+        const { data: stored, error: storeError } = await supabaseClient
+          .from('subscriptions')
+          .update({ stripe_customer_id: customer.id, updated_at: new Date().toISOString() })
+          .eq('id', sub.id)
+          .is('stripe_customer_id', null)
+          .select('stripe_customer_id');
+
+        if (storeError) {
+          throw new Error(`Failed to store the Stripe customer: ${storeError.message}`);
         }
+
+        if (stored && stored.length === 1) {
+          customerId = customer.id;
+          logStep("Created and stored Stripe customer", { customerId });
+        } else {
+          const { data: current, error: currentError } = await supabaseClient
+            .from('subscriptions')
+            .select('stripe_customer_id')
+            .eq('id', sub.id)
+            .maybeSingle();
+          if (currentError || !current?.stripe_customer_id) {
+            throw new Error("Stripe customer could not be stored");
+          }
+          customerId = current.stripe_customer_id;
+          logStep("Using Stripe customer stored by a parallel checkout", { customerId });
+        }
+      } else {
+        // No row to store a customer on: Checkout creates the customer from customer_email and the
+        // webhook binds the subscription through its metadata.user_id.
+        logStep("No subscriptions row; Checkout will create the customer");
       }
     } catch (error) {
-      logStep("ERROR: Failed to check customers", { error: error instanceof Error ? error.message : String(error) });
+      logStep("ERROR: Failed to resolve Stripe customer", { error: error instanceof Error ? error.message : String(error) });
       return new Response(
         JSON.stringify({
           error: "Payment system error. Please try again.",

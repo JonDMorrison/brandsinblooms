@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui-legacy/checkbox';
 import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { Card, CardContent } from '@/components/ui-legacy/card';
 import { Send, AlertTriangle, Mail, Loader2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -29,18 +29,19 @@ export function OptInRequestModal({
   unknownCount,
   onComplete,
 }: OptInRequestModalProps) {
-  const { user } = useAuth();
+  // The company comes from the server (public.users, or the admin's selected company), never from user_metadata.
+  const { tenant } = useTenant();
   const [confirmed, setConfirmed] = useState(false);
   const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
-    if (!user?.user_metadata?.tenant_id || !confirmed) return;
+    if (!tenant?.id || !confirmed) return;
 
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-opt-in-request', {
         body: {
-          tenantId: user.user_metadata.tenant_id,
+          tenantId: tenant.id,
         },
       });
 

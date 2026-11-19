@@ -9,7 +9,6 @@ const corsHeaders = {
 }
 
 interface RenderPreviewRequest {
-  tenantId?: string;
   campaignId?: string;
   messageTemplate?: string;
   mediaUrls?: string[];
@@ -101,7 +100,14 @@ async function handler(req: Request): Promise<Response> {
       .eq('id', user.id)
       .single();
 
-    const tenantId = body.tenantId || userData?.tenant_id;
+    // central-login 59 (crm-r2-F103): the tenant is always the caller's own; a body-supplied tenantId is ignored.
+    const tenantId: string | null = userData?.tenant_id ?? null;
+    if (!tenantId) {
+      return new Response(
+        JSON.stringify({ error: 'User tenant not found' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Load message template from campaign if campaignId provided
     let template = messageTemplate || '';

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { Resend } from "npm:resend@2.0.0";
 import {renderBloomSystemEmail,bloomEmailCard} from "../../../src/lib/email/premiumBotanical.ts";
 
@@ -53,6 +54,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Scheduler-only job (central-login 59, crm-r2-F88): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

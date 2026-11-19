@@ -8,8 +8,14 @@ const supabase = createClient(
 
 const APP_ORIGIN = Deno.env.get('APP_ORIGIN') ?? 'https://bloomsuite.app';
 
-function htmlClose(type: 'oauth-success' | 'oauth-error', payload: any) {
-  const msg = JSON.stringify({ type, provider: 'mailchimp', ...payload });
+function htmlClose(type: 'oauth-success' | 'oauth-error', payload: Record<string, string>) {
+  // Safe inside the inline script: no character can close the element or the string (crm-r2-F72).
+  const msg = JSON.stringify({ type, provider: 'mailchimp', ...payload })
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
   return new Response(
     `<!DOCTYPE html><html><body>
       <script>
@@ -76,10 +82,10 @@ Deno.serve(async (req) => {
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
 
-    // Handle OAuth errors
+    // Handle OAuth errors: a fixed code, never the request's value (crm-r2-F72)
     if (error) {
-      console.error('OAuth error:', error);
-      return htmlClose('oauth-error', { error: error });
+      console.error('OAuth error returned by the provider');
+      return htmlClose('oauth-error', { error: 'provider_error' });
     }
 
     if (!code || !state) {
@@ -87,13 +93,29 @@ Deno.serve(async (req) => {
       return htmlClose('oauth-error', { error: 'invalid_callback' });
     }
 
-    // Parse state parameter
-    const [stateId, userId, propertyId] = state.split(':');
-
-    if (!userId || !propertyId) {
+    // The state is the id oauth-initiate stored; user, tenant and property come from that row, which is
+    // consumed once (crm-r2-F73). Nothing else in the state string is trusted.
+    const [stateId] = state.split(':');
+    if (!stateId) {
       console.error('Invalid state parameter');
       return htmlClose('oauth-error', { error: 'invalid_state' });
     }
+    const { data: stateRow, error: stateError } = await supabase
+      .from('oauth_states')
+      .delete()
+      .eq('state_token', stateId)
+      .eq('provider', 'google_analytics')
+      .select('user_id, tenant_id, domain_prefix, expires_at')
+      .maybeSingle();
+
+    if (stateError || !stateRow || !stateRow.domain_prefix || new Date(stateRow.expires_at) < new Date()) {
+      console.error('Invalid state parameter');
+      return htmlClose('oauth-error', { error: 'invalid_state' });
+    }
+
+    const userId: string = stateRow.user_id;
+    const tenantId: string = stateRow.tenant_id;
+    const propertyId: string = stateRow.domain_prefix;
 
     // Exchange code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -140,17 +162,11 @@ Deno.serve(async (req) => {
 
     const connectionStatus = testResponse.ok ? 'connected' : 'error';
 
-    const { data: userRecord } = await supabase
-      .from('users')
-      .select('tenant_id')
-      .eq('id', userId)
-      .maybeSingle();
-
     // Update GA settings with encrypted tokens
     const { error: updateError } = await supabase
       .from('google_analytics_settings')
       .upsert({
-        tenant_id: userRecord?.tenant_id,
+        tenant_id: tenantId,
         user_id: userId,
         property_id: propertyId,
         connection_status: connectionStatus,

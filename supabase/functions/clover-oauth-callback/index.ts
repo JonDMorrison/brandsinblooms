@@ -4,6 +4,7 @@ import { detectEnvironment } from '../_shared/environment.ts';
 import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 import { corsHeaders, corsJsonResponse } from '../_shared/cors.ts';
 import { ensureCloverWebhooks } from '../_shared/webhooks/ensureCloverWebhooks.ts';
+import { callerHasTenantPermission } from '../_shared/callerTenantPermission.ts';
 
 console.log('[CLOVER-CALLBACK] Edge function module loaded');
 
@@ -71,12 +72,27 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    const { code, merchant_id, employee_id, redirectUri } = body;
-    
+    const { code, state, merchant_id, employee_id, redirectUri } = body;
+
     console.log('[CLOVER-CALLBACK] Code:', !!code, 'Merchant ID:', merchant_id);
 
-    if (!code || !merchant_id) {
-      throw new Error('Missing code or merchant_id parameter');
+    if (!code || !merchant_id || !state) {
+      throw new Error('Missing code, state or merchant_id parameter');
+    }
+
+    // The flow completes only for the signed-in user who started it (crm-r2-F105).
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
+      return corsJsonResponse({ success: false, error: 'Sign in to finish connecting Clover' }, { status: 401 });
+    }
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } }, auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const { data: { user: caller }, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !caller) {
+      return corsJsonResponse({ success: false, error: 'Sign in to finish connecting Clover' }, { status: 401 });
     }
 
     const supabaseClient = createClient(
@@ -84,12 +100,34 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Find pending connection
+    // Consume the caller's own Clover state once (crm-r2-F105).
+    const { data: stateRow, error: stateError } = await supabaseClient
+      .from('oauth_states')
+      .delete()
+      .eq('state_token', state)
+      .eq('provider', 'clover')
+      .eq('user_id', caller.id)
+      .select('tenant_id, user_id, expires_at')
+      .maybeSingle();
+
+    if (stateError || !stateRow || new Date(stateRow.expires_at) < new Date()) {
+      throw new Error('Invalid or expired state');
+    }
+
+    if (!(await callerHasTenantPermission(authHeader, stateRow.tenant_id, 'integrations.manage'))) {
+      return corsJsonResponse({ success: false, error: 'Integration management permission required' }, { status: 403 });
+    }
+
+    // The pending connection the same user started for the state's tenant, never a table-wide pick (crm-r2-F105).
     const { data: connectionData, error: connectionError } = await supabaseClient
       .from('clover_connections')
       .select('*')
+      .eq('tenant_id', stateRow.tenant_id)
+      .eq('user_id', stateRow.user_id)
       .eq('encrypted_access_token', 'pending')
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (connectionError || !connectionData) {
       console.error('[CLOVER-CALLBACK] Connection not found:', connectionError?.message);
@@ -143,7 +181,12 @@ Deno.serve(async (req) => {
       },
     });
 
-    const merchantData = await merchantResponse.json();
+    // Store only the merchant the issued token belongs to (crm-r2-F26): webhooks are routed by merchant_id.
+    const merchantData = merchantResponse.ok ? await merchantResponse.json().catch(() => null) : null;
+    if (!merchantData || typeof merchantData.id !== 'string' || merchantData.id !== merchant_id) {
+      console.error('[CLOVER-CALLBACK] Merchant lookup did not confirm the merchant:', merchantResponse.status);
+      return corsJsonResponse({ success: false, error: 'Clover did not confirm this merchant for the authorization' }, { status: 400 });
+    }
     console.log('[CLOVER-CALLBACK] Merchant info retrieved:', merchantData.name);
 
     // Encrypt tokens

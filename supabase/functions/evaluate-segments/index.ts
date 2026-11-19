@@ -6,6 +6,12 @@ import {
   evaluateSegmentRule,
   normalizeSegmentRuleGroup,
 } from "../_shared/segmentEvaluator.ts";
+import {
+  loadCustomerStoreLocations,
+  loadSegmentStoreTargets,
+  segmentStoreScopeAllows,
+  segmentsNeedStoreScope,
+} from "../_shared/segmentLocationScope.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +29,8 @@ interface Segment {
   include_all_customers: boolean;
   status?: string | null;
   deleted_at?: string | null;
+  location_scope?: string | null;
+  primary_location_id?: string | null;
 }
 
 interface Customer {
@@ -30,6 +38,7 @@ interface Customer {
   tenant_id: string;
   email?: string | null;
   email_opt_in?: boolean | null;
+  primary_location_id?: string | null;
   [key: string]: unknown;
 }
 
@@ -177,7 +186,7 @@ Deno.serve(async (req) => {
     let segmentsQuery = supabase
       .from("crm_segments")
       .select(
-        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at",
+        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at, location_scope, primary_location_id",
       )
       .eq("auto_update", true)
       .eq("status", "active")
@@ -256,23 +265,35 @@ Deno.serve(async (req) => {
           (segment) => segment.tenant_id === currentTenantId,
         ),
       );
+      // Store scope (central-login 59, crm-r2-F84): a store-scoped segment only ever holds customers of its stores,
+      // the rule the newsletter audience applies. Tenant-scoped lookups; an error stops the run before any write.
+      const needsStoreScope = segmentsNeedStoreScope(tenantSegmentsToEvaluate);
+      const segmentTargets = needsStoreScope
+        ? await loadSegmentStoreTargets(supabase, currentTenantId, tenantSegmentsToEvaluate)
+        : new Map<string, Set<string>>();
+      const customerStores = needsStoreScope
+        ? await loadCustomerStoreLocations(supabase, currentTenantId, tenantCustomers)
+        : new Map<string, Set<string>>();
+      const noStores = new Set<string>();
 
       for (const segment of tenantSegmentsToEvaluate) {
         const segmentStartTime = Date.now();
         const matchingCustomerIds = new Set<string>();
+        const inStoreScope = (customerId: string) =>
+          segmentStoreScopeAllows(segment, customerStores.get(customerId) ?? noStores, segmentTargets);
 
         if (segment.include_all_customers) {
           // Materialize implied all-customer memberships via the normal diff path
           // so downstream campaign and segment resolution can keep relying on
           // customer_segments without a parallel audience source.
           for (const customerId of eligibleAllCustomerIds) {
-            matchingCustomerIds.add(customerId);
+            if (inStoreScope(customerId)) matchingCustomerIds.add(customerId);
           }
         } else {
           const normalizedRules = normalizeSegmentRuleGroup(segment.conditions);
 
           for (const customer of tenantCustomers) {
-            const matches = evaluateSegmentRule(normalizedRules, customer, {
+            const matches = inStoreScope(customer.id) && evaluateSegmentRule(normalizedRules, customer, {
               customerSegmentsByCustomerId: membershipsByCustomerId,
             });
 

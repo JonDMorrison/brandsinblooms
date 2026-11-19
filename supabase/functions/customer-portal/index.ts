@@ -45,30 +45,23 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Try stored Stripe customer ID first, fall back to email lookup
+    // crm-r2-F31: only the Stripe customer stored for this account opens the portal; it is never
+    // looked up by email (another Stripe customer can carry the same address). A failed read fails closed.
     let customerId: string | undefined;
 
-    const { data: sub } = await supabaseClient
+    const { data: sub, error: subError } = await supabaseClient
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
+
+    if (subError) throw new Error("Could not read the billing account. Please try again.");
 
     if (sub?.stripe_customer_id) {
       customerId = sub.stripe_customer_id;
       logStep("Using stored Stripe customer ID", { customerId });
-    } else {
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Found Stripe customer via email fallback", { customerId });
-
-        // Persist for future use
-        await supabaseClient
-          .from('subscriptions')
-          .update({ stripe_customer_id: customerId, updated_at: new Date().toISOString() })
-          .eq('user_id', user.id);
-      }
     }
 
     if (!customerId) {

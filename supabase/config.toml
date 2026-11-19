@@ -2,7 +2,7 @@ project_id = "udldmkqwnxhdeztyqcau"
 
 # Local development only: this machine runs several Supabase stacks at once, so
 # the CRM uses its own port block (57320-57329, edge inspector 8087) and the
-# Vite dev server at http://localhost:8090. None of this applies to the hosted
+# Vite dev server at http://localhost:8092. None of this applies to the hosted
 # project.
 [api]
 port = 57321
@@ -29,11 +29,17 @@ port = 57327
 inspector_port = 8087
 
 [auth]
-site_url = "http://localhost:8090"
-additional_redirect_urls = ["http://localhost:8090", "http://localhost:8090/auth/bloomsuite", "http://localhost:8090/dashboard", "http://localhost:8090/onboarding", "http://localhost:8090/reset-password", "http://localhost:8090/auth/callback"]
+site_url = "http://localhost:8092"
+additional_redirect_urls = ["http://localhost:8092", "http://localhost:8092/auth/bloomsuite", "http://localhost:8092/dashboard", "http://localhost:8092/onboarding", "http://localhost:8092/reset-password", "http://localhost:8092/auth/callback"]
 
 [auth.email]
 enable_confirmations = true
+
+# Central-login 59 (crm-r2-F199, F21, F198): a BloomSuite-linked account gets tokens only from a BloomSuite ID
+# (OAuth) sign-in; the hook refuses any other token for it. Enable the same hook on the hosted project at go-live.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/crm_custom_access_token_hook"
 
 # Note: connect-meta function was removed (deprecated)
 
@@ -112,33 +118,6 @@ verify_jwt = true
 [functions.oauth-callback]
 verify_jwt = false
 
-[functions.oauth-discovery]
-verify_jwt = false
-
-[functions.oauth-jwks]
-verify_jwt = false
-
-[functions.oauth-token]
-verify_jwt = false
-
-[functions.oauth-userinfo]
-verify_jwt = false
-
-[functions.oauth-revoke]
-verify_jwt = false
-
-[functions.oauth-provision-user]
-verify_jwt = false
-
-[functions.oauth-subscription-status]
-verify_jwt = false
-
-[functions.oauth-authorize-init]
-verify_jwt = false
-
-[functions.oauth-authorize-complete]
-verify_jwt = false
-
 [functions.ga-report-data]
 verify_jwt = true
 
@@ -165,9 +144,6 @@ verify_jwt = false
 
 [functions.generate-image-keywords]
 verify_jwt = false
-
-[functions.analyze-csv-columns]
-verify_jwt = true
 
 [functions.analyze-csv-intelligent]
 verify_jwt = true
@@ -353,9 +329,6 @@ verify_jwt = true
 
 [functions.square-test-automation]
 verify_jwt = true
-
-[functions.outbox-test-insert]
-verify_jwt = false
 
 [functions.entri-domain-callback]
 verify_jwt = true
@@ -569,6 +542,24 @@ verify_jwt = true
 [functions.bloomsuite-pos-inbound]
 verify_jwt = false
 
+# BloomSuite central login: the signed-in user's own session report to BloomSuite ID; their JWT is required.
+[functions.bloomsuite-session-report]
+verify_jwt = true
+
+# BloomSuite central login: BloomSuite ID's X-BloomSuite-Signature HMAC is verified before any data access.
+[functions.bloomsuite-revoke]
+verify_jwt = false
+
+# BloomSuite central login: the CRM's app switcher; the signed-in user's JWT is required, and the call to
+# BloomSuite ID is signed server-side.
+[functions.bloomsuite-my-apps]
+verify_jwt = true
+
+# BloomSuite central login: collects BloomSuite ID's deletion notices every 10 minutes (database scheduler); the
+# scheduler's worker token is checked in code, and the calls to BloomSuite ID are signed server-side.
+[functions.bloomsuite-deletion-notices]
+verify_jwt = false
+
 # Storefront OAuth state is validated against a short-lived site-owner-bound record.
 # Signed read requests are authenticated by the grant's per-site ECDSA proof.
 [functions.lightspeed-storefront-bridge]
@@ -639,3 +630,53 @@ verify_jwt = false
 
 [functions.connected-content]
 verify_jwt = true
+
+# Scheduler-only jobs (central-login 59, fleet S1): each handler checks a configured server key itself
+# (requireInternalApiKey, apikey or Authorization: Bearer); opaque sb_secret_ keys are not JWTs.
+[functions.auto-send-campaigns]
+verify_jwt = false
+
+[functions.send-support-emails]
+verify_jwt = false
+
+[functions.send-queued-emails]
+verify_jwt = false
+
+[functions.send-seasonal-prompt]
+verify_jwt = false
+
+[functions.send-daily-digest]
+verify_jwt = false
+
+[functions.hub-cleanup]
+verify_jwt = false
+
+[functions.run-automations]
+verify_jwt = false
+
+[functions.send-monthly-performance]
+verify_jwt = false
+
+[functions.send-trial-reminder]
+verify_jwt = false
+
+[functions.vmx-sync-receipts]
+verify_jwt = false
+
+[functions.vmx-backfill-receipts]
+verify_jwt = false
+
+[functions.vmx-sync-all]
+verify_jwt = false
+
+[functions.vmx-backfill-runner]
+verify_jwt = false
+
+[functions.token-refresh-worker]
+verify_jwt = false
+
+# stripe-webhook: Stripe sends no Supabase JWT. Every delivery is authenticated inside the handler by
+# its Stripe-Signature (stripe.webhooks.constructEventAsync with STRIPE_WEBHOOK_SECRET); an invalid
+# signature is refused with 400 (central-login 59, crm-r2-F11).
+[functions.stripe-webhook]
+verify_jwt = false

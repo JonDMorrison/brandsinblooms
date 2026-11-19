@@ -6,6 +6,12 @@ import {
   evaluateSegmentRule,
   normalizeSegmentRuleGroup,
 } from "../_shared/segmentEvaluator.ts";
+import {
+  loadCustomerStoreLocations,
+  loadSegmentStoreTargets,
+  segmentStoreScopeAllows,
+  segmentsNeedStoreScope,
+} from "../_shared/segmentLocationScope.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +24,8 @@ interface Segment {
   name: string;
   conditions: unknown;
   include_all_customers: boolean;
+  location_scope: string | null;
+  primary_location_id: string | null;
 }
 
 function sortSegmentsByDependencies(segments: Segment[]) {
@@ -124,7 +132,9 @@ serve(async (req) => {
     // 1. Load target segments
     let segQuery = supabase
       .from("crm_segments")
-      .select("id, name, conditions, include_all_customers")
+      .select(
+        "id, name, conditions, include_all_customers, location_scope, primary_location_id",
+      )
       .eq("tenant_id", tenant_id)
       .eq("auto_update", true)
       .eq("status", "active")
@@ -160,7 +170,7 @@ serve(async (req) => {
     // 2. Load target customers (paginate to get all)
     const allCustomers: any[] = [];
     const selectFields =
-      "id, email, email_opt_in, sms_opt_in, first_name, last_name, phone, total_spent, lifetime_value, pos_order_count, first_purchase_date, last_purchase_date, last_visit_date, loyalty_member, loyalty_rewards_balance, email_consent, sms_consent, tags, product_tags, persona, persona_id, preferred_channel, last_open_at, last_email_clicked_at, total_emails_opened, total_emails_clicked, total_emails_sent, email_click_rate, email_engagement_score, suppressed, opt_out, is_vip, pos_source, custom_fields, created_at, updated_at";
+      "id, email, email_opt_in, sms_opt_in, first_name, last_name, phone, total_spent, lifetime_value, pos_order_count, first_purchase_date, last_purchase_date, last_visit_date, loyalty_member, loyalty_rewards_balance, email_consent, sms_consent, tags, product_tags, persona, persona_id, preferred_channel, last_open_at, last_email_clicked_at, total_emails_opened, total_emails_clicked, total_emails_sent, email_click_rate, email_engagement_score, suppressed, opt_out, is_vip, pos_source, custom_fields, primary_location_id, created_at, updated_at";
 
     if (customer_ids?.length > 0) {
       // Targeted: load specific customers in chunks
@@ -261,6 +271,17 @@ serve(async (req) => {
 
     const sortedSegments = sortSegmentsByDependencies(segments as Segment[]);
 
+    // Store scope (central-login 59, crm-r2-F84): a store-scoped segment only ever holds customers of its stores, the
+    // same rule the newsletter audience applies. Lookups are tenant-scoped; an error stops the run (500).
+    const needsStoreScope = segmentsNeedStoreScope(sortedSegments);
+    const segmentTargets = needsStoreScope
+      ? await loadSegmentStoreTargets(supabase, tenant_id, sortedSegments)
+      : new Map<string, Set<string>>();
+    const customerStores = needsStoreScope
+      ? await loadCustomerStoreLocations(supabase, tenant_id, customers)
+      : new Map<string, Set<string>>();
+    const noStores = new Set<string>();
+
     // 4. Evaluate and diff
     const toInsert: Array<{
       customer_id: string;
@@ -272,13 +293,20 @@ serve(async (req) => {
     for (const customer of customers) {
       for (const segment of sortedSegments) {
         const key = `${customer.id}:${segment.id}`;
-        const matches = segment.include_all_customers
-          ? eligibleAllCustomerIds.has(customer.id)
-          : evaluateSegmentRule(
-              normalizeSegmentRuleGroup(segment.conditions),
-              customer,
-              { customerSegmentsByCustomerId: membershipsByCustomerId },
-            );
+        const inStoreScope = segmentStoreScopeAllows(
+          segment,
+          customerStores.get(customer.id) ?? noStores,
+          segmentTargets,
+        );
+        const matches =
+          inStoreScope &&
+          (segment.include_all_customers
+            ? eligibleAllCustomerIds.has(customer.id)
+            : evaluateSegmentRule(
+                normalizeSegmentRuleGroup(segment.conditions),
+                customer,
+                { customerSegmentsByCustomerId: membershipsByCustomerId },
+              ));
         const exists = existingSet.has(key);
 
         if (matches && !exists) {

@@ -42,6 +42,12 @@ serve(async (req) => {
     if (!adminEmails.includes(callerEmail)) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    // crm-r2-F122: a compiled-in address is a super admin only while it is also a master admin (the app_admin_emails
+    // allow-list), so removing it from the allow-list revokes hard delete too.
+    const { data: isMasterAdmin, error: adminCheckError } = await supabase.rpc('is_master_admin', { _user_id: userDataAuth.user.id });
+    if (adminCheckError || isMasterAdmin !== true) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     const { userId }: HardDeleteRequest = await req.json();
 

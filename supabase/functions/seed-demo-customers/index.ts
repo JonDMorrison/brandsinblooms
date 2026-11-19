@@ -218,7 +218,17 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Admin-only demo tool (its page lives under /admin): only a master admin may move
+    // a user into the demo tenant (same check as admin-manage-tenant).
+    const { data: isMasterAdmin, error: adminCheckError } = await supabase.rpc('is_master_admin', { _user_id: user.id });
+    if (adminCheckError || isMasterAdmin !== true) {
+      return new Response(JSON.stringify({ error: 'Access denied. Master admin required.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { userId, count = 500 } = await req.json();
+    if (typeof userId !== 'string' || userId.length === 0) {
+      return new Response(JSON.stringify({ error: 'userId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     console.log(`[SeedDemo] Starting seed for user ${userId} with ${count} customers`);
 

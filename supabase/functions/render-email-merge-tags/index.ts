@@ -12,6 +12,13 @@ import {
   createMergeTagDataFromCustomer,
   renderMergeTags,
 } from "../_shared/mergeTagEngine.ts";
+import {
+  callerHasTenantPermission,
+  callerTenantId,
+} from "../_shared/callerTenantPermission.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function renderEmailHtmlWithMergeTags(params: {
   tenantId: string;
@@ -125,6 +132,19 @@ serve(async (req) => {
   }
 
   try {
+    // central-login 59 (crm-r2-F85): a signed-in user or an internal caller presenting a configured server key.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    const trustedService = requireInternalApiKey(req) === null;
+
     const body: RenderRequest = await req.json();
     const {
       tenantId,
@@ -152,6 +172,63 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // A user's reads go through their own token (RLS), never the service role.
+    const accessClient = trustedService
+      ? supabase
+      : createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+          global: { headers: { Authorization: authHeader } },
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+
+    let accessTenantId = tenantId;
+    if (!trustedService) {
+      const {
+        data: { user },
+        error: userError,
+      } = await accessClient.auth.getUser();
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Unauthorized" }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      // The account whose data is rendered: the requested one, else the caller's own. The caller needs newsletter
+      // preview access to it (campaign.read, the rule of newsletterPreviewAccess.ts) before any customer or company
+      // read; the customer itself is then read through the caller's token.
+      if (customerId || tenantId) {
+        accessTenantId = tenantId || (await callerTenantId(authHeader)) || undefined;
+        if (
+          (accessTenantId && !UUID.test(accessTenantId)) ||
+          (customerId && !UUID.test(customerId))
+        ) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Select a valid account and preview contact." }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        if (
+          !accessTenantId ||
+          !(await callerHasTenantPermission(authHeader, accessTenantId, "campaign.read"))
+        ) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "You do not have access to preview newsletters for this account.",
+            }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+    }
 
     let customer: Record<string, unknown> | undefined;
     let companyInfo: Record<string, unknown> = {};
@@ -160,13 +237,14 @@ serve(async (req) => {
     if (customerId) {
       console.log(`[render-email-merge-tags] Loading customer: ${customerId}`);
 
-      const { data: customerData, error: customerError } = await supabase
+      let customerQuery = accessClient
         .from("crm_customers")
         .select("*")
-        .eq("id", customerId)
-        .single();
+        .eq("id", customerId);
+      if (accessTenantId) customerQuery = customerQuery.eq("tenant_id", accessTenantId);
+      const { data: customerData, error: customerError } = await customerQuery.maybeSingle();
 
-      if (customerError) {
+      if (customerError || !customerData) {
         console.error(
           `[render-email-merge-tags] Customer load error:`,
           customerError,
@@ -204,12 +282,12 @@ serve(async (req) => {
           }
         }
       }
-    } else if (tenantId) {
+    } else if (accessTenantId) {
       // Load company info from tenant
       const { data: tenantData } = await supabase
         .from("tenants")
         .select("owner_id")
-        .eq("id", tenantId)
+        .eq("id", accessTenantId)
         .single();
 
       if (tenantData?.owner_id) {

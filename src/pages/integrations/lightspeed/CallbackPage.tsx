@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle, Clock, XCircle } from "lucide-react";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { supabase } from "@/integrations/supabase/client";
 import { Box, CircularProgress, Stack, Typography } from "@mui/joy";
 
 type OAuthResult = {
@@ -147,7 +148,10 @@ const CallbackPage = () => {
         // Get the current origin for redirect URI
         const redirectUri = `${window.location.origin}/integrations/lightspeed/callback`;
 
-        // Call the edge function directly via fetch (no auth required, uses state lookup)
+        // Call the edge function directly via fetch with the signed-in session: the callback completes
+        // only the flow this user started (central-login 59, crm-r2-F60).
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
         const supabaseUrl = "https://udldmkqwnxhdeztyqcau.supabase.co";
         const response = await fetch(
           `${supabaseUrl}/functions/v1/lightspeed-oauth-callback`,
@@ -155,6 +159,7 @@ const CallbackPage = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             },
             body: JSON.stringify({
               code,

@@ -3,6 +3,7 @@ import { detectEnvironment, getSquareCredentials } from '../_shared/environment.
 import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 import { corsHeaders, corsJsonResponse } from '../_shared/cors.ts';
 import { ensureSquareWebhooks } from '../_shared/webhooks/ensureSquareWebhooks.ts';
+import { callerHasTenantPermission } from '../_shared/callerTenantPermission.ts';
 
 console.log('[SQUARE-CALLBACK] Edge function module loaded');
 
@@ -48,17 +49,54 @@ Deno.serve(async (req) => {
       throw new Error('Missing code or state parameter');
     }
 
+    // The flow completes only for the signed-in user who started it (crm-r2-F105).
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
+      return corsJsonResponse({ success: false, error: 'Sign in to finish connecting Square' }, { status: 401 });
+    }
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } }, auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const { data: { user: caller }, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !caller) {
+      return corsJsonResponse({ success: false, error: 'Sign in to finish connecting Square' }, { status: 401 });
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Find pending connection by encrypted_access_token = 'pending'
+    // Consume the caller's own Square state once (crm-r2-F105).
+    const { data: stateRow, error: stateError } = await supabaseClient
+      .from('oauth_states')
+      .delete()
+      .eq('state_token', state)
+      .eq('provider', 'square')
+      .eq('user_id', caller.id)
+      .select('tenant_id, user_id, expires_at')
+      .maybeSingle();
+
+    if (stateError || !stateRow || new Date(stateRow.expires_at) < new Date()) {
+      throw new Error('Invalid or expired state');
+    }
+
+    if (!(await callerHasTenantPermission(authHeader, stateRow.tenant_id, 'integrations.manage'))) {
+      return corsJsonResponse({ success: false, error: 'Integration management permission required' }, { status: 403 });
+    }
+
+    // The pending connection the same user started for the state's tenant, never a table-wide pick (crm-r2-F105).
     const { data: connectionData, error: connectionError } = await supabaseClient
       .from('square_connections')
       .select('*')
+      .eq('tenant_id', stateRow.tenant_id)
+      .eq('user_id', stateRow.user_id)
       .eq('encrypted_access_token', 'pending')
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (connectionError || !connectionData) {
       console.error('[SQUARE-CALLBACK] Connection not found:', connectionError?.message);

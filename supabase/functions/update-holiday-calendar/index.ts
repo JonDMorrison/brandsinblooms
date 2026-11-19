@@ -35,11 +35,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { target_year, trigger_type = 'manual' } = await req.json()
-    const targetYear = target_year || new Date().getFullYear() + 1
-
-    console.log(`Starting holiday calendar update for year ${targetYear}`)
-
     // SECURITY: [E42] - Add authentication (was falling through as system)
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -53,11 +48,22 @@ serve(async (req) => {
         if (authErr || !user) {
           return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
         }
+        // central-login 59 (crm-r2-F114): regenerating the shared holiday calendar is a master-admin action.
+        const { data: isMasterAdmin } = await supabaseClient.rpc('is_master_admin', { _user_id: user.id })
+        if (isMasterAdmin !== true) {
+          return new Response(JSON.stringify({ error: 'Access denied. Master admin required.' }), { status: 403, headers: corsHeaders })
+        }
         triggeredBy = user?.id
       } catch (error) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
       }
     }
+
+    // The body is read only after the caller is authorized (central-login 59, crm-r2-F114).
+    const { target_year, trigger_type = 'manual' } = await req.json()
+    const targetYear = target_year || new Date().getFullYear() + 1
+
+    console.log(`Starting holiday calendar update for year ${targetYear}`)
 
     // Fetch all active holiday templates
     const { data: templates, error: templatesError } = await supabaseClient

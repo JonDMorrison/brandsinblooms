@@ -1281,9 +1281,17 @@ const handler = async (req: Request): Promise<Response> => {
       verificationPhase = "provider_verified";
     }
 
-    const newStatus = dnsConflictDetected
+    const verifiedStatus = dnsConflictDetected
       ? "pending_dns"
       : mapResendStatus(resendDomainStatus?.status, allPassed, allDnsVerified);
+    // An operator's hold outlives verification: a paused or blocked domain, or one under manual_pause or
+    // investigation_mode, keeps its status; verification results are still recorded (central-login 59, 59/R-01).
+    const operatorHold =
+      emailDomain.status === "paused" ||
+      emailDomain.status === "blocked" ||
+      emailDomain.manual_pause === true ||
+      emailDomain.investigation_mode === true;
+    const newStatus = operatorHold ? emailDomain.status : verifiedStatus;
 
     const treatedAsActive = newStatus === "active";
     const errorMessage = treatedAsActive

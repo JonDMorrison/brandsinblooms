@@ -4,6 +4,7 @@ import {
   normalizeSegmentRuleGroup,
 } from "./segmentEvaluator.ts";
 import type { RenderableContentBlock } from "./campaignEmailContent.ts";
+import { segmentStoreScopeAllows } from "./segmentLocationScope.ts";
 import type { RenderAudience } from "../../../src/lib/studio/newsletter/audience.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -130,24 +131,11 @@ export async function resolveNewsletterAudience(params: {
     .filter((segment) => {
       if (segment.status === "archived" || segment.status === "deleted")
         return false;
-      // Store scope applies to every segment, including all-customer and dynamic rules.
-      if (
-        segment.location_scope === "one_location" &&
-        !customerLocations.has(segment.primary_location_id)
-      )
-        return false;
-      if (
-        segment.location_scope === "selected_locations" &&
-        ![...(segmentLocations.get(segment.id) || [])].some((id) =>
-          customerLocations.has(id),
-        )
-      )
-        return false;
+      // Store scope applies to every segment, including all-customer and dynamic rules (shared rule:
+      // segmentLocationScope.ts, also used by the membership producers since central-login 59).
       if (
         segment.location_scope &&
-        !["all_locations", "one_location", "selected_locations"].includes(
-          segment.location_scope,
-        )
+        !segmentStoreScopeAllows(segment, customerLocations, segmentLocations)
       )
         return false;
       if (segment.include_all_customers === true) return true;

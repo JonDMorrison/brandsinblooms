@@ -495,9 +495,11 @@ function ScrollableHtmlPreview({
       }}
     >
       <Box sx={{ width: "100%", maxWidth: 720, mx: "auto" }}>
+        {/* crm-r2-F10: tenant-authored campaign HTML never runs script on the crm origin. */}
         <iframe
           title="Campaign email preview"
           srcDoc={html}
+          sandbox="allow-same-origin"
           style={{
             width: "100%",
             height: minHeight,

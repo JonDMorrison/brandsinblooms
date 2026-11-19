@@ -9,6 +9,8 @@ import {
   detectEnvironmentFromOrigin,
   getEnvSecret,
 } from "../_shared/environment.ts";
+import { isConfiguredAppOrigin } from "../_shared/cors.ts";
+import { stateUserCanManageIntegrations } from "../_shared/integrationStateAccess.ts";
 
 declare const EdgeRuntime: {
   waitUntil(promise: Promise<unknown>): void;
@@ -223,24 +225,63 @@ export async function handleMigrationsOAuthCallback(
       providerFromQuery,
     );
     const redirectUri = claims?.redirectUri as string;
-    appOriginFromState = claims?.appOrigin as string | undefined;
-    const uid = claims?.uid as string;
+    const claimedAppOrigin =
+      typeof claims?.appOrigin === "string" ? claims.appOrigin : undefined;
+    // Redirect back only to a configured app origin (crm-r2-F70).
+    appOriginFromState = isConfiguredAppOrigin(claimedAppOrigin, deps.envGet)
+      ? claimedAppOrigin
+      : undefined;
+    const uid = typeof claims?.uid === "string" ? claims.uid : "";
+    const nonce = typeof claims?.nonce === "string" ? claims.nonce : "";
+    if (!uid || !nonce) {
+      throw new Error("Invalid or expired state token");
+    }
 
-    const { data: userRow, error: userErr } = await supabase
-      .from("users")
-      .select("tenant_id")
-      .eq("id", uid)
-      .maybeSingle();
+    // The tenant bound into the state by oauth-authorize (crm-r2-F71); a state minted before that carries none.
+    let tenant_id = typeof claims?.tid === "string" ? claims.tid : "";
+    if (!tenant_id) {
+      const { data: userRow, error: userErr } = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", uid)
+        .maybeSingle();
 
-    if (userErr || !userRow?.tenant_id) {
-      throw new Error("User or tenant not found for state");
+      if (userErr || !userRow?.tenant_id) {
+        throw new Error("User or tenant not found for state");
+      }
+      tenant_id = userRow.tenant_id;
     }
 
     const user_id = uid;
-    const tenant_id = userRow.tenant_id;
 
-    const environment = appOriginFromState
-      ? detectEnvironmentFromOrigin(appOriginFromState)
+    // The state's user must still manage integrations for that tenant (crm-r2-F71).
+    if (!(await stateUserCanManageIntegrations(supabase, user_id, tenant_id))) {
+      throw new Error(
+        "Integration management permission is required to connect this provider.",
+      );
+    }
+
+    // Single use: record the state's nonce before the code exchange; a replayed state fails on the unique
+    // state_token (crm-r2-F66 replay, F68). The row expires with the state.
+    const stateExp = typeof claims?.exp === "number" ? claims.exp * 1000 : 0;
+    const { error: nonceError } = await supabase.from("oauth_states").insert({
+      state_token: `${provider}:${nonce}`,
+      user_id,
+      tenant_id,
+      provider,
+      domain_prefix: "",
+      expires_at: new Date(
+        stateExp > Date.now() ? stateExp : Date.now() + 10 * 60 * 1000,
+      ).toISOString(),
+    });
+    if (nonceError) {
+      throw new Error(
+        "This authorization link was already used. Please start the connection again.",
+      );
+    }
+
+    const environment = claimedAppOrigin
+      ? detectEnvironmentFromOrigin(claimedAppOrigin)
       : detectEnvironment(req);
     const credentialKeys = PROVIDER_CLIENT_SECRET_BASE_NAMES[provider];
     const clientId = getEnvSecret(
@@ -317,18 +358,14 @@ export async function handleMigrationsOAuthCallback(
         }),
       });
       tokenData = await response.json();
-      console.log(
-        "[migrations-oauth-callback] Constant Contact token response:",
-        JSON.stringify(tokenData),
-      );
     }
 
+    // Never log the token response: it holds the access and refresh tokens (crm-r2-F67).
     if (!tokenData.access_token) {
       console.error("[migrations-oauth-callback] Token exchange failed:", {
         provider,
         error: tokenData.error,
         error_description: tokenData.error_description,
-        response: JSON.stringify(tokenData),
       });
       throw new Error(
         `Failed to obtain access token: ${tokenData.error_description || tokenData.error || "Unknown error"}`,
@@ -390,10 +427,11 @@ export async function handleMigrationsOAuthCallback(
         email: accData.contact_email,
         ...accData,
       };
-      console.log(
-        "[migrations-oauth-callback] Constant Contact account info:",
-        JSON.stringify(accountInfo),
-      );
+      // Account details are personal data: log only whether an account id came back (crm-r2-F67).
+      console.log("[migrations-oauth-callback] Constant Contact account info:", {
+        provider,
+        hasAccountId: Boolean(accountInfo.account_id),
+      });
     }
 
     // Also store refresh token for Constant Contact (it uses offline_access)
@@ -430,7 +468,9 @@ export async function handleMigrationsOAuthCallback(
     }
 
     if (existingConn) {
+      // A reconnect rebinds the row to the verified user who completed it (crm-r2-F68).
       const updatePayload: any = {
+        user_id,
         status: "connected",
         encrypted_access_token: encryptedToken,
         provider_account_id: accountInfo.id || accountInfo.account_id || "",

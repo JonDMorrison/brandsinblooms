@@ -2,6 +2,23 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, handleCorsPrelight } from '../_shared/cors.ts';
 
+// crm-r2-F37: domain-connect issues session tokens with crypto.randomUUID(); nothing else is accepted.
+const SESSION_TOKEN_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// crm-r2-F37: the caller goes back to the app with a 303 redirect whose query is built with
+// URLSearchParams, so no request value is ever placed in HTML or script.
+function redirectToApp(params: Record<string, string>): Response {
+  const appBaseUrl = (Deno.env.get('APP_BASE_URL') || 'http://localhost:5173').replace(/\/+$/, '');
+  const target = new URL(`${appBaseUrl}/domains`);
+  for (const [key, value] of Object.entries(params)) {
+    target.searchParams.set(key, value);
+  }
+  return new Response(null, {
+    status: 303,
+    headers: { ...corsHeaders, Location: target.toString() },
+  });
+}
+
 serve(async (req: Request) => {
   // Handle CORS
   const corsResponse = handleCorsPrelight(req);
@@ -24,6 +41,13 @@ serve(async (req: Request) => {
     if (!sessionToken) {
       return new Response(
         `<html><body><h1>Error</h1><p>Missing session token</p></body></html>`,
+        { status: 400, headers: { 'Content-Type': 'text/html', ...corsHeaders } }
+      );
+    }
+
+    if (!SESSION_TOKEN_PATTERN.test(sessionToken)) {
+      return new Response(
+        `<html><body><h1>Error</h1><p>Invalid session token</p></body></html>`,
         { status: 400, headers: { 'Content-Type': 'text/html', ...corsHeaders } }
       );
     }
@@ -76,54 +100,11 @@ serve(async (req: Request) => {
     }
 
     // Redirect back to the app with status
-    const appBaseUrl = Deno.env.get('APP_BASE_URL') || 'http://localhost:5173';
-    const redirectUrl = `${appBaseUrl}/domains?dc_status=${status}&session=${sessionToken}`;
-
-    return new Response(
-      `<html>
-        <head><title>Domain Connect</title></head>
-        <body>
-          <h1>${status === 'applied' ? 'Success!' : 'Setup Failed'}</h1>
-          <p>${status === 'applied' 
-            ? 'DNS records have been applied successfully. Redirecting...' 
-            : 'There was an issue applying DNS records. You can try again or set up DNS manually.'
-          }</p>
-          <script>
-            setTimeout(() => {
-              window.location.href = '${redirectUrl}';
-            }, 2000);
-          </script>
-        </body>
-      </html>`,
-      { 
-        status: 200, 
-        headers: { 'Content-Type': 'text/html', ...corsHeaders } 
-      }
-    );
+    return redirectToApp({ dc_status: status, session: sessionToken });
 
   } catch (error) {
     console.error('Domain Connect callback error:', error);
-    
-    const appBaseUrl = Deno.env.get('APP_BASE_URL') || 'http://localhost:5173';
-    const redirectUrl = `${appBaseUrl}/domains?dc_status=error`;
 
-    return new Response(
-      `<html>
-        <head><title>Domain Connect Error</title></head>
-        <body>
-          <h1>Error</h1>
-          <p>Something went wrong. Redirecting back to the application...</p>
-          <script>
-            setTimeout(() => {
-              window.location.href = '${redirectUrl}';
-            }, 2000);
-          </script>
-        </body>
-      </html>`,
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'text/html', ...corsHeaders } 
-      }
-    );
+    return redirectToApp({ dc_status: 'error' });
   }
 });

@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Alert from "@mui/joy/Alert";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { useSearchParams } from "react-router-dom";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyCard,
@@ -17,40 +16,75 @@ import {
   IMPERSONATION_TARGET_EMAIL_STORAGE_KEY,
 } from "@/hooks/useImpersonation";
 import { PageContainer } from "@/components/joy/PageContainer";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getBrowserAdminAccessToken,
+  IMPERSONATION_TAB_STORAGE_KEY,
+  supabase,
+} from "@/integrations/supabase/client";
 import { getAuthErrorMessage } from "@/utils/authErrorMessages";
 
+interface RedeemResponse {
+  success?: boolean;
+  token_hash?: string;
+  type?: string;
+  target_email?: string;
+  error?: string;
+}
+
+const NOT_VALID_MESSAGE =
+  "This impersonation link can only be used once, in the browser of the admin who started it. Start again from the admin page.";
+
+/**
+ * /admin/impersonate/callback — the impersonation tab (crm-r1-F04, F07). The address carries only a one-time grant
+ * (in the fragment, never sent to a server). The signed-in master admin of THIS browser redeems it; only then is the
+ * magic-link token minted and verified, into this tab's own session storage, next to the impersonation marker.
+ */
 export default function ImpersonateCallbackPage() {
-  const [searchParams] = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCloseFallback, setShowCloseFallback] = useState(false);
-
-  const tokenHash = searchParams.get("token_hash");
-  const typeParam = searchParams.get("type");
-  const targetEmail = searchParams.get("target_email");
-  const isMissingRequiredParams = !tokenHash || !typeParam || !targetEmail;
+  const [targetEmail, setTargetEmail] = useState<string | null>(null);
+  const started = useRef(false);
 
   useEffect(() => {
-    if (isMissingRequiredParams || !tokenHash) {
-      setErrorMessage(
-        "Invalid impersonation link. Missing required parameters.",
-      );
+    // Runs once: the grant is single use and leaves the address on the first read.
+    if (started.current) return;
+    started.current = true;
+
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const grantId = fragment.get("grant");
+    const nonce = fragment.get("nonce");
+    // The grant never stays in the address bar or the history.
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+
+    if (!grantId || !nonce) {
+      setErrorMessage("Invalid impersonation link. Missing required parameters.");
       setIsLoading(false);
       return;
     }
 
-    let isCancelled = false;
-
     const establishSession = async () => {
+      const adminAccessToken = await getBrowserAdminAccessToken();
+      if (!adminAccessToken) {
+        throw new Error(NOT_VALID_MESSAGE);
+      }
+
+      const { data, error: redeemError } = await supabase.functions.invoke<RedeemResponse>(
+        "admin-impersonate-user",
+        {
+          body: { op: "redeem", grant_id: grantId, nonce },
+          headers: { Authorization: `Bearer ${adminAccessToken}` },
+        },
+      );
+      if (redeemError || !data?.success || !data.token_hash || !data.target_email) {
+        throw new Error(NOT_VALID_MESSAGE);
+      }
+      setTargetEmail(data.target_email);
+
       const { error } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
+        token_hash: data.token_hash,
         type: "magiclink",
       });
-
-      if (isCancelled) {
-        return;
-      }
 
       if (error) {
         setErrorMessage(getAuthErrorMessage(error, "verifyOtp").message);
@@ -58,10 +92,11 @@ export default function ImpersonateCallbackPage() {
         return;
       }
 
+      sessionStorage.setItem(IMPERSONATION_TAB_STORAGE_KEY, "true");
       sessionStorage.setItem(IMPERSONATION_ACTIVE_STORAGE_KEY, "true");
       sessionStorage.setItem(
         IMPERSONATION_TARGET_EMAIL_STORAGE_KEY,
-        targetEmail,
+        data.target_email,
       );
       sessionStorage.setItem(
         IMPERSONATION_STARTED_AT_STORAGE_KEY,
@@ -72,18 +107,14 @@ export default function ImpersonateCallbackPage() {
     };
 
     void establishSession().catch((error: unknown) => {
-      if (isCancelled) {
-        return;
-      }
-
-      setErrorMessage(getAuthErrorMessage(error, "verifyOtp").message);
+      setErrorMessage(
+        error instanceof Error && error.message === NOT_VALID_MESSAGE
+          ? NOT_VALID_MESSAGE
+          : getAuthErrorMessage(error, "verifyOtp").message,
+      );
       setIsLoading(false);
     });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isMissingRequiredParams, targetEmail, tokenHash]);
+  }, []);
 
   const handleCloseTab = () => {
     window.close();
@@ -122,7 +153,7 @@ export default function ImpersonateCallbackPage() {
                   Establishing impersonation session...
                 </Typography>
                 <Typography level="body-sm" color="neutral">
-                  Signing in as {targetEmail}.
+                  {targetEmail ? `Signing in as ${targetEmail}.` : "Checking the impersonation grant."}
                 </Typography>
               </Stack>
             </Stack>

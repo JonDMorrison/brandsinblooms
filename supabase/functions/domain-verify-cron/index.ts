@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * Domain Verification Cron Job
@@ -17,6 +18,11 @@ import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/co
 const handler = async (req: Request): Promise<Response> => {
   const corsResponse = handleCorsPrelight(req);
   if (corsResponse) return corsResponse;
+
+  // Scheduler-only job (central-login 59, crm-r2-F77): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   const startTime = Date.now();
   console.log("🕐 Domain verification cron job started");

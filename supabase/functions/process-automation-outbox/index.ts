@@ -29,6 +29,7 @@ import {
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
+import { canSendEmail } from "../_shared/canSendEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -737,24 +738,67 @@ async function sendEmail(
       }
     }
 
-    const templateData = message.template_data || {};
-    let senderConfig: SenderConfig;
+    // Suppression applies to every email row, not only automation steps (central-login 59, crm-r2-F80).
+    if (!(message.automation_id && automationNodeId)) {
+      const suppression = await canSendEmail(supabase, {
+        tenantId: message.tenant_id,
+        customerId: message.customer_id || undefined,
+        email: message.recipient,
+      });
+      if (!suppression.allowed) {
+        console.log(
+          `⏭️ [SendEmail] Suppression check failed: ${suppression.reason}`,
+        );
+        return {
+          success: false,
+          error: suppression.reason || "suppressed",
+          shouldSkip: true,
+          canRetry: false,
+        };
+      }
+    }
 
-    if (templateData.sender_config?.from_email) {
-      senderConfig = {
-        fromEmail: templateData.sender_config.from_email,
-        fromName: templateData.sender_config.from_name,
-        deliveryMethod: templateData.sender_config.delivery_method,
-        domainId: templateData.sender_config.domain_id,
-        // Extract reply-to with fallback to sender email
-        replyTo:
-          templateData.sender_config.reply_to ||
-          templateData.sender_config.from_email,
-      } as SenderConfig;
-      console.log(
-        `📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail}), reply-to: ${senderConfig.replyTo}`,
-      );
-    } else {
+    const templateData = message.template_data || {};
+    let senderConfig: SenderConfig | null = null;
+
+    // A row-supplied sender is used only when it names an operational sending domain of the row's own
+    // tenant and its address is on that domain; otherwise the tenant's sender is resolved (crm-r2-F80).
+    const rowSender = templateData.sender_config;
+    if (
+      typeof rowSender?.from_email === "string" &&
+      typeof rowSender?.domain_id === "string"
+    ) {
+      const { data: rowDomainRow } = await supabase
+        .from("email_domains")
+        .select("id, domain")
+        .eq("id", rowSender.domain_id)
+        .eq("tenant_id", message.tenant_id)
+        .in("status", ["active", "warming_up"])
+        .eq("manual_pause", false)
+        .eq("investigation_mode", false)
+        .maybeSingle();
+      const rowDomain = rowDomainRow as { id: string; domain: string } | null;
+      const fromDomain =
+        rowSender.from_email.split("@").pop()?.trim().toLowerCase() ?? "";
+      if (
+        rowDomain &&
+        typeof rowDomain.domain === "string" &&
+        fromDomain === rowDomain.domain.trim().toLowerCase()
+      ) {
+        senderConfig = {
+          fromEmail: rowSender.from_email,
+          fromName: rowSender.from_name,
+          deliveryMethod: rowSender.delivery_method,
+          domainId: rowDomain.id,
+          // Extract reply-to with fallback to sender email
+          replyTo: rowSender.reply_to || rowSender.from_email,
+        } as SenderConfig;
+        console.log(
+          `📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail}), reply-to: ${senderConfig.replyTo}`,
+        );
+      }
+    }
+    if (!senderConfig) {
       senderConfig = await resolveSender(supabase, message.tenant_id, {});
       console.log(
         `📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`,
@@ -781,14 +825,31 @@ async function sendEmail(
       companyProfile = (profile as CompanyProfileShape | null) || null;
     }
 
-    // Fetch customer data for unified rendering
-    const { data: customer } = await supabase
-      .from("crm_customers")
-      .select(
-        "id, email, first_name, last_name, phone, lifetime_value, total_spent, first_purchase_date, last_purchase_date, custom_fields",
-      )
-      .eq("id", message.customer_id)
-      .single();
+    // Fetch customer data for unified rendering, only from the row's own tenant (crm-r2-F80). A row naming a
+    // customer outside its tenant is skipped; a customer-addressed row must go to that customer's address
+    // (staff and form notifications are addressed to the tenant's staff by design).
+    const { data: customer, error: customerError } = message.customer_id
+      ? await supabase
+        .from("crm_customers")
+        .select(
+          "id, email, first_name, last_name, phone, lifetime_value, total_spent, first_purchase_date, last_purchase_date, custom_fields",
+        )
+        .eq("id", message.customer_id)
+        .eq("tenant_id", message.tenant_id)
+        .maybeSingle()
+      : { data: null, error: null };
+
+    if (customerError) {
+      return { success: false, error: "customer_lookup_failed" };
+    }
+    if (message.customer_id && !customer) {
+      return {
+        success: false,
+        error: "customer_not_in_tenant",
+        shouldSkip: true,
+        canRetry: false,
+      };
+    }
 
     // Use unified renderer for consistent merge tag handling
     const customerShape: CustomerShape | null = customer
@@ -805,6 +866,23 @@ async function sendEmail(
           custom_fields: customer.custom_fields,
         }
       : null;
+
+    const isNotificationRow =
+      templateData.is_staff_notification === true ||
+      templateData.is_form_notification === true;
+    if (
+      customerShape &&
+      !isNotificationRow &&
+      String(customerShape.email ?? "").trim().toLowerCase() !==
+        String(message.recipient ?? "").trim().toLowerCase()
+    ) {
+      return {
+        success: false,
+        error: "recipient_mismatch",
+        shouldSkip: true,
+        canRetry: false,
+      };
+    }
 
     const rendered = await renderEmailForRecipient({
       tenantId: message.tenant_id,

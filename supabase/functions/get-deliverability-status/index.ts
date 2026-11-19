@@ -12,9 +12,23 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // central-login 59 (crm-r2-F54): a signed-in caller, whose own token must see the sending-domain row (RLS on
+    // email_domains), before the service-role status read.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     const { domain_id } = await req.json();
 
@@ -23,6 +37,18 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'domain_id is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: visibleDomain, error: visibleError } = await callerClient
+      .from('email_domains')
+      .select('id')
+      .eq('id', domain_id)
+      .maybeSingle();
+    if (visibleError || !visibleDomain) {
+      return new Response(
+        JSON.stringify({ error: 'You do not have access to this domain' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

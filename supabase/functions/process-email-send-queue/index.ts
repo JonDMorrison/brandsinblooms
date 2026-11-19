@@ -2,6 +2,7 @@ import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
 import { isolateBatchValidation, type BatchSendResult } from "../_shared/isolateBatchValidation.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import {
   extractLinks,
   getUniqueUrls,
@@ -710,9 +711,33 @@ async function resendSendBatch(
     resendSendBatchRequest(apiKey, items, key, limiter));
 }
 
-serve((req: Request) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // central-login 59 (crm-r2-F81): a run starts only for the scheduler (a configured server key in
+  // `apikey` or `Authorization: Bearer`) or for a signed-in user's Retry/Resume kick (a token Auth
+  // resolves to a user). The public key and unsigned calls get 401 before the run is accepted.
+  if (requireInternalApiKey(req)) {
+    const authorization = req.headers.get("Authorization") ?? "";
+    const token = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : "";
+    let signedInUserId: string | null = null;
+    if (token) {
+      const authClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false, autoRefreshToken: false } },
+      );
+      const { data, error } = await authClient.auth.getUser(token);
+      if (!error && data?.user) signedInUserId = data.user.id;
+    }
+    if (!signedInUserId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   const runId = crypto.randomUUID().slice(0, 8);

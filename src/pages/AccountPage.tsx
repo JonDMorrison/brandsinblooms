@@ -11,6 +11,7 @@ import FormHelperText from "@mui/joy/FormHelperText";
 import FormLabel from "@mui/joy/FormLabel";
 import Grid from "@mui/joy/Grid";
 import Input from "@mui/joy/Input";
+import Link from "@mui/joy/Link";
 import Modal from "@mui/joy/Modal";
 import ModalClose from "@mui/joy/ModalClose";
 import ModalDialog from "@mui/joy/ModalDialog";
@@ -33,6 +34,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  bloomsuiteAccountUrl,
+  bloomsuiteProfileName,
+  isBloomsuiteSession,
+} from "@/integrations/bloomsuite/session";
 import { toast } from "sonner";
 
 type AccountTabValue = "general" | "business" | "billing" | "usage" | "danger";
@@ -101,6 +107,12 @@ const fieldSx = {
 
 const tertiaryTextSx = {
   color: "text.tertiary",
+} as const;
+
+// Links into the BloomSuite account: the theme's default link colour (primary.500) is under 4.5:1 on white.
+const bloomsuiteLinkSx = {
+  color: "primary.800",
+  "&:hover": { color: "primary.900" },
 } as const;
 
 function AccountHeaderSkeleton() {
@@ -252,7 +264,13 @@ const getUserDisplayName = (fullName: unknown) =>
   typeof fullName === "string" ? fullName : "";
 
 const AccountPage = () => {
-  const { user, signOut, loading: authLoading } = useAuth();
+  const { user, session, signOut, loading: authLoading } = useAuth();
+  // BloomSuite central login: for a linked account the name, email and security live in the BloomSuite
+  // account; unlinked accounts keep this page as it was.
+  const isLinked = isBloomsuiteSession(session);
+  const bloomsuiteName = isLinked ? bloomsuiteProfileName(session) : null;
+  const personalInfoHref = isLinked ? bloomsuiteAccountUrl("/personal-info") : null;
+  const securityHref = isLinked ? bloomsuiteAccountUrl("/security") : null;
   const { tenant } = useTenant();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
@@ -756,21 +774,43 @@ const AccountPage = () => {
                           sx={fieldSx}
                         />
                         <FormHelperText sx={tertiaryTextSx}>
-                          Your sign-in email is managed through authentication.
+                          {personalInfoHref ? (
+                            <Link href={personalInfoHref} level="body-sm" sx={bloomsuiteLinkSx}>
+                              Change it in your BloomSuite account
+                            </Link>
+                          ) : (
+                            "Your sign-in email is managed through authentication."
+                          )}
                         </FormHelperText>
                       </FormControl>
                     </Grid>
                     <Grid xs={12} sm={6}>
                       <FormControl>
                         <FormLabel>Display Name</FormLabel>
-                        <Input
-                          value={profileData.displayName}
-                          onChange={(event) =>
-                            handleProfileFieldChange("displayName", event.target.value)
-                          }
-                          placeholder="Enter your display name"
-                          sx={fieldSx}
-                        />
+                        {personalInfoHref ? (
+                          <>
+                            <Input
+                              value={bloomsuiteName ?? profileData.displayName}
+                              disabled
+                              variant="soft"
+                              sx={fieldSx}
+                            />
+                            <FormHelperText sx={tertiaryTextSx}>
+                              <Link href={personalInfoHref} level="body-sm" sx={bloomsuiteLinkSx}>
+                                Edit in your BloomSuite account
+                              </Link>
+                            </FormHelperText>
+                          </>
+                        ) : (
+                          <Input
+                            value={profileData.displayName}
+                            onChange={(event) =>
+                              handleProfileFieldChange("displayName", event.target.value)
+                            }
+                            placeholder="Enter your display name"
+                            sx={fieldSx}
+                          />
+                        )}
                       </FormControl>
                     </Grid>
                   </Grid>
@@ -808,6 +848,22 @@ const AccountPage = () => {
                     </Button>
                   </Stack>
                 </Sheet>
+
+                {securityHref ? (
+                  <Sheet variant="outlined" sx={cardSx}>
+                    <Typography level="title-md" fontWeight={600}>
+                      Password and security
+                    </Typography>
+                    <Typography level="body-sm" sx={{ color: "text.tertiary", mb: 1.5 }}>
+                      Your password, 2-step verification and signed-in devices are managed in your BloomSuite
+                      account.
+                    </Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <Button component="a" href={securityHref} variant="outlined" color="neutral" sx={{ minHeight: 44 }}>
+                      Open Password and security
+                    </Button>
+                  </Sheet>
+                ) : null}
 
                 <Sheet variant="outlined" sx={cardSx}>
                   <Typography level="title-md" fontWeight={600}>

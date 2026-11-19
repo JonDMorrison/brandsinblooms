@@ -27,6 +27,13 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
+  // Operator tool: only a master admin may register, read or activate a tenant's
+  // sending domain (same check as admin-manage-tenant).
+  const { data: isMasterAdmin, error: adminCheckError } = await supabaseAuth.rpc('is_master_admin', { _user_id: user.id });
+  if (adminCheckError || isMasterAdmin !== true) {
+    return new Response(JSON.stringify({ error: 'Access denied. Master admin required.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -44,6 +51,18 @@ const handler = async (req: Request): Promise<Response> => {
       if (!domain || !tenant_id) {
         return new Response(JSON.stringify({ error: 'domain and tenant_id required for register' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Bind the request to a real tenant before anything is written for it.
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('id', tenant_id)
+        .maybeSingle();
+      if (tenantError || !tenant) {
+        return new Response(JSON.stringify({ error: 'Tenant not found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
 

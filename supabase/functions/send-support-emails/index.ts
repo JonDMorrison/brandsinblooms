@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { renderBloomSystemEmail, bloomEmailEscape, bloomEmailCard } from "../../../src/lib/email/premiumBotanical.ts";
 
 /**
@@ -242,6 +243,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Scheduler-only job (central-login 59, crm-r2-F19): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   try {
     const notionKey = Deno.env.get("NOTION_API_KEY");

@@ -11,7 +11,7 @@ const content = 'Synthetic Garden Center sells plants and offers gardening advic
 const html = `<html><body>${content}<footer>Portland, OR 97201</footer></body></html>`;
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status });
 
-function harness({ directFails = true, fallbackStatus = 200, fallbackSuccess = true, brandingFails = false, malformedFallback = false } = {}) {
+function harness({ directFails = true, fallbackStatus = 200, fallbackSuccess = true, brandingFails = false, malformedFallback = false, signedIn = true, member = true } = {}) {
   let handler;
   const calls = [];
   const context = vm.createContext({
@@ -19,6 +19,9 @@ function harness({ directFails = true, fallbackStatus = 200, fallbackSuccess = t
     console: { log() {}, error() {} },
     Deno: { env: { get: () => 'synthetic-test-key' } },
     serve: (fn) => { handler = fn; },
+    // The caller check (central-login 59, crm-r2-F16): a verified session and a CRM member, without network.
+    createClient: () => ({ auth: { getUser: async () => (signedIn ? { data: { user: { id: 'synthetic-user' } }, error: null } : { data: { user: null }, error: { message: 'invalid token' } }) } }),
+    callerTenantId: async () => (member ? 'synthetic-tenant' : null),
     fetch: async (url, options) => {
       calls.push({ url, options });
       if (url === 'https://example.com') {
@@ -37,6 +40,8 @@ function harness({ directFails = true, fallbackStatus = 200, fallbackSuccess = t
       if (url === 'https://api.openai.com/v1/chat/completions') return json({ choices: [{ message: { content: JSON.stringify({ businessName: 'Synthetic Garden Center' }) } }] });
       throw new Error(`Unexpected network call: ${url}`);
     },
+    // The public-website check (central-login 59, crm-r2-F17) imports this from the Bloom Support module.
+    isPrivateVerificationHost: (host) => host === 'localhost' || host.endsWith('.internal'),
   });
   vm.runInContext(executable, context);
   const request = (body = { websiteUrl: 'https://example.com' }, authenticated = true) => handler(new Request('https://local.test', { method: 'POST', headers: authenticated ? { Authorization: 'Bearer synthetic' } : {}, body: JSON.stringify(body) }));
@@ -85,6 +90,22 @@ test('missing authorization fails before any network call', async () => {
   assert.equal(calls.length, 0);
 });
 
+test('an unverified token or a non-member is refused before any provider call', async () => {
+  for (const [options, status] of [[{ signedIn: false }, 401], [{ member: false }, 403]]) {
+    const { request, calls } = harness(options);
+    assert.equal((await request()).status, status);
+    assert.equal(calls.length, 0);
+  }
+});
+
 test('no runtime Firecrawl v1 endpoint remains', () => {
   assert.doesNotMatch(source, /api\.firecrawl\.dev\/v1\//);
+});
+
+test('a private or internal website address is refused before any network call', async () => {
+  for (const websiteUrl of ['http://localhost:8080/', 'http://10.0.0.1/', 'http://[::1]/', 'https://metadata.google.internal/', 'https://user@example.com/']) {
+    const { request, calls } = harness();
+    assert.equal((await request({ websiteUrl })).status, 400, websiteUrl);
+    assert.equal(calls.length, 0, websiteUrl);
+  }
 });

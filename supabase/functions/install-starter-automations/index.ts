@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts';
+import { callerHasTenantPermission } from '../_shared/callerTenantPermission.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -279,9 +281,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const tenantId = requestBody.tenant_id;
-    
+
     if (!tenantId) {
       throw new Error('tenant_id is required');
+    }
+
+    // central-login 59 (crm-r2-F86): a signed-in caller needs automation.write for the body tenant (asked as
+    // the caller) before any service-role read or write; a configured server key keeps internal callers working.
+    if (
+      requireInternalApiKey(req) !== null &&
+      !(await callerHasTenantPermission(authHeader, tenantId, 'automation.write'))
+    ) {
+      return new Response(JSON.stringify({ error: 'Automation permission required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Check if starter pack is already installed

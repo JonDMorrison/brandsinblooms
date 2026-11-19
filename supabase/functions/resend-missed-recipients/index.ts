@@ -15,6 +15,8 @@ import { rewriteLinksSync } from "../_shared/linkRewriter.ts";
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
 import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -299,6 +301,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // central-login 59 (crm-r2-F86): a signed-in caller is required (a configured server key keeps internal
+  // callers working); the caller's campaign.send for the campaign's tenant is checked after the campaign load.
+  const authHeader = req.headers.get("Authorization");
+  const isInternal = requireInternalApiKey(req) === null;
+  if (!isInternal && !authHeader?.toLowerCase().startsWith("bearer ")) {
+    return new Response(JSON.stringify({ error: "Authorization required" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const {
       campaignId,
@@ -337,6 +350,19 @@ serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (
+      !isInternal &&
+      !(await callerHasTenantPermission(authHeader, campaign.tenant_id, "campaign.send"))
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Campaign sending permission required" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const governanceConfig = await getEmailGovernanceRuntimeConfig(

@@ -6,6 +6,8 @@ import {
 } from "../_shared/environment.ts";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
 import { encryptToken, decryptToken } from "../_shared/crypto/tokens.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { isValidPrefix } from "../_shared/cookies.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -154,6 +156,11 @@ async function refreshSquareToken(connection: any) {
 }
 
 serve(async (req) => {
+  // Scheduler-only job (central-login 59, crm-r2-F116): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
+
   try {
     console.log("Token refresh worker starting...");
 
@@ -257,6 +264,12 @@ serve(async (req) => {
 
           if (!connection.encrypted_refresh_token) {
             throw new Error("No refresh token available - user must reconnect");
+          }
+
+          // The prefix becomes the token-request host: only a valid Lightspeed prefix (crm-r2-F134).
+          // The message marks the connection for reconnection below.
+          if (!isValidPrefix(connection.domain_prefix ?? "")) {
+            throw new Error("Lightspeed store prefix is invalid - user must reconnect");
           }
 
           const refreshToken = await decryptToken(

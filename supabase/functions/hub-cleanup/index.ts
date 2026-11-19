@@ -1,21 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
 
 serve(async (req) => {
-  // SECURITY: [E35] - Add service-role-or-JWT authentication
-  const authHeader = req.headers.get('Authorization')
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401 })
-  }
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const token = authHeader.replace('Bearer ', '')
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!)
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-    }
-  }
+  // SECURITY: [E35], central-login 59 (crm-r2-F57): this cleanup touches every tenant's hub data, so
+  // only a configured server key (apikey or Bearer) starts it; a signed-in user's token is refused.
+  const unauthorized = requireInternalApiKey(req)
+  if (unauthorized) return unauthorized
 
   console.log('🧹 Starting hub cleanup job...')
 

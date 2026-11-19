@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCloverApproval } from "../_shared/cloverApprovalGate.ts";
 import { detectEnvironment } from '../_shared/environment.ts';
+import { requireImportTenant } from '../_shared/customer-intelligence/import-access.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,30 +66,53 @@ Deno.serve(async (req) => {
 
     console.log('[CLOVER-INIT] User authenticated:', user.id);
 
+    // Connecting Clover replaces the tenant's connection: integrations.manage only (central-login 59).
+    let tenantId: string;
+    try {
+      tenantId = await requireImportTenant(supabaseClient);
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Integration management permission required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const userData = { tenant_id: tenantId };
+
     const body = await req.json();
     const state = body?.state;
     const region = body?.region || 'na';
-    
-    console.log('[CLOVER-INIT] State received:', state?.substring(0, 12) + '...', 'Region:', region);
 
-    if (!state) {
+    console.log('[CLOVER-INIT] State received:', typeof state === 'string' ? state.substring(0, 12) + '...' : 'none', 'Region:', region);
+
+    if (typeof state !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(state)) {
       console.error('[CLOVER-INIT] Missing state parameter');
       throw new Error('Missing state parameter');
     }
 
-    // Get tenant_id
-    const { data: userData, error: userDataError } = await supabaseClient
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single();
+    // The state is stored server-side, bound to this user and tenant, and consumed once by the callback
+    // (crm-r2-F105). The unique state_token refuses a value that is already in use.
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { error: stateError } = await supabaseAdmin
+      .from('oauth_states')
+      .insert({
+        state_token: state,
+        user_id: user.id,
+        tenant_id: tenantId,
+        provider: 'clover',
+        domain_prefix: '',
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      });
 
-    if (userDataError || !userData?.tenant_id) {
-      console.error('[CLOVER-INIT] Tenant lookup failed:', userDataError?.message);
-      throw new Error('No tenant found for user');
+    if (stateError) {
+      console.error('[CLOVER-INIT] Failed to store state:', stateError.message);
+      throw new Error('Failed to initialize OAuth flow');
     }
 
-    console.log('[CLOVER-INIT] Tenant found:', userData.tenant_id);
+    console.log('[CLOVER-INIT] Tenant found:', tenantId);
 
     // Auto-detect environment
     const appEnv = detectEnvironment(req);

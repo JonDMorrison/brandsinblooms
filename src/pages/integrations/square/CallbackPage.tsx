@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle, Clock, XCircle } from "lucide-react";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { supabase } from "@/integrations/supabase/client";
 import { Box, CircularProgress, Stack, Typography } from "@mui/joy";
 
 const CallbackPage = () => {
@@ -82,6 +83,9 @@ const CallbackPage = () => {
 
         const redirectUri = `${window.location.origin}/integrations/square/callback`;
 
+        // The callback completes only the flow this signed-in user started (central-login 59, crm-r2-F105).
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
         const supabaseUrl = "https://udldmkqwnxhdeztyqcau.supabase.co";
         const response = await fetch(
           `${supabaseUrl}/functions/v1/square-oauth-callback`,
@@ -89,6 +93,7 @@ const CallbackPage = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             },
             body: JSON.stringify({
               code,

@@ -78,16 +78,30 @@ async function loadAccount(caller: Caller, accountId: string): Promise<Account> 
 }
 
 function linkFor(account: Account, product: "cms" | "pos", inputs: Record<string, unknown>): string {
+  // Only this product's selector is read. The other product's selector or a non-string one is refused, and the
+  // forwarded inputs carry the validated value, so the receiver cannot select another record (crm-r2-F12).
+  const key = product === "cms" ? "site_id" : "pos_tenant_id";
+  const otherKey = product === "cms" ? "pos_tenant_id" : "site_id";
+  if (inputs[otherKey] != null) throw new BloomError(403, "forbidden", `${otherKey} does not select a ${product} record`);
+  const raw = inputs[key];
+  let requested: string | null = null;
+  if (typeof raw === "string") requested = raw;
+  else if (raw != null) throw new BloomError(403, "forbidden", `${key} must be a linked record id`);
   const links = account.links.filter((l) => l.product === product);
-  const requested = typeof inputs.site_id === "string" ? inputs.site_id : typeof inputs.pos_tenant_id === "string" ? inputs.pos_tenant_id : null;
+  let target: string;
   if (requested) {
     // The target must be one of the account's own linked records.
     if (!links.some((l) => l.external_id === requested)) throw new BloomError(403, "forbidden", `${product} record is not linked to this account`);
-    return requested;
+    target = requested;
+  } else if (links.length === 1) {
+    target = links[0].external_id;
+  } else if (links.length === 0) {
+    throw new BloomError(400, "invalid", `Account has no linked ${product === "cms" ? "BloomSites site" : "POS business"}`);
+  } else {
+    throw new BloomError(400, "invalid", `Account has several ${product} links; pass ${key}`);
   }
-  if (links.length === 1) return links[0].external_id;
-  if (links.length === 0) throw new BloomError(400, "invalid", `Account has no linked ${product === "cms" ? "BloomSites site" : "POS business"}`);
-  throw new BloomError(400, "invalid", `Account has several ${product} links; pass ${product === "cms" ? "site_id" : "pos_tenant_id"}`);
+  if (raw != null) inputs[key] = target;
+  return target;
 }
 
 // ---------------------------------------------------------------------------

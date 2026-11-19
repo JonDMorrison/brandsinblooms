@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -7,6 +8,11 @@ const supabaseAdmin = createClient(
 )
 
 async function handler(req: Request): Promise<Response> {
+  // Scheduler-only job (central-login 59, crm-r2-F117): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req)
+  if (unauthorized) return unauthorized
+
   try {
     // Test endpoint for Uptrace logging
     const url = new URL(req.url);

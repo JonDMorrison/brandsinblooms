@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerTenantId } from "../_shared/callerTenantPermission.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -230,7 +232,39 @@ serve(async (req) => {
   }
 
   try {
-    const { postal_code, country_code = 'US', user_id, force_refresh = false, test_mode = false } = await req.json();
+    // central-login 59 (crm-r2-F35, crm-r2-F36): an internal caller presents a configured server key
+    // (finalize-onboarding); anyone else must be a verified CRM member and may only refresh their own profile.
+    const internalCaller = requireInternalApiKey(req) === null;
+    let callerUserId: string | null = null;
+    if (!internalCaller) {
+      const authHeader = req.headers.get('Authorization') ?? '';
+      if (!authHeader.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Authorization required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const callerClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: { user }, error: authError } = await callerClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!(await callerTenantId(authHeader))) {
+        return new Response(
+          JSON.stringify({ error: 'Tenant access required' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      callerUserId = user.id;
+    }
+
+    const { postal_code, country_code = 'US', user_id, force_refresh = false } = await req.json();
 
     if (!postal_code) {
       return new Response(
@@ -239,46 +273,17 @@ serve(async (req) => {
       );
     }
 
-    // Test mode - derive climate without requiring user_id or persisting
-    if (test_mode) {
-      console.log(`🧪 TEST MODE: Deriving climate for postal_code=${postal_code}, country=${country_code}`);
-      
-      const geoResult = await geocodePostalCode(postal_code, country_code);
-      if (!geoResult) {
-        return new Response(
-          JSON.stringify({ error: 'Failed to geocode postal code', postal_code }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      const climate = determineClimateArchetype(geoResult.lat, geoResult.lng, geoResult.state, country_code);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          test_mode: true,
-          postal_code,
-          country: country_code,
-          geocode: {
-            city: geoResult.city,
-            state: geoResult.state,
-            lat: geoResult.lat,
-            lng: geoResult.lng,
-          },
-          climate: {
-            archetype: climate.archetype,
-            label: climate.label,
-            confidence: climate.confidence,
-          }
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     if (!user_id) {
       return new Response(
         JSON.stringify({ error: 'user_id is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (callerUserId && user_id !== callerUserId) {
+      return new Response(
+        JSON.stringify({ error: 'You can only refresh your own climate profile.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

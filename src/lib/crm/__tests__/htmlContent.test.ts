@@ -132,6 +132,24 @@ describe("formatDraftRichText", () => {
     expect(out).toContain("click");
   });
 
+  it("strips script hrefs whose scheme is split or prefixed by control characters (crm-r2-F06)", () => {
+    for (const href of [
+      "java\tscript:alert(1)",
+      "java\nscript:alert(1)",
+      "\u0001javascript:alert(1)",
+      "\u001fjavascript:alert(1)",
+    ]) {
+      const out = formatDraftRichText(`<a href="${href}">click</a>`);
+      expect(out).not.toContain("href");
+      expect(out).not.toContain("alert(1)");
+      expect(out).toContain("click");
+    }
+    expect(formatDraftRichText(`<a href="https://example.test/offer">x</a>`)).toContain(
+      'href="https://example.test/offer"',
+    );
+    expect(formatDraftRichText(`<a href="/unsubscribe">x</a>`)).toContain('href="/unsubscribe"');
+  });
+
   it("strips vbscript: and data: hrefs from anchor tags", () => {
     expect(
       formatDraftRichText(`<a href="vbscript:msgbox(1)">x</a>`),

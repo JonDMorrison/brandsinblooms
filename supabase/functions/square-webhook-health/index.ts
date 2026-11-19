@@ -11,6 +11,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { ensureSquareWebhooks } from '../_shared/webhooks/ensureSquareWebhooks.ts';
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +22,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Scheduler-only job (central-login 59, crm-r2-F107): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   console.log('[WEBHOOK-HEALTH] Starting health check');
 

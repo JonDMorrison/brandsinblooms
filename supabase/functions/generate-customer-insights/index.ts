@@ -57,16 +57,6 @@ serve(async (req) => {
       );
     }
 
-    if (!openAIApiKey) {
-      return new Response(
-        JSON.stringify({ error: "OpenAI API key not configured" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -84,6 +74,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // The customer's own tenant: every cached insight and metric row read below must carry it (central-login 59,
+    // crm-r2-F202: rows another tenant planted for this customer id are never used).
+    let customerTenantId: string | null = null;
     if (authHeader !== `Bearer ${supabaseServiceKey}`) {
       const token = authHeader.replace("Bearer ", "");
       const { error: authErr } = await supabase.auth.getUser(token);
@@ -93,6 +86,54 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      // central-login 59 (crm-r2-F85): the caller must be able to read this customer through their own token
+      // (crm_customers_select_by_scope) before any cached insight or customer data is read with the service role.
+      const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: visibleCustomer, error: visibleError } = await callerClient
+        .from("crm_customers")
+        .select("id, tenant_id")
+        .eq("id", customer_id)
+        .maybeSingle();
+      if (visibleError || !visibleCustomer) {
+        return new Response(JSON.stringify({ error: "Customer not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      customerTenantId = visibleCustomer.tenant_id;
+    } else {
+      const { data: serviceCustomer, error: serviceCustomerError } = await supabase
+        .from("crm_customers")
+        .select("tenant_id")
+        .eq("id", customer_id)
+        .maybeSingle();
+      if (serviceCustomerError || !serviceCustomer) {
+        return new Response(JSON.stringify({ error: "Customer not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      customerTenantId = serviceCustomer.tenant_id;
+    }
+    if (!customerTenantId) {
+      return new Response(JSON.stringify({ error: "Customer not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!openAIApiKey) {
+      return new Response(
+        JSON.stringify({ error: "OpenAI API key not configured" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Check cache first (unless force_regenerate is true)
@@ -101,6 +142,7 @@ serve(async (req) => {
         .from("customer_ai_insights")
         .select("*")
         .eq("customer_id", customer_id)
+        .eq("tenant_id", customerTenantId)
         .gte("expires_at", new Date().toISOString())
         .maybeSingle();
 
@@ -129,6 +171,7 @@ serve(async (req) => {
       .from("crm_customers")
       .select("*")
       .eq("id", customer_id)
+      .eq("tenant_id", customerTenantId)
       .maybeSingle();
 
     if (customerError || !customer) {
@@ -143,6 +186,7 @@ serve(async (req) => {
       .from("customer_360_enriched")
       .select("*")
       .eq("id", customer_id)
+      .eq("tenant_id", customerTenantId)
       .maybeSingle();
 
     // Fetch cross-channel metrics
@@ -150,6 +194,7 @@ serve(async (req) => {
       .from("customer_cross_channel_metrics")
       .select("*")
       .eq("customer_id", customer_id)
+      .eq("tenant_id", customerTenantId)
       .maybeSingle();
 
     // Fetch purchase metrics
@@ -157,6 +202,7 @@ serve(async (req) => {
       .from("customer_purchase_metrics")
       .select("*")
       .eq("customer_id", customer_id)
+      .eq("tenant_id", customerTenantId)
       .maybeSingle();
 
     // Fetch risk signals
@@ -164,6 +210,7 @@ serve(async (req) => {
       .from("customer_risk_signals")
       .select("*")
       .eq("customer_id", customer_id)
+      .eq("tenant_id", customerTenantId)
       .maybeSingle();
 
     // Fetch lifecycle metrics
@@ -171,6 +218,7 @@ serve(async (req) => {
       .from("customer_lifecycle_metrics")
       .select("*")
       .eq("customer_id", customer_id)
+      .eq("tenant_id", customerTenantId)
       .maybeSingle();
 
     // Fetch content intent metrics
@@ -178,6 +226,7 @@ serve(async (req) => {
       .from("customer_content_intent_metrics")
       .select("*")
       .eq("customer_id", customer_id)
+      .eq("tenant_id", customerTenantId)
       .maybeSingle();
 
     // Determine if we have sufficient data

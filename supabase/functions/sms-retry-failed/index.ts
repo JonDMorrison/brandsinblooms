@@ -7,6 +7,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
+import { callerHasTenantPermission } from '../_shared/callerTenantPermission.ts'
 
 interface RetryRequest {
   campaignId: string
@@ -77,6 +78,12 @@ Deno.serve(async (req) => {
 
     if (campaign.tenant_id !== userData.tenant_id) {
       return corsJsonResponse({ error: 'Access denied' }, { status: 403 })
+    }
+
+    // central-login 59 (crm-r2-F104): re-queuing a campaign's messages is a send, so the caller needs
+    // campaign.send for the campaign's tenant (asked as the caller) before any service-role write.
+    if (!(await callerHasTenantPermission(authHeader, campaign.tenant_id, 'campaign.send'))) {
+      return corsJsonResponse({ error: 'Campaign sending permission required' }, { status: 403 })
     }
 
     console.log(`[sms-retry-failed] Retrying failed messages for campaign ${campaignId}, mode: ${mode}`)

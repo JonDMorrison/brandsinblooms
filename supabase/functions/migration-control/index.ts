@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { callerTenantId } from '../_shared/callerTenantPermission.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +26,12 @@ serve(async (req) => {
   if (authError || !user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
+  // central-login 59 (crm-r2-F65): the job must belong to the caller's own tenant (users.tenant_id, read as the
+  // caller); a job of another tenant answers like an unknown id.
+  const tenantId = await callerTenantId(authHeader);
+  if (!tenantId) {
+    return new Response(JSON.stringify({ error: 'Tenant access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -40,6 +47,7 @@ serve(async (req) => {
       .from('migration_jobs')
       .select('*')
       .eq('id', job_id)
+      .eq('tenant_id', tenantId)
       .single()
 
     if (jobError || !job) {
@@ -109,6 +117,7 @@ serve(async (req) => {
       .from('migration_jobs')
       .update(updates)
       .eq('id', job_id)
+      .eq('tenant_id', tenantId)
 
     if (updateError) {
       console.error('Failed to update job:', updateError)

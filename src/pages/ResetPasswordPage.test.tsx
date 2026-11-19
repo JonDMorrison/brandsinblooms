@@ -29,6 +29,7 @@ const supabaseMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
+  isImpersonationTab: () => false,
   supabase: {
     auth: {
       getSession: supabaseMocks.getSession,
@@ -71,9 +72,20 @@ const renderResetPage = () =>
     </MemoryRouter>,
   );
 
+// A session opened from the person's own reset link: Auth records "otp" (or "recovery" for PKCE) in the token's amr.
+const sessionWithAmr = (method: string, secondsAgo = 0) => {
+  const encode = (value: object) =>
+    btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  const timestamp = Math.floor(Date.now() / 1000) - secondsAgo;
+  return {
+    user: { id: "user-1" },
+    access_token: `${encode({ alg: "HS256" })}.${encode({ amr: [{ method, timestamp }] })}.signature`,
+  };
+};
+
 const renderActiveResetPage = async () => {
   supabaseMocks.getSession.mockResolvedValue({
-    data: { session: { user: { id: "user-1" } } },
+    data: { session: sessionWithAmr("otp") },
   });
 
   renderResetPage();
@@ -137,6 +149,24 @@ describe("ResetPasswordPage", () => {
     expect(
       screen.getByRole("link", { name: "Back to Sign In" }),
     ).toHaveAttribute("href", "/auth#signin");
+  });
+
+  it("refuses a normal signed-in session or an old reset session: no form, the expired-link state", async () => {
+    for (const session of [sessionWithAmr("password"), sessionWithAmr("oauth"), sessionWithAmr("otp", 16 * 60)]) {
+      supabaseMocks.getSession.mockResolvedValue({ data: { session } });
+      renderResetPage();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8000);
+      });
+
+      expect(
+        screen.getByRole("heading", { name: "Link Expired" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText("New Password")).not.toBeInTheDocument();
+      expect(supabaseMocks.updateUser).not.toHaveBeenCalled();
+      cleanup();
+    }
   });
 
   it("validates the active form, updates password, signs out, and navigates with state", async () => {
@@ -203,6 +233,11 @@ describe("ResetPasswordPage", () => {
 
     fireEvent.click(submitButton);
     expect(submitButton).toHaveAttribute("aria-busy", "true");
+    // The page re-reads the session (fresh reset proof) before it updates the password.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(supabaseMocks.getSession).toHaveBeenCalled();
     expect(supabaseMocks.updateUser).toHaveBeenCalledWith({
       password: "StrongPass1!",
     });

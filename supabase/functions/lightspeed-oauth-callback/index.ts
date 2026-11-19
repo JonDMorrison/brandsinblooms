@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
+import { isValidPrefix } from "../_shared/cookies.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { encryptToken } from "../_shared/crypto/tokens.ts";
 import {
@@ -228,10 +230,10 @@ Deno.serve(async (req) => {
 
   try {
     console.log(
-      "[LS-CALLBACK] Processing OAuth callback request (no auth required)",
+      "[LS-CALLBACK] Processing OAuth callback request",
     );
 
-    // Create Supabase client with service role (no user auth required)
+    // Service-role client for the writes; the caller is checked below
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -267,7 +269,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Look up state in database
+    // The flow completes only for the signed-in user who started it (crm-r2-F60).
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Sign in to finish connecting Lightspeed" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    const callerClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: { headers: { Authorization: authHeader } },
+        auth: { autoRefreshToken: false, persistSession: false },
+      },
+    );
+    const {
+      data: { user: caller },
+      error: callerError,
+    } = await callerClient.auth.getUser();
+    if (callerError || !caller) {
+      return new Response(
+        JSON.stringify({ error: "Sign in to finish connecting Lightspeed" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Consume the state once, and only the caller's own Lightspeed state (crm-r2-F59/F60).
     console.log("[LS-CALLBACK] Looking up state token...");
     let stateData: OAuthStateRow | null = null;
     let stateError: {
@@ -281,17 +316,23 @@ Deno.serve(async (req) => {
 
     const stateLookupWithRedirect = await supabaseClient
       .from("oauth_states")
-      .select("user_id, tenant_id, domain_prefix, expires_at, redirect_uri")
+      .delete()
       .eq("state_token", state)
-      .single();
+      .eq("provider", "lightspeed")
+      .eq("user_id", caller.id)
+      .select("user_id, tenant_id, domain_prefix, expires_at, redirect_uri")
+      .maybeSingle();
 
     if (isMissingRedirectUriColumnError(stateLookupWithRedirect.error)) {
       redirectUriStorageSource = "legacy_oauth_states";
       const legacyStateLookup = await supabaseClient
         .from("oauth_states")
-        .select("user_id, tenant_id, domain_prefix, expires_at")
+        .delete()
         .eq("state_token", state)
-        .single();
+        .eq("provider", "lightspeed")
+        .eq("user_id", caller.id)
+        .select("user_id, tenant_id, domain_prefix, expires_at")
+        .maybeSingle();
 
       stateData = legacyStateLookup.data
         ? {
@@ -365,13 +406,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if state has expired
+    // Check if state has expired (the row is already consumed)
     if (new Date(stateData.expires_at) < new Date()) {
       console.error("[LS-CALLBACK] State token expired");
-      await supabaseClient
-        .from("oauth_states")
-        .delete()
-        .eq("state_token", state);
       return new Response(JSON.stringify({ error: "State token expired" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -385,8 +422,34 @@ Deno.serve(async (req) => {
     } = stateData;
     console.log("[LS-CALLBACK] State verified for user");
 
-    // Delete used state token
-    await supabaseClient.from("oauth_states").delete().eq("state_token", state);
+    // The caller must still manage integrations for the state's tenant (central-login 59).
+    if (
+      !(await callerHasTenantPermission(
+        authHeader,
+        tenantId,
+        "integrations.manage",
+      ))
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Integration management permission required" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // The prefix becomes the token-request host: only a valid Lightspeed prefix (crm-r2-F59).
+    if (!isValidPrefix(domainPrefix)) {
+      console.error("[LS-CALLBACK] Invalid domain prefix in state");
+      return new Response(
+        JSON.stringify({ error: "Invalid Lightspeed store prefix" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     // Derive environment from the callback redirect URI so the token exchange
     // uses the same Lightspeed app context as the original authorize request.

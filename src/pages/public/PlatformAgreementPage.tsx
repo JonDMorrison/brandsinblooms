@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { getUserAssignedTenantId } from "@/utils/getUserAssignedTenantId";
 
 const AGREEMENT_NAME = "BloomSuite Platform Agreement";
 const AGREEMENT_VERSION = "v1.0";
@@ -73,8 +74,8 @@ export const PlatformAgreementPage = () => {
         ipAddress = ipData.ip;
       } catch {}
 
-      // Get tenant_id from user metadata or company profile
-      const tenantId = user.user_metadata?.tenant_id || null;
+      // The company is the account's own (public.users.tenant_id), never user_metadata; the insert policy checks it.
+      const tenantId = await getUserAssignedTenantId(user.id);
 
       const { error } = await supabase
         .from("user_agreement_acceptances")
@@ -96,8 +97,9 @@ export const PlatformAgreementPage = () => {
           "Thank you for accepting the BloomSuite Platform Agreement.",
       });
 
-      // Navigate to the next step in the website services signup
-      navigate("/website-services/setup");
+      // The next step is the dashboard, as for an account that accepted earlier (no website-services setup route
+      // exists: 50/R-02).
+      navigate("/dashboard");
     } catch (error) {
       console.error("Error recording agreement acceptance:", error);
       toast({

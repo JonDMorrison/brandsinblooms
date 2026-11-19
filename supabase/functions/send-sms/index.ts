@@ -132,6 +132,15 @@ async function handler(req: Request): Promise<Response> {
   try {
     const { to, body, mediaUrl, mediaUrls, purpose, tenantId, customerId, idempotencyKey } = await req.json();
 
+    // central-login 59 (crm-r2-F91): only internal workers may attribute a send to a tenant or customer. A
+    // signed-in test send that names either is refused, so it can never log a 'sent' row under another tenant.
+    if (!isInternal && (tenantId || customerId)) {
+      return new Response(
+        JSON.stringify({ error: 'Test sends cannot name a tenant or customer' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!to || !body) {
       return new Response(
         JSON.stringify({ error: 'Phone number and message body are required' }),

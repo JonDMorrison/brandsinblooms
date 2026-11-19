@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireImportTenant } from '../_shared/customer-intelligence/import-access.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +9,7 @@ const corsHeaders = {
 
 interface SetupRequest {
   domain: string;
-  setupType: 'landing_page' | 'email_auth' | 'full_app' | 'custom';
+  setupType: 'email_auth' | 'custom';
   customRecords?: Array<{
     type: string;
     name: string;
@@ -18,33 +19,13 @@ interface SetupRequest {
   integrationId?: string;
 }
 
-// DNS Record Templates
+// DNS Record Templates. Only records whose targets the platform operates: the web-hosting templates pointed
+// a tenant's apex, www and api names at shared third-party hosting and were removed (crm-r2-F74).
 const DNS_TEMPLATES = {
-  landing_page: [
-    { type: 'A', name: '@', content: '185.199.108.153' },
-    { type: 'A', name: '@', content: '185.199.109.153' },
-    { type: 'A', name: '@', content: '185.199.110.153' },
-    { type: 'A', name: '@', content: '185.199.111.153' },
-    { type: 'CNAME', name: 'www', content: '@' },
-  ],
   email_auth: [
     { type: 'TXT', name: '@', content: 'v=spf1 include:_spf.resend.com ~all' },
     { type: 'CNAME', name: 'resend._domainkey', content: 'resend._domainkey.resend.com.' },
     { type: 'TXT', name: '_dmarc', content: 'v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@your-domain.com' },
-  ],
-  full_app: [
-    // Landing page records
-    { type: 'A', name: '@', content: '185.199.108.153' },
-    { type: 'A', name: '@', content: '185.199.109.153' },
-    { type: 'A', name: '@', content: '185.199.110.153' },
-    { type: 'A', name: '@', content: '185.199.111.153' },
-    { type: 'CNAME', name: 'www', content: '@' },
-    // Email auth records
-    { type: 'TXT', name: '@', content: 'v=spf1 include:_spf.resend.com ~all' },
-    { type: 'CNAME', name: 'resend._domainkey', content: 'resend._domainkey.resend.com.' },
-    { type: 'TXT', name: '_dmarc', content: 'v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@your-domain.com' },
-    // API subdomain
-    { type: 'CNAME', name: 'api', content: 'your-api-endpoint.herokuapp.com.' },
   ],
 };
 
@@ -68,6 +49,19 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
+  // DNS changes use the tenant's stored provider credentials: integrations.manage, own tenant only (crm-r2-F25).
+  const supabaseUser = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  let tenantId: string;
+  try {
+    tenantId = await requireImportTenant(supabaseUser);
+  } catch {
+    return new Response(JSON.stringify({ error: 'Integration management permission required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -77,28 +71,34 @@ const handler = async (req: Request): Promise<Response> => {
     if (req.method === 'POST') {
       const { domain, setupType, customRecords, integrationId }: SetupRequest = await req.json();
 
+      if (setupType !== 'email_auth' && setupType !== 'custom') {
+        throw new Error('Unsupported setup type');
+      }
+
       console.log(`Starting one-click setup for ${domain} with type: ${setupType}`);
 
-      // Get domain record
+      // Get domain record: the caller's own tenant only (crm-r2-F25)
       const { data: domainRecord, error: domainError } = await supabase
         .from('domains')
         .select('*')
         .eq('domain', domain)
+        .eq('tenant_id', tenantId)
         .single();
 
       if (domainError) {
         throw new Error(`Domain not found: ${domainError.message}`);
       }
 
-      // Get DNS provider integration
+      // Get DNS provider integration: the same tenant as the domain and the caller (crm-r2-F25)
       let integration;
       if (integrationId) {
         const { data, error } = await supabase
           .from('domain_provider_integrations')
           .select('*')
           .eq('id', integrationId)
+          .eq('tenant_id', tenantId)
           .single();
-        
+
         if (error) throw new Error(`Integration not found: ${error.message}`);
         integration = data;
       } else {
@@ -106,7 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
         const { data, error } = await supabase
           .from('domain_provider_integrations')
           .select('*')
-          .eq('tenant_id', domainRecord.tenant_id)
+          .eq('tenant_id', tenantId)
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .limit(1);
@@ -249,6 +249,18 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (error) {
         throw new Error(`Session not found: ${error.message}`);
+      }
+
+      // Only a session for one of the caller's own tenant's domains (crm-r2-F25)
+      const { data: sessionDomain } = await supabase
+        .from('domains')
+        .select('id')
+        .eq('id', session.domain_id)
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (!sessionDomain) {
+        throw new Error('Session not found');
       }
 
       return new Response(JSON.stringify({

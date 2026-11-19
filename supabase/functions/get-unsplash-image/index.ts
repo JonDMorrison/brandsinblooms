@@ -1,6 +1,9 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerTenantId } from "../_shared/callerTenantPermission.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +18,35 @@ serve(async (req) => {
   }
 
   try {
+    // central-login 59 (crm-r2-F55): the platform's Unsplash key is spent only for an internal caller presenting a
+    // configured server key (fetch-and-assign-images) or a verified CRM member.
+    if (requireInternalApiKey(req) !== null) {
+      const authHeader = req.headers.get('Authorization') ?? '';
+      if (!authHeader.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Authorization required' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const callerClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: { user }, error: authError } = await callerClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!(await callerTenantId(authHeader))) {
+        return new Response(JSON.stringify({ error: 'Tenant access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const { query } = await req.json();
 
     if (!query) {

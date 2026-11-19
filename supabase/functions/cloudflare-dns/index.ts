@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +22,12 @@ interface CloudflareRequest {
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Internal only: one-click-setup invokes it with the server key after its own tenant checks (crm-r2-F25).
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) {
+    return unauthorized;
   }
 
   try {

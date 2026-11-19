@@ -11,7 +11,6 @@ import {
   generateCampaignContent,
   ContentGenerationResult,
 } from "@/components/homepage/ContentGenerationServices";
-import { cleanupDuplicateContent } from "@/utils/contentCleanup";
 import "@/utils/globalToastReplace";
 import { TASK_STATUS } from "@/constants/taskStatus";
 
@@ -219,11 +218,6 @@ export const WeeklyContentUpdater = () => {
         ])) as ContentGenerationResult;
 
         if (result.success && mountedRef.current) {
-          // Clean up any duplicates and fix content issues
-          try {
-            await cleanupDuplicateContent(campaign.title);
-          } catch (cleanupError) {}
-
           toast.success(
             `Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`,
           );

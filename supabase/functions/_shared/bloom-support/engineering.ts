@@ -69,8 +69,31 @@ function hasExplicitPort(raw: string): boolean {
   return host.startsWith("[") ? /\]:\d+$/.test(host) : /:\d+$/.test(host);
 }
 
-function isPrivateVerificationHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+/**
+ * True for a host that server-side fetches must never reach: loopback, private, link-local, CGNAT,
+ * benchmark and multicast/reserved IPv4; internal names; IPv6 loopback, unique-local, link-local and
+ * multicast; and IPv4 embedded in IPv6 (::ffff:, ::, 64:ff9b::), which WHATWG URL serialises in hex
+ * ([::ffff:7f00:1]). The IPv6 rules apply only to IPv6 literals, so names such as fd-gardens.com pass.
+ * Also used by the outbound fetch guards (central-login 59: crm-r2-F17, F39).
+ */
+export function isPrivateVerificationHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (host.includes(":")) {
+    if (host === "::" || host === "::1") return true;
+    const embedded = host.match(
+      /^(?:::(?:ffff:)?|64:ff9b::)(?:([0-9a-f]{1,4}):([0-9a-f]{1,4})|(\d{1,3}(?:\.\d{1,3}){3}))$/,
+    );
+    if (embedded) {
+      const ipv4 = embedded[3] ?? [embedded[1], embedded[2]]
+        .flatMap((part) => {
+          const value = parseInt(part, 16);
+          return [value >> 8, value & 255];
+        })
+        .join(".");
+      return isPrivateVerificationHost(ipv4);
+    }
+    return /^(?:fc|fd|fe[89a-f]|ff)/.test(host);
+  }
   if (
     host === "localhost" ||
     host.endsWith(".localhost") ||
@@ -87,10 +110,7 @@ function isPrivateVerificationHost(hostname: string): boolean {
       (a === 198 && (b === 18 || b === 19)) ||
       a >= 224;
   }
-  return host === "::" || host === "::1" ||
-    /^(?:fc|fd|fe[89ab])/.test(host) ||
-    host.startsWith("::ffff:127.") || host.startsWith("::ffff:10.") ||
-    host.startsWith("::ffff:192.168.");
+  return false;
 }
 
 /** Canonical HTTPS URL on a repository's trusted production-origin allowlist. */

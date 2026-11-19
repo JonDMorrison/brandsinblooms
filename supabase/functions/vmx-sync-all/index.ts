@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * vmx-sync-all
@@ -8,7 +9,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
  * Iterates all active VMX connections and triggers sync for each.
  */
 
-serve(async () => {
+serve(async (req) => {
+  // Scheduler-only job (central-login 59, crm-r2-F116): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,

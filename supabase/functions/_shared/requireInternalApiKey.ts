@@ -39,13 +39,20 @@ function constantTimeEqual(left: string, right: string): boolean {
 
 /**
  * Authenticate an internal Edge Function invocation made by pg_net/cron.
- * Modern sb_secret_ keys are opaque, so verify_jwt must remain disabled and
- * callers must send the key in the apikey header.
+ * Modern sb_secret_ keys are opaque, so verify_jwt must remain disabled. The key
+ * is accepted in the apikey header or as `Authorization: Bearer <key>`: the
+ * scheduler jobs in the migrations send it as a Bearer value (central-login 59,
+ * crm-r2-F19 and the other fleet jobs). Only the configured server keys pass.
  */
 export function requireInternalApiKey(req: Request): Response | null {
-  const suppliedKey = req.headers.get("apikey") ?? "";
-  const valid = configuredSecretKeys().some((key) =>
-    constantTimeEqual(suppliedKey, key)
+  const apiKey = req.headers.get("apikey") ?? "";
+  const authorization = req.headers.get("Authorization") ?? "";
+  const bearer = authorization.toLowerCase().startsWith("bearer ")
+    ? authorization.slice(7).trim()
+    : "";
+  const keys = configuredSecretKeys();
+  const valid = keys.some((key) =>
+    constantTimeEqual(apiKey, key) || (bearer.length > 0 && constantTimeEqual(bearer, key))
   );
 
   if (valid) return null;

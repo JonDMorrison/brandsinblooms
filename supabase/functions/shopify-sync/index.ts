@@ -66,6 +66,7 @@ class ShopifyAdapter {
           "X-Shopify-Access-Token": this.accessToken,
           "Content-Type": "application/json",
         },
+        redirect: "error",
       },
     );
 
@@ -85,6 +86,7 @@ class ShopifyAdapter {
           "X-Shopify-Access-Token": this.accessToken,
           "Content-Type": "application/json",
         },
+        redirect: "error",
       },
     );
 
@@ -182,12 +184,39 @@ serve(async (req) => {
       throw new Error("Invalid user token");
     }
 
-    // Get connection details
+    // The caller's own tenant and permissions, asked as the caller (crm-r2-F97): the service-role writes below
+    // must stay inside that tenant and need customers.write.
+    const callerClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: access, error: accessError } = await callerClient.rpc(
+      "get_current_crm_access",
+    );
+    const callerTenantId =
+      !accessError && typeof access?.tenantId === "string"
+        ? access.tenantId
+        : null;
+    const callerPermissions: unknown[] =
+      !accessError && Array.isArray(access?.permissions)
+        ? access.permissions
+        : [];
+    if (!callerTenantId) {
+      return new Response(JSON.stringify({ error: "Tenant access required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get connection details: the caller's own Shopify connection in the caller's tenant (crm-r2-F97/F98)
     const { data: connection, error: connError } = await supabase
       .from("pos_connections")
       .select("*")
       .eq("id", connection_id)
       .eq("user_id", user.id)
+      .eq("tenant_id", callerTenantId)
+      .eq("platform", "shopify")
       .single();
 
     if (connError || !connection) {
@@ -195,8 +224,16 @@ serve(async (req) => {
     }
 
     const credentials = JSON.parse(connection.credentials_encrypted);
+    // Only a *.myshopify.com store host (crm-r2-F98): the stored value is member-writable.
+    const shopDomain =
+      typeof credentials?.shop_domain === "string"
+        ? credentials.shop_domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "")
+        : "";
+    if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain)) {
+      throw new Error("Invalid Shopify store domain");
+    }
     const adapter = new ShopifyAdapter(
-      credentials.shop_domain,
+      shopDomain,
       credentials.access_token,
     );
 
@@ -209,6 +246,17 @@ serve(async (req) => {
           message: "Connection test successful",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // A sync writes customers and orders with the service role: customers.write required (crm-r2-F97)
+    if (!callerPermissions.includes("customers.write")) {
+      return new Response(
+        JSON.stringify({ error: "Customer write permission required" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 

@@ -38,6 +38,51 @@ serve(async (req) => {
       throw new Error('Property ID is required');
     }
 
+    // The property must be digits only and the caller's own connected property, as ga-report-data binds it
+    // (crm-r2-F56): the platform credential never reads a property the caller has not connected.
+    const propertyIdText = typeof propertyId === 'number' && Number.isInteger(propertyId) ? String(propertyId) : propertyId;
+    if (typeof propertyIdText !== 'string' || !/^\d{1,20}$/.test(propertyIdText)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Property ID must be the numeric Google Analytics property id' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const { data: userRecord, error: userRecordError } = await supabaseClient
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (userRecordError || !userRecord?.tenant_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Tenant context is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const { data: gaSettings, error: settingsError } = await supabaseClient
+      .from('google_analytics_settings')
+      .select('id, connection_status')
+      .eq('tenant_id', userRecord.tenant_id)
+      .eq('user_id', user.id)
+      .eq('property_id', propertyIdText)
+      .maybeSingle();
+
+    if (settingsError || !gaSettings) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Google Analytics not configured for this property' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    if (gaSettings.connection_status !== 'connected') {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Google Analytics connection not active' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
     const GOOGLE_ANALYTICS_API_KEY = Deno.env.get('GOOGLE_ANALYTICS_API_KEY');
     if (!GOOGLE_ANALYTICS_API_KEY) {
       throw new Error('Google Analytics API key not configured');
@@ -47,11 +92,11 @@ serve(async (req) => {
     const endDateStr = endDate || new Date().toISOString().split('T')[0];
     const startDateStr = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    console.log(`Fetching GA data for property ${propertyId} from ${startDateStr} to ${endDateStr}`);
+    console.log(`Fetching GA data for property ${propertyIdText} from ${startDateStr} to ${endDateStr}`);
 
     // Google Analytics Data API v1 endpoint
     const gaResponse = await fetch(
-      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyIdText}:runReport`,
       {
         method: 'POST',
         headers: {

@@ -38,7 +38,10 @@ function normalizeOrigin(value: string): string | null {
   }
 }
 
-function readConfiguredOrigins(): Set<string> {
+type EnvGet = (key: string) => string | undefined;
+const denoEnvGet: EnvGet = (key) => Deno.env.get(key);
+
+function readConfiguredOrigins(envGet: EnvGet = denoEnvGet): Set<string> {
   const configuredOrigins = new Set<string>();
 
   for (const origin of DEFAULT_ALLOWED_ORIGINS) {
@@ -46,12 +49,12 @@ function readConfiguredOrigins(): Set<string> {
   }
 
   const envValues = [
-    Deno.env.get("APP_ORIGIN"),
-    Deno.env.get("APP_BASE_URL"),
-    Deno.env.get("SITE_URL"),
-    Deno.env.get("CMS_ORIGIN"),
-    Deno.env.get("CRM_ORIGIN"),
-    Deno.env.get("OAUTH_CORS_ORIGINS"),
+    envGet("APP_ORIGIN"),
+    envGet("APP_BASE_URL"),
+    envGet("SITE_URL"),
+    envGet("CMS_ORIGIN"),
+    envGet("CRM_ORIGIN"),
+    envGet("OAUTH_CORS_ORIGINS"),
   ];
 
   for (const envValue of envValues) {
@@ -68,6 +71,20 @@ function readConfiguredOrigins(): Set<string> {
   }
 
   return configuredOrigins;
+}
+
+/**
+ * True only when `origin` (any URL; its origin is compared) is one of the platform's configured app origins.
+ * A redirect back to the app after a provider flow uses a request- or state-supplied origin only when this
+ * holds (central-login 59, crm-r2-F70); otherwise the caller falls back to its configured APP_ORIGIN.
+ */
+export function isConfiguredAppOrigin(
+  origin: string | null | undefined,
+  envGet: EnvGet = denoEnvGet,
+): boolean {
+  if (!origin) return false;
+  const normalized = normalizeOrigin(origin);
+  return normalized !== null && readConfiguredOrigins(envGet).has(normalized);
 }
 
 function resolveAllowOrigin(

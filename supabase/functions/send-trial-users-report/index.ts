@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { Resend } from "npm:resend@2.1.0";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { renderBloomSystemEmail, bloomEmailCard, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 
 const corsHeaders = {
@@ -14,17 +15,44 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log('[TRIAL-REPORT] Starting trial users report generation');
-    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // central-login 59 (crm-r2-F93): the report reads every trial account and emails the operators,
+    // so only a master admin (the /admin/reports page) or a configured server key may run it.
+    if (requireInternalApiKey(req)) {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Authorization required' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: isMasterAdmin } = await supabase.rpc('is_master_admin', { _user_id: user.id });
+      if (isMasterAdmin !== true) {
+        return new Response(JSON.stringify({ error: 'Access denied. Master admin required.' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    console.log('[TRIAL-REPORT] Starting trial users report generation');
+    
     const resendApiKey = Deno.env.get('RESEND_API_KEY')!;
     
     if (!resendApiKey) {
       throw new Error('RESEND_API_KEY not configured');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
     // Get all trial users with their profile data

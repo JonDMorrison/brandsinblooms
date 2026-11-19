@@ -26,7 +26,6 @@ dist-ssr
 
 # SECURITY: Environment files and Supabase temp files must not be tracked
 .env
-.env.*
 .env.e2e
 .env.test
 .env.local

@@ -63,7 +63,7 @@ Deno.test(
   async () => {
     Deno.env.set("TOKEN_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
     const { client, recorder } = createMockSupabaseClient({
-      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+      "users:select": { data: { id: "user-1" }, error: null },
       "provider_connections:select": { data: null, error: null },
       "provider_connections:insert": { data: null, error: null },
       "functions:mailchimp-fetch-lists": { data: { lists: [] }, error: null },
@@ -85,6 +85,8 @@ Deno.test(
               "https://supabase.test/functions/v1/migrations-oauth-callback?provider=mailchimp",
             appOrigin: "https://app.example.test",
             uid: "user-1",
+            tid: "tenant-1",
+            nonce: "nonce-1",
           }),
           encryptToken: async (value) => `enc:${value}`,
           envGet: makeEnv({
@@ -165,7 +167,7 @@ Deno.test(
   async () => {
     Deno.env.set("TOKEN_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
     const { client } = createMockSupabaseClient({
-      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+      "users:select": { data: { id: "user-1" }, error: null },
     });
 
     try {
@@ -181,6 +183,8 @@ Deno.test(
               "https://supabase.test/functions/v1/migrations-oauth-callback?provider=mailchimp",
             appOrigin: "https://app.example.test",
             uid: "user-1",
+            tid: "tenant-1",
+            nonce: "nonce-1",
           }),
           encryptToken: async () => "encrypted",
           envGet: makeEnv({
@@ -216,7 +220,7 @@ Deno.test(
   async () => {
     Deno.env.set("TOKEN_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
     const { client } = createMockSupabaseClient({
-      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+      "users:select": { data: { id: "user-1" }, error: null },
       "provider_connections:select": { data: null, error: null },
       "provider_connections:insert": { data: null, error: null },
       "functions:mailchimp-fetch-lists": { data: { lists: [] }, error: null },
@@ -237,6 +241,8 @@ Deno.test(
               "https://supabase.test/functions/v1/migrations-oauth-callback?provider=mailchimp",
             appOrigin: "https://preview-123.lovable.app",
             uid: "user-1",
+            tid: "tenant-1",
+            nonce: "nonce-1",
           }),
           encryptToken: async (value) => `enc:${value}`,
           envGet: makeEnv({
@@ -295,7 +301,7 @@ Deno.test(
   async () => {
     Deno.env.set("TOKEN_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
     const { client } = createMockSupabaseClient({
-      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+      "users:select": { data: { id: "user-1" }, error: null },
     });
 
     try {
@@ -311,6 +317,8 @@ Deno.test(
               "https://supabase.test/functions/v1/migrations-oauth-callback?provider=constant_contact",
             appOrigin: "https://app.example.test",
             uid: "user-1",
+            tid: "tenant-1",
+            nonce: "nonce-1",
           }),
           encryptToken: async () => "encrypted",
           envGet: makeEnv({
@@ -335,6 +343,65 @@ Deno.test(
         response.headers.get("Location"),
         "https://app.example.test/oauth/callback?provider=constant_contact&status=error&message=Failed+to+obtain+access+token%3A+invalid_grant",
       );
+    } finally {
+      Deno.env.delete("TOKEN_ENCRYPTION_KEY");
+    }
+  },
+);
+
+Deno.test(
+  "migrations-oauth-callback refuses a replayed state before the code exchange",
+  async () => {
+    Deno.env.set("TOKEN_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
+    const { client } = createMockSupabaseClient({
+      "users:select": { data: { id: "user-1" }, error: null },
+      "oauth_states:insert": {
+        data: null,
+        error: { message: "duplicate key value violates unique constraint" },
+      },
+    });
+    let fetchCount = 0;
+
+    try {
+      const response = await handleMigrationsOAuthCallback(
+        new Request(
+          "https://supabase.test/functions/v1/migrations-oauth-callback?code=abc&state=good-state&provider=mailchimp",
+        ),
+        {
+          createClient: () => client as never,
+          verifyJwt: async () => ({
+            provider: "mailchimp",
+            redirectUri:
+              "https://supabase.test/functions/v1/migrations-oauth-callback?provider=mailchimp",
+            appOrigin: "https://app.example.test",
+            uid: "user-1",
+            tid: "tenant-1",
+            nonce: "nonce-1",
+          }),
+          encryptToken: async () => "encrypted",
+          envGet: makeEnv({
+            OAUTH_STATE_SECRET: "state-secret",
+            MAILCHIMP_CLIENT_ID: "client-id",
+            MAILCHIMP_CLIENT_SECRET: "client-secret",
+            APP_ORIGIN: "https://app.example.test",
+            SUPABASE_URL: "https://supabase.test",
+            SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+          }),
+          importKey: async () => ({}) as CryptoKey,
+          fetch: async () => {
+            fetchCount += 1;
+            return new Response("{}");
+          },
+          waitUntil: () => undefined,
+        },
+      );
+
+      assertEquals(response.status, 302);
+      assertStringIncludes(
+        response.headers.get("Location") ?? "",
+        "status=error",
+      );
+      assertEquals(fetchCount, 0);
     } finally {
       Deno.env.delete("TOKEN_ENCRYPTION_KEY");
     }

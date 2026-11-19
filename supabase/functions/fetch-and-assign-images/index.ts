@@ -32,6 +32,8 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
     }
+    // A signed-in caller may only change their own content tasks (central-login 59, crm-r2-F47).
+    let callerUserId: string | null = null;
     if (authHeader !== `Bearer ${serviceRoleKey}`) {
       const token = authHeader.replace('Bearer ', '');
       const supabase = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!);
@@ -39,6 +41,7 @@ serve(async (req) => {
       if (authErr || !user) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
       }
+      callerUserId = user.id;
     }
 
     const { tasks } = await req.json();
@@ -108,7 +111,7 @@ serve(async (req) => {
           alt: imageData.alt_description || task.imageQuery
         };
 
-        const { error: updateError } = await supabase
+        let taskUpdate = supabase
           .from('content_tasks')
           .update({
             image_url: imageData.urls.regular,
@@ -124,6 +127,19 @@ serve(async (req) => {
             }
           })
           .eq('id', task.taskId);
+        if (callerUserId) {
+          taskUpdate = taskUpdate.eq('user_id', callerUserId);
+        }
+        const { data: updatedTasks, error: updateError } = await taskUpdate.select('id');
+
+        if (!updateError && (updatedTasks ?? []).length === 0) {
+          results.push({
+            taskId: task.taskId,
+            success: false,
+            error: 'Task not found'
+          });
+          continue;
+        }
 
         if (updateError) {
           console.error(`[BATCH_IMAGE_FETCH] Error updating task ${task.taskId}:`, updateError);

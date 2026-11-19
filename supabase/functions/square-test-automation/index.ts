@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { callerHasTenantPermission } from '../_shared/callerTenantPermission.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -87,6 +88,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // central-login 59 (crm-r2-F106): the test starts a live automation run and queues a send, so the caller
+    // needs automation.write for the tenant (asked as the caller) before any service-role read or write.
+    if (!(await callerHasTenantPermission(authHeader, effectiveTenantId, 'automation.write'))) {
+      return new Response(
+        JSON.stringify({ error: 'Automation permission required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get customer - must belong to the effective tenant
     const { data: customer, error: custError } = await supabaseAdmin
       .from('crm_customers')
@@ -99,6 +109,14 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: `Customer not found or not in your tenant: ${custError?.message || 'Not found'}` }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // The test rewrites the customer's last_purchase_date: customer.write at the customer's store (crm-r2-F106).
+    if (!(await callerHasTenantPermission(authHeader, effectiveTenantId, 'customer.write', customer.primary_location_id ?? null))) {
+      return new Response(
+        JSON.stringify({ error: 'Customer permission required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

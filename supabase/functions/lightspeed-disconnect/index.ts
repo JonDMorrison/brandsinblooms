@@ -49,9 +49,10 @@ async function hasAdminRole(supabaseAdmin: any, userId: string) {
       _user_id: userId,
       _role: "admin",
     }),
-    supabaseAdmin.rpc("has_role", {
+    // crm-r2-F165: master admin follows the app_admin_emails allow-list (is_master_admin), never a legacy
+    // user_roles 'master_admin' row.
+    supabaseAdmin.rpc("is_master_admin", {
       _user_id: userId,
-      _role: "master_admin",
     }),
   ]);
 

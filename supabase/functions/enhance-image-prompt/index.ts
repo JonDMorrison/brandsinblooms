@@ -1,5 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerTenantId } from "../_shared/callerTenantPermission.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getMasterGardenerSystemRole } from "../_shared/masterGardenerPrompt.ts";
 
@@ -96,10 +98,29 @@ serve(async (req) => {
 
   try {
     // SECURITY: [E28] - Add JWT authentication
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    // central-login 59 (crm-r2-F45): the token is verified and must belong to a CRM member before the platform's
+    // OpenAI key is spent (a present header alone is not enough).
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Authorization required" }), {
         status: 401,
+        headers: corsHeaders,
+      });
+    }
+    const callerClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: corsHeaders,
+      });
+    }
+    if (!(await callerTenantId(authHeader))) {
+      return new Response(JSON.stringify({ error: "Tenant access required" }), {
+        status: 403,
         headers: corsHeaders,
       });
     }

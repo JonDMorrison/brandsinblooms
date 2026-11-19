@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { isValidPrefix } from "../_shared/cookies.ts";
 // FIX: [P5] - Decrypt access token before using as Bearer token
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { getAdaptiveCooldown as getAdaptiveCooldownMs } from "../_shared/syncThrottling.ts";
@@ -505,6 +506,7 @@ async function sleep(ms: number) {
 
 async function writeJobProgress(
   supabaseAdmin: any,
+  tenantId: string,
   jobId: string | null,
   updates: Record<string, unknown>,
 ) {
@@ -520,7 +522,9 @@ async function writeJobProgress(
       updated_at: now,
       last_progress_at: updates.last_progress_at ?? now,
     })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    .eq("tenant_id", tenantId)
+    .eq("provider", "lightspeed");
 
   if (error) {
     console.error(
@@ -646,28 +650,45 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // The prefix becomes the API host: only a valid Lightspeed prefix (crm-r2-F59/F134).
+    if (!isValidPrefix(connection.domain_prefix)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid Lightspeed store prefix. Reconnect Lightspeed." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const { accessToken, needsReEncryption } =
       await getLightspeedAccessToken(connection);
     let reEncrypted = false;
 
     let syncJob: any = null;
     if (jobId) {
+      // Only the caller's own tenant's Lightspeed job is read or progressed (crm-r2-F61).
       const { data: jobData, error: jobError } = await supabaseAdmin
         .from("pos_sync_jobs_v2")
         .select(
           "current_page,current_cursor,fetched_rows,inserted_rows,skipped_rows,failed_rows,total_pages_est",
         )
         .eq("id", jobId)
-        .single();
+        .eq("tenant_id", tenantId)
+        .eq("provider", "lightspeed")
+        .maybeSingle();
 
-      if (jobError) {
+      if (jobError || !jobData) {
         console.error(
           "[LS-SYNC-PRODUCTS] Failed to load sync job state:",
-          jobError.message,
+          jobError?.message ?? "not found for this tenant",
         );
-      } else {
-        syncJob = jobData;
+        return new Response(JSON.stringify({ error: "Sync job not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
+      syncJob = jobData;
     }
 
     let totalFetched = toFiniteNumber(syncJob?.fetched_rows, 0);
@@ -684,7 +705,7 @@ Deno.serve(async (req: Request) => {
     );
 
     while (true) {
-      await writeJobProgress(supabaseAdmin, jobId, {
+      await writeJobProgress(supabaseAdmin, tenantId, jobId, {
         status: "in_progress",
         current_page: page,
         current_cursor: String(afterVersion),
@@ -760,7 +781,7 @@ Deno.serve(async (req: Request) => {
       }
 
       if (products.length === 0) {
-        await writeJobProgress(supabaseAdmin, jobId, {
+        await writeJobProgress(supabaseAdmin, tenantId, jobId, {
           status: "completed",
           current_page: page,
           current_cursor: String(afterVersion),
@@ -838,7 +859,7 @@ Deno.serve(async (req: Request) => {
       const nextVersion = parseVersionCursor(data?.version?.max);
       if (nextVersion === 0 || nextVersion === afterVersion) {
         finalVersionCursor = afterVersion;
-        await writeJobProgress(supabaseAdmin, jobId, {
+        await writeJobProgress(supabaseAdmin, tenantId, jobId, {
           status: "completed",
           current_page: page,
           current_cursor: String(afterVersion),
@@ -855,7 +876,7 @@ Deno.serve(async (req: Request) => {
       finalVersionCursor = nextVersion;
       page += 1;
 
-      await writeJobProgress(supabaseAdmin, jobId, {
+      await writeJobProgress(supabaseAdmin, tenantId, jobId, {
         status: "in_progress",
         current_page: page,
         current_cursor: String(afterVersion),

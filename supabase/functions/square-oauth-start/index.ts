@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { detectEnvironment, getSquareCredentials } from '../_shared/environment.ts';
 import { encryptToken } from '../_shared/crypto/tokens.ts';
+import { requireImportTenant } from '../_shared/customer-intelligence/import-access.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,29 +36,52 @@ Deno.serve(async (req) => {
 
     console.log('[SQUARE-INIT] User authenticated:', user.id);
 
+    // Connecting Square replaces the tenant's connection: integrations.manage only (central-login 59).
+    let tenantId: string;
+    try {
+      tenantId = await requireImportTenant(supabaseClient);
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Integration management permission required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const userData = { tenant_id: tenantId };
+
     const body = await req.json();
     const state = body?.state;
-    
-    console.log('[SQUARE-INIT] State received:', state?.substring(0, 12) + '...');
 
-    if (!state) {
+    console.log('[SQUARE-INIT] State received:', typeof state === 'string' ? state.substring(0, 12) + '...' : 'none');
+
+    if (typeof state !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(state)) {
       console.error('[SQUARE-INIT] Missing state parameter');
       throw new Error('Missing state parameter');
     }
 
-    // Get tenant_id
-    const { data: userData, error: userDataError } = await supabaseClient
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single();
+    // The state is stored server-side, bound to this user and tenant, and consumed once by the callback
+    // (crm-r2-F105). The unique state_token refuses a value that is already in use.
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { error: stateError } = await supabaseAdmin
+      .from('oauth_states')
+      .insert({
+        state_token: state,
+        user_id: user.id,
+        tenant_id: tenantId,
+        provider: 'square',
+        domain_prefix: '',
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      });
 
-    if (userDataError || !userData?.tenant_id) {
-      console.error('[SQUARE-INIT] Tenant lookup failed:', userDataError?.message);
-      throw new Error('No tenant found for user');
+    if (stateError) {
+      console.error('[SQUARE-INIT] Failed to store state:', stateError.message);
+      throw new Error('Failed to initialize OAuth flow');
     }
 
-    console.log('[SQUARE-INIT] Tenant found:', userData.tenant_id);
+    console.log('[SQUARE-INIT] Tenant found:', tenantId);
 
     // FIX: [P31] - Use environment variable for Square environment instead of hardcoded value
     const squareEnvironment = Deno.env.get('SQUARE_ENVIRONMENT') || 'production';

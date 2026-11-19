@@ -106,7 +106,10 @@ const getHealthChip = (score: number | null) => {
 
 const hasNoActivity = (dateStr: string | null): boolean => {
   if (!dateStr) return true;
-  return new Date(dateStr).getFullYear() < 2000;
+  // admin_list_tenants answers "-infinity" for a tenant with no sign-in and no event: an invalid date is no
+  // activity (as TenantDrawer and AdminHub already treat it), never a date to format.
+  const date = new Date(dateStr);
+  return Number.isNaN(date.getTime()) || date.getFullYear() < 2000;
 };
 
 const getActivityColor = (lastActivity: string | null) => {

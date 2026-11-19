@@ -19,9 +19,18 @@ serve(async (req) => {
 
   try {
     // SECURITY: [E19] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // central-login 59 (crm-r2-F51): the token is verified, and a body userId may only name the caller's own account.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+    const callerClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
     // Normalize incoming payload keys to be resilient to different callers
@@ -34,6 +43,12 @@ serve(async (req) => {
     const promo_items = incoming.promo_items ?? incoming.promoItems ?? [];
     const tone_note = incoming.tone_note ?? incoming.toneNote ?? '';
     const userId = incoming.userId;
+    if (userId && userId !== user.id) {
+      return new Response(JSON.stringify({ error: 'You can only generate content for your own account.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const is_holiday = incoming.is_holiday ?? incoming.isHoliday ?? false;
     const holiday_context = incoming.holiday_context ?? incoming.holidayContext ?? '';
     const existingContent = incoming.existingContent ?? null;

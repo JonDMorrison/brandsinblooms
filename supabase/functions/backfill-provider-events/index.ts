@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts';
+import { callerHasTenantPermission } from '../_shared/callerTenantPermission.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -201,13 +203,15 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // SECURITY: [E32] - Add service-role-or-JWT authentication
+    // SECURITY: [E32] - Add service-role-or-JWT authentication. central-login 59 (crm-r2-F86): internal callers
+    // present a configured server key; a signed-in caller also needs campaign.write for the campaign (below).
     const authHeader = req.headers.get('Authorization');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
-    }
-    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    const isInternal = requireInternalApiKey(req) === null;
+    if (!isInternal) {
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+      }
       const token = authHeader.replace('Bearer ', '');
       const supabase = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!);
       const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
@@ -237,7 +241,7 @@ serve(async (req: Request): Promise<Response> => {
     // Get campaign details
     const { data: campaign, error: campaignError } = await supabase
       .from('crm_campaigns')
-      .select('id, tenant_id, sent_at, metrics')
+      .select('id, tenant_id, sent_at, metrics, location_scope, primary_location_id')
       .eq('id', campaignId)
       .single();
 
@@ -245,6 +249,14 @@ serve(async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ error: 'Campaign not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const campaignLocationId = campaign.location_scope === 'one_location' ? campaign.primary_location_id ?? null : null;
+    if (!isInternal && !(await callerHasTenantPermission(authHeader, campaign.tenant_id, 'campaign.write', campaignLocationId))) {
+      return new Response(
+        JSON.stringify({ error: 'Campaign write permission required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

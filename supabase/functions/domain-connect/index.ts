@@ -277,6 +277,27 @@ function normalizeDomain(domain: string): string {
   return domain.replace(/^www\./, '').toLowerCase();
 }
 
+// crm-r2-F38: the Domain Connect host comes from DNS records the caller controls. It is used only as a
+// plain https host (an optional path; no userinfo, port, query or fragment) on a known Domain Connect
+// provider; anything else falls back to manual DNS.
+const DOMAIN_CONNECT_PROVIDER_DOMAINS = ['godaddy.com', 'domaincontrol.com', 'namecheap.com', 'cloudflare.com'];
+
+function domainConnectBaseFromDns(value: string): string | null {
+  const raw = value.trim().replace(/\.$/, '');
+  if (!/^[a-z0-9.-]+(?:\/[a-z0-9._~/-]*)?$/i.test(raw)) return null;
+  let url: URL;
+  try {
+    url = new URL(`https://${raw}`);
+  } catch {
+    return null;
+  }
+  const host = url.hostname;
+  if (!DOMAIN_CONNECT_PROVIDER_DOMAINS.some((provider) => host === provider || host.endsWith(`.${provider}`))) {
+    return null;
+  }
+  return `https://${host}${url.pathname.replace(/\/+$/, '')}`;
+}
+
 // Query DNS for Domain Connect host using Cloudflare DNS-over-HTTPS
 async function discoverDomainConnectHost(domain: string): Promise<string | null> {
   const normalizedDomain = normalizeDomain(domain);
@@ -296,9 +317,9 @@ async function discoverDomainConnectHost(domain: string): Promise<string | null>
         const txtRecord = txtData.Answer[0].data.replace(/"/g, '');
         // Parse TXT record for Domain Connect host
         const hostMatch = txtRecord.match(/host=([^;\s]+)/);
-        if (hostMatch) {
-          const rawHost = hostMatch[1].replace(/\.$/, ''); // strip trailing dot
-          return `https://${rawHost}`;
+        const txtBase = hostMatch ? domainConnectBaseFromDns(hostMatch[1]) : null;
+        if (txtBase) {
+          return txtBase;
         }
       }
     }
@@ -313,8 +334,10 @@ async function discoverDomainConnectHost(domain: string): Promise<string | null>
     if (cnameResponse.ok) {
       const cnameData = await cnameResponse.json();
       if (cnameData.Answer && cnameData.Answer.length > 0) {
-        const cnameTarget = cnameData.Answer[0].data.replace(/\.$/, '');
-        return `https://${cnameTarget}`;
+        const cnameBase = domainConnectBaseFromDns(String(cnameData.Answer[0].data));
+        if (cnameBase) {
+          return cnameBase;
+        }
       }
     }
     
@@ -368,6 +391,7 @@ async function checkProviderSupport(domainConnectHost: string, providerId: strin
     const checkUrl = `${domainConnectHost}/v2/domainTemplates/providers/${providerId}`;
     const response = await fetch(checkUrl, {
       method: 'HEAD',
+      redirect: 'error',
       signal: AbortSignal.timeout(5000)
     });
     
@@ -376,8 +400,8 @@ async function checkProviderSupport(domainConnectHost: string, providerId: strin
     return response.status === 200 || response.status === 404;
   } catch (error) {
     console.warn('Provider support check failed:', error);
-    // If check fails, assume supported to avoid blocking valid requests
-    return true;
+    // crm-r2-F38: fail closed (manual DNS) instead of assuming support.
+    return false;
   }
 }
 

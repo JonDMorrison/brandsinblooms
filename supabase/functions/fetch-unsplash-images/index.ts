@@ -2,6 +2,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { callerTenantId } from '../_shared/callerTenantPermission.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,7 +11,9 @@ const corsHeaders = {
 
 const unsplashAccessKey = Deno.env.get('UNSPLASH_ACCESS_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+// Per-request spend caps (central-login 59, crm-r2-F49): the SPA sends one query and at most 50 images.
+const MAX_QUERY_VARIANTS = 5;
+const MAX_IMAGES = 50;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,6 +21,33 @@ serve(async (req) => {
   }
 
   try {
+    // central-login 59 (crm-r2-F48, crm-r2-F49): only a verified CRM member spends the platform's Unsplash key, and
+    // task suggestions are written with the caller's own token (the image_suggestions policies decide).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const callerClient = createClient(supabaseUrl ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!(await callerTenantId(authHeader))) {
+      return new Response(JSON.stringify({ error: 'Tenant access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { 
       query,
       variants = [],
@@ -32,14 +62,20 @@ serve(async (req) => {
       randomize = false
     } = await req.json();
 
-    if (!query && !collection && variants.length === 0) {
+    const queryVariants: string[] = Array.isArray(variants) ? variants.slice(0, MAX_QUERY_VARIANTS) : [];
+    const requestedImages = Number(maxImages);
+    const imageLimit = Number.isFinite(requestedImages)
+      ? Math.min(Math.max(Math.trunc(requestedImages), 1), MAX_IMAGES)
+      : MAX_IMAGES;
+
+    if (!query && !collection && queryVariants.length === 0) {
       throw new Error('Either query, variants, or collection parameter is required');
     }
 
     console.log(`[UNSPLASH] ===== FETCH REQUEST =====`);
-    console.log(`[UNSPLASH] Query: "${query}", Variants: ${variants.length}, Collection: "${collection}"`);
-    console.log(`[UNSPLASH] Variants:`, variants);
-    console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}`);
+    console.log(`[UNSPLASH] Query: "${query}", Variants: ${queryVariants.length}, Collection: "${collection}"`);
+    console.log(`[UNSPLASH] Variants:`, queryVariants);
+    console.log(`[UNSPLASH] Parameters: maxImages=${imageLimit}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}`);
     console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey}`);
 
     if (!unsplashAccessKey) {
@@ -54,7 +90,7 @@ serve(async (req) => {
       // Fetch from curated collection
       const collectionParams = new URLSearchParams({
         page: page.toString(),
-        per_page: maxImages.toString(),
+        per_page: imageLimit.toString(),
       });
       
       unsplashUrl = `https://api.unsplash.com/collections/${collection}/photos?${collectionParams.toString()}`;
@@ -79,7 +115,7 @@ serve(async (req) => {
       console.log(`[UNSPLASH] Found ${images.length} images from collection ${collection}`);
     } else {
       // Search photos - try variants or single query
-      const queriesToTry = variants.length > 0 ? variants : [query];
+      const queriesToTry = queryVariants.length > 0 ? queryVariants : [query];
       let usedQuery = '';
       
       for (const searchQuery of queriesToTry) {
@@ -89,7 +125,7 @@ serve(async (req) => {
 
         const searchParams = new URLSearchParams({
           query: searchQuery,
-          per_page: (maxImages * 2).toString(), // Fetch more to allow for filtering
+          per_page: (imageLimit * 2).toString(), // Fetch more to allow for filtering
           orientation: orientation,
           order_by: orderBy,
           content_filter: contentFilter
@@ -198,13 +234,13 @@ serve(async (req) => {
       validImages = scoredImages
         .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, maxImages)
+        .slice(0, imageLimit)
         .map(item => item.image);
 
       console.log(`[UNSPLASH] After garden validation: ${validImages.length}/${images.length} images are garden-relevant`);
     } else {
       // For curated collections, use all images (already curated for gardens)
-      validImages = images.slice(0, maxImages);
+      validImages = images.slice(0, imageLimit);
       
       // Randomize if requested for variety
       if (randomize) {
@@ -216,7 +252,7 @@ serve(async (req) => {
 
     // If contentTaskId is provided, store the images in the database
     if (contentTaskId && validImages.length > 0) {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const supabase = callerClient;
 
       const imageSuggestions = validImages.map((image: any) => ({
         content_task_id: contentTaskId,

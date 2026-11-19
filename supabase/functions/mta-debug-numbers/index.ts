@@ -44,6 +44,15 @@ Deno.serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
+    // central-login 59 (crm-r2-F69): the platform's dedicated-number list is for master admins only.
+    const { data: isMasterAdmin } = await supabase.rpc("is_master_admin", { _user_id: user.id });
+    if (isMasterAdmin !== true) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Access denied. Master admin required." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log(`[mta-debug-numbers] User ${user.id} requesting dedicated numbers list`);
 
     // Fetch dedicated numbers

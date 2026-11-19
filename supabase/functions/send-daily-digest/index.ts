@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderBloomSystemEmail } from "../../../src/lib/email/premiumBotanical.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * send-daily-digest
@@ -18,7 +19,12 @@ const NOTION_DB_ID = Deno.env.get("NOTION_PIPELINE_DB_ID")!;
 
 const RECIPIENTS = ["jon@getclear.ca", "jeff@brandsinblooms.com"];
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  // Scheduler-only job (central-login 59, crm-r2-F19): only a configured server key, sent by the
+  // scheduler in `apikey` or `Authorization: Bearer`, starts it. Signed-in users and the public key get 401.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
+
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false },

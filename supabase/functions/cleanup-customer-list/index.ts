@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,6 +43,12 @@ serve(async (req) => {
         JSON.stringify({ error: 'tenant_id is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // central-login 59 (crm-r2-F23): every cleanup type hard-deletes customers, so the caller needs customer.delete
+    // in this tenant (asked as the caller, as the crm_customers delete policy does) before any service-role delete.
+    if (!(await callerHasTenantPermission(authHeader, tenant_id, 'customer.delete'))) {
+      return new Response(JSON.stringify({ error: 'You do not have permission to delete customers in this account.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const results = {

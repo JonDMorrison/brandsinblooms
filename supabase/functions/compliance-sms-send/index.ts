@@ -138,6 +138,18 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
+  // central-login 59 (crm-r2-F27): every service-role read and write below is bound to the caller's own tenant,
+  // so a number held by another tenant's customer is never looked up, reported or changed.
+  const { data: callerRow, error: callerError } = await supabaseAuth
+    .from('users')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .maybeSingle();
+  const callerTenantId: string | null = callerError ? null : callerRow?.tenant_id ?? null;
+  if (!callerTenantId) {
+    return new Response(JSON.stringify({ error: 'No tenant found for user' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   try {
     const { 
       to, 
@@ -165,13 +177,14 @@ serve(async (req) => {
       supabase
         .from('crm_customers')
         .select('*')
+        .eq('tenant_id', callerTenantId)
         .eq('phone', cleanedPhone)
-        .single(),
+        .maybeSingle(),
       supabase
         .from('company_profiles')
         .select('compliance_settings')
-        .limit(1)
-        .single()
+        .eq('user_id', user.id)
+        .maybeSingle()
     ]);
 
     const customer = customerResult.data;
@@ -245,7 +258,8 @@ serve(async (req) => {
       await supabase
         .from('crm_customers')
         .update({ footer_last_sent_at: new Date().toISOString() })
-        .eq('id', customer.id);
+        .eq('id', customer.id)
+        .eq('tenant_id', callerTenantId);
 
       await logCompliance(
         supabase,

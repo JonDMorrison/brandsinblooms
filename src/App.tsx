@@ -37,6 +37,9 @@ const AdminTenants = lazyRetry(() => import("@/pages/admin/AdminTenants"));
 const ImpersonateCallbackPage = lazyRetry(
   () => import("@/pages/admin/ImpersonateCallbackPage"),
 );
+const BloomsuiteCallbackPage = lazyRetry(
+  () => import("@/pages/BloomsuiteCallbackPage"),
+);
 const AdminDashboard = lazyRetry(() => import("@/pages/admin/AdminDashboard"));
 const AdminManage = lazyRetry(() => import("@/pages/AdminManage"));
 const AdminGovernanceConfig = lazyRetry(
@@ -185,9 +188,6 @@ const WebsiteWaitlistPage = lazyNamed(
 const OAuthCallbackHandler = lazyNamed(
   () => import("@/components/migrations/OAuthCallbackHandler"),
   "OAuthCallbackHandler",
-);
-const OAuthAuthorizePage = lazyRetry(
-  () => import("@/pages/OAuthAuthorizePage"),
 );
 const CallbackPage = lazyRetry(
   () => import("@/pages/integrations/lightspeed/CallbackPage"),
@@ -1214,7 +1214,6 @@ function App() {
               element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route element={<CallbackLazyBoundary />}>
-              <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
               <Route
                 path="/auth/callback"
                 element={<RedirectWithQuery to="/integrations" />}
@@ -1222,6 +1221,10 @@ function App() {
               <Route
                 path="/admin/impersonate/callback"
                 element={<ImpersonateCallbackPage />}
+              />
+              <Route
+                path="/auth/bloomsuite"
+                element={<BloomsuiteCallbackPage />}
               />
               <Route
                 path="/integrations/lightspeed/callback"

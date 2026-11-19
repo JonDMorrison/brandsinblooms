@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -167,6 +168,11 @@ serve(async (req: Request): Promise<Response> => {
           );
         }
       }
+    } else {
+      // central-login 59 (crm-r2-F33): no unsigned bypass. Without a signing secret only a configured
+      // server key (apikey or Bearer) runs the fleet reputation refresh.
+      const unauthorized = requireInternalApiKey(req);
+      if (unauthorized) return unauthorized;
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

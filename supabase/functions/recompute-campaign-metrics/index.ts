@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,18 +16,28 @@ serve(async (req: Request): Promise<Response> => {
     // SECURITY: [E36] - Add service-role-or-JWT authentication
     const authHeader = req.headers.get('Authorization');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!authHeader) {
+    // central-login 59 (crm-r2-F83): internal callers present a configured server key and keep the service-role
+    // path; every other caller works through a client carrying their own token, so the listing (RLS) and the
+    // recompute RPC (location-aware campaign.read in the reporting snapshot) decide, and the service-role
+    // fallback that rewrites crm_campaigns never runs for them.
+    const isInternal = requireInternalApiKey(req) === null;
+    if (!authHeader && !isInternal) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
     }
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = serviceRoleKey!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    if (authHeader !== `Bearer ${serviceRoleKey}`) {
-      const token = authHeader.replace('Bearer ', '');
+    let callerClient = supabase;
+    if (!isInternal) {
+      const token = (authHeader ?? '').replace('Bearer ', '');
       const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
       if (authErr || !user) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
       }
+      callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
     }
 
     const { campaign_id, tenant_id, force = false } = await req.json();
@@ -229,11 +240,20 @@ serve(async (req: Request): Promise<Response> => {
       console.log(`📊 Recomputing metrics for campaign: ${campaign_id}`);
 
       try {
-        const { data, error } = await supabase.rpc('recompute_campaign_metrics', {
+        const { data, error } = await callerClient.rpc('recompute_campaign_metrics', {
           p_campaign_id: campaign_id
         });
 
-        if (error) {
+        if (error && !isInternal) {
+          // No service-role fallback for a signed-in caller: a refused snapshot (42501) is a 403.
+          if (error.code === '42501') {
+            return new Response(
+              JSON.stringify({ error: 'Campaign access denied' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          results.push({ campaign_id, metrics: null, success: false, error: error.message });
+        } else if (error) {
           console.log(`⚠️ RPC failed, using direct computation: ${error.message}`);
           const metrics = await computeMetricsFallback(campaign_id);
           console.log(`✅ Recomputed metrics for ${campaign_id}:`, metrics);
@@ -250,7 +270,7 @@ serve(async (req: Request): Promise<Response> => {
       // Recompute all sent campaigns for a tenant
       console.log(`📊 Recomputing metrics for all campaigns in tenant: ${tenant_id}`);
 
-      const { data: campaigns, error: fetchError } = await supabase
+      const { data: campaigns, error: fetchError } = await callerClient
         .from('crm_campaigns')
         .select('id')
         .eq('tenant_id', tenant_id)
@@ -265,7 +285,7 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       for (const campaign of campaigns || []) {
-        const { data, error } = await supabase.rpc('recompute_campaign_metrics', {
+        const { data, error } = await callerClient.rpc('recompute_campaign_metrics', {
           p_campaign_id: campaign.id
         });
 

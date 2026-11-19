@@ -67,9 +67,21 @@ Deno.serve(async (req) => {
 
     console.log('Testing POS connection:', { platform, connection_id });
 
-    // Get the adapter for the platform
-    const adapter = await getAdapter(platform, credentials);
-    
+    // Get the adapter for the platform; an invalid platform or store domain is the caller's input error
+    // (crm-r2-F79: the Shopify adapter refuses any host but *.myshopify.com before a request is made)
+    let adapter: Awaited<ReturnType<typeof getAdapter>>;
+    try {
+      adapter = await getAdapter(platform, credentials);
+    } catch (adapterError) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: adapterError instanceof Error ? adapterError.message : 'Invalid connection details',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
+      );
+    }
+
     // Test the connection
     const testResult = await adapter.testConnection(credentials);
 

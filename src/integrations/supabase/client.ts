@@ -55,13 +55,7 @@ const shouldDetectSupabaseSessionInUrl = () => {
   );
 };
 
-export const hasPersistedAuthState = () => {
-  if (typeof localStorage === "undefined") {
-    return false;
-  }
 
-  return Object.keys(localStorage).some(hasAuthStorageMatch);
-};
 
 // Enhanced auth state cleanup utility
 export const cleanupAuthState = () => {
@@ -85,6 +79,8 @@ export const cleanupAuthState = () => {
           sessionStorage.removeItem(key);
         }
       });
+      // An admin session copy older builds kept during impersonation (crm-r1-F04); never written any more.
+      sessionStorage.removeItem("bloomsuite_admin_session_backup");
     }
   } catch (error) {
     console.error("❌ Error during auth cleanup:", error);
@@ -94,19 +90,20 @@ export const cleanupAuthState = () => {
 // Force logout utility for emergency situations
 export const forceLogout = async () => {
   try {
-    // Step 1: Clean up all auth state first
+    // Step 1: Sign out of this device only while the session is still stored, so Auth ends it on the server too
+    // (crm-r1-F05; may fail in limbo state).
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Ignore sign-out failures and continue forcing local reset.
+    }
+
+    // Step 2: Clean up whatever auth state is left
     cleanupAuthState();
 
-    // Step 2: Clear any app-specific state
+    // Step 3: Clear any app-specific state
     localStorage.removeItem("subscription-cache");
     localStorage.removeItem("user-profile-cache");
-
-    // Step 3: Attempt graceful signout (may fail in limbo state)
-    try {
-      await supabase.auth.signOut({ scope: "global" });
-    } catch {
-      // Ignore sign-out cleanup failures and continue forcing local reset.
-    }
 
     // Step 4: Force page reload to completely reset state
     window.location.href = "/auth";
@@ -117,8 +114,48 @@ export const forceLogout = async () => {
   }
 };
 
+// Admin impersonation (crm-r1-F04): an impersonation tab keeps the impersonated session in its OWN sessionStorage,
+// under its own key, next to its impersonation marker. The admin's other tabs (localStorage) never see it.
+export const IMPERSONATION_TAB_STORAGE_KEY = "bloomsuite_impersonation_tab";
+export const IMPERSONATION_CALLBACK_PATH = "/admin/impersonate/callback";
+const IMPERSONATION_AUTH_STORAGE_KEY_PREFIX = "sb-crm-impersonation-auth-token";
+const IMPERSONATION_TAB_ID_STORAGE_KEY = "bloomsuite_impersonation_tab_id";
+
+// crm-r2-F05: auth-js names its cross-tab channel after the storage key, so one shared key let every impersonation
+// tab receive the other tabs' sign-in, refresh and sign-out events. Each impersonation tab keeps its own random id
+// (in its own sessionStorage) and its own key; a window it opens inherits both, with the same session.
+const impersonationAuthStorageKey = () => {
+  let tabId: string | null = null;
+  try {
+    tabId = window.sessionStorage.getItem(IMPERSONATION_TAB_ID_STORAGE_KEY);
+    if (!tabId) {
+      tabId = crypto.randomUUID();
+      window.sessionStorage.setItem(IMPERSONATION_TAB_ID_STORAGE_KEY, tabId);
+    }
+  } catch {
+    tabId = null;
+  }
+  return `${IMPERSONATION_AUTH_STORAGE_KEY_PREFIX}-${tabId ?? crypto.randomUUID()}`;
+};
+
+export const isImpersonationTab = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return (
+      window.location.pathname === IMPERSONATION_CALLBACK_PATH ||
+      window.sessionStorage.getItem(IMPERSONATION_TAB_STORAGE_KEY) === "true"
+    );
+  } catch {
+    return false;
+  }
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
+
+const impersonationTab = isImpersonationTab();
 
 export const supabase = createClient<Database>(
   SUPABASE_URL,
@@ -128,7 +165,8 @@ export const supabase = createClient<Database>(
       fetch: cachedSupabaseFetch,
     },
     auth: {
-      storage: localStorage,
+      storage: impersonationTab ? sessionStorage : localStorage,
+      ...(impersonationTab ? { storageKey: impersonationAuthStorageKey() } : {}),
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: shouldDetectSupabaseSessionInUrl(),
@@ -137,17 +175,42 @@ export const supabase = createClient<Database>(
   },
 );
 
+export const hasPersistedAuthState = () => {
+  const store = impersonationTab ? globalThis.sessionStorage : globalThis.localStorage;
+  if (typeof store === "undefined") {
+    return false;
+  }
+
+  return Object.keys(store).some(hasAuthStorageMatch);
+};
+
+/**
+ * The signed-in admin's own access token, read from this browser's normal (localStorage) session. Used only by the
+ * impersonation callback, whose own client is scoped to the impersonation tab. Null when no one is signed in here.
+ */
+export const getBrowserAdminAccessToken = async (): Promise<string | null> => {
+  const adminClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+  const { data } = await adminClient.auth.getSession();
+  return data.session?.access_token ?? null;
+};
+
 // Enhanced auth helpers with better error handling
 export const signOutCompletely = async () => {
   try {
-    // Clean up auth state first
-    cleanupAuthState();
-
-    // Attempt global sign out
-    const { error } = await supabase.auth.signOut({ scope: "global" });
+    // Sign out of this device only (W1 02/R-04), while the session is still stored so Auth ends it too,
+    // then clean up whatever auth state is left.
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
       console.error("Sign out error (continuing anyway):", error);
     }
+    cleanupAuthState();
 
     // Force page reload for clean state
     window.location.href = "/auth";
@@ -159,15 +222,16 @@ export const signOutCompletely = async () => {
 };
 
 export const signInWithCleanup = async (email: string, password: string) => {
-  // Clean up existing state
-  cleanupAuthState();
-
-  // Attempt global sign out first
+  // Sign out of this device first (never the person's other devices), while the old session is still stored so
+  // Auth ends it on the server too (crm-r1-F05)
   try {
-    await supabase.auth.signOut({ scope: "global" });
+    await supabase.auth.signOut({ scope: "local" });
   } catch {
     // Ignore pre-sign-in cleanup failures and continue with fresh credentials.
   }
+
+  // Then clean up whatever auth state is left
+  cleanupAuthState();
 
   // Sign in with email/password
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -183,15 +247,16 @@ export const signUpWithCleanup = async (
   password: string,
   fullName: string,
 ) => {
-  // Clean up existing state
-  cleanupAuthState();
-
-  // Attempt global sign out first
+  // Sign out of this device first (never the person's other devices), while the old session is still stored so
+  // Auth ends it on the server too (crm-r1-F05)
   try {
-    await supabase.auth.signOut({ scope: "global" });
+    await supabase.auth.signOut({ scope: "local" });
   } catch {
     // Ignore pre-sign-up cleanup failures and continue with account creation.
   }
+
+  // Then clean up whatever auth state is left
+  cleanupAuthState();
 
   const redirectUrl = `${window.location.origin}/onboarding`;
 

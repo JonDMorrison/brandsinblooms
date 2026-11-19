@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 import { verifyTenantLinkCode } from "../_shared/pwaTenantLinkCode.ts";
+import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -22,8 +23,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
   const url = Deno.env.get("SUPABASE_URL");
   const adminKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const secret = Deno.env.get("PWA_BRIDGE_SECRET");
-  if (!url || !adminKey || !secret || secret.length < 32) {
+  if (!url || !adminKey || !anonKey || !secret || secret.length < 32) {
     return reply(503, { error: "Storefront linking is not configured" });
   }
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer /, "");
@@ -33,11 +35,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
   });
   const { data: { user } } = await db.auth.getUser(token);
   if (!user) return reply(401, { error: "Invalid CRM session" });
-  const { data: caller } = await db.from("users").select("tenant_id,role")
-    .eq("id",user.id).maybeSingle();
-  if (!caller?.tenant_id || caller.role !== "admin") {
+  // The same integrations.manage rule as the other connection changes, asked as the caller (central-login 59).
+  const callerDb = createClient(url, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  let tenantId: string;
+  try {
+    tenantId = await requireImportTenant(callerDb);
+  } catch {
     return reply(403, { error: "CRM tenant administrator required" });
   }
+  const caller = { tenant_id: tenantId };
   let input: Record<string, unknown>;
   try {
     const body: unknown = await req.json();

@@ -95,26 +95,35 @@ Deno.serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-    let userTenantId: string | null = null
+    // central-login 59 (crm-r2-F101): as sms-failed-export, a live user with a tenant is required (401/403),
+    // and the campaign must belong to that tenant (checked unconditionally below).
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    )
 
-    {
-      const userClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        { global: { headers: { Authorization: authHeader } } }
+    const { data: userData, error: userError } = await userClient.auth.getUser()
+    if (userError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid authorization' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
 
-      const { data: userData } = await userClient.auth.getUser()
-      if (userData?.user) {
-        // Get user's tenant_id
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('tenant_id')
-          .eq('id', userData.user.id)
-          .single()
-        
-        userTenantId = userRow?.tenant_id || null
-      }
+    // Get user's tenant_id
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', userData.user.id)
+      .maybeSingle()
+
+    const userTenantId: string | null = userRow?.tenant_id || null
+    if (!userTenantId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'User tenant not found' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // 1. Load the campaign with enqueue fields
@@ -131,8 +140,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify tenant access if we have user tenant
-    if (userTenantId && campaign.tenant_id && userTenantId !== campaign.tenant_id) {
+    // Verify tenant access: a campaign without a tenant, or of another tenant, is never served
+    if (!campaign.tenant_id || userTenantId !== campaign.tenant_id) {
       return new Response(
         JSON.stringify({ success: false, error: 'Access denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

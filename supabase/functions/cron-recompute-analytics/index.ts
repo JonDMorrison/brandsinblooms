@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * Nightly Cron: Recompute Analytics
@@ -92,7 +93,10 @@ serve(async (req: Request): Promise<Response> => {
       
       console.log('✅ Signature verified');
     } else {
-      console.log('⚠️ CRON_SIGNING_SECRET not set, skipping signature verification');
+      // central-login 59 (crm-r2-F32): no unsigned bypass. Without a signing secret only a configured
+      // server key (apikey or Bearer) runs this fleet-wide job.
+      const unauthorized = requireInternalApiKey(req);
+      if (unauthorized) return unauthorized;
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

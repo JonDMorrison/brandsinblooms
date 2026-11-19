@@ -38,8 +38,14 @@ serve(async (req) => {
       throw new Error('Invalid user token');
     }
 
-    // Fetch segment data
-    const { data: segment, error: segmentError } = await supabase
+    // Fetch segment data as the caller (central-login 59, crm-r2-F52): RLS (crm_segments_select_by_scope) decides
+    // which segments the caller may read, so another tenant's segment or one the caller has no segment.read for
+    // answers "Segment not found" before any provider call.
+    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: segment, error: segmentError } = await callerClient
       .from('crm_segments')
       .select('*')
       .eq('id', actualSegmentId)

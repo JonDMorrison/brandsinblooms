@@ -89,23 +89,6 @@ export const cleanupDuplicateCampaigns = async (
       totalCleaned += campaignsToDelete.length;
     }
 
-    // Now clean up duplicate content tasks across the remaining campaigns
-    if (bestCampaign) {
-      try {
-        const { data: cleanupResult } = await supabase.functions.invoke(
-          "cleanup-duplicate-content",
-          {
-            body: { campaign_title: bestCampaign.title },
-          },
-        );
-
-        if (cleanupResult && !cleanupResult.success) {
-        } else {
-        }
-      } catch (cleanupError) {
-        // Don't fail the whole operation if content cleanup fails
-      }
-    }
     return {
       success: true,
       message: `Cleaned up ${totalCleaned} duplicates, kept: ${bestCampaign?.theme || "best campaign"}`,

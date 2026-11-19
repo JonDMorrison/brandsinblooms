@@ -5,6 +5,7 @@ import {
   assertEncryptionKeyConfigured,
   decryptToken,
 } from "../_shared/crypto/tokens.ts";
+import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 
 try {
   assertEncryptionKeyConfigured();
@@ -41,23 +42,6 @@ function normalizeWebhookIds(value: unknown) {
 
 function getWebhookBaseUrl(shopDomain: string) {
   return `${Deno.env.get("SUPABASE_URL")}/functions/v1/shopify-webhook-handler/${shopDomain}`;
-}
-
-async function resolveTenantId(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  userId: string,
-) {
-  const { data, error } = await supabaseAdmin
-    .from("users")
-    .select("tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to resolve tenant: ${error.message}`);
-  }
-
-  return data?.tenant_id ?? null;
 }
 
 async function deleteRemoteShopifyWebhooks(
@@ -171,11 +155,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: true, message: "Invalid session" }, 401);
     }
 
-    const tenantId = await resolveTenantId(supabaseAdmin, user.id);
-    if (!tenantId) {
+    // Disconnecting removes the tenant's Shopify webhooks: integrations.manage only (central-login 59).
+    let tenantId: string;
+    try {
+      tenantId = await requireImportTenant(supabaseAuthed);
+    } catch {
       return jsonResponse(
-        { error: true, message: "No tenant found for user." },
-        400,
+        { error: true, message: "Integration management permission required" },
+        403,
       );
     }
 

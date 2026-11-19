@@ -1,5 +1,13 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { assertEncryptionKeyConfigured, encryptToken } from '../_shared/crypto/tokens.ts';
+import { stateUserCanManageIntegrations } from '../_shared/integrationStateAccess.ts';
+
+type ShopifyOAuthState = {
+  tenant_id: string;
+  user_id: string;
+  domain_prefix: string;
+  expires_at: string;
+};
 
 function getSiteUrl() {
   const siteUrl = Deno.env.get('SITE_URL') || Deno.env.get('APP_BASE_URL');
@@ -68,26 +76,13 @@ async function verifyShopifyHmac(params: URLSearchParams, secret: string) {
   return mismatch === 0;
 }
 
+// Only called with a state already consumed after the HMAC check: removes that tenant's and user's own
+// pending row, never a row picked from request values alone (crm-r2-F95).
 async function cleanupPendingConnectionForState(
-  supabase: any,
-  stateToken: string | null,
+  supabase: SupabaseClient,
+  stateRow: ShopifyOAuthState,
   shopDomain: string | null,
 ) {
-  if (!stateToken) {
-    return;
-  }
-
-  const { data: stateRow } = await supabase
-    .from('oauth_states')
-    .select('tenant_id, domain_prefix')
-    .eq('state_token', stateToken)
-    .eq('provider', 'shopify')
-    .maybeSingle();
-
-  if (!stateRow?.tenant_id) {
-    return;
-  }
-
   const pendingShop = normalizeShopDomain(shopDomain) || stateRow.domain_prefix;
   if (!pendingShop) {
     return;
@@ -97,6 +92,7 @@ async function cleanupPendingConnectionForState(
     .from('shopify_connections')
     .delete()
     .eq('tenant_id', stateRow.tenant_id)
+    .eq('user_id', stateRow.user_id)
     .eq('shop_domain', pendingShop)
     .eq('status', 'pending');
 }
@@ -143,7 +139,7 @@ Deno.serve(async (req) => {
 
     const hmacValid = await verifyShopifyHmac(params, clientSecret);
     if (!hmacValid) {
-      await cleanupPendingConnectionForState(supabase, stateToken, shop);
+      // Nothing a request names is acted on before its HMAC holds: no state lookup, no clean-up (crm-r2-F95).
       return new Response('Invalid HMAC', { status: 401 });
     }
 
@@ -157,15 +153,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Consume the server-issued state once: a replayed callback finds no row (crm-r2-F95).
     const { data: oauthState, error: stateError } = await supabase
       .from('oauth_states')
-      .select('tenant_id, user_id, domain_prefix, expires_at')
+      .delete()
       .eq('state_token', stateToken)
       .eq('provider', 'shopify')
-      .maybeSingle();
+      .select('tenant_id, user_id, domain_prefix, expires_at')
+      .maybeSingle<ShopifyOAuthState>();
 
     if (stateError || !oauthState) {
-      await cleanupPendingConnectionForState(supabase, stateToken, shop);
       return Response.redirect(
         buildCallbackRedirect('error', {
           message: 'Invalid or expired Shopify authorization state. Please try again.',
@@ -175,7 +172,7 @@ Deno.serve(async (req) => {
     }
 
     if (new Date(oauthState.expires_at) < new Date()) {
-      await cleanupPendingConnectionForState(supabase, stateToken, shop);
+      await cleanupPendingConnectionForState(supabase, oauthState, shop);
       return Response.redirect(
         buildCallbackRedirect('error', {
           message: 'Your Shopify authorization request expired. Please try again.',
@@ -186,10 +183,42 @@ Deno.serve(async (req) => {
 
     const expectedShop = normalizeShopDomain(oauthState.domain_prefix);
     if (expectedShop && expectedShop !== shop) {
-      await cleanupPendingConnectionForState(supabase, stateToken, expectedShop);
+      await cleanupPendingConnectionForState(supabase, oauthState, expectedShop);
       return Response.redirect(
         buildCallbackRedirect('error', {
           message: 'Shopify redirected back with a mismatched store domain.',
+        }).toString(),
+        302,
+      );
+    }
+
+    // The user who started the connect must still manage integrations for that tenant (crm-r2-F96).
+    if (!(await stateUserCanManageIntegrations(supabase, oauthState.user_id, oauthState.tenant_id))) {
+      await cleanupPendingConnectionForState(supabase, oauthState, shop);
+      return Response.redirect(
+        buildCallbackRedirect('error', {
+          message: 'Integration management permission is required to connect Shopify.',
+        }).toString(),
+        302,
+      );
+    }
+
+    // A shop connected to another tenant stays with that tenant (crm-r2-F99).
+    const { data: heldElsewhere, error: heldError } = await supabase
+      .from('shopify_connections')
+      .select('id')
+      .eq('shop_domain', shop)
+      .eq('status', 'connected')
+      .neq('tenant_id', oauthState.tenant_id)
+      .limit(1);
+
+    if (heldError || (heldElsewhere && heldElsewhere.length > 0)) {
+      await cleanupPendingConnectionForState(supabase, oauthState, shop);
+      return Response.redirect(
+        buildCallbackRedirect('error', {
+          message: heldError
+            ? 'Failed to check the Shopify store. Please try again.'
+            : 'This Shopify store is already connected to another BloomSuite account.',
         }).toString(),
         302,
       );
@@ -303,9 +332,5 @@ Deno.serve(async (req) => {
       }).toString(),
       302,
     );
-  } finally {
-    if (stateToken) {
-      await supabase.from('oauth_states').delete().eq('state_token', stateToken);
-    }
   }
 });

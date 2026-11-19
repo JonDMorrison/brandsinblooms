@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import Alert from "@mui/joy/Alert";
+import Button from "@mui/joy/Button";
+import Divider from "@mui/joy/Divider";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  bloomsuiteLoginEnabled,
+  continueWithBloomsuite,
+  legacyEmailLoginEnabled,
+} from "@/integrations/bloomsuite/session";
 import {
   AuthAlert,
   AuthButton,
@@ -121,6 +131,12 @@ export const AuthPage = () => {
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [resendingConfirmation, setResendingConfirmation] = useState(false);
   const [resendConfirmationSent, setResendConfirmationSent] = useState(false);
+  // BloomSuite central login: the primary way in when VITE_BLOOMSUITE_LOGIN is on; the CRM's own email
+  // sign-in and sign-up stay behind VITE_LEGACY_EMAIL_LOGIN ("Other ways to sign in").
+  const showBloomsuite = bloomsuiteLoginEnabled();
+  const showLegacy = legacyEmailLoginEnabled();
+  const [startingBloomsuite, setStartingBloomsuite] = useState(false);
+  const [bloomsuiteError, setBloomsuiteError] = useState<string | null>(null);
 
   const signInValidation = validateSignIn(signInForm);
   const signUpValidation = validateSignUp(signUpForm);
@@ -235,6 +251,20 @@ export const AuthPage = () => {
       // ignore storage errors
     }
     window.location.replace("/auth");
+  };
+
+  const handleContinueWithBloomsuite = async () => {
+    setStartingBloomsuite(true);
+    setBloomsuiteError(null);
+    const message = await continueWithBloomsuite(
+      supabase,
+      new URLSearchParams(location.search).get("returnTo"),
+    );
+    // On success the browser is leaving for BloomSuite ID; only a failure comes back here.
+    if (message) {
+      setBloomsuiteError(message);
+      setStartingBloomsuite(false);
+    }
   };
 
   const handleResendConfirmation = async (email: string) => {
@@ -760,23 +790,65 @@ export const AuthPage = () => {
 
             <AuthCard className="auth-page-card">
               <div className="auth-content-panel auth-content-panel--auth-page">
-                <AuthTabGroup<AuthMode>
-                  ariaLabel="Authentication mode"
-                  value={mode}
-                  onValueChange={handleModeChange}
-                  options={[
-                    { value: "signin", label: "Sign In" },
-                    { value: "signup", label: "Sign Up" },
-                  ]}
-                />
+                {showBloomsuite ? (
+                  <Stack spacing={1.5} sx={{ mb: showLegacy ? 3 : 0 }}>
+                    {!showLegacy ? (
+                      <Typography component="h1" level="h3">
+                        Sign in to BloomSuite CRM
+                      </Typography>
+                    ) : null}
+                    <Button
+                      size="lg"
+                      fullWidth
+                      loading={startingBloomsuite}
+                      onClick={() => void handleContinueWithBloomsuite()}
+                      // The theme's solid primary (primary.700) is under 4.5:1 with white text; 800/900 meet WCAG AA.
+                      sx={{
+                        minHeight: 48,
+                        bgcolor: "primary.800",
+                        "&:hover": { bgcolor: "primary.900" },
+                        "&:active": { bgcolor: "primary.900" },
+                      }}
+                    >
+                      Continue with BloomSuite
+                    </Button>
+                    <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                      One BloomSuite account for the CMS, the CRM and Bloom POS.
+                    </Typography>
+                    {bloomsuiteError ? (
+                      <Alert color="danger" variant="soft" role="alert">
+                        {bloomsuiteError}
+                      </Alert>
+                    ) : null}
+                    {showLegacy ? (
+                      <Divider role="presentation" sx={{ pt: 1.5 }}>
+                        Other ways to sign in
+                      </Divider>
+                    ) : null}
+                  </Stack>
+                ) : null}
 
-                <div
-                  className={`auth-mode-panel ${isSwitchingMode ? "auth-mode-panel--exiting" : "auth-mode-panel--entering"}`}
-                >
-                  {displayedMode === "signin"
-                    ? renderSignInForm()
-                    : renderSignUpForm()}
-                </div>
+                {showLegacy ? (
+                  <>
+                    <AuthTabGroup<AuthMode>
+                      ariaLabel="Authentication mode"
+                      value={mode}
+                      onValueChange={handleModeChange}
+                      options={[
+                        { value: "signin", label: "Sign In" },
+                        { value: "signup", label: "Sign Up" },
+                      ]}
+                    />
+
+                    <div
+                      className={`auth-mode-panel ${isSwitchingMode ? "auth-mode-panel--exiting" : "auth-mode-panel--entering"}`}
+                    >
+                      {displayedMode === "signin"
+                        ? renderSignInForm()
+                        : renderSignUpForm()}
+                    </div>
+                  </>
+                ) : null}
               </div>
             </AuthCard>
           </div>

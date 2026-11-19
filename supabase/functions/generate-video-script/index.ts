@@ -20,12 +20,27 @@ serve(async (req) => {
 
   try {
     // SECURITY: [E15] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // central-login 59 (crm-r2-F51): the token is verified, and a body userId may only name the caller's own account.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+    const callerClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
     const { campaignTitle, userId, weekDescription } = await req.json();
+    if (userId && userId !== user.id) {
+      return new Response(JSON.stringify({ error: 'You can only generate content for your own account.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { isPrivateVerificationHost } from '../_shared/bloom-support/engineering.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,6 +23,52 @@ interface HealthCheckResult {
   };
 }
 
+const CHECK_TYPES = ['dns', 'tls', 'http'] as const;
+type CheckType = typeof CHECK_TYPES[number];
+
+const jsonResponse = (body: Record<string, unknown>, status: number) =>
+  new Response(JSON.stringify(body), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    status,
+  });
+
+// crm-r2-F40: checkTypes is a list of dns, tls and http only (each run once); anything else is refused.
+function parseCheckTypes(value: unknown): CheckType[] | null {
+  if (value === undefined) return [...CHECK_TYPES];
+  if (!Array.isArray(value)) return null;
+  const checkTypes: CheckType[] = [];
+  for (const entry of value) {
+    const checkType = CHECK_TYPES.find((known) => known === entry);
+    if (!checkType) return null;
+    if (!checkTypes.includes(checkType)) checkTypes.push(checkType);
+  }
+  return checkTypes;
+}
+
+// crm-r2-F39: domains.domain is free text any tenant member can write, so it is fetched only when it is
+// a public DNS hostname: no IP literal, port, userinfo, path, single label or internal name.
+function publicHostname(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim().replace(/\.$/, '');
+  if (!raw || /[\s/\\@?#:[\]%]/.test(raw)) return null;
+  let hostname: string;
+  try {
+    hostname = new URL(`https://${raw}`).hostname;
+  } catch {
+    return null;
+  }
+  const labels = hostname.split('.');
+  if (
+    labels.length < 2 ||
+    !labels.every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) ||
+    /^(?:\d+|0x[0-9a-f]*)$/.test(labels[labels.length - 1]) ||
+    isPrivateVerificationHost(hostname)
+  ) {
+    return null;
+  }
+  return hostname;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,32 +80,62 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // crm-r2-F54: the domain row and its history are read as the caller (row-level security), so a
+    // caller sees and checks only its own tenant's domains. The service role only stores the results.
+    const authorization = req.headers.get('Authorization') ?? '';
+    if (!authorization.toLowerCase().startsWith('bearer ')) {
+      return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+    }
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: { headers: { Authorization: authorization } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      }
+    );
+    const { data: callerData, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !callerData?.user) {
+      return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+    }
+
     if (req.method === 'POST') {
-      const { domainId, domain, checkTypes = ['dns', 'tls', 'http'] }: HealthCheckRequest = await req.json();
+      const { domainId, domain, checkTypes: requestedCheckTypes }: HealthCheckRequest = await req.json();
+      const checkTypes = parseCheckTypes(requestedCheckTypes);
+      if (!checkTypes) {
+        return jsonResponse({ success: false, error: 'checkTypes may contain only dns, tls and http' }, 400);
+      }
 
       let domainRecord;
 
       if (domainId) {
-        const { data, error } = await supabase
+        const { data, error } = await callerClient
           .from('domains')
           .select('*')
           .eq('id', domainId)
-          .single();
-        
-        if (error) throw new Error(`Domain not found: ${error.message}`);
+          .maybeSingle();
+
+        if (error) throw new Error('Domain lookup failed');
         domainRecord = data;
       } else if (domain) {
-        const { data, error } = await supabase
+        const { data, error } = await callerClient
           .from('domains')
           .select('*')
           .eq('domain', domain)
-          .single();
-        
-        if (error) throw new Error(`Domain not found: ${error.message}`);
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw new Error('Domain lookup failed');
         domainRecord = data;
       } else {
         throw new Error('Either domainId or domain must be provided');
       }
+
+      if (!domainRecord) {
+        return jsonResponse({ success: false, error: 'Domain not found' }, 404);
+      }
+
+      const hostname = publicHostname(domainRecord.domain);
 
       const results: HealthCheckResult = {
         domainId: domainRecord.id,
@@ -75,25 +152,34 @@ const handler = async (req: Request): Promise<Response> => {
         const startTime = performance.now();
         
         try {
+          if (!hostname) {
+            results.checks[checkType] = {
+              status: 'error',
+              details: { error: 'Domain is not a public hostname' },
+              responseTime: 0
+            };
+            continue;
+          }
+
           switch (checkType) {
             case 'dns':
-              results.checks.dns = await performDnsCheck(domainRecord.domain);
+              results.checks.dns = { ...(await performDnsCheck(hostname)), responseTime: 0 };
               break;
             case 'tls':
-              results.checks.tls = await performTlsCheck(domainRecord.domain);
+              results.checks.tls = { ...(await performTlsCheck(hostname)), responseTime: 0 };
               break;
             case 'http':
-              results.checks.http = await performHttpCheck(domainRecord.domain);
+              results.checks.http = { ...(await performHttpCheck(hostname)), responseTime: 0 };
               break;
           }
           
-          results.checks[checkType as keyof typeof results.checks].responseTime = 
+          results.checks[checkType].responseTime = 
             performance.now() - startTime;
 
-        } catch (error) {
-          results.checks[checkType as keyof typeof results.checks] = {
+        } catch (_error) {
+          results.checks[checkType] = {
             status: 'error',
-            details: { error: error.message },
+            details: { error: 'Check failed' },
             responseTime: performance.now() - startTime
           };
         }
@@ -121,13 +207,24 @@ const handler = async (req: Request): Promise<Response> => {
     if (req.method === 'GET') {
       const url = new URL(req.url);
       const domainId = url.searchParams.get('domainId');
-      const limit = parseInt(url.searchParams.get('limit') || '10');
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '10') || 10, 1), 100);
 
       if (!domainId) {
         throw new Error('domainId parameter required');
       }
 
-      const { data: checks, error } = await supabase
+      const { data: visibleDomain, error: visibleError } = await callerClient
+        .from('domains')
+        .select('id')
+        .eq('id', domainId)
+        .maybeSingle();
+
+      if (visibleError) throw new Error('Domain lookup failed');
+      if (!visibleDomain) {
+        return jsonResponse({ success: false, error: 'Domain not found' }, 404);
+      }
+
+      const { data: checks, error } = await callerClient
         .from('domain_health_checks')
         .select('*')
         .eq('domain_id', domainId)
@@ -135,7 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
         .limit(limit);
 
       if (error) {
-        throw new Error(`Failed to fetch health checks: ${error.message}`);
+        throw new Error('Failed to fetch health checks');
       }
 
       return new Response(JSON.stringify({ success: true, checks }), {
@@ -150,7 +247,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'Health check failed'
     }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 400,
@@ -161,8 +258,9 @@ const handler = async (req: Request): Promise<Response> => {
 async function performDnsCheck(domain: string) {
   try {
     // Check DNS resolution using Cloudflare DNS-over-HTTPS
-    const response = await fetch(`https://cloudflare-dns.com/dns-query?name=${domain}&type=A`, {
-      headers: { 'Accept': 'application/dns-json' }
+    const response = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=A`, {
+      headers: { 'Accept': 'application/dns-json' },
+      signal: AbortSignal.timeout(10000)
     });
     
     const dnsData = await response.json();
@@ -184,39 +282,53 @@ async function performDnsCheck(domain: string) {
       }
     };
 
-  } catch (error) {
+  } catch (_error) {
     return {
       status: 'error',
-      details: { error: error.message }
+      details: { error: 'DNS lookup failed' }
     };
   }
 }
 
+// crm-r2-F39: only the three named headers are returned, a redirect is reported (never followed) and
+// connection errors are generic.
+function namedHeaders(response: Response) {
+  return {
+    'content-type': response.headers.get('content-type'),
+    'server': response.headers.get('server'),
+    'cache-control': response.headers.get('cache-control')
+  };
+}
+
 async function performTlsCheck(domain: string) {
   try {
-    const response = await fetch(`https://${domain}`, { 
+    const response = await fetch(`https://${domain}/`, { 
       method: 'HEAD',
+      redirect: 'manual',
       signal: AbortSignal.timeout(10000) // 10 second timeout
     });
+    await response.body?.cancel();
     
     return {
       status: response.ok ? 'healthy' : 'warning',
       details: {
         status: response.status,
-        headers: Object.fromEntries(response.headers.entries())
+        redirected: response.status >= 300 && response.status < 400,
+        headers: namedHeaders(response)
       }
     };
 
   } catch (error) {
     // Try to determine if it's a TLS issue
-    const isTlsError = error.message.includes('certificate') || 
-                      error.message.includes('TLS') || 
-                      error.message.includes('SSL');
+    const message = error instanceof Error ? error.message : String(error);
+    const isTlsError = message.includes('certificate') || 
+                      message.includes('TLS') || 
+                      message.includes('SSL');
     
     return {
       status: 'error',
       details: { 
-        error: error.message,
+        error: isTlsError ? 'TLS handshake failed' : 'Connection failed',
         type: isTlsError ? 'tls' : 'connection'
       }
     };
@@ -226,10 +338,12 @@ async function performTlsCheck(domain: string) {
 async function performHttpCheck(domain: string) {
   try {
     const startTime = Date.now();
-    const response = await fetch(`https://${domain}`, {
+    const response = await fetch(`https://${domain}/`, {
       method: 'GET',
+      redirect: 'manual',
       signal: AbortSignal.timeout(15000) // 15 second timeout
     });
+    await response.body?.cancel();
     
     const loadTime = Date.now() - startTime;
     
@@ -238,19 +352,16 @@ async function performHttpCheck(domain: string) {
       details: {
         status: response.status,
         statusText: response.statusText,
+        redirected: response.status >= 300 && response.status < 400,
         loadTime,
-        headers: {
-          'content-type': response.headers.get('content-type'),
-          'server': response.headers.get('server'),
-          'cache-control': response.headers.get('cache-control')
-        }
+        headers: namedHeaders(response)
       }
     };
 
-  } catch (error) {
+  } catch (_error) {
     return {
       status: 'error',
-      details: { error: error.message }
+      details: { error: 'Connection failed' }
     };
   }
 }

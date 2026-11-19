@@ -16,8 +16,10 @@ import Stack from "@mui/joy/Stack";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import {
+  AppWindow,
   Bug,
   ChevronDown,
+  ExternalLink,
   LogOut,
   Menu as MenuIcon,
   MessageSquareText,
@@ -32,7 +34,14 @@ import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
 import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReportProblemDialog } from "@/components/bloomSupport/ReportProblemDialog";
-import { signOutCompletely } from "@/integrations/supabase/client";
+import { signOutCompletely, supabase } from "@/integrations/supabase/client";
+import {
+  bloomsuiteAccountUrl,
+  isBloomsuiteSession,
+  reportSession,
+  sessionIdFromAccessToken,
+} from "@/integrations/bloomsuite/session";
+import { useBloomsuiteApps } from "@/integrations/bloomsuite/useBloomsuiteApps";
 
 const LazyReportProblemDialog = lazy(() =>
   import("@/components/reportProblem/ReportProblemDialog").then((module) => ({
@@ -80,7 +89,7 @@ const menuSx = {
 } as const;
 
 const menuItemSx = {
-  minHeight: 36,
+  minHeight: 44,
   borderRadius: "12px",
   px: 1.25,
   py: 0.75,
@@ -150,7 +159,7 @@ export function DashboardTopBar({
 }: DashboardTopBarProps) {
   const navigate = useNavigate();
   const askBloom = useOptionalAskBloom();
-  const { user, loading } = useAuth();
+  const { user, session, loading } = useAuth();
   // "Get help" goes to Bloom Support (shared with BloomSites and POS) instead of the Jira collector.
   const [reportOpen, setReportOpen] = useState(false);
   const {
@@ -161,6 +170,15 @@ export function DashboardTopBar({
   } = useDashboardShell();
   const [isReportProblemOpen, setIsReportProblemOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  // BloomSuite central login: a linked session gets the BloomSuite account link and the app switcher.
+  const isLinked = isBloomsuiteSession(session);
+  const bloomsuiteAccountHref = isLinked ? bloomsuiteAccountUrl() : null;
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const bloomsuiteApps = useBloomsuiteApps(
+    isLinked && isUserMenuOpen,
+    session ? sessionIdFromAccessToken(session.access_token) : null,
+  );
+  const otherApps = bloomsuiteApps.apps.filter((app) => app.id !== "crm" && app.home_url);
 
   const fullName =
     typeof user?.user_metadata?.full_name === "string"
@@ -203,6 +221,8 @@ export function DashboardTopBar({
     setIsSigningOut(true);
 
     try {
+      // This device only; a BloomSuite session tells BloomSuite ID first, while it can still sign the report.
+      if (isLinked) await reportSession(supabase, "sign_out");
       await signOutCompletely();
     } finally {
       setIsSigningOut(false);
@@ -429,14 +449,14 @@ export function DashboardTopBar({
                 </IconButton>
               </Tooltip>
               <ReportProblemDialog open={reportOpen} onClose={() => setReportOpen(false)} />
-              <Dropdown>
+              <Dropdown open={isUserMenuOpen} onOpenChange={(_event, open) => setIsUserMenuOpen(open)}>
                 <MenuButton
                   aria-label="Open user menu"
                   color="neutral"
                   size="sm"
                   variant="plain"
                   sx={{
-                    minHeight: 32,
+                    minHeight: 44,
                     px: isMobile ? 0.5 : 1,
                     borderRadius: "999px",
                     bgcolor: "transparent",
@@ -517,6 +537,37 @@ export function DashboardTopBar({
                         (loading ? "Loading profile..." : "Signed in")}
                     </Typography>
                   </Box>
+                  {bloomsuiteAccountHref ? (
+                    <MenuItem component="a" href={bloomsuiteAccountHref} sx={menuItemSx}>
+                      <ListItemDecorator sx={{ color: "currentColor" }}>
+                        <ExternalLink size={16} strokeWidth={1.9} />
+                      </ListItemDecorator>
+                      Manage your BloomSuite account
+                    </MenuItem>
+                  ) : null}
+                  {isLinked ? (
+                    <Box role="group" aria-label="Your BloomSuite apps" sx={{ px: 0.25 }}>
+                      <Typography level="body-xs" sx={{ px: 1, pt: 0.75, pb: 0.25, color: "text.tertiary" }}>
+                        Your BloomSuite apps
+                      </Typography>
+                      {bloomsuiteApps.status === "loading" || bloomsuiteApps.status === "idle" ? (
+                        <MenuItem disabled sx={menuItemSx}>Loading your apps…</MenuItem>
+                      ) : bloomsuiteApps.status === "error" ? (
+                        <MenuItem disabled sx={menuItemSx}>Your apps couldn't load</MenuItem>
+                      ) : otherApps.length === 0 ? (
+                        <MenuItem disabled sx={menuItemSx}>No other BloomSuite apps yet</MenuItem>
+                      ) : (
+                        otherApps.map((app) => (
+                          <MenuItem key={app.id} component="a" href={app.home_url ?? undefined} sx={menuItemSx}>
+                            <ListItemDecorator sx={{ color: "currentColor" }}>
+                              <AppWindow size={16} strokeWidth={1.9} />
+                            </ListItemDecorator>
+                            Open {app.name}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Box>
+                  ) : null}
                   <MenuItem onClick={() => navigate("/suite")} sx={menuItemSx}>BloomSuite products</MenuItem>
                   <MenuItem
                     onClick={() => navigate("/profile")}

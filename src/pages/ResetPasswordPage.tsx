@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import type { Session } from "@supabase/supabase-js";
+import { isImpersonationTab, supabase } from "@/integrations/supabase/client";
 import {
   AuthAlert,
   AuthButton,
@@ -49,6 +50,36 @@ const validateConfirmPassword = (value: string, password: string) => {
   return undefined;
 };
 
+// A new password needs fresh proof (crm-r1-F06): the session must come from a link or code sent to this person's
+// mailbox (Auth records "otp" for a reset link and "recovery" for a PKCE reset in the token's amr), opened in the last
+// 15 minutes. A normal signed-in (password or BloomSuite) session can't reach the form, whatever the address says,
+// and an admin impersonation tab never can.
+const RECOVERY_PROOF_MAX_AGE_SECONDS = 15 * 60;
+const RECOVERY_PROOF_METHODS = new Set(["recovery", "otp"]);
+
+const hasFreshRecoveryProof = (session: Session | null | undefined): boolean => {
+  const payloadPart = session?.access_token?.split(".")[1];
+  if (!payloadPart || isImpersonationTab()) {
+    return false;
+  }
+  try {
+    const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(
+      atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")),
+    ) as { amr?: Array<{ method?: unknown; timestamp?: unknown }> };
+    const now = Date.now() / 1000;
+    return (payload.amr ?? []).some(
+      (entry) =>
+        typeof entry.method === "string" &&
+        RECOVERY_PROOF_METHODS.has(entry.method) &&
+        typeof entry.timestamp === "number" &&
+        now - entry.timestamp <= RECOVERY_PROOF_MAX_AGE_SECONDS,
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const ResetPasswordPage = () => {
   const navigate = useNavigate();
   const { clearRecoveryMode } = useAuth();
@@ -76,7 +107,10 @@ export const ResetPasswordPage = () => {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted || resolved) return;
 
-      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+      if (
+        (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") &&
+        hasFreshRecoveryProof(session)
+      ) {
         resolved = true;
         window.history.replaceState(null, "", "/reset-password");
         setIsValidToken(true);
@@ -91,7 +125,7 @@ export const ResetPasswordPage = () => {
         .then(({ data: { session } }) => {
           if (!mounted || resolved) return;
 
-          if (session?.user) {
+          if (session?.user && hasFreshRecoveryProof(session)) {
             resolved = true;
             window.history.replaceState(null, "", "/reset-password");
             setIsValidToken(true);
@@ -174,6 +208,14 @@ export const ResetPasswordPage = () => {
 
     setLoading(true);
     try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      if (!hasFreshRecoveryProof(currentSession)) {
+        setIsValidToken(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password,
       });
@@ -185,7 +227,9 @@ export const ResetPasswordPage = () => {
 
       clearRecoveryMode();
 
-      const { error: signOutError } = await supabase.auth.signOut();
+      // The one sign-out that ends every device (W1 02/R-04): after a password reset, sessions opened with
+      // the old password must not survive.
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
       if (signOutError) {
         console.error("Password reset sign-out error:", signOutError);
       }

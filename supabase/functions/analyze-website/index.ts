@@ -1,5 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerTenantId } from "../_shared/callerTenantPermission.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
@@ -747,6 +749,23 @@ function runLocationTests(): { passed: boolean; results: any[] } {
 }
 
 // ============= URL VALIDATION =============
+import { isPrivateVerificationHost } from "../_shared/bloom-support/engineering.ts";
+
+// crm-r2-F17: this URL is fetched from the crm's servers, so only a public website is accepted: http(s),
+// no userinfo or port, and a DNS name (not an IP literal, single label or internal name). The direct
+// fetch follows redirects by hand and checks every hop the same way.
+const MAX_REDIRECTS = 5;
+
+const isPublicWebUrl = (urlObj: URL): boolean => {
+  if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') return false;
+  if (urlObj.username || urlObj.password || urlObj.port) return false;
+  const hostname = urlObj.hostname;
+  if (!hostname || hostname.startsWith('[') || !hostname.includes('.')) return false;
+  const lastLabel = hostname.split('.').pop() ?? '';
+  if (/^(?:\d+|0x[0-9a-f]*)$/i.test(lastLabel)) return false;
+  return !isPrivateVerificationHost(hostname);
+};
+
 const validateUrl = (url: string): { isValid: boolean; normalizedUrl?: string; error?: string } => {
   try {
     let normalizedUrl = url.trim();
@@ -757,7 +776,7 @@ const validateUrl = (url: string): { isValid: boolean; normalizedUrl?: string; e
     
     const urlObj = new URL(normalizedUrl);
     
-    if (!urlObj.hostname || urlObj.hostname === 'localhost' || urlObj.hostname.includes('127.0.0.1')) {
+    if (!isPublicWebUrl(urlObj)) {
       return {
         isValid: false,
         error: 'Local URLs are not supported. Please enter a public website URL.'
@@ -781,9 +800,22 @@ serve(async (req) => {
 
   try {
     // SECURITY: [E27] - Add JWT authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // central-login 59 (crm-r2-F16): the token is verified and must belong to a CRM member before the platform's
+    // Firecrawl and OpenAI keys are spent (a present header alone is not enough).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+    const callerClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    }
+    if (!(await callerTenantId(authHeader))) {
+      return new Response(JSON.stringify({ error: 'Tenant access required' }), { status: 403, headers: corsHeaders });
     }
 
     console.log('🚀 Starting website analysis function');
@@ -854,7 +886,8 @@ serve(async (req) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
-      const response = await fetch(normalizedUrl, {
+      const fetchPage = (pageUrl: string) => fetch(pageUrl, {
+        redirect: 'manual',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -870,6 +903,21 @@ serve(async (req) => {
         },
         signal: controller.signal,
       });
+
+      let response = await fetchPage(normalizedUrl);
+      let pageUrl = normalizedUrl;
+      for (let hop = 0; response.status >= 300 && response.status < 400 && response.headers.get('location'); hop++) {
+        if (hop >= MAX_REDIRECTS) {
+          throw new Error('Website redirected too many times');
+        }
+        const nextUrl = new URL(response.headers.get('location') ?? '', pageUrl);
+        await response.body?.cancel();
+        if (!isPublicWebUrl(nextUrl)) {
+          throw new Error('Website redirected to a non-public address');
+        }
+        pageUrl = nextUrl.href;
+        response = await fetchPage(pageUrl);
+      }
       
       clearTimeout(timeoutId);
       console.log('📡 Direct fetch response status:', response.status, response.statusText);

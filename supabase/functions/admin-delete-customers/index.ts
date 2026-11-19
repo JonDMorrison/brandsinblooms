@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,6 +46,15 @@ serve(async (req) => {
 
     if (userError || userData?.tenant_id !== tenantId) {
       throw new Error('User does not have access to this tenant');
+    }
+
+    // central-login 59 (crm-r2-F14): a bulk hard delete needs customer.delete in this tenant, asked as the caller
+    // through the same has_tenant_permission the crm_customers delete policy uses, before the service-role delete.
+    if (!(await callerHasTenantPermission(authHeader, tenantId, 'customer.delete'))) {
+      return new Response(
+        JSON.stringify({ error: 'You do not have permission to delete customers in this account.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
     }
 
     // Delete all customers except the one with keepEmail

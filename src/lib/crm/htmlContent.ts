@@ -131,13 +131,18 @@ function isAllowedUrl(
     return true;
   }
 
-  const trimmed = value.trim();
+  // crm-r2-F06: browsers drop TAB, LF and CR anywhere in a URL and C0 controls or spaces around it
+  // (and read a backslash as "/"), so "java<TAB>script:" is javascript:. Check the URL without any
+  // character up to U+0020, as the browser reads it.
+  const trimmed = Array.from(value)
+    .filter((character) => character.charCodeAt(0) > 0x20)
+    .join("");
 
   if (!trimmed) {
     return false;
   }
 
-  if (trimmed.startsWith("//")) {
+  if (/^[\\/]{2}/.test(trimmed)) {
     return false;
   }
 

@@ -1,4 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
+import {
+  IMPERSONATION_TAB_STORAGE_KEY,
+  supabase,
+} from "@/integrations/supabase/client";
 
 export const IMPERSONATION_ACTIVE_STORAGE_KEY =
   "bloomsuite_impersonation_active";
@@ -6,7 +9,8 @@ export const IMPERSONATION_TARGET_EMAIL_STORAGE_KEY =
   "bloomsuite_impersonation_target_email";
 export const IMPERSONATION_STARTED_AT_STORAGE_KEY =
   "bloomsuite_impersonation_started_at";
-export const ADMIN_SESSION_BACKUP_STORAGE_KEY =
+// Older builds copied the admin's whole session here during impersonation (crm-r1-F04); it is only removed now.
+const LEGACY_ADMIN_SESSION_BACKUP_STORAGE_KEY =
   "bloomsuite_admin_session_backup";
 
 export interface UseImpersonationReturn {
@@ -32,6 +36,7 @@ const clearImpersonationState = () => {
   window.sessionStorage.removeItem(IMPERSONATION_ACTIVE_STORAGE_KEY);
   window.sessionStorage.removeItem(IMPERSONATION_TARGET_EMAIL_STORAGE_KEY);
   window.sessionStorage.removeItem(IMPERSONATION_STARTED_AT_STORAGE_KEY);
+  window.sessionStorage.removeItem(LEGACY_ADMIN_SESSION_BACKUP_STORAGE_KEY);
 };
 
 export const useImpersonation = (): UseImpersonationReturn => {
@@ -49,7 +54,9 @@ export const useImpersonation = (): UseImpersonationReturn => {
 
     void (async () => {
       try {
-        const { error } = await supabase.auth.signOut();
+        // Only the impersonation tab's session ends (it lives in this tab's own storage); the customer's own devices
+        // and the admin's own tabs stay signed in.
+        const { error } = await supabase.auth.signOut({ scope: "local" });
         if (error) {
           console.error("Failed to sign out impersonated session:", error);
         }
@@ -57,6 +64,7 @@ export const useImpersonation = (): UseImpersonationReturn => {
         if (typeof window === "undefined") {
           return;
         }
+        window.sessionStorage.removeItem(IMPERSONATION_TAB_STORAGE_KEY);
 
         window.close();
         window.setTimeout(() => {

@@ -1,41 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// The server-side cleanup-duplicate-content function is retired (central-login 59, crm-r2-F24): duplicates of one
+// campaign are removed with the signed-in user's own access only.
 export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
-  try {
-    // Get the campaign to find its title
-    const { data: campaign, error: campaignError } = await supabase
-      .from("campaigns")
-      .select("title, user_id")
-      .eq("id", campaignId)
-      .single();
-
-    if (campaignError || !campaign) {
-      console.error("Error fetching campaign:", campaignError);
-      return;
-    }
-
-    // Use the comprehensive cleanup function via campaign title
-    try {
-      const { data: cleanupResult, error: cleanupError } =
-        await supabase.functions.invoke("cleanup-duplicate-content", {
-          body: { campaign_title: campaign.title },
-        });
-
-      if (cleanupError) {
-        console.error("❌ Cleanup function error:", cleanupError);
-    } catch (error) {
-      console.error("❌ Error calling cleanup function:", error);
-
-      // Fallback to local cleanup for this specific campaign
-      await fallbackLocalCleanup(campaignId);
-    }
-  } catch (error) {
-    console.error("❌ Error in cleanup process:", error);
-  }
+  await localCleanup(campaignId);
 };
 
-// Fallback cleanup function for when the edge function is not available
-const fallbackLocalCleanup = async (campaignId: string) => {
+const localCleanup = async (campaignId: string) => {
   try {
     // Get all tasks for this campaign
     const { data: allTasks, error } = await supabase

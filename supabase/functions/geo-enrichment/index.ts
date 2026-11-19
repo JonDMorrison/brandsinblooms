@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -120,6 +121,32 @@ serve(async (req) => {
     );
 
     if (req.method === 'POST') {
+      // central-login 59 (crm-r2-F85): a signed-in user changes a customer through their own token, so the
+      // crm_customers update policy decides; only an internal caller presenting a server key writes as the service role.
+      const authHeader = req.headers.get('Authorization') ?? '';
+      if (!authHeader.toLowerCase().startsWith('bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const trustedService = requireInternalApiKey(req) === null;
+      const writeClient = trustedService
+        ? supabase
+        : createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+            global: { headers: { Authorization: authHeader } },
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+      if (!trustedService) {
+        const { data: { user }, error: userError } = await writeClient.auth.getUser();
+        if (userError || !user) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       // Manual enrichment for specific customer
       const { customer_id, postal_code, country_code = 'US' } = await req.json();
       
@@ -152,7 +179,7 @@ serve(async (req) => {
       const usda_zone = country_code === 'US' ? estimateUSDAZone(roundedLat) : null;
       const climate_zone = getClimateZone(roundedLat);
 
-      const { error: updateError } = await supabase
+      const { data: updatedRows, error: updateError } = await writeClient
         .from('crm_customers')
         .update({
           postal_code,
@@ -165,7 +192,15 @@ serve(async (req) => {
           climate_zone,
           updated_at: new Date().toISOString()
         })
-        .eq('id', customer_id);
+        .eq('id', customer_id)
+        .select('id');
+
+      if (!updateError && (updatedRows ?? []).length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Customer not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       if (updateError) {
         console.error('Database update error:', updateError);
@@ -197,8 +232,15 @@ serve(async (req) => {
       );
     }
 
-    // Batch enrichment for customers without geo data
+    // Batch enrichment for customers without geo data: fleet-wide, so internal callers only (a server key).
     if (req.method === 'GET') {
+      const internalRefusal = requireInternalApiKey(req);
+      if (internalRefusal) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       const url = new URL(req.url);
       const limit = parseInt(url.searchParams.get('limit') || '50');
       

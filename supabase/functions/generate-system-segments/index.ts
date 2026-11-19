@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * generate-system-segments
@@ -15,8 +17,20 @@ interface SegmentDef {
   conditions: Record<string, unknown>;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const jsonError = (error: string, status: number) =>
+  new Response(JSON.stringify({ error }), { status, headers: { "Content-Type": "application/json" } });
+
 serve(async (req) => {
   try {
+    // central-login 59 (crm-r2-F53): an internal caller presents a configured server key; anyone else must be signed
+    // in and hold segment.write for the whole tenant (asked as the caller) before any service-role read or write.
+    const internalCaller = requireInternalApiKey(req) === null;
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!internalCaller && !authHeader.toLowerCase().startsWith("bearer ")) {
+      return jsonError("Unauthorized", 401);
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -24,6 +38,13 @@ serve(async (req) => {
 
     const { tenant_id } = await req.json();
     if (!tenant_id) throw new Error("tenant_id is required");
+    if (
+      !internalCaller &&
+      (typeof tenant_id !== "string" || !UUID.test(tenant_id) ||
+        !(await callerHasTenantPermission(authHeader, tenant_id, "segment.write")))
+    ) {
+      return jsonError("You do not have permission to manage segments for this account.", 403);
+    }
 
     // Calculate VIP threshold (P90 of buyers for this tenant)
     const { data: p90Row } = await supabase.rpc("exec_p90_spend", { p_tenant_id: tenant_id }).maybeSingle();

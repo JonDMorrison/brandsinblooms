@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "npm:stripe@14.25.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-import { getPlanQuotaDefaults } from "../_shared/planFeatures.ts";
+import { getPlanQuotaDefaults, isPaidPlan } from "../_shared/planFeatures.ts";
 import {
   buildSubscriptionWebhookPayload,
   getEffectivePlan,
@@ -20,7 +20,8 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
 const supabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "https://placeholder.supabase.co",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "placeholder-service-role-key",
-  { auth: { persistSession: false } },
+  // A server key never refreshes; without this the client's refresh timer outlives the tests.
+  { auth: { persistSession: false, autoRefreshToken: false } },
 );
 
 type BillingInterval = "monthly" | "annual";
@@ -39,7 +40,7 @@ interface StripeWebhookUser {
 interface StripeWebhookSupabaseClient {
   auth: {
     admin: {
-      getUserByEmail: (email: string) => Promise<{
+      getUserById: (userId: string) => Promise<{
         data: { user: StripeWebhookUser | null };
         error: { message: string } | null;
       }>;
@@ -49,6 +50,7 @@ interface StripeWebhookSupabaseClient {
     select: (columns?: string) => unknown;
     update: (payload: unknown) => unknown;
     insert: (payload: unknown) => unknown;
+    delete: () => unknown;
   };
   rpc: (
     name: string,
@@ -61,6 +63,7 @@ interface StripeWebhookSupabaseClient {
 
 interface SupabaseQueryChain {
   eq: (column: string, value: unknown) => SupabaseQueryChain;
+  is: (column: string, value: null) => SupabaseQueryChain;
   order: (column: string, value: unknown) => SupabaseQueryChain;
   limit: (value: unknown) => SupabaseQueryChain;
   maybeSingle: <T = unknown>() => Promise<{
@@ -78,6 +81,7 @@ interface SubscriptionRow extends SubscriptionRecordShape {
   user_id?: string;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
+  stripe_event_created_at?: string | null;
 }
 
 type DispatchWebhookFn = (
@@ -135,9 +139,11 @@ function normalizeBillingInterval(value?: string | null): BillingInterval {
   return value === "annual" ? "annual" : "monthly";
 }
 
+// crm-r2-F109: Stripe's own status decides entitlement and fails closed. incomplete, paused and any
+// status this code does not know become 'unpaid', incomplete_expired becomes 'expired'; never 'active'.
+// Only active, trialing and past_due (Stripe's retry window) keep a paid plan.
 function normalizeStripeStatus(
   value: string | null | undefined,
-  plan: SubscriptionPlan,
 ): OAuthSubscriptionStatus {
   switch (value?.trim().toLowerCase()) {
     case "active":
@@ -148,22 +154,45 @@ function normalizeStripeStatus(
       return "past_due";
     case "canceled":
       return "canceled";
-    case "unpaid":
-      return "unpaid";
+    case "incomplete_expired":
+      return "expired";
     default:
-      return plan === "expired"
-        ? "expired"
-        : plan === "free_trial"
-          ? "trialing"
-          : "active";
+      return "unpaid";
   }
+}
+
+function isEntitledStatus(status: string | null | undefined): boolean {
+  return status === "active" || status === "trialing" || status === "past_due";
+}
+
+// crm-r2-F110: the plan follows the price the subscription is billed at now. create-checkout resolves
+// prices by lookup_key '<plan>_<interval>', so the current item's lookup_key names the plan;
+// metadata.plan (fixed at checkout) is only the fallback for a price without such a key.
+function getStripePricePlan(
+  subscription: Stripe.Subscription,
+): SubscriptionPlan | null {
+  const lookupKey = subscription.items?.data?.[0]?.price?.lookup_key;
+  const match = typeof lookupKey === "string"
+    ? lookupKey.trim().toLowerCase().match(/^(seed|sprout|bloom|thrive)_[a-z]+$/)
+    : null;
+  return match ? normalizePlan(match[1]) : null;
 }
 
 function getStripeBillingInterval(
   subscription: Stripe.Subscription,
-): BillingInterval {
-  const interval = subscription.items.data[0]?.price.recurring?.interval;
-  return interval === "year" ? "annual" : "monthly";
+): BillingInterval | null {
+  const interval = subscription.items?.data?.[0]?.price?.recurring?.interval;
+  return interval === "year" ? "annual" : interval === "month" ? "monthly" : null;
+}
+
+// crm-r2-F111: every applied event stores its Stripe created time on the row, so a late older event
+// for the same subscription cannot overwrite newer state. Real Stripe events always carry it.
+function getEventCreatedAt(event: Stripe.Event): string {
+  const created = (event as { created?: unknown }).created;
+  if (typeof created !== "number" || !Number.isFinite(created)) {
+    throw new Error("Stripe event has no created time");
+  }
+  return new Date(created * 1000).toISOString();
 }
 
 function toIsoTimestamp(unixSeconds?: number | null): string {
@@ -208,14 +237,6 @@ async function maybeSingle<T>(query: unknown): Promise<{
   return await (query as SupabaseQueryChain).maybeSingle<T>();
 }
 
-function getCustomerEmail(
-  customer: Stripe.Customer | Stripe.DeletedCustomer,
-): string | null {
-  return "email" in customer && typeof customer.email === "string"
-    ? customer.email
-    : null;
-}
-
 async function getTenantIdForUser(
   userId: string,
   deps: StripeWebhookDependencies = defaultDependencies,
@@ -238,25 +259,108 @@ async function getTenantIdForUser(
   return data?.tenant_id ?? null;
 }
 
-async function resolveUserFromEmail(
-  email: string,
+// crm-r1-F24: a Stripe subscription is bound to the CRM account that bought it, never to whoever the Stripe
+// customer's (changeable) email resolves to today. First the owner create-checkout stamped into the
+// subscription's metadata (server-set from the signed-in caller), then the CRM row already linked to this
+// Stripe subscription or customer. With neither, the event is not applied.
+async function resolveUserForSubscription(
+  subscription: Stripe.Subscription,
   deps: StripeWebhookDependencies = defaultDependencies,
 ): Promise<{ userId: string; tenantId: string | null } | null> {
-  const { data, error } =
-    await deps.supabaseClient.auth.admin.getUserByEmail(email);
+  const metadataUserId =
+    typeof subscription.metadata?.user_id === "string"
+      ? subscription.metadata.user_id
+      : null;
 
-  if (error || !data.user) {
-    deps.logStep("Failed to resolve user from email", {
-      email,
+  if (metadataUserId) {
+    const { data, error } =
+      await deps.supabaseClient.auth.admin.getUserById(metadataUserId);
+    if (!error && data.user) {
+      return {
+        userId: data.user.id,
+        tenantId: await getTenantIdForUser(data.user.id, deps),
+      };
+    }
+    deps.logStep("Subscription owner from metadata not found", {
+      subscriptionId: subscription.id,
       error: error?.message,
     });
-    return null;
   }
 
-  return {
-    userId: data.user.id,
-    tenantId: await getTenantIdForUser(data.user.id, deps),
+  const links: Array<[string, string | null]> = [
+    ["stripe_subscription_id", subscription.id],
+    ["stripe_customer_id", getCustomerId(subscription.customer)],
+  ];
+  for (const [column, value] of links) {
+    if (!value) {
+      continue;
+    }
+    const query = deps.supabaseClient
+      .from("subscriptions")
+      .select("user_id") as SupabaseQueryChain;
+    const { data, error } = await query
+      .eq(column, value)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ user_id?: string | null }>();
+    if (error) {
+      throw new Error(`Failed to resolve subscription owner: ${error.message}`);
+    }
+    if (data?.user_id) {
+      return {
+        userId: data.user_id,
+        tenantId: await getTenantIdForUser(data.user_id, deps),
+      };
+    }
+  }
+
+  deps.logStep("No CRM account is bound to this Stripe subscription", {
+    subscriptionId: subscription.id,
+  });
+  return null;
+}
+
+// crm-r1-F23: Stripe delivers at least once (retries, manual resends). Each event id is claimed once in
+// idempotency_log (unique idempotency_key) before it is applied; a repeat is acknowledged and skipped.
+// A claim is released when applying the event throws, so Stripe's retry can apply it.
+const stripeEventKey = (eventId: string) => `stripe-webhook:${eventId}`;
+
+async function claimStripeEvent(
+  eventId: string,
+  deps: StripeWebhookDependencies = defaultDependencies,
+): Promise<boolean> {
+  const { error } = (await deps.supabaseClient.from("idempotency_log").insert({
+    idempotency_key: stripeEventKey(eventId),
+    function_name: "stripe-webhook",
+  })) as { error: ({ message: string; code?: string }) | null };
+
+  if (!error) {
+    return true;
+  }
+  if (error.code === "23505") {
+    return false;
+  }
+  throw new Error(`Failed to record Stripe event: ${error.message}`);
+}
+
+async function releaseStripeEvent(
+  eventId: string,
+  deps: StripeWebhookDependencies = defaultDependencies,
+): Promise<boolean> {
+  const query = deps.supabaseClient.from("idempotency_log").delete() as {
+    eq: (column: string, value: unknown) => Promise<{
+      error: { message: string } | null;
+    }>;
   };
+  const { error } = await query.eq("idempotency_key", stripeEventKey(eventId));
+  if (error) {
+    deps.logStep("Failed to release Stripe event claim", {
+      eventId,
+      error: error.message,
+    });
+    return false;
+  }
+  return true;
 }
 
 async function getLatestSubscriptionRecord(
@@ -266,7 +370,7 @@ async function getLatestSubscriptionRecord(
   const query = deps.supabaseClient
     .from("subscriptions")
     .select(
-      "id, user_id, plan, tier, status, billing_interval, current_period_start, current_period_end, cancel_at_period_end, trial_end, start_date, end_date, deleted_at, max_connections, stripe_customer_id, stripe_subscription_id",
+      "id, user_id, plan, tier, status, billing_interval, current_period_start, current_period_end, cancel_at_period_end, trial_end, start_date, end_date, deleted_at, max_connections, stripe_customer_id, stripe_subscription_id, stripe_event_created_at",
     ) as SupabaseQueryChain;
   const { data, error } = await query
     .eq("user_id", userId)
@@ -274,20 +378,18 @@ async function getLatestSubscriptionRecord(
     .limit(1)
     .maybeSingle<SubscriptionRow>();
 
+  // crm-r2-F108: a failed read must not look like "no row yet" (that would insert a second row).
   if (error) {
-    deps.logStep("Failed to load existing subscription", {
-      userId,
-      error: error.message,
-    });
-    return null;
+    throw new Error(`Failed to load existing subscription: ${error.message}`);
   }
 
   return data;
 }
 
+// crm-r2-F112: the tenant budget follows the tenant's effective plan (resolve_effective_subscription_tier),
+// never the plan of the one member row this event touched, so no p_plan is passed.
 async function syncTenantBudget(
   tenantId: string | null,
-  plan?: SubscriptionPlan | null,
   deps: StripeWebhookDependencies = defaultDependencies,
 ) {
   if (!tenantId) {
@@ -298,14 +400,12 @@ async function syncTenantBudget(
     "sync_subscription_to_org_budget",
     {
       p_tenant_id: tenantId,
-      p_plan: plan ?? undefined,
     },
   );
 
   if (error) {
     deps.logStep("Failed to sync tenant budget", {
       tenantId,
-      plan,
       error: error.message,
     });
   }
@@ -333,6 +433,46 @@ async function loadPlanDefinition(
   return data;
 }
 
+// crm-r2-F111: one account row follows one Stripe subscription, newest event first. An event is not
+// applied when (1) it does not entitle and is not for the subscription the row follows, (2) the row
+// follows another subscription that is still live, or (3) the row follows this subscription and has
+// already applied a newer event. Returns the reason, or null when the event may be applied.
+function stripeEventSkipReason(
+  existingSubscription: SubscriptionRow | null,
+  stripeSubscriptionId: string | null,
+  status: OAuthSubscriptionStatus,
+  eventCreatedAt: string,
+): string | null {
+  const boundTo = existingSubscription?.stripe_subscription_id ?? null;
+  const sameSubscription = boundTo !== null && boundTo === stripeSubscriptionId;
+
+  if (!isEntitledStatus(status) && !sameSubscription) {
+    return "not entitled and not the subscription this account follows";
+  }
+
+  if (
+    boundTo !== null &&
+    !sameSubscription &&
+    !existingSubscription?.deleted_at &&
+    isEntitledStatus(existingSubscription?.status)
+  ) {
+    return "the account follows another live Stripe subscription";
+  }
+
+  const appliedAt = normalizeTimestamp(
+    existingSubscription?.stripe_event_created_at ?? null,
+  );
+  if (
+    sameSubscription &&
+    appliedAt !== null &&
+    new Date(eventCreatedAt).getTime() < new Date(appliedAt).getTime()
+  ) {
+    return "older than the newest event already applied";
+  }
+
+  return null;
+}
+
 async function upsertSubscriptionRecord(
   params: {
     userId: string;
@@ -343,6 +483,7 @@ async function upsertSubscriptionRecord(
     currentPeriodStart: string;
     currentPeriodEnd: string;
     status: OAuthSubscriptionStatus;
+    eventCreatedAt: string;
     cancelAtPeriodEnd?: boolean;
     trialEnd?: string | null;
     stripeCustomerId?: string | null;
@@ -351,7 +492,7 @@ async function upsertSubscriptionRecord(
     isFoundingCustomer?: boolean;
   },
   deps: StripeWebhookDependencies = defaultDependencies,
-) {
+): Promise<SubscriptionRow | null> {
   const now = deps.now().toISOString();
   const quotaDefaults = getPlanQuotaDefaults(params.plan);
   const existingSubscription = await getLatestSubscriptionRecord(
@@ -359,9 +500,25 @@ async function upsertSubscriptionRecord(
     deps,
   );
 
+  const skipReason = stripeEventSkipReason(
+    existingSubscription,
+    params.stripeSubscriptionId ?? null,
+    params.status,
+    params.eventCreatedAt,
+  );
+  if (skipReason) {
+    deps.logStep("Stripe event not applied", {
+      userId: params.userId,
+      subscriptionId: params.stripeSubscriptionId,
+      reason: skipReason,
+    });
+    return null;
+  }
+
   const payload: Record<string, unknown> = {
     plan: params.plan,
-    tier: params.plan,
+    // subscriptions_tier_check allows only the paid tiers; expired and free_trial live in plan alone.
+    tier: isPaidPlan(params.plan) ? params.plan : null,
     status: params.status,
     billing_interval: params.billingInterval,
     start_date: params.startDate,
@@ -372,6 +529,7 @@ async function upsertSubscriptionRecord(
     trial_end: params.trialEnd ?? null,
     stripe_customer_id: params.stripeCustomerId ?? null,
     stripe_subscription_id: params.stripeSubscriptionId ?? null,
+    stripe_event_created_at: params.eventCreatedAt,
     contacts_limit: quotaDefaults.contacts_limit,
     email_quota: quotaDefaults.email_quota,
     sms_quota: quotaDefaults.sms_quota,
@@ -392,20 +550,53 @@ async function upsertSubscriptionRecord(
   }
 
   if (existingSubscription?.id) {
-    const updateQuery = deps.supabaseClient
+    // Compare-and-set on the binding and the stored event time read above: a delivery that changed
+    // the row in between makes this one fail, so its claim is released and Stripe's retry re-decides.
+    let updateQuery = (deps.supabaseClient
       .from("subscriptions")
-      .update(payload) as {
-      eq: (
-        column: string,
-        value: unknown,
-      ) => Promise<{
+      .update(payload) as SupabaseQueryChain)
+      .eq("id", existingSubscription.id);
+    updateQuery = existingSubscription.stripe_subscription_id
+      ? updateQuery.eq(
+        "stripe_subscription_id",
+        existingSubscription.stripe_subscription_id,
+      )
+      : updateQuery.is("stripe_subscription_id", null);
+    updateQuery = existingSubscription.stripe_event_created_at
+      ? updateQuery.eq(
+        "stripe_event_created_at",
+        existingSubscription.stripe_event_created_at,
+      )
+      : updateQuery.is("stripe_event_created_at", null);
+    const { data, error } = await (updateQuery as unknown as {
+      select: (columns?: string) => Promise<{
+        data: Array<{ id: string }> | null;
         error: { message: string } | null;
       }>;
-    };
-    const { error } = await updateQuery.eq("id", existingSubscription.id);
+    }).select("id");
 
     if (error) {
       throw error;
+    }
+
+    if (!Array.isArray(data) || data.length !== 1) {
+      // No row changed: either a newer event was applied meanwhile (or the database's stale-event
+      // trigger skipped this older one), which is final, or the row changed otherwise, which is retried.
+      const current = await getLatestSubscriptionRecord(params.userId, deps);
+      const appliedAt = normalizeTimestamp(current?.stripe_event_created_at ?? null);
+      if (
+        current?.id === existingSubscription.id &&
+        appliedAt !== null &&
+        new Date(params.eventCreatedAt).getTime() < new Date(appliedAt).getTime()
+      ) {
+        deps.logStep("Stripe event not applied", {
+          userId: params.userId,
+          subscriptionId: params.stripeSubscriptionId,
+          reason: "older than the newest event already applied",
+        });
+        return null;
+      }
+      throw new Error("Subscription row changed while applying the Stripe event");
     }
 
     return {
@@ -457,6 +648,7 @@ async function updateSubscriptionFromStripe(
     currentPeriodStart: string;
     currentPeriodEnd: string;
     status: OAuthSubscriptionStatus;
+    eventCreatedAt: string;
     cancelAtPeriodEnd?: boolean;
     trialEnd?: string | null;
     stripeCustomerId?: string | null;
@@ -465,9 +657,11 @@ async function updateSubscriptionFromStripe(
     isFoundingCustomer?: boolean;
   },
   deps: StripeWebhookDependencies = defaultDependencies,
-) {
+): Promise<SubscriptionRow | null> {
   const updatedSubscription = await upsertSubscriptionRecord(params, deps);
-  await syncTenantBudget(params.tenantId, params.plan, deps);
+  if (updatedSubscription) {
+    await syncTenantBudget(params.tenantId, deps);
+  }
   return updatedSubscription;
 }
 
@@ -514,12 +708,28 @@ function isDuplicateCreatedSubscription(
   );
 }
 
+function resolveStripePlan(
+  subscription: Stripe.Subscription,
+  existingSubscription: SubscriptionRow | null,
+  fallbackPlan?: SubscriptionPlan,
+): SubscriptionPlan {
+  return (
+    getStripePricePlan(subscription) ??
+    normalizePlan(subscription.metadata?.plan) ??
+    normalizePlan(existingSubscription?.tier) ??
+    normalizePlan(existingSubscription?.plan) ??
+    fallbackPlan ??
+    "seed"
+  );
+}
+
 async function syncStripeSubscription(
   params: {
     subscription: Stripe.Subscription;
     userId: string;
     tenantId: string | null;
     dispatchEvent: string;
+    eventCreatedAt: string;
     fallbackPlan?: SubscriptionPlan;
     overridePlan?: SubscriptionPlan;
     overrideStatus?: OAuthSubscriptionStatus;
@@ -532,16 +742,21 @@ async function syncStripeSubscription(
     params.userId,
     deps,
   );
-  const plan =
-    params.overridePlan ??
-    normalizePlan(params.subscription.metadata.plan) ??
-    normalizePlan(existingSubscription?.tier) ??
-    normalizePlan(existingSubscription?.plan) ??
-    params.fallbackPlan ??
-    "seed";
-  const status =
-    params.overrideStatus ??
-    normalizeStripeStatus(params.subscription.status, plan);
+  // crm-r2-F109: a paid plan, the usage reset and the founding flag are granted only while Stripe
+  // reports the subscription as active, trialing or past_due; any other status writes plan 'expired'.
+  const stripeStatus = normalizeStripeStatus(params.subscription.status);
+  const entitled = isEntitledStatus(stripeStatus);
+  const plan: SubscriptionPlan = entitled
+    ? params.overridePlan ??
+      resolveStripePlan(
+        params.subscription,
+        existingSubscription,
+        params.fallbackPlan,
+      )
+    : "expired";
+  const status = entitled
+    ? params.overrideStatus ?? stripeStatus
+    : stripeStatus;
   const stripeCustomerId = getCustomerId(params.subscription.customer);
 
   const updatedSubscription = await updateSubscriptionFromStripe(
@@ -549,10 +764,9 @@ async function syncStripeSubscription(
       userId: params.userId,
       tenantId: params.tenantId,
       plan,
-      billingInterval: normalizeBillingInterval(
-        params.subscription.metadata.billing_interval ??
-          getStripeBillingInterval(params.subscription),
-      ),
+      // crm-r2-F110: the current price's interval wins over the checkout-time metadata.
+      billingInterval: getStripeBillingInterval(params.subscription) ??
+        normalizeBillingInterval(params.subscription.metadata?.billing_interval),
       startDate: toIsoDate(params.subscription.start_date),
       endDate: toIsoDate(params.subscription.current_period_end),
       currentPeriodStart: toIsoTimestamp(
@@ -567,19 +781,22 @@ async function syncStripeSubscription(
         : null,
       stripeCustomerId,
       stripeSubscriptionId: params.subscription.id,
-      resetUsage: params.resetUsage,
-      isFoundingCustomer: params.isFoundingCustomer,
+      eventCreatedAt: params.eventCreatedAt,
+      resetUsage: entitled ? params.resetUsage : undefined,
+      isFoundingCustomer: entitled ? params.isFoundingCustomer : undefined,
     },
     deps,
   );
 
-  await dispatchSubscriptionStateChange(
-    params.dispatchEvent,
-    params.userId,
-    params.tenantId,
-    updatedSubscription,
-    deps,
-  );
+  if (updatedSubscription) {
+    await dispatchSubscriptionStateChange(
+      params.dispatchEvent,
+      params.userId,
+      params.tenantId,
+      updatedSubscription,
+      deps,
+    );
+  }
 
   return { plan, status, existingSubscription, updatedSubscription };
 }
@@ -589,9 +806,27 @@ export async function handleStripeEvent(
   deps: StripeWebhookDependencies = defaultDependencies,
 ): Promise<void> {
   switch (event.type) {
-    case "checkout.session.completed": {
+    // crm-r2-F109: a Checkout session grants the plan only once it is paid or needs no payment. A delayed
+    // payment method completes the session unpaid and later sends async_payment_succeeded (handled the
+    // same way) or async_payment_failed (grants nothing).
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded": {
       const session = event.data.object as Stripe.Checkout.Session;
-      deps.logStep("Processing checkout completion", { sessionId: session.id });
+      deps.logStep("Processing checkout completion", {
+        sessionId: session.id,
+        type: event.type,
+      });
+
+      if (
+        session.payment_status !== "paid" &&
+        session.payment_status !== "no_payment_required"
+      ) {
+        deps.logStep("Checkout session not paid; no plan applied", {
+          sessionId: session.id,
+          paymentStatus: session.payment_status,
+        });
+        return;
+      }
 
       const userId = session.metadata?.user_id;
       const checkoutPlan = normalizePlan(session.metadata?.plan);
@@ -620,6 +855,7 @@ export async function handleStripeEvent(
             userId,
             tenantId,
             dispatchEvent: "subscription.created",
+            eventCreatedAt: getEventCreatedAt(event),
             fallbackPlan: checkoutPlan,
             resetUsage: true,
             isFoundingCustomer: true,
@@ -638,8 +874,18 @@ export async function handleStripeEvent(
           tenantId,
           error: errorMessage(error),
         });
+        // crm-r2-F108: rethrow so the event claim is released and Stripe retries.
+        throw error;
       }
 
+      return;
+    }
+
+    case "checkout.session.async_payment_failed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      deps.logStep("Checkout payment failed; no plan applied", {
+        sessionId: session.id,
+      });
       return;
     }
 
@@ -649,15 +895,7 @@ export async function handleStripeEvent(
         subscriptionId: subscription.id,
       });
 
-      const customer = await deps.stripe.customers.retrieve(
-        getCustomerId(subscription.customer) ?? "",
-      );
-      const customerEmail = getCustomerEmail(customer);
-      if (!customerEmail) {
-        return;
-      }
-
-      const userContext = await resolveUserFromEmail(customerEmail, deps);
+      const userContext = await resolveUserForSubscription(subscription, deps);
       if (!userContext) {
         return;
       }
@@ -666,12 +904,10 @@ export async function handleStripeEvent(
         userContext.userId,
         deps,
       );
-      const plan =
-        normalizePlan(subscription.metadata.plan) ??
-        normalizePlan(existingSubscription?.tier) ??
-        normalizePlan(existingSubscription?.plan) ??
-        "seed";
-      const status = normalizeStripeStatus(subscription.status, plan);
+      const status = normalizeStripeStatus(subscription.status);
+      const plan: SubscriptionPlan = isEntitledStatus(status)
+        ? resolveStripePlan(subscription, existingSubscription)
+        : "expired";
 
       if (
         isDuplicateCreatedSubscription(
@@ -695,7 +931,7 @@ export async function handleStripeEvent(
             userId: userContext.userId,
             tenantId: userContext.tenantId,
             dispatchEvent: "subscription.created",
-            fallbackPlan: plan,
+            eventCreatedAt: getEventCreatedAt(event),
           },
           deps,
         );
@@ -711,6 +947,7 @@ export async function handleStripeEvent(
           tenantId: userContext.tenantId,
           error: errorMessage(error),
         });
+        throw error;
       }
 
       return;
@@ -722,16 +959,7 @@ export async function handleStripeEvent(
         subscriptionId: subscription.id,
       });
 
-      const customer = await deps.stripe.customers.retrieve(
-        getCustomerId(subscription.customer) ?? "",
-      );
-      const customerEmail = getCustomerEmail(customer);
-
-      if (!customerEmail) {
-        return;
-      }
-
-      const userContext = await resolveUserFromEmail(customerEmail, deps);
+      const userContext = await resolveUserForSubscription(subscription, deps);
       if (!userContext) {
         return;
       }
@@ -742,7 +970,7 @@ export async function handleStripeEvent(
             userId: userContext.userId,
             tenantId: userContext.tenantId,
             plan: "expired",
-            billingInterval: getStripeBillingInterval(subscription),
+            billingInterval: getStripeBillingInterval(subscription) ?? "monthly",
             startDate: toIsoDate(subscription.start_date),
             endDate: toIsoDate(subscription.current_period_end),
             currentPeriodStart: toIsoTimestamp(
@@ -756,28 +984,32 @@ export async function handleStripeEvent(
               : null,
             stripeCustomerId: getCustomerId(subscription.customer),
             stripeSubscriptionId: subscription.id,
+            eventCreatedAt: getEventCreatedAt(event),
           },
           deps,
         );
 
-        await dispatchSubscriptionStateChange(
-          "subscription.deleted",
-          userContext.userId,
-          userContext.tenantId,
-          updatedSubscription,
-          deps,
-        );
+        if (updatedSubscription) {
+          await dispatchSubscriptionStateChange(
+            "subscription.deleted",
+            userContext.userId,
+            userContext.tenantId,
+            updatedSubscription,
+            deps,
+          );
 
-        deps.logStep("Successfully updated subscription to expired", {
-          userId: userContext.userId,
-          tenantId: userContext.tenantId,
-        });
+          deps.logStep("Successfully updated subscription to expired", {
+            userId: userContext.userId,
+            tenantId: userContext.tenantId,
+          });
+        }
       } catch (error) {
         deps.logStep("Error updating subscription to expired", {
           userId: userContext.userId,
           tenantId: userContext.tenantId,
           error: errorMessage(error),
         });
+        throw error;
       }
 
       return;
@@ -789,15 +1021,7 @@ export async function handleStripeEvent(
         subscriptionId: subscription.id,
       });
 
-      const customer = await deps.stripe.customers.retrieve(
-        getCustomerId(subscription.customer) ?? "",
-      );
-      const customerEmail = getCustomerEmail(customer);
-      if (!customerEmail) {
-        return;
-      }
-
-      const userContext = await resolveUserFromEmail(customerEmail, deps);
+      const userContext = await resolveUserForSubscription(subscription, deps);
       if (!userContext) {
         return;
       }
@@ -809,6 +1033,7 @@ export async function handleStripeEvent(
             userId: userContext.userId,
             tenantId: userContext.tenantId,
             dispatchEvent: "subscription.updated",
+            eventCreatedAt: getEventCreatedAt(event),
           },
           deps,
         );
@@ -824,6 +1049,7 @@ export async function handleStripeEvent(
           tenantId: userContext.tenantId,
           error: errorMessage(error),
         });
+        throw error;
       }
 
       return;
@@ -840,16 +1066,7 @@ export async function handleStripeEvent(
       const subscription = await deps.stripe.subscriptions.retrieve(
         invoice.subscription as string,
       );
-      const customer = await deps.stripe.customers.retrieve(
-        getCustomerId(subscription.customer) ?? "",
-      );
-
-      const customerEmail = getCustomerEmail(customer);
-      if (!customerEmail) {
-        return;
-      }
-
-      const userContext = await resolveUserFromEmail(customerEmail, deps);
+      const userContext = await resolveUserForSubscription(subscription, deps);
       if (!userContext) {
         return;
       }
@@ -861,6 +1078,7 @@ export async function handleStripeEvent(
             userId: userContext.userId,
             tenantId: userContext.tenantId,
             dispatchEvent: "subscription.updated",
+            eventCreatedAt: getEventCreatedAt(event),
           },
           deps,
         );
@@ -876,6 +1094,7 @@ export async function handleStripeEvent(
           tenantId: userContext.tenantId,
           error: errorMessage(error),
         });
+        throw error;
       }
 
       return;
@@ -892,16 +1111,7 @@ export async function handleStripeEvent(
       const subscription = await deps.stripe.subscriptions.retrieve(
         invoice.subscription as string,
       );
-      const customer = await deps.stripe.customers.retrieve(
-        getCustomerId(subscription.customer) ?? "",
-      );
-      const customerEmail = getCustomerEmail(customer);
-
-      if (!customerEmail) {
-        return;
-      }
-
-      const userContext = await resolveUserFromEmail(customerEmail, deps);
+      const userContext = await resolveUserForSubscription(subscription, deps);
       if (!userContext) {
         return;
       }
@@ -913,6 +1123,7 @@ export async function handleStripeEvent(
             userId: userContext.userId,
             tenantId: userContext.tenantId,
             dispatchEvent: "subscription.updated",
+            eventCreatedAt: getEventCreatedAt(event),
             overrideStatus: "past_due",
           },
           deps,
@@ -929,6 +1140,7 @@ export async function handleStripeEvent(
           tenantId: userContext.tenantId,
           error: errorMessage(error),
         });
+        throw error;
       }
 
       return;
@@ -948,6 +1160,7 @@ export async function handleStripeWebhook(
     return new Response("No signature", { status: 400 });
   }
 
+  let event: Stripe.Event;
   try {
     const body = await req.text();
     const webhookSecret = deps.webhookSecret;
@@ -957,24 +1170,54 @@ export async function handleStripeWebhook(
       return new Response("Webhook secret not configured", { status: 400 });
     }
 
-    const event = await deps.stripe.webhooks.constructEventAsync(
+    event = await deps.stripe.webhooks.constructEventAsync(
       body,
       signature,
       webhookSecret,
     );
-    deps.logStep("Webhook event received", { type: event.type, id: event.id });
-
-    await handleStripeEvent(event, deps);
-
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    });
   } catch (error) {
     const message = errorMessage(error);
     deps.logStep("Webhook error", { error: message });
     return new Response(`Webhook error: ${message}`, { status: 400 });
   }
+  deps.logStep("Webhook event received", { type: event.type, id: event.id });
+
+  // crm-r2-F108: a delivery is acknowledged (2xx) only when its event was applied, skipped on purpose
+  // or already claimed. A claim or apply failure answers 500, after releasing the claim, so Stripe's
+  // retry applies the event; a failed release is logged (the retry would then be skipped as duplicate).
+  try {
+    if (!(await claimStripeEvent(event.id, deps))) {
+      deps.logStep("Duplicate webhook event skipped", { id: event.id });
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+  } catch (error) {
+    deps.logStep("Webhook claim failed", {
+      id: event.id,
+      error: errorMessage(error),
+    });
+    return new Response("Webhook processing failed", { status: 500 });
+  }
+
+  try {
+    await handleStripeEvent(event, deps);
+  } catch (error) {
+    const released = await releaseStripeEvent(event.id, deps);
+    deps.logStep("Webhook apply failed", {
+      id: event.id,
+      type: event.type,
+      claimReleased: released,
+      error: errorMessage(error),
+    });
+    return new Response("Webhook processing failed", { status: 500 });
+  }
+
+  return new Response(JSON.stringify({ received: true }), {
+    headers: { "Content-Type": "application/json" },
+    status: 200,
+  });
 }
 
 if (import.meta.main) {

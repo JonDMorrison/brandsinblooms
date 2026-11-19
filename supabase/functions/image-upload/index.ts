@@ -79,6 +79,22 @@ serve(async (req) => {
       );
     }
 
+    // central-login 59 (crm-r2-F58): a named content task must be the caller's own, checked before the upload.
+    if (contentTaskId) {
+      const { data: ownTask, error: taskError } = await supabaseClient
+        .from('content_tasks')
+        .select('id')
+        .eq('id', contentTaskId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (taskError || !ownTask) {
+        return new Response(
+          JSON.stringify({ error: 'You do not have access to this content task.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Generate unique filename
     const timestamp = Date.now();
     const fileExt = file.name.split('.').pop();
@@ -112,18 +128,22 @@ serve(async (req) => {
 
     // Update content_task if provided
     if (contentTaskId) {
-      const { error: updateError } = await supabaseClient
+      const { data: updatedTasks, error: updateError } = await supabaseClient
         .from('content_tasks')
         .update({ 
           image_url: finalImageUrl,
           image_source: 'upload',
           status: 'review' // Set to review when image changes
         })
-        .eq('id', contentTaskId);
+        .eq('id', contentTaskId)
+        .eq('user_id', user.id)
+        .select('id');
 
       if (updateError) {
         console.error('[IMAGE_UPLOAD] Content task update error:', updateError);
         // Don't throw - the upload was successful
+      } else if ((updatedTasks ?? []).length === 0) {
+        throw new Error('Content task not found');
       }
     }
 

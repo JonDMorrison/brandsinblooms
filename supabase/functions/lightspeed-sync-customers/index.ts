@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { isValidPrefix } from "../_shared/cookies.ts";
 // FIX: [P14] - Use proper decryptToken
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
@@ -163,6 +164,7 @@ async function sleep(ms: number) {
 
 async function writeJobProgress(
   supabaseAdmin: any,
+  tenantId: string,
   jobId: string | null,
   updates: Record<string, unknown>,
 ) {
@@ -178,7 +180,9 @@ async function writeJobProgress(
       updated_at: now,
       last_progress_at: updates.last_progress_at ?? now,
     })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    .eq("tenant_id", tenantId)
+    .eq("provider", "lightspeed");
 
   if (error) {
     console.error(
@@ -292,6 +296,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    // The prefix becomes the API host: only a valid Lightspeed prefix (crm-r2-F59/F134).
+    if (!isValidPrefix(connection.domain_prefix)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid Lightspeed store prefix. Reconnect Lightspeed." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // FIX: [P24] - Add sync lock to prevent concurrent syncs
     const { data: existingLockJob } = await supabaseClient
       .from("pos_sync_jobs")
@@ -325,22 +340,28 @@ Deno.serve(async (req) => {
 
     let syncJob: any = null;
     if (jobId) {
+      // Only the caller's own tenant's Lightspeed job is read or progressed (crm-r2-F61).
       const { data: jobData, error: jobError } = await supabaseAdmin
         .from("pos_sync_jobs_v2")
         .select(
           "current_page,current_cursor,fetched_rows,inserted_rows,skipped_rows,failed_rows,total_pages_est",
         )
         .eq("id", jobId)
-        .single();
+        .eq("tenant_id", tenantId)
+        .eq("provider", "lightspeed")
+        .maybeSingle();
 
-      if (jobError) {
+      if (jobError || !jobData) {
         console.error(
           "[LS-SYNC-CUSTOMERS] Failed to load sync job state:",
-          jobError.message,
+          jobError?.message ?? "not found for this tenant",
         );
-      } else {
-        syncJob = jobData;
+        return new Response(JSON.stringify({ error: "Sync job not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
+      syncJob = jobData;
     }
 
     let totalFetched = toFiniteNumber(syncJob?.fetched_rows, 0);
@@ -357,7 +378,7 @@ Deno.serve(async (req) => {
           ? `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/customers?after=${currentCursor}`
           : `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/customers`;
 
-      await writeJobProgress(supabaseAdmin, jobId, {
+      await writeJobProgress(supabaseAdmin, tenantId, jobId, {
         status: "in_progress",
         current_page: page,
         current_cursor: String(currentCursor),
@@ -418,7 +439,7 @@ Deno.serve(async (req) => {
 
       if (customers.length === 0) {
         finalVersionCursor = currentCursor;
-        await writeJobProgress(supabaseAdmin, jobId, {
+        await writeJobProgress(supabaseAdmin, tenantId, jobId, {
           status: "completed",
           current_page: page,
           current_cursor: String(currentCursor),
@@ -521,7 +542,7 @@ Deno.serve(async (req) => {
         nextVersion !== currentCursor;
       const nextPage = page + 1;
 
-      await writeJobProgress(supabaseAdmin, jobId, {
+      await writeJobProgress(supabaseAdmin, tenantId, jobId, {
         status: hasMore ? "in_progress" : "completed",
         current_page: nextPage,
         current_cursor: String(hasMore ? nextVersion : currentCursor),

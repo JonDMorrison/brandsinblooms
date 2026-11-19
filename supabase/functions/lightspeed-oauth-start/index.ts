@@ -2,6 +2,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { isValidPrefix } from "../_shared/cookies.ts";
+import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 import {
   detectEnvironment,
   getLightspeedCredentials,
@@ -124,6 +125,20 @@ Deno.serve(async (req) => {
 
     console.log("[LS-START] User authenticated:", user.id);
 
+    // Connecting Lightspeed replaces the tenant's connection: integrations.manage only (central-login 59).
+    let tenantId: string;
+    try {
+      tenantId = await requireImportTenant(supabaseClient);
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Integration management permission required" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // Parse request body
     const { domainPrefix, redirectOrigin } = await req.json();
 
@@ -143,25 +158,7 @@ Deno.serve(async (req) => {
 
     console.log("[LS-START] Domain prefix:", domainPrefix);
 
-    // Get tenant_id
-    const { data: userData, error: userDataError } = await supabaseClient
-      .from("users")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .single();
-
-    if (userDataError || !userData?.tenant_id) {
-      console.error("[LS-START] Tenant lookup failed:", userDataError?.message);
-      return new Response(
-        JSON.stringify({ error: "No tenant found for user" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    console.log("[LS-START] Tenant found:", userData.tenant_id);
+    console.log("[LS-START] Tenant found:", tenantId);
 
     // Lightspeed requires redirect_uri to exactly match the value registered
     // for the app. In production, prefer the canonical configured origin rather
@@ -187,7 +184,7 @@ Deno.serve(async (req) => {
     const oauthStatePayload = {
       state_token: state,
       user_id: user.id,
-      tenant_id: userData.tenant_id,
+      tenant_id: tenantId,
       provider: "lightspeed",
       domain_prefix: domainPrefix,
       redirect_uri: callbackUrl,
@@ -260,7 +257,7 @@ Deno.serve(async (req) => {
       .from("lightspeed_connections")
       .upsert(
         {
-          tenant_id: userData.tenant_id,
+          tenant_id: tenantId,
           user_id: user.id,
           domain_prefix: domainPrefix,
           encrypted_access_token: "pending",

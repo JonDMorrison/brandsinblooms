@@ -136,10 +136,18 @@ async function findShopifyConnection(
     .select("id, tenant_id, user_id, shop_domain, status, webhook_last_error")
     .eq("shop_domain", shopDomain)
     .eq("status", "connected")
-    .limit(1);
+    .limit(2);
 
   if (error) {
     throw error;
+  }
+
+  // A shop event is routed by shop alone: never pick one of several tenants (crm-r2-F99).
+  if ((data?.length ?? 0) > 1) {
+    console.error(
+      `[Shopify Webhook] More than one tenant holds a connected row for ${shopDomain}; event not routed`,
+    );
+    return null;
   }
 
   return data?.[0] ?? null;

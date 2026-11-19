@@ -79,6 +79,24 @@ Deno.serve(async (req) => {
       return corsJsonResponse({ error: 'Failed to initiate authorization' }, { status: 500 });
     }
 
+    // Store the state server-side, bound to this user, tenant and property; oauth-callback takes all three
+    // from this row and consumes it once (crm-r2-F73). domain_prefix carries the GA property id.
+    const { error: oauthStateError } = await supabase
+      .from('oauth_states')
+      .insert({
+        state_token: state,
+        user_id: user.id,
+        tenant_id: userRecord.tenant_id,
+        provider: 'google_analytics',
+        domain_prefix: String(propertyId),
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      });
+
+    if (oauthStateError) {
+      console.error('Error storing GA OAuth state:', oauthStateError);
+      return corsJsonResponse({ error: 'Failed to initiate authorization' }, { status: 500 });
+    }
+
     // Build OAuth URL
     const oauthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     oauthUrl.searchParams.set('client_id', clientId);

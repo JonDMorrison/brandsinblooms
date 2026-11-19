@@ -226,28 +226,5 @@ export const useNewsletterIdeas = () => {
     error,
     generateAIIdeas,
     refetch,
-    // Manual cleanup and refresh function
-    cleanupAndRefresh: async () => {
-      try {
-        setLoading(true);
-
-        // Call cleanup function to remove duplicates
-        const { error: cleanupError } = await supabase.functions.invoke(
-          "cleanup-duplicate-content",
-        );
-
-        if (cleanupError) {
-          console.error("Cleanup error:", cleanupError);
-        } else {
-        }
-
-        // Force refresh the data
-        await loadWeeklyThemes();
-      } catch (err) {
-        console.error("Error during cleanup and refresh:", err);
-      } finally {
-        setLoading(false);
-      }
-    },
   };
 };

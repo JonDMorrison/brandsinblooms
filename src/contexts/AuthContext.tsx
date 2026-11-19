@@ -1,6 +1,12 @@
 import * as React from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase, forceLogout } from "@/integrations/supabase/client";
+import {
+  isBloomsuiteSession,
+  reportSession,
+  sessionIdFromAccessToken,
+  startSessionReports,
+} from "@/integrations/bloomsuite/session";
 
 interface AuthContextType {
   user: User | null;
@@ -184,12 +190,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [updateRecoveryMode]);
 
+  // BloomSuite central login: a BloomSuite session reports sign_in once, then active at most every 15
+  // minutes, to BloomSuite ID. Keyed by the session id, so a token refresh doesn't restart it.
+  const bloomsuiteSessionId =
+    session && isBloomsuiteSession(session)
+      ? sessionIdFromAccessToken(session.access_token)
+      : null;
+  const sessionRef = React.useRef<Session | null>(null);
+  sessionRef.current = session;
+  React.useEffect(() => {
+    if (!bloomsuiteSessionId || !sessionRef.current) return;
+    return startSessionReports(supabase, sessionRef.current);
+  }, [bloomsuiteSessionId]);
+
   const signOut = async () => {
     try {
       setLoading(true);
       setAuthError(null);
 
-      const { error } = await supabase.auth.signOut();
+      // Tell BloomSuite ID first, while the session can still sign the report.
+      if (isBloomsuiteSession(sessionRef.current)) await reportSession(supabase, "sign_out");
+      // This device only (W1 02/R-04): signing out here never ends the person's other devices.
+      const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) {
         console.error("❌ Sign out error:", error);
         setAuthError(error.message);

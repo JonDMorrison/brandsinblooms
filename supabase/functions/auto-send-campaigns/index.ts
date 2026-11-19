@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -39,11 +40,12 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth gating handled at the platform level via verify_jwt — see
-  // queue-worker / process-email-send-queue for the same pattern.
-  // The previous in-handler check string-compared against the legacy
-  // SUPABASE_SERVICE_ROLE_KEY env and broke after the 2026-05-07
-  // sb_secret_ key migration (cron now sends the new key shape).
+  // Scheduler-only job (central-login 59, crm-r2-F19). The gateway's default JWT check admits any
+  // project JWT (a signed-in member, the public anon key), so the server key is checked here. The
+  // shared helper accepts every configured key (SUPABASE_SECRET_KEYS, the sb_secret_ shape the cron
+  // sends since 2026-05-07, and the legacy service-role key) in `apikey` or `Authorization: Bearer`.
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   const startTime = Date.now();
   const runId = crypto.randomUUID().slice(0, 8);

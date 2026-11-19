@@ -1090,7 +1090,7 @@ serve(async (req: Request) => {
       let query = supabase
         .from("crm_customers")
         .select(
-          "id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at",
+          "id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at, primary_location_id",
         )
         .eq("tenant_id", campaignTenantId)
         .not("email", "is", null);
@@ -1352,6 +1352,86 @@ serve(async (req: Request) => {
         },
       );
       customers = [];
+    }
+
+    // central-login 59 (crm-r2-F89): a store-scoped campaign reaches only its stores' customers, the
+    // crm_customers_select_by_scope rule: primary store among the campaign's stores, or purchase activity
+    // there. If the stores cannot be resolved (unknown scope, no stores, lookup error) the campaign is paused
+    // instead of being sent to a wider audience.
+    const campaignLocationScope =
+      typeof campaign.location_scope === "string"
+        ? campaign.location_scope
+        : "all_locations";
+    if (campaignLocationScope !== "all_locations") {
+      let campaignLocationIds: string[] | null = null;
+      if (
+        campaignLocationScope === "one_location" &&
+        typeof campaign.primary_location_id === "string"
+      ) {
+        campaignLocationIds = [campaign.primary_location_id];
+      } else if (campaignLocationScope === "selected_locations") {
+        const { data: targetRows, error: targetError } = await supabase
+          .from("campaign_location_targets")
+          .select("location_id")
+          .eq("tenant_id", campaignTenantId)
+          .eq("campaign_id", campaignId);
+        if (!targetError) {
+          campaignLocationIds = (targetRows || [])
+            .map((row: { location_id: unknown }) => row.location_id)
+            .filter((id): id is string => typeof id === "string");
+        }
+      }
+
+      let inScopeIds: Set<string> | null = null;
+      if (campaignLocationIds && campaignLocationIds.length > 0) {
+        const locationSet = new Set(campaignLocationIds);
+        const scoped = new Set<string>(
+          (customers || [])
+            .filter((c) => locationSet.has(c?.primary_location_id))
+            .map((c) => c.id as string),
+        );
+        let activityFailed = false;
+        const PAGE_SIZE = 1000;
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const { data: activityRows, error: activityError } = await supabase
+            .from("customer_location_activity")
+            .select("customer_id")
+            .eq("tenant_id", campaignTenantId)
+            .in("location_id", campaignLocationIds)
+            .order("customer_id", { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
+          if (activityError) {
+            activityFailed = true;
+            break;
+          }
+          for (const row of activityRows || []) {
+            if (typeof row?.customer_id === "string") scoped.add(row.customer_id);
+          }
+          if (!activityRows || activityRows.length < PAGE_SIZE) break;
+        }
+        if (!activityFailed) inScopeIds = scoped;
+      }
+
+      if (!inScopeIds) {
+        const pauseMessage =
+          "Campaign paused: its store scope could not be resolved, so the audience was not sent.";
+        await pauseCampaignSafely({
+          campaignId,
+          blockReason: "location_scope_unresolved",
+          errorMessage: pauseMessage,
+        });
+        return new Response(JSON.stringify({ error: pauseMessage }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const before = (customers || []).length;
+      const allowedIds = inScopeIds;
+      customers = (customers || []).filter((c) => allowedIds.has(c?.id));
+      console.log(
+        `📍 Store scope (${campaignLocationScope}) kept ${customers.length} of ${before} customers`,
+      );
     }
 
     const hygieneAnalysis = await analyzeCampaignListHygiene(supabase, {

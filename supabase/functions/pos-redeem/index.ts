@@ -18,6 +18,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
     }
+    let callerUserId: string | null = null;
     if (authHeader !== `Bearer ${serviceRoleKey}`) {
       const token = authHeader.replace('Bearer ', '');
       const supabase = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!);
@@ -25,6 +26,7 @@ serve(async (req) => {
       if (authErr || !user) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
       }
+      callerUserId = user.id;
     }
 
     const {
@@ -54,12 +56,31 @@ serve(async (req) => {
       );
     }
 
+    // central-login 59 (crm-r2-F76): a signed-in caller redeems only its own tenant's coupons (as
+    // analytics-tracker binds the same update); the service-role POS bridge keeps its by-code path.
+    let callerTenantId: string | null = null;
+    if (callerUserId) {
+      const { data: callerRow, error: callerError } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', callerUserId)
+        .maybeSingle();
+      callerTenantId = callerError ? null : callerRow?.tenant_id ?? null;
+      if (!callerTenantId) {
+        return new Response(
+          JSON.stringify({ error: 'No tenant found for user' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Find and validate coupon
-    const { data: coupon, error: couponError } = await supabase
+    let couponQuery = supabase
       .from('coupons')
       .select('*')
-      .eq('code', coupon_code.toUpperCase())
-      .single();
+      .eq('code', coupon_code.toUpperCase());
+    if (callerTenantId) couponQuery = couponQuery.eq('tenant_id', callerTenantId);
+    const { data: coupon, error: couponError } = await couponQuery.single();
 
     if (couponError || !coupon) {
       return new Response(
@@ -97,7 +118,7 @@ serve(async (req) => {
     }
 
     // Redeem the coupon
-    const { error: updateError } = await supabase
+    let redeemQuery = supabase
       .from('coupons')
       .update({
         usage_count: coupon.usage_count + 1,
@@ -107,6 +128,8 @@ serve(async (req) => {
         is_active: coupon.usage_count + 1 >= coupon.usage_limit ? false : coupon.is_active
       })
       .eq('id', coupon.id);
+    if (callerTenantId) redeemQuery = redeemQuery.eq('tenant_id', callerTenantId);
+    const { error: updateError } = await redeemQuery;
 
     if (updateError) {
       console.error('Failed to update coupon:', updateError);

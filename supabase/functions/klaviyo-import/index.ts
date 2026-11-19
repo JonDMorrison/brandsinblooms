@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callerHasTenantPermission } from "../_shared/callerTenantPermission.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,6 +81,21 @@ Deno.serve(async (req) => {
 
     const tenantId = userRecord?.tenant_id;
     if (!tenantId) throw new Error("Tenant not found");
+
+    // central-login 59 (with pack db3a's F149 suppression_list policies): importing from an integration needs
+    // integrations.manage in the caller's own tenant, asked as the caller. Only then are the suppression rows of
+    // opted-out contacts written, with the service role and this verified tenant (the caller's token may not write them).
+    if (!(await callerHasTenantPermission(authHeader, tenantId, "integrations.manage"))) {
+      return new Response(
+        JSON.stringify({ error: "Integration management permission required." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
+      );
+    }
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
 
     // Get connection with encrypted token
     const { data: connection } = await supabase
@@ -226,7 +242,7 @@ Deno.serve(async (req) => {
             ) {
               const suppressionType =
                 consentStatus === "opted_out" ? "unsubscribed" : "unsubscribed";
-              await supabase.from("suppression_list").upsert(
+              const { error: suppressionError } = await serviceClient.from("suppression_list").upsert(
                 {
                   tenant_id: tenantId,
                   email,
@@ -239,6 +255,10 @@ Deno.serve(async (req) => {
                 },
                 { onConflict: "tenant_id,email,channel,suppression_type" },
               );
+              if (suppressionError) {
+                console.error("Suppression upsert error:", suppressionError);
+                detailedErrors.push({ item: email, error: "Suppression not recorded" });
+              }
             }
 
             totalContacts++;

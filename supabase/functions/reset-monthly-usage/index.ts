@@ -12,6 +12,24 @@ async function handler(req: Request): Promise<Response> {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Server-only job: the monthly reset is run by the scheduler with the service-role key
+  // (same check as email-domain-verify's cron path). The public anon key and signed-in
+  // users are refused, so no browser caller can reset every tenant's usage.
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({ error: 'Authorization required' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!serviceRoleKey || authHeader.replace('Bearer ', '') !== serviceRoleKey) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   // Test error endpoint for debugging
   const url = new URL(req.url);
   if (url.searchParams.get('testError') === '1') {

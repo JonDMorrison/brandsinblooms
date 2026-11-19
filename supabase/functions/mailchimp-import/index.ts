@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertEncryptionKeyConfigured } from "../_shared/crypto/tokens.ts";
 import { corsJsonResponse, handleCorsPrelight } from "../_shared/cors.ts";
+import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 import {
   MailchimpClient,
   MailchimpRequestError,
@@ -464,8 +465,26 @@ export async function handleMailchimpImportRequest(req: Request) {
       );
     }
 
+    // central-login 59 (crm-r2-F64): every action (start, pause, resume, cancel) needs integration management
+    // authority, resolved as the caller (get_current_crm_access), before any service-role job or connection load.
+    let accessTenantId: string;
+    try {
+      accessTenantId = await requireImportTenant(authClient);
+    } catch {
+      return corsJsonResponse(
+        { error: "Integration management permission required." },
+        { status: 403 },
+      );
+    }
+
     const supabase = createServiceClient();
     const tenantId = await getTenantIdForUser(supabase, user.id);
+    if (tenantId !== accessTenantId) {
+      return corsJsonResponse(
+        { error: "Integration management permission required." },
+        { status: 403 },
+      );
+    }
 
     if (!jobId) {
       return corsJsonResponse(

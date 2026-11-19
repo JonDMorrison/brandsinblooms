@@ -12,12 +12,22 @@ interface OptInRequestBody {
   tenantId: string;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -25,10 +35,29 @@ serve(async (req) => {
 
     const { tenantId } = await req.json() as OptInRequestBody;
 
-    if (!tenantId) {
+    if (!tenantId || typeof tenantId !== "string" || !UUID.test(tenantId)) {
       return new Response(
         JSON.stringify({ error: "tenantId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 47/R-03: the company comes from the request, so the caller must be allowed to send email for it. The check runs
+    // as the caller (their JWT), through the same permission function the CRM's policies use, before any service-role read.
+    const callerClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: canSend, error: permissionError } = await callerClient.rpc("has_tenant_permission", {
+      p_tenant_id: tenantId,
+      p_permission: "campaign.send",
+      p_location_id: null,
+    });
+    if (permissionError || canSend !== true) {
+      return new Response(
+        JSON.stringify({ error: "You do not have access to send emails for this account." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

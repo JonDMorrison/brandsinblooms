@@ -3,6 +3,7 @@ import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as evaluator from '../../supabase/functions/_shared/segmentEvaluator';
+import * as storeScope from '../../supabase/functions/_shared/segmentLocationScope';
 import { readAllPages } from '../../supabase/functions/_shared/customer-intelligence/query-pages';
 
 type Row = Record<string, unknown>;
@@ -15,7 +16,7 @@ type Chain = PromiseLike<Result> & {
 };
 function harness(options: { count?: number; membershipCount?: number; archivedMembers?: number; perksRule?: boolean; perksMembers?: number; allowed?: boolean; failPage?: boolean } = {}) {
   const tenant = '11111111-1111-4111-8111-111111111111';
-  const segments: Row[] = [{ id: 'segment', tenant_id: tenant, auto_update: true, status: 'active', deleted_at: null,
+  const segments: Row[] = [{ id: 'segment', tenant_id: tenant, auto_update: true, status: 'active', deleted_at: null, location_scope: 'all_locations', primary_location_id: null,
     conditions: options.perksRule
       ? { logic: 'AND', rules: [{ field: 'is_perks_member', operator: '=', value: true }] }
       : { kind: 'group', operator: 'AND', children: [{ kind: 'rule', fieldId: 'custom:garden', operatorId: 'equals', value: true }] } }];
@@ -62,6 +63,7 @@ function harness(options: { count?: number; membershipCount?: number; archivedMe
       if(name==='npm:@supabase/supabase-js@2')return {createClient: (_url: string, key: string) => key==='service'?service:caller};
       if(name.endsWith('query-pages.ts'))return {readAllPages};
       if(name.endsWith('segmentEvaluator.ts'))return evaluator;
+      if(name.endsWith('segmentLocationScope.ts'))return storeScope;
       if(name.endsWith('eligibleEmailAudience.ts'))return {resolveEligibleEmailCustomerIds:async()=>new Set<string>()};
       throw new Error(`Unexpected dependency: ${name}`);
     },
