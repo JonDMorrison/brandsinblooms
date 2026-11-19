@@ -1,5 +1,5 @@
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
-import { answerWithSlackAgent, isPrivateStaffChannel, isSlackModelEndpoint, type SlackAgentContext } from "./slack-agent.ts";
+import { answerWithSlackAgent, checkStaffChannel, isSlackModelEndpoint, type SlackAgentContext } from "./slack-agent.ts";
 const channel = "C0CFNEQBS2X";
 const principal = "10000000-0000-4000-8000-000000000001";
 const context: SlackAgentContext = { allowed: true, principal_id: principal, role: "platform_admin", channel, route: "tickets", root_ts: "1794936205.974579", user_id: "U06VD9ZGA4U", ticket_id: null, history: [] };
@@ -36,15 +36,94 @@ function standard(url: string, body: Record<string, unknown>): unknown {
   }
   throw Error("Unexpected request in test: " + url);
 }
-Deno.test("private-channel verification fails closed for public, shared, missing-scope and mismatched channels", async () => {
-  for (const result of [
-    { ok: true, channel: { id: channel, is_private: false } },
-    { ok: true, channel: { id: channel, is_private: true, is_ext_shared: true } },
-    { ok: true, channel: { id: channel, is_private: true, is_shared: true } },
-    { ok: false, error: "missing_scope" },
-    { ok: true, channel: { id: "another", is_private: true } },
-  ]) await fixture(async () => assertEquals(await isPrivateStaffChannel(channel), false), () => result);
-  await fixture(async () => assertEquals(await isPrivateStaffChannel(channel), true), () => ({ ok: true, channel: { id: channel, is_private: true, is_shared: false, is_ext_shared: false } }));
+const privateMeta = { ok: true, channel: { id: channel, is_private: true, is_shared: false, is_ext_shared: false } };
+const publicMeta = { ok: true, channel: { id: channel, is_private: false, is_shared: false, is_ext_shared: false } };
+const channelSetting = (allowAny: boolean) => (url: string, body: Record<string, unknown>, meta: unknown): unknown => {
+  if (url.includes("conversations.info")) return meta;
+  if (url.endsWith("bloom_support_rpc") && body.p_fn === "setting") return { enabled: true, allow_any_staff_channel: allowAny };
+  throw Error("Unexpected request in test: " + url);
+};
+Deno.test("staff channel check: private allowed, public only with the setting, shared and failed lookups always refused", async () => {
+  const cases: Array<[unknown, boolean, { allowed: boolean; reason: string }]> = [
+    [privateMeta, false, { allowed: true, reason: "ok" }],
+    [privateMeta, true, { allowed: true, reason: "ok" }],
+    [publicMeta, false, { allowed: false, reason: "public" }],
+    [publicMeta, true, { allowed: true, reason: "ok" }],
+    [{ ok: true, channel: { id: channel, is_private: false, is_shared: true } }, true, { allowed: false, reason: "shared" }],
+    [{ ok: true, channel: { id: channel, is_private: true, is_ext_shared: true } }, true, { allowed: false, reason: "shared" }],
+    [{ ok: true, channel: { id: channel, is_private: true, is_shared: true } }, false, { allowed: false, reason: "shared" }],
+    [{ ok: false, error: "missing_scope" }, false, { allowed: false, reason: "lookup_failed" }],
+    [{ ok: false, error: "missing_scope" }, true, { allowed: false, reason: "lookup_failed" }],
+    [{ ok: true, channel: { id: "another", is_private: false } }, true, { allowed: false, reason: "lookup_failed" }],
+  ];
+  for (const [meta, allowAny, expected] of cases) {
+    await fixture(async () => assertEquals(await checkStaffChannel(channel), expected, JSON.stringify({ meta, allowAny })), (url, body) => channelSetting(allowAny)(url, body, meta));
+  }
+});
+Deno.test("staff channel check needs the Slack token and reads the setting only for public internal channels", async () => {
+  await fixture(async calls => {
+    Deno.env.delete("BLOOM_SUPPORT_SLACK_BOT_TOKEN");
+    assertEquals(await checkStaffChannel(channel), { allowed: false, reason: "not_configured" });
+    assertEquals(calls.length, 0);
+  }, () => { throw Error("no request expected"); });
+  await fixture(async calls => {
+    assertEquals(await checkStaffChannel(channel), { allowed: true, reason: "ok" });
+    assert(!calls.some(c => c.url.endsWith("bloom_support_rpc")));
+  }, (url, body) => channelSetting(false)(url, body, privateMeta));
+  await fixture(async () => assertEquals(await checkStaffChannel(channel), { allowed: false, reason: "public" }), (url) => {
+    if (url.includes("conversations.info")) return publicMeta;
+    throw Error("setting unavailable");
+  });
+});
+Deno.test("a public internal channel gets tools, history and no private-channel scope line when the setting is on", async () => {
+  let modelCalls = 0;
+  await fixture(async calls => {
+    const result = await answerWithSlackAgent({ ...context, history: [{ question: "EARLIER_QUESTION_SENTINEL", answer: "Earlier answer" }] }, "What needs attention?", "job");
+    assertStringIncludes(result ?? "", "Three requests are open");
+    assertStringIncludes(result ?? "", "Checked sources:");
+    assertEquals((result ?? "").includes("belong in the private Bloom support channel"), false);
+    assert(calls.some(c => c.body.p_fn === "queue_summary"));
+  }, (url, body) => {
+    if (url.includes("conversations.info")) return publicMeta;
+    if (url.endsWith("bloom_support_rpc") && body.p_fn === "setting" && (body.p as Record<string, unknown>).key === "slack_agent") return { enabled: true, allow_any_staff_channel: true };
+    if (url.endsWith("chat/completions")) {
+      modelCalls++;
+      const names = (body.tools as Array<{ function: { name: string } }>).map(t => t.function.name);
+      assert(names.includes("support_overview") && names.includes("find_tickets"), names.join(","));
+      const user = JSON.parse(String((body.messages as Array<{ content: string }>)[1].content));
+      assertEquals(user.private_channel, true);
+      assertStringIncludes(JSON.stringify(user.history), "EARLIER_QUESTION_SENTINEL");
+      return { choices: [{ message: modelCalls === 1 ? { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "support_overview", arguments: "{}" } }] } : { role: "assistant", content: "Three requests are open in the recorded support overview." } }] };
+    }
+    return standard(url, body);
+  });
+});
+Deno.test("a public channel with the setting off keeps knowledge tools only and the scope line", async () => {
+  await fixture(async () => {
+    const result = await answerWithSlackAgent(context, "How do I reopen sales?", "job");
+    assertStringIncludes(result ?? "", "belong in the private Bloom support channel");
+  }, (url, body) => {
+    if (url.includes("conversations.info")) return publicMeta;
+    if (url.endsWith("chat/completions")) {
+      assertEquals((body.tools as Array<{ function: { name: string } }>).map(t => t.function.name), ["product_knowledge"]);
+      return { choices: [{ message: { role: "assistant", content: "Use Reopen sales." } }] };
+    }
+    return standard(url, body);
+  });
+});
+Deno.test("a shared channel is refused operational tools even with the setting on", async () => {
+  await fixture(async calls => {
+    await answerWithSlackAgent(context, "What needs attention?", "job");
+    assert(!calls.some(c => c.body.p_fn === "queue_summary"));
+  }, (url, body) => {
+    if (url.includes("conversations.info")) return { ok: true, channel: { id: channel, is_private: false, is_shared: true } };
+    if (url.endsWith("bloom_support_rpc") && body.p_fn === "setting" && (body.p as Record<string, unknown>).key === "slack_agent") return { enabled: true, allow_any_staff_channel: true };
+    if (url.endsWith("chat/completions")) {
+      assertEquals((body.tools as Array<{ function: { name: string } }>).map(t => t.function.name), ["product_knowledge"]);
+      return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "support_overview", arguments: "{}" } }] } }] };
+    }
+    return standard(url, body);
+  });
 });
 Deno.test("rollout off retains the legacy responder without a model call", async () => {
   await fixture(async calls => {

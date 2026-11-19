@@ -123,6 +123,12 @@ The repair workflow still holds no merge rights. Its `publish` job has `contents
 - **A chat read says "no access":** the person's Support role lacks `ops.site.read` / `ops.pos.read`. Clients don't have these.
 - **A company says Bloom chat "reached this month's usage limit":** Support desk → Settings → Bloom chat usage shows its month-to-date spend vs limit. A platform admin can raise that company's limit there (or the default). The limit is an internal cost guard, not a charge to the customer, and resets on the 1st (UTC).
 - **A chat read says "not connected":** the Support account has no linked site/POS business. Link it in Support → Clients.
+- **Which Slack channels Bloom will discuss tickets and clients in (`slack_agent.allow_any_staff_channel`):** Bloom checks every Slack conversation with Slack before it answers, and again before it posts.
+  - **Private internal channels:** always allowed.
+  - **Public internal channels:** allowed only when `allow_any_staff_channel` is `true` (on since migration `20261119120000`). Staff then get the full tool set, the thread's ticket and earlier turns in a public channel too. With it off, Bloom answers product how-to questions there but refuses ticket and client questions with "This channel is public…".
+  - **Always refused, whatever the setting:** channels shared outside Brands in Blooms (Slack Connect: `is_shared` or `is_ext_shared`) get "This channel is shared outside Brands in Blooms…". A failed Slack lookup gets "I couldn't check this channel with Slack…"; that usually means the Bloom Slack app lacks `channels:read` or `groups:read`.
+  - **Unchanged by the setting:** who may ask (`BLOOM_SUPPORT_SLACK_STAFF_IDS` and the Slack team check), which channel each route answers in (`BLOOM_SUPPORT_SLACK_CHANNEL_<ROUTE>`) and each tool's role checks.
+  - **Turn it off:** `update bloom_support.settings set value = jsonb_set(value, '{allow_any_staff_channel}', 'false') where key = 'slack_agent';`. A missing key also means off. Re-running the migration never turns it back on.
 
 ## E. Runtime handoff (what still has to happen in production)
 

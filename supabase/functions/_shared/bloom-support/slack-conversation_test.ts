@@ -108,20 +108,60 @@ async function privacyFixture(
   try{await respondToSlackConversation({id:"30000000-0000-4000-8000-000000000001",payload:{question}});return {calls,answer};}
   finally{globalThis.fetch=oldFetch;for(const [k,v] of Object.entries(prior))v===undefined?Deno.env.delete(k):Deno.env.set(k,v);}
 }
-Deno.test("legacy ticket reads and action shortcuts fail closed in public, shared and unverified channels",async()=>{
-  for(const metadata of [
-    {ok:false,error:"missing_scope"},
-    {ok:true,channel:{id:privacyChannel,is_private:false}},
-    {ok:true,channel:{id:privacyChannel,is_private:true,is_shared:true}},
-  ])for(const question of ["What is happening with this ticket?","Claim this"]){
-    const result=await privacyFixture(question,(url)=>{
+const PUBLIC_REFUSAL="This channel is public, so I can't share ticket or client records here. Ask in a private Bloom channel or use the Bloom Support desk.";
+const SHARED_REFUSAL="This channel is shared outside Brands in Blooms, so I can't share ticket or client records here. Use the Bloom Support desk.";
+const LOOKUP_REFUSAL="I couldn't check this channel with Slack. The Bloom Slack app may be missing a permission (channels:read, groups:read). No records were shared.";
+Deno.test("ticket reads and action shortcuts are refused with the matching reason in public, shared and unverified channels",async()=>{
+  const cases:Array<[unknown,boolean,string]>=[
+    [{ok:false,error:"missing_scope"},false,LOOKUP_REFUSAL],
+    [{ok:false,error:"missing_scope"},true,LOOKUP_REFUSAL],
+    [{ok:true,channel:{id:privacyChannel,is_private:false}},false,PUBLIC_REFUSAL],
+    [{ok:true,channel:{id:privacyChannel,is_private:true,is_shared:true}},false,SHARED_REFUSAL],
+    [{ok:true,channel:{id:privacyChannel,is_private:true,is_shared:true}},true,SHARED_REFUSAL],
+    [{ok:true,channel:{id:privacyChannel,is_private:false,is_ext_shared:true}},true,SHARED_REFUSAL],
+  ];
+  for(const [metadata,allowAny,expected] of cases)for(const question of ["What is happening with this ticket?","Claim this"]){
+    const result=await privacyFixture(question,(url,body)=>{
       if(url.includes("conversations.info"))return metadata;
+      if(url.endsWith("bloom_support_rpc")&&body.p_fn==="setting")return {enabled:true,allow_any_staff_channel:allowAny};
       throw Error("Private data or action attempted: "+url);
     });
-    assertStringIncludes(result.answer,"can't verify this as a private");
-    assertEquals(result.calls.some(c=>c.url.endsWith("bloom_support_rpc")),false);
+    assertEquals(result.answer,expected,JSON.stringify({metadata,allowAny,question}));
+    assertEquals(result.calls.some(c=>c.url.endsWith("bloom_support_rpc")&&c.body.p_fn!=="setting"),false);
     assertEquals(result.calls.some(c=>c.url.endsWith("chat/completions")),false);
   }
+});
+Deno.test("a public internal channel answers ticket questions with history when allow_any_staff_channel is on",async()=>{
+  const result=await privacyFixture("What is the problem?",(url,body)=>{
+    if(url.includes("conversations.info"))return {ok:true,channel:{id:privacyChannel,is_private:false,is_shared:false,is_ext_shared:false}};
+    if(url.endsWith("bloom_support_rpc")){
+      if(body.p_fn==="setting")return (body.p as Record<string,unknown>).key==="slack_agent"?{enabled:false,allow_any_staff_channel:true}:{provider:"openai",model:"gpt-4o-mini"};
+      if(body.p_fn==="get_ticket")return {id:privacyContext.ticket_id,number:42,subject:"TicketFactSentinel",status:"working",messages:[]};
+      if(body.p_fn==="consume_usage")return true;
+      if(body.p_fn==="log_usage")return null;
+    }
+    if(url.endsWith("chat/completions")){
+      const input=JSON.stringify(body.messages);
+      assertStringIncludes(input,"TicketFactSentinel");
+      assertStringIncludes(input,"EarlierTurnSentinel");
+      return {choices:[{message:{content:JSON.stringify({answer:"Request 42 is still being worked on."})}}]};
+    }
+    throw Error("Unexpected "+url);
+  },{...privacyContext,history:[{question:"EarlierTurnSentinel",answer:"Earlier answer"}]});
+  assertEquals(result.calls.filter(c=>c.body.p_fn==="get_ticket").length,1);
+  assertEquals(result.calls.filter(c=>c.url.includes("conversations.info")).length,2);
+  assertStringIncludes(result.answer,"Request 42 is still being worked on.");
+});
+Deno.test("a private channel needs no setting and keeps working with allow_any_staff_channel off",async()=>{
+  const result=await privacyFixture("Claim this",(url,body)=>{
+    if(url.includes("conversations.info"))return privateMetadata;
+    if(url.endsWith("bloom_support_rpc")&&["claim_ticket","set_automation"].includes(String(body.p_fn)))return {};
+    if(url.endsWith("bloom_support_rpc")&&body.p_fn==="setting")return {enabled:true,allow_any_staff_channel:false};
+    throw Error("Unexpected "+url);
+  });
+  assertEquals(result.calls.filter(c=>c.body.p_fn==="claim_ticket").length,1);
+  assertEquals(result.calls.some(c=>c.body.p_fn==="setting"),false);
+  assertStringIncludes(result.answer,"this ticket is now yours");
 });
 Deno.test("legacy fallback rechecks live privacy after reading a ticket and suppresses disclosure",async()=>{
   let privacyChecks=0;
