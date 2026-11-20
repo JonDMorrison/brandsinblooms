@@ -579,6 +579,9 @@ export function CRMCampaignsPage() {
     queryKey,
     enabled: Boolean(tenant?.id),
     queryFn: async () => fetchCampaignCatalog(tenant!.id),
+    // Studio is a separate route: its saves happen while this subscription is
+    // unmounted. Do not reuse the global five-minute cache on returning here.
+    staleTime: 0,
   });
 
   React.useEffect(() => {
@@ -1167,7 +1170,15 @@ export function CRMCampaignsPage() {
             sx={{ borderRadius: "md", overflow: "hidden" }}
           >
             <Box sx={{ display: { xs: "none", sm: "block" } }}>
-              <JoyTable>
+              <JoyTable sx={{
+                minWidth: { sm: 1080, lg: 1320 },
+                "& th:first-of-type, & td:first-of-type": {
+                  position: "sticky", left: 0, zIndex: 1,
+                },
+                "& th:last-child, & td:last-child": {
+                  position: "sticky", right: 0, zIndex: 1,
+                },
+              }}>
                 <JoyTableHead>
                   <JoyTableRow>
                     <JoyTableHeaderCell
@@ -1178,7 +1189,7 @@ export function CRMCampaignsPage() {
                         "campaign",
                       )}
                       onSort={() => setSort("campaign")}
-                      sx={{ width: "34%" }}
+                      sx={{ width: 300 }}
                     >
                       Campaign name
                     </JoyTableHeaderCell>
@@ -1378,14 +1389,15 @@ export function CRMCampaignsPage() {
                               <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                                 <Typography
                                   level="body-sm"
+                                  title={campaign.name || "Untitled Campaign"}
                                   sx={{
                                     fontWeight: "lg",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
+                                    color: "text.primary",
+                                    overflowWrap: "anywhere",
+                                    whiteSpace: "normal",
                                   }}
                                 >
-                                  {campaign.name}
+                                  {campaign.name || "Untitled Campaign"}
                                 </Typography>
                                 <Typography
                                   level="body-xs"
@@ -1553,13 +1565,13 @@ export function CRMCampaignsPage() {
                           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                             <Typography
                               level="title-sm"
+                              title={campaign.name || "Untitled Campaign"}
                               sx={{
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
+                                overflowWrap: "anywhere",
+                                whiteSpace: "normal",
                               }}
                             >
-                              {campaign.name}
+                              {campaign.name || "Untitled Campaign"}
                             </Typography>
                             <StatusChip
                               campaign={campaign}
