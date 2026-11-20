@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import * as React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import BlockPropertiesPanel from "./BlockPropertiesPanel";
+import SharedEmailBlockPreview from "./newsletter/SharedEmailBlockPreview";
 import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
 import type { StudioBlock } from "@/types/studioBlocks";
@@ -125,5 +127,52 @@ describe("block-specific properties", () => {
     expect(screen.getAllByText("Column Split")).toHaveLength(1);
     expect(screen.getByText("Image link URL")).toBeInTheDocument();
     expect(screen.getByLabelText("Text vertical alignment")).toBeInTheDocument();
+  });
+});
+
+
+describe("Image + Text side switching", () => {
+  it("updates the actual preview table left/right/left without losing saved content", () => {
+    const initial = {
+      ...createStudioBlock("image-text"),
+      headline: "Winter favourites",
+      body: "Plants for the winter garden.",
+      imageUrl: "https://example.com/winter.jpg",
+      imageAlt: "Winter garden",
+      buttonText: "Explore plants",
+      buttonUrl: "https://example.com/plants",
+    };
+    let saved = initial;
+    function Editor() {
+      const [block, setBlock] = React.useState(initial);
+      return <>
+        <BlockPropertiesPanel
+          campaignImageGallery={[]} campaignName="Winter" campaignType="newsletter"
+          selectedBlockId={block.id} blocks={[block]} open onClose={() => {}}
+          onUpdateBlockField={() => {}}
+          onUpdateBlockFields={(_id, fields) => {
+            // Exercise the JSON save/reload representation as well as selection.
+            saved = JSON.parse(JSON.stringify({ ...block, ...fields }));
+            setBlock(saved);
+          }}
+        />
+        <SharedEmailBlockPreview block={block} />
+      </>;
+    }
+    const { container } = render(<Editor />);
+    for (const [name, direction] of [["Image Right", "rtl"], ["Image Left", "ltr"], ["Image Right", "rtl"]]) {
+      fireEvent.click(screen.getByRole("button", { name, exact: true }));
+      const table = container.querySelector<HTMLTableElement>(".image-text-row")!;
+      expect(table.dir).toBe(direction);
+      expect(table.style.direction).toBe(direction);
+      expect(table.rows[0].cells[0]).toHaveClass("image-text-image");
+      expect(table.rows[0].cells[1]).toHaveClass("image-text-content");
+      expect(Array.from(table.rows[0].cells).map((cell) => cell.dir)).toEqual(["ltr", "ltr"]);
+      expect(saved.headline).toBe(initial.headline);
+      expect(saved.body).toBe(initial.body);
+      expect(saved.imageUrl).toBe(initial.imageUrl);
+      expect(saved.buttonUrl).toBe(initial.buttonUrl);
+      expect(container.querySelector(".nl-preview")).toHaveTextContent(initial.headline);
+    }
   });
 });
