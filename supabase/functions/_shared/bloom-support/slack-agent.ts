@@ -1,5 +1,6 @@
 // Native OpenAI tools over existing permission-checked Bloom services.
 // No arbitrary execution, new recurring jobs, direct sends, or policy bypasses.
+import { readReleaseEvidence } from "./slack-release-evidence.ts";
 import { db, env, rpc, directRpc, type Caller } from "./runtime.ts";
 import { aiConfig } from "./ai.ts";
 import { actions } from "./service.ts";
@@ -96,7 +97,7 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
   const authorize = async (): Promise<boolean> => {
     const { data: current, error } = await db().rpc("bloom_support_slack_conversation_context", { p_job: jobId });
     return !error && current?.allowed === true && current.principal_id === c.principal_id && current.role === c.role
-      && current.channel === c.channel && current.root_ts === c.root_ts && current.ticket_id === c.ticket_id;
+      && current.channel === c.channel && current.route === c.route && current.user_id === c.user_id && current.root_ts === c.root_ts && current.ticket_id === c.ticket_id;
   };
   const audit = async (name: string, outcome: string) => {
     await rpc("log", { actor: c.principal_id, ticket_id: c.ticket_id, action: "slack.agent.tool", detail: { job_id: jobId, tool: name, outcome, route: c.route } });
@@ -200,8 +201,10 @@ export async function answerWithSlackAgent(c: SlackAgentContext, question: strin
         return { source: source(`Live ${String(a.operation)} record`), data: result };
       }
       case "release_status": {
-        const result = rows(await actions.listEngineering(caller));
-        return { source: source("Tracked engineering releases", `${DESK}?view=engineering`), data: { results: result.slice(0, 10).map(r => pick(r, ["id", "title", "status", "repository", "deployment", "verification", "updated_at"])), limited_to: 10, warning: "Only the recorded checks are known. Missing evidence is not success." } };
+        if(!(await checkStaffChannel(c.channel)).allowed)throw Error("staff channel no longer verified");
+        const evidence=await readReleaseEvidence(c,jobId);
+        for(const [i,url] of evidence.links.entries())source(`Release record ${i+1}`,url);
+        return {source:source("Recent release evidence",evidence.links[0]??`${DESK}?view=engineering`),data:evidence.data,fallback:evidence.fallback};
       }
       case "request_human": {
         const t = await getTicket(c.ticket_id);

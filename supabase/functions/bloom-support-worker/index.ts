@@ -1,3 +1,5 @@
+import { env } from "../_shared/bloom-support/runtime.ts";
+import { releaseDeliveryProof } from "../_shared/bloom-support/slack-release-evidence.ts";
 // Bloom Support worker — invoked every minute by pg_cron (and on demand).
 // Claims leased jobs, runs them with a timeout, and records success or a
 // bounded retry. Survives restarts: an expired lease is re-queued by
@@ -1347,7 +1349,10 @@ async function runOne(job: Job) {
   const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`timeout after ${job.timeout_seconds}s`)), Math.max(5, job.timeout_seconds - 5) * 1000));
   try {
     const out = await Promise.race([HANDLERS[job.kind]?.(job) ?? Promise.reject(new Error(`no handler for ${job.kind}`)), timeout]);
-    await rpc("complete_job", { job_id: job.id, worker: WORKER, result: { note: out } });
+    const releaseRoute=slackRoute(String(job.payload.kind??""));
+    const delivery=job.kind==="notify" && job.payload.slack===true && !job.ticket_id
+      ? releaseDeliveryProof(job.payload.kind,out,env("BLOOM_SUPPORT_SLACK_CHANNEL_"+String(releaseRoute).toUpperCase())) : null;
+    await rpc("complete_job", { job_id: job.id, worker: WORKER, result: { note: out, ...(delivery?{slack_delivery:delivery}:{}) } });
     return { id: job.id, kind: job.kind, ok: true, note: out };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
