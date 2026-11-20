@@ -226,7 +226,12 @@ describe("newsletter design and safety", () => {
         layout: "image-right",
       }),
     ]);
-    expect(output).toContain('<tr dir="rtl">');
+    const document = new DOMParser().parseFromString(output, "text/html");
+    const table = document.querySelector<HTMLTableElement>(".image-text-row")!;
+    expect(table.dir).toBe("rtl");
+    expect(table.style.direction).toBe("rtl");
+    expect(table.rows[0].cells[0].classList.contains("image-text-image")).toBe(true);
+    expect(Array.from(table.rows[0].cells).map((cell) => cell.dir)).toEqual(["ltr", "ltr"]);
     expect(output.indexOf('alt="Snowy favourites"')).toBeLessThan(
       output.indexOf("Snowy favourites</h1>"),
     );
