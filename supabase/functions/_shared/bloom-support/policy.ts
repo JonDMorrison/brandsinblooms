@@ -133,7 +133,7 @@ export interface Classification {
   source: "rules" | "model";
 }
 
-const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|not loading|doesn'?t work|won'?t|can'?t|cannot|unavailable|stuck|blank|500|404|wrong|missing|disappeared|frozen|spinning|offline)\b/i;
+const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|not loading|doesn'?t work|won'?t|can'?t|cannot|unavailable|stuck|blank|500|404|wrong|missing|disappear(?:s|ed|ing)?|interrupt(?:s|ed|ing)?|reset(?:s|ting)?|(?:typing|editing|input)\s+stop(?:s|ped)?|prevent(?:s|ed|ing)?\s+(?:me|us|users?)\s+from\s+(?:typing|writing|editing|saving)|frozen|spinning|offline)\b/i;
 const FEATURE = /\b(feature request|would be (nice|great)|could you add|can you add|wish|suggest(ion)?|it would help if|please add|roadmap|ability to)\b/i;
 const QUESTION = /(\?\s*$|\b(how (do|can|to)|where (is|do|can)|what (is|does)|is it possible|can i)\b)/im;
 const REQUEST = /\b(please (update|change|create|publish|send|schedule|set up|add|remove)|can you (update|change|create|publish|send|schedule|set up)|need (you )?to (update|change|publish))\b/i;
@@ -175,6 +175,11 @@ function deterministicOutageEvidence(subject: string, body: string): boolean {
   return observedFailure || terseOutageSubject || widespreadFailure;
 }
 
+/** Clear failures do not require another email explaining the obvious expected behaviour. */
+export function hasSelfEvidentBugSymptom(body: string): boolean {
+  return /(?:\b(?:type|typing|enter|edit|save|click|press|open|upload|select|add)\b.{0,95}\b(?:stop(?:s|ped)?|interrupt(?:s|ed)?|prevent(?:s|ed)?|disappear(?:s|ed)?|vanish(?:es|ed)?|reset(?:s)?|fail(?:s|ed)?|freez(?:es|ing)?|crash(?:es|ed)?|nothing happens|not working)\b|\b(?:disappear(?:s|ed)?|vanish(?:es|ed)?|reset(?:s)?|stop(?:s|ped)?|fail(?:s|ed)?|crash(?:es|ed)?)\b.{0,95}\b(?:typing|editor|field|input|button|page|form|specification|description)\b|\b(?:404|500|blank screen|page is blank|not loading|won't load)\b)/i.test(body);
+}
+
 const CATEGORIES: Array<[RegExp, string]> = [
   [/\b(checkout|cart|payment|stripe|refund|tax|payout|card reader|terminal)\b/i, "payments"],
   [/\b(campaign|newsletter|email blast|audience|segment|unsubscribe|sms)\b/i, "campaigns"],
@@ -203,7 +208,9 @@ export function classify(subject: string, body: string, product: Product): Class
   const missing: string[] = [];
   if (kind === "bug") {
     if (body.length < 60) missing.push("what happened, step by step");
-    if (!/\b(expected|should|supposed to)\b/i.test(body)) missing.push("what you expected to happen");
+    if (!/\b(expected|should|supposed to)\b/i.test(body) && !hasSelfEvidentBugSymptom(body)) {
+      missing.push("what you expected to happen");
+    }
     if (product === "unknown") missing.push("which product (website, CRM or POS)");
   }
   if (kind === "change" && product === "unknown") missing.push("which product (website, CRM or POS)");
