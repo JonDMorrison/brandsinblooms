@@ -133,7 +133,7 @@ export interface Classification {
   source: "rules" | "model";
 }
 
-const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|not loading|doesn'?t work|won'?t|can'?t|cannot|unavailable|stuck|blank|500|404|wrong|missing|disappear(?:s|ed|ing)?|interrupt(?:s|ed|ing)?|reset(?:s|ting)?|(?:typing|editing|input)\\s+stop(?:s|ped)?|prevent(?:s|ed|ing)?\\s+(?:me|us|users?)\\s+from\\s+(?:typing|writing|editing|saving)|frozen|spinning|offline)\b/i;
+const BUG = /\b(bug|broken|error|crash|fail(s|ed|ing)?|not working|not loading|doesn'?t work|won'?t|can'?t|cannot|unavailable|stuck|blank|500|404|wrong|missing|disappear(?:s|ed|ing)?|interrupt(?:s|ed|ing)?|reset(?:s|ting)?|(?:typing|editing|input)\s+stop(?:s|ped)?|prevent(?:s|ed|ing)?\s+(?:me|us|users?)\s+from\s+(?:typing|writing|editing|saving)|frozen|spinning|offline)\b/i;
 const FEATURE = /\b(feature request|would be (nice|great)|could you add|can you add|wish|suggest(ion)?|it would help if|please add|roadmap|ability to)\b/i;
 const QUESTION = /(\?\s*$|\b(how (do|can|to)|where (is|do|can)|what (is|does)|is it possible|can i)\b)/im;
 const REQUEST = /\b(please (update|change|create|publish|send|schedule|set up|add|remove)|can you (update|change|create|publish|send|schedule|set up)|need (you )?to (update|change|publish))\b/i;
