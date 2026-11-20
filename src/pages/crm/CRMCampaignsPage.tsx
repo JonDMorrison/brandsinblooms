@@ -21,6 +21,7 @@ import {
   Edit3,
   FileText,
   MoreHorizontal,
+  Palette,
   Pause,
   Play,
   Plus,
@@ -885,11 +886,17 @@ export function CRMCampaignsPage() {
     const recipients = item("View Recipients", <Users size={16} />, () =>
       navigate(`/crm/campaigns/${campaign.id}/recipients`),
     );
+    const designer = campaign.channel !== "sms"
+      ? item("Open designer", <Palette size={16} />, () =>
+          navigate(`/crm/campaigns/${campaign.id}/studio`),
+        )
+      : null;
 
     let items: React.ReactNode[];
     switch (campaign.status) {
       case CAMPAIGN_STATUS.DRAFT:
         items = [
+          designer,
           item("Edit", <Edit3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
           ),
@@ -899,6 +906,7 @@ export function CRMCampaignsPage() {
         break;
       case CAMPAIGN_STATUS.SCHEDULED:
         items = [
+          designer,
           item("Edit", <Edit3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
           ),
@@ -964,6 +972,7 @@ export function CRMCampaignsPage() {
     return (
       <JoyDropdownMenu>
         <JoyDropdownMenuTrigger
+          aria-label={`Actions for ${campaign.name}`}
           variant="plain"
           color="neutral"
           size="sm"

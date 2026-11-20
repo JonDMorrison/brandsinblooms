@@ -310,7 +310,8 @@ export function renderExtendedBlock(
       return `<div style="padding:${block.appearance?.padding ? "0" : "24px"};border:${border};border-radius:${clampNumber(block.cardBorderRadius, 10, 0, 48)}px;background:${emailColor(block.backgroundColor, "#ffffff")};">${imageAndContent(displayBlock, displayContent, side, width - 48)}</div>`;
     }
     case "product-gallery": {
-      const columns = Math.floor(clampNumber(block.gridColumns, 3, 1, 4));
+      const feature = block.layout === "feature-product";
+      const columns = feature ? 1 : Math.floor(clampNumber(block.gridColumns, 3, 1, 4));
       const products = (block.galleryProducts || [])
         .map((product, index) => ({ product, index }))
         .filter(
@@ -343,7 +344,7 @@ export function renderExtendedBlock(
         };
         const image = picture(
           productBlock,
-          Math.floor((width - gap * (columns + 1)) / columns),
+          Math.floor((width - gap * (columns + 1)) / columns * (feature ? 0.42 : 1)),
         ).replace(
           'data-newsletter-image="imageUrl"',
           `data-newsletter-image="galleryProducts" data-newsletter-index="${index}"`,
@@ -361,7 +362,10 @@ export function renderExtendedBlock(
           (block.showCtaButtons !== false
             ? `<div style="text-align:${block.buttonAlign ?? "left"};">${renderNewsletterButton(productBlock, undefined, undefined, editing)}</div>`
             : "");
-        return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};"><tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr></table></td>`;
+        const cardRows = feature && image
+          ? `<tr><td class="responsive-column" width="42%" valign="top" style="width:42%;">${image}</td><td class="responsive-column" width="58%" valign="middle" style="width:58%;padding:14px;">${body}</td></tr>`
+          : `<tr><td>${image}</td></tr><tr><td style="padding:14px;">${body}</td></tr>`;
+        return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border:${block.showBorder === false || block.showCardBorder === false ? "0" : "1px solid #cbd5e1"};background:${emailColor(block.cardBackgroundColor, "#ffffff")};">${cardRows}</table></td>`;
       });
       const rows: string[] = [];
       for (let i = 0; i < cells.length; i += columns)

@@ -176,3 +176,42 @@ describe("Image + Text side switching", () => {
     }
   });
 });
+
+describe("Product Gallery layout switching", () => {
+  it("switches between grids and side-by-side features without losing products", () => {
+    const initial = { ...createStudioBlock("product-gallery"), galleryProducts: [
+      { id: "maple", name: "Japanese maple", imageUrl: "https://example.com/maple.jpg", buttonText: "Shop maple", buttonUrl: "https://example.com/maple" },
+      { id: "fern", name: "Garden fern", imageUrl: "https://example.com/fern.jpg", buttonText: "Shop fern", buttonUrl: "https://example.com/fern" },
+    ] };
+    function Editor() {
+      const [block, setBlock] = React.useState(initial);
+      return <>
+        <BlockPropertiesPanel
+          campaignImageGallery={[]} campaignName="Winter" campaignType="newsletter"
+          selectedBlockId={block.id} blocks={[block]} open onClose={() => {}}
+          onUpdateBlockField={(_id, field, value) => setBlock((current) => JSON.parse(JSON.stringify({ ...current, [field]: value })))}
+          onUpdateBlockFields={(_id, fields) => setBlock(JSON.parse(JSON.stringify({ ...block, ...fields })))}
+        />
+        <SharedEmailBlockPreview block={block} />
+      </>;
+    }
+    const { container } = render(<Editor />);
+    for (const name of ["Image beside details", "▯▯▯ 3 across", "▯▯ 2 across", "Image beside details"]) {
+      fireEvent.click(screen.getByRole("button", { name, exact: true }));
+      const preview = container.querySelector(".nl-preview")!;
+      for (const product of initial.galleryProducts) {
+        const image = preview.querySelector(`img[src="${product.imageUrl}"]`)!;
+        const imageCell = image.closest("td")!;
+        const detailsCell = preview.querySelector(`a[href="${product.buttonUrl}"][data-newsletter-role="button"]`)!.closest("td")!;
+        expect(preview).toHaveTextContent(product.name);
+        expect(image).toHaveAttribute("data-newsletter-image", "galleryProducts");
+        if (name === "Image beside details") {
+          expect(imageCell.parentElement).toBe(detailsCell.parentElement);
+          expect(imageCell.nextElementSibling).toBe(detailsCell);
+        } else {
+          expect(imageCell.parentElement).not.toBe(detailsCell.parentElement);
+        }
+      }
+    }
+  });
+});
