@@ -1703,6 +1703,11 @@ describe("Bloom Support clear-bug fast triage", () => {
     expect(classify("Product updating", clearFailure, "unknown").missing).toContain("which product (website, CRM or POS)");
   });
 
+  it("does not treat a request to stop notifications as a malfunction", () => {
+    const result = classify("Stop notifications", "Please stop sending unnecessary notices to our staff.", "crm");
+    expect(result.kind).not.toBe("bug");
+  });
+
   it("never fast-triages explicit feature requests", () => {
     const result = classify("Can you add product templates?", "Could you add product templates? That would be helpful for our team.", "cms");
     expect(result.kind).toBe("feature");
