@@ -31,6 +31,7 @@ import {
   safeSupportTrackingUrl,
 } from "@/lib/bloomSupport/constants";
 import { asSentence, humanizeStaffNote, staffNotePresentation, triageNoteText } from "../../supabase/functions/_shared/bloom-support/notes";
+import { classify, hasSelfEvidentBugSymptom } from "../../supabase/functions/_shared/bloom-support/policy";
 import {
   decodeBase64File,
   validateAttachmentFile,
@@ -1676,5 +1677,34 @@ describe("release tracking replay boundary", () => {
     for (const version of [0, -1, 1.5, NaN, Infinity]) {
       expect(() => supportActions.resumeRelease(caller, "11111111-1111-4111-8111-111111111111", version)).toThrow("exact current engineering version");
     }
+  });
+});
+
+
+describe("Bloom Support clear-bug fast triage", () => {
+  it("recognizes interrupted typing without demanding redundant expected-behaviour clarification", () => {
+    const body = "When I type my product description the editor interrupts my typing every two letters and saves immediately. I cannot write continuously.";
+    expect(hasSelfEvidentBugSymptom(body)).toBe(true);
+    const result = classify("Product updating", body, "cms");
+    expect(result.kind).toBe("bug");
+    expect(result.missing).toEqual([]);
+  });
+
+  it("recognizes disappearing specifications as a self-evident bug", () => {
+    const body = "I click Add Specification on the product page, but the newly added field disappears immediately before I can enter anything.";
+    const result = classify("Product specifications", body, "cms");
+    expect(result.kind).toBe("bug");
+    expect(result.missing).toEqual([]);
+  });
+
+  it("retains clarification for vague or unknown-product tickets", () => {
+    expect(classify("Product error", "Something is broken and I cannot use it.", "cms").missing.length).toBeGreaterThan(0);
+    const clearFailure = "When I type my product description the editor interrupts my typing every two letters and saves immediately. I cannot write continuously.";
+    expect(classify("Product updating", clearFailure, "unknown").missing).toContain("which product (website, CRM or POS)");
+  });
+
+  it("never fast-triages explicit feature requests", () => {
+    const result = classify("Can you add product templates?", "Could you add product templates? That would be helpful for our team.", "cms");
+    expect(result.kind).toBe("feature");
   });
 });
