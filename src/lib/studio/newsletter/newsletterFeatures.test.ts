@@ -678,6 +678,45 @@ describe("Arts Nursery November 15 Design Studio regressions", () => {
     expect(renderNewsletterBlock({ ...draft, imageFit: "cover" })).toContain("object-fit:cover");
   });
 
+  it.each(["product-card", "event", "blog", "announcement", "coupon"] as const)(
+    "places %s photos on the requested side in previews and outgoing HTML",
+    (type) => {
+      for (const editing of [true, false]) {
+        for (const side of ["left", "right", "top", "left"] as const) {
+          const output = renderNewsletterBlock(block(type, {
+            headline: "Layout check", productName: "Layout check",
+            imageUrl: "https://example.com/plant.jpg",
+            imagePosition: side, couponImageSide: side,
+          }), undefined, undefined, { editing });
+          const doc = new DOMParser().parseFromString(output, "text/html");
+          const image = doc.querySelector('img[src="https://example.com/plant.jpg"]')!;
+          const cell = image.closest("td");
+          if (side === "top") {
+            expect(image.closest("td.responsive-column")).toBeNull();
+            expect(output.indexOf('data-newsletter-image="imageUrl"')).toBeLessThan(output.indexOf('data-newsletter-role="heading"'));
+          } else {
+            const row = cell!.parentElement! as HTMLTableRowElement;
+            expect(row.cells[side === "left" ? 0 : 1]).toBe(cell);
+            expect(row.cells[side === "left" ? 1 : 0].textContent).toContain("Layout check");
+          }
+          expect(doc.querySelector('tr[dir="rtl"]')).toBeNull();
+        }
+      }
+    },
+  );
+
+  it("renders saved feature product galleries beside their details in outgoing email", () => {
+    const output = renderNewsletterBlock(block("product-gallery", {
+      layout: "feature-product", gridColumns: 3,
+      galleryProducts: [{ id: "maple", name: "Japanese maple", imageUrl: "https://example.com/maple.jpg" }],
+    }));
+    const doc = new DOMParser().parseFromString(output, "text/html");
+    const imageCell = doc.querySelector('img[src="https://example.com/maple.jpg"]')!.closest("td")!;
+    expect(imageCell.nextElementSibling?.textContent).toContain("Japanese maple");
+    expect(imageCell.classList.contains("responsive-column")).toBe(true);
+    expect(imageCell.nextElementSibling?.classList.contains("responsive-column")).toBe(true);
+  });
+
   it("supports event date, time and admission without requiring a button URL", () => {
     const event = block("event", {
       headline: "Workshop", eventStartDate: "2026-12-05", eventStartTime: "14:30",

@@ -563,6 +563,20 @@ function GalleryFields({
             {"▯".repeat(n)} &nbsp; {n} across
           </button>
         ))}
+        {product && (
+          <button
+            type="button"
+            className="nl-quiet"
+            aria-pressed={block.layout === "feature-product"}
+            onClick={() => {
+              update("layout", "feature-product");
+              update("layoutPreset", "product-gallery-feature");
+              update("gridColumns", 1);
+            }}
+          >
+            Image beside details
+          </button>
+        )}
         {!product && (
           <button
             type="button"
