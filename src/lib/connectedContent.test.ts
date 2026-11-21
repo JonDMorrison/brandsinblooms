@@ -77,6 +77,16 @@ describe("Connected Content newsletter blocks",()=>{
     expect(page).toContain('includeAllCustomers:false');
     expect(page).not.toContain("sendEmailCampaign(");
   });
+  it("sends owners to the BloomSites page that issues the 64-character connection code",()=>{
+    const page=readFileSync("src/pages/crm/ConnectedContentPage.tsx","utf8");
+    const edge=readFileSync("supabase/functions/connected-content/index.ts","utf8");
+    expect(page).toContain("choose Connect BloomSuite CRM");
+    expect(page).toContain("https://bloomsites.app/dashboard/integrations/connected-content");
+    expect(page).not.toContain("Integrations → Connected Content");
+    // The page precheck must match the edge function's accepted code format.
+    expect(edge).toContain("const codePattern = /^[0-9a-f]{64}$/;");
+    expect(page).toContain("CONNECTED_WEBSITE_CODE_PATTERN=/^[0-9a-f]{64}$/");
+  });
   it("requires explicit CRM tenant permissions for every content request",()=>{
     const edge=readFileSync("supabase/functions/connected-content/index.ts","utf8");
     expect(edge).toContain('authed.rpc("get_current_crm_access")');
