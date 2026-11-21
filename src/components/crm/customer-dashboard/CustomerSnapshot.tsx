@@ -11,6 +11,7 @@ import { JoyChip } from "@/components/joy/JoyChip";
 import type { SnapshotMetrics } from "@/lib/customerDashboardTransformers";
 import {
   formatAccountAge,
+  formatSignupSource,
   getScoreColor,
   humanizeChannel,
 } from "./customerDashboardUtils";
@@ -62,7 +63,7 @@ const factRows = (
   {
     icon: UserCircle2,
     label: "Signup Source",
-    value: customer.signupSource || "Data not available",
+    value: formatSignupSource(customer.signupSource) || "Data not available",
   },
   {
     icon: Compass,
