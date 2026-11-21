@@ -900,8 +900,8 @@ export function CRMCampaignsPage() {
       case CAMPAIGN_STATUS.DRAFT:
         items = [
           designer,
-          item("Send now", <Send size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions`)),
-          item("Schedule send", <Clock3 size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions`)),
+          item("Send now", <Send size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=send`)),
+          item("Schedule send", <Clock3 size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=schedule`)),
           item("Edit", <Edit3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
           ),

@@ -1026,6 +1026,20 @@ function CampaignEditorScreen() {
     return () => cancelAnimationFrame(frame);
   }, [isLoading, processParams]);
 
+  React.useEffect(() => {
+    const action = processParams.get("action");
+    if (isLoading || !action || isLocked || !canSendCampaign || pendingTemplateSave) return;
+    if (action !== "schedule" && action !== "send") return;
+    const nextParams = new URLSearchParams(processParams);
+    nextParams.delete("action");
+    setProcessParams(nextParams, { replace: true });
+    if (action === "schedule") setScheduleOpen(true);
+    else {
+      updateSchedule({ sendImmediately: true, sendAt: null });
+      openSendConfirmation();
+    }
+  }, [isLoading, isLocked, canSendCampaign, pendingTemplateSave, processParams, setProcessParams, updateSchedule, openSendConfirmation]);
+
   const sendBlockerLines = React.useMemo(() => {
     const blockers: string[] = [];
 
