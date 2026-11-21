@@ -1,5 +1,9 @@
 import * as React from "react";
 import QRCode from "qrcode";
+import Accordion from "@mui/joy/Accordion";
+import AccordionDetails from "@mui/joy/AccordionDetails";
+import AccordionGroup from "@mui/joy/AccordionGroup";
+import AccordionSummary from "@mui/joy/AccordionSummary";
 import Link from "@mui/joy/Link";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
@@ -24,6 +28,7 @@ import {
   Mail,
   QrCode,
   Server,
+  Sprout,
   Terminal,
 } from "lucide-react";
 import { Link as RouterLink } from "react-router-dom";
@@ -58,6 +63,7 @@ type LegacyInitialTab =
 
 type PublishTabAnalyticsSurface = "share-dialog" | "publish-success";
 type ShareMethodKey =
+  | "bloomsites_embed_key"
   | "direct_link"
   | "qr_code"
   | "javascript_embed"
@@ -86,6 +92,9 @@ const DISPLAY_MODE_OPTIONS: Array<{
   { value: "modal", label: "Modal" },
   { value: "slide-in", label: "Slide-in" },
 ];
+
+/** BloomSites page where a garden centre pastes this form's embed key. */
+export const BLOOMSITES_GROWTH_URL = "https://bloomsites.app/dashboard/growth";
 
 const codeFontFamily =
   'var(--joy-fontFamily-code, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace)';
@@ -346,11 +355,18 @@ function CodeSnippetBlock({
   );
 }
 
-function ReadOnlyCodeInput({ value }: { value: string }) {
+function ReadOnlyCodeInput({
+  value,
+  ariaLabel,
+}: {
+  value: string;
+  ariaLabel?: string;
+}) {
   return (
     <JoyInput
       readOnly
       value={value}
+      slotProps={ariaLabel ? { input: { "aria-label": ariaLabel } } : undefined}
       variant="outlined"
       sx={{
         "& .MuiInput-input": {
@@ -380,6 +396,7 @@ export function FormPublishTab({
   const [qrCodePngUrl, setQrCodePngUrl] = React.useState("");
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
   const [isBootstrapping, setIsBootstrapping] = React.useState(true);
+  const [developerOptionsOpen, setDeveloperOptionsOpen] = React.useState(false);
   const copyTimerRef = React.useRef<number | null>(null);
   const wasActiveRef = React.useRef(false);
 
@@ -625,6 +642,107 @@ export function FormPublishTab({
   const handleOpenDocs = React.useCallback(() => {
     trackMethodSelected("api_endpoint", "open_docs");
   }, [trackMethodSelected]);
+
+  const bloomSitesCard = (
+    <Sheet
+      variant="outlined"
+      data-testid="form-publish-bloomsites-card"
+      sx={{
+        borderRadius: "var(--joy-radius-lg)",
+        borderColor: "primary.300",
+        backgroundColor: "background.surface",
+        p: 2.5,
+      }}
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={1.25} alignItems="flex-start">
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 999,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "primary.100",
+              color: "primary.700",
+              flexShrink: 0,
+            }}
+          >
+            <Sprout size={20} />
+          </Box>
+          <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+            <Typography level="title-md">
+              Show it on your BloomSites website
+            </Typography>
+            <Typography level="body-sm" color="neutral">
+              Copy the embed key below. In BloomSites, open Grow your audience
+              and paste the key. Website signups then arrive in this form with
+              their consent choices.
+            </Typography>
+            {!isPublished ? (
+              <Typography level="body-sm" color="warning">
+                Publish this form first. BloomSites only accepts a published
+                form.
+              </Typography>
+            ) : null}
+          </Stack>
+        </Stack>
+        <Stack spacing={0.75}>
+          <Typography level="body-xs" sx={{ fontWeight: 600 }}>
+            Embed key
+          </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "stretch", sm: "center" }}
+          >
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <ReadOnlyCodeInput
+                value={form.embed_key}
+                ariaLabel="Form embed key"
+              />
+            </Box>
+            <Button
+              size="sm"
+              variant={copiedKey === "embed-key" ? "soft" : "solid"}
+              color={copiedKey === "embed-key" ? "success" : "primary"}
+              startDecorator={
+                copiedKey === "embed-key" ? (
+                  <Check size={14} />
+                ) : (
+                  <Copy size={14} />
+                )
+              }
+              onClick={() =>
+                void copyTextValue({
+                  key: "embed-key",
+                  label: "Embed key",
+                  method: "bloomsites_embed_key",
+                  target: "embed_key",
+                  value: form.embed_key,
+                })
+              }
+            >
+              {copiedKey === "embed-key" ? "Copied ✓" : "Copy embed key"}
+            </Button>
+          </Stack>
+        </Stack>
+        <Link
+          href={BLOOMSITES_GROWTH_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          level="body-sm"
+          underline="hover"
+          endDecorator={<ExternalLink size={14} />}
+          onClick={() => trackMethodSelected("bloomsites_embed_key", "open_bloomsites")}
+          sx={{ alignSelf: "flex-start" }}
+        >
+          Open Grow your audience in BloomSites
+        </Link>
+      </Stack>
+    </Sheet>
+  );
 
   const shareGrid = (
     <Box
@@ -1116,20 +1234,35 @@ export function FormPublishTab({
         </Sheet>
       )}
 
+      {bloomSitesCard}
+
       <Stack spacing={1.25}>
-        <SectionHeading title="Share your form" />
+        <SectionHeading title="Other ways to share" />
         {shareGrid}
       </Stack>
 
       <Divider />
 
-      <Stack spacing={1.25}>
-        <SectionHeading
-          title="Developer integration"
-          description="For custom integrations and headless form submissions"
-        />
-        {developerGrid}
-      </Stack>
+      <AccordionGroup
+        variant="plain"
+        disableDivider
+        sx={{ "& .MuiAccordionSummary-button": { px: 0, borderRadius: "sm" } }}
+      >
+        <Accordion
+          expanded={developerOptionsOpen}
+          onChange={(_event, expanded) => setDeveloperOptionsOpen(expanded)}
+        >
+          <AccordionSummary>
+            <SectionHeading
+              title="Developer options"
+              description="API endpoint, cURL, React and Next.js snippets for custom integrations"
+            />
+          </AccordionSummary>
+          <AccordionDetails>
+            {developerOptionsOpen ? developerGrid : null}
+          </AccordionDetails>
+        </Accordion>
+      </AccordionGroup>
     </Stack>
   );
 }

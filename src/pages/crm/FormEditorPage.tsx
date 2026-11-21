@@ -48,7 +48,6 @@ import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyCard,
   JoyCardContent,
-  JoyCardHeader,
 } from "@/components/joy/JoyCard";
 import { JoyChip } from "@/components/joy/JoyChip";
 import {
@@ -1088,35 +1087,10 @@ export default function FormEditorPage() {
         onClose={() => setIsPublishSuccessOpen(false)}
         size="xl"
         title="Form published"
-        description="The form is live. Copy the hosted URL or ship one of the embed snippets below."
+        description="The form is live. Add it to your BloomSites website first, or share it another way below."
       >
         <JoyDialogContent sx={{ pt: 0 }}>
           <Stack spacing={2}>
-            <JoyCard>
-              <JoyCardHeader title="Public URL" />
-              <JoyCardContent sx={{ pt: 2, gap: 2 }}>
-                <JoyInput value={publicFormUrl} readOnly />
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <JoyButton
-                    startDecorator={<Check size={16} />}
-                    onClick={() => void copyPublicFormUrl()}
-                  >
-                    Copy URL
-                  </JoyButton>
-                  <JoyButton
-                    bloomVariant="ghost"
-                    color="neutral"
-                    startDecorator={<ExternalLink size={16} />}
-                    component="a"
-                    href={publicFormUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open form
-                  </JoyButton>
-                </Stack>
-              </JoyCardContent>
-            </JoyCard>
             <FormPublishTab
               form={form}
               analyticsSurface="publish-success"
