@@ -1165,7 +1165,7 @@ export function FormPreviewRenderer({
           <div
             style={{
               display: "grid",
-              rowGap: "1.5rem",
+              rowGap: tokens.spacing,
               columnGap: shouldUseSingleColumn ? "0px" : tokens.spacing,
               gridTemplateColumns: shouldUseSingleColumn
                 ? "1fr"

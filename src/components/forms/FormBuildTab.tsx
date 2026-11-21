@@ -847,8 +847,9 @@ export function FormBuildTab({
   React.useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       if (
-        builderRootRef.current &&
-        builderRootRef.current.contains(event.target as Node)
+        (event.target instanceof Element && event.target.closest("[data-builder-menu], [data-field-inspector]")) ||
+        (builderRootRef.current &&
+        builderRootRef.current.contains(event.target as Node))
       ) {
         return;
       }
@@ -1071,6 +1072,7 @@ export function FormBuildTab({
       }
 
       event.preventDefault();
+      event.stopPropagation();
       handleAddFieldType(droppedType, { insertionIndex, stepIndex });
       setNativeInsertTarget(null);
       setPaletteDragType(null);
@@ -2379,6 +2381,8 @@ export function FormBuildTab({
                                     <Box
                                       ref={fieldProvided.innerRef}
                                       {...fieldProvided.draggableProps}
+                                      onDragOver={(event) => handlePaletteDragOverTarget(event, focusedStepIndex, fieldIndex)}
+                                      onDrop={(event) => handlePaletteDropTarget(event, focusedStepIndex, fieldIndex)}
                                       sx={{ mb: 0.75 }}
                                     >
                                       <FormFieldItem

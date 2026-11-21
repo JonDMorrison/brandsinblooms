@@ -232,7 +232,7 @@ export function FormFieldItem({
                   <JoyDropdownMenuTrigger aria-label="Field actions">
                     <MoreVertical size={16} />
                   </JoyDropdownMenuTrigger>
-                  <JoyDropdownMenuContent>
+                  <JoyDropdownMenuContent data-builder-menu="true" onClick={(event) => event.stopPropagation()}>
                     <JoyDropdownMenuItem
                       startDecorator={<Edit3 size={16} />}
                       onClick={onEdit}

@@ -1121,13 +1121,13 @@ export default function FormsPage() {
 
         if (duplicated?.id) {
           toast.success("Form duplicated");
-          navigate(`/crm/forms/${duplicated.id}?tab=build`);
+          // Keep the user in the list so they can duplicate several forms.
         }
       } catch {
         // Mutation toasts are already handled in the hook.
       }
     },
-    [createForm, navigate],
+    [createForm],
   );
 
   const handleTemplatesDialogOpenChange = React.useCallback(

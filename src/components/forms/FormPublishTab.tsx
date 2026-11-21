@@ -390,6 +390,7 @@ export function FormPublishTab({
 }: FormPublishTabProps) {
   const [displayMode, setDisplayMode] =
     React.useState<FormEmbedDisplayMode>("inline");
+  const [popupDelay, setPopupDelay] = React.useState("click");
   const [buttonText, setButtonText] = React.useState("Open Form");
   const [iframeHeight, setIframeHeight] = React.useState("600");
   const [qrCodeSvg, setQrCodeSvg] = React.useState("");
@@ -428,8 +429,9 @@ export function FormPublishTab({
         formName: form.name,
         displayMode,
         buttonText,
+        delaySeconds: popupDelay === "click" ? undefined : Number(popupDelay),
       }),
-    [buttonText, displayMode, form.embed_key, form.name],
+    [buttonText, displayMode, popupDelay, form.embed_key, form.name],
   );
   const developerSnippets = React.useMemo(
     () => ({
@@ -892,6 +894,10 @@ export function FormPublishTab({
               }}
               sx={{ minWidth: { sm: 180 } }}
             />
+            {displayMode !== "inline" ? (
+              <JoySelect label="When to open" value={popupDelay} onValueChange={(value) => setPopupDelay(value || "click")}
+                options={[{value: "click", label: "When the button is clicked"}, {value: "2", label: "After 2 seconds"}, {value: "3", label: "After 3 seconds"}, {value: "5", label: "After 5 seconds"}, {value: "10", label: "After 10 seconds"}]} />
+            ) : null}
             {displayMode !== "inline" ? (
               <JoyInput
                 size="sm"

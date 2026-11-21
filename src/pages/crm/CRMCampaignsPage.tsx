@@ -900,6 +900,8 @@ export function CRMCampaignsPage() {
       case CAMPAIGN_STATUS.DRAFT:
         items = [
           designer,
+          item("Send now", <Send size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions`)),
+          item("Schedule send", <Clock3 size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions`)),
           item("Edit", <Edit3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
           ),
@@ -948,7 +950,7 @@ export function CRMCampaignsPage() {
       case CAMPAIGN_STATUS.SENT:
       case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
         items = [
-          item("View Report", <BarChart3 size={16} />, () =>
+          item("Results", <BarChart3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}/report`),
           ),
           recipients,
