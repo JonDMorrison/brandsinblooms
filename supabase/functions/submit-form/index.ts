@@ -148,6 +148,7 @@ interface FormCompliance {
   email_consent_text: string;
   sms_consent_required: boolean;
   sms_consent_text: string;
+  at_least_one_consent_required?: boolean;
 }
 
 interface FormSettings {
@@ -168,6 +169,11 @@ interface SubmissionMeta {
   utm_medium?: string;
   utm_campaign?: string;
   user_agent?: string;
+  /** Stable UUID supplied by trusted website outboxes for retry safety. */
+  event_id?: string;
+  site_id?: string;
+  source?: string;
+  placement?: string;
 }
 
 interface SubmissionPayload {
@@ -192,6 +198,8 @@ const RATE_LIMIT_SHORT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_SHORT_MAX = 5;
 const RATE_LIMIT_LONG_WINDOW_SECONDS = 600; // 10 minutes
 const RATE_LIMIT_LONG_MAX = 20;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
 
@@ -211,6 +219,16 @@ function getRateLimitSalt(): string {
   }
 
   return salt;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
@@ -582,30 +600,37 @@ function validateConsentRules(
   const hasPhoneField = fields.some(
     (f) => f.type === "phone" || f.mapping_key === "phone",
   );
+  const emailConsentField = fields.find((f) => f.type === "email_consent");
+  const smsConsentField = fields.find((f) => f.type === "sms_consent");
+  const emailConsentValue = emailConsentField
+    ? getFieldValue(emailConsentField, data, [
+        "email_consent",
+        "__email_consent",
+      ]) === true
+    : (data.email_consent ?? data.__email_consent) === true;
+  const smsConsentValue = smsConsentField
+    ? getFieldValue(smsConsentField, data, ["sms_consent", "__sms_consent"]) ===
+      true
+    : (data.sms_consent ?? data.__sms_consent) === true;
+
+  if (
+    compliance.at_least_one_consent_required === true &&
+    !emailConsentValue &&
+    !smsConsentValue
+  ) {
+    errors.push("Choose email updates, text updates, or both");
+  }
 
   // Email consent validation (CASL)
   if (hasEmailField && compliance.email_consent_required) {
-    const emailConsentField = fields.find((f) => f.type === "email_consent");
-    const consentValue = emailConsentField
-      ? getFieldValue(emailConsentField, data, [
-          "email_consent",
-          "__email_consent",
-        ])
-      : (data.email_consent ?? data.__email_consent);
-
-    if (!consentValue) {
+    if (!emailConsentValue) {
       errors.push("Email consent is required");
     }
   }
 
   // SMS consent validation (TCPA) - must be separate from email
   if (hasPhoneField && compliance.sms_consent_required) {
-    const smsConsentField = fields.find((f) => f.type === "sms_consent");
-    const consentValue = smsConsentField
-      ? getFieldValue(smsConsentField, data, ["sms_consent", "__sms_consent"])
-      : (data.sms_consent ?? data.__sms_consent);
-
-    if (!consentValue) {
+    if (!smsConsentValue) {
       errors.push("SMS consent is required when providing a phone number");
     }
   }
@@ -1019,6 +1044,56 @@ Deno.serve(async (req) => {
     const settings = (form.settings_json || {}) as FormSettings;
     const audience = (form.audience_json || {}) as FormAudience;
 
+    const eventId =
+      typeof meta.event_id === "string" && UUID_RE.test(meta.event_id)
+        ? meta.event_id.toLowerCase()
+        : null;
+    const payloadHash = eventId
+      ? await sha256Hex(JSON.stringify({ embed_key: embedKey, data }))
+      : null;
+
+    if (eventId) {
+      const { data: existingSubmission, error: existingSubmissionError } =
+        await supabase
+          .from("form_submissions")
+          .select("customer_id, metadata, result")
+          .eq("form_id", formId)
+          .eq("result", "accepted")
+          .eq("metadata->>event_id", eventId)
+          .maybeSingle();
+
+      if (existingSubmissionError) {
+        console.error(
+          "[submit-form] Idempotency lookup failed:",
+          existingSubmissionError.message,
+        );
+        return jsonResponse({ error: "Internal server error" }, 500);
+      }
+
+      if (existingSubmission) {
+        const existingMetadata =
+          existingSubmission.metadata &&
+          typeof existingSubmission.metadata === "object"
+            ? (existingSubmission.metadata as Record<string, unknown>)
+            : {};
+        if (existingMetadata.payload_hash !== payloadHash) {
+          return jsonResponse({ error: "Idempotency event conflict" }, 409);
+        }
+
+        return jsonResponse(
+          {
+            success: true,
+            idempotent_replay: true,
+            message:
+              settings.success_message || "Thank you for your submission!",
+            redirect_url: settings.success_redirect_url || null,
+            customer_id: existingSubmission.customer_id,
+          },
+          200,
+        );
+      }
+    }
+
     // Get client IP and hash it
     const clientIP = getClientIP(req);
     ipHash = await hashIP(clientIP);
@@ -1187,6 +1262,18 @@ Deno.serve(async (req) => {
       utm_medium: meta?.utm_medium || null,
       utm_campaign: meta?.utm_campaign || null,
       user_agent: meta?.user_agent || req.headers.get("user-agent") || null,
+      event_id: eventId,
+      payload_hash: payloadHash,
+      site_id:
+        typeof meta?.site_id === "string" && UUID_RE.test(meta.site_id)
+          ? meta.site_id.toLowerCase()
+          : null,
+      source:
+        typeof meta?.source === "string" ? meta.source.slice(0, 80) : null,
+      placement:
+        typeof meta?.placement === "string"
+          ? meta.placement.slice(0, 80)
+          : null,
 
       // Form identification
       form_embed_key: embedKey,
@@ -1205,6 +1292,8 @@ Deno.serve(async (req) => {
       sms_consent_text: compliance.sms_consent_text || null,
       sms_consent_at: smsConsent ? now : null,
       sms_consent_required: compliance.sms_consent_required || false,
+      at_least_one_consent_required:
+        compliance.at_least_one_consent_required === true,
 
       // Submission timestamp
       submitted_at: now,
@@ -1214,7 +1303,9 @@ Deno.serve(async (req) => {
     // First check existing customer state
     const { data: existingCustomer } = await supabase
       .from("crm_customers")
-      .select("id, suppressed, email_opt_in, sms_opt_in")
+      .select(
+        "id, suppressed, opt_out, deleted_at, merged_into_customer_id, email_opt_in, sms_opt_in, email_opt_out_at, sms_opt_out_at",
+      )
       .eq("tenant_id", tenantId)
       .eq("email", email)
       .maybeSingle();
@@ -1246,50 +1337,9 @@ Deno.serve(async (req) => {
     // - Consent is only "upgraded", never "downgraded"
     // - Full audit trail is maintained in email_consent_details
 
-    // Email opt-in: ONLY upgrade to true, NEVER downgrade or set false
-    if (emailConsent === true) {
-      // Only update if not already opted in (preserve original opt-in date if already true)
-      if (existingCustomer?.email_opt_in !== true) {
-        customerData.email_opt_in = true;
-        customerData.email_opt_in_at = now;
-        customerData.email_consent_source = "form";
-      }
-      // Always update consent details with latest submission (for audit trail)
-      customerData.email_consent_details = {
-        consent_text: compliance.email_consent_text,
-        consent_required: compliance.email_consent_required,
-        page_url: meta?.page_url || null,
-        referrer: meta?.referrer || null,
-        form_id: formId,
-        form_embed_key: embedKey,
-        user_agent: meta?.user_agent || null,
-        captured_at: now,
-      };
-    }
-    // IMPORTANT: Do NOT set email_opt_in=false here - that's only for unsubscribe endpoint
-
-    // SMS opt-in: ONLY upgrade to true, NEVER downgrade or set false
-    if (smsConsent === true && phone) {
-      // Only update if not already opted in (preserve original opt-in date if already true)
-      if (existingCustomer?.sms_opt_in !== true) {
-        customerData.sms_opt_in = true;
-        customerData.sms_opt_in_at = now;
-        customerData.sms_consent_source = "form";
-      }
-      // Always update consent details with latest submission (for audit trail)
-      customerData.sms_consent_details = {
-        consent_text: compliance.sms_consent_text,
-        consent_required: compliance.sms_consent_required,
-        phone: phone,
-        page_url: meta?.page_url || null,
-        referrer: meta?.referrer || null,
-        form_id: formId,
-        form_embed_key: embedKey,
-        user_agent: meta?.user_agent || null,
-        captured_at: now,
-      };
-    }
-    // IMPORTANT: Do NOT set sms_opt_in=false here - that's only for unsubscribe endpoint
+    // Channel consent is applied after the identity upsert through one
+    // suppression-aware database function. This prevents a form submission
+    // from racing an unsubscribe or silently restoring a protected address.
 
     // CRITICAL: NEVER set opt_out=true from form submission
     // opt_out is ONLY set by explicit unsubscribe actions (webhook, preference center, admin)
@@ -1313,6 +1363,55 @@ Deno.serve(async (req) => {
     }
 
     const customerId = customer.id;
+
+    const consentDetailsBase = {
+      page_url: meta?.page_url || null,
+      referrer: meta?.referrer || null,
+      form_id: formId,
+      form_embed_key: embedKey,
+      user_agent: meta?.user_agent || null,
+      captured_at: now,
+    };
+    let emailConsentResult: string | null = null;
+    let smsConsentResult: string | null = null;
+
+    if (emailConsent === true) {
+      const { data, error } = await supabase.rpc("apply_form_channel_consent", {
+        p_tenant_id: tenantId,
+        p_customer_id: customerId,
+        p_channel: "email",
+        p_consent_at: now,
+        p_source: "form",
+        p_details: {
+          ...consentDetailsBase,
+          consent_text: compliance.email_consent_text,
+          consent_required: compliance.email_consent_required,
+        },
+      });
+      if (error) throw error;
+      emailConsentResult = data;
+    }
+
+    if (smsConsent === true && phone) {
+      const { data, error } = await supabase.rpc("apply_form_channel_consent", {
+        p_tenant_id: tenantId,
+        p_customer_id: customerId,
+        p_channel: "sms",
+        p_consent_at: now,
+        p_source: "form",
+        p_details: {
+          ...consentDetailsBase,
+          phone,
+          consent_text: compliance.sms_consent_text,
+          consent_required: compliance.sms_consent_required,
+        },
+      });
+      if (error) throw error;
+      smsConsentResult = data;
+    }
+
+    fullMetadata.email_consent_result = emailConsentResult;
+    fullMetadata.sms_consent_result = smsConsentResult;
     const acceptedSubmissionId = crypto.randomUUID();
 
     const finalizedFiles = await finalizeUploadedFilesForSubmission(supabase, {
@@ -1373,9 +1472,9 @@ Deno.serve(async (req) => {
     );
     const debugInfo: Record<string, unknown> = {};
     let personasAssigned = 0;
-    let personaErrors: string[] = [];
+    const personaErrors: string[] = [];
     let tagsAssigned = 0;
-    let tagErrors: string[] = [];
+    const tagErrors: string[] = [];
 
     if (personaIds.length > 0) {
       try {

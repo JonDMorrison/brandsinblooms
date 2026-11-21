@@ -272,10 +272,32 @@ export function FormComplianceTab({
       <ComplianceSection title="Consent requirements">
         <Stack spacing={1.1}>
           <ComplianceToggleRow
+            title="Require at least one channel"
+            description="Let visitors choose email, text messages, or both, while requiring at least one consent choice before submission."
+            checked={resolvedCompliance.at_least_one_consent_required}
+            disabled={!hasEmailField && !hasPhoneField}
+            note="Recommended for website community and garden club signups."
+            onChange={(at_least_one_consent_required) =>
+              onComplianceChange({
+                ...resolvedCompliance,
+                at_least_one_consent_required,
+                email_consent_required: at_least_one_consent_required
+                  ? false
+                  : resolvedCompliance.email_consent_required,
+                sms_consent_required: at_least_one_consent_required
+                  ? false
+                  : resolvedCompliance.sms_consent_required,
+              })
+            }
+          />
+
+          <ComplianceToggleRow
             title="Email consent required"
             description="Require visitors to explicitly consent to email communications before submission is accepted."
             checked={resolvedCompliance.email_consent_required}
-            disabled={!hasEmailField}
+            disabled={
+              !hasEmailField || resolvedCompliance.at_least_one_consent_required
+            }
             note={
               hasEmailField
                 ? undefined
@@ -293,7 +315,9 @@ export function FormComplianceTab({
             title="SMS consent required"
             description="Require explicit SMS/text message consent. Only applicable if the form collects a phone number."
             checked={resolvedCompliance.sms_consent_required}
-            disabled={!hasPhoneField}
+            disabled={
+              !hasPhoneField || resolvedCompliance.at_least_one_consent_required
+            }
             note={
               hasPhoneField
                 ? undefined

@@ -160,6 +160,8 @@ export interface FormCompliance {
   email_consent_text: string;
   sms_consent_required: boolean;
   sms_consent_text: string;
+  /** Require at least one independent marketing channel without forcing both. */
+  at_least_one_consent_required: boolean;
   double_opt_in: boolean;
   gdpr_compliant: boolean;
 }
@@ -485,6 +487,7 @@ export const DEFAULT_FORM_COMPLIANCE: FormCompliance = {
   email_consent_text: "I agree to receive marketing emails",
   sms_consent_required: false,
   sms_consent_text: "I agree to receive SMS messages",
+  at_least_one_consent_required: false,
   double_opt_in: false,
   gdpr_compliant: false,
 };

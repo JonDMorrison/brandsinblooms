@@ -22,6 +22,70 @@ const STARTER_FORM_FIELDS: Omit<FormField, "id">[] = [
 
 export const FORM_TEMPLATES: FormTemplate[] = [
   {
+    id: "garden-community",
+    name: "Garden Community Signup",
+    description:
+      "Premium email and optional text signup for BloomSites websites",
+    category: "Lead Generation",
+    fields: [
+      {
+        id: generateId(),
+        type: "text",
+        label: "First Name",
+        required: false,
+        placeholder: "Your first name",
+        mapping_key: "first_name",
+      },
+      {
+        id: generateId(),
+        type: "email",
+        label: "Email Address",
+        required: true,
+        placeholder: "you@example.com",
+        mapping_key: "email",
+      },
+      {
+        id: generateId(),
+        type: "phone",
+        label: "Mobile Number",
+        required: false,
+        placeholder: "(555) 123-4567",
+        mapping_key: "phone",
+      },
+      {
+        id: generateId(),
+        type: "email_consent",
+        label: "Email updates",
+        required: false,
+        mapping_key: "email_consent",
+      },
+      {
+        id: generateId(),
+        type: "sms_consent",
+        label: "Text updates",
+        required: false,
+        mapping_key: "sms_consent",
+      },
+    ],
+    settings: {
+      form_title: "Join our garden community",
+      form_description:
+        "Get seasonal ideas, early access to workshops, new arrivals and useful reminders.",
+      success_message:
+        "You're in. Watch for fresh ideas and updates from the garden centre.",
+      submit_button_text: "Join our garden community",
+    },
+    compliance: {
+      email_consent_required: false,
+      email_consent_text:
+        "Email me seasonal tips, workshop news, offers and garden centre updates.",
+      sms_consent_required: false,
+      sms_consent_text:
+        "Text me occasional reminders and offers. Message and data rates may apply. Reply STOP to unsubscribe.",
+      at_least_one_consent_required: true,
+    },
+  },
+  {
     id: "newsletter-signup",
     name: "Newsletter Signup",
     description: "Simple email signup with optional first name",
@@ -233,6 +297,8 @@ export function createFormFromTemplate(template: FormTemplate): {
       sms_consent_text:
         template.compliance.sms_consent_text ||
         "I agree to receive SMS messages",
+      at_least_one_consent_required:
+        template.compliance.at_least_one_consent_required || false,
       double_opt_in: false,
       gdpr_compliant: false,
     },
