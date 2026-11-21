@@ -1,3 +1,4 @@
+import { renderBloomSystemEmail } from "../../../src/lib/email/premiumBotanical.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
@@ -90,8 +91,13 @@ Deno.serve(async (req) => {
             from: "BloomSuite <hello@brandsinblooms.com>",
             to: userEmail,
             subject: "Your BloomSuite access is ready",
-            html: `<h2>Welcome to BloomSuite</h2>
-         <p>Your account is set up and ready to go.</p>
+            html: renderBloomSystemEmail({
+              eyebrow: "ACCOUNT READY",
+              title: "Welcome to BloomSuite",
+              preheader: "Your BloomSuite access is ready",
+              icon: "leaf",
+              bodyHtml: `
+<p>Your account is set up and ready to go.</p>
          <p><strong><a href="https://www.bloomsuite.app">Log in to BloomSuite →</a></strong></p>
          <h3>What happens next:</h3>
          <ol>
@@ -100,7 +106,9 @@ Deno.serve(async (req) => {
            <li>Book your kickoff call with our team</li>
          </ol>
          <p>Questions? Reply to this email or visit our <a href="https://bloomsuite.notion.site/bloomsuite-help">knowledge base</a>.</p>
-         <p>Jeff and Jon<br>BloomSuite Team</p>`,
+         <p>Jeff and Jon<br>BloomSuite Team</p>
+              `,
+            }),
           }),
         });
         if (!emailRes.ok) {
@@ -131,62 +139,54 @@ Deno.serve(async (req) => {
         const firstName =
           (user.name?.trim().split(/\s+/)[0]) || "there";
 
-        const jeffHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+        const jeffHtml = renderBloomSystemEmail({
+          eyebrow: "A NOTE FROM THE FOUNDERS",
+          title: "Welcome to BloomSuite.",
+          preheader: "We are really glad you are here.",
+          icon: "leaf",
+          bodyHtml: `
+            <p style="margin:0 0 20px;">We&#39;re really glad you&#39;re here.</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 20px;color:#536475;">A bit of background on why we built this. Jon and I spent years watching independent garden centers struggle to compete with big box stores — not because they had worse products or less passion, but because they didn't have the marketing tools to stay in front of their customers year-round. BloomSuite exists to give independent garden centers the same kind of marketing power that used to take a full-time marketing team.</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 32px;color:#536475;">You're exactly who we built this for.</p>
 
-  <tr><td style="background:#0d1f1a;padding:20px 40px;">
-    <img src="https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/content-assets/bloomsuite-logo.png" alt="BloomSuite" style="height:40px;width:auto;display:block;" />
-  </td></tr>
-
-  <tr><td style="background:#1abc9c;padding:32px 40px;">
-    <p style="color:#ffffff;font-size:22px;font-weight:500;margin:0 0 8px;line-height:1.3;">Welcome to BloomSuite.</p>
-    <p style="color:rgba(255,255,255,0.85);font-size:15px;margin:0;line-height:1.5;">We're really glad you're here.</p>
-  </td></tr>
-
-  <tr><td style="padding:36px 40px;">
-    <p style="font-size:15px;line-height:1.7;margin:0 0 20px;color:#374151;">A bit of background on why we built this. Jon and I spent years watching independent garden centers struggle to compete with big box stores — not because they had worse products or less passion, but because they didn't have the marketing tools to stay in front of their customers year-round. BloomSuite exists to give independent garden centers the same kind of marketing power that used to take a full-time marketing team.</p>
-    <p style="font-size:15px;line-height:1.7;margin:0 0 32px;color:#374151;">You're exactly who we built this for.</p>
-
-    <p style="font-size:13px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;margin:0 0 16px;">Get started</p>
+    <p style="font-size:13px;font-weight:500;color:#5B6B79;text-transform:uppercase;letter-spacing:0.6px;margin:0 0 16px;">Get started</p>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr><td style="padding-bottom:10px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF9F6;border-radius:8px;border:1px solid #DBE3DF;">
           <tr>
             <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
-              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">1</div>
+              <div style="width:28px;height:28px;background:#527566;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">1</div>
             </td>
             <td style="padding:14px 16px;">
-              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Complete the setup wizard</p>
-              <p style="font-size:13px;color:#6b7280;margin:0;">Brand colors, company profile, POS, contacts, and email domain. Takes about 20 minutes.</p>
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#1B3049;">Complete the setup wizard</p>
+              <p style="font-size:13px;color:#5B6B79;margin:0;">Brand colors, company profile, POS, contacts, and email domain. Takes about 20 minutes.</p>
             </td>
           </tr>
         </table>
       </td></tr>
       <tr><td style="padding-bottom:10px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF9F6;border-radius:8px;border:1px solid #DBE3DF;">
           <tr>
             <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
-              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">2</div>
+              <div style="width:28px;height:28px;background:#527566;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">2</div>
             </td>
             <td style="padding:14px 16px;">
-              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Send your first campaign</p>
-              <p style="font-size:13px;color:#6b7280;margin:0;">A simple spring newsletter to your full list is all you need to start.</p>
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#1B3049;">Send your first campaign</p>
+              <p style="font-size:13px;color:#5B6B79;margin:0;">A simple spring newsletter to your full list is all you need to start.</p>
             </td>
           </tr>
         </table>
       </td></tr>
       <tr><td>
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF9F6;border-radius:8px;border:1px solid #DBE3DF;">
           <tr>
             <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
-              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">3</div>
+              <div style="width:28px;height:28px;background:#527566;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">3</div>
             </td>
             <td style="padding:14px 16px;">
-              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Book a call with Jon</p>
-              <p style="font-size:13px;color:#6b7280;margin:0;">Free 30-minute kickoff. Most people leave with their first campaign scheduled.</p>
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#1B3049;">Book a call with Jon</p>
+              <p style="font-size:13px;color:#5B6B79;margin:0;">Free 30-minute kickoff. Most people leave with their first campaign scheduled.</p>
             </td>
           </tr>
         </table>
@@ -195,36 +195,32 @@ Deno.serve(async (req) => {
 
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
       <tr><td style="padding-bottom:10px;">
-        <a href="https://www.bloomsuite.app/account-setup" style="display:block;background:#1abc9c;color:#ffffff;text-align:center;padding:13px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;">Start the setup wizard</a>
+        <a href="https://www.bloomsuite.app/account-setup" style="display:block;background:#527566;color:#ffffff;text-align:center;padding:13px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;">Start the setup wizard</a>
       </td></tr>
       <tr><td>
-        <a href="https://calendly.com/jonmorrison/chat-with-jon" style="display:block;background:#ffffff;color:#1abc9c;text-align:center;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;border:1.5px solid #1abc9c;">Book a time with Jon</a>
+        <a href="https://calendly.com/jonmorrison/chat-with-jon" style="display:block;background:#ffffff;color:#527566;text-align:center;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;border:1.5px solid #527566;">Book a time with Jon</a>
       </td></tr>
     </table>
 
-    <table cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb;padding-top:24px;width:100%;">
+    <table cellpadding="0" cellspacing="0" style="border-top:1px solid #DBE3DF;padding-top:24px;width:100%;">
       <tr>
         <td style="width:44px;vertical-align:top;">
-          <div style="width:44px;height:44px;border-radius:50%;background:#0d1f1a;text-align:center;line-height:44px;font-size:14px;font-weight:500;color:#1abc9c;">JM</div>
+          <div style="width:44px;height:44px;border-radius:50%;background:#1B3049;text-align:center;line-height:44px;font-size:14px;font-weight:500;color:#527566;">JM</div>
         </td>
         <td style="padding-left:14px;vertical-align:top;">
-          <p style="font-size:14px;font-weight:500;margin:0;color:#111827;">Jeff &amp; Jon</p>
-          <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Co-founders, BloomSuite</p>
-          <p style="font-size:13px;color:#6b7280;margin:2px 0 0;"><a href="mailto:jeff@brandsinblooms.com" style="color:#1abc9c;text-decoration:none;">jeff@brandsinblooms.com</a></p>
+          <p style="font-size:14px;font-weight:500;margin:0;color:#1B3049;">Jeff &amp; Jon</p>
+          <p style="font-size:13px;color:#5B6B79;margin:4px 0 0;">Co-founders, BloomSuite</p>
+          <p style="font-size:13px;color:#5B6B79;margin:2px 0 0;"><a href="mailto:jeff@brandsinblooms.com" style="color:#527566;text-decoration:none;">jeff@brandsinblooms.com</a></p>
         </td>
       </tr>
     </table>
-  </td></tr>
-
-  <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
-    <p style="font-size:12px;color:#9ca3af;margin:0 0 6px;">BloomSuite &middot; brandsinblooms.com</p>
-    <p style="font-size:12px;color:#9ca3af;margin:0;">You received this because you started a BloomSuite trial. <a href="https://www.bloomsuite.app/unsubscribe" style="color:#9ca3af;">Unsubscribe</a></p>
-  </td></tr>
-
-</table>
-</td></tr>
-</table>
-</body></html>`;
+            <div style="margin-top:24px;border-top:1px solid #DBE3DF;padding-top:16px;">
+    <p style="font-size:12px;color:#5B6B79;margin:0 0 6px;">BloomSuite &middot; brandsinblooms.com</p>
+    <p style="font-size:12px;color:#5B6B79;margin:0;">You received this because you started a BloomSuite trial. <a href="https://www.bloomsuite.app/unsubscribe" style="color:#5B6B79;">Unsubscribe</a></p>
+            </div>
+          `,
+          footer: "BloomSuite — Jeff & Jon",
+        });
 
         const jeffRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
