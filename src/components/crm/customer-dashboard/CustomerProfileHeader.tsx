@@ -256,7 +256,7 @@ export function CustomerProfileHeader({
 
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   <JoyTooltip title="Click to copy email">
-                    <Box component="span">
+                    <Box component="span" sx={{ display: "inline-flex", maxWidth: "100%", minWidth: 0 }}>
                       <JoyChip
                         color="neutral"
                         variant="outlined"
@@ -278,7 +278,14 @@ export function CustomerProfileHeader({
                         onClick={() => {
                           void handleCopy(email, "Email");
                         }}
-                        sx={{ cursor: "pointer" }}
+                        sx={{
+                          cursor: "pointer",
+                          maxWidth: "100%",
+                          "& .MuiChip-label": {
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          },
+                        }}
                       >
                         {email}
                       </JoyChip>
@@ -365,6 +372,9 @@ export function CustomerProfileHeader({
               useFlexGap
               flexWrap="wrap"
               alignSelf={{ xs: "stretch", md: "flex-start" }}
+              // The actions keep their width; the identity column shrinks and
+              // its long email truncates instead of sliding under "Ask Bloom".
+              sx={{ flexShrink: 0 }}
             >
               {headerActions}
               {canEdit ? (
