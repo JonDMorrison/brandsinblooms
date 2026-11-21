@@ -7,6 +7,12 @@ declare module "@mui/joy/styles" {
     brandNavy: true;
   }
 
+  interface PaletteTextOverrides {
+    strong: true;
+    heading: true;
+    muted: true;
+  }
+
   interface Palette {
     info: PaletteRange;
     brandNavy: PaletteRange;
@@ -203,6 +209,64 @@ export const bloomPaletteScales = {
   },
 } as const satisfies Record<string, Scale>;
 
+const mixHex = (foreground: string, background: string, weight: number) => {
+  const [fr, fg, fb] = hexToRgbChannel(foreground).split(" ").map(Number);
+  const [br, bg, bb] = hexToRgbChannel(background).split(" ").map(Number);
+  const channel = (front: number, back: number) =>
+    Math.round(front * weight + back * (1 - weight))
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${channel(fr, br)}${channel(fg, bg)}${channel(fb, bb)}`.toUpperCase();
+};
+
+/**
+ * Dark-scheme scales are mapped by role, not by raw value: in both schemes
+ * shade 50/100 is a subtle surface tint, 200/300 is a border, 500 is the
+ * brand mid-tone and 700-900 is readable foreground. That keeps the ~2k
+ * hand-written `neutral.200` / `neutral.700` style usages correct in dark
+ * mode without touching each consumer.
+ */
+const bloomDarkSurface = "#111827";
+
+const bloomDarkNeutralScale: Scale = {
+  50: bloomDarkSurface,
+  100: "#1F2A3B",
+  200: "#2C3749",
+  300: "#3D495C",
+  400: "#7C8899",
+  500: "#94A3B8",
+  600: "#A9B5C5",
+  700: "#CBD5E1",
+  800: "#E2E8F0",
+  900: "#F1F5F9",
+};
+
+const createDarkScale = (scale: Scale): Scale => ({
+  50: mixHex(scale[900], bloomDarkSurface, 0.3),
+  100: mixHex(scale[800], bloomDarkSurface, 0.35),
+  200: mixHex(scale[800], bloomDarkSurface, 0.55),
+  300: mixHex(scale[700], bloomDarkSurface, 0.75),
+  400: scale[600],
+  500: scale[500],
+  // 600/700 carry plain/outlined text in dark mode; derive them from the
+  // saturated 500 so links and plain buttons keep their hue on dark surfaces.
+  600: scale[500],
+  700: mixHex("#FFFFFF", scale[500], 0.3),
+  800: scale[200],
+  900: scale[100],
+});
+
+export const bloomDarkPaletteScales = {
+  primary: createDarkScale(bloomPaletteScales.primary),
+  neutral: bloomDarkNeutralScale,
+  danger: createDarkScale(bloomPaletteScales.danger),
+  success: createDarkScale(bloomPaletteScales.success),
+  warning: createDarkScale(bloomPaletteScales.warning),
+  info: createDarkScale(bloomPaletteScales.info),
+  brandNavy: createDarkScale(bloomPaletteScales.brandNavy),
+} as const satisfies Record<keyof typeof bloomPaletteScales, Scale>;
+
 // These bridge tokens preserve the current semantic CSS variable behavior while
 // Joy becomes the source of truth for all new palette work.
 export const bloomLegacyBridgeTokens = {
@@ -247,84 +311,128 @@ export const bloomLegacyBridgeTokens = {
   "chip-posted-hsl": "176 32% 51%",
 } as const;
 
-const neutralPalette = {
-  ...createPaletteRange("neutral", bloomPaletteScales.neutral, {
+export const bloomLegacyBridgeTokensDark = {
+  "background-hsl": "221 39% 11%",
+  "foreground-hsl": "214 32% 91%",
+  "card-hsl": "217 36% 14%",
+  "card-foreground-hsl": "214 32% 91%",
+  "popover-hsl": "217 36% 14%",
+  "popover-foreground-hsl": "214 32% 91%",
+  "primary-hsl": "177 40% 58%",
+  "primary-foreground-hsl": "221 39% 11%",
+  "secondary-hsl": "184 55% 41%",
+  "secondary-foreground-hsl": "0 0% 100%",
+  "muted-hsl": "216 31% 18%",
+  "muted-foreground-hsl": "215 20% 65%",
+  "accent-hsl": "217 25% 23%",
+  "accent-foreground-hsl": "210 40% 96%",
+  "destructive-hsl": "0 72% 51%",
+  "destructive-foreground-hsl": "0 0% 100%",
+  "border-hsl": "217 25% 23%",
+  "input-hsl": "217 25% 23%",
+  "ring-hsl": "177 40% 58%",
+  "brand-navy-hsl": "206 30% 82%",
+  "brand-teal-hsl": "175 23% 60%",
+  "mint-100-hsl": "174 20% 18%",
+  "mint-600-hsl": "150 40% 55%",
+  "gray-50-hsl": "221 39% 11%",
+  "gray-100-hsl": "216 31% 18%",
+  "gray-200-hsl": "217 25% 23%",
+  "gray-300-hsl": "217 20% 30%",
+  "gray-400-hsl": "215 12% 54%",
+  "gray-500-hsl": "215 20% 65%",
+  "gray-600-hsl": "214 19% 72%",
+  "gray-700-hsl": "213 27% 84%",
+  "gray-800-hsl": "214 32% 91%",
+  "gray-900-hsl": "210 40% 96%",
+  "brand-blue-hsl": "217 91% 65%",
+  "chip-draft-hsl": "220 9% 46%",
+  "chip-generated-hsl": "221 83% 53%",
+  "chip-approved-hsl": "176 32% 51%",
+  "chip-scheduled-hsl": "221 83% 53%",
+  "chip-posted-hsl": "176 32% 51%",
+} as const satisfies Record<keyof typeof bloomLegacyBridgeTokens, string>;
+
+type PaletteScales = Record<keyof typeof bloomPaletteScales, Scale>;
+
+// Solid fills keep their light-scheme hex in both schemes so CTAs and badges
+// read identically; every other variant token follows the scheme's scale.
+const lightSolid = (
+  paletteName: keyof typeof bloomPaletteScales,
+  bg: Shade,
+  hover: Shade,
+  active: Shade,
+) => ({
+  solidBg: bloomPaletteScales[paletteName][bg],
+  solidHoverBg: bloomPaletteScales[paletteName][hover],
+  solidActiveBg: bloomPaletteScales[paletteName][active],
+});
+
+const createBloomPalettes = (scales: PaletteScales) => ({
+  neutral: {
+    ...createPaletteRange("neutral", scales.neutral, {
+      solidColor: "var(--joy-palette-common-white)",
+      ...lightSolid("neutral", 700, 800, 900),
+      plainColor: 700,
+      outlinedColor: 700,
+      softColor: 800,
+    }),
+    plainHoverColor: paletteVar("neutral", 900),
+    outlinedHoverColor: paletteVar("neutral", 900),
+    softHoverColor: paletteVar("neutral", 900),
+  },
+  primary: createPaletteRange("primary", scales.primary, {
     solidColor: "var(--joy-palette-common-white)",
-    solidBg: 700,
-    solidHoverBg: 800,
-    solidActiveBg: 900,
+    ...lightSolid("primary", 700, 800, 900),
+    plainColor: 700,
+    outlinedColor: 700,
+    softColor: "var(--joy-palette-brandNavy-900)",
+  }),
+  danger: createPaletteRange("danger", scales.danger, {
+    solidColor: "var(--joy-palette-common-white)",
+    ...lightSolid("danger", 600, 700, 800),
     plainColor: 700,
     outlinedColor: 700,
     softColor: 800,
   }),
-  plainHoverColor: paletteVar("neutral", 900),
-  outlinedHoverColor: paletteVar("neutral", 900),
-  softHoverColor: paletteVar("neutral", 900),
-};
-
-const primaryPalette = createPaletteRange(
-  "primary",
-  bloomPaletteScales.primary,
-  {
+  success: createPaletteRange("success", scales.success, {
     solidColor: "var(--joy-palette-common-white)",
-    solidBg: 700,
-    solidHoverBg: 800,
-    solidActiveBg: 900,
-    plainColor: 700,
-    outlinedColor: 700,
-    softColor: "var(--joy-palette-brandNavy-900)",
-  },
-);
-
-const dangerPalette = createPaletteRange("danger", bloomPaletteScales.danger, {
-  solidColor: "var(--joy-palette-common-white)",
-  solidBg: 600,
-  solidHoverBg: 700,
-  solidActiveBg: 800,
-  plainColor: 700,
-  outlinedColor: 700,
-  softColor: 800,
-});
-
-const successPalette = createPaletteRange(
-  "success",
-  bloomPaletteScales.success,
-  {
-    solidColor: "var(--joy-palette-common-white)",
-    solidBg: 700,
-    solidHoverBg: 800,
-    solidActiveBg: 900,
+    ...lightSolid("success", 700, 800, 900),
     plainColor: 700,
     outlinedColor: 700,
     softColor: 800,
-  },
-);
-
-const warningPalette = createPaletteRange(
-  "warning",
-  bloomPaletteScales.warning,
-  {
+  }),
+  warning: createPaletteRange("warning", scales.warning, {
     solidColor: "var(--joy-palette-common-white)",
-    solidBg: 700,
-    solidHoverBg: 800,
-    solidActiveBg: 900,
+    ...lightSolid("warning", 700, 800, 900),
     plainColor: 800,
     outlinedColor: 800,
     softColor: 900,
-  },
-);
-
-const infoPalette = createPaletteRange("info", bloomPaletteScales.info, {
-  solidColor: "var(--joy-palette-common-white)",
-  solidBg: 600,
-  solidHoverBg: 700,
-  solidActiveBg: 800,
-  plainColor: 700,
-  outlinedColor: 700,
-  softColor: 800,
+  }),
+  info: createPaletteRange("info", scales.info, {
+    solidColor: "var(--joy-palette-common-white)",
+    ...lightSolid("info", 600, 700, 800),
+    plainColor: 700,
+    outlinedColor: 700,
+    softColor: 800,
+  }),
+  brandNavy: createPaletteRange("brandNavy", scales.brandNavy),
 });
 
+const lightPalettes = createBloomPalettes(bloomPaletteScales);
+const darkPalettes = createBloomPalettes(bloomDarkPaletteScales);
 
+// Text tokens point at role-mapped scale shades, so the same references
+// resolve to dark-on-light or light-on-dark depending on the active scheme.
+const bloomTextTokens = {
+  primary: paletteVar("brandNavy", 800),
+  secondary: paletteVar("neutral", 700),
+  tertiary: paletteVar("neutral", 600),
+  icon: paletteVar("brandNavy", 700),
+  strong: paletteVar("neutral", 900),
+  heading: paletteVar("neutral", 800),
+  muted: paletteVar("neutral", 500),
+};
 
 const spacingScale: Record<number, string> = {
   0: "0px",
@@ -422,7 +530,7 @@ const controlSurfaceStyles = {
   borderRadius: "var(--joy-radius-lg)",
   borderColor: "var(--joy-palette-neutral-300)",
   backgroundColor: "var(--joy-palette-background-surface)",
-  color: "var(--joy-palette-neutral-800)",
+  color: "var(--joy-palette-text-heading)",
   boxShadow: "none",
   transition: interactiveTransition,
 };
@@ -432,7 +540,7 @@ const controlFieldTextStyles = {
   fontSize: "var(--joy-fontSize-sm)",
   fontWeight: "var(--joy-fontWeight-regular)",
   lineHeight: "var(--joy-lineHeight-md)",
-  color: "var(--joy-palette-neutral-800)",
+  color: "var(--joy-palette-text-heading)",
 };
 
 const disabledControlStyles = {
@@ -526,7 +634,7 @@ export const joyTheme = extendTheme({
       fontWeight: "var(--joy-fontWeight-bold)",
       lineHeight: 1.2,
       letterSpacing: "-0.02em",
-      color: "var(--joy-palette-neutral-900)",
+      color: "var(--joy-palette-text-strong)",
     },
     h2: {
       fontFamily: "var(--joy-fontFamily-body)",
@@ -534,70 +642,70 @@ export const joyTheme = extendTheme({
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.2,
       letterSpacing: "-0.01em",
-      color: "var(--joy-palette-neutral-800)",
+      color: "var(--joy-palette-text-heading)",
     },
     h3: {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "1rem",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.4,
-      color: "var(--joy-palette-neutral-800)",
+      color: "var(--joy-palette-text-heading)",
     },
     h4: {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "var(--joy-fontSize-sm)",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.4,
-      color: "var(--joy-palette-neutral-800)",
+      color: "var(--joy-palette-text-heading)",
     },
     "title-lg": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "1.125rem",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.4,
-      color: "var(--joy-palette-neutral-800)",
+      color: "var(--joy-palette-text-heading)",
     },
     "title-md": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "1rem",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.4,
-      color: "var(--joy-palette-neutral-800)",
+      color: "var(--joy-palette-text-heading)",
     },
     "title-sm": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-medium)",
       lineHeight: 1.4,
-      color: "var(--joy-palette-neutral-700)",
+      color: "var(--joy-palette-text-secondary)",
     },
     "body-lg": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-regular)",
       lineHeight: 1.5,
-      color: "var(--joy-palette-neutral-700)",
+      color: "var(--joy-palette-text-secondary)",
     },
     "body-md": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-regular)",
       lineHeight: 1.5,
-      color: "var(--joy-palette-neutral-700)",
+      color: "var(--joy-palette-text-secondary)",
     },
     "body-sm": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-regular)",
       lineHeight: 1.5,
-      color: "var(--joy-palette-neutral-700)",
+      color: "var(--joy-palette-text-secondary)",
     },
     "body-xs": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "var(--joy-fontSize-xs)",
       fontWeight: "var(--joy-fontWeight-medium)",
       lineHeight: 1.5,
-      color: "var(--joy-palette-neutral-500)",
+      color: "var(--joy-palette-text-muted)",
     },
   },
   components: {
@@ -693,7 +801,7 @@ export const joyTheme = extendTheme({
     JoyFormLabel: {
       styleOverrides: {
         root: {
-          color: "var(--joy-palette-neutral-600)",
+          color: "var(--joy-palette-text-tertiary)",
           fontSize: "0.8125rem",
           fontWeight: "var(--joy-fontWeight-medium)",
           lineHeight: 1.4,
@@ -706,7 +814,7 @@ export const joyTheme = extendTheme({
         root: {
           marginTop: 0,
           minHeight: 18,
-          color: "var(--joy-palette-neutral-500)",
+          color: "var(--joy-palette-text-muted)",
           fontSize: "var(--joy-fontSize-xs)",
           fontWeight: "var(--joy-fontWeight-regular)",
           lineHeight: 1.4,
@@ -773,7 +881,7 @@ export const joyTheme = extendTheme({
           fontSize: "var(--joy-fontSize-sm)",
           fontWeight: "var(--joy-fontWeight-regular)",
           lineHeight: "var(--joy-lineHeight-md)",
-          color: "var(--joy-palette-neutral-800)",
+          color: "var(--joy-palette-text-heading)",
           "--Select-decoratorColor": "var(--joy-palette-neutral-400)",
           "&:hover:not([aria-disabled='true'])": {
             backgroundColor: "var(--joy-palette-background-surface)",
@@ -793,7 +901,7 @@ export const joyTheme = extendTheme({
           padding: "0.5rem",
           borderRadius: "var(--joy-radius-lg)",
           borderColor: "var(--joy-palette-neutral-200)",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "var(--joy-palette-background-popup)",
           boxShadow: "var(--joy-shadow-lg)",
           zIndex: "var(--joy-zIndex-popup)",
           "--List-padding": "0px",
@@ -852,23 +960,9 @@ export const joyTheme = extendTheme({
           white: "#FFFFFF",
           black: "#000000",
         },
-        primary: primaryPalette,
-        neutral: neutralPalette,
-        danger: dangerPalette,
-        success: successPalette,
-        warning: warningPalette,
-        info: infoPalette,
-        brandNavy: createPaletteRange(
-          "brandNavy",
-          bloomPaletteScales.brandNavy,
-        ),
+        ...lightPalettes,
         bridge: bloomLegacyBridgeTokens,
-        text: {
-          primary: bloomPaletteScales.brandNavy[800],
-          secondary: bloomPaletteScales.neutral[700],
-          tertiary: bloomPaletteScales.neutral[600],
-          icon: bloomPaletteScales.brandNavy[700],
-        },
+        text: bloomTextTokens,
         background: {
           body: bloomPaletteScales.neutral[50],
           surface: "var(--joy-palette-common-white)",
@@ -881,6 +975,32 @@ export const joyTheme = extendTheme({
         },
         divider: bloomPaletteScales.neutral[200],
         focusVisible: `rgba(var(--joy-palette-primary-mainChannel) / 0.18)`,
+      },
+    },
+    dark: {
+      shadowRing: "0 0 #000",
+      shadowChannel: "0 0 0",
+      shadowOpacity: "0.5",
+      palette: {
+        common: {
+          white: "#FFFFFF",
+          black: "#000000",
+        },
+        ...darkPalettes,
+        bridge: bloomLegacyBridgeTokensDark,
+        text: bloomTextTokens,
+        background: {
+          body: bloomDarkPaletteScales.neutral[50],
+          surface: "#172131",
+          popup: "#172131",
+          level1: "#172131",
+          level2: bloomDarkPaletteScales.neutral[50],
+          level3: bloomDarkPaletteScales.neutral[100],
+          tooltip: bloomDarkPaletteScales.neutral[300],
+          backdrop: "rgba(0 0 0 / 0.6)",
+        },
+        divider: bloomDarkPaletteScales.neutral[200],
+        focusVisible: `rgba(var(--joy-palette-primary-mainChannel) / 0.24)`,
       },
     },
   },

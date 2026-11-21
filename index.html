@@ -43,6 +43,23 @@
   <meta name="author" content="BloomSuite" />
   <link rel="canonical" href="https://bloomsuite.app/" />
   <meta name="emotion-insertion-point" content="" />
+  <script>
+    // Apply the stored Joy colour scheme before first paint so dark-mode users
+    // do not see a light flash. Mirrors JoyThemeProvider (defaultMode "light").
+    (function () {
+      try {
+        var mode = localStorage.getItem("joy-mode") || "light";
+        if (mode === "system") {
+          mode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        var scheme = localStorage.getItem("bloom-color-scheme-" + mode) || mode;
+        var root = document.documentElement;
+        root.setAttribute("data-joy-color-scheme", scheme);
+        root.classList.toggle("dark", scheme === "dark");
+        root.style.colorScheme = scheme;
+      } catch (e) {}
+    })();
+  </script>
 
   <script type="application/ld+json">
     [
