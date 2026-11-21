@@ -676,6 +676,8 @@ function sanitizeCompliance(compliance: unknown): Record<string, unknown> {
       typeof raw.sms_consent_text === "string"
         ? raw.sms_consent_text.slice(0, 1000)
         : null,
+    at_least_one_consent_required:
+      raw.at_least_one_consent_required === true,
     // Never expose internal compliance flags
     // gdpr_compliant, double_opt_in, etc. are backend-only
   };
