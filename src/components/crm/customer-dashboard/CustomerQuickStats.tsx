@@ -1,6 +1,5 @@
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
-import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -102,14 +101,22 @@ export function CustomerQuickStats(props: CustomerQuickStatsProps) {
         overflow: "hidden",
       }}
     >
-      <Stack
-        direction="row"
-        divider={<Divider orientation="vertical" />}
+      {/*
+        A grid, not one forced row: six tiles in a row left each ~200px on a
+        laptop-width window, and a nowrap "Data not available" ran into the
+        next tile. Two columns on phones, three on tablets, six when wide.
+        The 1px gap over a neutral background draws the dividers.
+      */}
+      <Box
         sx={{
-          overflowX: "auto",
-          "& > *": {
-            minWidth: { xs: 160, md: 0 },
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "repeat(2, minmax(0, 1fr))",
+            sm: "repeat(3, minmax(0, 1fr))",
+            xl: "repeat(6, minmax(0, 1fr))",
           },
+          gap: "1px",
+          bgcolor: "neutral.200",
         }}
       >
         {items.map((item) => {
@@ -124,7 +131,8 @@ export function CustomerQuickStats(props: CustomerQuickStatsProps) {
               sx={{
                 px: 2,
                 py: 1.75,
-                flex: 1,
+                minWidth: 0,
+                bgcolor: "background.surface",
               }}
             >
               <Sheet
@@ -147,7 +155,10 @@ export function CustomerQuickStats(props: CustomerQuickStatsProps) {
                   {item.label}
                 </Typography>
                 {typeof item.value === "string" ? (
-                  <Typography level="title-md" sx={{ whiteSpace: "nowrap" }}>
+                  <Typography
+                    level="title-md"
+                    sx={{ overflowWrap: "anywhere", lineHeight: 1.3 }}
+                  >
                     {item.value}
                   </Typography>
                 ) : (
@@ -157,7 +168,7 @@ export function CustomerQuickStats(props: CustomerQuickStatsProps) {
             </Stack>
           );
         })}
-      </Stack>
+      </Box>
     </Sheet>
   );
 }
