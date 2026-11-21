@@ -99,8 +99,12 @@ vi.mock("@/hooks/useUserRole", () => ({
   }),
 }));
 
+const tenantMock = vi.hoisted(() => ({
+  tenant: { id: "tenant-1", name: "Bloom Flowers" } as { id: string; name: string } | null,
+}));
+
 vi.mock("@/hooks/useTenant", () => ({
-  useTenant: () => ({ tenant: { id: "tenant-1", name: "Bloom Flowers" } }),
+  useTenant: () => ({ tenant: tenantMock.tenant }),
 }));
 
 vi.mock("@/components/TrialBanner", () => ({
@@ -322,6 +326,18 @@ function renderShell(initialPath = "/admin") {
   );
 }
 
+function renderTenantShell() {
+  return render(
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardShell mode="tenant">
+          <div>Tenant dashboard</div>
+        </DashboardShell>
+      </MemoryRouter>
+    </TestQueryClientProvider>,
+  );
+}
+
 beforeAll(() => {
   const storage = new Map<string, string>();
   Object.defineProperty(window, "localStorage", {
@@ -344,6 +360,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  tenantMock.tenant = { id: "tenant-1", name: "Bloom Flowers" };
   askBloomPanelMock.state = null;
   scrollToMock.mockClear();
   signOutCompletelyMock.mockClear();
@@ -603,6 +620,28 @@ describe("DashboardShell", () => {
     expect(screen.getByTestId("dashboard-sidebar-flyout")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Change history" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Data pipeline health" })).toBeInTheDocument();
+  });
+
+  it("names the active business in the tenant sidebar header", () => {
+    setViewportWidth(1440);
+    tenantMock.tenant = { id: "tenant-1", name: "  Bloom Flowers Garden Centre and Nursery  " };
+
+    renderTenantShell();
+
+    const tenantName = screen.getByTestId("dashboard-sidebar-tenant-name");
+    expect(tenantName).toHaveTextContent("Bloom Flowers Garden Centre and Nursery");
+    expect(tenantName).toHaveAttribute("title", "Bloom Flowers Garden Centre and Nursery");
+    expect(screen.queryByText("Tenant workspace")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the generic tenant label when the business has no name", () => {
+    setViewportWidth(1440);
+    tenantMock.tenant = null;
+
+    renderTenantShell();
+
+    expect(screen.queryByTestId("dashboard-sidebar-tenant-name")).not.toBeInTheDocument();
+    expect(screen.getByText("Tenant workspace")).toBeInTheDocument();
   });
 });
 

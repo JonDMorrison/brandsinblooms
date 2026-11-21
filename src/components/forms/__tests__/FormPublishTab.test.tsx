@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { getCanonicalFormDocumentationPath } from "@/lib/forms/documentation";
 
-import { FormPublishTab } from "../FormPublishTab";
+import { BLOOMSITES_GROWTH_URL, FormPublishTab } from "../FormPublishTab";
 
 const { mockToast } = vi.hoisted(() => ({ mockToast: vi.fn() }));
 vi.mock("sonner", () => ({
@@ -64,19 +64,49 @@ describe("FormPublishTab", () => {
     tenant_id: "tenant_123",
   };
 
-  function renderComponent() {
+  function renderComponent(overrides: Partial<typeof form> = {}) {
     return render(
       <MemoryRouter>
-        <FormPublishTab form={form} />
+        <FormPublishTab form={{ ...form, ...overrides }} />
       </MemoryRouter>,
     );
   }
+
+  it("leads with BloomSites guidance and copies the embed key", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    const card = await screen.findByTestId("form-publish-bloomsites-card");
+    expect(card).toHaveTextContent("Show it on your BloomSites website");
+    expect(screen.getByLabelText("Form embed key")).toHaveValue(form.embed_key);
+    expect(
+      screen.getByRole("link", { name: /open grow your audience in bloomsites/i }),
+    ).toHaveAttribute("href", BLOOMSITES_GROWTH_URL);
+
+    // The BloomSites card renders before every other share option.
+    const directLink = screen.getByText("Direct link");
+    expect(
+      card.compareDocumentPosition(directLink) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /copy embed key/i }));
+
+    expect(mockToast).toHaveBeenCalledWith("Embed key copied");
+  });
+
+  it("tells the user to publish first when the form is a draft", async () => {
+    renderComponent({ status: "draft" });
+
+    expect(
+      await screen.findByText(/publish this form first/i),
+    ).toBeInTheDocument();
+  });
 
   it("shows the redesigned Share Link surface and copies the public link", async () => {
     const user = userEvent.setup();
     renderComponent();
 
-    expect(await screen.findByText(/share your form/i)).toBeInTheDocument();
+    expect(await screen.findByText(/other ways to share/i)).toBeInTheDocument();
     expect(screen.getByText("Direct link")).toBeInTheDocument();
     expect(screen.getByText("QR code")).toBeInTheDocument();
 
@@ -117,11 +147,14 @@ describe("FormPublishTab", () => {
     expect(codeBlock).toHaveTextContent('data-button-text="Book now"');
   });
 
-  it("shows developer tools with a docs link and quick-copy snippets", async () => {
+  it("keeps developer tools collapsed until opened, then shows docs and snippets", async () => {
     const user = userEvent.setup();
     renderComponent();
 
-    expect(await screen.findByText(/developer integration/i)).toBeInTheDocument();
+    expect(await screen.findByText(/developer options/i)).toBeInTheDocument();
+    expect(screen.queryByText("cURL")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /developer options/i }));
 
     const docsLink = screen.getByRole("link", {
       name: /view full api docs/i,
@@ -136,7 +169,7 @@ describe("FormPublishTab", () => {
     );
 
     expect(
-      screen.getByText(/API endpoint/i),
+      screen.getByText("API endpoint"),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Server-side submission bypasses browser CORS/i),

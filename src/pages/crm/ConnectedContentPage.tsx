@@ -29,6 +29,9 @@ const categoryOptions=[
   {id:"fundraisers",label:"Fundraisers"},
 ];
 
+const CONNECTED_WEBSITE_CODE_PATTERN=/^[0-9a-f]{64}$/;
+const WRONG_CODE_MESSAGE="This is not a Connected websites code. In BloomSites, open Integrations, choose Connect BloomSuite CRM, and generate a new code.";
+
 function ContentWorkspace() {
   const navigate=useNavigate();
   const [params]=useSearchParams();
@@ -66,6 +69,13 @@ function ContentWorkspace() {
   },[refresh,rolesLoading,canPromote,canManage,query]);
   const connect=async()=>{
     if(!code.trim())return;
+    // Mirrors the connected-content edge function check. A non-2xx reply
+    // surfaces only as a generic error, so catch the common mix-up with the
+    // shorter Store details (Customer Intelligence) code here.
+    if(!CONNECTED_WEBSITE_CODE_PATTERN.test(code.trim().toLowerCase())){
+      setError(WRONG_CODE_MESSAGE);
+      return;
+    }
     setBusy(true);setError("");
     try{
       await connectedContentRequest<{connected:boolean}>({action:"connect",code:code.trim()});
@@ -136,8 +146,9 @@ function ContentWorkspace() {
               <Typography level="title-md">Connect a BloomSites website</Typography>
             </Stack>
             <Typography level="body-sm" color="neutral">
-              In BloomSites open Integrations → Connected Content and generate a ten-minute connection code.
-              Paste it here to link the correct website securely.
+              In BloomSites, open Integrations and choose Connect BloomSuite CRM to promote your website content.
+              Select Generate connection code and paste it here within ten minutes.
+              The Store details code is for Customer Intelligence and does not work here.
             </Typography>
             <Stack direction={{xs:"column",sm:"row"}} spacing={1}>
               <Input
@@ -151,7 +162,7 @@ function ContentWorkspace() {
               </JoyButton>
               <JoyButton color="neutral" variant="outlined"
                 onClick={()=>window.open("https://bloomsites.app/dashboard/integrations/connected-content","_blank","noopener,noreferrer")}>
-                Open BloomSites <ExternalLink size={15}/>
+                Open BloomSites connection page <ExternalLink size={15}/>
               </JoyButton>
             </Stack>
           </Stack>
