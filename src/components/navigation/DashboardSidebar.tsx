@@ -458,8 +458,11 @@ export function DashboardSidebar({
   const userContentSx = collapsed
     ? collapsedUserContentSx
     : expandedUserContentSx;
+  // Tenant mode names the active business so people with access to several
+  // garden centres always know which client CRM they are working in.
+  const tenantName = mode === "tenant" ? tenant?.name?.trim() ?? "" : "";
   const workspaceLabel =
-    mode === "admin" ? "Admin workspace" : "Tenant workspace";
+    mode === "admin" ? "Admin workspace" : tenantName || "Tenant workspace";
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -837,6 +840,7 @@ export function DashboardSidebar({
           component="img"
           src={logoImage}
           alt="BloomSuite"
+          title={collapsed && tenantName ? tenantName : undefined}
           sx={{ width: 32, height: 32, objectFit: "contain", flexShrink: 0 }}
         />
         {shouldRenderCollapsedContent ? (
@@ -844,18 +848,36 @@ export function DashboardSidebar({
             <Typography level="title-md" noWrap sx={{ color: "common.white" }}>
               BloomSuite
             </Typography>
-            <Typography
-              level="body-xs"
-              noWrap
-              sx={{
-                color: "var(--joy-palette-brandNavy-400)",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              {workspaceLabel}
-            </Typography>
+            {tenantName ? (
+              <Typography
+                level="body-sm"
+                noWrap
+                title={tenantName}
+                data-testid="dashboard-sidebar-tenant-name"
+                sx={{
+                  color: "var(--joy-palette-brandNavy-200)",
+                  fontWeight: 600,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {tenantName}
+              </Typography>
+            ) : (
+              <Typography
+                level="body-xs"
+                noWrap
+                sx={{
+                  color: "var(--joy-palette-brandNavy-400)",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {workspaceLabel}
+              </Typography>
+            )}
           </Stack>
         ) : null}
       </Stack>
