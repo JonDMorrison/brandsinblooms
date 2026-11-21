@@ -229,3 +229,27 @@ export const getPersonaLabel = (value?: string | null) => {
 
   return value;
 };
+
+const SIGNUP_SOURCE_LABELS: Record<string, string> = {
+  bloomsites: "BloomSites website",
+  bloomsites_footer: "BloomSites website footer",
+  bloomsites_popup: "BloomSites website popup",
+  bloomsites_checkout: "BloomSites checkout",
+  bloomsites_event: "BloomSites event registration",
+  form: "Signup form",
+  manual: "Added manually",
+  import: "Imported",
+};
+
+/**
+ * Plain-language label for a signup or consent source slug. Known slugs get a
+ * fixed label; anything else is title-cased so older values still read well.
+ */
+export const formatSignupSource = (value?: string | null): string | null => {
+  const key = value?.trim().toLowerCase();
+  if (!key) return null;
+  return (
+    SIGNUP_SOURCE_LABELS[key] ??
+    key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
+};

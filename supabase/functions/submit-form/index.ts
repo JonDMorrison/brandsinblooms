@@ -582,6 +582,30 @@ function validateRequiredFields(
 }
 
 /**
+ * Where a signup came from, as one stable slug (QA-16).
+ *
+ * A BloomSites storefront capture sends `meta.source = "bloomsites"` and a
+ * `meta.placement` of footer, popup, checkout or event; it becomes
+ * `bloomsites_<placement>`. Anything else is a plain `form` signup. The slug
+ * is written to crm_customers.signup_source (new contacts only), to the
+ * channel consent source, and to the consent history event.
+ */
+const SIGNUP_PLACEMENTS = new Set(["footer", "popup", "checkout", "event"]);
+
+function resolveFormSignupSource(meta: {
+  source?: unknown;
+  placement?: unknown;
+} | null | undefined): string {
+  const source = typeof meta?.source === "string" ? meta.source.trim().toLowerCase() : "";
+  const placement =
+    typeof meta?.placement === "string" ? meta.placement.trim().toLowerCase() : "";
+  if (source === "bloomsites") {
+    return SIGNUP_PLACEMENTS.has(placement) ? `bloomsites_${placement}` : "bloomsites";
+  }
+  return "form";
+}
+
+/**
  * Validate consent requirements (CASL/TCPA compliance)
  */
 function validateConsentRules(
@@ -1252,6 +1276,7 @@ Deno.serve(async (req) => {
     // ─── Step 6b: Build comprehensive metadata for audit trail ─────────────────
     // CASL/TCPA Compliance: ALWAYS store consent state, text, and timestamp
     // regardless of whether consent was granted or not
+    const signupSource = resolveFormSignupSource(meta);
     const fullMetadata: Record<string, unknown> = {
       // Page & tracking context (ALWAYS captured)
       page_url: meta?.page_url || null,
@@ -1277,7 +1302,7 @@ Deno.serve(async (req) => {
       form_embed_key: embedKey,
 
       form_id: formId,
-      consent_source: "form",
+      consent_source: signupSource,
 
       // Email consent (ALWAYS store - even if false)
       email_consent: emailConsent,
@@ -1302,7 +1327,7 @@ Deno.serve(async (req) => {
     const { data: existingCustomer } = await supabase
       .from("crm_customers")
       .select(
-        "id, suppressed, opt_out, deleted_at, merged_into_customer_id, email_opt_in, sms_opt_in, email_opt_out_at, sms_opt_out_at",
+        "id, suppressed, opt_out, deleted_at, merged_into_customer_id, email_opt_in, sms_opt_in, email_opt_out_at, sms_opt_out_at, signup_source",
       )
       .eq("tenant_id", tenantId)
       .eq("email", email)
@@ -1321,6 +1346,11 @@ Deno.serve(async (req) => {
     if (firstName) customerData.first_name = firstName;
     if (lastName) customerData.last_name = lastName;
     if (phone) customerData.phone = phone;
+    // First touch wins: a contact's signup source is set once, when this
+    // submission creates them (or fills an empty value), never overwritten.
+    if (!existingCustomer || !existingCustomer.signup_source) {
+      customerData.signup_source = signupSource;
+    }
 
     // ─── CRITICAL: CASL/TCPA Compliant Opt-In Logic ───────────────────────────
     //
@@ -1363,6 +1393,9 @@ Deno.serve(async (req) => {
     const customerId = customer.id;
 
     const consentDetailsBase = {
+      source: meta?.source || null,
+      placement: meta?.placement || null,
+      site_id: fullMetadata.site_id,
       page_url: meta?.page_url || null,
       referrer: meta?.referrer || null,
       form_id: formId,
@@ -1379,7 +1412,7 @@ Deno.serve(async (req) => {
         p_customer_id: customerId,
         p_channel: "email",
         p_consent_at: now,
-        p_source: "form",
+        p_source: signupSource,
         p_details: {
           ...consentDetailsBase,
           consent_text: compliance.email_consent_text,
@@ -1396,7 +1429,7 @@ Deno.serve(async (req) => {
         p_customer_id: customerId,
         p_channel: "sms",
         p_consent_at: now,
-        p_source: "form",
+        p_source: signupSource,
         p_details: {
           ...consentDetailsBase,
           phone,

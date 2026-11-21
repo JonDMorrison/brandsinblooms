@@ -21,6 +21,7 @@ import {
 } from "@/hooks/useCustomerMarketingConsent";
 import type { CustomerData } from "@/hooks/useCustomerDashboard";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSignupSource } from "./customerDashboardUtils";
 
 type ConsentEvent = {
   id: string;
@@ -46,9 +47,7 @@ const BASIS_OPTIONS = [
 ];
 
 const formatLabel = (value: string | null | undefined) =>
-  value
-    ? value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
-    : "Not documented";
+  formatSignupSource(value) ?? "Not documented";
 
 const formatDate = (value: string | null | undefined) =>
   value
