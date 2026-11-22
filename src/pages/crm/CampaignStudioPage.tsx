@@ -55,6 +55,7 @@ import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import { useGoogleFontsLoader } from "@/hooks/useGoogleFontsLoader";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 import { useSavedTemplates } from "@/hooks/useSavedTemplates";
+import { useTenant } from "@/hooks/useTenant";
 import type {
   CampaignEditorRecord,
   EditorCampaignType,
@@ -626,6 +627,7 @@ function StudioShellSkeleton() {
 }
 
 function CampaignStudioPageContent() {
+  const { tenant } = useTenant();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [reviewParams] = useSearchParams();
@@ -856,6 +858,7 @@ function CampaignStudioPageContent() {
       );
 
       const savePromise = persistCampaignDraft({
+        tenantId: tenant?.id ?? null,
         campaignId,
         expectedUpdatedAt: latestUpdatedAtRef.current,
         campaignType: "email",
@@ -938,7 +941,7 @@ function CampaignStudioPageContent() {
       savePromiseRef.current = savePromise;
       return savePromise;
     },
-    [campaignId],
+    [campaignId, tenant?.id],
   );
 
   const handleSave = React.useCallback(() => {

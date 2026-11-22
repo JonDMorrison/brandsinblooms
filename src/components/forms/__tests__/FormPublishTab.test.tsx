@@ -102,6 +102,12 @@ describe("FormPublishTab", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens the canvas with this form selected for a welcome automation", async () => {
+    renderComponent();
+    expect(await screen.findByRole("link", { name: "Create welcome automation" }))
+      .toHaveAttribute("href", `/crm/automations/new/canvas?form=${encodeURIComponent(form.id)}`);
+  });
+
   it("shows the redesigned Share Link surface and copies the public link", async () => {
     const user = userEvent.setup();
     renderComponent();

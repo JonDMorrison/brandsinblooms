@@ -116,12 +116,14 @@ export function CampaignScheduleDrawer({
   onSchedule,
   onSendNow,
   canConfirm = true,
+  initialMode,
 }: {
   open: boolean;
   onClose: () => void;
   onSchedule: (scheduledDateTime: Date) => void;
   onSendNow: () => void;
   canConfirm?: boolean;
+  initialMode?: ScheduleMode;
 }) {
   const { sendImmediately, sendAt } = useCampaignEditor();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -135,10 +137,10 @@ export function CampaignScheduleDrawer({
     }
 
     const initial = getInitialScheduleState(sendImmediately, sendAt);
-    setMode(initial.mode);
+    setMode(initialMode ?? initial.mode);
     setDateTime(initial.dateTime);
     setNow(new Date());
-  }, [open, sendAt, sendImmediately]);
+  }, [open, sendAt, sendImmediately, initialMode]);
 
   React.useEffect(() => {
     if (!open) {
