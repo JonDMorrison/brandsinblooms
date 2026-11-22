@@ -63,7 +63,7 @@ import {
   fetchCampaignEditorRecord,
   persistCampaignDraft,
 } from "@/lib/crm/campaignEditor";
-import { CampaignDraftConflictError } from "@/lib/crm/campaignDraftPersistence";
+import { CampaignDraftConflictError, isCampaignContentLocked } from "@/lib/crm/campaignDraftPersistence";
 import {
   classifyExternalCampaignChange,
   type CampaignChangeClassification,
@@ -821,7 +821,7 @@ function CampaignStudioPageContent() {
       const record = campaignRecordRef.current;
       const snapshot = currentSnapshotRef.current;
 
-      if (!record || !snapshot) {
+      if (!record || !snapshot || isCampaignContentLocked(record)) {
         return null;
       }
 
@@ -1676,6 +1676,14 @@ function CampaignStudioPageContent() {
           return;
         }
 
+        if (isCampaignContentLocked(record)) {
+          campaignRecordRef.current = null;
+          currentSnapshotRef.current = null;
+          setLoadError("This campaign needs website content review. Open the campaign review panel.");
+          navigate(editorPath, {replace: true});
+          return;
+        }
+
         const snapshot = toStudioSnapshot(record);
         const fingerprint = buildStudioFingerprint(snapshot);
 
@@ -1709,7 +1717,7 @@ function CampaignStudioPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [campaignId, loadRevision]);
+  }, [campaignId, loadRevision, editorPath, navigate]);
 
   React.useEffect(() => {
     if (
@@ -1779,6 +1787,14 @@ function CampaignStudioPageContent() {
             filter: `id=eq.${campaignId}`,
           },
           (payload) => {
+            if (isCampaignContentLocked({sendBlockedReason: payload.new.send_blocked_reason, metadata: payload.new.metadata})) {
+              campaignRecordRef.current = null;
+              currentSnapshotRef.current = null;
+              isLoadingRef.current = true;
+              setIsLoading(true);
+              navigate(`/crm/campaigns/${campaignId}/edit`, {replace: true});
+              return;
+            }
             const nextUpdatedAt =
               typeof payload.new.updated_at === "string"
                 ? payload.new.updated_at
@@ -1853,7 +1869,7 @@ function CampaignStudioPageContent() {
         void supabase.removeChannel(currentChannel);
       }
     };
-  }, [campaignId]);
+  }, [campaignId, navigate]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

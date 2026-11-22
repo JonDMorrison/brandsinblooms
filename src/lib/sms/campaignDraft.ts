@@ -26,6 +26,11 @@ export async function loadConnectedSmsDraft(tenantId: string, id: string): Promi
   const { data, error } = await supabase.from("crm_sms_campaigns").select("*")
     .eq("tenant_id", tenantId).eq("id", id).eq("status", "draft").eq("source", "connected_content").maybeSingle();
   if (error || !data) throw new Error("This text draft is unavailable in the selected business, or has already been launched.");
+  const metrics = data.metrics && typeof data.metrics === "object" && !Array.isArray(data.metrics) ? data.metrics : {};
+  const review = metrics.content_review;
+  if (metrics.replacement_campaign_id || (review && typeof review === "object" && !Array.isArray(review) && review.decision === "review_required")) {
+    throw new Error("This text campaign needs review or has been replaced. Open its campaign details.");
+  }
   return data as SmsCampaignDraft;
 }
 

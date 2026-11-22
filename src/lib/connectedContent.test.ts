@@ -6,6 +6,7 @@ import * as React from "react";
 import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import ConnectedContentPage from "@/pages/crm/ConnectedContentPage";
 const mockInvoke = vi.hoisted(() => vi.fn());
+const persistenceMocks = vi.hoisted(() => ({row: {} as Record<string, unknown>, update: vi.fn(), remove: vi.fn()}));
 const pageMocks = vi.hoisted(() => ({save: vi.fn(), saveSms: vi.fn(), params: "", navigate: vi.fn()}));
 vi.mock("@/lib/sms/campaignDraft", () => ({saveConnectedSmsDraft: pageMocks.saveSms}));
 vi.mock("@/hooks/useTenant", () => ({useTenant: () => ({tenant: {id: "tenant-123"}})}));
@@ -17,7 +18,17 @@ vi.mock("@/contexts/DesignSystemContext", () => ({
   DesignSystemProvider: ({children}: {children: React.ReactNode}) => children,
   useDesignSystem: () => ({designSystem: design}),
 }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke: mockInvoke } } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {
+  functions: { invoke: mockInvoke },
+  auth: {getUser: async () => ({data: {user: {id: "writer"}}})},
+  rpc: async () => ({data: true, error: null}),
+  from: (table: string) => {
+    const chain = {select: () => chain, eq: () => chain,
+      update: persistenceMocks.update, delete: persistenceMocks.remove,
+      maybeSingle: async () => ({data: table === "crm_campaigns" ? persistenceMocks.row : null, error: null})};
+    return chain;
+  },
+} }));
 import type { ConnectedContentItem } from "@/lib/connectedContent";
 
 const design=buildStudioDesignSystem({} as never);
@@ -318,5 +329,29 @@ describe("authenticated exact content bridge", () => {
     }));
     expect(result.status).toBe(404);
     expect(fetcher).toHaveBeenCalledTimes(5);
+  });
+});
+
+import {isCampaignContentLocked, persistCampaignRecord} from "@/lib/crm/campaignDraftPersistence";
+describe("held campaign persistence", () => {
+  it("rejects authoritative review and replacement records before any campaign or block write", async () => {
+    const input = {tenantId:"tenant-123", campaignId:"old", campaignType:"email" as const,
+      name:"Old", subjectLine:"Subject", preheaderText:"", senderName:"Garden", senderEmail:"garden@example.org", replyTo:"garden@example.org", contentBlocks:[], smsMessage:""};
+    for (const row of [
+      {send_blocked_reason:"connected_content_review", metadata:{}},
+      {send_blocked_reason:null, metadata:{contentReviewReplacementId:"new"}},
+    ]) {
+      persistenceMocks.row = {id:"old",tenant_id:"tenant-123",status:"paused", ...row};
+      persistenceMocks.update.mockClear(); persistenceMocks.remove.mockClear();
+      await expect(persistCampaignRecord(input)).rejects.toThrow("locked for website content review");
+      expect(persistenceMocks.update).not.toHaveBeenCalled();
+      expect(persistenceMocks.remove).not.toHaveBeenCalled();
+    }
+    expect(isCampaignContentLocked({sendBlockedReason:null,metadata:{contentReviewOriginalId:"old"}})).toBe(false);
+  });
+  it("routes held Studio records before loading editable state", () => {
+    const studio = readFileSync("src/pages/crm/CampaignStudioPage.tsx","utf8");
+    expect(studio.indexOf("if (isCampaignContentLocked(record))")).toBeLessThan(studio.indexOf("const snapshot = toStudioSnapshot(record)"));
+    expect(studio).toContain("navigate(editorPath, {replace: true})");
   });
 });

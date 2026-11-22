@@ -28,6 +28,7 @@ interface SmsCampaignActionsProps {
   status: string;
   failedCount: number;
   resumeStatus?: string;
+  deliveryBlocked?: boolean;
   onRetryComplete?: () => void;
   onStatusChange?: (nextStatus: string) => void;
   onDeleteComplete?: () => void;
@@ -41,6 +42,7 @@ export function SmsCampaignActions({
   status,
   failedCount,
   resumeStatus = "queued",
+  deliveryBlocked = false,
   onRetryComplete,
   onStatusChange,
   onDeleteComplete,
@@ -52,9 +54,10 @@ export function SmsCampaignActions({
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 
   const canPause = PAUSEABLE_STATUSES.has(status);
-  const canResume = status === "paused";
+  const canResume = status === "paused" && !deliveryBlocked;
 
   const handleRetry = React.useCallback(async () => {
+    if (deliveryBlocked) return;
     setIsRetrying(true);
     try {
       const result = await retryFailedMessages(campaignId, "all_failed");
@@ -79,7 +82,7 @@ export function SmsCampaignActions({
     } finally {
       setIsRetrying(false);
     }
-  }, [campaignId, onRetryComplete]);
+  }, [campaignId, onRetryComplete, deliveryBlocked]);
 
   const handleDownload = React.useCallback(async () => {
     setIsDownloading(true);
@@ -96,6 +99,7 @@ export function SmsCampaignActions({
   }, [campaignId]);
 
   const handleToggleStatus = React.useCallback(async () => {
+    if (status === "paused" && deliveryBlocked) return;
     const nextStatus = status === "paused" ? resumeStatus : "paused";
     setIsTogglingStatus(true);
     try {
@@ -122,7 +126,7 @@ export function SmsCampaignActions({
     } finally {
       setIsTogglingStatus(false);
     }
-  }, [campaignId, onStatusChange, resumeStatus, status]);
+  }, [campaignId, onStatusChange, resumeStatus, status, deliveryBlocked]);
 
   const handleDelete = React.useCallback(async () => {
     setIsDeleting(true);
@@ -151,7 +155,7 @@ export function SmsCampaignActions({
   return (
     <>
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-        {failedCount > 0 ? (
+        {failedCount > 0 && !deliveryBlocked ? (
           <Button
             size="sm"
             variant="soft"
