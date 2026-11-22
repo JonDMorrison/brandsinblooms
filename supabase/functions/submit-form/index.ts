@@ -1,3 +1,4 @@
+import { verifyGrowthBridge, verifiedGrowthVisitor } from "../_shared/growthBridge.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   sanitizeFormSubmissionData,
@@ -174,6 +175,7 @@ interface SubmissionMeta {
   site_id?: string;
   source?: string;
   placement?: string;
+  bridge_visitor_key?: string;
 }
 
 interface SubmissionPayload {
@@ -1007,7 +1009,11 @@ Deno.serve(async (req) => {
 
   try {
     // Parse request body
-    const payload: SubmissionPayload = await req.json();
+    const raw = await req.text();
+    const bridge = await verifyGrowthBridge(req, raw, "submit-form",
+      Deno.env.get("BLOOMSITES_GROWTH_BRIDGE_SECRET"));
+    if (bridge === "invalid") return jsonResponse({ error: "Invalid signup bridge authentication" }, 401);
+    const payload: SubmissionPayload = JSON.parse(raw);
     const normalizedPayload = normalizeSubmissionPayload(payload);
     const { embedKey, data, meta, usedLegacyPayload } = normalizedPayload;
     const rawSubmissionData = data;
@@ -1117,8 +1123,12 @@ Deno.serve(async (req) => {
     }
 
     // Get client IP and hash it
-    const clientIP = getClientIP(req);
-    ipHash = await hashIP(clientIP);
+    // Server-forwarded visitors must not share the Vercel egress IP bucket.
+    // Only a valid, purpose-bound MAC may supply the opaque visitor identity.
+    // Unsigned public embeds keep their existing ingress-IP limiter.
+    const visitor = bridge === "valid" ? verifiedGrowthVisitor(meta) : null;
+    if (bridge === "valid" && !visitor) return jsonResponse({ error: "Invalid signup bridge visitor" }, 400);
+    ipHash = await hashIP(visitor ? `bloomsites:${visitor}` : getClientIP(req));
 
     // ─── Step 2: DB-backed rate limiting ───────────────────────────────────
     const rateLimitResult = await checkRateLimit(
