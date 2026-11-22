@@ -22,7 +22,7 @@ export const TrialBanner = () => {
   // 'bloomsuite' single-plan id is also a paid plan and remains
   // valid for grandfathered customers.
   const paidPlans = ["seed", "sprout", "bloom", "thrive", "bloomsuite"];
-  if (isDismissed || paidPlans.includes(subscription.plan)) {
+  if (isDismissed || paidPlans.includes(subscription.tier ?? subscription.plan)) {
     return null;
   }
 

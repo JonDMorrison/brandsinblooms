@@ -415,16 +415,6 @@ export function DashboardShell({
             },
           }}
         >
-          {/*
-           * Platform-wide sender-state banner. Lives OUTSIDE the
-           * padded inner Box so `sticky top-0` pins it to the very
-           * top of the main scroll viewport (which itself sits below
-           * the DashboardTopBar grid row, so the banner is naturally
-           * below the top nav). TrialBanner + LocationBlockingBanner
-           * stay inside the padded Stack — they're not sticky and
-           * benefit from the Stack's spacing rhythm.
-           */}
-          <SendingStatusBanner />
           <Box
             sx={{
               width: "100%",
@@ -459,6 +449,7 @@ export function DashboardShell({
               >
                 {children}
               </Box>
+              <SendingStatusBanner />
             </Stack>
           </Box>
         </Box>
