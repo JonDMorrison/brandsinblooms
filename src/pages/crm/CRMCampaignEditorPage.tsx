@@ -2574,6 +2574,7 @@ function CampaignEditorScreen() {
       </Modal>
 
       <CampaignScheduleDrawer
+        initialMode="later"
         open={scheduleOpen}
         onClose={() => setScheduleOpen(false)}
         onSendNow={() => {
