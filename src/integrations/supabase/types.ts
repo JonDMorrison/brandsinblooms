@@ -16538,6 +16538,10 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number };
         Returns: Json;
       };
+      bloomsuite_pos_purchase_health: {
+        Args: { p_expected_tenant: string };
+        Returns: { connection_id: string; connection_name: string; missing_original_sales: number; orphan_returns: number; orphan_voids: number; oldest_received_at: string | null; latest_receipt_at: string | null; missing_sale_references: Json }[];
+      };
       get_current_crm_access: {
         Args: Record<PropertyKey, never>;
         Returns: Json;
