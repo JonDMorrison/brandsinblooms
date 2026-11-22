@@ -29,7 +29,7 @@ export const PulsePanel = () => {
               cx="32"
               cy="32"
               r="28"
-              stroke={isGoalMet ? "#22C55E" : "#68BEB9"}
+              stroke={isGoalMet ? "#22C55E" : "#30506E"}
               strokeWidth="4"
               fill="none"
               strokeLinecap="round"
@@ -48,7 +48,7 @@ export const PulsePanel = () => {
   };
 
   return (
-    <div className="bg-gradient-to-b from-[#68BEB9]/10 to-[#68BEB9]/5 rounded-lg p-4 h-full">
+    <div className="bg-gradient-to-b from-[#30506E]/10 to-[#30506E]/5 rounded-lg p-4 h-full">
       <h3 className="text-sm font-medium text-[#3E5A6B] mb-4 text-center">Pulse</h3>
       
       <div className="space-y-6">

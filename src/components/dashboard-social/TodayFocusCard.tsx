@@ -25,7 +25,7 @@ export const TodayFocusCard = () => {
   if (loading) {
     return (
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 h-[440px] flex items-center justify-center border border-white/20">
-        <div className="animate-spin w-8 h-8 border-2 border-[#68BEB9] border-t-transparent rounded-full"></div>
+        <div className="animate-spin w-8 h-8 border-2 border-[#30506E] border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export const TodayFocusCard = () => {
               cx="64"
               cy="64"
               r="56"
-              stroke="#68BEB9"
+              stroke="#30506E"
               strokeWidth="8"
               fill="none"
               strokeLinecap="round"
@@ -64,7 +64,7 @@ export const TodayFocusCard = () => {
           
           {/* Bee Icon */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 bg-[#68BEB9] rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#30506E] rounded-full flex items-center justify-center">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
                 <path
                   d="M12 2C10.3 2 9 3.3 9 5s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3zm0 14c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"
@@ -84,7 +84,7 @@ export const TodayFocusCard = () => {
         
         {/* Progress Badge */}
         <div className="text-center mb-6">
-          <Badge variant="outline" className="text-[#68BEB9] border-[#68BEB9]">
+          <Badge variant="outline" className="text-[#30506E] border-[#30506E]">
             {completionPercentage}% Complete
           </Badge>
         </div>
@@ -92,7 +92,7 @@ export const TodayFocusCard = () => {
       
       {/* Complete Button */}
       <Button 
-        className="bg-[#68BEB9] hover:bg-[#5AA8A3] text-white font-medium px-8 py-2 rounded-full"
+        className="bg-[#30506E] hover:bg-[#284656] text-white font-medium px-8 py-2 rounded-full"
         disabled={!currentCampaign}
       >
         VIEW CAMPAIGN
