@@ -85,7 +85,7 @@ BEGIN
  IF st IS NULL THEN RAISE EXCEPTION 'Store required'; END IF;
  IF p_envelope->>'type'='MembershipPolicyRequested' THEN
   SELECT * INTO p FROM bloom_pos_private.membership_policies WHERE key_id=p_key AND store_id=st ORDER BY version DESC LIMIT 1;
-  RETURN jsonb_build_object('storeId',st,'policy',CASE WHEN p.enabled THEN jsonb_build_object('id',p.id,'programmeId',p.programme_id,'programmeVersionId',p.programme_version_id,'authority',p.authority,'termsVersion',p.terms_version,'terms',p.terms,'emailStatement',p.email_statement,'smsStatement',p.sms_statement) ELSE NULL END);
+  RETURN jsonb_build_object('storeId',st,'policy',CASE WHEN p.enabled AND EXISTS(SELECT 1 FROM public.loyalty_programmes lp WHERE lp.id=p.programme_id AND lp.tenant_id=c.crm_tenant_id AND lp.current_version_id=p.programme_version_id AND lp.status NOT IN('archived','paused')) THEN jsonb_build_object('id',p.id,'programmeId',p.programme_id,'programmeVersionId',p.programme_version_id,'authority',p.authority,'termsVersion',p.terms_version,'terms',p.terms,'emailStatement',p.email_statement,'smsStatement',p.sms_statement) ELSE NULL END);
  END IF;
  rid:=(p_envelope->>'recordId')::uuid;
  IF p_envelope->>'type'='MembershipStatusRequested' THEN
