@@ -157,7 +157,7 @@ serve(async (req: Request) => {
     const query = (requested.searchParams.get("q")??"").trim().slice(0,100);
     const siteId=requested.searchParams.get("siteId")??"";
     const itemId=requested.searchParams.get("itemId")??"";
-    if (itemId && (!uuid.test(itemId) || kind !== "events" || !siteId)) return ok({error:"invalid_item"},400);
+    if (itemId && (!uuid.test(itemId) || kind === "all" || !siteId)) return ok({error:"invalid_item"},400);
     if (siteId && !uuid.test(siteId)) return ok({error:"invalid_site"},400);
     const permittedLinks = siteId ? connectionList.filter(x=>x.cms_site_id===siteId):connectionList;
     if (siteId && permittedLinks.length===0) return ok({error:"site_not_connected"},404);
@@ -170,7 +170,7 @@ serve(async (req: Request) => {
       upstream.searchParams.set("limit",String(limit));
       if (query)upstream.searchParams.set("q",query);
       try {
-        const res=await fetch(upstream,{headers:{"Accept":"application/json"},
+        const res=await fetch(upstream,{headers:{"Accept":"application/json", "Cache-Control":"no-cache"}, cache:"no-store",
           signal:AbortSignal.timeout(10000),redirect:"error"});
         if(!res.ok) return {siteId:link.cms_site_id,error:"content_unavailable",items:[]};
         const payload=await res.json();
@@ -185,7 +185,7 @@ serve(async (req: Request) => {
               typeof item?.title!=="string" ||
               !["event","page","product","blog","fundraiser"].includes(item.type))return false;
           try {return new URL(item.publicUrl).origin===allowedOrigin &&
-            item.siteId===link.cms_site_id;
+            item.siteId===link.cms_site_id && (!itemId || item.id===itemId);
           }catch{return false;}
         }).map((item:ContentItem)=>({
           ...item,siteName:link.site_name,

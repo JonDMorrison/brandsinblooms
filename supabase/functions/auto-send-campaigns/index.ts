@@ -244,6 +244,12 @@ const handler = async (req: Request): Promise<Response> => {
           throw new Error(`Send function error: ${sendError.message}`);
         }
 
+        if (sendResult?.deferred) {
+          results.push({ id: campaign.id, name: campaign.name, status: 'skipped',
+            durationMs: Date.now() - campaignStartTime, error: sendResult.reason, sendAttempts });
+          continue;
+        }
+
         if (sendResult?.error) {
           const { data: resumeState } = await supabase
             .from('crm_campaigns')

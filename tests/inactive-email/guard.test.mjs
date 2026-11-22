@@ -1,3 +1,4 @@
+import {ContentFreshnessHold, emailContentSources, uniqueContentSources} from '../../supabase/functions/_shared/connectedContentFreshness.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
@@ -49,10 +50,44 @@ test('actual provider retry loop checks lifecycle again after ambiguous500 and m
  const request= new Function('fetch','sha256Base64Url','sleep','truncateError','isRateLimitErrorMessage',stripTypeScriptTypes(fn)+'; return resendSendBatchRequest;')(
   async()=>{calls++;current.deleted_at='after accepted request';return Response.json({message:'unknown outcome'},{status:500})},async()=> 'stable-key',async()=>{},String,()=>false);
  const result=await request('test-only-key',[{to:'nobody@example.test'}],'stable',undefined,async()=>{checks++;await assertActiveEmailCustomers(db([current]),[{tenant_id:'tenant',customer_id:'active'}])});
- assert.equal(calls,1);assert.equal(checks,2);assert.match(result.error,/deleted or merged/);assert.equal(confirmedDeliveryOutcome(result),false);
+ assert.equal(calls,1);assert.equal(checks,2);assert.match(result.error,/reconciliation/);assert.equal(confirmedDeliveryOutcome(result),false);
 });
 
 test('later429 or422 cannot clear or split an earlier ambiguous500 attempt',async()=>{
  const {stripTypeScriptTypes}=await import('node:module');const source=readFileSync('supabase/functions/process-email-send-queue/index.ts','utf8');const fn=source.slice(source.indexOf('async function resendSendBatchRequest('),source.indexOf('async function resendSendBatch('));
  for(const later of [429,422,400]){let calls=0;const request=new Function('fetch','sha256Base64Url','sleep','truncateError','isRateLimitErrorMessage',stripTypeScriptTypes(fn)+';return resendSendBatchRequest;')(async()=>Response.json({message:'validation'}, {status:++calls===1?500:later}),async()=> 'key',async()=>{},String,()=>false);const result=await request('test',[{}],'seed',undefined,async()=>{});assert.equal(calls,2);assert.equal(result.status,undefined);assert.equal(confirmedDeliveryOutcome(result),false);assert.match(result.error,/reconciliation/);}
+});
+
+
+test('source versions cannot change between enqueue and payload rendering',()=>{
+ const original=[{itemId:'event',updatedAt:'v1'}];
+ assert.deepEqual(emailContentSources(original,original),original);
+ assert.deepEqual(emailContentSources(original,null),original);
+ assert.throws(()=>emailContentSources(original,[{itemId:'event',updatedAt:'v2'}]),/source changed/);
+ assert.throws(()=>emailContentSources(null,original),/no saved website version/);
+ assert.throws(()=>emailContentSources(null,null),/could not be checked/);
+ assert.deepEqual(emailContentSources(null,[]),[]);
+});
+
+test('content holds prevent first provider send but retain uncertain earlier attempts',async()=>{
+ const {stripTypeScriptTypes}=await import('node:module');
+ const source=readFileSync('supabase/functions/process-email-send-queue/index.ts','utf8');
+ const fn=source.slice(source.indexOf('async function resendSendBatchRequest('),source.indexOf('async function resendSendBatch('));
+ for(const decision of ['retry','review_required']) {
+  for(const uncertain of [false,true]) {
+   let calls=0,checks=0;
+   const request=new Function('ContentFreshnessHold','fetch','sha256Base64Url','sleep','truncateError','isRateLimitErrorMessage',stripTypeScriptTypes(fn)+';return resendSendBatchRequest;')(
+    ContentFreshnessHold,async()=>{calls++;return Response.json({message:'unknown outcome'},{status:500})},async()=> 'key',async()=>{},String,()=>false);
+   const result=await request('test',[{}],'seed',undefined,async()=>{checks++;if(!uncertain||checks>1)throw new ContentFreshnessHold(decision,'changed');});
+   assert.equal(calls,uncertain?1:0);
+   assert.equal(result.status,uncertain?undefined:425);
+   assert.match(result.error,uncertain?/reconciliation/:/^CONTENT_/);
+  }
+ }
+});
+
+test('a hundred recipients sharing a source count as one reference, without dropping malformed values',()=>{
+ const reference={itemId:'event',updatedAt:'v1'};
+ assert.deepEqual(uniqueContentSources(Array.from({length:100},()=>({...reference}))),[reference]);
+ assert.deepEqual(uniqueContentSources([reference,null,null]),[reference,null]);
 });

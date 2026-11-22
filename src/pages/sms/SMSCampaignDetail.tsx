@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { ConnectedSmsReview } from "@/components/sms/ConnectedSmsReview";
+import type { SmsCampaignDraft } from "@/lib/sms/campaignDraft";
 import { SmsCampaignActions } from "@/components/sms/SmsCampaignActions";
 import { SmsCampaignProgressCard } from "@/components/sms/SmsCampaignProgressCard";
 import { useTenant } from "@/hooks/useTenant";
@@ -554,6 +556,8 @@ export default function SMSCampaignDetail() {
               </Stack>
             </Stack>
           </Card>
+
+          <ConnectedSmsReview key={`${campaign.id}:${campaign.updated_at}`} campaign={campaign as SmsCampaignDraft} />
 
           {showProgress ? (
             <SmsCampaignProgressCard
