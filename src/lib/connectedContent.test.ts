@@ -105,7 +105,7 @@ describe("Connected Content newsletter blocks",()=>{
   it("sends owners to the BloomSites page that issues the 64-character connection code",()=>{
     const page=readFileSync("src/pages/crm/ConnectedContentPage.tsx","utf8");
     const edge=readFileSync("supabase/functions/connected-content/index.ts","utf8");
-    expect(page).toContain("choose Connect BloomSuite CRM");
+    expect(page).toContain("choose Connect BloomSites and BloomSuite");
     expect(page).toContain("https://bloomsites.app/dashboard/integrations/connected-content");
     expect(page).not.toContain("Integrations → Connected Content");
     // The page precheck must match the edge function's accepted code format.

@@ -34,7 +34,7 @@ const categoryOptions=[
 ];
 
 const CONNECTED_WEBSITE_CODE_PATTERN=/^[0-9a-f]{64}$/;
-const WRONG_CODE_MESSAGE="This is not a Connected websites code. In BloomSites, open Integrations, choose Connect BloomSuite CRM, and generate a new code.";
+const WRONG_CODE_MESSAGE="This is not a Connected websites code. In BloomSites, open Integrations, choose Connect BloomSites and BloomSuite, and generate a new code.";
 
 function ContentWorkspace() {
   const navigate=useNavigate();
@@ -171,11 +171,16 @@ function ContentWorkspace() {
           <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} alignItems="center">
               <ShieldCheck size={19} aria-hidden="true"/>
-              <Typography level="title-md">Connect a BloomSites website</Typography>
+              <Typography level="title-md">Connect BloomSites and BloomSuite</Typography>
             </Stack>
-            <Typography level="body-sm" color="neutral">
-              In BloomSites, open Integrations and choose Connect BloomSuite CRM to promote your website content.
-              Select Generate connection code and paste it here within ten minutes.
+            <Box component="ol" sx={{m:0,pl:2.5,display:"grid",gap:0.5}}>
+              <Typography component="li" level="body-sm">
+                In BloomSites, open Integrations, choose Connect BloomSites and BloomSuite, and select Generate connection code.
+              </Typography>
+              <Typography component="li" level="body-sm">In BloomSuite, open Connected websites (this page).</Typography>
+              <Typography component="li" level="body-sm">Paste the code within ten minutes and confirm the business.</Typography>
+            </Box>
+            <Typography level="body-xs" color="neutral">
               The Store details code is for Customer Intelligence and does not work here.
             </Typography>
             <Stack direction={{xs:"column",sm:"row"}} spacing={1}>
