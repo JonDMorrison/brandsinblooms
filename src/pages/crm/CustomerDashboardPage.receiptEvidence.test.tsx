@@ -4,7 +4,7 @@ import {render,screen,cleanup} from '@testing-library/react';
 import {MemoryRouter,Routes,Route} from 'react-router-dom';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import CustomerDashboardPage from './CustomerDashboardPage';
-const mocks=vi.hoisted(()=>({purchaseMetrics:null as null|{lifetime_value:number},customer:{id:'customer',tenant_id:'tenant',email:'synthetic@example.test',first_name:'Test',last_name:'Customer',custom_fields:{ideal_import_source:'original'},created_at:'2025-01-01',updated_at:'2026-01-01'}}));
+const mocks=vi.hoisted(()=>({purchaseMetrics:null as null|{lifetime_value:number},customer:{id:'customer',tenant_id:'tenant',email:'synthetic@example.test',first_name:'Test',last_name:'Customer',custom_fields:{ideal_import_source:'original'} as Record<string,string>,created_at:'2025-01-01',updated_at:'2026-01-01'}}));
 vi.mock('@/hooks/useCustomerDashboard',()=>({useCustomerDashboard:()=>({customer:mocks.customer,purchaseMetrics:mocks.purchaseMetrics,loyaltyAccounts:[],negativeEvents:[],timelineEvents:[],purchaseTimeline:[],chartErrors:{},errors:[],refetch:vi.fn()})}));
 vi.mock('@/hooks/useAuth',()=>({useAuth:()=>({user:{id:'user'}})}));
 vi.mock('@/hooks/use-toast',()=>({useToast:()=>({toast:vi.fn()})}));
@@ -41,8 +41,11 @@ vi.mock('@/components/crm/customer-dashboard/LoyaltyIncentivesImpact',()=>({Loya
 vi.mock('@/components/crm/customer-dashboard/PurchaseValueBehavior',()=>({PurchaseValueBehavior:()=> <div>PurchaseValueBehavior</div>}));
 vi.mock('@/components/crm/customer-dashboard/RiskNegativeSignals',()=>({RiskNegativeSignals:()=> <div>RiskNegativeSignals</div>}));
 
-afterEach(()=>{cleanup();mocks.purchaseMetrics=null;});
+afterEach(()=>{cleanup();mocks.purchaseMetrics=null;mocks.customer.custom_fields={ideal_import_source:'original'};});
 function mount(tab:string){render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={['/crm/customers/customer?tab='+tab]}><Routes><Route path="/crm/customers/:customerId" element={<CustomerDashboardPage/>}/></Routes></MemoryRouter></QueryClientProvider>);}
 it('shows source evidence on Purchase and keeps absent receipt metrics out of zero-value cards',()=>{mount('purchase');expect(screen.getByText('CustomerIdealEvidenceCard')).toBeVisible();expect(screen.getByText(/missing receipt history is not zero spending/)).toBeVisible();expect(screen.queryByText('PurchaseValueBehavior')).not.toBeInTheDocument();expect(screen.queryByText('CustomerIntelligenceStory')).not.toBeInTheDocument();});
 it('shows source evidence exactly once on Overview',()=>{mount('overview');expect(screen.getAllByText('CustomerIdealEvidenceCard')).toHaveLength(1);});
 it('preserves actual receipt metrics when present',()=>{mocks.purchaseMetrics={lifetime_value:25};mount('purchase');expect(screen.getByText('PurchaseValueBehavior')).toBeVisible();expect(screen.queryByText(/missing receipt history is not zero spending/)).not.toBeInTheDocument();});
+
+it("does not turn missing receipt metrics into zeros for ordinary CRM customers",()=>{mocks.customer.custom_fields={};mount("purchase");expect(screen.getByText(/Missing receipt history is not zero spending/)).toBeVisible();expect(screen.queryByText("PurchaseValueBehavior")).not.toBeInTheDocument();expect(screen.queryByText(/Use the imported report-period/)).not.toBeInTheDocument();});
+it("preserves genuine zero receipt metrics",()=>{mocks.customer.custom_fields={};mocks.purchaseMetrics={lifetime_value:0};mount("purchase");expect(screen.getByText("PurchaseValueBehavior")).toBeVisible();expect(screen.queryByText(/Missing receipt history/)).not.toBeInTheDocument();});
