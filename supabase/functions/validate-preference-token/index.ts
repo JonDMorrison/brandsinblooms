@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { readStoredCustomerPreferences } from "../_shared/customerPreferenceCenter.ts";
 import { buildCustomerLoyaltyWallet } from "./customerLoyaltyWallet.ts";
 
+import {readNativeRewardBalances, type NativeRewardBalance} from "../_shared/nativeRewardBalances.ts";
+
 const corsHeaders = {
+  "Cache-Control": "no-store",
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, traceparent, tracestate",
@@ -65,6 +68,7 @@ serve(async (req) => {
       .select("id, tenant_id, email, email_opt_in, custom_fields")
       .eq("id", tokenData.customer_id)
       .eq("tenant_id", tokenData.tenant_id)
+      .is("deleted_at", null).is("merged_into_customer_id", null)
       .single();
 
     if (customerError || !customer) {
@@ -91,6 +95,11 @@ serve(async (req) => {
         `Failed to load loyalty balance: ${loyaltyError.message}`,
       );
     }
+
+    let nativeLoyalty: NativeRewardBalance[] = [];
+    let nativeLoyaltyError: string | null = null;
+    try { nativeLoyalty = await readNativeRewardBalances(supabase, tokenData.tenant_id, tokenData.customer_id); }
+    catch { nativeLoyaltyError = "BloomPOS balances are temporarily unavailable."; }
 
     // Get company info for branding
     const { data: tenant } = await supabase
@@ -130,6 +139,7 @@ serve(async (req) => {
             customer.custom_fields,
           ),
           loyalty: buildCustomerLoyaltyWallet(loyaltyAccounts),
+          nativeLoyalty, nativeLoyaltyError,
         },
         company: {
           name: companyProfile?.company_name || tenant?.name || "Our Company",

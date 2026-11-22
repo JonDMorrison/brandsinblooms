@@ -32,6 +32,9 @@ import {
   type GardeningExperience,
 } from "@/lib/crm/customerPreferenceCenter";
 
+import {NativeRewardBalanceList} from "@/components/crm/customer-dashboard/NativeRewardBalanceList";
+import type {NativeRewardBalance} from "../../supabase/functions/_shared/nativeRewardBalances";
+
 type PageState =
   | "loading"
   | "invalid"
@@ -48,6 +51,8 @@ interface TokenData {
   purpose: string;
   preferences?: unknown;
   loyalty?: LoyaltyWalletEntry[];
+  nativeLoyalty?: NativeRewardBalance[];
+  nativeLoyaltyError?: string | null;
 }
 
 interface LoyaltyWalletEntry {
@@ -389,6 +394,7 @@ export default function EmailPreferences() {
             </RadioGroup>
           </section>
 
+          <NativeRewardBalanceList balances={tokenData?.nativeLoyalty ?? []} error={tokenData?.nativeLoyaltyError} />
           {tokenData?.loyalty?.length ? (
             <section
               className="space-y-3 border-t pt-6"
@@ -409,7 +415,8 @@ export default function EmailPreferences() {
                     <div>
                       <p className="font-medium">{entry.programName}</p>
                       <p className="text-xs text-muted-foreground">
-                        Updated from your loyalty account
+                        {["legacy_metrics", "crm_import"].includes(entry.provider) ? "Imported historical balance" : `Reported by ${entry.provider}`}
+                        {entry.lastSyncedAt ? ` · ${new Date(entry.lastSyncedAt).toLocaleDateString()}` : ""}
                       </p>
                     </div>
                     <p className="text-lg font-semibold text-primary">
