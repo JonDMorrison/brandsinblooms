@@ -1,5 +1,5 @@
 import {strict as assert} from "node:assert";
-import {verifyGrowthBridge, verifiedGrowthVisitor} from "./growthBridge.ts";
+import {verifyGrowthBridge, verifiedGrowthVisitor, sanitizeGrowthAttribution} from "./growthBridge.ts";
 import {handler} from "../growth-signup-stats/index.ts";
 const secret = "a".repeat(64);
 const siteId = "37c1cf85-a81e-4185-aebc-83862a4096f0";
@@ -76,4 +76,11 @@ Deno.test("stats refuses an unconnected site without reading submissions",async(
     const res=await handler(await signed(JSON.stringify({siteId,embedKey:"a".repeat(32)})));
     assert.equal((await res.json()).connection.status,"site_not_connected");
   }finally{globalThis.fetch=original;}
+});
+
+Deno.test("unsigned public embeds cannot spoof website attribution",()=>{
+  const meta={source:" BloomSites ",site_id:siteId,bridge_visitor_key:"a".repeat(64),page_url:"https://example.test",event_id:"event"};
+  assert.deepEqual(sanitizeGrowthAttribution(meta,false),{source:"public_embed",page_url:"https://example.test",event_id:"event"});
+  assert.deepEqual(sanitizeGrowthAttribution(meta,true),meta);
+  assert.deepEqual(sanitizeGrowthAttribution({source:"public_form",page_url:"https://example.test"},false),{source:"public_form",page_url:"https://example.test"});
 });
