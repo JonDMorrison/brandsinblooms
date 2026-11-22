@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { POSConnectionHelp } from "@/components/crm/pos/POSConnectionHelp";
 import { useLightspeedConnectionSummary } from "@/hooks/useLightspeedConnectionSummary";
+import { usePOSPurchaseHealth } from '@/hooks/usePOSPurchaseHealth';
+import { POSPurchaseHealth } from './connections/POSPurchaseHealth';
 import { usePOSConnections } from "@/hooks/usePOSConnections";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -41,6 +43,7 @@ export const ConnectionsSettings = () => {
   const [helpPlatform, setHelpPlatform] = useState<string | null>(null);
   const [historyConnectionId, setHistoryConnectionId] = useState<string | null>(null);
   const [disconnectConnectionId, setDisconnectConnectionId] = useState<string | null>(null);
+  const purchaseHealth=usePOSPurchaseHealth();
   const cardRefs = useRef(new Map<string, HTMLDivElement>());
 
   const {
@@ -71,7 +74,11 @@ export const ConnectionsSettings = () => {
     () => (lightspeedConnection ? [getLightspeedInsight(lightspeedConnection)] : []),
     [lightspeedConnection],
   );
-  const overview = useMemo(() => getConnectionsOverview(insights, hubInsights), [insights, hubInsights]);
+  const overview = useMemo(() => {
+    const value=getConnectionsOverview(insights, hubInsights);
+    const missing=(purchaseHealth.data??[]).filter(row=>row.missing_original_sales>0);
+    return {...value,needsAttention:[...value.needsAttention,...(purchaseHealth.isError&&insights.some(i=>i.connection.platform==='bloomsuite')?[{id:'native-history-unavailable',name:'BloomSuite POS purchase history'}]:[]),...missing.map(row=>({id:'native-history:'+row.connection_id,name:row.connection_name+' purchase history'}))]};
+  }, [insights, hubInsights,purchaseHealth.data,purchaseHealth.isError]);
   const totalConnections = insights.length + hubInsights.length;
   const connectedPlatformIds = useMemo(
     () => new Set(insights.map((insight) => insight.connection.platform)),
@@ -108,6 +115,7 @@ export const ConnectionsSettings = () => {
   };
 
   const handleFix = useCallback((issue: OverviewIssue) => {
+    if(issue.id==='native-history-unavailable'){void purchaseHealth.refetch();return;}
     const card = cardRefs.current.get(issue.id);
     if (card) {
       const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -116,7 +124,7 @@ export const ConnectionsSettings = () => {
       return;
     }
     setHistoryConnectionId(issue.id);
-  }, []);
+  }, [purchaseHealth.refetch]);
 
   const handleConfirmDisconnect = () => {
     if (!disconnectInsight) return;
@@ -140,6 +148,10 @@ export const ConnectionsSettings = () => {
       ) : !loadFailed && totalConnections > 0 ? (
         <ConnectionsHealthOverview onFix={handleFix} overview={overview} />
       ) : null}
+
+      {purchaseHealth.data?.length?<SettingsSectionCard title="BloomSuite POS purchase history" description="Checks received sales, returns and voids for the selected business.">
+        {purchaseHealth.data.map(row=><div key={row.connection_id} tabIndex={-1} ref={node=>{if(node)cardRefs.current.set('native-history:'+row.connection_id,node);else cardRefs.current.delete('native-history:'+row.connection_id);}}><POSPurchaseHealth rows={[row]}/></div>)}
+      </SettingsSectionCard>:purchaseHealth.isError?<SettingsInlineError message="Native POS purchase history could not be checked. Current owner or marketing access is required." onRetry={()=>void purchaseHealth.refetch()}/>:null}
 
       <SettingsSectionCard
         description="The systems feeding customer, catalog and sales data into BloomSuite."

@@ -20,6 +20,9 @@ import {
   type CompanyProfileShape,
   type CustomerShape,
 } from "../_shared/emailRenderer.ts";
+import { normalizeContentBlocks } from "../_shared/campaignEmailSource.ts";
+import { checkConnectedContentFreshness, extractConnectedContentSources } from "../_shared/connectedContentFreshness.ts";
+import { emailCampaignReviewReason } from "../_shared/emailCampaignReviewGate.ts";
 import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
@@ -842,6 +845,11 @@ serve(async (req: Request) => {
         );
       }
     };
+
+    const reviewBlock = emailCampaignReviewReason(campaign);
+    if (reviewBlock) return new Response(JSON.stringify({error: reviewBlock, reason: "connected_content_review"}), {
+      status: 409, headers: {...corsHeaders, "Content-Type": "application/json"},
+    });
 
     const governanceConfig = await getEmailGovernanceRuntimeConfig(
       supabase,
@@ -2116,10 +2124,34 @@ serve(async (req: Request) => {
     activeDomainId = quotaCheck.domain?.id || null;
 
     const isHighVolume = recipientCount > highVolumeThreshold;
-    const campaignEmailSource = await resolveCampaignEmailSource(
-      supabase,
-      campaign,
-    );
+    let sourceLookupFailed = false;
+    const campaignEmailSource = await resolveCampaignEmailSource(supabase, campaign, true).catch(() => {
+      sourceLookupFailed = true;
+      return { html: "", contentBlocks: [], source: "campaign.content" as const, warning: "Campaign source lookup is temporarily unavailable" };
+    });
+    const connectedContentSources = extractConnectedContentSources({
+      contentBlocks: normalizeContentBlocks(campaignEmailSource.contentBlocks),
+    });
+    const contentCheck = sourceLookupFailed
+      ? { decision: "retry" as const, reason: "Campaign sources could not be checked. Delivery will retry before sending." }
+      : await checkConnectedContentFreshness(supabase as unknown as Parameters<typeof checkConnectedContentFreshness>[0], campaignTenantId, connectedContentSources);
+    if (contentCheck.decision !== "fresh") {
+      // Do not clear claims on another worker's in-flight provider request.
+      const { error: holdError } = await supabase.from("crm_campaigns").update({
+        status: contentCheck.decision === "retry" ? "scheduled" : "paused",
+        ...(contentCheck.decision === "retry" ? { scheduled_at: new Date(Date.now() + 300000).toISOString(), send_started_at: null } : {}),
+        send_blocked_reason: "connected_content_review",
+        send_error: contentCheck.reason, updated_at: new Date().toISOString(),
+      }).eq("id", campaignId).eq("tenant_id", campaignTenantId)
+        .in("status", ["sending", "queued", "partially_queued", "scheduled", "draft"]);
+      if (holdError) throw holdError;
+      return new Response(JSON.stringify(contentCheck.decision === "retry"
+        ? { deferred: true, reason: contentCheck.reason }
+        : { error: contentCheck.reason, contentDecision: contentCheck.decision }), {
+        status: contentCheck.decision === "retry" ? 200 : 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (campaignEmailSource.warning) {
       console.warn(`⚠️ ${campaignEmailSource.warning}`, {
         campaignId,
@@ -2455,6 +2487,7 @@ serve(async (req: Request) => {
           domain_id: activeDomainId,
           email: customer.email,
           payload: {},
+          connected_content_sources: connectedContentSources,
           status: "queued",
           resend_id: null,
           claimed_at: null,

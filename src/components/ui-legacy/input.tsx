@@ -33,16 +33,16 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
     const variantClasses = {
       default:
-        "border-slate-300 bg-white text-slate-800 hover:border-slate-400 focus:border-teal-400 focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400",
+        "border-slate-300 bg-white text-slate-800 hover:border-slate-400 focus:border-blue-500 focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400",
       success:
-        "border-green-400 bg-white text-slate-800 hover:border-green-500 focus:border-green-500 focus-visible:border-green-400 focus-visible:ring-0",
+        "border-blue-500 bg-white text-slate-800 hover:border-blue-700 focus:border-blue-700 focus-visible:border-blue-500 focus-visible:ring-0",
       error:
         "border-red-400 bg-red-50/30 text-slate-800 hover:border-red-400 focus:border-red-400 focus-visible:border-red-400 focus-visible:ring-0",
     };
 
     const getStatusIcon = () => {
       if (variant === "success")
-        return <Check className="w-4 h-4 text-green-600" />;
+        return <Check className="w-4 h-4 text-blue-800" />;
       if (variant === "error")
         return <AlertCircle className="w-4 h-4 text-red-600" />;
       return rightIcon;
@@ -94,7 +94,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               variant === "error"
                 ? "text-red-600"
                 : variant === "success"
-                  ? "text-green-600"
+                  ? "text-blue-800"
                   : "text-slate-500",
             )}
           >

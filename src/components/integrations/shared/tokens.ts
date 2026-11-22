@@ -22,10 +22,10 @@ export function getIntegrationToneClasses(
   switch (tone) {
     case "success":
       return {
-        badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        icon: "text-emerald-700",
-        iconWrap: "border-emerald-200 bg-emerald-50/80",
-        dot: "bg-emerald-500",
+        badge: "border-blue-200 bg-blue-50 text-blue-900",
+        icon: "text-blue-900",
+        iconWrap: "border-blue-200 bg-blue-50/80",
+        dot: "bg-blue-700",
         joyColor: "success",
         chipColor: "success",
         chipVariant: "soft",

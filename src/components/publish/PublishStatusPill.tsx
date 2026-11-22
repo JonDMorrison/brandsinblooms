@@ -47,7 +47,7 @@ export const PublishStatusPill = ({ status, platform, publishTime, error }: Publ
       case 'QUEUED':
         return 'border-yellow-400 bg-yellow-50';
       case 'PUBLISHED':
-        return 'border-green-400 bg-green-50';
+        return 'border-blue-500 bg-blue-50';
       case 'ERROR':
         return 'border-red-400 bg-red-50';
       default:
@@ -81,7 +81,7 @@ export const PublishStatusPill = ({ status, platform, publishTime, error }: Publ
       </div>
       
       {status === 'PUBLISHED' && (
-        <Badge variant="outline" className="text-green-700 bg-green-100 text-xs">
+        <Badge variant="outline" className="text-blue-900 bg-blue-100 text-xs">
           Posted ✓
         </Badge>
       )}

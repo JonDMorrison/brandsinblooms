@@ -76,7 +76,7 @@ function getSeasonalColor(icon: string): string {
   if (icon === 'sun' || (month >= 6 && month <= 8)) {
     return 'text-orange-500';
   } else if (icon === 'leaf' || (month >= 3 && month <= 5)) {
-    return 'text-green-500';
+    return 'text-blue-700';
   } else if (icon === 'droplets' || (month >= 9 && month <= 11)) {
     return 'text-amber-600';
   } else if (icon === 'snowflake' || (month >= 12 || month <= 2)) {

@@ -258,7 +258,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                 {template.kpi_data.avg_revenue_per_send > 0 && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">Avg Revenue: </span>
-                    <span className="font-medium text-green-600">
+                    <span className="font-medium text-blue-800">
                       ${template.kpi_data.avg_revenue_per_send.toFixed(2)}/send
                     </span>
                   </div>

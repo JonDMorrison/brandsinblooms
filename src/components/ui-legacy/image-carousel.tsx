@@ -221,7 +221,7 @@ export const ImageCarousel = ({
         </div>
         <div className="flex items-center gap-2">
           {usingPlaceholders && (
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+            <Badge variant="outline" className="bg-blue-50 text-blue-900 border-blue-300">
               <Info className="w-3 h-3 mr-1" />
               Garden Center
             </Badge>
@@ -255,8 +255,8 @@ export const ImageCarousel = ({
       </div>
 
       {usingPlaceholders && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <p className="text-sm text-green-800">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-sm text-blue-950">
             🌱 These are high-quality garden center themed images perfect for your content. Connect your Unsplash API key to access even more images from their vast library.
           </p>
         </div>

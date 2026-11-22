@@ -127,7 +127,7 @@ export const CRMStatsCards = () => {
         subtitle={topSegment.name ? formatSegmentName(topSegment.name) : 'No segments yet'}
         icon={<TrendingUp className="w-5 h-5" />}
         to="/crm/segments"
-        color="text-green-600"
+        color="text-blue-800"
         loading={segmentsLoading}
       />
 

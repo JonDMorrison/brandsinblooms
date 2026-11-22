@@ -19,12 +19,12 @@ export function CampaignConsentWarning({
 }: CampaignConsentWarningProps) {
   if (excludedCount === 0) {
     return (
-      <Alert className="border-green-500 bg-green-50 dark:bg-green-950/20">
-        <CheckCircle className="h-4 w-4 text-green-600" />
-        <AlertTitle className="text-green-800 dark:text-green-200">
+      <Alert className="border-blue-700 bg-blue-50 dark:bg-blue-950/20">
+        <CheckCircle className="h-4 w-4 text-blue-800" />
+        <AlertTitle className="text-blue-950 dark:text-blue-200">
           All recipients have marketing consent
         </AlertTitle>
-        <AlertDescription className="text-green-700 dark:text-green-300">
+        <AlertDescription className="text-blue-900 dark:text-blue-300">
           This campaign will be sent to {optedInCount} contact{optedInCount !== 1 ? 's' : ''} who 
           have explicitly opted into marketing emails.
         </AlertDescription>
@@ -50,7 +50,7 @@ export function CampaignConsentWarning({
           </p>
           <div className="flex items-center gap-4 pt-2">
             <div className="flex items-center gap-2">
-              <Badge variant="default" className="bg-green-500">
+              <Badge variant="default" className="bg-blue-700">
                 {optedInCount}
               </Badge>
               <span className="text-sm">Will receive</span>

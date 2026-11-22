@@ -98,7 +98,7 @@ export const useCustomerUnifiedTimeline = (
 export const getEventCategoryColor = (category: string): string => {
   const colors: Record<string, string> = {
     purchase:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+      "bg-blue-100 text-blue-900 dark:bg-blue-950/50 dark:text-blue-300",
     sms: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
     email:
       "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
@@ -123,7 +123,7 @@ export const getImpactStyle = (
 ): { color: string; icon: string } => {
   switch (impact) {
     case "positive":
-      return { color: "text-emerald-500", icon: "↑" };
+      return { color: "text-blue-700", icon: "↑" };
     case "negative":
       return { color: "text-red-500", icon: "↓" };
     default:

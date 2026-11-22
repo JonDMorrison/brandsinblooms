@@ -1235,7 +1235,7 @@ async function processLoyaltyAccountCreated(
       supabase,
       tenantId,
       customer.id,
-      ["loyalty_join"],
+      ["loyalty_join", "loyalty.signup"],
       { loyalty_account_id: loyaltyAccount.id, merchant_id: merchantId },
     );
   }

@@ -206,7 +206,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700">Featured Image</h4>
           {selectedImageUrl ? (
-            <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
+            <div className="relative group aspect-video rounded-lg border-2 border-blue-200 overflow-hidden bg-blue-50">
               <img
                 src={selectedImageUrl}
                 alt={selectedImageMetadata?.alt_text || "Featured image"}
@@ -306,7 +306,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 return (
                   <button
                     key={image.id || index}
-                    className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-700 transition-all duration-200 bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-blue-700"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();

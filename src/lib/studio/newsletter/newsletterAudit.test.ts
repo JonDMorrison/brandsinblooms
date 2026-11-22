@@ -5,7 +5,7 @@ import {
   renderNewsletterBlock,
 } from "../emailHtmlGenerator";
 import { buildStudioDesignSystem } from "../designSystem";
-import { normalizeContentBlocks } from "../../../../supabase/functions/_shared/campaignEmailSource";
+import { normalizeContentBlocks, resolveCampaignEmailSource } from "../../../../supabase/functions/_shared/campaignEmailSource";
 import {
   importRowsToBlocks,
   inferImportMapping,
@@ -266,5 +266,22 @@ describe("newsletter appearance compatibility", () => {
     expect(email(blocks, { audience: { segmentIds: [] } })).not.toContain(
       "https://example.com/vip",
     );
+  });
+});
+
+
+describe("dispatch source lookup", () => {
+  const client = (error: unknown) => ({ from: () => ({ select: () => ({ eq: () => ({
+    order: async () => ({ data: error ? null : [], error }),
+  }) }) }) });
+  it("does not turn a failed source query into an unlinked delivery", async () => {
+    await expect(resolveCampaignEmailSource(client({message:"offline"}),
+      {id:"campaign", content:"<p>Old cached copy</p>"}, true)).rejects.toThrow(/temporarily unavailable/);
+  });
+  it("still permits a confirmed empty block table to use stored HTML", async () => {
+    const result = await resolveCampaignEmailSource(client(null),
+      {id:"campaign", content:"<p>Reviewed ordinary copy</p>"}, true);
+    expect(result.html).toBe("<p>Reviewed ordinary copy</p>");
+    expect(result.contentBlocks).toEqual([]);
   });
 });

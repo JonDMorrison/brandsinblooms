@@ -25,8 +25,11 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { ConnectedSmsReview } from "@/components/sms/ConnectedSmsReview";
+import type { SmsCampaignDraft } from "@/lib/sms/campaignDraft";
 import { SmsCampaignActions } from "@/components/sms/SmsCampaignActions";
 import { SmsCampaignProgressCard } from "@/components/sms/SmsCampaignProgressCard";
+import { useTenant } from "@/hooks/useTenant";
 import { useSmsCampaignProgress } from "@/hooks/useSmsCampaignProgress";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -206,6 +209,7 @@ function BoxIcon({ children }: { children: React.ReactNode }) {
 
 export default function SMSCampaignDetail() {
   const { id } = useParams();
+  const { tenant, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = React.useState(1);
@@ -221,10 +225,10 @@ export default function SMSCampaignDetail() {
   }, []);
 
   const campaignQuery = useQuery({
-    queryKey: ["sms-campaign", id],
-    enabled: Boolean(id),
+    queryKey: ["sms-campaign", id, tenant?.id],
+    enabled: Boolean(!tenantLoading && id && tenant?.id),
     queryFn: async () => {
-      if (!id) {
+      if (!id || !tenant?.id) {
         return null;
       }
 
@@ -232,6 +236,7 @@ export default function SMSCampaignDetail() {
         .from("crm_sms_campaigns")
         .select("*")
         .eq("id", id)
+        .eq("tenant_id", tenant.id)
         .maybeSingle();
 
       if (error) {
@@ -243,11 +248,11 @@ export default function SMSCampaignDetail() {
   });
 
   const messagesQuery = useQuery({
-    queryKey: ["sms-campaign-messages", id, page],
-    enabled: Boolean(id),
+    queryKey: ["sms-campaign-messages", id, page, tenant?.id],
+    enabled: Boolean(!tenantLoading && id && tenant?.id && campaignQuery.data?.id === id && campaignQuery.data?.tenant_id === tenant.id),
     staleTime: 10_000,
     queryFn: async () => {
-      if (!id) {
+      if (!id || !tenant?.id || campaignQuery.data?.tenant_id !== tenant.id || campaignQuery.data?.id !== id) {
         return { items: [], count: 0 };
       }
 
@@ -298,7 +303,7 @@ export default function SMSCampaignDetail() {
     pollIntervalMs: 3000,
   });
 
-  const detailLoading = showMountSkeleton || campaignQuery.isLoading;
+  const detailLoading = tenantLoading || showMountSkeleton || campaignQuery.isLoading;
 
   React.useEffect(() => {
     if (detailLoading) {
@@ -392,6 +397,9 @@ export default function SMSCampaignDetail() {
     );
   }
 
+  const savedMetrics = campaign.metrics && typeof campaign.metrics === "object" && !Array.isArray(campaign.metrics) ? campaign.metrics : {};
+  const savedReview = savedMetrics.content_review;
+  const deliveryBlocked = Boolean(savedMetrics.replacement_campaign_id) || Boolean(savedReview && typeof savedReview === "object" && !Array.isArray(savedReview) && savedReview.decision === "review_required");
   const metrics = resolveSmsCampaignMetrics(
     campaign.metrics &&
       typeof campaign.metrics === "object" &&
@@ -430,6 +438,7 @@ export default function SMSCampaignDetail() {
       ? "scheduled"
       : "queued";
   const audienceDescriptor =
+    campaign.audience_confirmed === false ? "No audience selected" :
     campaign.targeting_persona_names &&
     campaign.targeting_persona_names.length > 0
       ? campaign.targeting_persona_names.join(", ")
@@ -531,12 +540,18 @@ export default function SMSCampaignDetail() {
                   >
                     Back to SMS
                   </Button>
+                  {campaign.source === "connected_content" && campaign.status === "draft" && !deliveryBlocked ? (
+                    <Button onClick={() => navigate(`/sms/new?draftId=${campaign.id}`)}>
+                      Edit text draft
+                    </Button>
+                  ) : null}
                   <SmsCampaignActions
                     campaignId={campaign.id}
                     campaignName={campaign.name}
                     status={campaign.status}
                     failedCount={failedCount}
                     resumeStatus={resumeStatus}
+                    deliveryBlocked={deliveryBlocked}
                     onRetryComplete={() => void invalidateDetail()}
                     onStatusChange={() => void invalidateDetail()}
                     onDeleteComplete={() => navigate("/sms")}
@@ -545,6 +560,8 @@ export default function SMSCampaignDetail() {
               </Stack>
             </Stack>
           </Card>
+
+          <ConnectedSmsReview key={`${campaign.id}:${campaign.updated_at}`} campaign={campaign as SmsCampaignDraft} />
 
           {showProgress ? (
             <SmsCampaignProgressCard

@@ -117,7 +117,7 @@ export function ConnectedContentPicker({
               <Globe2 size={28} color="var(--joy-palette-neutral-500)"/>
               <Typography level="title-md" sx={{mt:1}}>Connect your BloomSites website</Typography>
               <Typography level="body-sm" color="neutral" sx={{my:1}}>
-                An authorized site owner can generate a connection code in BloomSites. Open Integrations and choose Connect BloomSuite CRM.
+                An authorized site owner can generate a connection code in BloomSites. Open Integrations and choose Connect BloomSites and BloomSuite.
               </Typography>
               <JoyButton variant="outlined" color="neutral"
                 onClick={()=>{onClose();navigate("/crm/connected-content");}}>

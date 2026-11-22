@@ -32,6 +32,9 @@ import {
   type GardeningExperience,
 } from "@/lib/crm/customerPreferenceCenter";
 
+import {NativeRewardBalanceList} from "@/components/crm/customer-dashboard/NativeRewardBalanceList";
+import type {NativeRewardBalance} from "../../supabase/functions/_shared/nativeRewardBalances";
+
 type PageState =
   | "loading"
   | "invalid"
@@ -48,6 +51,8 @@ interface TokenData {
   purpose: string;
   preferences?: unknown;
   loyalty?: LoyaltyWalletEntry[];
+  nativeLoyalty?: NativeRewardBalance[];
+  nativeLoyaltyError?: string | null;
 }
 
 interface LoyaltyWalletEntry {
@@ -271,10 +276,10 @@ export default function EmailPreferences() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-              <PartyPopper className="h-6 w-6 text-green-600" />
+            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <PartyPopper className="h-6 w-6 text-blue-800" />
             </div>
-            <CardTitle className="text-green-700">You're Subscribed!</CardTitle>
+            <CardTitle className="text-blue-900">You're Subscribed!</CardTitle>
             <CardDescription>
               You're now subscribed to email updates from {companyInfo?.name}.
             </CardDescription>
@@ -389,6 +394,7 @@ export default function EmailPreferences() {
             </RadioGroup>
           </section>
 
+          <NativeRewardBalanceList balances={tokenData?.nativeLoyalty ?? []} error={tokenData?.nativeLoyaltyError} />
           {tokenData?.loyalty?.length ? (
             <section
               className="space-y-3 border-t pt-6"
@@ -409,7 +415,8 @@ export default function EmailPreferences() {
                     <div>
                       <p className="font-medium">{entry.programName}</p>
                       <p className="text-xs text-muted-foreground">
-                        Updated from your loyalty account
+                        {["legacy_metrics", "crm_import"].includes(entry.provider) ? "Imported historical balance" : `Reported by ${entry.provider}`}
+                        {entry.lastSyncedAt ? ` · ${new Date(entry.lastSyncedAt).toLocaleDateString()}` : ""}
                       </p>
                     </div>
                     <p className="text-lg font-semibold text-primary">
@@ -445,7 +452,7 @@ export default function EmailPreferences() {
                 />
                 <Label htmlFor="subscribe" className="cursor-pointer flex-1">
                   <div className="flex items-center gap-2 font-medium">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <CheckCircle className="h-4 w-4 text-blue-700" />
                     Yes, I want to receive updates
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">

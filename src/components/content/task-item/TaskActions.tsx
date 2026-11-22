@@ -105,7 +105,7 @@ export const TaskActions = ({
             size="sm"
             variant="ghost"
             onClick={handleSave}
-            className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+            className="h-8 px-2 text-blue-800 hover:text-blue-900 hover:bg-blue-50"
           >
             <Save className="w-3 h-3 mr-1" />
             Save

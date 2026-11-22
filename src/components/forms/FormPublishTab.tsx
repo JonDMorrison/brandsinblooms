@@ -657,6 +657,8 @@ export function FormPublishTab({
       }}
     >
       <Stack spacing={2}>
+
+
         <Stack direction="row" spacing={1.25} alignItems="flex-start">
           <Box
             sx={{
@@ -1108,6 +1110,11 @@ export function FormPublishTab({
 
   return (
     <Stack spacing={3}>
+      <Sheet variant="outlined" sx={{p:2,borderRadius:"lg"}}>
+        <Typography level="title-md">Send a welcome coupon after signup</Typography>
+        <Typography level="body-sm" sx={{my:1}}>Start an automation for this form, add your coupon to the welcome email, test it, then activate. Marketing emails require email consent.</Typography>
+        <Button component={RouterLink} to={`/crm/automations/new?form=${encodeURIComponent(form.id)}`} variant="outlined">Create welcome automation</Button>
+      </Sheet>
       {isPublished ? (
         <Sheet
           variant="soft"

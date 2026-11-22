@@ -86,7 +86,7 @@ export const EmailSendersTab: React.FC<EmailSendersTabProps> = ({ emailSenders }
     const variants = {
       pending: { variant: 'secondary' as const, icon: Clock, text: 'Pending', color: 'text-yellow-600' },
       verifying: { variant: 'outline' as const, icon: Clock, text: 'Verifying', color: 'text-blue-600' },
-      verified: { variant: 'default' as const, icon: CheckCircle2, text: 'Verified', color: 'text-green-600' },
+      verified: { variant: 'default' as const, icon: CheckCircle2, text: 'Verified', color: 'text-blue-800' },
       failed: { variant: 'destructive' as const, icon: AlertCircle, text: 'Failed', color: 'text-red-600' }
     };
 
@@ -198,19 +198,19 @@ export const EmailSendersTab: React.FC<EmailSendersTabProps> = ({ emailSenders }
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         {sender.dkim_host && (
                           <div className="space-y-1">
-                            <p className="font-medium text-green-700">DKIM</p>
+                            <p className="font-medium text-blue-900">DKIM</p>
                             <p className="text-muted-foreground">Configured</p>
                           </div>
                         )}
                         {sender.spf_value && (
                           <div className="space-y-1">
-                            <p className="font-medium text-green-700">SPF</p>
+                            <p className="font-medium text-blue-900">SPF</p>
                             <p className="text-muted-foreground">Configured</p>
                           </div>
                         )}
                         {sender.dmarc_value && (
                           <div className="space-y-1">
-                            <p className="font-medium text-green-700">DMARC</p>
+                            <p className="font-medium text-blue-900">DMARC</p>
                             <p className="text-muted-foreground">Configured</p>
                           </div>
                         )}

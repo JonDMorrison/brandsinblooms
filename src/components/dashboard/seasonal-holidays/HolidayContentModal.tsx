@@ -47,7 +47,7 @@ export const HolidayContentModal = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-green-600" />
+            <Calendar className="w-5 h-5 text-blue-800" />
             <span>{holiday.holiday_name}</span>
           </DialogTitle>
         </DialogHeader>

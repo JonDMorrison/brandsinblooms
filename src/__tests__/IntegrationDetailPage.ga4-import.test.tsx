@@ -617,7 +617,7 @@ function buildMarketingImportDetail(
             ? "Mailchimp authorization is active for previews and one-time or periodic imports."
             : "Stored authorization is ready for list previews and one-time imports",
       tone: "success",
-      valueClassName: "text-emerald-600",
+      valueClassName: "text-blue-800",
     },
     authorizationLabel:
       provider === "mailchimp"
@@ -712,7 +712,7 @@ function buildMarketingImportDetail(
               description:
                 "Mailchimp authorization is active for previews and one-time or periodic imports.",
               tone: "success",
-              valueClassName: "text-emerald-600",
+              valueClassName: "text-blue-800",
             },
             {
               label: "Mailchimp Account",
@@ -736,7 +736,7 @@ function buildMarketingImportDetail(
                   ? "Stored credential is ready for list previews and one-time imports"
                   : "Stored authorization is ready for list previews and one-time imports",
               tone: "success",
-              valueClassName: "text-emerald-600",
+              valueClassName: "text-blue-800",
             },
             {
               label: "Connected Since",

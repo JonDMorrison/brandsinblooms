@@ -58,6 +58,8 @@ import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
 import { useCustomerIntelligenceDetail } from "@/hooks/useCustomerIntelligenceDetail";
 import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
+import { useNativeRewardBalances } from "@/hooks/useLoyaltyMetrics";
+import {NativeRewardBalanceList} from "@/components/crm/customer-dashboard/NativeRewardBalanceList";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -267,6 +269,9 @@ const CustomerDashboardPage: React.FC = () => {
     errors,
     refetch,
   } = useCustomerDashboard(customerId, { timeRange });
+
+  const nativeBalances = useNativeRewardBalances(customer?.id === customerId ? customer.tenant_id : undefined,
+    customer?.id === customerId ? customerId : undefined, activeTab === "purchase");
 
   const deleteCustomer = useDeleteCustomer();
   const { personas: allPersonas } = useAllPersonas();
@@ -510,7 +515,7 @@ const CustomerDashboardPage: React.FC = () => {
 
   const fields=displayCustomer.custom_fields;
   const isIdealProfile=Boolean(fields&&typeof fields==='object'&&!Array.isArray(fields)&&'ideal_import_source' in fields);
-  const receiptMetricsUnavailable=isIdealProfile&&!purchaseMetrics;
+  const receiptMetricsUnavailable=!purchaseMetrics;
 
   const activityFilters = {
     start: rangeStartDate,
@@ -809,14 +814,16 @@ const CustomerDashboardPage: React.FC = () => {
                 onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
               />
               }
-              {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. Use the imported report-period spending above; missing receipt history is not zero spending.</Typography> : <PurchaseValueBehavior
+              {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. {isIdealProfile ? 'Use the imported report-period spending above; missing receipt history is not zero spending.' : 'Missing receipt history is not zero spending.'}</Typography> : <PurchaseValueBehavior
                 metrics={purchaseDisplayMetrics}
                 purchaseTimeline={purchaseTimeline}
                 errorMessage={chartErrors.purchaseTimeline}
                 onRetry={() => void handleRefresh()}
               />
               }
-              {!receiptMetricsUnavailable&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
+              <NativeRewardBalanceList balances={nativeBalances.data ?? []} loading={nativeBalances.isFetching}
+                error={nativeBalances.error?.message ?? null} onRefresh={() => void nativeBalances.refetch()} />
+              {(!isIdealProfile||!receiptMetricsUnavailable)&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
             </Stack>
           ) : null}
 

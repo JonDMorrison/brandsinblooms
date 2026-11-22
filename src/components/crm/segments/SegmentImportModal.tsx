@@ -258,7 +258,7 @@ export const SegmentImportModal: React.FC<SegmentImportModalProps> = ({
           {parsedSegments.length > 0 && !importing && (
             <div className="space-y-2">
               <h4 className="font-medium flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
+                <CheckCircle className="h-4 w-4 text-blue-700" />
                 Preview ({validCount} valid, {invalidCount} invalid)
               </h4>
               <div className="border rounded-lg max-h-48 overflow-y-auto">
@@ -271,7 +271,7 @@ export const SegmentImportModal: React.FC<SegmentImportModalProps> = ({
                   >
                     <div className="flex items-center gap-2">
                       {segment.isValid ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-blue-700" />
                       ) : (
                         <AlertCircle className="h-4 w-4 text-destructive" />
                       )}

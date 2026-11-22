@@ -60,7 +60,7 @@ export const ContentTypeCard = ({
 
   const getContentStatus = () => {
     if (isGenerating) return { status: 'generating', label: 'Generating...', color: 'bg-blue-100 text-blue-800' };
-    if (isApproved) return { status: 'approved', label: 'Approved', color: 'bg-green-100 text-green-800' };
+    if (isApproved) return { status: 'approved', label: 'Approved', color: 'bg-blue-100 text-blue-950' };
     if (hasContent) return { status: 'ready', label: 'Ready for Review', color: 'bg-orange-100 text-orange-800' };
     return { status: 'pending', label: 'Pending', color: 'bg-gray-100 text-gray-600' };
   };
@@ -121,7 +121,7 @@ export const ContentTypeCard = ({
                   <Button
                     onClick={() => onSaveEdit(contentType)}
                     size="sm"
-                    className="bg-green-600 hover:bg-green-700 transition-all duration-200"
+                    className="bg-blue-800 hover:bg-blue-900 transition-all duration-200"
                   >
                     <Save className="w-4 h-4 mr-2" />
                     Save Changes

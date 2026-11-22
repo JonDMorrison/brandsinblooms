@@ -142,8 +142,8 @@ export const SmartTimeRibbon = () => {
                     className={cn(
                       "min-h-[120px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
                       snapshot.isDraggingOver
-                        ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md"
-                        : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
+                        ? "border-[#30506E] bg-[#30506E]/10 shadow-md"
+                        : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#30506E]/5 hover:border-[#30506E]/50",
                     )}
                   >
                     <div className="text-center mb-3">
@@ -170,7 +170,7 @@ export const SmartTimeRibbon = () => {
 
                     {/* Drop zone indicator */}
                     {snapshot.isDraggingOver && (
-                      <div className="flex items-center justify-center h-8 text-sm text-[#68BEB9] font-medium mt-2">
+                      <div className="flex items-center justify-center h-8 text-sm text-[#30506E] font-medium mt-2">
                         Drop to schedule
                       </div>
                     )}
@@ -191,7 +191,7 @@ export const SmartTimeRibbon = () => {
           })}
         </div>
 
-        <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
+        <div className="mt-4 p-3 bg-[#30506E]/5 rounded-lg border border-[#30506E]/20">
           <p className="text-sm text-[#3E5A6B]">
             <span className="font-medium">Tip:</span> Drag drafts from the tray
             to schedule them for specific days.

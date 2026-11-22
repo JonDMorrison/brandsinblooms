@@ -55,3 +55,36 @@ describe("automation atomic enrollment release gate", () => {
     );
   });
 });
+
+const loyaltyMigration = readFileSync(
+  "supabase/migrations/20261122052828_loyalty_enrollment_delivery.sql", "utf8",
+);
+
+describe("loyalty enrollment delivery contract", () => {
+  it("binds a claimed loyalty event to one durable run", () => {
+    expect(loyaltyMigration).toContain("event_id uuid PRIMARY KEY");
+    expect(loyaltyMigration).toContain("run_id uuid NOT NULL UNIQUE");
+    expect(loyaltyMigration).toContain("e.claimed_by IS DISTINCT FROM p_worker_id");
+    expect(loyaltyMigration).toContain("'decision','resumed'");
+    expect(loyaltyMigration).toContain("message_status='skipped'");
+    expect(loyaltyMigration).toContain("'step_status',message_status");
+    expect(loyaltyMigration).toContain("'step_index',r.current_step_index");
+  });
+  it("creates messages only through a scoped service-only allowlist", () => {
+    expect(loyaltyMigration).toContain("p_step_index<>r.current_step_index");
+    expect(loyaltyMigration).toContain("public.advance_loyalty_automation_step");
+    expect(loyaltyMigration).toContain("o.status='skipped'");
+    expect(loyaltyMigration).toContain("jsonb_object_keys(p_message)");
+    expect(loyaltyMigration).toContain("r.tenant_id<>e.tenant_id");
+    expect(loyaltyMigration).toContain("FROM PUBLIC,anon,authenticated,service_role");
+    expect(loyaltyMigration).toContain("'outbox_id',message_id,'existing',true");
+  });
+  it("does not backfill or infer enrollment from provider snapshots", () => {
+    expect(loyaltyMigration).toContain("AFTER INSERT ON public.perks_enrollment_events");
+    expect(loyaltyMigration).not.toContain("AFTER INSERT ON public.crm_customers");
+    expect(loyaltyMigration).not.toContain("AFTER INSERT ON public.loyalty_provider_accounts");
+    expect(loyaltyMigration).not.toContain("UPDATE public.crm_automations");
+    expect(loyaltyMigration).not.toContain("email_opt_in");
+    expect(loyaltyMigration).not.toContain("sms_opt_in");
+  });
+});

@@ -24,7 +24,7 @@ const badgeVariants = cva(
         review:
           "border-transparent bg-violet-100 text-violet-800 hover:bg-violet-200 hover:shadow-sm hover:scale-105",
         approved:
-          "border-transparent bg-emerald-100 text-emerald-800 hover:bg-emerald-200 hover:shadow-sm hover:scale-105",
+          "border-transparent bg-blue-100 text-blue-950 hover:bg-blue-200 hover:shadow-sm hover:scale-105",
         scheduled:
           "border-transparent bg-amber-100 text-amber-800 hover:bg-amber-200 hover:shadow-sm hover:scale-105",
         posted:
@@ -48,12 +48,12 @@ const badgeVariants = cva(
         warning:
           "border-transparent bg-orange-100 text-orange-800 hover:bg-orange-200 hover:shadow-sm hover:scale-105",
         success:
-          "border-transparent bg-green-100 text-green-800 hover:bg-green-200 hover:shadow-sm hover:scale-105",
+          "border-transparent bg-blue-100 text-blue-950 hover:bg-blue-200 hover:shadow-sm hover:scale-105",
         info: "border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200 hover:shadow-sm hover:scale-105",
 
         // Governance risk variants (4-tier) - names intentionally avoid 'yellow'/'orange'
         govHealthy:
-          "border-transparent bg-green-100 text-green-800 hover:bg-green-200 hover:shadow-sm hover:scale-105",
+          "border-transparent bg-blue-100 text-blue-950 hover:bg-blue-200 hover:shadow-sm hover:scale-105",
         govElevated:
           "border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200 hover:shadow-sm hover:scale-105",
         govHigh:

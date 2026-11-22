@@ -481,7 +481,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                     <h4 className="text-sm font-medium text-gray-700 mb-2">
                       Current Image
                     </h4>
-                    <div className="aspect-video rounded-lg border-2 border-green-200 overflow-hidden">
+                    <div className="aspect-video rounded-lg border-2 border-blue-200 overflow-hidden">
                       <img
                         src={selectedImageUrl}
                         alt="Current selection"

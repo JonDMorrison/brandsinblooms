@@ -31,24 +31,24 @@ export const WeeklyThemeCard: React.FC<WeeklyThemeCardProps> = ({ onUseTheme }) 
     : "";
 
   return (
-    <div className="relative flex items-start gap-3 rounded-lg border border-green-200 bg-green-50/60 px-4 py-3 mb-4">
+    <div className="relative flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50/60 px-4 py-3 mb-4">
       <span className="text-lg leading-none mt-0.5">🌱</span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-green-900">
+        <p className="text-sm font-semibold text-blue-950">
           Week {weekNum} theme: {template.title}
         </p>
-        <p className="text-xs text-green-800 mt-0.5">
+        <p className="text-xs text-blue-950 mt-0.5">
           Seasonal focus: {template.seasonal_focus}
         </p>
         {firstIdea && (
-          <p className="text-xs text-green-700 mt-0.5 italic">
+          <p className="text-xs text-blue-900 mt-0.5 italic">
             Content idea: {firstIdea}
           </p>
         )}
         <button
           type="button"
           onClick={() => onUseTheme(template.title, template.seasonal_focus)}
-          className="mt-2 inline-flex items-center rounded-md bg-green-700 px-3 py-1 text-xs font-medium text-white hover:bg-green-800 transition-colors"
+          className="mt-2 inline-flex items-center rounded-md bg-blue-900 px-3 py-1 text-xs font-medium text-white hover:bg-blue-950 transition-colors"
         >
           Use this theme
         </button>
@@ -56,7 +56,7 @@ export const WeeklyThemeCard: React.FC<WeeklyThemeCardProps> = ({ onUseTheme }) 
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        className="flex-shrink-0 rounded p-0.5 text-green-600 hover:text-green-800 transition-colors"
+        className="flex-shrink-0 rounded p-0.5 text-blue-800 hover:text-blue-950 transition-colors"
         aria-label="Dismiss"
       >
         <X className="h-3.5 w-3.5" />

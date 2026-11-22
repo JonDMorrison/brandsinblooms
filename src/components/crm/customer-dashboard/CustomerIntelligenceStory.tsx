@@ -18,8 +18,9 @@ export function CustomerIntelligenceStory({intelligence,onAskBloom}:{intelligenc
  const department=top(intelligence.department_spend);
  const isDeclining=velocity<=-20;
  const tier=String(intelligence.customer_tier??"customer");
+ const lifetimeValue=intelligence.lifetime_value;
  const story=[
-  tier==="vip"||tier==="loyal"?`A ${tier} customer with ${cad(Number(intelligence.lifetime_value??0))} in recorded lifetime value.`:`${cad(Number(intelligence.lifetime_value??0))} in recorded lifetime value across their purchase history.`,
+  lifetimeValue == null ? "Recorded lifetime value is not available." : tier==="vip"||tier==="loyal"?`A ${tier} customer with ${cad(Number(lifetimeValue))} in recorded lifetime value.`:`${cad(Number(lifetimeValue))} in recorded lifetime value across their purchase history.`,
   category[0]?`Their strongest category is ${category[0][0]} (${cad(Number(category[0][1]))}).`:"",
   department[0]?`They spend most heavily in ${department[0][0]}.`:"",
   isDeclining?`Recent purchase momentum is down ${Math.abs(Math.round(velocity))}% versus the prior 90-day window.`:velocity>20?`Recent purchase momentum is up ${Math.round(velocity)}% versus the prior 90-day window.`:"",
@@ -35,7 +36,7 @@ export function CustomerIntelligenceStory({intelligence,onAskBloom}:{intelligenc
     </Stack>
    </Sheet>
    <Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",md:"repeat(3,1fr)"},gap:1.25}}>
-    <Sheet variant="soft" color="neutral" sx={{borderRadius:"xl",p:2}}><Typography level="body-xs" color="neutral">Purchase frequency</Typography><Typography level="title-lg">{Number(intelligence.purchase_frequency??0).toFixed(1)} / month</Typography></Sheet>
+    <Sheet variant="soft" color="neutral" sx={{borderRadius:"xl",p:2}}><Typography level="body-xs" color="neutral">Purchase frequency</Typography><Typography level="title-lg">{intelligence.purchase_frequency == null ? "Not available" : `${Number(intelligence.purchase_frequency).toFixed(1)} / month`}</Typography></Sheet>
     <Sheet variant="soft" color="neutral" sx={{borderRadius:"xl",p:2}}><Typography level="body-xs" color="neutral">Departments shopped</Typography><Typography level="title-lg">{intelligence.departments_shopped??0}</Typography></Sheet>
     <Sheet variant="soft" color="neutral" sx={{borderRadius:"xl",p:2}}><Typography level="body-xs" color="neutral">Quantity purchased</Typography><Typography level="title-lg">{Math.round(Number(intelligence.total_quantity??0))}</Typography></Sheet>
    </Box>

@@ -245,7 +245,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   const getStepIcon = (status: Step["status"]) => {
     switch (status) {
       case "completed":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-blue-700" />;
       case "in-progress":
         return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />;
       case "error":
@@ -290,7 +290,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
                 step.status === "in-progress"
                   ? "bg-blue-50 border-blue-200"
                   : step.status === "completed"
-                    ? "bg-green-50 border-green-200"
+                    ? "bg-blue-50 border-blue-200"
                     : step.status === "error"
                       ? "bg-red-50 border-red-200"
                       : "bg-gray-50 border-gray-200"

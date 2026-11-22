@@ -44,7 +44,7 @@ export const CurrentPlanCard = ({
           <div className="flex gap-3 pt-4">
             <Button 
               onClick={onUpgradePlan}
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+              className="bg-gradient-to-r from-blue-800 to-blue-900 hover:from-blue-900 hover:to-blue-950"
             >
               <Zap className="w-4 h-4 mr-2" />
               Upgrade

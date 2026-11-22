@@ -42,15 +42,15 @@ export const EmailDomainGuide: React.FC = () => {
         </AccordionTrigger>
         <AccordionContent className="pt-2 pb-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-950">
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+                  <CheckCircle2 className="h-5 w-5 text-blue-800 mt-0.5" />
                   <div>
-                    <p className="font-medium text-green-900 dark:text-green-100">
+                    <p className="font-medium text-blue-950 dark:text-blue-100">
                       Better Inbox Placement
                     </p>
-                    <p className="text-sm text-green-700 dark:text-green-300">
+                    <p className="text-sm text-blue-900 dark:text-blue-300">
                       Emails from authenticated domains are more likely to reach
                       the inbox instead of spam.
                     </p>
@@ -189,8 +189,8 @@ export const EmailDomainGuide: React.FC = () => {
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded bg-green-100 dark:bg-green-900">
-                    <span className="text-xs font-bold text-green-700 dark:text-green-300">
+                  <div className="p-1.5 rounded bg-blue-100 dark:bg-blue-950">
+                    <span className="text-xs font-bold text-blue-900 dark:text-blue-300">
                       DKIM
                     </span>
                   </div>
@@ -349,7 +349,7 @@ export const EmailDomainGuide: React.FC = () => {
         <AccordionContent className="pt-2 pb-4">
           <div className="space-y-3">
             <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+              <CheckCircle2 className="h-5 w-5 text-blue-700 mt-0.5" />
               <div>
                 <p className="font-medium">Only Email Opted-in Contacts</p>
                 <p className="text-sm text-muted-foreground">
@@ -360,7 +360,7 @@ export const EmailDomainGuide: React.FC = () => {
             </div>
 
             <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+              <CheckCircle2 className="h-5 w-5 text-blue-700 mt-0.5" />
               <div>
                 <p className="font-medium">Honor Unsubscribes Immediately</p>
                 <p className="text-sm text-muted-foreground">
@@ -371,7 +371,7 @@ export const EmailDomainGuide: React.FC = () => {
             </div>
 
             <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+              <CheckCircle2 className="h-5 w-5 text-blue-700 mt-0.5" />
               <div>
                 <p className="font-medium">Remove Bounced Emails</p>
                 <p className="text-sm text-muted-foreground">
@@ -382,7 +382,7 @@ export const EmailDomainGuide: React.FC = () => {
             </div>
 
             <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+              <CheckCircle2 className="h-5 w-5 text-blue-700 mt-0.5" />
               <div>
                 <p className="font-medium">Monitor Your Metrics</p>
                 <p className="text-sm text-muted-foreground">
@@ -508,11 +508,11 @@ export const EmailDomainGuide: React.FC = () => {
               </div>
 
               <div className="relative">
-                <div className="absolute -left-5 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                <div className="absolute -left-5 w-4 h-4 rounded-full bg-blue-700 flex items-center justify-center">
                   <CheckCircle2 className="h-3 w-3 text-white" />
                 </div>
                 <div>
-                  <p className="font-medium text-green-600 dark:text-green-400">
+                  <p className="font-medium text-blue-800 dark:text-blue-500">
                     Ready to Send!
                   </p>
                   <p className="text-sm text-muted-foreground">

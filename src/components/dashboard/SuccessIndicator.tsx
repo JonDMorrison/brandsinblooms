@@ -26,7 +26,7 @@ export const SuccessIndicator = ({
       <div className={`
         flex items-center justify-center w-8 h-8 rounded-full font-medium text-sm
         ${isComplete 
-          ? 'bg-green-100 text-green-800 border-2 border-green-200' 
+          ? 'bg-blue-100 text-blue-950 border-2 border-blue-200' 
           : isActive 
             ? 'bg-blue-100 text-blue-800 border-2 border-blue-200' 
             : 'bg-gray-100 text-gray-600 border-2 border-gray-200'
@@ -43,13 +43,13 @@ export const SuccessIndicator = ({
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <CaptionMedium className={`font-medium ${
-            isActive ? 'text-blue-800' : isComplete ? 'text-green-800' : 'text-gray-600'
+            isActive ? 'text-blue-800' : isComplete ? 'text-blue-950' : 'text-gray-600'
           }`}>
             {title}
           </CaptionMedium>
           
           {isComplete && (
-            <Badge className="bg-green-100 text-green-800 text-xs">
+            <Badge className="bg-blue-100 text-blue-950 text-xs">
               ✅ Complete
             </Badge>
           )}
@@ -68,7 +68,7 @@ export const SuccessIndicator = ({
             <div className="flex-1 bg-gray-200 rounded-full h-2">
               <div 
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  isComplete ? 'bg-green-500' : 'bg-blue-500'
+                  isComplete ? 'bg-blue-700' : 'bg-blue-500'
                 }`}
                 style={{ width: `${(completedItems / totalItems) * 100}%` }}
               />

@@ -95,7 +95,7 @@ const CopyBlock = ({
               sx={{ width: 32, height: 32 }}
             >
               {copied ? (
-                <Check className="w-4 h-4 text-green-600" />
+                <Check className="w-4 h-4 text-blue-800" />
               ) : (
                 <Copy className="w-4 h-4" />
               )}
@@ -141,7 +141,7 @@ const StatusPanel = () => {
         <Stack spacing={2}>
           <Stack direction="row" spacing={1.5} alignItems="center">
             {isAutoReplyValid ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-blue-800" />
             ) : (
               <XCircle className="w-5 h-5 text-red-600" />
             )}
@@ -163,7 +163,7 @@ const StatusPanel = () => {
                 alignItems="center"
                 sx={{ pl: 2 }}
               >
-                <CheckCircle className="w-4 h-4 text-green-600" />
+                <CheckCircle className="w-4 h-4 text-blue-800" />
                 <Typography
                   level="body-sm"
                   color="neutral"

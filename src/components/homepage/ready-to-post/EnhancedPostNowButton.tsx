@@ -61,7 +61,7 @@ export const EnhancedPostNowButton: React.FC<EnhancedPostNowButtonProps> = ({
         size="sm" 
         variant="outline"
         onClick={() => window.open(task.platform_post_url, '_blank')}
-        className="text-green-600 border-green-200 hover:bg-green-50"
+        className="text-blue-800 border-blue-200 hover:bg-blue-50"
       >
         <ExternalLink className="w-4 h-4 mr-2" />
         View on {platformName}

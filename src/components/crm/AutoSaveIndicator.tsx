@@ -10,7 +10,7 @@ interface AutoSaveIndicatorProps {
 export const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({ status, onRetry }) => {
   if (status === 'saved') {
     return (
-      <div className="flex items-center gap-2 text-green-600 text-sm">
+      <div className="flex items-center gap-2 text-blue-800 text-sm">
         <Check className="h-4 w-4" />
         <span>All changes saved</span>
       </div>

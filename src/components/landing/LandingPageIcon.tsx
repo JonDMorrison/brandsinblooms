@@ -31,7 +31,7 @@ const variantStyles = {
 };
 
 const themeStyles = {
-  spring: "bg-gradient-to-br from-green-100 via-emerald-50 to-lime-100 border-green-200 text-green-700 shadow-green-200/50",
+  spring: "bg-gradient-to-br from-blue-100 via-blue-50 to-lime-100 border-blue-200 text-blue-900 shadow-blue-200/50",
   summer: "bg-gradient-to-br from-yellow-100 via-amber-50 to-orange-100 border-orange-200 text-orange-700 shadow-orange-200/50",
   autumn: "bg-gradient-to-br from-amber-100 via-orange-50 to-red-100 border-amber-200 text-amber-700 shadow-amber-200/50",
   winter: "bg-gradient-to-br from-blue-100 via-slate-50 to-cyan-100 border-blue-200 text-blue-700 shadow-blue-200/50",

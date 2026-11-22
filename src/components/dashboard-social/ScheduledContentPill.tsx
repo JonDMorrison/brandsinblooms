@@ -32,7 +32,7 @@ const getPlatformColor = (platform: string) => {
     case 'twitter':
       return 'bg-[#1DA1F2] text-white';
     default:
-      return 'bg-[#68BEB9] text-white';
+      return 'bg-[#30506E] text-white';
   }
 };
 
@@ -117,8 +117,8 @@ export const ScheduledContentPill = ({
       </div>
 
       {scheduledPost.status === 'PUBLISHING' && (
-        <div className="absolute inset-0 bg-[#68BEB9]/10 rounded-lg flex items-center justify-center">
-          <div className="text-xs text-[#68BEB9] font-medium">Publishing...</div>
+        <div className="absolute inset-0 bg-[#30506E]/10 rounded-lg flex items-center justify-center">
+          <div className="text-xs text-[#30506E] font-medium">Publishing...</div>
         </div>
       )}
 

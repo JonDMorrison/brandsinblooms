@@ -227,6 +227,7 @@ export function renderContentBlocksToEmailHtml(
 async function loadCampaignBlockRows(
   client: unknown,
   campaignId: string | null | undefined,
+  requireSuccessfulLookup = false,
 ): Promise<RenderableContentBlock[]> {
   if (!campaignId) {
     return [];
@@ -243,6 +244,7 @@ async function loadCampaignBlockRows(
     ?.order?.("order_index", { ascending: true });
 
   if (!result || result.error || !Array.isArray(result.data)) {
+    if (requireSuccessfulLookup) throw new Error("Campaign source lookup is temporarily unavailable");
     return [];
   }
 
@@ -261,10 +263,11 @@ export async function resolveCampaignEmailSource(
     preheader_text?: string | null;
     preheader?: string | null;
   },
+  requireSuccessfulLookup = false,
 ): Promise<CampaignEmailSource> {
   const previewText = campaign.preheader_text || campaign.preheader || "";
 
-  const databaseBlocks = await loadCampaignBlockRows(client, campaign.id);
+  const databaseBlocks = await loadCampaignBlockRows(client, campaign.id, requireSuccessfulLookup);
   if (databaseBlocks.length > 0) {
     return {
       html: renderContentBlocksToEmailHtml(databaseBlocks, {

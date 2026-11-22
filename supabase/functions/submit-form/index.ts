@@ -1,3 +1,4 @@
+import { verifyGrowthBridge, verifiedGrowthVisitor, sanitizeGrowthAttribution } from "../_shared/growthBridge.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   sanitizeFormSubmissionData,
@@ -174,6 +175,7 @@ interface SubmissionMeta {
   site_id?: string;
   source?: string;
   placement?: string;
+  bridge_visitor_key?: string;
 }
 
 interface SubmissionPayload {
@@ -526,7 +528,7 @@ function validateRequiredFields(
       value !== ""
     ) {
       const phone = String(value).replace(/\D/g, "");
-      if (phone.length < 10) {
+      if (!/^[\d\s+().-]+$/.test(String(value)) || phone.length < 10 || phone.length > 15) {
         errors.push(`${field.label} must be a valid phone number`);
       }
     }
@@ -579,6 +581,30 @@ function validateRequiredFields(
   }
 
   return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Where a signup came from, as one stable slug (QA-16).
+ *
+ * A BloomSites storefront capture sends `meta.source = "bloomsites"` and a
+ * `meta.placement` of footer, popup, checkout or event; it becomes
+ * `bloomsites_<placement>`. Anything else is a plain `form` signup. The slug
+ * is written to crm_customers.signup_source (new contacts only), to the
+ * channel consent source, and to the consent history event.
+ */
+const SIGNUP_PLACEMENTS = new Set(["footer", "popup", "checkout", "event"]);
+
+function resolveFormSignupSource(meta: {
+  source?: unknown;
+  placement?: unknown;
+} | null | undefined): string {
+  const source = typeof meta?.source === "string" ? meta.source.trim().toLowerCase() : "";
+  const placement =
+    typeof meta?.placement === "string" ? meta.placement.trim().toLowerCase() : "";
+  if (source === "bloomsites") {
+    return SIGNUP_PLACEMENTS.has(placement) ? `bloomsites_${placement}` : "bloomsites";
+  }
+  return "form";
 }
 
 /**
@@ -983,9 +1009,14 @@ Deno.serve(async (req) => {
 
   try {
     // Parse request body
-    const payload: SubmissionPayload = await req.json();
+    const raw = await req.text();
+    const bridge = await verifyGrowthBridge(req, raw, "submit-form",
+      Deno.env.get("BLOOMSITES_GROWTH_BRIDGE_SECRET"));
+    if (bridge === "invalid") return jsonResponse({ error: "Invalid signup bridge authentication" }, 401);
+    const payload: SubmissionPayload = JSON.parse(raw);
     const normalizedPayload = normalizeSubmissionPayload(payload);
-    const { embedKey, data, meta, usedLegacyPayload } = normalizedPayload;
+    const { embedKey, data, usedLegacyPayload } = normalizedPayload;
+    const meta = sanitizeGrowthAttribution(normalizedPayload.meta, bridge === "valid");
     const rawSubmissionData = data;
     submissionData = rawSubmissionData;
     submissionMeta = {
@@ -1093,8 +1124,12 @@ Deno.serve(async (req) => {
     }
 
     // Get client IP and hash it
-    const clientIP = getClientIP(req);
-    ipHash = await hashIP(clientIP);
+    // Server-forwarded visitors must not share the Vercel egress IP bucket.
+    // Only a valid, purpose-bound MAC may supply the opaque visitor identity.
+    // Unsigned public embeds keep their existing ingress-IP limiter.
+    const visitor = bridge === "valid" ? verifiedGrowthVisitor(meta) : null;
+    if (bridge === "valid" && !visitor) return jsonResponse({ error: "Invalid signup bridge visitor" }, 400);
+    ipHash = await hashIP(visitor ? `bloomsites:${visitor}` : getClientIP(req));
 
     // ─── Step 2: DB-backed rate limiting ───────────────────────────────────
     const rateLimitResult = await checkRateLimit(
@@ -1252,6 +1287,7 @@ Deno.serve(async (req) => {
     // ─── Step 6b: Build comprehensive metadata for audit trail ─────────────────
     // CASL/TCPA Compliance: ALWAYS store consent state, text, and timestamp
     // regardless of whether consent was granted or not
+    const signupSource = resolveFormSignupSource(meta);
     const fullMetadata: Record<string, unknown> = {
       // Page & tracking context (ALWAYS captured)
       page_url: meta?.page_url || null,
@@ -1262,6 +1298,7 @@ Deno.serve(async (req) => {
       user_agent: meta?.user_agent || req.headers.get("user-agent") || null,
       event_id: eventId,
       payload_hash: payloadHash,
+      bridge_authenticated: bridge === "valid",
       site_id:
         typeof meta?.site_id === "string" && UUID_RE.test(meta.site_id)
           ? meta.site_id.toLowerCase()
@@ -1277,7 +1314,7 @@ Deno.serve(async (req) => {
       form_embed_key: embedKey,
 
       form_id: formId,
-      consent_source: "form",
+      consent_source: signupSource,
 
       // Email consent (ALWAYS store - even if false)
       email_consent: emailConsent,
@@ -1302,7 +1339,7 @@ Deno.serve(async (req) => {
     const { data: existingCustomer } = await supabase
       .from("crm_customers")
       .select(
-        "id, suppressed, opt_out, deleted_at, merged_into_customer_id, email_opt_in, sms_opt_in, email_opt_out_at, sms_opt_out_at",
+        "id, suppressed, opt_out, deleted_at, merged_into_customer_id, email_opt_in, sms_opt_in, email_opt_out_at, sms_opt_out_at, signup_source, custom_fields",
       )
       .eq("tenant_id", tenantId)
       .eq("email", email)
@@ -1321,6 +1358,28 @@ Deno.serve(async (req) => {
     if (firstName) customerData.first_name = firstName;
     if (lastName) customerData.last_name = lastName;
     if (phone) customerData.phone = phone;
+    for (const key of ["city", "state_region", "postal_code", "country_code"]) {
+      const value = mappedValues[key]?.trim();
+      if (value) customerData[key] = value;
+    }
+    const customValues: Record<string, string> = {};
+    const contactKeys = new Set(["email","first_name","last_name","phone","city","state_region","postal_code","country_code"]);
+    for (const field of activeFields) {
+      if (!["text","select","hidden","checkbox"].includes(field.type)) continue;
+      const key = field.mapping_key;
+      const value = mappedValues[key]?.trim();
+      if (key && key !== "custom" && !contactKeys.has(key) && !["__proto__","constructor","prototype"].includes(key) && value) customValues[key === "company" || key === "organization" ? "company_name" : key] = value;
+    }
+    if (Object.keys(customValues).length) customerData.custom_fields = {
+      ...(existingCustomer?.custom_fields && typeof existingCustomer.custom_fields === "object" ? existingCustomer.custom_fields : {}),
+      ...customValues,
+    };
+
+    // First touch wins: a contact's signup source is set once, when this
+    // submission creates them (or fills an empty value), never overwritten.
+    if (!existingCustomer || !existingCustomer.signup_source) {
+      customerData.signup_source = signupSource;
+    }
 
     // ─── CRITICAL: CASL/TCPA Compliant Opt-In Logic ───────────────────────────
     //
@@ -1363,6 +1422,9 @@ Deno.serve(async (req) => {
     const customerId = customer.id;
 
     const consentDetailsBase = {
+      source: meta?.source || null,
+      placement: meta?.placement || null,
+      site_id: fullMetadata.site_id,
       page_url: meta?.page_url || null,
       referrer: meta?.referrer || null,
       form_id: formId,
@@ -1379,7 +1441,7 @@ Deno.serve(async (req) => {
         p_customer_id: customerId,
         p_channel: "email",
         p_consent_at: now,
-        p_source: "form",
+        p_source: signupSource,
         p_details: {
           ...consentDetailsBase,
           consent_text: compliance.email_consent_text,
@@ -1396,7 +1458,7 @@ Deno.serve(async (req) => {
         p_customer_id: customerId,
         p_channel: "sms",
         p_consent_at: now,
-        p_source: "form",
+        p_source: signupSource,
         p_details: {
           ...consentDetailsBase,
           phone,

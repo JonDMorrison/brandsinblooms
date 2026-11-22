@@ -19,13 +19,15 @@ import {
   convertLegacyTags,
   createMergeTagDataFromCustomer,
 } from "../_shared/mergeTagEngine.ts";
-import { countSmsSegments } from "../_shared/smsSegmentCounter.ts";
+import { countSmsSegments, keepSmsEncoding } from "../_shared/smsSegmentCounter.ts";
 import {
   getSmsWarmupInfoByPhoneOrMessagingService,
   ensureSmsWarmupRowForMessagingServiceIfNeeded,
 } from "../_shared/smsWarmup.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { resolveSmsEnqueueOutcome } from "../_shared/smsCampaignOutcome.ts";
+
+import { checkSmsCampaignContent } from "../_shared/smsCampaignContentGate.ts";
 
 // Configuration constants
 const ENQUEUE_PAGE_SIZE = Number(
@@ -169,6 +171,16 @@ Deno.serve(async (req) => {
     if (campaignError || !campaign) {
       console.error("[sms-enqueue-worker] Campaign not found:", campaignError);
       return corsJsonResponse({ error: "Campaign not found" }, { status: 404 });
+    }
+
+    // A due schedule is checked before any recipient rows or provider jobs exist.
+    if (!["queued", "sending"].includes(campaign.status)) {
+      return corsJsonResponse({error: "Campaign is not approved for enqueueing"}, {status: 409});
+    }
+    const contentReview = await checkSmsCampaignContent(supabase, campaign);
+    if (contentReview.decision !== "fresh") {
+      return corsJsonResponse({error: contentReview.reason, contentReview: contentReview.decision},
+        {status: contentReview.decision === "retry" ? 503 : 409});
     }
 
     // Step 2: Check if already enqueued
@@ -499,7 +511,7 @@ Deno.serve(async (req) => {
           customer,
           companyInfo,
         );
-        const renderedContent = renderMergeTags(messageTemplate, mergeTagData);
+        const renderedContent = keepSmsEncoding(messageTemplate, renderMergeTags(messageTemplate, mergeTagData));
         const formattedPhone = formatPhoneForTwilio(customer.phone);
 
         if (customer.is_vip) pageHasVip = true;

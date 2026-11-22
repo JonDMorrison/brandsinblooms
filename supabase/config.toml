@@ -634,3 +634,13 @@ verify_jwt = true
 
 [functions.send-support-emails]
 verify_jwt = false
+
+# Authenticated by purpose-bound BloomSites HMAC inside the handler.
+[functions.growth-signup-stats]
+verify_jwt = false
+
+[functions.pos-membership-review]
+verify_jwt = true
+
+[functions.native-reward-balances]
+verify_jwt = true

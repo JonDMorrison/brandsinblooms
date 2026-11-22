@@ -86,7 +86,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
               variant={st.variant}
               className={cn(
                 "flex-shrink-0 gap-1",
-                connection.status === "connected" && "bg-green-100 text-green-800 border-green-200",
+                connection.status === "connected" && "bg-blue-100 text-blue-950 border-blue-200",
                 connection.status === "syncing" && "bg-amber-100 text-amber-800 border-amber-200",
               )}
             >

@@ -79,7 +79,7 @@ export class AISchedulingAPI {
   static getConfidenceColor(confidence: number): string {
     const level = this.getConfidenceLevel(confidence);
     switch (level) {
-      case 'high': return 'text-green-600';
+      case 'high': return 'text-blue-800';
       case 'medium': return 'text-yellow-600';
       case 'low': return 'text-red-600';
       default: return 'text-gray-600';

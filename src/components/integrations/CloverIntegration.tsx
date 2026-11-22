@@ -386,7 +386,7 @@ export const CloverIntegration = () => {
       (expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
     );
 
-    let color = "text-green-600";
+    let color = "text-blue-800";
     if (daysRemaining < 7) color = "text-red-600";
     else if (daysRemaining < 14) color = "text-yellow-600";
 
@@ -433,7 +433,7 @@ export const CloverIntegration = () => {
             </div>
           </div>
           {isConnected ? (
-            <CheckCircle className="h-6 w-6 text-green-600" />
+            <CheckCircle className="h-6 w-6 text-blue-800" />
           ) : (
             <XCircle className="h-6 w-6 text-muted-foreground" />
           )}
@@ -454,7 +454,7 @@ export const CloverIntegration = () => {
               </div>
               <div>
                 <p className="text-muted-foreground">Status</p>
-                <p className="font-medium text-green-600">✓ Connected</p>
+                <p className="font-medium text-blue-800">✓ Connected</p>
               </div>
               {tokenExpiry && (
                 <div>

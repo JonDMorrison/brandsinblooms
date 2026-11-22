@@ -253,7 +253,7 @@ export function FormPreviewRenderer({
   const isLastStep = activeStepPosition >= stepGroups.length - 1;
 
   const tokens = useMemo<ThemeTokens>(() => {
-    const background = theme.background_color ?? "#FFFFFF";
+    const background = theme.background_style === "green-tint" ? "#F2F8F1" : theme.background_style === "white" ? "#FFFFFF" : theme.background_color ?? "#FFFFFF";
     const text = theme.text_color ?? "#1F2937";
     const primary = theme.primary_color ?? "#22C55E";
     const secondary = theme.secondary_color ?? "#1E40AF";
@@ -478,7 +478,7 @@ export function FormPreviewRenderer({
     setFormData((current) => ({ ...current, [field.id]: value }));
     setSubmitError(null);
 
-    if (touchedFields[field.id]) {
+    if (touchedFields[field.id] || field.type === "phone") {
       setFieldError(field.id, validateFieldValue(field, value));
       return;
     }
@@ -849,7 +849,7 @@ export function FormPreviewRenderer({
     width: "100%",
     maxWidth: tokens.formMaxWidth,
     margin: "0 auto",
-    backgroundColor: tokens.background,
+    backgroundColor: theme.background_style === "transparent" ? "transparent" : tokens.background,
     color: tokens.text,
     fontFamily: tokens.fontFamily,
     border: `1px solid ${tokens.subtleBorder}`,
@@ -912,18 +912,22 @@ export function FormPreviewRenderer({
       style={{
         ...containerStyle,
         padding: containerPadding,
-        boxShadow: tokens.shadow,
+        boxShadow: theme.background_style === "transparent" ? "none" : tokens.shadow,
+        display: "flex",
+        gap: tokens.spacing,
+        flexDirection: containerWidth !== null && containerWidth >= 600 && normalizedSettings.header_image_position !== "top" ? (normalizedSettings.header_image_position === "right" ? "row-reverse" : "row") : "column",
         transition: "opacity 300ms ease",
         ...(isTransitioningToSuccess
           ? { pointerEvents: "none", opacity: 0 }
           : { opacity: 1 }),
       }}
     >
+      {normalizedSettings.header_image_url && <img src={normalizedSettings.header_image_url} alt={normalizedSettings.header_image_alt ?? ""} style={{width: containerWidth !== null && containerWidth >= 600 && normalizedSettings.header_image_position !== "top" ? "38%" : "100%", objectFit:"cover", borderRadius:tokens.radius, alignSelf:"stretch", maxHeight:600}} />}
       <form
         onSubmit={handleSubmit}
         noValidate
         aria-busy={isSubmitting || hasActiveUploads}
-        style={{ display: "grid", gap: "1.5rem" }}
+        style={{ display: "grid", gap: "1.5rem", flex: 1, minWidth: 0 }}
       >
         {(normalizedSettings.form_headline ||
           normalizedSettings.form_subheadline) && (
@@ -1219,6 +1223,7 @@ export function FormPreviewRenderer({
                   onBlur={() => handleFieldBlur(field)}
                   error={errors[field.id]}
                   tokens={tokens}
+                  labelPosition={normalizedSettings.label_position}
                   inputStyle={theme.input_style ?? "outlined"}
                   isHighlighted={changedIds.has(field.id)}
                   isDisabled={isSubmitting}
@@ -1262,6 +1267,8 @@ export function FormPreviewRenderer({
             </p>
           </div>
         )}
+
+        {normalizedSettings.footer_text && (!multiStepEnabled || isLastStep) && <p style={{margin:0,whiteSpace:"pre-wrap",fontSize:"0.875rem",color:tokens.mutedText}}>{normalizedSettings.footer_text}</p>}
 
         {multiStepEnabled ? (
           <div
@@ -1548,6 +1555,7 @@ function StepProgress({
 }
 
 interface FieldRendererProps {
+  labelPosition?: "above" | "floating";
   field: FormField;
   value: string | boolean | FormFileUploadReference[];
   onChange: (value: unknown) => void;
@@ -1580,6 +1588,7 @@ function FieldRenderer({
   isDisabled = false,
   uploadItems,
   registerFieldRef,
+  labelPosition = "above",
 }: FieldRendererProps) {
   const [isFocused, setIsFocused] = useState(false);
   const maxLength = getFieldMaxLength(field);
@@ -1861,6 +1870,7 @@ function FieldRenderer({
   return (
     <div
       style={{
+        position: "relative",
         display: "grid",
         gap: "0.5rem",
         transition: "box-shadow 150ms ease",
@@ -1870,8 +1880,9 @@ function FieldRenderer({
       <label
         htmlFor={field.id}
         style={{
+          ...(labelPosition === "floating" && field.type !== "select" ? { position:"absolute" as const, left:16, top: isFocused || String(value).length > 0 ? 6 : 17, fontSize: isFocused || String(value).length > 0 ? "0.65rem" : "0.875rem", pointerEvents:"none" as const, zIndex:1, transition:"all 120ms ease" } : {}),
           color: error ? tokens.error : tokens.text,
-          fontSize: "0.875rem",
+          fontSize: labelPosition === "floating" && field.type !== "select" && (isFocused || String(value).length > 0) ? "0.65rem" : "0.875rem",
           fontWeight: 500,
           lineHeight: 1.4,
         }}
@@ -1941,8 +1952,8 @@ function FieldRenderer({
           aria-invalid={error ? true : undefined}
           aria-describedby={errorId}
           maxLength={maxLength}
-          placeholder={resolvedPlaceholder}
-          style={sharedStyle}
+          placeholder={labelPosition === "floating" ? (isFocused ? resolvedPlaceholder : "") : resolvedPlaceholder}
+          style={{...sharedStyle,...(labelPosition === "floating" ? {paddingTop:22,paddingBottom:8,minHeight:56} : {})}}
         />
       )}
 

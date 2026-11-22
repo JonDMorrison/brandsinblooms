@@ -46,7 +46,7 @@ export const POSConnectionList: React.FC = () => {
     
     switch (connection.sync_status) {
       case 'success':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Connected</Badge>;
+        return <Badge variant="default" className="bg-blue-100 text-blue-950">Connected</Badge>;
       case 'error':
         return <Badge variant="destructive">Error</Badge>;
       case 'running':
@@ -63,7 +63,7 @@ export const POSConnectionList: React.FC = () => {
     
     switch (connection.sync_status) {
       case 'success':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <CheckCircle className="w-4 h-4 text-blue-700" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
       case 'running':

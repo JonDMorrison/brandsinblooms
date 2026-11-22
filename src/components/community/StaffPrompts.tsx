@@ -89,7 +89,7 @@ export const StaffPrompts = ({ onUploadClick }: StaffPromptsProps) => {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-6 border-2 border-primary/20">
+      <Card className="bg-gradient-to-br from-blue-50 to-blue-50 dark:from-blue-950 dark:to-blue-950 p-6 border-2 border-primary/20">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-primary/10 rounded-full">
             <Sparkles className="w-6 h-6 text-primary" />
@@ -111,7 +111,7 @@ export const StaffPrompts = ({ onUploadClick }: StaffPromptsProps) => {
       <div className="grid gap-4">
         {todayPrompts.length === 0 ? (
           <Card className="p-12 text-center">
-            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-green-500" />
+            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-blue-700" />
             <h3 className="text-xl font-semibold mb-2">All Done! 🎉</h3>
             <p className="text-muted-foreground">
               You've completed all available prompts. Check back tomorrow for new challenges!

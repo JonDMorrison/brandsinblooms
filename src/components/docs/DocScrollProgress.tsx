@@ -45,7 +45,7 @@ export function DocScrollProgress({ targetRef }: DocScrollProgressProps) {
   return (
     <div className="sticky top-0 z-20 mb-6 h-0.5 w-full overflow-hidden bg-gray-200/80">
       <div
-        className="h-full bg-emerald-500 transition-[width] duration-150 ease-out"
+        className="h-full bg-blue-700 transition-[width] duration-150 ease-out"
         style={{ width: `${progress * 100}%` }}
       />
     </div>

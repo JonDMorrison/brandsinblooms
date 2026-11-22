@@ -296,15 +296,15 @@ export const POSConnectionHelp: React.FC<POSConnectionHelpProps> = ({ platform }
               <CardContent>
                 <ul className="text-sm space-y-1">
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <CheckCircle2 className="h-3 w-3 text-blue-800" />
                     Test with sandbox first
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <CheckCircle2 className="h-3 w-3 text-blue-800" />
                     Keep credentials secure
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <CheckCircle2 className="h-3 w-3 text-blue-800" />
                     Regular sync schedule
                   </li>
                 </ul>

@@ -270,7 +270,7 @@ export const ProviderIntegrationsTab = () => {
               <CardContent className="flex items-center justify-between p-6">
                 <div className="flex items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${
-                    integration.is_active ? 'bg-green-500' : 'bg-gray-400'
+                    integration.is_active ? 'bg-blue-700' : 'bg-gray-400'
                   }`} />
                   
                   <div>

@@ -85,7 +85,7 @@ export const NewsletterRegenerateButton: React.FC<NewsletterRegenerateButtonProp
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="bg-green-50 hover:bg-green-100 border-green-200">
+        <Button variant="outline" size="sm" className="bg-blue-50 hover:bg-blue-100 border-blue-200">
           <RefreshCw className="h-4 w-4 mr-2" />
           Regenerate from Newsletter
         </Button>

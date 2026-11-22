@@ -29,6 +29,14 @@ INSERT INTO public.crm_customers(id,tenant_id,email) VALUES
  ('f9060000-0000-4000-8000-000000000003','f9030000-0000-4000-8000-000000000002','foreign@example.invalid');
 INSERT INTO bloom_pos_private.connections(key_id,pos_tenant_id,crm_tenant_id,pos_connection_id,secret,enabled,currency)
 VALUES('qa-bridge','f9020000-0000-4000-8000-000000000001','f9030000-0000-4000-8000-000000000001','f9040000-0000-4000-8000-000000000001',repeat('test-only-',8),true,'CAD');
+INSERT INTO public.users(id,tenant_id,role) VALUES('f9050000-0000-4000-8000-000000000001','f9030000-0000-4000-8000-000000000001','owner');
+INSERT INTO auth.sessions(id,user_id) VALUES('f9080000-0000-4000-8000-000000000001','f9050000-0000-4000-8000-000000000001');
+CREATE FUNCTION pg_temp.health() RETURNS jsonb LANGUAGE plpgsql AS $$DECLARE old_claims text:=current_setting('request.jwt.claims',true);r jsonb;BEGIN
+ PERFORM set_config('request.jwt.claims','{"role":"authenticated","sub":"f9050000-0000-4000-8000-000000000001","session_id":"f9080000-0000-4000-8000-000000000001"}',true);
+ SELECT to_jsonb(x) INTO r FROM public.bloomsuite_pos_purchase_health('f9030000-0000-4000-8000-000000000001')x;
+ PERFORM set_config('request.jwt.claims',old_claims,true);RETURN r;
+END $$;
+SELECT pg_temp.check_that(NOT has_function_privilege('anon','public.bloomsuite_pos_purchase_health(uuid)','EXECUTE'),'anonymous cannot read purchase health');
 SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 SELECT pg_temp.check_that(NOT has_function_privilege('anon','public.accept_bloomsuite_pos_event(text,jsonb)','EXECUTE'),'anonymous cannot apply events');
 SELECT pg_temp.check_that(NOT has_function_privilege('authenticated','public.bloomsuite_pos_connection(text)','EXECUTE'),'browser cannot read signing key');
@@ -38,6 +46,7 @@ DO $$ DECLARE e jsonb; ret jsonb; BEGIN
  ret:=pg_temp.envelope(10,'ReturnCompleted','{"originalSaleId":"sale-1","returnSaleId":"return-1","returnAmountCents":300}',true);
  PERFORM pg_temp.check_that(public.accept_bloomsuite_pos_event('qa-bridge',ret)->>'accepted'='true','return before sale retained');
  PERFORM pg_temp.check_that((SELECT count(*)=0 FROM public.pos_orders),'return cannot invent a sale');
+ PERFORM pg_temp.check_that(pg_temp.health()->>'missing_original_sales'='1' AND pg_temp.health()->>'orphan_returns'='1','missing original sale is visible despite accepted return receipt');
  e:=pg_temp.envelope(20,'SaleCompleted',pg_temp.sale('sale-1','f9070000-0000-4000-8000-000000000001'),true);
  PERFORM public.accept_bloomsuite_pos_event('qa-bridge',e);
  PERFORM pg_temp.check_that((SELECT total_amount=10 AND refund_amount=3 AND status='completed' FROM public.pos_orders WHERE external_id='sale-1'),'nested sale and earlier partial return reconcile');
@@ -48,6 +57,7 @@ DO $$ DECLARE e jsonb; ret jsonb; BEGIN
  PERFORM public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(21,'ReturnCompleted',ret#>'{data,payload}',true));
  PERFORM pg_temp.check_that((SELECT refund_amount=3 FROM public.pos_orders WHERE external_id='sale-1'),'semantic return replay does not double refund');
  PERFORM pg_temp.check_that((SELECT count(*)=1 FROM bloom_pos_private.return_events),'one return ledger fact');
+ PERFORM pg_temp.check_that(pg_temp.health()->>'missing_original_sales'='0','arrival of original sale clears health without deleting evidence');
  PERFORM pg_temp.check_that((SELECT crm_customer_id IS NULL AND customer_resolution_status='unmatched' FROM public.pos_orders WHERE external_id='sale-1'),'unknown customer stays unmatched');
  PERFORM public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(30,'CustomerChanged','{"customerId":"f9070000-0000-4000-8000-000000000001","sharedProfileId":"f9060000-0000-4000-8000-000000000001"}'));
  PERFORM pg_temp.check_that((SELECT crm_customer_id='f9060000-0000-4000-8000-000000000001' FROM public.pos_orders WHERE external_id='sale-1'),'late verified identity links existing purchase');
@@ -55,8 +65,10 @@ DO $$ DECLARE e jsonb; ret jsonb; BEGIN
  PERFORM public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(29,'CustomerChanged','{"customerId":"f9070000-0000-4000-8000-000000000001","sharedProfileId":"f9060000-0000-4000-8000-000000000002"}'));
  PERFORM pg_temp.check_that((SELECT crm_customer_id='f9060000-0000-4000-8000-000000000001' FROM public.pos_orders WHERE external_id='sale-1'),'older identity cannot change latest link');
  PERFORM public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(40,'VoidCompleted','{"saleId":"sale-2","hadTenders":true}',true));
+ PERFORM pg_temp.check_that(pg_temp.health()->>'orphan_voids'='1','void before sale is visible in health');
  PERFORM public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(41,'SaleCompleted',pg_temp.sale('sale-2'),true));
  PERFORM pg_temp.check_that((SELECT status='voided' FROM public.pos_orders WHERE external_id='sale-2'),'void before sale remains voided');
+ PERFORM pg_temp.check_that(pg_temp.health()->>'orphan_voids'='0','original sale resolves missing void history');
  PERFORM public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(42,'ReturnCompleted','{"originalSaleId":"sale-1","returnSaleId":"return-2","returnAmountCents":700}',true));
  PERFORM pg_temp.check_that((SELECT status='refunded' AND refund_amount=10 FROM public.pos_orders WHERE external_id='sale-1'),'full return reconciles to refunded');
  PERFORM pg_temp.check_that((SELECT lifetime_value=0 FROM public.customer_purchase_metrics WHERE customer_id='f9060000-0000-4000-8000-000000000001'),'refund recomputes metrics without incrementing counters');
@@ -78,6 +90,15 @@ SELECT pg_temp.expect_error($q$SELECT public.accept_bloomsuite_pos_event('qa-bri
 SELECT pg_temp.expect_error($q$SELECT public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(59,'SaleCompleted',pg_temp.sale('outer-tenant'),true)||'{"tenantId":"f9020000-0000-4000-8000-000000000002"}')$q$,'event scope','outer tenant substitution rejected');
 SELECT pg_temp.expect_error($q$SELECT public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(60,'SaleCompleted',pg_temp.sale('fraction-revision'),true)||'{"revision":1.5}')$q$,'Invalid BloomSuite POS event','fractional revision rejected');
 SELECT pg_temp.check_that((SELECT count(*)=0 FROM bloom_pos_private.inbox WHERE revision BETWEEN 51 AND 60),'rejections roll back inbox and projections');
+SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"f9050000-0000-4000-8000-000000000001","session_id":"f9080000-0000-4000-8000-000000000001"}',true);
+SELECT pg_temp.expect_error($q$SELECT public.bloomsuite_pos_purchase_health('f9030000-0000-4000-8000-000000000002')$q$,'scope changed','caller cannot select another business');
+SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"f9050000-0000-4000-8000-000000000001"}',true);
+SELECT pg_temp.expect_error($q$SELECT public.bloomsuite_pos_purchase_health('f9030000-0000-4000-8000-000000000001')$q$,'Current staff session','revoked or absent session cannot read health');
+SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
+SELECT public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(62,'ReturnCompleted','{"originalSaleId":"sale-before-approved-start","returnSaleId":"old-return","returnAmountCents":100}',true));
+SELECT pg_temp.check_that(pg_temp.health()->>'missing_original_sales'='1','return for sale outside approved history remains visible');
+SELECT pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.pos_orders WHERE external_id='sale-before-approved-start'),'health review never fabricates or imports old original sale');
+SELECT pg_temp.check_that((SELECT bool_and(NOT email_opt_in AND NOT sms_opt_in) FROM public.crm_customers),'history review does not grant consent');
 UPDATE public.pos_connections SET tenant_id='f9030000-0000-4000-8000-000000000002' WHERE id='f9040000-0000-4000-8000-000000000001';
 SELECT pg_temp.check_that(public.bloomsuite_pos_connection('qa-bridge') IS NULL,'mismatched connection ownership fails closed');
 SELECT pg_temp.expect_error($q$SELECT public.accept_bloomsuite_pos_event('qa-bridge',pg_temp.envelope(61,'SaleCompleted',pg_temp.sale('bad-binding'),true))$q$,'mapping is invalid','receiver enforces connection ownership');

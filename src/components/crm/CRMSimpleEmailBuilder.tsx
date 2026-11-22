@@ -366,8 +366,8 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                 </p>
               </div>
               {autoSaving && (
-                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <div className="flex items-center gap-2 text-sm text-blue-800 bg-blue-50 px-3 py-1 rounded-full">
+                  <div className="w-2 h-2 bg-blue-700 rounded-full animate-pulse" />
                   Auto-saving...
                 </div>
               )}

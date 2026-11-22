@@ -81,7 +81,7 @@ export const DraftTray = ({
       case "instagram":
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "newsletter":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-blue-100 text-blue-950 border-blue-200";
       case "video":
       case "reel":
         return "bg-pink-100 text-pink-800 border-pink-200";

@@ -154,7 +154,7 @@ export const BulkOperationsBar = ({
                 variant="outline"
                 onClick={handleShift}
                 disabled={isLoading}
-                className="hover:bg-green-50 border-green-200 text-green-700"
+                className="hover:bg-blue-50 border-blue-200 text-blue-900"
               >
                 <Calendar className="w-4 h-4 mr-2" />
                 Shift Dates

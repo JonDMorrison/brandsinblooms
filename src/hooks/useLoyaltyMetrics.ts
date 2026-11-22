@@ -279,3 +279,17 @@ export const refreshAllLoyaltyMetrics = async (
   if (error) throw error;
   return data as number;
 };
+
+/** Live read from the explicitly mapped POS authority; never a ledger mutation. */
+export const useNativeRewardBalances = (tenantId: string | undefined, customerId: string | undefined, enabled = true) => useQuery({
+  queryKey: ["native-reward-balances", tenantId, customerId],
+  enabled: enabled && Boolean(tenantId && customerId),
+  staleTime: 30_000,
+  retry: false,
+  queryFn: async () => {
+    if (!tenantId || !customerId) throw new Error("Choose a customer in the current business.");
+    const {data,error} = await supabase.functions.invoke("native-reward-balances", {body: {tenantId,customerId}});
+    if (error || !data || !Array.isArray(data.balances)) throw new Error("BloomPOS balances are temporarily unavailable.");
+    return data.balances as import("../../supabase/functions/_shared/nativeRewardBalances").NativeRewardBalance[];
+  },
+});

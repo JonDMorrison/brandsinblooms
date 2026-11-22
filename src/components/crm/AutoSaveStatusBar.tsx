@@ -49,7 +49,7 @@ export const AutoSaveStatusBar: React.FC<AutoSaveStatusBarProps> = ({
     if (lastSavedAt) {
       return (
         <>
-          <Cloud className="h-3.5 w-3.5 text-green-600" />
+          <Cloud className="h-3.5 w-3.5 text-blue-800" />
           <span className="text-muted-foreground">
             Saved {format(lastSavedAt, 'h:mm a')}
           </span>
@@ -59,7 +59,7 @@ export const AutoSaveStatusBar: React.FC<AutoSaveStatusBarProps> = ({
     
     return (
       <>
-        <Check className="h-3.5 w-3.5 text-green-600" />
+        <Check className="h-3.5 w-3.5 text-blue-800" />
         <span className="text-muted-foreground">All changes saved</span>
       </>
     );

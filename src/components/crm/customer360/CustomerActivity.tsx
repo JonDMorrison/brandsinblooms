@@ -56,7 +56,7 @@ export const CustomerActivity = ({ customerId }: CustomerActivityProps) => {
       case 'email_sent':
         return 'bg-blue-500 text-white';
       case 'sms_sent':
-        return 'bg-green-500 text-white';
+        return 'bg-blue-700 text-white';
       case 'coupon_redeemed':
         return 'bg-purple-500 text-white';
       case 'campaign_interaction':

@@ -299,7 +299,7 @@ export const StructurePicker: React.FC<StructurePickerProps> = ({
           Pick a layout to start with — you can change everything after.
         </p>
         {weeklyThemeTitle && (
-          <p className="text-xs text-green-700 mt-2">
+          <p className="text-xs text-blue-900 mt-2">
             🌱 This week's theme: <strong>{weeklyThemeTitle}</strong> — it'll be used as your starting headline
           </p>
         )}

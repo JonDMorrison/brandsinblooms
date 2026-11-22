@@ -118,7 +118,7 @@ export const EmailCampaignPerformance: React.FC<EmailCampaignPerformanceProps> =
             <p className="text-xs text-muted-foreground">Campaigns Sent</p>
           </div>
           <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <TrendingUp className="h-5 w-5 text-green-600 mx-auto mb-2" />
+            <TrendingUp className="h-5 w-5 text-blue-800 mx-auto mb-2" />
             <p className="text-2xl font-bold">{summary.totalDelivered.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Emails Delivered</p>
           </div>

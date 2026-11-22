@@ -170,9 +170,9 @@ export const getLifecycleStageConfig = (stage: string) => {
     active_buyer: {
       label: 'Active Buyer',
       icon: '🛒',
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-100',
-      borderColor: 'border-emerald-300',
+      color: 'text-blue-800',
+      bgColor: 'bg-blue-100',
+      borderColor: 'border-blue-300',
     },
     loyal: {
       label: 'Loyal',

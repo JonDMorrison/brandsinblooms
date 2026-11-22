@@ -49,7 +49,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
         {trend && (
           <div className={`text-xs px-2 py-1 rounded-full font-medium ${
             trend > 0 
-              ? 'bg-green-50 text-green-700' 
+              ? 'bg-blue-50 text-blue-900' 
               : 'bg-red-50 text-red-700'
           }`}>
             {trend > 0 ? '+' : ''}{trend}%

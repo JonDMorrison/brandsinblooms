@@ -123,7 +123,7 @@ const SmsComplianceDashboard: React.FC<SmsComplianceDashboardProps> = ({ classNa
                 trendNegative={hasHighOptOutRate}
               />
               <StatCard
-                icon={<UserCheck className="h-5 w-5 text-green-500" />}
+                icon={<UserCheck className="h-5 w-5 text-blue-700" />}
                 label="START (Opt-In)"
                 value={stats?.startCount || 0}
               />

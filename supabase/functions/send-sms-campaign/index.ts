@@ -14,6 +14,8 @@ import {
   calculateBillableUnits,
 } from "../_shared/smsSegmentCounter.ts";
 
+import { checkSmsCampaignContent } from "../_shared/smsCampaignContentGate.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -150,6 +152,14 @@ async function handler(req: Request): Promise<Response> {
           },
         );
       }
+    }
+
+    const contentReview = await checkSmsCampaignContent(supabase, campaign);
+    if (contentReview.decision !== "fresh") {
+      return new Response(JSON.stringify({error: contentReview.reason, contentReview: contentReview.decision}), {
+        status: contentReview.decision === "retry" ? 503 : 409,
+        headers: {...corsHeaders, "Content-Type": "application/json"},
+      });
     }
 
     // Overlap protection: check if already enqueuing or enqueued

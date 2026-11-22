@@ -65,7 +65,7 @@ export const CampaignPerformanceCard: React.FC<
       case CAMPAIGN_STATUS.PAUSED:
         return "bg-amber-100 text-amber-800";
       case CAMPAIGN_STATUS.SENT:
-        return "bg-green-100 text-green-800";
+        return "bg-blue-100 text-blue-950";
       case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
       case CAMPAIGN_STATUS.FAILED:
         return "bg-red-100 text-red-800";
@@ -155,7 +155,7 @@ export const CampaignPerformanceCard: React.FC<
                 <div className="text-xl font-bold">
                   {metrics.adjustedOpens.toLocaleString()}
                 </div>
-                <div className="text-sm text-green-600 font-medium">
+                <div className="text-sm text-blue-800 font-medium">
                   {openRate}%
                 </div>
               </div>

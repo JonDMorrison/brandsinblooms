@@ -88,7 +88,7 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
         </div>
         
         {isReady ? (
-          <div className="flex items-center space-x-1 text-green-600">
+          <div className="flex items-center space-x-1 text-blue-800">
             <CheckCircle className="h-4 w-4" />
             <span className="text-xs font-medium">Ready to Send</span>
           </div>
@@ -122,7 +122,7 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
               onClick={isClickable ? handleClick : undefined}
             >
               {item.completed ? (
-                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                <CheckCircle className="h-4 w-4 text-blue-800 flex-shrink-0" />
               ) : (
                 <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               )}

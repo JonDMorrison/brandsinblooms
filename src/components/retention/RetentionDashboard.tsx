@@ -89,12 +89,12 @@ export const RetentionDashboard = () => {
               
               <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                  <span className="font-semibold text-green-900">
+                  <TrendingUp className="w-5 h-5 text-blue-800" />
+                  <span className="font-semibold text-blue-950">
                     Proven Results
                   </span>
                 </div>
-                <p className="text-sm text-green-700">
+                <p className="text-sm text-blue-900">
                   Users see 40% increase in engagement with our AI content
                 </p>
               </div>

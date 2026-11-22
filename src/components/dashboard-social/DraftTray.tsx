@@ -49,13 +49,13 @@ export const DraftTray = () => {
     switch (postType) {
       case "facebook":
       case "instagram":
-        return "bg-[#68BEB9]/10";
+        return "bg-[#30506E]/10";
       case "video":
         return "bg-orange-100";
       case "newsletter":
         return "bg-blue-100";
       case "blog":
-        return "bg-green-100";
+        return "bg-blue-100";
       default:
         return "bg-gray-100";
     }
@@ -64,7 +64,7 @@ export const DraftTray = () => {
   if (loading) {
     return (
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-4 h-[440px] border border-white/20 flex items-center justify-center">
-        <div className="animate-spin w-6 h-6 border-2 border-[#68BEB9] border-t-transparent rounded-full"></div>
+        <div className="animate-spin w-6 h-6 border-2 border-[#30506E] border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -80,7 +80,7 @@ export const DraftTray = () => {
             {...provided.droppableProps}
             className={cn(
               "space-y-3 h-[350px] overflow-y-auto transition-colors",
-              snapshot.isDraggingOver && "bg-[#68BEB9]/5 rounded-lg",
+              snapshot.isDraggingOver && "bg-[#30506E]/5 rounded-lg",
             )}
           >
             {drafts.length === 0 ? (
@@ -112,13 +112,13 @@ export const DraftTray = () => {
                           "hover:shadow-sm border",
                           snapshot.isDragging && "shadow-lg rotate-2 scale-105",
                           isSelected
-                            ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-sm"
-                            : "border-gray-200 bg-white hover:border-[#68BEB9]/30",
+                            ? "border-[#30506E] bg-[#30506E]/10 shadow-sm"
+                            : "border-gray-200 bg-white hover:border-[#30506E]/30",
                         )}
                       >
                         <div
                           {...provided.dragHandleProps}
-                          className="text-gray-400 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing"
+                          className="text-gray-400 hover:text-[#30506E] cursor-grab active:cursor-grabbing"
                         >
                           <GripVertical className="w-4 h-4" />
                         </div>

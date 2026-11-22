@@ -1,3 +1,6 @@
+import { normalizeContentBlocks } from "../_shared/campaignEmailSource.ts";
+import { assertEmailCampaignReviewAllowsDelivery } from "../_shared/emailCampaignReviewGate.ts";
+import { checkConnectedContentFreshness, extractConnectedContentSources, emailContentSources, uniqueContentSources, ContentFreshnessHold } from "../_shared/connectedContentFreshness.ts";
 import { activeEmailCustomerIds, prepareCustomerDelivery, confirmedDeliveryOutcome } from "../_shared/activeEmailCustomers.ts";
 import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
 import { isolateBatchValidation, type BatchSendResult } from "../_shared/isolateBatchValidation.ts";
@@ -626,11 +629,11 @@ async function resendSendBatchRequest(
   rateLimited?: boolean;
   retryAfterSeconds?: number;
 }> {
+  let uncertainAttempt = false;
   try {
     const serverErrorBackoffMs = [1000, 4000, 16000];
     let lastError: string | undefined;
     let lastStatus: number | undefined;
-    let uncertainAttempt = false;
 
     // Idempotency key is per API request (batch), not per email.
     const idem = await sha256Base64Url(batchIdempotencyKeySeed);
@@ -699,9 +702,11 @@ async function resendSendBatchRequest(
     }
 
     return { error: lastError || "Rate limited", status: lastStatus };
-  } catch (e: any) {
+  } catch (e: unknown) {
+    if (uncertainAttempt) return { error: "delivery_unconfirmed_requires_reconciliation" };
+    if (e instanceof ContentFreshnessHold) return { error: e.message, status: 425 };
     return {
-      error: truncateError(e?.message || "Network error calling Resend"),
+      error: truncateError(e instanceof Error ? e.message : "Network error calling Resend"),
     };
   }
 }
@@ -1551,7 +1556,7 @@ serve((req: Request) => {
               const { data: messages, error: msgFetchError } = await supabase
                 .from("email_messages")
                 .select(
-                  "id, tenant_id, campaign_id, customer_id, domain_id, email, payload, status, resend_id, attempts, dead_lettered_at, delivery_reconciliation_required, claimed_at",
+                  "id, tenant_id, campaign_id, customer_id, domain_id, email, payload, connected_content_sources, status, resend_id, attempts, dead_lettered_at, delivery_reconciliation_required, claimed_at",
                 )
                 .in("id", messageIds);
 
@@ -1627,7 +1632,7 @@ serve((req: Request) => {
 
                 const { data: claimed, error: claimMsgErr } = await claimQuery
                   .select(
-                    "id, payload, attempts, tenant_id, domain_id, campaign_id, customer_id, email",
+                    "id, payload, connected_content_sources, attempts, tenant_id, domain_id, campaign_id, customer_id, email",
                   )
                   .maybeSingle();
 
@@ -1794,7 +1799,7 @@ serve((req: Request) => {
 
               const customersById = new Map<string, any>();
 
-              if (needsPayloadBuild && campaignId) {
+              if ((needsPayloadBuild || claimedForSend.some((message) => message.connected_content_sources == null)) && campaignId) {
                 if (!campaignCache.has(campaignId)) {
                   const { data: cRow, error: cErr } = await supabase
                     .from("crm_campaigns")
@@ -1833,10 +1838,27 @@ serve((req: Request) => {
 
                 if (campaign) {
                   if (!campaignSourceCache.has(campaignId)) {
-                    const resolvedSource = await resolveCampaignEmailSource(
-                      supabase,
-                      campaign,
-                    );
+                    let resolvedSource: CampaignEmailSource;
+                    try {
+                      resolvedSource = await resolveCampaignEmailSource(supabase, campaign, true);
+                    } catch {
+                      // No provider has been contacted. Restore claims without charging an attempt.
+                      for (const message of claimedForSend) {
+                        const { error } = await supabase.from("email_messages").update({
+                          status: "queued", attempts: Math.max(0, (message.attempts || 1) - 1),
+                          claim_token: null, claimed_at: null, claimed_by: null,
+                        }).eq("id", message.id).eq("claim_token", claimToken).is("resend_id", null);
+                        if (error) throw error;
+                      }
+                      const { error } = await supabase.from("email_send_jobs").update({
+                        status: "pending", available_at: new Date(Date.now() + 300000).toISOString(),
+                        error_message: "Campaign source lookup is temporarily unavailable",
+                        claim_token: null, claimed_at: null, claimed_by: null,
+                      }).eq("id", job.id).eq("claim_token", claimToken);
+                      if (error) throw error;
+                      processedCount++;
+                      continue;
+                    }
                     if (resolvedSource.warning) {
                       console.warn(`⚠️ ${resolvedSource.warning}`, {
                         campaignId,
@@ -2214,6 +2236,24 @@ serve((req: Request) => {
                         if (!message) throw new Error("Missing delivery customer identity");
                         return { id: message.id, tenant_id: message.tenant_id, customer_id: message.customer_id };
                       });
+                      await assertEmailCampaignReviewAllowsDelivery(
+                        supabase as unknown as Parameters<typeof assertEmailCampaignReviewAllowsDelivery>[0],
+                        String(identities[0]?.tenant_id || ""), campaignId,
+                      );
+                      const sources: unknown[] = [];
+                      const rendered = campaignSource ? extractConnectedContentSources({
+                        contentBlocks: normalizeContentBlocks(campaignSource.contentBlocks),
+                      }) : null;
+                      for (const identity of identities) {
+                        const message = claimedForSend.find((entry) => entry.id === identity.id);
+                        if (!message) throw new ContentFreshnessHold("retry", "Queued email source is unavailable.");
+                        const original = sendable.find((entry) => entry.id === identity.id);
+                        const buildsPayload = !original?.payload?.html || !original?.payload?.subject || !original?.payload?.to;
+                        sources.push(...emailContentSources(message.connected_content_sources,
+                          buildsPayload || message.connected_content_sources == null ? rendered : null));
+                      }
+                      const freshness = await checkConnectedContentFreshness(supabase as unknown as Parameters<typeof checkConnectedContentFreshness>[0], String(identities[0]?.tenant_id || ""), uniqueContentSources(sources));
+                      if (freshness.decision !== "fresh") throw new ContentFreshnessHold(freshness.decision, freshness.reason || "Website content requires review.");
                       await prepareCustomerDelivery(supabase, identities, claimToken);
                     },
                   );
@@ -2276,7 +2316,10 @@ serve((req: Request) => {
                 }
 
                 // Apply results in bulk to avoid 1 PostgREST update per message (very slow at scale).
-                const rpcResults = results.map((r) => {
+                const contentHeld = results.filter((result) => result.status === 425 &&
+                  /^(CONTENT_CHECK_RETRY|CONTENT_REVIEW_REQUIRED):/.test(result.error || ""));
+                const providerResults = results.filter((result) => !contentHeld.includes(result));
+                const rpcResults = providerResults.map((r) => {
                   const errMsg = r.resendId
                     ? null
                     : truncateError(r.error || "Send failed");
@@ -2343,6 +2386,42 @@ serve((req: Request) => {
                     (r) => !r.resendId && r.error,
                   )?.error;
                   lastError = truncateError(last || lastError || "Send failed");
+                }
+
+                if (contentHeld.length) {
+                  const reviewRequired = contentHeld.some((result) => result.error?.startsWith("CONTENT_REVIEW_REQUIRED:"));
+                  const reason = contentHeld.find((result) => result.error?.startsWith("CONTENT_REVIEW_REQUIRED:"))?.error || contentHeld[0].error;
+                  const heldIds = new Set(contentHeld.map((result) => result.msgId));
+                  const unattempted = claimedForSend.slice(i + batchMsgs.length);
+                  // Persist accepted siblings above before releasing only messages never submitted.
+                  for (const message of claimedForSend.filter((entry) => heldIds.has(entry.id) || unattempted.includes(entry))) {
+                    const { error: releaseError } = await supabase.from("email_messages").update({
+                      status: reviewRequired ? "paused" : "queued", attempts: Math.max(0, (message.attempts || 1) - 1),
+                      error_message: reason, claim_token: null, claimed_at: null, claimed_by: null,
+                      dead_lettered_at: null, delivery_reconciliation_required: false,
+                      updated_at: new Date().toISOString(),
+                    }).eq("id", message.id).eq("claim_token", claimToken).is("resend_id", null);
+                    if (releaseError) throw releaseError;
+                  }
+                  if (reviewRequired) {
+                    const { error: pauseError } = await supabase.from("crm_campaigns").update({
+                      status: "paused", send_blocked_reason: "connected_content_review", send_error: reason,
+                      updated_at: new Date().toISOString(),
+                    }).eq("id", campaignId).eq("tenant_id", job.tenant_id)
+                      .in("status", ["sending", "queued", "partially_queued"]);
+                    if (pauseError) throw pauseError;
+                    await pauseJob(reason || "Website content requires review");
+                    jobWasPaused = true;
+                  } else {
+                    const { error: deferError } = await supabase.from("email_send_jobs").update({
+                      status: "pending", available_at: new Date(Date.now() + 300000).toISOString(),
+                      error_message: reason, claim_token: null, claimed_at: null, claimed_by: null,
+                      updated_at: new Date().toISOString(),
+                    }).eq("id", job.id).eq("claim_token", claimToken);
+                    if (deferError) throw deferError;
+                    jobDeferredForRateLimit = true;
+                  }
+                  break;
                 }
 
                 if (batchWasRateLimited) {
@@ -2641,7 +2720,8 @@ serve((req: Request) => {
                 ? `${totalFailed} recipient(s) failed after ${MAX_ATTEMPTS} attempts`
                 : null,
             })
-            .eq("id", campaignId);
+            .eq("id", campaignId)
+            .in("status", ["sending", "queued", "partially_queued"]);
 
           if (finalizeCampaignError) {
             console.error("❌ Failed to finalize campaign status", {

@@ -357,7 +357,7 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
   const getStatusIcon = (status: ReturnType<typeof getWeekStatus>) => {
     switch (status.type) {
       case 'match':
-        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+        return <CheckCircle2 className="h-4 w-4 text-blue-800" />;
       case 'mismatch':
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       case 'missing':
@@ -368,7 +368,7 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
   const getStatusColor = (status: ReturnType<typeof getWeekStatus>) => {
     switch (status.type) {
       case 'match':
-        return 'bg-green-50 border-green-200';
+        return 'bg-blue-50 border-blue-200';
       case 'mismatch':
         return 'bg-yellow-50 border-yellow-200';
       case 'missing':
@@ -446,7 +446,7 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
             <div className="grid grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-3 text-center">
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-blue-800">
                     {masterTemplates.filter(t => getWeekStatus(t).type === 'match').length}
                   </div>
                   <div className="text-sm text-muted-foreground">Aligned</div>

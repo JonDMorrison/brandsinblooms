@@ -17,7 +17,7 @@
  * - Dead-lettering: permanently fails messages that cannot be delivered
  */
 
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
 import { classifyTwilioError, calculateRetryDelay, type SmsFailureType } from '../_shared/smsErrorPolicy.ts'
 import { logComplianceEvent, classifyErrorToComplianceType } from '../_shared/smsComplianceLogger.ts'
@@ -29,6 +29,7 @@ import {
   toMtaRequestId,
 } from '../_shared/mtaSendResponse.ts'
 import { prepareSmsContentForDelivery } from '../_shared/smsLinkWrapper.ts'
+import { checkSmsMessageCampaignContent } from '../_shared/smsCampaignContentGate.ts'
 import { calculateBillableUnits } from '../_shared/smsSegmentCounter.ts'
 
 // Configuration constants
@@ -340,6 +341,23 @@ async function blockIfSmsIneligible(
   return true;
 }
 
+/** Keep content holds retryable and separate from provider failures/billing. */
+async function deferIfCampaignContentBlocked(
+  supabase: SupabaseClient,
+  msg: SmsMessage,
+  tenantId: string | null,
+): Promise<boolean> {
+  const review = await checkSmsMessageCampaignContent(supabase, msg.campaign_id, tenantId);
+  if (review.decision === 'fresh') return false;
+  await supabase.from('sms_messages').update({
+    scheduled_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+    error_code: review.decision === 'retry' ? 'CONTENT_CHECK_RETRY' : 'CONTENT_REVIEW_REQUIRED',
+    error_message: truncateError(review.reason ?? 'Website content needs review.'),
+    updated_at: new Date().toISOString(),
+  }).eq('id', msg.id).eq('status', 'queued');
+  return true;
+}
+
 /**
  * Reserve rate limit tokens for sending
  */
@@ -406,6 +424,8 @@ async function updateJobWithGuard(
     status: 'completed' | 'failed' | 'pending'
     errorMessage?: string | null
     clearClaim?: boolean
+    retryAt?: string
+    attempts?: number
   }
 ): Promise<boolean> {
   const updateData: Record<string, any> = {
@@ -413,6 +433,9 @@ async function updateJobWithGuard(
     error_message: update.errorMessage ?? null,
     updated_at: new Date().toISOString(),
   };
+
+  if (update.retryAt) updateData.scheduled_at = update.retryAt;
+  if (update.attempts !== undefined) updateData.attempts = update.attempts;
 
   if (update.clearClaim) {
     updateData.claimed_at = null;
@@ -650,6 +673,7 @@ Deno.serve(async (req) => {
         let jobFailed = 0;
         let jobSkipped = 0;
         let jobRetryScheduled = 0;
+        let jobContentDeferred = false;
 
         // Process each message with idempotency check
         for (const msg of jobMessages) {
@@ -680,6 +704,12 @@ Deno.serve(async (req) => {
           }
 
           const messageTenantId = msg.tenant_id || job.tenant_id;
+          if (await deferIfCampaignContentBlocked(supabase, msg, messageTenantId)) {
+            jobContentDeferred = true;
+            jobRetryScheduled++;
+            stats.messagesRetryScheduled++;
+            continue;
+          }
           if (await blockIfSmsIneligible(supabase, msg, messageTenantId)) {
             jobFailed++;
             stats.messagesFailed++;
@@ -810,8 +840,12 @@ Deno.serve(async (req) => {
         if (jobRetryScheduled > 0) {
           const updated = await updateJobWithGuard(supabase, job.id, claimToken, {
             status: 'pending',
-            errorMessage: null,
+            errorMessage: jobContentDeferred ? 'Website content is awaiting verification or review.' : null,
             clearClaim: true,
+            ...(jobContentDeferred ? {
+              retryAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+              attempts: Math.max(0, job.attempts - 1),
+            } : {}),
           });
 
           if (updated) {
@@ -917,7 +951,8 @@ Deno.serve(async (req) => {
           await supabase
             .from('crm_sms_campaigns')
             .update(updateData)
-            .eq('id', campaignId);
+            .eq('id', campaignId)
+            .in('status', ['queued', 'sending']);
 
           stats.campaignsUpdated++;
           console.log(`[sms-queue-worker] Campaign ${campaignId} updated to: ${newCampaignStatus}`);
@@ -952,6 +987,10 @@ Deno.serve(async (req) => {
         }
 
         stats.legacyMessagesProcessed++;
+        if (await deferIfCampaignContentBlocked(supabase, msg, msg.tenant_id)) {
+          stats.messagesRetryScheduled++;
+          continue;
+        }
 
         if (await blockIfSmsIneligible(supabase, msg, msg.tenant_id)) {
           stats.messagesFailed++;

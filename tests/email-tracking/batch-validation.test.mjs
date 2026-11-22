@@ -45,3 +45,12 @@ test("keeps accepted sibling results when another split is rate limited", async 
       : { error: "rate limited", status: 429, rateLimited: true });
   assert.deepEqual(result.ids, [{ id: "accepted" }, { error: "rate limited", status: 429 }]);
 });
+
+
+test("keeps accepted receipts when a later validation sibling is held for content review", async () => {
+ const result = await isolateBatchValidation(["a", "b"], "stable", async (items) =>
+   items.length > 1 ? { error: "validation error", status: 422 }
+   : items[0] === "a" ? { ids: [{ id: "accepted" }] }
+   : { error: "CONTENT_REVIEW_REQUIRED: source changed", status: 425 });
+ assert.deepEqual(result.ids, [{ id: "accepted" }, { error: "CONTENT_REVIEW_REQUIRED: source changed", status: 425 }]);
+});

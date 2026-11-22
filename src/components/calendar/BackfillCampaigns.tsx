@@ -249,15 +249,15 @@ export const BackfillCampaigns = ({
 
   if (completed) {
     return (
-      <Card className="border-green-200 bg-green-50">
+      <Card className="border-blue-200 bg-blue-50">
         <CardContent className="p-6">
           <div className="flex items-center gap-3">
-            <CheckCircle className="w-6 h-6 text-green-600" />
+            <CheckCircle className="w-6 h-6 text-blue-800" />
             <div>
-              <h3 className="font-semibold text-green-900">
+              <h3 className="font-semibold text-blue-950">
                 Backfill Complete!
               </h3>
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-blue-900">
                 Your full 52-week marketing calendar is now ready.
               </p>
             </div>

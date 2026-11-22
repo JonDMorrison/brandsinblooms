@@ -70,8 +70,8 @@ export const ConsentForm = () => {
     return (
       <Card className="bg-card border-2 border-primary/20">
         <CardContent className="p-6 text-center">
-          <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-            <CheckCircle className="w-6 h-6 text-green-600" />
+          <div className="w-12 h-12 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-6 h-6 text-blue-800" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">
             Thanks!

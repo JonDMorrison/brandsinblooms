@@ -38,8 +38,8 @@ const contentTypes = [
     id: 'newsletter',
     name: 'Newsletter',
     icon: Mail,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50 border-green-200',
+    color: 'text-blue-800',
+    bgColor: 'bg-blue-50 border-blue-200',
     preview: 'Weekly roundup with seasonal advice and updates'
   },
   {

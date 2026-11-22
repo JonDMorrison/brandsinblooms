@@ -112,7 +112,7 @@ export const AddDomainWizard: React.FC<AddDomainWizardProps> = ({ onClose }) => 
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-green-600" />
+                  <Zap className="h-5 w-5 text-blue-800" />
                   Quick Start Domain
                 </CardTitle>
                 <CardDescription>
@@ -120,12 +120,12 @@ export const AddDomainWizard: React.FC<AddDomainWizardProps> = ({ onClose }) => 
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-green-800">Instant Setup</span>
+                    <CheckCircle2 className="h-5 w-5 text-blue-800" />
+                    <span className="font-medium text-blue-950">Instant Setup</span>
                   </div>
-                  <p className="text-sm text-green-700 mb-3">
+                  <p className="text-sm text-blue-900 mb-3">
                     Your site will be immediately available at:
                   </p>
                   <div className="flex items-center gap-2 p-2 bg-white border rounded">
@@ -144,19 +144,19 @@ export const AddDomainWizard: React.FC<AddDomainWizardProps> = ({ onClose }) => 
                   <h4 className="font-medium">What's included:</h4>
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800" />
                       <span>Instant HTTPS/TLS encryption</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800" />
                       <span>Global CDN delivery</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800" />
                       <span>No DNS configuration required</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800" />
                       <span>Perfect for testing and demos</span>
                     </li>
                   </ul>

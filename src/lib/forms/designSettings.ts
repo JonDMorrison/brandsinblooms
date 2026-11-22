@@ -432,7 +432,11 @@ export function normalizeFormSettings(value: unknown): FormSettings {
         ? candidate.form_subheadline
         : DEFAULT_FORM_SETTINGS.form_subheadline,
     form_width: normalizeFormWidth(candidate.form_width),
-    label_position: "above",
+    label_position: candidate.label_position === "floating" ? "floating" : "above",
+    footer_text: typeof candidate.footer_text === "string" ? candidate.footer_text : "",
+    header_image_url: typeof candidate.header_image_url === "string" && /^https:\/\//i.test(candidate.header_image_url) ? candidate.header_image_url : "",
+    header_image_alt: typeof candidate.header_image_alt === "string" ? candidate.header_image_alt : "",
+    header_image_position: candidate.header_image_position === "left" || candidate.header_image_position === "right" ? candidate.header_image_position : "top",
     columns: normalizeColumns(candidate.columns),
     steps: normalizeSteps(candidate.steps),
     success_message:

@@ -69,7 +69,7 @@ const CHECK_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<DiagnosticStatus, string> = {
-  pass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  pass: "border-blue-200 bg-blue-50 text-blue-900",
   warn: "border-amber-200 bg-amber-50 text-amber-700",
   fail: "border-rose-200 bg-rose-50 text-rose-700",
 };
@@ -89,7 +89,7 @@ function formatDateTime(value: string | null | undefined) {
 
 function getStatusIcon(status: DiagnosticStatus) {
   if (status === "pass") {
-    return <CheckCircle2 className="h-5 w-5 text-emerald-600" />;
+    return <CheckCircle2 className="h-5 w-5 text-blue-800" />;
   }
 
   if (status === "warn") {

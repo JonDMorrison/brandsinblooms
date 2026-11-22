@@ -321,7 +321,7 @@ export const IntegrationHub = () => {
         </div>
         <div className="flex gap-3">
           <Badge variant="outline" className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-green-600" />
+            <Check className="w-4 h-4 text-blue-800" />
             {connectedCount} Active
           </Badge>
           <Badge variant="outline" className="flex items-center gap-2">
@@ -371,7 +371,7 @@ export const IntegrationHub = () => {
                 title="Point of Sale Overview"
                 description="Connect your POS to sync customers, orders, and purchase data in real-time"
                 icon={<Store className="w-6 h-6 text-primary" />}
-                badge={{ label: "Popular", className: "bg-green-600" }}
+                badge={{ label: "Popular", className: "bg-blue-800" }}
                 features={[
                   "✓ Customer Sync",
                   "✓ Order History",
@@ -497,8 +497,8 @@ export const IntegrationHub = () => {
                         <CardContent className="p-6">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                                <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center">
+                                <Check className="w-6 h-6 text-blue-800 dark:text-blue-500" />
                               </div>
                               <div>
                                 <h3 className="font-medium capitalize">

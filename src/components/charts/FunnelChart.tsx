@@ -21,7 +21,7 @@ const variantColors = {
   },
   sms: {
     primary: 'hsl(142 76% 36%)',
-    gradient: 'from-green-500 to-green-600',
+    gradient: 'from-blue-700 to-blue-800',
   },
   default: {
     primary: 'hsl(174 63% 57%)',

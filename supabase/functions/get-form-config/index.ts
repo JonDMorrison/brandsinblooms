@@ -246,6 +246,10 @@ const SETTINGS_ALLOWLIST = {
   show_branding: true, // Whether to show "Powered by BloomSuite"
   form_title: true, // Optional title above form
   form_description: true, // Optional description above form
+  footer_text: true,
+  header_image_url: true,
+  header_image_alt: true,
+  header_image_position: true,
   form_headline: true, // Headline displayed above form
   form_subheadline: true, // Subheadline displayed below headline
 
@@ -270,7 +274,7 @@ const SETTINGS_ALLOWLIST = {
 
   // ─── Layout Options ──────────────────────────────────────────────────────
   form_width: true, // Max width: 'narrow' | 'medium' | 'wide' | 'full'
-  label_position: true, // Currently only 'above' is supported end-to-end
+  label_position: true, // Above or floating labels
   columns: true, // Number of columns (1-2)
   steps: true, // Optional step metadata for multi-step forms
 } as const;
@@ -439,9 +443,8 @@ function sanitizeSteps(
     }));
 }
 
-function sanitizeLabelPosition(_value: unknown): "above" {
-  // Inline and floating labels remain disabled until the public renderers support them end-to-end.
-  return "above";
+function sanitizeLabelPosition(value: unknown): "above" | "floating" {
+  return value === "floating" ? "floating" : "above";
 }
 
 const PUBLIC_FIELD_TYPES = new Set([

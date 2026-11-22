@@ -38,9 +38,9 @@ export const StatusIndicator = ({
         return {
           label: 'Approved',
           description: 'Ready for publishing or scheduling',
-          color: 'bg-green-100 text-green-800 border-green-300',
+          color: 'bg-blue-100 text-blue-950 border-blue-300',
           icon: CheckCircle,
-          iconColor: 'text-green-600'
+          iconColor: 'text-blue-800'
         };
       case 'scheduled':
         return {
@@ -62,9 +62,9 @@ export const StatusIndicator = ({
         return {
           label: 'Generated',
           description: 'AI content generated successfully',
-          color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          color: 'bg-blue-100 text-blue-950 border-blue-300',
           icon: Sparkles,
-          iconColor: 'text-emerald-600'
+          iconColor: 'text-blue-800'
         };
       case 'preview':
         return {

@@ -55,7 +55,7 @@ export const ChannelPerformance = ({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'connected':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">Active</Badge>;
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-950">Active</Badge>;
       case 'setup-required':
         return <Badge variant="outline" className="text-yellow-700 border-yellow-300">Setup Required</Badge>;
       default:

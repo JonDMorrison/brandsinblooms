@@ -59,7 +59,7 @@ export const TeamMemberCard = ({ member, isOwner = false, onMemberUpdate }: Team
 
   if (isOwner) {
     return (
-      <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50">
+      <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50">
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarFallback className="bg-primary text-white">

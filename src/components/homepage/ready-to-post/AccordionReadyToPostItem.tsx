@@ -199,7 +199,7 @@ export const AccordionReadyToPostItem: React.FC<
                   {task.platform_post_url && (
                     <Badge
                       variant="outline"
-                      className="text-green-600 border-green-200"
+                      className="text-blue-800 border-blue-200"
                     >
                       Published
                     </Badge>

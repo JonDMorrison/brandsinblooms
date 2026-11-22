@@ -83,7 +83,7 @@ export const CRMRecentActivity = () => {
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'customer_added':
-        return <UserPlus className="w-4 h-4 text-green-600" />;
+        return <UserPlus className="w-4 h-4 text-blue-800" />;
       case 'campaign_sent':
         return <Mail className="w-4 h-4 text-blue-600" />;
       case 'purchase':
@@ -100,7 +100,7 @@ export const CRMRecentActivity = () => {
   const getActivityBadge = (type: string) => {
     switch (type) {
       case 'customer_added':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">New Customer</Badge>;
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-950">New Customer</Badge>;
       case 'campaign_sent':
         return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Campaign</Badge>;
       case 'purchase':

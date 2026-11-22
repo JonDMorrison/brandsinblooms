@@ -68,8 +68,8 @@ export default function ConfirmSubscription() {
 
         {status === 'success' && (
           <>
-            <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-500" />
-            <h1 className="text-2xl font-bold mb-2 text-green-600">Success!</h1>
+            <CheckCircle className="w-16 h-16 mx-auto mb-4 text-blue-700" />
+            <h1 className="text-2xl font-bold mb-2 text-blue-800">Success!</h1>
             <p className="text-muted-foreground mb-6">{message}</p>
             <Button onClick={() => navigate('/')} className="w-full">
               Continue

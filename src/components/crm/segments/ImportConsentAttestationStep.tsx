@@ -33,7 +33,7 @@ interface ImportConsentAttestationStepProps {
 }
 
 const OPTION_ICON: Record<ImportAttestationChoice, React.ReactNode> = {
-  express: <ShieldCheck className="h-5 w-5 text-emerald-600" />,
+  express: <ShieldCheck className="h-5 w-5 text-blue-800" />,
   unsure: <HelpCircle className="h-5 w-5 text-amber-600" />,
   implied: <Briefcase className="h-5 w-5 text-slate-600" />,
 };

@@ -154,14 +154,14 @@ export const CustomerInsights = ({ customer }: CustomerInsightsProps) => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div>
-                <p className="text-sm text-emerald-700">Total Spent</p>
-                <p className="text-2xl font-bold text-emerald-800">
+                <p className="text-sm text-blue-900">Total Spent</p>
+                <p className="text-2xl font-bold text-blue-950">
                   {formatCurrency(customer.enriched_total_spent)}
                 </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-emerald-600" />
+              <TrendingUp className="h-8 w-8 text-blue-800" />
             </div>
 
             <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">

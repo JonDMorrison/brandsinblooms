@@ -22,7 +22,7 @@ export const NewsletterIcon = ({ status }: { status?: string }) => {
       return (
         <div className="relative">
           <MailCheck className="w-6 h-6 text-primary" />
-          <CheckCircle className="w-3 h-3 absolute -top-1 -right-1 text-green-500 bg-white rounded-full" />
+          <CheckCircle className="w-3 h-3 absolute -top-1 -right-1 text-blue-700 bg-white rounded-full" />
         </div>
       );
     default:
@@ -59,7 +59,7 @@ export const CampaignIcon = ({ status }: { status?: string }) => {
     return (
       <div className="relative">
         <Megaphone className="w-6 h-6 text-primary" />
-        <CheckCircle className="w-3 h-3 absolute -top-1 -right-1 text-green-500 bg-white rounded-full" />
+        <CheckCircle className="w-3 h-3 absolute -top-1 -right-1 text-blue-700 bg-white rounded-full" />
       </div>
     );
   }
@@ -73,7 +73,7 @@ export const SocialIcon = ({ status, connectionCount = 0 }: { status?: string; c
     return (
       <div className="relative">
         <Share2 className="w-6 h-6 text-primary" />
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-700 rounded-full flex items-center justify-center">
           <span className="text-xs text-white font-bold">{connectionCount}</span>
         </div>
       </div>

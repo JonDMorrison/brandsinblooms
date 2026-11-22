@@ -147,7 +147,7 @@ const SMSTestingDemo = () => {
             </div>
 
             <div className="text-center p-4 border rounded-lg">
-              <Phone className="w-8 h-8 mx-auto mb-2 text-green-600" />
+              <Phone className="w-8 h-8 mx-auto mb-2 text-blue-800" />
               <h4 className="font-medium">Twilio Integration</h4>
               <p className="text-sm text-muted-foreground">SMS delivery & status tracking</p>
             </div>

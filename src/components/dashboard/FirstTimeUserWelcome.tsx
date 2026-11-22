@@ -98,17 +98,17 @@ export const FirstTimeUserWelcome = ({
   if (!isFirstTime) return null;
 
   return (
-    <Card className="mb-6 bg-white border-green-200 shadow-lg">
+    <Card className="mb-6 bg-white border-blue-200 shadow-lg">
       <CardHeader className="pb-4 bg-white">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
-            <Sparkles className="w-6 h-6 text-green-600" />
+          <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+            <Sparkles className="w-6 h-6 text-blue-800" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold text-green-800 flex items-center gap-2">
+            <CardTitle className="text-2xl font-bold text-blue-950 flex items-center gap-2">
               🌱 Welcome to BloomSuite, {companyName}!
             </CardTitle>
-            <p className="text-green-700 mt-1">
+            <p className="text-blue-900 mt-1">
               Your seasonal garden center content is ready to engage
               customers...
             </p>
@@ -117,9 +117,9 @@ export const FirstTimeUserWelcome = ({
       </CardHeader>
 
       <CardContent className="space-y-4 bg-white">
-        <div className="bg-white rounded-lg p-4 border border-green-200">
+        <div className="bg-white rounded-lg p-4 border border-blue-200">
           <div className="flex items-center gap-3 mb-3">
-            <CheckCircle className="w-6 h-6 text-green-600" />
+            <CheckCircle className="w-6 h-6 text-blue-800" />
             <h3 className="font-semibold text-gray-800">
               Your Seasonal Garden Center Content is Ready!
             </h3>
@@ -135,15 +135,15 @@ export const FirstTimeUserWelcome = ({
             {["Newsletter", "Instagram", "Facebook", "Email", "Video"].map(
               (type) => (
                 <div key={type} className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
                   <span className="text-gray-700">{type}</span>
                 </div>
               ),
             )}
           </div>
 
-          <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-3">
-            <p className="text-sm text-green-800 font-medium">
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 mt-3">
+            <p className="text-sm text-blue-950 font-medium">
               🌿 Each piece includes seasonal gardening advice, plant care
               expertise, and content designed to position your garden center as
               the trusted local gardening resource!

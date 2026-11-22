@@ -170,7 +170,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                 >
                   {(isAssigned, assign, unassign, isLoading, isActionLoading) => (
                     <div className={`flex items-center justify-between p-3 rounded-md border mb-2 ${
-                      isAssigned ? 'bg-green-50 border-green-200' : 'bg-background'
+                      isAssigned ? 'bg-blue-50 border-blue-200' : 'bg-background'
                     }`}>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">

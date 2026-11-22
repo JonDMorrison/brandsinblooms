@@ -1,3 +1,4 @@
+import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
 import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
@@ -1660,13 +1661,14 @@ function CampaignEditorScreen() {
               }
             />
           </Box>
-          {campaignType === "email" ? (
+          {campaignId && <CampaignOrganization campaignId={campaignId} disabled={isLocked} />}
+          {campaignType === "email" && senderClassification.status !== "ready" ? (
             <SenderConfigSummary
               senderDisplayName={senderName}
               senderEmail={senderEmail}
               isVerified={senderClassification.status === "ready"}
               isLocked={isLocked}
-              onEdit={() => setSenderConfigOpen(true)}
+              onEdit={() => navigate("/crm/settings/email-sending")}
             />
           ) : null}
         </Stack>

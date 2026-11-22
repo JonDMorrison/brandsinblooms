@@ -62,16 +62,16 @@ export const QuickActionsSection = ({
         
         {/* Decorative Background Pattern */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-700/10 to-blue-700/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-blue-700/10 to-blue-500/10 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 right-4 opacity-5">
-            <Sparkles className="w-32 h-32 text-emerald-600" />
+            <Sparkles className="w-32 h-32 text-blue-800" />
           </div>
         </div>
         
         <CardHeader className="relative z-10 pb-4">
           <CardTitle className="flex items-center gap-3 text-left text-2xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent tracking-tight">
-            <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+            <div className="p-2 bg-gradient-to-br from-blue-700 to-blue-800 rounded-xl shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             Quick Actions
@@ -83,7 +83,7 @@ export const QuickActionsSection = ({
             return (
               <div
                 key={item.id}
-                className="group w-full bg-white/50 backdrop-blur-sm border border-white/30 rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:bg-white/70 hover:border-emerald-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                className="group w-full bg-white/50 backdrop-blur-sm border border-white/30 rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:bg-white/70 hover:border-blue-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
                 onClick={item.onClick}
                 role="button"
                 tabIndex={0}
@@ -96,10 +96,10 @@ export const QuickActionsSection = ({
               >
                 <div className="flex items-start space-x-4 text-left">
                   <div className="relative group/icon">
-                    <div className="flex-shrink-0 p-3 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 backdrop-blur-sm rounded-2xl group-hover:scale-110 transition-all duration-300 shadow-lg border border-white/30">
-                      <IconComponent className="w-5 h-5 text-emerald-600" />
+                    <div className="flex-shrink-0 p-3 bg-gradient-to-br from-blue-700/20 to-blue-700/10 backdrop-blur-sm rounded-2xl group-hover:scale-110 transition-all duration-300 shadow-lg border border-white/30">
+                      <IconComponent className="w-5 h-5 text-blue-800" />
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl blur-xl group-hover/icon:blur-lg transition-all duration-300"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-700/20 to-blue-700/20 rounded-2xl blur-xl group-hover/icon:blur-lg transition-all duration-300"></div>
                   </div>
                   
                   <div className="flex-1 min-w-0 space-y-1 text-left">

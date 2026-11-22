@@ -46,7 +46,7 @@ export const UpcomingContentCard = ({ tasks, onNavigateToCalendar }: UpcomingCon
   const nextFourWeeks = getNextFourWeeksOverview();
 
   return (
-    <Card className="shadow-lg border-green-200 rounded-xl bg-green-50">
+    <Card className="shadow-lg border-blue-200 rounded-xl bg-blue-50">
       <CardHeader>
         <CardTitle className="text-lg font-bold flex items-center gap-2 text-black">
           <Calendar className="w-5 h-5" />
@@ -55,7 +55,7 @@ export const UpcomingContentCard = ({ tasks, onNavigateToCalendar }: UpcomingCon
       </CardHeader>
       <CardContent className="space-y-3">
         {nextFourWeeks.map((week) => (
-          <div key={week.id} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-100">
+          <div key={week.id} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-100">
             <span className="text-sm mt-1">📅</span>
             <div className="flex-1">
               <p className="text-sm font-semibold text-black">
@@ -72,7 +72,7 @@ export const UpcomingContentCard = ({ tasks, onNavigateToCalendar }: UpcomingCon
         ))}
         <Button 
           variant="outline" 
-          className="w-full border-green-300 text-green-700 hover:bg-green-100 mt-4"
+          className="w-full border-blue-300 text-blue-900 hover:bg-blue-100 mt-4"
           onClick={onNavigateToCalendar}
         >
           <Calendar className="w-4 h-4 mr-2" />

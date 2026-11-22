@@ -86,7 +86,7 @@ export const PublishingScheduleView = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800';
+      case 'approved': return 'bg-blue-100 text-blue-950';
       case 'scheduled': return 'bg-blue-100 text-blue-800';
       case 'published': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -215,7 +215,7 @@ export const PublishingScheduleView = () => {
                             {task.post_type}
                           </span>
                           {task.status === 'published' && (
-                            <CheckCircle className="w-3 h-3 text-green-600" />
+                            <CheckCircle className="w-3 h-3 text-blue-800" />
                           )}
                         </div>
                         

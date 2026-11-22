@@ -234,9 +234,9 @@ export const SeasonalHolidaysCard = ({
   if (allHolidays.length === 0) {
     return (
       <div className={cn("space-y-6", className)}>
-        <div className="text-left py-16 px-6 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border border-green-200">
-          <div className="w-20 h-20 mb-6 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
-            <Leaf className="w-10 h-10 text-green-600" />
+        <div className="text-left py-16 px-6 bg-gradient-to-br from-blue-50 to-blue-50 rounded-xl border border-blue-200">
+          <div className="w-20 h-20 mb-6 bg-gradient-to-br from-blue-100 to-blue-100 rounded-full flex items-center justify-center">
+            <Leaf className="w-10 h-10 text-blue-800" />
           </div>
           <HeadlineLarge className="text-gray-800 mb-3 text-left">
             No Upcoming Holiday Opportunities
@@ -246,7 +246,7 @@ export const SeasonalHolidaysCard = ({
             soon for new marketing opportunities!
           </BodyMedium>
           <div className="flex justify-start">
-            <Sparkles className="w-6 h-6 text-green-500 animate-pulse" />
+            <Sparkles className="w-6 h-6 text-blue-700 animate-pulse" />
           </div>
         </div>
       </div>
@@ -265,10 +265,10 @@ export const SeasonalHolidaysCard = ({
           <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8 cursor-pointer hover:shadow-3xl transition-shadow duration-200">
             {/* Decorative Background Pattern */}
             <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
-              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-700/10 to-blue-700/10 rounded-full blur-3xl"></div>
+              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-blue-700/10 to-blue-500/10 rounded-full blur-3xl"></div>
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
-                <Calendar className="w-64 h-64 text-emerald-400" />
+                <Calendar className="w-64 h-64 text-blue-500" />
               </div>
             </div>
 
@@ -276,7 +276,7 @@ export const SeasonalHolidaysCard = ({
             <div className="relative z-10 flex items-start justify-between text-left">
               <div className="flex flex-col gap-3 text-left">
                 <div className="inline-flex items-center gap-3 mb-2">
-                  <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg">
+                  <div className="p-3 bg-gradient-to-br from-blue-700 to-blue-800 rounded-2xl shadow-lg">
                     <Calendar className="w-8 h-8 text-white" />
                   </div>
                   <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">
@@ -330,7 +330,7 @@ export const SeasonalHolidaysCard = ({
               <Button
                 onClick={handleLoadMore}
                 variant="outline"
-                className="flex items-center gap-2 px-6 py-3 text-sm font-medium border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 transition-colors"
+                className="flex items-center gap-2 px-6 py-3 text-sm font-medium border-blue-200 text-blue-900 hover:bg-blue-50 hover:border-blue-300 transition-colors"
               >
                 <ChevronDown className="w-4 h-4" />
                 Load More ({remainingCount} remaining)

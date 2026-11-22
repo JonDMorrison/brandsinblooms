@@ -53,8 +53,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         action: "Review Your Content",
         mobileAction: "Review Content",
         icon: "👀",
-        bgColor: "bg-white sm:bg-gradient-to-r sm:from-green-50 sm:to-green-25",
-        borderColor: "border-gray-200 sm:border-green-200",
+        bgColor: "bg-white sm:bg-gradient-to-r sm:from-blue-50 sm:to-green-25",
+        borderColor: "border-gray-200 sm:border-blue-200",
         actionType: "review-content",
         highlight: "Edit, approve, or regenerate any piece until it's perfect for your brand."
       };

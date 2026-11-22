@@ -134,7 +134,7 @@ export const SMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
 
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Processed Message</Label>
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md font-mono text-sm">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md font-mono text-sm">
                   {processedResult.processed_message}
                   <Button
                     variant="ghost"

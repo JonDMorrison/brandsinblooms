@@ -308,7 +308,7 @@ function renderCloverRegionBadge(region?: string | null) {
     label === "US"
       ? "border-sky-200 bg-sky-50 text-sky-800"
       : label === "EU"
-        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+        ? "border-blue-200 bg-blue-50 text-blue-950"
         : label === "LA"
           ? "border-amber-200 bg-amber-50 text-amber-800"
           : "border-slate-200 bg-slate-50 text-slate-700";
@@ -397,7 +397,7 @@ function formatLightspeedWebhookMode(
       label: "Real-time",
       subtitle: "Webhook delivery is active for this account",
       tone: "success" as const,
-      valueClassName: "text-emerald-600",
+      valueClassName: "text-blue-800",
     };
   }
 
@@ -513,7 +513,7 @@ function formatMetaAuthorizationState(
       label: "Authorized",
       subtitle: "Meta authorization is active for connected assets",
       tone: "success" as const,
-      valueClassName: "text-emerald-600",
+      valueClassName: "text-blue-800",
     };
   }
 
@@ -548,7 +548,7 @@ function formatGa4ConnectionState(
       label: "Connected",
       subtitle: "Property access is active for website reporting",
       tone: "success" as const,
-      valueClassName: "text-emerald-600",
+      valueClassName: "text-blue-800",
     };
   }
 
@@ -678,13 +678,13 @@ function MetaAssetList({
             <span
               className={cn(
                 "h-1.5 w-1.5 rounded-full",
-                asset.active ? "bg-emerald-500" : "bg-gray-300",
+                asset.active ? "bg-blue-700" : "bg-gray-300",
               )}
             />
             <span
               className={cn(
                 "text-xs",
-                asset.active ? "text-emerald-700" : "text-muted-foreground",
+                asset.active ? "text-blue-900" : "text-muted-foreground",
               )}
             >
               {asset.active ? "Active" : "Inactive"}
@@ -2757,7 +2757,7 @@ export default function IntegrationDetailPage() {
             icon: Webhook,
             tone: shopifyConnection.webhooks_subscribed ? "success" : "warning",
             valueClassName: shopifyConnection.webhooks_subscribed
-              ? "text-emerald-600"
+              ? "text-blue-800"
               : "text-amber-600",
           },
         ]
@@ -2814,7 +2814,7 @@ export default function IntegrationDetailPage() {
             icon: Webhook,
             tone: cloverDetail.webhooksSubscribed ? "success" : "warning",
             valueClassName: cloverDetail.webhooksSubscribed
-              ? "text-emerald-600"
+              ? "text-blue-800"
               : "text-amber-600",
           },
         ]
@@ -2930,7 +2930,7 @@ export default function IntegrationDetailPage() {
                 : metaPageStatus?.tone === "warning"
                   ? "text-amber-600"
                   : metaPageStatus?.tone === "success"
-                    ? "text-emerald-600"
+                    ? "text-blue-800"
                     : metaAuthorizationState.valueClassName,
           },
         ]
@@ -5619,7 +5619,7 @@ export default function IntegrationDetailPage() {
                                         }
                                       >
                                         {copiedLabel === hostCopyLabel ? (
-                                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                          <Check className="h-3.5 w-3.5 text-blue-800" />
                                         ) : (
                                           <Copy className="h-3.5 w-3.5" />
                                         )}
@@ -5650,7 +5650,7 @@ export default function IntegrationDetailPage() {
                                         }
                                       >
                                         {copiedLabel === valueCopyLabel ? (
-                                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                          <Check className="h-3.5 w-3.5 text-blue-800" />
                                         ) : (
                                           <Copy className="h-3.5 w-3.5" />
                                         )}
@@ -9096,7 +9096,7 @@ export default function IntegrationDetailPage() {
                                   key={capability}
                                   className="flex items-start gap-2"
                                 >
-                                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-800" />
                                   <span>{capability}</span>
                                 </div>
                               ),
@@ -9194,7 +9194,7 @@ export default function IntegrationDetailPage() {
                                     : ""}
                                 </p>
                               </div>
-                              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-700" />
                             </div>
                           </div>
                         ) : (
@@ -9438,7 +9438,7 @@ export default function IntegrationDetailPage() {
                       autoFocus
                       endDecorator={
                         canConfirmDisconnect ? (
-                          <Check className="h-4 w-4 text-emerald-600" />
+                          <Check className="h-4 w-4 text-blue-800" />
                         ) : undefined
                       }
                       placeholder={disconnectConfirmationTarget}

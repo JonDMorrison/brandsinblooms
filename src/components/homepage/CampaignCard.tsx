@@ -132,7 +132,7 @@ export const CampaignCard = ({
       case "facebook":
         return "from-blue-50 to-indigo-50 border-blue-200";
       case "email":
-        return "from-green-50 to-emerald-50 border-green-200";
+        return "from-blue-50 to-blue-50 border-blue-200";
       case "newsletter":
         return "from-purple-50 to-indigo-50 border-purple-200";
       case "video":
@@ -214,7 +214,7 @@ export const CampaignCard = ({
     <Card
       className={`
       shadow-xl rounded-xl overflow-hidden campaign-card-active
-      ${isPreviewCampaign && isDeveloper ? "border-2 border-dashed border-blue-400" : "border-green-200"}
+      ${isPreviewCampaign && isDeveloper ? "border-2 border-dashed border-blue-400" : "border-blue-200"}
     `}
     >
       <CardHeader
@@ -232,7 +232,7 @@ export const CampaignCard = ({
                 : "This Week's Theme"}
             </CardTitle>
             <CardDescription
-              className={`font-medium ${isPreviewCampaign ? "text-blue-100" : "text-green-100"}`}
+              className={`font-medium ${isPreviewCampaign ? "text-blue-100" : "text-blue-100"}`}
             >
               {campaign.title}
             </CardDescription>
@@ -245,7 +245,7 @@ export const CampaignCard = ({
           <div className="flex items-center gap-4 text-sm text-gray-600 font-medium">
             <span
               className={`flex items-center gap-2 px-3 py-1 rounded-full ${
-                isPreviewCampaign ? "bg-blue-100" : "bg-green-100"
+                isPreviewCampaign ? "bg-blue-100" : "bg-blue-100"
               }`}
             >
               <Calendar className="w-4 h-4" />
@@ -273,7 +273,7 @@ export const CampaignCard = ({
 
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-green-600" />
+              <FileText className="w-5 h-5 text-blue-800" />
               {isPreviewCampaign
                 ? "Preview Content Types"
                 : "Required Weekly Content"}{" "}

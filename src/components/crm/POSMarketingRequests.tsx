@@ -1,3 +1,4 @@
+import {POSMembership} from "./POSMembership";
 import {useEffect,useState} from 'react';
 import {supabase} from '@/integrations/supabase/client';
 import {Card,CardHeader,CardTitle,CardContent} from '@/components/ui-legacy/card';
@@ -12,7 +13,7 @@ export function POSMarketingRequests(){
   const result=await supabase.rpc('review_bloomsuite_pos_marketing' as never,{p_event:request.id,p_approve:approve,p_reason:reason.trim(),p_withdrawals_reviewed:reviewed} as never);if(result.error)throw result.error;
   await load();setSelected('');setReason('');setReviewed(false);
  }catch(e){setError(e instanceof Error?e.message:'Preference could not be reviewed. Refresh and retry the same request.');}finally{setBusy(false);}}
- return <Card><CardHeader><CardTitle>POS store email preferences</CardTitle></CardHeader><CardContent className="space-y-4">
+ return <><Card><CardHeader><CardTitle>POS store email preferences</CardTitle></CardHeader><CardContent className="space-y-4">
   <p className="text-sm text-muted-foreground">Review the customer's separately captured statement and existing withdrawals. Receiving a POS request never adds a contact to a campaign.</p>
   {error&&<p role="alert" className="text-sm">{error}</p>}<Button variant="outline" disabled={busy} onClick={()=>{setBusy(true);setError('');void load().catch(e=>setError(e.message)).finally(()=>setBusy(false));}}>Refresh POS requests</Button>
   {!rows.length&&!error&&<p className="text-sm">No recent requests from connected POS stores.</p>}
@@ -22,5 +23,5 @@ export function POSMarketingRequests(){
    <label className="block text-sm" htmlFor="pos-preference-reason">Review notes</label><textarea id="pos-preference-reason" rows={3} className="w-full rounded-lg border p-2" value={reason} maxLength={2000} disabled={busy} onChange={e=>setReason(e.target.value)} placeholder="Record what you verified, or why this request should be rejected."/>
    <div className="flex flex-wrap gap-2"><Button disabled={busy||!reviewed||reason.trim().length<20} onClick={()=>void review(true)}>Approve documented permission</Button><Button variant="outline" disabled={busy||reason.trim().length<20} onClick={()=>void review(false)}>Reject request</Button></div>
   </section>}
- </CardContent></Card>;
+ </CardContent></Card><POSMembership/></>;
 }

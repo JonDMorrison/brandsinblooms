@@ -83,7 +83,7 @@ export const CampaignDeliverabilityStats: React.FC<CampaignDeliverabilityStatsPr
             label="Delivered"
             value={delivered}
             rate={stats.deliveryRate}
-            color="text-green-600"
+            color="text-blue-800"
           />
           <MetricCard
             icon={<Eye className="h-4 w-4" />}

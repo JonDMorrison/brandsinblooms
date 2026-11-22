@@ -783,7 +783,7 @@ export function SyncTypeRow({
         .filter(Boolean)
         .join(" • ")}
       tone={isSyncing || lastSyncedAt ? "success" : "neutral"}
-      valueClassName={isSyncing ? "text-emerald-600" : undefined}
+      valueClassName={isSyncing ? "text-blue-800" : undefined}
     />
   );
 }

@@ -121,7 +121,7 @@ export type FormButtonShape = "rounded" | "pill" | "square";
 export type FormBackgroundStyle = "white" | "transparent" | "green-tint" | "custom";
 export type FormInputStyle = "outlined" | "filled" | "underlined";
 export type FormWidth = "narrow" | "medium" | "wide" | "full";
-export type FormLabelPosition = "above";
+export type FormLabelPosition = "above" | "floating";
 
 export interface FormTheme {
   primary_color?: string;
@@ -144,6 +144,10 @@ export interface FormSettings {
   form_headline?: string;
   form_subheadline?: string;
   form_width?: FormWidth;
+  footer_text?: string;
+  header_image_url?: string;
+  header_image_alt?: string;
+  header_image_position?: "top" | "left" | "right";
   label_position?: FormLabelPosition;
   columns?: 1 | 2;
   steps?: FormStep[];

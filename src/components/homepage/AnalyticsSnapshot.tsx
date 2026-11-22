@@ -68,13 +68,13 @@ export const AnalyticsSnapshot = () => {
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   const getProgressColor = (rate: number) => {
-    if (rate >= 80) return "bg-green-500";
+    if (rate >= 80) return "bg-blue-700";
     if (rate >= 60) return "bg-gray-500";
     return "bg-red-500";
   };
 
   const getStatusColor = (rate: number) => {
-    if (rate >= 80) return "text-green-600 bg-green-50";
+    if (rate >= 80) return "text-blue-800 bg-blue-50";
     if (rate >= 60) return "text-gray-600 bg-gray-50";
     return "text-red-600 bg-red-50";
   };
@@ -124,7 +124,7 @@ export const AnalyticsSnapshot = () => {
             <p className="text-sm text-gray-600">Total Content</p>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{activeCampaigns}</div>
+            <div className="text-2xl font-bold text-blue-800">{activeCampaigns}</div>
             <p className="text-sm text-gray-600">Active Campaigns</p>
           </div>
         </div>
@@ -133,7 +133,7 @@ export const AnalyticsSnapshot = () => {
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
+              <CheckCircle className="w-4 h-4 text-blue-700" />
               Completed Content
             </span>
             <Badge className={getStatusColor(completionRate)}>

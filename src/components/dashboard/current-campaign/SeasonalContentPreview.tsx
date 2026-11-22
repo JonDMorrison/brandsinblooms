@@ -19,7 +19,7 @@ export const SeasonalContentPreview = ({
     const month = new Date().getMonth() + 1;
     
     if (month >= 3 && month <= 5) {
-      return { season: 'Spring', emoji: '🌸', color: 'bg-green-100 text-green-800' };
+      return { season: 'Spring', emoji: '🌸', color: 'bg-blue-100 text-blue-950' };
     } else if (month >= 6 && month <= 8) {
       return { season: 'Summer', emoji: '☀️', color: 'bg-orange-100 text-orange-800' };
     } else if (month >= 9 && month <= 11) {
@@ -48,7 +48,7 @@ export const SeasonalContentPreview = ({
         return {
           label: 'Seasonal Focus',
           icon: Leaf,
-          color: 'bg-green-100 text-green-800 border-green-200'
+          color: 'bg-blue-100 text-blue-950 border-blue-200'
         };
       default:
         return {
@@ -95,7 +95,7 @@ export const SeasonalContentPreview = ({
         {campaign.description && (
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
             <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-              <Leaf className="w-4 h-4 text-green-600" />
+              <Leaf className="w-4 h-4 text-blue-800" />
               This Week's Focus
             </h4>
             <p className="text-sm leading-relaxed text-gray-700">

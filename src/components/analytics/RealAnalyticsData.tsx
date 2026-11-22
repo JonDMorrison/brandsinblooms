@@ -277,7 +277,7 @@ export const RealAnalyticsData = () => {
                         <Icon className="w-5 h-5 text-gray-600" />
                         {trend !== 0 && (
                           <div className={`flex items-center gap-1 text-xs ${
-                            trend > 0 ? 'text-green-600' : 'text-red-600'
+                            trend > 0 ? 'text-blue-800' : 'text-red-600'
                           }`}>
                             {trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                             {Math.abs(trend)}%

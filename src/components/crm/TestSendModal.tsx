@@ -214,7 +214,7 @@ export const TestSendModal: React.FC<TestSendModalProps> = ({
           {lastResult && (
             <Alert variant={lastResult.success ? 'default' : 'destructive'}>
               {lastResult.success ? (
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-blue-800" />
               ) : (
                 <AlertTriangle className="h-4 w-4" />
               )}
