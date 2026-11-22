@@ -3,6 +3,7 @@
 CREATE TABLE public.loyalty_automation_event_runs (
   event_id uuid PRIMARY KEY REFERENCES public.automation_trigger_events(id) ON DELETE RESTRICT,
   run_id uuid NOT NULL UNIQUE REFERENCES public.automation_runs(id) ON DELETE RESTRICT,
+  workflow_snapshot jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE public.loyalty_automation_event_runs ENABLE ROW LEVEL SECURITY;
@@ -37,9 +38,15 @@ CREATE OR REPLACE FUNCTION public.begin_loyalty_automation_run(
   p_trigger_data jsonb DEFAULT '{}'::jsonb,p_metadata jsonb DEFAULT '{}'::jsonb,
   p_channel_availability jsonb DEFAULT '{}'::jsonb
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
-DECLARE e public.automation_trigger_events; r public.automation_runs; result jsonb; message_status text;
+DECLARE e public.automation_trigger_events; r public.automation_runs; result jsonb; message_status text; current_workflow jsonb; saved_workflow jsonb;
 BEGIN
   e:=public.require_claimed_loyalty_event(p_event_id,p_worker_id);
+  IF p_total_steps IS NULL OR p_total_steps NOT BETWEEN 1 AND 500 THEN
+    RAISE EXCEPTION 'Invalid loyalty workflow step count' USING ERRCODE='22023';
+  END IF;
+  SELECT coalesce(a.workflow_steps,'null'::jsonb) INTO current_workflow FROM public.crm_automations a
+    WHERE a.id=e.automation_id AND a.tenant_id=e.tenant_id FOR SHARE;
+  SELECT b.workflow_snapshot INTO saved_workflow FROM public.loyalty_automation_event_runs b WHERE b.event_id=e.id;
   SELECT ar.* INTO r FROM public.loyalty_automation_event_runs b
     JOIN public.automation_runs ar ON ar.id=b.run_id WHERE b.event_id=e.id FOR UPDATE OF ar;
   IF r.id IS NOT NULL THEN
@@ -51,6 +58,9 @@ BEGIN
       ORDER BY o.created_at,o.id LIMIT 1;
     IF r.status='active' AND r.current_step_index<r.total_steps
        AND (message_status IS NULL OR message_status='skipped') THEN
+      IF saved_workflow IS DISTINCT FROM current_workflow OR p_total_steps<>r.total_steps THEN
+        RAISE EXCEPTION 'Loyalty workflow changed before retry; review required' USING ERRCODE='22023';
+      END IF;
       RETURN jsonb_build_object('decision','resumed','run_id',r.id,'run_sequence',r.run_sequence,'step_index',r.current_step_index,'step_status',message_status);
     END IF;
     RETURN jsonb_build_object('decision','ignored','reason','already_started','run_id',r.id,'step_index',r.current_step_index,'step_status',message_status);
@@ -59,7 +69,7 @@ BEGIN
     coalesce(p_trigger_data,'{}'::jsonb)||jsonb_build_object('loyalty_trigger_event_id',e.id),
     p_metadata,p_channel_availability,1440);
   IF result->>'decision'='started' THEN
-    INSERT INTO public.loyalty_automation_event_runs(event_id,run_id) VALUES(e.id,(result->>'run_id')::uuid);
+    INSERT INTO public.loyalty_automation_event_runs(event_id,run_id,workflow_snapshot) VALUES(e.id,(result->>'run_id')::uuid,current_workflow);
     result:=result||jsonb_build_object('step_index',0);
   END IF;
   RETURN result;

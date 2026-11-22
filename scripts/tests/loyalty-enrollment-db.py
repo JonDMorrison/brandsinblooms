@@ -36,7 +36,7 @@ CREATE TABLE crm_customers(id uuid PRIMARY KEY,tenant_id uuid NOT NULL,created_a
 CREATE TABLE customer_loyalty_metrics(customer_id uuid PRIMARY KEY,tenant_id uuid,is_perks_member boolean,perks_enrolled_at timestamptz,customer_created_at timestamptz,time_to_join_perks_days integer,current_loyalty_tier text,updated_at timestamptz);
 CREATE TABLE loyalty_provider_accounts(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid,customer_id uuid,status text);
 CREATE TABLE perks_enrollment_events(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL,customer_id uuid NOT NULL,event_type text,new_tier text,enrollment_source text,created_at timestamptz DEFAULT now());
-CREATE TABLE crm_automations(id uuid PRIMARY KEY,tenant_id uuid,is_active boolean,trigger_type text,overlap_behavior text);
+CREATE TABLE crm_automations(id uuid PRIMARY KEY,tenant_id uuid,is_active boolean,trigger_type text,overlap_behavior text,workflow_steps jsonb DEFAULT '[]');
 CREATE TABLE automation_trigger_events(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),automation_id uuid,customer_id uuid,tenant_id uuid,event_type text,metadata jsonb,source_event_key text,processed_at timestamptz,claimed_at timestamptz,claimed_by text,queued_until timestamptz,retry_count integer DEFAULT 0,max_retries integer DEFAULT 3,last_error_at timestamptz,error_message text,created_at timestamptz DEFAULT now(),UNIQUE(tenant_id,automation_id,source_event_key));
 CREATE TABLE automation_runs(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),automation_id uuid,customer_id uuid,tenant_id uuid,status text,current_step_index integer,total_steps integer,run_sequence integer,trigger_data jsonb,metadata jsonb,channel_availability jsonb,next_step_scheduled_at timestamptz,started_at timestamptz DEFAULT now(),completed_at timestamptz,updated_at timestamptz,error_message text);
 CREATE TABLE crm_outbox(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL,automation_id uuid,automation_run_id uuid,customer_id uuid NOT NULL,step_index integer,message_type text CHECK(message_type IN ('email','sms')),recipient text NOT NULL,content text NOT NULL,subject text,template_data jsonb,scheduled_at timestamptz,status text,skip_reason text,skipped_at timestamptz,priority integer,automation_node_id text,locked_until timestamptz,locked_by text,updated_at timestamptz,created_at timestamptz DEFAULT now());
@@ -52,7 +52,7 @@ T='00000000-0000-0000-0000-000000000001'
 C='00000000-0000-0000-0000-000000000012'
 A='00000000-0000-0000-0000-000000000021'
 B='00000000-0000-0000-0000-000000000022'
-sql(f"INSERT INTO crm_customers(id,tenant_id,created_at) VALUES('{C}','{T}',now()-interval '2 years'); INSERT INTO crm_automations VALUES('{A}','{T}',true,'loyalty_join','restart'),('{B}','{T}',true,'loyalty.signup','parallel'),('00000000-0000-0000-0000-000000000023','{T}',false,'loyalty_join','ignore');")
+sql(f"INSERT INTO crm_customers(id,tenant_id,created_at) VALUES('{C}','{T}',now()-interval '2 years'); INSERT INTO crm_automations(id,tenant_id,is_active,trigger_type,overlap_behavior) VALUES('{A}','{T}',true,'loyalty_join','restart'),('{B}','{T}',true,'loyalty.signup','parallel'),('00000000-0000-0000-0000-000000000023','{T}',false,'loyalty_join','ignore');")
 svc="SET request.jwt.claim.role='service_role'; "
 track=svc+f"SELECT track_loyalty_enrollment('{C}','{T}');"
 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
@@ -78,6 +78,15 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
 assert {x['decision'] for x in starts}=={'started','resumed'}
 run=starts[0]['run_id']; assert all(x['run_id']==run for x in starts)
 print('PASS concurrent begin/crash before enqueue reuses one run')
+try: sql(svc+f"SELECT begin_loyalty_automation_run('{event}','worker',3);")
+except RuntimeError: print('PASS changed normalized step count rejected')
+else: raise AssertionError('Changed step count accepted')
+sql(f"UPDATE crm_automations SET workflow_steps='[{{\"type\":\"email\"}}]' WHERE id='{A}';")
+try: sql(begin)
+except RuntimeError: print('PASS edited workflow cannot resume an incomplete enqueue')
+else: raise AssertionError('Changed workflow accepted')
+sql(f"UPDATE crm_automations SET workflow_steps='[]' WHERE id='{A}';")
+
 message="jsonb_build_object('message_type','email','recipient','synthetic@example.invalid','content','Synthetic','status','queued','scheduled_at',now())"
 enqueue=svc+f"SELECT enqueue_loyalty_automation_step('{event}','worker','{run}',0,{message});"
 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
@@ -106,6 +115,7 @@ early_reject(svc+f"SELECT advance_loyalty_automation_step('{event}','worker','{r
 second=svc+f"SELECT enqueue_loyalty_automation_step('{event}','worker','{run}',1,{message}||jsonb_build_object('status','skipped','skip_reason','no consent','recipient',''));"
 sql(second)
 check(svc+f"SELECT advance_loyalty_automation_step('{event}','worker','{run}',1)->>'status'",'completed','last skipped step completes atomically')
+sql(f"UPDATE crm_automations SET workflow_steps='[{{\"type\":\"sms\"}}]' WHERE id='{A}';")
 check(svc+f"SELECT begin_loyalty_automation_run('{event}','worker',2)->>'decision'",'ignored','completed run cannot restart')
 
 def rejects(statement,label):
