@@ -1,3 +1,4 @@
+import { ConnectedEmailReview } from "./ConnectedEmailReview";
 import { CampaignResultsOverview } from "./CampaignResultsOverview";
 import * as React from "react";
 import Alert from "@mui/joy/Alert";
@@ -768,6 +769,7 @@ export function CampaignLockedView({
   const renderPausedView = () => {
     const systemPauseCopy = getSystemPauseCopy(snapshot);
     const needsAudience = snapshot.sendBlockedReason === "audience_not_configured";
+    const needsContentReview = snapshot.sendBlockedReason === "connected_content_review";
     return (
       <StateShell
         icon={<Pause size={48} color="var(--joy-palette-neutral-500)" />}
@@ -806,7 +808,9 @@ export function CampaignLockedView({
           </Typography>
         </Stack>
 
-        {systemPauseCopy ? (
+        {needsContentReview && tenantId ? (
+          <ConnectedEmailReview key={`${tenantId}:${campaignId}`} tenantId={tenantId} campaignId={campaignId} reason={snapshot.sendError} />
+        ) : systemPauseCopy ? (
           <Alert variant="soft" color="warning" sx={{ width: "100%" }}>
             {systemPauseCopy}
           </Alert>
@@ -818,7 +822,7 @@ export function CampaignLockedView({
           justifyContent="center"
           sx={{ width: "100%" }}
         >
-          {needsAudience ? (
+          {needsContentReview ? null : needsAudience ? (
             <JoyButton variant="solid" color="primary" onClick={() => setDialogKind("edit")}>
               Choose Audience
             </JoyButton>

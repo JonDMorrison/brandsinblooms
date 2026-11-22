@@ -156,3 +156,29 @@ export async function reviewConnectedEvents(blocks: StudioBlock[]): Promise<stri
   }));
   return results.filter((line): line is string => line !== null);
 }
+
+/** Explicit review only: refresh source-owned fields while retaining layout and styling. */
+export function refreshConnectedContentBlock(block: StudioBlock, item: ConnectedContentItem): StudioBlock {
+  const source = block.connectedContent;
+  if (!source || source.siteId !== item.siteId || source.itemId !== item.id || source.type !== item.type) {
+    throw new Error("The website returned a different item. Review could not continue.");
+  }
+  if (item.type === "event" && item.eventStatus !== "available") {
+    throw new Error("This event is unavailable or its booking status could not be verified.");
+  }
+  const { source: refreshedSource } = buildConnectedContentSms(item);
+  const formattedDate = campaignDate(item);
+  const date = item.type === "event" && (item.upcomingDateCount ?? 0) > 1 && formattedDate
+    ? `Multiple dates from ${formattedDate}` : formattedDate;
+  return {
+    ...block,
+    headline: item.title.slice(0, 180),
+    subheading: date || (item.type === "event" ? "Upcoming event" : ""),
+    body: item.description?.trim().slice(0, 440) ?? "",
+    imageUrl: item.imageUrl ? safeUrl(item.imageUrl) : "",
+    imageAlt: item.title.slice(0, 130),
+    buttonText: (item.ctaLabel || "Learn more").slice(0, 70),
+    buttonUrl: refreshedSource.publicUrl,
+    connectedContent: refreshedSource,
+  };
+}
