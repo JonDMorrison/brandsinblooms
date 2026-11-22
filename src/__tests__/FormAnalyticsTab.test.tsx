@@ -5,9 +5,12 @@ import { FormAnalyticsTab } from "@/components/forms/FormAnalyticsTab";
 import { FormAnalyticsData } from "@/types/formBuilder";
 
 const useFormAnalyticsMock = vi.fn();
+const useFormPlacementBreakdownMock = vi.fn();
 
 vi.mock("@/hooks/useForms", () => ({
   useFormAnalytics: (...args: unknown[]) => useFormAnalyticsMock(...args),
+  useFormPlacementBreakdown: (...args: unknown[]) =>
+    useFormPlacementBreakdownMock(...args),
 }));
 
 vi.mock("recharts", () => {
@@ -235,6 +238,34 @@ function buildEmptyAnalyticsData(): FormAnalyticsData {
 describe("FormAnalyticsTab", () => {
   beforeEach(() => {
     useFormAnalyticsMock.mockReset();
+    useFormPlacementBreakdownMock.mockReset();
+    useFormPlacementBreakdownMock.mockReturnValue({
+      data: { days: 30, total: 14, footer: 10, popup: 4, checkout: 0, event: 0, other: 0 },
+      isLoading: false,
+      isError: false,
+    });
+  });
+
+  it("shows where signups came from for the selected range", () => {
+    useFormAnalyticsMock.mockImplementation(
+      (_formId: string, _tenantId: string, days: number) => ({
+        data: buildAnalyticsData(days),
+        isLoading: false,
+        error: null,
+      }),
+    );
+
+    render(<FormAnalyticsTab formId="form-1" tenantId="tenant-1" />);
+
+    expect(screen.getByText("Where signups came from")).toBeInTheDocument();
+    expect(screen.getByText("Website footer")).toBeInTheDocument();
+    expect(screen.getByText("Website popup")).toBeInTheDocument();
+    expect(screen.getByText("(71%)")).toBeInTheDocument();
+    expect(screen.getByText("(29%)")).toBeInTheDocument();
+    expect(useFormPlacementBreakdownMock).toHaveBeenLastCalledWith("form-1", "tenant-1", 30);
+
+    fireEvent.click(screen.getByRole("button", { name: "90 days" }));
+    expect(useFormPlacementBreakdownMock).toHaveBeenLastCalledWith("form-1", "tenant-1", 90);
   });
 
   it("refetches analytics using the selected preset day range", () => {
