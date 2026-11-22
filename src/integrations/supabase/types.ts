@@ -16687,6 +16687,10 @@ export type Database = {
         Args: { p_days?: number; p_form_id: string; p_tenant_id: string };
         Returns: Json;
       };
+      get_form_placement_breakdown: {
+        Args: { p_days?: number; p_form_id: string; p_tenant_id: string };
+        Returns: Json;
+      };
       get_form_submissions_page: {
         Args: {
           p_date_from?: string;
