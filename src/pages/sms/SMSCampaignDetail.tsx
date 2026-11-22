@@ -397,6 +397,9 @@ export default function SMSCampaignDetail() {
     );
   }
 
+  const savedMetrics = campaign.metrics && typeof campaign.metrics === "object" && !Array.isArray(campaign.metrics) ? campaign.metrics : {};
+  const savedReview = savedMetrics.content_review;
+  const deliveryBlocked = Boolean(savedMetrics.replacement_campaign_id) || Boolean(savedReview && typeof savedReview === "object" && !Array.isArray(savedReview) && savedReview.decision === "review_required");
   const metrics = resolveSmsCampaignMetrics(
     campaign.metrics &&
       typeof campaign.metrics === "object" &&
@@ -435,7 +438,7 @@ export default function SMSCampaignDetail() {
       ? "scheduled"
       : "queued";
   const audienceDescriptor =
-    campaign.source === "connected_content" && campaign.status === "draft" ? "Choose an audience in the draft editor" :
+    campaign.audience_confirmed === false ? "No audience selected" :
     campaign.targeting_persona_names &&
     campaign.targeting_persona_names.length > 0
       ? campaign.targeting_persona_names.join(", ")
@@ -537,7 +540,7 @@ export default function SMSCampaignDetail() {
                   >
                     Back to SMS
                   </Button>
-                  {campaign.source === "connected_content" && campaign.status === "draft" ? (
+                  {campaign.source === "connected_content" && campaign.status === "draft" && !deliveryBlocked ? (
                     <Button onClick={() => navigate(`/sms/new?draftId=${campaign.id}`)}>
                       Edit text draft
                     </Button>
@@ -548,6 +551,7 @@ export default function SMSCampaignDetail() {
                     status={campaign.status}
                     failedCount={failedCount}
                     resumeStatus={resumeStatus}
+                    deliveryBlocked={deliveryBlocked}
                     onRetryComplete={() => void invalidateDetail()}
                     onStatusChange={() => void invalidateDetail()}
                     onDeleteComplete={() => navigate("/sms")}

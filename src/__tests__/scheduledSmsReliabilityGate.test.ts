@@ -119,6 +119,12 @@ describe("promoted SMS draft adapter", () => {
     mocks.error = {message: "forbidden"};
     await expect(loadConnectedSmsDraft("other-tenant", "draft-123")).rejects.toThrow("unavailable");
   });
+  it("does not reopen a superseded draft even if its status was reset", async () => {
+    mocks.row.metrics = {replacement_campaign_id: "new"};
+    await expect(loadConnectedSmsDraft("tenant-123", "draft-123")).rejects.toThrow("replaced");
+    render(React.createElement(ConnectedSmsReview,{campaign: mocks.row as unknown as SmsCampaignDraft}));
+    expect(screen.getByRole("button",{name:"Open replacement campaign"})).toBeInTheDocument();
+  });
   it("saves unscheduled with no audience and propagates stale-edit rejection", async () => {
     await saveConnectedSmsDraft({tenantId: "tenant-123", id: "draft-123", expectedUpdatedAt: "v1", name: "Edited", message: "Edited copy"});
     expect(mocks.rpc).toHaveBeenCalledWith("save_connected_sms_draft", expect.objectContaining({p_campaign_id: "draft-123", p_tenant_id: "tenant-123", p_expected_updated_at: "v1", p_audience: null, p_launch: false, p_scheduled_at: null}));
@@ -275,6 +281,18 @@ describe("SMS website content dispatch gate", () => {
     }
     expect(writes).toEqual([]); expect(fetcher).not.toHaveBeenCalled();
   });
+  it("never reopens superseded or review-held campaigns even when sources revert or disappear", async () => {
+    for (const metrics of [{replacement_campaign_id: "new-draft"}, {content_review: {decision: "review_required"}}]) {
+      for (const connected_content_sources of [[source], []]) {
+        const row = {...campaign, metrics, connected_content_sources};
+        const {db, writes} = database(row);
+        const fetcher = published();
+        expect((await checkSmsCampaignContent(db, row, fetcher)).decision).toBe("review_required");
+        expect((await checkSmsMessageCampaignContent(db, row.id, tenantId, fetcher)).decision).toBe("review_required");
+        expect(fetcher).not.toHaveBeenCalled(); expect(writes).toEqual([]);
+      }
+    }
+  });
   it("does not alter automation messages or ordinary campaigns without sources", async () => {
     const {db, writes} = database({...campaign, status: "sent", connected_content_sources: []});
     const fetcher = published();
@@ -322,5 +340,16 @@ describe("connected campaign review schema", () => {
   it("distinguishes legacy email payloads from explicit source snapshots", () => {
     expect(sql).toContain("public.email_messages ADD COLUMN connected_content_sources jsonb");
     expect(sql).toContain("connected_content_sources IS NULL OR jsonb_typeof(connected_content_sources)='array'");
+  });
+});
+
+import {SmsCampaignActions} from "@/components/sms/SmsCampaignActions";
+describe("SMS content hold actions", () => {
+  afterEach(cleanup);
+  it("hides resume and retry on reviewed or superseded work while retaining exports", () => {
+    render(React.createElement(SmsCampaignActions,{campaignId:"held",status:"paused",failedCount:2,deliveryBlocked:true}));
+    expect(screen.queryByRole("button",{name:"Resume"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:/Retry failed/})).not.toBeInTheDocument();
+    expect(screen.getByRole("button",{name:"Export failed CSV"})).toBeInTheDocument();
   });
 });

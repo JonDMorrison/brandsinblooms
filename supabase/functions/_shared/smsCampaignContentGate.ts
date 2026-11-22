@@ -10,12 +10,27 @@ type SmsCampaignContent = {
   metrics?: unknown;
 };
 
+function savedContentHold(metrics: unknown): ContentFreshnessResult | null {
+  if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return null;
+  const saved = metrics as Record<string, unknown>;
+  if (typeof saved.replacement_campaign_id === "string" && saved.replacement_campaign_id.length > 0) {
+    return {decision: "review_required", reason: "This campaign was replaced. Open the replacement draft; the original cannot send again."};
+  }
+  const review = saved.content_review;
+  if (review && typeof review === "object" && !Array.isArray(review) && (review as Record<string, unknown>).decision === "review_required") {
+    return {decision: "review_required", reason: "Website content needs an explicit review and a new draft before sending."};
+  }
+  return null;
+}
+
 /** Source checks never silently rewrite the owner's copy or source snapshot. */
 export async function checkSmsCampaignContent(
   db: SupabaseClient,
   campaign: SmsCampaignContent,
   fetcher: typeof fetch = fetch,
 ): Promise<ContentFreshnessResult> {
+  const hold = savedContentHold(campaign.metrics);
+  if (hold) return hold;
   if (campaign.audience_confirmed === false) {
     return {decision: "review_required", reason: "Choose an audience in the text draft before launching."};
   }
@@ -49,6 +64,8 @@ export async function checkSmsMessageCampaignContent(
     .select("id,tenant_id,status,audience_confirmed,connected_content_sources,metrics")
     .eq("id", campaignId).eq("tenant_id", tenantId).maybeSingle();
   if (error) return {decision: "retry", reason: "Campaign content could not be checked."};
+  const hold = savedContentHold(data?.metrics);
+  if (hold) return hold;
   if (data && Array.isArray(data.connected_content_sources) && data.connected_content_sources.length === 0 && data.audience_confirmed !== false) {
     return {decision: "fresh", reason: null};
   }

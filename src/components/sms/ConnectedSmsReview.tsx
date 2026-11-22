@@ -20,7 +20,7 @@ export function ConnectedSmsReview({campaign}: {campaign: SmsCampaignDraft}) {
   const review = metrics.content_review;
   const reason = review && typeof review === "object" && !Array.isArray(review) && typeof review.reason === "string" ? review.reason : "Linked website content needs review before this campaign can continue.";
   const replacementId = typeof metrics.replacement_campaign_id === "string" ? metrics.replacement_campaign_id : null;
-  if (campaign.status !== "paused" || campaign.source !== "connected_content" || !review || typeof review !== "object" || Array.isArray(review) || review.decision !== "review_required") return null;
+  if (!replacementId && (campaign.status !== "paused" || campaign.source !== "connected_content" || !review || typeof review !== "object" || Array.isArray(review) || review.decision !== "review_required")) return null;
   const load = async () => {
     if(pending.current)return;
     pending.current=true;setOpen(true);setBusy(true);setError("");setPreview(null);
@@ -40,7 +40,7 @@ export function ConnectedSmsReview({campaign}: {campaign: SmsCampaignDraft}) {
   };
   return <>
     <Alert color="warning"><Stack spacing={1}>
-      <Typography level="title-md">Website content needs review</Typography>
+      <Typography level="title-md">{replacementId ? "This campaign has been replaced" : "Website content needs review"}</Typography>
       <Typography>{reason}</Typography>
       {replacementId?<Button onClick={()=>navigate(`/sms/${replacementId}`)}>Open replacement campaign</Button>
         :<Button disabled={busy} onClick={()=>void load()}>Review latest website content</Button>}
