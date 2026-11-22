@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
+import { keepSmsEncoding } from "../_shared/smsSegmentCounter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -159,7 +160,8 @@ Deno.serve(async (req) => {
             const rawContent = step.text || step.body || step.content || '';
             const normalizedContent = convertLegacyTags(rawContent);
             const mergeTagData = createMergeTagDataFromCustomer(customer as unknown as Record<string, unknown>, {});
-            const personalizedContent = renderMergeTags(normalizedContent, mergeTagData);
+            const renderedContent = renderMergeTags(normalizedContent, mergeTagData);
+            const personalizedContent = messageType === 'sms' ? keepSmsEncoding(normalizedContent, renderedContent) : renderedContent;
 
             let personalizedSubject = null;
             if (step.subject) {

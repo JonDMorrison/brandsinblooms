@@ -134,3 +134,34 @@ export function calculateBillableUnits(
   }
   return countSmsSegments(text).segments;
 }
+
+const GSM7_SWAPS: Record<string, string> = {
+  '\u00a0': ' ', '\u202f': ' ', '\u2009': ' ', '\u2007': ' ', '·': '-', '•': '-', '–': '-', '—': '-', '‐': '-',
+  '‘': "'", '’': "'", '‚': "'", '“': '"', '”': '"', '„': '"', '…': '...', '×': 'x',
+};
+
+/**
+ * Folds text into GSM-7: smart punctuation becomes plain, accents GSM-7 lacks are dropped
+ * ("Zoë" becomes "Zoe"), and anything else becomes "?".
+ */
+export function foldToGsm7(text: string): string {
+  let out = '';
+  for (const ch of text) {
+    if (isGsm7Basic(ch) || isGsm7Extended(ch)) { out += ch; continue; }
+    if (ch in GSM7_SWAPS) { out += GSM7_SWAPS[ch]; continue; }
+    const plain = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    out += plain && [...plain].every(c => isGsm7Basic(c) || isGsm7Extended(c)) ? plain : '?';
+  }
+  return out;
+}
+
+/**
+ * A merged SMS keeps the encoding the marketer wrote. When the template is GSM-7, every
+ * non-GSM character in the result came from customer or company data (a curly apostrophe in
+ * "O’Brien", "Zoë", a pasted company name). One such character switches the whole text to
+ * UCS-2: 70 characters a segment instead of 160, so the send silently costs 2-3x the credits
+ * the composer showed. Fold those values back. A template that already uses emoji is left alone.
+ */
+export function keepSmsEncoding(template: string, rendered: string): string {
+  return detectEncoding(template) === 'GSM-7' && detectEncoding(rendered) === 'UCS-2' ? foldToGsm7(rendered) : rendered;
+}

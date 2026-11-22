@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, MergeTagData } from "../_shared/mergeTagEngine.ts";
+import { keepSmsEncoding } from "../_shared/smsSegmentCounter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -191,7 +192,7 @@ async function handler(req: Request): Promise<Response> {
 
     // Convert legacy tags and render
     const convertedTemplate = convertLegacyTags(template);
-    const renderedText = renderMergeTags(convertedTemplate, mergeTagData);
+    const renderedText = keepSmsEncoding(convertedTemplate, renderMergeTags(convertedTemplate, mergeTagData));
 
     // Get Twilio credentials
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
