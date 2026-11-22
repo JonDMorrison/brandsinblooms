@@ -105,6 +105,34 @@ export function buildConnectedContentBlock(
   };
 }
 
+/** Text drafts use the same stable source contract as newsletter blocks. */
+export function buildConnectedContentSms(item: ConnectedContentItem): {
+  smsMessage: string;
+  source: NonNullable<StudioBlock["connectedContent"]>;
+} {
+  const publicUrl = safeUrl(item.publicUrl);
+  if (!publicUrl) throw new Error("This website content has no secure public link.");
+  if (item.eventStatus === "cancelled" || item.eventStatus === "sold_out") {
+    throw new Error("This event is not available to promote.");
+  }
+  const title = item.title.trim().slice(0, 180);
+  const date = item.type === "event" ? campaignDate(item) : "";
+  const dateLabel = date && (item.upcomingDateCount ?? 0) > 1
+    ? `Multiple dates from ${date}` : date;
+  return {
+    // Keep the complete canonical URL. The existing SMS editor shows segments
+    // and lets the owner edit before choosing recipients or sending.
+    smsMessage: [title, dateLabel, item.description?.trim().slice(0, 140), publicUrl]
+      .filter(Boolean).join("\n"),
+    source: {
+      siteId: item.siteId, itemId: item.id, type: item.type,
+      updatedAt: item.updatedAt, publicUrl, startAt: item.startAt ?? null,
+      sourceTitle: item.title, sourceDescription: item.description,
+      sourceImageUrl: item.imageUrl, upcomingDateCount: item.upcomingDateCount,
+    },
+  };
+}
+
 /** Check source events on opening send review. Draft content is never overwritten. */
 export async function reviewConnectedEvents(blocks: StudioBlock[]): Promise<string[]> {
   const events = blocks.filter(block => block.visible !== false && block.connectedContent?.type === "event");

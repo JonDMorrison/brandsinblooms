@@ -50,6 +50,13 @@ describe("Square webhook identity and automation reliability", () => {
     expect(webhook).not.toContain("fireAutomationTriggers");
   });
 
+  it("routes both loyalty aliases from a real Square enrollment", () => {
+    const loyalty = webhook.slice(webhook.indexOf("async function processLoyaltyAccountCreated"), webhook.indexOf("async function processFulfillmentUpdated"));
+    expect(loyalty).toContain('["loyalty_join", "loyalty.signup"]');
+    expect(loyalty).toContain("loyalty_account_id: loyaltyAccount.id");
+    expect(loyalty).not.toContain("track_loyalty_enrollment");
+  });
+
   it("enforces provider-event idempotency in Postgres", () => {
     expect(migration).toContain(
       "ADD COLUMN IF NOT EXISTS source_event_key text",

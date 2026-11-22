@@ -1,8 +1,22 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
-import { buildConnectedContentBlock, reviewConnectedEvents } from "@/lib/connectedContent";
+import { buildConnectedContentBlock, buildConnectedContentSms, reviewConnectedEvents } from "@/lib/connectedContent";
+import * as React from "react";
+import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
+import ConnectedContentPage from "@/pages/crm/ConnectedContentPage";
 const mockInvoke = vi.hoisted(() => vi.fn());
+const pageMocks = vi.hoisted(() => ({save: vi.fn(), saveSms: vi.fn(), params: "", navigate: vi.fn()}));
+vi.mock("@/lib/sms/campaignDraft", () => ({saveConnectedSmsDraft: pageMocks.saveSms}));
+vi.mock("@/hooks/useTenant", () => ({useTenant: () => ({tenant: {id: "tenant-123"}})}));
+vi.mock("@/lib/crm/campaignEditor", () => ({persistCampaignDraft: pageMocks.save}));
+vi.mock("react-router-dom", () => ({useNavigate: () => pageMocks.navigate, useSearchParams: () => [new URLSearchParams(pageMocks.params)]}));
+vi.mock("@/hooks/useUserRole", () => ({useUserRole: () => ({hasPermission: () => true, isLoading: false})}));
+vi.mock("@/utils/toast", () => ({toast: {success: vi.fn()}}));
+vi.mock("@/contexts/DesignSystemContext", () => ({
+  DesignSystemProvider: ({children}: {children: React.ReactNode}) => children,
+  useDesignSystem: () => ({designSystem: design}),
+}));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke: mockInvoke } } }));
 import type { ConnectedContentItem } from "@/lib/connectedContent";
 
@@ -112,6 +126,90 @@ describe("Connected Content newsletter blocks",()=>{
   });
 });
 
+describe("Connected Content text drafts", () => {
+  it("keeps the canonical link and source version with readable event details", () => {
+    const draft = buildConnectedContentSms({...item, upcomingDateCount: 2});
+    expect(draft.smsMessage).toContain(item.title);
+    expect(draft.smsMessage).toContain("Multiple dates from Nov 19, 2026");
+    expect(draft.smsMessage).toContain(item.description);
+    expect(draft.smsMessage.endsWith(item.publicUrl)).toBe(true);
+    expect(draft.source).toEqual(buildConnectedContentBlock({...item, upcomingDateCount: 2}, design).connectedContent);
+  });
+  it("handles every content kind without inventing dates or truncating links", () => {
+    for (const type of ["page", "product", "blog", "fundraiser"] as const) {
+      const publicUrl = `https://example.org/${type}/${"long".repeat(120)}?source=website`;
+      const draft = buildConnectedContentSms({...item, type, publicUrl, description: "d".repeat(500)});
+      expect(draft.smsMessage).not.toContain("Nov 19");
+      expect(draft.smsMessage).toContain("d".repeat(140));
+      expect(draft.smsMessage).not.toContain("d".repeat(141));
+      expect(draft.smsMessage.endsWith(publicUrl)).toBe(true);
+    }
+  });
+  it("rejects unavailable events and unsafe links before saving", () => {
+    for (const eventStatus of ["cancelled", "sold_out"] as const) {
+      expect(() => buildConnectedContentSms({...item, eventStatus})).toThrow("not available");
+    }
+    expect(() => buildConnectedContentSms({...item, publicUrl: "javascript:alert(1)"})).toThrow("secure public link");
+  });
+});
+
+describe("Promote channel choice", () => {
+  beforeEach(() => {
+    pageMocks.params=""; mockInvoke.mockReset(); pageMocks.save.mockReset(); pageMocks.saveSms.mockReset(); pageMocks.navigate.mockReset();
+    mockInvoke.mockResolvedValue({data: {connections: [{id: "link", cms_site_id: "site", site_name: "Garden", site_origin: "https://example.org"}], items: [item], sources: [], errors: []}, error: null});
+    pageMocks.save.mockResolvedValue({id: "draft-123"}); pageMocks.saveSms.mockResolvedValue({id: "draft-123"});
+  });
+  afterEach(cleanup);
+  it("requires a channel choice then opens a text draft without selecting recipients", async () => {
+    render(React.createElement(ConnectedContentPage));
+    fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
+    expect(pageMocks.save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", {name: "Create text message draft"}));
+    await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/sms/new?draftId=draft-123"));
+    expect(pageMocks.saveSms).toHaveBeenCalledTimes(1);
+    expect(pageMocks.save).not.toHaveBeenCalled();
+    expect(pageMocks.saveSms).toHaveBeenCalledWith({
+      tenantId: "tenant-123", name: `Promote ${item.title}`,
+      message: expect.stringContaining(item.publicUrl),
+      sources: [expect.objectContaining({siteId: item.siteId, itemId: item.id, updatedAt: item.updatedAt})],
+    });
+  });
+  it("opens the channel chooser from an exact CMS event deep link without creating anything", async () => {
+    pageMocks.params=`promoteSite=${item.siteId}&promoteId=${item.id}`;
+    render(React.createElement(ConnectedContentPage));
+    expect(await screen.findByRole("button", {name: "Create text message draft"})).toBeInTheDocument();
+    expect(mockInvoke).toHaveBeenCalledWith("connected-content", {body: expect.objectContaining({itemId: item.id, siteId: item.siteId, type: "events"})});
+    expect(pageMocks.save).not.toHaveBeenCalled(); expect(pageMocks.saveSms).not.toHaveBeenCalled();
+  });
+  it("keeps newsletter blocks and the existing Studio route", async () => {
+    render(React.createElement(ConnectedContentPage));
+    fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
+    fireEvent.click(screen.getByRole("button", {name: "Create email newsletter draft"}));
+    await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/crm/campaigns/draft-123/studio"));
+    expect(pageMocks.save).toHaveBeenCalledWith(expect.objectContaining({
+      campaignType: "email", smsMessage: "", status: "draft",
+      contentBlocks: expect.arrayContaining([expect.objectContaining({type: "image-text", buttonUrl: item.publicUrl}),expect.objectContaining({type: "footer"})]),
+    }));
+  });
+  it("does not create another draft while the first save is pending", async () => {
+    let finish!: (value: {id: string}) => void;
+    pageMocks.saveSms.mockReturnValue(new Promise<{id: string}>(resolve => {finish = resolve;}));
+    render(React.createElement(ConnectedContentPage));
+    fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
+    const button = screen.getByRole("button", {name: "Create text message draft"});
+    fireEvent.click(button); fireEvent.click(button);
+    expect(pageMocks.saveSms).toHaveBeenCalledTimes(1);
+    expect(pageMocks.navigate).not.toHaveBeenCalled();
+    finish({id: "draft-123"});
+    await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/sms/new?draftId=draft-123"));
+  });
+  it("closing the channel choice creates nothing", async () => {
+    render(React.createElement(ConnectedContentPage));
+    fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
+    fireEvent.click(screen.getByRole("button", {name: "Close dialog"}));
+    expect(pageMocks.save).not.toHaveBeenCalled();
+  });
+});
 
 // Exercise the same server checker used at enqueue and provider dispatch.
 import { checkConnectedContentFreshness, extractConnectedContentSources } from "../../supabase/functions/_shared/connectedContentFreshness";
