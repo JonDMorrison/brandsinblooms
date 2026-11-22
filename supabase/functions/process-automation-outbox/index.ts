@@ -1,6 +1,7 @@
 import {resolveCouponReminderSchedule} from '../_shared/customer-intelligence/coupon-reminder-schedule.ts';
 import {parseCouponReminderForChannel,type CouponReminderConfig} from '../_shared/customer-intelligence/coupon-lifecycle.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { keepSmsEncoding } from "../_shared/smsSegmentCounter.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   resolveSender,
@@ -1030,7 +1031,7 @@ async function sendSMS(
           },
         });
       }
-      smsBody = renderMergeTags(smsBody, mergeData);
+      smsBody = keepSmsEncoding(smsBody, renderMergeTags(smsBody, mergeData));
     }
 
     const { data, error } = await supabase.functions.invoke("send-sms", {

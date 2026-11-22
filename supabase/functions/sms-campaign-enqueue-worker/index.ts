@@ -19,7 +19,7 @@ import {
   convertLegacyTags,
   createMergeTagDataFromCustomer,
 } from "../_shared/mergeTagEngine.ts";
-import { countSmsSegments } from "../_shared/smsSegmentCounter.ts";
+import { countSmsSegments, keepSmsEncoding } from "../_shared/smsSegmentCounter.ts";
 import {
   getSmsWarmupInfoByPhoneOrMessagingService,
   ensureSmsWarmupRowForMessagingServiceIfNeeded,
@@ -511,7 +511,7 @@ Deno.serve(async (req) => {
           customer,
           companyInfo,
         );
-        const renderedContent = renderMergeTags(messageTemplate, mergeTagData);
+        const renderedContent = keepSmsEncoding(messageTemplate, renderMergeTags(messageTemplate, mergeTagData));
         const formattedPhone = formatPhoneForTwilio(customer.phone);
 
         if (customer.is_vip) pageHasVip = true;
