@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { connectedContentRequest, refreshConnectedContentBlock, type ConnectedContentResponse } from "@/lib/connectedContent";
+import { normalizeContentBlocks, type RenderableContentBlock } from "../../../supabase/functions/_shared/campaignEmailSource";
 import { renderDraftPreviewHtml } from "@/lib/crm/campaignDraftPersistence";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
@@ -44,14 +45,11 @@ export async function loadConnectedEmailReview(tenantId: string, campaignId: str
   const metadata = record(campaign.metadata);
   const replacementId = typeof metadata.contentReviewReplacementId === "string" ? metadata.contentReviewReplacementId : null;
   if (replacementId) return {campaign, original: [], refreshed: [], warnings: [], replacementId};
-  let original: StudioBlock[];
-  if (Array.isArray(metadata.contentBlocks) && metadata.contentBlocks.length) original = connectedEmailBlocks(metadata.contentBlocks);
-  else {
-    // Campaign ownership was checked above; the backup table has no tenant column.
-    const {data, error: blocksError} = await supabase.from("campaign_blocks").select("content").eq("campaign_id", campaignId).order("order_index");
-    if (blocksError) throw new Error("The newsletter blocks could not be loaded. Try again.");
-    original = connectedEmailBlocks(data?.map(row => row.content));
-  }
+  // Match delivery precedence: authoritative block rows, then metadata only
+  // after a successful empty lookup. A database failure must never select stale copy.
+  const {data, error: blocksError} = await supabase.from("campaign_blocks").select("*").eq("campaign_id", campaignId).order("order_index", {ascending: true});
+  if (blocksError || !Array.isArray(data)) throw new Error("The newsletter blocks could not be loaded. Try again.");
+  const original = selectConnectedEmailReviewBlocks(data, metadata.contentBlocks);
   return {campaign, original, ...await refreshConnectedEmailBlocks(original), replacementId};
 }
 export async function replaceConnectedEmailDraft(tenantId: string, review: ConnectedEmailReview): Promise<string> {
@@ -66,4 +64,10 @@ export async function replaceConnectedEmailDraft(tenantId: string, review: Conne
   });
   if (error || !data) throw new Error(error?.message || "Could not create the reviewed draft.");
   return data;
+}
+
+export function selectConnectedEmailReviewBlocks(databaseBlocks: Record<string, unknown>[], metadataBlocks: unknown): StudioBlock[] {
+  return databaseBlocks.length > 0
+    ? normalizeContentBlocks(databaseBlocks as RenderableContentBlock[])
+    : connectedEmailBlocks(metadataBlocks);
 }

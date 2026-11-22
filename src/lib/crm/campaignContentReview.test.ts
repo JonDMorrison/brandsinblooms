@@ -44,7 +44,7 @@ describe("campaign content review", () => {
 
 import {vi, beforeEach} from "vitest";
 import {refreshConnectedContentBlock, type ConnectedContentItem} from "@/lib/connectedContent";
-import {connectedEmailBlocks, refreshConnectedEmailBlocks, replaceConnectedEmailDraft} from "./connectedEmailReview";
+import {connectedEmailBlocks, refreshConnectedEmailBlocks, replaceConnectedEmailDraft, selectConnectedEmailReviewBlocks} from "./connectedEmailReview";
 const emailReviewMocks = vi.hoisted(() => ({invoke: vi.fn(), rpc: vi.fn()}));
 vi.mock("@/integrations/supabase/client", () => ({supabase: {functions: {invoke: emailReviewMocks.invoke}, rpc: emailReviewMocks.rpc}}));
 const websiteItem: ConnectedContentItem = {id: "item", siteId: "site", type: "page", title: "New title", description: "New description", imageUrl: null, publicUrl: "https://flowers.test/new", ctaLabel: "Read more", updatedAt: "2026-11-22T01:00:00Z"};
@@ -124,5 +124,14 @@ describe("email review confirmation", () => {
     fireEvent.click(screen.getByRole("button", {name: "Create reviewed draft"}));
     await waitFor(() => expect(reviewNavigate).toHaveBeenCalledWith("/crm/campaigns/replacement"));
     expect(replace).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("email review delivery source precedence", () => {
+  it("prefers authoritative block rows to stale metadata and retains wrapper identity", () => {
+    const authoritative = {...savedBlock, headline: "Authoritative queued title", connectedContent: {...savedBlock.connectedContent!, updatedAt: "2026-11-22"}};
+    const result = selectConnectedEmailReviewBlocks([{id: "database-row", content: authoritative, order: 2}], [savedBlock]);
+    expect(result[0]).toMatchObject({id: "database-row", headline: "Authoritative queued title", order: 2, connectedContent: {updatedAt: "2026-11-22"}});
+    expect(selectConnectedEmailReviewBlocks([], [savedBlock])[0]).toBe(savedBlock);
   });
 });
