@@ -67,6 +67,7 @@ describe("loyalty enrollment delivery contract", () => {
     expect(loyaltyMigration).toContain("e.claimed_by IS DISTINCT FROM p_worker_id");
     expect(loyaltyMigration).toContain("'decision','resumed'");
     expect(loyaltyMigration).toContain("message_status='skipped'");
+    expect(loyaltyMigration).toContain("'step_status',message_status");
     expect(loyaltyMigration).toContain("'step_index',r.current_step_index");
   });
   it("creates messages only through a scoped service-only allowlist", () => {

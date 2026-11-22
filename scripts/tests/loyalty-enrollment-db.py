@@ -90,6 +90,7 @@ for status in ('failed','sent','skipped'):
     again=json.loads(sql(enqueue)); assert again['outbox_id']==sent[0]['outbox_id'] and again['existing']
 print('PASS all-status retries preserve original outbox identity')
 check(svc+f"SELECT begin_loyalty_automation_run('{event}','worker',2)->>'decision'",'resumed','skipped step resumes advancement')
+check(svc+f"SELECT begin_loyalty_automation_run('{event}','worker',2)->>'step_status'",'skipped','retry exposes durable skipped result despite eligibility changes')
 advance=svc+f"SELECT advance_loyalty_automation_step('{event}','worker','{run}',0,now());"
 sql(advance)
 check(svc+f"SELECT begin_loyalty_automation_run('{event}','worker',2)->>'step_index'",'1','crash after advance resumes missing next step')

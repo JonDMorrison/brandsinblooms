@@ -51,9 +51,9 @@ BEGIN
       ORDER BY o.created_at,o.id LIMIT 1;
     IF r.status='active' AND r.current_step_index<r.total_steps
        AND (message_status IS NULL OR message_status='skipped') THEN
-      RETURN jsonb_build_object('decision','resumed','run_id',r.id,'run_sequence',r.run_sequence,'step_index',r.current_step_index);
+      RETURN jsonb_build_object('decision','resumed','run_id',r.id,'run_sequence',r.run_sequence,'step_index',r.current_step_index,'step_status',message_status);
     END IF;
-    RETURN jsonb_build_object('decision','ignored','reason','already_started','run_id',r.id,'step_index',r.current_step_index);
+    RETURN jsonb_build_object('decision','ignored','reason','already_started','run_id',r.id,'step_index',r.current_step_index,'step_status',message_status);
   END IF;
   result:=public.begin_automation_run(e.automation_id,e.customer_id,p_total_steps,
     coalesce(p_trigger_data,'{}'::jsonb)||jsonb_build_object('loyalty_trigger_event_id',e.id),
