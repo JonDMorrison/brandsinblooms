@@ -372,7 +372,6 @@ export const BloomSuiteDashboard = () => {
           )}
         </Stack>
 
-        {showDashboardTasks && tenant?.id ? <SetupNextStepsBanner /> : null}
 
         {showDashboardTasks && !isCompleted && !hasEverCompleted ? (
           <JoyButton
@@ -799,6 +798,7 @@ export const BloomSuiteDashboard = () => {
             </Stack>
           </Sheet>
         ) : null}
+        {showDashboardTasks && tenant?.id ? <SetupNextStepsBanner /> : null}
       </Stack>
       <QuickStartTour isOpen={showTour} onClose={() => setShowTour(false)} />
       <DashboardSetupWizard

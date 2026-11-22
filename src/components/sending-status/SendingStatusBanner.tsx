@@ -62,7 +62,7 @@ export const SendingStatusBanner = () => {
     return (
       <div
         role="alert"
-        className="w-full bg-red-600 text-white px-4 py-3 sticky top-0 z-40 shadow-sm"
+        className="w-full bg-red-600 text-white px-4 py-3 rounded-lg shadow-sm"
         data-testid="sending-status-banner"
         data-variant="paused"
       >
@@ -97,7 +97,7 @@ export const SendingStatusBanner = () => {
     return (
       <div
         role="alert"
-        className="w-full bg-amber-500 text-white px-4 py-3 sticky top-0 z-40 shadow-sm"
+        className="w-full bg-amber-500 text-white px-4 py-3 rounded-lg shadow-sm"
         data-testid="sending-status-banner"
         data-variant="dns_failed"
       >
@@ -131,7 +131,7 @@ export const SendingStatusBanner = () => {
   return (
     <div
       aria-live="polite"
-      className="w-full bg-amber-50 text-amber-900 border-b border-amber-200 px-4 py-2.5 sticky top-0 z-40"
+      className="w-full bg-amber-50 text-amber-900 border border-amber-200 px-4 py-2.5 rounded-lg"
       data-testid="sending-status-banner"
       data-variant="verifying"
     >
