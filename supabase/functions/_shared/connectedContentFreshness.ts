@@ -148,8 +148,10 @@ export async function checkConnectedContentFreshness(
 
 /** A pre-provider hold is distinct from an uncertain provider response. */
 export class ContentFreshnessHold extends Error {
-  constructor(readonly decision: "review_required" | "retry", reason: string) {
+  readonly decision: "review_required" | "retry";
+  constructor(decision: "review_required" | "retry", reason: string) {
     super(`${decision === "retry" ? "CONTENT_CHECK_RETRY" : "CONTENT_REVIEW_REQUIRED"}: ${reason}`);
+    this.decision = decision;
   }
 }
 
@@ -164,4 +166,8 @@ export function emailContentSources(saved: unknown, rendered: unknown[] | null):
     throw new ContentFreshnessHold("review_required", "The email source changed after recipients were queued. Create a reviewed draft before sending.");
   }
   return saved;
+}
+
+export function uniqueContentSources(sources: unknown[]): unknown[] {
+  return [...new Map(sources.map(source => [JSON.stringify(source), source])).values()];
 }

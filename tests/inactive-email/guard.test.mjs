@@ -1,4 +1,4 @@
-import {ContentFreshnessHold, emailContentSources} from '../../supabase/functions/_shared/connectedContentFreshness.ts';
+import {ContentFreshnessHold, emailContentSources, uniqueContentSources} from '../../supabase/functions/_shared/connectedContentFreshness.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
@@ -84,4 +84,10 @@ test('content holds prevent first provider send but retain uncertain earlier att
    assert.match(result.error,uncertain?/reconciliation/:/^CONTENT_/);
   }
  }
+});
+
+test('a hundred recipients sharing a source count as one reference, without dropping malformed values',()=>{
+ const reference={itemId:'event',updatedAt:'v1'};
+ assert.deepEqual(uniqueContentSources(Array.from({length:100},()=>({...reference}))),[reference]);
+ assert.deepEqual(uniqueContentSources([reference,null,null]),[reference,null]);
 });

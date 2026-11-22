@@ -1,5 +1,5 @@
 import { normalizeContentBlocks } from "../_shared/campaignEmailSource.ts";
-import { checkConnectedContentFreshness, extractConnectedContentSources, emailContentSources, ContentFreshnessHold } from "../_shared/connectedContentFreshness.ts";
+import { checkConnectedContentFreshness, extractConnectedContentSources, emailContentSources, uniqueContentSources, ContentFreshnessHold } from "../_shared/connectedContentFreshness.ts";
 import { activeEmailCustomerIds, prepareCustomerDelivery, confirmedDeliveryOutcome } from "../_shared/activeEmailCustomers.ts";
 import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
 import { isolateBatchValidation, type BatchSendResult } from "../_shared/isolateBatchValidation.ts";
@@ -2230,7 +2230,7 @@ serve((req: Request) => {
                         sources.push(...emailContentSources(message.connected_content_sources,
                           buildsPayload || message.connected_content_sources == null ? rendered : null));
                       }
-                      const freshness = await checkConnectedContentFreshness(supabase as unknown as Parameters<typeof checkConnectedContentFreshness>[0], String(identities[0]?.tenant_id || ""), sources);
+                      const freshness = await checkConnectedContentFreshness(supabase as unknown as Parameters<typeof checkConnectedContentFreshness>[0], String(identities[0]?.tenant_id || ""), uniqueContentSources(sources));
                       if (freshness.decision !== "fresh") throw new ContentFreshnessHold(freshness.decision, freshness.reason || "Website content requires review.");
                       await prepareCustomerDelivery(supabase, identities, claimToken);
                     },
