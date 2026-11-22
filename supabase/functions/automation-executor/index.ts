@@ -11,6 +11,11 @@ import {
 import { logActivityEvent } from "../_shared/activityLogger.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { matchesAutomationTriggerConditions } from "../_shared/automation/triggerConditions.ts";
+import {
+  isLoyaltyEnrollmentTrigger,
+  writeAutomationOutbox,
+  type LoyaltyEventLease,
+} from "../_shared/automation/loyaltyEnrollment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +43,7 @@ interface WorkflowStep {
 interface AutomationEnrollment {
   decision:
     | "started"
+    | "resumed"
     | "ignored"
     | "queued"
     | "cooldown"
@@ -46,6 +52,8 @@ interface AutomationEnrollment {
   reason?: string;
   run_id?: string;
   run_sequence?: number;
+  step_index?: number;
+  step_status?: string | null;
   queued_until?: string;
 }
 
@@ -231,7 +239,7 @@ const handler = async (req: Request): Promise<Response> => {
     totalProcessed += eventsProcessed;
     totalEnqueued += eventsEnqueued;
 
-    // 2. Process each automation (for time-based triggers like loyalty_join, birthday, etc.)
+    // 2. Process polling triggers; enrollment welcomes use the durable event queue.
     for (const automation of activeAutomations || []) {
       // Skip event-driven triggers - they're handled by webhooks or the event queue, NOT cron
       const eventDrivenTriggers = [
@@ -244,7 +252,10 @@ const handler = async (req: Request): Promise<Response> => {
         "first_purchase",
         "contact.created",
       ];
-      if (eventDrivenTriggers.includes(automation.trigger_type)) {
+      if (
+        isLoyaltyEnrollmentTrigger(automation.trigger_type) ||
+        eventDrivenTriggers.includes(automation.trigger_type)
+      ) {
         continue;
       }
 
@@ -512,11 +523,10 @@ async function createAutomationRun(
   totalSteps: number,
   channelAvailability?: ChannelAvailability,
   triggerContext: Record<string, unknown> = {},
+  eventLease?: LoyaltyEventLease,
 ): Promise<AutomationEnrollment> {
   const channels = channelAvailability || checkChannelAvailability();
-  const { data, error } = await supabase.rpc("begin_automation_run", {
-    p_automation_id: automation.id,
-    p_customer_id: customer.id,
+  const args = {
     p_total_steps: totalSteps,
     p_trigger_data: {
       ...triggerContext,
@@ -535,8 +545,19 @@ async function createAutomationRun(
       },
       sms: { available: channels.sms.available, reason: channels.sms.reason },
     },
-    p_cooldown_minutes: 1440,
-  });
+  };
+  const { data, error } = eventLease
+    ? await supabase.rpc("begin_loyalty_automation_run", {
+        ...args,
+        p_event_id: eventLease.eventId,
+        p_worker_id: eventLease.workerId,
+      })
+    : await supabase.rpc("begin_automation_run", {
+        ...args,
+        p_automation_id: automation.id,
+        p_customer_id: customer.id,
+        p_cooldown_minutes: 1440,
+      });
   if (error) throw error;
 
   const enrollment = data as AutomationEnrollment;
@@ -654,12 +675,9 @@ async function getEligibleCustomers(supabase: any, automation: any) {
   switch (trigger_type) {
     case "loyalty_join":
     case "loyalty.signup":
-      // Customers who joined loyalty program in last 24 hours
-      const oneDayAgo = new Date(
-        Date.now() - 24 * 60 * 60 * 1000,
-      ).toISOString();
-      query = query.gte("created_at", oneDayAgo);
-      break;
+      // An existing customer may enroll today; a new contact may not enroll.
+      // Never infer either case from the contact's creation timestamp.
+      return [];
 
     case "first_purchase":
     case "payment.completed":
@@ -785,6 +803,7 @@ async function enqueueMessage(
   runId: string,
   scheduledAt: Date,
   triggerContext: Record<string, unknown> = {},
+  eventLease?: LoyaltyEventLease,
 ) {
   const recipient = step.type === "sms" ? customer.phone : customer.email;
 
@@ -802,6 +821,7 @@ async function enqueueMessage(
       runId,
       `No ${step.type} recipient available`,
       triggerContext,
+      eventLease,
     );
     return;
   }
@@ -811,15 +831,17 @@ async function enqueueMessage(
     const decision = await resolveCouponReminderSchedule(supabase,automation.tenant_id,customer.id,triggerContext,step.coupon_reminder,new Date().toISOString());
     couponReminder = decision.metadata;
     if (!decision.scheduled_at) {
-      await skipStep(supabase,automation,customer,step,stepIndex,runId,decision.reason,triggerContext);
+      await skipStep(supabase,automation,customer,step,stepIndex,runId,decision.reason,triggerContext,eventLease);
       return;
     }
     scheduledAt.setTime(Math.max(Date.now(),Date.parse(decision.scheduled_at)));
-    const {data: couponRun,error: couponScheduleError} = await supabase.from('automation_runs')
-      .update({next_step_scheduled_at:scheduledAt.toISOString()})
-      .eq('id',runId).eq('tenant_id',automation.tenant_id).eq('current_step_index',stepIndex).eq('status','active').select('id').maybeSingle();
-    if(couponScheduleError)throw couponScheduleError;
-    if(!couponRun)throw new Error('Coupon reminder run is no longer active at this step');
+    if (!eventLease) {
+      const {data: couponRun,error: couponScheduleError} = await supabase.from('automation_runs')
+        .update({next_step_scheduled_at:scheduledAt.toISOString()})
+        .eq('id',runId).eq('tenant_id',automation.tenant_id).eq('current_step_index',stepIndex).eq('status','active').select('id').maybeSingle();
+      if(couponScheduleError)throw couponScheduleError;
+      if(!couponRun)throw new Error('Coupon reminder run is no longer active at this step');
+    }
   }
 
   // Check if channel is available
@@ -837,6 +859,7 @@ async function enqueueMessage(
       runId,
       channelStatus.reason || "Channel not configured",
       triggerContext,
+      eventLease,
     );
     return;
   }
@@ -858,7 +881,7 @@ async function enqueueMessage(
   }
 
   // Insert into outbox with automation_run_id and sender config
-  const { error: outboxError } = await supabase.from("crm_outbox").insert({
+  await writeAutomationOutbox(supabase, {
     tenant_id: automation.tenant_id,
     automation_id: automation.id,
     automation_run_id: runId,
@@ -891,24 +914,7 @@ async function enqueueMessage(
     scheduled_at: scheduledAt.toISOString(),
     status: "queued", // Standardized: always use queued, scheduled_at determines when to process
     priority: 100,
-  });
-
-  if (outboxError) {
-    console.error(`❌ Failed to enqueue message:`, {
-      code: outboxError.code,
-      message: outboxError.message,
-      details: outboxError.details,
-      hint: outboxError.hint,
-      payload: {
-        tenant_id: automation.tenant_id,
-        automation_id: automation.id,
-        customer_id: customer.id,
-        message_type: step.type,
-        recipient,
-      },
-    });
-    throw outboxError;
-  }
+  }, eventLease);
 
   console.log(
     `📬 [OUTBOX] Successfully inserted for customer ${customer.email}, type: ${step.type}`,
@@ -941,11 +947,12 @@ async function skipStep(
   runId: string,
   reason: string,
   triggerContext: Record<string, unknown> = {},
+  eventLease?: LoyaltyEventLease,
 ) {
   const now = new Date().toISOString();
 
   // Insert skipped entry into outbox for tracking
-  await supabase.from("crm_outbox").insert({
+  await writeAutomationOutbox(supabase, {
     tenant_id: automation.tenant_id,
     automation_id: automation.id,
     automation_run_id: runId,
@@ -962,7 +969,7 @@ async function skipStep(
     skipped_at: now,
     priority: 100,
     template_data: { trigger_data: triggerContext },
-  });
+  }, eventLease);
 
   // Log the skip in automation logs
   await supabase.from("crm_automation_logs").insert({
@@ -987,6 +994,7 @@ async function skipStep(
     stepIndex,
     runId,
     triggerContext,
+    eventLease,
   );
 }
 
@@ -1000,6 +1008,7 @@ async function advanceAfterSkip(
   currentStepIndex: number,
   runId: string,
   triggerContext: Record<string, unknown> = {},
+  eventLease?: LoyaltyEventLease,
 ) {
   // Get workflow steps
   const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(
@@ -1007,8 +1016,28 @@ async function advanceAfterSkip(
   );
   const nextStepIndex = currentStepIndex + 1;
 
-  if (nextStepIndex >= workflowSteps.length) {
-    // All steps completed (or skipped)
+  const nextStep = workflowSteps[nextStepIndex];
+  const scheduledAt = nextStep
+    ? calculateScheduledTime(nextStep.delayMin, automation, customer)
+    : null;
+
+  if (eventLease) {
+    const { data: advanced, error } = await supabase.rpc(
+      "advance_loyalty_automation_step",
+      {
+        p_event_id: eventLease.eventId,
+        p_worker_id: eventLease.workerId,
+        p_run_id: runId,
+        p_step_index: currentStepIndex,
+        p_next_scheduled_at: scheduledAt?.toISOString() ?? null,
+      },
+    );
+    if (error) throw error;
+    if (advanced?.completed) return;
+    if (!nextStep || !scheduledAt || advanced?.step_index !== nextStepIndex) {
+      throw new Error("Loyalty workflow changed while advancing a skipped step");
+    }
+  } else if (!nextStep || !scheduledAt) {
     await supabase
       .from("automation_runs")
       .update({
@@ -1018,27 +1047,17 @@ async function advanceAfterSkip(
         next_step_scheduled_at: null,
       })
       .eq("id", runId);
-
     console.log(`🎉 Automation run ${runId} completed (after skips)`);
     return;
+  } else {
+    await supabase
+      .from("automation_runs")
+      .update({
+        current_step_index: nextStepIndex,
+        next_step_scheduled_at: scheduledAt.toISOString(),
+      })
+      .eq("id", runId);
   }
-
-  // Schedule next step
-  const nextStep = workflowSteps[nextStepIndex];
-  const scheduledAt = calculateScheduledTime(
-    nextStep.delayMin,
-    automation,
-    customer,
-  );
-
-  // Update run state
-  await supabase
-    .from("automation_runs")
-    .update({
-      current_step_index: nextStepIndex,
-      next_step_scheduled_at: scheduledAt.toISOString(),
-    })
-    .eq("id", runId);
 
   // Enqueue the next step (this will recursively skip if needed)
   await enqueueMessage(
@@ -1050,6 +1069,7 @@ async function advanceAfterSkip(
     runId,
     scheduledAt,
     triggerContext,
+    eventLease,
   );
 }
 
@@ -1245,11 +1265,15 @@ async function processPendingTriggerEvents(
           continue;
         }
 
+        const eventLease = isLoyaltyEnrollmentTrigger(automation.trigger_type)
+          ? { eventId: event.id, workerId: WORKER_ID }
+          : undefined;
         const triggerContext = {
           ...(event.metadata?.provider_event ?? event.metadata ?? {}),
           ...(event.segment_id ? { segment_id: event.segment_id } : {}),
           ...(event.persona_id ? { persona_id: event.persona_id } : {}),
           ...(event.form_id ? { form_id: event.form_id } : {}),
+          ...(eventLease ? { enrollment_trigger_event_id: event.id } : {}),
         };
 
         if (
@@ -1273,12 +1297,13 @@ async function processPendingTriggerEvents(
           workflowSteps.length,
           providerCheck.channelAvailability,
           triggerContext,
+          eventLease,
         );
         if (enrollment.decision === 'queued' && enrollment.queued_until) {
           await deferTriggerEvent(supabase, event.id, enrollment.queued_until);
           continue;
         }
-        if (enrollment.decision !== "started" || !enrollment.run_id) {
+        if (!["started", "resumed"].includes(enrollment.decision) || !enrollment.run_id) {
           await markEventProcessed(
             supabase,
             event.id,
@@ -1289,7 +1314,9 @@ async function processPendingTriggerEvents(
         const runId = enrollment.run_id;
 
         // Schedule the first step
-        const firstStep = workflowSteps[0];
+        const stepIndex = enrollment.step_index ?? 0;
+        const firstStep = workflowSteps[stepIndex];
+        if (!firstStep) throw new Error("Enrollment step is missing from the saved workflow");
         const scheduledAt = calculateScheduledTime(
           firstStep.delayMin,
           automation,
@@ -1297,27 +1324,39 @@ async function processPendingTriggerEvents(
         );
 
         try {
-          await enqueueMessage(
-            supabase,
-            automation,
-            customer,
-            firstStep,
-            0,
-            runId,
-            scheduledAt,
-            triggerContext,
-          );
+          if (eventLease && enrollment.step_status === "skipped") {
+            await advanceAfterSkip(
+              supabase, automation, customer, stepIndex, runId,
+              triggerContext, eventLease,
+            );
+          } else {
+            await enqueueMessage(
+              supabase,
+              automation,
+              customer,
+              firstStep,
+              stepIndex,
+              runId,
+              scheduledAt,
+              triggerContext,
+              eventLease,
+            );
+          }
 
-          // Update run with next scheduled time
-          const { error: scheduleError } = await supabase
-            .from("automation_runs")
-            .update({ next_step_scheduled_at: scheduledAt.toISOString() })
-            .eq("id", runId)
-            .eq("current_step_index", 0)
-            .eq("status", "active");
-          if (scheduleError) throw scheduleError;
+          // Loyalty scheduling is committed atomically by the lease-checked RPC.
+          if (!eventLease) {
+            // Update run with next scheduled time
+            const { error: scheduleError } = await supabase
+              .from("automation_runs")
+              .update({ next_step_scheduled_at: scheduledAt.toISOString() })
+              .eq("id", runId)
+              .eq("current_step_index", stepIndex)
+              .eq("status", "active");
+            if (scheduleError) throw scheduleError;
+          }
         } catch (enqueueError) {
-          await failAutomationRunStart(supabase, runId, enqueueError);
+          // Retain a loyalty run for the same claimed event to resume on retry.
+          if (!eventLease) await failAutomationRunStart(supabase, runId, enqueueError);
           throw enqueueError;
         }
 
