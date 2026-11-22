@@ -48,6 +48,7 @@ DECLARE r bloom_pos_private.membership_requests;p bloom_pos_private.membership_p
 BEGIN
  SELECT * INTO r FROM bloom_pos_private.membership_requests WHERE id=p_id FOR UPDATE;
  IF r.id IS NULL OR r.state IN('CONFIRMED','REJECTED') THEN RETURN; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(r.key_id||r.store_id::text||':membership-policy',0));
  SELECT * INTO p FROM bloom_pos_private.membership_policies WHERE id=r.policy_id;
  SELECT * INTO c FROM bloom_pos_private.connections WHERE key_id=r.key_id AND enabled;
  IF c.key_id IS NULL OR NOT p.enabled OR EXISTS(SELECT 1 FROM bloom_pos_private.membership_policies WHERE key_id=p.key_id AND store_id=p.store_id AND version>p.version)
@@ -75,7 +76,7 @@ REVOKE ALL ON FUNCTION bloom_pos_private.finish_membership_request(uuid) FROM PU
 
 ALTER FUNCTION public.accept_bloomsuite_pos_event(text,jsonb) RENAME TO accept_bloomsuite_pos_before_membership;
 CREATE FUNCTION public.accept_bloomsuite_pos_event(p_key text,p_envelope jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
-DECLARE c bloom_pos_private.connections;p bloom_pos_private.membership_policies;prior bloom_pos_private.inbox;r bloom_pos_private.membership_requests;d jsonb;eid uuid;rid uuid;st uuid;observed timestamptz;rev bigint;
+DECLARE c bloom_pos_private.connections;p bloom_pos_private.membership_policies;prior bloom_pos_private.inbox;r bloom_pos_private.membership_requests;d jsonb;eid uuid;rid uuid;st uuid;observed timestamptz;rev bigint;eligible boolean;
 BEGIN
  IF p_envelope->>'type' NOT IN('MembershipEnrollmentRequested','MembershipStatusRequested','MembershipPolicyRequested') OR p_envelope->>'type' IS NULL THEN RETURN public.accept_bloomsuite_pos_before_membership(p_key,p_envelope); END IF;
  IF auth.role() IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Connection service required' USING ERRCODE='42501'; END IF;
@@ -101,11 +102,14 @@ BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended(p_key||':membership:'||rid::text,0));
  SELECT * INTO prior FROM bloom_pos_private.inbox WHERE event_id=eid OR (key_id=p_key AND event_type='MembershipEnrollmentRequested' AND record_id=rid::text) LIMIT 1;
  IF FOUND THEN IF prior.key_id IS DISTINCT FROM p_key OR prior.envelope IS DISTINCT FROM p_envelope THEN RAISE EXCEPTION 'Membership retry changed'; END IF; RETURN jsonb_build_object('accepted',true,'eventId',eid,'duplicate',true); END IF;
- SELECT * INTO p FROM bloom_pos_private.membership_policies WHERE key_id=p_key AND store_id=st ORDER BY version DESC LIMIT 1;
- IF p.id IS NULL OR NOT p.enabled OR p.id::text IS DISTINCT FROM d->>'policyId' OR p.terms_version IS DISTINCT FROM d->>'termsVersion' THEN RAISE EXCEPTION 'Current reviewed membership policy required'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(p_key||st::text||':membership-policy',0));
+ SELECT * INTO p FROM bloom_pos_private.membership_policies WHERE key_id=p_key AND store_id=st AND id=(d->>'policyId')::uuid;
+ IF p.id IS NULL OR p.terms_version IS DISTINCT FROM d->>'termsVersion' THEN RAISE EXCEPTION 'Known store membership policy required'; END IF;
+ eligible:=p.enabled AND NOT EXISTS(SELECT 1 FROM bloom_pos_private.membership_policies newer WHERE newer.key_id=p_key AND newer.store_id=st AND newer.version>p.version)
+ AND EXISTS(SELECT 1 FROM public.loyalty_programmes lp WHERE lp.id=p.programme_id AND lp.tenant_id=c.crm_tenant_id AND lp.current_version_id=p.programme_version_id AND lp.status NOT IN('archived','paused'));
  INSERT INTO bloom_pos_private.inbox(event_id,key_id,event_type,record_id,revision,envelope,subject_id) VALUES(eid,p_key,'MembershipEnrollmentRequested',rid::text,rev,p_envelope,rid::text);
- INSERT INTO bloom_pos_private.membership_requests(id,event_id,policy_id,key_id,store_id,identity_result,state,observed_at) VALUES(rid,eid,p.id,p_key,st,'{}','REVIEW_REQUIRED',observed);
- PERFORM bloom_pos_private.finish_membership_request(rid);
+ INSERT INTO bloom_pos_private.membership_requests(id,event_id,policy_id,key_id,store_id,identity_result,state,observed_at) VALUES(rid,eid,p.id,p_key,st,'{}',CASE WHEN eligible THEN 'REVIEW_REQUIRED' ELSE 'REJECTED' END,observed);
+ IF eligible THEN PERFORM bloom_pos_private.finish_membership_request(rid); ELSE UPDATE bloom_pos_private.membership_requests SET review_reason='Membership policy changed before authority confirmation; collect a new agreement.' WHERE id=rid; END IF;
  RETURN jsonb_build_object('accepted',true,'eventId',eid,'duplicate',false);
 END $$;
 REVOKE ALL ON FUNCTION public.accept_bloomsuite_pos_before_membership(text,jsonb),public.accept_bloomsuite_pos_event(text,jsonb) FROM PUBLIC,anon,authenticated,service_role;
