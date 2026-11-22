@@ -67,4 +67,4 @@ jobs:
         with:
           deno-version: v2.x
       - name: Signed HTTP boundary
-        run: deno test supabase/functions/_shared/__tests__/bloomsuite-pos.test.ts
+        run: deno test --config supabase/functions/deno.json supabase/functions/_shared/__tests__/bloomsuite-pos.test.ts
