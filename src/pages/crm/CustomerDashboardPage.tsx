@@ -515,7 +515,7 @@ const CustomerDashboardPage: React.FC = () => {
 
   const fields=displayCustomer.custom_fields;
   const isIdealProfile=Boolean(fields&&typeof fields==='object'&&!Array.isArray(fields)&&'ideal_import_source' in fields);
-  const receiptMetricsUnavailable=isIdealProfile&&!purchaseMetrics;
+  const receiptMetricsUnavailable=!purchaseMetrics;
 
   const activityFilters = {
     start: rangeStartDate,
@@ -814,7 +814,7 @@ const CustomerDashboardPage: React.FC = () => {
                 onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
               />
               }
-              {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. Use the imported report-period spending above; missing receipt history is not zero spending.</Typography> : <PurchaseValueBehavior
+              {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. {isIdealProfile ? 'Use the imported report-period spending above; missing receipt history is not zero spending.' : 'Missing receipt history is not zero spending.'}</Typography> : <PurchaseValueBehavior
                 metrics={purchaseDisplayMetrics}
                 purchaseTimeline={purchaseTimeline}
                 errorMessage={chartErrors.purchaseTimeline}
@@ -823,7 +823,7 @@ const CustomerDashboardPage: React.FC = () => {
               }
               <NativeRewardBalanceList balances={nativeBalances.data ?? []} loading={nativeBalances.isFetching}
                 error={nativeBalances.error?.message ?? null} onRefresh={() => void nativeBalances.refetch()} />
-              {!receiptMetricsUnavailable&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
+              {(!isIdealProfile||!receiptMetricsUnavailable)&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
             </Stack>
           ) : null}
 
