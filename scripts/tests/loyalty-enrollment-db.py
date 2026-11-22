@@ -32,6 +32,7 @@ DO $$BEGIN
 END$$;
 CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$SELECT current_setting('request.jwt.claim.role',true)$$;
 GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;
+CREATE TABLE tenants(id uuid PRIMARY KEY);
 CREATE TABLE crm_customers(id uuid PRIMARY KEY,tenant_id uuid NOT NULL,created_at timestamptz DEFAULT now(),updated_at timestamptz,deleted_at timestamptz,merged_into_customer_id uuid,loyalty_member boolean DEFAULT false);
 CREATE TABLE customer_loyalty_metrics(customer_id uuid PRIMARY KEY,tenant_id uuid,is_perks_member boolean,perks_enrolled_at timestamptz,customer_created_at timestamptz,time_to_join_perks_days integer,current_loyalty_tier text,updated_at timestamptz);
 CREATE TABLE loyalty_provider_accounts(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid,customer_id uuid,status text);
@@ -44,6 +45,8 @@ CREATE TABLE crm_outbox(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id 
 sql(setup)
 sql((ROOT/'supabase/migrations/20260903120000_automation_atomic_enrollment.sql').read_text())
 sql((ROOT/'supabase/migrations/20260903114500_automation_trigger_claiming.sql').read_text().split('REVOKE ALL ON FUNCTION')[0])
+# Match the deployed parent cascade and outbox retention contracts.
+sql("ALTER TABLE automation_trigger_events ADD FOREIGN KEY(automation_id) REFERENCES crm_automations(id) ON DELETE CASCADE, ADD FOREIGN KEY(customer_id) REFERENCES crm_customers(id) ON DELETE CASCADE; ALTER TABLE automation_runs ADD FOREIGN KEY(automation_id) REFERENCES crm_automations(id) ON DELETE CASCADE, ADD FOREIGN KEY(customer_id) REFERENCES crm_customers(id) ON DELETE CASCADE; ALTER TABLE crm_outbox ADD FOREIGN KEY(automation_run_id) REFERENCES automation_runs(id) ON DELETE SET NULL;")
 # A pre-existing enrollment must never be queued by deploying the migration.
 sql("INSERT INTO perks_enrollment_events(tenant_id,customer_id,event_type) VALUES('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000011','enrolled');")
 sql((ROOT/'supabase/migrations/20261122052828_loyalty_enrollment_delivery.sql').read_text())
@@ -52,7 +55,7 @@ T='00000000-0000-0000-0000-000000000001'
 C='00000000-0000-0000-0000-000000000012'
 A='00000000-0000-0000-0000-000000000021'
 B='00000000-0000-0000-0000-000000000022'
-sql(f"INSERT INTO crm_customers(id,tenant_id,created_at) VALUES('{C}','{T}',now()-interval '2 years'); INSERT INTO crm_automations(id,tenant_id,is_active,trigger_type,overlap_behavior) VALUES('{A}','{T}',true,'loyalty_join','restart'),('{B}','{T}',true,'loyalty.signup','parallel'),('00000000-0000-0000-0000-000000000023','{T}',false,'loyalty_join','ignore');")
+sql(f"INSERT INTO tenants VALUES('{T}'); INSERT INTO crm_customers(id,tenant_id,created_at) VALUES('{C}','{T}',now()-interval '2 years'); INSERT INTO crm_automations(id,tenant_id,is_active,trigger_type,overlap_behavior) VALUES('{A}','{T}',true,'loyalty_join','restart'),('{B}','{T}',true,'loyalty.signup','parallel'),('00000000-0000-0000-0000-000000000023','{T}',false,'loyalty_join','ignore');")
 svc="SET request.jwt.claim.role='service_role'; "
 track=svc+f"SELECT track_loyalty_enrollment('{C}','{T}');"
 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
@@ -133,4 +136,14 @@ check("SELECT has_table_privilege('service_role','public.loyalty_automation_even
 # A forged queue event cannot cross automation/customer tenant scopes.
 sql(f"UPDATE automation_trigger_events SET claimed_at=now(),tenant_id='00000000-0000-0000-0000-000000000002' WHERE id='{event}';")
 rejects(begin,'forged event tenant rejected')
+# Child pruning must not erase replay identity; authorized parent deletion must work.
+rejects(f"DELETE FROM automation_trigger_events WHERE id='{event}'",'individual event deletion retains dedupe')
+rejects(f"DELETE FROM automation_runs WHERE id='{run}'",'individual run deletion retains dedupe')
+sql(f"DELETE FROM crm_automations WHERE id='{A}';")
+check(f"SELECT count(*) FROM loyalty_automation_event_runs WHERE automation_id='{A}'",'0','automation deletion cascades binding')
+# Bind second alias then remove customer through the actual parent cascade shape.
+second_event=sql(f"SELECT id FROM automation_trigger_events WHERE automation_id='{B}'")
+sql(svc+f"SELECT begin_loyalty_automation_run('{second_event}','worker',1);")
+sql(f"DELETE FROM crm_customers WHERE id='{C}';")
+check('SELECT count(*) FROM loyalty_automation_event_runs','0','customer deletion cascades binding')
 print('All loyalty enrollment SQL acceptance checks passed; local synthetic rows only.')

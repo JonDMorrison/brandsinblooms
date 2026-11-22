@@ -1,8 +1,13 @@
 -- New enrollment events only. Provider balance snapshots and historical rows
 -- are intentionally not backfilled into automations.
+-- Parent deletion removes the binding alongside existing cascades. Individual
+-- run/event deletion remains blocked at commit so a retry cannot lose identity.
 CREATE TABLE public.loyalty_automation_event_runs (
-  event_id uuid PRIMARY KEY REFERENCES public.automation_trigger_events(id) ON DELETE RESTRICT,
-  run_id uuid NOT NULL UNIQUE REFERENCES public.automation_runs(id) ON DELETE RESTRICT,
+  event_id uuid PRIMARY KEY REFERENCES public.automation_trigger_events(id) ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
+  run_id uuid NOT NULL UNIQUE REFERENCES public.automation_runs(id) ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  customer_id uuid NOT NULL REFERENCES public.crm_customers(id) ON DELETE CASCADE,
+  automation_id uuid NOT NULL REFERENCES public.crm_automations(id) ON DELETE CASCADE,
   workflow_snapshot jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -69,7 +74,8 @@ BEGIN
     coalesce(p_trigger_data,'{}'::jsonb)||jsonb_build_object('loyalty_trigger_event_id',e.id),
     p_metadata,p_channel_availability,1440);
   IF result->>'decision'='started' THEN
-    INSERT INTO public.loyalty_automation_event_runs(event_id,run_id,workflow_snapshot) VALUES(e.id,(result->>'run_id')::uuid,current_workflow);
+    INSERT INTO public.loyalty_automation_event_runs(event_id,run_id,tenant_id,customer_id,automation_id,workflow_snapshot)
+      VALUES(e.id,(result->>'run_id')::uuid,e.tenant_id,e.customer_id,e.automation_id,current_workflow);
     result:=result||jsonb_build_object('step_index',0);
   END IF;
   RETURN result;
