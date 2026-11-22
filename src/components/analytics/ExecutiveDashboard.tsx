@@ -157,7 +157,7 @@ export const ExecutiveDashboard = ({
 
   const getChangeColor = (change?: number) => {
     if (!change) return 'text-muted-foreground';
-    if (change > 0) return 'text-green-600';
+    if (change > 0) return 'text-blue-800';
     if (change < 0) return 'text-red-600';
     return 'text-muted-foreground';
   };

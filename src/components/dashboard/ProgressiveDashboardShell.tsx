@@ -143,13 +143,13 @@ export const ProgressiveDashboardShell = ({ children }: ProgressiveDashboardShel
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 text-green-600" />
+              <CheckCircle className="w-4 h-4 text-blue-800" />
               <span className="text-gray-700">Profile Created</span>
             </div>
             
             <div className="flex items-center space-x-2">
               {progress.campaigns > 0 ? (
-                <CheckCircle className="w-4 h-4 text-green-600" />
+                <CheckCircle className="w-4 h-4 text-blue-800" />
               ) : (
                 <Clock className="w-4 h-4 text-yellow-600" />
               )}

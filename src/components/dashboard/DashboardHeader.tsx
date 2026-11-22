@@ -44,7 +44,7 @@ export const DashboardHeader = ({
   }
 
   return (
-    <div className="p-6 border-b border-green-200 bg-white">
+    <div className="p-6 border-b border-blue-200 bg-white">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-garden-green-dark">

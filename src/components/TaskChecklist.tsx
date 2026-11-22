@@ -126,7 +126,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case "Content": return "bg-green-100 text-green-800";
+      case "Content": return "bg-blue-100 text-blue-950";
       case "Visual": return "bg-blue-100 text-blue-800";
       case "Distribution": return "bg-purple-100 text-purple-800";
       case "Web": return "bg-orange-100 text-orange-800";
@@ -138,8 +138,8 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
   };
 
   return (
-    <Card className="shadow-lg border-green-200 rounded-xl">
-      <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-xl">
+    <Card className="shadow-lg border-blue-200 rounded-xl">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-50 rounded-t-xl">
         <CardTitle className="text-lg text-black font-bold flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CheckCircle className="w-5 h-5" />
@@ -172,8 +172,8 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
                 key={task.id}
                 className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200 group ${
                   task.completed 
-                    ? 'bg-green-50 border-green-200 opacity-75' 
-                    : 'bg-white border-gray-200 hover:border-green-300 hover:shadow-sm'
+                    ? 'bg-blue-50 border-blue-200 opacity-75' 
+                    : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
                 }`}
               >
                 <div className="relative">
@@ -183,7 +183,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
                     className="h-5 w-5"
                   />
                   {task.completed && visibleChecks.includes(task.id) && (
-                    <CheckCircle className="absolute -top-1 -left-1 w-7 h-7 text-green-500 animate-scale-in" />
+                    <CheckCircle className="absolute -top-1 -left-1 w-7 h-7 text-blue-700 animate-scale-in" />
                   )}
                 </div>
                 <div className="flex-1">
@@ -208,20 +208,20 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
 
           {/* Add New Task Section */}
           {isAddingTask ? (
-            <div className="space-y-3 p-4 border-2 border-dashed border-green-300 rounded-xl bg-green-50">
+            <div className="space-y-3 p-4 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50">
               <Input
                 placeholder="Enter task description..."
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className="border-green-300 focus:border-green-500 text-black"
+                className="border-blue-300 focus:border-blue-700 text-black"
                 autoFocus
               />
               <div className="flex items-center gap-3">
                 <NativeSelect
                   value={newTaskCategory}
                   onChange={(e) => setNewTaskCategory(e.target.value)}
-                  className="w-32 border-green-300 text-black"
+                  className="w-32 border-blue-300 text-black"
                   options={categories.map(category => ({
                     value: category,
                     label: category
@@ -252,7 +252,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
             <Button 
               onClick={() => setIsAddingTask(true)}
               variant="outline" 
-              className="w-full border-2 border-dashed border-green-300 text-black hover:bg-green-50 font-semibold mt-6"
+              className="w-full border-2 border-dashed border-blue-300 text-black hover:bg-blue-50 font-semibold mt-6"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Custom Task

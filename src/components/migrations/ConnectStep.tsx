@@ -443,7 +443,7 @@ export const ConnectStep = ({
                 )}
                 {mailchimpStatus === "connected" &&
                   !hasActiveMailchimpImport && (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <CheckCircle className="w-5 h-5 text-blue-800" />
                   )}
                 {mailchimpStatus === "error" && (
                   <XCircle className="w-5 h-5 text-destructive" />
@@ -506,7 +506,7 @@ export const ConnectStep = ({
                   <RefreshCw className="w-5 h-5 text-primary animate-spin" />
                 )}
                 {klaviyoStatus === "connected" && !hasActiveKlaviyoImport && (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <CheckCircle className="w-5 h-5 text-blue-800" />
                 )}
                 {klaviyoStatus === "error" && (
                   <XCircle className="w-5 h-5 text-destructive" />
@@ -570,7 +570,7 @@ export const ConnectStep = ({
                 )}
                 {constantContactStatus === "connected" &&
                   !hasActiveConstantContactImport && (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <CheckCircle className="w-5 h-5 text-blue-800" />
                   )}
                 {constantContactStatus === "error" && (
                   <XCircle className="w-5 h-5 text-destructive" />

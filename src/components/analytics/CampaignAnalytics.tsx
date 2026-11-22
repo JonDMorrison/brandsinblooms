@@ -37,9 +37,9 @@ export const CampaignAnalytics = ({ campaignId, campaignName }: CampaignAnalytic
 
   const getPerformanceColor = (value: number, threshold: number, higher_is_better: boolean = true) => {
     if (higher_is_better) {
-      return value >= threshold ? 'text-green-600' : value >= threshold * 0.7 ? 'text-yellow-600' : 'text-red-600';
+      return value >= threshold ? 'text-blue-800' : value >= threshold * 0.7 ? 'text-yellow-600' : 'text-red-600';
     } else {
-      return value <= threshold ? 'text-green-600' : value <= threshold * 1.3 ? 'text-yellow-600' : 'text-red-600';
+      return value <= threshold ? 'text-blue-800' : value <= threshold * 1.3 ? 'text-yellow-600' : 'text-red-600';
     }
   };
 
@@ -205,7 +205,7 @@ export const CampaignAnalytics = ({ campaignId, campaignName }: CampaignAnalytic
                 
                 <div className="flex justify-between border-t pt-2">
                   <span className="font-medium">Net Profit</span>
-                  <span className="font-bold text-green-600">
+                  <span className="font-bold text-blue-800">
                     ${((metrics?.totalRevenue || 0) - ((metrics?.totalSent || 0) * 0.02)).toFixed(2)}
                   </span>
                 </div>

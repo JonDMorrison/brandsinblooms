@@ -136,7 +136,7 @@ export const POSSyncLogs: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <CheckCircle className="w-4 h-4 text-blue-700" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
       case 'running':
@@ -149,7 +149,7 @@ export const POSSyncLogs: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Completed</Badge>;
+        return <Badge variant="default" className="bg-blue-100 text-blue-950">Completed</Badge>;
       case 'error':
         return <Badge variant="destructive">Error</Badge>;
       case 'running':

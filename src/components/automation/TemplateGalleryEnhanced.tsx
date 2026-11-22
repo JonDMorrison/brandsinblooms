@@ -42,7 +42,7 @@ const categoryIcons = {
 };
 
 const complexityColors = {
-  simple: 'bg-green-100 text-green-800 border-green-200',
+  simple: 'bg-blue-100 text-blue-950 border-blue-200',
   advanced: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
   expert: 'bg-red-100 text-red-800 border-red-200'
 };
@@ -132,7 +132,7 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Open Rate:</span>
-                    <span className="text-green-600 font-medium">{template.performance.avgOpenRate}%</span>
+                    <span className="text-blue-800 font-medium">{template.performance.avgOpenRate}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Click Rate:</span>
@@ -140,7 +140,7 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
                   </div>
                   <div className="flex justify-between">
                     <span>Avg Revenue:</span>
-                    <span className="text-green-600 font-medium">${template.performance.avgRevenue}</span>
+                    <span className="text-blue-800 font-medium">${template.performance.avgRevenue}</span>
                   </div>
                 </div>
               </div>
@@ -163,19 +163,19 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
               <h4 className="font-medium mb-2">What You'll Get</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
                   <span>Pre-written messages optimized for garden centers</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
                   <span>Proven timing and sequence structure</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
                   <span>Performance benchmarks from similar businesses</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
                   <span>Easy customization for your specific needs</span>
                 </div>
               </div>
@@ -334,7 +334,7 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
                         )}
                         {template.preview.smsCount > 0 && (
                           <div className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3 text-green-500" />
+                            <MessageSquare className="w-3 h-3 text-blue-700" />
                             <span>{template.preview.smsCount}</span>
                           </div>
                         )}
@@ -344,8 +344,8 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
                     <div className="bg-muted/50 rounded-lg p-3 space-y-1">
                       <div className="text-xs font-medium text-muted-foreground">Performance</div>
                       <div className="flex justify-between text-sm">
-                        <span>Open Rate: <span className="font-medium text-green-600">{template.performance.avgOpenRate}%</span></span>
-                        <span>Revenue: <span className="font-medium text-green-600">${template.performance.avgRevenue}</span></span>
+                        <span>Open Rate: <span className="font-medium text-blue-800">{template.performance.avgOpenRate}%</span></span>
+                        <span>Revenue: <span className="font-medium text-blue-800">${template.performance.avgRevenue}</span></span>
                       </div>
                     </div>
 

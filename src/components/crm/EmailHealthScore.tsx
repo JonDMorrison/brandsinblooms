@@ -94,13 +94,13 @@ export const EmailHealthScore: React.FC<EmailHealthScoreProps> = ({
 
   const color =
     score === total
-      ? "text-green-700 bg-green-50 border-green-200"
+      ? "text-blue-900 bg-blue-50 border-blue-200"
       : score >= 3
         ? "text-amber-700 bg-amber-50 border-amber-200"
         : "text-red-700 bg-red-50 border-red-200";
 
   const dotColor =
-    score === total ? "bg-green-500" : score >= 3 ? "bg-amber-500" : "bg-red-500";
+    score === total ? "bg-blue-700" : score >= 3 ? "bg-amber-500" : "bg-red-500";
 
   const statusText =
     score === total ? "Ready to send" : score >= 3 ? "Almost there" : "Needs work";
@@ -132,7 +132,7 @@ export const EmailHealthScore: React.FC<EmailHealthScoreProps> = ({
             {checks.map((check) => (
               <div key={check.label} className="flex items-start gap-2">
                 {check.passed ? (
-                  <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-600" />
+                  <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-blue-800" />
                 ) : (
                   <X className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-red-500" />
                 )}

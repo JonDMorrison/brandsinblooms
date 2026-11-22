@@ -48,7 +48,7 @@ export const ContentPreviewCard = ({
   const isApproved = approvedContent[contentType.id];
 
   const getContentStatus = () => {
-    if (isApproved) return { status: 'approved', label: 'Approved', color: 'bg-green-100 text-green-800' };
+    if (isApproved) return { status: 'approved', label: 'Approved', color: 'bg-blue-100 text-blue-950' };
     return { status: 'ready', label: 'Ready for Review', color: 'bg-blue-100 text-blue-800' };
   };
 
@@ -109,7 +109,7 @@ export const ContentPreviewCard = ({
               <Button
                 onClick={() => onSaveEdit(contentType)}
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 transition-all duration-200"
+                className="bg-blue-800 hover:bg-blue-900 transition-all duration-200"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Save Changes

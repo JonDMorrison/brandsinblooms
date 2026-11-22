@@ -29,7 +29,7 @@ export const TokenBalanceCard = ({
           {/* Current Balance Display */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Coins className={`w-6 h-6 ${isInOverage ? 'text-orange-600' : 'text-green-600'}`} />
+              <Coins className={`w-6 h-6 ${isInOverage ? 'text-orange-600' : 'text-blue-800'}`} />
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold">

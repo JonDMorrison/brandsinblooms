@@ -181,8 +181,8 @@ export const getIntentLevelConfig = (level: IntentLevel) => {
   const configs: Record<IntentLevel, { label: string; color: string; bgColor: string; description: string }> = {
     high: {
       label: 'High Intent',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-blue-800',
+      bgColor: 'bg-blue-50',
       description: 'Highly engaged, frequent CTA clicks, quick responses'
     },
     medium: {
@@ -246,7 +246,7 @@ export const getClickTimingConfig = (pattern: 'immediate' | 'considered' | 'dela
   const configs = {
     immediate: {
       label: 'Immediate',
-      color: 'text-green-600',
+      color: 'text-blue-800',
       description: 'Clicks within 5 minutes of viewing'
     },
     considered: {

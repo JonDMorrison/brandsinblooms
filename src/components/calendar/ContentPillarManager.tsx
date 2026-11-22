@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 const DEFAULT_PILLARS = [
   { name: "Educational", color: "bg-blue-100 text-blue-800", description: "Tips, how-tos, plant care guides" },
-  { name: "Seasonal", color: "bg-green-100 text-green-800", description: "Seasonal plants, weather tips" },
+  { name: "Seasonal", color: "bg-blue-100 text-blue-950", description: "Seasonal plants, weather tips" },
   { name: "Product Focus", color: "bg-purple-100 text-purple-800", description: "Showcase products and services" },
   { name: "Community", color: "bg-orange-100 text-orange-800", description: "Customer stories, local events" },
   { name: "Behind Scenes", color: "bg-gray-100 text-gray-800", description: "Team, processes, nursery life" },
@@ -38,7 +38,7 @@ export const ContentPillarManager = ({ selectedPillar, onPillarSelect }: Content
       "bg-red-100 text-red-800",
       "bg-orange-100 text-orange-800",
       "bg-indigo-100 text-indigo-800",
-      "bg-teal-100 text-teal-800",
+      "bg-blue-100 text-blue-950",
     ];
     
     const newPillarObj = {

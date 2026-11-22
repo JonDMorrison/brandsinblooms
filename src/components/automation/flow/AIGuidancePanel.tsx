@@ -70,7 +70,7 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
   const completedSteps = steps.filter(step => step.completed).length;
 
   return (
-    <div className="w-full max-w-md mx-auto border-l-4 border-l-brand-teal bg-gradient-to-r from-blue-50 to-teal-50 rounded-lg border shadow-sm">
+    <div className="w-full max-w-md mx-auto border-l-4 border-l-brand-teal bg-gradient-to-r from-blue-50 to-blue-50 rounded-lg border shadow-sm">
       <div className="p-4 pb-3 border-b">
         <div className="flex items-center gap-2">
           <Lightbulb className="w-5 h-5 text-brand-teal" />
@@ -94,7 +94,7 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
               key={step.id}
               className={`flex items-start gap-3 p-3 rounded-lg transition-all ${
                 step.completed 
-                  ? 'bg-green-50 border border-green-200' 
+                  ? 'bg-blue-50 border border-blue-200' 
                   : isCurrentStep 
                     ? 'bg-blue-50 border border-blue-200 ring-2 ring-blue-100' 
                     : 'bg-gray-50 border border-gray-200'
@@ -102,7 +102,7 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
             >
               <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                 step.completed 
-                  ? 'bg-green-500 text-white' 
+                  ? 'bg-blue-700 text-white' 
                   : isCurrentStep 
                     ? 'bg-brand-teal text-white' 
                     : 'bg-gray-300 text-gray-600'
@@ -117,7 +117,7 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className={`font-medium text-sm ${
-                    step.completed ? 'text-green-700' : isCurrentStep ? 'text-brand-navy' : 'text-gray-600'
+                    step.completed ? 'text-blue-900' : isCurrentStep ? 'text-brand-navy' : 'text-gray-600'
                   }`}>
                     {step.title}
                   </h4>
@@ -156,8 +156,8 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
         )}
         
         {isReadyToLaunch && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2 text-green-700">
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-900">
               <CheckCircle className="w-4 h-4" />
               <span className="text-sm font-medium">Ready to launch! 🎉</span>
             </div>

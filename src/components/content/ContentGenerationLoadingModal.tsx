@@ -107,7 +107,7 @@ export const ContentGenerationLoadingModal: React.FC<ContentGenerationLoadingMod
                   <div className={`relative flex-shrink-0 ${isActive ? 'animate-pulse' : ''}`}>
                     <StepIcon className="w-4 h-4" />
                     {isCompleted && (
-                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-700 rounded-full" />
                     )}
                   </div>
                   <span className="text-sm">{step.label}</span>

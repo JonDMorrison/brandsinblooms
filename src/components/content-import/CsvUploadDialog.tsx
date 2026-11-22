@@ -177,7 +177,7 @@ export const CsvUploadDialog = ({ onImportComplete }: CsvUploadDialogProps) => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-medium flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-blue-800" />
                 Preview: {parsedData.length} campaigns found
               </h4>
               <Button variant="outline" size="sm" onClick={resetForm}>
@@ -211,7 +211,7 @@ export const CsvUploadDialog = ({ onImportComplete }: CsvUploadDialogProps) => {
               <Button 
                 onClick={handleImport} 
                 disabled={isProcessing}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-blue-800 hover:bg-blue-900"
               >
                 {isProcessing ? "Importing..." : `Import ${parsedData.length} Campaigns`}
               </Button>

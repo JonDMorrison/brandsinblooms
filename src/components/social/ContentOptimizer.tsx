@@ -88,7 +88,7 @@ export const ContentOptimizer: React.FC<ContentOptimizerProps> = ({
   const getSuggestionColor = (type: string) => {
     switch (type) {
       case 'hashtags': return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'timing': return 'bg-green-50 text-green-700 border-green-200';
+      case 'timing': return 'bg-blue-50 text-blue-900 border-blue-200';
       case 'content': return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'image': return 'bg-orange-50 text-orange-700 border-orange-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';

@@ -509,18 +509,18 @@ export const getStatusConfig = (status: string) => {
     },
     scheduled: {
       label: "Scheduled",
-      bgColor: "bg-green-100",
-      textColor: "text-green-800",
+      bgColor: "bg-blue-100",
+      textColor: "text-blue-950",
     },
     posted: {
       label: "Ready",
-      bgColor: "bg-green-100",
-      textColor: "text-green-800",
+      bgColor: "bg-blue-100",
+      textColor: "text-blue-950",
     },
     approved: {
       label: "Approved",
-      bgColor: "bg-green-100",
-      textColor: "text-green-800",
+      bgColor: "bg-blue-100",
+      textColor: "text-blue-950",
     },
   };
 

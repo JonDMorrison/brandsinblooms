@@ -332,7 +332,7 @@ export const NewsletterSchedulingModal: React.FC<
                       : AlertTriangle;
                   const color =
                     quality.level === "excellent"
-                      ? "text-green-600"
+                      ? "text-blue-800"
                       : quality.level === "good"
                         ? "text-blue-600"
                         : quality.level === "fair"
@@ -411,7 +411,7 @@ export const NewsletterSchedulingModal: React.FC<
                     : AlertTriangle;
                 const color =
                   quality.level === "excellent"
-                    ? "text-green-600"
+                    ? "text-blue-800"
                     : quality.level === "good"
                       ? "text-blue-600"
                       : quality.level === "fair"

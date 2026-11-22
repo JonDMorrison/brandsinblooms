@@ -45,7 +45,7 @@ export const SaveIndicator: React.FC<SaveIndicatorProps> = ({
   const getIcon = () => {
     if (saving) return <Loader2 className="h-3 w-3 animate-spin" />;
     if (error) return <AlertCircle className="h-3 w-3 text-red-500" />;
-    if (showSaved || lastSaved) return <Check className="h-3 w-3 text-green-500" />;
+    if (showSaved || lastSaved) return <Check className="h-3 w-3 text-blue-700" />;
     return null;
   };
 
@@ -57,7 +57,7 @@ export const SaveIndicator: React.FC<SaveIndicatorProps> = ({
       "flex items-center gap-1 text-xs text-muted-foreground transition-all",
       saving && "text-blue-600",
       error && "text-red-600",
-      showSaved && "text-green-600",
+      showSaved && "text-blue-800",
       className
     )}>
       {getIcon()}

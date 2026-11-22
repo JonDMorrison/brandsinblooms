@@ -179,7 +179,7 @@ export const ComprehensiveSMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'sent': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'sent': return <CheckCircle className="w-4 h-4 text-blue-700" />;
       case 'failed': return <XCircle className="w-4 h-4 text-red-500" />;
       case 'sending': return <Clock className="w-4 h-4 text-yellow-500 animate-spin" />;
       default: return <MessageSquare className="w-4 h-4 text-muted-foreground" />;
@@ -231,7 +231,7 @@ export const ComprehensiveSMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
                   <code>{'{{CURRENT_DATE}}'}</code>, <code>{'{{CURRENT_TIME}}'}</code>
                 </div>
                 <div className="text-xs">
-                  Character count: <span className={testMessage.length > 160 ? 'text-red-500' : 'text-green-500'}>
+                  Character count: <span className={testMessage.length > 160 ? 'text-red-500' : 'text-blue-700'}>
                     {testMessage.length}/160
                   </span>
                 </div>
@@ -257,7 +257,7 @@ export const ComprehensiveSMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Processed Message</Label>
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-md font-mono text-sm">
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md font-mono text-sm">
                       {processedResult.processed_message}
                       <Button
                         variant="ghost"
@@ -342,7 +342,7 @@ export const ComprehensiveSMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
                   rows={3}
                 />
                 <div className="text-xs">
-                  Character count: <span className={directSMSMessage.length > 160 ? 'text-red-500' : 'text-green-500'}>
+                  Character count: <span className={directSMSMessage.length > 160 ? 'text-red-500' : 'text-blue-700'}>
                     {directSMSMessage.length}/160
                   </span>
                 </div>
@@ -429,7 +429,7 @@ export const ComprehensiveSMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
                         {complianceResults.isOptedOut ? (
                           <XCircle className="w-4 h-4 text-red-500" />
                         ) : (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <CheckCircle className="w-4 h-4 text-blue-700" />
                         )}
                         <span className="font-medium">Opt-out Status</span>
                       </div>
@@ -443,7 +443,7 @@ export const ComprehensiveSMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
                         {complianceResults.isQuietHours ? (
                           <Clock className="w-4 h-4 text-yellow-500" />
                         ) : (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <CheckCircle className="w-4 h-4 text-blue-700" />
                         )}
                         <span className="font-medium">Quiet Hours</span>
                       </div>

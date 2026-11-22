@@ -87,8 +87,8 @@ export const EnhancedDropZone = ({ date, onDrop, className, children }: Enhanced
       {dragState.isDragging && (
         <div className={cn(
           "absolute inset-0 border-2 border-dashed rounded-lg transition-all duration-300 z-40",
-          isValidDrop && isHovered && "border-green-400 bg-green-50/80 shadow-lg",
-          isValidDrop && !isHovered && "border-green-300 bg-green-50/40",
+          isValidDrop && isHovered && "border-blue-500 bg-blue-50/80 shadow-lg",
+          isValidDrop && !isHovered && "border-blue-300 bg-blue-50/40",
           isInvalidDrop && isHovered && "border-red-400 bg-red-50/80",
           isInvalidDrop && !isHovered && "border-gray-300 bg-gray-50/40"
         )}>
@@ -96,7 +96,7 @@ export const EnhancedDropZone = ({ date, onDrop, className, children }: Enhanced
           {isHovered && (
             <div className={cn(
               "absolute inset-0 flex items-center justify-center text-sm font-medium rounded-lg",
-              isValidDrop && "text-green-700 bg-green-100/90",
+              isValidDrop && "text-blue-900 bg-blue-100/90",
               isInvalidDrop && "text-red-700 bg-red-100/90"
             )}>
               <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-white/80 shadow-sm">
@@ -108,7 +108,7 @@ export const EnhancedDropZone = ({ date, onDrop, className, children }: Enhanced
           
           {/* Subtle animation for valid drop zones */}
           {isValidDrop && isHovered && (
-            <div className="absolute inset-2 border border-green-400 rounded-lg animate-pulse bg-green-200/20" />
+            <div className="absolute inset-2 border border-blue-500 rounded-lg animate-pulse bg-blue-200/20" />
           )}
         </div>
       )}

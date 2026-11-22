@@ -22,7 +22,7 @@ export const TokenMeter = () => {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <Coins className={`w-4 h-4 ${isInOverage ? 'text-orange-600' : 'text-green-600'}`} />
+        <Coins className={`w-4 h-4 ${isInOverage ? 'text-orange-600' : 'text-blue-800'}`} />
         <div className="flex items-center gap-1">
           <span className="font-semibold text-sm">
             {isInOverage ? 0 : tokenBalance.tokens_balance}

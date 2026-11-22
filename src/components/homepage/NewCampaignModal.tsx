@@ -216,7 +216,7 @@ export const NewCampaignModal = ({
               {creationStep === "creating" ? (
                 <Loader2 className="h-4 w-4 animate-spin text-garden-green shrink-0" />
               ) : (
-                <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                <CheckCircle className="h-4 w-4 text-blue-800 shrink-0" />
               )}
               <span
                 className={`text-sm ${creationStep === "creating" ? "text-gray-900 font-medium" : "text-gray-500"}`}
@@ -228,7 +228,7 @@ export const NewCampaignModal = ({
               {creationStep === "generating" ? (
                 <Loader2 className="h-4 w-4 animate-spin text-garden-green shrink-0" />
               ) : creationStep === "done" ? (
-                <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                <CheckCircle className="h-4 w-4 text-blue-800 shrink-0" />
               ) : (
                 <Circle className="h-4 w-4 text-gray-300 shrink-0" />
               )}
@@ -240,12 +240,12 @@ export const NewCampaignModal = ({
             </div>
             <div className="flex items-center gap-3">
               {creationStep === "done" ? (
-                <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                <CheckCircle className="h-4 w-4 text-blue-800 shrink-0" />
               ) : (
                 <Circle className="h-4 w-4 text-gray-300 shrink-0" />
               )}
               <span
-                className={`text-sm ${creationStep === "done" ? "text-green-700 font-medium" : "text-gray-400"}`}
+                className={`text-sm ${creationStep === "done" ? "text-blue-900 font-medium" : "text-gray-400"}`}
               >
                 {creationStep === "done"
                   ? "All done — closing shortly…"
@@ -256,9 +256,9 @@ export const NewCampaignModal = ({
         )}
 
         {contentGenerated && creationStep === "done" && (
-          <Alert className="border-green-200 bg-green-50">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">
+          <Alert className="border-blue-200 bg-blue-50">
+            <CheckCircle className="h-4 w-4 text-blue-800" />
+            <AlertDescription className="text-blue-950">
               Campaign created successfully! Check your dashboard to review and
               approve the content.
             </AlertDescription>

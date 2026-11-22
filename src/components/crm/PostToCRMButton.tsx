@@ -199,7 +199,7 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
             size={size}
             className={`${className} ${
               isAlreadyLinked
-                ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                ? "bg-gradient-to-r from-blue-700 to-blue-700 hover:from-blue-800 hover:to-blue-800"
                 : "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
             } text-white`}
           >

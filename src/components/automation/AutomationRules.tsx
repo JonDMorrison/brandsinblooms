@@ -279,7 +279,7 @@ export const AutomationRules = () => {
               </div>
             ) : (
               rules.map((rule) => (
-                <Card key={rule.id} className={`border ${rule.isActive ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
+                <Card key={rule.id} className={`border ${rule.isActive ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">

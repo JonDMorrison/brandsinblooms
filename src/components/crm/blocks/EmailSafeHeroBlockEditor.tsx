@@ -40,7 +40,7 @@ export const EmailSafeHeroBlockEditor: React.FC<EmailSafeHeroBlockEditorProps> =
   if (!isExpanded) {
     return (
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-8 h-8 bg-gradient-to-r from-emerald-500/20 to-emerald-500/40 rounded flex items-center justify-center text-xs font-medium">
+        <div className="w-8 h-8 bg-gradient-to-r from-blue-700/20 to-blue-700/40 rounded flex items-center justify-center text-xs font-medium">
           ★
         </div>
         <div className="min-w-0 flex-1">

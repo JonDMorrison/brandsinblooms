@@ -296,7 +296,7 @@ export const CompetitorComparison = () => {
 
               {/* BloomSuite - Better Solution */}
               <div className="lg:col-span-1">
-                <Card className="h-full bg-gradient-to-br from-green-50 to-primary/10 border-2 border-primary/30 shadow-xl relative overflow-hidden">
+                <Card className="h-full bg-gradient-to-br from-blue-50 to-primary/10 border-2 border-primary/30 shadow-xl relative overflow-hidden">
                   {/* Success pattern background */}
                   <div className="absolute inset-0 opacity-10">
                     <div className="absolute top-4 right-4 text-primary text-6xl">✨</div>

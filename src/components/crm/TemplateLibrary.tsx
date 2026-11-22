@@ -244,7 +244,7 @@ export const TemplateLibrary = ({ onSelectTemplate, onCreateNew }: TemplateLibra
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'seasonal': return 'bg-green-100 text-green-800';
+      case 'seasonal': return 'bg-blue-100 text-blue-950';
       case 'promotional': return 'bg-red-100 text-red-800';
       case 'educational': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';

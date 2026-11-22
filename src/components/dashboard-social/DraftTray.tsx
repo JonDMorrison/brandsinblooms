@@ -55,7 +55,7 @@ export const DraftTray = () => {
       case "newsletter":
         return "bg-blue-100";
       case "blog":
-        return "bg-green-100";
+        return "bg-blue-100";
       default:
         return "bg-gray-100";
     }

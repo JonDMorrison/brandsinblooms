@@ -165,7 +165,7 @@ export function DocCodeBlock({
           "[&_.hljs-built_in]:text-cyan-700 [&_.hljs-meta]:text-slate-500 [&_.hljs-symbol]:text-rose-700",
           "[&_.hljs-comment]:text-slate-400 [&_.hljs-quote]:text-slate-400",
           "[&_.hljs-keyword]:text-sky-700 [&_.hljs-selector-tag]:text-sky-700 [&_.hljs-name]:text-sky-700 [&_.hljs-tag]:text-sky-700 [&_.hljs-type]:text-sky-700 [&_.hljs-title.function_]:text-sky-800",
-          "[&_.hljs-string]:text-emerald-700 [&_.hljs-template-variable]:text-emerald-700",
+          "[&_.hljs-string]:text-blue-900 [&_.hljs-template-variable]:text-blue-900",
           codeViewportClassName,
         )}
       >

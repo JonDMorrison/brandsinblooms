@@ -67,7 +67,7 @@ export const TaskSwipeActions = ({ task, onEdit, onTaskUpdate }: TaskSwipeAction
         </div>
       </SwipeAction>
       <SwipeAction onClick={handleCopy}>
-        <div className="flex items-center justify-center h-full bg-green-500 text-white px-4">
+        <div className="flex items-center justify-center h-full bg-blue-700 text-white px-4">
           <Copy className="w-5 h-5" />
         </div>
       </SwipeAction>

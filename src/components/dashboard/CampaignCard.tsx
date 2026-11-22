@@ -57,7 +57,7 @@ export const CampaignCard = ({
       case 'completed':
       case 'approved':
       case 'published':
-        return 'bg-green-100 text-green-800';
+        return 'bg-blue-100 text-blue-950';
       case 'ready':
       case 'review':
         return 'bg-blue-100 text-blue-800';
@@ -151,12 +151,12 @@ export const CampaignCard = ({
                     <div
                       key={contentType}
                       className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer hover:bg-gray-50 transition-colors ${
-                        hasContent ? 'border-green-200 bg-green-50' : 'border-gray-200'
+                        hasContent ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
                       }`}
                       onClick={() => task && handleTaskClick(task)}
                     >
                       {hasContent ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <CheckCircle className="w-4 h-4 text-blue-800" />
                       ) : (
                         <Clock className="w-4 h-4 text-gray-400" />
                       )}

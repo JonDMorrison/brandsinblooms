@@ -16,7 +16,7 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800';
+      case 'approved': return 'bg-blue-100 text-blue-950';
       case 'review': return 'bg-blue-100 text-blue-800';
       case 'generating': return 'bg-yellow-100 text-yellow-800';
       case 'published': return 'bg-purple-100 text-purple-800';

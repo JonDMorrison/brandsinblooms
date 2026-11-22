@@ -30,7 +30,7 @@ export const ActivationGuards: React.FC<ActivationGuardsProps> = ({
   if (guard.canActivate) {
     return (
       <div className={`space-y-3 ${className}`}>
-        <div className="flex items-center gap-2 text-sm text-green-600">
+        <div className="flex items-center gap-2 text-sm text-blue-800">
           <CheckCircle className="w-4 h-4" />
           <span>Ready to activate</span>
         </div>
@@ -38,7 +38,7 @@ export const ActivationGuards: React.FC<ActivationGuardsProps> = ({
         {/* Channel status badges */}
         <div className="flex flex-wrap gap-2">
           {hasEmailSteps && (
-            <Badge variant="default" className="text-xs bg-green-100 text-green-800 hover:bg-green-100">
+            <Badge variant="default" className="text-xs bg-blue-100 text-blue-950 hover:bg-blue-100">
               <Mail className="w-3 h-3 mr-1" />
               Email Ready
             </Badge>
@@ -46,7 +46,7 @@ export const ActivationGuards: React.FC<ActivationGuardsProps> = ({
           {hasSMSSteps && (
             <Badge 
               variant={providers.sms.ready ? 'default' : 'secondary'} 
-              className={`text-xs ${providers.sms.ready ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
+              className={`text-xs ${providers.sms.ready ? 'bg-blue-100 text-blue-950' : 'bg-amber-100 text-amber-800'}`}
             >
               <MessageSquare className="w-3 h-3 mr-1" />
               SMS {providers.sms.ready ? 'Ready' : 'Will Skip'}

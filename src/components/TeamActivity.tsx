@@ -56,7 +56,7 @@ export const TeamActivity = ({ teamMembers }: TeamActivityProps) => {
       case 'member_invited':
         return <Mail className="w-4 h-4 text-blue-500" />;
       case 'member_joined':
-        return <User className="w-4 h-4 text-green-500" />;
+        return <User className="w-4 h-4 text-blue-700" />;
       case 'member_removed':
         return <Trash2 className="w-4 h-4 text-red-500" />;
       default:
@@ -69,7 +69,7 @@ export const TeamActivity = ({ teamMembers }: TeamActivityProps) => {
       case 'member_invited':
         return 'bg-blue-50 text-blue-700';
       case 'member_joined':
-        return 'bg-green-50 text-green-700';
+        return 'bg-blue-50 text-blue-900';
       case 'member_removed':
         return 'bg-red-50 text-red-700';
       default:

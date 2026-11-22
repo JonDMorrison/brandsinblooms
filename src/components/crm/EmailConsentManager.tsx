@@ -98,10 +98,10 @@ export function EmailConsentManager() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Opted In</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-blue-700" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats?.opted_in_count || 0}</div>
+            <div className="text-2xl font-bold text-blue-800">{stats?.opted_in_count || 0}</div>
             <p className="text-xs text-muted-foreground">
               Can receive marketing
             </p>
@@ -150,7 +150,7 @@ export function EmailConsentManager() {
           </div>
           <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-green-500" />
+              <div className="h-3 w-3 rounded-full bg-blue-700" />
               <span>Opted In ({stats?.opted_in_count || 0})</span>
             </div>
             <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export function EmailConsentManager() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant="default" className="bg-green-500">Opted In</Badge>
+                <Badge variant="default" className="bg-blue-700">Opted In</Badge>
               </div>
               <p>
                 Contacts who have explicitly agreed to receive marketing emails. 

@@ -229,7 +229,7 @@ export function CampaignGovernanceMetricsCard({
             </p>
           </div>
         ) : (
-          <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900 flex items-center gap-2">
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4" />
             No sending-health thresholds exceeded in the last 24h.
           </div>

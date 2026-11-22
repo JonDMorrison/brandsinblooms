@@ -32,7 +32,7 @@ const quickStartOptions = [
     title: 'Send My First Newsletter',
     description: 'Quick email blast to your customers',
     icon: <Mail className="w-5 h-5" />,
-    color: 'from-green-50 to-green-100'
+    color: 'from-blue-50 to-blue-100'
   },
   {
     id: 'campaign',

@@ -50,9 +50,9 @@ export const FacebookAppSetupGuide: React.FC<FacebookAppSetupGuideProps> = ({ is
                 </ol>
               </div>
 
-              <div className="pl-4 border-l-2 border-green-500/30">
+              <div className="pl-4 border-l-2 border-blue-700/30">
                 <h4 className="font-medium mb-1 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-blue-800" />
                   Option 2: Publish App (Recommended)
                 </h4>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">

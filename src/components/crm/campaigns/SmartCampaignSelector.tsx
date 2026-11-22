@@ -321,10 +321,10 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
 
       {/* Dynamic Content Cards */}
       {selectedType === 'weekly_theme' && (
-        <Card className="border-green-200 bg-green-50/50">
+        <Card className="border-blue-200 bg-blue-50/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-green-600" />
+              <Calendar className="h-4 w-4 text-blue-800" />
               Available Weekly Themes
             </CardTitle>
           </CardHeader>
@@ -338,7 +338,7 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
               availableThemes.map((theme) => (
                 <div
                   key={theme.id}
-                  className="p-3 bg-white border border-green-200 rounded-lg hover:border-green-400 cursor-pointer transition-colors"
+                  className="p-3 bg-white border border-blue-200 rounded-lg hover:border-blue-500 cursor-pointer transition-colors"
                   onClick={() => handleTypeSelection('weekly_theme', theme)}
                 >
                   <div className="flex items-center justify-between">
@@ -356,7 +356,7 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
                         )}
                       </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <ArrowRight className="h-4 w-4 text-blue-800 flex-shrink-0" />
                   </div>
                 </div>
               ))

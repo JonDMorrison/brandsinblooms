@@ -11,7 +11,7 @@ export const DashboardTabs = ({ children }: DashboardTabsProps) => {
   return (
     <div className="min-h-screen bg-garden-background">
       <Tabs defaultValue="app" className="w-full">
-        <div className="border-b border-green-200 bg-white px-6 py-2">
+        <div className="border-b border-blue-200 bg-white px-6 py-2">
           <div className="flex justify-between items-center">
             <TabsList className="grid w-fit grid-cols-2">
               <TabsTrigger value="app">App View</TabsTrigger>

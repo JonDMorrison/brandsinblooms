@@ -181,7 +181,7 @@ export const DnsInstructionsCard: React.FC<DnsInstructionsCardProps> = ({ domain
                           onClick={() => copyToClipboard(record.name, `${record.id}-name`)}
                         >
                           {copiedId === `${record.id}-name` ? (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                            <CheckCircle2 className="h-3.5 w-3.5 text-blue-700" />
                           ) : (
                             <Copy className="h-3.5 w-3.5" />
                           )}
@@ -199,7 +199,7 @@ export const DnsInstructionsCard: React.FC<DnsInstructionsCardProps> = ({ domain
                           onClick={() => copyToClipboard(record.value, `${record.id}-value`)}
                         >
                           {copiedId === `${record.id}-value` ? (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                            <CheckCircle2 className="h-3.5 w-3.5 text-blue-700" />
                           ) : (
                             <Copy className="h-3.5 w-3.5" />
                           )}

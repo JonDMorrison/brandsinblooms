@@ -35,7 +35,7 @@ export const TemplateGrid = ({
 }: TemplateGridProps) => {
   const getCategoryColor = (category: string) => {
     const colors = {
-      'Educational': 'bg-green-100 text-green-800',
+      'Educational': 'bg-blue-100 text-blue-950',
       'Promotional': 'bg-blue-100 text-blue-800',
       'Community': 'bg-purple-100 text-purple-800',
       'Seasonal': 'bg-orange-100 text-orange-800'
@@ -146,7 +146,7 @@ export const TemplateGrid = ({
               <Button
                 size="sm"
                 onClick={() => onUseTemplate(template)}
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1 bg-blue-800 hover:bg-blue-900"
               >
                 <Copy className="h-3 w-3 mr-1" />
                 Use Template

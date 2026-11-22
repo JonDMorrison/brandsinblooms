@@ -377,8 +377,8 @@ export const SMSCampaignComposer: React.FC = () => {
                       <span>{selectedSegment.customer_count} total customers</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-green-600" />
-                      <span className="text-green-600 font-medium">
+                      <Phone className="h-4 w-4 text-blue-800" />
+                      <span className="text-blue-800 font-medium">
                         {smsEligibleCount} SMS-eligible recipients
                       </span>
                     </div>

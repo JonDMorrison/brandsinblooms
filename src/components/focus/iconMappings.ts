@@ -53,9 +53,9 @@ export const SEASONAL_ICON_POOLS = {
   spring: [
     { icon: Flower, color: '#F472B6', gradient: 'from-pink-400 to-rose-500' },
     { icon: Flower2, color: '#A855F7', gradient: 'from-purple-400 to-pink-500' },
-    { icon: Sprout, color: '#22C55E', gradient: 'from-green-400 to-emerald-500' },
-    { icon: TreeDeciduous, color: '#10B981', gradient: 'from-emerald-400 to-green-500' },
-    { icon: Leaf, color: '#16A34A', gradient: 'from-green-500 to-emerald-600' }
+    { icon: Sprout, color: '#22C55E', gradient: 'from-blue-500 to-blue-700' },
+    { icon: TreeDeciduous, color: '#10B981', gradient: 'from-blue-500 to-blue-700' },
+    { icon: Leaf, color: '#16A34A', gradient: 'from-blue-700 to-blue-800' }
   ],
   summer: [
     { icon: Sun, color: '#B46B48', gradient: 'from-yellow-400 to-orange-500' },
@@ -73,7 +73,7 @@ export const SEASONAL_ICON_POOLS = {
   ],
   winter: [
     { icon: Snowflake, color: '#06B6D4', gradient: 'from-cyan-400 to-blue-500' },
-    { icon: TreePine, color: '#059669', gradient: 'from-emerald-600 to-green-700' },
+    { icon: TreePine, color: '#059669', gradient: 'from-blue-800 to-blue-900' },
     { icon: SunSnow, color: '#3B82F6', gradient: 'from-blue-400 to-indigo-500' },
     { icon: Gift, color: '#DC2626', gradient: 'from-red-500 to-pink-500' },
     { icon: Star, color: '#B46B48', gradient: 'from-yellow-400 to-amber-500' }
@@ -89,16 +89,16 @@ export const THEME_ICON_MAPPINGS: Record<string, ThemeIconMapping> = {
   'winter-care': { icon: Snowflake, color: '#06B6D4', gradient: 'from-cyan-400 to-blue-500' },
   
   // Plant Care - Types
-  'herb-garden': { icon: Leaf, color: '#22C55E', gradient: 'from-green-400 to-emerald-500' },
+  'herb-garden': { icon: Leaf, color: '#22C55E', gradient: 'from-blue-500 to-blue-700' },
   'vegetable-garden': { icon: Carrot, color: '#F97316', gradient: 'from-orange-400 to-amber-500' },
   'flower-beds': { icon: Flower, color: '#F472B6', gradient: 'from-pink-400 to-rose-500' },
   'fruit-trees': { icon: Apple, color: '#DC2626', gradient: 'from-red-500 to-orange-500' },
-  'shade-plants': { icon: TreeDeciduous, color: '#10B981', gradient: 'from-emerald-400 to-green-500' },
+  'shade-plants': { icon: TreeDeciduous, color: '#10B981', gradient: 'from-blue-500 to-blue-700' },
   'drought-resistant': { icon: Droplets, color: '#0EA5E9', gradient: 'from-blue-400 to-cyan-500' },
   
   // Plant Care - Activities
   'pruning': { icon: Scissors, color: '#6B7280', gradient: 'from-gray-400 to-slate-500' },
-  'fertilizing': { icon: Sprout, color: '#84CC16', gradient: 'from-lime-400 to-green-500' },
+  'fertilizing': { icon: Sprout, color: '#84CC16', gradient: 'from-lime-400 to-blue-700' },
   'watering': { icon: Droplets, color: '#06B6D4', gradient: 'from-cyan-400 to-blue-500' },
   'planting': { icon: Shovel, color: '#A3A3A3', gradient: 'from-neutral-400 to-gray-500' },
   'harvesting': { icon: Wheat, color: '#9C5A3B', gradient: 'from-yellow-600 to-orange-600' },
@@ -119,7 +119,7 @@ export const THEME_ICON_MAPPINGS: Record<string, ThemeIconMapping> = {
   
   // Sale themes
   'summer-sale': { icon: Tag, color: '#EF4444', gradient: 'from-red-400 to-orange-500' },
-  'spring-sale': { icon: Tag, color: '#22C55E', gradient: 'from-green-400 to-emerald-500' },
+  'spring-sale': { icon: Tag, color: '#22C55E', gradient: 'from-blue-500 to-blue-700' },
   'clearance': { icon: Tag, color: '#7C3AED', gradient: 'from-purple-500 to-indigo-600' },
   'new-arrivals': { icon: Star, color: '#B46B48', gradient: 'from-yellow-400 to-amber-500' },
   'bulk-discount': { icon: Tag, color: '#DC2626', gradient: 'from-red-500 to-pink-500' },
@@ -128,7 +128,7 @@ export const THEME_ICON_MAPPINGS: Record<string, ThemeIconMapping> = {
   'independence-day': { icon: Flag, color: '#DC2626', gradient: 'from-red-500 to-blue-600' },
   'mothers-day': { icon: Heart, color: '#F472B6', gradient: 'from-pink-400 to-rose-500' },
   'fathers-day': { icon: Award, color: '#3B82F6', gradient: 'from-blue-400 to-indigo-500' },
-  'christmas': { icon: Gift, color: '#DC2626', gradient: 'from-red-500 to-green-600' },
+  'christmas': { icon: Gift, color: '#DC2626', gradient: 'from-red-500 to-blue-800' },
   'thanksgiving': { icon: Wheat, color: '#9C5A3B', gradient: 'from-yellow-600 to-orange-600' },
   'easter': { icon: Flower, color: '#A855F7', gradient: 'from-purple-400 to-pink-500' },
   'halloween': { icon: TreeDeciduous, color: '#F97316', gradient: 'from-orange-500 to-red-600' },
@@ -139,7 +139,7 @@ export const THEME_ICON_MAPPINGS: Record<string, ThemeIconMapping> = {
   'soil-preparation': { icon: Pickaxe, color: '#A3A3A3', gradient: 'from-neutral-400 to-stone-500' },
   
   // Achievement themes
-  'garden-goals': { icon: Target, color: '#10B981', gradient: 'from-emerald-400 to-green-500' },
+  'garden-goals': { icon: Target, color: '#10B981', gradient: 'from-blue-500 to-blue-700' },
   'success-stories': { icon: Trophy, color: '#B46B48', gradient: 'from-yellow-400 to-amber-500' },
   'before-after': { icon: Award, color: '#8B5CF6', gradient: 'from-purple-400 to-violet-500' }
 };
@@ -149,7 +149,7 @@ export const CATEGORY_ICON_MAPPINGS: Record<string, ThemeIconMapping> = {
   plant_care: {
     icon: Sprout,
     color: '#22C55E',
-    gradient: 'from-green-400 to-emerald-500'
+    gradient: 'from-blue-500 to-blue-700'
   },
   decor: {
     icon: Sparkles,

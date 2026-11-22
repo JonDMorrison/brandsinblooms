@@ -9,7 +9,7 @@ interface PricingHeroProps {
 
 export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) => {
   return (
-    <section className="py-20 px-6 bg-gradient-to-br from-green-50 to-blue-50">
+    <section className="py-20 px-6 bg-gradient-to-br from-blue-50 to-blue-50">
       <div className="max-w-4xl mx-auto text-center">
         <h1 className="text-5xl font-bold text-foreground mb-6">
           Simple, Transparent Pricing for Garden Centers

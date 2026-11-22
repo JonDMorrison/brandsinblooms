@@ -432,7 +432,7 @@ export const WeeklyThemeCarousel = ({
                   <div className="text-center">
                     <div className="relative w-12 h-12 mx-auto mb-6">
                       <div className="glass-coin w-12 h-12 flex items-center justify-center">
-                        <Sprout className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                        <Sprout className="w-6 h-6 text-blue-800 dark:text-blue-500" />
                       </div>
                       <svg className="absolute inset-0 w-12 h-12 progress-ring">
                         <circle
@@ -442,7 +442,7 @@ export const WeeklyThemeCarousel = ({
                           stroke="currentColor"
                           strokeWidth="2"
                           fill="none"
-                          className="text-teal-200 dark:text-teal-800"
+                          className="text-blue-200 dark:text-blue-950"
                         />
                         <circle
                           cx="24"
@@ -453,7 +453,7 @@ export const WeeklyThemeCarousel = ({
                           fill="none"
                           strokeDasharray="113"
                           strokeDashoffset="113"
-                          className="text-teal-500 dark:text-teal-400 animate-spin"
+                          className="text-blue-700 dark:text-blue-500 animate-spin"
                           style={{ animationDuration: "2s" }}
                         />
                       </svg>
@@ -528,7 +528,7 @@ export const WeeklyThemeCarousel = ({
                                     stroke="currentColor"
                                     strokeWidth="3"
                                     fill="none"
-                                    className="text-teal-200 dark:text-teal-800"
+                                    className="text-blue-200 dark:text-blue-950"
                                   />
                                   <circle
                                     cx="80"
@@ -539,7 +539,7 @@ export const WeeklyThemeCarousel = ({
                                     fill="none"
                                     strokeDasharray="440"
                                     strokeDashoffset="440"
-                                    className="text-teal-500 dark:text-teal-400"
+                                    className="text-blue-700 dark:text-blue-500"
                                     style={{
                                       animation:
                                         "progress-fill 2s ease-in-out infinite",
@@ -588,7 +588,7 @@ export const WeeklyThemeCarousel = ({
                                     <div className="space-y-2 w-full">
                                       <Button
                                         onClick={handleViewContent}
-                                        className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-emerald-200"
+                                        className="cta-button group bg-gradient-to-r from-blue-700 to-blue-700 hover:from-blue-800 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-blue-200"
                                       >
                                         <Eye className="w-4 h-4 mr-2" />
                                         Review Content
@@ -597,7 +597,7 @@ export const WeeklyThemeCarousel = ({
                                       {recentlyGeneratedTheme ===
                                         currentTheme.id && (
                                         <div className="text-center">
-                                          <span className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                                          <span className="inline-flex items-center gap-1 text-sm text-blue-800 dark:text-blue-500 font-medium">
                                             <Sparkles className="w-4 h-4" />
                                             Content just created! Click above to
                                             review.
@@ -610,7 +610,7 @@ export const WeeklyThemeCarousel = ({
                                       onClick={() =>
                                         handleGenerateContent(currentTheme)
                                       }
-                                      className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-teal-200"
+                                      className="cta-button group bg-gradient-to-r from-blue-700 to-blue-700 hover:from-blue-800 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-blue-200"
                                     >
                                       <Play className="w-4 h-4 mr-2" />
                                       Create This Week's Posts

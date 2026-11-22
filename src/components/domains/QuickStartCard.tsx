@@ -56,10 +56,10 @@ export const QuickStartCard: React.FC<QuickStartCardProps> = ({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-green-600" />
+          <Zap className="h-5 w-5 text-blue-800" />
           Quick Start
           {systemDomain && (
-            <Badge variant="default" className="bg-green-100 text-green-800">
+            <Badge variant="default" className="bg-blue-100 text-blue-950">
               <CheckCircle2 className="h-3 w-3 mr-1" />
               Active
             </Badge>
@@ -72,12 +72,12 @@ export const QuickStartCard: React.FC<QuickStartCardProps> = ({
       <CardContent className="space-y-4">
         {systemDomain ? (
           <div className="space-y-4">
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="font-medium text-green-800">Ready to use!</span>
+                <CheckCircle2 className="h-5 w-5 text-blue-800" />
+                <span className="font-medium text-blue-950">Ready to use!</span>
               </div>
-              <p className="text-sm text-green-700 mb-3">
+              <p className="text-sm text-blue-900 mb-3">
                 Your site is live and accessible at:
               </p>
               <div className="flex items-center gap-2 p-2 bg-white border rounded">
@@ -101,15 +101,15 @@ export const QuickStartCard: React.FC<QuickStartCardProps> = ({
               <h4 className="font-medium text-sm">Features included:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <CheckCircle2 className="h-3 w-3 text-blue-800" />
                   HTTPS/TLS encryption (active)
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <CheckCircle2 className="h-3 w-3 text-blue-800" />
                   Global CDN delivery
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <CheckCircle2 className="h-3 w-3 text-blue-800" />
                   Instant deployment
                 </li>
               </ul>
@@ -134,15 +134,15 @@ export const QuickStartCard: React.FC<QuickStartCardProps> = ({
               <h4 className="font-medium text-sm">What you'll get:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <CheckCircle2 className="h-3 w-3 text-blue-800" />
                   Instant HTTPS/TLS encryption
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <CheckCircle2 className="h-3 w-3 text-blue-800" />
                   Global CDN delivery
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <CheckCircle2 className="h-3 w-3 text-blue-800" />
                   No DNS setup required
                 </li>
               </ul>

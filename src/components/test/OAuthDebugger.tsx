@@ -238,7 +238,7 @@ export const OAuthDebugger: React.FC = () => {
                       className="flex items-center gap-2 p-2 border rounded"
                     >
                       {result.success ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <CheckCircle className="w-4 h-4 text-blue-800" />
                       ) : (
                         <AlertCircle className="w-4 h-4 text-red-600" />
                       )}

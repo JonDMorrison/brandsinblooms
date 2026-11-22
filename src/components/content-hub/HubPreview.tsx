@@ -72,7 +72,7 @@ export const HubPreview: React.FC<HubPreviewProps> = ({
             <div className="font-medium mb-1 truncate">
               {payload_json.title || 'Special Offer'}
             </div>
-            <div className="flex items-center gap-2 text-green-600">
+            <div className="flex items-center gap-2 text-blue-800">
               {payload_json.price && <span className="font-bold">${payload_json.price}</span>}
               {payload_json.original_price && (
                 <span className="text-gray-400 line-through text-xs">

@@ -173,7 +173,7 @@ export const SuccessMetricsDashboard = () => {
         id: 'consistency_king',
         title: 'Consistency King',
         description: 'Stay active for 7 consecutive days',
-        icon: <Calendar className="w-5 h-5 text-green-600" />,
+        icon: <Calendar className="w-5 h-5 text-blue-800" />,
         isUnlocked: metrics.currentStreak >= 7,
         progress: Math.min(metrics.currentStreak, 7),
         maxProgress: 7
@@ -191,7 +191,7 @@ export const SuccessMetricsDashboard = () => {
         id: 'publisher_pro',
         title: 'Publisher Pro',
         description: 'Publish 5 posts to social media',
-        icon: <CheckCircle2 className="w-5 h-5 text-emerald-600" />,
+        icon: <CheckCircle2 className="w-5 h-5 text-blue-800" />,
         isUnlocked: metrics.contentPublished >= 5,
         progress: Math.min(metrics.contentPublished, 5),
         maxProgress: 5
@@ -297,7 +297,7 @@ export const SuccessMetricsDashboard = () => {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="w-4 h-4 text-green-600" />
+              <Clock className="w-4 h-4 text-blue-800" />
               Activity Streak
             </CardTitle>
           </CardHeader>
@@ -336,13 +336,13 @@ export const SuccessMetricsDashboard = () => {
                 key={achievement.id}
                 className={`p-4 border rounded-lg transition-all ${
                   achievement.isUnlocked 
-                    ? 'bg-green-50 border-green-200' 
+                    ? 'bg-blue-50 border-blue-200' 
                     : 'bg-gray-50 border-gray-200'
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-full ${
-                    achievement.isUnlocked ? 'bg-green-100' : 'bg-gray-100'
+                    achievement.isUnlocked ? 'bg-blue-100' : 'bg-gray-100'
                   }`}>
                     {achievement.icon}
                   </div>
@@ -400,7 +400,7 @@ export const SuccessMetricsDashboard = () => {
             )}
             
             {metrics.contentPublished === 0 && metrics.totalContentGenerated > 0 && (
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                 <div>
                   <p className="font-medium">Publish Your First Post</p>
                   <p className="text-sm text-gray-600">Share your content with the world</p>

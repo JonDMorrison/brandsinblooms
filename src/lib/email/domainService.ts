@@ -131,9 +131,9 @@ export function getDomainStatusConfig(status: EmailDomain['status']): {
       return { label: 'Verifying', variant: 'secondary', color: 'text-blue-600' };
     case 'warming_up':
       // Treat warming_up same as active since warmup is removed
-      return { label: 'Ready', variant: 'default', color: 'text-green-600' };
+      return { label: 'Ready', variant: 'default', color: 'text-blue-800' };
     case 'active':
-      return { label: 'Ready', variant: 'default', color: 'text-green-600' };
+      return { label: 'Ready', variant: 'default', color: 'text-blue-800' };
     case 'paused':
       return { label: 'Paused', variant: 'destructive', color: 'text-red-600' };
     case 'blocked':

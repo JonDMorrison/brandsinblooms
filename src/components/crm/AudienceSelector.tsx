@@ -585,7 +585,7 @@ export const AudienceSelector = ({
                   </label>
                   <Badge
                     variant="outline"
-                    className="text-xs bg-green-100 text-green-800"
+                    className="text-xs bg-blue-100 text-blue-950"
                   >
                     {totalContactCount?.toLocaleString() || "All"}
                   </Badge>

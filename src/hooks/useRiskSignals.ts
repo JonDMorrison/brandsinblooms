@@ -223,8 +223,8 @@ export const getRiskLevelConfig = (level: RiskLevel | undefined): RiskLevelConfi
     case 'minimal':
       return {
         label: 'Minimal',
-        color: 'text-emerald-700 dark:text-emerald-300',
-        bgColor: 'bg-emerald-100 dark:bg-emerald-950/50',
+        color: 'text-blue-900 dark:text-blue-300',
+        bgColor: 'bg-blue-100 dark:bg-blue-950/50',
         icon: '✅',
         description: 'Healthy engagement patterns'
       };
@@ -250,7 +250,7 @@ export const getRiskTrendConfig = (trend: string | undefined): RiskTrendConfig =
     case 'improving':
       return {
         label: 'Improving',
-        color: 'text-emerald-600',
+        color: 'text-blue-800',
         icon: '↗️'
       };
     case 'worsening':

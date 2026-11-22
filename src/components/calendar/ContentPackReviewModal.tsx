@@ -142,12 +142,12 @@ export const ContentPackReviewModal = ({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-green-600" />
+              <Sparkles className="w-5 h-5 text-blue-800" />
               Content Pack Review
             </DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-800"></div>
             <span className="ml-3 text-gray-600">Loading generated content...</span>
           </div>
         </DialogContent>
@@ -184,18 +184,18 @@ export const ContentPackReviewModal = ({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-green-600" />
+              <Sparkles className="w-5 h-5 text-blue-800" />
               Content Pack Review - {campaignTitle}
             </DialogTitle>
             <div className="flex items-center gap-2">
-              <Badge className="bg-green-100 text-green-800">
+              <Badge className="bg-blue-100 text-blue-950">
                 {tasks.length} pieces generated
               </Badge>
               {unapprovedCount > 0 && (
                 <Button
                   onClick={handleApproveAll}
                   size="sm"
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-blue-800 hover:bg-blue-900"
                 >
                   <CheckCircle className="w-4 h-4 mr-1" />
                   Approve All ({unapprovedCount})
@@ -220,7 +220,7 @@ export const ContentPackReviewModal = ({
                       </CardTitle>
                       <div className="flex items-center gap-2">
                         {isApproved ? (
-                          <Badge className="bg-green-100 text-green-800">
+                          <Badge className="bg-blue-100 text-blue-950">
                             <CheckCircle className="w-3 h-3 mr-1" />
                             Approved
                           </Badge>
@@ -261,7 +261,7 @@ export const ContentPackReviewModal = ({
                         isApproved={isApproved}
                         onApprove={(event) => handleApproveTask(task.id, event)}
                         size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-blue-800 hover:bg-blue-900 text-white"
                       />
                     </div>
                   </CardContent>

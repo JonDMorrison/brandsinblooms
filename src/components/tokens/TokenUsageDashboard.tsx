@@ -61,7 +61,7 @@ export const TokenUsageDashboard = () => {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Coins className="w-4 h-4 text-green-600" />
+              <Coins className="w-4 h-4 text-blue-800" />
               Current Balance
             </CardTitle>
           </CardHeader>
@@ -165,7 +165,7 @@ export const TokenUsageDashboard = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`font-medium ${usage.action_type === 'refill' ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className={`font-medium ${usage.action_type === 'refill' ? 'text-blue-800' : 'text-red-600'}`}>
                       {usage.action_type === 'refill' ? '+' : '-'}{usage.tokens_consumed}
                     </div>
                     <div className="text-xs text-gray-500">

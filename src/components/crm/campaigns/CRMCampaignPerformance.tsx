@@ -49,7 +49,7 @@ export const CRMCampaignPerformance = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800';
+        return 'bg-blue-100 text-blue-950';
       case 'completed':
         return 'bg-blue-100 text-blue-800';
       case 'paused':

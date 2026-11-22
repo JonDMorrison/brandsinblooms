@@ -324,10 +324,10 @@ export const CalendarHeader = ({
               size="sm"
               onClick={onBulkComplete}
               disabled={bulkCompleteLoading}
-              className="h-9 px-4 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition-colors duration-200"
+              className="h-9 px-4 text-blue-900 hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200"
             >
               {bulkCompleteLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-700 border-t-transparent"></div>
               ) : (
                 <CheckCircle className="w-4 h-4 mr-2" />
               )}

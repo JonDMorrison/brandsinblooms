@@ -128,7 +128,7 @@ describe("docs components", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("Required").length).toBeGreaterThan(1);
     expect(screen.getByText("Optional")).toBeInTheDocument();
-    expect(container.querySelector(".bg-emerald-500")).not.toBeNull();
+    expect(container.querySelector(".bg-blue-700")).not.toBeNull();
 
     await user.click(
       screen.getByRole("button", { name: /copy bash code block/i }),

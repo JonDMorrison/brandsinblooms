@@ -21,8 +21,8 @@ export const ContentPipelineCard = ({ tasks, onNavigateToKanban, onTaskClick }: 
   };
 
   return (
-    <Card className="shadow-lg border-green-200 rounded-xl overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50">
+    <Card className="shadow-lg border-blue-200 rounded-xl overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-50">
         <div className="flex justify-between items-center">
           <div>
             <CardTitle className="text-xl text-black font-bold flex items-center gap-2">
@@ -46,14 +46,14 @@ export const ContentPipelineCard = ({ tasks, onNavigateToKanban, onTaskClick }: 
                 <h4 className="font-semibold text-gray-700 capitalize flex items-center gap-2 text-sm">
                   {status === 'generating' && <div className="w-3 h-3 rounded-full bg-blue-500"></div>}
                   {status === 'review' && <div className="w-3 h-3 rounded-full bg-orange-500"></div>}
-                  {status === 'scheduled' && <div className="w-3 h-3 rounded-full bg-green-500"></div>}
+                  {status === 'scheduled' && <div className="w-3 h-3 rounded-full bg-blue-700"></div>}
                   {status} ({statusTasks.length})
                 </h4>
                 <div className="space-y-2">
                   {statusTasks.slice(0, 2).map((task) => (
                     <div
                       key={task.id}
-                      className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm cursor-pointer transition-all duration-200 hover:border-green-300"
+                      className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm cursor-pointer transition-all duration-200 hover:border-blue-300"
                       onClick={() => onTaskClick(task)}
                     >
                       <div className="flex items-center gap-2 mb-1">

@@ -191,7 +191,7 @@ export const PromptsAdmin = () => {
           </Card>
           <Card className="p-6">
             <div className="flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-green-500" />
+              <BarChart3 className="w-8 h-8 text-blue-700" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Completions</p>
                 <p className="text-2xl font-bold">{stats.totalCompletions}</p>

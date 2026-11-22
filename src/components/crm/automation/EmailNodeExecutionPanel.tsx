@@ -100,11 +100,11 @@ export const EmailNodeExecutionPanel: React.FC<EmailNodeExecutionPanelProps> = (
       <CardContent className="space-y-4">
         {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="text-center p-2 bg-green-50 dark:bg-green-950/20 rounded-lg">
-            <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
+          <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+            <div className="flex items-center justify-center gap-1 text-blue-800 mb-1">
               <CheckCircle2 className="h-4 w-4" />
             </div>
-            <div className="text-lg font-bold text-green-700 dark:text-green-400">{stats.sent}</div>
+            <div className="text-lg font-bold text-blue-900 dark:text-blue-500">{stats.sent}</div>
             <div className="text-xs text-muted-foreground">Sent</div>
           </div>
           

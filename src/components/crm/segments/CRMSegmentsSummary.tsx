@@ -18,7 +18,7 @@ const segmentConfig = [
     label: 'New Customers',
     icon: UserPlus,
     description: 'Joined in last 30 days',
-    color: 'text-green-600',
+    color: 'text-blue-800',
   },
   {
     key: 'loyalty-members' as const,

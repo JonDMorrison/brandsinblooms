@@ -67,7 +67,7 @@ export const NewsletterThemingTestButton: React.FC = () => {
             sx={{ mb: 1.5 }}
           >
             {testResults.success ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-blue-800" />
             ) : (
               <XCircle className="h-5 w-5 text-red-600" />
             )}
@@ -86,7 +86,7 @@ export const NewsletterThemingTestButton: React.FC = () => {
                 className="text-sm"
               >
                 {result.success ? (
-                  <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+                  <CheckCircle className="h-4 w-4 text-blue-700 mt-0.5" />
                 ) : (
                   <XCircle className="h-4 w-4 text-red-500 mt-0.5" />
                 )}

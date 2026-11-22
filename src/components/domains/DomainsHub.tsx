@@ -110,7 +110,7 @@ export const DomainsHub = () => {
                   <span className="text-sm font-medium">Quick Start Domain</span>
                 </div>
                 {systemDomain ? (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
+                  <Badge variant="default" className="bg-blue-100 text-blue-950">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Ready
                   </Badge>
@@ -144,7 +144,7 @@ export const DomainsHub = () => {
                   <span className="text-sm font-medium">Email Senders</span>
                 </div>
                 {verifiedEmailSenders.length > 0 ? (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
+                  <Badge variant="default" className="bg-blue-100 text-blue-950">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     {verifiedEmailSenders.length} Verified
                   </Badge>
@@ -251,7 +251,7 @@ export const DomainsHub = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-green-600" />
+                      <Zap className="h-5 w-5 text-blue-800" />
                       Quick Start Domain
                     </CardTitle>
                     <CardDescription>
@@ -259,9 +259,9 @@ export const DomainsHub = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <CheckCircle2 className="h-5 w-5 text-blue-800" />
                         <div>
                           <p className="font-medium">
                             {systemDomain.domain}{systemDomain.path_prefix}

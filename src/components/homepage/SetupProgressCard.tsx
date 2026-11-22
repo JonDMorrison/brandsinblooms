@@ -21,7 +21,7 @@ export const SetupProgressCard = ({ campaignsCount, tasksCount, completedTasksCo
   const percentage = Math.round((completedSteps / steps.length) * 100);
 
   return (
-    <Card className="shadow-lg border-green-200 rounded-xl bg-gradient-to-br from-green-50 to-blue-50">
+    <Card className="shadow-lg border-blue-200 rounded-xl bg-gradient-to-br from-blue-50 to-blue-50">
       <CardHeader>
         <CardTitle className="text-lg text-black font-bold flex items-center gap-2">
           <span className="text-2xl">🌼</span>
@@ -35,7 +35,7 @@ export const SetupProgressCard = ({ campaignsCount, tasksCount, completedTasksCo
               <span className="text-lg">
                 {step.completed ? "✅" : "⬜️"}
               </span>
-              <span className={`text-sm font-medium ${step.completed ? 'text-green-700' : 'text-gray-600'}`}>
+              <span className={`text-sm font-medium ${step.completed ? 'text-blue-900' : 'text-gray-600'}`}>
                 {step.label}
               </span>
             </div>

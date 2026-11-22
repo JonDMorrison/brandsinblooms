@@ -340,7 +340,7 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
               </div>
               {customer.sms_opt_in && (
                 <div>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-950">
                     SMS Opt-in
                   </Badge>
                 </div>

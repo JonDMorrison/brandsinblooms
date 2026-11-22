@@ -50,7 +50,7 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
           <Badge className={getPostTypeColor(task.post_type)}>
             {task.post_type}
           </Badge>
-          <Badge className="bg-green-100 text-green-800">
+          <Badge className="bg-blue-100 text-blue-950">
             ✅ Ready
           </Badge>
         </div>

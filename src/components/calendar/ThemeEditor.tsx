@@ -221,7 +221,7 @@ export const ThemeEditor = ({
           variant="outline"
           onClick={handleSave}
           disabled={isLoading || !editTheme.trim() || showAutoGeneratingIndicator}
-          className="h-8 px-3 bg-white hover:bg-green-100 border-green-200 text-green-700"
+          className="h-8 px-3 bg-white hover:bg-blue-100 border-blue-200 text-blue-900"
         >
           <Check className="w-3 h-3 mr-1" />
           Save

@@ -53,8 +53,8 @@ const StatusLight = ({
 }) => {
   const config = {
     healthy: {
-      color: "bg-green-500",
-      shadow: "shadow-green-500/50",
+      color: "bg-blue-700",
+      shadow: "shadow-blue-700/50",
       label: "Healthy",
     },
     warning: {
@@ -103,7 +103,7 @@ const MetricCard = ({
   const TrendIcon =
     trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
   const statusColors = {
-    good: "text-green-600",
+    good: "text-blue-800",
     warning: "text-amber-600",
     danger: "text-red-600",
     neutral: "text-foreground",
@@ -137,7 +137,7 @@ const MetricCard = ({
               <TrendIcon
                 className={cn(
                   "h-4 w-4",
-                  trend === "up" ? "text-green-500" : "text-red-500",
+                  trend === "up" ? "text-blue-700" : "text-red-500",
                 )}
               />
             )}

@@ -11,7 +11,7 @@ function formatRate(rate: number) {
 
 function trendMeta(direction: string) {
   if (direction === "up") {
-    return { icon: ArrowUpRight, label: "Up", className: "text-green-700" };
+    return { icon: ArrowUpRight, label: "Up", className: "text-blue-900" };
   }
   if (direction === "down") {
     return { icon: ArrowDownRight, label: "Down", className: "text-destructive" };

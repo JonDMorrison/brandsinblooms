@@ -232,7 +232,7 @@ export const TenantOutreachModal = ({
                           spacing={0.5}
                           alignItems="center"
                         >
-                          <Check className="h-3 w-3 text-green-600" />
+                          <Check className="h-3 w-3 text-blue-800" />
                           <Typography
                             level="body-xs"
                             sx={{ color: "success.600" }}

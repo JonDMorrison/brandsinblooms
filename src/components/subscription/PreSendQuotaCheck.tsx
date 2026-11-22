@@ -40,8 +40,8 @@ export const PreSendQuotaCheck = ({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-100 rounded-full">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <div className="p-2 bg-blue-100 rounded-full">
+                <CheckCircle2 className="h-5 w-5 text-blue-800" />
               </div>
               <DialogTitle>Ready to Send</DialogTitle>
             </div>
@@ -59,9 +59,9 @@ export const PreSendQuotaCheck = ({
               <span className="font-medium">{formatNumber(recipientCount)}</span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-              <span className="text-sm text-emerald-800">Remaining after send</span>
-              <span className="font-medium text-emerald-700">
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <span className="text-sm text-blue-950">Remaining after send</span>
+              <span className="font-medium text-blue-900">
                 {stats.unlimited ? '∞' : formatNumber(remaining - recipientCount)} {typeLabel}
               </span>
             </div>

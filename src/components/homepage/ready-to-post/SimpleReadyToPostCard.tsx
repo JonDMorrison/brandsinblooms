@@ -67,7 +67,7 @@ export const SimpleReadyToPostCard = ({ task, onClick }: SimpleReadyToPostCardPr
             {task.post_type}
           </Badge>
         </div>
-        <div className="w-2 h-2 rounded-full bg-green-500" title="Ready to post" />
+        <div className="w-2 h-2 rounded-full bg-blue-700" title="Ready to post" />
       </div>
 
       {/* 2-column grid layout */}

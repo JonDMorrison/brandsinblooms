@@ -100,7 +100,7 @@ export const MasterTemplateManager = () => {
               onClick={handleCopyToCampaigns}
               disabled={copying}
               size="sm"
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-blue-800 hover:bg-blue-900"
             >
               <Copy className="h-4 w-4 mr-2" />
               {copying ? "Copying..." : "Copy to Campaigns"}

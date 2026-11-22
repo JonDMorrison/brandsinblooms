@@ -886,7 +886,7 @@ export const EnhancedSegmentImportDialog: React.FC<
           <div className="space-y-4">
             <div className={`flex items-center justify-center gap-2 ${
               getCustomerImportOutcome(importResult) === "Import Complete"
-                ? "text-green-600 dark:text-green-500"
+                ? "text-blue-800 dark:text-blue-700"
                 : "text-destructive"
             }`}>
               {getCustomerImportOutcome(importResult) === "Import Complete"
@@ -904,7 +904,7 @@ export const EnhancedSegmentImportDialog: React.FC<
                 <p className="text-sm text-muted-foreground">
                   Successfully Imported
                 </p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-500">
+                <p className="text-2xl font-bold text-blue-800 dark:text-blue-700">
                   {importResult.imported}
                 </p>
               </div>

@@ -26,8 +26,8 @@ const variantMap = {
   success: {
     icon: CheckCircle2,
     container:
-      "border-l-[3px] border-l-emerald-500 bg-emerald-50 text-emerald-900",
-    iconClassName: "text-emerald-500",
+      "border-l-[3px] border-l-blue-700 bg-blue-50 text-blue-950",
+    iconClassName: "text-blue-700",
   },
   danger: {
     icon: ShieldAlert,

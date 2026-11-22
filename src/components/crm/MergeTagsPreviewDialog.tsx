@@ -278,7 +278,7 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground mb-1">Merged:</div>
-                        <div className="text-sm bg-green-50 p-2 rounded border border-green-200">
+                        <div className="text-sm bg-blue-50 p-2 rounded border border-blue-200">
                           {processedContent.subject}
                         </div>
                       </div>
@@ -309,7 +309,7 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
                         </div>
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">Merged:</div>
-                          <div className="text-sm bg-green-50 p-2 rounded border border-green-200">
+                          <div className="text-sm bg-blue-50 p-2 rounded border border-blue-200">
                             {processedContent.preheader}
                           </div>
                         </div>
@@ -340,7 +340,7 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground mb-1">Merged Preview:</div>
-                        <div className="text-sm bg-green-50 p-2 rounded border border-green-200 max-h-32 overflow-y-auto">
+                        <div className="text-sm bg-blue-50 p-2 rounded border border-blue-200 max-h-32 overflow-y-auto">
                           <SafeHtml content={processedContent.body} className="prose prose-sm max-w-none" />
                         </div>
                       </div>

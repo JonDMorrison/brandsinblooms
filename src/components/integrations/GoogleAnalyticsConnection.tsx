@@ -197,7 +197,7 @@ export const GoogleAnalyticsConnection = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "connected":
-        return "text-green-600";
+        return "text-blue-800";
       case "error":
         return "text-red-600";
       case "authorizing":
@@ -210,7 +210,7 @@ export const GoogleAnalyticsConnection = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "connected":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4 text-blue-800" />;
       case "error":
         return <AlertCircle className="w-4 h-4 text-red-600" />;
       default:

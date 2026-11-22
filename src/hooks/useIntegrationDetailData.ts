@@ -2165,7 +2165,7 @@ function getMarketingImportConnectionState(
           subtitle:
             "Mailchimp authorization is active for previews and one-time or periodic imports.",
           tone: "success",
-          valueClassName: "text-emerald-600",
+          valueClassName: "text-blue-800",
         };
       case "expired":
         return {
@@ -2217,7 +2217,7 @@ function getMarketingImportConnectionState(
           ? "Stored credential is ready for list previews and one-time imports"
           : "Stored authorization is ready for list previews and one-time imports",
       tone: "success",
-      valueClassName: "text-emerald-600",
+      valueClassName: "text-blue-800",
     };
   }
 

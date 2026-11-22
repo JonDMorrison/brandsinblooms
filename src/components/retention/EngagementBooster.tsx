@@ -126,7 +126,7 @@ export const EngagementBooster = () => {
         description: 'Review how your content is performing and optimize',
         actionLabel: 'View Analytics',
         actionUrl: '/analytics',
-        icon: <TrendingUp className="w-5 h-5 text-green-600" />,
+        icon: <TrendingUp className="w-5 h-5 text-blue-800" />,
         category: 'engagement'
       },
       {
@@ -261,7 +261,7 @@ export const EngagementBooster = () => {
               <p className="text-sm text-gray-600">Content Created</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-blue-800">
                 {activity.postsPublishedThisWeek}
               </div>
               <p className="text-sm text-gray-600">Posts Published</p>

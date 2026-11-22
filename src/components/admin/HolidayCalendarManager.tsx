@@ -29,7 +29,7 @@ export const HolidayCalendarManager = () => {
       <AppleCardHeader className="apple-card-spacing">
         <Stack direction="row" spacing={1.5} alignItems="center">
           <div className="apple-icon-container">
-            <Calendar className="w-6 h-6 text-green-600" />
+            <Calendar className="w-6 h-6 text-blue-800" />
           </div>
           <div>
             <Typography component="h2" level="h3" sx={{ color: "neutral.800" }}>
@@ -100,7 +100,7 @@ export const HolidayCalendarManager = () => {
             >
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
                 <Clock
-                  className={`w-5 h-5 mt-0.5 ${lastUpdate.success ? "text-green-600" : "text-gray-600"}`}
+                  className={`w-5 h-5 mt-0.5 ${lastUpdate.success ? "text-blue-800" : "text-gray-600"}`}
                 />
                 <div>
                   <Typography

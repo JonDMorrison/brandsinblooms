@@ -131,7 +131,7 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
 
   const getStatusColor = (status: 'ok' | 'warning' | 'error') => {
     switch (status) {
-      case 'ok': return 'text-green-600';
+      case 'ok': return 'text-blue-800';
       case 'warning': return 'text-yellow-600';
       case 'error': return 'text-red-600';
     }
@@ -140,7 +140,7 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
   const getStatusBadge = (status: 'ok' | 'warning' | 'error') => {
     switch (status) {
       case 'ok': 
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">OK</Badge>;
+        return <Badge className="bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-200">OK</Badge>;
       case 'warning': 
         return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Warning</Badge>;
       case 'error': 
@@ -162,7 +162,7 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
           <div className="flex items-center gap-2">
             {overallStatus && (
               overallStatus === 'ok' 
-                ? <CheckCircle className="h-5 w-5 text-green-600" />
+                ? <CheckCircle className="h-5 w-5 text-blue-800" />
                 : <AlertTriangle className={`h-5 w-5 ${overallStatus === 'error' ? 'text-red-600' : 'text-yellow-600'}`} />
             )}
             <Button 

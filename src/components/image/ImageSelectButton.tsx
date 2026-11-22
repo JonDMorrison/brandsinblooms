@@ -434,8 +434,8 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                   {aiGeneratedImages.length === 0 && (
                     <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-gray-100">
                       <div className="text-center">
-                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-3 mx-auto">
-                          <Heart className="w-6 h-6 text-green-600" />
+                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3 mx-auto">
+                          <Heart className="w-6 h-6 text-blue-800" />
                         </div>
                         <h4 className="font-semibold text-gray-800">
                           Contextual

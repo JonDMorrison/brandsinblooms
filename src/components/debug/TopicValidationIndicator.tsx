@@ -33,7 +33,7 @@ export const TopicValidationIndicator = ({
   const getIndicatorColor = () => {
     if (!isValid) return 'bg-red-500';
     if (confidence < 0.7) return 'bg-yellow-500';
-    return 'bg-green-500';
+    return 'bg-blue-700';
   };
 
   const getIndicatorIcon = () => {

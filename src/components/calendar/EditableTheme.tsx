@@ -101,7 +101,7 @@ export const EditableTheme = ({
               size="sm"
               onClick={handleSave}
               disabled={isSaving || !editTheme.trim()}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-blue-800 hover:bg-blue-900"
             >
               {isSaving ? (
                 <>

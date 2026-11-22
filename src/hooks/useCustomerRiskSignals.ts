@@ -79,8 +79,8 @@ export function getRiskLevelConfig(riskScore: number): {
   return {
     level: "low",
     label: "Low Risk",
-    color: "text-green-700",
-    bgColor: "bg-green-100",
+    color: "text-blue-900",
+    bgColor: "bg-blue-100",
   };
 }
 

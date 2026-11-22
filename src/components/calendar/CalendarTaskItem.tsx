@@ -51,7 +51,7 @@ export const CalendarTaskItem = ({
       case 'published':
       case 'completed':
       case 'approved':
-        return { text: 'Approved', className: 'bg-green-100 text-green-700 border-green-300' };
+        return { text: 'Approved', className: 'bg-blue-100 text-blue-900 border-blue-300' };
       case 'scheduled':
         return { text: 'Scheduled', className: 'bg-blue-100 text-blue-700 border-blue-300' };
       case 'published':
@@ -120,8 +120,8 @@ export const CalendarTaskItem = ({
       onClick={handleClick}
       className={cn(
         "relative text-xs p-2 rounded-lg transition-all duration-200 group/task cursor-pointer select-none",
-        "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200",
-        !isBeingDragged && "hover:from-green-100 hover:to-emerald-100 hover:shadow-md hover:-translate-y-0.5",
+        "bg-gradient-to-r from-blue-50 to-blue-50 border border-blue-200",
+        !isBeingDragged && "hover:from-blue-100 hover:to-blue-100 hover:shadow-md hover:-translate-y-0.5",
         selectionMode && !isBeingDragged && "hover:cursor-move",
         isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
         isBeingDragged && "opacity-60 shadow-lg scale-105 z-50 pointer-events-none",
@@ -151,7 +151,7 @@ export const CalendarTaskItem = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 mb-1">
             <span>{getPostTypeIcon(task.post_type)}</span>
-            <span className="font-semibold text-green-800 capitalize">
+            <span className="font-semibold text-blue-950 capitalize">
               {task.post_type}
             </span>
             {isPastDate && (
@@ -164,7 +164,7 @@ export const CalendarTaskItem = ({
           </Badge>
           
           {task.campaigns && (
-            <div className="text-green-700 truncate mt-1 leading-tight">
+            <div className="text-blue-900 truncate mt-1 leading-tight">
               {task.campaigns.title}
             </div>
           )}

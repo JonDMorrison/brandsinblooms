@@ -19,9 +19,9 @@ export const useQuickActions = ({
       title: 'Create Campaign',
       description: 'Build themed marketing campaigns',
       benefit: 'Get 5+ content pieces instantly',
-      color: 'text-green-600',
-      bgColor: 'bg-white hover:bg-green-50',
-      borderColor: 'border-gray-200 hover:border-green-300',
+      color: 'text-blue-800',
+      bgColor: 'bg-white hover:bg-blue-50',
+      borderColor: 'border-gray-200 hover:border-blue-300',
       onClick: onNewCampaignClick,
       ariaLabel: 'Create a new marketing campaign'
     },

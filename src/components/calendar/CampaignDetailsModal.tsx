@@ -83,7 +83,7 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
     if (today < startDate) {
       return <Badge className="bg-blue-100 text-blue-800">Upcoming</Badge>;
     } else if (today >= startDate && today <= weekEnd) {
-      return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+      return <Badge className="bg-blue-100 text-blue-950">Active</Badge>;
     } else {
       return <Badge className="bg-gray-100 text-gray-800">Completed</Badge>;
     }
@@ -126,11 +126,11 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
-              <TrendingUp className="w-5 h-5 text-green-600" />
+            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <TrendingUp className="w-5 h-5 text-blue-800" />
               <div>
-                <p className="text-sm font-medium text-green-900">Content Status</p>
-                <p className="text-xs text-green-700">Ready for planning</p>
+                <p className="text-sm font-medium text-blue-950">Content Status</p>
+                <p className="text-xs text-blue-900">Ready for planning</p>
               </div>
             </div>
 

@@ -26,11 +26,11 @@ export const POSInsightsCard: React.FC = () => {
     : "recently";
 
   return (
-    <Card className="mb-6 border-green-200 bg-gradient-to-br from-green-50/50 to-white">
+    <Card className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50/50 to-white">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-700">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-900">
               <TrendingUp className="h-4 w-4" />
             </div>
             <div>
@@ -46,7 +46,7 @@ export const POSInsightsCard: React.FC = () => {
         <ol className="space-y-2.5">
           {insights.map((insight, i) => (
             <li key={insight.id} className="flex items-start gap-2.5">
-              <span className="flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-green-700 text-[11px] font-semibold mt-0.5">
+              <span className="flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-900 text-[11px] font-semibold mt-0.5">
                 {i + 1}
               </span>
               <p

@@ -104,7 +104,7 @@ export const SmsComplianceSandbox: React.FC = () => {
             </div>
             <div className="text-xs">
               {state.smsOptIn && !state.optOut ? (
-                <span className="text-green-600 dark:text-green-400">✓ Customer will receive SMS campaigns</span>
+                <span className="text-blue-800 dark:text-blue-500">✓ Customer will receive SMS campaigns</span>
               ) : (
                 <span className="text-red-600 dark:text-red-400">✗ Customer will NOT receive SMS campaigns</span>
               )}

@@ -60,8 +60,8 @@ export const ContentPreviewTab = ({
       name: 'Email Campaign',
       icon: Mail,
       description: 'Direct marketing email content',
-      color: 'text-green-700',
-      bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
+      color: 'text-blue-900',
+      bgColor: 'bg-gradient-to-br from-blue-50 to-blue-50 border-blue-200'
     },
     {
       id: 'newsletter',

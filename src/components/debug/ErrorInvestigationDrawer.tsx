@@ -69,7 +69,7 @@ const QuickFix: React.FC<{
   const colors = {
     warning: 'border-orange-200 bg-orange-50',
     info: 'border-blue-200 bg-blue-50',
-    success: 'border-green-200 bg-green-50'
+    success: 'border-blue-200 bg-blue-50'
   };
 
   const Icon = icons[type];
@@ -96,7 +96,7 @@ const QuickFix: React.FC<{
               className="absolute top-1 right-1 h-6 px-2"
             >
               {copied ? (
-                <CheckCircle className="h-3 w-3 text-green-500" />
+                <CheckCircle className="h-3 w-3 text-blue-700" />
               ) : (
                 <Copy className="h-3 w-3" />
               )}

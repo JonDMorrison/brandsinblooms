@@ -237,8 +237,8 @@ export const EmailDomainManagement: React.FC = () => {
                       {domain.status === "pending_dns" && (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <span className="text-green-700 font-medium">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-blue-800 shrink-0" />
+                            <span className="text-blue-900 font-medium">
                               Domain registered
                             </span>
                             <span>→</span>
@@ -267,8 +267,8 @@ export const EmailDomainManagement: React.FC = () => {
                       {domain.status === "verifying" && (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <span className="text-green-700 font-medium">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-blue-800 shrink-0" />
+                            <span className="text-blue-900 font-medium">
                               DNS records added
                             </span>
                             <span>→</span>
@@ -308,7 +308,7 @@ export const EmailDomainManagement: React.FC = () => {
                             {reputation.bounceWarning ? (
                               <AlertTriangle className="h-4 w-4 text-orange-500" />
                             ) : (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <CheckCircle2 className="h-4 w-4 text-blue-700" />
                             )}
                             <span className="text-sm">
                               Bounce rate:{" "}
@@ -327,7 +327,7 @@ export const EmailDomainManagement: React.FC = () => {
                             {reputation.complaintWarning ? (
                               <AlertTriangle className="h-4 w-4 text-orange-500" />
                             ) : (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <CheckCircle2 className="h-4 w-4 text-blue-700" />
                             )}
                             <span className="text-sm">
                               Complaint rate:{" "}

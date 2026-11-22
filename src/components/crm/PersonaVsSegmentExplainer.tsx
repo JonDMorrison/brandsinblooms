@@ -40,18 +40,18 @@ export function PersonaVsSegmentExplainer() {
               </CardContent>
             </Card>
 
-            <Card className="border-teal-200 bg-teal-50/30">
+            <Card className="border-blue-200 bg-blue-50/30">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
-                    <Target className="h-4 w-4 text-teal-600" />
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Target className="h-4 w-4 text-blue-800" />
                   </div>
-                  <h4 className="font-semibold text-teal-900">Segments</h4>
+                  <h4 className="font-semibold text-blue-950">Segments</h4>
                 </div>
-                <p className="text-sm text-teal-800 mb-3">
+                <p className="text-sm text-blue-950 mb-3">
                   Real groups of customers with shared traits
                 </p>
-                <div className="space-y-2 text-xs text-teal-700">
+                <div className="space-y-2 text-xs text-blue-900">
                   <div>• <strong>Purpose:</strong> Target specific audiences</div>
                   <div>• <strong>Example:</strong> "Loyalty Members" - 847 customers</div>
                   <div>• <strong>Used for:</strong> Campaign targeting, analytics</div>

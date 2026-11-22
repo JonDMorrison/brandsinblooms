@@ -59,11 +59,11 @@ export const WebsiteWaitlistPage = () => {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md text-center">
           <CardContent className="p-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-blue-800" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               You're In!
@@ -82,7 +82,7 @@ export const WebsiteWaitlistPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-50">
       {/* Back Button */}
       <div className="absolute top-6 left-6">
         <Button
@@ -98,12 +98,12 @@ export const WebsiteWaitlistPage = () => {
       <div className="container mx-auto px-4 py-12">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <Badge className="mb-4 bg-teal-100 text-teal-700 border-teal-200">
+          <Badge className="mb-4 bg-blue-100 text-blue-900 border-blue-200">
             Coming Soon
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
             Build Your Website
-            <span className="block text-teal-600">In Just Minutes</span>
+            <span className="block text-blue-800">In Just Minutes</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
             Our AI-powered website builder is almost here. Create stunning,
@@ -116,8 +116,8 @@ export const WebsiteWaitlistPage = () => {
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           <Card className="text-center border-0 shadow-lg">
             <CardContent className="p-8">
-              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-8 h-8 text-teal-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-8 h-8 text-blue-800" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
                 Lightning Fast
@@ -164,8 +164,8 @@ export const WebsiteWaitlistPage = () => {
         <Card className="max-w-lg mx-auto border-0 shadow-xl">
           <CardContent className="p-8">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-teal-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-blue-800" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 Join the Waitlist
@@ -189,7 +189,7 @@ export const WebsiteWaitlistPage = () => {
               </div>
               <Button
                 type="submit"
-                className="w-full text-lg py-6 bg-teal-600 hover:bg-teal-700"
+                className="w-full text-lg py-6 bg-blue-800 hover:bg-blue-900"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Joining..." : "Join the Waitlist"}
@@ -213,8 +213,8 @@ export const WebsiteWaitlistPage = () => {
           </h3>
           <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                <span className="text-green-600 font-bold">1</span>
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                <span className="text-blue-800 font-bold">1</span>
               </div>
               <p className="text-sm text-gray-600">Early Access</p>
             </div>
@@ -231,8 +231,8 @@ export const WebsiteWaitlistPage = () => {
               <p className="text-sm text-gray-600">Priority Support</p>
             </div>
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center mb-3">
-                <span className="text-teal-600 font-bold">4</span>
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                <span className="text-blue-800 font-bold">4</span>
               </div>
               <p className="text-sm text-gray-600">Shape the Product</p>
             </div>

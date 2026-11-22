@@ -314,7 +314,7 @@ const AnalyticsHealthPage = () => {
   const getStatusIcon = (status: "green" | "yellow" | "red") => {
     switch (status) {
       case "green":
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <CheckCircle className="h-4 w-4 text-blue-800" />;
       case "yellow":
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       case "red":
@@ -484,7 +484,7 @@ const AnalyticsHealthPage = () => {
                       spacing={2}
                     >
                       <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Activity className="h-4 w-4 text-green-600" />
+                        <Activity className="h-4 w-4 text-blue-800" />
                         <Typography level="title-sm">Resend Webhook</Typography>
                       </Stack>
                       <JoyStatusChip status="active" />
