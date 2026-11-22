@@ -22,6 +22,7 @@ import {
 } from "../_shared/emailRenderer.ts";
 import { normalizeContentBlocks } from "../_shared/campaignEmailSource.ts";
 import { checkConnectedContentFreshness, extractConnectedContentSources } from "../_shared/connectedContentFreshness.ts";
+import { emailCampaignReviewReason } from "../_shared/emailCampaignReviewGate.ts";
 import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
@@ -844,6 +845,11 @@ serve(async (req: Request) => {
         );
       }
     };
+
+    const reviewBlock = emailCampaignReviewReason(campaign);
+    if (reviewBlock) return new Response(JSON.stringify({error: reviewBlock, reason: "connected_content_review"}), {
+      status: 409, headers: {...corsHeaders, "Content-Type": "application/json"},
+    });
 
     const governanceConfig = await getEmailGovernanceRuntimeConfig(
       supabase,

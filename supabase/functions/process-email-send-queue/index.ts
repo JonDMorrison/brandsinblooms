@@ -1,4 +1,5 @@
 import { normalizeContentBlocks } from "../_shared/campaignEmailSource.ts";
+import { assertEmailCampaignReviewAllowsDelivery } from "../_shared/emailCampaignReviewGate.ts";
 import { checkConnectedContentFreshness, extractConnectedContentSources, emailContentSources, uniqueContentSources, ContentFreshnessHold } from "../_shared/connectedContentFreshness.ts";
 import { activeEmailCustomerIds, prepareCustomerDelivery, confirmedDeliveryOutcome } from "../_shared/activeEmailCustomers.ts";
 import { requestedNewsletterSegments } from "../_shared/newsletterAudience.ts";
@@ -2235,6 +2236,10 @@ serve((req: Request) => {
                         if (!message) throw new Error("Missing delivery customer identity");
                         return { id: message.id, tenant_id: message.tenant_id, customer_id: message.customer_id };
                       });
+                      await assertEmailCampaignReviewAllowsDelivery(
+                        supabase as unknown as Parameters<typeof assertEmailCampaignReviewAllowsDelivery>[0],
+                        String(identities[0]?.tenant_id || ""), campaignId,
+                      );
                       const sources: unknown[] = [];
                       const rendered = campaignSource ? extractConnectedContentSources({
                         contentBlocks: normalizeContentBlocks(campaignSource.contentBlocks),
