@@ -111,3 +111,73 @@ describe("Connected Content newsletter blocks",()=>{
     expect(page).toContain("insertConnectedContentBlocks");
   });
 });
+
+
+// Exercise the same server checker used at enqueue and provider dispatch.
+import { checkConnectedContentFreshness, extractConnectedContentSources } from "../../supabase/functions/_shared/connectedContentFreshness";
+
+describe("server publication freshness", () => {
+  const tenantId = "00000000-0000-4000-8000-000000000003";
+  const source = buildConnectedContentBlock(item, design).connectedContent!;
+  function database(links: unknown = [{cms_site_id: item.siteId}], error: unknown = null) {
+    const result = Promise.resolve({data: links, error});
+    const query = Object.assign(result, {eq: vi.fn(() => query), in: vi.fn(() => query)});
+    return {from: vi.fn(() => ({select: vi.fn(() => query)})), query};
+  }
+  const response = (items: unknown[] = [{...item, eventStatus: "available"}]) =>
+    new Response(JSON.stringify({siteId: item.siteId, siteOrigin: "https://example.org", items}));
+  it("does not block unrelated campaigns or call the network", async () => {
+    const db = database(); const fetcher = vi.fn();
+    expect((await checkConnectedContentFreshness(db, tenantId, [], fetcher)).decision).toBe("fresh");
+    expect(db.from).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("checks a tenant-scoped active binding and only calls the fixed exact CMS endpoint", async () => {
+    const db = database(); const fetcher = vi.fn().mockResolvedValue(response());
+    expect((await checkConnectedContentFreshness(db, tenantId, [source, source], fetcher)).decision).toBe("fresh");
+    expect(db.query.eq).toHaveBeenCalledWith("tenant_id", tenantId);
+    expect(db.query.eq).toHaveBeenCalledWith("status", "active");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const [url, options] = fetcher.mock.calls[0];
+    expect(url.origin).toBe("https://bloomsites.app");
+    expect(url.searchParams.get("itemId")).toBe(item.id);
+    expect(options).toMatchObject({redirect: "error", cache: "no-store"});
+  });
+  it.each([
+    {eventStatus: "cancelled"}, {eventStatus: "sold_out"}, {title: "Changed title"},
+    {startAt: "2027-01-01T00:00:00Z"}, {updatedAt: "2026-11-21T00:00:00Z"},
+    {publicUrl: "https://example.org/events/changed"},
+  ])("requires review when saved source details change: %j", async change => {
+    const fetcher = vi.fn().mockResolvedValue(response([{...item,eventStatus:"available",...change}]));
+    expect((await checkConnectedContentFreshness(database(),tenantId,[source],fetcher)).decision).toBe("review_required");
+  });
+  it("requires review for unpublished content and disconnected sites", async () => {
+    expect((await checkConnectedContentFreshness(database(),tenantId,[source],vi.fn().mockResolvedValue(response([])))).decision).toBe("review_required");
+    const fetcher = vi.fn();
+    expect((await checkConnectedContentFreshness(database([]),tenantId,[source],fetcher)).decision).toBe("review_required");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("defers on outages, malformed upstream data and mismatched item scope", async () => {
+    for (const value of [new Response("offline",{status:503}),response([{...item,id:tenantId}]),response([{...item,siteId:tenantId}])]) {
+      expect((await checkConnectedContentFreshness(database(),tenantId,[source],vi.fn().mockResolvedValue(value))).decision).toBe("retry");
+    }
+    expect((await checkConnectedContentFreshness(database(),tenantId,[source],vi.fn().mockRejectedValue(new Error("timeout")))).decision).toBe("retry");
+    expect((await checkConnectedContentFreshness(database(null,new Error("db")),tenantId,[source],vi.fn())).decision).toBe("retry");
+  });
+  it.each(["page","blog","product","fundraiser"] as const)("supports a %s without an event date", async type => {
+    const current = {...item,type,startAt:undefined};
+    const saved = buildConnectedContentBlock(current,design).connectedContent!;
+    expect((await checkConnectedContentFreshness(database(),tenantId,[saved],vi.fn().mockResolvedValue(response([current])))).decision).toBe("fresh");
+  });
+  it("rejects malformed source manifests without network calls", async () => {
+    const fetcher = vi.fn();
+    for (const bad of [null, {...source,siteId:"bad"}, {...source,publicUrl:"http://localhost/private"}, {...source,type:"constructor"}]) {
+      expect((await checkConnectedContentFreshness(database(),tenantId,[bad],fetcher)).decision).toBe("review_required");
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("extracts visible email sources and preserves invalid explicit manifests as blockers", () => {
+    expect(extractConnectedContentSources({contentBlocks:[{connectedContent:source},{visible:false,connectedContent:source}]})).toEqual([source]);
+    expect(extractConnectedContentSources({connectedContentSources:[source]})).toEqual([source]);
+    expect(extractConnectedContentSources({connectedContentSources:"broken"})).toEqual([null]);
+  });
+});
