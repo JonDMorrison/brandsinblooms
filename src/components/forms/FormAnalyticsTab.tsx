@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { JoyChip } from "@/components/joy/JoyChip";
-import { useFormAnalytics } from "@/hooks/useForms";
+import { useFormAnalytics, useFormPlacementBreakdown } from "@/hooks/useForms";
 import type {
   FormAnalyticsDailyPoint,
   FormAnalyticsReferrer,
@@ -470,6 +470,69 @@ function ReferrerRow({ referrer }: { referrer: FormAnalyticsReferrer }) {
         </Typography>
       </Stack>
     </Sheet>
+  );
+}
+
+
+const PLACEMENT_ROWS: Array<{ key: "footer" | "popup" | "checkout" | "event" | "other"; label: string }> = [
+  { key: "footer", label: "Website footer" },
+  { key: "popup", label: "Website popup" },
+  { key: "checkout", label: "Checkout" },
+  { key: "event", label: "Event registration" },
+  { key: "other", label: "Other (embeds, links, imports)" },
+];
+
+/** Accepted submissions by BloomSites placement for the selected range. */
+function PlacementBreakdownSection(props: {
+  formId: string;
+  tenantId?: string;
+  days: number;
+}) {
+  const { data, isLoading, isError } = useFormPlacementBreakdown(
+    props.formId,
+    props.tenantId,
+    props.days,
+  );
+  const total = data?.total ?? 0;
+  return (
+    <SectionShell
+      title="Where signups came from"
+      description="Accepted submissions by website placement for this range."
+    >
+      {isLoading ? (
+        <Stack spacing={1}>
+          {[0, 1, 2].map((row) => (
+            <Skeleton key={row} variant="rectangular" height={28} sx={{ borderRadius: "md" }} />
+          ))}
+        </Stack>
+      ) : isError ? (
+        <Typography level="body-sm" color="danger">
+          Placement data could not be loaded.
+        </Typography>
+      ) : total === 0 ? (
+        <Typography level="body-sm" color="neutral">
+          No accepted submissions in this range.
+        </Typography>
+      ) : (
+        <Stack spacing={1.25}>
+          {PLACEMENT_ROWS.filter((row) => (data?.[row.key] ?? 0) > 0 || row.key === "footer" || row.key === "popup").map((row) => {
+            const count = data?.[row.key] ?? 0;
+            const share = total > 0 ? Math.round((count / total) * 100) : 0;
+            return (
+              <Box key={row.key}>
+                <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+                  <Typography level="body-sm">{row.label}</Typography>
+                  <Typography level="body-sm" fontWeight="lg">
+                    {count.toLocaleString()} <Typography level="body-xs" color="neutral">({share}%)</Typography>
+                  </Typography>
+                </Stack>
+                <LinearProgress determinate value={share} sx={{ mt: 0.5 }} aria-label={`${row.label}: ${share}% of submissions`} />
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
+    </SectionShell>
   );
 }
 
@@ -994,6 +1057,11 @@ export function FormAnalyticsTab({
           gap: 2,
         }}
       >
+        <PlacementBreakdownSection
+          formId={formId}
+          tenantId={tenantId}
+          days={selectedRangeDays}
+        />
         <SectionShell
           title="Top referrers"
           description="Top sources sending form traffic and attributed submissions."

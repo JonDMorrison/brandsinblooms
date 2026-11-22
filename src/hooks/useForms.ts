@@ -1067,6 +1067,67 @@ export function useDeleteFormSubmissions() {
   });
 }
 
+export interface FormPlacementBreakdown {
+  days: number;
+  total: number;
+  footer: number;
+  popup: number;
+  checkout: number;
+  event: number;
+  other: number;
+}
+
+const EMPTY_PLACEMENT_BREAKDOWN: FormPlacementBreakdown = {
+  days: 0,
+  total: 0,
+  footer: 0,
+  popup: 0,
+  checkout: 0,
+  event: 0,
+  other: 0,
+};
+
+function countOf(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+}
+
+/**
+ * Accepted submissions grouped by BloomSites placement (footer, popup,
+ * checkout, event) plus "other" for embeds, links and imports. `days` 0 means
+ * all time, matching useFormAnalytics.
+ */
+export function useFormPlacementBreakdown(
+  formId: string | undefined,
+  tenantId: string | undefined,
+  days: number = 0,
+) {
+  return useQuery({
+    queryKey: ["form-placement-breakdown", tenantId, formId, days],
+    queryFn: async (): Promise<FormPlacementBreakdown> => {
+      if (!formId || !tenantId) return EMPTY_PLACEMENT_BREAKDOWN;
+      const { data, error } = await supabase.rpc("get_form_placement_breakdown", {
+        p_tenant_id: tenantId,
+        p_form_id: formId,
+        p_days: days > 0 ? days : 3650,
+      });
+      if (error) throw error;
+      const raw = (data ?? {}) as Record<string, unknown>;
+      return {
+        days: countOf(raw.days),
+        total: countOf(raw.total),
+        footer: countOf(raw.footer),
+        popup: countOf(raw.popup),
+        checkout: countOf(raw.checkout),
+        event: countOf(raw.event),
+        other: countOf(raw.other),
+      };
+    },
+    enabled: !!formId && !!tenantId,
+    staleTime: 30000,
+  });
+}
+
 export function useFormAnalytics(
   formId: string | undefined,
   tenantId: string | undefined,
