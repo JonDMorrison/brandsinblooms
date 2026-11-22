@@ -76,3 +76,25 @@ describe("scheduled SMS reliability gate", () => {
     expect(sendCampaign).toContain('["owner", "admin", "team", "marketing"]');
   });
 });
+
+
+describe("connected SMS draft schema", () => {
+  const sql = readFileSync("supabase/migrations/20261122060000_connected_content_sms_drafts.sql", "utf8");
+  it("requires save and launch permissions separately", () => {
+    expect(sql).toContain("auth.uid() IS NULL");
+    expect(sql).toContain("public.has_tenant_permission(p_tenant_id, 'campaign.write'");
+    expect(sql).toContain("p_launch AND NOT public.has_tenant_permission(p_tenant_id, 'campaign.send'");
+    expect(sql).toContain("FROM PUBLIC, anon");
+  });
+  it("keeps unconfirmed audiences out of schedules and queues", () => {
+    expect(sql).toContain("audience_confirmed OR (status = 'draft' AND scheduled_at IS NULL)");
+    expect(sql).toContain("p_launch OR p_audience IS NOT NULL OR p_scheduled_at IS NOT NULL");
+    expect(sql).toContain("Choose an audience and write a message before launch");
+  });
+  it("preserves source binding and rejects stale cross-business draft edits", () => {
+    expect(sql).toContain("connection.tenant_id = p_tenant_id AND connection.status = 'active'");
+    expect(sql).toContain("tenant_id=p_tenant_id AND source='connected_content' FOR UPDATE");
+    expect(sql).toContain("v_campaign.updated_at <> p_expected_updated_at");
+    expect(sql).not.toContain("SET connected_content_sources");
+  });
+});
