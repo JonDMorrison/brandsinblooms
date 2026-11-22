@@ -279,3 +279,44 @@ describe("server publication freshness", () => {
     expect(extractConnectedContentSources({connectedContentSources:"broken"})).toEqual([null]);
   });
 });
+
+
+describe("authenticated exact content bridge", () => {
+  it("supports every concrete content type and rejects all or a foreign site", async () => {
+    const ts = await import("typescript");
+    const source = readFileSync("supabase/functions/connected-content/index.ts", "utf8")
+      .replace(/^import .*;$/gm, "");
+    let handler: (request: Request) => Promise<Response> = async () => new Response(null, {status: 500});
+    const tenantId = "00000000-0000-4000-8000-000000000003";
+    const links = [{cms_site_id: item.siteId, site_name: "Garden", tenant_id: tenantId}];
+    const client = {
+      auth: {getUser: async () => ({data: {user: {id: "owner"}}, error: null})},
+      rpc: async () => ({data: {tenantId, permissions: ["campaigns.write"]}, error: null}),
+      from: () => {
+        const chain = {select: () => chain, eq: () => chain, order: () => chain,
+          limit: async () => ({data: links, error: null})};
+        return chain;
+      },
+    };
+    const fetcher = vi.fn(async (url: URL) => Response.json({siteId: item.siteId,
+      siteOrigin: "https://example.org", items: [{...item, type: ({events:"event",pages:"page",products:"product",blogs:"blog",fundraisers:"fundraiser"} as Record<string,string>)[url.searchParams.get("type")!]}]}));
+    const js = ts.transpileModule(source, {compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext}}).outputText;
+    new Function("serve", "createClient", "Deno", "fetch", js)(
+      (value: typeof handler) => {handler = value;}, () => client,
+      {env: {get: (key: string) => key === "SUPABASE_SERVICE_ROLE_KEY" ? "service" : "configured"}}, fetcher);
+    for (const kind of ["events", "pages", "products", "blogs", "fundraisers", "all"]) {
+      const result = await handler(new Request("https://crm.example/connected-content", {
+        method: "POST", headers: {Authorization: "Bearer owner", "Content-Type": "application/json"},
+        body: JSON.stringify({action: "catalog", siteId: item.siteId, itemId: item.id, type: kind}),
+      }));
+      expect(result.status).toBe(kind === "all" ? 400 : 200);
+      if (kind !== "all") expect((await result.json()).items).toHaveLength(1);
+    }
+    const result = await handler(new Request("https://crm.example/connected-content", {
+      method: "POST", headers: {Authorization: "Bearer owner", "Content-Type": "application/json"},
+      body: JSON.stringify({action:"catalog",siteId:tenantId,itemId:item.id,type:"pages"}),
+    }));
+    expect(result.status).toBe(404);
+    expect(fetcher).toHaveBeenCalledTimes(5);
+  });
+});
