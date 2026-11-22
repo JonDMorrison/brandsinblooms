@@ -1,4 +1,4 @@
-import { verifyGrowthBridge, verifiedGrowthVisitor } from "../_shared/growthBridge.ts";
+import { verifyGrowthBridge, verifiedGrowthVisitor, sanitizeGrowthAttribution } from "../_shared/growthBridge.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   sanitizeFormSubmissionData,
@@ -1015,7 +1015,8 @@ Deno.serve(async (req) => {
     if (bridge === "invalid") return jsonResponse({ error: "Invalid signup bridge authentication" }, 401);
     const payload: SubmissionPayload = JSON.parse(raw);
     const normalizedPayload = normalizeSubmissionPayload(payload);
-    const { embedKey, data, meta, usedLegacyPayload } = normalizedPayload;
+    const { embedKey, data, usedLegacyPayload } = normalizedPayload;
+    const meta = sanitizeGrowthAttribution(normalizedPayload.meta, bridge === "valid");
     const rawSubmissionData = data;
     submissionData = rawSubmissionData;
     submissionMeta = {
@@ -1297,6 +1298,7 @@ Deno.serve(async (req) => {
       user_agent: meta?.user_agent || req.headers.get("user-agent") || null,
       event_id: eventId,
       payload_hash: payloadHash,
+      bridge_authenticated: bridge === "valid",
       site_id:
         typeof meta?.site_id === "string" && UUID_RE.test(meta.site_id)
           ? meta.site_id.toLowerCase()

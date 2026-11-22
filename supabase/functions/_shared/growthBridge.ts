@@ -24,3 +24,14 @@ export function verifiedGrowthVisitor(meta: {source?: unknown;site_id?: unknown;
     typeof meta.bridge_visitor_key === "string" && /^[a-f0-9]{64}$/.test(meta.bridge_visitor_key)
     ? meta.bridge_visitor_key : null;
 }
+
+/** Public embed metadata cannot claim the reserved server-authenticated website attribution. */
+export function sanitizeGrowthAttribution<T extends {source?: string;site_id?: string;bridge_visitor_key?: string}>(meta:T, authenticated:boolean): T {
+  const result = {...meta};
+  if (!authenticated) {
+    delete result.site_id;
+    delete result.bridge_visitor_key;
+    if (result.source?.trim().toLowerCase() === "bloomsites") result.source = "public_embed";
+  }
+  return result;
+}
