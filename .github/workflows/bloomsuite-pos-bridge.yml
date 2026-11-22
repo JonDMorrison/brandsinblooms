@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'supabase/migrations/*bloomsuite_pos*'
+      - 'supabase/migrations/*native_pos_purchase_history_health*'
       - 'supabase/functions/_shared/bloomsuite-pos*'
       - 'supabase/functions/_shared/__tests__/bloomsuite-pos*'
       - 'supabase/functions/bloomsuite-pos-inbound/**'
@@ -56,6 +57,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260903235000_authorize_staff_consent_changes.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261012151040_bloomsuite_pos_marketing_review.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261012151147_bloomsuite_pos_reject_stale_preferences.sql
+      - name: Load read-only purchase history diagnostics
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261122100000_native_pos_purchase_history_health.sql
       - name: PostgreSQL replay, money, identity and tenant isolation
         run: |
           psql -v ON_ERROR_STOP=1 -f supabase/tests/bloomsuite_pos_bridge_replay.sql
@@ -64,4 +67,4 @@ jobs:
         with:
           deno-version: v2.x
       - name: Signed HTTP boundary
-        run: deno test supabase/functions/_shared/__tests__/bloomsuite-pos.test.ts
+        run: deno test --config supabase/functions/deno.json supabase/functions/_shared/__tests__/bloomsuite-pos.test.ts
