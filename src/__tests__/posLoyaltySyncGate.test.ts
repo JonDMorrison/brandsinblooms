@@ -134,7 +134,7 @@ describe("POS membership administration", () => {
 
 import ts from "typescript";
 describe("membership review edge authorization", () => {
-  async function exercise(overrides: {tenant?: string; workspaceError?: boolean; userError?: boolean; state?: string; purchase?: string; reject?: boolean} = {}) {
+  async function exercise(overrides: {tenant?: string; workspaceError?: boolean; userError?: boolean; state?: string; purchase?: string; reject?: boolean; oversized?: boolean} = {}) {
     let handler: (request: Request) => Promise<Response> = async () => new Response(null, {status: 500});
     const serviceRpc = vi.fn().mockResolvedValue({data: null, error: null});
     const userRpc = vi.fn().mockImplementation((name: string) => Promise.resolve(name === "get_current_crm_access" ? {data: {tenantId: overrides.tenant || "00000000-0000-4000-8000-000000000001"}, error: null} : {data: {requests: [{id: "00000000-0000-4000-8000-000000000002", state: overrides.state || "REVIEW_REQUIRED", purchase_result: overrides.purchase}]}, error: overrides.workspaceError ? {message: "session revoked"} : null}));
@@ -142,9 +142,15 @@ describe("membership review edge authorization", () => {
     const source = readFileSync("supabase/functions/pos-membership-review/index.ts", "utf8").replace(/^import.*\n/gm, "");
     const javascript = ts.transpileModule(source, {compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None}}).outputText;
     new Function("serve", "createClient", "Deno", javascript)((next: typeof handler) => {handler = next;}, createClient, {env: {get: (key: string) => ({SUPABASE_URL: "https://database.test", SUPABASE_ANON_KEY: "anon", SUPABASE_SERVICE_ROLE_KEY: "service"})[key]}});
-    const response = await handler(new Request("https://edge.test", {method: "POST", headers: {Authorization: "Bearer user-jwt", "Content-Type": "application/json"}, body: JSON.stringify({tenantId: "00000000-0000-4000-8000-000000000001", requestId: "00000000-0000-4000-8000-000000000002", reject: overrides.reject ?? false, reason: "Checked the original identity evidence.", userId: "attacker", customerId: "arbitrary"})}));
+    const response = await handler(new Request("https://edge.test", {method: "POST", headers: {Authorization: "Bearer user-jwt", "Content-Type": "application/json"}, body: JSON.stringify({tenantId: "00000000-0000-4000-8000-000000000001", requestId: "00000000-0000-4000-8000-000000000002", reject: overrides.reject ?? false, reason: "Checked the original identity evidence.", userId: "attacker", customerId: "arbitrary", extra: overrides.oversized ? "é".repeat(5000) : ""})}));
     return {response, serviceRpc, createClient};
   }
+  it("rejects oversized actual UTF-8 bodies before auth or service clients", async () => {
+    const result = await exercise({oversized: true});
+    expect(result.response.status).toBe(413);
+    expect(result.createClient).not.toHaveBeenCalled();
+    expect(result.serviceRpc).not.toHaveBeenCalled();
+  });
   it("rejects revoked sessions and cross-tenant inputs without privileged writes", async () => {
     for (const override of [{workspaceError: true}, {tenant: "foreign"}, {userError: true}]) {
       const result = await exercise(override);

@@ -1,5 +1,5 @@
 import {serve} from "https://deno.land/std@0.190.0/http/server.ts";
-import {createClient} from "npm:@supabase/supabase-js@2";
+import {createClient} from "npm:@supabase/supabase-js@2.117.2";
 const headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST,OPTIONS", "Content-Type": "application/json", "Cache-Control": "no-store"};
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), {status, headers});
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -11,7 +11,22 @@ serve(async req => {
   if (!url || !anon || !service) return reply({error: "Review is temporarily unavailable"}, 503);
   if (!token || token === service) return reply({error: "Sign in to review membership requests"}, 401);
   try {
-    const input = await req.json().catch(() => null);
+    // Enforce the actual streamed bytes, including chunked requests or a false Content-Length.
+    const reader = req.body?.getReader();
+    if (!reader) return reply({error: "Request body required"}, 400);
+    const decoder = new TextDecoder();
+    let bytes = 0, body = "";
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > 8192) {await reader.cancel(); return reply({error: "Request body is too large"}, 413);}
+      body += decoder.decode(value, {stream: true});
+    }
+    body += decoder.decode();
+    let input;
+    try {input = JSON.parse(body);} catch {return reply({error: "Invalid JSON body"}, 400);}
+
     if (!input || !uuid.test(input.requestId ?? "") || !uuid.test(input.tenantId ?? "") || typeof input.reject !== "boolean" || typeof input.reason !== "string" || input.reason.trim().length < 20 || input.reason.trim().length > 2000) return reply({error: "Select a request and provide review notes of 20–2000 characters"}, 400);
     const userClient = createClient(url, anon, {global: {headers: {Authorization: `Bearer ${token}`}}, auth: {persistSession: false, autoRefreshToken: false}});
     const [{data: {user}, error: userError}, {data: access, error: accessError}] = await Promise.all([userClient.auth.getUser(token), userClient.rpc("get_current_crm_access")]);
