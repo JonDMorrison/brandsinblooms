@@ -145,3 +145,23 @@ export async function checkConnectedContentFreshness(
   }
   return fresh;
 }
+
+/** A pre-provider hold is distinct from an uncertain provider response. */
+export class ContentFreshnessHold extends Error {
+  constructor(readonly decision: "review_required" | "retry", reason: string) {
+    super(`${decision === "retry" ? "CONTENT_CHECK_RETRY" : "CONTENT_REVIEW_REQUIRED"}: ${reason}`);
+  }
+}
+
+export function emailContentSources(saved: unknown, rendered: unknown[] | null): unknown[] {
+  if (saved === null || saved === undefined) {
+    if (rendered === null) throw new ContentFreshnessHold("retry", "Legacy campaign sources could not be checked.");
+    if (rendered.length) throw new ContentFreshnessHold("review_required", "This older queued email has no saved website version. Create a reviewed draft before sending.");
+    return [];
+  }
+  if (!Array.isArray(saved)) throw new ContentFreshnessHold("review_required", "The queued website reference is invalid.");
+  if (rendered !== null && JSON.stringify(saved) !== JSON.stringify(rendered)) {
+    throw new ContentFreshnessHold("review_required", "The email source changed after recipients were queued. Create a reviewed draft before sending.");
+  }
+  return saved;
+}
