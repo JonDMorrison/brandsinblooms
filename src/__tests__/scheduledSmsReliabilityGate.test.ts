@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const migration = readFileSync(
   "supabase/migrations/20260903220000_reliable_scheduled_sms_claim.sql",
@@ -74,5 +74,76 @@ describe("scheduled SMS reliability gate", () => {
       "You do not have permission to send this campaign",
     );
     expect(sendCampaign).toContain('["owner", "admin", "team", "marketing"]');
+  });
+});
+import {checkSmsCampaignContent, checkSmsMessageCampaignContent} from "../../supabase/functions/_shared/smsCampaignContentGate";
+
+describe("SMS website content dispatch gate", () => {
+  const tenantId = "00000000-0000-4000-8000-000000000001";
+  const source = {siteId: "00000000-0000-4000-8000-000000000002", itemId: "00000000-0000-4000-8000-000000000003", type: "page", updatedAt: "2026-11-21T12:00:00Z", publicUrl: "https://garden.example/page"};
+  const campaign = {id: "campaign", tenant_id: tenantId, status: "queued", audience_confirmed: true, connected_content_sources: [source], metrics: {delivered: 2}};
+  const database = (row: unknown = campaign) => {
+    const writes: Record<string, unknown>[] = [];
+    const scopes: unknown[][] = [];
+    const db = {from: (table: string) => {
+      let write: Record<string, unknown> | null = null;
+      const chain = {
+        select: () => chain,
+        update: (value: Record<string, unknown>) => {write = value; writes.push(value); return chain;},
+        eq: (...args: unknown[]) => {scopes.push(args); return chain;},
+        in: () => chain,
+        maybeSingle: async () => ({data: row, error: null}),
+        then: (resolve: (value: {data: unknown; error: null}) => unknown) => Promise.resolve({data: write ? null : table === "crm_connected_websites" ? [{cms_site_id: source.siteId}] : row, error: null}).then(resolve),
+      };
+      return chain;
+    }};
+    return {db: db as unknown as Parameters<typeof checkSmsCampaignContent>[0], writes, scopes};
+  };
+  const published = (changes: Record<string, unknown> = {}) => vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({siteId: source.siteId, siteOrigin: "https://garden.example", items: [{id: source.itemId, siteId: source.siteId, type: source.type, updatedAt: source.updatedAt, publicUrl: source.publicUrl, ...changes}]}), {status: 200}));
+  it("checks the saved source at provider dispatch and preserves current delivery metrics", async () => {
+    const {db, writes, scopes} = database();
+    const fetcher = published({updatedAt: "2026-11-21T13:00:00Z"});
+    expect((await checkSmsMessageCampaignContent(db, campaign.id, tenantId, fetcher)).decision).toBe("review_required");
+    expect(scopes).toContainEqual(["tenant_id", tenantId]);
+    expect(writes).toEqual([expect.objectContaining({status: "paused", metrics: expect.objectContaining({delivered: 2, content_review: expect.objectContaining({decision: "review_required"})})})]);
+  });
+  it("retries unavailable source checks without pausing or sending", async () => {
+    const {db, writes} = database();
+    const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"));
+    expect((await checkSmsCampaignContent(db, campaign, fetcher)).decision).toBe("retry");
+    expect(writes[0]).not.toHaveProperty("status");
+    expect(writes[0].metrics).toEqual(expect.objectContaining({content_review: expect.objectContaining({decision: "retry"})}));
+  });
+  it("requires audience confirmation and explicit resume for paused linked campaigns", async () => {
+    const fetcher = published();
+    const {db} = database({...campaign, status: "paused"});
+    expect((await checkSmsMessageCampaignContent(db, campaign.id, tenantId, fetcher)).decision).toBe("review_required");
+    expect((await checkSmsCampaignContent(db, {...campaign, audience_confirmed: false}, fetcher)).decision).toBe("review_required");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("does not alter automation messages or ordinary campaigns without sources", async () => {
+    const {db, writes} = database({...campaign, status: "sent", connected_content_sources: []});
+    const fetcher = published();
+    expect((await checkSmsMessageCampaignContent(db, null, tenantId, fetcher)).decision).toBe("fresh");
+    expect((await checkSmsMessageCampaignContent(db, campaign.id, tenantId, fetcher)).decision).toBe("fresh");
+    expect(fetcher).not.toHaveBeenCalled(); expect(writes).toEqual([]);
+  });
+  it("fails closed for unavailable or malformed campaign sources", async () => {
+    const fetcher = published();
+    expect((await checkSmsMessageCampaignContent(database(null).db, campaign.id, tenantId, fetcher)).decision).toBe("review_required");
+    expect((await checkSmsCampaignContent(database().db, {...campaign, connected_content_sources: "bad"}, fetcher)).decision).toBe("review_required");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("enforces manual, scheduled, job and legacy paths before provider calls", () => {
+    const sender = readFileSync("supabase/functions/send-sms-campaign/index.ts", "utf8");
+    const enqueue = readFileSync("supabase/functions/sms-campaign-enqueue-worker/index.ts", "utf8");
+    const worker = readFileSync("supabase/functions/sms-queue-worker/index.ts", "utf8");
+    expect(sender.indexOf("checkSmsCampaignContent(supabase, campaign)")).toBeLessThan(sender.indexOf('// Step B:'));
+    expect(enqueue.indexOf("checkSmsCampaignContent(supabase, campaign)")).toBeLessThan(enqueue.indexOf('// Step 3: Atomic claim'));
+    expect(worker.match(/await deferIfCampaignContentBlocked/g)).toHaveLength(2);
+    expect(worker).toContain("attempts: Math.max(0, job.attempts - 1)");
+    expect(worker).toContain(".in('status', ['queued', 'sending'])");
+    expect(worker).toContain("CONTENT_CHECK_RETRY");
+    expect(worker).toContain("CONTENT_REVIEW_REQUIRED");
   });
 });

@@ -27,6 +27,8 @@ import {
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { resolveSmsEnqueueOutcome } from "../_shared/smsCampaignOutcome.ts";
 
+import { checkSmsCampaignContent } from "../_shared/smsCampaignContentGate.ts";
+
 // Configuration constants
 const ENQUEUE_PAGE_SIZE = Number(
   Deno.env.get("SMS_ENQUEUE_PAGE_SIZE") ?? "1000",
@@ -169,6 +171,16 @@ Deno.serve(async (req) => {
     if (campaignError || !campaign) {
       console.error("[sms-enqueue-worker] Campaign not found:", campaignError);
       return corsJsonResponse({ error: "Campaign not found" }, { status: 404 });
+    }
+
+    // A due schedule is checked before any recipient rows or provider jobs exist.
+    if (!["queued", "sending"].includes(campaign.status)) {
+      return corsJsonResponse({error: "Campaign is not approved for enqueueing"}, {status: 409});
+    }
+    const contentReview = await checkSmsCampaignContent(supabase, campaign);
+    if (contentReview.decision !== "fresh") {
+      return corsJsonResponse({error: contentReview.reason, contentReview: contentReview.decision},
+        {status: contentReview.decision === "retry" ? 503 : 409});
     }
 
     // Step 2: Check if already enqueued
