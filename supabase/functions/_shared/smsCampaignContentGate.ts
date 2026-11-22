@@ -23,13 +23,12 @@ export async function checkSmsCampaignContent(
   const sources = manifest === undefined ? [] : Array.isArray(manifest) ? manifest : [null];
   const result = await checkConnectedContentFreshness(db as unknown as Parameters<typeof checkConnectedContentFreshness>[0], campaign.tenant_id ?? "", sources, fetcher);
   if (result.decision !== "fresh") {
-    const metrics = campaign.metrics && typeof campaign.metrics === "object" && !Array.isArray(campaign.metrics)
-      ? campaign.metrics as Record<string, unknown> : {};
-    const {error} = await db.from("crm_sms_campaigns").update({
-      ...(result.decision === "review_required" ? {status: "paused"} : {}),
-      metrics: {...metrics, content_review: {decision: result.decision, reason: result.reason, checked_at: new Date().toISOString()}},
-    }).eq("id", campaign.id).eq("tenant_id", campaign.tenant_id).eq("status", campaign.status);
-    if (error) return {decision: "retry", reason: "Unable to record the website review. Delivery will retry before sending."};
+    const {data, error} = await db.rpc("record_sms_content_review", {
+      p_tenant_id: campaign.tenant_id, p_campaign_id: campaign.id,
+      p_expected_status: campaign.status, p_decision: result.decision,
+      p_reason: result.reason,
+    });
+    if (error || data !== true) return {decision: "retry", reason: "Unable to record the website review. Delivery will retry before sending."};
   }
   return result;
 }

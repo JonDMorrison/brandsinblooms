@@ -85,7 +85,9 @@ describe("SMS website content dispatch gate", () => {
   const database = (row: unknown = campaign) => {
     const writes: Record<string, unknown>[] = [];
     const scopes: unknown[][] = [];
-    const db = {from: (table: string) => {
+    const db = {rpc: async (name: string, args: Record<string, unknown>) => {
+      writes.push({rpc: name, ...args}); return {data: true, error: null};
+    }, from: (table: string) => {
       let write: Record<string, unknown> | null = null;
       const chain = {
         select: () => chain,
@@ -105,14 +107,15 @@ describe("SMS website content dispatch gate", () => {
     const fetcher = published({updatedAt: "2026-11-21T13:00:00Z"});
     expect((await checkSmsMessageCampaignContent(db, campaign.id, tenantId, fetcher)).decision).toBe("review_required");
     expect(scopes).toContainEqual(["tenant_id", tenantId]);
-    expect(writes).toEqual([expect.objectContaining({status: "paused", metrics: expect.objectContaining({delivered: 2, content_review: expect.objectContaining({decision: "review_required"})})})]);
+    expect(writes).toEqual([{rpc: "record_sms_content_review", p_tenant_id: tenantId, p_campaign_id: campaign.id, p_expected_status: "queued", p_decision: "review_required", p_reason: expect.any(String)}]);
+    expect(writes[0]).not.toHaveProperty("metrics");
   });
   it("retries unavailable source checks without pausing or sending", async () => {
     const {db, writes} = database();
     const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"));
     expect((await checkSmsCampaignContent(db, campaign, fetcher)).decision).toBe("retry");
     expect(writes[0]).not.toHaveProperty("status");
-    expect(writes[0].metrics).toEqual(expect.objectContaining({content_review: expect.objectContaining({decision: "retry"})}));
+    expect(writes[0]).toEqual(expect.objectContaining({rpc: "record_sms_content_review", p_decision: "retry"}));
   });
   it("requires audience confirmation and explicit resume for paused linked campaigns", async () => {
     const fetcher = published();
