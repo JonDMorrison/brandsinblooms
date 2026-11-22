@@ -64,7 +64,8 @@ BEGIN
       'decision',p_decision,'reason',left(p_reason,500),'checked_at',clock_timestamp())),
     status=CASE WHEN p_decision='review_required' THEN 'paused' ELSE status END,
     updated_at=clock_timestamp()
-    WHERE id=p_campaign_id AND tenant_id=p_tenant_id AND status=p_expected_status;
+    WHERE id=p_campaign_id AND tenant_id=p_tenant_id AND status=p_expected_status
+      AND status IN ('draft','scheduled','queued','sending','paused');
   GET DIAGNOSTICS v_updated=ROW_COUNT;
   RETURN v_updated=1;
 END;

@@ -114,6 +114,7 @@ describe("connected campaign review schema", () => {
     expect(sql).toContain("auth.role() IS DISTINCT FROM 'service_role'");
     expect(sql).toContain("jsonb_set(coalesce(metrics,'{}'::jsonb),'{content_review}'");
     expect(sql).toContain("status=p_expected_status");
+    expect(sql).toContain("status IN ('draft','scheduled','queued','sending','paused')");
     expect(sql).toContain("FROM PUBLIC, anon, authenticated");
   });
   it("distinguishes legacy email payloads from explicit source snapshots", () => {
