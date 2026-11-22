@@ -40,7 +40,7 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.crm_customers WHERE id=p_customer AND tenant_id=p_tenant AND deleted_at IS NULL AND merged_into_customer_id IS NULL) THEN RAISE EXCEPTION 'Current customer unavailable'; END IF;
  RETURN coalesce((SELECT jsonb_agg(jsonb_build_object('mappingId',m.id,'programmeId',m.programme_id,'programmeVersionId',m.programme_version_id,'programName',p.name,
    'currency',v.definition->>'currency','keyId',c.key_id,'secret',c.secret,'posTenantId',c.pos_tenant_id,'crmTenantId',p_tenant,'customerId',p_customer,'activationId',m.activation_id,
-   'eligible',p.current_version_id=m.programme_version_id AND p.status NOT IN('paused','archived') AND EXISTS(
+   'eligible',EXISTS(SELECT 1 FROM public.crm_customers current_customer WHERE current_customer.id=p_customer AND current_customer.tenant_id=p_tenant AND current_customer.loyalty_member IS TRUE) AND p.current_version_id=m.programme_version_id AND p.status NOT IN('paused','archived') AND EXISTS(
      SELECT 1 FROM bloom_pos_private.membership_requests r JOIN bloom_pos_private.membership_policies policy ON policy.id=r.policy_id
      WHERE policy.tenant_id=p_tenant AND r.customer_id=p_customer AND r.state='CONFIRMED' AND r.key_id=m.key_id AND policy.authority='NATIVE'
        AND policy.programme_version_id=m.programme_version_id AND policy.enabled AND NOT EXISTS(
