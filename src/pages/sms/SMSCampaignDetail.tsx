@@ -27,6 +27,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { SmsCampaignActions } from "@/components/sms/SmsCampaignActions";
 import { SmsCampaignProgressCard } from "@/components/sms/SmsCampaignProgressCard";
+import { useTenant } from "@/hooks/useTenant";
 import { useSmsCampaignProgress } from "@/hooks/useSmsCampaignProgress";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -206,6 +207,7 @@ function BoxIcon({ children }: { children: React.ReactNode }) {
 
 export default function SMSCampaignDetail() {
   const { id } = useParams();
+  const { tenant, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = React.useState(1);
@@ -221,10 +223,10 @@ export default function SMSCampaignDetail() {
   }, []);
 
   const campaignQuery = useQuery({
-    queryKey: ["sms-campaign", id],
-    enabled: Boolean(id),
+    queryKey: ["sms-campaign", id, tenant?.id],
+    enabled: Boolean(!tenantLoading && id && tenant?.id),
     queryFn: async () => {
-      if (!id) {
+      if (!id || !tenant?.id) {
         return null;
       }
 
@@ -232,6 +234,7 @@ export default function SMSCampaignDetail() {
         .from("crm_sms_campaigns")
         .select("*")
         .eq("id", id)
+        .eq("tenant_id", tenant.id)
         .maybeSingle();
 
       if (error) {
@@ -243,11 +246,11 @@ export default function SMSCampaignDetail() {
   });
 
   const messagesQuery = useQuery({
-    queryKey: ["sms-campaign-messages", id, page],
-    enabled: Boolean(id),
+    queryKey: ["sms-campaign-messages", id, page, tenant?.id],
+    enabled: Boolean(!tenantLoading && id && tenant?.id && campaignQuery.data?.id === id && campaignQuery.data?.tenant_id === tenant.id),
     staleTime: 10_000,
     queryFn: async () => {
-      if (!id) {
+      if (!id || !tenant?.id || campaignQuery.data?.tenant_id !== tenant.id || campaignQuery.data?.id !== id) {
         return { items: [], count: 0 };
       }
 
@@ -298,7 +301,7 @@ export default function SMSCampaignDetail() {
     pollIntervalMs: 3000,
   });
 
-  const detailLoading = showMountSkeleton || campaignQuery.isLoading;
+  const detailLoading = tenantLoading || showMountSkeleton || campaignQuery.isLoading;
 
   React.useEffect(() => {
     if (detailLoading) {
@@ -430,6 +433,7 @@ export default function SMSCampaignDetail() {
       ? "scheduled"
       : "queued";
   const audienceDescriptor =
+    campaign.source === "connected_content" && campaign.status === "draft" ? "Choose an audience in the draft editor" :
     campaign.targeting_persona_names &&
     campaign.targeting_persona_names.length > 0
       ? campaign.targeting_persona_names.join(", ")
@@ -531,6 +535,11 @@ export default function SMSCampaignDetail() {
                   >
                     Back to SMS
                   </Button>
+                  {campaign.source === "connected_content" && campaign.status === "draft" ? (
+                    <Button onClick={() => navigate(`/sms/new?draftId=${campaign.id}`)}>
+                      Edit text draft
+                    </Button>
+                  ) : null}
                   <SmsCampaignActions
                     campaignId={campaign.id}
                     campaignName={campaign.name}

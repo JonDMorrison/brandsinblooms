@@ -49,7 +49,7 @@ import {
   X,
 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,6 +67,8 @@ import {
   getSegmentDescription,
   getUnicodeCharacters,
 } from "@/lib/sms/smsSegmentCounter";
+
+import { loadConnectedSmsDraft, saveConnectedSmsDraft, type SmsCampaignDraft, type SmsDraftAudience } from "@/lib/sms/campaignDraft";
 
 type WizardStepKey = "details" | "audience" | "content" | "schedule" | "review";
 
@@ -499,8 +501,10 @@ function ReviewRow({
 
 export function SMSCampaignWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const draftId = searchParams.get("draftId");
   const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { tenant, loading: tenantLoading } = useTenant();
   const { allSegments, isLoading: segmentsLoading } = useSegments();
   const { personas, loading: personasLoading } = useAllPersonas();
   const [currentStep, setCurrentStep] =
@@ -508,7 +512,7 @@ export function SMSCampaignWizard() {
   const [campaignName, setCampaignName] = React.useState("");
   const [campaignDescription, setCampaignDescription] = React.useState("");
   const [campaignTags, setCampaignTags] = React.useState<string[]>([]);
-  const [audienceMode, setAudienceMode] = React.useState<AudienceMode>("all");
+  const [audienceMode, setAudienceMode] = React.useState<AudienceMode | null>(draftId ? null : "all");
   const [selectedSegmentId, setSelectedSegmentId] = React.useState<
     string | null
   >(null);
@@ -530,6 +534,35 @@ export function SMSCampaignWizard() {
   const [showMountSkeleton, setShowMountSkeleton] = React.useState(true);
   const [showContent, setShowContent] = React.useState(false);
   const messageTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+
+  const [loadedDraft, setLoadedDraft] = React.useState<SmsCampaignDraft | null>(null);
+  const savingRef = React.useRef(false);
+  const scope = `${tenant?.id ?? ""}:${draftId ?? ""}`;
+  const currentScope = React.useRef(scope);
+  currentScope.current = scope;
+  const draftQuery = useQuery({
+    queryKey: ["connected-sms-draft", tenant?.id, draftId],
+    enabled: Boolean(!tenantLoading && tenant?.id && draftId),
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: "always",
+    queryFn: () => loadConnectedSmsDraft(tenant!.id, draftId!),
+  });
+  React.useEffect(() => {
+    setLoadedDraft(null);
+    setCampaignName(""); setMessage(""); setMediaUrls([]);
+    setAudienceMode(draftId ? null : "all");
+    setSelectedSegmentId(null); setSelectedPersonaId(null);
+    setScheduleMode("now"); setScheduledAt(""); setCurrentStep("details");
+  }, [scope, draftId]);
+  React.useEffect(() => {
+    const draft = draftQuery.data;
+    if (draftQuery.isFetching || !draft || draft.tenant_id !== tenant?.id || draft.id !== draftId) return;
+    setLoadedDraft(draft); setCampaignName(draft.name); setMessage(draft.message);
+    setMediaUrls(Array.isArray(draft.media_urls) ? draft.media_urls.filter((url): url is string => typeof url === "string") : []);
+    // Audience always requires an explicit selection after reopening a promoted draft.
+    setAudienceMode(null); setSelectedSegmentId(null); setSelectedPersonaId(null);
+  }, [draftQuery.data, draftQuery.isFetching, tenant?.id, draftId]);
 
   const stepIndex = WIZARD_STEPS.findIndex((step) => step.key === currentStep);
   const activeStep = WIZARD_STEPS[stepIndex] ?? WIZARD_STEPS[0];
@@ -649,6 +682,8 @@ export function SMSCampaignWizard() {
   }, []);
 
   const wizardLoading =
+    tenantLoading ||
+    (Boolean(draftId) && !draftQuery.isError && (!loadedDraft || loadedDraft.tenant_id !== tenant?.id || loadedDraft.id !== draftId)) ||
     showMountSkeleton ||
     segmentsLoading ||
     personasLoading ||
@@ -666,7 +701,7 @@ export function SMSCampaignWizard() {
   }, [wizardLoading]);
 
   React.useEffect(() => {
-    if (!tenant?.id) {
+    if (!tenant?.id || !audienceMode) {
       setRecipientEstimate(0);
       setIsAudienceLoading(false);
       return;
@@ -749,7 +784,7 @@ export function SMSCampaignWizard() {
     [message],
   );
   const selectedAudienceLabel =
-    audienceMode === "all"
+    !audienceMode ? "No audience selected" : audienceMode === "all"
       ? "All Subscribers"
       : audienceMode === "segment"
         ? selectedSegment?.name || "No segment selected"
@@ -1114,8 +1149,27 @@ export function SMSCampaignWizard() {
     }
   }, [campaignName, message, selectedAudienceLabel]);
 
+  const draftAudience = React.useMemo<SmsDraftAudience | null>(() => audienceMode === "all" ? {type: "all"}
+    : audienceMode === "segment" && selectedSegment ? {type: "segment", id: selectedSegment.id, name: selectedSegment.name}
+    : audienceMode === "persona" && selectedPersona ? {type: "persona", id: selectedPersona.id, name: selectedPersona.persona_name}
+    : null, [audienceMode, selectedSegment, selectedPersona]);
+  const saveDraft = async () => {
+    if (tenantLoading || !loadedDraft || !tenant?.id || loadedDraft.tenant_id !== tenant.id || savingRef.current) return;
+    savingRef.current = true; setIsCreating(true);
+    const savedScope = scope;
+    try {
+      const saved = await saveConnectedSmsDraft({tenantId: tenant.id, id: loadedDraft.id,
+        expectedUpdatedAt: loadedDraft.updated_at, name: campaignName, message, mediaUrls,
+        audience: draftAudience});
+      if (currentScope.current !== savedScope) return;
+      setLoadedDraft(saved); toast.success("Text draft saved");
+    } catch (error) {
+      if (currentScope.current === savedScope) toast.error(error instanceof Error ? error.message : "Unable to save draft.");
+    } finally { savingRef.current = false; setIsCreating(false); }
+  };
+
   const createCampaign = React.useCallback(async () => {
-    if (!user?.id || !tenant?.id) {
+    if (tenantLoading || !user?.id || !tenant?.id || savingRef.current || (draftId && (!loadedDraft || loadedDraft.tenant_id !== tenant.id))) {
       return;
     }
 
@@ -1126,6 +1180,8 @@ export function SMSCampaignWizard() {
       return;
     }
 
+    savingRef.current = true;
+    const savedScope = scope;
     try {
       setIsCreating(true);
       const scheduleValue = scheduleMode === "later" ? scheduledAt : null;
@@ -1141,7 +1197,11 @@ export function SMSCampaignWizard() {
           audienceMode === "segment" ? (selectedSegment?.id ?? null) : null,
         system_segment_type: null,
       };
-      const { data, error } = await supabase
+      const { data, error } = loadedDraft ? {data: await saveConnectedSmsDraft({
+        tenantId: tenant.id, id: loadedDraft.id, expectedUpdatedAt: loadedDraft.updated_at,
+        name: campaignName, message, mediaUrls, audience: draftAudience,
+        launch: true, scheduledAt: scheduleValue ? new Date(scheduleValue).toISOString() : null,
+      }), error: null} : await supabase
         .from("crm_sms_campaigns")
         .insert({
           tenant_id: tenant.id,
@@ -1173,6 +1233,8 @@ export function SMSCampaignWizard() {
         throw error;
       }
 
+      if (loadedDraft && data) setLoadedDraft(data as SmsCampaignDraft);
+      if (currentScope.current !== savedScope) return;
       if (sendImmediately) {
         const { data: sendResult, error: sendError } =
           await supabase.functions.invoke("send-sms-campaign", {
@@ -1196,11 +1258,13 @@ export function SMSCampaignWizard() {
       navigate(data?.id ? `/sms/${data.id}` : "/sms");
     } catch (error) {
       console.error("Failed to create SMS campaign", error);
-      toast.error("Unable to create SMS campaign.");
+      toast.error(error instanceof Error ? error.message : "Unable to create SMS campaign.");
     } finally {
+      savingRef.current = false;
       setIsCreating(false);
     }
   }, [
+    draftId, loadedDraft, draftAudience, scope, tenantLoading,
     audienceMode,
     blockingIssues.length,
     campaignName,
@@ -1216,6 +1280,12 @@ export function SMSCampaignWizard() {
     user?.id,
   ]);
 
+  if (draftId && !tenantLoading && !tenant?.id) {
+    return <PageContainer><Alert color="warning">Select a business to open this text draft.</Alert></PageContainer>;
+  }
+  if (draftId && draftQuery.isError) {
+    return <PageContainer><Alert color="danger">{draftQuery.error instanceof Error ? draftQuery.error.message : "Unable to open this text draft."}</Alert></PageContainer>;
+  }
   if (wizardLoading) {
     return <WizardSkeleton />;
   }
@@ -2540,6 +2610,8 @@ export function SMSCampaignWizard() {
                   Back
                 </Button>
 
+                {loadedDraft ? <Button variant="outlined" loading={isCreating} disabled={!campaignName.trim()}
+                  onClick={() => void saveDraft()}>Save draft</Button> : null}
                 {currentStep !== "review" ? (
                   <Button
                     variant="solid"

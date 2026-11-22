@@ -13,6 +13,8 @@ import { JoyButton } from "@/components/joy/JoyButton";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useUserRole } from "@/hooks/useUserRole";
 import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
+import { saveConnectedSmsDraft } from "@/lib/sms/campaignDraft";
+import { useTenant } from "@/hooks/useTenant";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import {
   buildConnectedContentBlock,
@@ -36,6 +38,7 @@ const WRONG_CODE_MESSAGE="This is not a Connected websites code. In BloomSites, 
 
 function ContentWorkspace() {
   const navigate=useNavigate();
+  const {tenant}=useTenant();
   const [params]=useSearchParams();
   const {designSystem}=useDesignSystem();
   const {hasPermission,isLoading:rolesLoading}=useUserRole();
@@ -54,6 +57,21 @@ function ContentWorkspace() {
   const [connections,setConnections]=React.useState<ConnectedWebsite[]>([]);
   const [promotionItem,setPromotionItem]=React.useState<ConnectedContentItem|null>(null);
   const promotionPending=React.useRef(false);
+  const handledDeepLink=React.useRef("");
+  React.useEffect(()=>{
+    const key=`${promoteSite}:${promoteId}`;
+    if(rolesLoading||!canPromote||!promoteSite||!promoteId||handledDeepLink.current===key)return;
+    let cancelled=false;
+    void connectedContentRequest<ConnectedContentResponse>({action:"catalog",type:"events",siteId:promoteSite,itemId:promoteId,limit:1})
+      .then(result=>{
+        if(cancelled)return;
+        const item=result.items.find(item=>item.siteId===promoteSite&&item.id===promoteId);
+        handledDeepLink.current=key;
+        if(item&&item.eventStatus!=="cancelled"&&item.eventStatus!=="sold_out")setPromotionItem(item);
+        else setError("This website event is no longer available to promote.");
+      }).catch(()=>{if(!cancelled)setError("Could not load the event from your website. Refresh to try again.");});
+    return()=>{cancelled=true;};
+  },[canPromote,rolesLoading,promoteSite,promoteId]);
   const refresh=React.useCallback(async()=>{
     setLoading(true);setError("");
     try {
@@ -109,20 +127,23 @@ function ContentWorkspace() {
       const blocks=content?ensureFooterBlockCompliance([content],{designSystem}):[];
       const sms=channel==="sms"?buildConnectedContentSms(item):null;
       // Always starts as a DRAFT with no audience and no scheduled send.
-      const draft=await persistCampaignDraft({
-        campaignType:channel,status:"draft",
+      if(sms&&!tenant?.id)throw new Error("Select a business before creating a text draft.");
+      const draft=sms?await saveConnectedSmsDraft({
+        tenantId:tenant!.id,name:`Promote ${item.title}`.slice(0,180),
+        message:sms.smsMessage,sources:[sms.source],
+      }):await persistCampaignDraft({
+        campaignType:"email",status:"draft",
         name:`Promote ${item.title}`.slice(0,180),
         subjectLine:channel==="sms"?"":item.type==="event"?`Join us for ${item.title}`:`Discover ${item.title}`,
         preheaderText:item.description?.slice(0,150)??"",
         senderName:"",senderEmail:"",replyTo:"",
         contentBlocks:blocks,smsMessage:sms?.smsMessage??"",sendAt:null,
-        ...(sms?{connectedContentSources:[sms.source]}:{}),
         sendImmediately:false,segments:[],personas:[],
         includeAllCustomers:false,additionalCustomerIds:[],
       });
       setPromotionItem(null);
       toast.success(`${channel==="sms"?"Text message":"Newsletter"} draft created. Review and choose your recipients before sending.`);
-      navigate(`/crm/campaigns/${draft.id}/${channel==="sms"?"edit":"studio"}`);
+      navigate(channel==="sms"?`/sms/new?draftId=${draft.id}`:`/crm/campaigns/${draft.id}/studio`);
     }catch(e){setError(e instanceof Error?e.message:"Couldn't create your draft.");}
     finally{promotionPending.current=false;setBusy(false);}
   };

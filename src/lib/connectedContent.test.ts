@@ -6,9 +6,11 @@ import * as React from "react";
 import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import ConnectedContentPage from "@/pages/crm/ConnectedContentPage";
 const mockInvoke = vi.hoisted(() => vi.fn());
-const pageMocks = vi.hoisted(() => ({save: vi.fn(), navigate: vi.fn()}));
+const pageMocks = vi.hoisted(() => ({save: vi.fn(), saveSms: vi.fn(), params: "", navigate: vi.fn()}));
+vi.mock("@/lib/sms/campaignDraft", () => ({saveConnectedSmsDraft: pageMocks.saveSms}));
+vi.mock("@/hooks/useTenant", () => ({useTenant: () => ({tenant: {id: "tenant-123"}})}));
 vi.mock("@/lib/crm/campaignEditor", () => ({persistCampaignDraft: pageMocks.save}));
-vi.mock("react-router-dom", () => ({useNavigate: () => pageMocks.navigate, useSearchParams: () => [new URLSearchParams("promoteSite=site&promoteId=item")]}));
+vi.mock("react-router-dom", () => ({useNavigate: () => pageMocks.navigate, useSearchParams: () => [new URLSearchParams(pageMocks.params)]}));
 vi.mock("@/hooks/useUserRole", () => ({useUserRole: () => ({hasPermission: () => true, isLoading: false})}));
 vi.mock("@/utils/toast", () => ({toast: {success: vi.fn()}}));
 vi.mock("@/contexts/DesignSystemContext", () => ({
@@ -153,9 +155,9 @@ describe("Connected Content text drafts", () => {
 
 describe("Promote channel choice", () => {
   beforeEach(() => {
-    mockInvoke.mockReset(); pageMocks.save.mockReset(); pageMocks.navigate.mockReset();
+    pageMocks.params=""; mockInvoke.mockReset(); pageMocks.save.mockReset(); pageMocks.saveSms.mockReset(); pageMocks.navigate.mockReset();
     mockInvoke.mockResolvedValue({data: {connections: [{id: "link", cms_site_id: "site", site_name: "Garden", site_origin: "https://example.org"}], items: [item], sources: [], errors: []}, error: null});
-    pageMocks.save.mockResolvedValue({id: "draft-123"});
+    pageMocks.save.mockResolvedValue({id: "draft-123"}); pageMocks.saveSms.mockResolvedValue({id: "draft-123"});
   });
   afterEach(cleanup);
   it("requires a channel choice then opens a text draft without selecting recipients", async () => {
@@ -163,15 +165,21 @@ describe("Promote channel choice", () => {
     fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
     expect(pageMocks.save).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", {name: "Create text message draft"}));
-    await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/crm/campaigns/draft-123/edit"));
-    expect(pageMocks.save).toHaveBeenCalledTimes(1);
-    expect(pageMocks.save).toHaveBeenCalledWith(expect.objectContaining({
-      campaignType: "sms", status: "draft", contentBlocks: [],
-      smsMessage: expect.stringContaining(item.publicUrl),
-      connectedContentSources: [expect.objectContaining({siteId: item.siteId, itemId: item.id, updatedAt: item.updatedAt})],
-      sendAt: null, sendImmediately: false, includeAllCustomers: false,
-      segments: [], personas: [], additionalCustomerIds: [],
-    }));
+    await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/sms/new?draftId=draft-123"));
+    expect(pageMocks.saveSms).toHaveBeenCalledTimes(1);
+    expect(pageMocks.save).not.toHaveBeenCalled();
+    expect(pageMocks.saveSms).toHaveBeenCalledWith({
+      tenantId: "tenant-123", name: `Promote ${item.title}`,
+      message: expect.stringContaining(item.publicUrl),
+      sources: [expect.objectContaining({siteId: item.siteId, itemId: item.id, updatedAt: item.updatedAt})],
+    });
+  });
+  it("opens the channel chooser from an exact CMS event deep link without creating anything", async () => {
+    pageMocks.params=`promoteSite=${item.siteId}&promoteId=${item.id}`;
+    render(React.createElement(ConnectedContentPage));
+    expect(await screen.findByRole("button", {name: "Create text message draft"})).toBeInTheDocument();
+    expect(mockInvoke).toHaveBeenCalledWith("connected-content", {body: expect.objectContaining({itemId: item.id, siteId: item.siteId, type: "events"})});
+    expect(pageMocks.save).not.toHaveBeenCalled(); expect(pageMocks.saveSms).not.toHaveBeenCalled();
   });
   it("keeps newsletter blocks and the existing Studio route", async () => {
     render(React.createElement(ConnectedContentPage));
@@ -185,15 +193,15 @@ describe("Promote channel choice", () => {
   });
   it("does not create another draft while the first save is pending", async () => {
     let finish!: (value: {id: string}) => void;
-    pageMocks.save.mockReturnValue(new Promise<{id: string}>(resolve => {finish = resolve;}));
+    pageMocks.saveSms.mockReturnValue(new Promise<{id: string}>(resolve => {finish = resolve;}));
     render(React.createElement(ConnectedContentPage));
     fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
     const button = screen.getByRole("button", {name: "Create text message draft"});
     fireEvent.click(button); fireEvent.click(button);
-    expect(pageMocks.save).toHaveBeenCalledTimes(1);
+    expect(pageMocks.saveSms).toHaveBeenCalledTimes(1);
     expect(pageMocks.navigate).not.toHaveBeenCalled();
     finish({id: "draft-123"});
-    await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/crm/campaigns/draft-123/edit"));
+    await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/sms/new?draftId=draft-123"));
   });
   it("closing the channel choice creates nothing", async () => {
     render(React.createElement(ConnectedContentPage));
