@@ -50,7 +50,7 @@
     for (var i = scripts.length - 1; i >= 0; i--) {
       var src = scripts[i].src || '';
       // Match any embed script URL pattern
-      if (src.indexOf('/forms/embed') !== -1 || 
+      if (src.indexOf('/forms/embed') !== -1 ||
           (src.indexOf('embed') !== -1 && (
             src.indexOf('bloomsuite') !== -1 ||
             src.indexOf('supabase.co/storage') !== -1
@@ -867,7 +867,7 @@
   /**
    * Render a single form field
    */
-  function renderField(field, compliance) {
+  function renderField(field, compliance, settings) {
     var wrapper = createElement('div', 'field');
     var fieldId = CSS_PREFIX + 'f-' + field.id;
 
@@ -899,7 +899,7 @@
       if (field.required) checkbox.required = true;
 
       var labelText = createElement('label', 'checkbox-text', { for: fieldId });
-      labelText.innerHTML = escapeHtml(field.label);
+      labelText.innerHTML = escapeHtml((field.type === "email_consent" ? compliance.email_consent_text : compliance.sms_consent_text) || field.label);
       if (field.required) {
         labelText.innerHTML += ' <span class="' + CSS_PREFIX + 'required">*</span>';
       }
@@ -984,7 +984,35 @@
         input.type = 'text';
     }
 
+    if (settings && settings.label_position === 'floating') {
+      wrapper.style.position = 'relative';
+      input.style.padding = '22px 16px 8px';
+      input.style.minHeight = '56px';
+      label.style.cssText = 'position:absolute;left:16px;top:17px;pointer-events:none;transition:all 120ms ease;z-index:1';
+      var updateLabel = function () {
+        var raised = document.activeElement === input || input.value.length > 0;
+        label.style.top = raised ? '6px' : '17px';
+        label.style.fontSize = raised ? '0.65rem' : '0.875rem';
+        input.placeholder = raised ? (field.placeholder || '') : '';
+      };
+      input.addEventListener('focus', updateLabel);
+      input.addEventListener('blur', updateLabel);
+      input.addEventListener('input', updateLabel);
+      updateLabel();
+    }
     wrapper.appendChild(input);
+    if (field.type === 'phone') {
+      var phoneError = createElement('div', 'error-msg');
+      phoneError.setAttribute('role','status');
+      input.addEventListener('input', function () {
+        var digits = input.value.replace(/\D/g,'');
+        var invalid = input.value && (!/^[\d\s+().-]+$/.test(input.value) || digits.length < 10 || digits.length > 15);
+        phoneError.textContent = invalid ? 'Please enter a valid phone number' : '';
+        input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+      });
+      wrapper.appendChild(phoneError);
+    }
+    if (field.help_text) { var help = createElement('div','help'); help.textContent=field.help_text; wrapper.appendChild(help); }
     return wrapper;
   }
 
@@ -1007,12 +1035,37 @@
     var primaryColor = theme.primary_color || '#22C55E';
     formContainer.style.setProperty('--bs-form-primary', primaryColor);
     formContainer.style.setProperty('--bs-form-primary-hover', darkenColor(primaryColor, -20));
-    formContainer.style.setProperty('--bs-form-radius', theme.border_radius || '8px');
+    formContainer.style.setProperty('--bs-form-radius', '8px');
+    formContainer.style.borderRadius = theme.border_radius || '8px';
+    formContainer.style.backgroundColor = theme.background_style === 'transparent' ? 'transparent' : theme.background_style === 'green-tint' ? '#F2F8F1' : theme.background_style === 'white' ? '#FFFFFF' : theme.background_color || '#FFFFFF';
+    formContainer.style.color = theme.text_color || '#1F2937';
+    formContainer.style.maxWidth = ({narrow:'480px',medium:'640px',wide:'800px',full:'100%'})[settings.form_width] || '640px';
+    formContainer.style.width = '100%';
+    formContainer.style.margin = '0 auto';
+    formContainer.style.padding = '20px';
+    formContainer.style.boxSizing = 'border-box';
+    formContainer.style.display = 'flex';
+    formContainer.style.gap = '24px';
+    formContainer.style.flexWrap = 'wrap';
+    if (theme.background_style === 'transparent') formContainer.style.boxShadow = 'none';
+    if (typeof settings.header_image_url === 'string' && /^https:\/\//i.test(settings.header_image_url)) {
+      var image = document.createElement('img');
+      image.src = settings.header_image_url;
+      image.alt = settings.header_image_alt || '';
+      image.style.cssText = 'object-fit:cover;min-width:0;max-height:600px;border-radius:8px';
+      image.style.width = settings.header_image_position === 'left' || settings.header_image_position === 'right' ? '38%' : '100%';
+      image.style.flex = settings.header_image_position === 'top' || !settings.header_image_position ? '1 1 100%' : '1 1 220px';
+      if (settings.header_image_position === 'right') formContainer.style.flexDirection = 'row-reverse';
+      formContainer.appendChild(image);
+    }
 
     // Create form element
     var formEl = createElement('form', 'wrapper');
     formEl.setAttribute('novalidate', 'true');
     formEl.setAttribute('autocomplete', 'on');
+    formEl.style.flex = '2 1 280px';
+    formEl.style.minWidth = '0';
+    formEl.style.width = '100%';
 
     // Honeypot field (spam trap)
     var honeypot = createElement('div', 'hp');
@@ -1021,8 +1074,8 @@
     formEl.appendChild(honeypot);
 
     // Headline and subheadline (fall back to form_title/form_description)
-    var _headlineText = settings.form_headline || settings.form_title || '';
-    var _subheadlineText = settings.form_subheadline || settings.form_description || '';
+    var _headlineText = settings.form_headline || '';
+    var _subheadlineText = settings.form_subheadline || '';
     if (_headlineText || _subheadlineText) {
       var headerBlock = createElement('div', 'header');
       headerBlock.style.textAlign = 'center';
@@ -1053,22 +1106,31 @@
       formEl.appendChild(headerBlock);
     }
 
+    if (settings.form_title) { var title = document.createElement('h2'); title.textContent=settings.form_title; title.style.textAlign='center'; formEl.appendChild(title); }
+    if (settings.form_description) { var description = document.createElement('p'); description.textContent=settings.form_description; description.style.textAlign='center'; formEl.appendChild(description); }
     // Render each field
     fields.forEach(function (field) {
-      formEl.appendChild(renderField(field, compliance));
+      var fieldElement = renderField(field, compliance, settings);
+      fieldElement.style.marginBottom = ({compact:'12px',normal:'20px',comfortable:'32px',relaxed:'24px'})[theme.spacing] || '20px';
+      var control = fieldElement.querySelector('input:not([type="checkbox"]):not([type="hidden"]),select');
+      if (control && theme.input_style === 'filled') control.style.backgroundColor='#F4F4F4';
+      if (control && theme.input_style === 'underlined') { control.style.border='none'; control.style.borderBottom='1px solid #777'; control.style.borderRadius='0'; }
+      formEl.appendChild(fieldElement);
     });
 
+    if (settings.footer_text) { var footer = document.createElement('p'); footer.textContent=settings.footer_text; footer.style.whiteSpace='pre-wrap'; formEl.appendChild(footer); }
     // Submit button
     var submitBtn = createElement('button', 'submit', { type: 'submit' });
     submitBtn.textContent = settings.submit_button_text || 'Submit';
 
     // Button style variants
-    if (theme.button_style === 'outline') {
+    if ((theme.button_style === 'outline' || theme.button_style === 'outlined')) {
       submitBtn.className += ' ' + CSS_PREFIX + 'submit-outline';
     } else if (theme.button_style === 'rounded') {
       submitBtn.className += ' ' + CSS_PREFIX + 'submit-rounded';
     }
 
+    if (theme.button_style === 'ghost') { submitBtn.style.background='transparent'; submitBtn.style.color=primaryColor; submitBtn.style.border='none'; }
     // Auto-width centered button
     submitBtn.style.width = 'auto';
     submitBtn.style.display = 'inline-block';

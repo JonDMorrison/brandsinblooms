@@ -28,4 +28,13 @@ describe("form share runtime URLs", () => {
     ).toContain(expectedUrl);
     expect(expectedUrl).not.toContain("qcaa");
   });
+  it("offers a delayed popup without changing inline forms", async () => {
+    const { buildJavaScriptEmbedCode } = await import("./share");
+    const options = {embedKey: "test", origin: "https://forms.example.com", delaySeconds: 3};
+    expect(buildJavaScriptEmbedCode({...options, displayMode: "modal"})).toContain('data-trigger="delay" data-delay="3000"');
+    expect(buildJavaScriptEmbedCode({...options, displayMode: "slide-in"})).toContain('data-delay="3000"');
+    expect(buildJavaScriptEmbedCode({...options, displayMode: "inline"})).not.toContain('data-trigger');
+    expect(buildJavaScriptEmbedCode({...options, displayMode: "modal", delaySeconds: NaN})).not.toContain('data-trigger');
+  });
+
 });

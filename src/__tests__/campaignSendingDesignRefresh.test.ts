@@ -1,69 +1,37 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as ts from "typescript";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("campaign sending design and palette invariants", () => {
-  it("keeps design and review accessible above the editor, with scheduling in final review", () => {
+  it("orders campaign steps and keeps sending behind permission and confirmation", () => {
     const editor = source("src/pages/crm/CRMCampaignEditorPage.tsx");
-    const sendPosition = editor.indexOf('data-testid="campaign-editor-send-toolbar"');
-    const setupPosition = editor.indexOf('id="campaign-editor-setup"');
-    const contentPosition = editor.indexOf('id="campaign-editor-content"');
-
-    expect(sendPosition).toBeGreaterThan(0);
-    expect(sendPosition).toBeLessThan(setupPosition);
-    expect(sendPosition).toBeLessThan(contentPosition);
-    expect(editor).toContain('position: "sticky"');
-    expect(editor).toContain('data-testid="campaign-editor-review-send-cta"');
-    expect(editor).toContain('data-testid="campaign-editor-fix-sender"');
-
-    // Exercise the current CTA's actual guard and action expressions. The
-    // design step must stay reachable before subject/audience are ready; the
-    // final review must still obey all send blockers. Literal JSX assertions
-    // incorrectly required the old two-button toolbar after the workflow moved.
+    const positions = ["setup", "inbox", "audience", "content", "actions"].map(id => editor.indexOf(`id="campaign-editor-${id}"`));
+    expect(positions.every(position => position > 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a,b) => a-b));
     const ast = ts.createSourceFile("editor.tsx", editor, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-    const elements: Array<ts.JsxOpeningElement | ts.JsxSelfClosingElement> = [];
+    let cta: ts.JsxOpeningElement | undefined;
     const visit = (node: ts.Node) => {
-      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) elements.push(node);
+      if (ts.isJsxOpeningElement(node) && node.attributes.properties.some(p => ts.isJsxAttribute(p) && p.name.getText(ast) === "data-testid" && p.initializer && ts.isStringLiteral(p.initializer) && p.initializer.text === "campaign-editor-review-send-cta")) cta = node;
       ts.forEachChild(node, visit);
     };
     visit(ast);
-    const cta = elements.find((node) => node.attributes.properties.some((prop) =>
-      ts.isJsxAttribute(prop) && prop.name.getText(ast) === "data-testid" &&
-      prop.initializer && ts.isStringLiteral(prop.initializer) && prop.initializer.text === "campaign-editor-review-send-cta"));
-    const expression = (element: typeof cta, name: string) => {
-      const prop = element?.attributes.properties.find((prop) => ts.isJsxAttribute(prop) && prop.name.getText(ast) === name);
-      if (!prop || !ts.isJsxAttribute(prop) || !prop.initializer || !ts.isJsxExpression(prop.initializer) || !prop.initializer.expression) {
-        throw new Error(`Missing ${name} expression`);
-      }
-      return prop.initializer.expression.getText(ast);
+    const expression = (name: string) => {
+      const prop = cta?.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText(ast) === name) as ts.JsxAttribute;
+      return ((prop.initializer as ts.JsxExpression).expression!).getText(ast);
     };
-    const disabled = new Function("campaignType", "reviewingNewsletter", "sendButtonDisabled", "isLocked", "pendingTemplateSave", `return (${expression(cta, "disabled")})`) as
-      (channel: string, reviewing: boolean, blocked: boolean, locked: boolean, pending: unknown) => boolean;
-    expect(disabled("email", false, true, false, null)).toBe(false);
-    expect(disabled("email", false, false, true, null)).toBe(true);
-    expect(disabled("email", false, false, false, {})).toBe(true);
-    for (const [channel, reviewing] of [["email", true], ["sms", false]] as const) {
-      expect(disabled(channel, reviewing, true, false, null)).toBe(true);
-      expect(disabled(channel, reviewing, false, false, null)).toBe(false);
-    }
-    const actions: string[] = [];
-    const click = new Function("campaignType", "reviewingNewsletter", "handleOpenStudio", "openSendConfirmation", `return (${expression(cta, "onClick")})`) as
-      (channel: string, reviewing: boolean, design: () => void, review: () => void) => () => void;
-    for (const [channel, reviewing] of [["email", false], ["email", true], ["sms", false]] as const) {
-      click(channel, reviewing, () => actions.push("design"), () => actions.push("review"))();
-    }
-    expect(actions).toEqual(["design", "review", "review"]);
-    const review = elements.find((node) => node.tagName.getText(ast) === "CampaignSendConfirmation");
-    const schedule = new Function("setSendConfirmOpen", "handleScheduleForLater", `return (${expression(review, "onSchedule")})`) as
-      (close: (open: boolean) => void, openSchedule: () => void) => () => void;
-    const scheduling: string[] = [];
-    schedule((open) => scheduling.push(`review:${open}`), () => scheduling.push("schedule"))();
-    expect(scheduling).toEqual(["review:false", "schedule"]);
-    expect(editor).not.toContain("scheduleInitiallyExpanded");
-    expect(editor).not.toContain("previewManuallyToggledRef");
-    expect((editor.match(/<CampaignBlockerRow/g) ?? []).length).toBe(1);
+    const disabled = new Function("isLocked", "canSendCampaign", "pendingTemplateSave", `return (${expression("disabled")})`);
+    expect(disabled(false, true, null)).toBe(false);
+    expect(disabled(true, true, null)).toBe(true);
+    expect(disabled(false, false, null)).toBe(true);
+    expect(disabled(false, true, {})).toBe(true);
+    const schedule = vi.fn(), review = vi.fn();
+    new Function("updateSchedule", "openSendConfirmation", `return (${expression("onClick")})`)(schedule, review)();
+    expect(schedule).toHaveBeenCalledWith({sendImmediately: true, sendAt: null});
+    expect(review).toHaveBeenCalledOnce();
+    expect(editor).toContain("<CampaignSendConfirmation");
+    expect(editor).toContain("builderBlockers={");
   });
 
   it("removes the beige/sand colors from the actual app theme and shell", () => {

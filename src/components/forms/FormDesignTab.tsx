@@ -210,7 +210,9 @@ function ColorControl({
   helperText,
   value,
   onChange,
+  onTransparent,
 }: {
+  onTransparent?: () => void;
   label: string;
   helperText: string;
   value: string;
@@ -226,6 +228,10 @@ function ColorControl({
   return (
     <FormControl>
       <FormLabel>{label}</FormLabel>
+      <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+        {[{value:"#000000",label:"Black"},{value:"#FFFFFF",label:"White"}].map((color) => <Button key={color.value} size="sm" variant="outlined" color="neutral" onClick={() => onChange(color.value)} startDecorator={<Box sx={{width:14,height:14,bgcolor:color.value,border:"1px solid #999",borderRadius:"50%"}} />}>{color.label}</Button>)}
+        {onTransparent && <Button size="sm" variant="outlined" color="neutral" onClick={onTransparent}>Transparent</Button>}
+      </Stack>
       <JoyInput
         value={draft}
         onValueChange={(nextValue) => {
@@ -776,6 +782,24 @@ export function FormDesignTab({
           >
             <Stack spacing={2}>
               <JoyInput
+                label="Headline"
+                value={rawSettings.form_headline ?? ""}
+                onValueChange={(form_headline) =>
+                  updateRawSettings({ form_headline })
+                }
+                placeholder="Stay in the loop"
+              />
+
+              <JoyInput
+                label="Subheadline"
+                value={rawSettings.form_subheadline ?? ""}
+                onValueChange={(form_subheadline) =>
+                  updateRawSettings({ form_subheadline })
+                }
+                placeholder="Weekly updates, event reminders…"
+              />
+
+              <JoyInput
                 label="Title"
                 value={rawSettings.form_title ?? ""}
                 onValueChange={(form_title) => updateRawSettings({ form_title })}
@@ -795,24 +819,11 @@ export function FormDesignTab({
                 />
               </FormControl>
 
-              <JoyInput
-                label="Headline"
-                value={rawSettings.form_headline ?? ""}
-                onValueChange={(form_headline) =>
-                  updateRawSettings({ form_headline })
-                }
-                placeholder="Stay in the loop"
-              />
-
-              <JoyInput
-                label="Subheadline"
-                value={rawSettings.form_subheadline ?? ""}
-                onValueChange={(form_subheadline) =>
-                  updateRawSettings({ form_subheadline })
-                }
-                placeholder="Weekly updates, event reminders…"
-              />
-
+              <JoyInput label="Header image URL" value={rawSettings.header_image_url ?? ""} onValueChange={(header_image_url) => updateRawSettings({ header_image_url })} placeholder="https://…" helperText="Use an HTTPS image from your media library." />
+              <JoyInput label="Image description" value={rawSettings.header_image_alt ?? ""} onValueChange={(header_image_alt) => updateRawSettings({ header_image_alt })} />
+              <JoySelect label="Image position" value={rawSettings.header_image_position ?? "top"} options={[{value:"top",label:"Above form"},{value:"left",label:"Left of form"},{value:"right",label:"Right of form"}]} onValueChange={(value) => updateRawSettings({header_image_position: value as "top" | "left" | "right"})} helperText="Side images stack above the form on small screens." />
+              <FormControl><FormLabel>Instructions above the submit button</FormLabel><Textarea minRows={2} value={rawSettings.footer_text ?? ""} onChange={(event) => updateRawSettings({footer_text:event.target.value})} placeholder="Extra instructions or a short privacy notice" /></FormControl>
+              <JoySelect label="Field labels" value={rawSettings.label_position ?? "above"} options={[{value:"above",label:"Above the field"},{value:"floating",label:"Floating inside the field"}]} onValueChange={(value) => updateRawSettings({label_position:value as "above" | "floating"})} />
               <JoyInput
                 label="Button text"
                 value={rawSettings.submit_button_text ?? ""}
@@ -873,6 +884,7 @@ export function FormDesignTab({
                   onChange={(text_color) => updateTheme({ text_color })}
                 />
                 <ColorControl
+                  onTransparent={() => updateTheme({background_style:"transparent"})}
                   label="Surface"
                   helperText="The form container background color."
                   value={
@@ -881,7 +893,7 @@ export function FormDesignTab({
                     "#FFFFFF"
                   }
                   onChange={(background_color) =>
-                    updateTheme({ background_color })
+                    updateTheme({ background_color, background_style: "custom" })
                   }
                 />
               </Box>
@@ -939,58 +951,6 @@ export function FormDesignTab({
                 }
                 helperText="Preview labels use the selected stack without loading external fonts inside the editor."
               />
-
-              <FormControl>
-                <FormLabel>Border radius</FormLabel>
-                <ToggleButtonGroup
-                  size="sm"
-                  value={normalizedSettings.theme.border_radius ?? "8px"}
-                  onChange={(_event, value) => {
-                    if (!value) {
-                      return;
-                    }
-
-                    updateTheme({
-                      border_radius:
-                        value as FormSettings["theme"]["border_radius"],
-                    });
-                  }}
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "repeat(2, minmax(0, 1fr))",
-                      lg: "repeat(5, minmax(0, 1fr))",
-                    },
-                    gap: 1,
-                    backgroundColor: "transparent",
-                  }}
-                >
-                  {FORM_BORDER_RADIUS_OPTIONS.map((option) => {
-                    const selected =
-                      (normalizedSettings.theme.border_radius ?? "8px") ===
-                      option.value;
-
-                    return (
-                      <Button
-                        key={option.value}
-                        value={option.value}
-                        variant={selected ? "solid" : "outlined"}
-                        color={selected ? "primary" : "neutral"}
-                        sx={{
-                          display: "grid",
-                          gap: 0.5,
-                          justifyItems: "center",
-                          minHeight: 70,
-                          borderRadius: "lg",
-                        }}
-                      >
-                        <RadiusThumbnail radius={option.value} />
-                        <Typography level="body-xs">{option.label}</Typography>
-                      </Button>
-                    );
-                  })}
-                </ToggleButtonGroup>
-              </FormControl>
 
               <FormControl>
                 <FormLabel>Spacing</FormLabel>
@@ -1053,6 +1013,59 @@ export function FormDesignTab({
             onToggle={() => toggleSection("style")}
           >
             <Stack spacing={2.5}>
+              <FormControl>
+                <FormLabel>Form corner rounding</FormLabel>
+                <ToggleButtonGroup
+                  size="sm"
+                  value={normalizedSettings.theme.border_radius ?? "8px"}
+                  onChange={(_event, value) => {
+                    if (!value) {
+                      return;
+                    }
+
+                    updateTheme({
+                      border_radius:
+                        value as FormSettings["theme"]["border_radius"],
+                    });
+                  }}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "repeat(2, minmax(0, 1fr))",
+                      lg: "repeat(5, minmax(0, 1fr))",
+                    },
+                    gap: 1,
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  {FORM_BORDER_RADIUS_OPTIONS.map((option) => {
+                    const selected =
+                      (normalizedSettings.theme.border_radius ?? "8px") ===
+                      option.value;
+
+                    return (
+                      <Button
+                        key={option.value}
+                        value={option.value}
+                        variant={selected ? "solid" : "outlined"}
+                        color={selected ? "primary" : "neutral"}
+                        sx={{
+                          display: "grid",
+                          gap: 0.5,
+                          justifyItems: "center",
+                          minHeight: 70,
+                          borderRadius: "lg",
+                        }}
+                      >
+                        <RadiusThumbnail radius={option.value} />
+                        <Typography level="body-xs">{option.label}</Typography>
+                      </Button>
+                    );
+                  })}
+                </ToggleButtonGroup>
+              </FormControl>
+
+
               <Box>
                 <Typography level="body-xs" sx={{ fontWeight: 700, color: "neutral.500", textTransform: "uppercase", letterSpacing: "0.08em", mb: 1 }}>
                   Button Style
@@ -1159,7 +1172,8 @@ export function FormDesignTab({
               </Box>
 
               <FormControl>
-                <FormLabel>Form width</FormLabel>
+                <FormLabel>Maximum form width</FormLabel>
+                <FormHelperText>Always fits smaller screens. This sets the largest width on desktop.</FormHelperText>
                 <ToggleButtonGroup
                   size="sm"
                   value={normalizedSettings.form_width ?? "medium"}

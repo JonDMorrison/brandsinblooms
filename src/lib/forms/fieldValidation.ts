@@ -175,7 +175,7 @@ export function validateFieldValue(
     }
 
     const digits = trimmedValue.replace(/\D/g, "");
-    if (digits.length < 10) {
+    if (digits.length < 10 || digits.length > 15) {
       return "Please enter a valid phone number";
     }
   }

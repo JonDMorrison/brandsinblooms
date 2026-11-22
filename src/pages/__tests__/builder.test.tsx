@@ -9,6 +9,8 @@ import { CRMAutomationBuilder } from "../crm/CRMAutomationBuilder";
 const mockToast = vi.fn();
 const mockCanvas = vi.fn();
 
+vi.mock("@/hooks/useTenant", () => ({useTenant: () => ({tenant:{id:"test-tenant"}})}));
+
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));

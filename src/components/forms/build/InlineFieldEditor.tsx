@@ -1275,18 +1275,15 @@ export function InlineFieldEditor({
         onToggle={() => toggleSection("advanced")}
       >
         <Stack spacing={1.5}>
-          <JoyInput
-            label="Mapping key"
-            value={field.mapping_key}
-            onValueChange={(mapping_key) => onFieldChange({ mapping_key })}
-            helperText="Stored as the submission payload key and used for downstream CRM mapping."
-            sx={{
-              "& .MuiInput-input": {
-                fontFamily:
-                  'var(--joy-fontFamily-code, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace)',
-              },
-            }}
+          <JoySelect
+            label="Save to contact field"
+            value={["email","first_name","last_name","phone","company_name","city","state_region","postal_code","country_code","source"].includes(field.mapping_key) ? field.mapping_key : "custom"}
+            options={[{value:"email",label:"Email address"},{value:"first_name",label:"First name"},{value:"last_name",label:"Last name"},{value:"phone",label:"Mobile / phone"},{value:"company_name",label:"Organization / company"},{value:"city",label:"City"},{value:"state_region",label:"Province / state"},{value:"postal_code",label:"Postal / ZIP code"},{value:"country_code",label:"Country code"},{value:"source",label:"Source (custom contact field)"},{value:"custom",label:"Another custom contact field"}]}
+            onValueChange={(mapping_key) => {if(mapping_key) onFieldChange({mapping_key});}}
+            helperText="Contact details are saved when a valid form is submitted. Organization and Source appear in custom contact fields."
           />
+          {!["email","first_name","last_name","phone","company_name","city","state_region","postal_code","country_code","source"].includes(field.mapping_key) && <JoyInput label="Custom field key" value={field.mapping_key} onValueChange={(mapping_key)=>onFieldChange({mapping_key})} helperText="Use a unique name such as garden_interests. This also identifies the value in submissions." />}
+
 
           {multiStepEnabled ? (
             <JoySelect

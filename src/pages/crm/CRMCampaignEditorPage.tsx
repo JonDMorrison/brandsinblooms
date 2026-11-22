@@ -1,3 +1,4 @@
+import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
 import { resolveStudioDraftId } from "@/lib/crm/studioEntry";
@@ -1015,6 +1016,31 @@ function CampaignEditorScreen() {
     setSendConfirmOpen(true);
   }, [isLocked, pendingTemplateSave, campaignType, contentBlocks]);
 
+  React.useEffect(() => {
+    if (isLoading) return;
+    const section = processParams.get("section");
+    const allowed = ["setup", "inbox", "audience", "actions"];
+    if (!section || !allowed.includes(section)) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`campaign-editor-${section}`)?.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isLoading, processParams]);
+
+  React.useEffect(() => {
+    const action = processParams.get("action");
+    if (isLoading || !action || isLocked || !canSendCampaign || pendingTemplateSave) return;
+    if (action !== "schedule" && action !== "send") return;
+    const nextParams = new URLSearchParams(processParams);
+    nextParams.delete("action");
+    setProcessParams(nextParams, { replace: true });
+    if (action === "schedule") setScheduleOpen(true);
+    else {
+      updateSchedule({ sendImmediately: true, sendAt: null });
+      openSendConfirmation();
+    }
+  }, [isLoading, isLocked, canSendCampaign, pendingTemplateSave, processParams, setProcessParams, updateSchedule, openSendConfirmation]);
+
   const sendBlockerLines = React.useMemo(() => {
     const blockers: string[] = [];
 
@@ -1585,122 +1611,6 @@ function CampaignEditorScreen() {
         </Stack>
       </Stack>
 
-      <Sheet
-        id="campaign-editor-schedule"
-        data-testid="campaign-editor-send-toolbar"
-        component="section"
-        role="region"
-        aria-label="Campaign sending controls"
-        variant="outlined"
-        sx={{
-          position: "sticky",
-          top: 0,
-          zIndex: 9,
-          borderRadius: "lg",
-          borderColor: "neutral.200",
-          backgroundColor: "background.surface",
-          boxShadow: "0 8px 26px rgba(21, 36, 49, 0.09)",
-          backdropFilter: "blur(12px)",
-          px: { xs: 2, sm: 2.5 },
-          py: { xs: 1.5, sm: 1.75 },
-        }}
-      >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={{ xs: 1.5, sm: 2 }}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", sm: "center" }}
-        >
-          <Stack
-            direction="row"
-            spacing={1.25}
-            alignItems="center"
-            sx={{ minWidth: 0, flex: 1 }}
-          >
-            <Box
-              sx={{
-                width: 38,
-                height: 38,
-                display: "grid",
-                placeItems: "center",
-                bgcolor: "neutral.100",
-                color: "neutral.700",
-                borderRadius: "md",
-                flexShrink: 0,
-              }}
-            >
-              <Send size={18} strokeWidth={1.9} aria-hidden="true" />
-            </Box>
-            <Stack spacing={0.3} sx={{ minWidth: 0 }}>
-              <Typography
-                level="title-sm"
-                sx={{ fontWeight: 700, color: "neutral.900" }}
-              >
-                {campaignType === "email" && !reviewingNewsletter
-                  ? "Design your newsletter"
-                  : "Review your campaign"}
-              </Typography>
-              <Typography
-                level="body-xs"
-                sx={{
-                  color:
-                    sendBlockerLines.length > 0 ? "neutral.700" : "neutral.600",
-                  lineHeight: 1.4,
-                }}
-              >
-                {campaignType === "email" && !reviewingNewsletter
-                  ? "Start with your content. Review the subject and audience next."
-                  : sendBlockerLines.length > 0
-                    ? sendBlockerLines[0]
-                    : isAudienceLoading
-                      ? "Checking your audience…"
-                      : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving…" : "Ready for final review"}`}
-              </Typography>
-              {blockerSignals.senderUnverified ? (
-                <JoyButton
-                  color="neutral"
-                  variant="plain"
-                  size="sm"
-                  data-testid="campaign-editor-fix-sender"
-                  onClick={() => setVerificationOpen(true)}
-                  sx={{ alignSelf: "flex-start", minHeight: 28, px: 0.5 }}
-                >
-                  Fix sender address
-                </JoyButton>
-              ) : null}
-            </Stack>
-          </Stack>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ flexShrink: 0, width: { xs: "100%", sm: "auto" } }}
-          >
-            <JoyButton
-              size="md"
-              variant="solid"
-              color="primary"
-              disabled={
-                reviewingNewsletter || campaignType !== "email"
-                  ? sendButtonDisabled
-                  : isLocked || Boolean(pendingTemplateSave)
-              }
-              startDecorator={<Send size={16} aria-hidden="true" />}
-              onClick={
-                campaignType === "email" && !reviewingNewsletter
-                  ? handleOpenStudio
-                  : openSendConfirmation
-              }
-              sx={{ minHeight: 44, flex: { xs: 1, sm: "none" } }}
-              data-testid="campaign-editor-review-send-cta"
-            >
-              {campaignType === "email" && !reviewingNewsletter
-                ? "Open Design Studio"
-                : "Review & send"}
-            </JoyButton>
-          </Stack>
-        </Stack>
-      </Sheet>
       {(campaignType !== "email" || reviewingNewsletter || isLocked) && (
       <CampaignBlockerRow
         senderUnverified={blockerSignals.senderUnverified}
@@ -1717,161 +1627,51 @@ function CampaignEditorScreen() {
       )}
 
       <CollapsibleSection
-        id="campaign-editor-content"
-        title="1. Design your newsletter"
-        summary={
-          campaignType === "email"
-            ? hasMeaningfulEmailContent
-              ? // Count the footer too, so this matches the number shown in
-                // the studio.
-                `${meaningfulEmailBlockCount + (hasComplianceFooter ? 1 : 0)} blocks`
-              : "No email blocks yet"
-            : smsMessage.trim()
-              ? `${smsMessage.length} characters · ${computeSmsSegments(smsMessage)} segment(s)`
-              : "Message not written yet"
-        }
-        defaultExpanded={contentInitiallyExpanded}
-        badge={
-          campaignType === "email" && hasMeaningfulEmailContent ? (
-            <Box
-              component="span"
-              data-testid="content-section-applied-badge"
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 1.125,
-                py: "3px",
-                borderRadius: "999px",
-                backgroundColor: "var(--joy-palette-success-50)",
-                color: "var(--joy-palette-success-700)",
-                fontSize: "11px",
-                fontWeight: 500,
-                lineHeight: 1,
-              }}
-            >
-              <Check size={11} strokeWidth={2.5} />
-              Template applied
-            </Box>
-          ) : null
-        }
+        id="campaign-editor-setup"
+        title="1. Campaign details"
+        summary={setupSummary}
+        defaultExpanded={true}
       >
-        {campaignType === "email" ? (
-          <Stack spacing={3}>
-            <IntentPicker
-              savedTemplates={savedTemplates}
-              selectedIntent={selectedIntent}
-              selectedSavedTemplateId={selectedSavedTemplateId}
-              disabled={isLocked || Boolean(pendingTemplateSave)}
-              unavailableIntents={unavailableIntents}
-              onSelectIntent={handleSelectIntent}
-              onApplyBuiltInTemplate={handleApplyTemplate}
-              onApplySavedTemplate={handleApplySavedTemplate}
-              onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
-              onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}
-              onOpenManage={() => setManageTemplatesOpen(true)}
-            />
-
-            <StudioCtaCard
-              onOpen={handleOpenStudio}
-              disabled={
-                isLocked || Boolean(pendingTemplateSave) || !isTenantReady
-              }
-              disabledReason={
-                isLocked
-                  ? "This campaign has already been sent"
-                  : pendingTemplateSave
-                    ? "Your template is being saved"
-                    : !isTenantReady
-                      ? "Loading your garden centre"
-                      : undefined
-              }
-              title={isLocked ? "View in Studio" : "Customize in Design Studio"}
-              subtitle="Make it yours. Edit text, add images, change colours, and arrange every block. Start with a layout or a blank canvas."
-            />
-
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                pt: 0.5,
-              }}
-            >
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: "13px",
-                  color: "var(--joy-palette-neutral-500)",
-                }}
-              >
-                or{" "}
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => {
-                    if (!canSaveAsTemplate) return;
-                    setSaveTemplateOpen(true);
-                  }}
-                  disabled={!canSaveAsTemplate}
-                  data-testid="content-save-as-template-link"
-                  title={
-                    !canSaveAsTemplate
-                      ? isLocked
-                        ? "This campaign has already been sent"
-                        : "Add some content first"
-                      : undefined
-                  }
-                  sx={{
-                    background: "none",
-                    border: 0,
-                    padding: 0,
-                    margin: 0,
-                    font: "inherit",
-                    color: canSaveAsTemplate
-                      ? "var(--joy-palette-primary-600)"
-                      : "var(--joy-palette-neutral-400)",
-                    textDecoration: "underline",
-                    cursor: canSaveAsTemplate ? "pointer" : "not-allowed",
-                    "&:focus-visible": {
-                      outline: "2px solid var(--joy-palette-primary-400)",
-                      outlineOffset: "2px",
-                      borderRadius: "2px",
-                    },
-                  }}
-                >
-                  save this design as a template
-                </Box>
-              </Typography>
-            </Box>
-          </Stack>
-        ) : (
-          <Stack spacing={1.5}>
-            <JoyTextarea
-              label="SMS message"
-              minRows={8}
-              value={smsMessage}
+        <Stack spacing={2}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 2,
+            }}
+          >
+            <JoyInput
+              label="Campaign name"
+              value={name}
               disabled={isLocked}
-              onValueChange={(value) => updateContent({ smsMessage: value })}
+              onValueChange={(value) => updateSetup({ name: value })}
             />
-            <Sheet
-              variant="soft"
-              color="neutral"
-              sx={{ borderRadius: "lg", p: 2 }}
-            >
-              <Stack spacing={0.5}>
-                <Typography level="body-sm">
-                  Characters: {smsMessage.length}
-                </Typography>
-                <Typography level="body-sm">
-                  SMS segments: {computeSmsSegments(smsMessage)}
-                </Typography>
-                <Typography level="body-sm">
-                  Include STOP instructions where required.
-                </Typography>
-              </Stack>
-            </Sheet>
-          </Stack>
-        )}
+            <JoySelect
+              label="Campaign type"
+              value={campaignType}
+              disabled={isLocked}
+              options={[
+                { value: "email", label: "Email" },
+                { value: "sms", label: "SMS" },
+              ]}
+              onValueChange={(value) =>
+                updateSetup({
+                  campaignType: value === "sms" ? "sms" : "email",
+                })
+              }
+            />
+          </Box>
+          {campaignId && <CampaignOrganization campaignId={campaignId} disabled={isLocked} />}
+          {campaignType === "email" && senderClassification.status !== "ready" ? (
+            <SenderConfigSummary
+              senderDisplayName={senderName}
+              senderEmail={senderEmail}
+              isVerified={senderClassification.status === "ready"}
+              isLocked={isLocked}
+              onEdit={() => navigate("/crm/settings/email-sending")}
+            />
+          ) : null}
+        </Stack>
       </CollapsibleSection>
 
       {campaignType === "email" ? (
@@ -1881,9 +1681,8 @@ function CampaignEditorScreen() {
           summary={
             subjectLine || "Suggested after you add your newsletter content"
           }
-          defaultExpanded={reviewingNewsletter || isLocked}
+          defaultExpanded={true}
         >
-          {reviewingNewsletter || isLocked ? (
             <NewsletterInboxReview
               campaignId={campaignId}
               blocks={contentBlocks}
@@ -1892,32 +1691,6 @@ function CampaignEditorScreen() {
               onChange={updateSetup}
               disabled={isLocked}
             />
-          ) : (
-            <Stack spacing={2}>
-              <Typography>
-                Finish your newsletter in Design Studio first. Then we’ll read
-                your saved content and help you choose its subject and preview
-                text.
-              </Typography>
-              <JoyButton
-                variant="solid"
-                color="primary"
-                onClick={handleOpenStudio}
-                sx={{ alignSelf: "flex-start", minHeight: 44 }}
-              >
-                Design your newsletter
-              </JoyButton>
-              <JoyButton
-                variant="outlined"
-                color="neutral"
-                disabled={!hasMeaningfulEmailContent}
-                onClick={() => setProcessParams({ step: "review" })}
-                sx={{ alignSelf: "flex-start", minHeight: 44 }}
-              >
-                My content is ready. Review subject & preview
-              </JoyButton>
-            </Stack>
-          )}
         </CollapsibleSection>
       ) : null}
 
@@ -2322,50 +2095,170 @@ function CampaignEditorScreen() {
       </CollapsibleSection>
 
       <CollapsibleSection
-        id="campaign-editor-setup"
-        title="Campaign details"
-        summary={setupSummary}
-        defaultExpanded={false}
+        id="campaign-editor-content"
+        title="4. Design your newsletter"
+        summary={
+          campaignType === "email"
+            ? hasMeaningfulEmailContent
+              ? // Count the footer too, so this matches the number shown in
+                // the studio.
+                `${meaningfulEmailBlockCount + (hasComplianceFooter ? 1 : 0)} blocks`
+              : "No email blocks yet"
+            : smsMessage.trim()
+              ? `${smsMessage.length} characters · ${computeSmsSegments(smsMessage)} segment(s)`
+              : "Message not written yet"
+        }
+        defaultExpanded={contentInitiallyExpanded}
+        badge={
+          campaignType === "email" && hasMeaningfulEmailContent ? (
+            <Box
+              component="span"
+              data-testid="content-section-applied-badge"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.125,
+                py: "3px",
+                borderRadius: "999px",
+                backgroundColor: "var(--joy-palette-success-50)",
+                color: "var(--joy-palette-success-700)",
+                fontSize: "11px",
+                fontWeight: 500,
+                lineHeight: 1,
+              }}
+            >
+              <Check size={11} strokeWidth={2.5} />
+              Template applied
+            </Box>
+          ) : null
+        }
       >
-        <Stack spacing={2}>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 2,
-            }}
-          >
-            <JoyInput
-              label="Campaign name"
-              value={name}
-              disabled={isLocked}
-              onValueChange={(value) => updateSetup({ name: value })}
+        {campaignType === "email" ? (
+          <Stack spacing={3}>
+            <IntentPicker
+              savedTemplates={savedTemplates}
+              selectedIntent={selectedIntent}
+              selectedSavedTemplateId={selectedSavedTemplateId}
+              disabled={isLocked || Boolean(pendingTemplateSave)}
+              unavailableIntents={unavailableIntents}
+              onSelectIntent={handleSelectIntent}
+              onApplyBuiltInTemplate={handleApplyTemplate}
+              onApplySavedTemplate={handleApplySavedTemplate}
+              onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
+              onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}
+              onOpenManage={() => setManageTemplatesOpen(true)}
             />
-            <JoySelect
-              label="Campaign type"
-              value={campaignType}
-              disabled={isLocked}
-              options={[
-                { value: "email", label: "Email" },
-                { value: "sms", label: "SMS" },
-              ]}
-              onValueChange={(value) =>
-                updateSetup({
-                  campaignType: value === "sms" ? "sms" : "email",
-                })
+
+            <StudioCtaCard
+              onOpen={handleOpenStudio}
+              disabled={
+                isLocked || Boolean(pendingTemplateSave) || !isTenantReady
               }
+              disabledReason={
+                isLocked
+                  ? "This campaign has already been sent"
+                  : pendingTemplateSave
+                    ? "Your template is being saved"
+                    : !isTenantReady
+                      ? "Loading your garden centre"
+                      : undefined
+              }
+              title={isLocked ? "View in Studio" : "Customize in Design Studio"}
+              subtitle="Make it yours. Edit text, add images, change colours, and arrange every block. Start with a layout or a blank canvas."
             />
-          </Box>
-          {campaignType === "email" ? (
-            <SenderConfigSummary
-              senderDisplayName={senderName}
-              senderEmail={senderEmail}
-              isVerified={senderClassification.status === "ready"}
-              isLocked={isLocked}
-              onEdit={() => setSenderConfigOpen(true)}
+
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                pt: 0.5,
+              }}
+            >
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: "13px",
+                  color: "var(--joy-palette-neutral-500)",
+                }}
+              >
+                or{" "}
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => {
+                    if (!canSaveAsTemplate) return;
+                    setSaveTemplateOpen(true);
+                  }}
+                  disabled={!canSaveAsTemplate}
+                  data-testid="content-save-as-template-link"
+                  title={
+                    !canSaveAsTemplate
+                      ? isLocked
+                        ? "This campaign has already been sent"
+                        : "Add some content first"
+                      : undefined
+                  }
+                  sx={{
+                    background: "none",
+                    border: 0,
+                    padding: 0,
+                    margin: 0,
+                    font: "inherit",
+                    color: canSaveAsTemplate
+                      ? "var(--joy-palette-primary-600)"
+                      : "var(--joy-palette-neutral-400)",
+                    textDecoration: "underline",
+                    cursor: canSaveAsTemplate ? "pointer" : "not-allowed",
+                    "&:focus-visible": {
+                      outline: "2px solid var(--joy-palette-primary-400)",
+                      outlineOffset: "2px",
+                      borderRadius: "2px",
+                    },
+                  }}
+                >
+                  save this design as a template
+                </Box>
+              </Typography>
+            </Box>
+          </Stack>
+        ) : (
+          <Stack spacing={1.5}>
+            <JoyTextarea
+              label="SMS message"
+              minRows={8}
+              value={smsMessage}
+              disabled={isLocked}
+              onValueChange={(value) => updateContent({ smsMessage: value })}
             />
-          ) : null}
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "lg", p: 2 }}
+            >
+              <Stack spacing={0.5}>
+                <Typography level="body-sm">
+                  Characters: {smsMessage.length}
+                </Typography>
+                <Typography level="body-sm">
+                  SMS segments: {computeSmsSegments(smsMessage)}
+                </Typography>
+                <Typography level="body-sm">
+                  Include STOP instructions where required.
+                </Typography>
+              </Stack>
+            </Sheet>
+          </Stack>
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection id="campaign-editor-actions" title="5. Actions" summary="Review, send now, or schedule">
+        <Stack direction="row" spacing={1}>
+          <JoyButton data-testid="campaign-editor-review-send-cta" disabled={isLocked || !canSendCampaign || Boolean(pendingTemplateSave)} onClick={() => { updateSchedule({ sendImmediately: true, sendAt: null }); openSendConfirmation(); }}>Send now</JoyButton>
+          <JoyButton variant="outlined" disabled={isLocked || !canSendCampaign} onClick={handleScheduleForLater}>Schedule send</JoyButton>
         </Stack>
+        <Typography level="body-sm">Review your sender, audience and content before confirming delivery.</Typography>
+        {sendBlockerLines.map((line) => <Typography key={line} level="body-sm">{line}</Typography>)}
       </CollapsibleSection>
 
       <Modal

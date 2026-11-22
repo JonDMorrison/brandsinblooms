@@ -1,3 +1,4 @@
+import Button from "@mui/joy/Button";
 import * as React from "react";
 import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
@@ -79,7 +80,7 @@ type FormEditorTab = (typeof FORM_EDITOR_TABS)[number];
 const FORM_EDITOR_TAB_LABELS: Record<FormEditorTab, string> = {
   analytics: "Analytics",
   audience: "Audience",
-  build: "Build",
+  build: "Editor",
   compliance: "Compliance",
   design: "Design",
   publish: "Publish",
@@ -345,7 +346,8 @@ export default function FormEditorPage() {
   const shouldPersistOnExitRef = React.useRef(false);
 
   const rawTab = searchParams.get("tab");
-  const activeTab: FormEditorTab = isFormEditorTab(rawTab) ? rawTab : "build";
+  const activeTab: FormEditorTab = rawTab === "design" ? "build" : isFormEditorTab(rawTab) ? rawTab : "build";
+  const [editorMode,setEditorMode] = React.useState<"fields" | "appearance">(rawTab === "design" ? "appearance" : "fields");
   const publishValidationIssues = React.useMemo(
     () => validateFormForPublish({ name, fields, settings }),
     [fields, name, settings],
@@ -868,7 +870,7 @@ export default function FormEditorPage() {
                   },
                 }}
               >
-                {FORM_EDITOR_TABS.map((tab) => (
+                {FORM_EDITOR_TABS.filter(tab => tab !== "design").map((tab) => (
                   <Tab
                     key={tab}
                     value={tab}
@@ -913,7 +915,12 @@ export default function FormEditorPage() {
         }}
       >
         <TabPanel value="build" sx={{ px: 0, pt: 0, pb: 0 }}>
-          <FormBuildTab
+          <Stack direction="row" spacing={1} sx={{mb:2}}>
+            <Button variant={editorMode === "fields" ? "solid" : "outlined"} onClick={()=>setEditorMode("fields")}>Fields & content</Button>
+            <Button variant={editorMode === "appearance" ? "solid" : "outlined"} onClick={()=>setEditorMode("appearance")}>Appearance & live preview</Button>
+          </Stack>
+          <Typography level="body-sm" sx={{mb:2}}>Edit fields and appearance here. The live preview shows the form visitors will see when you publish.</Typography>
+          {editorMode === "fields" ? <FormBuildTab
             fields={fields}
             updateFields={setFields}
             settings={settings}
@@ -922,18 +929,14 @@ export default function FormEditorPage() {
             updateCompliance={setCompliance}
             onApplyTemplate={applyTemplate}
             publishValidationIssue={highlightedPublishIssue}
-          />
-        </TabPanel>
-
-        <TabPanel value="design" sx={{ px: 0, pt: 0, pb: 0 }}>
-          <FormDesignTab
+          /> : <FormDesignTab
             settings={settings}
             onSettingsChange={setSettings}
             fields={fields}
             compliance={compliance}
             formName={name}
             uploadEmbedKey={form.embed_key}
-          />
+          />}
         </TabPanel>
 
         <TabPanel value="submissions" sx={{ px: 0, pt: 0, pb: 0 }}>
@@ -960,7 +963,10 @@ export default function FormEditorPage() {
         <TabPanel value="compliance" sx={{ px: 0, pt: 0, pb: 0 }}>
           <FormComplianceTab
             compliance={compliance}
-            onComplianceChange={setCompliance}
+            onComplianceChange={(next) => {
+              setCompliance(next);
+              setFields(fields.map(field=>field.type === "email_consent" ? {...field,label:next.email_consent_text} : field.type === "sms_consent" ? {...field,label:next.sms_consent_text} : field));
+            }}
             hasPhoneField={fields.some((field) => field.type === "phone")}
             hasEmailField={fields.some((field) => field.type === "email")}
             notificationEmails={settings.notification_emails || []}

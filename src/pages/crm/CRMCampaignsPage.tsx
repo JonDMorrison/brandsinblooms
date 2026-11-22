@@ -1,3 +1,6 @@
+import { useUserRole } from "@/hooks/useUserRole";
+import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
+import { useCampaignOrganization, campaignOrganizationClient } from "@/lib/crm/campaignOrganization";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -563,6 +566,53 @@ export function CRMCampaignsPage() {
     React.useState<ConfirmAction | null>(null);
   const [actionLoading, setActionLoading] = React.useState(false);
   const [page, setPage] = React.useState(1);
+  const [organizationTarget, setOrganizationTarget] = React.useState<string | null>(null);
+  const organization = useCampaignOrganization(tenant?.id);
+  const groupFilter = searchParams.get("group") ?? "all";
+  const {hasPermission} = useUserRole();
+  const [quickEdit,setQuickEdit] = React.useState<{campaign:CampaignCatalogItem;field:"name"|"subject_line";value:string}|null>(null);
+  const [quickSaving,setQuickSaving] = React.useState(false);
+  const saveQuickEdit = async () => {
+    if (!quickEdit || !tenant?.id || !hasPermission("campaigns.write")) return;
+    setQuickSaving(true);
+    try {
+      let update = supabase.from("crm_campaigns").update({[quickEdit.field]:quickEdit.value.trim()}).eq("tenant_id",tenant.id).eq("id",quickEdit.campaign.id).eq("status","draft");
+      if (quickEdit.campaign.updatedAt) update=update.eq("updated_at",quickEdit.campaign.updatedAt);
+      const {data,error} = await update.select("id");
+      if(error) throw error;
+      if(!data?.length) throw new Error("This campaign changed or is locked. Open it to review the latest version.");
+      await queryClient.invalidateQueries({queryKey:["crm-campaign-catalog",tenant.id]});
+      setQuickEdit(null);
+    } catch(error) { toast.error(error instanceof Error ? error.message : "Could not save this change."); }
+    finally {setQuickSaving(false);}
+  };
+  const editCell = (campaign:CampaignCatalogItem,field:"name"|"subject_line") => {
+    if(campaign.status === CAMPAIGN_STATUS.DRAFT && hasPermission("campaigns.write")) setQuickEdit({campaign,field,value:field === "name" ? campaign.name : campaign.subjectLine});
+    else handleNavigate(campaign);
+  };
+
+  const [rescheduleTarget,setRescheduleTarget] = React.useState<CampaignCatalogItem|null>(null);
+  const [rescheduleValue,setRescheduleValue] = React.useState("");
+  const [rescheduling,setRescheduling] = React.useState(false);
+  const openSchedule = (campaign:CampaignCatalogItem) => {
+    if(campaign.status !== CAMPAIGN_STATUS.SCHEDULED) {navigate(`/crm/campaigns/${campaign.id}?section=actions&action=schedule`);return;}
+    const date=new Date(campaign.scheduledAt ?? Date.now());
+    setRescheduleValue(new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16));
+    setRescheduleTarget(campaign);
+  };
+  const reschedule = async () => {
+    if(!rescheduleTarget?.updatedAt || !hasPermission("campaigns.send")) return;
+    const date=new Date(rescheduleValue);
+    if(!Number.isFinite(date.getTime()) || date.getTime()<=Date.now()){toast.error("Choose a future send time.");return;}
+    setRescheduling(true);
+    try {
+      const {error}=await campaignOrganizationClient.rpc("reschedule_campaign",{p_campaign_id:rescheduleTarget.id,p_expected_updated_at:rescheduleTarget.updatedAt,p_scheduled_at:date.toISOString()});
+      if(error)throw error;
+      await queryClient.invalidateQueries({queryKey:["crm-campaign-catalog",tenant?.id]});
+      setRescheduleTarget(null);toast.success("Send time updated");
+    }catch(error){toast.error(error instanceof Error ? error.message : "Could not change the send time. Refresh and try again.");}
+    finally{setRescheduling(false);}
+  };
 
   const query = searchParams.get("q") ?? "";
   const statusFilter = normalizeFilter(searchParams.get("status"));
@@ -646,7 +696,7 @@ export function CRMCampaignsPage() {
                   : current;
               }
 
-              const updated = mapCampaignCatalogItem(payload.new as any);
+              const updated = mapCampaignCatalogItem(payload.new as Parameters<typeof mapCampaignCatalogItem>[0]);
               const existing = current.some(
                 (campaign) => campaign.id === updated.id,
               );
@@ -685,6 +735,7 @@ export function CRMCampaignsPage() {
     const normalizedQuery = query.trim().toLowerCase();
     const filtered = (campaignsQuery.data ?? []).filter((campaign) => {
       if (!matchesStatusFilter(campaign, statusFilter)) return false;
+      if (groupFilter !== "all" && !organization.data?.memberships.some(m => m.campaign_id === campaign.id && m.group_id === groupFilter)) return false;
       if (channelFilter !== "all" && campaign.channel !== channelFilter) return false;
       if (!normalizedQuery) return true;
       return `${campaign.name} ${campaign.subjectLine}`
@@ -726,7 +777,7 @@ export function CRMCampaignsPage() {
     });
 
     return filtered;
-  }, [campaignsQuery.data, query, sortColumn, sortDirection, statusFilter, channelFilter]);
+  }, [campaignsQuery.data, query, sortColumn, sortDirection, statusFilter, channelFilter, groupFilter, organization.data]);
 
   const paginatedCampaigns = React.useMemo(() => {
     if (filteredCampaigns.length <= PAGE_SIZE) return filteredCampaigns;
@@ -734,7 +785,7 @@ export function CRMCampaignsPage() {
     return filteredCampaigns.slice(start, start + PAGE_SIZE);
   }, [filteredCampaigns, page]);
 
-  const hasFilters = statusFilter !== "draft" || channelFilter !== "all" || query.trim().length > 0;
+  const hasFilters = groupFilter !== "all" || statusFilter !== "draft" || channelFilter !== "all" || query.trim().length > 0;
   const isLoading = tenantLoading || campaignsQuery.isLoading;
   const isEmptyCatalog =
     !isLoading && !campaignsQuery.isError && totalCount === 0;
@@ -845,8 +896,8 @@ export function CRMCampaignsPage() {
       }
       setConfirmAction(null);
       await invalidateCampaigns();
-    } catch (error: any) {
-      toast.error(error?.message || "Action failed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Action failed");
     } finally {
       setActionLoading(false);
     }
@@ -900,6 +951,8 @@ export function CRMCampaignsPage() {
       case CAMPAIGN_STATUS.DRAFT:
         items = [
           designer,
+          item("Send now", <Send size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=send`)),
+          item("Schedule send", <Clock3 size={16} />, () => navigate(`/crm/campaigns/${campaign.id}?step=review&section=actions&action=schedule`)),
           item("Edit", <Edit3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
           ),
@@ -913,9 +966,7 @@ export function CRMCampaignsPage() {
           item("Edit", <Edit3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}`),
           ),
-          item("Reschedule", <Clock3 size={16} />, () =>
-            navigate(`/crm/campaigns/${campaign.id}`),
-          ),
+          item("Reschedule", <Clock3 size={16} />, () => openSchedule(campaign)),
           item("Unschedule", <TimerReset size={16} />, () =>
             setConfirmAction({ type: "unschedule", campaign }),
           ),
@@ -948,7 +999,7 @@ export function CRMCampaignsPage() {
       case CAMPAIGN_STATUS.SENT:
       case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
         items = [
-          item("View Report", <BarChart3 size={16} />, () =>
+          item("Results", <BarChart3 size={16} />, () =>
             navigate(`/crm/campaigns/${campaign.id}/report`),
           ),
           recipients,
@@ -972,6 +1023,7 @@ export function CRMCampaignsPage() {
         ];
     }
 
+    items.push(item("Groups & colour", <Palette size={16} />, () => setOrganizationTarget(campaign.id)));
     return (
       <JoyDropdownMenu>
         <JoyDropdownMenuTrigger
@@ -1147,6 +1199,15 @@ export function CRMCampaignsPage() {
                   </Chip>
                 ))}
               </Stack>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{mt:1}}>
+              <label htmlFor="campaign-group-filter">Group</label>
+              <select id="campaign-group-filter" value={groupFilter} onChange={e=>updateParams({group:e.target.value})} style={{padding:8,borderRadius:6}}>
+                <option value="all">All groups</option>
+                {organization.data?.groups.map(group=><option key={group.id} value={group.id}>{group.name}</option>)}
+              </select>
+              <Button size="sm" variant="outlined" color="neutral" onClick={()=>setOrganizationTarget('manage')}>Manage groups</Button>
+              {organization.isError && <Typography level="body-xs">Groups could not load. <button onClick={()=>organization.refetch()}>Retry</button></Typography>}
             </Stack>
             <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" sx={{ mt: 1 }}>
               <Typography level="body-xs" sx={{ color: "neutral.500", mr: 0.5 }}>Type</Typography>
@@ -1385,12 +1446,15 @@ export function CRMCampaignsPage() {
                               },
                             }}
                           >
-                            <JoyTableCell sx={{ minWidth: 260 }}>
+                            <JoyTableCell sx={{ minWidth: 260, borderLeft: `6px solid ${organization.data?.colours.find(c => c.campaign_id === campaign.id)?.colour ?? "transparent"}` }}>
                               <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                                 <Typography
                                   level="body-sm"
+                                  component="button"
+                                  onClick={event=>{event.stopPropagation();editCell(campaign,"name");}}
                                   title={campaign.name || "Untitled Campaign"}
                                   sx={{
+                                    background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     fontWeight: "lg",
                                     color: "text.primary",
                                     overflowWrap: "anywhere",
@@ -1399,9 +1463,10 @@ export function CRMCampaignsPage() {
                                 >
                                   {campaign.name || "Untitled Campaign"}
                                 </Typography>
-                                <Typography
+                                <Typography component="button" onClick={event=>{event.stopPropagation();editCell(campaign,"subject_line");}}
                                   level="body-xs"
                                   sx={{
+                                    background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     color: "neutral.500",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
@@ -1412,6 +1477,7 @@ export function CRMCampaignsPage() {
                                     campaign.preheaderText ||
                                     "No subject yet"}
                                 </Typography>
+                                <Stack direction="row" spacing={0.5} flexWrap="wrap">{organization.data?.groups.filter(group=>organization.data?.memberships.some(m=>m.campaign_id===campaign.id && m.group_id===group.id)).map(group=><Chip key={group.id} size="sm" variant="outlined" startDecorator={<Box sx={{width:8,height:8,bgcolor:group.colour,borderRadius:"50%"}} />}>{group.name}</Chip>)}</Stack>
                               </Stack>
                             </JoyTableCell>
                             <JoyTableCell>
@@ -1420,11 +1486,11 @@ export function CRMCampaignsPage() {
                               </Typography>
                             </JoyTableCell>
                             <JoyTableCell>
-                              <StatusChip campaign={campaign} />
+                              <Button variant="plain" color="neutral" size="sm" onClick={event=>{event.stopPropagation();navigate(`/crm/campaigns/${campaign.id}?section=actions`);}}><StatusChip campaign={campaign} /></Button>
                               <ProgressMeter campaign={campaign} />
                             </JoyTableCell>
                             <JoyTableCell>
-                              <Typography level="body-sm" sx={{ color: campaign.scheduledAt ? "neutral.800" : "neutral.400" }}>
+                              <Typography component="button" onClick={event=>{event.stopPropagation();openSchedule(campaign);}} level="body-sm" sx={{ background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left", color: campaign.scheduledAt ? "neutral.800" : "neutral.400" }}>
                                 {parseDate(campaign.scheduledAt) ? format(parseDate(campaign.scheduledAt)!, "MMM d, yyyy h:mm a") : "Not scheduled"}
                               </Typography>
                             </JoyTableCell>
@@ -1434,7 +1500,7 @@ export function CRMCampaignsPage() {
                                 alignItems="flex-end"
                                 sx={{ width: "100%" }}
                               >
-                                <Typography
+                                <Typography component="button" onClick={event=>{event.stopPropagation();navigate(terminal ? `/crm/campaigns/${campaign.id}/recipients` : `/crm/campaigns/${campaign.id}?section=audience`);}}
                                   level="body-sm"
                                   sx={{ fontWeight: "md" }}
                                 >
@@ -1696,6 +1762,17 @@ export function CRMCampaignsPage() {
         />
       ) : null}
 
+      <JoyDialog open={!!rescheduleTarget} onClose={()=>{if(!rescheduling)setRescheduleTarget(null);}} size="sm" title="Change send time">
+        <JoyDialogContent><JoyInput type="datetime-local" label={`Send at (${Intl.DateTimeFormat().resolvedOptions().timeZone})`} value={rescheduleValue} onValueChange={setRescheduleValue} disabled={rescheduling} /><Typography level="body-sm">The audience and approved content stay the same.</Typography></JoyDialogContent>
+        <JoyDialogActions><Button variant="plain" disabled={rescheduling} onClick={()=>setRescheduleTarget(null)}>Cancel</Button><Button disabled={rescheduling || !hasPermission("campaigns.send")} onClick={()=>void reschedule()}>Confirm new send time</Button></JoyDialogActions>
+      </JoyDialog>
+      <JoyDialog open={!!quickEdit} onClose={()=>{if(!quickSaving)setQuickEdit(null);}} size="sm" title={quickEdit?.field === "name" ? "Edit campaign name" : "Edit subject line"}>
+        <JoyDialogContent><JoyInput label={quickEdit?.field === "name" ? "Campaign name" : "Subject line"} value={quickEdit?.value ?? ""} disabled={quickSaving} onValueChange={value=>setQuickEdit(current=>current ? {...current,value} : null)} /></JoyDialogContent>
+        <JoyDialogActions><Button variant="plain" disabled={quickSaving} onClick={()=>setQuickEdit(null)}>Cancel</Button><Button disabled={quickSaving || (quickEdit?.field === "name" && !quickEdit.value.trim())} onClick={()=>void saveQuickEdit()}>Save</Button></JoyDialogActions>
+      </JoyDialog>
+      <JoyDialog open={organizationTarget !== null} onClose={()=>setOrganizationTarget(null)} title="Organize campaigns" size="md">
+        <JoyDialogContent><CampaignOrganization campaignId={organizationTarget === 'manage' ? undefined : organizationTarget} /></JoyDialogContent>
+      </JoyDialog>
       <JoyDialog
         open={Boolean(duplicateTarget)}
         onClose={() => setDuplicateTarget(null)}

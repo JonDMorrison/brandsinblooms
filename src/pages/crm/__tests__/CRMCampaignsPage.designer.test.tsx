@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CRMCampaignsPage } from "../CRMCampaignsPage";
 import { fetchCampaignCatalog, type CampaignCatalogItem } from "@/lib/crm/campaignEditor";
 
+vi.mock("@/hooks/useUserRole", () => ({useUserRole: () => ({hasPermission: () => true})}));
+vi.mock("@/lib/crm/campaignOrganization", () => ({campaignOrganizationClient:{rpc:vi.fn()},useCampaignOrganization: () => ({data:{groups:[{id:"december",name:"December",colour:"#795548"},{id:"january",name:"January",colour:"#496A51"}],memberships:[{campaign_id:"campaign-test",group_id:"december"}],colours:[]},mutation:{mutate:vi.fn(),isPending:false}})}));
 vi.mock("@/hooks/useTenant", () => ({ useTenant: () => ({ tenant: { id: "arts-test" }, loading: false }) }));
 vi.mock("@/hooks/useCampaignCloning", () => ({ useCampaignCloning: () => ({ cloneCampaign: vi.fn(), isCloning: false }) }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
@@ -42,6 +44,17 @@ describe("campaign list designer access and names", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Open designer" }));
     expect(screen.getByText("Designer destination")).toBeInTheDocument();
     expect(screen.queryByText("Settings destination")).toBeNull();
+  });
+  it("filters groups and opens quick editing without navigating away",async()=>{
+    openList(campaign());
+    const name=await screen.findByRole("button",{name:"November garden news"});
+    fireEvent.click(name);
+    expect(screen.getByRole("dialog")).toHaveTextContent("Edit campaign name");
+    fireEvent.click(screen.getByRole("button",{name:"Cancel"}));
+    fireEvent.change(screen.getByLabelText("Group"),{target:{value:"january"}});
+    expect(screen.queryByRole("button",{name:"November garden news"})).toBeNull();
+    fireEvent.change(screen.getByLabelText("Group"),{target:{value:"december"}});
+    expect(screen.getByRole("button",{name:"November garden news"})).toBeVisible();
   });
   it.each([
     ["newsletter", "scheduled", true], ["sms", "draft", false],

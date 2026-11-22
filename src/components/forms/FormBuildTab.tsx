@@ -847,8 +847,9 @@ export function FormBuildTab({
   React.useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       if (
-        builderRootRef.current &&
-        builderRootRef.current.contains(event.target as Node)
+        (event.target instanceof Element && event.target.closest("[data-builder-menu], [data-field-inspector]")) ||
+        (builderRootRef.current &&
+        builderRootRef.current.contains(event.target as Node))
       ) {
         return;
       }
@@ -1071,6 +1072,7 @@ export function FormBuildTab({
       }
 
       event.preventDefault();
+      event.stopPropagation();
       handleAddFieldType(droppedType, { insertionIndex, stepIndex });
       setNativeInsertTarget(null);
       setPaletteDragType(null);
@@ -1082,9 +1084,12 @@ export function FormBuildTab({
     (fieldId: string, updates: Partial<FormField>) => {
       commitChange(
         (draft) => {
-          draft.fields = draft.fields.map((field) =>
-            field.id === fieldId ? { ...field, ...updates } : field,
-          );
+          draft.fields = draft.fields.map((field) => {
+            if (field.id !== fieldId) return field;
+            if (typeof updates.label === "string" && field.type === "email_consent") draft.compliance.email_consent_text = updates.label;
+            if (typeof updates.label === "string" && field.type === "sms_consent") draft.compliance.sms_consent_text = updates.label;
+            return { ...field, ...updates };
+          });
         },
         () => {
           if (
@@ -1108,6 +1113,7 @@ export function FormBuildTab({
           ...draft.compliance,
           ...updates,
         };
+        draft.fields = draft.fields.map(field => field.type === "email_consent" && updates.email_consent_text !== undefined ? {...field,label:updates.email_consent_text} : field.type === "sms_consent" && updates.sms_consent_text !== undefined ? {...field,label:updates.sms_consent_text} : field);
       });
     },
     [commitChange],
@@ -2379,6 +2385,8 @@ export function FormBuildTab({
                                     <Box
                                       ref={fieldProvided.innerRef}
                                       {...fieldProvided.draggableProps}
+                                      onDragOver={(event) => handlePaletteDragOverTarget(event, focusedStepIndex, fieldIndex)}
+                                      onDrop={(event) => handlePaletteDropTarget(event, focusedStepIndex, fieldIndex)}
                                       sx={{ mb: 0.75 }}
                                     >
                                       <FormFieldItem

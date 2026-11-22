@@ -528,7 +528,7 @@ function validateRequiredFields(
       value !== ""
     ) {
       const phone = String(value).replace(/\D/g, "");
-      if (phone.length < 10) {
+      if (!/^[\d\s+().-]+$/.test(String(value)) || phone.length < 10 || phone.length > 15) {
         errors.push(`${field.label} must be a valid phone number`);
       }
     }
@@ -1339,7 +1339,7 @@ Deno.serve(async (req) => {
     const { data: existingCustomer } = await supabase
       .from("crm_customers")
       .select(
-        "id, suppressed, opt_out, deleted_at, merged_into_customer_id, email_opt_in, sms_opt_in, email_opt_out_at, sms_opt_out_at, signup_source",
+        "id, suppressed, opt_out, deleted_at, merged_into_customer_id, email_opt_in, sms_opt_in, email_opt_out_at, sms_opt_out_at, signup_source, custom_fields",
       )
       .eq("tenant_id", tenantId)
       .eq("email", email)
@@ -1358,6 +1358,23 @@ Deno.serve(async (req) => {
     if (firstName) customerData.first_name = firstName;
     if (lastName) customerData.last_name = lastName;
     if (phone) customerData.phone = phone;
+    for (const key of ["city", "state_region", "postal_code", "country_code"]) {
+      const value = mappedValues[key]?.trim();
+      if (value) customerData[key] = value;
+    }
+    const customValues: Record<string, string> = {};
+    const contactKeys = new Set(["email","first_name","last_name","phone","city","state_region","postal_code","country_code"]);
+    for (const field of activeFields) {
+      if (!["text","select","hidden","checkbox"].includes(field.type)) continue;
+      const key = field.mapping_key;
+      const value = mappedValues[key]?.trim();
+      if (key && key !== "custom" && !contactKeys.has(key) && !["__proto__","constructor","prototype"].includes(key) && value) customValues[key === "company" || key === "organization" ? "company_name" : key] = value;
+    }
+    if (Object.keys(customValues).length) customerData.custom_fields = {
+      ...(existingCustomer?.custom_fields && typeof existingCustomer.custom_fields === "object" ? existingCustomer.custom_fields : {}),
+      ...customValues,
+    };
+
     // First touch wins: a contact's signup source is set once, when this
     // submission creates them (or fills an empty value), never overwritten.
     if (!existingCustomer || !existingCustomer.signup_source) {

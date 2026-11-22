@@ -22,6 +22,7 @@ export interface FormShareCodeOptions {
   displayMode?: FormEmbedDisplayMode;
   containerSelector?: string;
   buttonText?: string;
+  delaySeconds?: number;
 }
 
 export const STATIC_EMBED_RUNTIME_VERSION = "1.5.0";
@@ -127,6 +128,7 @@ export function buildJavaScriptEmbedCode({
   displayMode = "inline",
   containerSelector = DEFAULT_CONTAINER_SELECTOR,
   buttonText = "Open Form",
+  delaySeconds,
 }: FormShareCodeOptions): string {
   const scriptUrl = origin
     ? getStaticEmbedScriptUrl(origin)
@@ -144,7 +146,10 @@ export function buildJavaScriptEmbedCode({
     )}\n<script src="${scriptUrl}" defer></script>`;
   }
 
-  return `<!-- BloomSuite Form Embed -->\n<div data-bloomsuite-form="${escapeAttribute(embedKey)}" data-display-mode="${displayMode}" data-button-text="${escapeAttribute(buttonText)}" data-form-title="${escapeAttribute(formName)}"></div>\n<script src="${scriptUrl}" defer></script>`;
+  const delayAttributes = typeof delaySeconds === "number" && Number.isFinite(delaySeconds)
+    ? ` data-trigger="delay" data-delay="${Math.round(Math.min(300, Math.max(1, delaySeconds)) * 1000)}"`
+    : "";
+  return `<!-- BloomSuite Form Embed -->\n<div data-bloomsuite-form="${escapeAttribute(embedKey)}" data-display-mode="${displayMode}"${delayAttributes} data-button-text="${escapeAttribute(buttonText)}" data-form-title="${escapeAttribute(formName)}"></div>\n<script src="${scriptUrl}" defer></script>`;
 }
 
 export function buildReactEmbedCode({

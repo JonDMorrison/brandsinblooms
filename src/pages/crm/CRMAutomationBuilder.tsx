@@ -1,3 +1,4 @@
+import { useTenant } from "@/hooks/useTenant";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
@@ -16,7 +17,7 @@ import {
   Save,
   Zap,
 } from "lucide-react";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -52,6 +53,8 @@ interface AutomationRunSummary {
 export const CRMAutomationBuilder = () => {
   const { automationId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sourceFormId = searchParams.get("form");
   const { toast } = useToast();
   const { user } = useAuth();
   const { loadAutomationTargeting, saveAutomationTargeting } =
@@ -69,7 +72,8 @@ export const CRMAutomationBuilder = () => {
   const [selectedSegments, setSelectedSegments] = useState<TargetingSegment[]>(
     [],
   );
-  const [tenantId, setTenantId] = useState<string | null>(null);
+  const {tenant} = useTenant();
+  const tenantId = tenant?.id ?? null;
   const [isActive, setIsActive] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [reviewRequestKey, setReviewRequestKey] = useState(0);
@@ -83,24 +87,18 @@ export const CRMAutomationBuilder = () => {
   }, [automationName]);
 
   useEffect(() => {
-    const fetchTenant = async () => {
-      if (!user?.id) return;
-      const { data, error } = await supabase
-        .from("users")
-        .select("tenant_id")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        console.error("Failed to fetch tenant_id:", error);
-        return;
-      }
-
-      setTenantId(data?.tenant_id ?? null);
-    };
-
-    void fetchTenant();
-  }, [user?.id]);
+    if (automationId || !sourceFormId || !tenantId) return;
+    let cancelled = false;
+    void supabase.from("forms").select("id,name").eq("id",sourceFormId).eq("tenant_id",tenantId).single().then(({data,error}) => {
+      if (cancelled || error || !data) return;
+      setAutomationName(`${data.name}: welcome coupon`);
+      setFlowState({nodes:[
+        {id:"form-trigger",type:"trigger",position:{x:240,y:80},data:{triggerType:"form_submitted",label:"Form submitted",overlapBehavior:"ignore",conditions:{form_id:data.id,form_name:data.name}}},
+        {id:"welcome-email",type:"email",position:{x:240,y:300},data:{subject:"Thanks for subscribing — your welcome offer",content:"",editable:true}}
+      ],edges:[{id:"form-to-welcome",source:"form-trigger",target:"welcome-email"}]});
+    });
+    return () => {cancelled=true;};
+  },[automationId,sourceFormId,tenantId]);
 
   const loadAutomation = useCallback(async () => {
     if (!automationId) return;
