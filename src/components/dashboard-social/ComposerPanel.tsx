@@ -137,7 +137,7 @@ export const ComposerPanel = () => {
               variant="outline" 
               className={
                 composerMode === 'scheduled' 
-                  ? "border-[#30506E] text-[#30506E]" 
+                  ? "border-[#30506E] text-[#30506E]"
                   : "border-gray-400 text-gray-600"
               }
             >
