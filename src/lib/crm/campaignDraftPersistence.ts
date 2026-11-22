@@ -46,6 +46,12 @@ export interface PersistCampaignRecordInput {
   metadata?: Record<string, unknown>;
 }
 
+export function isCampaignContentLocked(record: {sendBlockedReason?: string | null; metadata?: unknown}): boolean {
+  const metadata = toRecord(record.metadata);
+  return record.sendBlockedReason === "connected_content_review" ||
+    (typeof metadata.contentReviewReplacementId === "string" && metadata.contentReviewReplacementId.length > 0);
+}
+
 export class CampaignDraftConflictError extends Error {
   readonly currentUpdatedAt: string | null;
 
@@ -740,6 +746,10 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
       throw new Error("Campaign not found or you do not have access");
     }
 
+    if (existingRow.tenant_id !== tenantId) throw new Error("Campaign does not belong to the selected business.");
+    if (isCampaignContentLocked({sendBlockedReason: existingRow.send_blocked_reason, metadata: existingRow.metadata})) {
+      throw new Error("This campaign is locked for website content review. Open its review panel and create an updated draft.");
+    }
     rememberCampaignAudienceColumnSupport(existingRow);
 
     if (
@@ -766,7 +776,8 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
       let updateQuery = supabase
         .from("crm_campaigns")
         .update(payload)
-        .eq("id", input.campaignId);
+        .eq("id", input.campaignId)
+        .eq("tenant_id", tenantId);
 
       if (existingRow.updated_at) {
         updateQuery = updateQuery.eq("updated_at", existingRow.updated_at);
