@@ -84,6 +84,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
     sent=[json.loads(x) for x in pool.map(lambda _:sql(enqueue),range(8))]
 assert len({x['outbox_id'] for x in sent})==1
 check('SELECT count(*) FROM crm_outbox','1','concurrent enqueue produces one provider identity')
+check(f"SELECT r.next_step_scheduled_at=o.scheduled_at FROM automation_runs r JOIN crm_outbox o ON o.automation_run_id=r.id WHERE r.id='{run}'",'t','schedule persists atomically with original outbox')
 check(svc+f"SELECT begin_loyalty_automation_run('{event}','worker',2)->>'decision'",'ignored','crash after enqueue does not restart')
 for status in ('failed','sent','skipped'):
     sql(f"UPDATE crm_outbox SET status='{status}' WHERE automation_run_id='{run}';")

@@ -113,6 +113,9 @@ BEGIN
     p_message->>'subject',coalesce(p_message->'template_data','{}'::jsonb),send_at,message_status,p_message->>'skip_reason',
     CASE WHEN message_status='skipped' THEN now() ELSE NULL END,weight,p_message->>'automation_node_id')
   RETURNING id INTO message_id;
+  IF message_status='queued' THEN
+    UPDATE public.automation_runs SET next_step_scheduled_at=send_at,updated_at=now() WHERE id=r.id;
+  END IF;
   RETURN jsonb_build_object('outbox_id',message_id,'existing',false);
 END;
 $$;
