@@ -137,7 +137,7 @@ export const ComposerPanel = () => {
               variant="outline" 
               className={
                 composerMode === 'scheduled' 
-                  ? "border-[#68BEB9] text-[#68BEB9]" 
+                  ? "border-[#30506E] text-[#30506E]"
                   : "border-gray-400 text-gray-600"
               }
             >
@@ -200,7 +200,7 @@ export const ComposerPanel = () => {
                   variant="ghost"
                   onClick={saveContent}
                   disabled={saving}
-                  className="text-[#68BEB9] hover:text-[#5AA8A3] hover:bg-[#68BEB9]/10 h-6 px-2 text-xs"
+                  className="text-[#30506E] hover:text-[#284656] hover:bg-[#30506E]/10 h-6 px-2 text-xs"
                 >
                   <Save className="w-3 h-3 mr-1" />
                   {saving ? 'Saving...' : 'Save'}

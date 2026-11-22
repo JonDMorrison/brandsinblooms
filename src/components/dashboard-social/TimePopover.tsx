@@ -94,7 +94,7 @@ export const TimePopover = ({
           {/* Schedule Now */}
           <Button
             onClick={handleScheduleNow}
-            className="w-full justify-start bg-[#68BEB9] hover:bg-[#5AA8A3] text-white"
+            className="w-full justify-start bg-[#30506E] hover:bg-[#284656] text-white"
           >
             <Clock className="w-4 h-4 mr-2" />
             Post Now
@@ -139,7 +139,7 @@ export const TimePopover = ({
           <Button
             onClick={handleScheduleBest}
             variant="outline"
-            className="w-full justify-start border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9]/10"
+            className="w-full justify-start border-[#30506E] text-[#30506E] hover:bg-[#30506E]/10"
           >
             <TrendingUp className="w-4 h-4 mr-2" />
             Best Time ({bestTimes[0]})
@@ -161,7 +161,7 @@ export const TimePopover = ({
                 onClick={handleScheduleCustom}
                 size="sm"
                 variant="outline"
-                className="border-[#68BEB9] text-[#68BEB9]"
+                className="border-[#30506E] text-[#30506E]"
               >
                 <CalendarIcon className="w-4 h-4" />
               </Button>
@@ -170,7 +170,7 @@ export const TimePopover = ({
 
           {/* Best Times Info */}
           {bestTimes.length > 1 && (
-            <div className="text-xs text-gray-500 bg-[#68BEB9]/5 rounded-lg p-2">
+            <div className="text-xs text-gray-500 bg-[#30506E]/5 rounded-lg p-2">
               <span className="font-medium">Suggested times:</span> {bestTimes.join(', ')}
             </div>
           )}
