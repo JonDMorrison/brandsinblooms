@@ -2118,14 +2118,17 @@ serve(async (req: Request) => {
     activeDomainId = quotaCheck.domain?.id || null;
 
     const isHighVolume = recipientCount > highVolumeThreshold;
-    const campaignEmailSource = await resolveCampaignEmailSource(
-      supabase,
-      campaign,
-    );
+    let sourceLookupFailed = false;
+    const campaignEmailSource = await resolveCampaignEmailSource(supabase, campaign, true).catch(() => {
+      sourceLookupFailed = true;
+      return { html: "", contentBlocks: [], source: "campaign.content" as const, warning: "Campaign source lookup is temporarily unavailable" };
+    });
     const connectedContentSources = extractConnectedContentSources({
       contentBlocks: normalizeContentBlocks(campaignEmailSource.contentBlocks),
     });
-    const contentCheck = await checkConnectedContentFreshness(supabase as unknown as Parameters<typeof checkConnectedContentFreshness>[0], campaignTenantId, connectedContentSources);
+    const contentCheck = sourceLookupFailed
+      ? { decision: "retry" as const, reason: "Campaign sources could not be checked. Delivery will retry before sending." }
+      : await checkConnectedContentFreshness(supabase as unknown as Parameters<typeof checkConnectedContentFreshness>[0], campaignTenantId, connectedContentSources);
     if (contentCheck.decision !== "fresh") {
       // Do not clear claims on another worker's in-flight provider request.
       const { error: holdError } = await supabase.from("crm_campaigns").update({

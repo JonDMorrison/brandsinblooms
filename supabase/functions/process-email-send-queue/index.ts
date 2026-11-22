@@ -1837,10 +1837,27 @@ serve((req: Request) => {
 
                 if (campaign) {
                   if (!campaignSourceCache.has(campaignId)) {
-                    const resolvedSource = await resolveCampaignEmailSource(
-                      supabase,
-                      campaign,
-                    );
+                    let resolvedSource: CampaignEmailSource;
+                    try {
+                      resolvedSource = await resolveCampaignEmailSource(supabase, campaign, true);
+                    } catch {
+                      // No provider has been contacted. Restore claims without charging an attempt.
+                      for (const message of claimedForSend) {
+                        const { error } = await supabase.from("email_messages").update({
+                          status: "queued", attempts: Math.max(0, (message.attempts || 1) - 1),
+                          claim_token: null, claimed_at: null, claimed_by: null,
+                        }).eq("id", message.id).eq("claim_token", claimToken).is("resend_id", null);
+                        if (error) throw error;
+                      }
+                      const { error } = await supabase.from("email_send_jobs").update({
+                        status: "pending", available_at: new Date(Date.now() + 300000).toISOString(),
+                        error_message: "Campaign source lookup is temporarily unavailable",
+                        claim_token: null, claimed_at: null, claimed_by: null,
+                      }).eq("id", job.id).eq("claim_token", claimToken);
+                      if (error) throw error;
+                      processedCount++;
+                      continue;
+                    }
                     if (resolvedSource.warning) {
                       console.warn(`⚠️ ${resolvedSource.warning}`, {
                         campaignId,
