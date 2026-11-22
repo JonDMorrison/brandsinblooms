@@ -31,7 +31,7 @@ export function ConnectedEmailReview({tenantId, campaignId, reason}: {tenantId: 
         <DialogTitle>Review website changes</DialogTitle>
         <DialogContent>
           {query.isFetching && <Typography>Checking the current website details…</Typography>}
-          {query.error && <Alert color="danger">{query.error.message}</Alert>}
+          {query.error && <Alert color="danger"><Stack><Typography>{query.error.message}</Typography><Typography level="body-sm">If the source was removed or unpublished, restore it on the website and check again, or start a new newsletter without that content. The original campaign stays paused.</Typography></Stack></Alert>}
           {review?.replacementId ? <Button onClick={() => navigate(`/crm/campaigns/${review.replacementId}`)}>Open reviewed draft</Button> : review && !query.isFetching && !query.error && <Stack spacing={2}>
             <Typography>Compare the saved newsletter with the refreshed draft. Website text, dates, images and links will be replaced; review any custom wording again in the editor.</Typography>
             {review.warnings.map(warning => <Alert color="warning" key={warning}>{warning}</Alert>)}
