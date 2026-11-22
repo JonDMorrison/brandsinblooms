@@ -124,6 +124,14 @@ describe("SMS website content dispatch gate", () => {
     expect((await checkSmsCampaignContent(db, {...campaign, audience_confirmed: false}, fetcher)).decision).toBe("review_required");
     expect(fetcher).not.toHaveBeenCalled();
   });
+  it("does not pause terminal campaigns or rewrite their review metrics", async () => {
+    const {db, writes} = database();
+    const fetcher = published();
+    for (const status of ["sent", "completed", "failed", "cancelled"]) {
+      expect((await checkSmsCampaignContent(db, {...campaign,status}, fetcher)).decision).toBe("review_required");
+    }
+    expect(writes).toEqual([]); expect(fetcher).not.toHaveBeenCalled();
+  });
   it("does not alter automation messages or ordinary campaigns without sources", async () => {
     const {db, writes} = database({...campaign, status: "sent", connected_content_sources: []});
     const fetcher = published();

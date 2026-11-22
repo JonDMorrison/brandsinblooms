@@ -21,6 +21,9 @@ export async function checkSmsCampaignContent(
   }
   const manifest = campaign.connected_content_sources;
   const sources = manifest === undefined ? [] : Array.isArray(manifest) ? manifest : [null];
+  if (sources.length > 0 && !["draft", "scheduled", "queued", "sending", "paused"].includes(campaign.status)) {
+    return {decision: "review_required", reason: "This campaign is no longer active. Create a new draft to promote updated content."};
+  }
   const result = await checkConnectedContentFreshness(db as unknown as Parameters<typeof checkConnectedContentFreshness>[0], campaign.tenant_id ?? "", sources, fetcher);
   if (result.decision !== "fresh") {
     const {data, error} = await db.rpc("record_sms_content_review", {
