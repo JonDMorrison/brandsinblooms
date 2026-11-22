@@ -113,6 +113,7 @@ export interface PersistCampaignDraftInput {
   additionalCustomerIds?: string[];
   segments: CampaignSegmentSummary[];
   personas: CampaignPersonaSummary[];
+  connectedContentSources?: NonNullable<StudioBlock["connectedContent"]>[];
   sourceContentTaskId?: string | null;
   sourceSegmentId?: string | null;
   sourcePersonaId?: string | null;
@@ -523,6 +524,7 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     additionalCustomerIds = [],
     segments,
     personas,
+    connectedContentSources,
     sourceContentTaskId = null,
     sourceSegmentId = null,
     sourcePersonaId = null,
@@ -551,6 +553,9 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     sourceContentTaskId,
     sourceSegmentId,
     sourcePersonaId,
+    // SMS has no email blocks; retain source provenance independently.
+    metadata: connectedContentSources === undefined
+      ? undefined : { connectedContentSources },
     segmentIds: segments.map((segment) => segment.id),
     personaIds: personas.map((persona) => persona.id),
   });
