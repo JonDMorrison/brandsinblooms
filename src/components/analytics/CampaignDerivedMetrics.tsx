@@ -131,7 +131,7 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
             label="Successful Reach"
             value={totals.successful_reach}
             subtitle={`${totals.delivered.toLocaleString()} delivered`}
-            color="text-green-600"
+            color="text-blue-800"
           />
           <MetricCard
             icon={Activity}
@@ -139,7 +139,7 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
             value={scores.reach}
             suffix="%"
             subtitle="Successful reach / total sent"
-            color="text-emerald-600"
+            color="text-blue-800"
           />
           <MetricCard
             icon={MousePointerClick}
@@ -168,7 +168,7 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
               value={totals.opens}
               rate={rates.open_reported}
               rateLabel="Open Rate"
-              color="text-green-600"
+              color="text-blue-800"
               compact
             />
             <MetricCard

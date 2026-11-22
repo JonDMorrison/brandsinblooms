@@ -206,7 +206,7 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
                 index === currentStep 
                   ? 'bg-primary text-primary-foreground' 
                   : step.completed 
-                    ? 'bg-green-100 text-green-600' 
+                    ? 'bg-blue-100 text-blue-800' 
                     : 'bg-gray-100 text-gray-400'
               }`}>
                 {step.completed ? (
@@ -217,7 +217,7 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
               </div>
               {index < steps.length - 1 && (
                 <div className={`w-16 h-0.5 ml-2 ${
-                  step.completed ? 'bg-green-200' : 'bg-gray-200'
+                  step.completed ? 'bg-blue-200' : 'bg-gray-200'
                 }`} />
               )}
             </div>

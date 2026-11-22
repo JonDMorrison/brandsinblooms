@@ -71,7 +71,7 @@ export function ScheduledTasksPanel() {
             <div className="text-sm text-muted-foreground">Active Runs</div>
           </div>
           <div className="bg-muted/50 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{stats?.completedToday || 0}</div>
+            <div className="text-2xl font-bold text-blue-800">{stats?.completedToday || 0}</div>
             <div className="text-sm text-muted-foreground">Completed Today</div>
           </div>
         </div>
@@ -184,7 +184,7 @@ function ScheduledTaskRow({ task, onCancel, isCancelling }: ScheduledTaskRowProp
           {task.message_type === "email" ? (
             <Mail className="h-4 w-4 text-blue-500" />
           ) : (
-            <MessageSquare className="h-4 w-4 text-green-500" />
+            <MessageSquare className="h-4 w-4 text-blue-700" />
           )}
           <span className="capitalize">{task.message_type}</span>
         </div>
@@ -245,7 +245,7 @@ function AutomationRunRow({ run, onPause, onResume, onCancel, isUpdating }: Auto
     : 0;
 
   const statusColors: Record<string, string> = {
-    active: "bg-green-100 text-green-800",
+    active: "bg-blue-100 text-blue-950",
     paused: "bg-amber-100 text-amber-800",
     completed: "bg-blue-100 text-blue-800",
     cancelled: "bg-gray-100 text-gray-800",

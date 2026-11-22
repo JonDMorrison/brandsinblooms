@@ -39,7 +39,7 @@ export const BouncedEmailsList: React.FC<BouncedEmailsListProps> = ({ campaignId
           <span>{unsuppressedCount} need suppression</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">
-          <CheckCircle className="h-4 w-4 text-green-500" />
+          <CheckCircle className="h-4 w-4 text-blue-700" />
           <span>{suppressedCount} already suppressed</span>
         </div>
       </div>

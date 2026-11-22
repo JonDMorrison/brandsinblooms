@@ -162,7 +162,7 @@ export const ContentSidebar = ({
                     size="sm"
                     onClick={handleSaveChanges}
                     disabled={isSaving}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-blue-800 hover:bg-blue-900"
                   >
                     <Save className="w-4 h-4 mr-1" />
                     {isSaving ? "Saving..." : "Save"}

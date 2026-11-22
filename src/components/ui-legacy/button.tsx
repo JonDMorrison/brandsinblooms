@@ -23,7 +23,7 @@ const buttonVariants = cva(
         ghost:
           "bg-transparent text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-900",
         link: "h-auto border-0 bg-transparent px-0 text-brand-teal shadow-none underline-offset-4 hover:bg-transparent hover:underline",
-        success: "bg-green-700 text-white shadow-sm hover:bg-green-800",
+        success: "bg-blue-900 text-white shadow-sm hover:bg-blue-950",
         "soft-blue":
           "border-blue-200 bg-blue-50 text-blue-700 shadow-none hover:bg-blue-100 hover:text-blue-800",
         cta: "w-full rounded-[20px] border-0 bg-cta text-white shadow-lg transition-all duration-300 hover:scale-[1.01] hover:bg-cta/90 hover:shadow-xl sm:w-auto",

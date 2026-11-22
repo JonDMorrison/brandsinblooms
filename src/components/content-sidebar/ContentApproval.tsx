@@ -73,7 +73,7 @@ export const ContentApproval = ({
               <Button
                 onClick={handleApprove}
                 disabled={isApproving}
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                className="w-full bg-blue-800 hover:bg-blue-900 text-white"
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
                 {isApproving ? "Approving..." : "Approve Content"}
@@ -92,14 +92,14 @@ export const ContentApproval = ({
   // Show status for already approved content
   if (task?.status === "approved") {
     return (
-      <Card className="border-green-200 bg-green-50 text-gray-900">
+      <Card className="border-blue-200 bg-blue-50 text-gray-900">
         <CardContent className="p-4 text-gray-900">
           <div className="text-center">
-            <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
-            <h3 className="font-semibold text-green-800 mb-1">
+            <CheckCircle className="w-8 h-8 mx-auto mb-2 text-blue-800" />
+            <h3 className="font-semibold text-blue-950 mb-1">
               Content Approved
             </h3>
-            <p className="text-sm text-green-700 mb-3">
+            <p className="text-sm text-blue-900 mb-3">
               This content is ready for publishing.
             </p>
             <Button

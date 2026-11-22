@@ -67,20 +67,20 @@ export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> =
       ))}
 
       {completedJobs.map(job => (
-        <Card key={job.id} className="hover:shadow-md transition-shadow border border-green-200 bg-green-50">
+        <Card key={job.id} className="hover:shadow-md transition-shadow border border-blue-200 bg-blue-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-blue-800" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-green-800">Content ready for "{job.title}"</p>
-                <p className="text-xs text-green-600">Your {job.type} content has been generated successfully!</p>
+                <p className="text-sm font-medium text-blue-950">Content ready for "{job.title}"</p>
+                <p className="text-xs text-blue-800">Your {job.type} content has been generated successfully!</p>
               </div>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => handleViewContent(job)}
-                  className="text-green-700 border-green-200 hover:bg-green-100"
+                  className="text-blue-900 border-blue-200 hover:bg-blue-100"
                 >
                   <Eye className="w-4 h-4 mr-1" />
                   Review

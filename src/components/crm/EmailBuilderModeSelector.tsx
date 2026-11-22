@@ -176,8 +176,8 @@ export const EmailBuilderModeSelector: React.FC<EmailBuilderModeSelectorProps> =
         'Mobile optimized'
       ],
       useCase: 'Just need a quick message? Choose Simple.',
-      color: 'bg-green-50 border-green-200 hover:bg-green-100',
-      iconColor: 'text-green-600'
+      color: 'bg-blue-50 border-blue-200 hover:bg-blue-100',
+      iconColor: 'text-blue-800'
     },
     {
       id: 'advanced' as const,

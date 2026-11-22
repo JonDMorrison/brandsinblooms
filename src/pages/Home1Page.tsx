@@ -43,9 +43,9 @@ export const Home1Page = () => {
       title: "Personalized Goals",
       description: "Set and achieve your health goals with AI guidance",
       icon: Target,
-      gradient: "from-green-50 to-emerald-50",
-      iconBg: "bg-green-500/20",
-      iconColor: "text-green-600",
+      gradient: "from-blue-50 to-blue-50",
+      iconBg: "bg-blue-700/20",
+      iconColor: "text-blue-800",
     },
     {
       id: 3,
@@ -124,7 +124,7 @@ export const Home1Page = () => {
               </div>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-3xl p-8 aspect-[2/1] flex items-center justify-center">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-50 rounded-3xl p-8 aspect-[2/1] flex items-center justify-center">
                 <div className="w-64 h-80 bg-white rounded-2xl shadow-xl p-4 flex items-center justify-center">
                   <div className="text-center space-y-4">
                     <Smartphone className="w-16 h-16 text-primary mx-auto" />
@@ -205,7 +205,7 @@ export const Home1Page = () => {
                   case 1:
                     return "from-blue-800 to-blue-900";
                   case 2:
-                    return "from-green-800 to-green-900";
+                    return "from-blue-950 to-blue-950";
                   case 3:
                     return "from-purple-800 to-purple-900";
                   case 4:
@@ -339,7 +339,7 @@ export const Home1Page = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <Card className="p-6">
               <CardContent className="p-0 space-y-4">
-                <div className="w-full h-40 bg-gradient-to-br from-green-50 to-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-full h-40 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center">
                   <BarChart3 className="w-16 h-16 text-primary" />
                 </div>
                 <h3 className="font-semibold">Data-Driven Insights</h3>

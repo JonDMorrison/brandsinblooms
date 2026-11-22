@@ -30,7 +30,7 @@ export const CelebrationConfetti: React.FC<CelebrationConfettiProps> = ({
       {Array.from({ length: 20 }).map((_, i) => (
         <div
           key={i}
-          className="absolute w-2 h-2 bg-green-400 rounded-full animate-ping"
+          className="absolute w-2 h-2 bg-blue-500 rounded-full animate-ping"
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,

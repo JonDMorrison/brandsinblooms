@@ -147,7 +147,7 @@ export const AutomationPresets: React.FC<AutomationPresetsProps> = ({
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="secondary" className={
                           preset.badge === 'Recommended' 
-                            ? "bg-green-100 text-green-700" 
+                            ? "bg-blue-100 text-blue-900" 
                             : "bg-blue-100 text-blue-700"
                         }>
                           {preset.badge}
@@ -175,7 +175,7 @@ export const AutomationPresets: React.FC<AutomationPresetsProps> = ({
                       <div key={index} className="flex items-center gap-3 text-sm">
                         <div className="flex items-center gap-2">
                           {step.channel === 'sms' ? (
-                            <MessageSquare className="w-4 h-4 text-green-600" />
+                            <MessageSquare className="w-4 h-4 text-blue-800" />
                           ) : (
                             <Mail className="w-4 h-4 text-blue-600" />
                           )}

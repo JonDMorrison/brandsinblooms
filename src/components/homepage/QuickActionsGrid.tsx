@@ -40,7 +40,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       title: 'Create Campaign',
       description: 'Build themed marketing campaigns',
       benefit: 'Get 5+ content pieces instantly',
-      color: 'text-green-600',
+      color: 'text-blue-800',
       onClick: () => setShowNewCampaignModal(true),
       ariaLabel: 'Create a new marketing campaign'
     },

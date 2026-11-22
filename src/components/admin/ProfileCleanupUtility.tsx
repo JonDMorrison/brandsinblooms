@@ -154,7 +154,7 @@ export const ProfileCleanupUtility = () => {
                             </span>
                             {account.user_id ===
                               currentUserDuplicate.suggested_keep_user_id && (
-                              <span className="text-green-600 font-medium">
+                              <span className="text-blue-800 font-medium">
                                 Recommended
                               </span>
                             )}
@@ -192,7 +192,7 @@ export const ProfileCleanupUtility = () => {
 
           {duplicates.length === 0 && !checking && (
             <div className="text-center py-4">
-              <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+              <CheckCircle className="h-8 w-8 text-blue-800 mx-auto mb-2" />
               <p className="text-sm text-gray-600">
                 Click "Check for Duplicates" to scan for duplicate profiles
               </p>

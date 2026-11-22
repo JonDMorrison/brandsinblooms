@@ -147,7 +147,7 @@ export const TaskItemActions = ({
                 e.stopPropagation();
                 onSave?.();
               }}
-              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+              className="text-blue-800 hover:text-blue-900 hover:bg-blue-50"
             >
               <Save className="w-3 h-3 mr-1" />
               Save

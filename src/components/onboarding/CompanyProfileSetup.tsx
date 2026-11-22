@@ -20,8 +20,8 @@ export const CompanyProfileSetup = ({ onComplete }: CompanyProfileSetupProps) =>
   return (
     <Card className="max-w-md mx-auto">
       <CardHeader className="text-center">
-        <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-          <Building2 className="w-8 h-8 text-green-600" />
+        <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+          <Building2 className="w-8 h-8 text-blue-800" />
         </div>
         <CardTitle>
           <HeadlineLarge>Complete Your Profile</HeadlineLarge>

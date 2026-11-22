@@ -22,7 +22,7 @@ export const ContentMetadata = ({ task }: ContentMetadataProps) => {
           <label className="text-sm font-medium text-gray-700 block mb-2">
             Image Idea
           </label>
-          <div className="text-sm text-green-600 bg-green-50 p-3 rounded border">
+          <div className="text-sm text-blue-800 bg-blue-50 p-3 rounded border">
             💡 {task.image_idea}
           </div>
         </div>

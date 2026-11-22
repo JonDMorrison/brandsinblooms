@@ -27,7 +27,7 @@ export const EnhancedSuccessIndicator = ({
   return (
     <div className={cn(
       'p-4 rounded-lg border transition-all duration-300',
-      isComplete ? 'apple-success-glow border-green-200' : 
+      isComplete ? 'apple-success-glow border-blue-200' : 
       isActive ? 'bg-blue-50 border-blue-200' : 
       'bg-gray-50 border-gray-200',
       className
@@ -35,7 +35,7 @@ export const EnhancedSuccessIndicator = ({
       <div className="flex items-center gap-3 mb-3">
         <div className={cn(
           'flex items-center justify-center w-8 h-8 rounded-full font-medium text-sm transition-all duration-300',
-          isComplete ? 'bg-green-100 text-green-800' :
+          isComplete ? 'bg-blue-100 text-blue-950' :
           isActive ? 'bg-blue-100 text-blue-800' :
           'bg-gray-100 text-gray-600'
         )}>
@@ -48,7 +48,7 @@ export const EnhancedSuccessIndicator = ({
         
         <HeadlineLarge className={cn(
           'apple-headline-medium flex-1',
-          isComplete ? 'text-green-800' :
+          isComplete ? 'text-blue-950' :
           isActive ? 'text-blue-800' :
           'text-gray-700'
         )}>

@@ -17,7 +17,7 @@ export const ContentHeader = ({ postType }: ContentHeaderProps) => {
   };
 
   return (
-    <div className="flex items-center gap-2 text-green-800">
+    <div className="flex items-center gap-2 text-blue-950">
       {getPostTypeIcon(postType)}
       Content Editor - {postType.charAt(0).toUpperCase() + postType.slice(1)} Post
     </div>

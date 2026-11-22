@@ -75,14 +75,14 @@ export const NewsletterPreviewCard: React.FC<NewsletterPreviewCardProps> = ({
   const preview = getPreview();
 
   return (
-    <Card className="border-l-4 border-l-green-500 bg-green-50/30">
+    <Card className="border-l-4 border-l-blue-700 bg-blue-50/30">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4 text-green-600" />
+            <FileText className="h-4 w-4 text-blue-800" />
             Original Newsletter
           </CardTitle>
-          <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
+          <Badge variant="outline" className="bg-blue-100 text-blue-900 border-blue-200 text-xs">
             Source Content
           </Badge>
         </div>
@@ -112,7 +112,7 @@ export const NewsletterPreviewCard: React.FC<NewsletterPreviewCardProps> = ({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2">
-            <div className="mt-3 p-3 bg-white/50 rounded-lg border border-green-200">
+            <div className="mt-3 p-3 bg-white/50 rounded-lg border border-blue-200">
               <div className="text-xs text-slate-600 font-mono whitespace-pre-wrap max-h-60 overflow-y-auto">
                 {originalContent}
               </div>
@@ -120,7 +120,7 @@ export const NewsletterPreviewCard: React.FC<NewsletterPreviewCardProps> = ({
           </CollapsibleContent>
         </Collapsible>
         
-        <div className="text-xs text-green-700 bg-green-100 p-2 rounded-lg">
+        <div className="text-xs text-blue-900 bg-blue-100 p-2 rounded-lg">
           💡 <strong>Tip:</strong> This content has been automatically converted to email format. 
           You can edit the email content above while keeping this as reference.
         </div>

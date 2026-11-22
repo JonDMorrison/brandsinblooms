@@ -135,9 +135,9 @@ export const ReportStep = ({
         </p>
       </div>
 
-      <Card className="p-6 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+      <Card className="p-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-950">
         <div className="flex items-center gap-3 mb-4">
-          <CheckCircle2 className="w-6 h-6 text-green-600" />
+          <CheckCircle2 className="w-6 h-6 text-blue-800" />
           <h3 className="text-lg font-semibold">Import Successful</h3>
         </div>
         <p className="text-sm text-muted-foreground">

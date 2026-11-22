@@ -39,7 +39,7 @@ export const CampaignItem = ({ campaign, onThemeUpdate }: CampaignItemProps) => 
           )}
         </div>
         {!needsTheme && (
-          <Badge variant="outline" className="text-green-700 border-green-300 bg-white">
+          <Badge variant="outline" className="text-blue-900 border-blue-300 bg-white">
             Active
           </Badge>
         )}

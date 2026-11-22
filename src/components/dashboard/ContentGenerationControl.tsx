@@ -94,18 +94,18 @@ export const ContentGenerationControl = ({
 
   return (
     <>
-      <Card className={hasContent ? "border-green-200 bg-green-50/30" : "border-primary/30 bg-primary/5"}>
+      <Card className={hasContent ? "border-blue-200 bg-blue-50/30" : "border-primary/30 bg-primary/5"}>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {hasContent ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
+                <CheckCircle className="w-5 h-5 text-blue-800" />
               ) : (
                 <Sparkles className="w-5 h-5 text-primary" />
               )}
               <span>AI Content Generation</span>
             </div>
-            <Badge variant={hasContent ? "default" : "outline"} className={hasContent ? "bg-green-100 text-green-800" : ""}>
+            <Badge variant={hasContent ? "default" : "outline"} className={hasContent ? "bg-blue-100 text-blue-950" : ""}>
               {hasContent ? "Content Ready" : "Ready to Generate"}
             </Badge>
           </CardTitle>
@@ -122,7 +122,7 @@ export const ContentGenerationControl = ({
           {hasContent ? (
             <div className="space-y-3">
               <div className="bg-white/60 backdrop-blur p-3 rounded-lg border">
-                <div className="flex items-center gap-2 text-green-700 mb-2">
+                <div className="flex items-center gap-2 text-blue-900 mb-2">
                   <CheckCircle className="w-4 h-4" />
                   <span className="text-sm font-semibold">Content Generated Successfully!</span>
                 </div>

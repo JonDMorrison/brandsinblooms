@@ -34,11 +34,11 @@ export const RevenueSection = ({ metrics }: RevenueSectionProps) => {
             value={metrics.currentMRR}
             description="Current MRR from paid users"
             icon={DollarSign}
-            color={metrics.currentMRR > 0 ? "text-green-600" : "text-gray-400"}
+            color={metrics.currentMRR > 0 ? "text-blue-800" : "text-gray-400"}
             borderColor={
-              metrics.currentMRR > 0 ? "border-green-200" : "border-gray-200"
+              metrics.currentMRR > 0 ? "border-blue-200" : "border-gray-200"
             }
-            bgColor={metrics.currentMRR > 0 ? "bg-green-50" : "bg-gray-50"}
+            bgColor={metrics.currentMRR > 0 ? "bg-blue-50" : "bg-gray-50"}
             prefix="$"
             clickable={false}
           />

@@ -66,7 +66,7 @@ export const GenerationProgress = ({
               return (
                 <div key={index} className="flex items-center gap-2 text-sm">
                   {isCompleted && (
-                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <CheckCircle className="w-4 h-4 text-blue-800" />
                   )}
                   {isCurrent && (
                     <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
@@ -75,7 +75,7 @@ export const GenerationProgress = ({
                     <Clock className="w-4 h-4 text-gray-400" />
                   )}
                   <span className={`
-                    ${isCompleted ? 'text-green-700 line-through' : ''}
+                    ${isCompleted ? 'text-blue-900 line-through' : ''}
                     ${isCurrent ? 'text-blue-700 font-medium' : ''}
                     ${isPending ? 'text-gray-500' : ''}
                   `}>

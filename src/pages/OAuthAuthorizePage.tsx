@@ -146,7 +146,7 @@ export default function OAuthAuthorizePage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-50">
       <LandingPageHeader onLogin={() => {}} showUserMenu={false} />
       <div className="flex items-center justify-center px-4 py-20">
         <Card className="w-full max-w-md">

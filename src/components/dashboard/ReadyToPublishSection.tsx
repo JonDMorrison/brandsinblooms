@@ -39,7 +39,7 @@ export const ReadyToPublishSection = ({
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-lg font-semibold text-text-primary flex items-center gap-2">
-            <Zap className="w-5 h-5 text-green-600" />
+            <Zap className="w-5 h-5 text-blue-800" />
             Ready to Publish
           </CardTitle>
           <p className="text-sm text-text-secondary mt-1">

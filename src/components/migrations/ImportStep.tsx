@@ -249,7 +249,7 @@ export const ImportStep = ({
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
               )}
               {isComplete && (
-                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                <CheckCircle2 className="w-5 h-5 text-blue-800" />
               )}
             </div>
 

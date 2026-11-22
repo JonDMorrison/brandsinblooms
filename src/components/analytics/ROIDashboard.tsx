@@ -155,10 +155,10 @@ export const ROIDashboard = () => {
       {alerts.length > 0 && (
         <div className="space-y-2">
           {alerts.map((alert, index) => (
-            <Card key={index} className={`border-l-4 ${alert.type === 'high-roi' ? 'border-l-green-500' : 'border-l-red-500'}`}>
+            <Card key={index} className={`border-l-4 ${alert.type === 'high-roi' ? 'border-l-blue-700' : 'border-l-red-500'}`}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className={`h-4 w-4 ${alert.type === 'high-roi' ? 'text-green-500' : 'text-red-500'}`} />
+                  <AlertTriangle className={`h-4 w-4 ${alert.type === 'high-roi' ? 'text-blue-700' : 'text-red-500'}`} />
                   <span className="font-medium">{alert.campaign}</span>
                   <Badge variant={alert.type === 'high-roi' ? 'default' : 'destructive'}>
                     {alert.type === 'high-roi' ? 'High ROI' : 'Low ROI'}

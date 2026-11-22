@@ -25,7 +25,7 @@ export const MailchimpStatusBadge: React.FC<MailchimpStatusBadgeProps> = ({
         return {
           icon: <CheckCircle2 className="w-3.5 h-3.5" />,
           label: "Connected",
-          className: "bg-green-500/10 text-green-600 border-green-500/20",
+          className: "bg-blue-700/10 text-blue-800 border-blue-700/20",
           showAction: false,
         };
       case "expired":

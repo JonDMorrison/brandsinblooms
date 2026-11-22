@@ -80,7 +80,7 @@ export const DomainHealthMonitor: React.FC<DomainHealthMonitorProps> = ({
 
   const getStatusBadge = (status: string) => {
     const variants = {
-      healthy: { variant: 'default' as const, icon: CheckCircle2, color: 'text-green-600' },
+      healthy: { variant: 'default' as const, icon: CheckCircle2, color: 'text-blue-800' },
       warning: { variant: 'secondary' as const, icon: AlertTriangle, color: 'text-yellow-600' },
       error: { variant: 'destructive' as const, icon: AlertTriangle, color: 'text-red-600' },
       unknown: { variant: 'outline' as const, icon: Clock, color: 'text-gray-600' }

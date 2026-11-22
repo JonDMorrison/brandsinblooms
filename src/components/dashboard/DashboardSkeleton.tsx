@@ -12,7 +12,7 @@ export const DashboardSkeleton = () => {
       </div>
 
       {/* Next Step Banner Skeleton */}
-      <Card className="border-green-200">
+      <Card className="border-blue-200">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -31,7 +31,7 @@ export const DashboardSkeleton = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Quick Actions Skeleton */}
-          <Card className="border-green-200">
+          <Card className="border-blue-200">
             <CardHeader>
               <Skeleton className="h-6 w-32" />
             </CardHeader>

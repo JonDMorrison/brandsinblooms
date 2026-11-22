@@ -122,7 +122,7 @@ export const WeekCampaignCard = ({
       case "facebook":
         return "from-blue-50 to-indigo-50 border-blue-200";
       case "email":
-        return "from-green-50 to-emerald-50 border-green-200";
+        return "from-blue-50 to-blue-50 border-blue-200";
       case "newsletter":
         return "from-purple-50 to-indigo-50 border-purple-200";
       case "video":
@@ -182,13 +182,13 @@ export const WeekCampaignCard = ({
   }, {});
 
   return (
-    <Card className="shadow-xl border-green-200 rounded-xl overflow-hidden campaign-card-active">
+    <Card className="shadow-xl border-blue-200 rounded-xl overflow-hidden campaign-card-active">
       <CardHeader className="bg-gradient-to-r from-primary to-primary-600 text-white">
         <CardTitle className="text-2xl font-bold flex items-center gap-3">
           <Calendar className="w-6 h-6" />
           This Week's Theme
         </CardTitle>
-        <CardDescription className="text-green-100 font-medium">
+        <CardDescription className="text-blue-100 font-medium">
           {currentCampaign ? currentCampaign.title : "No active theme"}
         </CardDescription>
       </CardHeader>
@@ -196,7 +196,7 @@ export const WeekCampaignCard = ({
         {currentCampaign ? (
           <div className="space-y-6">
             <div className="flex items-center gap-4 text-sm text-gray-600 font-medium">
-              <span className="flex items-center gap-2 bg-green-100 px-3 py-1 rounded-full">
+              <span className="flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full">
                 <Calendar className="w-4 h-4" />
                 Week {getCurrentWeekNumber()}
               </span>
@@ -219,7 +219,7 @@ export const WeekCampaignCard = ({
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-green-600" />
+                <FileText className="w-5 h-5 text-blue-800" />
                 Required Weekly Content ({campaignTasks.length}/5)
               </h3>
 

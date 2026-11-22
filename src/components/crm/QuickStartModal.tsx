@@ -266,11 +266,11 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
           <p id="setup-success-desc" className="sr-only">Setup completed successfully. Your CRM is ready to use.</p>
           <div className="text-center py-6">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <Sparkles className="h-8 w-8 text-green-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <Sparkles className="h-8 w-8 text-blue-800" />
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-green-800 mb-2">
+            <h2 className="text-2xl font-bold text-blue-950 mb-2">
               🌼 You're Ready to Grow!
             </h2>
             <p className="text-muted-foreground mb-6">
@@ -385,42 +385,42 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
           <p id="welcome-desc" className="sr-only">Welcome screen for BloomSuite CRM with overview of features and setup guide.</p>
           <div className="text-center py-6">
             <div className="flex justify-center mb-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-700 to-blue-800 rounded-full flex items-center justify-center">
                 <Sparkles className="h-10 w-10 text-white" />
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-green-800 mb-3">
+            <h2 className="text-3xl font-bold text-blue-950 mb-3">
               🌱 Welcome to BloomSuite CRM!
             </h2>
             <p className="text-muted-foreground mb-6 text-lg">
               Transform how you connect with customers through intelligent segmentation, 
               automated campaigns, and AI-powered content that grows your business.
             </p>
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 mb-6">
-              <h3 className="font-semibold text-green-800 mb-3">What you'll be able to do:</h3>
+            <div className="bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
+              <h3 className="font-semibold text-blue-950 mb-3">What you'll be able to do:</h3>
               <div className="space-y-2 text-left">
                 <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-green-600" />
-                  <span className="text-green-700">Import and organize customer lists</span>
+                  <Users className="h-5 w-5 text-blue-800" />
+                  <span className="text-blue-900">Import and organize customer lists</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Target className="h-5 w-5 text-green-600" />
-                  <span className="text-green-700">Create smart segments by gardening experience</span>
+                  <Target className="h-5 w-5 text-blue-800" />
+                  <span className="text-blue-900">Create smart segments by gardening experience</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-green-600" />
-                  <span className="text-green-700">Send personalized email & SMS campaigns</span>
+                  <Mail className="h-5 w-5 text-blue-800" />
+                  <span className="text-blue-900">Send personalized email & SMS campaigns</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Sparkles className="h-5 w-5 text-green-600" />
-                  <span className="text-green-700">Use AI to generate seasonal content</span>
+                  <Sparkles className="h-5 w-5 text-blue-800" />
+                  <span className="text-blue-900">Use AI to generate seasonal content</span>
                 </div>
               </div>
             </div>
             <Button 
               onClick={() => setCurrentStep(0)} 
               size="lg"
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              className="w-full bg-gradient-to-r from-blue-800 to-blue-800 hover:from-blue-900 hover:to-blue-900"
             >
               Let's Get Started
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -471,12 +471,12 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
                 key={index}
                 className={`border rounded-lg p-6 transition-all ${
                   isActive ? 'border-primary bg-primary/5' : 'border-border'
-                } ${isComplete ? 'border-green-200 bg-green-50' : ''}`}
+                } ${isComplete ? 'border-blue-200 bg-blue-50' : ''}`}
               >
                 <div className="flex items-start gap-4">
                   <div className={`flex items-center justify-center w-12 h-12 rounded-full ${
                     isComplete 
-                      ? 'bg-green-100 text-green-600' 
+                      ? 'bg-blue-100 text-blue-800' 
                       : isActive 
                       ? 'bg-primary/10 text-primary' 
                       : 'bg-muted text-muted-foreground'
@@ -491,12 +491,12 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className={`font-semibold ${
-                        isComplete ? 'text-green-700' : isActive ? 'text-primary' : 'text-foreground'
+                        isComplete ? 'text-blue-900' : isActive ? 'text-primary' : 'text-foreground'
                       }`}>
                         {step.title}
                       </h3>
                       {isComplete && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-900">
                           Complete
                         </Badge>
                       )}

@@ -208,7 +208,7 @@ export const OAuthDebugPanel: React.FC = () => {
                             None (Failed)
                           </span>
                         ) : (
-                          <span className="text-green-600 dark:text-green-400">
+                          <span className="text-blue-800 dark:text-blue-500">
                             {entry.connections
                               .map(
                                 (c) =>

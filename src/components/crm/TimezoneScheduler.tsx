@@ -299,7 +299,7 @@ export const TimezoneScheduler = ({
                   htmlFor="custom"
                   className="flex items-center gap-2 cursor-pointer"
                 >
-                  <CalendarIcon className="h-4 w-4 text-green-500" />
+                  <CalendarIcon className="h-4 w-4 text-blue-700" />
                   Custom Schedule
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">

@@ -139,7 +139,7 @@ export const CampaignHistoryView: React.FC = () => {
     
     const engagementScore = metrics.engagement_score || 0;
     if (engagementScore >= 25) {
-      return <Badge variant="default" className="bg-green-100 text-green-800"><Award className="h-3 w-3 mr-1" />High Performer</Badge>;
+      return <Badge variant="default" className="bg-blue-100 text-blue-950"><Award className="h-3 w-3 mr-1" />High Performer</Badge>;
     } else if (engagementScore >= 15) {
       return <Badge variant="outline" className="border-orange-300 text-orange-600"><Target className="h-3 w-3 mr-1" />Good</Badge>;
     } else if (engagementScore >= 5) {

@@ -297,7 +297,7 @@ export default function AdminCostsPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </JoyButton>
-            <DollarSign className="w-8 h-8 text-green-500" />
+            <DollarSign className="w-8 h-8 text-blue-700" />
             <Stack spacing={0.5}>
               <Typography level="h2">Running costs</Typography>
               <Typography level="body-sm" color="neutral">
@@ -426,7 +426,7 @@ export default function AdminCostsPage() {
                         </Typography>
                       )}
                     </Stack>
-                    <RefreshCw className="h-8 w-8 text-green-500 opacity-50" />
+                    <RefreshCw className="h-8 w-8 text-blue-700 opacity-50" />
                   </Stack>
                   <Typography level="body-xs" color="neutral">
                     Edge function invocations

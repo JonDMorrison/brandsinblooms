@@ -261,7 +261,7 @@ export default function FormDocumentationPage() {
               <Button
                 asChild
                 variant="ghost"
-                className="h-9 whitespace-normal border border-emerald-600 bg-white px-4 text-sm text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                className="h-9 whitespace-normal border border-blue-800 bg-white px-4 text-sm text-blue-800 hover:bg-blue-50 hover:text-blue-900"
               >
                 <a href={model.publicFormUrl} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" />
@@ -398,7 +398,7 @@ export default function FormDocumentationPage() {
                 </p>
               </div>
               <div className="rounded-[1.5rem] border border-white/70 bg-slate-950 p-5 text-slate-50 shadow-sm shadow-slate-900/10">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">
                   Current contract
                 </p>
                 <dl className="mt-4 space-y-4 text-sm">
@@ -482,7 +482,7 @@ export default function FormDocumentationPage() {
                 />
               ) : null}
               <NoticeCard
-                className="border-emerald-100 bg-emerald-50/80 text-slate-900"
+                className="border-blue-100 bg-blue-50/80 text-slate-900"
                 icon={<ShieldCheck className="h-4 w-4" />}
                 title="Preferred keys are schema-aware"
                 description="If a field has a stable mapping key such as email or phone, the docs use that. If a field only has a generic or duplicated mapping key, the docs fall back to the field ID so the example stays unambiguous."
@@ -729,7 +729,7 @@ function FormDocumentationSidebar({
                     className={cn(
                       "block w-full border-l-2 px-4 py-2 text-left text-sm transition-colors",
                       isActive
-                        ? "border-emerald-500 font-medium text-emerald-600"
+                        ? "border-blue-700 font-medium text-blue-800"
                         : "border-transparent text-gray-600 hover:border-gray-200 hover:text-gray-900",
                     )}
                     onClick={() => {
@@ -809,7 +809,7 @@ function InfoCard({
   return (
     <div className="rounded-[1.35rem] border border-slate-200/80 bg-slate-50/90 px-4 py-4">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-        <span className="text-emerald-600">{icon}</span>
+        <span className="text-blue-800">{icon}</span>
         {label}
       </div>
       <p className="mt-3 break-all text-sm font-medium leading-6 text-slate-900">
@@ -872,7 +872,7 @@ function HeaderCopyActionButton({
       className={cn(
         "h-9 whitespace-normal px-4 text-sm",
         state === "success" &&
-          "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-700",
+          "border border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100 hover:text-blue-900",
         state === "error" &&
           "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-700",
         state === "idle" &&
@@ -962,9 +962,9 @@ function InlineCopyIconButton({
       title={ariaLabel}
       onClick={onClick}
       className={cn(
-        "inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-all hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2",
+        "inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-all hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2",
         "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100",
-        state === "success" && "text-emerald-600 opacity-100",
+        state === "success" && "text-blue-800 opacity-100",
         state === "error" && "text-rose-600 opacity-100",
       )}
     >
@@ -981,7 +981,7 @@ function StatusBadge({ status }: { status: string }) {
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold",
         status === "published"
-          ? "bg-emerald-100 text-emerald-700"
+          ? "bg-blue-100 text-blue-900"
           : "bg-amber-100 text-amber-700",
       )}
     >
@@ -1016,7 +1016,7 @@ function FieldReferenceRow({
               className={cn(
                 "border-slate-200 bg-white text-slate-600",
                 field.required
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  ? "border-blue-200 bg-blue-50 text-blue-900"
                   : "border-slate-200 bg-white text-slate-500",
               )}
             >
@@ -1103,7 +1103,7 @@ function CodeCard({
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/90 p-5 shadow-sm shadow-slate-900/5">
       <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
           {icon}
         </div>
         <div>

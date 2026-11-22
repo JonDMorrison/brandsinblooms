@@ -10,7 +10,7 @@ export const WebsitePage = () => {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Globe className="w-8 h-8 text-teal-600" />
+            <Globe className="w-8 h-8 text-blue-800" />
             <h1 className="text-4xl font-bold text-gray-900">Website Builder</h1>
           </div>
           <p className="text-xl text-gray-600 mb-6">
@@ -58,23 +58,23 @@ export const WebsitePage = () => {
             <CardContent>
               <ul className="space-y-3 text-gray-600">
                 <li className="flex items-start gap-2">
-                  <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-blue-700 rounded-full mt-2 flex-shrink-0"></div>
                   <span>AI-powered design generation</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-blue-700 rounded-full mt-2 flex-shrink-0"></div>
                   <span>Mobile-responsive templates</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-blue-700 rounded-full mt-2 flex-shrink-0"></div>
                   <span>SEO optimization built-in</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-blue-700 rounded-full mt-2 flex-shrink-0"></div>
                   <span>Content integration with your campaigns</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-blue-700 rounded-full mt-2 flex-shrink-0"></div>
                   <span>Custom domain support</span>
                 </li>
               </ul>
@@ -85,7 +85,7 @@ export const WebsitePage = () => {
         <div className="text-center mt-12">
           <p className="text-gray-500">
             Want to be notified when the website builder launches?{' '}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-teal-600 hover:underline">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-800 hover:underline">
               Contact us
             </a>
           </p>

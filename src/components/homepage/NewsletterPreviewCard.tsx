@@ -114,25 +114,25 @@ export const NewsletterPreviewCard = ({
   }
 
   return (
-    <Card className="w-full border-teal-200 bg-teal-50/50 hover:shadow-md transition-shadow">
+    <Card className="w-full border-blue-200 bg-blue-50/50 hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-teal-100">
-            <Mail className="w-5 h-5 text-teal-600" />
+          <div className="p-2 rounded-lg bg-blue-100">
+            <Mail className="w-5 h-5 text-blue-800" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-teal-900 truncate">
+            <h3 className="text-lg font-semibold text-blue-950 truncate">
               {newsletterData.title}
             </h3>
-            <p className="text-sm text-teal-700 mt-1 line-clamp-2">
+            <p className="text-sm text-blue-900 mt-1 line-clamp-2">
               {newsletterData.preview}
             </p>
             <div className="flex items-center gap-3 mt-2">
               <div className="flex items-center gap-1">
-                <Clock className="w-4 h-4 text-teal-600" />
-                <span className="text-xs text-teal-600">{newsletterData.readingTime}</span>
+                <Clock className="w-4 h-4 text-blue-800" />
+                <span className="text-xs text-blue-800">{newsletterData.readingTime}</span>
               </div>
-              <Badge variant="secondary" className="bg-teal-100 text-teal-800">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-950">
                 Newsletter Ready
               </Badge>
             </div>
@@ -145,7 +145,7 @@ export const NewsletterPreviewCard = ({
             onClick={handleUseCRM}
             variant="default"
             size="sm"
-            className="gap-2 bg-teal-600 hover:bg-teal-700"
+            className="gap-2 bg-blue-800 hover:bg-blue-900"
           >
             <Mail className="w-4 h-4" />
             Use in CRM

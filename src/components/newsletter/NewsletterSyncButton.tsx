@@ -145,7 +145,7 @@ export const NewsletterSyncButton: React.FC<NewsletterSyncButtonProps> = ({
           </div>
           
           {syncStatus.isSynced ? (
-            <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+            <Badge variant="default" className="bg-blue-100 text-blue-950 border-blue-200">
               <CheckCircle className="w-3 h-3 mr-1" />
               Synced
             </Badge>

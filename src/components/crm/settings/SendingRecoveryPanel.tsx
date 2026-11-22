@@ -138,7 +138,7 @@ export const SendingRecoveryPanel = () => {
       data-testid="sending-recovery-panel"
       className={`border-2 ${
         panelState.kind === "recovered"
-          ? "border-emerald-300 bg-emerald-50"
+          ? "border-blue-300 bg-blue-50"
           : panelState.kind === "cooldown"
             ? "border-amber-300 bg-amber-50"
             : panelState.kind === "error"
@@ -152,18 +152,18 @@ export const SendingRecoveryPanel = () => {
         <>
           <CardHeader className="flex flex-row items-center gap-3">
             <CheckCircle2
-              className="h-6 w-6 text-emerald-700 flex-shrink-0"
+              className="h-6 w-6 text-blue-900 flex-shrink-0"
               aria-hidden="true"
             />
-            <CardTitle className="text-emerald-900">
+            <CardTitle className="text-blue-950">
               Sending is restored
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-emerald-900">
+            <p className="text-sm text-blue-950">
               {panelState.result.message}
             </p>
-            <p className="text-xs text-emerald-800">
+            <p className="text-xs text-blue-950">
               {panelState.result.addresses_suppressed.toLocaleString()}{" "}
               address
               {panelState.result.addresses_suppressed === 1 ? "" : "es"}{" "}

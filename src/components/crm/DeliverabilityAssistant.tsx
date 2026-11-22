@@ -167,7 +167,7 @@ export const DeliverabilityAssistant = ({
   }, [subject, content, senderName, preheader]);
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
+    if (score >= 80) return 'text-blue-800';
     if (score >= 60) return 'text-yellow-600';
     return 'text-red-600';
   };
@@ -230,7 +230,7 @@ export const DeliverabilityAssistant = ({
             <ul className="space-y-1">
               {score.recommendations.map((rec, index) => (
                 <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                  <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="h-3 w-3 text-blue-700 mt-0.5 flex-shrink-0" />
                   {rec}
                 </li>
               ))}

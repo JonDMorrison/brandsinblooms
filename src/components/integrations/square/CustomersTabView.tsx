@@ -340,7 +340,7 @@ export function CustomersTabView({
                       to={`/crm/customers?email=${encodeURIComponent(selectedCustomer.email)}`}
                       className="flex items-center gap-2 text-sm text-foreground hover:underline"
                     >
-                      <UserCheck className="h-4 w-4 text-emerald-500" />
+                      <UserCheck className="h-4 w-4 text-blue-700" />
                       View in CRM →
                     </Link>
                   ) : (

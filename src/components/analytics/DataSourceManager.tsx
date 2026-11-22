@@ -201,7 +201,7 @@ export const DataSourceManager = ({
     switch (status) {
       case 'connected':
         return (
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
+          <Badge variant="secondary" className="bg-blue-100 text-blue-950">
             <CheckCircle className="h-3 w-3 mr-1" />
             Connected
           </Badge>
@@ -225,7 +225,7 @@ export const DataSourceManager = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'connected': return 'border-l-green-500';
+      case 'connected': return 'border-l-blue-700';
       case 'error': return 'border-l-red-500';
       default: return 'border-l-yellow-500';
     }

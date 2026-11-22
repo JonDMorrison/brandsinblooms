@@ -117,7 +117,7 @@ export const LightspeedIntegration = () => {
           </div>
         </div>
         {isConnected ? (
-          <CheckCircle className="h-6 w-6 text-green-600" />
+          <CheckCircle className="h-6 w-6 text-blue-800" />
         ) : (
           <XCircle className="h-6 w-6 text-muted-foreground" />
         )}
@@ -134,7 +134,7 @@ export const LightspeedIntegration = () => {
             </div>
             <div>
               <p className="text-muted-foreground">Status</p>
-              <p className="font-medium text-green-600">✓ Connected</p>
+              <p className="font-medium text-blue-800">✓ Connected</p>
             </div>
             {connection.last_synced_at && (
               <div>

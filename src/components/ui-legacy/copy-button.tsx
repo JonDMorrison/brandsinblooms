@@ -42,7 +42,7 @@ export function CopyButton({
       className={cn(
         "h-11 min-w-[8.25rem] justify-center rounded-xl px-4 transition-colors duration-200",
         state === "success" &&
-          "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+          "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100",
         state === "error" &&
           "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
         className,

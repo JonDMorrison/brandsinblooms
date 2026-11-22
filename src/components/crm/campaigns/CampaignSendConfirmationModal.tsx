@@ -304,7 +304,7 @@ function worstHealthStatus(a: HealthStatus, b: HealthStatus): HealthStatus {
 function healthStatusCardClasses(status: HealthStatus) {
   switch (status) {
     case "green":
-      return "border-green-200 bg-green-500/10";
+      return "border-blue-200 bg-blue-700/10";
     case "yellow":
       return "border-yellow-200 bg-yellow-500/10";
     case "red":
@@ -315,7 +315,7 @@ function healthStatusCardClasses(status: HealthStatus) {
 function healthValueTextClass(status: HealthStatus) {
   switch (status) {
     case "green":
-      return "text-green-700";
+      return "text-blue-900";
     case "yellow":
       return "text-yellow-700";
     case "red":
@@ -354,7 +354,7 @@ function TrendIndicator(props: {
     isImproving === null
       ? "text-muted-foreground"
       : isImproving
-        ? "text-green-700"
+        ? "text-blue-900"
         : "text-red-700";
 
   const sign = delta > 0 ? "+" : "";
@@ -702,7 +702,7 @@ function FinalPreflightCheckRow(props: { check: FinalPreflightCheck }) {
   const iconClassName = check.loading
     ? "text-blue-700"
     : check.state === "ok"
-      ? "text-green-700"
+      ? "text-blue-900"
       : check.state === "warn"
         ? "text-yellow-700"
         : check.state === "block"

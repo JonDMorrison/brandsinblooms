@@ -92,7 +92,7 @@ export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate, isFirst
               relative flex items-center w-full py-3 px-4 
               hover:bg-slate-50/70 dark:hover:bg-slate-800/50
               transition-colors duration-200
-              focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-500/60 rounded-md
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700/60 rounded-md
               ${!isFirst ? 'before:border-t before:border-slate-100 dark:before:border-slate-700 before:absolute before:inset-x-0 before:top-0' : ''}
             `}>
               {/* Post Type Avatar */}

@@ -211,7 +211,7 @@ export const ActionableInsights = ({
   const getInsightColor = (type: string) => {
     switch (type) {
       case 'alert': return 'border-l-red-500 bg-red-50';
-      case 'opportunity': return 'border-l-green-500 bg-green-50';
+      case 'opportunity': return 'border-l-blue-700 bg-blue-50';
       case 'achievement': return 'border-l-blue-500 bg-blue-50';
       case 'recommendation': return 'border-l-yellow-500 bg-yellow-50';
       default: return 'border-l-gray-500 bg-gray-50';
@@ -236,7 +236,7 @@ export const ActionableInsights = ({
 
   const getChangeColor = (change?: number) => {
     if (!change) return '';
-    return change > 0 ? 'text-green-600' : 'text-red-600';
+    return change > 0 ? 'text-blue-800' : 'text-red-600';
   };
 
   return (
@@ -333,7 +333,7 @@ export const ActionableInsights = ({
               <span className="text-sm">Customer Engagement Target</span>
               <div className="flex items-center gap-2">
                 <div className="w-24 bg-white rounded h-2">
-                  <div className="bg-green-500 h-2 rounded" style={{ width: '90%' }}></div>
+                  <div className="bg-blue-700 h-2 rounded" style={{ width: '90%' }}></div>
                 </div>
                 <span className="text-sm font-medium">90%</span>
               </div>

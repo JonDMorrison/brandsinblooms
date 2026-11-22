@@ -449,7 +449,7 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
                           {isPosted ? (
                             <Button
                               disabled
-                              className="bg-green-100 text-green-700"
+                              className="bg-blue-100 text-blue-900"
                             >
                               <CheckCircle className="w-4 h-4 mr-2" />
                               Posted

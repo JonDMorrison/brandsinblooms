@@ -155,7 +155,7 @@ export const SocialMediaIntegrationTest: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               {testResult.success ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
+                <CheckCircle className="w-5 h-5 text-blue-800" />
               ) : (
                 <AlertCircle className="w-5 h-5 text-red-600" />
               )}

@@ -20,8 +20,8 @@ export const NewsletterSyncStatus: React.FC<NewsletterSyncStatusProps> = ({
 }) => {
   if (isSynced) {
     return (
-      <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+      <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+        <Badge variant="default" className="bg-blue-100 text-blue-950 border-blue-200">
           <CheckCircle className="w-3 h-3 mr-1" />
           Synced to CRM
         </Badge>

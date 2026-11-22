@@ -230,7 +230,7 @@ export const OneClickSetupWizard: React.FC<OneClickSetupWizardProps> = ({
           <div className="space-y-4">
             <div className="text-center space-y-2">
               <div className={`h-12 w-12 mx-auto rounded-full flex items-center justify-center ${
-                setupProgress.progress === 100 ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'
+                setupProgress.progress === 100 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-600'
               }`}>
                 {setupProgress.progress === 100 ? (
                   <Check className="h-6 w-6" />
@@ -247,7 +247,7 @@ export const OneClickSetupWizard: React.FC<OneClickSetupWizardProps> = ({
               {setupProgress.results.map((result: any, index: number) => (
                 <div key={index} className="flex items-center gap-3 p-3 rounded-lg border">
                   <div className={`w-2 h-2 rounded-full ${
-                    result.success ? 'bg-green-500' : 'bg-red-500'
+                    result.success ? 'bg-blue-700' : 'bg-red-500'
                   }`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -263,7 +263,7 @@ export const OneClickSetupWizard: React.FC<OneClickSetupWizardProps> = ({
                     )}
                   </div>
                   {result.success ? (
-                    <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-blue-700 flex-shrink-0" />
                   ) : (
                     <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
                   )}
@@ -332,7 +332,7 @@ export const OneClickSetupWizard: React.FC<OneClickSetupWizardProps> = ({
 
             <div className="flex items-center justify-between p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
+                <div className="w-2 h-2 rounded-full bg-blue-700" />
                 <span className="text-sm font-medium">
                   {integrations[0]?.provider_type} Connected
                 </span>

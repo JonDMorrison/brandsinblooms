@@ -84,7 +84,7 @@ export const CustomerTimeline = ({ customerId }: CustomerTimelineProps) => {
     switch (status?.toLowerCase()) {
       case 'completed':
       case 'fulfilled':
-        return 'bg-emerald-500 text-white';
+        return 'bg-blue-700 text-white';
       case 'pending':
         return 'bg-warning text-warning-foreground';
       case 'cancelled':

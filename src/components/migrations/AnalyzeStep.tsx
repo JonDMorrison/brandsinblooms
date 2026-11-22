@@ -66,7 +66,7 @@ export const AnalyzeStep = ({ jobId, onComplete, onBack }: AnalyzeStepProps) => 
   const getActionBadge = (action: string) => {
     const badges: Record<string, { label: string; color: string }> = {
       create_segment: { label: 'Create Segment', color: 'bg-blue-100 text-blue-800' },
-      map_to_segment: { label: 'Map to Segment', color: 'bg-green-100 text-green-800' },
+      map_to_segment: { label: 'Map to Segment', color: 'bg-blue-100 text-blue-950' },
       create_persona: { label: 'Create Persona', color: 'bg-purple-100 text-purple-800' },
       map_to_persona: { label: 'Map to Persona', color: 'bg-indigo-100 text-indigo-800' },
       skip: { label: 'Skip', color: 'bg-gray-100 text-gray-800' }
@@ -78,7 +78,7 @@ export const AnalyzeStep = ({ jobId, onComplete, onBack }: AnalyzeStepProps) => 
 
   const getConfidenceBadge = (confidence: number) => {
     const percent = Math.round(confidence * 100);
-    const color = confidence >= 0.75 ? 'text-green-600' :
+    const color = confidence >= 0.75 ? 'text-blue-800' :
                   confidence >= 0.5 ? 'text-yellow-600' : 'text-red-600';
     
     return (

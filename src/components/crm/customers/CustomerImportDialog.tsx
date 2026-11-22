@@ -695,7 +695,7 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
                   {errors.length > 0 ? (
                     <AlertCircle className="h-5 w-5 text-destructive" />
                   ) : (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <CheckCircle className="h-5 w-5 text-blue-800" />
                   )}
                   Import Preview
                 </CardTitle>
@@ -703,7 +703,7 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex gap-4 text-sm">
-                    <span className="text-green-600">
+                    <span className="text-blue-800">
                       ✓ {parsedData.length} valid customers
                     </span>
                     {errors.length > 0 && (

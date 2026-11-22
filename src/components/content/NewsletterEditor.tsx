@@ -324,7 +324,7 @@ ${yamlStructure.extra_content_ideas.map(idea => `  - "${idea}"`).join('\n')}`;
 
       {/* Save/Cancel Actions */}
       <div className="flex items-center gap-3 pt-4 border-t">
-        <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white">
+        <Button onClick={handleSave} className="bg-blue-800 hover:bg-blue-900 text-white">
           Save Newsletter
         </Button>
         <Button onClick={onCancel} variant="outline">

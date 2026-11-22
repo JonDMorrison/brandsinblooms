@@ -67,7 +67,7 @@ export const NewsletterEditDrawer: React.FC<NewsletterEditDrawerProps> = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-blue-100 text-blue-950 border-blue-300';
       case 'draft':
         return 'bg-gray-100 text-gray-700 border-gray-300';
       case 'sent':
@@ -209,7 +209,7 @@ export const NewsletterEditDrawer: React.FC<NewsletterEditDrawerProps> = ({
                 {newsletter.metrics.revenue && (
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Revenue Generated</p>
-                    <p className="text-lg font-semibold text-green-600">
+                    <p className="text-lg font-semibold text-blue-800">
                       ${newsletter.metrics.revenue.toFixed(2)}
                     </p>
                   </div>

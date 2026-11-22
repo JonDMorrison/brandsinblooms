@@ -111,15 +111,15 @@ export const ReviewQueue = ({
           .map(([theme, tasks]: [string, ContentTask[]]) => (
             <div
               key={theme}
-              className="border border-green-200 rounded-lg p-4 bg-white shadow-sm"
+              className="border border-blue-200 rounded-lg p-4 bg-white shadow-sm"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-green-600" />
-                  <h4 className="font-medium text-green-900">Themed Content</h4>
+                  <Sparkles className="w-4 h-4 text-blue-800" />
+                  <h4 className="font-medium text-blue-950">Themed Content</h4>
                   <Badge
                     variant="outline"
-                    className="text-green-700 border-green-300"
+                    className="text-blue-900 border-blue-300"
                   >
                     {tasks.length} pieces
                   </Badge>
@@ -128,13 +128,13 @@ export const ReviewQueue = ({
                   size="sm"
                   onClick={() => handleBulkApprove(tasks)}
                   disabled={bulkApproving}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-blue-800 hover:bg-blue-900 text-white"
                 >
                   <CheckCircle2 className="w-3 h-3 mr-1" />
                   Approve All ({tasks.length})
                 </Button>
               </div>
-              <p className="text-sm text-green-700 mb-3 font-medium">
+              <p className="text-sm text-blue-900 mb-3 font-medium">
                 Theme: {theme}
               </p>
               <div className="space-y-2">
@@ -153,16 +153,16 @@ export const ReviewQueue = ({
           ))}
 
       {businessTasks.length > 0 && (
-        <div className="border border-green-200 rounded-lg p-4 bg-white shadow-sm">
+        <div className="border border-blue-200 rounded-lg p-4 bg-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Leaf className="w-4 h-4 text-green-600" />
-              <h4 className="font-medium text-green-900">
+              <Leaf className="w-4 h-4 text-blue-800" />
+              <h4 className="font-medium text-blue-950">
                 Business Marketing Content
               </h4>
               <Badge
                 variant="outline"
-                className="text-green-700 border-green-300"
+                className="text-blue-900 border-blue-300"
               >
                 {businessTasks.length} ready
               </Badge>
@@ -172,14 +172,14 @@ export const ReviewQueue = ({
                 size="sm"
                 onClick={() => handleBulkApprove(businessTasks)}
                 disabled={bulkApproving}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-blue-800 hover:bg-blue-900 text-white"
               >
                 <CheckCircle2 className="w-3 h-3 mr-1" />
                 Approve All ({businessTasks.length})
               </Button>
             )}
           </div>
-          <p className="text-sm text-green-700 mb-3">
+          <p className="text-sm text-blue-900 mb-3">
             🚀 Professional content designed for your business
           </p>
           <div className="space-y-2">
@@ -200,7 +200,7 @@ export const ReviewQueue = ({
       {tasksArray.length > 6 && (
         <Button
           variant="outline"
-          className="w-full border-green-300 text-green-700 hover:bg-green-50"
+          className="w-full border-blue-300 text-blue-900 hover:bg-blue-50"
         >
           View All {tasksArray.length} Content Pieces
         </Button>

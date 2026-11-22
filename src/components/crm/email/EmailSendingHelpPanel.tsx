@@ -66,14 +66,14 @@ export const EmailSendingHelpPanel: React.FC<EmailSendingHelpPanelProps> = ({ is
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Ready to use immediately</p>
                         <p className="text-xs text-gray-600">No setup required</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Reliable delivery</p>
                         <p className="text-xs text-gray-600">Sent via our managed service</p>
@@ -95,32 +95,32 @@ export const EmailSendingHelpPanel: React.FC<EmailSendingHelpPanelProps> = ({ is
               </Card>
 
               {/* Custom Domain Method */}
-              <Card className="border-green-200">
+              <Card className="border-blue-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-green-600" />
-                    <CardTitle className="text-lg text-green-800">Custom Domain Sending</CardTitle>
-                    <Badge variant="default" className="bg-green-100 text-green-800">Recommended</Badge>
+                    <Globe className="h-5 w-5 text-blue-800" />
+                    <CardTitle className="text-lg text-blue-950">Custom Domain Sending</CardTitle>
+                    <Badge variant="default" className="bg-blue-100 text-blue-950">Recommended</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Professional branding</p>
                         <p className="text-xs text-gray-600">Emails from your domain</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Better deliverability</p>
                         <p className="text-xs text-gray-600">Improved inbox placement</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-blue-800 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Full authentication</p>
                         <p className="text-xs text-gray-600">DKIM, SPF, and DMARC</p>
@@ -128,8 +128,8 @@ export const EmailSendingHelpPanel: React.FC<EmailSendingHelpPanelProps> = ({ is
                     </div>
                   </div>
 
-                  <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-                    <p className="text-xs text-green-800">
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <p className="text-xs text-blue-950">
                       <strong>How it works:</strong> We configure your domain with proper email authentication. 
                       Emails appear to come directly from your business.
                     </p>

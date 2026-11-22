@@ -234,10 +234,10 @@ export const ReadyToPostCard = ({
       <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8 mb-8">
         {/* Decorative Background Pattern */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-700/10 to-blue-700/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-blue-700/10 to-blue-700/10 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
-            <Send className="w-64 h-64 text-green-400" />
+            <Send className="w-64 h-64 text-blue-500" />
           </div>
         </div>
 
@@ -245,7 +245,7 @@ export const ReadyToPostCard = ({
         <div className="relative z-10 flex items-start justify-between">
           <div className="flex flex-col gap-3 text-left">
             <div className="inline-flex items-center gap-3 mb-2">
-              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
+              <div className="p-3 bg-gradient-to-br from-blue-700 to-blue-800 rounded-2xl shadow-lg">
                 <Send className="w-8 h-8 text-white" />
               </div>
               <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">
@@ -265,7 +265,7 @@ export const ReadyToPostCard = ({
           <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
           <CardContent className="relative z-10 py-8">
             <div className="text-center">
-              <div className="animate-spin w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <div className="animate-spin w-8 h-8 border-3 border-blue-800 border-t-transparent rounded-full mx-auto mb-4"></div>
               <p className="text-slate-600 font-medium">
                 Loading ready content...
               </p>
@@ -290,11 +290,11 @@ export const ReadyToPostCard = ({
               <div className="relative group inline-block">
                 <Button
                   onClick={() => navigate("/")}
-                  className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                  className="bg-gradient-to-r from-blue-800 via-blue-800 to-blue-800 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
                 >
                   Generate Content
                 </Button>
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-700/20 to-blue-700/20 rounded-xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
               </div>
             </div>
           </CardContent>

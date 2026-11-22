@@ -115,7 +115,7 @@ export function CustomerConsentManager({ customer, onConsentUpdated }: CustomerC
 
   const getStatusIcon = (status: EmailConsentStatus | SMSConsentStatus) => {
     switch (status) {
-      case 'opted_in': return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'opted_in': return <CheckCircle className="h-5 w-5 text-blue-700" />;
       case 'opted_out': return <XCircle className="h-5 w-5 text-red-500" />;
       case 'unknown': return <HelpCircle className="h-5 w-5 text-yellow-500" />;
     }
@@ -239,7 +239,7 @@ export function CustomerConsentManager({ customer, onConsentUpdated }: CustomerC
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="opted_in" id="email_opted_in" />
                         <Label htmlFor="email_opted_in" className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <CheckCircle className="h-4 w-4 text-blue-700" />
                           Opted in to marketing emails
                         </Label>
                       </div>
@@ -351,7 +351,7 @@ export function CustomerConsentManager({ customer, onConsentUpdated }: CustomerC
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="opted_in" id="sms_opted_in" />
                         <Label htmlFor="sms_opted_in" className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <CheckCircle className="h-4 w-4 text-blue-700" />
                           Opted in to marketing SMS
                         </Label>
                       </div>

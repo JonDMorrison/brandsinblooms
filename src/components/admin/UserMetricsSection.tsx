@@ -67,11 +67,11 @@ export const UserMetricsSection = ({ metrics }: UserMetricsSectionProps) => {
             value={metrics.paidUsers}
             description="Paying customers"
             icon={Crown}
-            color={metrics.paidUsers > 0 ? "text-green-600" : "text-gray-400"}
+            color={metrics.paidUsers > 0 ? "text-blue-800" : "text-gray-400"}
             borderColor={
-              metrics.paidUsers > 0 ? "border-green-200" : "border-gray-200"
+              metrics.paidUsers > 0 ? "border-blue-200" : "border-gray-200"
             }
-            bgColor={metrics.paidUsers > 0 ? "bg-green-50" : "bg-gray-50"}
+            bgColor={metrics.paidUsers > 0 ? "bg-blue-50" : "bg-gray-50"}
             clickable={true}
             href="/admin/users?filter=paid"
           />

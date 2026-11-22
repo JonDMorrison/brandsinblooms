@@ -45,7 +45,7 @@ export const FeaturesPage = () => {
         "Holiday and gardening event integration",
         "Team collaboration and approval workflows"
       ],
-      gradient: "from-green-500 to-emerald-600"
+      gradient: "from-blue-700 to-blue-800"
     },
     {
       icon: Mail,
@@ -123,7 +123,7 @@ export const FeaturesPage = () => {
         "Automatic sales tax calculation and compliance",
         "Built-in customer follow-up and seasonal marketing"
       ],
-      gradient: "from-teal-500 to-green-600"
+      gradient: "from-blue-700 to-blue-800"
     }
   ];
 
@@ -232,7 +232,7 @@ export const FeaturesPage = () => {
       </section>
 
       {/* E-Commerce Highlight Section */}
-      <section className="py-20 px-6 bg-gradient-to-br from-teal-50 to-green-50">
+      <section className="py-20 px-6 bg-gradient-to-br from-blue-50 to-blue-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-foreground mb-4">
@@ -244,9 +244,9 @@ export const FeaturesPage = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">
-            <Card className="p-8 text-center bg-white/80 backdrop-blur border-teal-200 hover:shadow-lg transition-shadow">
+            <Card className="p-8 text-center bg-white/80 backdrop-blur border-blue-200 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
-                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-700 to-blue-800 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Store className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-3">You Stay the Seller of Record</h3>
@@ -256,9 +256,9 @@ export const FeaturesPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 text-center bg-white/80 backdrop-blur border-teal-200 hover:shadow-lg transition-shadow">
+            <Card className="p-8 text-center bg-white/80 backdrop-blur border-blue-200 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
-                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-700 to-blue-800 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Truck className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-3">Ship-On-Demand Fulfillment</h3>
@@ -268,9 +268,9 @@ export const FeaturesPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 text-center bg-white/80 backdrop-blur border-teal-200 hover:shadow-lg transition-shadow">
+            <Card className="p-8 text-center bg-white/80 backdrop-blur border-blue-200 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
-                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-700 to-blue-800 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Heart className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-3">Keep Your Customers Forever</h3>
@@ -285,7 +285,7 @@ export const FeaturesPage = () => {
             <Button 
               onClick={() => navigate('/ecomm')}
               size="lg"
-              className="bg-gradient-to-r from-teal-500 to-green-600 hover:from-teal-600 hover:to-green-700 text-white px-8 py-3 text-lg"
+              className="bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white px-8 py-3 text-lg"
             >
               Learn More About E-Commerce
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -331,7 +331,7 @@ export const FeaturesPage = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-8 text-center bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+            <Card className="p-8 text-center bg-gradient-to-br from-blue-50 to-blue-50 border-blue-200">
               <CardContent className="p-0">
                 <div className="text-4xl font-bold text-primary mb-2">40%</div>
                 <div className="text-lg font-semibold text-foreground mb-2">Increase in Sales</div>

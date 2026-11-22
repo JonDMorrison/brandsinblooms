@@ -95,7 +95,7 @@ export const ApplyStep = ({ suggestions, onComplete, onBack }: ApplyStepProps) =
                         <>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                             suggestion.action === 'create_segment' ? 'bg-blue-100 text-blue-800' :
-                            suggestion.action === 'map_to_segment' ? 'bg-green-100 text-green-800' :
+                            suggestion.action === 'map_to_segment' ? 'bg-blue-100 text-blue-950' :
                             suggestion.action === 'create_persona' ? 'bg-purple-100 text-purple-800' :
                             suggestion.action === 'map_to_persona' ? 'bg-indigo-100 text-indigo-800' :
                             'bg-gray-100 text-gray-800'
@@ -103,7 +103,7 @@ export const ApplyStep = ({ suggestions, onComplete, onBack }: ApplyStepProps) =
                             {suggestion.action.replace(/_/g, ' ')}
                           </span>
                           <span className={`font-semibold ${
-                            suggestion.confidence >= 0.75 ? 'text-green-600' :
+                            suggestion.confidence >= 0.75 ? 'text-blue-800' :
                             suggestion.confidence >= 0.5 ? 'text-yellow-600' : 'text-red-600'
                           }`}>
                             {Math.round(suggestion.confidence * 100)}%

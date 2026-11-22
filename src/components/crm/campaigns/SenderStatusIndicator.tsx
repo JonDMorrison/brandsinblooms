@@ -33,7 +33,7 @@ export const SenderStatusIndicator: React.FC<SenderStatusIndicatorProps> = ({
         icon: Shield,
         label: compact ? "Verified" : "🔒 Custom Domain",
         tooltipTitle: "Custom Domain Verified",
-        badgeClassName: "bg-green-600 hover:bg-green-700 text-white",
+        badgeClassName: "bg-blue-800 hover:bg-blue-900 text-white",
       }
     : {
         variant: "secondary" as const,

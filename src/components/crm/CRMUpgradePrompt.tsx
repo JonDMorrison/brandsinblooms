@@ -67,7 +67,7 @@ export const CRMUpgradePrompt = ({
                 <span>Email Campaign Builder</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <MessageSquare className="w-4 h-4 text-green-500" />
+                <MessageSquare className="w-4 h-4 text-blue-700" />
                 <span>SMS Marketing</span>
               </div>
               <div className="flex items-center gap-3 text-sm">

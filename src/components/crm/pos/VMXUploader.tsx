@@ -189,7 +189,7 @@ Jane Doe,jane@example.com,555-0456,Garden Tools,2024-01-16,45.00`;
 
           {/* Preview */}
           {preview && (
-            <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-950">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Users className="h-4 w-4" />
@@ -198,7 +198,7 @@ Jane Doe,jane@example.com,555-0456,Garden Tools,2024-01-16,45.00`;
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="text-xs font-mono bg-white dark:bg-gray-900 p-2 rounded border">
-                  <div className="font-semibold text-green-600 dark:text-green-400">
+                  <div className="font-semibold text-blue-800 dark:text-blue-500">
                     Columns: {preview.headers.join(', ')}
                   </div>
                   {preview.sampleData.map((customer: any, index: number) => (

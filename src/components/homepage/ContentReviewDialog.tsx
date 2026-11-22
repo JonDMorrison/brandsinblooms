@@ -143,7 +143,7 @@ export const ContentReviewDialog = ({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4 text-blue-800" />;
       case "review":
         return (
           <AlertCircle className="w-4 h-4 text-blue-600 sm:text-orange-600" />
@@ -158,7 +158,7 @@ export const ContentReviewDialog = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "bg-green-100 text-green-800";
+        return "bg-blue-100 text-blue-950";
       case "review":
         return "bg-white text-blue-800 border-blue-200 sm:bg-orange-100 sm:text-orange-800 sm:border-orange-200";
       case "draft":
@@ -376,7 +376,7 @@ export const ContentReviewDialog = ({
                               onClick={() =>
                                 updateTaskStatus(task.id, "completed")
                               }
-                              className="bg-green-600 hover:bg-green-700 text-white"
+                              className="bg-blue-800 hover:bg-blue-900 text-white"
                             >
                               Approve
                             </Button>

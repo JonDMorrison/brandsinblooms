@@ -100,7 +100,7 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
       ? {
           shopify: {
             title: "Shopify",
-            icon: <Store className="h-6 w-6 text-green-600" />,
+            icon: <Store className="h-6 w-6 text-blue-800" />,
             description:
               "Connect your Shopify store to automatically sync customer data, order history, and inventory information.",
             benefits: [
@@ -310,7 +310,7 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
                     <ul className="space-y-2">
                       {config.benefits.map((benefit, index) => (
                         <li key={index} className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CheckCircle2 className="h-4 w-4 text-blue-800" />
                           <span className="text-sm">{benefit}</span>
                         </li>
                       ))}
@@ -473,27 +473,27 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
                   <Card
                     className={
                       testResult.success
-                        ? "border-green-200 bg-green-50"
+                        ? "border-blue-200 bg-blue-50"
                         : "border-red-200 bg-red-50"
                     }
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         {testResult.success ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+                          <CheckCircle2 className="h-5 w-5 text-blue-800 mt-0.5" />
                         ) : (
                           <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
                         )}
                         <div className="flex-1">
                           <h4
-                            className={`font-medium ${testResult.success ? "text-green-900" : "text-red-900"}`}
+                            className={`font-medium ${testResult.success ? "text-blue-950" : "text-red-900"}`}
                           >
                             {testResult.success
                               ? "Connection Successful!"
                               : "Connection Failed"}
                           </h4>
                           <p
-                            className={`text-sm ${testResult.success ? "text-green-700" : "text-red-700"}`}
+                            className={`text-sm ${testResult.success ? "text-blue-900" : "text-red-700"}`}
                           >
                             {testResult.message}
                           </p>
@@ -510,7 +510,7 @@ export const POSSetupWizard: React.FC<POSSetupWizardProps> = ({
                                 </div>
                               </div>
                               <div className="text-center p-2 bg-white rounded border">
-                                <ShoppingCart className="h-4 w-4 mx-auto mb-1 text-green-600" />
+                                <ShoppingCart className="h-4 w-4 mx-auto mb-1 text-blue-800" />
                                 <div className="text-sm font-medium">
                                   {testResult.preview.orders || 0}
                                 </div>

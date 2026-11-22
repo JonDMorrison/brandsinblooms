@@ -440,18 +440,18 @@ export const AuthCallbackPage = () => {
             <div className="text-center space-y-6">
               {/* Success Animation */}
               <div className="relative">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle className="h-12 w-12 text-green-600" />
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle className="h-12 w-12 text-blue-800" />
                 </div>
                 {/* Celebration Effect */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 border-4 border-green-200 rounded-full animate-ping opacity-75" />
+                  <div className="w-24 h-24 border-4 border-blue-200 rounded-full animate-ping opacity-75" />
                 </div>
               </div>
 
               {/* Success Message */}
               <div className="space-y-3">
-                <h2 className="text-2xl font-bold text-green-700">
+                <h2 className="text-2xl font-bold text-blue-900">
                   Successfully Connected!
                 </h2>
                 <p className="text-muted-foreground">{message}</p>
@@ -464,7 +464,7 @@ export const AuthCallbackPage = () => {
                       {connectedPlatforms.map((platform) => (
                         <div
                           key={platform}
-                          className="flex items-center gap-1 px-3 py-1 bg-green-50 rounded-full"
+                          className="flex items-center gap-1 px-3 py-1 bg-blue-50 rounded-full"
                         >
                           {platform === "facebook" && (
                             <Facebook className="w-4 h-4 text-blue-600" />

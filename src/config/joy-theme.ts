@@ -117,7 +117,7 @@ const createFocusRing = (channel: string, width = 2, alpha = 0.18) =>
   `0 0 0 ${width}px rgba(${channel} / ${alpha})`;
 
 export const bloomPaletteScales = {
-  // App controls use navy; success and merchant content retain their own palettes.
+  // App controls and success states use navy; merchant content keeps its own palette.
   primary: {
     50: "#F0F4F7",
     100: "#E1E9EF",
@@ -154,17 +154,18 @@ export const bloomPaletteScales = {
     800: "#7F1D1D",
     900: "#450A0A",
   },
+  // Success uses the navy scale (Jon, 2026-11-21: no mint green in the apps).
   success: {
-    50: "#F2F7F4",
-    100: "#E3EFE8",
-    200: "#C5DFD0",
-    300: "#9FC9B1",
-    400: "#6FAE8B",
-    500: "#3E9168",
-    600: "#1FA87B",
-    700: "#167A5B",
-    800: "#0F5F45",
-    900: "#0A4D36",
+    50: "#F0F4F7",
+    100: "#E1E9EF",
+    200: "#C3D3DF",
+    300: "#A5BDCF",
+    400: "#87A7BF",
+    500: "#30506E",
+    600: "#284656",
+    700: "#203C4E",
+    800: "#183246",
+    900: "#10283E",
   },
   warning: {
     50: "#FBF5F2",

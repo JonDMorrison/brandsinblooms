@@ -69,7 +69,7 @@ export const GeoEnrichmentPanel: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3 p-3 bg-accent/20 rounded-lg">
-            <Users className="h-8 w-8 text-green-500" />
+            <Users className="h-8 w-8 text-blue-700" />
             <div>
               <div className="font-medium">USDA Zones</div>
               <div className="text-sm text-muted-foreground">Hardiness Zones 3a-11</div>

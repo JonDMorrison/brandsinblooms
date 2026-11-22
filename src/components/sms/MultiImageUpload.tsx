@@ -278,7 +278,7 @@ export function MultiImageUpload({
                   </div>
                   {/* Optimization indicator */}
                   <div className="absolute bottom-1 right-1">
-                    <CheckCircleIcon className="h-3 w-3 text-green-500 bg-white rounded-full" />
+                    <CheckCircleIcon className="h-3 w-3 text-blue-700 bg-white rounded-full" />
                   </div>
                 </div>
                 <Button

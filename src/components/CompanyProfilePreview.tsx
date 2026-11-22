@@ -67,7 +67,7 @@ export const CompanyProfilePreview = ({ profile, onboardingData }: CompanyProfil
             {onboardingData.toneSamples && (
               <div>
                 <h4 className="font-medium mb-2">Brand Voice Samples</h4>
-                <p className="text-sm text-gray-600 bg-green-50 p-3 rounded-lg">
+                <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                   {onboardingData.toneSamples}
                 </p>
               </div>
@@ -120,7 +120,7 @@ export const CompanyProfilePreview = ({ profile, onboardingData }: CompanyProfil
                   <Sparkles className="w-4 h-4" />
                   Brand Story
                 </h4>
-                <p className="text-sm text-gray-600 bg-green-50 p-3 rounded-lg">
+                <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                   {profile.company_overview}
                 </p>
               </div>

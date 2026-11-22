@@ -97,7 +97,7 @@ export const POSMetricCard = ({
     switch (syncStatus) {
       case 'synced':
         return (
-          <div className="flex items-center gap-1 text-xs text-green-600">
+          <div className="flex items-center gap-1 text-xs text-blue-800">
             <CheckCircle className="h-3 w-3" />
             <span>Synced</span>
           </div>

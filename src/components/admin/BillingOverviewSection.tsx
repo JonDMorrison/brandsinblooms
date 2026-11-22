@@ -42,16 +42,16 @@ export const BillingOverviewSection = ({
             icon={CreditCard}
             color={
               metrics.activeSubscriptions > 0
-                ? "text-green-600"
+                ? "text-blue-800"
                 : "text-gray-400"
             }
             borderColor={
               metrics.activeSubscriptions > 0
-                ? "border-green-200"
+                ? "border-blue-200"
                 : "border-gray-200"
             }
             bgColor={
-              metrics.activeSubscriptions > 0 ? "bg-green-50" : "bg-gray-50"
+              metrics.activeSubscriptions > 0 ? "bg-blue-50" : "bg-gray-50"
             }
             clickable={true}
             href="/admin/subscriptions"
