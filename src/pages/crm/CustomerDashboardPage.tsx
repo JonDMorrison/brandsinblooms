@@ -58,6 +58,8 @@ import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
 import { useCustomerIntelligenceDetail } from "@/hooks/useCustomerIntelligenceDetail";
 import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
+import { useNativeRewardBalances } from "@/hooks/useLoyaltyMetrics";
+import {NativeRewardBalanceList} from "@/components/crm/customer-dashboard/NativeRewardBalanceList";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -267,6 +269,9 @@ const CustomerDashboardPage: React.FC = () => {
     errors,
     refetch,
   } = useCustomerDashboard(customerId, { timeRange });
+
+  const nativeBalances = useNativeRewardBalances(customer?.id === customerId ? customer.tenant_id : undefined,
+    customer?.id === customerId ? customerId : undefined, activeTab === "purchase");
 
   const deleteCustomer = useDeleteCustomer();
   const { personas: allPersonas } = useAllPersonas();
@@ -816,6 +821,8 @@ const CustomerDashboardPage: React.FC = () => {
                 onRetry={() => void handleRefresh()}
               />
               }
+              <NativeRewardBalanceList balances={nativeBalances.data ?? []} loading={nativeBalances.isFetching}
+                error={nativeBalances.error?.message ?? null} onRefresh={() => void nativeBalances.refetch()} />
               {!receiptMetricsUnavailable&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
             </Stack>
           ) : null}

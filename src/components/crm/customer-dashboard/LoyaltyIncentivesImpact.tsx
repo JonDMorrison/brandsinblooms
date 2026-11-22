@@ -75,7 +75,7 @@ function ProviderBalanceList({ metrics }: LoyaltyIncentivesImpactProps) {
                 )}
               </Typography>
               <Typography level="body-xs" color="neutral">
-                Last synced {formatDateLabel(account.lastSyncedAt)}
+                {["legacy_metrics", "crm_import"].includes(account.provider) ? "Imported historical balance" : `Reported by ${account.provider}`} · Last synced {formatDateLabel(account.lastSyncedAt)}
               </Typography>
             </Stack>
           </Sheet>
@@ -191,7 +191,8 @@ export function LoyaltyIncentivesImpact({
           >
             <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
               <Stack spacing={1.5}>
-                <Typography level="title-sm">Points activity</Typography>
+                <Typography level="title-sm">Recorded points activity</Typography>
+                <Typography level="body-xs">CRM and imported history; this is separate from the current BloomPOS reward balance.</Typography>
                 <Stack spacing={1}>
                   <Stack spacing={0.5}>
                     <Stack direction="row" justifyContent="space-between">
