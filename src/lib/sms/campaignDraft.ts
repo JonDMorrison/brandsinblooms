@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
+import {buildConnectedContentSms, connectedContentRequest, type ConnectedContentResponse} from "@/lib/connectedContent";
 import type { StudioBlock } from "@/types/studioBlocks";
 
 export type ConnectedSmsSource = NonNullable<StudioBlock["connectedContent"]>;
@@ -45,5 +46,44 @@ export async function saveConnectedSmsDraft(input: SaveConnectedSmsDraft): Promi
     p_launch: input.launch ?? false, p_scheduled_at: input.scheduledAt ?? null,
   });
   if (error || !data) throw new Error(error?.message || "Unable to save this text draft.");
+  return data;
+}
+
+
+export async function previewRefreshedSmsDraft(manifest: unknown): Promise<{message: string; sources: ConnectedSmsSource[]}> {
+  if (!Array.isArray(manifest) || manifest.length === 0 || manifest.length > 50) {
+    throw new Error("The source details are incomplete. Start again from Connected websites.");
+  }
+  const kinds = {event: "events", page: "pages", product: "products", blog: "blogs", fundraiser: "fundraisers"};
+  const refreshed = [];
+  for (const entry of manifest) {
+    if (!entry || typeof entry !== "object" || typeof entry.siteId !== "string" || typeof entry.itemId !== "string" || !Object.hasOwn(kinds, entry.type)) {
+      throw new Error("The source details are incomplete. Start again from Connected websites.");
+    }
+    const response = await connectedContentRequest<ConnectedContentResponse>({action: "catalog", siteId: entry.siteId, itemId: entry.itemId, type: kinds[entry.type as keyof typeof kinds], limit: 1});
+    if (response.errors?.length || response.sources?.some(source => source.error)) throw new Error("The website could not be checked. Try again before creating a new draft.");
+    const item = response.items.find(item => item.siteId === entry.siteId && item.id === entry.itemId && item.type === entry.type);
+    if (!item) throw new Error("This content is no longer published. Choose published content in Connected websites.");
+    refreshed.push(buildConnectedContentSms(item));
+  }
+  const message = refreshed.map(item => item.smsMessage).join("\n\n");
+  if (message.length > 10000) throw new Error("Too much content for one text draft. Choose fewer website items.");
+  return {message, sources: refreshed.map(item => item.source)};
+}
+
+export async function replaceConnectedSmsDraft(input: {
+  tenantId: string; campaignId: string; expectedUpdatedAt: string;
+  name: string; message: string; sources: ConnectedSmsSource[];
+}): Promise<SmsCampaignDraft> {
+  const client = supabase as unknown as {rpc(name: "replace_connected_sms_draft", args: {
+    p_tenant_id: string; p_campaign_id: string; p_expected_updated_at: string;
+    p_name: string; p_message: string; p_sources: Json;
+  }): PromiseLike<{data: SmsCampaignDraft | null; error: {message: string} | null}>};
+  const {data, error} = await client.rpc("replace_connected_sms_draft", {
+    p_tenant_id: input.tenantId, p_campaign_id: input.campaignId,
+    p_expected_updated_at: input.expectedUpdatedAt, p_name: input.name,
+    p_message: input.message, p_sources: JSON.parse(JSON.stringify(input.sources)) as Json,
+  });
+  if (error || !data) throw new Error(error?.message || "Unable to create the updated draft.");
   return data;
 }

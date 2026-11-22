@@ -82,8 +82,9 @@ describe("scheduled SMS reliability gate", () => {
 import * as React from "react";
 import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
+import {ConnectedSmsReview} from "@/components/sms/ConnectedSmsReview";
 import {SMSCampaignWizard} from "@/components/sms/SMSCampaignWizard";
-import {loadConnectedSmsDraft, saveConnectedSmsDraft} from "@/lib/sms/campaignDraft";
+import {loadConnectedSmsDraft, saveConnectedSmsDraft, type SmsCampaignDraft} from "@/lib/sms/campaignDraft";
 const mocks = vi.hoisted(() => ({rpc: vi.fn(), invoke: vi.fn(), eq: vi.fn(), row: {} as Record<string, unknown>, navigate: vi.fn(), error: null as null | {message: string}, empty: []}));
 vi.mock("react-router-dom", () => ({useNavigate: () => mocks.navigate, useSearchParams: () => [new URLSearchParams("draftId=draft-123")]}));
 vi.mock("@/hooks/useTenant", () => ({useTenant: () => ({tenant: {id: "tenant-123"}, loading: false})}));
@@ -149,6 +150,40 @@ describe("promoted SMS draft adapter", () => {
     mountWizard();
     expect(await screen.findByText(/This text draft is unavailable/)).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Weekend perks reminder")).not.toBeInTheDocument();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  const reviewCampaign = () => ({...mocks.row, status: "paused", metrics: {content_review: {decision: "review_required", reason: "Website details changed."}}}) as unknown as SmsCampaignDraft;
+  const latestWebsite = () => ({data: {items: [{id: "event", siteId: "site", type: "event", title: "Updated workshop", description: "Current details", publicUrl: "https://garden.example/event", imageUrl: null, updatedAt: "2026-11-21T13:00:00Z", startAt: null, eventStatus: "available"}], sources: [], errors: []}, error: null});
+  it("previews latest content without writing, then explicitly replaces unsent work with a new draft", async () => {
+    mocks.invoke.mockResolvedValue(latestWebsite());
+    mocks.rpc.mockResolvedValue({data: {...mocks.row,id: "replacement-456"},error:null});
+    render(React.createElement(ConnectedSmsReview,{campaign: reviewCampaign()}));
+    expect(screen.getByText("Website details changed.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:"Review latest website content"}));
+    const create=await screen.findByRole("button",{name:"Create updated text draft"});
+    expect(screen.getByText(String(mocks.row.message))).toBeInTheDocument();
+    expect(screen.getByText(/Updated workshop/)).toBeInTheDocument();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    fireEvent.click(create);fireEvent.click(create);
+    await waitFor(()=>expect(mocks.navigate).toHaveBeenCalledWith("/sms/new?draftId=replacement-456"));
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.rpc).toHaveBeenCalledWith("replace_connected_sms_draft",expect.objectContaining({p_tenant_id:"tenant-123",p_campaign_id:"draft-123",p_expected_updated_at:"2026-11-21T12:00:00Z",p_message:expect.stringContaining("Updated workshop"),p_sources:[expect.objectContaining({updatedAt:"2026-11-21T13:00:00Z"})]}));
+  });
+  it("cancelling review keeps the original text and creates nothing", async () => {
+    mocks.invoke.mockResolvedValue(latestWebsite());
+    render(React.createElement(ConnectedSmsReview,{campaign:reviewCampaign()}));
+    fireEvent.click(screen.getByRole("button",{name:"Review latest website content"}));
+    await screen.findByRole("button",{name:"Create updated text draft"});
+    fireEvent.click(screen.getByRole("button",{name:"Close dialog"}));
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("prevents a replacement when the source is cancelled or cannot be checked", async () => {
+    const result=latestWebsite();result.data.items[0].eventStatus="cancelled";
+    mocks.invoke.mockResolvedValue(result);
+    render(React.createElement(ConnectedSmsReview,{campaign:reviewCampaign()}));
+    fireEvent.click(screen.getByRole("button",{name:"Review latest website content"}));
+    expect(await screen.findByText(/not available to promote/)).toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"Create updated text draft"})).not.toBeInTheDocument();
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
   it("enforces the no-audience boundary and optimistic editing in the database", () => {
