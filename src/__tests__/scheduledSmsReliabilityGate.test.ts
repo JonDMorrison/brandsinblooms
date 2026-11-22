@@ -301,3 +301,26 @@ describe("SMS website content dispatch gate", () => {
     expect(worker).toContain("CONTENT_REVIEW_REQUIRED");
   });
 });
+
+describe("connected campaign review schema", () => {
+  const sql=readFileSync("supabase/migrations/20261122070000_replace_connected_sms_draft.sql","utf8");
+  it("requires scoped explicit replacement and preserves delivered message history", () => {
+    expect(sql).toContain("tenant_id=p_tenant_id AND source='connected_content' FOR UPDATE");
+    expect(sql).toContain("v_original.status <> 'paused'");
+    expect(sql).toContain("v_original.updated_at <> p_expected_updated_at");
+    expect(sql).toContain("status='queued' AND twilio_sid IS NULL");
+    expect(sql).toContain("replacement_campaign_id");
+    expect(sql).toContain("p_sources,NULL,false,NULL");
+  });
+  it("atomically merges only service-authenticated review metadata", () => {
+    expect(sql).toContain("auth.role() IS DISTINCT FROM 'service_role'");
+    expect(sql).toContain("jsonb_set(coalesce(metrics,'{}'::jsonb),'{content_review}'");
+    expect(sql).toContain("status=p_expected_status");
+    expect(sql).toContain("status IN ('draft','scheduled','queued','sending','paused')");
+    expect(sql).toContain("FROM PUBLIC, anon, authenticated");
+  });
+  it("distinguishes legacy email payloads from explicit source snapshots", () => {
+    expect(sql).toContain("public.email_messages ADD COLUMN connected_content_sources jsonb");
+    expect(sql).toContain("connected_content_sources IS NULL OR jsonb_typeof(connected_content_sources)='array'");
+  });
+});
