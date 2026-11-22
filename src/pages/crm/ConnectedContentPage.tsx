@@ -4,17 +4,21 @@ import Input from "@mui/joy/Input";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { CheckCircle2, ExternalLink, Globe2, Link2, Megaphone, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, Globe2, Link2, Mail, MessageSquare, Megaphone, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/utils/toast";
 import { DesignSystemProvider, useDesignSystem } from "@/contexts/DesignSystemContext";
+import { JoyDialog, JoyDialogContent } from "@/components/joy/JoyDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useUserRole } from "@/hooks/useUserRole";
 import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
+import { saveConnectedSmsDraft } from "@/lib/sms/campaignDraft";
+import { useTenant } from "@/hooks/useTenant";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import {
   buildConnectedContentBlock,
+  buildConnectedContentSms,
   connectedContentRequest,
   type ConnectedContentItem,
   type ConnectedContentResponse,
@@ -34,6 +38,7 @@ const WRONG_CODE_MESSAGE="This is not a Connected websites code. In BloomSites, 
 
 function ContentWorkspace() {
   const navigate=useNavigate();
+  const {tenant}=useTenant();
   const [params]=useSearchParams();
   const {designSystem}=useDesignSystem();
   const {hasPermission,isLoading:rolesLoading}=useUserRole();
@@ -50,7 +55,23 @@ function ContentWorkspace() {
   const [busy,setBusy]=React.useState(false);
   const [error,setError]=React.useState("");
   const [connections,setConnections]=React.useState<ConnectedWebsite[]>([]);
-  const [selected,setSelected]=React.useState<string[]>(promoteId?[promoteId]:[]);
+  const [promotionItem,setPromotionItem]=React.useState<ConnectedContentItem|null>(null);
+  const promotionPending=React.useRef(false);
+  const handledDeepLink=React.useRef("");
+  React.useEffect(()=>{
+    const key=`${promoteSite}:${promoteId}`;
+    if(rolesLoading||!canPromote||!promoteSite||!promoteId||handledDeepLink.current===key)return;
+    let cancelled=false;
+    void connectedContentRequest<ConnectedContentResponse>({action:"catalog",type:"events",siteId:promoteSite,itemId:promoteId,limit:1})
+      .then(result=>{
+        if(cancelled)return;
+        const item=result.items.find(item=>item.siteId===promoteSite&&item.id===promoteId);
+        handledDeepLink.current=key;
+        if(item&&item.eventStatus!=="cancelled"&&item.eventStatus!=="sold_out")setPromotionItem(item);
+        else setError("This website event is no longer available to promote.");
+      }).catch(()=>{if(!cancelled)setError("Could not load the event from your website. Refresh to try again.");});
+    return()=>{cancelled=true;};
+  },[canPromote,rolesLoading,promoteSite,promoteId]);
   const refresh=React.useCallback(async()=>{
     setLoading(true);setError("");
     try {
@@ -97,27 +118,34 @@ function ContentWorkspace() {
     }catch(e){setError(e instanceof Error?e.message:"Couldn't disconnect this website.");}
     finally{setBusy(false);}
   };
-  const promote=async(item:ConnectedContentItem)=>{
-    if(!canPromote || item.eventStatus==="cancelled" || item.eventStatus==="sold_out")return;
+  const promote=async(item:ConnectedContentItem,channel:"email"|"sms")=>{
+    if(promotionPending.current || !canPromote || item.eventStatus==="cancelled" || item.eventStatus==="sold_out")return;
+    promotionPending.current=true;
     setBusy(true);setError("");
     try {
-      const content=buildConnectedContentBlock(item,designSystem);
-      const blocks=ensureFooterBlockCompliance([content],{designSystem});
+      const content=channel==="email"?buildConnectedContentBlock(item,designSystem):null;
+      const blocks=content?ensureFooterBlockCompliance([content],{designSystem}):[];
+      const sms=channel==="sms"?buildConnectedContentSms(item):null;
       // Always starts as a DRAFT with no audience and no scheduled send.
-      const draft=await persistCampaignDraft({
+      if(sms&&!tenant?.id)throw new Error("Select a business before creating a text draft.");
+      const draft=sms?await saveConnectedSmsDraft({
+        tenantId:tenant!.id,name:`Promote ${item.title}`.slice(0,180),
+        message:sms.smsMessage,sources:[sms.source],
+      }):await persistCampaignDraft({
         campaignType:"email",status:"draft",
         name:`Promote ${item.title}`.slice(0,180),
-        subjectLine:item.type==="event"?`Join us for ${item.title}`:`Discover ${item.title}`,
+        subjectLine:channel==="sms"?"":item.type==="event"?`Join us for ${item.title}`:`Discover ${item.title}`,
         preheaderText:item.description?.slice(0,150)??"",
         senderName:"",senderEmail:"",replyTo:"",
-        contentBlocks:blocks,smsMessage:"",sendAt:null,
+        contentBlocks:blocks,smsMessage:sms?.smsMessage??"",sendAt:null,
         sendImmediately:false,segments:[],personas:[],
         includeAllCustomers:false,additionalCustomerIds:[],
       });
-      toast.success("Newsletter draft created. Review and choose your recipients before sending.");
-      navigate(`/crm/campaigns/${draft.id}/studio`);
+      setPromotionItem(null);
+      toast.success(`${channel==="sms"?"Text message":"Newsletter"} draft created. Review and choose your recipients before sending.`);
+      navigate(channel==="sms"?`/sms/new?draftId=${draft.id}`:`/crm/campaigns/${draft.id}/studio`);
     }catch(e){setError(e instanceof Error?e.message:"Couldn't create your draft.");}
-    finally{setBusy(false);}
+    finally{promotionPending.current=false;setBusy(false);}
   };
   if(!rolesLoading&&!canPromote&&!canManage){
     return <PageContainer><Typography role="alert">You don't have permission to manage connected websites or create campaigns.</Typography></PageContainer>;
@@ -245,7 +273,7 @@ function ContentWorkspace() {
                   {canPromote?<JoyButton
                     color="primary" disabled={busy || item.eventStatus==="cancelled" || item.eventStatus==="sold_out"}
                     startDecorator={<Megaphone size={15}/>}
-                    onClick={()=>void promote(item)} sx={{flex:1}}>
+                    onClick={()=>{setError("");setPromotionItem(item);}} sx={{flex:1}}>
                     Promote
                   </JoyButton>:null}
                   <JoyButton color="neutral" variant="outlined"
@@ -264,6 +292,27 @@ function ContentWorkspace() {
         </Stack>
       ):null}
     </Stack>
+    <JoyDialog open={promotionItem!==null} onClose={()=>setPromotionItem(null)}
+      disableClose={busy} title="Promote your website content"
+      description="Choose a draft to create. You’ll review it and choose recipients before sending.">
+      <JoyDialogContent>
+        <Stack spacing={2}>
+          <Typography level="title-md">{promotionItem?.title}</Typography>
+          {error?<Typography role="alert" color="danger">{error}</Typography>:null}
+          <JoyButton disabled={busy} startDecorator={<Mail size={18}/>}
+            onClick={()=>{if(promotionItem)void promote(promotionItem,"email");}}>
+            Create email newsletter draft
+          </JoyButton>
+          <JoyButton disabled={busy} variant="outlined" startDecorator={<MessageSquare size={18}/>}
+            onClick={()=>{if(promotionItem)void promote(promotionItem,"sms");}}>
+            Create text message draft
+          </JoyButton>
+          <Typography level="body-sm" color="neutral">
+            Text messages use your existing SMS setup and recipient preferences.
+          </Typography>
+        </Stack>
+      </JoyDialogContent>
+    </JoyDialog>
   </PageContainer>;
 }
 export default function ConnectedContentPage(){
