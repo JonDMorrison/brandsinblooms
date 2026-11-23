@@ -34,6 +34,8 @@ import {
   Pencil,
   Send,
   TimerReset,
+  UserPlus,
+  UsersRound,
   XCircle,
 } from "lucide-react";
 import {
@@ -1966,12 +1968,14 @@ function CampaignEditorScreen() {
             />
           ) : (
             <JoyButton
-              variant="plain"
+              variant="outlined"
               color="neutral"
               size="sm"
+              startDecorator={<UsersRound size={15} aria-hidden />}
               onClick={() => setPersonaDisclosureOpen(true)}
               disabled={isLocked}
-              sx={{ alignSelf: "flex-start", px: 0.5 }}
+              data-testid="audience-add-persona"
+              sx={{ alignSelf: "flex-start" }}
             >
               Also target by persona
             </JoyButton>
@@ -1980,12 +1984,14 @@ function CampaignEditorScreen() {
           {campaignType === "email" ? (
             <Stack spacing={1.25}>
               <JoyButton
-                variant="plain"
+                variant="outlined"
                 color="neutral"
                 size="sm"
+                startDecorator={<UserPlus size={15} aria-hidden />}
                 onClick={() => setAudienceExpansionOpen(true)}
                 disabled={isLocked}
-                sx={{ alignSelf: "flex-start", px: 0.5 }}
+                data-testid="audience-add-people"
+                sx={{ alignSelf: "flex-start" }}
               >
                 Add specific people
               </JoyButton>
