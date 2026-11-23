@@ -12,4 +12,7 @@ export const HERO_ROTATING_PHRASES: readonly string[] = [
   "Bring your customers back",
   "Keep your store moving",
   "Give people a reason to visit",
+  "Turn spring shoppers into regulars",
+  "Stay on the floor, off the laptop",
+  "Fill your store in the slow months",
 ];
