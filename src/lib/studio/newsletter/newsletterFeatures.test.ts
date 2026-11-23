@@ -792,3 +792,35 @@ describe("named Saved Blocks", () => {
     ).toEqual([]);
   });
 });
+
+describe("empty blocks (#2)", () => {
+  const filled = { ...createStudioBlock("plain-text"), body: "<p>Spring sale this weekend</p>" };
+  const emptyText = { ...createStudioBlock("plain-text"), body: "", headline: "", buttonText: "" };
+  const emptyImage = { ...createStudioBlock("full-width-image"), imageUrl: "" };
+  const footer = createStudioBlock("footer");
+
+  it("drafts leave empty blocks out entirely: no wrapper, no gap", async () => {
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const blocks = ensureFooterBlockCompliance([filled, emptyText, emptyImage, footer]);
+    expect(blocks.find((b) => b.type === "footer")?.newsletterSettings?.emptyBlocks).toBe("skip");
+    const out = generateEmailHtml({ blocks, subject: "S", previewText: "P" });
+    expect(out.match(/class="email-block email-block-plain-text"/g)).toHaveLength(1);
+    expect(out).not.toContain("email-block-full-width-image");
+    expect(out).not.toContain('class="email-block-gap"');
+  });
+
+  it("re-renders campaigns without the flag exactly as before", () => {
+    const out = generateEmailHtml({ blocks: [filled, emptyText, footer], subject: "S", previewText: "P" });
+    expect(out.match(/class="email-block email-block-plain-text"/g)).toHaveLength(2);
+    expect(out).toContain('class="email-block-gap"');
+  });
+
+  it("only treats content blocks as empty", async () => {
+    const { isEmptyContentBlock } = await import("../emailHtmlGenerator");
+    expect(isEmptyContentBlock(emptyText)).toBe(true);
+    expect(isEmptyContentBlock(filled)).toBe(false);
+    expect(isEmptyContentBlock({ ...emptyText, buttonText: "Shop", buttonUrl: "https://x.test" })).toBe(false);
+    expect(isEmptyContentBlock(createStudioBlock("divider"))).toBe(false);
+    expect(isEmptyContentBlock(createStudioBlock("spacer"))).toBe(false);
+  });
+});

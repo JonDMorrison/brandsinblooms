@@ -1,3 +1,4 @@
+import { EmptyBlocksNotice } from "@/components/crm/campaign-editor/EmptyBlocksNotice";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
@@ -2259,6 +2260,13 @@ function CampaignEditorScreen() {
         </Stack>
         <Typography level="body-sm">Review your sender, audience and content before confirming delivery.</Typography>
         {sendBlockerLines.map((line) => <Typography key={line} level="body-sm">{line}</Typography>)}
+        {campaignType === "email" ? (
+          <EmptyBlocksNotice
+            blocks={contentBlocks}
+            disabled={isLocked}
+            onRemove={(remaining) => updateContent({ contentBlocks: remaining })}
+          />
+        ) : null}
       </CollapsibleSection>
 
       <Modal
@@ -2661,6 +2669,13 @@ function CampaignEditorScreen() {
             ) : (
               <Typography>{smsMessage}</Typography>
             )}
+            {campaignType === "email" ? (
+              <EmptyBlocksNotice
+                blocks={contentBlocks}
+                disabled={isLocked}
+                onRemove={(remaining) => updateContent({ contentBlocks: remaining })}
+              />
+            ) : null}
             {contentReviewIssues.map((issue) => (
               <JoyButton
                 key={`${issue.blockId}-${issue.message}`}

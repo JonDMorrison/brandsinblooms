@@ -259,7 +259,17 @@ export function ensureFooterBlockCompliance(
     designSystem,
   );
 
-  return [...nonFooterBlocks, footerBlock].map((block, index) => ({
+  // Drafts render empty blocks as nothing (see NewsletterSettings.emptyBlocks).
+  const footerWithSettings: StudioBlock = {
+    ...footerBlock,
+    newsletterSettings: {
+      ...(footerBlock.newsletterSettings ?? { version: 1 }),
+      version: 1,
+      emptyBlocks: "skip",
+    },
+  };
+
+  return [...nonFooterBlocks, footerWithSettings].map((block, index) => ({
     ...block,
     order: index,
   }));

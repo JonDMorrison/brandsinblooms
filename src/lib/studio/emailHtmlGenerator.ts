@@ -2331,16 +2331,52 @@ function wrapPreviewBlock(block: StudioBlock, html: string) {
   return `<div class="email-block email-block-${block.type}">${html}</div>`;
 }
 
+function hasText(value: unknown) {
+  return typeof value === "string" &&
+    value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").trim().length > 0;
+}
+
+/**
+ * True when a block has nothing a customer would see. Only text and image
+ * style blocks can be "empty"; structural blocks (dividers, spacers, social,
+ * products...) are never treated as empty.
+ */
+export function isEmptyContentBlock(block: StudioBlock): boolean {
+  const record = block as StudioBlock & Record<string, unknown>;
+  const hasButton = hasText(block.buttonText) && hasText(block.buttonUrl);
+  switch (block.type) {
+    case "plain-text":
+    case "text":
+      return !hasText(block.body) && !hasText(block.headline) &&
+        !hasText(record.content) && !hasButton;
+    case "headline":
+      return !hasText(block.headline) && !hasText(block.subheading);
+    case "quote":
+      return !hasText(block.quoteText) && !hasText(block.body);
+    case "image":
+    case "full-width-image":
+      return !hasText(block.imageUrl);
+    case "image-text":
+      return !hasText(block.imageUrl) && !hasText(block.headline) &&
+        !hasText(block.subheading) && !hasText(block.body) && !hasButton;
+    default:
+      return false;
+  }
+}
+
 export function renderStudioBlocksToEmailHtml(
   blocks: StudioBlock[],
   designSystem?: StudioDesignSystem | null,
   settings?: NewsletterSettings,
   audience?: RenderAudience,
 ) {
+  const skipEmpty = normalizeNewsletterSettings(settings).emptyBlocks === "skip";
   const renderableBlocks = blocks
     .filter(
       (block) =>
-        block.type !== "footer" && blockMatchesAudience(block, audience),
+        block.type !== "footer" &&
+        blockMatchesAudience(block, audience) &&
+        !(skipEmpty && isEmptyContentBlock(block)),
     )
     .map((block) => ({
       block,
