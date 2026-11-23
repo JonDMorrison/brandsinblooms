@@ -90,3 +90,14 @@ describe("StudioTopBar", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("StudioTopBar subject dialog (#23)", () => {
+  it("autosaves like the rest of Studio: no separate Save button, shared save state", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ hasUnsavedChanges: true, saveStatus: "idle" });
+    await user.click(screen.getByRole("button", { name: "Campaign settings" }));
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("subject-dialog-save-state")).toHaveTextContent("Unsaved changes");
+    expect(screen.getByText("Changes save automatically, like the rest of Design Studio.")).toBeInTheDocument();
+  });
+});

@@ -430,9 +430,14 @@ export default function StudioTopBar({
                     <Stack spacing={0.25} alignItems="flex-end">
                       <Typography level="body-xs" sx={{ color: "neutral.500" }}>Last saved</Typography>
                       <Typography level="body-sm" fontWeight="md">{savedAtLabel}</Typography>
-                      {hasUnsavedChanges ? (
-                        <Typography level="body-xs" sx={{ color: "neutral.600" }}>Unsaved changes</Typography>
-                      ) : null}
+                      {/* Same save state as the top bar; this dialog autosaves too. */}
+                      <Typography
+                        level="body-xs"
+                        data-testid="subject-dialog-save-state"
+                        sx={{ color: `${saveState.tone}.600` }}
+                      >
+                        {statusLabel}
+                      </Typography>
                     </Stack>
                   </Stack>
                 </Sheet>
@@ -534,21 +539,9 @@ export default function StudioTopBar({
                     sx={metadataInputSx}
                   />
                 </Stack>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Click Save changes when you are done.
-                  </Typography>
-                  <Button
-                    color="primary"
-                    variant={hasUnsavedChanges ? "solid" : "outlined"}
-                    size="sm"
-                    loading={saveStatus === "saving"}
-                    onClick={onSave}
-                    disabled={!hasUnsavedChanges || saveStatus === "saving"}
-                  >
-                    Save changes
-                  </Button>
-                </Stack>
+                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  Changes save automatically, like the rest of Design Studio.
+                </Typography>
               </Stack>
             </ModalDialog>
           </Modal>
