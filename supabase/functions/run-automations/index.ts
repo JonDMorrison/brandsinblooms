@@ -409,6 +409,7 @@ async function sendAutomationEmail(
       subject_line: step.subject || `Message from ${automation.name}`,
       content: await personalizeContent(step.content, customer),
       status: "sent",
+      origin: "automation",
     })
     .select()
     .single();

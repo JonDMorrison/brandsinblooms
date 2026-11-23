@@ -99,6 +99,29 @@ export interface GlobalSettings {
   };
 }
 
+export type ContentBlockSource =
+  | "newsletter"
+  | "ai"
+  | "template"
+  | "manual"
+  | "theme"
+  | "cloned";
+
+const CONTENT_BLOCK_SOURCES: readonly ContentBlockSource[] = [
+  "newsletter",
+  "ai",
+  "template",
+  "manual",
+  "theme",
+  "cloned",
+];
+
+export function toContentBlockSource(value: unknown): ContentBlockSource {
+  return CONTENT_BLOCK_SOURCES.includes(value as ContentBlockSource)
+    ? (value as ContentBlockSource)
+    : "manual";
+}
+
 export interface ContentBlock {
   id: string;
   type: BlockType;
@@ -108,7 +131,8 @@ export interface ContentBlock {
   imageQuery?: string; // AI-generated image search query
   ctaText?: string;
   ctaUrl?: string;
-  source: "newsletter" | "ai" | "template" | "manual";
+  /** Where this block's content came from. Kept across Studio saves. */
+  source: ContentBlockSource;
   personaTag?: string;
   layout?: BlockLayout;
   isWeeklyTheme?: boolean; // Flag for weekly theme enforcement

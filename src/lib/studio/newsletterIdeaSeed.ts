@@ -7,6 +7,10 @@ import type {
 } from "@/types/newsletter";
 import type { StudioBlock } from "@/types/studioBlocks";
 import {
+  buildCampaignOrigin,
+  normalizeCampaignOrigin,
+} from "@/lib/crm/campaignOrigin";
+import {
   sanitizeCampaignTitle,
   sanitizeWeekNumbers,
 } from "@/utils/weekNumberSanitizer";
@@ -23,6 +27,8 @@ export type NewsletterIdeaDraftSeed = {
   subjectLine: string;
   preheaderText: string;
   contentBlocks: StudioBlock[];
+  /** crm_campaigns.origin for the draft this seed creates. */
+  origin: string | null;
 };
 
 type NewsletterIdeaSeedSource = Pick<
@@ -40,6 +46,32 @@ const DEFAULT_CTA_URL = "#campaign-studio";
 const TEMPLATE_BLOCKS_SEARCH_PARAM = "templateBlocks";
 const BADGE_SEARCH_PARAM = "badge";
 const ESTIMATED_READ_TIME_SEARCH_PARAM = "estimatedReadTime";
+const ORIGIN_SEARCH_PARAM = "origin";
+
+/**
+ * Where a newsletter idea came from, as a crm_campaigns.origin value. Weekly
+ * themes point at the tenant's own theme row when one is known, otherwise at
+ * the shared master week.
+ */
+export function originForNewsletterIdea(
+  idea: Pick<NewsletterIdea, "id" | "category"> &
+    Partial<Pick<NewsletterIdea, "weekNumber" | "themeCampaignId">>,
+): string {
+  if (idea.category === "weekly") {
+    if (idea.themeCampaignId) {
+      return buildCampaignOrigin("weekly_theme", idea.themeCampaignId);
+    }
+    const week =
+      typeof idea.weekNumber === "number" && idea.weekNumber > 0
+        ? ((idea.weekNumber - 1) % 52) + 1
+        : null;
+    return buildCampaignOrigin("weekly_theme", week ? `master:${week}` : null);
+  }
+  if (idea.category === "ai-generated") {
+    return buildCampaignOrigin("ai", "newsletter_idea");
+  }
+  return buildCampaignOrigin("starter_template", idea.id);
+}
 
 const HEADER_LIKE_SOURCE_TYPES = new Set([
   "header",
@@ -209,6 +241,7 @@ export function buildNewsletterIdeaEditorSearchParams(
     [TEMPLATE_BLOCKS_SEARCH_PARAM]: serializeTemplateBlocks(
       idea.templateBlocks,
     ),
+    [ORIGIN_SEARCH_PARAM]: originForNewsletterIdea(idea),
   });
 
   if (idea.badge) {
@@ -789,6 +822,62 @@ function buildSeedBlocks(
   return finalizeBlocks(blocks);
 }
 
+/** Blocks seeded from a weekly theme keep that provenance through saves. */
+function tagThemeBlocks(
+  idea: Pick<NewsletterIdeaSeedSource, "category">,
+  blocks: StudioBlock[],
+) {
+  if (idea.category !== "weekly") return blocks;
+  return blocks.map((block) =>
+    block.type === "footer" ? block : { ...block, source: "theme" },
+  );
+}
+
+/**
+ * The content blocks of a newsletter idea on their own (no synthetic CTA or
+ * footer), for inserting a theme's blocks into an existing newsletter.
+ */
+export function buildNewsletterIdeaContentBlocks(
+  idea: NewsletterIdea,
+  designSystem?: StudioDesignSystem | null,
+): StudioBlock[] {
+  const source = toSeedSource(idea);
+  const blocks = idea.templateBlocks
+    .map((templateBlock) =>
+      mapTemplateBlockToStudioBlock(templateBlock, source, "block-builder", designSystem),
+    )
+    .filter((block): block is StudioBlock => Boolean(block));
+  return tagThemeBlocks(source, blocks);
+}
+
+function toSeedSource(idea: NewsletterIdea): NewsletterIdeaSeedSource {
+  return {
+    id: idea.id,
+    title: idea.title,
+    description: idea.description,
+    category: idea.category,
+    badge: idea.badge,
+    templateBlocks: idea.templateBlocks,
+    estimatedReadTime: idea.estimatedReadTime,
+  };
+}
+
+/** The draft a newsletter idea seeds, for callers that already hold the idea. */
+export function buildNewsletterIdeaDraftSeed(
+  idea: NewsletterIdea,
+  layout: NewsletterIdeaLayout,
+  designSystem?: StudioDesignSystem | null,
+): NewsletterIdeaDraftSeed {
+  const source = toSeedSource(idea);
+  return {
+    name: source.title,
+    subjectLine: source.title,
+    preheaderText: buildPreheaderText(source),
+    contentBlocks: tagThemeBlocks(source, buildSeedBlocks(source, layout, designSystem)),
+    origin: originForNewsletterIdea(idea),
+  };
+}
+
 export function resolveNewsletterIdeaDraftSeed({
   locationState,
   searchParams,
@@ -819,11 +908,32 @@ export function resolveNewsletterIdeaDraftSeed({
   }
 
   const preheaderText = buildPreheaderText(idea);
+  const stateIdea =
+    isRecord(locationState) && isRecord(locationState.newsletterIdea)
+      ? (locationState.newsletterIdea as Partial<NewsletterIdea>)
+      : null;
+  const origin =
+    normalizeCampaignOrigin(searchParams.get(ORIGIN_SEARCH_PARAM)) ??
+    (stateIdea && typeof stateIdea.id === "string"
+      ? originForNewsletterIdea({
+          id: stateIdea.id,
+          category: idea.category,
+          weekNumber:
+            typeof stateIdea.weekNumber === "number"
+              ? stateIdea.weekNumber
+              : undefined,
+          themeCampaignId:
+            typeof stateIdea.themeCampaignId === "string"
+              ? stateIdea.themeCampaignId
+              : undefined,
+        })
+      : originForNewsletterIdea(idea));
 
   return {
     name: idea.title,
     subjectLine: idea.title,
     preheaderText,
-    contentBlocks: buildSeedBlocks(idea, layout, designSystem),
+    contentBlocks: tagThemeBlocks(idea, buildSeedBlocks(idea, layout, designSystem)),
+    origin,
   };
 }

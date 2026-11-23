@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCampaignCloning } from "@/hooks/useCampaignCloning";
 
 interface Newsletter {
   id: string;
@@ -32,6 +33,7 @@ export const useNewsletterCalendar = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { cloneCampaign } = useCampaignCloning();
 
   useEffect(() => {
     setNewsletters([]);
@@ -231,46 +233,23 @@ export const useNewsletterCalendar = () => {
         if (!user) throw new Error("Not authenticated");
         if (!tenant?.id) throw new Error("No tenant found");
 
-        // Create a copy with modified name and reset status
-        const duplicateData = {
-          tenant_id: tenant.id,
-          user_id: user.id,
-          name: `Copy of ${newsletter.name}`,
-          subject_line: newsletter.subject_line,
-          preheader_text: newsletter.preheader_text,
-          segment_id: newsletter.segment_id,
-          status: "draft",
-          delivery_method: "custom_domain",
-          scheduled_at: null, // Reset scheduling
-        };
-
-        const { data, error } = await supabase
-          .from("crm_campaigns")
-          .insert([duplicateData])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        await loadNewsletters();
-
-        toast({
-          title: "Newsletter Duplicated",
-          description: "A copy of the newsletter has been created as a draft.",
+        // Use the shared clone so the copy keeps its body (content,
+        // metadata.contentBlocks, campaign_blocks) and source_campaign_id.
+        const clonedId = await cloneCampaign(newsletter.id, {
+          newName: `Copy of ${newsletter.name}`,
+          clearScheduling: true,
         });
+        if (!clonedId) throw new Error("Failed to duplicate newsletter");
 
-        return data;
+        // cloneCampaign already reports success or failure to the user.
+        await loadNewsletters();
+        return clonedId;
       } catch (error) {
         console.error("Error duplicating newsletter:", error);
-        toast({
-          title: "Error",
-          description: "Failed to duplicate newsletter. Please try again.",
-          variant: "destructive",
-        });
         throw error;
       }
     },
-    [loadNewsletters, tenant?.id, toast, user],
+    [cloneCampaign, loadNewsletters, tenant?.id, user],
   );
 
   // Filter newsletters by date range

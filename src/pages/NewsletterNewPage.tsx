@@ -13,6 +13,7 @@ import {
   Check,
   Lightbulb,
   PenTool,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +23,7 @@ import { NewsletterPicker } from "@/components/newsletter/NewsletterPicker";
 import { dashboardPressSx } from "@/components/dashboard/dashboardPressMotion";
 import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
+import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
 import {
   buildNewsletterIdeaEditorSearchParams,
   type NewsletterIdeaNavigationState,
@@ -35,7 +37,7 @@ import "@/components/homepage-three/homepageTokens.css";
 
 type LayoutKey = "block-builder" | "simple-email";
 
-type CreationPathVariant = "scratch" | "ai";
+type CreationPathVariant = "scratch" | "theme" | "ai";
 
 type CreationPathCardProps = {
   variant: CreationPathVariant;
@@ -44,6 +46,7 @@ type CreationPathCardProps = {
   buttonLabel: string;
   icon: LucideIcon;
   onClick: () => void;
+  disabled?: boolean;
 };
 
 function CreationPathCard({
@@ -53,6 +56,7 @@ function CreationPathCard({
   buttonLabel,
   icon: Icon,
   onClick,
+  disabled = false,
 }: CreationPathCardProps) {
   const isAi = variant === "ai";
 
@@ -61,10 +65,13 @@ function CreationPathCard({
       component="button"
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={buttonLabel}
+      aria-disabled={disabled || undefined}
       variant="outlined"
       sx={{
         ...dashboardPressSx,
+        ...(disabled ? { opacity: 0.6, cursor: "progress" } : {}),
         width: "100%",
         textAlign: "left",
         cursor: "pointer",
@@ -398,6 +405,22 @@ export const NewsletterNewPage = () => {
 
   const showIdeaSkeletons = loading && orderedWeeklyIdeas.length === 0;
 
+  // "Start from this week's theme": the tenant's own weekly theme with its
+  // photos, seeded straight into the editor (no layout picker needed).
+  const weeklyThemeQuery = useThisWeeksTheme();
+  const handleStartFromTheme = () => {
+    const theme = weeklyThemeQuery.data;
+    if (!theme) return;
+    const layout: LayoutKey = "block-builder";
+    const params = buildNewsletterIdeaEditorSearchParams(theme.idea, layout);
+    navigate(`/crm/campaigns/new?${params.toString()}`, {
+      state: {
+        newsletterIdea: theme.idea,
+        newsletterLayout: layout,
+      } satisfies NewsletterIdeaNavigationState,
+    });
+  };
+
   const handleOpenQuickAccessLayout = (idea: NewsletterIdea) => {
     setQuickAccessIdea(idea);
     setSelectedLayout(null);
@@ -481,18 +504,34 @@ export const NewsletterNewPage = () => {
                   Create a Newsletter
                 </Typography>
                 <Typography level="body-md" sx={{ color: "text.secondary" }}>
-                  Start from scratch or explore weekly ideas.
+                  Start from this week's theme, from scratch, or explore ideas.
                 </Typography>
               </Stack>
 
               <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
                   gap: { xs: 2.5, md: 3 },
                   alignItems: "stretch",
                 }}
               >
+                <CreationPathCard
+                  variant="theme"
+                  title="This week's theme"
+                  description={
+                    weeklyThemeQuery.data
+                      ? `${weeklyThemeQuery.data.idea.title}: this week's copy and photos, ready to edit.`
+                      : weeklyThemeQuery.isLoading
+                        ? "Loading this week's theme and photos…"
+                        : "No theme is set for this week yet."
+                  }
+                  buttonLabel="Start from this week's theme"
+                  icon={Sun}
+                  disabled={!weeklyThemeQuery.data}
+                  onClick={handleStartFromTheme}
+                />
+
                 <CreationPathCard
                   variant="scratch"
                   title="Start from Scratch"

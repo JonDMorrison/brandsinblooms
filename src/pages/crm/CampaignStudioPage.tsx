@@ -70,7 +70,11 @@ import {
   type CampaignChangeClassification,
 } from "@/lib/crm/campaignChangeClassifier";
 import { supabase } from "@/integrations/supabase/client";
-import type { ContentBlock } from "@/types/emailBuilder";
+import { toContentBlockSource, type ContentBlock } from "@/types/emailBuilder";
+import { useStudioImageCrops } from "@/components/crm/studio/useStudioImageCrops";
+import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
+import { buildNewsletterIdeaContentBlocks } from "@/lib/studio/newsletterIdeaSeed";
+import type { WeeklyThemeLibrary } from "@/components/crm/studio/BlockLibrary";
 import type {
   GalleryImage,
   GalleryProduct,
@@ -320,7 +324,9 @@ function toPersistedContentBlocks(blocks: StudioBlock[]): ContentBlock[] {
     ...(block as ContentBlock),
     id: block.id,
     type: block.type as ContentBlock["type"],
-    source: "manual",
+    // Keep where the block came from (theme, template, clone...). Stamping
+    // every block "manual" on save erased all block-level provenance.
+    source: toContentBlockSource((block as { source?: unknown }).source),
     title: block.headline ?? block.label,
     content: block.body,
     imageUrl: block.imageUrl ?? null,
@@ -730,6 +736,31 @@ function CampaignStudioPageContent() {
   React.useEffect(() => {
     isLoadingRef.current = isLoading;
   }, [isLoading]);
+
+  // Real cropped copies of cover-cropped images, so the sent email matches
+  // the Studio crop in clients that ignore CSS object-fit.
+  useStudioImageCrops(studio.blocks, studio.annotateBlockFields, !isLoading);
+
+  // This week's theme blocks (copy and photos), insertable one at a time.
+  const weeklyThemeQuery = useThisWeeksTheme();
+  const weeklyThemeLibrary = React.useMemo<WeeklyThemeLibrary | null>(() => {
+    const theme = weeklyThemeQuery.data;
+    if (!theme) return null;
+    const blocks = buildNewsletterIdeaContentBlocks(theme.idea, designSystem);
+    return {
+      title: theme.idea.title,
+      weekLabel: `Week ${theme.source.weekNumber}`,
+      blocks: blocks.map((block) => ({
+        block,
+        name:
+          block.headline?.trim() ||
+          block.imageAlt?.trim() ||
+          (block.body ?? "").replace(/<[^>]*>/g, "").trim().slice(0, 60) ||
+          block.label ||
+          "Theme block",
+      })),
+    };
+  }, [designSystem, weeklyThemeQuery.data]);
 
   React.useEffect(() => {
     saveStatusRef.current = saveStatus;
@@ -2319,6 +2350,7 @@ function CampaignStudioPageContent() {
                   onMoveBlock={studio.reorderBlock}
                   selectedBlockId={studio.selectedBlockId}
                   onSelectBlock={handleFocusBlock}
+                  weeklyTheme={weeklyThemeLibrary}
                 />
               </Sheet>
 

@@ -240,6 +240,15 @@ export interface StudioBlock {
   imageLinkEnabled?: boolean;
   imageFocalX?: number;
   imageFocalY?: number;
+  /** A copy of imageUrl already cropped to this block's cover frame and focal
+   *  point (see src/lib/studio/emailImageCrop.ts). Used in sent email because
+   *  Gmail, Outlook desktop and Yahoo ignore CSS object-fit/object-position. */
+  croppedImageUrl?: string;
+  /** Where the block's content came from (manual, theme, template, cloned...). */
+  source?: string;
+  /** Identifies the source image, frame and focal point croppedImageUrl was
+   *  made for; a stale crop is ignored. */
+  croppedImageKey?: string;
   imagePosition?: StudioImagePosition;
   imageRatio?: StudioImageRatio;
   imagePadding?: boolean;

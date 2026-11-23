@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Newspaper,
   Sprout,
+  Sun,
   Tag,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +27,101 @@ import {
 } from "@/lib/studio/campaignTemplates";
 import type { SavedTemplate } from "@/hooks/useSavedTemplates";
 import { IntentCardThumbnail } from "@/components/crm/campaign-editor/IntentCardThumbnail";
+
+/** What the "This week's theme" start card shows. */
+export interface WeeklyThemeStartOption {
+  title: string;
+  weekLabel: string;
+  summary?: string;
+  imageUrl?: string | null;
+}
+
+interface StartCardProps {
+  testId: string;
+  icon: LucideIcon;
+  eyebrow: string;
+  title: string;
+  description: string;
+  imageUrl?: string | null;
+  selected?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  onSelect: () => void;
+}
+
+/** One of the two primary ways to start: this week's theme, or scratch. */
+function StartCard({
+  testId,
+  icon: Icon,
+  eyebrow,
+  title,
+  description,
+  imageUrl,
+  selected = false,
+  disabled = false,
+  loading = false,
+  onSelect,
+}: StartCardProps) {
+  const inactive = disabled || loading;
+  return (
+    <Box
+      role="button"
+      tabIndex={inactive ? -1 : 0}
+      aria-pressed={selected}
+      aria-disabled={inactive || undefined}
+      aria-busy={loading || undefined}
+      data-testid={testId}
+      onClick={() => {
+        if (!inactive) onSelect();
+      }}
+      onKeyDown={(event) => {
+        if (!inactive && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      sx={{
+        ...cardBaseSx,
+        flexDirection: "row",
+        alignItems: "stretch",
+        gap: 1.5,
+        minHeight: 112,
+        ...(selected ? cardSelectedSx : {}),
+        ...(inactive ? cardDisabledSx : {}),
+      }}
+    >
+      <Box
+        aria-hidden
+        sx={{
+          width: 104,
+          flexShrink: 0,
+          borderRadius: "var(--joy-radius-md)",
+          backgroundColor: "neutral.100",
+          backgroundImage: imageUrl ? `url("${imageUrl.replace(/"/g, "%22")}")` : undefined,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "neutral.600",
+        }}
+      >
+        {imageUrl ? null : <Icon size={28} strokeWidth={1.6} />}
+      </Box>
+      <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1, justifyContent: "center" }}>
+        <Typography level="body-xs" sx={{ textTransform: "uppercase", letterSpacing: "0.06em", color: "#244d46", fontWeight: 700 }}>
+          {eyebrow}
+        </Typography>
+        <Typography level="title-md" sx={{ fontSize: 18, fontWeight: 600, color: "neutral.800" }}>
+          {title}
+        </Typography>
+        <Typography level="body-sm" sx={{ color: "neutral.600", display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, overflow: "hidden" }}>
+          {description}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
 
 export type IntentCardEntry = {
   key: CampaignIntentKey;
@@ -385,6 +481,11 @@ export interface IntentPickerProps {
   onRenameSavedTemplate: (template: SavedTemplate) => void;
   onArchiveSavedTemplate: (template: SavedTemplate) => void;
   onOpenManage: () => void;
+  /** This week's theme for the "start from our theme" card; null hides it. */
+  weeklyTheme?: WeeklyThemeStartOption | null;
+  weeklyThemeLoading?: boolean;
+  weeklyThemeSelected?: boolean;
+  onStartFromTheme?: () => void;
 }
 
 export function IntentPicker({
@@ -399,6 +500,10 @@ export function IntentPicker({
   onRenameSavedTemplate,
   onArchiveSavedTemplate,
   onOpenManage,
+  weeklyTheme = null,
+  weeklyThemeLoading = false,
+  weeklyThemeSelected = false,
+  onStartFromTheme,
 }: IntentPickerProps) {
   const intentEntries = React.useMemo(
     () => buildIntentEntries((key) => !(unavailableIntents?.has(key) ?? false)),
@@ -417,9 +522,46 @@ export function IntentPicker({
           level="body-sm"
           sx={{ color: "neutral.600", maxWidth: 620 }}
         >
-          Pick a starting layout or a blank canvas. Every design can be customized in Design Studio.
+          Start from this week's theme or a blank canvas, or pick a layout below. Every design can be customized in Design Studio.
         </Typography>
       </Stack>
+
+      <Box
+        data-testid="intent-picker-start"
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          gap: 1.5,
+        }}
+      >
+        {onStartFromTheme && (weeklyTheme || weeklyThemeLoading) ? (
+          <StartCard
+            testId="intent-start-weekly-theme"
+            icon={Sun}
+            eyebrow={weeklyTheme ? `This week's theme · ${weeklyTheme.weekLabel}` : "This week's theme"}
+            title={weeklyTheme?.title ?? "Loading this week's theme…"}
+            description={
+              weeklyTheme?.summary ||
+              "Start from this week's theme, copy and photos. Edit anything in Design Studio."
+            }
+            imageUrl={weeklyTheme?.imageUrl}
+            selected={weeklyThemeSelected}
+            disabled={disabled}
+            loading={weeklyThemeLoading && !weeklyTheme}
+            onSelect={onStartFromTheme}
+          />
+        ) : null}
+        <StartCard
+          testId="intent-card-blank"
+          icon={FilePlus}
+          eyebrow="Start from scratch"
+          title="Blank canvas"
+          description="A header and an empty paragraph, ready for your own content."
+          selected={selectedIntent === "blank"}
+          disabled={disabled}
+          onSelect={() => onSelectIntent("blank")}
+        />
+      </Box>
 
       {hasSavedTemplates ? (
         <Stack spacing={1.5} data-testid="intent-picker-my-templates">
@@ -517,7 +659,7 @@ export function IntentPicker({
             </Stack>
           </Box>
         )) : null}
-        {intentEntries.filter((entry) => ["showcase", "new-arrivals", "thank-you", "blank"].includes(entry.key)).map((entry) => (
+        {intentEntries.filter((entry) => ["showcase", "new-arrivals", "thank-you"].includes(entry.key)).map((entry) => (
           <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
         ))}
       </Box>

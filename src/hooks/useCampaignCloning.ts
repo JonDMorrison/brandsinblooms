@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/utils/toast';
-import { ContentBlock } from '@/types/emailBuilder';
 import { refreshHeaderDates } from '@/lib/crm/placeholderScan';
+import { buildCampaignBlockRows } from '@/lib/crm/campaignDraftPersistence';
+import { buildCampaignOrigin } from '@/lib/crm/campaignOrigin';
+import type { StudioBlock } from '@/types/studioBlocks';
 
 export interface CampaignData {
   id: string;
@@ -63,6 +65,22 @@ export const useCampaignCloning = () => {
 
       if (blocksError) throw blocksError;
 
+      // Refresh visible header dates once, and use the same refreshed blocks
+      // for both the campaign metadata and the campaign_blocks mirror so the
+      // two stores cannot disagree about what the copy says.
+      // A copy is a fresh draft: it must not inherit a reviewed original's
+      // website-review lock markers (the database would treat it as locked).
+      const {
+        contentReviewReplacementId: _lockMarker,
+        reviewedFromCampaignId: _reviewedFrom,
+        ...sourceMetadata
+      } = (originalCampaign.metadata ?? {}) as Record<string, unknown>;
+      const refreshedBlocks = Array.isArray(sourceMetadata.contentBlocks)
+        ? refreshHeaderDates(sourceMetadata.contentBlocks as Record<string, unknown>[])
+        : null;
+      const sourceSmsMessage = typeof sourceMetadata.smsMessage === 'string' ? sourceMetadata.smsMessage : '';
+      const isEmailCampaign = String(sourceMetadata.campaignType ?? 'email').toLowerCase() !== 'sms';
+
       // 3. Prepare cloned campaign data with EXPLICIT source_campaign_id tracking
       const clonedCampaignData = {
         name: options.newName || `${originalCampaign.name} (Copy)`,
@@ -77,24 +95,23 @@ export const useCampaignCloning = () => {
         tenant_id: originalCampaign.tenant_id,
         // CRITICAL: Set source_campaign_id for explicit tracking of cloned campaigns
         source_campaign_id: originalCampaignId,
+        origin: buildCampaignOrigin('duplicate', originalCampaignId),
         // Preserve template_id if original was from a template
         template_id: (originalCampaign as any).template_id || null,
         // Refresh visible header dates so the copy doesn't carry the
         // source campaign's issue date. Flowerhouse incident: a July 31
         // send went out with "July 24 2026" in the header because the
         // metadata was cloned verbatim from the prior week's campaign.
-        metadata: originalCampaign.metadata ? (() => {
-          const sourceMetadata = originalCampaign.metadata as any;
-          const contentBlocks = Array.isArray(sourceMetadata.contentBlocks)
-            ? refreshHeaderDates(sourceMetadata.contentBlocks)
-            : sourceMetadata.contentBlocks;
-          return {
-            ...sourceMetadata,
-            contentBlocks,
-            cloned_from: originalCampaignId,
-            cloned_at: new Date().toISOString()
-          };
-        })() : {
+        metadata: originalCampaign.metadata ? {
+          ...sourceMetadata,
+          ...(refreshedBlocks ? { contentBlocks: refreshedBlocks } : {}),
+          // Never carry rendered email HTML into the copy's SMS draft.
+          ...(isEmailCampaign && /^\s*<(?:!doctype|html|body|table|div)\b/i.test(sourceSmsMessage)
+            ? { smsMessage: '' }
+            : {}),
+          cloned_from: originalCampaignId,
+          cloned_at: new Date().toISOString()
+        } : {
           cloned_from: originalCampaignId,
           cloned_at: new Date().toISOString()
         },
@@ -121,7 +138,18 @@ export const useCampaignCloning = () => {
       if (createError) throw createError;
 
       // 5. Clone campaign blocks if they exist
-      if (originalBlocks && originalBlocks.length > 0) {
+      if (refreshedBlocks && refreshedBlocks.length > 0) {
+        const clonedBlocks = buildCampaignBlockRows(
+          clonedCampaign.id,
+          refreshedBlocks as unknown as StudioBlock[],
+        ).map((row) => ({ ...row, source: 'cloned' }));
+
+        const { error: blocksCreateError } = await supabase
+          .from('campaign_blocks')
+          .insert(clonedBlocks);
+
+        if (blocksCreateError) throw blocksCreateError;
+      } else if (originalBlocks && originalBlocks.length > 0) {
         const clonedBlocks = originalBlocks.map(block => ({
           campaign_id: clonedCampaign.id,
           order_index: block.order_index,

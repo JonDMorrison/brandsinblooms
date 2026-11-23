@@ -1038,6 +1038,11 @@ async function createCampaignExecution(
     actual_sender_email: email,
     content: templateDraft.content ?? campaignContent(params, method),
     status: "draft",
+    // crm_campaigns.origin: created by the Bloom assistant, optionally from
+    // one of its Botanical newsletter templates.
+    origin: typeof templateDraft.metadata?.templateId === "string"
+      ? `ai:bloom_template:${String(templateDraft.metadata.templateId).replace(/[^A-Za-z0-9_.-]/g, "-").slice(0, 120)}`
+      : "ai:bloom",
     // Let the database use its normal draft sender-routing default. The
     // sending pipeline resolves and validates the actual sender later.
     scheduled_at: null,
@@ -1419,6 +1424,7 @@ async function cloneCampaignExecution(
     tenant_id: context.tenantId,
     source_campaign_id: source.id,
     template_id: source.template_id,
+    origin: `duplicate:${source.id}`,
     metadata: {
       ...metadata,
       cloned_from: source.id,

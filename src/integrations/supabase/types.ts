@@ -2045,6 +2045,7 @@ export type Database = {
           start_date: string | null;
           tenant_id: string | null;
           theme: string | null;
+          theme_images: Json;
           title: string;
           user_id: string | null;
           week_number: number | null;
@@ -2063,6 +2064,7 @@ export type Database = {
           start_date?: string | null;
           tenant_id?: string | null;
           theme?: string | null;
+          theme_images?: Json;
           title: string;
           user_id?: string | null;
           week_number?: number | null;
@@ -2081,6 +2083,7 @@ export type Database = {
           start_date?: string | null;
           tenant_id?: string | null;
           theme?: string | null;
+          theme_images?: Json;
           title?: string;
           user_id?: string | null;
           week_number?: number | null;
@@ -3292,6 +3295,7 @@ export type Database = {
           messages_sent: number;
           messages_skipped: number;
           open_rate: number | null;
+          origin: string | null;
           persona_ids: string[] | null;
           predicted_segment_ids: string[] | null;
           preheader: string | null;
@@ -3353,6 +3357,7 @@ export type Database = {
           messages_sent?: number;
           messages_skipped?: number;
           open_rate?: number | null;
+          origin?: string | null;
           persona_ids?: string[] | null;
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
@@ -3414,6 +3419,7 @@ export type Database = {
           messages_sent?: number;
           messages_skipped?: number;
           open_rate?: number | null;
+          origin?: string | null;
           persona_ids?: string[] | null;
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
@@ -10656,6 +10662,7 @@ export type Database = {
           seasonal_focus: string | null;
           target_audience_notes: string | null;
           theme: string | null;
+          theme_images: Json;
           title: string;
           updated_at: string;
           week_number: number;
@@ -10669,6 +10676,7 @@ export type Database = {
           seasonal_focus?: string | null;
           target_audience_notes?: string | null;
           theme?: string | null;
+          theme_images?: Json;
           title: string;
           updated_at?: string;
           week_number: number;
@@ -10682,6 +10690,7 @@ export type Database = {
           seasonal_focus?: string | null;
           target_audience_notes?: string | null;
           theme?: string | null;
+          theme_images?: Json;
           title?: string;
           updated_at?: string;
           week_number?: number;
@@ -15434,6 +15443,10 @@ export type Database = {
       };
     };
     Functions: {
+      set_weekly_theme_images: {
+        Args: { p_campaign_id: string; p_images: Json };
+        Returns: Json;
+      };
       begin_customer_csv_import: {
         Args: {
           p_attestation_type: string;

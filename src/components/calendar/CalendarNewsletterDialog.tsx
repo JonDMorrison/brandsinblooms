@@ -160,6 +160,7 @@ export function CalendarNewsletterDialog({
         segments: nextSegments,
         personas: existingRecord?.personas ?? [],
         sourceContentTaskId: existingRecord?.sourceContentTaskId ?? null,
+        origin: "calendar",
       });
 
       onSuccess();

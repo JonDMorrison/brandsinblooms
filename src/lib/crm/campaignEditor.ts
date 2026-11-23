@@ -116,6 +116,9 @@ export interface PersistCampaignDraftInput {
   sourceContentTaskId?: string | null;
   sourceSegmentId?: string | null;
   sourcePersonaId?: string | null;
+  /** How the campaign was started (crm_campaigns.origin). Only used when the
+   *  save inserts a new row; existing rows keep their original value. */
+  origin?: string | null;
 }
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -182,7 +185,10 @@ function extractReplyTo(row: CampaignRow) {
 function extractSmsMessage(row: CampaignRow) {
   const metadata = toRecord(row.metadata);
   const smsMessage = metadata.smsMessage;
-  return typeof smsMessage === "string" ? smsMessage : (row.content ?? "");
+  if (typeof smsMessage === "string") return smsMessage;
+  // Only SMS rows store their message in `content`. For email rows `content`
+  // is the rendered HTML snapshot and must never leak into the SMS field.
+  return extractChannel(row) === "sms" ? (row.content ?? "") : "";
 }
 
 export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
@@ -526,6 +532,7 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     sourceContentTaskId = null,
     sourceSegmentId = null,
     sourcePersonaId = null,
+    origin = null,
   } = input;
 
   const savedCampaign = await persistCampaignRecord({
@@ -551,6 +558,7 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     sourceContentTaskId,
     sourceSegmentId,
     sourcePersonaId,
+    origin,
     segmentIds: segments.map((segment) => segment.id),
     personaIds: personas.map((persona) => persona.id),
   });
@@ -599,3 +607,6 @@ export async function updateCampaignStatus(
 
   return mapCampaignCatalogItem(data);
 }
+
+/** Internal helpers exposed for unit tests only. */
+export const __testing = { extractSmsMessage };

@@ -31,6 +31,10 @@ import type {
 // which does not apply the app's "@/" path alias.
 import { formatDraftRichText } from "../crm/htmlContent.ts";
 import { getImageObjectPosition } from "./imageFocalPoint.ts";
+import {
+  resolveCroppedEmailImage,
+  type ImageCropFrame,
+} from "./emailImageCrop.ts";
 import type { StudioDesignSystem } from "./designSystem.ts";
 
 export type EmailFooterLinks = {
@@ -1013,7 +1017,16 @@ function renderGraphicImageBlock(
     );
     const contain = block.imageFit === "contain";
     const shadow = block.showShadow ? "box-shadow:0 4px 16px rgba(0,0,0,0.12);" : "";
-    const image = `<img class="responsive-image${contain ? "" : " responsive-crop-image"}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${EMAIL_WIDTH - padding * 2}"${contain ? "" : ` height="${maxHeight}"`} style="display:block;width:100%;max-width:${EMAIL_WIDTH - padding * 2}px;${contain ? "height:auto;" : `height:${maxHeight}px;object-fit:cover;`}object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;${shadow}" />`;
+    const frameWidth = EMAIL_WIDTH - padding * 2;
+    const cropped = contain
+      ? null
+      : resolveCroppedEmailImage(block, imageUrl, {
+          width: frameWidth,
+          height: maxHeight,
+        });
+    const image = cropped?.cropped
+      ? `<img class="responsive-image" src="${escapeAttribute(cropped.src)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${frameWidth}" height="${maxHeight}" style="display:block;width:100%;max-width:${frameWidth}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;${shadow}" />`
+      : `<img class="responsive-image${contain ? "" : " responsive-crop-image"}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${frameWidth}"${contain ? "" : ` height="${maxHeight}"`} style="display:block;width:100%;max-width:${frameWidth}px;${contain ? "height:auto;" : `height:${maxHeight}px;object-fit:cover;`}object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;${shadow}" />`;
     const linked = safeUrl(block.linkUrl)
       ? `<a href="${escapeAttribute(safeUrl(block.linkUrl))}" target="_blank" style="text-decoration:none;">${image}</a>`
       : image;
@@ -1255,6 +1268,43 @@ function renderPlainTextBlock(
   );
 }
 
+/**
+ * The cover-crop frame (in CSS px) a block's image is rendered into, or null
+ * when the block does not crop its image. Must match the math in
+ * renderGraphicImageBlock / renderImageTextBlock: Studio uses it to make a
+ * real cropped copy of non-Unsplash images (see emailImageCrop.ts).
+ */
+export function getEmailImageCropFrame(block: StudioBlock): ImageCropFrame | null {
+  if (block.type === "full-width-image" || block.type === "image") {
+    if (block.imageFit === "contain") return null;
+    const padding = (block.insetPadding ?? block.imagePadding) ? 16 : 0;
+    const width = EMAIL_WIDTH - padding * 2;
+    const height = getImageHeightForRatio(width, block.imageRatio) ?? Math.max(
+      150,
+      Math.min(600, numberValue(block.maxHeight, 400)),
+    );
+    return { width, height };
+  }
+
+  if (block.type === "image-text") {
+    if ((block.imageFit ?? "cover") !== "cover") return null;
+    const layout = resolveImageTextLayout(block);
+    if (layout === "image-overlay") return null;
+    const padding = numberValue(block.contentPadding, 24);
+    if (layout === "image-top" || layout === "minimal-card") {
+      const width = layout === "minimal-card" ? 420 : EMAIL_WIDTH - padding * 2;
+      const height = getImageHeightForRatio(width, block.imageRatio);
+      return height ? { width, height } : null;
+    }
+    const split = getImageTextSplit(block.columnSplit);
+    const width = Math.floor((EMAIL_WIDTH - padding * 2 - 24) * (split.image / 100));
+    const height = getImageHeightForRatio(width, block.imageRatio);
+    return height ? { width, height } : null;
+  }
+
+  return null;
+}
+
 function renderImageTextBlock(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
@@ -1293,11 +1343,20 @@ function renderImageTextBlock(
       renderedWidth,
       block.imageRatio,
     );
-    const cropDimensions = renderedHeight
+    const topCrop =
+      imageUrl && renderedHeight && (block.imageFit ?? "cover") === "cover"
+        ? resolveCroppedEmailImage(block, imageUrl, {
+            width: renderedWidth,
+            height: renderedHeight,
+          })
+        : null;
+    const cropDimensions = topCrop?.cropped
+      ? ` height="${renderedHeight}" style="display:block;width:100%;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`
+      : renderedHeight
       ? ` height="${renderedHeight}" style="display:block;width:100%;height:${renderedHeight}px;${portraitAspect}object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`
       : ` style="display:block;width:100%;height:auto;object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`;
     const imageHtml = imageUrl
-      ? `<img class="responsive-image${renderedHeight ? " " + cropClass : ""}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${renderedWidth}"${cropDimensions} />`
+      ? `<img class="responsive-image${renderedHeight && !topCrop?.cropped ? " " + cropClass : ""}" src="${escapeAttribute(topCrop?.src ?? imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${renderedWidth}"${cropDimensions} />`
       : "";
 
     return renderSection(
@@ -1309,17 +1368,27 @@ function renderImageTextBlock(
   const availableWidth = EMAIL_WIDTH - padding * 2 - 24;
   const imageWidth = Math.floor(availableWidth * (split.image / 100));
   const imageHeight = getImageHeightForRatio(imageWidth, block.imageRatio);
-  const imageStyle = imageHeight
+  const sideCrop =
+    imageUrl && imageHeight && (block.imageFit ?? "cover") === "cover"
+      ? resolveCroppedEmailImage(block, imageUrl, {
+          width: imageWidth,
+          height: imageHeight,
+        })
+      : null;
+  const sideImageUrl = sideCrop?.src ?? imageUrl;
+  const imageStyle = sideCrop?.cropped
+    ? "height:auto;"
+    : imageHeight
     ? `height:${imageHeight}px;${portraitAspect}object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};`
     : `height:auto;object-position:${objectPosition};`;
-  const imageClass = imageHeight
+  const imageClass = imageHeight && !sideCrop?.cropped
     ? `responsive-image ${cropClass}`
     : "responsive-image";
   const reverse = layout === "image-right";
   // Image-first source order prevents alternating desktop layouts from becoming
   // text/image on mobile. Set direction on the TABLE: direction on a row
   // does not reorder table columns in browsers or the shared editor preview.
-  const imageCell = `<td dir="ltr" class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding:${reverse ? "0 0 0 12px" : "0 12px 0 0"};">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
+  const imageCell = `<td dir="ltr" class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding:${reverse ? "0 0 0 12px" : "0 12px 0 0"};">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(sideImageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
   const textCell = `<td dir="ltr" class="responsive-column image-text-content" width="${split.text}%" valign="${vertical}" style="width:${split.text}%;vertical-align:${vertical};padding:${reverse ? "0 12px 0 0" : "0 0 0 12px"};">${content}</td>`;
 
   return renderSection(

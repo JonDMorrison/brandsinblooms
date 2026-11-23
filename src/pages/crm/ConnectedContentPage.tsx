@@ -16,6 +16,7 @@ import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
 import { saveConnectedSmsDraft } from "@/lib/sms/campaignDraft";
 import { useTenant } from "@/hooks/useTenant";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
+import { buildCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import {
   buildConnectedContentBlock,
   buildConnectedContentSms,
@@ -140,6 +141,7 @@ function ContentWorkspace() {
         contentBlocks:blocks,smsMessage:sms?.smsMessage??"",sendAt:null,
         sendImmediately:false,segments:[],personas:[],
         includeAllCustomers:false,additionalCustomerIds:[],
+        origin:buildCampaignOrigin("website_import",item.id),
       });
       setPromotionItem(null);
       toast.success(`${channel==="sms"?"Text message":"Newsletter"} draft created. Review and choose your recipients before sending.`);

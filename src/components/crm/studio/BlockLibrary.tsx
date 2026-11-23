@@ -46,7 +46,80 @@ type Props = {
   onDeleteBlock?: (id: string) => void;
   onMoveBlock?: (id: string, direction: "up" | "down") => void;
   selectedBlockId?: string | null;
+  /** This week's theme blocks (copy and photos) to insert one at a time. */
+  weeklyTheme?: WeeklyThemeLibrary | null;
 };
+
+export interface WeeklyThemeLibrary {
+  title: string;
+  weekLabel: string;
+  blocks: Array<{ name: string; block: StudioBlock }>;
+}
+
+function WeeklyThemeSection({
+  theme,
+  onInsert,
+  onInsertAll,
+}: {
+  theme: WeeklyThemeLibrary;
+  onInsert: (block: StudioBlock) => void;
+  onInsertAll?: (blocks: StudioBlock[]) => void;
+}) {
+  return (
+    <details open data-testid="block-library-weekly-theme" style={{ marginBottom: 8 }}>
+      <summary
+        style={{
+          fontWeight: 750,
+          color: "#203b40",
+          padding: "12px 0",
+          borderBottom: "1px solid #b8c5c8",
+          cursor: "pointer",
+        }}
+      >
+        This week's theme · {theme.weekLabel}
+      </summary>
+      <Typography level="body-xs" sx={{ color: "#526b72", mt: 1 }}>
+        {theme.title}
+      </Typography>
+      <Stack spacing={0.5} sx={{ mt: 1 }}>
+        {theme.blocks.map(({ name, block }) => (
+          <button
+            key={block.id}
+            type="button"
+            className="nl-quiet"
+            style={{ textAlign: "left", whiteSpace: "normal", display: "flex", gap: 8, alignItems: "center" }}
+            onClick={() => onInsert(block)}
+          >
+            {block.imageUrl ? (
+              <img
+                src={block.imageUrl}
+                alt=""
+                width={40}
+                height={30}
+                style={{ objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
+              />
+            ) : null}
+            <span>
+              {name}
+              <span style={{ display: "block", fontSize: 11, color: "#526b72" }}>
+                {STUDIO_BLOCK_LOOKUP[block.type]?.name}
+              </span>
+            </span>
+          </button>
+        ))}
+        {onInsertAll && theme.blocks.length > 1 ? (
+          <button
+            type="button"
+            className="nl-quiet"
+            onClick={() => onInsertAll(theme.blocks.map((entry) => entry.block))}
+          >
+            Add all {theme.blocks.length} theme blocks
+          </button>
+        ) : null}
+      </Stack>
+    </details>
+  );
+}
 function LibraryCard({
   definition,
   onAdd,
@@ -140,6 +213,7 @@ export default function BlockLibrary({
   onDeleteBlock,
   onMoveBlock,
   selectedBlockId,
+  weeklyTheme = null,
 }: Props) {
   const [importOpen, setImportOpen] = React.useState(false);
   const [tab, setTab] = React.useState<"blocks" | "outline" | "saved">(
@@ -272,6 +346,13 @@ export default function BlockLibrary({
             >
               Click a block to add it to your email
             </Typography>
+            {weeklyTheme && weeklyTheme.blocks.length > 0 && !query ? (
+              <WeeklyThemeSection
+                theme={weeklyTheme}
+                onInsert={onInsertSavedBlock}
+                onInsertAll={onInsertImportedBlocks}
+              />
+            ) : null}
             {categories.map((category) => (
               <details key={category.id} open style={{ marginBottom: 14 }}>
                 <summary

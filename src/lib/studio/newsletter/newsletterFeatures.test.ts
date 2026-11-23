@@ -37,6 +37,23 @@ import {
 } from "./savedBlocks";
 import { normalizeStoreMergeFields } from "./mergeFields";
 import type { StudioBlock, BlockType } from "@/types/studioBlocks";
+import {
+  buildImageCropKey,
+  buildUnsplashCropUrl,
+  resolveCroppedEmailImage,
+} from "../emailImageCrop";
+import { getEmailImageCropFrame } from "../emailHtmlGenerator";
+import { computeCoverCropRect } from "@/components/crm/studio/useStudioImageCrops";
+import {
+  buildWeeklyThemeIdea,
+  buildWeeklyThemeImageQuery,
+  toWeeklyThemeImages,
+} from "../weeklyThemeSeed";
+import {
+  buildNewsletterIdeaContentBlocks,
+  buildNewsletterIdeaDraftSeed,
+  originForNewsletterIdea,
+} from "../newsletterIdeaSeed";
 const block = (
   type: BlockType,
   patch: Partial<StudioBlock> = {},
@@ -790,5 +807,129 @@ describe("named Saved Blocks", () => {
         },
       }),
     ).toEqual([]);
+  });
+});
+
+const cropTestUrl = "https://example.com/garden.jpg";
+
+describe("email image crops", () => {
+  it("uses a stored crop only when it was made for this frame and focal point", () => {
+    const frame = { width: 640, height: 400 };
+    const key = buildImageCropKey(cropTestUrl, frame, 30, 70);
+    const block = { imageFocalX: 30, imageFocalY: 70, croppedImageUrl: "https://cdn.test/crop.jpg", croppedImageKey: key };
+    expect(resolveCroppedEmailImage(block, cropTestUrl, frame)).toEqual({ src: "https://cdn.test/crop.jpg", cropped: true });
+    expect(resolveCroppedEmailImage({ ...block, imageFocalX: 50 }, cropTestUrl, frame).cropped).toBe(false);
+    expect(resolveCroppedEmailImage(block, cropTestUrl, { width: 640, height: 300 }).cropped).toBe(false);
+  });
+
+  it("never crops on its own: blocks without a stored crop render as before", () => {
+    const unsplash = "https://images.unsplash.com/photo-1";
+    expect(resolveCroppedEmailImage({}, unsplash, { width: 640, height: 400 })).toEqual({ src: unsplash, cropped: false });
+  });
+
+  it("builds an imgix focal-point crop for Unsplash", () => {
+    const crop = new URL(buildUnsplashCropUrl("https://images.unsplash.com/photo-1?w=200&ixid=abc", { width: 640, height: 400 }, 25, 80));
+    expect(crop.searchParams.get("w")).toBe("1280");
+    expect(crop.searchParams.get("h")).toBe("800");
+    expect(crop.searchParams.get("fit")).toBe("crop");
+    expect(crop.searchParams.get("crop")).toBe("focalpoint");
+    expect(crop.searchParams.get("fp-x")).toBe("0.25");
+    expect(crop.searchParams.get("fp-y")).toBe("0.80");
+    expect(crop.searchParams.get("ixid")).toBe("abc");
+  });
+
+  it("computes a cover crop rectangle around the focal point", () => {
+    expect(computeCoverCropRect({ width: 2000, height: 1000 }, { width: 640, height: 400 }, 0, 50)).toEqual({ sx: 0, sy: 0, sw: 1600, sh: 1000 });
+    expect(computeCoverCropRect({ width: 2000, height: 1000 }, { width: 640, height: 400 }, 100, 50)).toEqual({ sx: 400, sy: 0, sw: 1600, sh: 1000 });
+  });
+
+  it("renders a stored crop with natural height and no object-fit", () => {
+    const base = { ...createStudioBlock("full-width-image"), imageUrl: cropTestUrl, imageFit: "cover" as const, maxHeight: 400 };
+    const frame = getEmailImageCropFrame(base);
+    expect(frame).toEqual({ width: 640, height: 400 });
+    const legacy = renderNewsletterBlock(base);
+    expect(legacy).toContain("object-fit:cover");
+    expect(legacy).toContain("responsive-crop-image");
+
+    const cropped = renderNewsletterBlock({
+      ...base,
+      croppedImageUrl: "https://cdn.test/crop.jpg",
+      croppedImageKey: buildImageCropKey(cropTestUrl, frame!, undefined, undefined),
+    });
+    expect(cropped).toContain('src="https://cdn.test/crop.jpg"');
+    expect(cropped).not.toContain("object-fit");
+    expect(cropped).not.toContain("responsive-crop-image");
+    expect(cropped).toContain("height:auto");
+  });
+
+  it("matches the image-text frame the renderer uses", () => {
+    const block = { ...createStudioBlock("image-text"), imageUrl: cropTestUrl, imageRatio: "4:3" as const, imageFit: "cover" as const };
+    const frame = getEmailImageCropFrame(block);
+    expect(frame).not.toBeNull();
+    const html = renderNewsletterBlock({
+      ...block,
+      croppedImageUrl: "https://cdn.test/it.jpg",
+      croppedImageKey: buildImageCropKey(cropTestUrl, frame!, undefined, undefined),
+    });
+    expect(html).toContain('src="https://cdn.test/it.jpg"');
+  });
+});
+
+
+const weeklyThemeTestSource = {
+  weekNumber: 47,
+  themeCampaignId: "3b0c0f63-1111-4222-8333-444455556666",
+  title: "Holiday Greenery Prep",
+  theme: "Fresh Evergreens for the Holidays",
+  description: "Wreath workshops • Fresh-cut tree care • Poinsettia picks",
+  seasonalFocus: "Getting homes ready for the holidays",
+  images: [
+    { url: "https://images.unsplash.com/photo-1?ixid=a", alt: "Wreath", credit: "" },
+    { url: "https://images.unsplash.com/photo-2", alt: "Tree", credit: "" },
+    { url: "https://images.unsplash.com/photo-3", alt: "Poinsettia", credit: "" },
+  ],
+};
+
+describe("weekly theme seed", () => {
+  it("keeps only https images", () => {
+    expect(
+      toWeeklyThemeImages([
+        { url: "https://x.test/a.jpg", alt: "a" },
+        { url: "http://x.test/b.jpg" },
+        "nope",
+      ]),
+    ).toEqual([{ url: "https://x.test/a.jpg", alt: "a", credit: "" }]);
+  });
+
+  it("builds a photo search from the theme", () => {
+    expect(buildWeeklyThemeImageQuery(weeklyThemeTestSource)).toBe("fresh evergreens holidays garden");
+  });
+
+  it("seeds a newsletter with the theme's copy and photos, tagged as theme blocks", () => {
+    const idea = buildWeeklyThemeIdea(weeklyThemeTestSource);
+    expect(idea.category).toBe("weekly");
+    expect(idea.themeCampaignId).toBe(weeklyThemeTestSource.themeCampaignId);
+    expect(originForNewsletterIdea(idea)).toBe(`weekly_theme:${weeklyThemeTestSource.themeCampaignId}`);
+
+    const seed = buildNewsletterIdeaDraftSeed(idea, "block-builder");
+    const types = seed.contentBlocks.map((block) => block.type);
+    expect(types).toContain("full-width-image");
+    expect(types.filter((type) => type === "image-text")).toHaveLength(2);
+    expect(types.at(-1)).toBe("footer");
+    const imageUrls = seed.contentBlocks.map((block) => block.imageUrl).filter(Boolean);
+    expect(imageUrls).toEqual(weeklyThemeTestSource.images.map((image) => image.url));
+    for (const block of seed.contentBlocks) {
+      expect(block.source).toBe(block.type === "footer" ? undefined : "theme");
+    }
+    expect(seed.origin).toBe(`weekly_theme:${weeklyThemeTestSource.themeCampaignId}`);
+  });
+
+  it("falls back to the master week when there is no tenant theme row", () => {
+    const idea = buildWeeklyThemeIdea({ ...weeklyThemeTestSource, themeCampaignId: null, images: [] });
+    expect(originForNewsletterIdea(idea)).toBe("weekly_theme:master:47");
+    // No photos: no empty image placeholders.
+    const blocks = buildNewsletterIdeaContentBlocks(idea);
+    expect(blocks.some((block) => block.type === "full-width-image")).toBe(false);
+    expect(blocks.every((block) => block.source === "theme")).toBe(true);
   });
 });

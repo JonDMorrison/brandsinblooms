@@ -19,6 +19,7 @@ export type SendErrorCode =
   | "SEND_PAUSED_BY_ADMIN"
   | "HIGH_VOLUME_REVIEW_REQUIRED"
   | "CAMPAIGN_SAVE_FAILED"
+  | "SMS_USE_SMS_COMPOSER"
   | "CAMPAIGN_NOT_FOUND"
   | "NETWORK_ERROR"
   | "UNKNOWN_ERROR";
@@ -130,6 +131,13 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, "code">> = {
       "This high-volume campaign needs a few deliverability checks resolved before sending.",
     action:
       "Review the highlighted sender, content, or business-address items, then try again.",
+    recoverable: true,
+  },
+  SMS_USE_SMS_COMPOSER: {
+    title: "Send SMS from the SMS composer",
+    description:
+      "Your SMS draft is saved, but text messages are sent from SMS, not the email campaign editor.",
+    action: "Open SMS and create the campaign there with this message.",
     recoverable: true,
   },
   CAMPAIGN_SAVE_FAILED: {

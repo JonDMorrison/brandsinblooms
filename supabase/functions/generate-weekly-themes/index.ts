@@ -203,7 +203,39 @@ serve(async (req) => {
       const currentWeekForStart = startWeek || getCurrentWeekNumber();
       console.log(`🌿 Generating all 52 seasonal garden center themes starting from week ${currentWeekForStart}`);
       
-      const allThemes = generateAll52Themes(currentWeekForStart);
+      // Prefer the curated master weekly themes (the same source the
+      // newsletter studio reads); fall back to the built-in seasonal list for
+      // any week the master table does not cover.
+      const fallbackThemes = generateAll52Themes(currentWeekForStart);
+      const { data: masterRows, error: masterError } = await supabase
+        .from('master_campaign_templates')
+        .select('week_number, title, theme, content_ideas, seasonal_focus');
+      if (masterError) {
+        console.warn('⚠️ Could not read master weekly themes; using built-in list', masterError);
+      }
+      const masterByWeek = new Map(
+        (masterRows ?? []).map((row: { week_number: number }) => [row.week_number, row]),
+      );
+      const allThemes = fallbackThemes.map((fallback: { week: number }) => {
+        const master = masterByWeek.get(fallback.week) as
+          | { week_number: number; title: string | null; theme: string | null; content_ideas: string | null; seasonal_focus: string | null }
+          | undefined;
+        if (!master || !master.title) return fallback;
+        const ideas = (master.content_ideas ?? '')
+          .split(/\s*(?:•|,|\n|;)\s*/)
+          .map((idea) => idea.trim())
+          .filter(Boolean);
+        return {
+          ...fallback,
+          week: master.week_number,
+          title: master.title,
+          theme: master.theme || master.title,
+          description: master.seasonal_focus
+            ? `${master.seasonal_focus}: ${master.content_ideas ?? ''}`.trim()
+            : master.content_ideas ?? '',
+          content_ideas: ideas.length ? ideas : [master.title],
+        };
+      });
       
       return new Response(JSON.stringify({ 
         themes: allThemes,

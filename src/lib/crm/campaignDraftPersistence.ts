@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount";
 import type { ContentBlock } from "@/types/emailBuilder";
+import { normalizeCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import { generateEmailHtml } from "@/lib/studio/emailHtmlGenerator";
 import {
   ensureFooterBlockCompliance,
@@ -44,6 +45,8 @@ export interface PersistCampaignRecordInput {
   segmentIds?: string[];
   personaIds?: string[];
   metadata?: Record<string, unknown>;
+  /** crm_campaigns.origin, written only on insert. */
+  origin?: string | null;
 }
 
 export function isCampaignContentLocked(record: {sendBlockedReason?: string | null; metadata?: unknown}): boolean {
@@ -531,6 +534,22 @@ export async function getAuthenticatedWriterContext(requestedTenantId?: string |
   return { userId: user.id, tenantId: userRecord.tenant_id };
 }
 
+const HTML_DOCUMENT_PATTERN = /^\s*<(?:!doctype|html|head|body|table|div)\b/i;
+
+/**
+ * Email campaigns keep an SMS draft in metadata.smsMessage. It must never hold
+ * the email's rendered HTML (an older editor fallback copied `content` there).
+ */
+function sanitizeStoredSmsMessage(
+  campaignType: PersistCampaignRecordInput["campaignType"],
+  smsMessage: string,
+) {
+  if (campaignType === "email" && HTML_DOCUMENT_PATTERN.test(smsMessage ?? "")) {
+    return "";
+  }
+  return smsMessage ?? "";
+}
+
 function buildCampaignMetadata(
   existingMetadata: Record<string, unknown>,
   input: PersistCampaignRecordInput,
@@ -540,7 +559,7 @@ function buildCampaignMetadata(
     ...(input.metadata ?? {}),
     campaignType: input.campaignType,
     replyTo: input.replyTo,
-    smsMessage: input.smsMessage,
+    smsMessage: sanitizeStoredSmsMessage(input.campaignType, input.smsMessage),
     includeAllCustomers: input.includeAllCustomers ?? false,
     additionalCustomerIds: input.additionalCustomerIds ?? [],
     sourceSegmentId: input.sourceSegmentId,
@@ -549,7 +568,7 @@ function buildCampaignMetadata(
   } satisfies Record<string, unknown>;
 }
 
-function buildCampaignBlockRows(
+export function buildCampaignBlockRows(
   campaignId: string,
   contentBlocks: StudioBlock[],
 ): Database["public"]["Tables"]["campaign_blocks"]["Insert"][] {
@@ -851,6 +870,7 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
         additional_customer_ids: basePayload.additional_customer_ids,
         segment_id: basePayload.segment_id,
         persona_ids: basePayload.persona_ids,
+        origin: normalizeCampaignOrigin(input.origin),
         metadata: buildCampaignMetadata({}, { ...input, contentBlocks }),
         metrics: {
           sent: 0,
@@ -928,7 +948,6 @@ export async function writeCampaignDraftSnapshot(params: {
   subjectLine: string;
   preheaderText: string;
   smsMessage: string;
-  contentBlocks: ContentBlock[];
   contentBlocks: StudioBlock[];
   includeAllCustomers?: boolean;
   additionalCustomerIds?: string[];
