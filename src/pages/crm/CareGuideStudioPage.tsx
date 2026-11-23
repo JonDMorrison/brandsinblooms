@@ -80,6 +80,22 @@ export default function CareGuideStudioPage(){
     try{const result=await db.rpc('save_care_guide_design_draft',{p_tenant_id:tenantId,p_draft:design});if(result.error)throw result.error;setMessage('Draft saved. Customers still receive the last published design.');}
     catch(e){setError(e instanceof Error?e.message:'Unable to save draft');}finally{setBusy(false);}
   };
+  const syncConnectedSites=async()=>{
+    const {data,error}=await supabase.functions.invoke('care-guide-sync',{body:{}});
+    if(error||data?.error||!Array.isArray(data?.synced)||!Array.isArray(data?.failed))
+      throw Error('Connected-site synchronization is not available yet. The CRM design stays published.');
+    const count=data.synced.length,failed=data.failed.length;
+    return failed?'CRM design published. '+count+' linked sites updated; '+failed+' need another sync attempt.':
+      count===0?'CRM design published. Connect a BloomSites website to use it on online orders.':
+      'Design synchronized to '+count+' connected BloomSites '+(count===1?'website.':'websites.');
+  };
+  const retryConnectedSync=async()=>{
+    if(busy||!publishedVersion)return;
+    setBusy(true);setError('');setMessage('');
+    try{setMessage(await syncConnectedSites());}
+    catch(e){setError(e instanceof Error?e.message:'Connected-site sync unavailable');}
+    finally{setBusy(false);}
+  };
   const publish=async()=>{if(!tenantId||busy||!acknowledged||'error' in preview)return;setBusy(true);setError('');setMessage('');
     try{
       const result=await db.rpc('publish_care_guide_design',{p_tenant_id:tenantId,p_expected_version:publishedVersion,p_design:design});
@@ -88,7 +104,8 @@ export default function CareGuideStudioPage(){
       if(!Number.isSafeInteger(next)||next<=publishedVersion)throw Error('Unable to verify new published version');
       setPublishedVersion(next);setPublished({...design});setAcknowledged(false);
       setVersions(old=>[{version:next,design:{...design},published_at:new Date().toISOString()},...old].slice(0,10));
-      setMessage('Published design version '+next+'. Customer sending remains controlled by each product’s separate care-guide delivery settings.');
+      try {setMessage(await syncConnectedSites());}
+      catch {setMessage('Published version '+next+' in CRM. Connected BloomSites sync is pending; retry below once the shared design connection is configured.');}
     }catch(e){setError(e instanceof Error?e.message:'Unable to publish design');}finally{setBusy(false);}
   };
   return <main className="min-h-screen bg-[#f7f8f5] px-4 py-7 text-[#173f37] sm:px-8">
@@ -117,7 +134,7 @@ export default function CareGuideStudioPage(){
               <input aria-label={key==='primaryColor'?'Primary colour':'Accent colour'} type="color" value={/^#[a-fA-F0-9]{6}$/.test(design[key]||'')?design[key]||'#173f37':'#173f37'} onChange={e=>update(key,e.target.value)} className="mt-2 block h-10 w-full cursor-pointer rounded-lg border border-[#c9d7d1] p-1" /></label>)}</div>
           </div>
           <div className="mt-6 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={()=>void save()} className="rounded-lg border border-[#a4b9af] px-5 py-3 text-sm font-bold disabled:opacity-50">Save draft</button>
-            <button type="button" disabled={busy||!acknowledged||'error' in preview} onClick={()=>void publish()} className="rounded-lg bg-[#173f37] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">Publish design</button></div>
+            <button type="button" disabled={busy||!acknowledged||'error' in preview} onClick={()=>void publish()} className="rounded-lg bg-[#173f37] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">Publish design</button> <button type="button" disabled={busy||!publishedVersion} onClick={()=>void retryConnectedSync()} className="rounded-lg border border-[#a4b9af] px-5 py-3 text-sm font-bold disabled:opacity-50">Sync to connected BloomSites</button></div>
           <label className="mt-5 flex items-start gap-3 text-sm text-[#536475]"><input type="checkbox" checked={acknowledged} onChange={e=>setAcknowledged(e.target.checked)} className="mt-1" />I reviewed the desktop and mobile preview and understand that changing the design does not approve or generate plant-care facts.</label>
           {published&&<p className="mt-4 text-xs text-[#728077]">A previously published version stays active until you explicitly publish a replacement.</p>}
           {versions.length>0&&<div className="mt-7 border-t border-[#dbe3df] pt-5"><h3 className="font-semibold">Published history</h3><div className="mt-2 space-y-2">
