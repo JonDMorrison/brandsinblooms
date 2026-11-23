@@ -1,4 +1,5 @@
 import { cloneSavedBlock } from "@/lib/studio/newsletter/savedBlocks";
+import { isEmptyContentBlock } from "@/lib/studio/emailHtmlGenerator";
 import type { NewsletterSettings } from "@/types/newsletterDesign";
 import { normalizeNewsletterSettings } from "@/lib/studio/newsletter/settings";
 import * as React from "react";
@@ -199,6 +200,40 @@ function normalizeCampaignImageText(
     : normalizedValue;
 }
 
+/**
+ * Where "From my website" content goes: into the selected block when it is
+ * empty and of the same type, otherwise right after the selected block.
+ * With nothing selected it goes after the header (top of the email). It is
+ * never appended at the bottom.
+ */
+export function placeInsertedBlocks(
+  current: StudioBlock[],
+  inserted: StudioBlock[],
+  selectedId: string | null,
+): { blocks: StudioBlock[]; focusId: string } {
+  const next = [...current];
+  const selectedIndex = selectedId ? next.findIndex((block) => block.id === selectedId) : -1;
+  const selected = selectedIndex >= 0 ? next[selectedIndex] : null;
+
+  if (selected && selected.type !== "footer" && isEmptyContentBlock(selected) && inserted[0]?.type === selected.type) {
+    const [first, ...rest] = inserted;
+    next.splice(selectedIndex, 1, { ...first, id: selected.id }, ...rest);
+    return { blocks: next, focusId: rest.length ? rest[rest.length - 1].id : selected.id };
+  }
+
+  let index: number;
+  if (selected && selected.type !== "footer") {
+    index = selectedIndex + 1;
+  } else {
+    const headerIndex = next.findIndex((block) => block.type === "newsletter-header");
+    index = headerIndex >= 0 ? headerIndex + 1 : 0;
+  }
+  const footerIndex = next.findIndex((block) => block.type === "footer");
+  if (footerIndex >= 0 && index > footerIndex) index = footerIndex;
+  next.splice(index, 0, ...inserted);
+  return { blocks: next, focusId: inserted[inserted.length - 1].id };
+}
+
 export function useStudioState({
   initialCampaignName,
   designSystem,
@@ -212,6 +247,8 @@ export function useStudioState({
   const [selectedBlockId, setSelectedBlockId] = React.useState<string | null>(
     null,
   );
+  // Read by inserts that run inside setBlocks updaters.
+  const selectedBlockIdRef = React.useRef<string | null>(null);
   const [deviceMode, setDeviceMode] =
     React.useState<StudioDeviceMode>("desktop");
   const [campaignName, setCampaignName] = React.useState(initialCampaignName);
@@ -302,6 +339,7 @@ export function useStudioState({
     });
   }, [designSystem]);
 
+  selectedBlockIdRef.current = selectedBlockId;
   const selectedBlock = React.useMemo(
     () => blocks.find((block) => block.id === selectedBlockId) ?? null,
     [blocks, selectedBlockId],
@@ -485,15 +523,14 @@ export function useStudioState({
   const insertConnectedContentBlocks = React.useCallback((items: StudioBlock[]) => {
     const valid=items.filter(block => block.type !== "footer" && Boolean(block.buttonUrl));
     if(valid.length===0)return;
+    let focusId = valid[valid.length - 1].id;
     setBlocks(current=>{
-      const footer=current.findIndex(block=>block.type==="footer");
-      const index=footer<0?current.length:footer;
-      const next=[...current];
-      next.splice(index,0,...valid);
-      return normalizeBlocks(reindexBlocks(next),designSystem);
+      const placed = placeInsertedBlocks(current, valid, selectedBlockIdRef.current);
+      focusId = placed.focusId;
+      return normalizeBlocks(reindexBlocks(placed.blocks),designSystem);
     });
-    setSelectedBlockId(valid[valid.length-1].id);
-    pulseInsertedBlock(valid[valid.length-1].id);
+    setSelectedBlockId(focusId);
+    pulseInsertedBlock(focusId);
   },[designSystem,pulseInsertedBlock,setBlocks]);
 
   const removeBlock = React.useCallback(
