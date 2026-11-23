@@ -858,3 +858,49 @@ describe("blank canvas brand defaults (#14)", () => {
     expect(createStudioBlock("call-to-action", ds).buttonColor).toBe("#2f6b3a");
   });
 });
+
+describe("Pick a look keeps user-set values (#20)", () => {
+  it("keeps a user-chosen logo size and alignment and fills the rest from the new look", async () => {
+    const { mergeLookFields, newsletterHeaderPresets } = await import("../layoutPresets");
+    const defaults = createStudioBlock("newsletter-header");
+    const [from, to] = newsletterHeaderPresets;
+    const block = {
+      ...defaults,
+      ...from.fields,
+      layoutPreset: from.key,
+      logoSize: 96,
+      logoSizeExplicit: true,
+      logoAlignment: "right" as const,
+    };
+    const fields = mergeLookFields(block, to, newsletterHeaderPresets, defaults);
+    expect(fields.layoutPreset).toBe(to.key);
+    expect(fields).not.toHaveProperty("logoSize");
+    if ("logoAlignment" in to.fields && to.fields.logoAlignment !== "right") {
+      expect(fields).not.toHaveProperty("logoAlignment");
+    }
+    // Untouched fields follow the new look.
+    for (const [field, value] of Object.entries(to.fields)) {
+      if (["logoSize", "logoAlignment"].includes(field)) continue;
+      if ((block as Record<string, unknown>)[field] === (from.fields as Record<string, unknown>)[field]) {
+        expect((fields as Record<string, unknown>)[field]).toEqual(value);
+      }
+    }
+  });
+
+  it("applies every field of the new look when nothing was customised", async () => {
+    const { mergeLookFields, imageTextPresets } = await import("../layoutPresets");
+    const defaults = createStudioBlock("image-text");
+    const [from, to] = imageTextPresets;
+    const block = { ...defaults, ...from.fields, layoutPreset: from.key };
+    expect(mergeLookFields(block, to, imageTextPresets, defaults)).toEqual({ ...to.fields, layoutPreset: to.key });
+  });
+
+  it("keeps a colour the user picked", async () => {
+    const { mergeLookFields, imageTextPresets } = await import("../layoutPresets");
+    const defaults = createStudioBlock("image-text");
+    const [from, to] = imageTextPresets;
+    const block = { ...defaults, ...from.fields, layoutPreset: from.key, backgroundColor: "#abcdef" };
+    const fields = mergeLookFields(block, to, imageTextPresets, defaults);
+    expect(fields).not.toHaveProperty("backgroundColor");
+  });
+});
