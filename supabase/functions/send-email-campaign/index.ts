@@ -759,6 +759,31 @@ serve(async (req: Request) => {
       });
     }
 
+    // crm_campaigns rows typed as SMS hold a text message in `content`. This
+    // function only delivers email, so it must never send one of them (the
+    // scheduled-campaign claim RPC has no channel filter).
+    const campaignChannel = String(
+      (campaign.metadata as Record<string, unknown> | null)?.campaignType ?? "",
+    ).toLowerCase();
+    if (campaignChannel === "sms") {
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: "sms_channel_not_email",
+        errorMessage:
+          "This campaign is an SMS campaign and cannot be sent as email. Send it from the SMS composer.",
+      });
+      return new Response(
+        JSON.stringify({
+          error: "SMS campaigns cannot be sent by the email sender",
+          code: "SMS_CHANNEL_NOT_EMAIL",
+        }),
+        {
+          status: 422,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const campaignTenantId = await resolveCampaignTenantId(supabase, campaign);
 
     if (!campaignTenantId) {

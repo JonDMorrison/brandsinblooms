@@ -1,3 +1,12 @@
+import {
+  buildCampaignOrigin,
+  normalizeCampaignOrigin,
+} from "@/lib/crm/campaignOrigin";
+import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
+import {
+  buildNewsletterIdeaDraftSeed,
+  originForNewsletterIdea,
+} from "@/lib/studio/newsletterIdeaSeed";
 import { EmptyBlocksNotice } from "@/components/crm/campaign-editor/EmptyBlocksNotice";
 import { findIdentityMismatches } from "@/lib/crm/identityConsistency";
 import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
@@ -127,6 +136,9 @@ import type {
 } from "@/lib/crm/campaignEditor";
 import { buildCampaignFocus } from "@/utils/askBloomContextBuilders";
 import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
+
+/** Marks the synthetic template built from this week's theme. */
+const WEEKLY_THEME_TEMPLATE_PREFIX = "weekly-theme:";
 
 const EDITOR_MAX_WIDTH = 1200;
 const AUDIENCE_CUSTOMER_PAGE_SIZE = 8;
@@ -583,6 +595,7 @@ function CampaignEditorScreen() {
     updateContent,
     updateSchedule,
     saveDraft,
+    setOrigin,
     isTenantReady,
   } = useCampaignEditor();
 
@@ -1322,6 +1335,15 @@ function CampaignEditorScreen() {
 
   const applyTemplateToCampaign = React.useCallback(
     (template: CampaignTemplate) => {
+      setOrigin(
+        template.id.startsWith(WEEKLY_THEME_TEMPLATE_PREFIX)
+          ? (normalizeCampaignOrigin(
+              template.id.slice(WEEKLY_THEME_TEMPLATE_PREFIX.length),
+            ) ?? buildCampaignOrigin("weekly_theme"))
+          : template.id.startsWith("saved:")
+            ? buildCampaignOrigin("saved_template", template.id.slice(6))
+            : buildCampaignOrigin("starter_template", template.id),
+      );
       setSelectedBuiltInTemplateId(
         template.id.startsWith("botanical-") ? template.id : null,
       );
@@ -1337,7 +1359,7 @@ function CampaignEditorScreen() {
         navigateToSavedDraft: !campaignId,
       });
     },
-    [campaignId, designSystem, updateContent, updateSetup],
+    [campaignId, designSystem, setOrigin, updateContent, updateSetup],
   );
 
   const handleApplyTemplate = React.useCallback(
@@ -1351,6 +1373,48 @@ function CampaignEditorScreen() {
     },
     [applyTemplateToCampaign, hasMeaningfulEmailContent],
   );
+
+  // "Start from this week's theme": the tenant's weekly theme, its copy and
+  // photos, applied like any other template (with the same overwrite check).
+  const weeklyThemeQuery = useThisWeeksTheme({ enabled: !isLocked });
+  const [weeklyThemeApplied, setWeeklyThemeApplied] = React.useState(false);
+  const weeklyThemeTemplate = React.useMemo<CampaignTemplate | null>(() => {
+    const theme = weeklyThemeQuery.data;
+    if (!theme) return null;
+    const preview = buildNewsletterIdeaDraftSeed(theme.idea, "block-builder", designSystem);
+    return {
+      id: `${WEEKLY_THEME_TEMPLATE_PREFIX}${originForNewsletterIdea(theme.idea)}`,
+      name: `This week's theme: ${theme.idea.title}`,
+      summary: theme.idea.description,
+      season: "evergreen",
+      tags: ["weekly-theme"],
+      accentColor: "#1F4341",
+      subjectLine: preview.subjectLine,
+      previewText: preview.preheaderText,
+      thumbnailBlocks: [],
+      buildBlocks: (system) =>
+        buildNewsletterIdeaDraftSeed(theme.idea, "block-builder", system).contentBlocks,
+    };
+  }, [designSystem, weeklyThemeQuery.data]);
+
+  const handleStartFromTheme = React.useCallback(() => {
+    if (!weeklyThemeTemplate) return;
+    handleApplyTemplate(weeklyThemeTemplate);
+    setSelectedIntent(null);
+    setSelectedSavedTemplateId(null);
+    setWeeklyThemeApplied(true);
+  }, [handleApplyTemplate, weeklyThemeTemplate]);
+
+  const weeklyThemeOption = React.useMemo(() => {
+    const theme = weeklyThemeQuery.data;
+    if (!theme) return null;
+    return {
+      title: theme.idea.title,
+      weekLabel: `Week ${theme.source.weekNumber}`,
+      summary: theme.source.seasonalFocus || theme.idea.description,
+      imageUrl: theme.source.images[0]?.url ?? null,
+    };
+  }, [weeklyThemeQuery.data]);
 
   const {
     savedTemplates,
@@ -1394,6 +1458,7 @@ function CampaignEditorScreen() {
           createStudioBlock("newsletter-header", designSystem),
           createStudioBlock("plain-text", designSystem),
         ];
+        setOrigin("blank");
         updateContent({ contentBlocks: blocks });
         setSelectedIntent("blank");
         setSelectedSavedTemplateId(null);
@@ -1407,7 +1472,7 @@ function CampaignEditorScreen() {
       setSelectedIntent(intent);
       setSelectedSavedTemplateId(null);
     },
-    [designSystem, handleApplyTemplate, updateContent],
+    [designSystem, handleApplyTemplate, setOrigin, updateContent],
   );
 
   const handleApplySavedTemplate = React.useCallback(
@@ -1431,11 +1496,18 @@ function CampaignEditorScreen() {
         });
         return;
       }
+      setOrigin(buildCampaignOrigin("saved_template", template.id));
       updateContent({ contentBlocks: template.layout_json });
       setSelectedSavedTemplateId(template.id);
       setSelectedIntent(null);
     },
-    [hasMeaningfulEmailContent, preheaderText, subjectLine, updateContent],
+    [
+      hasMeaningfulEmailContent,
+      preheaderText,
+      setOrigin,
+      subjectLine,
+      updateContent,
+    ],
   );
 
   const handleSaveAsTemplate = React.useCallback(
@@ -2200,6 +2272,10 @@ function CampaignEditorScreen() {
               onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
               onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}
               onOpenManage={() => setManageTemplatesOpen(true)}
+              weeklyTheme={weeklyThemeOption}
+              weeklyThemeLoading={weeklyThemeQuery.isLoading}
+              weeklyThemeSelected={weeklyThemeApplied && !selectedIntent && !selectedSavedTemplateId}
+              onStartFromTheme={handleStartFromTheme}
               selectedBuiltInTemplateId={
                 selectedIntent || selectedSavedTemplateId ? null : selectedBuiltInTemplateId
               }

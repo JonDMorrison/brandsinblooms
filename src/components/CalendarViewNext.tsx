@@ -40,6 +40,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import { applyTenantUserScope } from "@/utils/tenantScope";
 import { CampaignOverviewDialog } from "./calendar/CampaignOverviewDialog";
+import {
+  buildWeeklyThemeIdea,
+  toWeeklyThemeImages,
+} from "@/lib/studio/weeklyThemeSeed";
+import { buildNewsletterIdeaEditorSearchParams } from "@/lib/studio/newsletterIdeaSeed";
 import { CalendarCampaignCreateDialog } from "./calendar/CalendarCampaignCreateDialog";
 import { CalendarEventDialog } from "./calendar/CalendarEventDialog";
 import { CalendarGrid } from "./calendar/CalendarGrid";
@@ -360,6 +365,7 @@ export const CalendarView = React.memo(function CalendarView({
             sendImmediately: false,
             segments: [],
             personas: [],
+            origin: "calendar",
           });
         }
 
@@ -400,19 +406,48 @@ export const CalendarView = React.memo(function CalendarView({
     [holidayActions, refreshCalendar],
   );
 
+  // Start a newsletter from a calendar weekly theme (its copy and photos).
+  const handleCreateEmailFromTheme = useCallback(
+    (campaign: Record<string, unknown>) => {
+      const weekNumber =
+        typeof campaign.week_number === "number"
+          ? campaign.week_number
+          : getISOWeek(new Date());
+      const idea = buildWeeklyThemeIdea({
+        weekNumber,
+        themeCampaignId: typeof campaign.id === "string" ? campaign.id : null,
+        title: String(campaign.title ?? ""),
+        theme: String(campaign.theme ?? campaign.title ?? ""),
+        description: String(campaign.description ?? campaign.prompt ?? ""),
+        seasonalFocus: "",
+        images: toWeeklyThemeImages(campaign.theme_images),
+      });
+      const layout = "block-builder" as const;
+      const params = buildNewsletterIdeaEditorSearchParams(idea, layout);
+      setCampaignModalOpen(false);
+      setSelectedCampaign(null);
+      navigate(`/crm/campaigns/new?${params.toString()}`, {
+        state: { newsletterIdea: idea, newsletterLayout: layout },
+      });
+    },
+    [navigate],
+  );
+
   const handleThemeSchedule = useCallback(
     async (theme: any, date: Date) => {
       if (!user) return;
 
       try {
         const startDate = format(date, "yyyy-MM-dd");
+        // `theme` is a WeeklyTheme from useWeeklyThemes (camelCase fields),
+        // not a master_campaign_templates row.
         const { error } = await supabase.from("campaigns").insert({
           title: theme.title,
-          theme: theme.theme,
-          description: theme.content_ideas,
-          prompt: theme.prompt || theme.content_ideas,
+          theme: theme.theme || theme.title,
+          description: theme.description,
+          prompt: theme.prompt || theme.description,
           start_date: startDate,
-          week_number: theme.week_number || getISOWeek(date),
+          week_number: theme.weekNumber || getISOWeek(date),
           source: "quick_action",
           user_id: user.id,
           created_by_user_id: user.id,
@@ -902,7 +937,7 @@ export const CalendarView = React.memo(function CalendarView({
             setCampaignModalOpen(false);
             setSelectedCampaign(null);
           }}
-          onOpenCampaign={() => navigate("/campaigns")}
+          onOpenCampaign={handleCreateEmailFromTheme}
         />
       ) : null}
 

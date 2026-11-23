@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 export const createCompanyProfileFromOnboarding = async (
   onboardingData: any,
@@ -234,14 +235,8 @@ export const createCompanyProfileFromOnboarding = async (
     let immediateCampaign;
 
     try {
-      const getCurrentWeekNumber = () => {
-        const today = new Date();
-        const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-        const pastDaysOfYear =
-          (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-        return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-      };
-
+      // ISO weeks, the same numbering the calendar, the weekly theme lookup
+      // and the newsletter studio use.
       const currentWeek = getCurrentWeekNumber();
 
       // Check if immediate campaign already exists
@@ -257,14 +252,26 @@ export const createCompanyProfileFromOnboarding = async (
         immediateCampaign = existingCampaign;
       } else {
         const immediateStartDate = new Date();
+        // Use this week's curated master theme so the first theme a new
+        // tenant sees has real copy, not a "Week N" placeholder.
+        const { data: masterTheme } = await supabase
+          .from("master_campaign_templates")
+          .select("title, theme, content_ideas, seasonal_focus")
+          .eq("week_number", currentWeek)
+          .maybeSingle();
         const campaignData = {
           week_number: currentWeek,
-          title: `Week ${currentWeek} Garden Center Theme`,
-          theme: `Seasonal Gardening Focus - Week ${currentWeek}`,
+          title: masterTheme?.title || `Week ${currentWeek} Garden Center Theme`,
+          theme:
+            masterTheme?.theme ||
+            masterTheme?.title ||
+            `Seasonal Gardening Focus - Week ${currentWeek}`,
           description:
+            masterTheme?.content_ideas ||
             "AI-generated weekly theme for your garden center marketing",
           start_date: immediateStartDate.toISOString().split("T")[0],
           prompt:
+            masterTheme?.content_ideas ||
             "Create engaging content focused on current seasonal gardening needs and trends",
           user_id: userId,
           tenant_id: tenant.id,
@@ -361,14 +368,6 @@ export const createCompanyProfileFromOnboarding = async (
     // Re-throw with more context
     throw new Error(`Onboarding failed: ${error.message}`);
   }
-};
-
-const getCurrentWeekNumber = () => {
-  const today = new Date();
-  const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-  const pastDaysOfYear =
-    (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 };
 
 export const saveOnboardingResponse = async (

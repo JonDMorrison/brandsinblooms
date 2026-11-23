@@ -3,7 +3,7 @@ import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { Calendar, ExternalLink, FileText, TrendingUp } from "lucide-react";
+import { Calendar, FileText, Mail, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -21,6 +21,7 @@ interface CampaignOverviewDialogProps {
   campaign: any | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Starts a newsletter draft from this weekly theme. */
   onOpenCampaign?: (campaign: any) => void;
 }
 
@@ -202,10 +203,10 @@ export function CampaignOverviewDialog({
         {onOpenCampaign ? (
           <JoyButton
             color="primary"
-            startDecorator={<ExternalLink size={14} />}
+            startDecorator={<Mail size={14} />}
             onClick={() => onOpenCampaign(campaign)}
           >
-            Open Campaign
+            Create email from this theme
           </JoyButton>
         ) : null}
       </JoyDialogActions>

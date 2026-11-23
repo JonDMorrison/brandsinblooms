@@ -37,9 +37,10 @@ import { useTenant } from "@/hooks/useTenant";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveNewsletterIdeaDraftSeed } from "@/lib/studio/newsletterIdeaSeed";
+import { normalizeCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
 import type { StudioBlock } from "@/types/studioBlocks";
-import type { SendError } from "@/utils/campaignSendingErrors";
+import { SEND_ERRORS, type SendError } from "@/utils/campaignSendingErrors";
 import { subscribeAskBloomResourceSync } from "@/utils/askBloomResourceSync";
 
 type Segment = CampaignSegmentSummary;
@@ -84,6 +85,8 @@ export interface CampaignEditorState {
   sourceContentTaskId: string | null;
   sourceSegmentId: string | null;
   sourcePersonaId: string | null;
+  /** crm_campaigns.origin to record when this draft is first inserted. */
+  origin: string | null;
 }
 
 export type CampaignActivationResult =
@@ -148,6 +151,9 @@ interface CampaignEditorContextValue extends CampaignEditorState {
     status?: CampaignStatus;
   }) => Promise<string | null>;
   setAutoSavePaused: (paused: boolean) => void;
+  /** Records how a not-yet-saved draft was started (blank, a template, a
+   *  theme...). Ignored once the campaign exists: origin is set at insert. */
+  setOrigin: (origin: string) => void;
   captureDraftSnapshot: (trigger: DraftSnapshotTrigger) => Promise<void>;
   activate: (
     options?: CampaignActivationOptions,
@@ -300,6 +306,9 @@ function createInitialState(
     sourceContentTaskId: searchParams.get("contentTaskId"),
     sourceSegmentId: searchParams.get("segment"),
     sourcePersonaId: searchParams.get("persona"),
+    origin:
+      newsletterSeed?.origin ??
+      normalizeCampaignOrigin(searchParams.get("origin")),
   };
 }
 
@@ -857,9 +866,13 @@ export function CampaignEditorProvider({
       sourceContentTaskId: state.sourceContentTaskId,
       sourceSegmentId: state.sourceSegmentId,
       sourcePersonaId: state.sourcePersonaId,
+      // Only read when this save inserts the row. A draft nobody seeded from
+      // a template, theme or other source was started from scratch.
+      origin: state.origin ?? "blank",
     }),
     [
       senderConfig?.fromEmailDomainId,
+      state.origin,
       tenant?.id,
       state.additionalCustomerIds,
       state.campaignId,
@@ -1086,6 +1099,16 @@ export function CampaignEditorProvider({
   const setAutoSavePaused = React.useCallback((paused: boolean) => {
     setAutoSavePausedState((current) =>
       current === paused ? current : paused,
+    );
+  }, []);
+
+  const setOrigin = React.useCallback((origin: string) => {
+    const normalized = normalizeCampaignOrigin(origin);
+    if (!normalized) return;
+    setState((current) =>
+      current.campaignId || current.origin === normalized
+        ? current
+        : { ...current, origin: normalized },
     );
   }, []);
 
@@ -1425,6 +1448,20 @@ export function CampaignEditorProvider({
 
         await captureDraftSnapshot("pre-send");
 
+        // SMS rows in crm_campaigns have no delivery worker: queuing one did
+        // nothing, and scheduling one handed it to the email sender. SMS is
+        // delivered only through crm_sms_campaigns (the /sms composer).
+        if (state.campaignType === "sms") {
+          const smsError = {
+            code: "SMS_USE_SMS_COMPOSER" as const,
+            ...SEND_ERRORS.SMS_USE_SMS_COMPOSER,
+          };
+          if (!options?.suppressToasts) {
+            toast.error(smsError.description);
+          }
+          return { success: false, error: smsError };
+        }
+
         if (!effectiveSendImmediately && effectiveSendAt) {
           const scheduled = await updateCampaignStatus(
             savedCampaignId,
@@ -1459,38 +1496,6 @@ export function CampaignEditorProvider({
             campaignId: savedCampaignId,
             recipientCount: state.audienceCount ?? 0,
             status: scheduled.status,
-            complianceWarnings: [],
-          };
-        }
-
-        if (state.campaignType === "sms") {
-          const queued = await updateCampaignStatus(savedCampaignId, "queued");
-          syncPersistedCampaignVersion({
-            campaignId: savedCampaignId,
-            status: queued.status,
-            updatedAt: queued.updatedAt,
-          });
-          setState((current) => ({
-            ...current,
-            campaignId: savedCampaignId,
-            status: queued.status,
-            isDirty: false,
-            isLocked: true,
-            lastSavedAt: queued.updatedAt
-              ? new Date(queued.updatedAt)
-              : current.lastSavedAt,
-          }));
-          if (!options?.suppressToasts) {
-            toast.success("SMS campaign queued");
-          }
-          if (campaignId !== savedCampaignId) {
-            navigate(`/crm/campaigns/${savedCampaignId}`, { replace: true });
-          }
-          return {
-            success: true,
-            campaignId: savedCampaignId,
-            recipientCount: state.audienceCount ?? 0,
-            status: queued.status,
             complianceWarnings: [],
           };
         }
@@ -1600,6 +1605,7 @@ export function CampaignEditorProvider({
       updateSchedule,
       saveDraft,
       setAutoSavePaused,
+      setOrigin,
       captureDraftSnapshot,
       activate,
       pause,
@@ -1616,6 +1622,7 @@ export function CampaignEditorProvider({
       resume,
       saveDraft,
       setAutoSavePaused,
+      setOrigin,
       captureDraftSnapshot,
       syncLiveCampaign,
       state,

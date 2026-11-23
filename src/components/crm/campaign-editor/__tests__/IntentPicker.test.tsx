@@ -57,7 +57,12 @@ describe("IntentPicker", () => {
     );
     const gallery = screen.getByTestId("campaign-design-gallery");
     expect(screen.getByText("Choose a design")).toBeVisible();
-    expect(gallery.querySelectorAll('[data-testid^="intent-card-"]')).toHaveLength(7);
+    // Blank canvas is a primary start card above the gallery, beside
+    // "This week's theme", so the gallery holds the other six layouts.
+    expect(gallery.querySelectorAll('[data-testid^="intent-card-"]')).toHaveLength(6);
+    expect(
+      screen.getByTestId("intent-picker-start").querySelector('[data-testid="intent-card-blank"]'),
+    ).not.toBeNull();
     expect(gallery.querySelectorAll('[data-testid^="botanical-template-"]')).toHaveLength(4);
     expect(screen.queryByText("Ready-made newsletter designs")).not.toBeInTheDocument();
     expect(screen.queryByText("Explore more newsletter designs")).not.toBeInTheDocument();

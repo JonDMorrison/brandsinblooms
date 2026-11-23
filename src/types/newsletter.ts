@@ -90,6 +90,8 @@ export interface NewsletterIdea {
   priority?: number;
   daysUntil?: number;
   weekNumber?: number;
+  /** The tenant's weekly theme row (public.campaigns.id) this idea came from. */
+  themeCampaignId?: string;
 }
 
 export interface NewsletterTemplate {

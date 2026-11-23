@@ -601,6 +601,25 @@ export function useStudioState({
     [designSystem, pulseInsertedBlock],
   );
 
+  /**
+   * Writes derived data onto a block (for example a pre-cropped image copy)
+   * without adding an undo step: the user did not make this change.
+   */
+  const annotateBlockFields = React.useCallback(
+    (blockId: string, fields: Partial<StudioBlock>) => {
+      setBlockHistory((current) => {
+        let changed = false;
+        const present = current.present.map((block) => {
+          if (block.id !== blockId) return block;
+          changed = true;
+          return { ...block, ...fields, id: block.id, type: block.type };
+        });
+        return changed ? { ...current, present } : current;
+      });
+    },
+    [],
+  );
+
   const updateBlockFields = React.useCallback((blockId: string, fields: Partial<StudioBlock>) => {
     setBlocks(current => current.map(block => block.id === blockId ? { ...block, ...fields, id: block.id, type: block.type } : block));
   }, [setBlocks]);
@@ -901,6 +920,7 @@ export function useStudioState({
     duplicateBlock,
     updateBlockField,
     updateBlockFields,
+    annotateBlockFields,
     registerCampaignImage,
     reorderBlock,
     resolveCampaignImageFieldSource,

@@ -267,18 +267,11 @@ export async function resolveCampaignEmailSource(
 ): Promise<CampaignEmailSource> {
   const previewText = campaign.preheader_text || campaign.preheader || "";
 
-  const databaseBlocks = await loadCampaignBlockRows(client, campaign.id, requireSuccessfulLookup);
-  if (databaseBlocks.length > 0) {
-    return {
-      html: renderContentBlocksToEmailHtml(databaseBlocks, {
-        subject: campaign.subject_line || "Campaign",
-        previewText,
-      }),
-      contentBlocks: databaseBlocks,
-      source: "campaign_blocks",
-    };
-  }
-
+  // metadata.contentBlocks is what Studio and the campaign editor load and
+  // save, so it is the authoritative copy. campaign_blocks is a best-effort
+  // mirror written after the campaign row; reading it first let a failed
+  // mirror sync (or a clone that refreshed dates only in metadata) send
+  // different content from what the user last saw in Studio.
   const metadataBlocks = getBlockArray(campaign.metadata);
   if (metadataBlocks.length > 0) {
     return {
@@ -288,6 +281,18 @@ export async function resolveCampaignEmailSource(
       }),
       contentBlocks: metadataBlocks,
       source: "campaign.metadata",
+    };
+  }
+
+  const databaseBlocks = await loadCampaignBlockRows(client, campaign.id, requireSuccessfulLookup);
+  if (databaseBlocks.length > 0) {
+    return {
+      html: renderContentBlocksToEmailHtml(databaseBlocks, {
+        subject: campaign.subject_line || "Campaign",
+        previewText,
+      }),
+      contentBlocks: databaseBlocks,
+      source: "campaign_blocks",
     };
   }
 

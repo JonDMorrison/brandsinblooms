@@ -17,6 +17,10 @@ export interface WeeklyTheme {
   label?: "Past" | "Current" | "Future";
   isCurrentWeek: boolean;
   campaignId?: string; // Add campaign ID for proper theme-to-content matching
+  /** master_campaign_templates.theme (the theme line, distinct from title). */
+  theme?: string;
+  /** master_campaign_templates.prompt, when set. */
+  prompt?: string;
 }
 
 // Helper function to determine category based on content
@@ -130,6 +134,8 @@ const transformTheme = (dbTheme: any, currentWeek: number): WeeklyTheme => {
     weekNumber: dbTheme.week_number,
     label,
     isCurrentWeek,
+    theme: dbTheme.theme || undefined,
+    prompt: dbTheme.prompt || undefined,
   };
 };
 
