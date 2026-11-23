@@ -1250,6 +1250,15 @@ function CampaignEditorScreen() {
   // Keep the large email preview collapsed until explicitly requested.
   // The send controls now remain visible without forcing a long scroll.
   const [previewExpanded, setPreviewExpanded] = React.useState(false);
+
+  // Steps are numbered in the order shown; SMS has no subject step.
+  const stepNumber = React.useMemo(() => {
+    const order = ["setup", ...(campaignType === "email" ? ["inbox"] : []), "audience", "content", "actions"];
+    return Object.fromEntries(order.map((key, index) => [key, index + 1])) as Record<
+      "setup" | "inbox" | "audience" | "content" | "actions",
+      number
+    >;
+  }, [campaignType]);
   const handlePreviewExpandedChange = React.useCallback((next: boolean) => {
     setPreviewExpanded(next);
   }, []);
@@ -1636,7 +1645,7 @@ function CampaignEditorScreen() {
 
       <CollapsibleSection
         id="campaign-editor-setup"
-        title="1. Campaign details"
+        title={`${stepNumber.setup}. Campaign details`}
         summary={setupSummary}
         defaultExpanded={true}
       >
@@ -1685,7 +1694,7 @@ function CampaignEditorScreen() {
       {campaignType === "email" ? (
         <CollapsibleSection
           id="campaign-editor-inbox"
-          title="2. Subject & preview"
+          title={`${stepNumber.inbox}. Subject & preview`}
           summary={
             subjectLine || "Suggested after you add your newsletter content"
           }
@@ -1699,31 +1708,37 @@ function CampaignEditorScreen() {
               onChange={updateSetup}
               disabled={isLocked}
             />
-        </CollapsibleSection>
-      ) : null}
-
-      {campaignType === "email" ? (
-        <CollapsibleSection
-          id="campaign-editor-preview"
-          title="Preview"
-          summary={previewSummary}
-          expanded={previewExpanded}
-          onExpandedChange={handlePreviewExpandedChange}
-        >
-          <ContentPreviewCard
-            blocks={contentBlocks}
-            subjectLine={subjectLine}
-            previewText={preheaderText}
-            designSystem={designSystem}
-            loading={isDesignSystemLoading}
-            onOpenStudio={handleOpenStudio}
-          />
+            {/* The newsletter preview lives inside step 2 (it used to be a
+                separate, unnumbered "Preview" step). Collapsed by default so
+                the send controls stay close. */}
+            <Stack spacing={1} sx={{ mt: 2 }} data-testid="campaign-editor-inline-preview">
+              <JoyButton
+                variant="plain"
+                color="neutral"
+                size="sm"
+                aria-expanded={previewExpanded}
+                onClick={() => handlePreviewExpandedChange(!previewExpanded)}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                {previewExpanded ? "Hide newsletter preview" : `Show newsletter preview · ${previewSummary}`}
+              </JoyButton>
+              {previewExpanded ? (
+                <ContentPreviewCard
+                  blocks={contentBlocks}
+                  subjectLine={subjectLine}
+                  previewText={preheaderText}
+                  designSystem={designSystem}
+                  loading={isDesignSystemLoading}
+                  onOpenStudio={handleOpenStudio}
+                />
+              ) : null}
+            </Stack>
         </CollapsibleSection>
       ) : null}
 
       <CollapsibleSection
         id="campaign-editor-audience"
-        title="3. Audience"
+        title={`${stepNumber.audience}. Audience`}
         summary={
           audienceDetail === "No audience selected" ? (
             <Typography
@@ -2104,7 +2119,7 @@ function CampaignEditorScreen() {
 
       <CollapsibleSection
         id="campaign-editor-content"
-        title="4. Design your newsletter"
+        title={`${stepNumber.content}. Design your newsletter`}
         summary={
           campaignType === "email"
             ? hasMeaningfulEmailContent
@@ -2265,7 +2280,7 @@ function CampaignEditorScreen() {
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection id="campaign-editor-actions" title="5. Actions" summary="Review, send now, or schedule">
+      <CollapsibleSection id="campaign-editor-actions" title={`${stepNumber.actions}. Actions`} summary="Review, send now, or schedule">
         <Stack direction="row" spacing={1}>
           <JoyButton data-testid="campaign-editor-review-send-cta" disabled={isLocked || !canSendCampaign || Boolean(pendingTemplateSave)} onClick={() => { updateSchedule({ sendImmediately: true, sendAt: null }); openSendConfirmation(); }}>Send now</JoyButton>
           <JoyButton variant="outlined" disabled={isLocked || !canSendCampaign} onClick={handleScheduleForLater}>Schedule send</JoyButton>
