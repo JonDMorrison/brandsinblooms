@@ -1,4 +1,5 @@
 import * as React from "react";
+import { isEmptyContentBlock } from "@/lib/studio/emailHtmlGenerator";
 import Box from "@mui/joy/Box";
 import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
@@ -265,7 +266,11 @@ export default function CanvasBlockSlot({
                 p: 0,
                 borderRadius: "4px",
                 height: "auto",
-                minHeight: getPlaceholderMinHeight(block.type),
+                // An empty image block shows one "This block is empty"
+                // placeholder; no extra reserved height under it.
+                minHeight: isEmptyContentBlock(block)
+                  ? 0
+                  : getPlaceholderMinHeight(block.type),
                 bgcolor: "transparent",
                 transition: "all 120ms ease",
                 overflow: "visible",
