@@ -15434,6 +15434,16 @@ export type Database = {
       };
     };
     Functions: {
+      email_reachability_summary: {
+        Args: { p_tenant_id: string; p_customer_ids?: string[] };
+        Returns: {
+          total: number;
+          reachable: number;
+          waiting: number;
+          stopped: number;
+          unsendable: number;
+        }[];
+      };
       begin_customer_csv_import: {
         Args: {
           p_attestation_type: string;

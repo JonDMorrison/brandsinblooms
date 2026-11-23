@@ -2,12 +2,23 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount";
 
+/**
+ * Email reachability for a tenant or a campaign audience. Every customer in
+ * scope is in exactly one bucket, so
+ *   total = confirmed + pending + optedOut + suppressed.
+ * Definition (one place): public.email_reachability_summary.
+ */
 export interface TenantAudienceHealth {
   total: number;
+  /** Said yes to email and can be sent to. */
   confirmed: number;
+  /** Waiting for permission (pending confirmation or not recorded). */
   pending: number;
+  /** Asked us to stop (opted out, unsubscribed or complained). */
   optedOut: number;
+  /** Can't be sent to (bad address, suppressed or bounced). */
   suppressed: number;
+  /** Reachable for email. Same as confirmed. */
   eligible: number;
 }
 
@@ -20,62 +31,81 @@ const EMPTY_HEALTH: TenantAudienceHealth = {
   eligible: 0,
 };
 
-function buildBaseQuery(tenantId: string) {
-  return supabase
-    .from("crm_customers")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId)
-    .is("deleted_at", null)
-    .is("merged_into_customer_id", null)
-    .not("email", "is", null)
-    .neq("email", "")
-    .not("email", "ilike", "%@noemail.local");
+export interface EmailReachabilityRow {
+  total: number | string | null;
+  reachable: number | string | null;
+  waiting: number | string | null;
+  stopped: number | string | null;
+  unsendable: number | string | null;
+}
+
+function toCount(value: number | string | null | undefined) {
+  const count = typeof value === "string" ? Number(value) : value;
+  if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) {
+    throw new Error("Email reachability count is not available.");
+  }
+  return count;
+}
+
+/** Maps email_reachability_summary rows (summed across batches) to health. */
+export function toAudienceHealth(rows: EmailReachabilityRow[]): TenantAudienceHealth {
+  const health = { ...EMPTY_HEALTH };
+  for (const row of rows) {
+    const total = toCount(row.total);
+    const reachable = toCount(row.reachable);
+    const waiting = toCount(row.waiting);
+    const stopped = toCount(row.stopped);
+    const unsendable = toCount(row.unsendable);
+    if (reachable + waiting + stopped + unsendable !== total) {
+      throw new Error("Email reachability buckets do not add up to the total.");
+    }
+    health.total += total;
+    health.confirmed += reachable;
+    health.eligible += reachable;
+    health.pending += waiting;
+    health.optedOut += stopped;
+    health.suppressed += unsendable;
+  }
+  return health;
+}
+
+const REACHABILITY_ID_BATCH = 1000;
+
+/**
+ * Counts email reachability for the whole tenant (customerIds = null) or for
+ * the given customers. A failed read throws: unavailable is not zero.
+ */
+export async function fetchEmailReachability(
+  tenantId: string,
+  customerIds: string[] | null,
+): Promise<TenantAudienceHealth> {
+  const batches: Array<string[] | null> = [];
+  if (customerIds === null) {
+    batches.push(null);
+  } else {
+    const unique = Array.from(new Set(customerIds));
+    for (let index = 0; index < unique.length; index += REACHABILITY_ID_BATCH) {
+      batches.push(unique.slice(index, index + REACHABILITY_ID_BATCH));
+    }
+  }
+  if (batches.length === 0) return EMPTY_HEALTH;
+
+  const rows: EmailReachabilityRow[] = [];
+  for (const batch of batches) {
+    const { data, error } = await supabase.rpc("email_reachability_summary", {
+      p_tenant_id: tenantId,
+      ...(batch ? { p_customer_ids: batch } : {}),
+    });
+    if (error) throw error;
+    rows.push(...((data ?? []) as EmailReachabilityRow[]));
+  }
+  return toAudienceHealth(rows);
 }
 
 export async function fetchTenantAudienceHealth(
   tenantId: string,
 ): Promise<TenantAudienceHealth> {
-  // Counts via head:true so we never pull row data — these are aggregate
-  // numbers only and we run them in parallel.
-  const [totalRes, confirmedRes, pendingRes, optedOutRes, suppressedRes] =
-    await Promise.all([
-      buildBaseQuery(tenantId),
-      buildBaseQuery(tenantId).eq("email_opt_in", true),
-      buildBaseQuery(tenantId)
-        .eq("email_opt_in", false)
-        .eq("email_consent_method", "pending_confirmation"),
-      buildBaseQuery(tenantId)
-        .eq("email_opt_in", false)
-        .neq("email_consent_method", "pending_confirmation"),
-      buildBaseQuery(tenantId).eq("suppressed", true),
-    ]);
-
-  // A failed count is not zero reachable customers. Surface the error so the
-  // dashboard and campaign targeting cannot mistake unavailable data for 0.
-  const failures = [totalRes, confirmedRes, pendingRes, optedOutRes, suppressedRes];
-  const firstError = failures.find((result) => result.error)?.error;
-  if (firstError) throw firstError;
-
-  const safe = (count: number | null | undefined) =>
-    typeof count === "number" && Number.isFinite(count) && count >= 0
-      ? count
-      : 0;
-
-  const total = safe(totalRes.count);
-  const confirmed = safe(confirmedRes.count);
-  const pending = safe(pendingRes.count);
-  const optedOut = safe(optedOutRes.count);
-  const suppressed = safe(suppressedRes.count);
-  const eligible = Math.max(0, confirmed - suppressed);
-
-  return {
-    total,
-    confirmed,
-    pending,
-    optedOut,
-    suppressed,
-    eligible,
-  };
+  return fetchEmailReachability(tenantId, null);
 }
 
 export function useTenantAudienceHealth(
@@ -103,15 +133,29 @@ export interface CampaignAudienceHealthOptions {
   enabled?: boolean;
 }
 
-/** Imported IdealPOS placeholders are not deliverable email addresses. */
+const RESERVED_EMAIL_TLDS = ["invalid", "test", "localhost", "example"];
+const RESERVED_EMAIL_DOMAINS = ["example.com", "example.net", "example.org"];
+
+/**
+ * RFC 2606 / 6761 reserved domains never receive mail (demo and test data).
+ * Same rule as the send path (_shared/canSendEmail.ts) and
+ * public.is_reserved_email_domain.
+ */
+export function isReservedEmailDomain(email: string): boolean {
+  const domain = (email.split("@").pop() ?? "").trim().toLowerCase().replace(/\.$/, "");
+  if (!domain) return false;
+  if (RESERVED_EMAIL_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) return true;
+  return RESERVED_EMAIL_TLDS.includes(domain.split(".").pop() ?? "");
+}
+
+/** Imported IdealPOS placeholders and reserved domains are not deliverable. */
 export function hasUsableCampaignEmail(value: string | null | undefined): boolean {
   if (!value) return false;
   const email = value.trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-    !email.toLowerCase().endsWith("@noemail.local");
+    !email.toLowerCase().endsWith("@noemail.local") &&
+    !isReservedEmailDomain(email);
 }
-
-const AUDIENCE_HEALTH_CHUNK_SIZE = 500;
 
 export async function fetchCampaignAudienceHealth(
   options: Omit<CampaignAudienceHealthOptions, "enabled"> & { tenantId: string },
@@ -122,11 +166,16 @@ export async function fetchCampaignAudienceHealth(
     options.segmentIds.length > 0 ||
     options.personaIds.length > 0;
 
+  // No audience chosen yet, or "everyone": the whole tenant, counted in SQL.
+  if (!hasExplicitAudience || options.includeAllCustomers) {
+    return fetchEmailReachability(options.tenantId, null);
+  }
+
   const customerIds = await resolveAudienceRecipientIds({
     tenantId: options.tenantId,
-    includeAllCustomers: options.includeAllCustomers,
+    includeAllCustomers: false,
     additionalCustomerIds: options.additionalCustomerIds,
-    fallbackToAllCustomers: !hasExplicitAudience,
+    fallbackToAllCustomers: false,
     segmentIds: options.segmentIds,
     personaIds: options.personaIds,
   });
@@ -135,52 +184,7 @@ export async function fetchCampaignAudienceHealth(
     return EMPTY_HEALTH;
   }
 
-  const customers: Array<{
-    id: string;
-    email: string | null;
-    email_opt_in: boolean | null;
-    email_consent_method: string | null;
-    suppressed: boolean | null;
-  }> = [];
-
-  for (let index = 0; index < customerIds.length; index += AUDIENCE_HEALTH_CHUNK_SIZE) {
-    const chunk = customerIds.slice(index, index + AUDIENCE_HEALTH_CHUNK_SIZE);
-    const { data, error } = await supabase
-      .from("crm_customers")
-      .select("id, email, email_opt_in, email_consent_method, suppressed")
-      .eq("tenant_id", options.tenantId)
-      .is("deleted_at", null)
-      .is("merged_into_customer_id", null)
-      .not("email", "is", null)
-      .in("id", chunk);
-
-    if (error) {
-      throw error;
-    }
-
-    customers.push(...(data ?? []));
-  }
-
-  const contactable = customers.filter((customer) => hasUsableCampaignEmail(customer.email));
-  const total = contactable.length;
-  const confirmed = contactable.filter((customer) => customer.email_opt_in === true).length;
-  const pending = contactable.filter(
-    (customer) =>
-      customer.email_opt_in === false &&
-      customer.email_consent_method === "pending_confirmation",
-  ).length;
-  const optedOut = contactable.filter(
-    (customer) =>
-      customer.email_opt_in === false &&
-      customer.email_consent_method !== null &&
-      customer.email_consent_method !== "pending_confirmation",
-  ).length;
-  const suppressed = contactable.filter((customer) => customer.suppressed === true).length;
-  const eligible = contactable.filter(
-    (customer) => customer.email_opt_in === true && customer.suppressed !== true,
-  ).length;
-
-  return { total, confirmed, pending, optedOut, suppressed, eligible };
+  return fetchEmailReachability(options.tenantId, customerIds);
 }
 
 export function useCampaignAudienceHealth(options: CampaignAudienceHealthOptions) {

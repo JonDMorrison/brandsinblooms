@@ -5,6 +5,7 @@ import { ImagePlus } from "lucide-react";
 import { formatDraftRichText } from "@/lib/crm/htmlContent";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
+import { SENT_MOBILE_CROP_HEIGHT, STUDIO_MOBILE_QUERY } from "@/lib/studio/emailHtmlGenerator";
 
 type ImageTextRendererProps = {
   block: StudioBlock;
@@ -119,6 +120,20 @@ function ImageFrame({
     );
   }
 
+  // Same as the sent email on phones: every image except 9:16 is cropped
+  // to 240px (`.responsive-crop-image`).
+  const mobileCrop =
+    block.imageRatio === "9:16"
+      ? {}
+      : {
+          [STUDIO_MOBILE_QUERY]: {
+            aspectRatio: "auto",
+            height: `${SENT_MOBILE_CROP_HEIGHT}px`,
+            minHeight: 0,
+            "& img": { height: "100%", minHeight: 0 },
+          },
+        };
+
   return (
     <Box
       sx={{
@@ -128,6 +143,7 @@ function ImageFrame({
         borderRadius: `${block.borderRadius ?? 8}px`,
         overflow: "hidden",
         bgcolor: "neutral.100",
+        ...mobileCrop,
       }}
     >
       <Box

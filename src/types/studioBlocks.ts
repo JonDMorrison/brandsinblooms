@@ -159,6 +159,8 @@ export interface StudioBlock {
     sourceDescription?: string;
     sourceImageUrl?: string | null;
     upcomingDateCount?: number;
+    /** Name of the connected website the content came from. */
+    siteName?: string;
   };
   id: string;
   type: BlockType;

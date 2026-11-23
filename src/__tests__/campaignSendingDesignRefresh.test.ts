@@ -21,11 +21,13 @@ describe("campaign sending design and palette invariants", () => {
       const prop = cta?.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText(ast) === name) as ts.JsxAttribute;
       return ((prop.initializer as ts.JsxExpression).expression!).getText(ast);
     };
-    const disabled = new Function("isLocked", "canSendCampaign", "pendingTemplateSave", `return (${expression("disabled")})`);
-    expect(disabled(false, true, null)).toBe(false);
-    expect(disabled(true, true, null)).toBe(true);
-    expect(disabled(false, false, null)).toBe(true);
-    expect(disabled(false, true, {})).toBe(true);
+    const disabled = new Function("isLocked", "canSendCampaign", "pendingTemplateSave", "sendBlockers", `return (${expression("disabled")})`);
+    expect(disabled(false, true, null, [])).toBe(false);
+    expect(disabled(true, true, null, [])).toBe(true);
+    expect(disabled(false, false, null, [])).toBe(true);
+    expect(disabled(false, true, {}, [])).toBe(true);
+    // #10: the button waits until every blocker in the checklist is fixed.
+    expect(disabled(false, true, null, [{ message: "Add a subject line" }])).toBe(true);
     const schedule = vi.fn(), review = vi.fn();
     new Function("updateSchedule", "openSendConfirmation", `return (${expression("onClick")})`)(schedule, review)();
     expect(schedule).toHaveBeenCalledWith({sendImmediately: true, sendAt: null});

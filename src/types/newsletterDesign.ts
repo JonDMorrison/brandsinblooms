@@ -52,6 +52,12 @@ export interface NewsletterSettings {
   blockGap?: number;
   defaults?: BlockAppearance;
   assetLocations?: Array<{ id: string; name: string; url: string }>;
+  /**
+   * "skip": blocks with no content render nothing (no wrapper, no gap) in
+   * preview, test and send. Stamped on drafts by ensureFooterBlockCompliance;
+   * absent on campaigns sent before this flag, so they re-render unchanged.
+   */
+  emptyBlocks?: "skip";
 }
 export interface NewsletterLink {
   id: string;

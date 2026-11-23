@@ -162,7 +162,7 @@ export function buildStudioCampaignContext({
     blockContent: extractBlockContentFields(block),
     blockLabel: STUDIO_BLOCK_LOOKUP[block.type]?.name ?? block.label,
     blockType: block.type,
-    campaignName: normalizeVisibleText(campaignName) || "Untitled Campaign",
+    campaignName: normalizeVisibleText(campaignName) || "Draft newsletter",
     campaignType,
     contentSummary: extractBlockContentSummary(block),
   };

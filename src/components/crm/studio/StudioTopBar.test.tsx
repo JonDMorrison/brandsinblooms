@@ -50,19 +50,27 @@ function renderTopBar(overrides: Record<string, unknown> = {}) {
 describe("StudioTopBar", () => {
   it("opens the current studio save-template flow", async () => {
     const user = userEvent.setup();
-    const { onSaveAsTemplate } = renderTopBar();
+    const { onSaveAsTemplate } = renderTopBar({
+      blocks: [{ id: "t", type: "plain-text", body: "<p>Spring is here</p>" }],
+    });
 
     await user.click(screen.getByRole("button", { name: "Save template" }));
 
     expect(onSaveAsTemplate).toHaveBeenCalledOnce();
   });
 
-  it("disables template saving for an empty canvas", () => {
-    renderTopBar({ blockCount: 0 });
+  it("hides template saving until the design has content", () => {
+    renderTopBar({
+      blockCount: 2,
+      blocks: [
+        { id: "h", type: "newsletter-header" },
+        { id: "e", type: "plain-text", body: "" },
+      ],
+    });
 
     expect(
-      screen.getByRole("button", { name: "Save template" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Save template" }),
+    ).not.toBeInTheDocument();
   });
   it("offers a save-and-review action alongside close", async () => {
     const user = userEvent.setup();
@@ -80,5 +88,16 @@ describe("StudioTopBar", () => {
     expect(
       screen.queryByRole("button", { name: "Review & Send" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("StudioTopBar subject dialog (#23)", () => {
+  it("autosaves like the rest of Studio: no separate Save button, shared save state", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ hasUnsavedChanges: true, saveStatus: "idle" });
+    await user.click(screen.getByRole("button", { name: "Campaign settings" }));
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("subject-dialog-save-state")).toHaveTextContent("Unsaved changes");
+    expect(screen.getByText("Changes save automatically, like the rest of Design Studio.")).toBeInTheDocument();
   });
 });

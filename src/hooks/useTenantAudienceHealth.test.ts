@@ -12,7 +12,15 @@ describe("campaign audience email readiness", () => {
   it("rejects malformed addresses and permits ordinary mixed-case emails", () => {
     expect(hasUsableCampaignEmail("not-an-email")).toBe(false);
     expect(hasUsableCampaignEmail("bad @example.com")).toBe(false);
-    expect(hasUsableCampaignEmail(" bryan@example.com ")).toBe(true);
+    expect(hasUsableCampaignEmail(" bryan@gardencentre.ca ")).toBe(true);
     expect(hasUsableCampaignEmail("Bryan@Example.CA")).toBe(true);
+  });
+
+  it("rejects reserved demo and test domains, like the send path", () => {
+    expect(hasUsableCampaignEmail("jane@greenfield-demo.example.invalid")).toBe(false);
+    expect(hasUsableCampaignEmail("bryan@example.com")).toBe(false);
+    expect(hasUsableCampaignEmail("a@mail.example.org")).toBe(false);
+    expect(hasUsableCampaignEmail("a@shop.test")).toBe(false);
+    expect(hasUsableCampaignEmail("a@testing.ca")).toBe(true);
   });
 });

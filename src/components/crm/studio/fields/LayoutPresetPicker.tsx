@@ -820,13 +820,12 @@ export default function LayoutPresetPicker({
           maxWidth: "100%",
           minWidth: 0,
           boxSizing: "border-box",
-          display: "flex",
+          // Wrap into a grid: every option stays fully visible at any panel
+          // width (it used to scroll sideways with a hidden scrollbar).
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
           gap: "8px",
-          overflowX: "auto",
-          overflowY: "hidden",
           pb: 0.75,
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
         }}
       >
         {presets.map((preset) => {
@@ -842,9 +841,9 @@ export default function LayoutPresetPicker({
               onClick={() => onSelect(preset)}
               sx={{
                 position: "relative",
-                width: 76,
+                width: "100%",
+                minWidth: 0,
                 height: 88,
-                flex: "0 0 auto",
                 p: 0,
                 border: "1px solid",
                 borderColor: selected ? "primary.400" : "neutral.200",

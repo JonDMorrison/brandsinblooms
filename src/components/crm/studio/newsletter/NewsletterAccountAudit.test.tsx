@@ -56,7 +56,7 @@ beforeEach(() => {
 describe("newsletter account switching safety", () => {
   it("closes a pending save dialog when the destination account changes", () => {
     const view = render(<Wrapper />);
-    fireEvent.click(screen.getByRole("tab", { name: "Saved" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Saved blocks" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Save selected block" }),
     );
@@ -83,7 +83,7 @@ describe("newsletter account switching safety", () => {
     );
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const view = render(<Wrapper />);
-    fireEvent.click(screen.getByRole("tab", { name: "Saved" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Saved blocks" }));
     fireEvent.click(screen.getByRole("button", { name: "Import 2 blocks" }));
     expect(account.create).toHaveBeenCalledTimes(1);
     expect(account.create.mock.calls[0][0].expectedTenantId).toBe("account-a");

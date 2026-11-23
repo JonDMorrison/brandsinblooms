@@ -10,13 +10,20 @@ import Link from "@mui/joy/Link";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import Tabs from "@mui/joy/Tabs";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import {
   ArrowUp,
   Camera,
   Check,
   Images,
+  Leaf,
+  Link2,
   Repeat2,
+  Search,
+  ShoppingBag,
   Sparkles,
   Trash2,
   UploadCloud,
@@ -37,6 +44,7 @@ import type {
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
 import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import { supabase } from "@/integrations/supabase/client";
+import { useWebsiteProductImages } from "@/hooks/useWebsiteProductImages";
 
 const CAMPAIGN_IMAGE_BUCKET = "campaign-images";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -95,8 +103,97 @@ type StudioImageUploadProps = {
   onChange?: (url: string) => void;
   onClearImage?: () => void;
   onRequestAIImage?: (request: StudioImageAIRequest) => void;
+  /** Image block: show source tabs (My images, Products, This week's theme, Upload, Paste link). */
+  sourceTabs?: boolean;
   value?: string;
 };
+
+type ImageSourceTab = "my-images" | "products" | "theme" | "upload" | "link";
+
+const IMAGE_SOURCE_TABS: Array<{ value: ImageSourceTab; label: string }> = [
+  { value: "my-images", label: "My images" },
+  { value: "products", label: "Products" },
+  { value: "theme", label: "This week's theme" },
+  { value: "upload", label: "Upload" },
+  { value: "link", label: "Paste link" },
+];
+
+function ProductImagePanel({ onPick }: { onPick: (url: string, altText: string) => void }) {
+  const [search, setSearch] = React.useState("");
+  const [query, setQuery] = React.useState("");
+  React.useEffect(() => {
+    const handle = window.setTimeout(() => setQuery(search.trim()), 300);
+    return () => window.clearTimeout(handle);
+  }, [search]);
+  const products = useWebsiteProductImages(query, true);
+  return (
+    <Stack spacing={1} data-testid="image-source-products">
+      <Input
+        size="sm"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Search your website products"
+        startDecorator={<Search size={14} />}
+        slotProps={{ input: { "aria-label": "Search products" } }}
+      />
+      {products.isLoading ? (
+        <LinearProgress size="sm" />
+      ) : products.isError ? (
+        <Typography level="body-xs" sx={{ color: "danger.600" }}>
+          {products.error instanceof Error ? products.error.message : "Could not load your website products."}
+        </Typography>
+      ) : (products.data ?? []).length === 0 ? (
+        <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+          No product photos found on your website.
+        </Typography>
+      ) : (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(76px, 1fr))",
+            gap: 0.75,
+            maxHeight: 260,
+            overflowY: "auto",
+          }}
+        >
+          {(products.data ?? []).map((product) => (
+            <Box
+              key={product.id}
+              component="button"
+              type="button"
+              title={product.title}
+              aria-label={`Use photo of ${product.title}`}
+              onClick={() => onPick(product.imageUrl, product.altText)}
+              sx={{
+                p: 0,
+                border: "1px solid",
+                borderColor: "neutral.200",
+                borderRadius: "8px",
+                overflow: "hidden",
+                bgcolor: "background.surface",
+                cursor: "pointer",
+                textAlign: "left",
+                "&:hover": { borderColor: "primary.400" },
+                "&:focus-visible": { outline: "2px solid var(--joy-palette-primary-300)" },
+              }}
+            >
+              <Box
+                component="img"
+                src={product.imageUrl}
+                alt=""
+                loading="lazy"
+                sx={{ display: "block", width: "100%", aspectRatio: "1 / 1", objectFit: "cover" }}
+              />
+              <Typography level="body-xs" noWrap sx={{ px: 0.5, py: 0.25, fontSize: "11px" }}>
+                {product.title}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Stack>
+  );
+}
 
 type QuickGenerateState =
   | { mode: "collapsed" }
@@ -368,8 +465,10 @@ export default function StudioImageUpload({
   onChange,
   onClearImage,
   onRequestAIImage,
+  sourceTabs = false,
   value,
 }: StudioImageUploadProps) {
+  const [sourceTab, setSourceTab] = React.useState<ImageSourceTab>("upload");
   const { open } = useAIImageStudio();
   const isMobile = useMediaQuery("(max-width: 767.95px)");
   const prefersReducedMotion = useMediaQuery(
@@ -844,8 +943,116 @@ export default function StudioImageUpload({
         </Stack>
       ) : null}
 
+      {sourceTabs ? (
+        <Tabs
+          value={sourceTab}
+          onChange={(_event, next) => {
+            if (typeof next === "string") setSourceTab(next as ImageSourceTab);
+          }}
+          size="sm"
+          sx={{ bgcolor: "transparent" }}
+        >
+          <TabList
+            data-testid="image-source-tabs"
+            disableUnderline
+            sx={{
+              flexWrap: "wrap",
+              gap: 0.5,
+              p: 0.5,
+              borderRadius: "8px",
+              bgcolor: "neutral.50",
+              "& .MuiTab-root": {
+                flex: "1 1 auto",
+                minHeight: 28,
+                px: 1,
+                borderRadius: "6px",
+                fontSize: "12px",
+                whiteSpace: "nowrap",
+              },
+            }}
+          >
+            {IMAGE_SOURCE_TABS.map((tab) => (
+              <Tab key={tab.value} value={tab.value} disableIndicator>
+                {tab.label}
+              </Tab>
+            ))}
+          </TabList>
+        </Tabs>
+      ) : null}
+
+      {sourceTabs && sourceTab === "my-images" ? (
+        <Stack spacing={1} alignItems="flex-start" data-testid="image-source-my-images">
+          <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+            Photos you have uploaded or used before.
+          </Typography>
+          <Button
+            size="sm"
+            variant="outlined"
+            color="neutral"
+            startDecorator={<Images size={15} />}
+            onClick={() =>
+              open({
+                aspectRatioHint: resolveAIAspectRatio(aiAspectRatioHint),
+                blockId,
+                campaignContext,
+                channel: "newsletter",
+                contentContext: blockContext,
+                contextLabel: blockContext,
+                contextType,
+                defaultTab: "my-images",
+                onSelect: (imageUrl, metadata) => {
+                  void handleAISelection(imageUrl, metadata);
+                },
+              })
+            }
+          >
+            Open my images
+          </Button>
+        </Stack>
+      ) : null}
+
+      {sourceTabs && sourceTab === "products" ? (
+        <ProductImagePanel
+          onPick={(url, altText) => {
+            setResolvedUrl(url);
+            setErrorMessage(null);
+            onApplyImage?.(buildApplyEvent(url, "reused", "library", altText));
+          }}
+        />
+      ) : null}
+
+      {sourceTabs && sourceTab === "theme" ? (
+        <Stack direction="row" spacing={1} alignItems="flex-start" data-testid="image-source-theme">
+          <Leaf size={16} style={{ flexShrink: 0, marginTop: 2, color: "var(--joy-palette-success-500)" }} />
+          <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+            Photos for this week's theme will show here once weekly theme images are turned on.
+          </Typography>
+        </Stack>
+      ) : null}
+
+      {sourceTabs && sourceTab === "link" ? (
+        <Stack spacing={0.5} data-testid="image-source-link">
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Link2 size={14} />
+            <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+              Paste a link to a photo on the web.
+            </Typography>
+          </Stack>
+          <ImageUrlField
+            expanded
+            onApply={(url) => {
+              setResolvedUrl(url);
+              setErrorMessage(null);
+              onApplyImage?.(buildApplyEvent(url, "reused", "library"));
+            }}
+          />
+        </Stack>
+      ) : null}
+
       <Box
         sx={{
+          // The current photo stays visible on every tab; the drop zone only on Upload.
+          display: sourceTabs && sourceTab !== "upload" && !hasPreview ? "none" : undefined,
           opacity: quickGenerateBusy ? 0.4 : 1,
           pointerEvents: quickGenerateBusy ? "none" : "auto",
           transition: prefersReducedMotion ? "none" : "opacity 150ms ease",
@@ -1097,7 +1304,7 @@ export default function StudioImageUpload({
                   minWidth: 0,
                   p: "20px 16px",
                   border: 0,
-                  borderRight: hasAITrigger ? "1px solid" : 0,
+                  borderRight: hasAITrigger && !sourceTabs ? "1px solid" : 0,
                   borderColor: "neutral.100",
                   bgcolor: isDragActive ? "primary.50" : "transparent",
                   color: "inherit",
@@ -1119,7 +1326,7 @@ export default function StudioImageUpload({
                   },
                   "@container (max-width: 249px)": {
                     borderRight: 0,
-                    borderBottom: hasAITrigger ? "1px solid" : 0,
+                    borderBottom: hasAITrigger && !sourceTabs ? "1px solid" : 0,
                     borderColor: "neutral.100",
                   },
                 }}
@@ -1159,7 +1366,7 @@ export default function StudioImageUpload({
                 </Typography>
               </Box>
 
-              {hasAITrigger ? (
+              {hasAITrigger && !sourceTabs ? (
                 <Box
                   component="button"
                   type="button"
@@ -1239,6 +1446,19 @@ export default function StudioImageUpload({
           ) : null}
         </Sheet>
       </Box>
+
+      {sourceTabs && hasAITrigger ? (
+        <Button
+          size="sm"
+          variant="plain"
+          color="neutral"
+          startDecorator={<Sparkles size={14} />}
+          onClick={() => openAIStudio()}
+          sx={{ alignSelf: "flex-start", fontWeight: 500 }}
+        >
+          Generate with AI
+        </Button>
+      ) : null}
 
       {hasAITrigger ? (
         <Stack spacing={0} sx={{ width: "100%" }}>
@@ -1444,13 +1664,15 @@ export default function StudioImageUpload({
           ) : null}
         </Stack>
       ) : null}
-      <ImageUrlField
-        onApply={(url) => {
-          setResolvedUrl(url);
-          setErrorMessage(null);
-          onApplyImage?.(buildApplyEvent(url, "reused", "library"));
-        }}
-      />
+      {sourceTabs ? null : (
+        <ImageUrlField
+          onApply={(url) => {
+            setResolvedUrl(url);
+            setErrorMessage(null);
+            onApplyImage?.(buildApplyEvent(url, "reused", "library"));
+          }}
+        />
+      )}
     </Stack>
   );
 }

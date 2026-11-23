@@ -1474,3 +1474,41 @@ export const footerPresets: LayoutPreset[] = [
     },
   },
 ];
+
+function sameValue(left: unknown, right: unknown) {
+  if (left === right) return true;
+  if (typeof left === "object" && typeof right === "object" && left && right) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+  return false;
+}
+
+/**
+ * Fields to apply when switching a block to another "Pick a look" preset.
+ * A field the user set themselves (it differs from both the look being
+ * replaced and the block type's default) is kept; everything else follows
+ * the new look. An explicitly chosen logo size always counts as user-set.
+ */
+export function mergeLookFields(
+  block: StudioBlock,
+  nextPreset: LayoutPreset,
+  allPresets: ReadonlyArray<LayoutPreset>,
+  defaults: Partial<StudioBlock>,
+): Partial<StudioBlock> {
+  const previous = allPresets.find((preset) => preset.key === block.layoutPreset);
+  const record = block as unknown as Record<string, unknown>;
+  const previousFields = (previous?.fields ?? {}) as Record<string, unknown>;
+  const defaultFields = defaults as Record<string, unknown>;
+  const result: Record<string, unknown> = { layoutPreset: nextPreset.key };
+
+  for (const [field, value] of Object.entries(nextPreset.fields)) {
+    const current = record[field];
+    const userSet =
+      (field === "logoSize" && block.logoSizeExplicit === true) ||
+      (current !== undefined &&
+        !sameValue(current, previousFields[field]) &&
+        !sameValue(current, defaultFields[field]));
+    if (!userSet) result[field] = value;
+  }
+  return result as Partial<StudioBlock>;
+}

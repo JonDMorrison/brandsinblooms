@@ -17,7 +17,8 @@ describe("Mike at Arts campaign catalog preferences", () => {
     expect(normalizeChannelFilter(null)).toBe("all");
     expect(normalizeChannelFilter("bad")).toBe("all");
     expect(normalizeChannelFilter("email")).toBe("email");
-    expect(normalizeChannelFilter("newsletter")).toBe("newsletter");
+    // Newsletter and Email are one type; old links still work.
+    expect(normalizeChannelFilter("newsletter")).toBe("email");
     expect(normalizeChannelFilter("sms")).toBe("sms");
   });
 });

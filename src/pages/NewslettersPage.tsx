@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useStartBlankNewsletter } from "@/hooks/useStartBlankNewsletter";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import ButtonGroup from "@mui/joy/ButtonGroup";
@@ -770,6 +771,7 @@ export const NewslettersPage = () => {
     [filterCounts],
   );
 
+  const blankNewsletter = useStartBlankNewsletter();
   const handleNavigate = (href: string) => {
     navigate(href);
   };
@@ -996,9 +998,7 @@ export const NewslettersPage = () => {
                     </JoyDropdownMenuLabel>
 
                     <JoyDropdownMenuItem
-                      onClick={() =>
-                        handleNavigate("/crm/campaigns/new?type=newsletter")
-                      }
+                      onClick={() => void blankNewsletter.start()}
                       startDecorator={
                         <Sheet
                           variant="soft"

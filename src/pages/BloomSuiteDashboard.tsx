@@ -124,8 +124,10 @@ function HomeMetric({
             {label}
           </Typography>
         </Stack>
+        {/* In-flow placeholder: the default "overlay" Skeleton is absolutely
+            positioned over the whole card and hid its label. */}
         {loading ? (
-          <Skeleton sx={{ width: 110, height: 38, borderRadius: "sm" }} />
+          <Skeleton variant="rectangular" sx={{ width: 110, height: 38, borderRadius: "sm" }} />
         ) : (
           <Typography
             level={empty ? "title-md" : "h2"}
@@ -738,7 +740,7 @@ export const BloomSuiteDashboard = () => {
                     Your latest email campaign
                   </Typography>
                   {performance.loading ? (
-                    <Skeleton sx={{ width: 230, maxWidth: "100%", height: 24 }} />
+                    <Skeleton variant="rectangular" sx={{ width: 230, maxWidth: "100%", height: 24, borderRadius: "sm" }} />
                   ) : latestCampaign ? (
                     <>
                       <Typography level="body-md" sx={{ color: "neutral.800", lineHeight: 1.5 }}>
