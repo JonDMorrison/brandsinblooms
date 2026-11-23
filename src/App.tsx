@@ -807,11 +807,13 @@ function App() {
             />
             <Route
               path="/crm/care-guides"
-              element={renderProtectedSidebarLazyPage(
-                <CareGuideStudioPage />,
-                "full",
-                "campaigns.write",
-              )}
+              element={import.meta.env["VITE_CARE_GUIDE_STUDIO_ENABLED"] === "true"
+                ? renderProtectedSidebarLazyPage(
+                    <CareGuideStudioPage />,
+                    "full",
+                    "campaigns.write",
+                  )
+                : <Navigate to="/crm/campaigns" replace />}
             />
             <Route
               path="/crm/campaigns"
