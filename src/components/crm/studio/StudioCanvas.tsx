@@ -293,36 +293,7 @@ export default function StudioCanvas({
         <Typography level="body-sm" sx={{ fontWeight: 700, color: "#263d42" }}>
           Your email
         </Typography>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <button
-            type="button"
-            className="nl-quiet"
-            onClick={(event) => {
-              event.stopPropagation();
-              event.currentTarget
-                .closest("[data-newsletter-canvas]")
-                ?.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            Go to top
-          </button>
-          <button
-            type="button"
-            className="nl-quiet"
-            onClick={(event) => {
-              event.stopPropagation();
-              const canvas = event.currentTarget.closest(
-                "[data-newsletter-canvas]",
-              );
-              canvas?.scrollTo({
-                top: canvas.scrollHeight,
-                behavior: "smooth",
-              });
-            }}
-          >
-            Go to bottom
-          </button>
-        </Box>
+        {/* Go to top / bottom live in the Outline panel only. */}
       </Box>
       <Box
         sx={{
@@ -330,6 +301,10 @@ export default function StudioCanvas({
           maxWidth: canvasWidth,
           mx: "auto",
           my: 4,
+          // Lets blocks apply the sent email's mobile rules (<600px) when the
+          // canvas is in tablet or phone width. See STUDIO_MOBILE_QUERY.
+          containerType: "inline-size",
+          containerName: "studio-email",
           px: { xs: 2, md: 0 },
           transition: "max-width 300ms ease",
         }}

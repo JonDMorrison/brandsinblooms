@@ -229,13 +229,13 @@ describe("named account library and outline", () => {
     );
     setup();
     expect(fixture.create).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("tab", { name: "Saved" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Saved blocks" }));
     expect(screen.getByText("Import blocks from this browser")).toBeTruthy();
     expect(fixture.create).not.toHaveBeenCalled();
   });
   it("asks for a name and saves complete configured content", async () => {
     const { source } = setup();
-    fireEvent.click(screen.getByRole("tab", { name: "Saved" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Saved blocks" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Save selected block" }),
     );
@@ -263,7 +263,7 @@ describe("named account library and outline", () => {
     );
     expect(onDuplicateBlock).toHaveBeenCalledWith(source.id);
     fireEvent.click(
-      screen.getByRole("button", { name: "Save Spring lawn offer" }),
+      screen.getByRole("button", { name: "Save block Spring lawn offer" }),
     );
     expect(screen.getByLabelText("Block name")).toBeTruthy();
   });
@@ -278,7 +278,7 @@ describe("named account library and outline", () => {
       },
     ];
     const { onInsertSavedBlock } = setup();
-    fireEvent.click(screen.getByRole("tab", { name: "Saved" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Saved blocks" }));
     fireEvent.click(screen.getByRole("button", { name: /^Seasonal coupon/ }));
     expect(onInsertSavedBlock).toHaveBeenCalledWith(
       expect.objectContaining({ couponPrice: "$5" }),

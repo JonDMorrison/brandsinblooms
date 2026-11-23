@@ -57,8 +57,12 @@ describe("NewsletterInboxReview", () => {
       screen.getByRole("button", { name: "Help me improve this" }),
     );
     await screen.findByText("Make a winter wreath");
+    // Only the subject and preview pair is shown, never the model's reasoning.
+    expect(
+      screen.queryByText("A clear invitation with the date in preview text."),
+    ).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Use this pair" }));
+    await user.click(screen.getByRole("button", { name: "Use this" }));
     expect(onChange).toHaveBeenCalledWith({
       subjectLine: "Make a winter wreath",
       preheaderText: "Join us November 14.",

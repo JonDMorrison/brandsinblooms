@@ -11,6 +11,7 @@ import Typography from "@mui/joy/Typography";
 import {
   ArrowRight,
   Check,
+  Copy,
   Lightbulb,
   PenTool,
   Sun,
@@ -24,6 +25,9 @@ import { dashboardPressSx } from "@/components/dashboard/dashboardPressMotion";
 import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
 import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
+import { useStartBlankNewsletter } from "@/hooks/useStartBlankNewsletter";
+import { CopyPreviousEmailDialog } from "@/components/newsletter/CopyPreviousEmailDialog";
+import { YourTemplatesSection } from "@/components/newsletter/YourTemplatesSection";
 import {
   buildNewsletterIdeaEditorSearchParams,
   type NewsletterIdeaNavigationState,
@@ -347,6 +351,8 @@ export const NewsletterNewPage = () => {
   const [selectedLayout, setSelectedLayout] = useState<LayoutKey | null>(null);
   const navigate = useNavigate();
   const { ideas, templates, loading } = useNewsletterIdeas();
+  const blankNewsletter = useStartBlankNewsletter();
+  const [copyOpen, setCopyOpen] = useState(false);
 
   const currentWeekNumber = useMemo(() => getCurrentWeekNumber(), []);
 
@@ -453,6 +459,7 @@ export const NewsletterNewPage = () => {
 
   return (
     <>
+      <CopyPreviousEmailDialog open={copyOpen} onClose={() => setCopyOpen(false)} />
       {/*
         Keep the marketing token scope for accents and typography while the
         editor workspace itself uses BloomSuite's cool neutral surface.
@@ -511,7 +518,7 @@ export const NewsletterNewPage = () => {
               <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+                  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" },
                   gap: { xs: 2.5, md: 3 },
                   alignItems: "stretch",
                 }}
@@ -536,9 +543,9 @@ export const NewsletterNewPage = () => {
                   variant="scratch"
                   title="Start from Scratch"
                   description="Open a blank editor and build your newsletter block by block."
-                  buttonLabel="Open blank editor"
+                  buttonLabel={blankNewsletter.starting ? "Opening Design Studio…" : "Open blank editor"}
                   icon={PenTool}
-                  onClick={() => navigate("/crm/campaigns/new?type=newsletter")}
+                  onClick={() => void blankNewsletter.start()}
                 />
 
                 <CreationPathCard
@@ -549,8 +556,31 @@ export const NewsletterNewPage = () => {
                   icon={Lightbulb}
                   onClick={() => setShowPicker(true)}
                 />
+
+                <CreationPathCard
+                  variant="ai"
+                  title="Copy a Previous Email"
+                  description="Start from one of your last 10 sent or draft emails."
+                  buttonLabel="Choose an email"
+                  icon={Copy}
+                  onClick={() => setCopyOpen(true)}
+                />
               </Box>
             </Stack>
+
+            <YourTemplatesSection
+              busy={blankNewsletter.starting}
+              onUseTemplate={(template) =>
+                void blankNewsletter.start({
+                  name: template.name,
+                  // Fresh block ids: the draft must not share ids with the template.
+                  blocks: template.layout_json.map((block) => ({
+                    ...block,
+                    id: crypto.randomUUID(),
+                  })),
+                })
+              }
+            />
 
             <Stack spacing={{ xs: 3, md: 4 }}>
               <Stack spacing={1.25}>

@@ -8,7 +8,11 @@ import Typography from "@mui/joy/Typography";
 import {
   Check,
   Calendar,
+  CalendarDays,
   FilePlus,
+  Flower2,
+  Leaf,
+  ShoppingBag,
   Heart,
   Images,
   MoreHorizontal,
@@ -27,6 +31,7 @@ import {
 } from "@/lib/studio/campaignTemplates";
 import type { SavedTemplate } from "@/hooks/useSavedTemplates";
 import { IntentCardThumbnail } from "@/components/crm/campaign-editor/IntentCardThumbnail";
+import { useOptionalDesignSystem } from "@/contexts/DesignSystemContext";
 
 /** What the "This week's theme" start card shows. */
 export interface WeeklyThemeStartOption {
@@ -207,13 +212,36 @@ const cardBaseSx = {
   },
 } as const;
 
+// Selected = a 2px green ring drawn with box-shadow, so the card's size and
+// position never change when it is selected.
 const cardSelectedSx = {
-  borderWidth: "2px",
   borderColor: "#244d46",
   backgroundColor: "#FFFFFF",
   boxShadow: "0 0 0 1px #244d46",
-  p: "calc(14px - 1px)",
 } as const;
+
+const selectedBadgeSx = {
+  position: "absolute",
+  top: 10,
+  right: 10,
+  width: 22,
+  height: 22,
+  borderRadius: "50%",
+  bgcolor: "#244d46",
+  color: "#fff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1,
+} as const;
+
+/** Each built-in design has its own icon and one-line description. */
+const BUILT_IN_DESIGN_DETAILS: Record<string, { icon: LucideIcon; description: string }> = {
+  "botanical-editorial": { icon: Flower2, description: "A welcoming invitation with a beautiful photographic opening" },
+  "botanical-seasonal": { icon: Leaf, description: "Garden news, seasonal tips and featured highlights" },
+  "botanical-product": { icon: ShoppingBag, description: "Showcase a plant or product with imagery and details" },
+  "botanical-events": { icon: CalendarDays, description: "Bring upcoming workshops and events together" },
+};
 
 const cardDisabledSx = {
   cursor: "not-allowed",
@@ -311,9 +339,9 @@ function IntentCard({
         emptyLabel={entry.comingSoon ? "Coming soon" : null}
       />
       {selected ? (
-        <Typography level="body-xs" startDecorator={<Check size={14} />} sx={{ color: "#244d46", fontWeight: 700 }}>
-          Selected
-        </Typography>
+        <Box sx={selectedBadgeSx} aria-hidden>
+          <Check size={14} />
+        </Box>
       ) : null}
       <Stack
         direction="row"
@@ -486,6 +514,8 @@ export interface IntentPickerProps {
   weeklyThemeLoading?: boolean;
   weeklyThemeSelected?: boolean;
   onStartFromTheme?: () => void;
+  /** Built-in design last applied, shown as selected. */
+  selectedBuiltInTemplateId?: string | null;
 }
 
 export function IntentPicker({
@@ -504,7 +534,9 @@ export function IntentPicker({
   weeklyThemeLoading = false,
   weeklyThemeSelected = false,
   onStartFromTheme,
+  selectedBuiltInTemplateId = null,
 }: IntentPickerProps) {
+  const designSystem = useOptionalDesignSystem()?.designSystem ?? null;
   const intentEntries = React.useMemo(
     () => buildIntentEntries((key) => !(unavailableIntents?.has(key) ?? false)),
     [unavailableIntents],
@@ -625,40 +657,74 @@ export function IntentPicker({
         {intentEntries.filter((entry) => ["newsletter", "sale", "event"].includes(entry.key)).map((entry) => (
           <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
         ))}
-        {onApplyBuiltInTemplate ? CAMPAIGN_TEMPLATES.filter((template) => template.id.startsWith("botanical-")).map((template) => (
-          <Box
-            key={template.id}
-            role="button"
-            tabIndex={disabled ? -1 : 0}
-            aria-label={`Use ${template.name}`}
-            aria-disabled={disabled || undefined}
-            data-testid={`botanical-template-${template.id}`}
-            onClick={() => { if (!disabled) onApplyBuiltInTemplate(template); }}
-            onKeyDown={(event) => {
-              if (!disabled && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
-                onApplyBuiltInTemplate(template);
-              }
-            }}
-            sx={{ ...cardBaseSx, ...(disabled ? cardDisabledSx : {}) }}
-          >
-            <IntentCardThumbnail template={template} />
-            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-              <Typography level="title-sm" sx={{ color: "neutral.800", fontSize: 17, fontWeight: 600 }}>
-                {template.name}
-              </Typography>
-              <Typography level="body-sm" sx={{ color: "neutral.600", fontSize: 14 }}>
-                {template.id === "botanical-editorial"
-                  ? "A welcoming invitation with a beautiful photographic opening"
-                  : template.id === "botanical-seasonal"
-                    ? "Garden news, seasonal tips and featured highlights"
-                    : template.id === "botanical-product"
-                      ? "Showcase a plant or product with imagery and details"
-                      : "Bring upcoming workshops and events together"}
-              </Typography>
-            </Stack>
-          </Box>
-        )) : null}
+        {onApplyBuiltInTemplate ? (() => {
+          // The four botanical designs share one layout and differ only in
+          // their opening line, so they are one card with a tone choice
+          // instead of four near-identical cards.
+          const botanical = CAMPAIGN_TEMPLATES.filter((template) => template.id.startsWith("botanical-"));
+          if (botanical.length === 0) return null;
+          const selected = botanical.some((template) => template.id === selectedBuiltInTemplateId);
+          const preview = botanical.find((template) => template.id === selectedBuiltInTemplateId) ?? botanical[0];
+          return (
+            <Box
+              key="botanical"
+              data-testid="botanical-design-card"
+              aria-disabled={disabled || undefined}
+              sx={{ ...cardBaseSx, cursor: "default", ...(selected ? cardSelectedSx : {}), ...(disabled ? cardDisabledSx : {}) }}
+            >
+              {selected ? (
+                <Box sx={selectedBadgeSx} aria-hidden>
+                  <Check size={14} />
+                </Box>
+              ) : null}
+              <IntentCardThumbnail template={null} blocks={preview.buildBlocks(designSystem)} />
+              <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ mt: 0.5, minWidth: 0 }}>
+                <Box sx={iconContainerSx} aria-hidden>
+                  <Flower2 size={18} strokeWidth={1.8} />
+                </Box>
+                <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography level="title-sm" sx={{ color: "neutral.800", fontSize: 17, fontWeight: 600 }}>
+                    Botanical editorial
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "neutral.600", fontSize: 14 }}>
+                    An elegant photographic layout. Pick how it opens:
+                  </Typography>
+                </Stack>
+              </Stack>
+              <Stack direction="row" useFlexGap flexWrap="wrap" gap={0.75}>
+                {botanical.map((template) => {
+                  const details = BUILT_IN_DESIGN_DETAILS[template.id];
+                  const Icon = details?.icon ?? Newspaper;
+                  const chipSelected = template.id === selectedBuiltInTemplateId;
+                  return (
+                    <JoyButton
+                      key={template.id}
+                      size="sm"
+                      variant="outlined"
+                      color="neutral"
+                      aria-label={`Use ${template.name}`}
+                      aria-pressed={chipSelected}
+                      title={details?.description}
+                      data-testid={`botanical-template-${template.id}`}
+                      disabled={disabled}
+                      startDecorator={<Icon size={14} aria-hidden />}
+                      onClick={() => onApplyBuiltInTemplate(template)}
+                      // Always outlined (same border), so selecting never changes size.
+                      sx={{
+                        minHeight: 30,
+                        ...(chipSelected
+                          ? { bgcolor: "#244d46", borderColor: "#244d46", color: "#fff", "&:hover": { bgcolor: "#183c35" } }
+                          : {}),
+                      }}
+                    >
+                      {template.name}
+                    </JoyButton>
+                  );
+                })}
+              </Stack>
+            </Box>
+          );
+        })() : null}
         {intentEntries.filter((entry) => ["showcase", "new-arrivals", "thank-you"].includes(entry.key)).map((entry) => (
           <IntentCard key={entry.key} entry={entry} selected={entry.key === selectedIntent} disabled={disabled} onSelect={onSelectIntent} />
         ))}

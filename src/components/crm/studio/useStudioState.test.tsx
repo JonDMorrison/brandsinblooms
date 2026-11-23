@@ -136,3 +136,32 @@ describe("hero photo editing", () => {
     expect(result.current.blocks[0].heroStyle).toBe(style);
   });
 });
+
+import { placeInsertedBlocks } from "./useStudioState";
+
+describe("From my website insert position (#17)", () => {
+  const b = (id: string, type: string, extra: Record<string, unknown> = {}) =>
+    ({ id, type, label: id, order: 0, visible: true, ...extra }) as never;
+  const header = b("h", "newsletter-header");
+  const text = b("t", "plain-text", { body: "<p>Hello</p>" });
+  const emptyCard = b("e", "image-text");
+  const footer = b("f", "footer");
+  const product = b("p1", "image-text", { headline: "Fern", imageUrl: "https://x.test/f.jpg", buttonText: "Shop", buttonUrl: "https://x.test" });
+  const ids = (blocks: Array<{ id: string }>) => blocks.map((block) => block.id);
+
+  it("fills the selected empty block when the type matches", () => {
+    const { blocks, focusId } = placeInsertedBlocks([header, emptyCard, text, footer], [product], "e");
+    expect(ids(blocks)).toEqual(["h", "e", "t", "f"]);
+    expect((blocks[1] as { headline?: string }).headline).toBe("Fern");
+    expect(focusId).toBe("e");
+  });
+
+  it("inserts right after the selected block when it is not an empty match", () => {
+    expect(ids(placeInsertedBlocks([header, text, emptyCard, footer], [product], "t").blocks)).toEqual(["h", "t", "p1", "e", "f"]);
+  });
+
+  it("never appends at the bottom: no selection goes after the header", () => {
+    expect(ids(placeInsertedBlocks([header, text, footer], [product], null).blocks)).toEqual(["h", "p1", "t", "f"]);
+    expect(ids(placeInsertedBlocks([header, text, footer], [product], "f").blocks)).toEqual(["h", "p1", "t", "f"]);
+  });
+});

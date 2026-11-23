@@ -48,8 +48,11 @@ function toSavedTemplate(row: Record<string, unknown>): SavedTemplate {
   };
 }
 
-export function savedTemplatesQueryKey(userId: string | null | undefined) {
-  return ["saved-templates", userId ?? null] as const;
+export function savedTemplatesQueryKey(
+  userId: string | null | undefined,
+  tenantId?: string | null,
+) {
+  return ["saved-templates", userId ?? null, tenantId ?? null] as const;
 }
 
 export function useSavedTemplates() {
@@ -60,7 +63,10 @@ export function useSavedTemplates() {
   const userId = user?.id ?? null;
   const tenantId = tenant?.id ?? null;
 
-  const queryKey = useMemo(() => savedTemplatesQueryKey(userId), [userId]);
+  const queryKey = useMemo(
+    () => savedTemplatesQueryKey(userId, tenantId),
+    [tenantId, userId],
+  );
 
   const query = useQuery({
     queryKey,
@@ -71,13 +77,22 @@ export function useSavedTemplates() {
         return [];
       }
 
-      const { data, error } = await supabase
+      let templatesQuery = supabase
         .from("saved_campaign_templates")
         .select(
           "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at",
         )
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .eq("user_id", userId);
+      // Only this business's designs (plus older ones saved without a
+      // business), so a template never carries another tenant's branding.
+      if (tenantId) {
+        templatesQuery = templatesQuery.or(
+          `tenant_id.eq.${tenantId},tenant_id.is.null`,
+        );
+      }
+      const { data, error } = await templatesQuery.order("created_at", {
+        ascending: false,
+      });
 
       if (error) {
         throw error;

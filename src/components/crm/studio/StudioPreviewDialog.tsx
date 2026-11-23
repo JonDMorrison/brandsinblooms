@@ -245,7 +245,7 @@ export default function StudioPreviewDialog({
           justifyContent="space-between"
           sx={{
             px: 2.5,
-            py: 1.75,
+            py: 1.25,
             borderBottom: "1px solid",
             borderColor: "neutral.200",
           }}
@@ -254,9 +254,6 @@ export default function StudioPreviewDialog({
             <DialogTitle sx={{ p: 0, fontSize: "16px" }}>
               Preview & Test
             </DialogTitle>
-            <Typography level="body-xs" noWrap sx={{ color: "neutral.500" }}>
-              {fillSampleMergeTags(subjectLine || "Untitled Campaign", sampleMergeData)}
-            </Typography>
           </Stack>
           <IconButton
             variant="plain"
@@ -270,157 +267,169 @@ export default function StudioPreviewDialog({
           </IconButton>
         </Stack>
 
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          sx={{ minHeight: 0, flex: 1, bgcolor: "neutral.50" }}
+        {/* One top bar: Preview/Send test, device, inbox line. The email
+            gets the full width of the dialog below it. */}
+        <Sheet
+          data-testid="preview-top-bar"
+          sx={{
+            px: 2,
+            py: 1.25,
+            borderBottom: "1px solid",
+            borderColor: "neutral.200",
+            bgcolor: "background.surface",
+          }}
         >
-          <Sheet
-            sx={{
-              width: { xs: "100%", md: 228 },
-              flexShrink: 0,
-              borderRight: { md: "1px solid" },
-              borderBottom: { xs: "1px solid", md: 0 },
-              borderColor: "neutral.200",
-              p: 2,
-              bgcolor: "background.surface",
-            }}
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ flexWrap: { xs: "wrap", md: "nowrap" }, rowGap: 1 }}
           >
-            <Stack spacing={2}>
-              <Sheet
-                sx={{
-                  bgcolor: "neutral.50",
-                  borderRadius: "8px",
-                  p: "3px",
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "3px",
-                }}
-              >
-                {(["preview", "test"] as const).map((tab) => (
-                  <Button
-                    key={tab}
-                    variant={activeTab === tab ? "solid" : "plain"}
-                    color={activeTab === tab ? "primary" : "neutral"}
-                    size="sm"
-                    onClick={() => setActiveTab(tab)}
-                    sx={{
-                      minHeight: 30,
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                    }}
-                  >
-                    {tab === "preview" ? "Preview" : "Send Test"}
-                  </Button>
-                ))}
-              </Sheet>
-
-              <Stack spacing={1}>
-                <Typography
-                  level="body-xs"
-                  fontWeight={700}
-                  sx={{ color: "neutral.600" }}
+            <Sheet
+              role="tablist"
+              aria-label="Preview or send a test"
+              sx={{
+                bgcolor: "neutral.50",
+                borderRadius: "8px",
+                p: "3px",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "3px",
+                flexShrink: 0,
+              }}
+            >
+              {(["preview", "test"] as const).map((tab) => (
+                <Button
+                  key={tab}
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  variant={activeTab === tab ? "solid" : "plain"}
+                  color={activeTab === tab ? "primary" : "neutral"}
+                  size="sm"
+                  onClick={() => setActiveTab(tab)}
+                  sx={{
+                    minHeight: 30,
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                  }}
                 >
-                  Device
-                </Typography>
-                <Stack direction="row" spacing={0.75}>
-                  {DEVICE_OPTIONS.map((option) => {
-                    const Icon = option.icon;
-                    const selected = option.value === device;
-                    return (
-                      <Tooltip
-                        key={option.value}
-                        title={`See it on a ${option.label === "Desktop" ? "computer" : option.label === "Tablet" ? "tablet" : "phone"}`}
-                      >
-                        <IconButton
-                          variant={selected ? "solid" : "outlined"}
-                          color={selected ? "primary" : "neutral"}
-                          size="sm"
-                          aria-label={`${option.label} preview`}
-                          onClick={() => setDevice(option.value)}
-                          sx={{ borderRadius: "8px", width: 38, height: 34 }}
-                        >
-                          <Icon size={17} />
-                        </IconButton>
-                      </Tooltip>
-                    );
-                  })}
-                </Stack>
-              </Stack>
+                  {tab === "preview" ? "Preview" : "Send test"}
+                </Button>
+              ))}
+            </Sheet>
 
-              <Stack spacing={1}>
-                <Typography
-                  level="body-xs"
-                  fontWeight={700}
-                  sx={{ color: "neutral.600" }}
-                >
-                  Inbox
-                </Typography>
-                <Sheet variant="soft" sx={{ p: 1.25, borderRadius: "8px" }}>
-                  <Typography level="body-xs" fontWeight={700} noWrap>
-                    {fillSampleMergeTags(subjectLine || "Untitled Campaign", sampleMergeData)}
-                  </Typography>
-                  <Typography
-                    level="body-xs"
-                    noWrap
-                    sx={{ color: "neutral.500" }}
+            <Stack
+              direction="row"
+              spacing={0.5}
+              role="group"
+              aria-label="Device"
+              sx={{ flexShrink: 0 }}
+            >
+              {DEVICE_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const selected = option.value === device;
+                return (
+                  <Tooltip
+                    key={option.value}
+                    title={`See it on a ${option.label === "Desktop" ? "computer" : option.label === "Tablet" ? "tablet" : "phone"}`}
                   >
-                    {fillSampleMergeTags(previewText || "Preview text appears here", sampleMergeData)}
-                  </Typography>
-                </Sheet>
-              </Stack>
-
-              {activeTab === "test" ? (
-                <Stack spacing={1}>
-                  <Typography
-                    level="body-xs"
-                    fontWeight={700}
-                    sx={{ color: "neutral.600" }}
-                  >
-                    Test Recipient
-                  </Typography>
-                  <Input
-                    type="email"
-                    size="sm"
-                    value={testEmail}
-                    onChange={(event) => setTestEmail(event.target.value)}
-                    placeholder="you@yourdomain.com"
-                    sx={{ borderRadius: "8px" }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        void handleSendTest();
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    startDecorator={
-                      isSending ? <Loader2 size={15} /> : <Send size={15} />
-                    }
-                    disabled={isSending}
-                    onClick={() => void handleSendTest()}
-                    sx={{ borderRadius: "8px" }}
-                  >
-                    Send Test
-                  </Button>
-                  {sendStatus ? (
-                    <Alert
+                    <IconButton
+                      variant={selected ? "solid" : "outlined"}
+                      color={selected ? "primary" : "neutral"}
                       size="sm"
-                      color={sendStatus.type}
-                      startDecorator={
-                        sendStatus.type === "success" ? (
-                          <MailCheck size={16} />
-                        ) : null
-                      }
-                      sx={{ borderRadius: "8px" }}
+                      aria-label={`${option.label} preview`}
+                      aria-pressed={selected}
+                      onClick={() => setDevice(option.value)}
+                      sx={{ borderRadius: "8px", width: 36, height: 32 }}
                     >
-                      {sendStatus.message}
-                    </Alert>
-                  ) : null}
-                </Stack>
+                      <Icon size={16} />
+                    </IconButton>
+                  </Tooltip>
+                );
+              })}
+            </Stack>
+
+            <Sheet
+              variant="soft"
+              data-testid="preview-inbox-line"
+              sx={{
+                px: 1.25,
+                py: 0.75,
+                borderRadius: "8px",
+                minWidth: 0,
+                flex: 1,
+                display: "flex",
+                alignItems: "baseline",
+                gap: 1,
+              }}
+            >
+              <Typography
+                level="body-xs"
+                fontWeight={700}
+                noWrap
+                sx={{ flexShrink: 0, maxWidth: "55%" }}
+              >
+                {fillSampleMergeTags(subjectLine || "Untitled Campaign", sampleMergeData)}
+              </Typography>
+              <Typography level="body-xs" noWrap sx={{ color: "neutral.500", minWidth: 0 }}>
+                {fillSampleMergeTags(previewText || "Preview text appears here", sampleMergeData)}
+              </Typography>
+            </Sheet>
+          </Stack>
+
+          {activeTab === "test" ? (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              data-testid="preview-test-row"
+              sx={{ mt: 1.25, flexWrap: "wrap", rowGap: 1 }}
+            >
+              <Input
+                type="email"
+                size="sm"
+                value={testEmail}
+                onChange={(event) => setTestEmail(event.target.value)}
+                placeholder="you@yourdomain.com"
+                slotProps={{ input: { "aria-label": "Test recipient" } }}
+                sx={{ borderRadius: "8px", flex: "1 1 260px", maxWidth: 360 }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void handleSendTest();
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                startDecorator={
+                  isSending ? <Loader2 size={15} /> : <Send size={15} />
+                }
+                disabled={isSending}
+                onClick={() => void handleSendTest()}
+                sx={{ borderRadius: "8px", whiteSpace: "nowrap" }}
+              >
+                Send test
+              </Button>
+              {sendStatus ? (
+                <Alert
+                  size="sm"
+                  color={sendStatus.type}
+                  startDecorator={
+                    sendStatus.type === "success" ? (
+                      <MailCheck size={16} />
+                    ) : null
+                  }
+                  sx={{ borderRadius: "8px", py: 0.5 }}
+                >
+                  {sendStatus.message}
+                </Alert>
               ) : null}
             </Stack>
-          </Sheet>
+          ) : null}
+        </Sheet>
 
+        <Box sx={{ minHeight: 0, flex: 1, display: "flex", bgcolor: "neutral.50" }}>
           <Box
             sx={{
               minWidth: 0,
@@ -458,7 +467,7 @@ export default function StudioPreviewDialog({
                 sx={{
                   display: "block",
                   width: "100%",
-                  height: "calc(min(760px, 100vh - 176px))",
+                  height: "calc(min(780px, 100vh - 156px))",
                   minHeight: 520,
                   border: 0,
                   bgcolor: "#ffffff",
@@ -466,7 +475,7 @@ export default function StudioPreviewDialog({
               />
             </Box>
           </Box>
-        </Stack>
+        </Box>
       </ModalDialog>
     </Modal>
   );

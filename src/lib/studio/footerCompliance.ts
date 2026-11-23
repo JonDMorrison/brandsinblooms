@@ -225,6 +225,20 @@ export function hydrateFooterBlockWithDesignSystem(
   return nextBlock;
 }
 
+function brandFooterColors(
+  designSystem: ReturnType<typeof resolveDesignSystem>,
+): Partial<StudioBlock> {
+  const colors = designSystem?.colors;
+  if (!colors?.primary || colors.footerBackground) return {};
+  const text = colors.primaryContrastText || "#ffffff";
+  return {
+    backgroundColor: colors.primary,
+    textColor: text,
+    linkColor: text,
+    footerIconColor: text,
+  };
+}
+
 export function ensureFooterBlockCompliance(
   blocks: StudioBlock[],
   options: FooterComplianceOptions = {},
@@ -253,13 +267,29 @@ export function ensureFooterBlockCompliance(
     sortedBlocks.filter((block) => block.type === "footer").at(-1) ?? null;
   const footerSeed = existingFooter
     ? existingFooter
-    : createFooterBlockFromDesignSystem(designSystem, options.footerOverrides);
+    : createFooterBlockFromDesignSystem(designSystem, {
+        // New footers start in the brand's colours when no footer colours
+        // are configured. Only this edit path does this; the render-time
+        // fallback footer is unchanged so sent campaigns re-render the same.
+        ...brandFooterColors(designSystem),
+        ...options.footerOverrides,
+      });
   const footerBlock = hydrateFooterBlockWithDesignSystem(
     footerSeed,
     designSystem,
   );
 
-  return [...nonFooterBlocks, footerBlock].map((block, index) => ({
+  // Drafts render empty blocks as nothing (see NewsletterSettings.emptyBlocks).
+  const footerWithSettings: StudioBlock = {
+    ...footerBlock,
+    newsletterSettings: {
+      ...(footerBlock.newsletterSettings ?? { version: 1 }),
+      version: 1,
+      emptyBlocks: "skip",
+    },
+  };
+
+  return [...nonFooterBlocks, footerWithSettings].map((block, index) => ({
     ...block,
     order: index,
   }));

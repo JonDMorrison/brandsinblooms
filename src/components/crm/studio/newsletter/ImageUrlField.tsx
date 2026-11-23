@@ -4,15 +4,18 @@ import { useNewsletterDesign } from "./NewsletterDesignContext";
 import { resolveAssetUrl } from "@/lib/studio/newsletter/settings";
 export default function ImageUrlField({
   onApply,
+  expanded = false,
 }: {
   onApply: (url: string) => void;
+  /** Start open (the Image block's "Paste link" tab). */
+  expanded?: boolean;
 }) {
   const { settings } = useNewsletterDesign();
   const [input, setInput] = React.useState("");
   const [base, setBase] = React.useState("");
   const [error, setError] = React.useState("");
   return (
-    <details className="nl-controls">
+    <details className="nl-controls" open={expanded || undefined}>
       <summary>Paste a link to a photo instead</summary>
       {Boolean(settings?.assetLocations?.length) && (
         <Choice

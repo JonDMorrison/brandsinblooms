@@ -13,7 +13,7 @@ import {
   newsletterInboxText,
 } from "@/lib/crm/newsletterInbox";
 
-type Suggestion = { subject: string; preview: string; reason: string };
+type Suggestion = { subject: string; preview: string };
 // The inbox preview shows what a customer sees, so the first-name code is
 // shown as an example name. The subject box keeps the real code.
 const FIRST_NAME_TAG = /\{\{\s*first_name\s*\}\}/g;
@@ -97,9 +97,10 @@ export function NewsletterInboxReview({
             .filter(
               (s: Suggestion) =>
                 typeof s.subject === "string" &&
-                typeof s.preview === "string" &&
-                typeof s.reason === "string",
+                typeof s.preview === "string",
             )
+            // Only the pair is shown; any explanation text is dropped.
+            .map((s: Suggestion) => ({ subject: s.subject, preview: s.preview }))
             .slice(0, 3)
         : [];
       if (!options.length) throw new Error("No suggestions");
@@ -264,9 +265,6 @@ export function NewsletterInboxReview({
               <Stack spacing={1}>
                 <Typography sx={{ fontWeight: 700 }}>{s.subject}</Typography>
                 <Typography level="body-sm">{s.preview}</Typography>
-                <Typography level="body-sm" textColor="text.secondary">
-                  {s.reason}
-                </Typography>
                 <Button
                   variant="outlined"
                   color="neutral"
@@ -279,7 +277,7 @@ export function NewsletterInboxReview({
                     })
                   }
                 >
-                  Use this pair
+                  Use this
                 </Button>
               </Stack>
             </Box>

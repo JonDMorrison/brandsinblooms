@@ -72,9 +72,10 @@ export default function StudioColorPicker({
       : [...(designSystemPresets?.core ?? []), primaryPreset, ...CORE_COLOR_PRESETS];
     return Array.from(
       new Map<string, string>(
+        // Brand swatches first, then neutrals, then everything else.
         [
-          ...ESSENTIAL_COLOR_PRESETS,
           ...brandPresets.map((item) => item.color),
+          ...ESSENTIAL_COLOR_PRESETS,
           ...extraPresets,
         ].map((color) => [color.toLowerCase(), color] as const),
       ).values(),

@@ -1,4 +1,3 @@
-import DataImportDialog from "./newsletter/DataImportDialog";
 import * as React from "react";
 import { useDraggable } from "@dnd-kit/core";
 import Box from "@mui/joy/Box";
@@ -215,7 +214,6 @@ export default function BlockLibrary({
   selectedBlockId,
   weeklyTheme = null,
 }: Props) {
-  const [importOpen, setImportOpen] = React.useState(false);
   const [tab, setTab] = React.useState<"blocks" | "outline" | "saved">(
     "blocks",
   );
@@ -246,7 +244,6 @@ export default function BlockLibrary({
     setName("");
     setMessage("");
     setError("");
-    setImportOpen(false);
   }, [saved.scopeKey]);
   const query = search.trim().toLowerCase();
   const footer = blocks.find((block) => block.type === "footer");
@@ -310,7 +307,7 @@ export default function BlockLibrary({
                 ? "Blocks"
                 : value === "outline"
                   ? "Outline"
-                  : "Saved"}
+                  : "Saved blocks"}
             </button>
           ))}
         </Box>
@@ -498,14 +495,18 @@ export default function BlockLibrary({
                       >
                         <Copy size={15} />
                       </IconButton>
-                      <IconButton
+                      <Button
                         size="sm"
+                        variant="plain"
+                        color="neutral"
                         title="Save this block to use again later"
-                        aria-label={`Save ${block.label}`}
+                        aria-label={`Save block ${block.label}`}
+                        startDecorator={<Heart size={14} aria-hidden />}
                         onClick={() => openSave(block)}
+                        sx={{ minHeight: 28, px: 0.75, fontSize: 12, whiteSpace: "nowrap" }}
                       >
-                        <Heart size={15} />
-                      </IconButton>
+                        Save block
+                      </Button>
                       <IconButton
                         size="sm"
                         title="Delete"
@@ -731,30 +732,8 @@ export default function BlockLibrary({
           </p>
         )}
       </Box>
-      <Box sx={{ p: 1.5, borderTop: "1px solid #c7d0d2" }}>
-        <Typography level="body-xs" sx={{ color: "#526b72" }}>
-          Drag a block into the newsletter, or click to add.
-        </Typography>
-      </Box>
-      {onInsertImportedBlocks && (
-        <>
-          <Box sx={{ px: 1.5, pb: 1.5 }}>
-            <button
-              type="button"
-              className="nl-quiet"
-              style={{ width: "100%" }}
-              onClick={() => setImportOpen(true)}
-            >
-              Import data / spreadsheet
-            </button>
-          </Box>
-          <DataImportDialog
-            open={importOpen}
-            onClose={() => setImportOpen(false)}
-            onInsert={onInsertImportedBlocks}
-          />
-        </>
-      )}
+      {/* The "add a block" hint appears once, at the top of the Blocks tab.
+          Import data / spreadsheet lives in the Studio top bar's More menu. */}
       <Modal
         open={Boolean(dialog)}
         onClose={() => !saved.busy && setDialog(null)}

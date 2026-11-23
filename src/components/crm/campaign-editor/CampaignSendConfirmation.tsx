@@ -1,4 +1,5 @@
 import * as React from "react";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import Box from "@mui/joy/Box";
 import Checkbox from "@mui/joy/Checkbox";
 import CircularProgress from "@mui/joy/CircularProgress";
@@ -1471,7 +1472,7 @@ export function CampaignSendConfirmation({
                       Campaign
                     </Typography>
                     <Typography level="title-sm" fontWeight="lg">
-                      {name || "Untitled Campaign"}
+                      {deriveCampaignDisplayName({ name, subjectLine })}
                     </Typography>
                   </Box>
                   <Box>

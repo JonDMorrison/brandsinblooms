@@ -1,4 +1,5 @@
 import { buildConnectedContentBlock, connectedContentRequest, type ConnectedContentItem, type ConnectedContentResponse } from "@/lib/connectedContent";
+import { createStudioBlock } from "@/lib/studio/blockFactory";
 import AudienceControls from "./newsletter/AudienceControls";
 import ExtendedBlockProperties, {
   AdditionalBlockFields,
@@ -53,6 +54,7 @@ import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import type { EditorCampaignType } from "@/lib/crm/campaignEditor";
 import {
   getStudioLayoutPresets,
+  mergeLookFields,
   type LayoutPreset,
 } from "@/lib/studio/layoutPresets";
 import { buildStudioCampaignContext } from "@/components/crm/studio/studioAIContext";
@@ -1930,6 +1932,10 @@ function PanelContent({
     dividerPresets,
     footerPresets,
   } = React.useMemo(() => getStudioLayoutPresets(designSystem), [designSystem]);
+  const allLookPresets = React.useMemo(
+    () => Object.values(getStudioLayoutPresets(designSystem)).flat(),
+    [designSystem],
+  );
   const updateField = React.useCallback(
     (field: keyof StudioBlock, value: StudioBlock[keyof StudioBlock]) => {
       onUpdateBlockField(block.id, field, value);
@@ -2009,13 +2015,21 @@ function PanelContent({
   );
   const selectPreset = React.useCallback(
     (preset: LayoutPreset) => {
+      // Keep what the user set (logo size, alignment, colours...); only fill
+      // what they haven't touched from the new look.
+      const fields = mergeLookFields(
+        block,
+        preset,
+        allLookPresets,
+        createStudioBlock(block.type, designSystem),
+      );
       if (onUpdateBlockFields) {
-        onUpdateBlockFields(block.id, { ...preset.fields, layoutPreset: preset.key });
+        onUpdateBlockFields(block.id, fields);
       } else {
-        applyPreset(block, preset, onUpdateBlockField);
+        applyPreset(block, { ...preset, fields }, onUpdateBlockField);
       }
     },
-    [block, onUpdateBlockField, onUpdateBlockFields],
+    [allLookPresets, block, designSystem, onUpdateBlockField, onUpdateBlockFields],
   );
 
   if (block.type === "navigation") {
@@ -3328,6 +3342,7 @@ function PanelContent({
                   <>
                     <StudioImageUpload
                       label="Photo"
+                      sourceTabs
                       height={120}
                       emptyText="Upload or drag image"
                       value={block.imageUrl ?? ""}

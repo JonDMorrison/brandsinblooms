@@ -81,6 +81,8 @@ export function createStudioBlock(
   designSystem?: StudioDesignSystem | null,
 ): StudioBlock {
   const primaryColor = designSystem?.colors.primary;
+  const companyName = designSystem?.company.name?.trim() ?? "";
+  const storeName = /^(your business|your garden centre)?$/i.test(companyName) ? "" : companyName;
   const primaryContrastText = designSystem?.colors.primaryContrastText;
   const brandTextColor = designSystem?.colors.text;
   const footerBackgroundColor = designSystem?.colors.footerBackground;
@@ -299,7 +301,8 @@ export function createStudioBlock(
     case "newsletter-header":
       return {
         ...base,
-        headline: "",
+        // The store name sits beside the logo on a new header.
+        headline: storeName,
         dateLabel: getDefaultDateLabel(),
         tagline: "",
         logoAlignment: "left",

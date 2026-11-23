@@ -933,3 +933,115 @@ describe("weekly theme seed", () => {
     expect(blocks.every((block) => block.source === "theme")).toBe(true);
   });
 });
+
+describe("empty blocks (#2)", () => {
+  const filled = { ...createStudioBlock("plain-text"), body: "<p>Spring sale this weekend</p>" };
+  const emptyText = { ...createStudioBlock("plain-text"), body: "", headline: "", buttonText: "" };
+  const emptyImage = { ...createStudioBlock("full-width-image"), imageUrl: "" };
+  const footer = createStudioBlock("footer");
+
+  it("drafts leave empty blocks out entirely: no wrapper, no gap", async () => {
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const blocks = ensureFooterBlockCompliance([filled, emptyText, emptyImage, footer]);
+    expect(blocks.find((b) => b.type === "footer")?.newsletterSettings?.emptyBlocks).toBe("skip");
+    const out = generateEmailHtml({ blocks, subject: "S", previewText: "P" });
+    expect(out.match(/class="email-block email-block-plain-text"/g)).toHaveLength(1);
+    expect(out).not.toContain("email-block-full-width-image");
+    expect(out).not.toContain('class="email-block-gap"');
+  });
+
+  it("re-renders campaigns without the flag exactly as before", () => {
+    const out = generateEmailHtml({ blocks: [filled, emptyText, footer], subject: "S", previewText: "P" });
+    expect(out.match(/class="email-block email-block-plain-text"/g)).toHaveLength(2);
+    expect(out).toContain('class="email-block-gap"');
+  });
+
+  it("only treats content blocks as empty", async () => {
+    const { isEmptyContentBlock } = await import("../emailHtmlGenerator");
+    expect(isEmptyContentBlock(emptyText)).toBe(true);
+    expect(isEmptyContentBlock(filled)).toBe(false);
+    expect(isEmptyContentBlock({ ...emptyText, buttonText: "Shop", buttonUrl: "https://x.test" })).toBe(false);
+    expect(isEmptyContentBlock(createStudioBlock("divider"))).toBe(false);
+    expect(isEmptyContentBlock(createStudioBlock("spacer"))).toBe(false);
+  });
+});
+
+describe("blank canvas brand defaults (#14)", () => {
+  const ds = buildStudioDesignSystem({
+    name: "Northfield Garden Center",
+    email: "mail@northfieldgardens.ca",
+    logoUrl: "https://cdn.test/logo.png",
+    brandPrimaryColorRaw: "#2f6b3a",
+  } as never);
+
+  it("prefills the header with the store name and logo", () => {
+    const header = createStudioBlock("newsletter-header", ds);
+    expect(header.headline).toBe("Northfield Garden Center");
+    expect(header.logoUrl).toBe("https://cdn.test/logo.png");
+  });
+
+  it("starts a new footer in brand colours with the business contact email", async () => {
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const footer = ensureFooterBlockCompliance([createStudioBlock("plain-text", ds)], { designSystem: ds })
+      .find((block) => block.type === "footer")!;
+    expect(footer.backgroundColor).toBe("#2f6b3a");
+    expect(footer.logoUrl).toBe("https://cdn.test/logo.png");
+    const html = generateEmailHtml({ blocks: [footer], subject: "S", previewText: "P", designSystem: ds });
+    expect(html).toContain("mail@northfieldgardens.ca");
+  });
+
+  it("keeps the render-time fallback footer unchanged for stored campaigns", async () => {
+    const { createFooterBlockFromDesignSystem } = await import("../emailHtmlGenerator");
+    expect(createFooterBlockFromDesignSystem(ds).backgroundColor).toBe("#1e293b");
+  });
+
+  it("uses the brand primary for buttons on new blocks", () => {
+    expect(createStudioBlock("call-to-action", ds).buttonColor).toBe("#2f6b3a");
+  });
+});
+
+describe("Pick a look keeps user-set values (#20)", () => {
+  it("keeps a user-chosen logo size and alignment and fills the rest from the new look", async () => {
+    const { mergeLookFields, newsletterHeaderPresets } = await import("../layoutPresets");
+    const defaults = createStudioBlock("newsletter-header");
+    const [from, to] = newsletterHeaderPresets;
+    const block = {
+      ...defaults,
+      ...from.fields,
+      layoutPreset: from.key,
+      logoSize: 96,
+      logoSizeExplicit: true,
+      logoAlignment: "right" as const,
+    };
+    const fields = mergeLookFields(block, to, newsletterHeaderPresets, defaults);
+    expect(fields.layoutPreset).toBe(to.key);
+    expect(fields).not.toHaveProperty("logoSize");
+    if ("logoAlignment" in to.fields && to.fields.logoAlignment !== "right") {
+      expect(fields).not.toHaveProperty("logoAlignment");
+    }
+    // Untouched fields follow the new look.
+    for (const [field, value] of Object.entries(to.fields)) {
+      if (["logoSize", "logoAlignment"].includes(field)) continue;
+      if ((block as Record<string, unknown>)[field] === (from.fields as Record<string, unknown>)[field]) {
+        expect((fields as Record<string, unknown>)[field]).toEqual(value);
+      }
+    }
+  });
+
+  it("applies every field of the new look when nothing was customised", async () => {
+    const { mergeLookFields, imageTextPresets } = await import("../layoutPresets");
+    const defaults = createStudioBlock("image-text");
+    const [from, to] = imageTextPresets;
+    const block = { ...defaults, ...from.fields, layoutPreset: from.key };
+    expect(mergeLookFields(block, to, imageTextPresets, defaults)).toEqual({ ...to.fields, layoutPreset: to.key });
+  });
+
+  it("keeps a colour the user picked", async () => {
+    const { mergeLookFields, imageTextPresets } = await import("../layoutPresets");
+    const defaults = createStudioBlock("image-text");
+    const [from, to] = imageTextPresets;
+    const block = { ...defaults, ...from.fields, layoutPreset: from.key, backgroundColor: "#abcdef" };
+    const fields = mergeLookFields(block, to, imageTextPresets, defaults);
+    expect(fields).not.toHaveProperty("backgroundColor");
+  });
+});
