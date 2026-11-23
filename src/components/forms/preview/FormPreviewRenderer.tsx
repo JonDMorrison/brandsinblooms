@@ -1006,9 +1006,11 @@ export function FormPreviewRenderer({
                   fontSize: "1.125rem",
                   lineHeight: 1.75,
                   margin: 0,
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
                 }}
               >
-                {normalizedSettings.form_description}
+                {normalizedSettings.form_description.replace(/^[ \t]*[-*][ \t]+/gm, "• ")}
               </p>
             )}
           </div>
