@@ -35,3 +35,46 @@ Separate in-flight work with no overlap: PR #605, Care Guide Studio (its own ren
 **Hand-off.** There is no shared memory between the two. The setup form saves and then navigates to Studio (`resolveStudioDraftId`). Studio flushes its saves and navigates back with `?step=review`, and the setup form reloads from the database.
 
 **One renderer.** `src/lib/studio/emailHtmlGenerator.ts` (`generateEmailHtml`) produces the Studio canvas, previews, the draft `content` snapshot, test sends and live sends. Sending loads it through `supabase/functions/_shared/campaignEmailSource.ts`.
+
+## Report
+
+### #1 Audience counts: done (UI), with a STOP on the send path
+
+**Which column the send path uses.** `send-email-campaign` reads `crm_customers.email_opt_in`, never `email_consent`.
+- It excludes only `email_opt_in = false` (`.not("email_opt_in","is",false)`), so NULL consent is included. Today no live customer has NULL.
+- It drops empty and `@noemail.local` addresses.
+- It then filters through `canSendEmailBatch`, which checks the tenant `suppression_list`, the global suppression list and, when an environment flag is set, role-based addresses.
+- **It does not read `crm_customers.suppressed`.**
+
+**Shared function** `public.email_reachability_summary(tenant, customer_ids)` (migration `20261123171243`). The dashboard and the Audience step both call it, and the buckets are exclusive in this order:
+1. asked us to stop
+2. can't be sent to: `crm_customers.suppressed`, tenant or global suppression, hard bounce, or an invalid address
+3. said yes
+4. waiting
+
+**Verification SQL** (same CASE as the function, run as service role):
+
+```sql
+select set_config('request.jwt.claims','{"role":"service_role"}', true);
+select * from public.email_reachability_summary('3eade43c-2e5a-4ad0-80fb-500e3d7afbd4');
+-- total 9500 | reachable 0 | waiting 0 | stopped 0 | unsendable 9500
+select * from public.email_reachability_summary('19c15e83-017c-418b-9668-c8a78db496bd'); -- Flowerhouse
+-- total 270 | reachable 244 | waiting 1 | stopped 21 | unsendable 4   (244+1+21+4 = 270)
+```
+
+The UI now shows Greenfield: Said yes 0, Waiting 0, Asked us to stop 0, Can't be sent to 9,500, total 9,500. The dashboard shows 0 reachable. Both values come from the function rows above. The mapping is unit-tested in `src/hooks/__tests__/useTenantAudienceHealth.test.ts`.
+
+**STOP: the send path does not match the shared definition, and Jon needs to decide which one changes.** "Match the send path exactly" and "Greenfield must show 0 reachable" cannot both be true today, because sending ignores the `suppressed` flag. These customers have `suppressed = true` and `email_opt_in` not false and no suppression-list row, so a send to "all customers" would still include them:
+
+| Tenant | Flag-suppressed but sendable | `suppressed_reason` |
+|---|---|---|
+| `13b62ff0-4dc0-4451-a851-bb142a25ea62` | 89,656 | No email opens in 180 days |
+| `3eade43c-…` Greenfield | 7,600 | demo_synthetic_data (addresses at `greenfield-demo.example.invalid`) |
+| `36bd97b6-2564-465b-b2a6-1369a07f2546` | 336 | No email opens in 180 days |
+| `0a626809-…` Brands in Blooms | 6 | (none) |
+
+Decision needed:
+- **(a)** The send path honours `crm_customers.suppressed`. Those customers stop receiving email, including 89,656 inactive contacts at one tenant.
+- **(b)** The UI follows the send path and treats the flag as advisory. Greenfield would then show 7,600 reachable.
+
+The UI currently does (a), as your ground truth asks. The send path is unchanged.
