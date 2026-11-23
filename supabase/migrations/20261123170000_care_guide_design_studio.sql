@@ -22,6 +22,8 @@ alter table public.care_guide_designs enable row level security;
 alter table public.care_guide_design_versions enable row level security;
 create policy care_guide_design_read on public.care_guide_designs for select to authenticated
   using(public.has_tenant_permission(tenant_id,'campaign.read',null) or public.has_tenant_permission(tenant_id,'campaign.write',null));
+create policy care_guide_design_versions_read on public.care_guide_design_versions for select to authenticated
+  using(public.has_tenant_permission(tenant_id,'campaign.read',null) or public.has_tenant_permission(tenant_id,'campaign.write',null));
 -- Draft and publication writes must pass the guarded RPCs below. Direct client
 -- INSERT/UPDATE/DELETE is intentionally not granted; history is immutable.
 revoke all on public.care_guide_designs,public.care_guide_design_versions from public,anon,authenticated;
