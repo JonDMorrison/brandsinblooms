@@ -228,6 +228,7 @@ const CRMCampaignsPage = lazyNamed(
   () => import("@/pages/crm/CRMCampaignsPage"),
   "CRMCampaignsPage",
 );
+const CareGuideStudioPage = lazyRetry(() => import("@/pages/crm/CareGuideStudioPage"));
 const CRMCampaignReport = lazyRetry(
   () => import("@/pages/crm/CRMCampaignReport"),
 );
@@ -800,6 +801,14 @@ function App() {
               path="/crm/connected-content"
               element={renderProtectedSidebarLazyPage(
                 <ConnectedContentPage />,
+                "full",
+                "campaigns.write",
+              )}
+            />
+            <Route
+              path="/crm/care-guides"
+              element={renderProtectedSidebarLazyPage(
+                <CareGuideStudioPage />,
                 "full",
                 "campaigns.write",
               )}
