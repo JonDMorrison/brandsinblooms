@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
 import type { Database } from "@/integrations/supabase/types";
 import {
   CAMPAIGN_STATUS,
@@ -42,6 +43,8 @@ export interface CampaignPersonaSummary {
 }
 
 export interface CampaignCatalogItem {
+  /** A draft with no subject and no block a reader would see. */
+  isEmptyDraft: boolean;
   id: string;
   name: string;
   subjectLine: string;
@@ -185,6 +188,19 @@ function extractSmsMessage(row: CampaignRow) {
   return typeof smsMessage === "string" ? smsMessage : (row.content ?? "");
 }
 
+function isEmptyDraftRow(row: CampaignRow) {
+  if (row.status !== "draft") return false;
+  if ((row.subject_line ?? "").trim()) return false;
+  const metadata = toRecord(row.metadata);
+  if (extractChannel(row) === "sms") {
+    return !String(metadata.smsMessage ?? row.content ?? "").trim();
+  }
+  const blocks = Array.isArray(metadata.contentBlocks)
+    ? (metadata.contentBlocks as StudioBlock[])
+    : [];
+  return !hasContentBlocks(blocks);
+}
+
 export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
   const metrics = toRecord(row.metrics);
   return {
@@ -194,6 +210,7 @@ export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
     preheaderText: row.preheader_text ?? row.preheader ?? "",
     status: toStatus(row.status),
     channel: extractChannel(row),
+    isEmptyDraft: isEmptyDraftRow(row),
     queuedAt: row.queued_at,
     queueStartedAt: row.queue_started_at,
     queueCompletedAt: row.queue_completed_at,

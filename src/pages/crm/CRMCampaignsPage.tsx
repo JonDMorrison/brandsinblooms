@@ -92,7 +92,7 @@ type StatusFilter =
   | "draft"
   | "sent"
   | "failed";
-type ChannelFilter = "all" | "email" | "newsletter" | "sms";
+type ChannelFilter = "all" | "email" | "sms";
 type SortColumn =
   | "campaign"
   | "type"
@@ -119,16 +119,18 @@ const FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: "all", label: "All campaigns" },
 ];
 
+// "Newsletter" and "Email" are the same thing: every newsletter built today
+// is saved as an email campaign; "newsletter" only marks a few older synced
+// rows. They are merged into one "Email" type.
 const CHANNEL_FILTERS: Array<{ value: ChannelFilter; label: string }> = [
   { value: "all", label: "All types" },
   { value: "email", label: "Email" },
-  { value: "newsletter", label: "Newsletter" },
   { value: "sms", label: "SMS" },
 ];
 
-const CHANNEL_LABELS: Record<Exclude<ChannelFilter, "all">, string> = {
+const CHANNEL_LABELS: Record<CampaignCatalogItem["channel"], string> = {
   email: "Email",
-  newsletter: "Newsletter",
+  newsletter: "Email",
   sms: "SMS",
 };
 
@@ -255,7 +257,14 @@ export function normalizeFilter(value: string | null): StatusFilter {
 }
 
 export function normalizeChannelFilter(value: string | null): ChannelFilter {
-  return value === "email" || value === "newsletter" || value === "sms" ? value : "all";
+  if (value === "newsletter") return "email";
+  return value === "email" || value === "sms" ? value : "all";
+}
+
+/** Older "newsletter" rows count as email. */
+function matchesChannelFilter(channel: CampaignCatalogItem["channel"], filter: ChannelFilter) {
+  if (filter === "all") return true;
+  return filter === "email" ? channel === "email" || channel === "newsletter" : channel === filter;
 }
 
 function normalizeSortColumn(value: string | null): SortColumn {
@@ -325,7 +334,7 @@ export function StatusChip({
 
   switch (campaign.status) {
     case CAMPAIGN_STATUS.DRAFT:
-      label = "Draft - ready to edit";
+      label = campaign.isEmptyDraft ? "Empty draft" : "Draft - ready to edit";
       icon = <FileText size={13} />;
       break;
     case CAMPAIGN_STATUS.SCHEDULED:
@@ -520,7 +529,7 @@ function SkeletonRows() {
           <JoyTableCell>
             <Skeleton animation="wave" variant="text" width={110} />
           </JoyTableCell>
-          <JoyTableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+          <JoyTableCell sx={{ display: { xs: "none", xl: "table-cell" } }}>
             <Skeleton
               animation="wave"
               variant="text"
@@ -528,7 +537,7 @@ function SkeletonRows() {
               sx={{ ml: "auto" }}
             />
           </JoyTableCell>
-          <JoyTableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+          <JoyTableCell sx={{ display: { xs: "none", xl: "table-cell" } }}>
             <Skeleton
               animation="wave"
               variant="text"
@@ -737,7 +746,7 @@ export function CRMCampaignsPage() {
     const filtered = (campaignsQuery.data ?? []).filter((campaign) => {
       if (!matchesStatusFilter(campaign, statusFilter)) return false;
       if (groupFilter !== "all" && !organization.data?.memberships.some(m => m.campaign_id === campaign.id && m.group_id === groupFilter)) return false;
-      if (channelFilter !== "all" && campaign.channel !== channelFilter) return false;
+      if (!matchesChannelFilter(campaign.channel, channelFilter)) return false;
       if (!normalizedQuery) return true;
       return `${campaign.name} ${campaign.subjectLine}`
         .toLowerCase()
@@ -1110,8 +1119,8 @@ export function CRMCampaignsPage() {
                   Campaigns
                 </Typography>
                 <Typography level="body-sm" sx={{ color: "neutral.500" }}>
-                  {totalCount.toLocaleString()} campaigns -{" "}
-                  {activeCount.toLocaleString()} active sends
+                  {totalCount.toLocaleString()} {totalCount === 1 ? "campaign" : "campaigns"} -{" "}
+                  {activeCount.toLocaleString()} active {activeCount === 1 ? "send" : "sends"}
                 </Typography>
               </Stack>
               <Stack
@@ -1233,7 +1242,7 @@ export function CRMCampaignsPage() {
           >
             <Box sx={{ display: { xs: "none", sm: "block" } }}>
               <JoyTable sx={{
-                minWidth: { sm: 1080, lg: 1320 },
+                minWidth: { sm: 940 },
                 "& th:first-of-type, & td:first-of-type": {
                   position: "sticky", left: 0, zIndex: 1,
                 },
@@ -1251,7 +1260,7 @@ export function CRMCampaignsPage() {
                         "campaign",
                       )}
                       onSort={() => setSort("campaign")}
-                      sx={{ width: 300 }}
+                      sx={{ width: { sm: 244, xl: 284 } }}
                     >
                       Campaign name
                     </JoyTableHeaderCell>
@@ -1259,7 +1268,7 @@ export function CRMCampaignsPage() {
                       sortable
                       sortDirection={getSortDirection(sortColumn, sortDirection, "type")}
                       onSort={() => setSort("type")}
-                      sx={{ width: 112 }}
+                      sx={{ width: 68 }}
                     >
                       Type
                     </JoyTableHeaderCell>
@@ -1271,7 +1280,7 @@ export function CRMCampaignsPage() {
                         "status",
                       )}
                       onSort={() => setSort("status")}
-                      sx={{ width: 170 }}
+                      sx={{ width: 144 }}
                     >
                       Status
                     </JoyTableHeaderCell>
@@ -1279,7 +1288,7 @@ export function CRMCampaignsPage() {
                       sortable
                       sortDirection={getSortDirection(sortColumn, sortDirection, "scheduled-date")}
                       onSort={() => setSort("scheduled-date")}
-                      sx={{ width: 175 }}
+                      sx={{ width: 134 }}
                     >
                       Scheduled date
                     </JoyTableHeaderCell>
@@ -1292,7 +1301,7 @@ export function CRMCampaignsPage() {
                         "recipients",
                       )}
                       onSort={() => setSort("recipients")}
-                      sx={{ width: 110 }}
+                      sx={{ width: 104 }}
                     >
                       Recipients
                     </JoyTableHeaderCell>
@@ -1304,7 +1313,7 @@ export function CRMCampaignsPage() {
                         "date",
                       )}
                       onSort={() => setSort("date")}
-                      sx={{ width: 150 }}
+                      sx={{ width: 116 }}
                     >
                       Date
                     </JoyTableHeaderCell>
@@ -1318,8 +1327,8 @@ export function CRMCampaignsPage() {
                       )}
                       onSort={() => setSort("open-rate")}
                       sx={{
-                        width: 120,
-                        display: { xs: "none", lg: "table-cell" },
+                        width: 104,
+                        display: { xs: "none", xl: "table-cell" },
                       }}
                     >
                       Open rate
@@ -1334,13 +1343,13 @@ export function CRMCampaignsPage() {
                       )}
                       onSort={() => setSort("click-rate")}
                       sx={{
-                        width: 120,
-                        display: { xs: "none", lg: "table-cell" },
+                        width: 104,
+                        display: { xs: "none", xl: "table-cell" },
                       }}
                     >
                       Click rate
                     </JoyTableHeaderCell>
-                    <JoyTableHeaderCell align="center" sx={{ width: 56 }}>
+                    <JoyTableHeaderCell align="center" sx={{ width: 68 }}>
                       Actions
                     </JoyTableHeaderCell>
                   </JoyTableRow>
@@ -1447,7 +1456,7 @@ export function CRMCampaignsPage() {
                               },
                             }}
                           >
-                            <JoyTableCell sx={{ minWidth: 260, borderLeft: `6px solid ${organization.data?.colours.find(c => c.campaign_id === campaign.id)?.colour ?? "transparent"}` }}>
+                            <JoyTableCell sx={{ minWidth: 240, borderLeft: `6px solid ${organization.data?.colours.find(c => c.campaign_id === campaign.id)?.colour ?? "transparent"}` }}>
                               <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                                 <Typography
                                   level="body-sm"
@@ -1469,9 +1478,7 @@ export function CRMCampaignsPage() {
                                   sx={{
                                     background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     color: "neutral.500",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
+                                    overflowWrap: "anywhere",
                                   }}
                                 >
                                   {campaign.subjectLine ||
@@ -1558,7 +1565,7 @@ export function CRMCampaignsPage() {
                             <JoyTableCell
                               sx={{
                                 textAlign: "right",
-                                display: { xs: "none", lg: "table-cell" },
+                                display: { xs: "none", xl: "table-cell" },
                               }}
                             >
                               <RateCell
@@ -1570,7 +1577,7 @@ export function CRMCampaignsPage() {
                             <JoyTableCell
                               sx={{
                                 textAlign: "right",
-                                display: { xs: "none", lg: "table-cell" },
+                                display: { xs: "none", xl: "table-cell" },
                               }}
                             >
                               <RateCell
