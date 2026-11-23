@@ -4,6 +4,8 @@ import { toast } from "@/utils/toast";
 import { useTenant } from "@/hooks/useTenant";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
+import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import type { StudioBlock } from "@/types/studioBlocks";
 
 /**
@@ -15,6 +17,13 @@ import type { StudioBlock } from "@/types/studioBlocks";
 export function useStartBlankNewsletter() {
   const navigate = useNavigate();
   const { tenant, loading: tenantLoading } = useTenant();
+  const { companyInfo, isLoading: companyLoading } = useCompanyInfo();
+  // The blank canvas starts in the tenant's branding (logo, store name,
+  // brand colours); the footer is hydrated from the same profile on save.
+  const designSystem = React.useMemo(
+    () => buildStudioDesignSystem(companyInfo),
+    [companyInfo],
+  );
   const [starting, setStarting] = React.useState(false);
   const startingRef = React.useRef(false);
 
@@ -38,8 +47,8 @@ export function useStartBlankNewsletter() {
         contentBlocks: options.blocks?.length
           ? options.blocks
           : [
-              createStudioBlock("newsletter-header"),
-              createStudioBlock("plain-text"),
+              createStudioBlock("newsletter-header", designSystem),
+              createStudioBlock("plain-text", designSystem),
             ],
         smsMessage: "",
         sendAt: null,
@@ -59,7 +68,7 @@ export function useStartBlankNewsletter() {
       startingRef.current = false;
       setStarting(false);
     }
-  }, [navigate, tenant?.id]);
+  }, [designSystem, navigate, tenant?.id]);
 
-  return { start, starting, ready: !tenantLoading };
+  return { start, starting, ready: !tenantLoading && !companyLoading };
 }

@@ -824,3 +824,37 @@ describe("empty blocks (#2)", () => {
     expect(isEmptyContentBlock(createStudioBlock("spacer"))).toBe(false);
   });
 });
+
+describe("blank canvas brand defaults (#14)", () => {
+  const ds = buildStudioDesignSystem({
+    name: "Northfield Garden Center",
+    email: "mail@northfieldgardens.ca",
+    logoUrl: "https://cdn.test/logo.png",
+    brandPrimaryColorRaw: "#2f6b3a",
+  } as never);
+
+  it("prefills the header with the store name and logo", () => {
+    const header = createStudioBlock("newsletter-header", ds);
+    expect(header.headline).toBe("Northfield Garden Center");
+    expect(header.logoUrl).toBe("https://cdn.test/logo.png");
+  });
+
+  it("starts a new footer in brand colours with the business contact email", async () => {
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const footer = ensureFooterBlockCompliance([createStudioBlock("plain-text", ds)], { designSystem: ds })
+      .find((block) => block.type === "footer")!;
+    expect(footer.backgroundColor).toBe("#2f6b3a");
+    expect(footer.logoUrl).toBe("https://cdn.test/logo.png");
+    const html = generateEmailHtml({ blocks: [footer], subject: "S", previewText: "P", designSystem: ds });
+    expect(html).toContain("mail@northfieldgardens.ca");
+  });
+
+  it("keeps the render-time fallback footer unchanged for stored campaigns", async () => {
+    const { createFooterBlockFromDesignSystem } = await import("../emailHtmlGenerator");
+    expect(createFooterBlockFromDesignSystem(ds).backgroundColor).toBe("#1e293b");
+  });
+
+  it("uses the brand primary for buttons on new blocks", () => {
+    expect(createStudioBlock("call-to-action", ds).buttonColor).toBe("#2f6b3a");
+  });
+});

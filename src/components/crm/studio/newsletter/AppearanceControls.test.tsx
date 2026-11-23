@@ -27,7 +27,7 @@ const orderedSwatches = (container: HTMLElement) =>
   );
 
 describe("newsletter colour controls", () => {
-  it("places the three configured brand colours directly after None, black and white", () => {
+  it("places the three configured brand colours first, then None, black and white", () => {
     const { container } = render(
       <StudioColorPicker
         label="Button colour"
@@ -37,15 +37,15 @@ describe("newsletter colour controls", () => {
     );
     const swatches = orderedSwatches(container);
     expect(swatches.slice(0, 7).map((button) => button.title)).toEqual([
-      "None / transparent",
-      "#000000",
-      "#FFFFFF",
       "Brand primary · #112233",
       "Brand secondary · #445566",
       "Brand accent · #778899",
+      "None / transparent",
+      "#000000",
+      "#FFFFFF",
       "#C0FFEE",
     ]);
-    expect(swatches[4]).toHaveAttribute("aria-pressed", "true");
+    expect(swatches[1]).toHaveAttribute("aria-pressed", "true");
     expect(swatches.filter((button) => button.title === "Brand primary · #112233")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Pick any colour, or type a colour code" }));
     const hex = screen.getByRole("textbox", { name: "Button colour hex colour" });
@@ -53,7 +53,7 @@ describe("newsletter colour controls", () => {
   });
 
 
-  it("puts None, black, and white first, even with a different brand palette", () => {
+  it("puts the brand palette first, then None, black and white", () => {
     const change = vi.fn();
     const { container } = render(
       <StudioColorPicker
@@ -64,15 +64,18 @@ describe("newsletter colour controls", () => {
       />,
     );
     const swatches = orderedSwatches(container);
-    expect(swatches.slice(0, 3).map((button) => button.getAttribute("title"))).toEqual([
+    expect(swatches.slice(0, 6).map((button) => button.getAttribute("title"))).toEqual([
+      "Brand primary · #112233",
+      "Brand secondary · #445566",
+      "Brand accent · #778899",
       "None / transparent",
       "#000000",
       "#FFFFFF",
     ]);
     expect(swatches.filter((button) => button.title === "#FFFFFF")).toHaveLength(1);
-    fireEvent.click(swatches[0]);
+    fireEvent.click(swatches[3]);
     expect(change).toHaveBeenCalledWith("transparent");
-    fireEvent.click(swatches[1]);
+    fireEvent.click(swatches[4]);
     expect(change).toHaveBeenCalledWith("#000000");
     fireEvent.click(screen.getByRole("button", { name: "Pick any colour, or type a colour code" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Button colour hex colour" }), {
@@ -87,12 +90,15 @@ describe("newsletter colour controls", () => {
       <ColorField label="Block background" transparent value="#345678" onChange={change} />,
     );
     const swatches = orderedSwatches(container);
-    expect(swatches.slice(0, 3).map((button) => button.getAttribute("title"))).toEqual([
+    expect(swatches.slice(0, 6).map((button) => button.getAttribute("title"))).toEqual([
+      "Brand primary · #112233",
+      "Brand secondary · #445566",
+      "Brand accent · #778899",
       "None / transparent",
       "#000000",
       "#FFFFFF",
     ]);
-    fireEvent.click(swatches[0]);
+    fireEvent.click(swatches[3]);
     expect(change).toHaveBeenCalledWith("transparent");
     fireEvent.change(screen.getByLabelText("Choose custom colour for Block background"), {
       target: { value: "#123456" },
@@ -105,7 +111,8 @@ describe("newsletter colour controls", () => {
     const { container } = render(
       <ColorField label="Text colour" value="#456789" onChange={change} />,
     );
-    fireEvent.click(orderedSwatches(container)[0]);
+    // "None" now follows the three brand swatches.
+    fireEvent.click(orderedSwatches(container)[3]);
     expect(change).toHaveBeenCalledWith(undefined);
   });
 });

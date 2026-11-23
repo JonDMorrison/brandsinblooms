@@ -95,3 +95,17 @@ The UI currently does (a), as your ground truth asks. The send path is unchanged
 **Run on the test tenant:** `select * from delete_stale_empty_campaign_drafts('3eade43c-…', false)` deleted 0 rows.
 
 **Decision needed (not a blocker).** The function is not on a schedule. Running it automatically for every tenant needs your OK, because 24 drafts on other tenants would go on the first run.
+
+### #14 Brand defaults: done, with a STOP on one sub-item
+
+**Done:**
+- The blank canvas is built from the tenant's design system. The header shows the store name and logo.
+- New footers use the logo, the brand primary as background with contrasting text, and `company_profiles.company_email`.
+  - That is the business email. For Greenfield it is `mail@northfieldgardens.ca`, not the login `jon@…`.
+- New buttons use the brand primary.
+- Colour pickers list brand swatches first, then None, black and white.
+- The render-time fallback footer is unchanged, so stored and sent campaigns re-render the same.
+
+**STOP: Greenfield's "brand primary" is `#22c55e`.** That is the value stored in `company_profiles.brand_primary_color`, with secondary `#1e40af` and accent `#f59e0b`. Those are the colour-settings page defaults, apparently saved as real values. The Studio code has no `#22c55e` default of its own.
+
+Decision needed: should the untouched defaults (`#22c55e` / `#1e40af` / `#f59e0b`) be treated as "not set" and replaced by a neutral BloomSuite palette? Or should the tenant's colours be fixed in Settings? No tenant data was changed.
