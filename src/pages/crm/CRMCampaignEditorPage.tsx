@@ -43,7 +43,6 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { toast } from "sonner";
-import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { CampaignActiveSendView } from "@/components/crm/campaign-editor/CampaignActiveSendView";
 import { ContentPreviewCard } from "@/components/crm/campaign-editor/ContentPreviewCard";
 import {
@@ -1627,14 +1626,8 @@ function CampaignEditorScreen() {
             </Stack>
           </Stack>
 
-          {campaignId ? (
-            <AskBloomResourceTrigger
-              resourceType="campaign"
-              resourceId={campaignId}
-              resourceLabel={name || "Campaign"}
-              buildContext={buildCampaignResourceFocus}
-            />
-          ) : null}
+          {/* Ask Bloom lives in the global top bar only; this page registers
+              its campaign context with registerResourceAccessor. */}
         </Stack>
       </Stack>
 
