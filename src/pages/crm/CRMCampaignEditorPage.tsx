@@ -1046,40 +1046,34 @@ function CampaignEditorScreen() {
     }
   }, [isLoading, isLocked, canSendCampaign, pendingTemplateSave, processParams, setProcessParams, updateSchedule, openSendConfirmation]);
 
-  const sendBlockerLines = React.useMemo(() => {
-    const blockers: string[] = [];
-
-    if (!name.trim()) {
-      blockers.push("Campaign name is required.");
-    }
+  // Every blocker names the section that fixes it, so the checklist can
+  // jump straight there. A campaign name is optional (#8) and not a blocker.
+  const sendBlockers = React.useMemo(() => {
+    const blockers: Array<{ message: string; section: string | null; fixLabel: string }> = [];
 
     if (campaignType === "email" && !subjectLine.trim()) {
-      blockers.push("Subject line is required.");
+      blockers.push({ message: "Subject line is required.", section: "campaign-editor-inbox", fixLabel: "Add a subject line" });
     }
 
     if (campaignType === "email" && meaningfulEmailBlockCount === 0) {
-      blockers.push("At least one content block is required before sending.");
+      blockers.push({ message: "At least one content block is required before sending.", section: "campaign-editor-content", fixLabel: "Design your newsletter" });
     }
 
     if (campaignType === "email" && !hasComplianceFooter) {
-      blockers.push("A compliance footer is required before sending.");
+      blockers.push({ message: "A compliance footer is required before sending.", section: "campaign-editor-content", fixLabel: "Add the footer" });
     }
 
     if (campaignType === "sms" && !smsMessage.trim()) {
-      blockers.push("SMS message is required before sending.");
+      blockers.push({ message: "SMS message is required before sending.", section: "campaign-editor-content", fixLabel: "Write the message" });
     }
 
-    // Hard sender blockers (paused/failed/no-sender/domain-not-
-    // registered). The classifier already produces the user-facing
-    // copy — push that exact line so the existing send-confirm
-    // dialog and disabled-button tooltip surface the same reason
-    // the Review & Send list shows. Without this, paused / failed
-    // domains used to slip through to "Send Campaign" and bounce
-    // at the email provider.
+    // Hard sender blockers (paused/failed/no-sender/domain-not-registered).
+    // The classifier produces the user-facing copy, so the send dialog and
+    // this checklist show the same reason.
     if (campaignType === "email" && senderClassification.status === "blocked") {
-      blockers.push(senderClassification.message);
+      blockers.push({ message: senderClassification.message, section: "campaign-editor-setup", fixLabel: "Fix the sender" });
     } else if (!senderEmail.trim()) {
-      blockers.push("Sender email is required.");
+      blockers.push({ message: "Sender email is required.", section: "campaign-editor-setup", fixLabel: "Add a sender" });
     }
 
     if (
@@ -1088,21 +1082,21 @@ function CampaignEditorScreen() {
       selectedPersonas.length === 0 &&
       additionalCustomerIds.length === 0
     ) {
-      blockers.push("Choose an audience before sending.");
+      blockers.push({ message: "Choose an audience before sending.", section: "campaign-editor-audience", fixLabel: "Choose an audience" });
     } else if ((audienceCount ?? 0) <= 0) {
-      blockers.push("At least one eligible recipient is required.");
+      blockers.push({ message: "At least one eligible recipient is required.", section: "campaign-editor-audience", fixLabel: "Change the audience" });
     }
 
     if (autoSaveStatus === "conflict") {
-      blockers.push("Resolve the draft conflict before sending.");
+      blockers.push({ message: "Resolve the draft conflict before sending.", section: null, fixLabel: "" });
     }
 
     if (autoSaveStatus === "failed") {
-      blockers.push("Draft changes must save successfully before sending.");
+      blockers.push({ message: "Draft changes must save successfully before sending.", section: null, fixLabel: "" });
     }
 
     if (sendBlockedReason) {
-      blockers.push(formatStatusLabel(sendBlockedReason));
+      blockers.push({ message: formatStatusLabel(sendBlockedReason), section: null, fixLabel: "" });
     }
 
     return blockers;
@@ -1116,13 +1110,29 @@ function CampaignEditorScreen() {
     campaignType,
     hasComplianceFooter,
     meaningfulEmailBlockCount,
-    name,
     senderClassification,
     senderEmail,
     sendBlockedReason,
     smsMessage,
     subjectLine,
   ]);
+  const sendBlockerLines = React.useMemo(
+    () => sendBlockers.map((blocker) => blocker.message),
+    [sendBlockers],
+  );
+
+  /** Opens a collapsed step and scrolls it into view. */
+  const openEditorSection = React.useCallback((sectionId: string) => {
+    if (sectionId === "campaign-editor-inbox") setProcessParams({ step: "review" });
+    requestAnimationFrame(() => {
+      const target = document.getElementById(sectionId);
+      target
+        ?.querySelector<HTMLElement>('[role="button"][aria-expanded="false"]')
+        ?.click();
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      target?.querySelector<HTMLElement>("input, textarea, button")?.focus({ preventScroll: true });
+    });
+  }, [setProcessParams]);
 
   const sendWarningLines = React.useMemo(() => {
     const warnings: string[] = [];
@@ -2282,11 +2292,27 @@ function CampaignEditorScreen() {
 
       <CollapsibleSection id="campaign-editor-actions" title={`${stepNumber.actions}. Actions`} summary="Review, send now, or schedule">
         <Stack direction="row" spacing={1}>
-          <JoyButton data-testid="campaign-editor-review-send-cta" disabled={isLocked || !canSendCampaign || Boolean(pendingTemplateSave)} onClick={() => { updateSchedule({ sendImmediately: true, sendAt: null }); openSendConfirmation(); }}>Send now</JoyButton>
-          <JoyButton variant="outlined" disabled={isLocked || !canSendCampaign} onClick={handleScheduleForLater}>Schedule send</JoyButton>
+          <JoyButton data-testid="campaign-editor-review-send-cta" disabled={isLocked || !canSendCampaign || Boolean(pendingTemplateSave) || sendBlockers.length > 0} onClick={() => { updateSchedule({ sendImmediately: true, sendAt: null }); openSendConfirmation(); }}>Send now</JoyButton>
+          <JoyButton data-testid="campaign-editor-schedule-cta" variant="outlined" disabled={isLocked || !canSendCampaign || sendBlockers.length > 0} onClick={handleScheduleForLater}>Schedule send</JoyButton>
         </Stack>
-        <Typography level="body-sm">Review your sender, audience and content before confirming delivery.</Typography>
-        {sendBlockerLines.map((line) => <Typography key={line} level="body-sm">{line}</Typography>)}
+        {sendBlockers.length > 0 ? (
+          <Stack component="ul" spacing={0.75} sx={{ m: 0, p: 0, listStyle: "none" }} data-testid="campaign-editor-send-checklist" aria-label="Before you can send">
+            <Typography level="title-sm">Before you can send</Typography>
+            {sendBlockers.map((blocker) => (
+              <Stack key={blocker.message} component="li" direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                <Box aria-hidden sx={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid", borderColor: "warning.400", flexShrink: 0 }} />
+                <Typography level="body-sm" sx={{ flex: "1 1 220px" }}>{blocker.message}</Typography>
+                {blocker.section ? (
+                  <JoyButton size="sm" variant="plain" onClick={() => openEditorSection(blocker.section as string)}>
+                    {blocker.fixLabel}
+                  </JoyButton>
+                ) : null}
+              </Stack>
+            ))}
+          </Stack>
+        ) : (
+          <Typography level="body-sm">Everything required is in place. Review your sender, audience and content before confirming delivery.</Typography>
+        )}
         {campaignType === "email" ? (
           <EmptyBlocksNotice
             blocks={contentBlocks}
