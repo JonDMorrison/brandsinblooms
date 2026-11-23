@@ -1,4 +1,5 @@
 import { EmptyBlocksNotice } from "@/components/crm/campaign-editor/EmptyBlocksNotice";
+import { findIdentityMismatches } from "@/lib/crm/identityConsistency";
 import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
@@ -1135,6 +1136,20 @@ function CampaignEditorScreen() {
     });
   }, [setProcessParams]);
 
+  const identityMismatches = React.useMemo(() => {
+    const footer = contentBlocks.find((block) => block.type === "footer");
+    const website = contentBlocks
+      .map((block) => block.connectedContent)
+      .find((source) => source?.publicUrl || source?.siteName);
+    return findIdentityMismatches({
+      senderName,
+      senderEmail,
+      footerBusinessName: footer?.businessName,
+      websiteName: website?.siteName,
+      websiteUrl: website?.publicUrl,
+    });
+  }, [contentBlocks, senderEmail, senderName]);
+
   const sendWarningLines = React.useMemo(() => {
     const warnings: string[] = [];
 
@@ -1155,8 +1170,13 @@ function CampaignEditorScreen() {
       warnings.push("Autosave is retrying in the background.");
     }
 
+    // Identity check (#15): warn, never block.
+    if (campaignType === "email") {
+      warnings.push(...identityMismatches);
+    }
+
     return warnings;
-  }, [autoSaveStatus, campaignType, senderClassification, senderEmail]);
+  }, [autoSaveStatus, campaignType, identityMismatches, senderClassification, senderEmail]);
 
   // Pre-send placeholder scan (Flowerhouse scaffold-send incident):
   // detect template scaffold headings and editorial notes in the content
@@ -2312,6 +2332,19 @@ function CampaignEditorScreen() {
         ) : (
           <Typography level="body-sm">Everything required is in place. Review your sender, audience and content before confirming delivery.</Typography>
         )}
+        {identityMismatches.length > 0 && campaignType === "email" ? (
+          <Sheet variant="soft" color="warning" data-testid="identity-mismatch-warnings" sx={{ borderRadius: "md", p: 1.5 }}>
+            <Typography level="title-sm" startDecorator={<AlertTriangle size={16} />}>
+              Check who this email is from
+            </Typography>
+            <Stack component="ul" spacing={0.5} sx={{ m: 0, mt: 0.75, pl: 2.5 }}>
+              {identityMismatches.map((warning) => (
+                <Typography key={warning} component="li" level="body-sm">{warning}</Typography>
+              ))}
+            </Stack>
+            <Typography level="body-xs" sx={{ mt: 0.75 }}>This is a warning only. You can still send.</Typography>
+          </Sheet>
+        ) : null}
         {campaignType === "email" ? (
           <EmptyBlocksNotice
             blocks={contentBlocks}

@@ -23,3 +23,30 @@ describe('campaign display name (#8)', () => {
     expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: [], date: '2026-11-23T12:00:00Z' })).toMatch(/^Draft, Nov 2[23], 2026$/);
   });
 });
+
+import { findIdentityMismatches } from './identityConsistency';
+
+describe('identity consistency (#15)', () => {
+  it('stays quiet when every identity names the same business', () => {
+    expect(findIdentityMismatches({
+      senderName: 'Northfield Garden Center',
+      senderEmail: 'news@northfieldgardens.ca',
+      footerBusinessName: 'Northfield Garden Center',
+      websiteName: 'Northfield Gardens',
+      websiteUrl: 'https://northfieldgardens.ca/products/fern',
+    })).toEqual([]);
+  });
+  it('warns for each pair that disagrees, as text only', () => {
+    const warnings = findIdentityMismatches({
+      senderName: 'Greenfield Garden Centre',
+      senderEmail: 'news@northfieldgardens.ca',
+      footerBusinessName: 'Northfield Garden Center',
+    });
+    expect(warnings.length).toBe(2);
+    expect(warnings.join(' ')).toMatch(/sender name .*Greenfield.*doesn’t match the sender email domain/);
+    expect(warnings.join(' ')).toMatch(/sender name .*doesn’t match the footer business name/);
+  });
+  it('ignores free-mail sender domains and missing values', () => {
+    expect(findIdentityMismatches({ senderName: 'Northfield', senderEmail: 'owner@gmail.com', footerBusinessName: '' })).toEqual([]);
+  });
+});

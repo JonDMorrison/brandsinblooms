@@ -101,6 +101,7 @@ export function buildConnectedContentBlock(
       sourceDescription:item.description,
       sourceImageUrl:item.imageUrl,
       upcomingDateCount:item.upcomingDateCount,
+      siteName:item.siteName,
     },
   };
 }
