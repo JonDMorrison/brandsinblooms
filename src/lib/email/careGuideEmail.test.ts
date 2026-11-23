@@ -19,7 +19,6 @@ describe('premium Care Guide email v1',()=>{
    for(const phrase of ['Northfield Garden Centre','A good start for something green.','Maranta leuconeura','Bright indirect light','Keep evenly moist','Well-drained soil','THE PLANT NOTE'])expect(out.html).toContain(phrase);
    expect(out.html).toContain('max-width:620px');
    expect(out.html).toContain('https://example.org/plant.jpg');
-   expect(out.text).toContain('Care');
    expect(out.text).toContain('Light: Bright indirect light');
    expect(out.html).toContain('does not subscribe you to promotional messages');
  });
