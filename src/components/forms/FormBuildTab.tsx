@@ -699,7 +699,6 @@ export function FormBuildTab({
     redo: 0,
   });
   const [showInitialSkeleton, setShowInitialSkeleton] = React.useState(true);
-  const builderRootRef = React.useRef<HTMLDivElement | null>(null);
   const stepTitleInputRef = React.useRef<HTMLInputElement | null>(null);
   const historyRef = React.useRef<BuilderSnapshot[]>([]);
   const futureRef = React.useRef<BuilderSnapshot[]>([]);
@@ -843,23 +842,6 @@ export function FormBuildTab({
 
     setSelectedFieldId(null);
   }, [canvasFields, selectedFieldId]);
-
-  React.useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (
-        (event.target instanceof Element && event.target.closest("[data-builder-menu], [data-field-inspector]")) ||
-        (builderRootRef.current &&
-        builderRootRef.current.contains(event.target as Node))
-      ) {
-        return;
-      }
-
-      setSelectedFieldId(null);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, []);
 
   React.useEffect(() => {
     if (editingStepIndex === null) {
@@ -1638,6 +1620,8 @@ export function FormBuildTab({
     const handleKeyDown = (event: KeyboardEvent) => {
       const modifierPressed = event.metaKey || event.ctrlKey;
       const typing = isTypingElement(event.target);
+      // Do not hijack text editing or portaled select keyboard interactions.
+      if (event.target instanceof Element && event.target.closest("[data-field-inspector], [data-builder-menu], [role=listbox], [role=option], [role=combobox], [role=menu], [role=dialog]")) return;
       const visibleFieldIds = canvasFields.map((field) => field.id);
       const selectedIndex = selectedFieldId
         ? visibleFieldIds.indexOf(selectedFieldId)
@@ -1733,14 +1717,16 @@ export function FormBuildTab({
 
   const handleCanvasShellClick = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement;
+      const target = event.target;
+      // A portal or a text selection that ends outside the inspector must not deselect the field.
+      if (!(target instanceof Element) || !event.currentTarget.contains(target)) return;
 
       if (
         target.closest("[data-field-item='true']") ||
         target.closest("[data-field-inspector='true']") ||
         target.closest("[data-field-palette='true']") ||
         target.closest("[data-step-chip='true']") ||
-        target.closest("[role='menu']") ||
+        target.closest("[role='menu'], [role='listbox'], [role='option'], [role='combobox']") ||
         target.closest("[role='dialog']")
       ) {
         return;
@@ -1852,13 +1838,12 @@ export function FormBuildTab({
 
   return (
     <Box
-      ref={builderRootRef}
       sx={{
         width: "100%",
         pb: isInspectorBottomSheet && selectedField ? { xs: 360, md: 420 } : 0,
       }}
     >
-      <Stack spacing={2.5} onClick={handleCanvasShellClick}>
+      <Stack spacing={2.5} onMouseDown={handleCanvasShellClick}>
         {activeBuildIssue ? (
           <Sheet
             variant="soft"
@@ -2299,7 +2284,7 @@ export function FormBuildTab({
                           form_description: event.target.value,
                         })
                       }
-                      placeholder="Add a description to guide visitors"
+                      placeholder="Add a description to guide visitors. Use a new line for each bullet (start with -)."
                       variant="plain"
                       sx={{
                         px: 0,

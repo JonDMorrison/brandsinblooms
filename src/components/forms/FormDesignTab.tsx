@@ -815,8 +815,10 @@ export function FormDesignTab({
                     updateRawSettings({ form_description: event.target.value })
                   }
                   placeholder="Tell visitors what they get…"
+                  
                   sx={{ borderRadius: "lg", bgcolor: "background.surface" }}
                 />
+                <FormHelperText>Press Enter for a new line. Start a line with - or * for a bullet.</FormHelperText>
               </FormControl>
 
               <JoyInput label="Header image URL" value={rawSettings.header_image_url ?? ""} onValueChange={(header_image_url) => updateRawSettings({ header_image_url })} placeholder="https://…" helperText="Use an HTTPS image from your media library." />

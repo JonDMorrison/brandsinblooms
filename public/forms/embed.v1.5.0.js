@@ -1107,7 +1107,7 @@
     }
 
     if (settings.form_title) { var title = document.createElement('h2'); title.textContent=settings.form_title; title.style.textAlign='center'; formEl.appendChild(title); }
-    if (settings.form_description) { var description = document.createElement('p'); description.textContent=settings.form_description; description.style.textAlign='center'; formEl.appendChild(description); }
+    if (settings.form_description) { var description = document.createElement('p'); description.textContent=String(settings.form_description).replace(/^[ \t]*[-*][ \t]+/gm, '• '); description.style.whiteSpace='pre-wrap'; description.style.overflowWrap='anywhere'; description.style.textAlign='center'; formEl.appendChild(description); }
     // Render each field
     fields.forEach(function (field) {
       var fieldElement = renderField(field, compliance, settings);
