@@ -15,14 +15,35 @@ import {
   EMAIL_FONTS,
   normalizeNewsletterSettings,
 } from "@/lib/studio/newsletter/settings";
-export default function NewsletterSettingsButton() {
+/**
+ * "Design & spacing" dialog. Uncontrolled by default (renders its own
+ * button); the Studio top bar controls it instead so the trigger can move
+ * into the "More" menu on narrow screens.
+ */
+export default function NewsletterSettingsButton({
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+} = {}) {
   const { settings, onChange } = useNewsletterDesign();
-  const [open, setOpen] = React.useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      if (onOpenChange) onOpenChange(next);
+      else setUncontrolledOpen(next);
+    },
+    [onOpenChange],
+  );
   const resolved = normalizeNewsletterSettings(settings);
   if (!onChange) return null;
   return (
     <>
-      <Button
+      {hideTrigger ? null : <Button
         size="sm"
         variant="outlined"
         color="neutral"
@@ -31,7 +52,7 @@ export default function NewsletterSettingsButton() {
         sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
       >
         Design & spacing
-      </Button>
+      </Button>}
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog
           sx={{

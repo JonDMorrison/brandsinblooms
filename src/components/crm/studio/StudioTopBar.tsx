@@ -3,6 +3,10 @@ import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Chip from "@mui/joy/Chip";
+import Dropdown from "@mui/joy/Dropdown";
+import Menu from "@mui/joy/Menu";
+import MenuButton from "@mui/joy/MenuButton";
+import MenuItem from "@mui/joy/MenuItem";
 import CircularProgress from "@mui/joy/CircularProgress";
 import IconButton from "@mui/joy/IconButton";
 import Input from "@mui/joy/Input";
@@ -28,6 +32,8 @@ import {
   Undo2,
   AlertTriangle,
   BookmarkPlus,
+  MoreHorizontal,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import StudioPreviewDialog from "@/components/crm/studio/StudioPreviewDialog";
@@ -102,6 +108,28 @@ const metadataInputSx = {
   },
 };
 
+/** Below this width secondary actions move into the "More" menu. */
+const WIDE_TOOLBAR_QUERY = "@media (min-width: 1280px)";
+const NARROW_TOOLBAR_QUERY = "@media (max-width: 1279.98px)";
+const wideOnlySx = { [NARROW_TOOLBAR_QUERY]: { display: "none" } };
+const narrowOnlySx = { [WIDE_TOOLBAR_QUERY]: { display: "none" } };
+/** 1280–1439px: same controls, shorter labels, so the row still fits. */
+const COMPACT_TOOLBAR_QUERY = "@media (max-width: 1439.98px)";
+const fullLabelSx = { [COMPACT_TOOLBAR_QUERY]: { display: "none" } };
+const compactLabelSx = { display: "none", [COMPACT_TOOLBAR_QUERY]: { display: "inline" } };
+
+/** One save state, always the same width so nothing beside it moves. */
+function getStudioSaveState(
+  saveStatus: StudioSaveStatus,
+  hasUnsavedChanges: boolean,
+): { label: string; tone: "neutral" | "success" | "warning" | "danger"; kind: "saving" | "saved" | "unsaved" | "error" | "conflict" } {
+  if (saveStatus === "saving") return { label: "Saving…", tone: "neutral", kind: "saving" };
+  if (saveStatus === "conflict") return { label: "Save conflict", tone: "warning", kind: "conflict" };
+  if (saveStatus === "error" || saveStatus === "failed") return { label: "Couldn’t save", tone: "danger", kind: "error" };
+  if (hasUnsavedChanges) return { label: "Unsaved changes", tone: "neutral", kind: "unsaved" };
+  return { label: "Saved", tone: "success", kind: "saved" };
+}
+
 const deviceOptions = [
   { value: "desktop", label: "Desktop preview", icon: Monitor },
   { value: "tablet", label: "Tablet preview", icon: Tablet },
@@ -144,6 +172,7 @@ export default function StudioTopBar({
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [designOpen, setDesignOpen] = React.useState(false);
 
   React.useEffect(() => {
     setDraftName(campaignName);
@@ -158,26 +187,12 @@ export default function StudioTopBar({
     setIsEditingName(false);
   }, [draftName, onCampaignNameChange]);
 
-  const statusTone =
-    saveStatus === "conflict"
-      ? "warning.600"
-      : saveStatus === "error" || saveStatus === "failed"
-        ? "danger.600"
-        : saveStatus === "saved"
-          ? "success.600"
-          : "neutral.500";
+  const saveState = getStudioSaveState(saveStatus, hasUnsavedChanges);
   const statusLabel =
-    saveStatus === "saving"
-      ? "Saving…"
-      : saveStatus === "conflict"
-        ? "Save conflict. Review before saving."
-        : saveStatus === "error" || saveStatus === "failed"
-          ? "Couldn’t save. Your edits are still here."
-          : hasUnsavedChanges
-            ? "Unsaved changes"
-            : saveStatus === "saved" || lastSavedAt
-              ? "All changes saved"
-              : saveMessage || "Ready";
+    saveState.kind === "saved" && !lastSavedAt && saveMessage
+      ? saveMessage
+      : saveState.label;
+  const canRetrySave = saveState.kind === "error" || saveState.kind === "conflict";
 
   const savedDate = lastSavedAt ? new Date(lastSavedAt) : null;
   const savedAtLabel =
@@ -187,34 +202,37 @@ export default function StudioTopBar({
 
   return (
     <Sheet
+      data-testid="studio-top-bar"
       sx={{
+        position: "relative",
         height: 52,
         bgcolor: "#d9e0e2",
         color: "#203137",
         boxShadow: "0 1px 0 0 rgba(0,0,0,0.06)",
-        overflowX: "auto",
+        overflow: "visible",
       }}
     >
+      {/* One row, never wrapping: everything fits in 52px at 1280px and up,
+          and secondary actions move into "More" below that. */}
       <Box
+        data-testid="studio-top-bar-row"
         sx={{
-          minHeight: 64,
-          py: 1.25,
-          px: 2,
+          height: 52,
+          px: 1.5,
           minWidth: 0,
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            lg: "auto auto minmax(0, 1fr)",
-          },
+          display: "flex",
+          flexWrap: "nowrap",
           alignItems: "center",
-          gap: 2,
+          gap: 1,
+          overflow: "hidden",
+          whiteSpace: "nowrap",
         }}
       >
         <Stack
           direction="row"
           alignItems="center"
-          spacing={1.25}
-          sx={{ minWidth: 0 }}
+          spacing={0.75}
+          sx={{ minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}
         >
           <IconButton
             variant="plain"
@@ -273,11 +291,15 @@ export default function StudioTopBar({
               fontWeight={600}
               sx={{
                 maxWidth: 220,
+                minWidth: 96,
+                flexShrink: 1,
                 cursor: "text",
                 color: "text.primary",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
+              title={campaignName}
+              data-campaign-name
               onClick={() => setIsEditingName(true)}
             >
               {campaignName}
@@ -329,7 +351,24 @@ export default function StudioTopBar({
             Subject line
           </Button>
 
-          <NewsletterSettingsButton />
+          <Button
+            size="sm"
+            variant="outlined"
+            color="neutral"
+            startDecorator={<SlidersHorizontal size={15} />}
+            onClick={() => setDesignOpen(true)}
+            aria-label="Design & spacing"
+            title="Design & spacing"
+            sx={{ whiteSpace: "nowrap", flexShrink: 0, borderRadius: "8px", minHeight: 30, ...wideOnlySx }}
+          >
+            <Box component="span" sx={fullLabelSx}>Design & spacing</Box>
+            <Box component="span" sx={compactLabelSx}>Design</Box>
+          </Button>
+          <NewsletterSettingsButton
+            hideTrigger
+            open={designOpen}
+            onOpenChange={setDesignOpen}
+          />
           <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)}>
             <ModalDialog
               sx={{
@@ -504,7 +543,7 @@ export default function StudioTopBar({
           </Modal>
         </Stack>
 
-        <Stack direction="row" alignItems="center" spacing={0}>
+        <Stack direction="row" alignItems="center" spacing={0} sx={{ flexShrink: 0 }}>
           <Sheet
             sx={{
               bgcolor: "neutral.50",
@@ -580,11 +619,11 @@ export default function StudioTopBar({
             </span>
           </Tooltip>
 
-          <Box sx={studioDividerSx} />
+          <Box sx={{ ...studioDividerSx, ...wideOnlySx }} />
 
           <Typography
             level="body-xs"
-            sx={{ color: "neutral.500", fontSize: "12px" }}
+            sx={{ color: "neutral.500", fontSize: "12px", ...wideOnlySx }}
           >
             {blockCountLabel}
           </Typography>
@@ -595,8 +634,7 @@ export default function StudioTopBar({
           alignItems="center"
           spacing={1}
           justifyContent="flex-end"
-          useFlexGap
-          flexWrap="wrap"
+          sx={{ flexShrink: 0 }}
         >
           {externalUpdateNotice
             ? (() => {
@@ -612,6 +650,13 @@ export default function StudioTopBar({
                     variant="soft"
                     color={color}
                     sx={{
+                      // Floats under the bar so it never pushes or clips the row.
+                      position: "absolute",
+                      top: 56,
+                      right: 16,
+                      zIndex: 20,
+                      boxShadow: "md",
+                      whiteSpace: "normal",
                       px: 1.25,
                       py: 0.75,
                       borderRadius: "8px",
@@ -706,14 +751,66 @@ export default function StudioTopBar({
               })()
             : null}
 
+          {/* The single save state. Fixed width, so buttons never shift. */}
+          <Box
+            data-testid="studio-save-state"
+            role="status"
+            aria-live="polite"
+            sx={{ width: 118, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}
+          >
+            {canRetrySave ? (
+              <Button
+                size="sm"
+                variant="plain"
+                color={saveState.tone === "warning" ? "warning" : "danger"}
+                onClick={onSave}
+                title={
+                  saveState.kind === "conflict"
+                    ? "Someone else changed this campaign. Review before saving."
+                    : "Your edits are still here. Try saving again."
+                }
+                startDecorator={<RefreshCw size={13} />}
+                sx={{ minHeight: 28, fontSize: "12px", px: 1 }}
+              >
+                {statusLabel} · Retry
+              </Button>
+            ) : (
+              <Typography
+                level="body-xs"
+                title={lastSavedAt ? `Last saved ${savedAtLabel}` : undefined}
+                sx={{
+                  color: `${saveState.tone}.${saveState.tone === "neutral" ? 500 : 600}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  fontSize: "12px",
+                }}
+              >
+                {saveState.kind === "saving" ? (
+                  <CircularProgress size="sm" thickness={3} sx={{ "--CircularProgress-size": "14px" }} />
+                ) : saveState.kind === "saved" ? (
+                  <Check size={14} aria-hidden />
+                ) : null}
+                {statusLabel}
+              </Typography>
+            )}
+          </Box>
+
           <Button
             variant="outlined"
             color="neutral"
             size="sm"
+            aria-label="Save template"
+            title="Save this design as a template"
             startDecorator={<BookmarkPlus size={16} />}
             onClick={onSaveAsTemplate}
             disabled={blockCount === 0}
             sx={{
+              ...wideOnlySx,
+              [COMPACT_TOOLBAR_QUERY]: {
+                px: 0.75,
+                "& .MuiButton-startDecorator": { margin: 0 },
+              },
               height: 32,
               minHeight: 32,
               borderColor: "neutral.300",
@@ -723,7 +820,7 @@ export default function StudioTopBar({
               "&:hover": { bgcolor: "neutral.50" },
             }}
           >
-            Save template
+            <Box component="span" sx={fullLabelSx}>Save template</Box>
           </Button>
 
           <Button
@@ -745,81 +842,48 @@ export default function StudioTopBar({
             Preview & Test
           </Button>
 
-          {/* The email saves by itself. The Save button only appears when there
-              is something left to save or a save needs another try. */}
-          {hasUnsavedChanges ||
-          saveStatus === "saving" ||
-          saveStatus === "conflict" ||
-          saveStatus === "error" ||
-          saveStatus === "failed" ? (
-            <Button
-              variant={hasUnsavedChanges ? "solid" : "outlined"}
-              color={
-                saveStatus === "conflict" ||
-                saveStatus === "error" ||
-                saveStatus === "failed"
-                  ? "warning"
-                  : "primary"
-              }
-              size="sm"
-              onClick={onSave}
-              loading={saveStatus === "saving"}
-              sx={{
-                height: 32,
-                minHeight: 32,
-                borderRadius: "8px",
-                fontWeight: 600,
-                fontSize: "13px",
+          <Dropdown>
+            <MenuButton
+              slots={{ root: IconButton }}
+              slotProps={{
+                root: {
+                  variant: "outlined",
+                  color: "neutral",
+                  size: "sm",
+                  "aria-label": "More actions",
+                  sx: { borderRadius: "8px", minHeight: 32, minWidth: 32, ...narrowOnlySx },
+                } as never,
               }}
             >
-              {saveStatus === "failed" || saveStatus === "error"
-                ? "Retry save"
-                : "Save"}
-            </Button>
-          ) : null}
-
-          <Typography
-            level="body-xs"
-            sx={{
-              color: statusTone,
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              fontSize: "12px",
-            }}
-          >
-            <Box
-              component="span"
-              sx={{ display: "inline-flex", alignItems: "center" }}
-            >
-              {saveStatus === "saving" ? (
-                <CircularProgress
-                  size="sm"
-                  thickness={3}
-                  sx={{ "--CircularProgress-size": "14px" }}
-                />
-              ) : saveStatus === "saved" ? (
-                <Check size={14} />
-              ) : null}
-            </Box>
-            {statusLabel}
-          </Typography>
+              <MoreHorizontal size={16} />
+            </MenuButton>
+            <Menu placement="bottom-end" sx={{ zIndex: 1300 }}>
+              <MenuItem onClick={() => setDesignOpen(true)}>
+                <SlidersHorizontal size={15} /> Design & spacing
+              </MenuItem>
+              <MenuItem disabled={blockCount === 0} onClick={onSaveAsTemplate}>
+                <BookmarkPlus size={15} /> Save template
+              </MenuItem>
+              <MenuItem disabled>{blockCountLabel}</MenuItem>
+            </Menu>
+          </Dropdown>
 
           {campaignStatus === "Draft" ? (
             <Tooltip title="Your design is saved before you review recipients and send. This does not send your email.">
               <Button
                 variant="solid"
-                size="md"
+                size="sm"
                 aria-label="Review & Send"
                 onClick={onExit}
                 loading={saveStatus === "saving"}
-                endDecorator={<ArrowRight size={18} aria-hidden="true" />}
+                endDecorator={<ArrowRight size={16} aria-hidden="true" />}
                 sx={{
-                  minHeight: 44,
-                  px: 2.5,
+                  minHeight: 34,
+                  flexShrink: 0,
+                  px: 1.5,
                   borderRadius: "8px",
                   fontWeight: 600,
-                  fontSize: 15,
+                  fontSize: 14,
                   bgcolor: "#244d46",
                   "&:hover": { bgcolor: "#183c35" },
                 }}
@@ -834,7 +898,7 @@ export default function StudioTopBar({
               color="neutral"
               aria-label="Save and close Design Studio"
               onClick={onExit}
-              sx={{ minWidth: 44, minHeight: 44 }}
+              sx={{ minWidth: 34, minHeight: 34, flexShrink: 0 }}
             >
               <X size={18} />
             </IconButton>
