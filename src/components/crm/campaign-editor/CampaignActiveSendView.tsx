@@ -1,4 +1,5 @@
 import * as React from "react";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
 import DialogActions from "@mui/joy/DialogActions";
@@ -124,7 +125,7 @@ function normalizeCampaignRow(row: CampaignRow): ActiveCampaignSnapshot {
   return {
     id: row.id,
     tenantId: row.tenant_id,
-    name: row.name || "Untitled Campaign",
+    name: deriveCampaignDisplayName({ name: row.name, subjectLine: row.subject_line, date: row.created_at }),
     subjectLine: row.subject_line || "",
     senderName:
       row.sender_display_name ||
@@ -348,7 +349,7 @@ function buildSnapshotFallback(input: {
   return {
     id: input.campaignId,
     tenantId: input.tenantId ?? null,
-    name: input.name || "Untitled Campaign",
+    name: deriveCampaignDisplayName({ name: input.name, subjectLine: input.subjectLine }),
     subjectLine: input.subjectLine,
     senderName: input.senderName,
     senderEmail: input.senderEmail,

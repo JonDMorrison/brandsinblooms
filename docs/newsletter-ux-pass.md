@@ -78,3 +78,20 @@ Decision needed:
 - **(b)** The UI follows the send path and treats the flag as advisory. Greenfield would then show 7,600 reachable.
 
 The UI currently does (a), as your ground truth asks. The send path is unchanged.
+
+### #8 Campaign name and empty drafts
+
+**Delete query.** Migration `20261123174042` adds `public.delete_stale_empty_campaign_drafts(tenant, dry_run default true)`, callable by service role only. A draft is deleted only when all of these hold:
+- status is draft, never scheduled or sent
+- subject is empty
+- no block has text, an image or a button (headers, dividers, spacers and the footer don't count)
+- not edited for 24 hours
+- no copy or push message points at it, and it isn't under website review
+
+**Row counts before running.**
+- Test tenant: 0 rows (dry run 0). It has 16 drafts without a subject, but all were edited today. 12 of those are footer-only and will qualify after 24 hours.
+- Other tenants: 24 rows would qualify. These were **not** touched.
+
+**Run on the test tenant:** `select * from delete_stale_empty_campaign_drafts('3eade43c-…', false)` deleted 0 rows.
+
+**Decision needed (not a blocker).** The function is not on a schedule. Running it automatically for every tenant needs your OK, because 24 drafts on other tenants would go on the first run.

@@ -40,6 +40,8 @@ import StudioPreviewDialog from "@/components/crm/studio/StudioPreviewDialog";
 import type { StudioDeviceMode } from "@/components/crm/studio/studioCanvasTypes";
 import type { StudioBlock } from "@/types/studioBlocks";
 import type { CampaignChangeClassification } from "@/lib/crm/campaignChangeClassifier";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
+import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
 
 type StudioTopBarProps = {
   campaignId: string;
@@ -180,8 +182,14 @@ export default function StudioTopBar({
 
   const blockCountLabel = blockCount === 1 ? "1 block" : `${blockCount} blocks`;
 
+  const nameIsUnset = isUnsetCampaignName(campaignName);
+  // "Save template" appears only once the design has real content.
+  const canSaveTemplate = hasContentBlocks(blocks);
+  const displayName = deriveCampaignDisplayName({ name: campaignName, subjectLine, blocks });
+
   const commitName = React.useCallback(() => {
-    const nextName = draftName.trim() || "Untitled Campaign";
+    // Leaving it empty keeps the campaign unnamed; the shown name is derived.
+    const nextName = isUnsetCampaignName(draftName) ? "" : draftName.trim();
     onCampaignNameChange(nextName);
     setDraftName(nextName);
     setIsEditingName(false);
@@ -255,7 +263,9 @@ export default function StudioTopBar({
               size="sm"
               variant="plain"
               autoFocus
-              value={draftName}
+              value={isUnsetCampaignName(draftName) ? "" : draftName}
+              placeholder={displayName}
+              aria-label="Campaign name"
               onChange={(event) => setDraftName(event.target.value)}
               onBlur={commitName}
               onKeyDown={(event) => {
@@ -297,12 +307,13 @@ export default function StudioTopBar({
                 color: "text.primary",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
+                ...(nameIsUnset ? { color: "neutral.500", fontStyle: "italic" } : {}),
               }}
-              title={campaignName}
+              title={nameIsUnset ? `${displayName} (click to name this campaign)` : campaignName}
               data-campaign-name
               onClick={() => setIsEditingName(true)}
             >
-              {campaignName}
+              {displayName}
             </Typography>
           )}
 
@@ -796,6 +807,7 @@ export default function StudioTopBar({
             )}
           </Box>
 
+          {canSaveTemplate ? (
           <Button
             variant="outlined"
             color="neutral"
@@ -822,6 +834,7 @@ export default function StudioTopBar({
           >
             <Box component="span" sx={fullLabelSx}>Save template</Box>
           </Button>
+          ) : null}
 
           <Button
             variant="outlined"
@@ -861,9 +874,11 @@ export default function StudioTopBar({
               <MenuItem onClick={() => setDesignOpen(true)}>
                 <SlidersHorizontal size={15} /> Design & spacing
               </MenuItem>
-              <MenuItem disabled={blockCount === 0} onClick={onSaveAsTemplate}>
-                <BookmarkPlus size={15} /> Save template
-              </MenuItem>
+              {canSaveTemplate ? (
+                <MenuItem onClick={onSaveAsTemplate}>
+                  <BookmarkPlus size={15} /> Save template
+                </MenuItem>
+              ) : null}
               <MenuItem disabled>{blockCountLabel}</MenuItem>
             </Menu>
           </Dropdown>

@@ -1,4 +1,5 @@
 import { ConnectedEmailReview } from "./ConnectedEmailReview";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import { CampaignResultsOverview } from "./CampaignResultsOverview";
 import * as React from "react";
 import Alert from "@mui/joy/Alert";
@@ -103,7 +104,7 @@ function normalizeCampaignRow(row: CampaignRow): CampaignStateSnapshot {
   return {
     id: row.id,
     tenantId: row.tenant_id,
-    name: row.name || "Untitled Campaign",
+    name: deriveCampaignDisplayName({ name: row.name, subjectLine: row.subject_line, date: row.created_at }),
     subjectLine: row.subject_line || "",
     senderName:
       row.sender_display_name ||
@@ -142,7 +143,7 @@ function buildFallbackSnapshot(input: {
   return {
     id: input.campaignId,
     tenantId: input.tenantId ?? null,
-    name: input.name || "Untitled Campaign",
+    name: deriveCampaignDisplayName({ name: input.name, subjectLine: input.subjectLine }),
     subjectLine: input.subjectLine,
     senderName: input.senderName,
     senderEmail: input.senderEmail,

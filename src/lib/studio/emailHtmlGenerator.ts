@@ -2364,6 +2364,18 @@ export function isEmptyContentBlock(block: StudioBlock): boolean {
   }
 }
 
+const NON_CONTENT_BLOCK_TYPES = new Set(["footer", "divider", "spacer", "newsletter-header"]);
+
+/** True once the design has at least one block a reader would see as content. */
+export function hasContentBlocks(blocks: ReadonlyArray<StudioBlock>): boolean {
+  return blocks.some(
+    (block) =>
+      block.visible !== false &&
+      !NON_CONTENT_BLOCK_TYPES.has(block.type) &&
+      !isEmptyContentBlock(block),
+  );
+}
+
 export function renderStudioBlocksToEmailHtml(
   blocks: StudioBlock[],
   designSystem?: StudioDesignSystem | null,

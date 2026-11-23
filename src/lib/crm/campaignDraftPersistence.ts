@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import type { Database } from "@/integrations/supabase/types";
 import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount";
 import type { ContentBlock } from "@/types/emailBuilder";
@@ -700,7 +701,8 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
   const nowIso = new Date().toISOString();
 
   const basePayload = {
-    name: input.name.trim() || "Untitled Campaign",
+    // An unnamed draft stores no name; screens derive one (see campaignDisplayName).
+    name: isUnsetCampaignName(input.name) ? "" : input.name.trim(),
     subject_line: input.subjectLine,
     preheader_text: input.preheaderText,
     preheader: input.preheaderText,

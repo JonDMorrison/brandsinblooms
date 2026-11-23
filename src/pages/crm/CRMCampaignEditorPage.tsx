@@ -1,4 +1,6 @@
 import { EmptyBlocksNotice } from "@/components/crm/campaign-editor/EmptyBlocksNotice";
+import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { reviewConnectedEvents } from "@/lib/connectedContent";
 import { reviewCampaignContent } from "@/lib/crm/campaignContentReview";
@@ -1427,8 +1429,8 @@ function CampaignEditorScreen() {
     [archiveTemplate],
   );
 
-  const canSaveAsTemplate =
-    !isLocked && hasMeaningfulEmailContent && contentBlocks.length > 0;
+  // Offered only once the design has real content (not just a header).
+  const canSaveAsTemplate = !isLocked && hasContentBlocks(contentBlocks);
 
   if (isLoading) {
     return <CampaignEditorLoadingSkeleton />;
@@ -1525,7 +1527,7 @@ function CampaignEditorScreen() {
         >
           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
             <Typography level="h3" fontWeight="lg">
-              {name || "Untitled Campaign"}
+              {deriveCampaignDisplayName({ name, subjectLine, blocks: contentBlocks })}
             </Typography>
             <Stack
               direction="row"
@@ -2177,6 +2179,7 @@ function CampaignEditorScreen() {
               subtitle="Make it yours. Edit text, add images, change colours, and arrange every block. Start with a layout or a blank canvas."
             />
 
+            {canSaveAsTemplate ? (
             <Box
               sx={{
                 display: "flex",
@@ -2230,6 +2233,7 @@ function CampaignEditorScreen() {
                 </Box>
               </Typography>
             </Box>
+            ) : null}
           </Stack>
         ) : (
           <Stack spacing={1.5}>

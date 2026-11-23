@@ -1,4 +1,5 @@
 import { useUserRole } from "@/hooks/useUserRole";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import { CampaignOrganization } from "@/components/crm/campaigns/CampaignOrganization";
 import { useCampaignOrganization, campaignOrganizationClient } from "@/lib/crm/campaignOrganization";
 import * as React from "react";
@@ -1452,7 +1453,7 @@ export function CRMCampaignsPage() {
                                   level="body-sm"
                                   component="button"
                                   onClick={event=>{event.stopPropagation();editCell(campaign,"name");}}
-                                  title={campaign.name || "Untitled Campaign"}
+                                  title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
                                   sx={{
                                     background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     fontWeight: "lg",
@@ -1461,7 +1462,7 @@ export function CRMCampaignsPage() {
                                     whiteSpace: "normal",
                                   }}
                                 >
-                                  {campaign.name || "Untitled Campaign"}
+                                  {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
                                 </Typography>
                                 <Typography component="button" onClick={event=>{event.stopPropagation();editCell(campaign,"subject_line");}}
                                   level="body-xs"
@@ -1631,13 +1632,13 @@ export function CRMCampaignsPage() {
                           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                             <Typography
                               level="title-sm"
-                              title={campaign.name || "Untitled Campaign"}
+                              title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
                               sx={{
                                 overflowWrap: "anywhere",
                                 whiteSpace: "normal",
                               }}
                             >
-                              {campaign.name || "Untitled Campaign"}
+                              {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
                             </Typography>
                             <StatusChip
                               campaign={campaign}

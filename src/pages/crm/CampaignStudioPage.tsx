@@ -1,4 +1,5 @@
 import { NewsletterDesignContext } from "@/components/crm/studio/newsletter/NewsletterDesignContext";
+import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import * as React from "react";
 import {
   DndContext,
@@ -305,7 +306,7 @@ function toStudioSnapshot(
   record: CampaignEditorRecord,
 ): StudioCampaignSnapshot {
   return {
-    campaignName: record.name || "Untitled Campaign",
+    campaignName: isUnsetCampaignName(record.name) ? "" : record.name,
     campaignStatus: toStudioCampaignStatus(record.status),
     subjectLine: record.subjectLine,
     previewText: record.preheaderText,
@@ -646,7 +647,7 @@ function CampaignStudioPageContent() {
 
   const initialCampaignName = React.useMemo(
     () =>
-      campaignId ? `Campaign ${campaignId.slice(0, 8)}` : "Untitled Campaign",
+      "",
     [campaignId],
   );
 
@@ -863,7 +864,7 @@ function CampaignStudioPageContent() {
         expectedUpdatedAt: latestUpdatedAtRef.current,
         campaignType: "email",
         status: record.status,
-        name: snapshot.campaignName.trim() || "Untitled Campaign",
+        name: snapshot.campaignName.trim(),
         subjectLine: snapshot.subjectLine,
         preheaderText: snapshot.previewText,
         senderName: snapshot.senderName,
