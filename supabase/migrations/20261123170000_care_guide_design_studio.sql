@@ -22,23 +22,17 @@ alter table public.care_guide_designs enable row level security;
 alter table public.care_guide_design_versions enable row level security;
 create policy care_guide_design_read on public.care_guide_designs for select to authenticated
   using(public.has_tenant_permission(tenant_id,'campaign.read',null) or public.has_tenant_permission(tenant_id,'campaign.write',null));
-create policy care_guide_design_write on public.care_guide_designs for all to authenticated
-  using(public.has_tenant_permission(tenant_id,'campaign.write',null))
-  with check(public.has_tenant_permission(tenant_id,'campaign.write',null));
-create policy care_guide_versions_read on public.care_guide_design_versions for select to authenticated
-  using(public.has_tenant_permission(tenant_id,'campaign.read',null) or public.has_tenant_permission(tenant_id,'campaign.write',null));
--- All publication history writes flow through the invoker RPC below.
-create policy care_guide_versions_publish on public.care_guide_design_versions for insert to authenticated
-  with check(public.has_tenant_permission(tenant_id,'campaign.write',null) and published_by=auth.uid());
-grant select,insert,update on public.care_guide_designs to authenticated;
-grant select,insert on public.care_guide_design_versions to authenticated;
+-- Draft and publication writes must pass the guarded RPCs below. Direct client
+-- INSERT/UPDATE/DELETE is intentionally not granted; history is immutable.
+revoke all on public.care_guide_designs,public.care_guide_design_versions from public,anon,authenticated;
+grant select on public.care_guide_designs,public.care_guide_design_versions to authenticated;
 grant all on public.care_guide_designs,public.care_guide_design_versions to service_role;
 
 -- Save a draft without changing a live published design or its revision.
 create or replace function public.save_care_guide_design_draft(p_tenant_id uuid,p_draft jsonb)
-returns void language plpgsql security invoker set search_path=public as $$
+returns void language plpgsql security definer set search_path='' as $
 begin
-  if not public.has_tenant_permission(p_tenant_id,'campaign.write',null) then raise exception 'Care Guide editing permission required'; end if;
+  if auth.uid() is null or not public.has_tenant_permission(p_tenant_id,'campaign.write',null) then raise exception 'Care Guide editing permission required'; end if;
   if p_draft is null or jsonb_typeof(p_draft)<>'object' or pg_column_size(p_draft)>16384 then raise exception 'Invalid Care Guide draft'; end if;
   insert into public.care_guide_designs(tenant_id,draft,updated_at) values(p_tenant_id,p_draft,now())
   on conflict(tenant_id) do update set draft=excluded.draft,updated_at=now();
@@ -48,10 +42,10 @@ grant execute on function public.save_care_guide_design_draft(uuid,jsonb) to aut
 
 -- Atomic, optimistic publication. Keeps an immutable history for rollback.
 create or replace function public.publish_care_guide_design(p_tenant_id uuid,p_expected_version integer,p_design jsonb)
-returns integer language plpgsql security invoker set search_path=public as $$
+returns integer language plpgsql security definer set search_path='' as $
 declare next_version integer;
 begin
-  if not public.has_tenant_permission(p_tenant_id,'campaign.write',null) then raise exception 'Care Guide publishing permission required'; end if;
+  if auth.uid() is null or not public.has_tenant_permission(p_tenant_id,'campaign.write',null) then raise exception 'Care Guide publishing permission required'; end if;
   if p_expected_version is null or p_expected_version<0 then raise exception 'Invalid expected version'; end if;
   if p_design is null or jsonb_typeof(p_design)<>'object' or pg_column_size(p_design)>16384 then raise exception 'Invalid Care Guide design'; end if;
   if p_expected_version=0 then
