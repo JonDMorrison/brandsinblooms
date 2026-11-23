@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { resolveIds, fromQuery, idQuery, tenantQuery } = vi.hoisted(() => ({
+const { resolveIds, rpc } = vi.hoisted(() => ({
   resolveIds: vi.fn(),
-  fromQuery: vi.fn(),
-  idQuery: vi.fn(),
-  tenantQuery: vi.fn(),
+  rpc: vi.fn(),
 }));
 
 vi.mock("@/lib/computeAudienceRecipientCount", () => ({
@@ -12,10 +10,40 @@ vi.mock("@/lib/computeAudienceRecipientCount", () => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: fromQuery },
+  supabase: { rpc },
 }));
 
-import { fetchCampaignAudienceHealth } from "@/hooks/useTenantAudienceHealth";
+import {
+  fetchCampaignAudienceHealth,
+  fetchTenantAudienceHealth,
+  toAudienceHealth,
+} from "@/hooks/useTenantAudienceHealth";
+
+const row = (total: number, reachable: number, waiting: number, stopped: number, unsendable: number) => ({
+  total, reachable, waiting, stopped, unsendable,
+});
+
+describe("email reachability bucket math", () => {
+  it("maps the four exclusive buckets and they add up to the total", () => {
+    const health = toAudienceHealth([row(270, 244, 1, 21, 4)]);
+    expect(health).toEqual({ total: 270, confirmed: 244, eligible: 244, pending: 1, optedOut: 21, suppressed: 4 });
+    expect(health.confirmed + health.pending + health.optedOut + health.suppressed).toBe(health.total);
+  });
+
+  it("reports a fully suppressed tenant as 0 reachable, not 7,600 said yes", () => {
+    // Greenfield: 7,600 opted in but all 9,500 are suppressed.
+    expect(toAudienceHealth([row(9500, 0, 0, 0, 9500)])).toMatchObject({ total: 9500, confirmed: 0, eligible: 0, suppressed: 9500 });
+  });
+
+  it("sums batches and accepts bigint counts returned as strings", () => {
+    expect(toAudienceHealth([row(3, 1, 1, 1, 0), { total: "2", reachable: "2", waiting: "0", stopped: "0", unsendable: "0" }]))
+      .toMatchObject({ total: 5, confirmed: 3 });
+  });
+
+  it("rejects buckets that do not add up instead of showing them", () => {
+    expect(() => toAudienceHealth([row(9500, 7600, 0, 0, 9500)])).toThrow(/add up/);
+  });
+});
 
 describe("campaign-scoped consent health", () => {
   const options = {
@@ -28,58 +56,45 @@ describe("campaign-scoped consent health", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    const query = {
-      select: vi.fn().mockReturnThis(),
-      eq: tenantQuery.mockReturnThis(),
-      is: vi.fn().mockReturnThis(),
-      not: vi.fn().mockReturnThis(),
-      in: idQuery,
-    };
-    fromQuery.mockReturnValue(query);
-    idQuery.mockResolvedValue({ data: [], error: null });
+    rpc.mockResolvedValue({ data: [row(4, 1, 1, 1, 1)], error: null });
   });
 
-  it("counts only resolved customers and excludes suppression from eligibility", async () => {
+  it("counts only the resolved customers with the shared definition", async () => {
     resolveIds.mockResolvedValue(["a", "b", "c", "d"]);
-    idQuery.mockResolvedValue({ data: [
-      { id: "a", email: "a@example.com", email_opt_in: true, email_consent_method: "form", suppressed: false },
-      { id: "b", email: "b@example.com", email_opt_in: true, email_consent_method: "form", suppressed: true },
-      { id: "c", email: "c@example.com", email_opt_in: false, email_consent_method: "pending_confirmation", suppressed: false },
-      { id: "d", email: "d@example.com", email_opt_in: false, email_consent_method: "opt_out", suppressed: true },
-    ], error: null });
     expect(await fetchCampaignAudienceHealth(options)).toEqual({
-      total: 4, confirmed: 2, pending: 1, optedOut: 1, suppressed: 2, eligible: 1,
+      total: 4, confirmed: 1, eligible: 1, pending: 1, optedOut: 1, suppressed: 1,
     });
     expect(resolveIds).toHaveBeenCalledWith({ ...options, fallbackToAllCustomers: false });
-    expect(tenantQuery).toHaveBeenCalledWith("tenant_id", "tenant-a");
-    expect(idQuery).toHaveBeenCalledWith("id", ["a", "b", "c", "d"]);
+    expect(rpc).toHaveBeenCalledWith("email_reachability_summary", {
+      p_tenant_id: "tenant-a",
+      p_customer_ids: ["a", "b", "c", "d"],
+    });
   });
 
   it("does not replace an empty explicit audience with the whole tenant", async () => {
     resolveIds.mockResolvedValue([]);
     expect((await fetchCampaignAudienceHealth(options)).total).toBe(0);
-    expect(fromQuery).not.toHaveBeenCalled();
-    expect(resolveIds).toHaveBeenCalledWith(expect.objectContaining({ fallbackToAllCustomers: false }));
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("retains the legacy all-contacts fallback only without an explicit audience", async () => {
-    resolveIds.mockResolvedValue([]);
+  it("uses the whole tenant, like the dashboard, when no audience is chosen", async () => {
     await fetchCampaignAudienceHealth({ ...options, segmentIds: [] });
-    expect(resolveIds).toHaveBeenCalledWith(expect.objectContaining({ fallbackToAllCustomers: true }));
+    expect(resolveIds).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("email_reachability_summary", { p_tenant_id: "tenant-a" });
+    await fetchTenantAudienceHealth("tenant-a");
+    expect(rpc).toHaveBeenLastCalledWith("email_reachability_summary", { p_tenant_id: "tenant-a" });
   });
 
-  it("reads large audiences in bounded tenant-scoped batches", async () => {
-    const ids = Array.from({ length: 501 }, (_, index) => `customer-${index}`);
+  it("reads large audiences in bounded batches", async () => {
+    const ids = Array.from({ length: 1001 }, (_, index) => `customer-${index}`);
     resolveIds.mockResolvedValue(ids);
     await fetchCampaignAudienceHealth(options);
-    expect(idQuery.mock.calls.map((call) => call[1].length)).toEqual([500, 1]);
-    expect(tenantQuery).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls.map((call) => call[1].p_customer_ids.length)).toEqual([1000, 1]);
   });
 
   it("reports read failures instead of presenting misleading partial counts", async () => {
     resolveIds.mockResolvedValue(["a"]);
-    const error = new Error("health read failed");
-    idQuery.mockResolvedValue({ data: null, error });
+    rpc.mockResolvedValue({ data: null, error: new Error("health read failed") });
     await expect(fetchCampaignAudienceHealth(options)).rejects.toThrow("health read failed");
   });
 });
