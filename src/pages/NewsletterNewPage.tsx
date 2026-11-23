@@ -11,6 +11,7 @@ import Typography from "@mui/joy/Typography";
 import {
   ArrowRight,
   Check,
+  Copy,
   Lightbulb,
   PenTool,
   type LucideIcon,
@@ -23,6 +24,7 @@ import { dashboardPressSx } from "@/components/dashboard/dashboardPressMotion";
 import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
 import { useStartBlankNewsletter } from "@/hooks/useStartBlankNewsletter";
+import { CopyPreviousEmailDialog } from "@/components/newsletter/CopyPreviousEmailDialog";
 import {
   buildNewsletterIdeaEditorSearchParams,
   type NewsletterIdeaNavigationState,
@@ -342,6 +344,7 @@ export const NewsletterNewPage = () => {
   const navigate = useNavigate();
   const { ideas, templates, loading } = useNewsletterIdeas();
   const blankNewsletter = useStartBlankNewsletter();
+  const [copyOpen, setCopyOpen] = useState(false);
 
   const currentWeekNumber = useMemo(() => getCurrentWeekNumber(), []);
 
@@ -432,6 +435,7 @@ export const NewsletterNewPage = () => {
 
   return (
     <>
+      <CopyPreviousEmailDialog open={copyOpen} onClose={() => setCopyOpen(false)} />
       {/*
         Keep the marketing token scope for accents and typography while the
         editor workspace itself uses BloomSuite's cool neutral surface.
@@ -490,7 +494,7 @@ export const NewsletterNewPage = () => {
               <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
                   gap: { xs: 2.5, md: 3 },
                   alignItems: "stretch",
                 }}
@@ -511,6 +515,15 @@ export const NewsletterNewPage = () => {
                   buttonLabel="Explore ideas"
                   icon={Lightbulb}
                   onClick={() => setShowPicker(true)}
+                />
+
+                <CreationPathCard
+                  variant="ai"
+                  title="Copy a Previous Email"
+                  description="Start from one of your last 10 sent or draft emails."
+                  buttonLabel="Choose an email"
+                  icon={Copy}
+                  onClick={() => setCopyOpen(true)}
                 />
               </Box>
             </Stack>
