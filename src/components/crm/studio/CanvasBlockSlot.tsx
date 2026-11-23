@@ -281,9 +281,11 @@ export default function CanvasBlockSlot({
           <Sheet
             variant="plain"
             sx={{
+              // Sits just outside the block, above its top-right corner, so it
+              // never covers the block's own content.
               position: "absolute",
-              right: -8,
-              top: -8,
+              right: 0,
+              bottom: "calc(100% + 6px)",
               display: isFooterBlock ? "none" : "flex",
               alignItems: "center",
               gap: "2px",
