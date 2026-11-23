@@ -4,6 +4,7 @@ import Typography from "@mui/joy/Typography";
 import { ImagePlus } from "lucide-react";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
+import { SENT_MOBILE_CROP_HEIGHT, STUDIO_MOBILE_QUERY } from "@/lib/studio/emailHtmlGenerator";
 
 type FullWidthImageRendererProps = {
   block: StudioBlock;
@@ -74,6 +75,15 @@ export default function FullWidthImageRenderer({
           block.imageFocalY,
         ),
         bgcolor: backgroundColor,
+        // Same as the sent email on phones: cropped images are 240px tall.
+        ...(block.imageFit === "contain"
+          ? {}
+          : {
+              [STUDIO_MOBILE_QUERY]: {
+                height: `${SENT_MOBILE_CROP_HEIGHT}px`,
+                maxHeight: `${SENT_MOBILE_CROP_HEIGHT}px`,
+              },
+            }),
       }}
     />
   );

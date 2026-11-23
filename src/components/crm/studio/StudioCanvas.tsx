@@ -301,6 +301,10 @@ export default function StudioCanvas({
           maxWidth: canvasWidth,
           mx: "auto",
           my: 4,
+          // Lets blocks apply the sent email's mobile rules (<600px) when the
+          // canvas is in tablet or phone width. See STUDIO_MOBILE_QUERY.
+          containerType: "inline-size",
+          containerName: "studio-email",
           px: { xs: 2, md: 0 },
           transition: "max-width 300ms ease",
         }}

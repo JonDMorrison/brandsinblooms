@@ -2341,6 +2341,14 @@ function hasText(value: unknown) {
  * style blocks can be "empty"; structural blocks (dividers, spacers, social,
  * products...) are never treated as empty.
  */
+/**
+ * Studio canvas equivalent of the sent email's
+ * `@media only screen and (max-width: 599px)` rules. Cropped images are
+ * forced to 240px there (`.responsive-crop-image { height:240px }`).
+ */
+export const STUDIO_MOBILE_QUERY = "@container studio-email (max-width: 599px)";
+export const SENT_MOBILE_CROP_HEIGHT = 240;
+
 export function isEmptyContentBlock(block: StudioBlock): boolean {
   const record = block as StudioBlock & Record<string, unknown>;
   const hasButton = hasText(block.buttonText) && hasText(block.buttonUrl);
