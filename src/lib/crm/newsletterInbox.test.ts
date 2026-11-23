@@ -49,15 +49,22 @@ describe("content-first inbox suggestions", () => {
     expect(prompt).toContain('"newsletter":"Wreath workshop November 14"');
     expect(prompt).toContain('"currentSubject":"My subject"');
     expect(prompt).toContain("Do not invent discounts");
+    expect(prompt).toContain("lead with the benefit");
+    expect(prompt).toContain("Do not write a botanical description");
+    expect(prompt).not.toContain("explain");
+    expect(prompt).not.toContain('"reason"');
   });
   it("validates pairs and rejects incomplete model output", () => {
     const pair = {
       subject: "Wreath workshops are here",
       preview: "Join our hands-on class on November 14.",
-      reason: "The preview adds the date without repeating the subject.",
     };
     expect(
       parseInboxSuggestions(JSON.stringify({ suggestions: [pair] })),
+    ).toEqual([pair]);
+    // A reason from an older model response is ignored, never shown.
+    expect(
+      parseInboxSuggestions(JSON.stringify({ suggestions: [{ ...pair, reason: "Because." }] })),
     ).toEqual([pair]);
     expect(() =>
       parseInboxSuggestions('{"suggestions":[{"subject":"Incomplete"}]}'),
