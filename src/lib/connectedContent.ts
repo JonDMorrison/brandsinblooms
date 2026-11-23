@@ -22,6 +22,8 @@ export interface ConnectedContentItem {
   eventStatus?:"cancelled"|"sold_out"|"available";
   upcomingDateCount?:number;
   capacityCheckRequired?:boolean;
+  /** Product price when the website provides one (e.g. "$24.99"). */
+  price?:string|number|null;
 }
 export interface ConnectedWebsite {
   id:string;
@@ -66,6 +68,32 @@ function campaignDate(item:ConnectedContentItem) {
   }catch{return new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(time);}
 }
 
+const SIZE_UNIT = '(?:gal(?:lon)?s?|g|qt|quarts?|l|litres?|liters?|ml|in(?:ch(?:es)?)?|"|cm|mm|pots?|pk|packs?|oz|lbs?|kg)';
+const SIZE_SUFFIX = new RegExp(`\\s*(?:[·•|]|\\s[-–—])\\s*#?\\d+(?:[.,/]\\d+)?\\s*${SIZE_UNIT}(?![a-z]).*$`, "i");
+const SIZE_PARENS = new RegExp(`\\s*\\(\\s*#?\\d+(?:[.,/]\\d+)?\\s*${SIZE_UNIT}[^)]*\\)\\s*$`, "i");
+
+/** "Hydrangea · 3 Gallon" -> "Hydrangea" (the size stays in the alt text). */
+export function stripProductSizeSuffix(title:string){
+  const stripped=title.replace(SIZE_SUFFIX,"").replace(SIZE_PARENS,"").trim();
+  return stripped||title.trim();
+}
+
+/** Cuts at a word boundary near `max` characters and adds an ellipsis. */
+export function truncateAtWord(text:string,max=180){
+  const clean=text.replace(/\s+/g," ").trim();
+  if(clean.length<=max)return clean;
+  const cut=clean.slice(0,max+1);
+  const lastSpace=cut.lastIndexOf(" ");
+  const base=(lastSpace>max*0.6?cut.slice(0,lastSpace):clean.slice(0,max)).replace(/[\s,;:.\-–—]+$/,"");
+  return `${base}…`;
+}
+
+function formatPrice(price:ConnectedContentItem["price"]){
+  if(price===null||price===undefined||price==="")return "";
+  if(typeof price==="number"&&Number.isFinite(price))return `$${price.toFixed(2)}`;
+  return String(price).trim().slice(0,30);
+}
+
 /**
  * Reuses the existing email-safe image+text block; no parallel renderer.
  * The provenance field travels with the draft for later freshness reviews.
@@ -79,14 +107,23 @@ export function buildConnectedContentBlock(
   const block=createStudioBlock("image-text",designSystem);
   const formattedDate=campaignDate(item);
   const date=item.type==="event" && (item.upcomingDateCount??0)>1 && formattedDate ? `Multiple dates from ${formattedDate}` : formattedDate;
-  const description=item.description?.trim().slice(0,440)??"";
+  const isProduct=item.type==="product";
+  const description=isProduct
+    ? truncateAtWord(item.description??"",180)
+    : item.description?.trim().slice(0,440)??"";
+  const price=isProduct?formatPrice(item.price):"";
   return {
     ...block,
-    headline:item.title.slice(0,180),
-    subheading:date||(item.type==="event"?"Upcoming event":""),
+    headline:(isProduct?stripProductSizeSuffix(item.title):item.title).slice(0,180),
+    subheading:price||date||(item.type==="event"?"Upcoming event":""),
     body:description,
     imageUrl:item.imageUrl? safeUrl(item.imageUrl):"",
+    // The full title (with any size) stays in the alt text.
     imageAlt:item.title.slice(0,130),
+    // Product headlines never render larger than 28px.
+    ...(isProduct
+      ? { appearance:{ ...(block.appearance??{}), text:{ ...(block.appearance?.text??{}), heading:{ ...(block.appearance?.text?.heading??{}), size:28 } } } }
+      : {}),
     buttonText:(item.ctaLabel||"Learn more").slice(0,70),
     buttonUrl:link,
     // Preserve the source so the owner can see what their campaign promotes.

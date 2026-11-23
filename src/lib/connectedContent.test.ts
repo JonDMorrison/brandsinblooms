@@ -130,7 +130,9 @@ describe("Connected Content newsletter blocks",()=>{
   it("keeps all older block types while enabling published website insertion",()=>{
     const source=readFileSync("src/components/crm/studio/useStudioState.ts","utf8");
     expect(source).toContain("insertConnectedContentBlocks");
-    expect(source).toContain('block.type==="footer"');
+    // Website content never adds a footer and never lands below it (#17).
+    expect(source).toContain('block.type !== "footer"');
+    expect(source).toContain("placeInsertedBlocks");
     const page=readFileSync("src/pages/crm/CampaignStudioPage.tsx","utf8");
     expect(page).toContain("ConnectedContentPicker");
     expect(page).toContain("insertConnectedContentBlocks");
@@ -353,5 +355,47 @@ describe("held campaign persistence", () => {
     const studio = readFileSync("src/pages/crm/CampaignStudioPage.tsx","utf8");
     expect(studio.indexOf("if (isCampaignContentLocked(record))")).toBeLessThan(studio.indexOf("const snapshot = toStudioSnapshot(record)"));
     expect(studio).toContain("navigate(editorPath, {replace: true})");
+  });
+});
+
+import { stripProductSizeSuffix, truncateAtWord } from "./connectedContent";
+
+describe("inserted product content (#18)", () => {
+  it("strips size suffixes from product headlines", () => {
+    expect(stripProductSizeSuffix("Hydrangea · 3 Gallon")).toBe("Hydrangea");
+    expect(stripProductSizeSuffix("Boxwood - 1 gal")).toBe("Boxwood");
+    expect(stripProductSizeSuffix('Fern (4" pot)')).toBe("Fern");
+    expect(stripProductSizeSuffix("Rose Bush")).toBe("Rose Bush");
+    expect(stripProductSizeSuffix("3 Gallon Mix")).toBe("3 Gallon Mix");
+  });
+  it("truncates descriptions at a word boundary with an ellipsis", () => {
+    const long = "Bright, long-flowering perennial ".repeat(10);
+    const out = truncateAtWord(long, 180);
+    expect(out.length).toBeLessThanOrEqual(181);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out.slice(0, -1)).not.toMatch(/\s$/);
+    expect(long.startsWith(out.slice(0, -1))).toBe(true);
+    expect(truncateAtWord("Short text", 180)).toBe("Short text");
+  });
+});
+
+describe("product block from the website (#18)", () => {
+  it("cleans the headline, keeps the size in alt text, adds the price and caps the heading at 28px", async () => {
+    const { renderNewsletterBlock } = await import("@/lib/studio/emailHtmlGenerator");
+    const block = buildConnectedContentBlock({
+      id: "p1", siteId: "s1", siteName: "Northfield Gardens", type: "product",
+      title: "Limelight Hydrangea · 3 Gallon",
+      description: "A tough, reliable panicle hydrangea with lime-green blooms that age to pink. ".repeat(4),
+      imageUrl: "https://example.org/h.jpg", publicUrl: "https://example.org/p/h", ctaLabel: "Shop now",
+      updatedAt: "2026-11-01T00:00:00Z", price: "$39.99",
+    }, buildStudioDesignSystem({} as never));
+    expect(block.headline).toBe("Limelight Hydrangea");
+    expect(block.imageAlt).toBe("Limelight Hydrangea · 3 Gallon");
+    expect(block.subheading).toBe("$39.99");
+    expect((block.body ?? "").length).toBeLessThanOrEqual(181);
+    expect(block.body?.endsWith("…")).toBe(true);
+    const html = renderNewsletterBlock(block);
+    const size = Number(/data-newsletter-role="heading"[^>]*font-size:(\d+)px/.exec(html)?.[1]);
+    expect(size).toBeLessThanOrEqual(28);
   });
 });
