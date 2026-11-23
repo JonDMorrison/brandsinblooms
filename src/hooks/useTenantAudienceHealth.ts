@@ -133,12 +133,28 @@ export interface CampaignAudienceHealthOptions {
   enabled?: boolean;
 }
 
-/** Imported IdealPOS placeholders are not deliverable email addresses. */
+const RESERVED_EMAIL_TLDS = ["invalid", "test", "localhost", "example"];
+const RESERVED_EMAIL_DOMAINS = ["example.com", "example.net", "example.org"];
+
+/**
+ * RFC 2606 / 6761 reserved domains never receive mail (demo and test data).
+ * Same rule as the send path (_shared/canSendEmail.ts) and
+ * public.is_reserved_email_domain.
+ */
+export function isReservedEmailDomain(email: string): boolean {
+  const domain = (email.split("@").pop() ?? "").trim().toLowerCase().replace(/\.$/, "");
+  if (!domain) return false;
+  if (RESERVED_EMAIL_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) return true;
+  return RESERVED_EMAIL_TLDS.includes(domain.split(".").pop() ?? "");
+}
+
+/** Imported IdealPOS placeholders and reserved domains are not deliverable. */
 export function hasUsableCampaignEmail(value: string | null | undefined): boolean {
   if (!value) return false;
   const email = value.trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-    !email.toLowerCase().endsWith("@noemail.local");
+    !email.toLowerCase().endsWith("@noemail.local") &&
+    !isReservedEmailDomain(email);
 }
 
 export async function fetchCampaignAudienceHealth(

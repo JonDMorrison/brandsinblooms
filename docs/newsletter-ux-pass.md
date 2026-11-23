@@ -64,20 +64,36 @@ select * from public.email_reachability_summary('19c15e83-017c-418b-9668-c8a78db
 
 The UI now shows Greenfield: Said yes 0, Waiting 0, Asked us to stop 0, Can't be sent to 9,500, total 9,500. The dashboard shows 0 reachable. Both values come from the function rows above. The mapping is unit-tested in `src/hooks/__tests__/useTenantAudienceHealth.test.ts`.
 
-**STOP: the send path does not match the shared definition, and Jon needs to decide which one changes.** "Match the send path exactly" and "Greenfield must show 0 reachable" cannot both be true today, because sending ignores the `suppressed` flag. These customers have `suppressed = true` and `email_opt_in` not false and no suppression-list row, so a send to "all customers" would still include them:
+**Resolved (Jon, 2026-11-23): the UI follows the send path.** The `suppressed` flag was retired on purpose:
+- Milestone 4 (`20260222130500`) removed engagement-based suppression.
+- Milestone 5 made `suppression_list` the single source of truth, which is why `canSendEmail.ts` never reads the flag.
 
-| Tenant | Flag-suppressed but sendable | `suppressed_reason` |
-|---|---|---|
-| `13b62ff0-4dc0-4451-a851-bb142a25ea62` | 89,656 | No email opens in 180 days |
-| `3eade43c-…` Greenfield | 7,600 | demo_synthetic_data (addresses at `greenfield-demo.example.invalid`) |
-| `36bd97b6-2564-465b-b2a6-1369a07f2546` | 336 | No email opens in 180 days |
-| `0a626809-…` Brands in Blooms | 6 | (none) |
+Three changes:
+1. **The reachability function now mirrors the send path rule for rule** (`20261123185547_reachability_matches_send_path.sql`).
+   - It ignores `crm_customers.suppressed`, `opt_out`, `email_opt_out_at` and `total_hard_bounces`. These excluded 0 live contacts anyway, apart from the flag.
+   - It matches `suppression_list` by email with the same suppression types, and honours the tenant suppression bypass.
+   - Contacts with consent not recorded count as reachable, because the send path includes them. There are 0 such contacts today.
+   - Not mirrored: role-based blocking. It is controlled by an environment flag only the edge function can see.
+2. **Reserved test domains count as invalid addresses on both sides.** These are `.invalid`, `.test`, `.localhost`, `.example` and `example.com/.net/.org`.
+   - Code: `isReservedEmailDomain` in `_shared/canSendEmail.ts`, `public.is_reserved_email_domain`, and the client's `hasUsableCampaignEmail`.
+   - Greenfield's demo addresses are at `greenfield-demo.example.invalid`, so a real send would have tried 7,600 undeliverable addresses. 9,504 contacts are affected in total.
+3. **The leftover inactivity flags were cleared** (`20261123185647_clear_leftover_inactivity_suppression_flags.sql`, same criteria as Milestone 4).
+   - 96,483 rows: `13b62ff0…` 96,083, `36bd97b6…` 399, `502fca55…` 1.
+   - The nightly job kept setting them until 2026-02-28, after the Milestone 4 cleanup had run.
+   - Sending had ignored them since Milestone 5, so no send changes. Greenfield's `demo_synthetic_data` flags were not touched.
 
-Decision needed:
-- **(a)** The send path honours `crm_customers.suppressed`. Those customers stop receiving email, including 89,656 inactive contacts at one tenant.
-- **(b)** The UI follows the send path and treats the flag as advisory. Greenfield would then show 7,600 reachable.
+**Verification.** For 6 tenants, the function's `reachable` equals an independent SQL copy of the send-path filter:
 
-The UI currently does (a), as your ground truth asks. The send path is unchanged.
+| Tenant | Total | Reachable | Waiting | Stopped | Can't send | Send copy |
+|---|---|---|---|---|---|---|
+| Greenfield `3eade43c…` | 9,500 | **0** | 0 | 1,900 | 7,600 | 0 |
+| Flowerhouse `19c15e83…` | 270 | 244 | 0 | 22 | 4 | 244 |
+| `13b62ff0…` | 107,399 | 19,985 | 5,788 | 4,223 | 77,403 | 19,985 |
+| `36bd97b6…` | 500 | 423 | 0 | 77 | 0 | 423 |
+| `079a3b95…` | 2,618 | 2,567 | 0 | 36 | 15 | 2,567 |
+| `0a626809…` | 2,273 | 1,829 | 8 | 186 | 250 | 1,829 |
+
+Greenfield's 1,900 contacts with `email_opt_in = false` now show under "Asked us to stop". The 7,600 who said yes show under "Can't be sent to", because their addresses can't receive mail.
 
 ### #8 Campaign name and empty drafts
 
@@ -152,7 +168,7 @@ Decision needed: keep 240px, or switch the mobile rule to `height:auto` behind a
 | # | Status | Commit | Evidence |
 |---|---|---|---|
 | 0 | Done | `a6efaa95b` | Flow map above, written before edits |
-| 1 | Done (UI), **STOP** on send path | `d73e62e31`, `8d7df73d5` | SQL vs UI: Greenfield 9500 / 0 / 0 / 0 / 9500 (re-run at the end of the pass); unit tests |
+| 1 | Done; matches the send path exactly | `d73e62e31`, `8d7df73d5`, + send-path commit | 6 tenants: reachable = send-path copy; Greenfield 0 reachable |
 | 2 | Done | `3fd8e2f96` | Renderer tests; empty-blocks notice in step 5 and the send dialog |
 | 3 | Done | `2486f7a47` | `toolbar-1200/1280/1320/1440.png`; one 52px row, nothing clipped |
 | 4 | Done | `a359b81f2` | Harness: "Open blank editor" creates a draft and lands on `/crm/campaigns/:id/studio` |
@@ -259,10 +275,7 @@ The risks are behavioural:
 
 ## Decisions needed from Jon
 
-1. **#1 send path.** Should sending honour `crm_customers.suppressed`?
-   - Yes: 89,656 inactive contacts at tenant `13b62ff0…` stop receiving email.
-   - No: the UI goes back to counting flag-suppressed contacts as reachable, and Greenfield would show 7,600.
-   - The UI currently honours the flag. The send path does not.
+1. **#1 send path:** resolved. The UI follows the send path, reserved domains are invalid on both sides, and the leftover flags are cleared (see the #1 section).
 2. **#14 colours.** Greenfield's stored `#22c55e` / `#1e40af` / `#f59e0b` are the settings page defaults. Should those untouched defaults be treated as "not set" and fall back to a neutral palette, or should the tenant's colours be fixed in Settings?
 3. **#25.** Keep the 240px mobile crop for sent email, or move new drafts to `height:auto` behind an opt-in flag?
 4. **#8.** Run `delete_stale_empty_campaign_drafts` on a schedule for all tenants? 24 drafts on other tenants would be removed on the first run.

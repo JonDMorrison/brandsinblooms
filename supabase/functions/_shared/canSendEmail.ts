@@ -29,6 +29,26 @@ export interface SuppressionBypassOptions {
 // Basic email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Domains reserved by RFC 2606 / RFC 6761. Mail to them can never be
+ * delivered, so they count as invalid addresses (demo and test data).
+ * Keep in step with public.is_reserved_email_domain.
+ */
+const RESERVED_TLDS = ['invalid', 'test', 'localhost', 'example'];
+const RESERVED_DOMAINS = ['example.com', 'example.net', 'example.org'];
+
+export function isReservedEmailDomain(email: string): boolean {
+  const domain = String(email.split('@').pop() || '').trim().toLowerCase().replace(/\.$/, '');
+  if (!domain) return false;
+  if (RESERVED_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) return true;
+  const tld = domain.split('.').pop() || '';
+  return RESERVED_TLDS.includes(tld);
+}
+
+function isDeliverableAddress(email: string): boolean {
+  return EMAIL_REGEX.test(email) && !isReservedEmailDomain(email);
+}
+
 const EMAIL_SUPPRESSION_TYPES = [
   'unsubscribed',
   'bounced',
@@ -169,7 +189,7 @@ export async function canSendEmail(
   }
 
   // 2. Validate email format
-  if (!EMAIL_REGEX.test(normalizedEmail)) {
+  if (!isDeliverableAddress(normalizedEmail)) {
     return { allowed: false, reason: 'invalid_email' };
   }
 
@@ -299,7 +319,7 @@ export async function canSendEmailBatch(
       continue;
     }
 
-    if (!EMAIL_REGEX.test(email)) {
+    if (!isDeliverableAddress(email)) {
       results.set(email, { allowed: false, reason: 'invalid_email' });
       continue;
     }
