@@ -58,6 +58,10 @@ function buildBuilder(chain: MockChain) {
     chain.match[column] = value;
     return builder;
   };
+  builder.or = (filter: string) => {
+    chain.calls.push(`or:${filter}`);
+    return builder;
+  };
   builder.order = () => {
     chain.calls.push("order");
     return Promise.resolve(selectResolver.value);
@@ -131,7 +135,7 @@ afterEach(() => {
 });
 
 describe("useSavedTemplates", () => {
-  it("queries saved_campaign_templates scoped to the current user", async () => {
+  it("queries saved_campaign_templates scoped to the current user and business", async () => {
     selectResolver.value = {
       data: [
         {
@@ -157,6 +161,13 @@ describe("useSavedTemplates", () => {
     });
 
     expect(fromMock).toHaveBeenCalledWith("saved_campaign_templates");
+    const selectChain = findChain((chain) =>
+      chain.calls.some((call) => call.startsWith("select:")),
+    );
+    expect(selectChain?.calls).toContain("eq:user_id=user-1");
+    expect(selectChain?.calls).toContain(
+      "or:tenant_id.eq.tenant-1,tenant_id.is.null",
+    );
     expect(result.current.savedTemplates).toHaveLength(1);
     expect(result.current.savedTemplates[0].name).toBe("Spring");
     expect(result.current.savedTemplates[0].layout_json).toHaveLength(1);
