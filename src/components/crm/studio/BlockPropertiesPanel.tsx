@@ -3342,6 +3342,7 @@ function PanelContent({
                   <>
                     <StudioImageUpload
                       label="Photo"
+                      sourceTabs
                       height={120}
                       emptyText="Upload or drag image"
                       value={block.imageUrl ?? ""}
