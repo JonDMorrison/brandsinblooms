@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
-import {renderCareGuideEmail} from './careGuideEmail';
+import {renderCareGuideEmail,type CareGuideEmailInput} from './careGuideEmail';
 
-const valid = () => ({
+const valid = (): CareGuideEmailInput => ({
   brand:{storeName:'Northfield Garden Centre',publishedVersion:'1',logoUrl:'https://example.org/logo.png'},
   requested:true,
   plants:[{productId:'SKU-1',name:'Red Prayer Plant',botanicalName:'Maranta leuconeura',careVersion:'approved-4',
