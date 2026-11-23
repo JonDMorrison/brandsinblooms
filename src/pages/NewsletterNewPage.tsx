@@ -22,6 +22,7 @@ import { NewsletterPicker } from "@/components/newsletter/NewsletterPicker";
 import { dashboardPressSx } from "@/components/dashboard/dashboardPressMotion";
 import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
+import { useStartBlankNewsletter } from "@/hooks/useStartBlankNewsletter";
 import {
   buildNewsletterIdeaEditorSearchParams,
   type NewsletterIdeaNavigationState,
@@ -340,6 +341,7 @@ export const NewsletterNewPage = () => {
   const [selectedLayout, setSelectedLayout] = useState<LayoutKey | null>(null);
   const navigate = useNavigate();
   const { ideas, templates, loading } = useNewsletterIdeas();
+  const blankNewsletter = useStartBlankNewsletter();
 
   const currentWeekNumber = useMemo(() => getCurrentWeekNumber(), []);
 
@@ -497,9 +499,9 @@ export const NewsletterNewPage = () => {
                   variant="scratch"
                   title="Start from Scratch"
                   description="Open a blank editor and build your newsletter block by block."
-                  buttonLabel="Open blank editor"
+                  buttonLabel={blankNewsletter.starting ? "Opening Design Studio…" : "Open blank editor"}
                   icon={PenTool}
-                  onClick={() => navigate("/crm/campaigns/new?type=newsletter")}
+                  onClick={() => void blankNewsletter.start()}
                 />
 
                 <CreationPathCard
