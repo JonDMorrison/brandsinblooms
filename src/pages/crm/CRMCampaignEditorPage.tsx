@@ -614,6 +614,8 @@ function CampaignEditorScreen() {
     React.useState<CampaignTemplate | null>(null);
   const [selectedIntent, setSelectedIntent] =
     React.useState<CampaignIntentKey | null>(null);
+  const [selectedBuiltInTemplateId, setSelectedBuiltInTemplateId] =
+    React.useState<string | null>(null);
   const [selectedSavedTemplateId, setSelectedSavedTemplateId] = React.useState<
     string | null
   >(null);
@@ -1278,6 +1280,9 @@ function CampaignEditorScreen() {
 
   const applyTemplateToCampaign = React.useCallback(
     (template: CampaignTemplate) => {
+      setSelectedBuiltInTemplateId(
+        template.id.startsWith("botanical-") ? template.id : null,
+      );
       updateSetup({
         subjectLine: template.subjectLine,
         preheaderText: template.previewText,
@@ -2149,6 +2154,9 @@ function CampaignEditorScreen() {
               onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
               onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}
               onOpenManage={() => setManageTemplatesOpen(true)}
+              selectedBuiltInTemplateId={
+                selectedIntent || selectedSavedTemplateId ? null : selectedBuiltInTemplateId
+              }
             />
 
             <StudioCtaCard

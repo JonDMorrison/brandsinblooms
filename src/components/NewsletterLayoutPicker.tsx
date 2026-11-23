@@ -6,7 +6,12 @@ import Chip from "@mui/joy/Chip";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, LayoutGrid, Mail, type LucideIcon } from "lucide-react";
+
+const layoutIconByLayout: Record<NewsletterTemplate["layout"], LucideIcon> = {
+  "block-builder": LayoutGrid,
+  "simple-email": Mail,
+};
 import { NewsletterIdea, NewsletterTemplate } from "@/types/newsletter";
 
 type LayoutKey = NewsletterTemplate["layout"];
@@ -292,10 +297,11 @@ function LayoutOptionCard({
         display: "flex",
         flexDirection: "column",
         borderRadius: "lg",
-        borderWidth: selected ? 2 : 1,
+        // A ring via box-shadow keeps the card the same size when selected.
+        borderWidth: 1,
         borderColor: selected ? "primary.500" : "neutral.200",
         bgcolor: "background.surface",
-        boxShadow: "none",
+        boxShadow: selected ? "0 0 0 1px var(--joy-palette-primary-500)" : "none",
         cursor: "pointer",
         transition: "border-color 150ms ease, box-shadow 150ms ease",
         outline: "none",
@@ -348,7 +354,11 @@ function LayoutOptionCard({
         sx={{ p: 2.5, flex: 1, justifyContent: "space-between" }}
       >
         <Stack spacing={0.75}>
-          <Typography level="title-md" sx={{ fontWeight: 600 }}>
+          <Typography
+            level="title-md"
+            startDecorator={React.createElement(layoutIconByLayout[template.layout] ?? LayoutGrid, { size: 18, "aria-hidden": true })}
+            sx={{ fontWeight: 600 }}
+          >
             {template.name}
           </Typography>
           <Typography level="body-sm" sx={{ color: "text.secondary", mt: 0.5 }}>

@@ -4,6 +4,9 @@ import type {
   CampaignTemplate,
 } from "@/lib/studio/campaignTemplates";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { useOptionalDesignSystem } from "@/contexts/DesignSystemContext";
+
+const PLACEHOLDER_BUSINESS_NAMES = new Set(["", "your business", "your garden centre"]);
 
 export interface IntentCardThumbnailProps {
   template: CampaignTemplate | null;
@@ -21,7 +24,14 @@ export function IntentCardThumbnail({
   emptyLabel,
   variant = "preview",
 }: IntentCardThumbnailProps) {
-  const green = "#244d46";
+  // Draw the thumbnails in the tenant's own name and brand colour.
+  const designSystem = useOptionalDesignSystem()?.designSystem ?? null;
+  const companyName = designSystem?.company.name?.trim() ?? "";
+  const brandName = PLACEHOLDER_BUSINESS_NAMES.has(companyName.toLowerCase())
+    ? "YOUR GARDEN CENTRE"
+    : companyName.toUpperCase().slice(0, 28);
+  const brandColor = designSystem?.colors.primary;
+  const green = brandColor && /^#[0-9a-f]{6}$/i.test(brandColor) ? brandColor : "#244d46";
   const line = (y: number, width = 170, x = 35) => (
     <rect x={x} y={y} width={width} height="3" rx="1.5" fill="#ccd3d1" />
   );
@@ -139,7 +149,7 @@ export function IntentCardThumbnail({
                 letterSpacing="2"
                 fill={green}
               >
-                YOUR GARDEN CENTRE
+                {brandName}
               </text>
               {kind === "sale" ? (
                 <>
@@ -291,7 +301,7 @@ export function IntentCardThumbnail({
               ) : kind === "thank-you" ? (
                 <>
                   <text x="42" y="52" fontSize="18" fill={green}>
-                    Thank you.
+                    With gratitude.
                   </text>
                   <text x="42" y="72" fontSize="7" fill="#53665d">
                     Dear garden friend,
@@ -306,7 +316,7 @@ export function IntentCardThumbnail({
                     fontStyle="italic"
                     fill={green}
                   >
-                    Your garden centre team
+                    {brandName === "YOUR GARDEN CENTRE" ? "Your garden centre team" : `The ${companyName} team`}
                   </text>
                 </>
               ) : kind === "saved" ? (
@@ -352,11 +362,7 @@ export function IntentCardThumbnail({
                     fontWeight="700"
                     fill={green}
                   >
-                    {/* Show the template's own name so cards that share this
-                        layout can still be told apart. */}
-                    {template?.name && template.name.length <= 22
-                      ? template.name
-                      : "The garden journal"}
+                    The garden journal
                   </text>
                   {[87, 117].map((y, i) => (
                     <g key={y}>
