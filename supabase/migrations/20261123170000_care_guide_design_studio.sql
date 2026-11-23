@@ -32,19 +32,19 @@ grant all on public.care_guide_designs,public.care_guide_design_versions to serv
 
 -- Save a draft without changing a live published design or its revision.
 create or replace function public.save_care_guide_design_draft(p_tenant_id uuid,p_draft jsonb)
-returns void language plpgsql security definer set search_path='' as $
+returns void language plpgsql security definer set search_path='' as $care_guide_body$
 begin
   if auth.uid() is null or not public.has_tenant_permission(p_tenant_id,'campaign.write',null) then raise exception 'Care Guide editing permission required'; end if;
   if p_draft is null or jsonb_typeof(p_draft)<>'object' or pg_column_size(p_draft)>16384 then raise exception 'Invalid Care Guide draft'; end if;
   insert into public.care_guide_designs(tenant_id,draft,updated_at) values(p_tenant_id,p_draft,now())
   on conflict(tenant_id) do update set draft=excluded.draft,updated_at=now();
-end $$;
+end $care_guide_body$;
 revoke all on function public.save_care_guide_design_draft(uuid,jsonb) from public,anon;
 grant execute on function public.save_care_guide_design_draft(uuid,jsonb) to authenticated;
 
 -- Atomic, optimistic publication. Keeps an immutable history for rollback.
 create or replace function public.publish_care_guide_design(p_tenant_id uuid,p_expected_version integer,p_design jsonb)
-returns integer language plpgsql security definer set search_path='' as $
+returns integer language plpgsql security definer set search_path='' as $care_guide_body$
 declare next_version integer;
 begin
   if auth.uid() is null or not public.has_tenant_permission(p_tenant_id,'campaign.write',null) then raise exception 'Care Guide publishing permission required'; end if;
@@ -61,6 +61,6 @@ begin
   insert into public.care_guide_design_versions(tenant_id,version,design,published_by)
     values(p_tenant_id,next_version,p_design,auth.uid());
   return next_version;
-end $$;
+end $care_guide_body$;
 revoke all on function public.publish_care_guide_design(uuid,integer,jsonb) from public,anon;
 grant execute on function public.publish_care_guide_design(uuid,integer,jsonb) to authenticated;
