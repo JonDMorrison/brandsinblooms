@@ -4,11 +4,13 @@ import { toast } from "@/utils/toast";
 import { useTenant } from "@/hooks/useTenant";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
+import type { StudioBlock } from "@/types/studioBlocks";
 
 /**
  * "Open blank editor": create a draft with a blank canvas (a header and an
  * empty paragraph; the footer is added on save) and open it straight in
- * Design Studio. No setup form or layout picker on this path.
+ * Design Studio. No setup form or layout picker on this path. Pass `blocks`
+ * to start from a saved template instead.
  */
 export function useStartBlankNewsletter() {
   const navigate = useNavigate();
@@ -16,7 +18,10 @@ export function useStartBlankNewsletter() {
   const [starting, setStarting] = React.useState(false);
   const startingRef = React.useRef(false);
 
-  const start = React.useCallback(async () => {
+  const start = React.useCallback(async (options: {
+    blocks?: StudioBlock[];
+    name?: string;
+  } = {}) => {
     if (startingRef.current) return;
     startingRef.current = true;
     setStarting(true);
@@ -25,15 +30,17 @@ export function useStartBlankNewsletter() {
         tenantId: tenant?.id ?? null,
         campaignType: "email",
         status: "draft",
-        name: "",
+        name: options.name ?? "",
         subjectLine: "",
         preheaderText: "",
         senderName: "",
         senderEmail: "",
-        contentBlocks: [
-          createStudioBlock("newsletter-header"),
-          createStudioBlock("plain-text"),
-        ],
+        contentBlocks: options.blocks?.length
+          ? options.blocks
+          : [
+              createStudioBlock("newsletter-header"),
+              createStudioBlock("plain-text"),
+            ],
         smsMessage: "",
         sendAt: null,
         sendImmediately: false,

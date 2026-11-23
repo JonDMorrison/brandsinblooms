@@ -25,6 +25,7 @@ import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
 import { useStartBlankNewsletter } from "@/hooks/useStartBlankNewsletter";
 import { CopyPreviousEmailDialog } from "@/components/newsletter/CopyPreviousEmailDialog";
+import { YourTemplatesSection } from "@/components/newsletter/YourTemplatesSection";
 import {
   buildNewsletterIdeaEditorSearchParams,
   type NewsletterIdeaNavigationState,
@@ -527,6 +528,20 @@ export const NewsletterNewPage = () => {
                 />
               </Box>
             </Stack>
+
+            <YourTemplatesSection
+              busy={blankNewsletter.starting}
+              onUseTemplate={(template) =>
+                void blankNewsletter.start({
+                  name: template.name,
+                  // Fresh block ids: the draft must not share ids with the template.
+                  blocks: template.layout_json.map((block) => ({
+                    ...block,
+                    id: crypto.randomUUID(),
+                  })),
+                })
+              }
+            />
 
             <Stack spacing={{ xs: 3, md: 4 }}>
               <Stack spacing={1.25}>
