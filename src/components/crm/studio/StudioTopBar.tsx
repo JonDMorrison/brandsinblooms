@@ -32,6 +32,7 @@ import {
   Undo2,
   AlertTriangle,
   BookmarkPlus,
+  FileSpreadsheet,
   MoreHorizontal,
   SlidersHorizontal,
   X,
@@ -68,6 +69,8 @@ type StudioTopBarProps = {
   onReloadCampaign: () => void;
   onSave: () => void;
   onSaveAsTemplate: () => void;
+  /** Opens "Import data / spreadsheet" (in the More menu). */
+  onImportData?: () => void;
   onExit: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -163,6 +166,7 @@ export default function StudioTopBar({
   onReloadCampaign,
   onSave,
   onSaveAsTemplate,
+  onImportData,
   onExit,
   onUndo,
   onRedo,
@@ -857,22 +861,28 @@ export default function StudioTopBar({
                   color: "neutral",
                   size: "sm",
                   "aria-label": "More actions",
-                  sx: { borderRadius: "8px", minHeight: 32, minWidth: 32, ...narrowOnlySx },
+                  sx: { borderRadius: "8px", minHeight: 32, minWidth: 32 },
                 } as never,
               }}
             >
               <MoreHorizontal size={16} />
             </MenuButton>
             <Menu placement="bottom-end" sx={{ zIndex: 1300 }}>
-              <MenuItem onClick={() => setDesignOpen(true)}>
+              {onImportData ? (
+                <MenuItem onClick={onImportData}>
+                  <FileSpreadsheet size={15} /> Import data / spreadsheet
+                </MenuItem>
+              ) : null}
+              {/* Below 1280px these move here from the bar. */}
+              <MenuItem onClick={() => setDesignOpen(true)} sx={narrowOnlySx}>
                 <SlidersHorizontal size={15} /> Design & spacing
               </MenuItem>
               {canSaveTemplate ? (
-                <MenuItem onClick={onSaveAsTemplate}>
+                <MenuItem onClick={onSaveAsTemplate} sx={narrowOnlySx}>
                   <BookmarkPlus size={15} /> Save template
                 </MenuItem>
               ) : null}
-              <MenuItem disabled>{blockCountLabel}</MenuItem>
+              <MenuItem disabled sx={narrowOnlySx}>{blockCountLabel}</MenuItem>
             </Menu>
           </Dropdown>
 

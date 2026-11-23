@@ -293,36 +293,7 @@ export default function StudioCanvas({
         <Typography level="body-sm" sx={{ fontWeight: 700, color: "#263d42" }}>
           Your email
         </Typography>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <button
-            type="button"
-            className="nl-quiet"
-            onClick={(event) => {
-              event.stopPropagation();
-              event.currentTarget
-                .closest("[data-newsletter-canvas]")
-                ?.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            Go to top
-          </button>
-          <button
-            type="button"
-            className="nl-quiet"
-            onClick={(event) => {
-              event.stopPropagation();
-              const canvas = event.currentTarget.closest(
-                "[data-newsletter-canvas]",
-              );
-              canvas?.scrollTo({
-                top: canvas.scrollHeight,
-                behavior: "smooth",
-              });
-            }}
-          >
-            Go to bottom
-          </button>
-        </Box>
+        {/* Go to top / bottom live in the Outline panel only. */}
       </Box>
       <Box
         sx={{

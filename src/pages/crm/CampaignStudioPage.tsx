@@ -1,4 +1,5 @@
 import { NewsletterDesignContext } from "@/components/crm/studio/newsletter/NewsletterDesignContext";
+import DataImportDialog from "@/components/crm/studio/newsletter/DataImportDialog";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import * as React from "react";
 import {
@@ -654,6 +655,7 @@ function CampaignStudioPageContent() {
   useGoogleFontsLoader(designSystem.fontUrls);
 
   const studio = useStudioState({ initialCampaignName, designSystem });
+  const [dataImportOpen, setDataImportOpen] = React.useState(false);
   const [websitePickerOpen, setWebsitePickerOpen] = React.useState(false);
   const promoteSite = reviewParams.get("promoteSite") ?? "";
   const promoteId = reviewParams.get("promoteId") ?? "";
@@ -2274,6 +2276,7 @@ function CampaignStudioPageContent() {
               }}
               onSave={handleSave}
               onSaveAsTemplate={() => setSaveTemplateOpen(true)}
+              onImportData={() => setDataImportOpen(true)}
               onExit={() => {
                 void handleExit();
               }}
@@ -2309,6 +2312,11 @@ function CampaignStudioPageContent() {
                   bgcolor: "background.surface",
                 }}
               >
+                <DataImportDialog
+                  open={dataImportOpen}
+                  onClose={() => setDataImportOpen(false)}
+                  onInsert={studio.insertImportedBlocks}
+                />
                 <BlockLibrary
                   onInsertWebsiteContent={() => setWebsitePickerOpen(true)}
                   blocks={studio.blocks}
