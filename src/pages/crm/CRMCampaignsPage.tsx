@@ -1121,6 +1121,7 @@ export function CRMCampaignsPage() {
                 useFlexGap
                 flexWrap="wrap"
               >
+                {import.meta.env["VITE_CARE_GUIDE_STUDIO_ENABLED"] === "true" && <Button color="neutral" variant="outlined" startDecorator={<Palette size={16} />} onClick={() => navigate("/crm/care-guides")}>Care Guide Studio</Button>}
                 <BloomChip
                   label="Campaign insights"
                   prompt="Show me how my campaigns performed this month and suggest improvements"

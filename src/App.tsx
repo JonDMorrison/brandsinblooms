@@ -228,6 +228,7 @@ const CRMCampaignsPage = lazyNamed(
   () => import("@/pages/crm/CRMCampaignsPage"),
   "CRMCampaignsPage",
 );
+const CareGuideStudioPage = lazyRetry(() => import("@/pages/crm/CareGuideStudioPage"));
 const CRMCampaignReport = lazyRetry(
   () => import("@/pages/crm/CRMCampaignReport"),
 );
@@ -803,6 +804,16 @@ function App() {
                 "full",
                 "campaigns.write",
               )}
+            />
+            <Route
+              path="/crm/care-guides"
+              element={import.meta.env["VITE_CARE_GUIDE_STUDIO_ENABLED"] === "true"
+                ? renderProtectedSidebarLazyPage(
+                    <CareGuideStudioPage />,
+                    "full",
+                    "campaigns.write",
+                  )
+                : <Navigate to="/crm/campaigns" replace />}
             />
             <Route
               path="/crm/campaigns"

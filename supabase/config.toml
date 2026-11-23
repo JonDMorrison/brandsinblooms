@@ -632,6 +632,10 @@ verify_jwt = false
 [functions.connected-content]
 verify_jwt = true
 
+[functions.care-guide-sync]
+verify_jwt = true # signed-in CRM editor plus server-verified tenant linked sites; HMAC to CMS
+
+
 [functions.send-support-emails]
 verify_jwt = false
 
