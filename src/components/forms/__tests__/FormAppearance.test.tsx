@@ -18,6 +18,13 @@ describe('published form appearance',()=>{
   fireEvent.change(input,{target:{value:'604 555 1234'}});
   expect(screen.queryByText('Please enter a valid phone number')).toBeNull();
  });
+ it('preserves description line breaks and formats bullets as safe text',()=>{
+  const {container}=render(<FormPreviewRenderer fields={fields} compliance={DEFAULT_FORM_COMPLIANCE} settings={{...DEFAULT_FORM_SETTINGS,form_description:'Intro\n\n- Garden tips\n* Offers\n<img src=x onerror=alert(1)>'}}/>);
+  const description=Array.from(container.querySelectorAll('p')).find(p=>p.textContent?.startsWith('Intro'));
+  expect(description?.textContent).toBe('Intro\n\n• Garden tips\n• Offers\n<img src=x onerror=alert(1)>');
+  expect(description).toHaveStyle({whiteSpace:'pre-wrap'});
+  expect(description?.querySelector('img')).toBeNull();
+ });
  it('renders each header once, in the order shown in the editor',()=>{
   render(<FormPreviewRenderer fields={fields} compliance={DEFAULT_FORM_COMPLIANCE} settings={{...DEFAULT_FORM_SETTINGS,form_headline:'Headline',form_subheadline:'Subheadline',form_title:'Title',form_description:'Description'}}/>);
   const ordered=['Headline','Subheadline','Title','Description'].map(t=>screen.getByText(t));
