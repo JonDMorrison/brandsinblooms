@@ -54,6 +54,13 @@ import {
   buildNewsletterIdeaDraftSeed,
   originForNewsletterIdea,
 } from "../newsletterIdeaSeed";
+import {
+  THEME_NEWSLETTER_TIMEOUT_MS,
+  findThemeNewsletterIssues,
+  hydrateThemeNewsletterBlocks,
+  requestThemeNewsletter,
+  sanitizeThemeSeedDraft,
+} from "../themeNewsletter";
 const block = (
   type: BlockType,
   patch: Partial<StudioBlock> = {},
@@ -1087,6 +1094,155 @@ describe("Pick a look keeps user-set values (#20)", () => {
     const block = { ...defaults, ...from.fields, layoutPreset: from.key, backgroundColor: "#abcdef" };
     const fields = mergeLookFields(block, to, imageTextPresets, defaults);
     expect(fields).not.toHaveProperty("backgroundColor");
+  });
+});
+
+describe("theme newsletter with AI", () => {
+  const brief =
+    "Encourage documenting successes, learning from challenges, and celebrating the completed growing season.";
+  const masterSource = {
+    ...weeklyThemeTestSource,
+    title: "Year-End Garden Review",
+    theme: "Celebrating Garden Successes",
+    description: brief,
+    seasonalFocus: "Annual garden evaluation",
+  };
+  const fallbackSeed = () =>
+    sanitizeThemeSeedDraft(
+      buildNewsletterIdeaDraftSeed(buildWeeklyThemeIdea(masterSource), "block-builder"),
+      { brief, storeName: "Northfield Garden Center" },
+    );
+
+  it("strips internal text and the Continue shaping block from the fallback seed", () => {
+    const raw = buildNewsletterIdeaDraftSeed(buildWeeklyThemeIdea(masterSource), "block-builder");
+    // The unsanitized seed still carries the internal brief and instructions.
+    expect(
+      findThemeNewsletterIssues(
+        { subjectLine: raw.subjectLine, previewText: raw.preheaderText, blocks: raw.contentBlocks },
+        { brief },
+      ).length,
+    ).toBeGreaterThan(0);
+
+    const seed = fallbackSeed();
+    expect(
+      findThemeNewsletterIssues(
+        { subjectLine: seed.subjectLine, previewText: seed.preheaderText, blocks: seed.contentBlocks },
+        { brief },
+      ),
+    ).toEqual([]);
+    expect(JSON.stringify(seed)).not.toMatch(/Continue shaping|Review the seeded|Encourage|documenting successes/);
+    expect(seed.preheaderText).toBe("This week's garden ideas from Northfield Garden Center.");
+    expect(seed.contentBlocks.some((block) => block.type === "call-to-action")).toBe(false);
+    expect(seed.contentBlocks.at(-1)?.type).toBe("footer");
+    // Photos survive; the image story no longer repeats the header subtitle.
+    expect(seed.contentBlocks.filter((block) => block.imageUrl).length).toBeGreaterThan(0);
+    const header = seed.contentBlocks.find((block) => block.type === "newsletter-header");
+    const story = seed.contentBlocks.find((block) => block.type === "image-text");
+    expect(story?.body).not.toBe(header?.tagline);
+  });
+
+  it("times out after the limit and leaves the fallback draft untouched", async () => {
+    const seed = fallbackSeed();
+    const before = JSON.stringify(seed);
+    const neverAnswers = () => new Promise<{ data: unknown; error: unknown }>(() => undefined);
+    await expect(
+      requestThemeNewsletter(
+        {
+          tenantId: "3eade43c-2e5a-4ad0-80fb-500e3d7afbd4",
+          campaignId: "00000000-0000-4000-8000-000000000000",
+          weekNumber: 48,
+        },
+        { timeoutMs: 20, invoke: neverAnswers },
+      ),
+    ).rejects.toMatchObject({ name: "ThemeNewsletterError", reason: "timeout" });
+    expect(JSON.stringify(seed)).toBe(before);
+    expect(THEME_NEWSLETTER_TIMEOUT_MS).toBe(45_000);
+  });
+
+  it("rejects an error or a malformed response", async () => {
+    const request = { tenantId: "t", campaignId: "c" };
+    await expect(
+      requestThemeNewsletter(request, { invoke: async () => ({ data: null, error: new Error("422") }) }),
+    ).rejects.toMatchObject({ reason: "failed" });
+    await expect(
+      requestThemeNewsletter(request, {
+        invoke: async () => ({
+          data: { ok: true, subjectLine: "Hi", previewText: "There", contentBlocks: [{ type: "unknown-block" }], context: {} },
+          error: null,
+        }),
+      }),
+    ).rejects.toMatchObject({ reason: "failed" });
+  });
+
+  it("builds Studio blocks from generated content with brand header and footer", () => {
+    const designSystem = buildStudioDesignSystem({
+      name: "Northfield Garden Center",
+      logoUrl: "https://cdn.test/logo.png",
+      websiteUrl: "https://northfield.test/",
+    } as Parameters<typeof buildStudioDesignSystem>[0]);
+    const item = {
+      id: "21874960-3f25-4d4b-9bbe-4fa94344cb27",
+      siteId: "37c1cf85-a81e-4185-aebc-83862a4096f0",
+      siteName: "Northfield Garden Center",
+      type: "product" as const,
+      title: "Christmas Fern · 1 Gallon",
+      description: "An evergreen native fern.",
+      imageUrl: "https://cdn.test/fern.jpg",
+      publicUrl: "https://northfield.test/products/fern",
+      ctaLabel: "Shop product",
+      updatedAt: "2026-10-17T21:20:14.976928+00:00",
+      price: 14.62,
+    };
+    const blocks = hydrateThemeNewsletterBlocks(
+      {
+        contentBlocks: [
+          { type: "newsletter-header", tagline: "Quiet-season care" },
+          { type: "full-width-image", imageUrl: "https://images.unsplash.com/photo-a", imageAlt: "Frosty garden" },
+          { type: "plain-text", body: "Rake leaves onto beds.<br /><br />Wrap tender pots." },
+          {
+            type: "image-text",
+            headline: "Christmas Fern",
+            connectedContent: {
+              siteId: item.siteId,
+              itemId: item.id,
+              type: "product",
+              updatedAt: item.updatedAt,
+              publicUrl: item.publicUrl,
+            },
+          },
+          { type: "call-to-action", headline: "Visit us", body: "Open daily.", buttonText: "Plan a visit", buttonUrl: "https://northfield.test/" },
+          { type: "footer" },
+        ],
+        context: { imageUrls: [], links: [], websiteItems: [item] },
+      },
+      designSystem,
+    );
+    expect(blocks.map((entry) => entry.type)).toEqual([
+      "newsletter-header",
+      "full-width-image",
+      "plain-text",
+      "image-text",
+      "call-to-action",
+      "footer",
+    ]);
+    expect(blocks[0].logoUrl).toBe("https://cdn.test/logo.png");
+    expect(blocks[0].tagline).toBe("Quiet-season care");
+    // Website items use the same builder as "From my website".
+    expect(blocks[3].headline).toBe("Christmas Fern");
+    expect(blocks[3].buttonUrl).toBe(item.publicUrl);
+    expect(blocks[3].connectedContent?.itemId).toBe(item.id);
+    expect(blocks[4].buttonUrl).toBe("https://northfield.test/");
+    expect(new Set(blocks.map((entry) => entry.id)).size).toBe(blocks.length);
+    expect(
+      findThemeNewsletterIssues(
+        { subjectLine: "Put the garden to bed", previewText: "Three jobs for this week", blocks },
+        {
+          brief,
+          imageUrls: ["https://images.unsplash.com/photo-a", item.imageUrl],
+          links: ["https://northfield.test/", item.publicUrl],
+        },
+      ),
+    ).toEqual([]);
   });
 });
 

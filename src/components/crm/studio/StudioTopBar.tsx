@@ -77,6 +77,9 @@ type StudioTopBarProps = {
   canUndo: boolean;
   canRedo: boolean;
   lastSavedAt: string | null;
+  /** Reruns generate-theme-newsletter on this draft (drafts only). */
+  onRewriteWithAI?: () => void;
+  rewritingWithAI?: boolean;
 };
 
 type CampaignStatus = "Draft" | "Scheduled" | "Sending" | "Sent";
@@ -173,6 +176,8 @@ export default function StudioTopBar({
   canUndo,
   canRedo,
   lastSavedAt,
+  onRewriteWithAI,
+  rewritingWithAI = false,
 }: StudioTopBarProps) {
   const [draftName, setDraftName] = React.useState(campaignName);
   const [isEditingName, setIsEditingName] = React.useState(false);
@@ -833,6 +838,33 @@ export default function StudioTopBar({
           </Button>
           ) : null}
 
+          {onRewriteWithAI ? (
+          <Button
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            aria-label="Rewrite with AI"
+            title="Write a new version of this newsletter from this week's theme"
+            startDecorator={<Sparkles size={16} />}
+            onClick={onRewriteWithAI}
+            loading={rewritingWithAI}
+            loadingPosition="start"
+            sx={{
+              ...wideOnlySx,
+              height: 32,
+              minHeight: 32,
+              borderColor: "neutral.300",
+              borderRadius: "8px",
+              fontWeight: 500,
+              fontSize: "13px",
+              "&:hover": { bgcolor: "neutral.50" },
+            }}
+          >
+            <Box component="span" sx={fullLabelSx}>Rewrite with AI</Box>
+            <Box component="span" sx={compactLabelSx}>Rewrite</Box>
+          </Button>
+          ) : null}
+
           <Button
             variant="outlined"
             color="neutral"
@@ -874,6 +906,11 @@ export default function StudioTopBar({
                 </MenuItem>
               ) : null}
               {/* Below 1280px these move here from the bar. */}
+              {onRewriteWithAI ? (
+                <MenuItem onClick={onRewriteWithAI} disabled={rewritingWithAI} sx={narrowOnlySx}>
+                  <Sparkles size={15} /> Rewrite with AI
+                </MenuItem>
+              ) : null}
               <MenuItem onClick={() => setDesignOpen(true)} sx={narrowOnlySx}>
                 <SlidersHorizontal size={15} /> Design & spacing
               </MenuItem>
