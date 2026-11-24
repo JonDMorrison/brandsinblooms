@@ -1,5 +1,24 @@
 import React, {useEffect,useMemo,useState} from 'react';
-import {Link} from 'react-router-dom';
+import {Link as RouterLink} from 'react-router-dom';
+import {ArrowLeft} from 'lucide-react';
+import Alert from '@mui/joy/Alert';
+import Box from '@mui/joy/Box';
+import Button from '@mui/joy/Button';
+import Card from '@mui/joy/Card';
+import Checkbox from '@mui/joy/Checkbox';
+import Chip from '@mui/joy/Chip';
+import FormControl from '@mui/joy/FormControl';
+import FormHelperText from '@mui/joy/FormHelperText';
+import FormLabel from '@mui/joy/FormLabel';
+import Input from '@mui/joy/Input';
+import Link from '@mui/joy/Link';
+import Sheet from '@mui/joy/Sheet';
+import Stack from '@mui/joy/Stack';
+import Textarea from '@mui/joy/Textarea';
+import ToggleButtonGroup from '@mui/joy/ToggleButtonGroup';
+import Typography from '@mui/joy/Typography';
+import {PageContainer} from '@/components/joy/PageContainer';
+import {JoyPageHeaderBand} from '@/components/joy/JoyPageHeaderBand';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {useTenant} from '@/hooks/useTenant';
 import {supabase} from '@/integrations/supabase/client';
@@ -125,49 +144,63 @@ export default function CareGuideStudioPage(){
       catch {setMessage('Published version '+next+' in CRM. Connected BloomSites sync is pending; retry below once the shared design connection is configured.');}
     }catch(e){setError(e instanceof Error?e.message:'Unable to publish design');}finally{setBusy(false);}
   };
-  return <main className="min-h-screen bg-[#f7f8f5] px-4 py-7 text-[#173f37] sm:px-8">
-    <div className="mx-auto max-w-[1380px]">
-      <Link to="/crm/campaigns" className="text-sm font-medium text-[#527566] hover:underline">← Campaigns</Link>
-      <div className="mb-7 mt-4 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="mb-2 text-xs font-bold uppercase tracking-[0.19em] text-[#527566]">BloomSuite CRM</p>
-          <h1 className="font-[Georgia] text-4xl tracking-tight">Care Guide Studio</h1>
-          <p className="mt-2 max-w-2xl text-[#536475]">Give every plant a thoughtful follow-up. Customize your store’s email design while approved horticultural information stays protected.</p></div>
-        <span className="rounded-full border border-[#dbe3df] bg-white px-4 py-2 text-xs font-semibold">Published version: {publishedVersion||'Not yet published'}</span>
-      </div>
-      {error&&<p role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>}
-      {message&&<p role="status" className="mb-4 rounded-lg border border-[#dbe3df] bg-white p-3 text-sm text-[#173f37]">{message}</p>}
-      {loading?<p role="status">Loading your Care Guide design…</p>:!tenantId?<p role="alert">Choose your garden centre to edit its Care Guide design.</p>:
-      <div className="grid gap-6 lg:grid-cols-[minmax(340px,410px)_minmax(0,1fr)]">
-        <section aria-label="Care Guide design settings" className="rounded-2xl border border-[#dbe3df] bg-white p-6 shadow-sm">
-          <h2 className="font-[Georgia] text-2xl">Make it yours.</h2>
-          <p className="mt-1 text-sm text-[#536475]">This changes the presentation, not the reviewed care facts or marketing consent.</p>
-          <div className="mt-5 space-y-4">
-            {fields.map(field=><label key={field.key} className="block text-sm font-semibold">{field.label}
-              {field.large?<textarea rows={3} maxLength={400} value={design[field.key]||''} onChange={e=>update(field.key,e.target.value)} className="mt-1 w-full rounded-lg border border-[#c9d7d1] bg-white p-3 text-sm text-[#173f37]"/>:
-                <input type="text" maxLength={field.key==='headline'?100:2048} value={design[field.key]||''} onChange={e=>update(field.key,e.target.value)} className="mt-1 w-full rounded-lg border border-[#c9d7d1] bg-white px-3 py-2.5 text-sm text-[#173f37]" />}
-              {field.hint&&<span className="mt-1 block text-xs font-normal text-[#728077]">{field.hint}</span>}
-            </label>)}
-            <div className="grid grid-cols-2 gap-4">{(['primaryColor','accentColor'] as const).map(key=><label key={key} className="text-sm font-semibold">{key==='primaryColor'?'Primary colour':'Accent colour'}
-              <input aria-label={key==='primaryColor'?'Primary colour':'Accent colour'} type="color" value={/^#[a-fA-F0-9]{6}$/.test(design[key]||'')?design[key]||'#173f37':'#173f37'} onChange={e=>update(key,e.target.value)} className="mt-2 block h-10 w-full cursor-pointer rounded-lg border border-[#c9d7d1] p-1" /></label>)}</div>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={()=>void save()} className="rounded-lg border border-[#a4b9af] px-5 py-3 text-sm font-bold disabled:opacity-50">Save draft</button>
-            <button type="button" disabled={busy||!acknowledged||'error' in preview} onClick={()=>void publish()} className="rounded-lg bg-[#173f37] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">Publish design</button> <button type="button" disabled={busy||!publishedVersion} onClick={()=>void retryConnectedSync()} className="rounded-lg border border-[#a4b9af] px-5 py-3 text-sm font-bold disabled:opacity-50">Sync to connected BloomSites</button></div>
-          <label className="mt-5 flex items-start gap-3 text-sm text-[#536475]"><input type="checkbox" checked={acknowledged} onChange={e=>setAcknowledged(e.target.checked)} className="mt-1" />I reviewed the desktop and mobile preview and understand that changing the design does not approve or generate plant-care facts.</label>
-          {published&&<p className="mt-4 text-xs text-[#728077]">A previously published version stays active until you explicitly publish a replacement.</p>}
-          {versions.length>0&&<div className="mt-7 border-t border-[#dbe3df] pt-5"><h3 className="font-semibold">Published history</h3><div className="mt-2 space-y-2">
-            {versions.map(item=><div key={item.version} className="flex items-center justify-between rounded-lg bg-[#f8f9f6] px-3 py-2 text-sm"><span>Version {item.version}</span><button type="button" onClick={()=>{setDesign(safeDesign(item.design,tenant.name||'Your garden centre'));setAcknowledged(false);setMessage('Version '+item.version+' restored to your draft. Publish when ready.');}} className="font-semibold underline">Restore to draft</button></div>)}
-          </div></div>}
-        </section>
-        <section aria-label="Care Guide email preview" className="rounded-2xl border border-[#dbe3df] bg-white p-4 shadow-sm sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-[Georgia] text-2xl">Live preview</h2><p className="mt-1 text-xs text-[#536475]">Illustrative Red Prayer Plant only. Real messages require an approved product match and care record.</p></div><div className="flex flex-wrap items-center gap-2"><div role="group" aria-label="Preview size" className="inline-flex rounded-full border border-[#dbe3df] bg-[#f8f9f6] p-1 text-xs font-semibold">{(['desktop','phone'] as const).map(size=><button key={size} type="button" aria-pressed={device===size} onClick={()=>setDevice(size)} className={'rounded-full px-3 py-1.5 '+(device===size?'bg-white text-[#173f37] shadow-sm':'text-[#536475]')}>{size==='desktop'?'Desktop':'Phone'}</button>)}</div><button type="button" disabled={busy||testBusy||!myEmail||'error' in preview} onClick={()=>void sendTest()} className="rounded-full border border-[#a4b9af] bg-white px-4 py-2 text-xs font-bold disabled:opacity-50">{testBusy?'Sending…':'Send me a test'}</button></div></div>
-          <p className="-mt-2 mb-3 text-xs text-[#536475]">{myEmail?'Tests go only to '+myEmail+', using the sample plant shown. The draft is saved first.':'Sign in to send yourself a test.'}</p>
-          {'error' in preview?<p role="alert" className="p-3 text-sm text-rose-900">{preview.error}</p>:
-            <div className="flex justify-center rounded-xl bg-[#eeeae0]"><iframe title="Store-branded care guide email preview" sandbox="" srcDoc={preview.html} style={{width:device==='phone'?375:'100%',maxWidth:'100%'}} className={'h-[780px] border border-[#dbe3df] bg-[#eeeae0] '+(device==='phone'?'rounded-[28px]':'rounded-xl')}/></div>}
-          <p className="mt-3 text-xs text-[#536475]">Before going live, send yourself a test and check it in Gmail, Apple Mail and Outlook, including with images blocked.</p>
-        </section>
-      </div>}
+  const swatch=(key:'primaryColor'|'accentColor')=>/^#[a-fA-F0-9]{6}$/.test(design[key]||'')?design[key] as string:'#173f37';
+  return <PageContainer>
+    <Stack spacing={3} sx={{pb:4}}>
+      <Link component={RouterLink} to="/crm/campaigns" level="body-sm" startDecorator={<ArrowLeft size={14}/>} sx={{alignSelf:'flex-start'}}>Campaigns</Link>
+      <JoyPageHeaderBand
+        title="Care Guide Studio"
+        description="Give every plant a thoughtful follow-up. Customize your store’s email design while approved horticultural information stays protected."
+        actions={<Chip variant="outlined" size="md">Published version: {publishedVersion||'Not yet published'}</Chip>}
+      />
+      {error&&<Alert role="alert" color="danger" variant="soft">{error}</Alert>}
+      {message&&<Alert role="status" color="neutral" variant="outlined">{message}</Alert>}
+      {loading?<Typography role="status" level="body-sm">Loading your Care Guide design…</Typography>:!tenantId?<Alert role="alert" color="warning" variant="soft">Choose your garden centre to edit its Care Guide design.</Alert>:
+      <Box sx={{display:'grid',gap:3,gridTemplateColumns:{xs:'1fr',lg:'minmax(340px,410px) minmax(0,1fr)'}}}>
+        <Card component="section" aria-label="Care Guide design settings" variant="outlined" sx={{p:3,gap:0}}>
+          <Typography level="title-lg">Make it yours</Typography>
+          <Typography level="body-sm" sx={{mt:0.5,color:'neutral.600'}}>This changes the presentation, not the reviewed care facts or marketing consent.</Typography>
+          <Stack spacing={2} sx={{mt:2.5}}>
+            {fields.map(field=><FormControl key={field.key}>
+              <FormLabel>{field.label}</FormLabel>
+              {field.large?<Textarea minRows={3} slotProps={{textarea:{maxLength:400}}} value={design[field.key]||''} onChange={e=>update(field.key,e.target.value)}/>:
+                <Input slotProps={{input:{maxLength:field.key==='headline'?100:2048}}} value={design[field.key]||''} onChange={e=>update(field.key,e.target.value)}/>}
+              {field.hint&&<FormHelperText>{field.hint}</FormHelperText>}
+            </FormControl>)}
+            <Box sx={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:2}}>{(['primaryColor','accentColor'] as const).map(key=><FormControl key={key}>
+              <FormLabel>{key==='primaryColor'?'Primary colour':'Accent colour'}</FormLabel>
+              <Input type="color" value={swatch(key)} onChange={e=>update(key,e.target.value)} slotProps={{input:{'aria-label':key==='primaryColor'?'Primary colour':'Accent colour'}}} sx={{'& input':{cursor:'pointer',height:28,p:0}}}/>
+            </FormControl>)}</Box>
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{mt:3}}>
+            <Button variant="outlined" color="neutral" disabled={busy} onClick={()=>void save()}>Save draft</Button>
+            <Button disabled={busy||!acknowledged||'error' in preview} onClick={()=>void publish()}>Publish design</Button>
+            <Button variant="outlined" color="neutral" disabled={busy||!publishedVersion} onClick={()=>void retryConnectedSync()}>Sync to connected BloomSites</Button>
+          </Stack>
+          <Checkbox sx={{mt:2.5}} size="sm" checked={acknowledged} onChange={e=>setAcknowledged(e.target.checked)} label="I reviewed the desktop and mobile preview and understand that changing the design does not approve or generate plant-care facts."/>
+          {published&&<Typography level="body-xs" sx={{mt:2,color:'neutral.500'}}>A previously published version stays active until you explicitly publish a replacement.</Typography>}
+          {versions.length>0&&<Box sx={{mt:3,pt:2.5,borderTop:'1px solid',borderColor:'neutral.200'}}><Typography level="title-sm">Published history</Typography><Stack spacing={1} sx={{mt:1}}>
+            {versions.map(item=><Sheet key={item.version} variant="soft" color="neutral" sx={{display:'flex',alignItems:'center',justifyContent:'space-between',borderRadius:'sm',px:1.5,py:1}}><Typography level="body-sm">Version {item.version}</Typography><Button size="sm" variant="plain" onClick={()=>{setDesign(safeDesign(item.design,tenant.name||'Your garden centre'));setAcknowledged(false);setMessage('Version '+item.version+' restored to your draft. Publish when ready.');}}>Restore to draft</Button></Sheet>)}
+          </Stack></Box>}
+        </Card>
+        <Card component="section" aria-label="Care Guide email preview" variant="outlined" sx={{p:{xs:2,sm:3},gap:0}}>
+          <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" sx={{mb:1.5}}>
+            <Box><Typography level="title-lg">Live preview</Typography><Typography level="body-xs" sx={{mt:0.5,color:'neutral.600'}}>Illustrative Red Prayer Plant only. Real messages require an approved product match and care record.</Typography></Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <ToggleButtonGroup size="sm" value={device} aria-label="Preview size" onChange={(_e,v)=>{if(v)setDevice(v as 'desktop'|'phone');}}>
+                <Button value="desktop">Desktop</Button><Button value="phone">Phone</Button>
+              </ToggleButtonGroup>
+              <Button size="sm" variant="outlined" color="neutral" loading={testBusy} disabled={busy||!myEmail||'error' in preview} onClick={()=>void sendTest()}>Send me a test</Button>
+            </Stack>
+          </Stack>
+          <Typography level="body-xs" sx={{mb:1.5,color:'neutral.600'}}>{myEmail?'Tests go only to '+myEmail+', using the sample plant shown. The draft is saved first.':'Sign in to send yourself a test.'}</Typography>
+          {'error' in preview?<Alert role="alert" color="danger" variant="soft">{preview.error}</Alert>:
+            <Sheet variant="soft" color="neutral" sx={{display:'flex',justifyContent:'center',borderRadius:'md'}}><Box component="iframe" title="Store-branded care guide email preview" sandbox="" srcDoc={preview.html} sx={{width:device==='phone'?375:'100%',maxWidth:'100%',height:780,border:'1px solid',borderColor:'neutral.200',borderRadius:device==='phone'?'28px':'md',backgroundColor:'#eeeae0'}}/></Sheet>}
+          <Typography level="body-xs" sx={{mt:1.5,color:'neutral.600'}}>Before going live, send yourself a test and check it in Gmail, Apple Mail and Outlook, including with images blocked.</Typography>
+        </Card>
+      </Box>}
       {tenantId&&import.meta.env.VITE_CARE_GUIDE_FOLLOWUPS_ENABLED==='true'&&<CareFollowupPanel key={tenantId} tenantId={tenantId}/>}
       {tenantId&&import.meta.env.VITE_CARE_GUIDE_WEBSITE_FOLLOWUP_ENABLED==='true'&&<WebsiteCareFollowupPanel key={tenantId+':web'} tenantId={tenantId}/>}
-    </div>
-  </main>;
+    </Stack>
+  </PageContainer>;
 }
