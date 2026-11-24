@@ -1,0 +1,112 @@
+[
+ {
+  "name": "#9 dashboard: document does not scroll with the banner",
+  "ok": true,
+  "detail": "{\"scroll\":788,\"inner\":788}"
+ },
+ {
+  "name": "#13 one filled primary start (this week's theme)",
+  "ok": true,
+  "detail": "[\"Start from this week's theme\"]"
+ },
+ {
+  "name": "#2 blank draft has sender_name, sender_email, actual_sender_email, replyTo",
+  "ok": true,
+  "detail": "{\"sender_name\":\"Northfield Garden Center\",\"sender_email\":\"mail@northfieldgardens.ca\",\"actual_sender_email\":\"mail@northfieldgardens.ca\",\"replyTo\":\"mail@northfieldgardens.ca\"}"
+ },
+ {
+  "name": "#4 blank draft origin",
+  "ok": true,
+  "detail": "blank"
+ },
+ {
+  "name": "#10 Studio title says Untitled draft",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "#9 Studio: document does not scroll with the banner",
+  "ok": true,
+  "detail": "{\"scroll\":788,\"inner\":788}"
+ },
+ {
+  "name": "#9 Studio toolbar sits below the 40px banner",
+  "ok": true,
+  "detail": "{\"x\":1334.296875,\"y\":49,\"width\":133.703125,\"height\":34}"
+ },
+ {
+  "name": "#6 sidebar items read title · type, no alt text",
+  "ok": true,
+  "detail": "[\"Celebrating Garden Successes · Newsletter Header\",\"Theme photo · Image\",\"Year-End Garden Review Here are our favourite ideas for t... · Text\",\"Annual garden evaluation · Image + Text\"]"
+ },
+ {
+  "name": "#6 one header after Add all theme blocks (saved draft)",
+  "ok": true,
+  "detail": "[\"newsletter-header\",\"full-width-image\",\"plain-text\",\"image-text\",\"footer\"]"
+ },
+ {
+  "name": "#6 replaced header keeps its logo",
+  "ok": true,
+  "detail": "https://harness.local/northfield-logo.png"
+ },
+ {
+  "name": "#6 empty placeholder replaced (no empty paragraph left)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "#6 no internal theme text in the draft",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "#6 Image + Text: own body, no button without a website",
+  "ok": true,
+  "detail": "{\"body\":\"Annual garden evaluation is on our minds this week. Bring your questions and your plans; we'll help you choose what fits your garden.\",\"buttonText\":\"\"}"
+ },
+ {
+  "name": "#4 origin unchanged after adding theme blocks",
+  "ok": true,
+  "detail": "blank"
+ },
+ {
+  "name": "#9 Preview & Test header starts below the banner",
+  "ok": true,
+  "detail": "{\"x\":1183,\"y\":66,\"width\":32,\"height\":32}"
+ },
+ {
+  "name": "#10 Preview inbox line shows the subject",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "#7 Review & Send works on the first click with a block panel open",
+  "ok": true,
+  "detail": "{\"panelOpen\":true,\"url\":\"http://127.0.0.1:5199/crm/campaigns/9394adc2-d45a-43df-84fd-a2585d6dc1c9/edit?step=review\"}"
+ },
+ {
+  "name": "#9 Review & Send: document does not scroll with the banner",
+  "ok": true,
+  "detail": "{\"scroll\":788,\"inner\":788}"
+ },
+ {
+  "name": "#3 Review & Send audience shows Never opted in 1,900 and Asked us to stop 0",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "#11 copy picker: sent first, then drafts",
+  "ok": true,
+  "detail": "[\"sent\",\"sent\",\"sent\",\"draft\",\"draft\"]"
+ },
+ {
+  "name": "#11 copy picker: no empty drafts",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "#9/#11 copy dialog starts below the banner",
+  "ok": true,
+  "detail": "{\"x\":476,\"y\":164.96875,\"width\":560,\"height\":498.046875}"
+ }
+]

@@ -67,8 +67,9 @@ export function buildWeeklyThemeCopy(source: Pick<WeeklyThemeSource, "title" | "
   const title = sanitizeCampaignTitle(source.title || source.theme || `Week ${source.weekNumber}`);
   const heading = sanitizeCampaignTitle(source.theme || source.title || title);
   const focus = source.seasonalFocus.replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+  // The text block shows `title` as its heading (composeSectionBody), so the
+  // body does not repeat it.
   const intro =
-    `This week in the garden: ${title}. ` +
     "Here are our favourite ideas for the season, and the plants and supplies to go with them. " +
     "Drop by the store and our team will gladly help you get started.";
   const storyHeading = focus || "In the garden this week";
