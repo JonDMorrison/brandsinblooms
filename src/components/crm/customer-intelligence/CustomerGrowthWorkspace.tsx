@@ -1,6 +1,7 @@
 import * as React from "react";
 import { CustomerGrowthDashboard } from "./CustomerGrowthDashboard";
 import {ReportedPurchaseWorkspace} from "./ReportedPurchaseWorkspace";
+import {ObservedIdealJournalPanel} from "./ObservedIdealJournalPanel";
 import {
   Alert,
   Box,
@@ -553,6 +554,7 @@ export function CustomerGrowthWorkspace({
           </Stack>
         </Sheet>
       )}
+      {showGrowth && tenant?.id && <ObservedIdealJournalPanel key={JSON.stringify([tenant.id,timezone,dates,currency,spend,visits,perDay])} tenantId={tenant.id} settings={{...dates,timezone,currency,spend_weight:spend,visits_weight:visits,per_day_rates:perDay}} />}
       {showGrowth && report && (
         <Stack spacing={1.5}>
           <Box

@@ -144,7 +144,7 @@ export function IdealCustomerTypeExportWorksheet({
       if (mounted.current) setBusy(false);
     }
   }
-  async function review() {
+  async function review(excludedMissingSourceCodes?: readonly string[]) {
     if (!segmentId || !sourceRows.length || !newType) return;
     setBusy(true);
     setError("");
@@ -205,6 +205,7 @@ export function IdealCustomerTypeExportWorksheet({
         audienceCustomerIds: ids,
         identityLinks: links,
         newType,
+        excludedMissingSourceCodes,
         confirmedExistingTypes: unique(
           sourceRows.map((r) => r.TYPE).filter(Boolean),
         ),
@@ -376,13 +377,33 @@ export function IdealCustomerTypeExportWorksheet({
                   ))}
                   {preview.unknownCustomerCodes.length > 0 && (
                     <Typography level="body-sm">
-                      Customer codes missing from the source:{" "}
+                      {preview.excludedMissingSourceCodes.length ? "Reviewed exclusions (not in the source file):" : "Customer codes missing from the source:"}{" "}
                       {preview.unknownCustomerCodes.slice(0, 10).join(", ")}
                       {preview.unknownCustomerCodes.length > 10
                         ? ` and ${preview.unknownCustomerCodes.length - 10} more`
                         : ""}
                       .
                     </Typography>
+                  )}
+                  {preview.state === "blocked" && preview.unknownCustomerCodes.length > 0 &&
+                    preview.matchedCustomers > 0 &&
+                    preview.errors.every(msg => msg.includes("selected Ideal codes were not found") || msg.startsWith("Source file match:")) && (
+                    <Sheet variant="soft" sx={{ p: 1.5, borderRadius: "lg" }}>
+                      <Stack spacing={1}>
+                        <Typography level="body-sm">
+                          The original file does not contain these codes. You can upload a newer master or review an export that excludes exactly these customers. Their BloomSuite segment membership stays unchanged.
+                        </Typography>
+                        <Button variant="outlined" color="neutral" disabled={busy}
+                          onClick={() => void review(preview.unknownCustomerCodes)}>
+                          Review export excluding {preview.unknownCustomerCodes.length} missing codes
+                        </Button>
+                      </Stack>
+                    </Sheet>
+                  )}
+                  {preview.excludedMissingSourceCodes.length > 0 && (
+                    <Alert variant="soft" color="neutral">
+                      {preview.matchedCustomers} of {preview.selectedCustomers} selected customers are included in this reviewed POS update. {preview.excludedMissingSourceCodes.length} missing codes are excluded; the CRM segment is unchanged. Every original master row remains in the file.
+                    </Alert>
                   )}
                   <Typography level="body-sm">
                     Existing customer types being replaced:{" "}
@@ -429,7 +450,9 @@ export function IdealCustomerTypeExportWorksheet({
                     checked={confirmed}
                     disabled={preview.state !== "ready_to_review" || busy}
                     onChange={(e) => setConfirmed(e.target.checked)}
-                    label="I reviewed the complete audience and TYPE changes, and understand this is not an approved IdealPOS import."
+                    label={preview.excludedMissingSourceCodes.length
+                      ? `I reviewed the ${preview.matchedCustomers} matched customers, the ${preview.excludedMissingSourceCodes.length} excluded codes and the TYPE changes. This is not an approved IdealPOS import.`
+                      : "I reviewed the complete audience and TYPE changes, and understand this is not an approved IdealPOS import."}
                   />
                   <Button
                     variant="outlined"
