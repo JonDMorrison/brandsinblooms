@@ -141,3 +141,55 @@ def source_change_event(row, column, sheet, source_row):
         event.update(kind='unresolved_change',reason='unsupported_or_missing_amount')
     else: event.update(kind='Change',cents=round(amount*100))
     return event
+
+
+def redemption_display_mirrors(events):
+    """Propose only explicit, uniquely matched display duplicates, with evidence.
+    This does not authorize importing any receipt or removing original evidence.
+    """
+    import re
+    def clean(e):
+        return not any(e.get(k) for k in ('precedingStandaloneVoid','anchor_errors','creditIssue','giftIssue'))
+    def amount(e):
+        return e.get('cents') if type(e.get('cents')) is int else None
+    omit=set(); proof=[]
+    taxes=[i for i,e in enumerate(events) if e.get('kind') in {'GST','PST','ROUNDING'}]
+    if taxes:
+        last_tax=max(taxes)
+        for label,tender in [('Gift Voucher Redemption','GIFT CARD'),('Credit Note Redemption','CREDIT NOTE')]:
+            shown=[(i,e) for i,e in enumerate(events) if e.get('kind')=='product' and e.get('description')==label]
+            payments=[(i,e) for i,e in enumerate(events) if e.get('kind')==tender]
+            if not shown or len(payments)!=1: continue
+            pi,p=payments[0]
+            if not clean(p) or amount(p) is None: continue
+            if not all(last_tax<i<pi and e.get('qty')==1 and amount(e) is not None and amount(e)>0 and clean(e) for i,e in shown): continue
+            if sum(amount(e) for _,e in shown)!=amount(p): continue
+            indices=[i for i,_ in shown]
+            omit.update(indices)
+            proof.append({'kind':'redemption_display_mirror','displayIndices':indices,'paymentIndex':pi})
+    for i,e in enumerate(events):
+        if e.get('kind')!='product' or not re.match(r'^COUPON:\s*\S+',e.get('description',''),re.I): continue
+        if not e.get('sourceCode') or not clean(e) or e.get('qty')!=1 or amount(e) is None or amount(e)>=0: continue
+        def same(x):
+            return x.get('kind')=='product' and x.get('sourceCode')==e['sourceCode'] and amount(x)==amount(e) and x.get('qty')==1
+        copies=[j for j,x in enumerate(events) if same(x) and re.match(r'^COUPON:',x.get('description',''),re.I)]
+        matches=[j for j,x in enumerate(events) if j>i and same(x) and x.get('description') and not re.match(r'^COUPON:',x['description'],re.I) and clean(x)]
+        if copies!=[i] or len(matches)!=1: continue
+        j=matches[0]
+        if j in omit: continue
+        omit.add(i)
+        proof.append({'kind':'coupon_display_mirror','displayIndices':[i],'promotionIndex':j})
+    return omit,proof
+
+
+def reconcile_customer_spending_control(receipts, expected_count, expected_cents):
+    """Independent report control, not a receipt-level balance correction.
+    Receipt rows are (reviewed, merchandise cents, explicitly recorded rounding cents).
+    Missing reviews, differing counts and even a one-cent difference fail closed.
+    """
+    if type(expected_count) is not int or expected_count<0 or type(expected_cents) is not int:
+        return False
+    if len(receipts)!=expected_count: return False
+    if any(ok is not True or type(net) is not int or type(rounding) is not int for ok,net,rounding in receipts):
+        return False
+    return sum(net+rounding for _,net,rounding in receipts)==expected_cents
