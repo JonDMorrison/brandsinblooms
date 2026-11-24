@@ -768,6 +768,18 @@ export const EmailDomainsList = ({
                           {display.subMessage}
                         </Typography>
                       ) : null}
+                      {isDefault ? (
+                        <Typography
+                          level="body-xs"
+                          data-testid="default-sender-line"
+                          sx={{ color: "text.secondary" }}
+                        >
+                          New campaigns send from{" "}
+                          {domain.default_from_name
+                            ? `${domain.default_from_name} <${domain.default_from_email || `mail@${domain.domain}`}>`
+                            : domain.default_from_email || `mail@${domain.domain}`}
+                        </Typography>
+                      ) : null}
                     </Stack>
                   </Stack>
 
@@ -786,7 +798,13 @@ export const EmailDomainsList = ({
                       {display.badge.text}
                     </Chip>
                     {isDefault ? (
-                      <Chip color="primary" size="sm" variant="soft">
+                      <Chip
+                        color="primary"
+                        size="sm"
+                        variant="solid"
+                        data-testid="default-domain-badge"
+                        startDecorator={<CheckCircle size={12} />}
+                      >
                         Default
                       </Chip>
                     ) : null}

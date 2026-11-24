@@ -184,6 +184,26 @@ describe('new draft sender prefill (qa2 #2)', () => {
     });
     expect(sender).toMatchObject({ senderEmail: 'mail@northfieldgardens.ca', senderName: 'Northfield Garden Center', source: 'verified_domain' });
   });
+
+  it('a new blank draft takes the default domain set by assign_single_verified_default_sender (qa4 #5)', () => {
+    // Northfield after the migration: its one verified domain is the default,
+    // with default_from_name = company name and default_from_email = the
+    // company email (on that domain). The owner's own profile is not needed.
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: northfield.id,
+      domains: [{ ...northfield, default_from_name: 'Northfield Garden Center', default_from_email: 'mail@northfieldgardens.ca' }],
+      companyName: null,
+      companyEmail: null,
+      tenantName: 'Northfield Garden Center',
+    });
+    expect(sender).toEqual({
+      senderName: 'Northfield Garden Center',
+      senderEmail: 'mail@northfieldgardens.ca',
+      replyTo: 'mail@northfieldgardens.ca',
+      fromEmailDomainId: northfield.id,
+      source: 'tenant_default',
+    });
+  });
 });
 
 import { selectCampaignsToCopy } from '@/hooks/useRecentCampaignsToCopy';
