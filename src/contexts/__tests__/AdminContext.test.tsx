@@ -26,6 +26,13 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 import { AdminProvider, useAdmin } from "@/contexts/AdminContext";
+import {
+  ADMIN_TENANT_HEADER,
+  getAdminTenantHeaderValue,
+  setRequestAdminTenant,
+  withAdminTenantHeader,
+  writeTabAdminTenant,
+} from "@/integrations/supabase/adminTenantScope";
 
 type ContextResult = {
   data: { active_tenant_id: string | null } | null;
@@ -47,6 +54,8 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe("AdminProvider tenant context hydration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
+    setRequestAdminTenant(undefined);
     mocks.user = { id: "admin-1", email: "admin@example.com" };
 
     mocks.adminMaybeSingle.mockResolvedValue({
@@ -303,4 +312,87 @@ describe("AdminProvider tenant context hydration", () => {
     expect(result.current.activeTenantId).toBe("tenant-greenfield");
   });
 
+  it("keeps this tab's company when another tab switched the shared row", async () => {
+    // This tab chose Bluebird earlier; another tab has since moved the shared
+    // admin_session_context row to Greenfield.
+    writeTabAdminTenant("admin-1", "tenant-bluebird");
+
+    const { result } = renderHook(() => useAdmin(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.hasHydratedTenantContext).toBe(true);
+      expect(result.current.activeTenantId).toBe("tenant-bluebird");
+    });
+    expect(mocks.contextMaybeSingle).not.toHaveBeenCalled();
+    expect(getAdminTenantHeaderValue()).toBe("tenant-bluebird");
+  });
+
+  it("starts a new tab from the shared row and scopes its requests to that company", async () => {
+    const { result } = renderHook(() => useAdmin(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.activeTenantId).toBe("tenant-greenfield");
+    });
+    const init = withAdminTenantHeader(
+      "https://example.supabase.co/rest/v1/crm_customers",
+      {},
+    );
+    expect(new Headers(init?.headers).get(ADMIN_TENANT_HEADER)).toBe(
+      "tenant-greenfield",
+    );
+  });
+
+  it("switches only this tab's request scope after the switch is saved", async () => {
+    const { result } = renderHook(() => useAdmin(), { wrapper });
+    await waitFor(() =>
+      expect(result.current.activeTenantId).toBe("tenant-greenfield"),
+    );
+
+    await act(async () => {
+      await result.current.setActiveTenantId("tenant-bluebird");
+    });
+
+    expect(getAdminTenantHeaderValue()).toBe("tenant-bluebird");
+    expect(
+      JSON.parse(window.sessionStorage.getItem("bloomsuite_admin_tab_tenant") ?? "{}"),
+    ).toEqual({ adminUserId: "admin-1", tenantId: "tenant-bluebird" });
+    expect(window.localStorage.getItem("bloomsuite_admin_tab_tenant")).toBeNull();
+
+    await act(async () => {
+      await result.current.setActiveTenantId(null);
+    });
+    expect(getAdminTenantHeaderValue()).toBe("none");
+  });
+
+  it("keeps the previous company when saving a switch fails", async () => {
+    const { result } = renderHook(() => useAdmin(), { wrapper });
+    await waitFor(() =>
+      expect(result.current.activeTenantId).toBe("tenant-greenfield"),
+    );
+    mocks.contextUpsert.mockResolvedValueOnce({ error: new Error("denied") });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await act(async () => {
+      await result.current.setActiveTenantId("tenant-bluebird");
+    });
+
+    consoleError.mockRestore();
+    expect(result.current.activeTenantId).toBe("tenant-greenfield");
+    expect(getAdminTenantHeaderValue()).toBe("tenant-greenfield");
+  });
+
+  it("sends no admin company for a signed-in user who is not a master admin", async () => {
+    setRequestAdminTenant("stale");
+    mocks.adminMaybeSingle.mockResolvedValue({ data: null, error: null });
+    writeTabAdminTenant("admin-1", "tenant-bluebird");
+
+    const { result } = renderHook(() => useAdmin(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.hasHydratedTenantContext).toBe(true);
+    });
+    expect(result.current.activeTenantId).toBeNull();
+    expect(getAdminTenantHeaderValue()).toBeUndefined();
+  });
 });

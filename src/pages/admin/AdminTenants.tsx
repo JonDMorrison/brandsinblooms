@@ -23,21 +23,10 @@ import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
 import { JoyStatusChip } from "@/components/joy/JoyChip";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyTablePagination } from "@/components/joy/JoyTable";
-import { ADMIN_SESSION_BACKUP_STORAGE_KEY } from "@/hooks/useImpersonation";
-import { supabase } from "@/integrations/supabase/client";
+import { buildImpersonationStartUrl } from "@/hooks/useImpersonation";
 import { toast as sonnerToast } from "sonner";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
-
-interface ImpersonateUserResponse {
-  success?: boolean;
-  token_hash?: string | null;
-  type?: string;
-  redirect_to?: string;
-  target_email?: string;
-  target_user_id?: string;
-  error?: string | null;
-}
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -148,57 +137,17 @@ const AdminPage = () => {
     }
 
     try {
-      const { data, error } =
-        await supabase.functions.invoke<ImpersonateUserResponse>(
-          "admin-impersonate-user",
-          {
-            body: {
-              target_user_email: tenant.primary_contact_email,
-              target_tenant_id: tenant.tenant_id,
-              redirect_origin: window.location.origin,
-            },
-          },
-        );
-
-      if (
-        error ||
-        data?.error ||
-        !data?.success ||
-        !data?.token_hash ||
-        !data?.type ||
-        !data?.target_email
-      ) {
-        sonnerToast.error(
-          data?.error || error?.message || "Impersonation failed",
-        );
-        return;
-      }
-
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        sonnerToast.error(
-          sessionError?.message ||
-            "Unable to back up the current admin session.",
-        );
-        return;
-      }
-
-      sessionStorage.setItem(
-        ADMIN_SESSION_BACKUP_STORAGE_KEY,
-        JSON.stringify(session),
+      // The new tab requests the impersonation itself (as the admin) and then
+      // keeps the customer session to itself; this tab stays the admin.
+      // Opening synchronously from the click also avoids popup blocking.
+      const impersonationWindow = window.open(
+        buildImpersonationStartUrl(
+          window.location.origin,
+          tenant.primary_contact_email,
+          tenant.tenant_id,
+        ),
+        "_blank",
       );
-
-      const callbackParams = new URLSearchParams({
-        token_hash: data.token_hash,
-        type: data.type,
-        target_email: data.target_email,
-      });
-      const callbackUrl = `${window.location.origin}/admin/impersonate/callback?${callbackParams.toString()}`;
-      const impersonationWindow = window.open(callbackUrl, "_blank");
 
       if (!impersonationWindow) {
         sonnerToast.error(
@@ -206,6 +155,7 @@ const AdminPage = () => {
         );
         return;
       }
+      impersonationWindow.opener = null;
 
       sonnerToast.info(
         `Impersonation session opened in a new tab for ${tenant.company_name || tenant.primary_contact_email}.`,
