@@ -47,6 +47,8 @@ interface EnqueueStats {
   campaignId: string;
   pagesProcessed: number;
   customersProcessed: number;
+  /** Fetched customers dropped by filter_sms_eligible_customer_ids. */
+  customersSkippedIneligible: number;
   messagesCreated: number;
   jobsCreated: number;
   hasMoreCustomers: boolean;
@@ -298,6 +300,7 @@ Deno.serve(async (req) => {
       campaignId,
       pagesProcessed: 0,
       customersProcessed: 0,
+      customersSkippedIneligible: 0,
       messagesCreated: 0,
       jobsCreated: 0,
       hasMoreCustomers: true,
@@ -343,6 +346,8 @@ Deno.serve(async (req) => {
             "id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip",
           )
           .eq("tenant_id", campaign.tenant_id)
+          .is("deleted_at", null)
+          .is("merged_into_customer_id", null)
           .eq("sms_opt_in", true)
           .not("sms_opt_in_at", "is", null)
           .not("sms_consent_source", "is", null)
@@ -410,6 +415,8 @@ Deno.serve(async (req) => {
           )
           .eq("segment_id", customSegmentId)
           .eq("crm_customers.tenant_id", campaign.tenant_id)
+          .is("crm_customers.deleted_at", null)
+          .is("crm_customers.merged_into_customer_id", null)
           .eq("crm_customers.sms_opt_in", true)
           .not("crm_customers.sms_opt_in_at", "is", null)
           .not("crm_customers.sms_consent_source", "is", null)
@@ -455,6 +462,8 @@ Deno.serve(async (req) => {
             "id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip",
           )
           .eq("tenant_id", campaign.tenant_id)
+          .is("deleted_at", null)
+          .is("merged_into_customer_id", null)
           .eq("sms_opt_in", true)
           .not("sms_opt_in_at", "is", null)
           .not("sms_consent_source", "is", null)
@@ -488,19 +497,53 @@ Deno.serve(async (req) => {
         break;
       }
 
-      // Filter valid phone numbers
-      const eligibleCustomers = (customers || []).filter((c) => {
-        const phone = c.phone?.replace(/\D/g, "");
-        return phone && phone.length >= 10;
-      });
-
-      if (eligibleCustomers.length === 0) {
+      const fetchedCustomers = customers || [];
+      if (fetchedCustomers.length === 0) {
         stats.hasMoreCustomers = false;
         break;
       }
 
-      // Check if we got a full page (more customers may exist)
-      stats.hasMoreCustomers = eligibleCustomers.length === ENQUEUE_PAGE_SIZE;
+      // Pagination follows the fetched page, not the eligible subset, so a
+      // page with ineligible customers never ends the run early.
+      stats.hasMoreCustomers = fetchedCustomers.length === ENQUEUE_PAGE_SIZE;
+      const lastFetchedCustomerId = fetchedCustomers[fetchedCustomers.length - 1].id;
+
+      // Never queue an ineligible customer: the same rules as the send-time
+      // check_sms_send_eligibility (live and not merged, 10-digit phone, SMS
+      // opt-in with date and source, latest consent opted in, not on the SMS
+      // suppression list), applied by filter_sms_eligible_customer_ids.
+      const { data: eligibleIds, error: eligibilityError } = await supabase.rpc(
+        "filter_sms_eligible_customer_ids",
+        {
+          p_tenant_id: campaign.tenant_id,
+          p_customer_ids: fetchedCustomers.map((c) => c.id),
+        },
+      );
+      if (eligibilityError) {
+        console.error(
+          "[sms-enqueue-worker] Eligibility check failed; nothing queued for this page:",
+          eligibilityError,
+        );
+        break;
+      }
+      const eligibleIdSet = new Set((eligibleIds ?? []) as string[]);
+      const eligibleCustomers = fetchedCustomers.filter((c) => eligibleIdSet.has(c.id));
+      stats.customersSkippedIneligible +=
+        fetchedCustomers.length - eligibleCustomers.length;
+
+      if (eligibleCustomers.length === 0) {
+        // Nothing to queue on this page: move the saved cursor past it.
+        cursorCustomerId = lastFetchedCustomerId;
+        stats.pagesProcessed++;
+        await supabase
+          .from("crm_sms_campaigns")
+          .update({
+            enqueue_cursor_customer_id: cursorCustomerId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", campaignId);
+        continue;
+      }
 
       // Prepare message rows
       const messageRows: any[] = [];
@@ -589,10 +632,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update cursor
-      if (eligibleCustomers.length > 0) {
-        cursorCustomerId = eligibleCustomers[eligibleCustomers.length - 1].id;
-      }
+      // Update cursor past everything fetched on this page.
+      cursorCustomerId = lastFetchedCustomerId;
 
       stats.pagesProcessed++;
       stats.customersProcessed += eligibleCustomers.length;

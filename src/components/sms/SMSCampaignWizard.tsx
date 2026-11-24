@@ -57,7 +57,7 @@ import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { useSegments } from "@/hooks/useSegments";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
-import { computeAudienceRecipientCount } from "@/lib/computeAudienceRecipientCount";
+import { fetchSmsAudienceEstimate } from "@/lib/sms/smsAudienceEstimate";
 import {
   MERGE_TAG_DEFINITIONS,
   formatTagWithDefault,
@@ -601,73 +601,30 @@ export function SMSCampaignWizard() {
     [personaOptions, selectedPersonaId],
   );
 
+  // All SMS subscribers, counted with check_sms_send_eligibility's rules
+  // (get_sms_audience_estimate): what the enqueue worker would queue.
   const totalSmsSubscribersQuery = useQuery({
     queryKey: ["sms-wizard-total-subscribers", tenant?.id],
-    enabled: Boolean(tenant?.id),
+    // A promoted draft that failed to load never reaches the composer.
+    enabled: Boolean(tenant?.id) && (!draftId || Boolean(loadedDraft)),
+    queryFn: () => fetchSmsAudienceEstimate({ tenantId: tenant!.id }),
+  });
+
+  // Opted-in customers who are not live or fail a consent, phone or
+  // suppression rule, for the "excluded" line of the summary.
+  const subscriberHealthQuery = useQuery({
+    queryKey: ["sms-wizard-subscriber-health", tenant?.id],
+    enabled: Boolean(tenant?.id) && (!draftId || Boolean(loadedDraft)),
     queryFn: async () => {
       const { count, error } = await supabase
         .from("crm_customers")
         .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenant?.id)
+        .eq("tenant_id", tenant!.id)
         .eq("sms_opt_in", true)
-        .eq("opt_out", false)
-        .eq("suppressed", false)
-        .not("phone", "is", null);
-
+        .is("deleted_at", null)
+        .is("merged_into_customer_id", null);
       if (error) throw error;
-      return count ?? 0;
-    },
-  });
-
-  const subscriberHealthQuery = useQuery({
-    queryKey: ["sms-wizard-subscriber-health", tenant?.id],
-    enabled: Boolean(tenant?.id),
-    queryFn: async () => {
-      const [eligible, optedOut, suppressed, missingPhone] = await Promise.all([
-        supabase
-          .from("crm_customers")
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenant?.id)
-          .eq("sms_opt_in", true)
-          .eq("opt_out", false)
-          .eq("suppressed", false)
-          .not("phone", "is", null),
-        supabase
-          .from("crm_customers")
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenant?.id)
-          .eq("sms_opt_in", true)
-          .eq("opt_out", true),
-        supabase
-          .from("crm_customers")
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenant?.id)
-          .eq("sms_opt_in", true)
-          .eq("suppressed", true),
-        supabase
-          .from("crm_customers")
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenant?.id)
-          .eq("sms_opt_in", true)
-          .is("phone", null),
-      ]);
-
-      const firstError = [
-        eligible.error,
-        optedOut.error,
-        suppressed.error,
-        missingPhone.error,
-      ].find(Boolean);
-      if (firstError) {
-        throw firstError;
-      }
-
-      return {
-        eligible: eligible.count ?? 0,
-        optedOut: optedOut.count ?? 0,
-        suppressed: suppressed.count ?? 0,
-        missingPhone: missingPhone.count ?? 0,
-      };
+      return { optedIn: count ?? 0 };
     },
   });
 
@@ -712,7 +669,7 @@ export function SMSCampaignWizard() {
       const computeAudience = async () => {
         if (audienceMode === "all") {
           if (!cancelled) {
-            setRecipientEstimate(totalSmsSubscribersQuery.data ?? 0);
+            setRecipientEstimate(totalSmsSubscribersQuery.data?.eligible ?? 0);
             setIsAudienceLoading(false);
           }
           return;
@@ -737,13 +694,12 @@ export function SMSCampaignWizard() {
         setIsAudienceLoading(true);
 
         try {
-          const count = await computeAudienceRecipientCount({
+          const estimate = await fetchSmsAudienceEstimate({
             tenantId: tenant.id,
-            totalCustomerCount: totalSmsSubscribersQuery.data ?? 0,
-            segmentIds:
+            segmentId:
               audienceMode === "segment" && selectedSegment
-                ? [selectedSegment.id]
-                : [],
+                ? selectedSegment.id
+                : null,
             personaIds:
               audienceMode === "persona" && selectedPersona
                 ? [selectedPersona.id]
@@ -751,7 +707,7 @@ export function SMSCampaignWizard() {
           });
 
           if (!cancelled) {
-            setRecipientEstimate(count);
+            setRecipientEstimate(estimate.eligible);
             setIsAudienceLoading(false);
           }
         } catch (error) {
@@ -792,15 +748,13 @@ export function SMSCampaignWizard() {
 
   const previewSummary = React.useMemo(() => {
     if (audienceMode === "all") {
-      const health = subscriberHealthQuery.data;
+      const optedIn = subscriberHealthQuery.data?.optedIn ?? 0;
+      const eligible = totalSmsSubscribersQuery.data?.eligible ?? recipientEstimate ?? 0;
       return {
         total: recipientEstimate ?? 0,
-        consented: health?.eligible ?? recipientEstimate ?? 0,
-        excluded:
-          (health?.optedOut ?? 0) +
-          (health?.suppressed ?? 0) +
-          (health?.missingPhone ?? 0),
-        exclusionLabel: "Opted out, suppressed, or missing phone",
+        consented: eligible,
+        excluded: Math.max(optedIn - eligible, 0),
+        exclusionLabel: "Opted in but missing consent proof, a valid phone, or suppressed",
       };
     }
 
@@ -825,6 +779,7 @@ export function SMSCampaignWizard() {
     recipientEstimate,
     selectedSegment?.memberCount,
     subscriberHealthQuery.data,
+    totalSmsSubscribersQuery.data,
   ]);
 
   const complianceIssues = React.useMemo<ComplianceIssue[]>(() => {
