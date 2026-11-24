@@ -289,9 +289,10 @@ describe('saved-group email inspection and file export', () => {
   it('shows recorded emails and missing emails on page two without changing membership', async () => {
     const {inspectCustomerSet}=await import('../../supabase/functions/bloom-assist/tools/implementations/customer-exploration');
     const {client,calls}=savedClient();const result=await inspectCustomerSet({set_id:setId,page:2},context(client));
-    expect(result.data).toMatchObject({set_id:setId,total_count:53,page:2,rows:[{customer_id:'member-50',email:'member-50@example.com'},{customer_id:'member-51',email:'member-51@example.com'},{customer_id:'member-52',email:'member-52@example.com'}]});
+    expect(result.data).toMatchObject({set_id:setId,total_count:53,page:2,recorded_email_count:52,missing_email_count:1,rows:[{customer_id:'member-50',email:'member-50@example.com'},{customer_id:'member-51',email:'member-51@example.com'},{customer_id:'member-52',email:'member-52@example.com'}]});
     expect(calls.filter(c=>c.method==='insert')).toEqual([]);
     const first=await inspectCustomerSet({set_id:setId},context(client));
+    expect(first.data).toMatchObject({recorded_email_count:52,missing_email_count:1});
     expect(first.data).toMatchObject({rows:expect.arrayContaining([expect.objectContaining({customer_id:'member-1',email:null})])});
   });
   it.each(['ideal-0123456789abcdef01234567@noemail.local',' CLOVER-synthetic@NOEMAIL.LOCAL ',null,'   '])('keeps missing-email members through inspection and CSV/JSON export: %j', async email => {

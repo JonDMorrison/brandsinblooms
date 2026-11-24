@@ -261,11 +261,19 @@ export const inspectCustomerSet: ToolImplementation = async (params,context) => 
 
   const set = await loadCustomerSet(context,typeof params.set_id==='string'?params.set_id:undefined);
   const bucket = params.bucket ?? 'included'; if (!['included','excluded','unknown'].includes(String(bucket))) throw new Error('Choose included, excluded, or unknown.');
-  const visible = new Set(await loadAnalysisPopulation(context, new Date().toISOString(), set[`${bucket as 'included'|'excluded'|'unknown'}_ids`]));
-  const page = pageNumber(params.page), ids = set[`${bucket as 'included'|'excluded'|'unknown'}_ids`].slice((page-1)*50,page*50);
-  const contacts = await loadCustomerSetContacts(context,ids), byId = new Map(contacts.map(customer=>[customer.id,customer]));
-  const data = publicSetFrom(set,visible,new Map(contacts.map(customer=>[customer.id,name(customer)])),page,bucket as 'included'|'excluded'|'unknown');
-  return analysisResult({...data,rows:data.rows.map(row=>({...row,email:byId.get(row.customer_id)!.email}))},data.total_count,`Showing ${bucket} customers from the saved result. Total ${data.total_count}; this is page ${data.page}.`);
+  const ids = set[`${bucket as 'included'|'excluded'|'unknown'}_ids`];
+  // Read the entire exact bucket in bounded queries, not just the display page.
+  // The model must never estimate email availability by counting visible rows.
+  const contacts = await loadCustomerSetContacts(context,ids);
+  const byId = new Map(contacts.map(customer=>[customer.id,customer]));
+  const page = pageNumber(params.page);
+  const data = publicSetFrom(set,new Set(byId.keys()),new Map(contacts.map(customer=>[customer.id,name(customer)])),page,bucket as 'included'|'excluded'|'unknown');
+  const recordedEmailCount = contacts.filter(customer=>customer.email!==null).length;
+  const missingEmailCount = ids.length-recordedEmailCount;
+  return analysisResult({...data,recorded_email_count:recordedEmailCount,missing_email_count:missingEmailCount,
+    email_count_scope:'entire selected bucket; recorded addresses, not marketing permission or deliverability',
+    rows:data.rows.map(row=>({...row,email:byId.get(row.customer_id)!.email}))},data.total_count,
+    `Showing ${bucket} customers from the saved result. Total ${data.total_count}; ${recordedEmailCount} have a recorded email and ${missingEmailCount} do not, across the entire group (not just this page). This is not a count of marketing-eligible recipients. This is page ${data.page}.`);
 };
 async function loadEvidenceFacts(context: ToolExecutionContext, customerId: string, evidenceIds: string[]): Promise<PurchaseFact[]> {
   const client = await requireAnalysisAccess(context), wanted = new Set(evidenceIds);
@@ -446,7 +454,9 @@ export const saveCustomerSetSegment: ToolImplementation = async (params,context)
   if(params.mode){const {data,error}=await context.serviceClient.rpc('save_bloom_analytical_audience',{p_set_id:params.set_id,p_user_id:context.userId,p_name:String(params.name).trim(),p_mode:params.mode,p_excluded_ids:params.excluded_ids??[]});if(error)throw new Error(error.message);return analysisResult(data,1,'Saved the reviewed analytical audience. No classifications or consent changed.');}
   const {data,error}=await context.serviceClient.rpc('save_bloom_customer_set_segment',{p_set_id:params.set_id,p_user_id:context.userId,p_name:String(params.name).trim()});
   if(error)throw new Error(error.message);
-  return {success:true,error:null,data:data as JsonValue,count:1,message:'Saved the exact customer group as a static segment. No messages were sent.',block_type:'data_card',confirmation_required:false,confirmation_details:null};
+  if (!data || typeof data !== 'object' || Array.isArray(data) || typeof (data as Record<string,unknown>).id !== 'string') throw new Error('The segment could not be verified. No saved segment can be reported.');
+  const segment = data as Record<string,JsonValue>;
+  return {success:true,error:null,data:{...segment,segment_url:'/crm/segments'},count:1,message:`Saved the exact customer group as the static CRM segment "${String(segment.name??params.name)}" (ID ${String(segment.id)}). Open [Segments](/crm/segments) to select it. No messages were sent.`,block_type:'data_card',confirmation_required:false,confirmation_details:null};
 };
 
 type SpendingEvent = {id:string;customer_id:string|null;amount:number|string|null;raw_data:unknown};

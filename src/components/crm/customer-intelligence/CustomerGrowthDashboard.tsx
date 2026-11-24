@@ -163,14 +163,50 @@ function ReportedGrowthResult({ report }: { report: ReportedCustomerGrowth }) {
   const { counts, percentages, averages } = report;
   const pct = (value: number | null) => value === null ? 'Undefined (no prior denominator)' : `${value.toFixed(2)}%`;
   const money = (value: number | null) => value === null ? 'Not established' : new Intl.NumberFormat('en-CA', { style: 'currency', currency: report.currency }).format(value);
-  const metrics = [['Previous report net purchasers', counts.previous], ['Current report net purchasers', counts.current], ['Present in both reports', counts.retained], ['First observed as a net purchaser', counts.firstObserved], ['Earlier net purchasers missing from prior net-purchaser set', counts.recovered], ['Prior net purchasers missing from current net-purchaser set', counts.notReturned], ['Observed net customer change', counts.net]] as const;
+  const year = report.current.source_period_start?.slice(0,4) ?? 'Current';
+  const priorYear = report.previous.source_period_start?.slice(0,4) ?? 'Previous';
+  const fullYear = report.current.source_period_end?.endsWith('-12-31');
+  const count = (value: number) => value.toLocaleString('en-CA');
+  const metrics = [
+    [`${year} active customers (observed)`,count(counts.current),`${priorYear}: ${count(counts.previous)}`],
+    ['Customer retention rate',pct(percentages.retained),`${count(counts.retained)} of ${count(counts.previous)} retained`],
+    ['Reactivated customers (observed)',count(counts.recovered),`Earlier buyers missing from ${priorYear}'s positive-net set`],
+    ['Net customer change (observed)',`${counts.net>0?'+':''}${count(counts.net)}`,pct(percentages.net)],
+  ] as const;
+  const cohorts = [
+    ['Retained customers',counts.retained,averages.retained,'success.solidBg'],
+    ['Reactivated customers (observed)',counts.recovered,averages.recovered,'primary.solidBg'],
+    ['First-time observed customers',counts.firstObserved,averages.firstObserved,'neutral.solidBg'],
+  ] as const;
   return <Stack spacing={2}>
-    <Typography level="h4">Imported-report customer growth</Typography>
-    <Alert color="warning">Observed positive-net purchasers in these reports, not certified complete business totals. A completed import or matched printed total does not establish complete customer coverage. First-ever new customers, true recovered/lost counts and the annual sales estimate remain unestablished. No manual coverage checkbox overrides this limitation.</Alert>
-    <Typography>Current source: {report.current.source_period_start} through {report.current.source_period_end}. Previous source: {report.previous.source_period_start} through {report.previous.source_period_end}. {report.current.source_period_end?.endsWith('-12-31') ? 'Calendar-year source comparison.' : 'Partial-year source against the full previous year, not matching-date year-over-year growth.'}</Typography>
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))' }, gap: 1 }}>{metrics.map(([label, value]) => <Sheet key={label} variant="soft" sx={{ p: 1.5, borderRadius: 'lg' }}><Typography>{label}</Typography><Typography level="h4">{value.toLocaleString()}</Typography></Sheet>)}</Box>
-    <Typography>Observed contributions using previous-report net purchasers: present in both {pct(percentages.retained)} + first observed {pct(percentages.firstObserved)} + earlier buyers {pct(percentages.recovered)} − 100% = observed net change {pct(percentages.net)}. First observed is not first-ever. Set absence means no positive-net purchaser evidence, not necessarily no source row.</Typography>
-    <Table aria-label="Observed report sales by customer cohort"><thead><tr><th>Observed customer group</th><th>Average current-report net sales</th></tr></thead><tbody><tr><td>Present in both</td><td>{money(averages.retained)}</td></tr><tr><td>First observed (not first-ever)</td><td>{money(averages.firstObserved)}</td></tr><tr><td>Earlier net purchasers missing from prior net-purchaser set</td><td>{money(averages.recovered)}</td></tr></tbody></Table>
+    <Stack spacing={0.5}>
+      <Typography level="h4">Customer retention &amp; growth</Typography>
+      <Typography level="body-sm">{year} vs. {priorYear} · {fullYear ? 'Calendar-year source comparison' : 'Partial-year vs. full previous year (not matching dates)'}</Typography>
+    </Stack>
+    <Alert color="neutral" variant="soft">Observed positive-net purchasers in these reports. Complete business coverage is not established; first-ever new customers and true recovery/loss cannot be certified from these summaries.</Alert>
+    <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,minmax(0,1fr))'},gap:1.5}}>
+      {metrics.map(([label,value,detail])=><Sheet key={label} variant="soft" sx={{p:2,borderRadius:'lg',minWidth:0}}><Typography level="body-sm">{label}</Typography><Typography level="h2" sx={{fontVariantNumeric:'tabular-nums',mt:0.5}}>{value}</Typography><Typography level="body-xs">{detail}</Typography></Sheet>)}
+    </Box>
+    <Stack spacing={1.5}>
+      <Typography level="title-lg">Where our {year} customers came from</Typography>
+      <Typography level="body-xs">Share of all observed current-report positive-net purchasers, not the prior-year denominator used for retention.</Typography>
+      {cohorts.map(([label,value,,color])=>{
+        const share=counts.current>0?value/counts.current*100:0;
+        return <Stack key={label} spacing={0.5}>
+          <Stack direction="row" justifyContent="space-between" gap={1}><Typography level="body-sm">{label}</Typography><Typography level="body-sm" sx={{fontVariantNumeric:'tabular-nums'}}>{count(value)} · {counts.current>0?`${share.toFixed(1)}%`:'—'}</Typography></Stack>
+          <Box sx={{height:9,borderRadius:99,bgcolor:'background.level2',overflow:'hidden'}}><Box sx={{height:'100%',width:`${share}%`,bgcolor:color,borderRadius:99}}/></Box>
+        </Stack>;
+      })}
+    </Stack>
+    <Stack spacing={1}>
+      <Typography level="title-lg">Average {year} spend per customer</Typography>
+      {cohorts.map(([label,,average])=><Stack key={label} direction="row" justifyContent="space-between" gap={1}><Typography level="body-sm">{label}</Typography><Typography level="title-sm">{money(average)}</Typography></Stack>)}
+      <Typography level="body-sm">Inactive customers (not observed returning): {count(counts.notReturned)}.</Typography>
+    </Stack>
+    <Box component="details"><Typography component="summary" level="title-sm" sx={{cursor:'pointer'}}>Comparison dates and calculation details</Typography>
+      <Typography level="body-sm">Current source: {report.current.source_period_start} through {report.current.source_period_end}. Previous source: {report.previous.source_period_start} through {report.previous.source_period_end}.</Typography>
+      <Typography level="body-sm">Observed contributions using previous-report net purchasers: retained {pct(percentages.retained)} + first observed {pct(percentages.firstObserved)} + earlier buyers {pct(percentages.recovered)} − 100% = net change {pct(percentages.net)}. First observed is not first-ever.</Typography>
+    </Box>
     <Typography>Refunds and negative product adjustments reduce each customer's reported net sales. Only customers with positive net sales and positive purchase quantity evidence are counted. Zero-net and fully returned activity is excluded; these are not receipt or visit counts.</Typography>
     <Typography>Loaded-fact exclusions only: {report.loadedFactExclusions.unlinkedSummaries} unlinked source summaries; {report.loadedFactExclusions.unavailableCustomerIds} distinct unavailable customer IDs. Unlinked summaries are not a count of unique people. These counts exclude groups removed before import; missing history is unknown, not zero.</Typography>
     <Box><Typography level="title-sm">Groups quarantined before import, by source</Typography>{report.sourceQuarantines.map(row => {
