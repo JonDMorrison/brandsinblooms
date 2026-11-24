@@ -274,16 +274,28 @@ function formatContextualDate(campaign: CampaignCatalogItem) {
   return { label: context.label, value: format(date, "MMM d, h:mm a") };
 }
 
-function getSortDate(campaign: CampaignCatalogItem) {
-  return new Date(
-    campaign.updatedAt ||
-      campaign.workerHeartbeatAt ||
-      campaign.sentAt ||
-      campaign.queuedAt ||
-      campaign.scheduledAt ||
-      campaign.createdAt ||
-      0,
-  ).getTime();
+/**
+ * The Date column sorts by the date it shows (getContextualDate: sent,
+ * scheduled, queued, started, failed or updated), so the order always
+ * matches what the reader sees on every status tab. Rows without a shown
+ * date ("-") have no sort date.
+ */
+function getSortDate(campaign: CampaignCatalogItem): number | null {
+  return parseDate(getContextualDate(campaign).value)?.getTime() ?? null;
+}
+
+/** Compares shown dates ascending; rows without a date always sort last. */
+export function compareShownDates(
+  left: CampaignCatalogItem,
+  right: CampaignCatalogItem,
+  direction: SortDirection,
+) {
+  const a = getSortDate(left);
+  const b = getSortDate(right);
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return direction === "asc" ? a - b : b - a;
 }
 
 export function normalizeFilter(value: string | null): StatusFilter {
@@ -857,7 +869,8 @@ export function CRMCampaignsPage() {
           break;
         case "date":
         default:
-          result = getSortDate(left) - getSortDate(right);
+          // Already in the shown direction (and keeps undated rows last).
+          return compareShownDates(left, right, sortDirection);
       }
       return sortDirection === "asc" ? result : -result;
     });
