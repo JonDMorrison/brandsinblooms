@@ -38,4 +38,39 @@ class ReceiptGateTests(unittest.TestCase):
    self.assertEqual(classify_receipt(g,1,1),([],-1000,-50,0,-1050))
    g['events'][-1]['cents']=change+1
    self.assertIn('unbalanced_source_equation',classify_receipt(g,1,1)[0])
+ def test_exact_redemption_display_mirror_only(self):
+  g=self.group()
+  g['events']=[{'kind':'product','cents':1000,'qty':1},{'kind':'GST','cents':50},{'kind':'product','description':'Gift Voucher Redemption','sourceCode':'SYNTH','cents':300,'qty':1},{'kind':'GIFT CARD','cents':300},{'kind':'CASH','cents':750}]
+  from ideal_journal_gate import review_receipt
+  original=[dict(e) for e in g['events']]
+  result,proof=review_receipt(g,1,1)
+  self.assertEqual(result,([],1000,50,0,1050))
+  self.assertEqual(proof,[{'kind':'redemption_display_mirror','displayIndices':[2],'paymentIndex':3}])
+  self.assertEqual(g['events'],original)
+  self.assertTrue(review_receipt(g,0,1)[0][0])
+  g['events'][2]['cents']=299
+  self.assertTrue(review_receipt(g,1,1)[0][0])
+  g['events'][2]['cents']=300
+  g['events'].insert(4,{'kind':'GIFT CARD','cents':0})
+  self.assertTrue(review_receipt(g,1,1)[0][0])
+ def test_coupon_display_requires_unique_literal_code_and_amount(self):
+  from ideal_journal_gate import review_receipt
+  g=self.group()
+  g['events']=[{'kind':'product','cents':1000,'qty':1},{'kind':'product','description':'COUPON: SYNTH','sourceCode':'PROMO','cents':-100,'qty':1},{'kind':'product','description':'Promotion','sourceCode':'PROMO','cents':-100,'qty':1},{'kind':'CASH','cents':900}]
+  result,proof=review_receipt(g,1,1)
+  self.assertEqual(result,([],900,0,0,900))
+  self.assertEqual(proof,[{'kind':'coupon_display_mirror','displayIndices':[1],'promotionIndex':2}])
+  g['events'][2]['sourceCode']='OTHER'
+  self.assertTrue(review_receipt(g,1,1)[0][0])
+  g['events'][2]['sourceCode']='PROMO'
+  g['events'][1]['anchor_errors']=['missing']
+  self.assertTrue(review_receipt(g,1,1)[0][0])
+ def test_spending_control_requires_explicit_rounding_and_exact_counts(self):
+  from ideal_journal_rules import reconcile_customer_spending_control as reconcile
+  rows=[(True,1002,-2),(True,1999,1)]
+  self.assertTrue(reconcile(rows,2,3000))
+  self.assertFalse(reconcile(rows,2,3001))
+  self.assertFalse(reconcile(rows,3,3000))
+  self.assertFalse(reconcile([(False,1002,-2),rows[1]],2,3000))
+  self.assertFalse(reconcile([(True,1002,0),(True,1999,0)],2,3000))
 if __name__=='__main__':unittest.main()

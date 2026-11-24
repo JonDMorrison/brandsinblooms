@@ -1,7 +1,7 @@
 import re
-from ideal_journal_rules import resolve_standalone_void_products,promotion_annotation_duplicates,explicit_discount,refund_change_duplicate_correction
+from ideal_journal_rules import resolve_standalone_void_products,promotion_annotation_duplicates,explicit_discount,refund_change_duplicate_correction,redemption_display_mirrors
 
-def classify_receipt(g,master_matches,key_occurrences):
+def _classify_receipt(g,master_matches,key_occurrences):
  tenders={'CASH','DEBIT/CREDIT','SA','GIFT CARD','CREDIT NOTE','ONLINE GIFT CARD','PROMOTIONAL','CHEQUE'}
  r=g['receipt'];reasons=[]
  if master_matches!=1:reasons.append('unmatched_or_duplicate_master_code')
@@ -46,3 +46,19 @@ def classify_receipt(g,master_matches,key_occurrences):
  if not any(e['kind']in tenders for e in es) and not points_tender and not zero_only:reasons.append('missing_tender')
  if merch+tax+rounding!=tender:reasons.append('unbalanced_source_equation')
  return sorted(set(reasons)),merch,tax,rounding,tender
+
+
+def review_receipt(g,master_matches,key_occurrences):
+ original=_classify_receipt(g,master_matches,key_occurrences)
+ # Never reinterpret a receipt that already passes. Preserve raw events and
+ # all independently collected anchor and coverage exclusions in the caller.
+ if not original[0]:return original,[]
+ omit,proof=redemption_display_mirrors(g['events'])
+ if not omit:return original,[]
+ proposed={**g,'events':[e for i,e in enumerate(g['events']) if i not in omit]}
+ alternate=_classify_receipt(proposed,master_matches,key_occurrences)
+ if alternate[0]:return original,[]
+ return alternate,proof
+
+def classify_receipt(g,master_matches,key_occurrences):
+ return review_receipt(g,master_matches,key_occurrences)[0]
