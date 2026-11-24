@@ -73,6 +73,7 @@ export const AudienceSelector = ({
   const [fadeIn, setFadeIn] = useState(false);
   const [totalAudienceCount, setTotalAudienceCount] = useState(0);
   const { user } = useAuth();
+  const { tenant } = useTenant();
 
   // Total contact count for "All Contacts" display
   const { data: totalContactCount } = useQuery({
@@ -105,7 +106,6 @@ export const AudienceSelector = ({
     summary,
     loading: personaCountsLoading,
   } = usePersonaCustomerCounts();
-  const { tenant } = useTenant();
 
   // Stable loading state management
   const isDataLoading =
