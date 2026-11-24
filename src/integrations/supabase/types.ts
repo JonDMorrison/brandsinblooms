@@ -3519,6 +3519,45 @@ export type Database = {
           },
         ];
       };
+      crm_connected_websites: {
+        Row: {
+          cms_site_id: string;
+          disconnected_at: string | null;
+          id: string;
+          last_connected_at: string;
+          linked_at: string;
+          linked_by: string;
+          site_name: string;
+          site_origin: string;
+          status: string;
+          tenant_id: string;
+        };
+        Insert: {
+          cms_site_id: string;
+          disconnected_at?: string | null;
+          id?: string;
+          last_connected_at?: string;
+          linked_at?: string;
+          linked_by: string;
+          site_name: string;
+          site_origin: string;
+          status?: string;
+          tenant_id: string;
+        };
+        Update: {
+          cms_site_id?: string;
+          disconnected_at?: string | null;
+          id?: string;
+          last_connected_at?: string;
+          linked_at?: string;
+          linked_by?: string;
+          site_name?: string;
+          site_origin?: string;
+          status?: string;
+          tenant_id?: string;
+        };
+        Relationships: [];
+      };
       crm_customers: {
         Row: {
           avg_time_to_click_minutes: number | null;
