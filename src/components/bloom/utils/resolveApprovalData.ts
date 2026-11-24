@@ -567,9 +567,16 @@ export function resolveApproval(
       const channel = readParamString(p.channel) ?? "email";
       const action = readParamString(p.action) ?? "opt_out";
       const isOptIn = action === "opt_in";
+      const basis = readParamString(p.consent_basis);
+      const evidence = readParamString(p.evidence);
+      const otherChannel = channel === "sms" ? "email" : "SMS";
+      const consentRecord =
+        isOptIn && basis && evidence
+          ? ` Recorded as ${basis} consent: ${evidence}`
+          : "";
       return {
         title: `${isOptIn ? "Opt in" : "Opt out"} "${cust?.name ?? "Unknown"}" ${isOptIn ? "to" : "from"} ${channel.toUpperCase()}`,
-        description: `${channel.toUpperCase()} communication preference will be updated.`,
+        description: `Only ${channel.toUpperCase()} consent will be updated; ${otherChannel} consent is unchanged.${consentRecord}`,
         customers: cust ? [cust] : undefined,
         riskLevel: "medium",
         riskMessage: isOptIn
