@@ -80,11 +80,16 @@ export function createStudioBlock(
   type: StudioBlockType,
   designSystem?: StudioDesignSystem | null,
 ): StudioBlock {
-  const primaryColor = designSystem?.colors.primary;
+  // Untouched default brand colours count as "not set": new blocks start
+  // in the neutral palette rather than a stock green nobody chose.
+  const brandColors = designSystem?.colors.brandColorsAreDefaults
+    ? undefined
+    : designSystem?.colors;
+  const primaryColor = brandColors?.primary;
   const companyName = designSystem?.company.name?.trim() ?? "";
   const storeName = /^(your business|your garden centre)?$/i.test(companyName) ? "" : companyName;
-  const primaryContrastText = designSystem?.colors.primaryContrastText;
-  const brandTextColor = designSystem?.colors.text;
+  const primaryContrastText = brandColors?.primaryContrastText;
+  const brandTextColor = brandColors?.text;
   const footerBackgroundColor = designSystem?.colors.footerBackground;
   const footerTextColor = designSystem?.colors.footerText;
   const footerLinkColor = designSystem?.colors.footerLink;

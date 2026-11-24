@@ -229,7 +229,7 @@ function brandFooterColors(
   designSystem: ReturnType<typeof resolveDesignSystem>,
 ): Partial<StudioBlock> {
   const colors = designSystem?.colors;
-  if (!colors?.primary || colors.footerBackground) return {};
+  if (!colors?.primary || colors.footerBackground || colors.brandColorsAreDefaults) return {};
   const text = colors.primaryContrastText || "#ffffff";
   return {
     backgroundColor: colors.primary,
