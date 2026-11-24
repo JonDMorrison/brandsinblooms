@@ -1,6 +1,11 @@
 import * as React from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase, forceLogout } from "@/integrations/supabase/client";
+import {
+  supabase,
+  endImpersonationTab,
+  forceLogout,
+  isImpersonationTab,
+} from "@/integrations/supabase/client";
 
 interface AuthContextType {
   user: User | null;
@@ -185,6 +190,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [updateRecoveryMode]);
 
   const signOut = async () => {
+    if (isImpersonationTab) {
+      // Signing out of an impersonating tab only ends that tab's customer
+      // session; it must not revoke the customer's own sessions elsewhere.
+      await endImpersonationTab();
+      return;
+    }
+
     try {
       setLoading(true);
       setAuthError(null);

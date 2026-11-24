@@ -37,6 +37,9 @@ const AdminTenants = lazyRetry(() => import("@/pages/admin/AdminTenants"));
 const ImpersonateCallbackPage = lazyRetry(
   () => import("@/pages/admin/ImpersonateCallbackPage"),
 );
+const ImpersonateStartPage = lazyRetry(
+  () => import("@/pages/admin/ImpersonateStartPage"),
+);
 const AdminDashboard = lazyRetry(() => import("@/pages/admin/AdminDashboard"));
 const AdminManage = lazyRetry(() => import("@/pages/AdminManage"));
 const AdminGovernanceConfig = lazyRetry(
@@ -1237,6 +1240,10 @@ function App() {
               <Route
                 path="/admin/impersonate/callback"
                 element={<ImpersonateCallbackPage />}
+              />
+              <Route
+                path="/admin/impersonate/start"
+                element={<ImpersonateStartPage />}
               />
               <Route
                 path="/integrations/lightspeed/callback"

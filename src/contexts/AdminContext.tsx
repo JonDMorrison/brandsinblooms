@@ -7,6 +7,11 @@ import React, {
   useState,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  readTabAdminTenant,
+  setRequestAdminTenant,
+  writeTabAdminTenant,
+} from "@/integrations/supabase/adminTenantScope";
 import { useAuth } from "./AuthContext";
 
 interface AdminTenant {
@@ -118,6 +123,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
 
     async function loadActiveTenantContext() {
       if (isAdminStatusLoading) {
+        setRequestAdminTenant(undefined);
         setActiveTenantIdState(null);
         setHydratedAdminUserId(null);
         setHasHydratedTenantContext(false);
@@ -125,8 +131,20 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (!userId || !isMasterAdmin) {
+        setRequestAdminTenant(undefined);
         setActiveTenantIdState(null);
         setHydratedAdminUserId(null);
+        setHasHydratedTenantContext(true);
+        return;
+      }
+
+      // A tab that already chose a company keeps it, whatever other tabs have
+      // switched to since. The server row is only the default for a new tab.
+      const tabTenantId = readTabAdminTenant(userId);
+      if (tabTenantId !== undefined) {
+        setRequestAdminTenant(tabTenantId);
+        setActiveTenantIdState(tabTenantId);
+        setHydratedAdminUserId(userId);
         setHasHydratedTenantContext(true);
         return;
       }
@@ -146,11 +164,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         if (!cancelled) {
-          setActiveTenantIdState(data?.active_tenant_id ?? null);
+          const persistedTenantId = data?.active_tenant_id ?? null;
+          writeTabAdminTenant(userId, persistedTenantId);
+          setRequestAdminTenant(persistedTenantId);
+          setActiveTenantIdState(persistedTenantId);
         }
       } catch (error) {
         if (!cancelled) {
           console.error("Error loading admin context:", error);
+          setRequestAdminTenant(null);
           setActiveTenantIdState(null);
         }
       } finally {
@@ -192,8 +214,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [isMasterAdmin]);
 
   // Persist a tenant switch on the server before exposing that tenant as the
-  // active client context. The CRM access RPC derives a master admin's tenant
-  // from admin_session_context, so publishing client state first could make the
+  // active client context. Server checks derive a master admin's tenant from
+  // this tab's x-bloom-admin-tenant header (public.admin_active_tenant_id), and
+  // edge functions still read admin_session_context, so publishing state first could make the
   // UI request access for the new tenant while the server still points at the
   // old one. Writes are serialized so rapid switches cannot complete out of
   // order, and access remains gated until the latest switch is durable.
@@ -224,6 +247,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
             throw error;
           }
 
+          // This tab now works in the new company (sent as a request header);
+          // the row above only becomes the default for tabs opened later.
+          writeTabAdminTenant(user.id, tenantId);
+          setRequestAdminTenant(tenantId);
           setActiveTenantIdState(tenantId);
         });
 

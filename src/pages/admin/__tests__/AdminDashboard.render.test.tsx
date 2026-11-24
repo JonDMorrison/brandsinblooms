@@ -29,6 +29,10 @@ vi.mock("@/hooks/useDomainStats", () => ({
   useDomainStats: () => ({ data: [domain], isLoading: false, error: null }),
 }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+// The app-wide AdminProvider (main.tsx) owns the tab's admin company.
+vi.mock("@/contexts/AdminContext", () => ({
+  useAdmin: () => ({ setActiveTenantId: vi.fn().mockResolvedValue(undefined) }),
+}));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     rpc: vi.fn().mockResolvedValue({ data: [], error: null }),

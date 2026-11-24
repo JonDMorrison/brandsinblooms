@@ -2,7 +2,7 @@ import * as React from "react";
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { TriangleAlert } from "lucide-react";
+import { ExternalLink, TriangleAlert } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { IMPERSONATION_BANNER_HEIGHT_VAR } from "@/lib/layout/appViewport";
@@ -10,7 +10,8 @@ import { IMPERSONATION_BANNER_HEIGHT_VAR } from "@/lib/layout/appViewport";
 const BANNER_HEIGHT = 40;
 
 export const ImpersonationBanner = () => {
-  const { endImpersonation, isImpersonating, targetEmail } = useImpersonation();
+  const { endImpersonation, isImpersonating, openCustomerInNewTab, targetEmail } =
+    useImpersonation();
 
   // Shells size themselves to the space below the banner (APP_VIEWPORT_HEIGHT)
   // and modals start below it (index.css), so the document never scrolls.
@@ -71,9 +72,23 @@ export const ImpersonationBanner = () => {
             </Typography>
           </Stack>
 
-          <JoyButton color="warning" onClick={endImpersonation} size="sm">
-            End Impersonation
-          </JoyButton>
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+            {/* The customer session lives only in this tab, so a plain new tab
+                would open as the admin. This starts a separate session there. */}
+            <JoyButton
+              color="warning"
+              onClick={openCustomerInNewTab}
+              size="sm"
+              variant="outlined"
+              startDecorator={<ExternalLink className="h-4 w-4" />}
+              sx={{ display: { xs: "none", sm: "inline-flex" } }}
+            >
+              Open as customer in new tab
+            </JoyButton>
+            <JoyButton color="warning" onClick={endImpersonation} size="sm">
+              End Impersonation
+            </JoyButton>
+          </Stack>
         </Stack>
       </Box>
 

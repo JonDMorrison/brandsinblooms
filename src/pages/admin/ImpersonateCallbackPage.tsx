@@ -15,9 +15,11 @@ import {
   IMPERSONATION_ACTIVE_STORAGE_KEY,
   IMPERSONATION_STARTED_AT_STORAGE_KEY,
   IMPERSONATION_TARGET_EMAIL_STORAGE_KEY,
-} from "@/hooks/useImpersonation";
+  IMPERSONATION_TARGET_TENANT_STORAGE_KEY,
+  clearImpersonationTabState,
+} from "@/integrations/supabase/tabAuthSession";
 import { PageContainer } from "@/components/joy/PageContainer";
-import { supabase } from "@/integrations/supabase/client";
+import { isImpersonationTab, supabase } from "@/integrations/supabase/client";
 import { getAuthErrorMessage } from "@/utils/authErrorMessages";
 
 export default function ImpersonateCallbackPage() {
@@ -29,12 +31,23 @@ export default function ImpersonateCallbackPage() {
   const tokenHash = searchParams.get("token_hash");
   const typeParam = searchParams.get("type");
   const targetEmail = searchParams.get("target_email");
+  const targetTenantId = searchParams.get("target_tenant_id");
   const isMissingRequiredParams = !tokenHash || !typeParam || !targetEmail;
 
   useEffect(() => {
     if (isMissingRequiredParams || !tokenHash) {
       setErrorMessage(
         "Invalid impersonation link. Missing required parameters.",
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    // Redeeming the link outside a tab-scoped session slot would replace the
+    // admin session every other tab uses, so refuse instead.
+    if (!isImpersonationTab) {
+      setErrorMessage(
+        "This browser tab could not keep the impersonation separate from your admin session. Allow site storage and try again.",
       );
       setIsLoading(false);
       return;
@@ -53,6 +66,7 @@ export default function ImpersonateCallbackPage() {
       }
 
       if (error) {
+        clearImpersonationTabState(sessionStorage);
         setErrorMessage(getAuthErrorMessage(error, "verifyOtp").message);
         setIsLoading(false);
         return;
@@ -63,6 +77,12 @@ export default function ImpersonateCallbackPage() {
         IMPERSONATION_TARGET_EMAIL_STORAGE_KEY,
         targetEmail,
       );
+      if (targetTenantId) {
+        sessionStorage.setItem(
+          IMPERSONATION_TARGET_TENANT_STORAGE_KEY,
+          targetTenantId,
+        );
+      }
       sessionStorage.setItem(
         IMPERSONATION_STARTED_AT_STORAGE_KEY,
         new Date().toISOString(),
@@ -83,7 +103,7 @@ export default function ImpersonateCallbackPage() {
     return () => {
       isCancelled = true;
     };
-  }, [isMissingRequiredParams, targetEmail, tokenHash]);
+  }, [isMissingRequiredParams, targetEmail, targetTenantId, tokenHash]);
 
   const handleCloseTab = () => {
     window.close();

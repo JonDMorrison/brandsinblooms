@@ -3,6 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import { cachedSupabaseFetch } from "./cachedFetch";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config";
+import { withAdminTenantHeader } from "./adminTenantScope";
+import {
+  IMPERSONATION_EXIT_PATH,
+  clearImpersonationTabState,
+  createTabId,
+  resolveTabAuthConfig,
+  type TabAuthConfig,
+} from "./tabAuthSession";
 
 const AUTH_STORAGE_KEYS = [
   "supabase.auth.token",
@@ -55,7 +63,35 @@ const shouldDetectSupabaseSessionInUrl = () => {
   );
 };
 
+// Chosen once per page load: an impersonating tab keeps its customer session in
+// its own sessionStorage slot, every other tab uses the shared admin session.
+const resolveCurrentTabAuthConfig = (): TabAuthConfig | null => {
+  if (typeof window === "undefined" || typeof localStorage === "undefined") {
+    return null;
+  }
+
+  try {
+    return resolveTabAuthConfig({
+      pathname: window.location.pathname,
+      localStorage: window.localStorage,
+      sessionStorage: window.sessionStorage,
+      supabaseUrl: SUPABASE_URL,
+      createTabId,
+    });
+  } catch {
+    return null;
+  }
+};
+
+const tabAuthConfig = resolveCurrentTabAuthConfig();
+
+export const isImpersonationTab = tabAuthConfig?.mode === "impersonation";
+
 export const hasPersistedAuthState = () => {
+  if (isImpersonationTab && tabAuthConfig?.storageKey) {
+    return tabAuthConfig.storage.getItem(tabAuthConfig.storageKey) !== null;
+  }
+
   if (typeof localStorage === "undefined") {
     return false;
   }
@@ -63,8 +99,38 @@ export const hasPersistedAuthState = () => {
   return Object.keys(localStorage).some(hasAuthStorageMatch);
 };
 
+/**
+ * Ends the impersonation in this tab only: revokes just this tab's customer
+ * session (local scope, so the customer's own devices stay signed in), drops
+ * the tab's session slot and reloads as the admin, whose localStorage session
+ * was never touched.
+ */
+export const endImpersonationTab = async () => {
+  try {
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) {
+      console.error("Failed to sign out impersonated session:", error);
+    }
+  } catch (error) {
+    console.error("Failed to sign out impersonated session:", error);
+  } finally {
+    if (typeof window !== "undefined") {
+      clearImpersonationTabState(window.sessionStorage);
+      window.location.href = IMPERSONATION_EXIT_PATH;
+    }
+  }
+};
+
 // Enhanced auth state cleanup utility
 export const cleanupAuthState = () => {
+  if (isImpersonationTab) {
+    // Never clear the admin's shared session from an impersonating tab.
+    if (typeof sessionStorage !== "undefined") {
+      clearImpersonationTabState(sessionStorage);
+    }
+    return;
+  }
+
   try {
     // Remove all possible auth-related keys from localStorage
     AUTH_STORAGE_KEYS.forEach((key) => {
@@ -93,6 +159,11 @@ export const cleanupAuthState = () => {
 
 // Force logout utility for emergency situations
 export const forceLogout = async () => {
+  if (isImpersonationTab) {
+    await endImpersonationTab();
+    return;
+  }
+
   try {
     // Step 1: Clean up all auth state first
     cleanupAuthState();
@@ -125,10 +196,14 @@ export const supabase = createClient<Database>(
   SUPABASE_PUBLISHABLE_KEY,
   {
     global: {
-      fetch: cachedSupabaseFetch,
+      fetch: (input, init) =>
+        cachedSupabaseFetch(input, withAdminTenantHeader(input, init)),
     },
     auth: {
-      storage: localStorage,
+      storage: tabAuthConfig?.storage ?? localStorage,
+      ...(tabAuthConfig?.storageKey
+        ? { storageKey: tabAuthConfig.storageKey }
+        : {}),
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: shouldDetectSupabaseSessionInUrl(),
@@ -139,6 +214,11 @@ export const supabase = createClient<Database>(
 
 // Enhanced auth helpers with better error handling
 export const signOutCompletely = async () => {
+  if (isImpersonationTab) {
+    await endImpersonationTab();
+    return;
+  }
+
   try {
     // Clean up auth state first
     cleanupAuthState();
