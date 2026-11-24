@@ -4,6 +4,10 @@ import {
 } from "@/lib/studio/emailHtmlGenerator";
 import {
   buildStudioDesignSystem,
+  isPrimaryColorUnset,
+  NEUTRAL_DARK_SURFACE,
+  readableColorPair,
+  UNTOUCHED_PRIMARY_COLOR,
   type StudioDesignSystem,
 } from "@/lib/studio/designSystem";
 import type { StudioBlock } from "@/types/studioBlocks";
@@ -229,13 +233,43 @@ function brandFooterColors(
   designSystem: ReturnType<typeof resolveDesignSystem>,
 ): Partial<StudioBlock> {
   const colors = designSystem?.colors;
-  if (!colors?.primary || colors.footerBackground || colors.brandColorsAreDefaults) return {};
-  const text = colors.primaryContrastText || "#ffffff";
+  if (
+    !colors?.primary ||
+    colors.footerBackground ||
+    colors.brandColorsAreDefaults ||
+    isPrimaryColorUnset(colors.primary)
+  ) {
+    return {};
+  }
+  // White text when it reads at 4.5:1, else dark text, else a darker shade.
+  const pair = readableColorPair(colors.primary);
   return {
-    backgroundColor: colors.primary,
-    textColor: text,
-    linkColor: text,
-    footerIconColor: text,
+    backgroundColor: pair.background,
+    textColor: pair.text,
+    linkColor: pair.text,
+    footerIconColor: pair.text,
+  };
+}
+
+/**
+ * Drafts whose footer was painted in the stock signup green (before brand
+ * colours counted as unset) go back to the neutral dark preset while the
+ * brand colour is still unset. Draft-only: sent campaigns are never re-saved.
+ */
+function neutralizeStockGreenFooter(
+  footer: StudioBlock,
+  designSystem: ReturnType<typeof resolveDesignSystem>,
+): StudioBlock {
+  if (!designSystem?.colors.primaryIsUnset) return footer;
+  if ((footer.backgroundColor ?? "").trim().toLowerCase() !== UNTOUCHED_PRIMARY_COLOR) {
+    return footer;
+  }
+  return {
+    ...footer,
+    backgroundColor: NEUTRAL_DARK_SURFACE.background,
+    textColor: NEUTRAL_DARK_SURFACE.text,
+    linkColor: NEUTRAL_DARK_SURFACE.link,
+    footerIconColor: NEUTRAL_DARK_SURFACE.link,
   };
 }
 
@@ -279,13 +313,16 @@ export function ensureFooterBlockCompliance(
     designSystem,
   );
 
-  // Drafts render empty blocks as nothing (see NewsletterSettings.emptyBlocks).
+  // Drafts render empty blocks as nothing (see NewsletterSettings.emptyBlocks)
+  // and keep text readable (contrastGuard).
   const footerWithSettings: StudioBlock = {
-    ...footerBlock,
+    ...neutralizeStockGreenFooter(footerBlock, designSystem),
     newsletterSettings: {
       ...(footerBlock.newsletterSettings ?? { version: 1 }),
       version: 1,
       emptyBlocks: "skip",
+      contrastGuard: true,
+      mobileFooterAlign: "left",
       // A footer created here belongs to a new draft: phone photos show at
       // natural height. Existing footers keep whatever they had (240px).
       ...(existingFooter ? {} : { mobileImageHeight: "natural" as const }),

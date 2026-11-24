@@ -165,3 +165,72 @@ describe("From my website insert position (#17)", () => {
     expect(ids(placeInsertedBlocks([header, text, footer], [product], "f").blocks)).toEqual(["h", "p1", "t", "f"]);
   });
 });
+
+import { placeThemeBlocks } from "./useStudioState";
+import { themeBlockLabel } from "./themeBlockLabel";
+import { buildWeeklyThemeIdea } from "@/lib/studio/weeklyThemeSeed";
+import { buildNewsletterIdeaContentBlocks } from "@/lib/studio/newsletterIdeaSeed";
+import { createStudioBlock } from "@/lib/studio/blockFactory";
+
+describe("Add all theme blocks (qa2 #6)", () => {
+  const designSystem = buildStudioDesignSystem({ name: "Northfield Garden Center" });
+  const week48 = buildWeeklyThemeIdea({
+    weekNumber: 48,
+    themeCampaignId: null,
+    title: "Year-End Garden Review",
+    theme: "Celebrating Garden Successes",
+    description: "Encourage documenting successes, learning from challenges, and celebrating the completed growing season.",
+    seasonalFocus: "Annual garden evaluation",
+    images: [
+      { url: "https://images.unsplash.com/photo-1", alt: "a garden filled with lots of different types of flowers", credit: "" },
+      { url: "https://images.unsplash.com/photo-2", alt: "a garden filled with lots of purple and white flowers", credit: "" },
+    ],
+  });
+  const themeBlocks = buildNewsletterIdeaContentBlocks(week48, designSystem);
+  const blankDraft = () => {
+    const header = { ...createStudioBlock("newsletter-header", designSystem), id: "h", logoUrl: "https://cdn.test/logo.png", logoSize: 72 };
+    const paragraph = { ...createStudioBlock("plain-text", designSystem), id: "empty" };
+    const footer = { ...createStudioBlock("footer", designSystem), id: "f" };
+    return [header, paragraph, footer] as StudioBlock[];
+  };
+
+  it("keeps a single header, replaced in place with its logo", () => {
+    const { blocks } = placeThemeBlocks(blankDraft(), themeBlocks);
+    const headers = blocks.filter((block) => block.type === "newsletter-header");
+    expect(headers).toHaveLength(1);
+    expect(headers[0]).toMatchObject({ id: "h", logoUrl: "https://cdn.test/logo.png", logoSize: 72, headline: "Celebrating Garden Successes" });
+    expect(blocks[0].id).toBe("h");
+  });
+
+  it("fills the empty placeholder instead of leaving it, and keeps the footer last", () => {
+    const { blocks } = placeThemeBlocks(blankDraft(), themeBlocks);
+    expect(blocks.some((block) => block.id === "empty")).toBe(false);
+    expect(blocks.map((block) => block.type)).toEqual([
+      "newsletter-header", "full-width-image", "plain-text", "image-text", "footer",
+    ]);
+  });
+
+  it("goes right after the header when there is no placeholder", () => {
+    const filled = blankDraft().map((block) => block.id === "empty" ? { ...block, body: "<p>Our hours</p>" } : block);
+    const { blocks } = placeThemeBlocks(filled, themeBlocks);
+    expect(blocks.map((block) => block.id).slice(-2)).toEqual(["empty", "f"]);
+    expect(blocks[1].type).toBe("full-width-image");
+  });
+
+  it("adding twice still leaves one header", () => {
+    const once = placeThemeBlocks(blankDraft(), themeBlocks).blocks;
+    const twice = placeThemeBlocks(once, themeBlocks).blocks;
+    expect(twice.filter((block) => block.type === "newsletter-header")).toHaveLength(1);
+  });
+
+  it("labels sidebar items with a title, never photo alt text", () => {
+    const labels = themeBlocks.map(themeBlockLabel);
+    expect(labels).toEqual([
+      "Celebrating Garden Successes",
+      "Theme photo",
+      expect.stringContaining("Year-End Garden Review"),
+      "Annual garden evaluation",
+    ]);
+    expect(labels.join(" ")).not.toMatch(/a garden filled/);
+  });
+});

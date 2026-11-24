@@ -4200,6 +4200,7 @@ function PanelContent({
                     <StudioImageUpload
                       label="Logo"
                       height={72}
+                      maxPreviewHeight={120}
                       emptyText="Upload logo"
                       value={block.logoUrl ?? ""}
                       onChange={(value) => updateField("logoUrl", value)}
@@ -4404,6 +4405,7 @@ function PanelContent({
                     <StudioImageUpload
                       label="Logo"
                       height={72}
+                      maxPreviewHeight={120}
                       emptyText="Upload logo"
                       value={block.logoUrl ?? ""}
                       onChange={(value) => updateField("logoUrl", value)}

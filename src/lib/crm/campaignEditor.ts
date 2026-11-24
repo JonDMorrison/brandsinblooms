@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { firstContentHeadline } from "@/lib/crm/campaignDisplayName";
 import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
 import type { Database } from "@/integrations/supabase/types";
 import {
@@ -47,6 +48,8 @@ export interface CampaignCatalogItem {
   isEmptyDraft: boolean;
   id: string;
   name: string;
+  /** firstContentHeadline of the design, for deriveCampaignDisplayName. */
+  firstHeadline?: string;
   subjectLine: string;
   preheaderText: string;
   status: CampaignStatus;
@@ -209,9 +212,13 @@ function isEmptyDraftRow(row: CampaignRow) {
 
 export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
   const metrics = toRecord(row.metrics);
+  const metadataBlocks = toRecord(row.metadata).contentBlocks;
   return {
     id: row.id,
     name: row.name,
+    firstHeadline: firstContentHeadline(
+      Array.isArray(metadataBlocks) ? (metadataBlocks as StudioBlock[]) : [],
+    ),
     subjectLine: row.subject_line ?? "",
     preheaderText: row.preheader_text ?? row.preheader ?? "",
     status: toStatus(row.status),

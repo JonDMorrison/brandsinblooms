@@ -5,7 +5,7 @@ import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount
 /**
  * Email reachability for a tenant or a campaign audience. Every customer in
  * scope is in exactly one bucket, so
- *   total = confirmed + pending + optedOut + suppressed.
+ *   total = confirmed + pending + optedOut + neverOptedIn + suppressed.
  * Definition (one place): public.email_reachability_summary.
  */
 export interface TenantAudienceHealth {
@@ -14,8 +14,10 @@ export interface TenantAudienceHealth {
   confirmed: number;
   /** Waiting for permission (pending confirmation or not recorded). */
   pending: number;
-  /** Asked us to stop (opted out, unsubscribed or complained). */
+  /** Asked us to stop: an explicit opt-out, unsubscribe or complaint. */
   optedOut: number;
+  /** Never opted in: email permission is "no" with no opt-out on record. */
+  neverOptedIn: number;
   /** Can't be sent to (bad address, suppressed or bounced). */
   suppressed: number;
   /** Reachable for email. Same as confirmed. */
@@ -27,6 +29,7 @@ const EMPTY_HEALTH: TenantAudienceHealth = {
   confirmed: 0,
   pending: 0,
   optedOut: 0,
+  neverOptedIn: 0,
   suppressed: 0,
   eligible: 0,
 };
@@ -35,8 +38,11 @@ export interface EmailReachabilityRow {
   total: number | string | null;
   reachable: number | string | null;
   waiting: number | string | null;
+  /** asked_to_stop + never_opted_in (kept for older clients). */
   stopped: number | string | null;
   unsendable: number | string | null;
+  asked_to_stop: number | string | null;
+  never_opted_in: number | string | null;
 }
 
 function toCount(value: number | string | null | undefined) {
@@ -56,14 +62,20 @@ export function toAudienceHealth(rows: EmailReachabilityRow[]): TenantAudienceHe
     const waiting = toCount(row.waiting);
     const stopped = toCount(row.stopped);
     const unsendable = toCount(row.unsendable);
-    if (reachable + waiting + stopped + unsendable !== total) {
+    const askedToStop = toCount(row.asked_to_stop);
+    const neverOptedIn = toCount(row.never_opted_in);
+    if (
+      askedToStop + neverOptedIn !== stopped ||
+      reachable + waiting + askedToStop + neverOptedIn + unsendable !== total
+    ) {
       throw new Error("Email reachability buckets do not add up to the total.");
     }
     health.total += total;
     health.confirmed += reachable;
     health.eligible += reachable;
     health.pending += waiting;
-    health.optedOut += stopped;
+    health.optedOut += askedToStop;
+    health.neverOptedIn += neverOptedIn;
     health.suppressed += unsendable;
   }
   return health;

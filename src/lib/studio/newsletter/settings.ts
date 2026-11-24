@@ -96,6 +96,8 @@ export function normalizeNewsletterSettings(
     blockGap: clampNumber(raw.blockGap, 12, 0, 96),
     emptyBlocks: raw.emptyBlocks === "skip" ? "skip" : undefined,
     mobileImageHeight: raw.mobileImageHeight === "natural" ? "natural" : undefined,
+    contrastGuard: raw.contrastGuard === true ? true : undefined,
+    mobileFooterAlign: raw.mobileFooterAlign === "left" ? "left" : undefined,
     fontFamily: raw.fontFamily ? emailFont(raw.fontFamily) : undefined,
     allowedFonts: Array.isArray(raw.allowedFonts)
       ? raw.allowedFonts

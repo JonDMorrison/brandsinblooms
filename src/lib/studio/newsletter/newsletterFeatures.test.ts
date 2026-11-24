@@ -1,8 +1,10 @@
+import { buildCampaignOrigin, normalizeCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import { describe, it, expect } from "vitest";
 import { createStudioBlock } from "../blockFactory";
 import { buildStudioDesignSystem } from "../designSystem";
 import {
   generateEmailHtml,
+  renderFooterBlockToEmailHtml,
   renderNewsletterBlock,
 } from "../emailHtmlGenerator";
 import { BLOCK_CATEGORIES } from "@/components/crm/studio/blockLibraryData";
@@ -921,14 +923,74 @@ describe("weekly theme seed", () => {
     const seed = buildNewsletterIdeaDraftSeed(idea, "block-builder");
     const types = seed.contentBlocks.map((block) => block.type);
     expect(types).toContain("full-width-image");
-    expect(types.filter((type) => type === "image-text")).toHaveLength(2);
+    expect(types.filter((type) => type === "image-text")).toHaveLength(1);
     expect(types.at(-1)).toBe("footer");
     const imageUrls = seed.contentBlocks.map((block) => block.imageUrl).filter(Boolean);
-    expect(imageUrls).toEqual(weeklyThemeTestSource.images.map((image) => image.url));
+    expect(imageUrls).toEqual(weeklyThemeTestSource.images.slice(0, 2).map((image) => image.url));
     for (const block of seed.contentBlocks) {
       expect(block.source).toBe(block.type === "footer" ? undefined : "theme");
     }
     expect(seed.origin).toBe(`weekly_theme:${weeklyThemeTestSource.themeCampaignId}`);
+  });
+
+  it("never puts the internal theme description in the email (qa2 #6)", () => {
+    // Week 48 master row: content_ideas is a note for the store.
+    const week48 = {
+      weekNumber: 48,
+      themeCampaignId: null,
+      title: "Year-End Garden Review",
+      theme: "Celebrating Garden Successes",
+      description: "Encourage documenting successes, learning from challenges, and celebrating the completed growing season.",
+      seasonalFocus: "Annual garden evaluation",
+      images: weeklyThemeTestSource.images,
+    };
+    const idea = buildWeeklyThemeIdea(week48);
+    const seed = buildNewsletterIdeaDraftSeed(
+      idea,
+      "block-builder",
+      buildStudioDesignSystem({ name: "Northfield Garden Center" }),
+    );
+    const everything = JSON.stringify(seed);
+    expect(everything).not.toContain("Encourage documenting");
+    expect(everything).not.toContain("Continue shaping this newsletter");
+    expect(seed.preheaderText).not.toContain("Encourage");
+    const text = seed.contentBlocks.find((block) => block.type === "plain-text");
+    expect(text?.body).toContain("Year-End Garden Review");
+    // No website on file: the Image + Text block has its own copy and no button.
+    const story = seed.contentBlocks.find((block) => block.type === "image-text");
+    expect(story?.body).toBeTruthy();
+    expect(story?.body).not.toBe(text?.body);
+    expect(story?.buttonText).toBe("");
+    expect(story?.buttonUrl).toBe("");
+  });
+
+  it("points the Image + Text button at the website when there is one", () => {
+    const idea = buildWeeklyThemeIdea(weeklyThemeTestSource);
+    const designSystem = buildStudioDesignSystem({
+      name: "Northfield Garden Center",
+      websiteUrl: "https://northfieldgardens.ca",
+    });
+    const blocks = buildNewsletterIdeaContentBlocks(idea, designSystem);
+    const story = blocks.find((block) => block.type === "image-text");
+    expect(story).toMatchObject({ buttonText: "Visit our website", buttonUrl: "https://northfieldgardens.ca" });
+  });
+
+  it("records one origin per entry path (qa2 #4)", () => {
+    // This week's theme: the tenant row, else the master week.
+    expect(originForNewsletterIdea(buildWeeklyThemeIdea(weeklyThemeTestSource))).toMatch(/^weekly_theme:/);
+    // Ideas for You / Browse all 52 weekly ideas / holidays: idea:<id>.
+    expect(originForNewsletterIdea({ id: "master-week-12", category: "weekly", weekNumber: 12 })).toBe("idea:master-week-12");
+    expect(originForNewsletterIdea({ id: "mothers-day", category: "holiday" })).toBe("idea:mothers-day");
+    // AI ideas.
+    expect(originForNewsletterIdea({ id: "x", category: "ai-generated" })).toBe("ai:newsletter_idea");
+    // Blank editor, saved template, copy and website import use the shared builder.
+    expect(buildCampaignOrigin("blank")).toBe("blank");
+    expect(buildCampaignOrigin("saved_template", "4f1c")).toBe("saved_template:4f1c");
+    expect(buildCampaignOrigin("duplicate", "34187269-f02d-4081-8afb-afca79b81f14")).toBe("duplicate:34187269-f02d-4081-8afb-afca79b81f14");
+    expect(buildCampaignOrigin("website_import", "a1")).toBe("website_import:a1");
+    for (const origin of ["idea:master-week-12", "blank", "ai:newsletter_idea"]) {
+      expect(normalizeCampaignOrigin(origin)).toBe(origin);
+    }
   });
 
   it("falls back to the master week when there is no tenant theme row", () => {
@@ -1049,6 +1111,61 @@ describe("untouched default brand colours count as not set (#14)", () => {
     expect(withFlag).toBe(withoutFlag);
     expect(withFlag.toLowerCase()).toContain("#22c55e");
   });
+
+  it("treats a stock-green primary as unset even when other colours were chosen (qa2 #8)", async () => {
+    const greenOnly = buildStudioDesignSystem({
+      brandPrimaryColorRaw: "#22c55e",
+      brandSecondaryColorRaw: "#123456",
+      brandAccentColorRaw: "#f59e0b",
+      brandTextColorRaw: "#1f2937",
+    } as never);
+    expect(greenOnly.colors.primaryIsUnset).toBe(true);
+    expect(createStudioBlock("call-to-action", greenOnly).buttonColor).toBe(createStudioBlock("call-to-action").buttonColor);
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const footer = ensureFooterBlockCompliance([createStudioBlock("plain-text", greenOnly)], { designSystem: greenOnly })
+      .find((block) => block.type === "footer")!;
+    expect(footer.backgroundColor).toBe("#1e293b");
+    expect(footer.newsletterSettings?.contrastGuard).toBe(true);
+  });
+
+  it("moves a draft's stock-green footer back to the neutral dark preset", async () => {
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const greenFooter = { ...createStudioBlock("footer"), backgroundColor: "#22c55e", textColor: "#ffffff", linkColor: "#ffffff" };
+    const footer = ensureFooterBlockCompliance([greenFooter], { designSystem: untouched })
+      .find((block) => block.type === "footer")!;
+    expect(footer).toMatchObject({ backgroundColor: "#1e293b", textColor: "#ffffff", linkColor: "#cbd5e1" });
+    const { contrastRatio } = await import("../designSystem");
+    expect(contrastRatio(footer.textColor!, footer.backgroundColor!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("gives a chosen light brand colour readable footer text", async () => {
+    const { readableColorPair, contrastRatio } = await import("../designSystem");
+    const pair = readableColorPair("#68BEB9");
+    expect(contrastRatio(pair.text, pair.background)).toBeGreaterThanOrEqual(4.5);
+    // White on mid green fails, so dark text is used.
+    expect(readableColorPair("#22c55e").text).toBe("#111827");
+  });
+
+  it("left-aligns the stacked footer address on phones for drafts only (qa2 #13)", () => {
+    const footer = createStudioBlock("footer");
+    const sentFooter = { ...footer, newsletterSettings: { version: 1 as const } };
+    const draftFooter = { ...footer, newsletterSettings: { version: 1 as const, mobileFooterAlign: "left" as const } };
+    const sent = generateEmailHtml({ blocks: [sentFooter], subject: "x", previewText: "", footer: sentFooter });
+    const draft = generateEmailHtml({ blocks: [draftFooter], subject: "x", previewText: "", footer: draftFooter });
+    expect(sent).not.toContain("footer-contact-column");
+    expect(draft).toContain(".footer-contact-column { text-align:left !important; }");
+    expect(draft).toContain('class="responsive-column footer-contact-column"');
+    expect(createStudioBlock("footer").newsletterSettings?.mobileFooterAlign).toBe("left");
+  });
+
+  it("guards draft renders only: a footer with contrastGuard switches unreadable text", () => {
+    const green = { ...createStudioBlock("footer"), backgroundColor: "#22c55e", textColor: "#ffffff", linkColor: "#ffffff" };
+    const sent = renderFooterBlockToEmailHtml({ ...green, newsletterSettings: { version: 1 } });
+    const draft = renderFooterBlockToEmailHtml({ ...green, newsletterSettings: { version: 1, contrastGuard: true } });
+    expect(sent).toContain("color:#ffffff");
+    expect(draft).not.toContain("color:#ffffff");
+    expect(draft).toContain("color:#111827");
+  });
 });
 
 describe("Pick a look keeps user-set values (#20)", () => {
@@ -1115,13 +1232,14 @@ describe("theme newsletter with AI", () => {
 
   it("strips internal text and the Continue shaping block from the fallback seed", () => {
     const raw = buildNewsletterIdeaDraftSeed(buildWeeklyThemeIdea(masterSource), "block-builder");
-    // The unsanitized seed still carries the internal brief and instructions.
+    // The deterministic seed itself no longer carries the internal brief
+    // (newsletter-qa2 #6), so even the unsanitized seed is clean.
     expect(
       findThemeNewsletterIssues(
         { subjectLine: raw.subjectLine, previewText: raw.preheaderText, blocks: raw.contentBlocks },
         { brief },
-      ).length,
-    ).toBeGreaterThan(0);
+      ),
+    ).toEqual([]);
 
     const seed = fallbackSeed();
     expect(
@@ -1131,7 +1249,8 @@ describe("theme newsletter with AI", () => {
       ),
     ).toEqual([]);
     expect(JSON.stringify(seed)).not.toMatch(/Continue shaping|Review the seeded|Encourage|documenting successes/);
-    expect(seed.preheaderText).toBe("This week's garden ideas from Northfield Garden Center.");
+    // Customer-facing preview from the theme week (buildWeeklyThemeCopy).
+    expect(seed.preheaderText).toBe("Celebrating Garden Successes: ideas and advice for your garden this week.");
     expect(seed.contentBlocks.some((block) => block.type === "call-to-action")).toBe(false);
     expect(seed.contentBlocks.at(-1)?.type).toBe("footer");
     // Photos survive; the image story no longer repeats the header subtitle.

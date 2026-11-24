@@ -295,6 +295,16 @@ function getSortDirection(
   return currentColumn === column ? currentDirection : "none";
 }
 
+const ACTIVELY_SENDING_STATUSES: ReadonlyArray<CampaignCatalogItem["status"]> = [
+  CAMPAIGN_STATUS.QUEUED,
+  CAMPAIGN_STATUS.PARTIALLY_QUEUED,
+  CAMPAIGN_STATUS.SENDING,
+];
+
+function isActivelySendingStatus(status: CampaignCatalogItem["status"]) {
+  return ACTIVELY_SENDING_STATUSES.includes(status);
+}
+
 function matchesStatusFilter(
   campaign: CampaignCatalogItem,
   filter: StatusFilter,
@@ -733,10 +743,12 @@ export function CRMCampaignsPage() {
   }, [duplicateTarget]);
 
   const totalCount = campaignsQuery.data?.length ?? 0;
+  // "Active sends": campaigns actually going out. A paused campaign is not
+  // sending, so it is not counted (it still shows under the Sending filter).
   const activeCount = React.useMemo(
     () =>
       (campaignsQuery.data ?? []).filter((campaign) =>
-        matchesStatusFilter(campaign, "sending"),
+        isActivelySendingStatus(campaign.status),
       ).length,
     [campaignsQuery.data],
   );
@@ -1463,7 +1475,7 @@ export function CRMCampaignsPage() {
                                   level="body-sm"
                                   component="button"
                                   onClick={event=>{event.stopPropagation();editCell(campaign,"name");}}
-                                  title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                                  title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                                   sx={{
                                     background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     fontWeight: "lg",
@@ -1472,7 +1484,7 @@ export function CRMCampaignsPage() {
                                     whiteSpace: "normal",
                                   }}
                                 >
-                                  {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                                  {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                                 </Typography>
                                 <Typography component="button" onClick={event=>{event.stopPropagation();editCell(campaign,"subject_line");}}
                                   level="body-xs"
@@ -1640,13 +1652,13 @@ export function CRMCampaignsPage() {
                           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                             <Typography
                               level="title-sm"
-                              title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                              title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                               sx={{
                                 overflowWrap: "anywhere",
                                 whiteSpace: "normal",
                               }}
                             >
-                              {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                              {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                             </Typography>
                             <StatusChip
                               campaign={campaign}

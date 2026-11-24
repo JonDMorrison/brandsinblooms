@@ -370,7 +370,9 @@ export default function StudioPreviewDialog({
                 noWrap
                 sx={{ flexShrink: 0, maxWidth: "55%" }}
               >
-                {fillSampleMergeTags(subjectLine || "Untitled Campaign", sampleMergeData)}
+                {subjectLine.trim()
+                  ? fillSampleMergeTags(subjectLine, sampleMergeData)
+                  : "No subject yet"}
               </Typography>
               <Typography level="body-xs" noWrap sx={{ color: "neutral.500", minWidth: 0 }}>
                 {fillSampleMergeTags(previewText || "Preview text appears here", sampleMergeData)}

@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { APP_VIEWPORT_HEIGHT } from "@/lib/layout/appViewport";
 import Box from "@mui/joy/Box";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardShell } from "@/components/layout/DashboardShell";
@@ -45,7 +46,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         sx={{
           display: "flex",
           width: "100%",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           overflow: "hidden",
         }}
       >

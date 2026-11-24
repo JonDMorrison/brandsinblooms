@@ -67,6 +67,13 @@ describe('campaign display name (#8)', () => {
     })).toBe('Fresh evergreens');
     expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: [], date: '2026-11-23T12:00:00Z' })).toMatch(/^Draft, Nov 2[23], 2026$/);
   });
+  it('never uses the header store name as a title; Studio says Untitled draft (qa2 #10)', () => {
+    const blank = [{ type: 'newsletter-header', headline: 'Northfield Garden Center' }, { type: 'plain-text', headline: '' }];
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: blank, date: '2026-11-24T12:00:00Z' })).toMatch(/^Draft, Nov 2[45], 2026$/);
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: blank, emptyLabel: 'Untitled draft' })).toBe('Untitled draft');
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', firstHeadline: 'Celebrating Garden Successes' })).toBe('Celebrating Garden Successes');
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: 'Year-End Garden Review', emptyLabel: 'Untitled draft' })).toBe('Year-End Garden Review');
+  });
 });
 
 import { findIdentityMismatches } from './identityConsistency';
@@ -93,5 +100,92 @@ describe('identity consistency (#15)', () => {
   });
   it('ignores free-mail sender domains and missing values', () => {
     expect(findIdentityMismatches({ senderName: 'Northfield', senderEmail: 'owner@gmail.com', footerBusinessName: '' })).toEqual([]);
+  });
+});
+
+import { resolveDraftSenderDefaults, type SenderDomain } from './draftSenderDefaults';
+
+describe('new draft sender prefill (qa2 #2)', () => {
+  const northfield: SenderDomain = {
+    id: 'e80290a9-7f39-4564-8c8a-91798764dbdf',
+    domain: 'northfieldgardens.ca',
+    status: 'active',
+    default_from_email: null,
+    default_from_name: null,
+    default_reply_to: null,
+    created_at: '2026-11-22T12:05:58Z',
+  };
+
+  it('uses the tenant default sender first', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: northfield.id,
+      domains: [{ ...northfield, default_from_email: 'news@northfieldgardens.ca', default_from_name: 'Northfield News' }],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'mail@northfieldgardens.ca',
+      tenantName: 'Northfield',
+    });
+    expect(sender).toMatchObject({ senderName: 'Northfield News', senderEmail: 'news@northfieldgardens.ca', replyTo: 'news@northfieldgardens.ca', source: 'tenant_default' });
+  });
+
+  it('falls back to the company name and email when that domain is verified (Northfield today)', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: null,
+      domains: [northfield],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'mail@northfieldgardens.ca',
+      tenantName: 'Northfield',
+    });
+    expect(sender).toEqual({
+      senderName: 'Northfield Garden Center',
+      senderEmail: 'mail@northfieldgardens.ca',
+      replyTo: 'mail@northfieldgardens.ca',
+      fromEmailDomainId: northfield.id,
+      source: 'company_profile',
+    });
+  });
+
+  it('does not use a company email on an unverified domain', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: null,
+      domains: [{ ...northfield, status: 'pending_dns' }],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'mail@northfieldgardens.ca',
+      tenantName: null,
+    });
+    expect(sender.senderEmail).toBe('');
+    expect(sender.source).toBe('none');
+  });
+
+  it('uses the verified domain address when the company email is elsewhere', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: null,
+      domains: [northfield],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'owner@gmail.com',
+      tenantName: null,
+    });
+    expect(sender).toMatchObject({ senderEmail: 'mail@northfieldgardens.ca', senderName: 'Northfield Garden Center', source: 'verified_domain' });
+  });
+});
+
+import { selectCampaignsToCopy } from '@/hooks/useRecentCampaignsToCopy';
+
+describe('Copy a previous email list (qa2 #11)', () => {
+  const row = (id: string, status: string, updated: string, extra: Record<string, unknown> = {}) => ({
+    id, name: '', subject_line: '', status, sent_at: null, created_at: '2026-11-01T00:00:00Z', updated_at: updated, metadata: { contentBlocks: [] }, ...extra,
+  });
+  const text = { contentBlocks: [{ id: 't', type: 'plain-text', body: '<p>Hours</p>' }] };
+
+  it('leaves out empty drafts and lists sent emails first, then drafts by last edit', () => {
+    const list = selectCampaignsToCopy([
+      row('empty-draft', 'draft', '2026-11-24T10:00:00Z'),
+      row('old-draft', 'draft', '2026-11-20T10:00:00Z', { metadata: text }),
+      row('new-draft', 'draft', '2026-11-23T10:00:00Z', { subject_line: 'Holiday hours' }),
+      row('sent-old', 'sent', '2026-11-24T11:00:00Z', { sent_at: '2026-10-01T00:00:00Z', subject_line: 'October' }),
+      row('sent-new', 'sent', '2026-11-24T11:00:00Z', { sent_at: '2026-11-01T00:00:00Z', subject_line: 'November' }),
+      row('sms', 'draft', '2026-11-24T12:00:00Z', { metadata: { campaignType: 'sms' }, subject_line: 'x' }),
+    ]);
+    expect(list.map((item) => item.id)).toEqual(['sent-new', 'sent-old', 'new-draft', 'old-draft']);
+    expect(list[2].displayName).toBe('Holiday hours');
   });
 });

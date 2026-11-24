@@ -101,10 +101,11 @@ vi.mock("@/hooks/useUserRole", () => ({
 
 const tenantMock = vi.hoisted(() => ({
   tenant: { id: "tenant-1", name: "Bloom Flowers" } as { id: string; name: string } | null,
+  loading: false,
 }));
 
 vi.mock("@/hooks/useTenant", () => ({
-  useTenant: () => ({ tenant: tenantMock.tenant }),
+  useTenant: () => ({ tenant: tenantMock.tenant, loading: tenantMock.loading }),
 }));
 
 vi.mock("@/components/TrialBanner", () => ({
@@ -632,6 +633,19 @@ describe("DashboardShell", () => {
     expect(tenantName).toHaveTextContent("Bloom Flowers Garden Centre and Nursery");
     expect(tenantName).toHaveAttribute("title", "Bloom Flowers Garden Centre and Nursery");
     expect(screen.queryByText("Tenant workspace")).not.toBeInTheDocument();
+  });
+
+  it("shows neutral placeholders, not admin links, until the tenant has loaded (qa2 #13)", () => {
+    setViewportWidth(1440);
+    tenantMock.tenant = null;
+    tenantMock.loading = true;
+    try {
+      renderTenantShell();
+      expect(screen.getByTestId("dashboard-sidebar-skeleton")).toBeInTheDocument();
+      expect(screen.queryByText("Find a client")).not.toBeInTheDocument();
+    } finally {
+      tenantMock.loading = false;
+    }
   });
 
   it("falls back to the generic tenant label when the business has no name", () => {

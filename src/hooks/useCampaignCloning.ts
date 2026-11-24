@@ -5,6 +5,7 @@ import { toast } from '@/utils/toast';
 import { refreshHeaderDates } from '@/lib/crm/placeholderScan';
 import { buildCampaignBlockRows } from '@/lib/crm/campaignDraftPersistence';
 import { buildCampaignOrigin } from '@/lib/crm/campaignOrigin';
+import { loadDraftSenderDefaults } from '@/lib/crm/draftSenderDefaults';
 import type { StudioBlock } from '@/types/studioBlocks';
 
 export interface CampaignData {
@@ -81,6 +82,29 @@ export const useCampaignCloning = () => {
       const sourceSmsMessage = typeof sourceMetadata.smsMessage === 'string' ? sourceMetadata.smsMessage : '';
       const isEmailCampaign = String(sourceMetadata.campaignType ?? 'email').toLowerCase() !== 'sms';
 
+      // A copy keeps the original's sender; when the original had none (an
+      // older blank draft), it starts with the tenant's sender like any new draft.
+      const sourceSenderEmail =
+        originalCampaign.actual_sender_email?.trim() ||
+        originalCampaign.sender_email?.trim() ||
+        '';
+      const senderDefaults =
+        isEmailCampaign && !sourceSenderEmail && originalCampaign.tenant_id
+          ? await loadDraftSenderDefaults({
+              tenantId: originalCampaign.tenant_id,
+              userId: user.id,
+            })
+          : null;
+      const sourceSenderName =
+        originalCampaign.sender_display_name?.trim() ||
+        originalCampaign.sender_name?.trim() ||
+        '';
+      const senderName = sourceSenderName || senderDefaults?.senderName || '';
+      const senderEmail = sourceSenderEmail || senderDefaults?.senderEmail || '';
+      const sourceReplyTo =
+        typeof sourceMetadata.replyTo === 'string' ? sourceMetadata.replyTo.trim() : '';
+      const replyTo = sourceReplyTo || senderDefaults?.replyTo || senderEmail;
+
       // 3. Prepare cloned campaign data with EXPLICIT source_campaign_id tracking
       const clonedCampaignData = {
         name: options.newName || `${originalCampaign.name} (Copy)`,
@@ -89,8 +113,14 @@ export const useCampaignCloning = () => {
         content: originalCampaign.content,
         status: 'draft' as const,
         delivery_method: originalCampaign.delivery_method,
-        sender_display_name: originalCampaign.sender_display_name,
-        actual_sender_email: originalCampaign.actual_sender_email,
+        sender_name: senderName,
+        sender_display_name: senderName,
+        sender_email: senderEmail,
+        actual_sender_email: senderEmail,
+        from_email_domain_id:
+          originalCampaign.from_email_domain_id ??
+          senderDefaults?.fromEmailDomainId ??
+          null,
         user_id: user.id,
         tenant_id: originalCampaign.tenant_id,
         // CRITICAL: Set source_campaign_id for explicit tracking of cloned campaigns
@@ -105,6 +135,7 @@ export const useCampaignCloning = () => {
         metadata: originalCampaign.metadata ? {
           ...sourceMetadata,
           ...(refreshedBlocks ? { contentBlocks: refreshedBlocks } : {}),
+          replyTo,
           // Never carry rendered email HTML into the copy's SMS draft.
           ...(isEmailCampaign && /^\s*<(?:!doctype|html|body|table|div)\b/i.test(sourceSmsMessage)
             ? { smsMessage: '' }

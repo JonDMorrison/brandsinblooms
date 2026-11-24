@@ -1,3 +1,4 @@
+import { APP_VIEWPORT_HEIGHT } from "@/lib/layout/appViewport";
 import {
   createContext,
   lazy,
@@ -352,7 +353,7 @@ export function DashboardShell({
         sx={{
           position: "relative",
           width: "100%",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           overflow: "hidden",
           display: "grid",
           gridTemplateColumns: isMobile

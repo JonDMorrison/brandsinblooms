@@ -57,6 +57,9 @@ export interface AdminTenant {
   health_score: number | null;
   onboarding_steps_done: number | null;
   onboarding_steps_total: number | null;
+  /** BloomSites custom domain (public.domains, type custom), when one exists. */
+  site_domain?: string | null;
+  site_domain_status?: string | null;
 }
 
 interface TenantTableProps {
@@ -280,6 +283,14 @@ export const TenantTable = ({
                     >
                       {tenant.website || "No website"}
                     </Typography>
+                    {tenant.site_domain ? (
+                      <Typography level="body-xs" sx={{ color: "neutral.700" }}>
+                        BloomSites: {tenant.site_domain}
+                        {tenant.site_domain_status && tenant.site_domain_status !== "active"
+                          ? " (not live yet)"
+                          : ""}
+                      </Typography>
+                    ) : null}
                     <Typography level="body-xs" color="neutral">
                       {formatLocation(
                         tenant.city,
