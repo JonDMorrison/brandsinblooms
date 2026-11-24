@@ -1,7 +1,4 @@
--- NOT YET APPLIED to udldmkqwnxhdeztyqcau: apply_migration needed an interactive
--- confirmation that nobody could answer during workspace QA pass 3.
--- Apply after review (Supabase SQL editor or apply_migration), then rename this
--- file to the recorded version.
+-- Applied to udldmkqwnxhdeztyqcau on 2026-11-24 (recorded version in filename).
 -- workspace-qa3 #9: static demo segments are recomputed from their own rules
 -- after the daily date shift (called at the end of refresh_greenfield_demo),
 -- so no member breaks its segment's rule.

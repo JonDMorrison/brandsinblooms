@@ -1,7 +1,4 @@
--- NOT YET APPLIED to udldmkqwnxhdeztyqcau: apply_migration needed an interactive
--- confirmation that nobody could answer during workspace QA pass 3.
--- Apply after review (Supabase SQL editor or apply_migration), then rename this
--- file to the recorded version.
+-- Applied to udldmkqwnxhdeztyqcau on 2026-11-24 (recorded version in filename).
 -- workspace-qa3 #8 #10: Northfield demo refresh.
 --  #8 demo forms get 32-character hex embed keys; the job never writes
 --     slug-style keys again (get-form-config rejects them, so the public
