@@ -52,7 +52,8 @@ describe("customer purchase summary: one source of truth", () => {
     expect(purchases.totalPurchases).toBe(22);
     expect(purchases.lastPurchaseDate).toBe("2026-11-15");
 
-    const bloom = buildCustomerFocus(northfield2289).resourceSummary;
+    // Bloom tool rows carry lifetime_value as a number.
+    const bloom = buildCustomerFocus({ ...northfield2289, lifetime_value: 6921.81 }).resourceSummary;
     expect(bloom).toMatch(/Lifetime Value: \$3,?700\.91/);
     expect(bloom).not.toMatch(/6,?921/);
     expect(bloom).toMatch(/Total Orders: 22/);
