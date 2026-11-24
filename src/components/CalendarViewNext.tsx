@@ -352,6 +352,7 @@ export const CalendarView = React.memo(function CalendarView({
           const scheduledAt = new Date(`${date}T09:00:00`);
 
           await persistCampaignDraft({
+            tenantId: tenant.id,
             campaignType: "email",
             status: "scheduled",
             name: title,
