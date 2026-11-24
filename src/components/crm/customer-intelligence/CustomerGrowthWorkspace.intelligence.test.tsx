@@ -157,10 +157,16 @@ describe("Customer growth dashboard safety and interaction", () => {
     render(<CustomerGrowthDashboardBody tenantId="synthetic-tenant" timezone="UTC" />);
     expect(screen.queryByText("Source coverage review")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button",{name:"Load customer growth dashboard"}));
-    expect(await screen.findByText("Imported-report customer growth")).toBeVisible();
+    expect(await screen.findByText("Customer retention & growth")).toBeVisible();
+    expect(screen.getByText("2026 active customers (observed)")).toBeVisible();
+    expect(within(screen.getByText("2026 active customers (observed)").parentElement!).getByRole("heading")).toHaveTextContent(/^3$/);
+    expect(within(screen.getByText("Customer retention rate").parentElement!).getByRole("heading")).toHaveTextContent("50.00%");
+    expect(screen.getByText("Where our 2026 customers came from")).toBeVisible();
+    expect(screen.getAllByText("1 · 33.3%")).toHaveLength(3);
+    fireEvent.click(screen.getByText("Comparison dates and calculation details"));
     expect(screen.getByText(/Current source: 2026-01-01 through 2026-10-14/)).toBeVisible();
     expect(screen.getByText(/Spending export 2026-01-01 through 2026-11-02/)).toHaveTextContent("unmatched source rows remain");
-    expect(screen.getByText(/Observed positive-net purchasers/)).toHaveTextContent("not certified complete business totals");
+    expect(screen.getByText(/Observed positive-net purchasers/)).toHaveTextContent("Complete business coverage is not established");
     expect(screen.getByText(/First observed is not first-ever/)).toBeVisible();
     expect(screen.getByText(/Loaded-fact exclusions only/)).toHaveTextContent("2 unlinked source summaries; 1 distinct unavailable customer IDs");
     expect(screen.getByText(/quarantined group count unknown/)).toBeVisible();
@@ -171,7 +177,7 @@ describe("Customer growth dashboard safety and interaction", () => {
     expect(screen.getByRole("spinbutton",{name:"Reporting year"})).toHaveValue(new Date().getUTCFullYear());
     expect(mocks.reported.mock.calls[0][3]).toBe(new Date().getUTCFullYear());
     fireEvent.change(screen.getByRole("spinbutton",{name:"Reporting year"}),{target:{value:"2023"}});
-    expect(screen.queryByText("Imported-report customer growth")).not.toBeInTheDocument();
+    expect(screen.queryByText("Customer retention & growth")).not.toBeInTheDocument();
   });
   it("bounds historical order reads without dropping earlier history or null dates", async () => {
     const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), lte: vi.fn(), or: vi.fn(), order: vi.fn(), range: vi.fn() };
