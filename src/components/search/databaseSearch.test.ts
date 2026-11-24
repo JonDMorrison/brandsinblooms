@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { buildSearchRequestConfig } from "@/components/search/searchFilters";
 import {
   applyRouteVisitBoost,
   getCachedDatabaseSearchGroups,
   getRetryAfterSeconds,
+  getSearchErrorFromResponse,
+  getSearchWarningFromResponse,
   mergeSearchGroups,
   normalizeSearchGroups,
   setCachedDatabaseSearchGroups,
@@ -189,6 +192,31 @@ describe("databaseSearch", () => {
       expect(getCachedDatabaseSearchGroups("crm|customers")).toEqual([]);
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe("global search errors and scope (qa4 #7)", () => {
+  it("turns a timed-out customer search into an error, not 'no results'", () => {
+    const response = {
+      groups: [],
+      warnings: ["Some customers results may be missing."],
+      meta: { timed_out_types: ["customer"], failed_types: [] },
+    };
+    expect(getSearchErrorFromResponse(response)).toMatch(/took too long for customer records/);
+  });
+
+  it("reports a failed type and stays quiet when everything answered", () => {
+    expect(getSearchErrorFromResponse({ meta: { timed_out_types: [], failed_types: ["product"] } }))
+      .toMatch(/failed for product records/);
+    expect(getSearchErrorFromResponse({ groups: [], warnings: [], meta: { timed_out_types: [], failed_types: [] } })).toBeNull();
+    expect(getSearchWarningFromResponse({ warnings: [] })).toBeNull();
+  });
+
+  it("searches customers and products from any page when no filter is picked", () => {
+    for (const pathname of ["/crm/campaigns/c0f48125-3b4b-48fb-9e13-da87c3868674", "/crm/customers", "/products"]) {
+      const config = buildSearchRequestConfig("all", pathname);
+      expect(config.entityTypes).toEqual(expect.arrayContaining(["customer", "product"]));
     }
   });
 });

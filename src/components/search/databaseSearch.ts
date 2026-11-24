@@ -249,6 +249,52 @@ export function getRetryAfterSeconds(error: unknown) {
   return 60;
 }
 
+const ENTITY_ERROR_LABELS: Record<string, string> = {
+  customer: "Customer",
+  campaign: "Campaign",
+  campaign_recipient: "Recipient",
+  product: "Product",
+  segment: "Segment",
+  persona: "Persona",
+  automation: "Automation",
+  form: "Form",
+  saved_block: "Saved block",
+  sms_campaign: "SMS campaign",
+  sms_automation: "SMS automation",
+  activity: "Activity",
+  ticket: "Ticket",
+  integration: "Integration",
+};
+
+function readTypeList(meta: unknown, key: string) {
+  if (!meta || typeof meta !== "object") return [] as string[];
+  const value = (meta as Record<string, unknown>)[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+/**
+ * An error message when part of the search timed out or failed, so the
+ * palette shows an error state instead of "No matches". Null otherwise.
+ */
+export function getSearchErrorFromResponse(
+  response: SearchEntitiesFunctionResponse | null | undefined,
+) {
+  const timedOut = readTypeList(response?.meta, "timed_out_types");
+  const failed = readTypeList(response?.meta, "failed_types");
+  const describe = (types: string[]) =>
+    types.map((type) => ENTITY_ERROR_LABELS[type] ?? type).join(", ").toLowerCase();
+  if (timedOut.length > 0) {
+    const label = describe(timedOut);
+    return `Search took too long for ${label} records, so some results are missing. Try again or use a longer search term.`;
+  }
+  if (failed.length > 0) {
+    return `Search failed for ${describe(failed)} records, so some results are missing. Try again.`;
+  }
+  return null;
+}
+
 export function getSearchWarningFromResponse(
   response: SearchEntitiesFunctionResponse | null | undefined,
 ) {

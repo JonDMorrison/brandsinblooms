@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getCachedDatabaseSearchGroups,
   getRetryAfterSeconds,
+  getSearchErrorFromResponse,
   getSearchWarningFromResponse,
   isDatabaseSearchRateLimited,
   mergeSearchGroups,
@@ -17,6 +18,7 @@ import {
 import { searchStaticRegistry } from "@/components/search/staticSearchRegistry";
 import type { SearchResultGroup } from "@/components/search/types";
 import { supabase } from "@/integrations/supabase/client";
+import { getAdminTenantHeaderValue } from "@/integrations/supabase/adminTenantScope";
 
 const MIN_DATABASE_QUERY_LENGTH = 2;
 
@@ -72,6 +74,7 @@ export function useCommandPaletteSearch(
     total: 0,
   });
   const [warning, setWarning] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   requestConfigRef.current = requestConfig;
 
@@ -82,6 +85,7 @@ export function useCommandPaletteSearch(
     if (trimmedStaticQuery !== trimmedDatabaseQuery) {
       setDatabaseResults([]);
       setWarning(null);
+      setSearchError(null);
       setDatabaseMeta({
         degraded: false,
         fuzzy: false,
@@ -99,6 +103,7 @@ export function useCommandPaletteSearch(
       setDatabaseResults([]);
       setIsDatabaseLoading(false);
       setWarning(null);
+      setSearchError(null);
       setDatabaseMeta({
         degraded: false,
         fuzzy: false,
@@ -111,6 +116,7 @@ export function useCommandPaletteSearch(
       setDatabaseResults([]);
       setIsDatabaseLoading(false);
       setWarning(null);
+      setSearchError(null);
       setDatabaseMeta({
         degraded: false,
         fuzzy: false,
@@ -123,6 +129,7 @@ export function useCommandPaletteSearch(
 
     setDatabaseResults(cachedGroups);
     setWarning(null);
+    setSearchError(null);
 
     if (isDatabaseSearchRateLimited()) {
       setIsDatabaseLoading(false);
@@ -144,6 +151,8 @@ export function useCommandPaletteSearch(
               campaign_id: activeRequestConfig.campaignId,
               entity_types: activeRequestConfig.entityTypes,
               fuzzy: true,
+              // A master admin's company for this tab (see adminTenantScope).
+              admin_tenant_id: getAdminTenantHeaderValue() ?? null,
             },
           },
         );
@@ -161,6 +170,7 @@ export function useCommandPaletteSearch(
 
           setDatabaseResults(cachedGroups);
           setWarning("Some results may be missing.");
+          setSearchError("Search is unavailable right now. Try again in a moment.");
           setDatabaseMeta({
             degraded: false,
             fuzzy: false,
@@ -175,7 +185,9 @@ export function useCommandPaletteSearch(
         setCachedDatabaseSearchGroups(cacheKey, nextGroups);
         setDatabaseResults(nextGroups);
         setDatabaseMeta(normalizeSearchMeta(data));
-        setWarning(getSearchWarningFromResponse(data));
+        const responseError = getSearchErrorFromResponse(data);
+        setSearchError(responseError);
+        setWarning(responseError ? null : getSearchWarningFromResponse(data));
         setIsDatabaseLoading(false);
       } catch (error) {
         if (isCancelled) {
@@ -185,6 +197,7 @@ export function useCommandPaletteSearch(
         console.error("[useCommandPaletteSearch] search-entities failed:", error);
         setDatabaseResults(cachedGroups);
         setWarning("Some results may be missing.");
+        setSearchError("Search is unavailable right now. Try again in a moment.");
         setDatabaseMeta({
           degraded: false,
           fuzzy: false,
@@ -210,5 +223,6 @@ export function useCommandPaletteSearch(
     isDatabaseLoading,
     databaseMeta,
     warning,
+    searchError,
   };
 }

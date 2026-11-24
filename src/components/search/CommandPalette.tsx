@@ -548,15 +548,23 @@ export function CommandPalette({
       ? selectedFilter
       : contextualFilter
     : "all";
+  // The page's section (contextualFilter) only decides which group is shown
+  // first. Records are always searched across every type unless the user
+  // picks a filter: searching "Tremblay" from a campaign page used to query
+  // campaigns only and showed no customers.
+  const databaseFilter = trimmedSearchQuery && hasUserSelectedFilter
+    ? selectedFilter
+    : "all";
   const {
     results: rawResults,
     databaseMeta,
     isDatabaseLoading,
     warning,
+    searchError,
   } = useCommandPaletteSearch(
     staticSearchQuery,
     databaseSearchQuery,
-    requestedFilter,
+    databaseFilter,
     pathname,
     user?.id ?? "anonymous",
   );
@@ -1803,6 +1811,7 @@ export function CommandPalette({
                   routeAwareSuggestions={routeAwareSuggestions}
                   showShortcuts={showShortcuts}
                   warning={warning}
+                  searchError={searchError}
                 />
               </Box>
 

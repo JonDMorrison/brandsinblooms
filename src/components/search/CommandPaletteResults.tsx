@@ -52,6 +52,8 @@ interface CommandPaletteResultsProps {
   routeAwareSuggestions: SearchResultItem[];
   showShortcuts?: boolean;
   warning: string | null;
+  /** A search that timed out or failed: shown instead of "No matches". */
+  searchError?: string | null;
 }
 
 export function CommandPaletteResults({
@@ -82,6 +84,7 @@ export function CommandPaletteResults({
   routeAwareSuggestions,
   showShortcuts = false,
   warning,
+  searchError = null,
 }: CommandPaletteResultsProps) {
   const [showLoadingSkeleton, setShowLoadingSkeleton] = useState(false);
 
@@ -132,7 +135,7 @@ export function CommandPaletteResults({
     );
   }
 
-  const showNoResults = results.length === 0 && !isDatabaseLoading;
+  const showNoResults = results.length === 0 && !isDatabaseLoading && !searchError;
 
   return (
     <Box
@@ -168,6 +171,21 @@ export function CommandPaletteResults({
       {showLoadingSkeleton ? <CommandPaletteResultsSkeleton /> : null}
 
       {showNoResults ? <CommandPaletteNoResults query={query} /> : null}
+
+      {searchError && !isDatabaseLoading ? (
+        <Box sx={{ px: 1.5, pb: 1.5, pt: results.length > 0 ? 0.75 : 1.5 }}>
+          <Alert
+            color="danger"
+            variant="soft"
+            role="alert"
+            data-testid="search-error-state"
+            startDecorator={<CircleAlert size={18} strokeWidth={1.9} />}
+            sx={{ alignItems: "center" }}
+          >
+            {searchError}
+          </Alert>
+        </Box>
+      ) : null}
 
       {isDatabaseLoading || warning ? (
         <Box

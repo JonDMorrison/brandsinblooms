@@ -63,6 +63,13 @@ type SearchResultGroup = {
 
 type SearchRequestBody = {
   query?: unknown;
+  /**
+   * The company a master admin is working in for this browser tab (the
+   * x-bloom-admin-tenant value). Edge function CORS does not allow that
+   * header, so the client sends it in the body; public.admin_active_tenant_id
+   * only honours it for master admins.
+   */
+  admin_tenant_id?: unknown;
   entity_types?: unknown;
   campaign_id?: unknown;
   fuzzy?: unknown;
@@ -740,6 +747,37 @@ function normalizeWebsiteHost(value: string | null) {
       return null;
     }
   }
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The admin tab's company from the body: a uuid, "none", or nothing. */
+function normalizeAdminTenantHeader(input: unknown) {
+  if (typeof input !== "string") return null;
+  const value = input.trim();
+  if (value.toLowerCase() === "none") return "none";
+  return UUID_PATTERN.test(value) ? value.toLowerCase() : null;
+}
+
+/**
+ * The tenant to search: a master admin's active company for this tab
+ * (public.admin_active_tenant_id, the same rule RLS uses), otherwise the
+ * user's own public.users.tenant_id. Without this, an admin viewing a
+ * customer's company searched their own company and got no results.
+ */
+async function resolveSearchTenantId(
+  supabase: SupabaseClientLike,
+  userId: string,
+) {
+  const { data: adminTenantId, error } = await supabase.rpc(
+    "admin_active_tenant_id",
+  );
+  if (error) {
+    console.warn("[search-entities] admin_active_tenant_id failed:", error.message);
+  } else if (typeof adminTenantId === "string" && adminTenantId) {
+    return adminTenantId;
+  }
+  return resolveUserTenantId(supabase, userId);
 }
 
 async function resolveUserTenantId(
@@ -1852,6 +1890,7 @@ Deno.serve(async (req) => {
     const fuzzy = normalizeFuzzy(body?.fuzzy);
     const limit = normalizeLimit(body?.limit);
     const offset = normalizeOffset(body?.offset);
+    const adminTenantHeader = normalizeAdminTenantHeader(body?.admin_tenant_id);
 
     if (query.length < MIN_QUERY_LENGTH) {
       return jsonResponse({
@@ -1875,6 +1914,9 @@ Deno.serve(async (req) => {
       global: {
         headers: {
           Authorization: authHeader,
+          // RLS (admin_active_tenant_id) reads the admin tab's company from
+          // this header, exactly as for the app's own REST requests.
+          ...(adminTenantHeader ? { "x-bloom-admin-tenant": adminTenantHeader } : {}),
         },
       },
     });
@@ -1900,7 +1942,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userTenantId = await resolveUserTenantId(supabase, user.id);
+    const userTenantId = await resolveSearchTenantId(supabase, user.id);
 
     if (!userTenantId) {
       return jsonResponse({ error: "No tenant membership found for user." }, 403);
@@ -1997,7 +2039,20 @@ Deno.serve(async (req) => {
     });
 
     const searchResults = await Promise.all(searchTasks);
-    const timeoutCount = searchResults.filter((result) => result.timedOut).length;
+    const timedOutTypes = searchResults
+      .filter((result) => result.timedOut)
+      .map((result) => result.type);
+    const failedTypes = searchResults
+      .filter((result) => result.warning && !result.timedOut)
+      .map((result) => result.type);
+    const timeoutCount = timedOutTypes.length;
+    if (timeoutCount > 0) {
+      console.warn("[search-entities] search timed out", {
+        tenantId: userTenantId,
+        types: timedOutTypes,
+        queryLength: query.length,
+      });
+    }
     const degraded = timeoutCount > 3;
     const warnings = searchResults
       .map((result) => result.warning)
@@ -2017,6 +2072,10 @@ Deno.serve(async (req) => {
       meta: {
         duration_ms: Date.now() - startedAt,
         degraded,
+        // Types whose query timed out or failed: the client shows an error
+        // state for them instead of "no results".
+        timed_out_types: timedOutTypes,
+        failed_types: failedTypes,
         entity_types: entityTypes,
         fuzzy,
         total: totalCount,
