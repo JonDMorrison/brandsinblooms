@@ -1,5 +1,8 @@
-import {describe,expect,it} from 'vitest';
-import {selectObservedJournalSource,summarizeObservedJournal,compareObservedJournalPeriods,journalCoverage,journalBusinessDay,type JournalSource,type JournalLine,type JournalCustomer} from '../../../../supabase/functions/_shared/customer-intelligence/observed-ideal-journal';
+import {afterAll,beforeAll,describe,expect,it,vi} from 'vitest';
+import {webcrypto} from 'node:crypto';
+beforeAll(()=>vi.stubGlobal('crypto',webcrypto));
+afterAll(()=>vi.unstubAllGlobals());
+import {selectObservedJournalSource,summarizeObservedJournal,compareObservedJournalPeriods,journalCoverage,journalBusinessDay,observedDeclineReview,type JournalSource,type JournalLine,type JournalCustomer} from '../../../../supabase/functions/_shared/customer-intelligence/observed-ideal-journal';
 const tenant='synthetic-tenant',timezone='America/Vancouver',cutoff='2026-11-23T20:00:00Z',sha='a'.repeat(64);
 const source=(year:string):JournalSource=>({id:'journal-'+year,tenant_id:tenant,source:'ideal',report_type:'journal',status:'completed',source_period_start:year+'-01-01',source_period_end:year+'-12-31',source_filename:'Synthetic journal',source_sha256:sha,created_at:'2026-11-01T00:00:00Z',completed_at:'2026-11-01T01:00:00Z',reconciliation:{timezone,applied:{lines:20,net_cents:1000},expected:{lines:20,net_cents:1000,sha256:sha}}});
 const win=(year:string)=>({start:year+'-10-01',end:year+'-10-31'});
@@ -51,6 +54,18 @@ describe('observed IdealPOS journal evidence',()=>{
   expect(result).toMatchObject({comparable:1,unscored:1,baselineObservedBuyers:2,currentObservedBuyers:1});
   expect(result.rows.find(r=>r.id==='a')).toMatchObject({baselineReceipts:1,currentReceipts:2,baselinePurchaseDays:1,currentPurchaseDays:1,observedGrowth:75});
   expect(result.rows.find(r=>r.id==='b')).toMatchObject({currentSpend:null,currentReceipts:null,observedGrowth:null});
+ });
+ it('binds decline review to exact source, customer membership and values rather than count or read time',async()=>{
+  const args={baseline_start:win('2024').start,baseline_end:win('2024').end,current_start:win('2025').start,current_end:win('2025').end,currency:'CAD',timezone,data_cutoff:cutoff,spend_weight:50,visits_weight:50};
+  const before=summarizeObservedJournal([line('2024','1','a',20),line('2024','2','b',20,'b','0002')],customers,source('2024'),tenant,win('2024'),'CAD',timezone,cutoff);
+  const after=summarizeObservedJournal([line('2025','3','a',10),line('2025','4','b',30,'b','0002')],customers,source('2025'),tenant,win('2025'),'CAD',timezone,cutoff);
+  const first=await observedDeclineReview(before,after,args);
+  expect(first.memberIds).toEqual(['a']);
+  const swapped=summarizeObservedJournal([line('2025','3','a',30),line('2025','4','b',10,'b','0002')],customers,source('2025'),tenant,win('2025'),'CAD',timezone,cutoff);
+  expect((await observedDeclineReview(before,swapped,args)).memberIds).toEqual(['b']);
+  expect((await observedDeclineReview(before,swapped,args)).digest).not.toBe(first.digest);
+  const later='2026-11-24T20:00:00Z';
+  expect((await observedDeclineReview({...before,cutoff:later},{...after,cutoff:later},{...args,data_cutoff:later})).digest).toBe(first.digest);
  });
  it('counts each local date once, excludes free and refund-only days, and retains separate receipt totals',()=>{
   const lines=[line('2025','1','r1',10),line('2025','2','r2',20),

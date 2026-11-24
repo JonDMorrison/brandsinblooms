@@ -161,6 +161,17 @@ export function compareObservedJournalPeriods(before:ObservedJournalPeriod,after
   const comparable=rows.filter(r=>r.observedGrowth!==null);
   return {rows,comparable:comparable.length,unscored:rows.length-comparable.length,declining:comparable.filter(r=>r.observedGrowth!<0).length,baselineObservedBuyers:before.customers.filter(c=>c.positiveReceipts>0).length,currentObservedBuyers:after.customers.filter(c=>c.positiveReceipts>0).length};
 }
+/** Bind the reviewed audience to both source identities, settings and exact recorded
+ * values. No names, email addresses or unstable read timestamps enter the digest. */
+export async function observedDeclineReview(before:ObservedJournalPeriod,after:ObservedJournalPeriod,settings:GrowthSettings){
+  const report=compareObservedJournalPeriods(before,after,settings);
+  const selected=report.rows.filter(r=>r.observedGrowth!==null&&r.observedGrowth<0).sort((a,b)=>a.id.localeCompare(b.id));
+  const memberIds=selected.map(r=>r.id);
+  const source=(p:ObservedJournalPeriod)=>[p.source.id,p.source.source_sha256,p.source.completed_at,journalCoverage(p.source),record(p.source.reconciliation).cohort_control_sha256??null];
+  const serialized=JSON.stringify([1,before.tenantId,source(before),source(after),settings.baseline_start,settings.baseline_end,settings.current_start,settings.current_end,settings.currency,settings.timezone,settings.spend_weight,settings.visits_weight,settings.per_day_rates===true,report.comparable,report.unscored,selected.map(r=>[r.id,r.baselineSpend,r.currentSpend,r.baselinePurchaseDays,r.currentPurchaseDays,r.observedGrowth])]);
+  const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(serialized)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return {digest,memberIds,comparable:report.comparable,unscored:report.unscored};
+}
 const fields='id,tenant_id,source,report_type,status,source_period_start,source_period_end,source_filename,source_sha256,created_at,completed_at,reconciliation';
 export async function loadObservedJournalSources(client:PersistenceClient,tenantId:string,cutoff:string):Promise<JournalSource[]> {
   for(const permission of ['customer.read','reporting.read']){

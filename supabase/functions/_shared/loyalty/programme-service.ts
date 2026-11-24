@@ -2,7 +2,8 @@ import {campaignEvidence,loadCampaignSupplement,type CampaignMessage} from "./pr
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
 import { readAllPages } from "../customer-intelligence/query-pages.ts";
 import type { GrowthOrder } from "../customer-intelligence/customer-growth.ts";
-import {loadObservedJournalPeriod} from "../customer-intelligence/observed-ideal-journal.ts";
+import {loadObservedJournalPeriod,observedDeclineReview,journalCoverage} from "../customer-intelligence/observed-ideal-journal.ts";
+import {validateGrowthSettings,type GrowthSettings} from "../customer-intelligence/customer-growth.ts";
 import {observedJournalCampaignOutcome,type JournalCampaignMessage} from "./journal-campaign-outcomes.ts";
 import {
   parseProgrammeDraft,
@@ -625,6 +626,33 @@ export async function executeProgrammeCommand(
           "Saved Bloom results could not be loaded.",
         );
       return { segments, bloomSets: sets.data, bloomSetLimit: 50 };
+    }
+    case "save_journal_decline_segment": {
+      fields(p,["settings","reviewDigest","expectedCount","name","confirmed"]);
+      confirmed(p);
+      for(const permission of ["customer.read","reporting.read","segment.write"]){
+        const {data,error}=await c.userClient.rpc("has_tenant_permission",{p_tenant_id:c.tenantId,p_permission:permission,p_location_id:null});
+        if(error||data!==true)throw new ProgrammeError(403,"Company-wide customer, reporting and segment management access is required.");
+      }
+      const name=text(p.name,"Segment name",120),reviewDigest=digest(p.reviewDigest);
+      if(!Number.isInteger(p.expectedCount)||Number(p.expectedCount)<1||Number(p.expectedCount)>20000)throw new ProgrammeError(400,"Review a nonempty bounded audience.");
+      const requested=strictRecord(p.settings,"Growth settings");
+      const keys=["baseline_start","baseline_end","current_start","current_end","currency","timezone","spend_weight","visits_weight","per_day_rates"];
+      if(Object.keys(requested).some(k=>!keys.includes(k))||!["baseline_start","baseline_end","current_start","current_end","currency","timezone"].every(k=>typeof requested[k]==="string")||typeof requested.spend_weight!=="number"||typeof requested.visits_weight!=="number"||(requested.per_day_rates!==undefined&&typeof requested.per_day_rates!=="boolean"))throw new ProgrammeError(400,"Invalid growth comparison settings.");
+      const args={...requested,data_cutoff:cutoff} as unknown as GrowthSettings;
+      validateGrowthSettings(args);
+      // Recompute from authorized source records, not browser-supplied customer IDs.
+      // The reviewed digest detects changed membership or values even at equal count.
+      const [before,after]=await Promise.all([
+        loadObservedJournalPeriod(c.userClient,c.tenantId,{start:args.baseline_start,end:args.baseline_end},args.currency,args.timezone,cutoff),
+        loadObservedJournalPeriod(c.userClient,c.tenantId,{start:args.current_start,end:args.current_end},args.currency,args.timezone,cutoff)
+      ]);
+      const reviewed=await observedDeclineReview(before,after,args);
+      if(reviewed.digest!==reviewDigest||reviewed.memberIds.length!==p.expectedCount)throw new ProgrammeError(409,"The comparison changed. Re-run and review the exact audience before saving.");
+      const saved=await rpc(c,"save_observed_journal_segment_v1",{p_name:name,p_digest:reviewed.digest,p_ids:reviewed.memberIds,p_provenance:{
+        basis:"observed_journal_comparison",settings:args,baselineSource:{id:before.source.id,sha256:before.source.source_sha256,coverage:journalCoverage(before.source)},currentSource:{id:after.source.id,sha256:after.source.source_sha256,coverage:journalCoverage(after.source)},source_coverage_complete:false,comparable_count:reviewed.comparable,unknown_count:reviewed.unscored,original_count:reviewed.memberIds.length,sendingConsentChecked:false
+      }});
+      return {saved,note:"Saved exact observed decline audience. No campaign sent; email eligibility is checked separately."};
     }
     case "journal_campaign_choices": {
       fields(p,[]);
