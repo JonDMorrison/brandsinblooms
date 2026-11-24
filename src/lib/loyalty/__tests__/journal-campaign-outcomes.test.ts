@@ -21,6 +21,11 @@ describe('observed journal campaign outcomes',()=>{
   const result=observedJournalCampaignOutcome(period([]),['a'],campaign,[m('1','a')],'2025-10-11T17:00:00Z',null);
   expect(result).toMatchObject({observedNetSpendMinor:null,baselineCapturedBeforeFirstSend:false,sentCustomersWithoutObservedPositivePurchase:1});
  });
+ it('keeps partial campaign source coverage explicit and uses the original BC date after the final transition',()=>{
+  const p={...period([]),cutoff:'2026-11-23T20:00:00Z',window:{start:'2026-11-02',end:'2026-11-02'},source:{...source,report_type:'journal_partial',reconciliation:{timestamp_rule:'BC 2026 March 8 final transition; explicit original wall-clock offset; no November fallback',applied:{source_receipts:4,receipts:2,excluded_receipts:2,customers:1}}},receiptEvidence:[{...r('r','a','2026-11-02',1000),timestamp:'2026-11-02T07:30:00Z'}]};
+  const result=observedJournalCampaignOutcome(p,['a','b'],campaign,[m('1','a','2026-11-02T07:00:00Z')],'2026-11-01T17:00:00Z',null);
+  expect(result).toMatchObject({coverage:{mode:'reconciled_customer_cohort',complete:false,sourceReceipts:4,excludedReceipts:2},customersWithObservedPositivePurchase:1,observedPositivePurchaseDays:1,observedNetSpendMinor:1000});
+ });
  it('does not infer featured quantities if an observed receipt is ambiguous',()=>{
   const result=observedJournalCampaignOutcome(period([{...r('sale','a','2025-10-12',1000),featuredNetQuantityMilli:null}]),['a'],campaign,[m('1','a')],'2025-10-01T17:00:00Z','SKU');
   expect(result.featured).toMatchObject({observedSignedQuantityMilli:null,unknownFeaturedReceipts:1});
