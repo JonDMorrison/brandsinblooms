@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { normalizeEmailCampaignReportingSnapshot } from "./useCampaignDerivedMetrics";
 import { DELIVERED_STATUSES } from "@/constants/campaignStatuses";
 import { resolveCampaignStats } from "@/lib/crm/campaignStats";
+import { deriveCampaignDisplayName } from "@/lib/crm/campaignDisplayName";
 
 export interface DeliveryMetrics {
   campaignId: string;
@@ -127,7 +128,7 @@ export const useCampaignDeliveryMetrics = (
       const { data: campaignsData, error: campaignsError } = await supabase
         .from("crm_campaigns")
         .select(
-          "id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
+          "id, name, subject_line, status, created_at, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
         )
         .eq("tenant_id", tenantId)
         .in("status", deliveredStatuses)
@@ -257,7 +258,13 @@ export const useCampaignDeliveryMetrics = (
 
         return {
           campaignId: c.id,
-          campaignName: c.name,
+          campaignName: deriveCampaignDisplayName({
+            name: c.name,
+            subjectLine: c.subject_line,
+            date: c.created_at,
+            status: c.status,
+            sentAt: c.sent_at,
+          }),
           sentAt: c.sent_at,
           cachedTotalSent: cachedSent,
           cachedOpenRate: c.open_rate || 0,

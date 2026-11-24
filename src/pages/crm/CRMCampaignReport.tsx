@@ -35,6 +35,7 @@ import { CampaignDeliverySummary } from "@/components/crm/campaigns/CampaignDeli
 import { CampaignEngagementMetrics } from "@/components/crm/campaigns/CampaignEngagementMetrics";
 import { CampaignRevenueAttribution } from "@/components/crm/campaigns/CampaignRevenueAttribution";
 import { formatAttributedRevenue } from "@/lib/crm/campaignRevenueMetrics";
+import { deriveCampaignDisplayName } from "@/lib/crm/campaignDisplayName";
 import {
   ESTIMATED_STATS_EXPLANATION,
   ESTIMATED_STATS_LABEL,
@@ -1274,7 +1275,17 @@ export default function CRMCampaignReport() {
   const pending = metrics?.totals.pending ?? 0;
   const unconfirmed = metrics?.totals.unconfirmed ?? 0;
   const displayCampaignName = report
-    ? normalizeCampaignNameForDisplay(report.campaign.name)
+    ? normalizeCampaignNameForDisplay(
+        deriveCampaignDisplayName({
+          name: report.campaign.name,
+          subjectLine: report.campaign.subjectLine,
+          firstHeadline: report.campaign.firstHeadline,
+          date: report.campaign.createdAt,
+          status: report.campaign.status,
+          sentAt: report.campaign.sentAt ?? report.campaign.sendCompletedAt,
+          scheduledAt: report.campaign.scheduledAt,
+        }),
+      )
     : "";
   const channelLabel = report?.campaign.channel === "sms" ? "SMS" : "Email";
 

@@ -418,11 +418,15 @@ export function mapCampaign(
 
   return {
     id: row.id,
-    // Shared display-name rule: name, then subject, then "Draft, <date>".
+    // Shared display-name rule: name, then subject, then "Draft, <date>"
+    // for drafts or "Campaign, <date>" otherwise; merge tags removed.
     name: deriveCampaignDisplayName({
       name: row.name,
       subjectLine: row.subject_line,
       date: row.created_at,
+      status,
+      sentAt: row.sent_at,
+      scheduledAt: row.scheduled_at,
     }),
     subject_line: row.subject_line,
     status,

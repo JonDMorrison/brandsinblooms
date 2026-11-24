@@ -193,6 +193,19 @@ function applyCampaignStats(
   };
 }
 
+/** The shared display name (drafts: "Draft, <date>"; others: "Campaign, <date>"). */
+function getCampaignListName(campaign: CampaignCatalogItem) {
+  return deriveCampaignDisplayName({
+    name: campaign.name,
+    subjectLine: campaign.subjectLine,
+    firstHeadline: campaign.firstHeadline,
+    date: campaign.createdAt,
+    status: campaign.status,
+    sentAt: campaign.sentAt ?? campaign.sendCompletedAt,
+    scheduledAt: campaign.scheduledAt,
+  });
+}
+
 function usesSharedStats(campaign: CampaignCatalogItem) {
   return isDeliveredCampaignStatus(campaign.status) && campaign.channel !== "sms";
 }
@@ -1526,7 +1539,7 @@ export function CRMCampaignsPage() {
                                   level="body-sm"
                                   component="button"
                                   onClick={event=>{event.stopPropagation();editCell(campaign,"name");}}
-                                  title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                                  title={getCampaignListName(campaign)}
                                   sx={{
                                     background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     fontWeight: "lg",
@@ -1535,7 +1548,7 @@ export function CRMCampaignsPage() {
                                     whiteSpace: "normal",
                                   }}
                                 >
-                                  {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                                  {getCampaignListName(campaign)}
                                 </Typography>
                                 <Typography component="button" onClick={event=>{event.stopPropagation();editCell(campaign,"subject_line");}}
                                   level="body-xs"
@@ -1716,13 +1729,13 @@ export function CRMCampaignsPage() {
                           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                             <Typography
                               level="title-sm"
-                              title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                              title={getCampaignListName(campaign)}
                               sx={{
                                 overflowWrap: "anywhere",
                                 whiteSpace: "normal",
                               }}
                             >
-                              {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                              {getCampaignListName(campaign)}
                             </Typography>
                             <StatusChip
                               campaign={campaign}
