@@ -1,4 +1,5 @@
 import { NewsletterDesignContext } from "@/components/crm/studio/newsletter/NewsletterDesignContext";
+import { APP_VIEWPORT_HEIGHT } from "@/lib/layout/appViewport";
 import DataImportDialog from "@/components/crm/studio/newsletter/DataImportDialog";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import * as React from "react";
@@ -440,7 +441,7 @@ function StudioShellSkeleton() {
       component="main"
       sx={{
         width: "100vw",
-        height: "100vh",
+        height: APP_VIEWPORT_HEIGHT,
         overflow: "hidden",
         bgcolor: "background.surface",
         display: "grid",
@@ -2172,7 +2173,7 @@ function CampaignStudioPageContent() {
         component="main"
         sx={{
           width: "100vw",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           display: "grid",
           placeItems: "center",
           bgcolor: "background.surface",
@@ -2198,7 +2199,7 @@ function CampaignStudioPageContent() {
         component="main"
         sx={{
           width: "100vw",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           display: "grid",
           placeItems: "center",
           bgcolor: "background.surface",
@@ -2262,7 +2263,7 @@ function CampaignStudioPageContent() {
         onKeyDownCapture={handleStudioTreeKeyDown}
         sx={{
           width: "100vw",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           overflow: "hidden",
           bgcolor: "background.surface",
           display: "grid",

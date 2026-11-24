@@ -538,3 +538,8 @@ select:-webkit-autofill:focus {
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
 }
+/* Impersonation banner (ImpersonationBanner sets the variable while it shows):
+   modals and drawers start below it instead of under it. */
+body .MuiModal-root {
+  top: var(--impersonation-banner-height, 0px);
+}
