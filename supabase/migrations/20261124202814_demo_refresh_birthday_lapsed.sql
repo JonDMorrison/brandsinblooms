@@ -1,8 +1,4 @@
--- NOT YET APPLIED to udldmkqwnxhdeztyqcau: apply_migration timed out waiting
--- for a confirmation on 2026-11-24. Apply, run
--- SELECT intelligence_ops.refresh_greenfield_demo(); once, then rename this
--- file to the recorded version.
-
+-- Applied to udldmkqwnxhdeztyqcau on 2026-11-24 (recorded version in filename).
 -- QA pass 4 follow-up #3: Birthday Club and Lapsed (12+ months) have members
 -- on the Northfield demo (3eade43c-2e5a-4ad0-80fb-500e3d7afbd4).
 --
