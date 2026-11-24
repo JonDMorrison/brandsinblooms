@@ -2,7 +2,10 @@ import {
   STUDIO_BLOCK_LOOKUP,
   type StudioBlockType,
 } from "@/components/crm/studio/blockLibraryData";
-import type { StudioDesignSystem } from "@/lib/studio/designSystem";
+import {
+  readableColorPair,
+  type StudioDesignSystem,
+} from "@/lib/studio/designSystem";
 import type { SocialLink, StudioBlock } from "@/types/studioBlocks";
 
 const DEFAULT_COMPLIANCE_TEMPLATE =
@@ -85,10 +88,13 @@ export function createStudioBlock(
   const brandColors = designSystem?.colors.brandColorsAreDefaults
     ? undefined
     : designSystem?.colors;
-  const primaryColor = brandColors?.primary;
+  // An unset or stock-green primary is "no brand colour": buttons and the
+  // footer use the neutral dark preset. A chosen primary gets readable text.
+  const primaryColor = brandColors?.primaryIsUnset ? undefined : brandColors?.primary;
+  const primaryPair = primaryColor ? readableColorPair(primaryColor) : null;
   const companyName = designSystem?.company.name?.trim() ?? "";
   const storeName = /^(your business|your garden centre)?$/i.test(companyName) ? "" : companyName;
-  const primaryContrastText = brandColors?.primaryContrastText;
+  const primaryContrastText = primaryPair?.text;
   const brandTextColor = brandColors?.text;
   const footerBackgroundColor = designSystem?.colors.footerBackground;
   const footerTextColor = designSystem?.colors.footerText;
@@ -537,8 +543,9 @@ export function createStudioBlock(
       return {
         ...base,
         // New drafts show phone photos at natural height (see
-        // NewsletterSettings.mobileImageHeight); existing footers lack this.
-        newsletterSettings: { version: 1, mobileImageHeight: "natural" },
+        // NewsletterSettings.mobileImageHeight) and keep text readable
+        // (contrastGuard); existing footers lack these.
+        newsletterSettings: { version: 1, mobileImageHeight: "natural", contrastGuard: true },
         businessName,
         address: address || "123 Main St\nCity, State",
         copyright: getDefaultCopyrightText(businessName),

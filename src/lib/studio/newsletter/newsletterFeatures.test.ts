@@ -4,6 +4,7 @@ import { createStudioBlock } from "../blockFactory";
 import { buildStudioDesignSystem } from "../designSystem";
 import {
   generateEmailHtml,
+  renderFooterBlockToEmailHtml,
   renderNewsletterBlock,
 } from "../emailHtmlGenerator";
 import { BLOCK_CATEGORIES } from "@/components/crm/studio/blockLibraryData";
@@ -1102,6 +1103,49 @@ describe("untouched default brand colours count as not set (#14)", () => {
     const withoutFlag = renderNewsletterBlock(stored, { ...untouched, colors: { ...untouched.colors, brandColorsAreDefaults: false } });
     expect(withFlag).toBe(withoutFlag);
     expect(withFlag.toLowerCase()).toContain("#22c55e");
+  });
+
+  it("treats a stock-green primary as unset even when other colours were chosen (qa2 #8)", async () => {
+    const greenOnly = buildStudioDesignSystem({
+      brandPrimaryColorRaw: "#22c55e",
+      brandSecondaryColorRaw: "#123456",
+      brandAccentColorRaw: "#f59e0b",
+      brandTextColorRaw: "#1f2937",
+    } as never);
+    expect(greenOnly.colors.primaryIsUnset).toBe(true);
+    expect(createStudioBlock("call-to-action", greenOnly).buttonColor).toBe(createStudioBlock("call-to-action").buttonColor);
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const footer = ensureFooterBlockCompliance([createStudioBlock("plain-text", greenOnly)], { designSystem: greenOnly })
+      .find((block) => block.type === "footer")!;
+    expect(footer.backgroundColor).toBe("#1e293b");
+    expect(footer.newsletterSettings?.contrastGuard).toBe(true);
+  });
+
+  it("moves a draft's stock-green footer back to the neutral dark preset", async () => {
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const greenFooter = { ...createStudioBlock("footer"), backgroundColor: "#22c55e", textColor: "#ffffff", linkColor: "#ffffff" };
+    const footer = ensureFooterBlockCompliance([greenFooter], { designSystem: untouched })
+      .find((block) => block.type === "footer")!;
+    expect(footer).toMatchObject({ backgroundColor: "#1e293b", textColor: "#ffffff", linkColor: "#cbd5e1" });
+    const { contrastRatio } = await import("../designSystem");
+    expect(contrastRatio(footer.textColor!, footer.backgroundColor!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("gives a chosen light brand colour readable footer text", async () => {
+    const { readableColorPair, contrastRatio } = await import("../designSystem");
+    const pair = readableColorPair("#68BEB9");
+    expect(contrastRatio(pair.text, pair.background)).toBeGreaterThanOrEqual(4.5);
+    // White on mid green fails, so dark text is used.
+    expect(readableColorPair("#22c55e").text).toBe("#111827");
+  });
+
+  it("guards draft renders only: a footer with contrastGuard switches unreadable text", () => {
+    const green = { ...createStudioBlock("footer"), backgroundColor: "#22c55e", textColor: "#ffffff", linkColor: "#ffffff" };
+    const sent = renderFooterBlockToEmailHtml({ ...green, newsletterSettings: { version: 1 } });
+    const draft = renderFooterBlockToEmailHtml({ ...green, newsletterSettings: { version: 1, contrastGuard: true } });
+    expect(sent).toContain("color:#ffffff");
+    expect(draft).not.toContain("color:#ffffff");
+    expect(draft).toContain("color:#111827");
   });
 });
 

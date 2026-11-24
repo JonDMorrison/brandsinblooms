@@ -35,7 +35,13 @@ import {
   resolveCroppedEmailImage,
   type ImageCropFrame,
 } from "./emailImageCrop.ts";
-import type { StudioDesignSystem } from "./designSystem.ts";
+import {
+  contrastRatio,
+  MIN_TEXT_CONTRAST,
+  NEUTRAL_DARK_SURFACE,
+  readableColorPair,
+  type StudioDesignSystem,
+} from "./designSystem.ts";
 
 export type EmailFooterLinks = {
   unsubscribeUrl?: string;
@@ -790,6 +796,61 @@ function getImageGalleryColumns(block: StudioBlock, layout: string) {
     default:
       return Math.max(1, Math.min(4, numberValue(block.gridColumns, 3)));
   }
+}
+
+/** Readable text for a surface: keeps `color` when it reaches 4.5:1. */
+function readableTextOn(color: string, background: string) {
+  if ((contrastRatio(color, background) ?? 0) >= MIN_TEXT_CONTRAST) return color;
+  const white = contrastRatio("#ffffff", background) ?? 0;
+  const ink = contrastRatio("#111827", background) ?? 0;
+  return white >= ink ? "#ffffff" : "#111827";
+}
+
+/** True when a possibly translucent rgba() text colour reads at 4.5:1. */
+function mutedTextIsReadable(color: string, background: string) {
+  const bg = parseRgbChannels(background);
+  const fg = parseRgbChannels(color);
+  if (!bg || !fg) return true;
+  const alphaMatch = color.match(/rgba\([^)]*,\s*([\d.]+)\s*\)/i);
+  const alpha = alphaMatch ? Math.max(0, Math.min(1, Number(alphaMatch[1]))) : 1;
+  const mix = (front: number, back: number) => Math.round(front * alpha + back * (1 - alpha));
+  const blended = `rgb(${mix(fg.r, bg.r)},${mix(fg.g, bg.g)},${mix(fg.b, bg.b)})`;
+  return (contrastRatio(blended, background) ?? 0) >= MIN_TEXT_CONTRAST;
+}
+
+/**
+ * NewsletterSettings.contrastGuard: footer text, links and icons that would
+ * read below 4.5:1 on the footer background switch to white or dark ink.
+ */
+function applyFooterContrastGuard(block: StudioBlock): StudioBlock {
+  const layoutIsDark = resolveFooterLayout(block) === "standard-dark";
+  const background = safeColor(block.backgroundColor, layoutIsDark ? "#1e293b" : "#ffffff");
+  const fallbackText = isDarkBackgroundColor(background) ? "#ffffff" : "#111827";
+  const textColor = readableTextOn(safeColor(block.textColor, fallbackText), background);
+  return {
+    ...block,
+    backgroundColor: background,
+    textColor,
+    linkColor: block.linkColor
+      ? readableTextOn(safeColor(block.linkColor, textColor), background)
+      : block.linkColor,
+    footerIconColor: block.footerIconColor
+      ? readableTextOn(safeColor(block.footerIconColor, textColor), background)
+      : block.footerIconColor,
+  };
+}
+
+/**
+ * Brand button colours for drafts with NewsletterSettings.contrastGuard: the
+ * neutral dark preset when no brand colour is set (empty or stock #22c55e),
+ * otherwise the brand colour with text that reads at 4.5:1.
+ */
+function guardedBrandButtonColors(designSystem: StudioDesignSystem) {
+  if (designSystem.colors.primaryIsUnset || !designSystem.colors.primary) {
+    return { buttonColor: NEUTRAL_DARK_SURFACE.button, buttonTextColor: NEUTRAL_DARK_SURFACE.buttonText };
+  }
+  const pair = readableColorPair(designSystem.colors.primary);
+  return { buttonColor: pair.background, buttonTextColor: pair.text };
 }
 
 function resolveFooterLayout(block: StudioBlock) {
@@ -1986,10 +2047,15 @@ function renderFooterLinks(
 }
 
 export function renderFooterBlockToEmailHtml(
-  block: StudioBlock,
+  sourceBlock: StudioBlock,
   links: EmailFooterLinks = {},
   designSystem?: StudioDesignSystem | null,
 ) {
+  // Drafts carrying contrastGuard keep footer text readable (4.5:1); footers
+  // without the flag (every sent campaign) render exactly as before.
+  const block = sourceBlock.newsletterSettings?.contrastGuard === true
+    ? applyFooterContrastGuard(sourceBlock)
+    : sourceBlock;
   const layout = resolveFooterLayout(block);
   const layoutIsDark = layout === "standard-dark";
   const centered = layout === "centered-branded";
@@ -2004,14 +2070,26 @@ export function renderFooterBlockToEmailHtml(
   // rgba(255,255,255,0.68) and went invisible. Use the resolved
   // backgroundColor's luminance as the source of truth so muted text
   // always contrasts the surface it actually paints onto.
-  const dark = isDarkBackgroundColor(backgroundColor);
-  const textColor = safeColor(block.textColor, dark ? "#ffffff" : "#111827");
+  const guarded = block !== sourceBlock;
+  const textColor = safeColor(
+    block.textColor,
+    isDarkBackgroundColor(backgroundColor) ? "#ffffff" : "#111827",
+  );
+  // Guarded drafts follow the text actually painted (white text = dark
+  // surface), which a mid-tone brand colour can otherwise misjudge.
+  const dark = guarded
+    ? (contrastRatio("#ffffff", textColor) ?? 21) < 1.5
+    : isDarkBackgroundColor(backgroundColor);
   const resolvedTextChannels = parseRgbChannels(textColor);
-  const mutedColor = dark
+  const defaultMutedColor = dark
     ? "rgba(255,255,255,0.68)"
     : resolvedTextChannels
       ? `rgba(${resolvedTextChannels.r},${resolvedTextChannels.g},${resolvedTextChannels.b},0.7)`
       : "#64748b";
+  const mutedColor =
+    guarded && !mutedTextIsReadable(defaultMutedColor, backgroundColor)
+      ? textColor
+      : defaultMutedColor;
   const dividerColor = safeColor(
     block.dividerBelowColor,
     dark ? "rgba(255,255,255,0.16)" : "#e2e8f0",
@@ -2308,8 +2386,14 @@ export function renderNewsletterBlock(
     brandButtonTypes.has(prepared.type)
       ? {
           ...prepared,
-          buttonColor: designSystem.colors.primary,
-          buttonTextColor: designSystem.colors.primaryContrastText,
+          // contrastGuard (drafts only): neutral dark when no brand colour is
+          // set, readable text otherwise. Sent campaigns lack the flag.
+          ...(resolved.contrastGuard
+            ? guardedBrandButtonColors(designSystem)
+            : {
+                buttonColor: designSystem.colors.primary,
+                buttonTextColor: designSystem.colors.primaryContrastText,
+              }),
         }
       : prepared;
   // New blocks inherit the account's role-specific fonts, just like legacy blocks.
