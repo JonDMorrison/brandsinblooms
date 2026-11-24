@@ -1757,7 +1757,8 @@ function CampaignEditorScreen() {
           >
             <JoyInput
               label="Campaign name"
-              value={name}
+              value={isUnsetCampaignName(name) ? "" : name}
+              placeholder={deriveCampaignDisplayName({ name: "", subjectLine, blocks: contentBlocks })}
               disabled={isLocked}
               onValueChange={(value) => updateSetup({ name: value })}
             />

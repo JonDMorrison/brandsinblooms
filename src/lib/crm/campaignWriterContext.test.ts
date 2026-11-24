@@ -67,6 +67,13 @@ describe('campaign display name (#8)', () => {
     })).toBe('Fresh evergreens');
     expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: [], date: '2026-11-23T12:00:00Z' })).toMatch(/^Draft, Nov 2[23], 2026$/);
   });
+  it('never uses the header store name as a title; Studio says Untitled draft (qa2 #10)', () => {
+    const blank = [{ type: 'newsletter-header', headline: 'Northfield Garden Center' }, { type: 'plain-text', headline: '' }];
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: blank, date: '2026-11-24T12:00:00Z' })).toMatch(/^Draft, Nov 2[45], 2026$/);
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: blank, emptyLabel: 'Untitled draft' })).toBe('Untitled draft');
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', firstHeadline: 'Celebrating Garden Successes' })).toBe('Celebrating Garden Successes');
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: 'Year-End Garden Review', emptyLabel: 'Untitled draft' })).toBe('Year-End Garden Review');
+  });
 });
 
 import { findIdentityMismatches } from './identityConsistency';

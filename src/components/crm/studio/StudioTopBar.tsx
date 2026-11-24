@@ -189,7 +189,12 @@ export default function StudioTopBar({
   const nameIsUnset = isUnsetCampaignName(campaignName);
   // "Save template" appears only once the design has real content.
   const canSaveTemplate = hasContentBlocks(blocks);
-  const displayName = deriveCampaignDisplayName({ name: campaignName, subjectLine, blocks });
+  const displayName = deriveCampaignDisplayName({
+    name: campaignName,
+    subjectLine,
+    blocks,
+    emptyLabel: "Untitled draft",
+  });
 
   const commitName = React.useCallback(() => {
     // Leaving it empty keeps the campaign unnamed; the shown name is derived.

@@ -1463,7 +1463,7 @@ export function CRMCampaignsPage() {
                                   level="body-sm"
                                   component="button"
                                   onClick={event=>{event.stopPropagation();editCell(campaign,"name");}}
-                                  title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                                  title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                                   sx={{
                                     background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     fontWeight: "lg",
@@ -1472,7 +1472,7 @@ export function CRMCampaignsPage() {
                                     whiteSpace: "normal",
                                   }}
                                 >
-                                  {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                                  {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                                 </Typography>
                                 <Typography component="button" onClick={event=>{event.stopPropagation();editCell(campaign,"subject_line");}}
                                   level="body-xs"
@@ -1640,13 +1640,13 @@ export function CRMCampaignsPage() {
                           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                             <Typography
                               level="title-sm"
-                              title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                              title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                               sx={{
                                 overflowWrap: "anywhere",
                                 whiteSpace: "normal",
                               }}
                             >
-                              {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, date: campaign.createdAt })}
+                              {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
                             </Typography>
                             <StatusChip
                               campaign={campaign}

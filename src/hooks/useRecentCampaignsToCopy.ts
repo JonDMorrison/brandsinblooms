@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { deriveCampaignDisplayName } from "@/lib/crm/campaignDisplayName";
 
 export interface CampaignToCopy {
   id: string;
   name: string;
+  /** The one name every screen shows (deriveCampaignDisplayName). */
+  displayName: string;
   subjectLine: string;
   status: "sent" | "draft";
   /** Sent date for sent campaigns, last edit for drafts. */
@@ -39,7 +42,7 @@ export function useRecentCampaignsToCopy(
     queryFn: async (): Promise<CampaignToCopy[]> => {
       const { data, error } = await supabase
         .from("crm_campaigns")
-        .select("id, name, subject_line, status, sent_at, updated_at, metadata")
+        .select("id, name, subject_line, status, sent_at, created_at, updated_at, metadata")
         .eq("tenant_id", tenantId as string)
         .in("status", ["sent", "draft"])
         .order("updated_at", { ascending: false })
@@ -59,6 +62,12 @@ export function useRecentCampaignsToCopy(
           return {
             id: row.id,
             name: row.name,
+            displayName: deriveCampaignDisplayName({
+              name: row.name,
+              subjectLine: row.subject_line,
+              blocks,
+              date: row.created_at,
+            }),
             subjectLine: row.subject_line ?? "",
             status,
             date: status === "sent" ? (row.sent_at ?? row.updated_at) : row.updated_at,
