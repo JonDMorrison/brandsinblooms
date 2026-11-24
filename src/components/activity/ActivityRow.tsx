@@ -20,6 +20,7 @@ import { ActivityDescription } from "./ActivityDescription";
 import {
   formatActivityActor,
   formatActivitySource,
+  getActivityTitle,
   getCustomerNameFromEvent,
   isCustomerCreatedEvent,
 } from "./activityPresentation";
@@ -138,7 +139,7 @@ export function ActivityRow({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {event.title || "Activity event"}
+                    {getActivityTitle(event)}
                   </Typography>
                 </Box>
               ) : null}

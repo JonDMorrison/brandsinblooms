@@ -1,3 +1,4 @@
+import { JoyButton } from "@/components/joy/JoyButton";
 import React, { useEffect, useMemo, useState } from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -498,6 +499,19 @@ export function ActivityFeedList({
       </Stack>
 
       <Box ref={sentinelRef} sx={{ height: 1 }} />
+
+      {feed.hasNextPage && !feed.isFetchingNextPage ? (
+        <Stack direction="row" justifyContent="center" sx={{ py: 1 }}>
+          <JoyButton
+            size="sm"
+            variant="outlined"
+            color="neutral"
+            onClick={() => void feed.fetchNextPage()}
+          >
+            Show older activity
+          </JoyButton>
+        </Stack>
+      ) : null}
 
       {feed.isFetchingNextPage ? (
         <Stack

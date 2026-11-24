@@ -1,3 +1,4 @@
+import { formatActivityType } from "@/components/activity/activityPresentation";
 import React, { useEffect, useMemo } from "react";
 import Box from "@mui/joy/Box";
 import IconButton from "@mui/joy/IconButton";
@@ -166,7 +167,7 @@ export default function ActivityCenterPage() {
   const summaryMetrics = [
     {
       label: "events",
-      value: events.length.toLocaleString(),
+      value: `${events.length.toLocaleString()}${feed.hasNextPage ? "+" : ""}`,
     },
     {
       label: "today",
@@ -180,8 +181,9 @@ export default function ActivityCenterPage() {
 
   const stats = [
     {
-      label: "Loaded Events",
-      value: events.length.toLocaleString(),
+      // Pages of 50 load as you scroll or press "Show older activity".
+      label: "Events shown",
+      value: `${events.length.toLocaleString()}${feed.hasNextPage ? "+" : ""}`,
       icon: <Activity size={18} />,
     },
     {
@@ -376,7 +378,7 @@ export default function ActivityCenterPage() {
               sx={{ borderRadius: "2xl", px: 2.5, py: 2.25, boxShadow: "sm" }}
             >
               <Stack spacing={1.5}>
-                <Typography level="title-sm">Top activity families</Typography>
+                <Typography level="title-sm">Most common activity</Typography>
                 {familyBreakdown.length ? (
                   familyBreakdown.map(([label, total]) => (
                     <Stack key={label} spacing={0.5}>
@@ -386,7 +388,7 @@ export default function ActivityCenterPage() {
                         justifyContent="space-between"
                         alignItems="center"
                       >
-                        <Typography level="body-sm">{label}</Typography>
+                        <Typography level="body-sm">{formatActivityType(label)}</Typography>
                         <Typography level="body-xs" color="neutral">
                           {total}
                         </Typography>

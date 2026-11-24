@@ -35,6 +35,46 @@ export function formatActivityLabel(value?: string | null) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  purchase: "Purchase",
+  "pos.order.created": "Purchase",
+  "order.created": "Purchase",
+  "order.completed": "Purchase",
+  refund: "Refund",
+  "refund.created": "Refund",
+  "customer.created": "New customer",
+  "customer.updated": "Customer updated",
+  "email.sent": "Email sent",
+  "email.delivered": "Email delivered",
+  "email.opened": "Email opened",
+  "email.clicked": "Email link clicked",
+  "email.bounced": "Email bounced",
+  "email.unsubscribed": "Unsubscribed from email",
+  "sms.sent": "Text message sent",
+  "form.submitted": "Form submitted",
+  "segment.added": "Added to segment",
+  "automation.triggered": "Automation started",
+};
+
+/** A human label for an activity type key, e.g. "purchase" -> "Purchase". */
+export function formatActivityType(value?: string | null) {
+  if (!value) return "";
+  return ACTIVITY_TYPE_LABELS[normalizeKey(value)] ?? formatActivityLabel(value);
+}
+
+/**
+ * The row title. Imported timeline rows carry the raw type key as their
+ * title ("purchase"); those are shown as human labels ("Purchase").
+ */
+export function getActivityTitle(event: Pick<ActivityEvent, "title" | "activity_type">) {
+  const title = String(event.title ?? "").trim();
+  const type = String(event.activity_type ?? "").trim();
+  if (!title) return formatActivityType(type) || "Activity event";
+  const looksLikeKey = /^[a-z0-9]+([._-][a-z0-9]+)*$/.test(title);
+  if (title === type || looksLikeKey) return formatActivityType(title);
+  return title;
+}
+
 export function formatActivityActor(value?: string | null) {
   if (!value) return "Unknown";
   return ACTOR_LABELS[normalizeKey(value)] ?? formatActivityLabel(value);
