@@ -575,6 +575,7 @@ export function ProgrammeBaselinePanel({
                 return <Stack spacing={1}>
                   <Typography level="title-md">{journalPreview.campaignName}</Typography>
                   <Alert color="neutral">Observed purchases only. No purchase is not proof that a customer did not return. This report does not establish campaign lift or complete POS coverage.</Alert>
+                  {o.coverage.mode==="reconciled_customer_cohort"&&<Alert color="neutral" variant="soft">Partial journal: {o.coverage.includedCustomers?.toLocaleString()} independently reconciled customers and {o.coverage.includedReceipts?.toLocaleString()} of {o.coverage.sourceReceipts?.toLocaleString()} source receipts. Customers outside this evidence remain unknown.</Alert>}
                   <Box sx={grid}>
                     {([["Original frozen audience",o.frozenCustomers],["Verified sent customers",o.verifiedSentCustomers],["Observed buyers after send",o.customersWithObservedPositivePurchase],["Observed net spending after send",fmt(o.observedNetSpendMinor)],["Observed paid purchase days",o.observedPositivePurchaseDays],["Sent customers with no observed positive purchase",o.sentCustomersWithoutObservedPositivePurchase]] as const).map(([label,value])=><Sheet variant="outlined" key={label} sx={{p:1.5,borderRadius:"lg"}}><Typography level="body-xs">{label}</Typography><Typography level="h3">{value}</Typography></Sheet>)}
                   </Box>
