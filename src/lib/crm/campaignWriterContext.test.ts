@@ -167,3 +167,25 @@ describe('new draft sender prefill (qa2 #2)', () => {
     expect(sender).toMatchObject({ senderEmail: 'mail@northfieldgardens.ca', senderName: 'Northfield Garden Center', source: 'verified_domain' });
   });
 });
+
+import { selectCampaignsToCopy } from '@/hooks/useRecentCampaignsToCopy';
+
+describe('Copy a previous email list (qa2 #11)', () => {
+  const row = (id: string, status: string, updated: string, extra: Record<string, unknown> = {}) => ({
+    id, name: '', subject_line: '', status, sent_at: null, created_at: '2026-11-01T00:00:00Z', updated_at: updated, metadata: { contentBlocks: [] }, ...extra,
+  });
+  const text = { contentBlocks: [{ id: 't', type: 'plain-text', body: '<p>Hours</p>' }] };
+
+  it('leaves out empty drafts and lists sent emails first, then drafts by last edit', () => {
+    const list = selectCampaignsToCopy([
+      row('empty-draft', 'draft', '2026-11-24T10:00:00Z'),
+      row('old-draft', 'draft', '2026-11-20T10:00:00Z', { metadata: text }),
+      row('new-draft', 'draft', '2026-11-23T10:00:00Z', { subject_line: 'Holiday hours' }),
+      row('sent-old', 'sent', '2026-11-24T11:00:00Z', { sent_at: '2026-10-01T00:00:00Z', subject_line: 'October' }),
+      row('sent-new', 'sent', '2026-11-24T11:00:00Z', { sent_at: '2026-11-01T00:00:00Z', subject_line: 'November' }),
+      row('sms', 'draft', '2026-11-24T12:00:00Z', { metadata: { campaignType: 'sms' }, subject_line: 'x' }),
+    ]);
+    expect(list.map((item) => item.id)).toEqual(['sent-new', 'sent-old', 'new-draft', 'old-draft']);
+    expect(list[2].displayName).toBe('Holiday hours');
+  });
+});

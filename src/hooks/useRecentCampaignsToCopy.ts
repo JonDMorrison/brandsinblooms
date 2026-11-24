@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { deriveCampaignDisplayName } from "@/lib/crm/campaignDisplayName";
+import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
 
 export interface CampaignToCopy {
   id: string;
@@ -30,7 +31,69 @@ function firstImage(blocks: StudioBlock[]) {
   return null;
 }
 
-/** The tenant's 10 most recent sent or draft email campaigns, newest first. */
+export interface CampaignToCopyRow {
+  id: string;
+  name: string;
+  subject_line: string | null;
+  status: string;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata: unknown;
+}
+
+const COPY_LIMIT = 10;
+
+/**
+ * What "Copy a previous email" offers: sent emails first (newest send first),
+ * then drafts that have a subject or content (most recently edited first).
+ * Empty drafts and text messages are left out.
+ */
+export function selectCampaignsToCopy(rows: CampaignToCopyRow[]): CampaignToCopy[] {
+  const items = rows
+    .filter((row) => {
+      const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+      return String(metadata.campaignType ?? "email").toLowerCase() !== "sms";
+    })
+    .map((row) => {
+      const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+      const blocks = Array.isArray(metadata.contentBlocks)
+        ? (metadata.contentBlocks as StudioBlock[])
+        : [];
+      const status: CampaignToCopy["status"] = row.status === "sent" ? "sent" : "draft";
+      return {
+        id: row.id,
+        name: row.name,
+        displayName: deriveCampaignDisplayName({
+          name: row.name,
+          subjectLine: row.subject_line,
+          blocks,
+          date: row.created_at,
+        }),
+        subjectLine: row.subject_line ?? "",
+        status,
+        date: status === "sent" ? (row.sent_at ?? row.updated_at) : row.updated_at,
+        blocks,
+        thumbnailUrl: firstImage(blocks),
+      } satisfies CampaignToCopy;
+    })
+    .filter(
+      (item) =>
+        item.status === "sent" ||
+        item.subjectLine.trim() !== "" ||
+        hasContentBlocks(item.blocks),
+    );
+  const newestFirst = (a: CampaignToCopy, b: CampaignToCopy) =>
+    (b.date ?? "").localeCompare(a.date ?? "");
+  return [
+    ...items.filter((item) => item.status === "sent").sort(newestFirst),
+    ...items.filter((item) => item.status === "draft").sort(newestFirst),
+  ].slice(0, COPY_LIMIT);
+}
+
+const COPY_COLUMNS = "id, name, subject_line, status, sent_at, created_at, updated_at, metadata";
+
+/** Up to 10 emails to copy: sent first, then drafts with content. */
 export function useRecentCampaignsToCopy(
   tenantId: string | null | undefined,
   options: { enabled?: boolean } = {},
@@ -40,43 +103,26 @@ export function useRecentCampaignsToCopy(
     enabled: Boolean(tenantId) && options.enabled !== false,
     staleTime: 60_000,
     queryFn: async (): Promise<CampaignToCopy[]> => {
-      const { data, error } = await supabase
-        .from("crm_campaigns")
-        .select("id, name, subject_line, status, sent_at, created_at, updated_at, metadata")
-        .eq("tenant_id", tenantId as string)
-        .in("status", ["sent", "draft"])
-        .order("updated_at", { ascending: false })
-        .limit(40);
-      if (error) throw error;
-      return (data ?? [])
-        .filter((row) => {
-          const metadata = (row.metadata ?? {}) as Record<string, unknown>;
-          return String(metadata.campaignType ?? "email").toLowerCase() !== "sms";
-        })
-        .map((row) => {
-          const metadata = (row.metadata ?? {}) as Record<string, unknown>;
-          const blocks = Array.isArray(metadata.contentBlocks)
-            ? (metadata.contentBlocks as StudioBlock[])
-            : [];
-          const status = row.status === "sent" ? "sent" : "draft";
-          return {
-            id: row.id,
-            name: row.name,
-            displayName: deriveCampaignDisplayName({
-              name: row.name,
-              subjectLine: row.subject_line,
-              blocks,
-              date: row.created_at,
-            }),
-            subjectLine: row.subject_line ?? "",
-            status,
-            date: status === "sent" ? (row.sent_at ?? row.updated_at) : row.updated_at,
-            blocks,
-            thumbnailUrl: firstImage(blocks),
-          } satisfies CampaignToCopy;
-        })
-        .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-        .slice(0, 10);
+      const [sent, drafts] = await Promise.all([
+        supabase
+          .from("crm_campaigns")
+          .select(COPY_COLUMNS)
+          .eq("tenant_id", tenantId as string)
+          .eq("status", "sent")
+          .order("sent_at", { ascending: false, nullsFirst: false })
+          .limit(COPY_LIMIT * 2),
+        supabase
+          .from("crm_campaigns")
+          .select(COPY_COLUMNS)
+          .eq("tenant_id", tenantId as string)
+          .eq("status", "draft")
+          // updated_at is the real last edit (the demo refresh no longer bumps it).
+          .order("updated_at", { ascending: false })
+          .limit(40),
+      ]);
+      if (sent.error) throw sent.error;
+      if (drafts.error) throw drafts.error;
+      return selectCampaignsToCopy([...(sent.data ?? []), ...(drafts.data ?? [])]);
     },
   });
 }
