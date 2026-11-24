@@ -87,10 +87,8 @@ import {
 import type { WeeklyThemeImage } from "@/lib/studio/weeklyThemeSeed";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { buildNewsletterIdeaContentBlocks } from "@/lib/studio/newsletterIdeaSeed";
-import {
-  themeBlockLabel,
-  type WeeklyThemeLibrary,
-} from "@/components/crm/studio/BlockLibrary";
+import type { WeeklyThemeLibrary } from "@/components/crm/studio/BlockLibrary";
+import { themeBlockLabel } from "@/components/crm/studio/themeBlockLabel";
 import type {
   GalleryImage,
   GalleryProduct,

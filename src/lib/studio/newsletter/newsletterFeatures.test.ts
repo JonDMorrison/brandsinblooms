@@ -1232,13 +1232,14 @@ describe("theme newsletter with AI", () => {
 
   it("strips internal text and the Continue shaping block from the fallback seed", () => {
     const raw = buildNewsletterIdeaDraftSeed(buildWeeklyThemeIdea(masterSource), "block-builder");
-    // The unsanitized seed still carries the internal brief and instructions.
+    // The deterministic seed itself no longer carries the internal brief
+    // (newsletter-qa2 #6), so even the unsanitized seed is clean.
     expect(
       findThemeNewsletterIssues(
         { subjectLine: raw.subjectLine, previewText: raw.preheaderText, blocks: raw.contentBlocks },
         { brief },
-      ).length,
-    ).toBeGreaterThan(0);
+      ),
+    ).toEqual([]);
 
     const seed = fallbackSeed();
     expect(
@@ -1248,7 +1249,8 @@ describe("theme newsletter with AI", () => {
       ),
     ).toEqual([]);
     expect(JSON.stringify(seed)).not.toMatch(/Continue shaping|Review the seeded|Encourage|documenting successes/);
-    expect(seed.preheaderText).toBe("This week's garden ideas from Northfield Garden Center.");
+    // Customer-facing preview from the theme week (buildWeeklyThemeCopy).
+    expect(seed.preheaderText).toBe("Celebrating Garden Successes: ideas and advice for your garden this week.");
     expect(seed.contentBlocks.some((block) => block.type === "call-to-action")).toBe(false);
     expect(seed.contentBlocks.at(-1)?.type).toBe("footer");
     // Photos survive; the image story no longer repeats the header subtitle.

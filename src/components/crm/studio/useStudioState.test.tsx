@@ -167,7 +167,7 @@ describe("From my website insert position (#17)", () => {
 });
 
 import { placeThemeBlocks } from "./useStudioState";
-import { themeBlockLabel } from "./BlockLibrary";
+import { themeBlockLabel } from "./themeBlockLabel";
 import { buildWeeklyThemeIdea } from "@/lib/studio/weeklyThemeSeed";
 import { buildNewsletterIdeaContentBlocks } from "@/lib/studio/newsletterIdeaSeed";
 import { createStudioBlock } from "@/lib/studio/blockFactory";

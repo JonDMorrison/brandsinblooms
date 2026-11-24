@@ -295,12 +295,14 @@ function getSortDirection(
   return currentColumn === column ? currentDirection : "none";
 }
 
+const ACTIVELY_SENDING_STATUSES: ReadonlyArray<CampaignCatalogItem["status"]> = [
+  CAMPAIGN_STATUS.QUEUED,
+  CAMPAIGN_STATUS.PARTIALLY_QUEUED,
+  CAMPAIGN_STATUS.SENDING,
+];
+
 function isActivelySendingStatus(status: CampaignCatalogItem["status"]) {
-  return [
-    CAMPAIGN_STATUS.QUEUED,
-    CAMPAIGN_STATUS.PARTIALLY_QUEUED,
-    CAMPAIGN_STATUS.SENDING,
-  ].includes(status);
+  return ACTIVELY_SENDING_STATUSES.includes(status);
 }
 
 function matchesStatusFilter(
