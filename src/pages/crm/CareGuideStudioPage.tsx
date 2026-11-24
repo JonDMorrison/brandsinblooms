@@ -163,7 +163,7 @@ export default function CareGuideStudioPage(){
           <Stack spacing={2} sx={{mt:2.5}}>
             {fields.map(field=><FormControl key={field.key}>
               <FormLabel>{field.label}</FormLabel>
-              {field.large?<Textarea minRows={3} slotProps={{textarea:{maxLength:400}}} value={design[field.key]||''} onChange={e=>update(field.key,e.target.value)}/>:
+              {field.large?<Textarea minRows={3} maxRows={6} slotProps={{textarea:{maxLength:400}}} value={design[field.key]||''} onChange={e=>update(field.key,e.target.value)}/>:
                 <Input slotProps={{input:{maxLength:field.key==='headline'?100:2048}}} value={design[field.key]||''} onChange={e=>update(field.key,e.target.value)}/>}
               {field.hint&&<FormHelperText>{field.hint}</FormHelperText>}
             </FormControl>)}
@@ -188,7 +188,7 @@ export default function CareGuideStudioPage(){
             <Box><Typography level="title-lg">Live preview</Typography><Typography level="body-xs" sx={{mt:0.5,color:'neutral.600'}}>Illustrative Red Prayer Plant only. Real messages require an approved product match and care record.</Typography></Box>
             <Stack direction="row" spacing={1} alignItems="center">
               <ToggleButtonGroup size="sm" value={device} aria-label="Preview size" onChange={(_e,v)=>{if(v)setDevice(v as 'desktop'|'phone');}}>
-                <Button value="desktop">Desktop</Button><Button value="phone">Phone</Button>
+                {(['desktop','phone'] as const).map(size=><Button key={size} value={size} variant={device===size?'solid':'outlined'} color={device===size?'primary':'neutral'}>{size==='desktop'?'Desktop':'Phone'}</Button>)}
               </ToggleButtonGroup>
               <Button size="sm" variant="outlined" color="neutral" loading={testBusy} disabled={busy||!myEmail||'error' in preview} onClick={()=>void sendTest()}>Send me a test</Button>
             </Stack>
