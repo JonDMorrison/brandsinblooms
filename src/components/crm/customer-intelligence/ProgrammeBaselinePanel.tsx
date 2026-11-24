@@ -24,6 +24,8 @@ import {
 } from "@/lib/loyalty/programmeApi";
 import { ProgrammeResultsPanel } from "./ProgrammeResultsPanel";
 import type { CustomerPeriod } from "../../../../supabase/functions/_shared/loyalty/programme-measurement";
+import type { ObservedJournalCampaignOutcome } from "../../../../supabase/functions/_shared/loyalty/journal-campaign-outcomes";
+import { downloadProgrammeData } from "@/lib/loyalty/programmeApi";
 
 interface AudienceChoices {
   segments: { id: string; name: string; auto_update: boolean }[];
@@ -66,6 +68,10 @@ export function ProgrammeBaselinePanel({
     [currentEvidence, setCurrentEvidence] = React.useState(""),
     [daily, setDaily] = React.useState(false),
     [campaignId, setCampaignId] = React.useState("");
+  const [journalCampaigns,setJournalCampaigns]=React.useState<{id:string;name:string;sent_at:string}[]>([]);
+  const [featuredCode,setFeaturedCode]=React.useState("");
+  const [journalPreview,setJournalPreview]=React.useState<{baselineId:string;campaignName:string;outcome:ObservedJournalCampaignOutcome;note:string}|null>(null);
+  React.useEffect(()=>{setJournalPreview(null);},[baselineId,currentStart,currentEnd,campaignId,featuredCode]);
   const [result, setResult] = React.useState<ProgrammeResultPage | null>(null),
     [runs, setRuns] = React.useState<
       {
@@ -216,6 +222,19 @@ export function ProgrammeBaselinePanel({
         );
         if (active.current) setRuns(dataRuns.runs);
       }
+    });
+  }
+  async function previewJournalCampaign(){
+    await perform(async()=>{
+      setJournalPreview(null);
+      const data=await programmeCommand<{baselineId:string;campaignName:string;outcome:ObservedJournalCampaignOutcome;note:string}>(tenantId,{action:"journal_campaign_preview",baselineId,campaignId:campaignId.trim(),window:{start:currentStart,end:currentEnd},productCode:featuredCode.trim()||null});
+      if(active.current)setJournalPreview(data);
+    });
+  }
+  async function loadJournalCampaigns(){
+    await perform(async()=>{
+      const data=await programmeCommand<{campaigns:{id:string;name:string;sent_at:string}[]}>(tenantId,{action:"journal_campaign_choices"});
+      if(active.current)setJournalCampaigns(data.campaigns);
     });
   }
   const grid = {
@@ -543,6 +562,31 @@ export function ProgrammeBaselinePanel({
           >
             Calculate and save comparison
           </Button>
+          <Sheet variant="soft" sx={{p:2,borderRadius:"lg"}}>
+            <Stack spacing={1.5}>
+              <Typography level="title-lg">IdealPOS campaign outcomes</Typography>
+              <Typography level="body-sm">Use this for imported IdealPOS journal receipts. It reads the original frozen audience, actual provider-accepted campaign sends and a source-backed comparison window of up to 31 days. No campaign is sent or changed.</Typography>
+              <Button size="sm" variant="outlined" disabled={busy} onClick={()=>void loadJournalCampaigns()}>Load sent campaigns</Button>
+              {journalCampaigns.length>0&&<FormControl><FormLabel>Completed sent campaign</FormLabel><Select value={campaignId||null} placeholder="Choose a campaign" disabled={busy} onChange={(_,v)=>setCampaignId(v??"")}>{journalCampaigns.map(c=><Option value={c.id} key={c.id}>{c.name} · {new Date(c.sent_at).toLocaleDateString()}</Option>)}</Select></FormControl>}
+              <FormControl><FormLabel>Optional exact IdealPOS featured product code</FormLabel><Input value={featuredCode} disabled={busy} onChange={e=>setFeaturedCode(e.target.value)} placeholder="Leave blank to measure all purchases"/></FormControl>
+              <Button variant="outlined" disabled={!baselineId||!campaignId.trim()||busy} onClick={()=>void previewJournalCampaign()}>Preview observed journal campaign results</Button>
+              {journalPreview&&(()=>{
+                const o=journalPreview.outcome,fmt=(n:number|null)=>n===null?"Unknown":new Intl.NumberFormat("en-CA",{style:"currency",currency:o.currency}).format(n/100);
+                return <Stack spacing={1}>
+                  <Typography level="title-md">{journalPreview.campaignName}</Typography>
+                  <Alert color="neutral">Observed purchases only. No purchase is not proof that a customer did not return. This report does not establish campaign lift or complete POS coverage.</Alert>
+                  <Box sx={grid}>
+                    {([["Original frozen audience",o.frozenCustomers],["Verified sent customers",o.verifiedSentCustomers],["Observed buyers after send",o.customersWithObservedPositivePurchase],["Observed net spending after send",fmt(o.observedNetSpendMinor)],["Observed paid purchase days",o.observedPositivePurchaseDays],["Sent customers with no observed positive purchase",o.sentCustomersWithoutObservedPositivePurchase]] as const).map(([label,value])=><Sheet variant="outlined" key={label} sx={{p:1.5,borderRadius:"lg"}}><Typography level="body-xs">{label}</Typography><Typography level="h3">{value}</Typography></Sheet>)}
+                  </Box>
+                  <Typography level="body-xs">{o.outsideFrozenAudienceSentCustomers} sent customers outside the original frozen audience; {o.excludedSourceReceipts} source receipt exclusions in this window; {o.unverifiedSendRecords} unverified send records.</Typography>
+                  {!o.baselineCapturedBeforeFirstSend&&<Alert color="neutral">This baseline was captured after at least one send. The result is a retrospective intersection, not proof of the original pre-campaign target.</Alert>}
+                  {o.featured&&<Typography level="body-sm">Product {o.featured.productCode}: {o.featured.customersWithObservedPositivePricedItem} observed positive-priced buyers; signed recorded quantity {o.featured.observedSignedQuantityMilli===null?"Unknown":o.featured.observedSignedQuantityMilli/1000}; {o.featured.unknownFeaturedReceipts} receipts with unknown item evidence.</Typography>}
+                  <Typography level="body-xs">{o.source.filename??"Imported journal"} · {o.window.start} through {o.window.end} · captured {o.cutoff}</Typography>
+                  <Button size="sm" variant="outlined" onClick={()=>downloadProgrammeData("idealpos-observed-campaign-preview.json",JSON.stringify(journalPreview,null,2))}>Download source-backed preview</Button>
+                </Stack>;
+              })()}
+            </Stack>
+          </Sheet>
           {runs.length > 0 && (
             <Stack spacing={1}>
               <Typography level="title-md">Saved comparisons</Typography>

@@ -189,6 +189,13 @@ describe("authenticated programme HTTP boundary", () => {
     expect(out.status).toBe(400);
     expect(x.service.rpc).not.toHaveBeenCalled();
   });
+  it("denies journal campaign access before any privileged message read",async()=>{
+    const x=setup();
+    const out=await x.handler(x.request({action:"journal_campaign_preview",expectedTenantId:tenantId,baselineId:"20000000-0000-0000-0000-000000000001",campaignId:"30000000-0000-0000-0000-000000000001",window:{start:"2026-10-01",end:"2026-10-14"}}));
+    expect(out.status).toBe(403);
+    expect(x.service.from).not.toHaveBeenCalled();
+    expect(x.service.rpc).not.toHaveBeenCalled();
+  });
   it("requires explicit confirmation before a baseline commit", async () => {
     const x = setup();
     const out = await x.handler(
