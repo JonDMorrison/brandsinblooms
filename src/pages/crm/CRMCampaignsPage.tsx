@@ -69,6 +69,7 @@ import {
   CAMPAIGN_STATUS,
   isCampaignStatus,
   isDeliveredCampaignStatus,
+  type CampaignStatus,
 } from "@/constants/campaignStatuses";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
 import { useTenant } from "@/hooks/useTenant";

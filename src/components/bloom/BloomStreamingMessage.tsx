@@ -7,6 +7,7 @@ import Typography from "@mui/joy/Typography";
 import { AlertCircle } from "lucide-react";
 import { useBloom } from "@/components/bloom/BloomContext";
 import { BloomStreamingIndicator } from "@/components/bloom/BloomToolLoadingPill";
+import { BlockRenderer } from "@/components/bloom/blocks/BlockRenderer";
 import { createResearchProgressPayload } from "@/components/bloom/blocks/researchProgressPayload";
 import { ThinkingBlock } from "@/components/bloom/blocks/ThinkingBlock";
 import { ContentBlockRenderer } from "@/components/bloom/content/ContentBlockRenderer";

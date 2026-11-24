@@ -526,7 +526,11 @@ export default function AdminCostsPage() {
             {loading ? (
               <Stack spacing={1.5}>
                 {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
+                  <JoySkeleton
+                    key={i}
+                    variant="rectangular"
+                    sx={{ height: 48, width: "100%" }}
+                  />
                 ))}
               </Stack>
             ) : topTenants.length === 0 ? (
@@ -567,10 +571,7 @@ export default function AdminCostsPage() {
                         </Typography>
                         <Stack spacing={0.25}>
                           <Typography level="title-sm">
-                            <JoySkeleton
-                              key={i}
-                              sx={{ height: 48, width: "100%" }}
-                            />
+                            {tenant.tenant_name}
                           </Typography>
                           <Typography
                             level="body-xs"

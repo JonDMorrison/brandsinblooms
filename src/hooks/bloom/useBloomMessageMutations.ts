@@ -31,6 +31,7 @@ import {
   taskPlanBlockData,
   type BloomEditedTaskFields,
   type BloomTaskCompletionSummary,
+  type BloomTaskJsonObject,
   type BloomTaskPlan,
   type BloomTaskStatusUpdate,
 } from "@/hooks/bloom/taskPlanTypes";
