@@ -16,18 +16,18 @@ describe('customer list: imported spending (Bryan, Nov 2: “pasca” showed $0 
   it.each([null, undefined, '', '   ', 'unknown', Number.NaN])('keeps unavailable spend unknown (%s)',(total_spent)=>{
     render(<CustomerListSpendCell customer={{total_spent}}/>);
     expect(screen.getByText('Unknown')).toBeVisible();
-    expect(screen.queryByText('0.00')).toBeNull();
+    expect(screen.queryByText('$0.00')).toBeNull();
   });
   it.each([0, '0', -42.5])('preserves a supplied recorded amount (%s)',(total_spent)=>{
     render(<CustomerListSpendCell customer={{total_spent}}/>);
-    expect(screen.getByText(Number(total_spent).toFixed(2))).toBeVisible();
+    expect(screen.getByText(new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(total_spent)))).toBeVisible();
     expect(screen.queryByText('Unknown')).toBeNull();
   });
   it('shows the reported total with its period instead of $0',()=>{
     render(<CustomerListSpendCell customer={westCoastJohn}/>);
     expect(screen.getByText('$2,013.85')).toBeVisible();
     expect(screen.getByText('Reported Jan 1 – Oct 14, 2026')).toBeVisible();
-    expect(screen.queryByText('0.00')).toBeNull();
+    expect(screen.queryByText('$0.00')).toBeNull();
   });
   it('never says “No purchases” for unknown or report-only history',()=>{
     render(<CustomerListLastPurchaseCell customer={westCoastJohn}/>);
@@ -40,7 +40,7 @@ describe('customer list: imported spending (Bryan, Nov 2: “pasca” showed $0 
   });
   it('keeps dated receipt spending and dates when they exist',()=>{
     render(<><CustomerListSpendCell customer={{...westCoastJohn,total_spent:410.5}}/><CustomerListLastPurchaseCell customer={{...westCoastJohn,last_purchase_date:'2026-09-03T12:00:00Z'}}/></>);
-    expect(screen.getByText('410.50')).toBeVisible();
+    expect(screen.getByText('$410.50')).toBeVisible();
     expect(screen.queryByText(/Reported/)).toBeNull();
     expect(screen.getByText('Sep 3, 2026')).toBeVisible();
   });

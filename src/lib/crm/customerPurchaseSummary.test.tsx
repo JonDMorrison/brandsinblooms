@@ -41,7 +41,7 @@ describe("customer purchase summary: one source of truth", () => {
 
   it("list, Purchases tab and Bloom show the same lifetime value", () => {
     render(<CustomerListSpendCell customer={northfield2289} />);
-    expect(screen.getByText("3700.91")).toBeVisible();
+    expect(screen.getByText("$3,700.91")).toBeVisible();
 
     const purchases = transformToPurchaseMetrics(
       null,

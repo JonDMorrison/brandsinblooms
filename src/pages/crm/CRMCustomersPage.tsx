@@ -1,3 +1,4 @@
+import { resolveTenantCurrency } from "@/lib/tenantCurrency";
 import { POSMarketingRequests } from "@/components/crm/POSMarketingRequests";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Button from "@mui/joy/Button";
@@ -82,11 +83,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const CUSTOMER_CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
 
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -245,6 +241,8 @@ export const CRMCustomersPage: React.FC = () => {
     [allSegments],
   );
 
+  const tenantCurrency = resolveTenantCurrency(tenant);
+
   const headerStats = useMemo(
     () => [
       {
@@ -259,9 +257,11 @@ export const CRMCustomersPage: React.FC = () => {
       },
       {
         label: "Total Spent",
-        value: CUSTOMER_CURRENCY_FORMATTER.format(
-          customerHeaderStats?.totalSpent ?? 0,
-        ),
+        value: new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: tenantCurrency,
+          maximumFractionDigits: 0,
+        }).format(customerHeaderStats?.totalSpent ?? 0),
         icon: <DollarSign size={18} />,
       },
       {
@@ -272,17 +272,16 @@ export const CRMCustomersPage: React.FC = () => {
     ],
     [
       activeSegmentCount,
+      tenantCurrency,
       customerHeaderStats?.newThisMonth,
       customerHeaderStats?.totalCustomers,
       customerHeaderStats?.totalSpent,
     ],
   );
 
-  const isHeaderStatsLoading =
-    isLoading ||
-    isTenantLoading ||
-    isSegmentsLoading ||
-    isCustomerHeaderStatsLoading;
+  // Stat cards come from their own count query (get_customer_catalog_stats);
+  // they no longer wait for the customer list or segments to load.
+  const isHeaderStatsLoading = isTenantLoading || isCustomerHeaderStatsLoading;
 
   // Check if all visible customers are selected
   const allVisibleSelected =
@@ -937,7 +936,7 @@ export const CRMCustomersPage: React.FC = () => {
                         )}
                       </JoyTableCell>
                       <JoyTableCell>
-                        <CustomerListSpendCell customer={customer} />
+                        <CustomerListSpendCell customer={customer} currency={tenantCurrency} />
                       </JoyTableCell>
                       <JoyTableCell>
                         <CustomerListLastPurchaseCell customer={customer} />

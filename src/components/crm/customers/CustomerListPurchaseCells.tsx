@@ -7,6 +7,7 @@ import {
   formatReportedPeriod,
 } from "@/lib/crm/reportedPeriodSpending";
 import {
+  formatCustomerCurrency,
   resolveCustomerPurchaseSummary,
   type CustomerPurchaseSource,
 } from "@/lib/crm/customerPurchaseSummary";
@@ -27,7 +28,14 @@ const mutedSx = { fontSize: "13px", color: "neutral.500" } as const;
  * the customer record, Purchases tab and Bloom show). When none is recorded
  * but a POS spending report exists, show the report total with its period.
  */
-export function CustomerListSpendCell({ customer }: { customer: PurchaseCellCustomer }) {
+export function CustomerListSpendCell({
+  customer,
+  currency = "USD",
+}: {
+  customer: PurchaseCellCustomer;
+  /** Tenant currency (resolveTenantCurrency), e.g. "USD" -> $3,700.91. */
+  currency?: string;
+}) {
   const summary = resolveCustomerPurchaseSummary(customer);
   const recorded = summary.lifetimeValue;
   const reported = summary.reportedPeriod;
@@ -50,8 +58,7 @@ export function CustomerListSpendCell({ customer }: { customer: PurchaseCellCust
 
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-      <DollarSign size={12} strokeWidth={1.9} color="var(--joy-palette-neutral-400)" />
-      <Typography sx={amountSx}>{recorded.toFixed(2)}</Typography>
+      <Typography sx={amountSx}>{formatCustomerCurrency(recorded, currency, "en-US")}</Typography>
     </Stack>
   );
 }
