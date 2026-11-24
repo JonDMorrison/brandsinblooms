@@ -4,6 +4,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { normalizeEmailCampaignReportingSnapshot } from "./useCampaignDerivedMetrics";
 import { DELIVERED_STATUSES } from "@/constants/campaignStatuses";
+import { resolveCampaignStats } from "@/lib/crm/campaignStats";
 
 export interface DeliveryMetrics {
   campaignId: string;
@@ -30,7 +31,12 @@ export interface DeliveryMetrics {
     other: number;
   };
 
-  // Engagement (from tracking events or cached)
+  /** Recipients from the shared rollup (src/lib/crm/campaignStats.ts). */
+  recipients: number;
+  /** True when the rollup fell back to the stored estimate (no send records). */
+  estimated: boolean;
+
+  // Engagement (from the shared rollup)
   totalOpens: number;
   totalClicks: number;
   openRate: number;
@@ -58,6 +64,8 @@ interface UseCampaignDeliveryMetricsResult {
     totalFailed: number;
     avgOpenRate: number;
     avgClickRate: number;
+    /** True when any campaign in the summary uses the stored estimate. */
+    estimated: boolean;
   };
   recomputeAll: () => Promise<void>;
   recomputeCampaign: (campaignId: string) => Promise<void>;
@@ -227,6 +235,7 @@ export const useCampaignDeliveryMetrics = (
           batches: 0,
         };
         const report = snapshots.get(c.id)!;
+        const stats = resolveCampaignStats(report)!;
         const computedEnqueued = report.totals.recipients;
         const computedSent = report.totals.sent;
         const computedFailed = report.totals.failed;
@@ -253,7 +262,7 @@ export const useCampaignDeliveryMetrics = (
           cachedTotalSent: cachedSent,
           cachedOpenRate: c.open_rate || 0,
           cachedClickRate: c.click_rate || 0,
-          computedDelivered: report.totals.delivered,
+          computedDelivered: stats.delivered,
           computedFailed: computedFailed,
           computedEnqueued: computedEnqueued,
           batchCount: jobs.batches,
@@ -264,10 +273,12 @@ export const useCampaignDeliveryMetrics = (
             invalid_email: report.totals.skipped > 0 ? skips.invalid_email : 0,
             other: report.totals.skipped > 0 ? skips.other : 0,
           },
-          totalOpens: report.totals.opens,
-          totalClicks: report.totals.clicks,
-          openRate: report.rates.open_reported,
-          clickRate: report.rates.click,
+          recipients: stats.recipients,
+          estimated: stats.estimated,
+          totalOpens: stats.opens,
+          totalClicks: stats.clicks,
+          openRate: stats.openRate,
+          clickRate: stats.clickRate,
           isStale: discrepancy > 5, // More than 5% difference
           metricsDiscrepancy: discrepancy,
         };
@@ -339,6 +350,7 @@ export const useCampaignDeliveryMetrics = (
       acc.totalDelivered += c.computedDelivered;
       acc.totalSkipped += c.skipsTotal;
       acc.totalFailed += c.computedFailed;
+      acc.estimated = acc.estimated || c.estimated;
       return acc;
     },
     {
@@ -348,6 +360,7 @@ export const useCampaignDeliveryMetrics = (
       totalFailed: 0,
       avgOpenRate: 0,
       avgClickRate: 0,
+      estimated: false,
     },
   );
 

@@ -291,7 +291,7 @@ export const BloomSuiteDashboard = () => {
               !performance.error && hasEmailData
                 ? formatPercent(performance.summary.avgClickRate)
                 : performance.error ? "Results unavailable" : "No recent results",
-            description: performance.error ? "Please try again later." : hasEmailData ? "Last 30 days · up to 10 recent sends" : "Campaign results will appear after a send.",
+            description: performance.error ? "Please try again later." : hasEmailData ? `Last 30 days · up to 10 recent sends${performance.summary.estimated ? " · Estimated" : ""}` : "Campaign results will appear after a send.",
             empty: !hasEmailData || Boolean(performance.error),
             loading: performance.loading,
             destination: "/analytics",
@@ -304,7 +304,7 @@ export const BloomSuiteDashboard = () => {
               !performance.error && hasEmailData
                 ? formatPercent(performance.summary.avgOpenRate)
                 : performance.error ? "Results unavailable" : "No recent results",
-            description: performance.error ? "Please try again later." : hasEmailData ? "Opens are estimates due to email privacy" : "Campaign results will appear after a send.",
+            description: performance.error ? "Please try again later." : hasEmailData ? `Opens are estimates due to email privacy${performance.summary.estimated ? " · Estimated" : ""}` : "Campaign results will appear after a send.",
             empty: !hasEmailData || Boolean(performance.error),
             loading: performance.loading,
             destination: "/analytics",

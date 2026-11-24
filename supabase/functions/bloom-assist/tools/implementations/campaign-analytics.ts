@@ -8,6 +8,7 @@ import type {
 import {
   getQueryClient,
   isRecord,
+  loadSharedCampaignRollups,
   toNumberOrNull,
   uniqueStrings,
   type BloomQueryClient,
@@ -61,6 +62,8 @@ type CampaignMetrics = {
   reach_score: number;
   interaction_score: number;
   computed_at: string | null;
+  /** True when the shared rollup used the stored estimate (no send records). */
+  estimated: boolean;
 };
 
 type MetricName =
@@ -260,6 +263,7 @@ function extractCampaignMetrics(row: CampaignRow): CampaignMetrics {
   const scores = nestedRecord(metrics, "scores") ?? {};
 
   const totalRecipients = firstNumber([
+    totals.recipients,
     totals.sent,
     row.total_recipients,
     row.total_sent,
@@ -343,6 +347,7 @@ function extractCampaignMetrics(row: CampaignRow): CampaignMetrics {
     reach_score: firstNumber([scores.reach]),
     interaction_score: firstNumber([scores.interaction]),
     computed_at: readString(metrics?.computed_at),
+    estimated: metrics?.estimated === true,
   };
 }
 
@@ -393,6 +398,32 @@ async function recomputeIfRecent(
     : row;
 }
 
+/**
+ * Overlays the shared campaign rollup (get_email_campaign_reporting_snapshot,
+ * src/lib/crm/campaignStats.ts) on each row's stored metrics, so Bloom quotes
+ * the same recipients, deliveries, opens and clicks as the campaign list,
+ * report, dashboard and Reports > Overview. Stored-only keys such as revenue
+ * are kept.
+ */
+async function withSharedRollups(
+  client: BloomQueryClient,
+  rows: CampaignRow[],
+): Promise<CampaignRow[]> {
+  const rollups = await loadSharedCampaignRollups(
+    client,
+    rows.filter((row) => row.sent_at || row.send_completed_at).map((row) => row.id),
+  );
+  return rows.map((row) => {
+    const rollup = rollups.get(row.id);
+    if (!rollup) return row;
+    const stored = isRecord(row.metrics) ? row.metrics : {};
+    return {
+      ...row,
+      metrics: { ...stored, ...rollup.metrics } as CampaignRow["metrics"],
+    };
+  });
+}
+
 async function recomputeRowsIfRecent(
   client: BloomQueryClient,
   rows: CampaignRow[],
@@ -401,7 +432,7 @@ async function recomputeRowsIfRecent(
   for (const row of rows) {
     refreshedRows.push(await recomputeIfRecent(client, row));
   }
-  return refreshedRows;
+  return withSharedRollups(client, refreshedRows);
 }
 
 function mapMetricCard(row: CampaignRow): JsonObject {
@@ -551,7 +582,7 @@ async function singleCampaignAnalytics(
     return errorResult("Campaign not found for this tenant.", "not_found");
   }
 
-  const row = await recomputeIfRecent(client, rows[0]);
+  const [row] = await recomputeRowsIfRecent(client, rows.slice(0, 1));
   return createResult({
     success: true,
     message: `Loaded analytics for campaign "${row.name}".`,

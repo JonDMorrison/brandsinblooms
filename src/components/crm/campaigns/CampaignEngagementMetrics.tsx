@@ -17,11 +17,21 @@ export interface CampaignEngagementMetricsProps {
   unsubscribes: number;
   complaints: number;
   totalDelivered: number;
+  /**
+   * Open and click rates (percent) from the shared campaign rollup. When
+   * given they are shown as-is so the report matches the list and dashboard.
+   */
+  openRate?: number;
+  clickRate?: number;
 }
 
 function formatPercent(value: number, total: number) {
   if (total <= 0) return "0.0%";
   return `${((value / total) * 100).toFixed(1)}%`;
+}
+
+function formatRate(rate: number | undefined, value: number, total: number) {
+  return rate === undefined ? formatPercent(value, total) : `${rate.toFixed(1)}%`;
 }
 
 function EngagementCell({
@@ -68,6 +78,8 @@ export function CampaignEngagementMetrics({
   unsubscribes,
   complaints,
   totalDelivered,
+  openRate,
+  clickRate,
 }: CampaignEngagementMetricsProps) {
   const complaintRate = totalDelivered > 0 ? complaints / totalDelivered : 0;
   const items = [
@@ -75,13 +87,13 @@ export function CampaignEngagementMetrics({
       key: "clicked",
       icon: MousePointerClick,
       label: "Clicked",
-      value: `${uniqueClicks.toLocaleString()} unique / ${totalClicks.toLocaleString()} total (${formatPercent(uniqueClicks, totalDelivered)})`,
+      value: `${uniqueClicks.toLocaleString()} unique / ${totalClicks.toLocaleString()} total (${formatRate(clickRate, uniqueClicks, totalDelivered)})`,
     },
     {
       key: "opened",
       icon: Eye,
       label: "Opened (reported)",
-      value: `${uniqueOpens.toLocaleString()} unique / ${totalOpens.toLocaleString()} total (${formatPercent(uniqueOpens, totalDelivered)})`,
+      value: `${uniqueOpens.toLocaleString()} unique / ${totalOpens.toLocaleString()} total (${formatRate(openRate, uniqueOpens, totalDelivered)})`,
     },
     {
       key: "unsubscribed",

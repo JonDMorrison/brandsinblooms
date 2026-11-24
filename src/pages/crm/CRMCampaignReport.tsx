@@ -1,4 +1,5 @@
 import * as React from "react";
+import Alert from "@mui/joy/Alert";
 import ButtonGroup from "@mui/joy/ButtonGroup";
 import Box from "@mui/joy/Box";
 import Divider from "@mui/joy/Divider";
@@ -34,6 +35,10 @@ import { CampaignDeliverySummary } from "@/components/crm/campaigns/CampaignDeli
 import { CampaignEngagementMetrics } from "@/components/crm/campaigns/CampaignEngagementMetrics";
 import { CampaignRevenueAttribution } from "@/components/crm/campaigns/CampaignRevenueAttribution";
 import { formatAttributedRevenue } from "@/lib/crm/campaignRevenueMetrics";
+import {
+  ESTIMATED_STATS_EXPLANATION,
+  ESTIMATED_STATS_LABEL,
+} from "@/lib/crm/campaignStats";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyCard,
@@ -1413,6 +1418,21 @@ export default function CRMCampaignReport() {
           </Box>
         </Sheet>
 
+        {!reportQuery.isLoading && metrics?.estimated ? (
+          <Alert
+            color="neutral"
+            variant="soft"
+            size="sm"
+            data-testid="campaign-stats-estimated"
+            startDecorator={<Info size={16} />}
+          >
+            <Typography level="body-sm">
+              <strong>{ESTIMATED_STATS_LABEL}.</strong>{" "}
+              {ESTIMATED_STATS_EXPLANATION}
+            </Typography>
+          </Alert>
+        ) : null}
+
         {reportQuery.isLoading ? (
           <StatsStripSkeleton cells={6} />
         ) : (
@@ -1528,6 +1548,8 @@ export default function CRMCampaignReport() {
             unsubscribes={report?.unsubscribes ?? 0}
             complaints={report?.complaints ?? 0}
             totalDelivered={Math.max(delivered, 1)}
+            openRate={metrics?.rates.open_reported}
+            clickRate={metrics?.rates.click}
           />
         )}
 

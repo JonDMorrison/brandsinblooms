@@ -8,6 +8,10 @@ import type {
   ToolResult,
 } from "../types.ts";
 import { FILTER_OPERATORS } from "../types.ts";
+import {
+  resolveCampaignStats,
+  type CampaignStats,
+} from "../../../../../src/lib/crm/campaignStats.ts";
 
 export type BloomQueryClient = SupabaseClient<Database, "public">;
 
@@ -203,4 +207,47 @@ export function asJsonObject(value: JsonValue | undefined): JsonObject | null {
   return isRecord(value) && Object.values(value).every(isJsonValue)
     ? value
     : null;
+}
+
+export type SharedCampaignRollup = {
+  /** `metrics` from get_email_campaign_reporting_snapshot. */
+  metrics: Record<string, unknown>;
+  stats: CampaignStats;
+};
+
+const SHARED_ROLLUP_CONCURRENCY = 5;
+
+/**
+ * The shared campaign rollup (src/lib/crm/campaignStats.ts) for each sent
+ * campaign id: the same numbers the campaign list, report, dashboard and
+ * Reports > Overview show. A campaign whose snapshot fails is left out.
+ */
+export async function loadSharedCampaignRollups(
+  client: BloomQueryClient,
+  campaignIds: string[],
+): Promise<Map<string, SharedCampaignRollup>> {
+  const rollups = new Map<string, SharedCampaignRollup>();
+  const ids = uniqueStrings(campaignIds);
+  for (let index = 0; index < ids.length; index += SHARED_ROLLUP_CONCURRENCY) {
+    const batch = ids.slice(index, index + SHARED_ROLLUP_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async (campaignId) => {
+        const { data, error } = await client.rpc(
+          "get_email_campaign_reporting_snapshot",
+          { p_campaign_id: campaignId },
+        );
+        if (error) {
+          console.warn("[bloom] campaign rollup unavailable", campaignId, error.message);
+          return null;
+        }
+        if (!isRecord(data) || !isRecord(data.metrics)) return null;
+        const stats = resolveCampaignStats(data);
+        return stats ? ([campaignId, { metrics: data.metrics, stats }] as const) : null;
+      }),
+    );
+    for (const result of results) {
+      if (result) rollups.set(result[0], result[1]);
+    }
+  }
+  return rollups;
 }
