@@ -48,6 +48,14 @@ export type StudioDesignSystemCompany = {
 };
 
 export type StudioDesignSystemColors = {
+  /**
+   * The profile still holds the company_profiles column defaults for all four
+   * brand colours, i.e. nobody chose them. New content (blank canvas, new
+   * blocks, new footers, colour swatches) then starts neutral instead of in a
+   * stock green. Rendering ignores this flag, so stored and sent campaigns
+   * render exactly as before.
+   */
+  brandColorsAreDefaults?: boolean;
   primary?: string;
   secondary?: string;
   accent?: string;
@@ -264,7 +272,34 @@ function createSocialLinks(companyInfo: CompanyInfo): SocialLink[] {
   }));
 }
 
+const UNTOUCHED_BRAND_COLORS = {
+  primary: "#22c55e",
+  secondary: "#1e40af",
+  accent: "#f59e0b",
+  text: "#1f2937",
+} as const;
+
+export function hasUntouchedDefaultBrandColors(
+  companyInfo: Pick<
+    CompanyInfo,
+    | "brandPrimaryColorRaw"
+    | "brandSecondaryColorRaw"
+    | "brandAccentColorRaw"
+    | "brandTextColorRaw"
+  >,
+): boolean {
+  const same = (value: string | undefined, expected: string) =>
+    stringValue(value).toLowerCase() === expected;
+  return (
+    same(companyInfo.brandPrimaryColorRaw, UNTOUCHED_BRAND_COLORS.primary) &&
+    same(companyInfo.brandSecondaryColorRaw, UNTOUCHED_BRAND_COLORS.secondary) &&
+    same(companyInfo.brandAccentColorRaw, UNTOUCHED_BRAND_COLORS.accent) &&
+    same(companyInfo.brandTextColorRaw, UNTOUCHED_BRAND_COLORS.text)
+  );
+}
+
 export function buildStudioDesignSystem(companyInfo: CompanyInfo) {
+  const brandColorsAreDefaults = hasUntouchedDefaultBrandColors(companyInfo);
   const selectedFont = normalizeFont(companyInfo.selectedFont);
   const headlineFont = normalizeFont(companyInfo.headlineFont) ?? selectedFont;
   const subheadingFont =
@@ -335,6 +370,7 @@ export function buildStudioDesignSystem(companyInfo: CompanyInfo) {
       footerLegalText: stringValue(companyInfo.footerLegalText),
     },
     colors: {
+      brandColorsAreDefaults,
       primary: primaryColor,
       secondary: stringValue(companyInfo.brandSecondaryColorRaw) || undefined,
       accent: stringValue(companyInfo.brandAccentColorRaw) || undefined,
@@ -360,10 +396,16 @@ export function buildStudioDesignSystem(companyInfo: CompanyInfo) {
       links: socialLinks,
       hasConfiguredLinks: socialLinks.some((link) => link.enabled),
     },
-    colorPresets: {
-      core: configuredColors.slice(0, 5),
-      expanded: configuredColors.slice(5),
-    },
+    // Swatches: untouched default brand colours are not offered as "brand".
+    colorPresets: (() => {
+      const unset = new Set<string>(
+        brandColorsAreDefaults ? Object.values(UNTOUCHED_BRAND_COLORS) : [],
+      );
+      const swatches = configuredColors.filter(
+        (color) => !unset.has(color.toLowerCase()),
+      );
+      return { core: swatches.slice(0, 5), expanded: swatches.slice(5) };
+    })(),
     fontUrls,
   } satisfies StudioDesignSystem;
 }

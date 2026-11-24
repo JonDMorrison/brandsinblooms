@@ -2509,6 +2509,11 @@ export function generateEmailHtml({
     newsletterSettings ||
       blocks.find((block) => block.newsletterSettings)?.newsletterSettings,
   );
+  // Phone height for cropped photos. 240px unless the draft opted into
+  // natural height (NewsletterSettings.mobileImageHeight), so campaigns
+  // without the flag render exactly as before.
+  const mobileCropHeight =
+    settings.mobileImageHeight === "natural" ? "auto" : `${SENT_MOBILE_CROP_HEIGHT}px`;
   const visibleBlocks = blocks.filter((block) => block.visible !== false);
   const footerBlock =
     footer ||
@@ -2558,7 +2563,7 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .responsive-column { display:block !important; width:100% !important; max-width:100% !important; box-sizing:border-box !important; padding-left:0 !important; padding-right:0 !important; }
       .responsive-column + .responsive-column { padding-top:16px !important; }
       .responsive-image { width:100% !important; max-width:100% !important; height:auto !important; }
-      .responsive-crop-image { height:240px !important; }
+      .responsive-crop-image { height:${mobileCropHeight} !important; }
       .mobile-padding:not(.newsletter-padding-override) { padding:16px !important; }
       .gallery-grid,
       .product-grid,
@@ -2594,7 +2599,7 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .product-card-image img,
       .image-text-image img { width:100% !important; max-width:100% !important; height:auto !important; }
       .product-card-image img.responsive-crop-image,
-      .image-text-image img.responsive-crop-image { height:240px !important; }
+      .image-text-image img.responsive-crop-image { height:${mobileCropHeight} !important; }
       .gallery-grid-placeholder,
       .product-grid-placeholder { display:none !important; padding:0 !important; height:0 !important; }
     }

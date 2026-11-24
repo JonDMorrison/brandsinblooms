@@ -164,12 +164,15 @@ describe("useSavedTemplates", () => {
     const selectChain = findChain((chain) =>
       chain.calls.some((call) => call.startsWith("select:")),
     );
-    expect(selectChain?.calls).toContain("eq:user_id=user-1");
+    // #6: the whole team's templates for this business, plus your own
+    // older ones saved without a business. Never another tenant's.
+    expect(selectChain?.calls).not.toContain("eq:user_id=user-1");
     expect(selectChain?.calls).toContain(
-      "or:tenant_id.eq.tenant-1,tenant_id.is.null",
+      "or:tenant_id.eq.tenant-1,and(user_id.eq.user-1,tenant_id.is.null)",
     );
     expect(result.current.savedTemplates).toHaveLength(1);
     expect(result.current.savedTemplates[0].name).toBe("Spring");
+    expect(result.current.savedTemplates[0].isOwn).toBe(true);
     expect(result.current.savedTemplates[0].layout_json).toHaveLength(1);
   });
 

@@ -54,7 +54,9 @@ export default function StudioColorPicker({
   const theme = useTheme();
   const designSystemContext = useOptionalDesignSystem();
   const designSystemPresets = designSystemContext?.designSystem.colorPresets;
-  const brandColors = designSystemContext?.designSystem.colors;
+  // Untouched default brand colours are not offered as brand swatches.
+  const designSystemColors = designSystemContext?.designSystem.colors;
+  const brandColors = designSystemColors?.brandColorsAreDefaults ? undefined : designSystemColors;
   const primaryPreset = theme.palette.primary[500];
   // The account's configured primary, secondary and accent colours are always
   // directly available. Do not mix them into the unrelated generic presets.
