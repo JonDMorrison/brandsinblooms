@@ -18,6 +18,8 @@ describe('premium Care Guide email v1',()=>{
    expect(out.subject).toContain('Red Prayer Plant');
    for(const phrase of ['Northfield Garden Centre','A good start for something green.','Maranta leuconeura','Bright indirect light','Keep evenly moist','Well-drained soil','THE PLANT NOTE'])expect(out.html).toContain(phrase);
    expect(out.html).toContain('max-width:620px');
+   // Stacked phone cells keep their padding inside 100% width (no right-edge overflow at 375px).
+   expect(out.html).toContain('.stack{display:block!important;width:100%!important;box-sizing:border-box!important}');
    expect(out.html).toContain('https://example.org/plant.jpg');
    expect(out.text).toContain('Light: Bright indirect light');
    expect(out.html).toContain('does not subscribe you to promotional messages');
