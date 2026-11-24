@@ -84,9 +84,40 @@ function formatLoyaltyBalance(entry: LoyaltyWalletEntry) {
   return `${entry.balance.toLocaleString()} available`;
 }
 
+type RefreshState = "idle" | "working" | "not_found" | "error";
+
 export default function EmailPreferences() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const [refreshState, setRefreshState] = useState<RefreshState>("idle");
+
+  // Preference tokens are reusable, so a link that does not open is invalid
+  // or expired. Whoever holds it received an email from the store, so the
+  // page can swap it for a current link (refresh-preference-link).
+  const requestFreshLink = async () => {
+    if (!token) return;
+    setRefreshState("working");
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "refresh-preference-link",
+        { body: { token } },
+      );
+      if (error) {
+        setRefreshState("error");
+        return;
+      }
+      if (data?.refreshed && typeof data.token === "string") {
+        setRefreshState("idle");
+        setState("loading");
+        setSearchParams({ token: data.token }, { replace: true });
+        return;
+      }
+      setRefreshState("not_found");
+    } catch (err) {
+      console.error("Preference link refresh error:", err);
+      setRefreshState("error");
+    }
+  };
 
   const [state, setState] = useState<PageState>("loading");
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
@@ -198,36 +229,8 @@ export default function EmailPreferences() {
     );
   }
 
-  // Invalid token
-  if (state === "invalid") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-              <XCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <CardTitle>Invalid Link</CardTitle>
-            <CardDescription>
-              This preference link is invalid or has already been used.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                If you believe this is an error, please contact the sender of
-                the original email.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Expired token
-  if (state === "expired") {
+  // Invalid or expired link (tokens are reusable, never "used up").
+  if (state === "invalid" || state === "expired") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -235,14 +238,41 @@ export default function EmailPreferences() {
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6 text-yellow-600" />
             </div>
-            <CardTitle>Link Expired</CardTitle>
-            <CardDescription>This preference link has expired.</CardDescription>
+            <CardTitle>Link not working</CardTitle>
+            <CardDescription>
+              This link is invalid or has expired.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {token && refreshState !== "not_found" ? (
+              <Button
+                className="w-full"
+                onClick={() => void requestFreshLink()}
+                disabled={refreshState === "working"}
+                data-testid="request-fresh-preference-link"
+              >
+                {refreshState === "working" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Getting a new link...
+                  </>
+                ) : (
+                  "Get a new link"
+                )}
+              </Button>
+            ) : null}
+            {refreshState === "error" ? (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  We could not get a new link right now. Please try again.
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <Alert>
               <AlertDescription>
-                Please contact us if you would like to update your email
-                preferences.
+                {refreshState === "not_found" || !token
+                  ? "We couldn't find this link. Open \"Manage preferences\" in the most recent email you received; every email includes a current link."
+                  : "Every email you receive also includes a current \"Manage preferences\" link."}
               </AlertDescription>
             </Alert>
           </CardContent>
