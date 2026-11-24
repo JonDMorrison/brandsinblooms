@@ -76,3 +76,49 @@ describe("Bloom follows the admin workspace switch", () => {
     expect(fn).not.toMatch(/u\.tenant_id = p_tenant_id/);
   });
 });
+
+describe("admin workspace is scoped per browser tab", () => {
+  const sql = fs.readFileSync(
+    path.join(process.cwd(), "supabase/migrations/20261124154724_admin_tab_scoped_active_tenant.sql"),
+    "utf8",
+  );
+  const helper = sql.slice(
+    sql.indexOf("CREATE OR REPLACE FUNCTION public.admin_active_tenant_id()"),
+    sql.indexOf("COMMENT ON FUNCTION public.admin_active_tenant_id()"),
+  );
+
+  it("honours the tab header only after confirming a master admin", () => {
+    const adminCheck = helper.indexOf("NOT coalesce(public.is_master_admin(v_user_id), false)");
+    const headerRead = helper.indexOf("'x-bloom-admin-tenant'");
+    expect(adminCheck).toBeGreaterThan(-1);
+    expect(headerRead).toBeGreaterThan(adminCheck);
+    expect(helper.slice(adminCheck, headerRead)).toContain("RETURN NULL;");
+  });
+
+  it("fails closed for an empty, malformed or unknown tab company", () => {
+    expect(helper).toMatch(/lower\(v_header\) = 'none' THEN\s+RETURN NULL;/);
+    expect(helper).toMatch(/v_tenant_id := v_header::uuid;\s+EXCEPTION WHEN others THEN\s+RETURN NULL;/);
+    expect(helper).toMatch(/FROM public\.tenants AS tenant\s+WHERE tenant\.id = v_tenant_id;/);
+  });
+
+  it("keeps the shared context row as the fallback when no header is sent", () => {
+    expect(helper).toMatch(/FROM public\.admin_session_context AS context\s+WHERE context\.admin_user_id = v_user_id;/);
+  });
+
+  it("never lets a missing active tenant grant access", () => {
+    for (const fragment of [
+      "'RETURN coalesce(public.admin_active_tenant_id() = p_tenant_id, false);'",
+      "'coalesce(public.admin_active_tenant_id() = p_tenant_id, false)'",
+      "'NOT coalesce(public.admin_active_tenant_id() = OLD.tenant_id, false)'",
+      "'NOT coalesce(public.admin_active_tenant_id() = p_tenant_id, false)'",
+    ]) {
+      expect(sql).toContain(fragment);
+    }
+    expect(sql).not.toMatch(/IS NOT DISTINCT FROM/);
+  });
+
+  it("aborts instead of half-applying when a body or policy is not the expected one", () => {
+    expect(sql).toContain("RAISE EXCEPTION 'admin tab scope: unexpected body for %'");
+    expect(sql).toContain("RAISE EXCEPTION 'admin tab scope: a policy still reads admin_session_context'");
+  });
+});

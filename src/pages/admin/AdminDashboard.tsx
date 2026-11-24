@@ -7,6 +7,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
+import { useAdmin } from "@/contexts/AdminContext";
 import {
   JoyCard,
   JoyCardContent,
@@ -26,6 +27,7 @@ export default function AdminDashboard() {
   const { data: isSuperAdmin, isLoading: checkingAdmin } = useIsSuperAdmin();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { setActiveTenantId } = useAdmin();
 
   const { data: tenants, isLoading: loadingTenants } = useQuery({
     queryKey: ["admin-tenants", searchEmail],
@@ -60,6 +62,10 @@ export default function AdminDashboard() {
       });
 
       if (error) throw error;
+
+      // Server checks scope this tab by its own selection, so publish the
+      // switch to this tab's admin context too.
+      await setActiveTenantId(tenantId);
     },
     onSuccess: () => {
       toast({
