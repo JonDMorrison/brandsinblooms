@@ -97,7 +97,7 @@ function PendingCustomerReview({ item, completed }: {
           onChange={(event) => setAcknowledged(event.target.checked)}
           label="I independently verified that these are the same customer. No email-only match."
         />
-        <Button onClick={() => void approve()}
+        <Button sx={{ alignSelf: "flex-start" }} onClick={() => void approve()}
           disabled={!acknowledged || saving || reason.trim().length < 12 ||
             !/^[0-9a-f-]{36}$/i.test(customerId)} loading={saving}>
           Approve customer identity

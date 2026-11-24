@@ -129,7 +129,7 @@ export function PushSegmentComposer() {
           Link destination: My Offers on the customer's own garden centre website.
           No automatic email or SMS fallback is sent from this pilot.
         </Typography>
-        <Button variant="outlined" color="neutral"
+        <Button sx={{ alignSelf: "flex-start" }} variant="outlined" color="neutral"
           disabled={!segmentId || Boolean(busy)}
           loading={busy === "preview"} onClick={() => void previewAudience()}>
           Preview eligible recipients
@@ -163,7 +163,7 @@ export function PushSegmentComposer() {
           <Checkbox checked={approved} onChange={(event) => setApproved(event.target.checked)}
             label="I reviewed this audience and confirm that this promotional push should be queued." />
         )}
-        <Button disabled={!preview || !approved || preview.eligibleDevices < 1 ||
+        <Button sx={{ alignSelf: "flex-start" }} disabled={!preview || !approved || preview.eligibleDevices < 1 ||
             preview.eligibleDevices > 250 || title.trim().length < 3 || Boolean(busy)}
           loading={busy === "queue"} onClick={() => void queue()}>
           Queue push campaign

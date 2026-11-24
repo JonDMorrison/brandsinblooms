@@ -1,5 +1,9 @@
 import * as React from 'react';
-import { Alert, Box, Button, Checkbox, FormControl, FormLabel, Input, Option, Select, Sheet, Stack, Table, Textarea, Typography } from '@mui/joy';
+import { Alert, Box, Button, Checkbox, FormControl, FormLabel, Option, Select, Sheet, Stack, Table, Textarea, Typography } from '@mui/joy';
+import { Users } from 'lucide-react';
+import { autosizeSx } from './IntelligenceLayout';
+import { JoyInput } from '@/components/joy/JoyInput';
+import { IntelligenceActions, IntelligenceCard, IntelligenceFieldGrid, IntelligenceNote, IntelligenceStatRow } from './IntelligenceLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/useTenant';
 import { useAdmin } from '@/contexts/AdminContext';
@@ -83,37 +87,37 @@ export function CustomerGrowthDashboardBody({ tenantId, timezone }: { tenantId: 
     } catch (e) { if (version === generation.current) setError(e instanceof Error ? e.message : 'Customer growth is unavailable.'); }
     finally { if (version === generation.current) setBusy(false); }
   }
-  return <Sheet variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: '20px' }}>
-    <Stack spacing={2}>
-      <Stack spacing={0.5}>
-        <Typography level="h3">Customer growth dashboard</Typography>
-        <Typography level="body-sm">See how retention, new customers and recovered customers contribute to growth. This is a unique-customer breakdown, separate from the weighted Growth Index below.</Typography>
-      </Stack>
-      <FormControl><FormLabel>Growth evidence source</FormLabel><Select aria-label="Growth evidence source" value={source} onChange={(_, value) => { if (value) { clear(); setSource(value); setPeriodReviewed(false); setHistoryReviewed(false); setPeriodEvidence(''); setHistoryEvidence(''); } }}><Option value="imports">Imported Ideal report snapshots</Option><Option value="orders">Dated POS order ledger</Option></Select></FormControl>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <FormControl><FormLabel>Reporting year</FormLabel><Input type="number" value={year} onChange={e => changeYear(e.target.value)} slotProps={{ input: { min: 1901, max: currentYear } }} /></FormControl>
-        <FormControl><FormLabel>Growth currency</FormLabel><Select aria-label="Growth currency" value={currency} onChange={(_, value) => { if (value) { clear(); setCurrency(value); setPeriodReviewed(false); setHistoryReviewed(false); setPeriodEvidence(''); setHistoryEvidence(''); } }}>{(['CAD', 'USD', 'GBP', 'EUR'] as const).map(value => <Option key={value} value={value}>{value}</Option>)}</Select></FormControl>
-      </Stack>
-      <Typography level="body-sm">{source === 'imports' ? 'Requested maximum window (actual report dates appear after loading). ' : ''}Current: {year}-01-01 through {currentEnd}. Previous: {year - 1}-01-01 through {year - 1}-12-31. Business timezone: {timezone}.</Typography>
-      {year === currentYear && <Alert color="neutral">Year-to-date progress against the full previous year, not a matching-date year-over-year growth comparison. Today is still in progress. Annual averages and the annual sales estimate are not available for this partial year.</Alert>}
-      {source === 'orders' && <Box component="details" sx={{ border: '1px solid', borderColor: 'divider', p: 1.5, borderRadius: 'lg' }}>
+  return <IntelligenceCard
+    icon={<Users />}
+    title="Customer growth dashboard"
+    description="See how retention, new customers and recovered customers contribute to growth. This is a unique-customer breakdown, separate from the weighted Growth Index below."
+    notes={<>
+      {year === currentYear && <Typography>Year-to-date progress against the full previous year, not a matching-date year-over-year growth comparison. Today is still in progress. Annual averages and the annual sales estimate are not available for this partial year.</Typography>}
+      <Typography>Imported reports use their exact source windows, not today as an assumed data cutoff. Positive-net summary customers are not all customers who ever purchased: fully returned purchases are excluded. Missing history remains unknown. Dated POS orders are a separate source and are never silently combined.</Typography>
+    </>}
+  >
+      <FormControl size="sm" sx={{ width: '100%', maxWidth: 360 }}><FormLabel>Growth evidence source</FormLabel><Select size="sm" aria-label="Growth evidence source" value={source} onChange={(_, value) => { if (value) { clear(); setSource(value); setPeriodReviewed(false); setHistoryReviewed(false); setPeriodEvidence(''); setHistoryEvidence(''); } }}><Option value="imports">Imported Ideal report snapshots</Option><Option value="orders">Dated POS order ledger</Option></Select></FormControl>
+      <IntelligenceFieldGrid columns={4}>
+        <JoyInput size="sm" label="Reporting year" type="number" value={year} onChange={e => changeYear(e.target.value)} slotProps={{ input: { min: 1901, max: currentYear } }} />
+        <FormControl size="sm"><FormLabel>Growth currency</FormLabel><Select size="sm" sx={{ minHeight: 40 }} aria-label="Growth currency" value={currency} onChange={(_, value) => { if (value) { clear(); setCurrency(value); setPeriodReviewed(false); setHistoryReviewed(false); setPeriodEvidence(''); setHistoryEvidence(''); } }}>{(['CAD', 'USD', 'GBP', 'EUR'] as const).map(value => <Option key={value} value={value}>{value}</Option>)}</Select></FormControl>
+      </IntelligenceFieldGrid>
+      <Typography level="body-sm" sx={{ color: 'neutral.600' }}>{source === 'imports' ? 'Requested maximum window (actual report dates appear after loading). ' : ''}Current: {year}-01-01 through {currentEnd}. Previous: {year - 1}-01-01 through {year - 1}-12-31. Business timezone: {timezone}.</Typography>
+      {source === 'orders' && <Box component="details" sx={{ border: '1px solid', borderColor: 'neutral.200', p: 3, borderRadius: 'lg' }}>
         <Typography component="summary" level="title-sm" sx={{ cursor: 'pointer' }}>Source coverage review</Typography>
         <Stack spacing={1.5} sx={{ mt: 1.5 }}>
           <Alert color="neutral">Default: coverage unverified. Only review the loaded dated POS ledger, not a summary export. Human review is an assertion supported by your evidence, not system certification. Nothing here changes imports, customers or permissions; reviews apply only to this report and reset when the company, year or currency changes.</Alert>
           <Checkbox label="I reviewed complete previous-year and current-period purchase coverage for this company and currency" checked={periodReviewed} onChange={e => { clear(); setPeriodReviewed(e.target.checked); if (!e.target.checked) setHistoryReviewed(false); }} />
-          <FormControl><FormLabel>Period coverage evidence</FormLabel><Textarea value={periodEvidence} placeholder="Source references, covered dates, reconciliation and identity checks. No customer details needed." minRows={2} onChange={e => { clear(); setPeriodEvidence(e.target.value); }} slotProps={{ textarea: { maxLength: 2000 } }} /></FormControl>
+          <FormControl><FormLabel>Period coverage evidence</FormLabel><Textarea sx={autosizeSx} value={periodEvidence} placeholder="Source references, covered dates, reconciliation and identity checks. No customer details needed." minRows={2} onChange={e => { clear(); setPeriodEvidence(e.target.value); }} slotProps={{ textarea: { maxLength: 2000 } }} /></FormControl>
           <Checkbox label="I also reviewed all earlier purchase history, sufficient to establish first-ever customers" disabled={!periodReviewed} checked={historyReviewed} onChange={e => { clear(); setHistoryReviewed(e.target.checked); }} />
-          <FormControl><FormLabel>Earlier-history evidence</FormLabel><Textarea value={historyEvidence} placeholder="Explain the complete historical source coverage, not merely the oldest available export." minRows={2} onChange={e => { clear(); setHistoryEvidence(e.target.value); }} slotProps={{ textarea: { maxLength: 2000 } }} /></FormControl>
+          <FormControl><FormLabel>Earlier-history evidence</FormLabel><Textarea sx={autosizeSx} value={historyEvidence} placeholder="Explain the complete historical source coverage, not merely the oldest available export." minRows={2} onChange={e => { clear(); setHistoryEvidence(e.target.value); }} slotProps={{ textarea: { maxLength: 2000 } }} /></FormControl>
           {!reviewReady && <Typography color="warning" level="body-sm">Each complete-coverage review needs an evidence description of at least eight characters. Earlier-history review also requires period review.</Typography>}
         </Stack>
       </Box>}
-      <Button loading={busy} disabled={!reviewReady || !Number.isInteger(year) || year < 1901 || year > currentYear} onClick={() => void calculate()}>Load customer growth dashboard</Button>
-      <Typography level="body-xs">Imported reports use their exact source windows, not today as an assumed data cutoff. Positive-net summary customers are not all customers who ever purchased: fully returned purchases are excluded. Missing history remains unknown. Dated POS orders are a separate source and are never silently combined.</Typography>
+      <IntelligenceActions><Button size="sm" loading={busy} disabled={!reviewReady || !Number.isInteger(year) || year < 1901 || year > currentYear} onClick={() => void calculate()}>Load customer growth dashboard</Button></IntelligenceActions>
       {error && <Alert color="danger" role="alert">{error}</Alert>}
       {reported && <ReportedGrowthResult report={reported} />}
       {report && <GrowthDashboardResult report={report} />}
-    </Stack>
-  </Sheet>;
+  </IntelligenceCard>;
 }
 
 function GrowthDashboardResult({ report }: { report: Report }) {
@@ -135,9 +139,7 @@ function GrowthDashboardResult({ report }: { report: Report }) {
     <Alert color={report.status === 'reviewed' ? 'neutral' : 'warning'}>
       {report.status === 'reviewed' ? 'Calculated using your documented coverage reviews. This is not independent system certification.' : report.status === 'reconciliation_required' ? 'Source reconciliation is required. Invalid, unlinked, inaccessible or other-currency records prevent complete customer-growth claims.' : report.status === 'earlier_history_unverified' ? 'The period review supports retention and recovered customers, but first-ever new customers remain unclassified until earlier-history coverage is reviewed.' : 'Coverage is unverified. Observed ledger counts below are not complete business totals; missing records are not zero purchases.'}
     </Alert>
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,minmax(0,1fr))' }, gap: 1 }}>
-      {metrics.map(([label, value, detail]) => <Sheet key={label} variant="soft" sx={{ p: 1.5, borderRadius: 'lg' }}><Typography level="body-sm">{label}</Typography><Typography level="h4">{count(value)}</Typography><Typography level="body-xs">{detail}</Typography></Sheet>)}
-    </Box>
+    <IntelligenceStatRow items={metrics.map(([label, value, detail]) => ({ label, value: count(value), detail, icon: <Users /> }))} />
     <Typography level="body-sm">{report.formula}</Typography>
     {result && result.unclassified > 0 && <Typography level="body-sm">Until earlier history is reviewed, add the unclassified contribution ({pct(result.unclassifiedPercent)}) to reconcile current customers. It must not be labelled new.</Typography>}
     {result && result.previous === 0 && <Typography level="body-sm">The previous-year count is zero. Net customer count is available, but percentage growth and contribution percentages are undefined.</Typography>}
@@ -184,9 +186,7 @@ function ReportedGrowthResult({ report }: { report: ReportedCustomerGrowth }) {
       <Typography level="body-sm">{year} vs. {priorYear} · {fullYear ? 'Calendar-year source comparison' : 'Partial-year vs. full previous year (not matching dates)'}</Typography>
     </Stack>
     <Alert color="neutral" variant="soft">Observed positive-net purchasers in these reports. Complete business coverage is not established; first-ever new customers and true recovery/loss cannot be certified from these summaries.</Alert>
-    <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,minmax(0,1fr))'},gap:1.5}}>
-      {metrics.map(([label,value,detail])=><Sheet key={label} variant="soft" sx={{p:2,borderRadius:'lg',minWidth:0}}><Typography level="body-sm">{label}</Typography><Typography level="h2" sx={{fontVariantNumeric:'tabular-nums',mt:0.5}}>{value}</Typography><Typography level="body-xs">{detail}</Typography></Sheet>)}
-    </Box>
+    <IntelligenceStatRow items={metrics.map(([label,value,detail])=>({label,value,detail,icon:<Users />}))} />
     <Stack spacing={1.5}>
       <Typography level="title-lg">Where our {year} customers came from</Typography>
       <Typography level="body-xs">Share of all observed current-report positive-net purchasers, not the prior-year denominator used for retention.</Typography>
@@ -207,13 +207,12 @@ function ReportedGrowthResult({ report }: { report: ReportedCustomerGrowth }) {
       <Typography level="body-sm">Current source: {report.current.source_period_start} through {report.current.source_period_end}. Previous source: {report.previous.source_period_start} through {report.previous.source_period_end}.</Typography>
       <Typography level="body-sm">Observed contributions using previous-report net purchasers: retained {pct(percentages.retained)} + first observed {pct(percentages.firstObserved)} + earlier buyers {pct(percentages.recovered)} − 100% = net change {pct(percentages.net)}. First observed is not first-ever.</Typography>
     </Box>
-    <Typography>Refunds and negative product adjustments reduce each customer's reported net sales. Only customers with positive net sales and positive purchase quantity evidence are counted. Zero-net and fully returned activity is excluded; these are not receipt or visit counts.</Typography>
-    <Typography>Loaded-fact exclusions only: {report.loadedFactExclusions.unlinkedSummaries} unlinked source summaries; {report.loadedFactExclusions.unavailableCustomerIds} distinct unavailable customer IDs. Unlinked summaries are not a count of unique people. These counts exclude groups removed before import; missing history is unknown, not zero.</Typography>
+    <IntelligenceNote><Typography>Refunds and negative product adjustments reduce each customer's reported net sales. Only customers with positive net sales and positive purchase quantity evidence are counted. Zero-net and fully returned activity is excluded; these are not receipt or visit counts.</Typography>{' '}<Typography>Loaded-fact exclusions only: {report.loadedFactExclusions.unlinkedSummaries} unlinked source summaries; {report.loadedFactExclusions.unavailableCustomerIds} distinct unavailable customer IDs. Unlinked summaries are not a count of unique people. These counts exclude groups removed before import; missing history is unknown, not zero.</Typography></IntelligenceNote>
     <Box><Typography level="title-sm">Groups quarantined before import, by source</Typography>{report.sourceQuarantines.map(row => {
       const source = report.sources.find(source => source.id === row.importId)!;
       return <Typography key={row.importId} level="body-sm">{source.source_period_start} through {source.source_period_end}: {row.groups === null ? 'quarantined group count unknown' : `${row.groups} quarantined source groups`}.</Typography>;
     })}<Typography level="body-sm">Quarantined groups have no loaded purchase facts. Counts are source-specific, not summed or deduplicated across reports as unique people.</Typography></Box>
-    <Typography>First-ever classification needs complete pre-current history; recovery and loss need complete previous/current coverage. An annual sales estimate additionally needs validated annual cohort spending. These evidence requirements are not established by the loaded summaries.</Typography>
+    <IntelligenceNote><Typography>First-ever classification needs complete pre-current history; recovery and loss need complete previous/current coverage. An annual sales estimate additionally needs validated annual cohort spending. These evidence requirements are not established by the loaded summaries.</Typography></IntelligenceNote>
     {report.spendingSources.length > 0 && <Box><Typography level="title-sm">Separate spending exports are not buyer-set evidence</Typography>{report.spendingSources.map(source => {
       const metadata = source.reconciliation as { coverage_complete?: unknown; unmatched_source_rows?: unknown; unmatched_amount?: unknown } | null;
       return <Typography key={source.id} level="body-sm">Spending export {source.source_period_start} through {source.source_period_end}: {source.rejected_row_count > 0 ? 'rejected source rows remain; ' : ''}{metadata?.unmatched_source_rows ? 'unmatched source rows remain; ' : ''}{metadata?.unmatched_amount ? 'unmatched amounts remain; ' : ''}{metadata?.coverage_complete === true ? 'source declares complete' : 'complete coverage not established'}. This export does not extend the product-summary cutoff shown above.</Typography>;

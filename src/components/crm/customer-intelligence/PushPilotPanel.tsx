@@ -86,7 +86,7 @@ export function PushPilotPanel() {
           </Select>
         </FormControl>
         <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} gap={2}>
-          <Button disabled={!customerId || busy || loading} loading={busy}
+          <Button sx={{ alignSelf: "flex-start" }} disabled={!customerId || busy || loading} loading={busy}
             onClick={() => void sendTest()}>
             Queue test push
           </Button>

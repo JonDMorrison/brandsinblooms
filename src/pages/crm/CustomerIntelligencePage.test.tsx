@@ -151,13 +151,24 @@ describe("the redesigned Intelligence journey", () => {
   it("shows a clear home with three goals and only the overview content initially", async () => {
     mount();
     expect(
-      screen.getByRole("heading", {
-        name: /Know your customers. Know what to do next/,
-      }),
+      screen.getByRole("heading", { name: "Customer Intelligence" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("navigation", { name: "Intelligence sections" }),
+      screen.getByText(
+        "Evidence before recommendations · No automatic messages or offers",
+      ),
     ).toBeInTheDocument();
+    const navigation = screen.getByRole("navigation", {
+      name: "Intelligence sections",
+    });
+    expect(
+      within(navigation)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Overview", "Find customers", "Growth", "Rewards", "Data & channels"]);
+    expect(
+      within(navigation).getByRole("tab", { name: "Overview" }),
+    ).toHaveAttribute("aria-selected", "true");
     expect(
       screen.getByRole("button", { name: /Find the right customers/ }),
     ).toBeInTheDocument();
@@ -184,20 +195,20 @@ describe("the redesigned Intelligence journey", () => {
       name: "Intelligence sections",
     });
     fireEvent.click(
-      within(navigation).getByRole("button", { name: /Find customers/ }),
+      within(navigation).getByRole("tab", { name: "Find customers" }),
     );
     expect(await screen.findByTestId("workspace-explore")).toBeVisible();
     expect(screen.queryByTestId("reward-workspace")).not.toBeInTheDocument();
     fireEvent.click(
-      within(navigation).getByRole("button", { name: /^Growth/ }),
+      within(navigation).getByRole("tab", { name: "Growth" }),
     );
     expect(screen.getByTestId("workspace-growth")).toBeVisible();
     fireEvent.click(
-      within(navigation).getByRole("button", { name: /^Rewards/ }),
+      within(navigation).getByRole("tab", { name: "Rewards" }),
     );
     expect(screen.getByTestId("reward-workspace")).toBeVisible();
     fireEvent.click(
-      within(navigation).getByRole("button", { name: /^Data & channels/ }),
+      within(navigation).getByRole("tab", { name: "Data & channels" }),
     );
     expect(screen.getByTestId("ideal-export")).toBeVisible();
     expect(screen.getByTestId("push-readiness")).toBeVisible();
@@ -214,8 +225,8 @@ describe("the redesigned Intelligence journey", () => {
       name: "Intelligence sections",
     });
     expect(
-      within(navigation).getByRole("button", { name: /Find customers/ }),
-    ).toHaveAttribute("aria-current", "page");
+      within(navigation).getByRole("tab", { name: "Find customers" }),
+    ).toHaveAttribute("aria-selected", "true");
     fireEvent.change(
       screen.getByRole("textbox", { name: "Ask Bloom about your customers" }),
       {
@@ -237,6 +248,17 @@ describe("the redesigned Intelligence journey", () => {
       "Find people who bought a hydrangea",
     );
     expect(target.searchParams.get("prompt")).toContain("Do not send");
+  });
+
+  it("focuses the Ask Bloom question from the header action without navigating", () => {
+    mount("/crm/intelligence?view=growth");
+    fireEvent.click(screen.getByRole("button", { name: "Ask Bloom" }));
+    expect(
+      screen.getByRole("textbox", { name: "Ask Bloom about your customers" }),
+    ).toHaveFocus();
+    expect(
+      screen.queryByRole("heading", { name: "Bloom conversation" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not pre-load the expensive overview or unrelated features on the Data tab", async () => {
