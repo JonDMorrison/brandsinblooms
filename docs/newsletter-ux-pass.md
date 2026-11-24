@@ -276,8 +276,8 @@ The risks are behavioural:
 ## Decisions needed from Jon
 
 1. **#1 send path:** resolved. The UI follows the send path, reserved domains are invalid on both sides, and the leftover flags are cleared (see the #1 section).
-2. **#14 colours.** Greenfield's stored `#22c55e` / `#1e40af` / `#f59e0b` are the settings page defaults. Should those untouched defaults be treated as "not set" and fall back to a neutral palette, or should the tenant's colours be fixed in Settings?
-3. **#25.** Keep the 240px mobile crop for sent email, or move new drafts to `height:auto` behind an opt-in flag?
-4. **#8.** Run `delete_stale_empty_campaign_drafts` on a schedule for all tenants? 24 drafts on other tenants would be removed on the first run.
-5. **#6.** Team-shared templates (`tenant_id IS NULL`, made by another user in the tenant) need an RLS change to be visible to teammates. That is a permissions change, so it was not made.
-6. **#18.** The connected-content catalog does not return product prices. Adding price to the website API turns on the price line that #18 already renders.
+2. **#14 colours:** done. A profile still holding all four column defaults (`#22c55e` / `#1e40af` / `#f59e0b` / `#1f2937`, about 120 profiles) counts as "not set" for new content: blank canvas, new blocks, new footers and swatches. Rendering ignores the flag, so stored and sent campaigns look the same.
+3. **#25:** done. New drafts show phone photos at natural height (`NewsletterSettings.mobileImageHeight = "natural"`, stamped only on newly created footers). Existing drafts and sent campaigns keep 240px. The 3 sent campaigns re-render byte-identically.
+4. **#8:** done. The nightly job `stale-empty-campaign-draft-cleanup` runs at 07:17 UTC (migration `20261124131813`). The first run, as dry-run counted on 2026-11-24, removes 4 drafts at 3 tenants.
+5. **#6:** app side done. The policy `20261124140000_team_shared_saved_templates.sql` is written for review and **not applied**. Separate finding: the existing `is_public` policy is readable across tenants (0 rows today).
+6. **#18:** parked until the website product feed sends prices.
