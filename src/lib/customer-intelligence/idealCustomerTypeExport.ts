@@ -37,109 +37,98 @@ export type IdealExportPreview = {
   rows: IdealCustomerRow[];
 };
 
-const code = (s: string) => /^[A-Za-z0-9_-]{1,64}$/.test(s);
+// Explicit, verified IdealPOS full Customer Details export layout. Never persist
+// the other 42 fields (including credentials and financial details).
+export const IDEAL_FULL_CUSTOMER_COLUMNS = "CODE,LASTNAME,FIRSTNAME,MIDDLENAME,TITLE,ADDRESS1,ADDRESS2,SUBURB,STATE,POSTCODE,PHONE,MOBILE,FAX,EMAIL,GENDER,COMPANY,OCCUPATION,MARITALSTATUS,DOB,DOB2,NEXTOFKIN,CONTACTNO,COMMENTS1,COMMENTS2,TYPE,PASSWORD,MAILOUT,ACCOUNT,CREDITLIMIT,PRICELEVEL,ABN,POINTS,SCAN,SALESPROMPT,UDTEXT1,UDTEXT2,UDTEXT3,UDTEXT4,UDTEXT5,UDTEXT6,UDTEXT7,UDTEXT8,UDTEXT9,UDTEXT10,UDYESNO1,UDYESNO2,UDYESNO3,UDYESNO4,UDYESNO5,AUTODISCOUNT,OTHERCODES".split(",");
 const typeCode = (s: string) =>
   s.length <= 30 && /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(s);
 const safeString = (v: unknown): v is string =>
   typeof v === "string" && !v.includes("\0");
 const unsafeSpreadsheetCell = (v: string) =>
   /^[\s]*[=@]/.test(v) || /^[\s]*[+-][^0-9]/.test(v);
+// CODE is opaque text: do not strip leading zeros or rewrite legacy punctuation.
+const code = (s: string) =>
+  s.length >= 1 && s.length <= 64 && s === s.trim() &&
+  /^[\x20-\x7e]+$/.test(s) && !unsafeSpreadsheetCell(s) &&
+  !/^[+-]/.test(s);
 const headerText = (header: string) =>
-  header
-    .trim()
-    .replace(/^\uFEFF/, "")
-    .toUpperCase();
-/** Preserve exact CSV cells and embedded CR/LF; no Excel-style type inference. */
-export function parseIdealCustomerCsv(
-  source: string,
-  maxRows = 100_000,
-): IdealCustomerRow[] {
+  header.trim().replace(/^\uFEFF/, "").toUpperCase();
+
+export function decodeIdealCustomerBytes(bytes: ArrayBuffer): string {
+  if (bytes.byteLength > 25_000_000) throw new Error("Choose a customer export smaller than 25 MB.");
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    // Original IdealPOS exports can be Windows-1252, unlike the UTF-8 review CSV.
+    const text = new TextDecoder("windows-1252", { fatal: true }).decode(bytes);
+    const first = text.split(/\r?\n/, 1)[0]?.replace(/"/g, "").split(",").map(headerText);
+    if (!first || first.length !== IDEAL_FULL_CUSTOMER_COLUMNS.length ||
+        first.some((column, i) => column !== IDEAL_FULL_CUSTOMER_COLUMNS[i])) {
+      throw new Error("The file is not a verified original IdealPOS export or UTF-8 review CSV.");
+    }
+    return text;
+  }
+}
+/** Accept only the two verified layouts. Project the nine allowed fields row by
+ * row so private extra columns never enter the returned records or remote state.
+ * Preserve exact CSV cells and embedded CR/LF; no spreadsheet type inference. */
+export function parseIdealCustomerCsv(source: string, maxRows = 100_000): IdealCustomerRow[] {
   if (typeof source !== "string" || source.length > 25_000_000)
     throw new Error("Choose a customer export smaller than 25 MB.");
-  const cells: string[][] = [];
-  let row: string[] = [],
-    cell = "",
-    quoted = false,
-    closed = false;
+  let row: string[] = [], cell = "", quoted = false, closed = false;
+  let headers: string[] | null = null, projection: number[] = [], record = 0;
+  const result: IdealCustomerRow[] = [];
+  const acceptRow = (values: string[]) => {
+    record++;
+    if (!headers) {
+      headers = values.map(headerText);
+      const exact = (expected: readonly string[]) => headers!.length === expected.length &&
+        headers!.every((h, index) => h === expected[index]);
+      if (!exact(IDEAL_CUSTOMER_COLUMNS) && !exact(IDEAL_FULL_CUSTOMER_COLUMNS))
+        throw new Error("Choose the original 51-column IdealPOS Customer Details export or the confirmed nine-column review CSV in its original order.");
+      projection = IDEAL_CUSTOMER_COLUMNS.map(h => headers!.indexOf(h));
+      return;
+    }
+    if (values.length !== headers.length) throw new Error("Row " + record + " has the wrong number of fields. No partial export produced.");
+    if (result.length >= maxRows) throw new Error("Too many rows. No rows were silently omitted.");
+    const fields = projection.map(index => values[index]);
+    if (!code(fields[0])) throw new Error("Row " + record + " has a missing or invalid CODE; leading zeros cannot be inferred.");
+    if (!fields.every(safeString)) throw new Error("Row " + record + " contains an invalid field.");
+    result.push(Object.fromEntries(IDEAL_CUSTOMER_COLUMNS.map((h, i) => [h, fields[i]])) as IdealCustomerRow);
+  };
+  let pendingBlank = 0;
+  const finish = () => {
+    row.push(cell); cell = ""; closed = false;
+    if (row.length === 1 && row[0] === "" && headers) {
+      pendingBlank++;
+    } else {
+      if (pendingBlank) throw new Error("Unexpected blank record inside customer export.");
+      acceptRow(row);
+    }
+    row = [];
+  };
   for (let i = 0; i < source.length; i++) {
     const char = source[i];
     if (quoted) {
-      if (char === '"' && source[i + 1] === '"') {
-        cell += '"';
-        i++;
-      } else if (char === '"') {
-        quoted = false;
-        closed = true;
-      } else cell += char;
-      continue;
-    }
-    if (char === '"') {
-      if (cell.length || closed)
-        throw new Error(`Invalid quotation in CSV record ${cells.length + 1}.`);
+      if (char === '"' && source[i + 1] === '"') { cell += '"'; i++; }
+      else if (char === '"') { quoted = false; closed = true; }
+      else cell += char;
+    } else if (char === '"') {
+      if (cell.length || closed) throw new Error("Invalid quotation in CSV record " + (record + 1) + ".");
       quoted = true;
-    } else if (char === "," || char === "\n" || char === "\r") {
-      row.push(cell);
-      cell = "";
-      closed = false;
-      if (char !== ",") {
-        if (char === "\r" && source[i + 1] === "\n") i++;
-        cells.push(row);
-        row = [];
-        if (cells.length > maxRows + 1)
-          throw new Error(
-            `Too many rows (limit ${maxRows}). No rows were silently omitted.`,
-          );
-      }
+    } else if (char === ",") {
+      row.push(cell); cell = ""; closed = false;
+    } else if (char === "\n" || char === "\r") {
+      if (char === "\r" && source[i + 1] === "\n") i++;
+      finish();
     } else {
-      if (closed)
-        throw new Error(
-          `Unexpected content after quoted CSV value in record ${cells.length + 1}.`,
-        );
+      if (closed) throw new Error("Unexpected content after quoted CSV value in record " + (record + 1) + ".");
       cell += char;
     }
   }
   if (quoted) throw new Error("Unterminated quoted field.");
-  if (cell.length || row.length || closed) {
-    row.push(cell);
-    cells.push(row);
-  }
-  while (
-    cells.length > 0 &&
-    cells[cells.length - 1].length === 1 &&
-    cells[cells.length - 1][0] === ""
-  )
-    cells.pop();
-  if (cells.length < 2)
-    throw new Error("The customer export has no data rows.");
-  const headers = cells[0].map(headerText);
-  if (
-    headers.length !== IDEAL_CUSTOMER_COLUMNS.length ||
-    headers.some((h, index) => h !== IDEAL_CUSTOMER_COLUMNS[index])
-  ) {
-    throw new Error(
-      "Customer file must have the confirmed nine fields in their original order: " +
-        IDEAL_CUSTOMER_COLUMNS.join(", ") +
-        ".",
-    );
-  }
-  const result: IdealCustomerRow[] = [];
-  for (const [index, values] of cells.slice(1).entries()) {
-    if (values.length !== 9)
-      throw new Error(
-        `Row ${index + 2} has ${values.length} fields instead of 9. No partial export produced.`,
-      );
-    if (!code(values[0]))
-      throw new Error(
-        `Row ${index + 2} has a missing or invalid CODE; leading zeros cannot be inferred.`,
-      );
-    if (!values.every(safeString))
-      throw new Error(`Row ${index + 2} contains an invalid field.`);
-    result.push(
-      Object.fromEntries(
-        IDEAL_CUSTOMER_COLUMNS.map((header, j) => [header, values[j]]),
-      ) as IdealCustomerRow,
-    );
-  }
+  if (cell.length || row.length || closed) finish();
+  if (!result.length) throw new Error("The customer export has no data rows.");
   return result;
 }
 export function reviewIdealCustomerTypeExport(input: {

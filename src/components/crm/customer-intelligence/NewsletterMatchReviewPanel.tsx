@@ -4,7 +4,7 @@ import {
   Alert, Box, Button, Sheet, Stack, Table, Typography,
 } from "@mui/joy";
 import { FileSearch } from "lucide-react";
-import { parseIdealCustomerCsv } from "@/lib/customer-intelligence/idealCustomerTypeExport";
+import { decodeIdealCustomerBytes, parseIdealCustomerCsv } from "@/lib/customer-intelligence/idealCustomerTypeExport";
 import {
   parseNewsletterCsv, previewNewsletterMatches,
   type NewsletterMatchReview,
@@ -27,9 +27,9 @@ export function NewsletterMatchReviewPanel() {
     try {
       if (master.size > 25_000_000 || newsletter.size > 25_000_000)
         throw Error("Each file must be smaller than 25 MB.");
-      const [masterText, newsletterText] = await Promise.all([master.text(), newsletter.text()]);
+      const [masterText, newsletterText] = await Promise.all([master.arrayBuffer(), newsletter.text()]);
       const results = previewNewsletterMatches(
-        parseIdealCustomerCsv(masterText), parseNewsletterCsv(newsletterText),
+        parseIdealCustomerCsv(decodeIdealCustomerBytes(masterText)), parseNewsletterCsv(newsletterText),
       );
       if (run === currentRun.current) setReview(results);
     } catch (cause) {
@@ -67,10 +67,10 @@ export function NewsletterMatchReviewPanel() {
               </Alert>
               <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography level="title-sm" sx={{ mb: 1 }}>1. Original IdealPOS Customer Details CSV</Typography>
+                  <Typography level="title-sm" sx={{ mb: 1 }}>1. Original IdealPOS Customer Details TXT or CSV</Typography>
                   <Button component="label" variant="outlined" color="neutral" disabled={busy}>
-                    {master ? master.name : "Choose IdealPOS CSV"}
-                    <input hidden type="file" accept=".csv,text/csv" onChange={(event) =>
+                    {master ? master.name : "Choose IdealPOS TXT or CSV"}
+                    <input hidden type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(event) =>
                       changeFile("master", event.target.files?.[0] ?? null)} />
                   </Button>
                 </Box>
