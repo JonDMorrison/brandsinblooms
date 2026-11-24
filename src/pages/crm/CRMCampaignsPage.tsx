@@ -295,6 +295,14 @@ function getSortDirection(
   return currentColumn === column ? currentDirection : "none";
 }
 
+function isActivelySendingStatus(status: CampaignCatalogItem["status"]) {
+  return [
+    CAMPAIGN_STATUS.QUEUED,
+    CAMPAIGN_STATUS.PARTIALLY_QUEUED,
+    CAMPAIGN_STATUS.SENDING,
+  ].includes(status);
+}
+
 function matchesStatusFilter(
   campaign: CampaignCatalogItem,
   filter: StatusFilter,
@@ -733,10 +741,12 @@ export function CRMCampaignsPage() {
   }, [duplicateTarget]);
 
   const totalCount = campaignsQuery.data?.length ?? 0;
+  // "Active sends": campaigns actually going out. A paused campaign is not
+  // sending, so it is not counted (it still shows under the Sending filter).
   const activeCount = React.useMemo(
     () =>
       (campaignsQuery.data ?? []).filter((campaign) =>
-        matchesStatusFilter(campaign, "sending"),
+        isActivelySendingStatus(campaign.status),
       ).length,
     [campaignsQuery.data],
   );
