@@ -3,6 +3,7 @@ import {Link} from 'react-router-dom';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {useTenant} from '@/hooks/useTenant';
 import {supabase} from '@/integrations/supabase/client';
+import {CareFollowupPanel} from '@/components/crm/CareFollowupPanel';
 import {renderCareGuideEmail,type CareGuideBrand,type ReviewedCareGuidePlant} from '@/lib/email/careGuideEmail';
 
 type Design = Pick<CareGuideBrand,'storeName'|'logoUrl'|'primaryColor'|'accentColor'|'headline'|'intro'|'helpHeading'|'helpBody'|'helpUrl'|'helpLinkText'>;
@@ -85,9 +86,10 @@ export default function CareGuideStudioPage(){
     if(error||data?.error||!Array.isArray(data?.synced)||!Array.isArray(data?.failed))
       throw Error('Connected-site synchronization is not available yet. The CRM design stays published.');
     const count=data.synced.length,failed=data.failed.length;
+    const posStatus=data.posPending?' POS synchronization needs retry.':data.posUpdated?' Connected POS branding updated.':'';
     return failed?'CRM design published. '+count+' linked sites updated; '+failed+' need another sync attempt.':
       count===0?'CRM design published. Connect a BloomSites website to use it on online orders.':
-      'Design synchronized to '+count+' connected BloomSites '+(count===1?'website.':'websites.');
+      'Design synchronized to '+count+' connected BloomSites '+(count===1?'website.':'websites.')+posStatus;
   };
   const retryConnectedSync=async()=>{
     if(busy||!publishedVersion)return;
@@ -148,6 +150,7 @@ export default function CareGuideStudioPage(){
           <p className="mt-3 text-xs text-[#536475]">Before going live, send a staff test and check the design in Gmail, Apple Mail and Outlook, including with images blocked.</p>
         </section>
       </div>}
+      {tenantId&&import.meta.env.VITE_CARE_GUIDE_FOLLOWUPS_ENABLED==='true'&&<CareFollowupPanel key={tenantId} tenantId={tenantId}/>}
     </div>
   </main>;
 }
