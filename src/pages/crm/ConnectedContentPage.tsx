@@ -15,6 +15,9 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
 import { saveConnectedSmsDraft } from "@/lib/sms/campaignDraft";
 import { useTenant } from "@/hooks/useTenant";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { pickVerifiedSiteDomain } from "@/lib/siteDomain";
 import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import { buildCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import {
@@ -40,6 +43,22 @@ const WRONG_CODE_MESSAGE="This is not a Connected websites code. In BloomSites, 
 function ContentWorkspace() {
   const navigate=useNavigate();
   const {tenant}=useTenant();
+  // The site's custom domain is shown once it is active and verified.
+  const siteDomainQuery=useQuery({
+    queryKey:["site-custom-domain",tenant?.id],
+    enabled:Boolean(tenant?.id),
+    staleTime:5*60_000,
+    queryFn:async()=>{
+      const {data,error}=await supabase
+        .from("domains")
+        .select("domain, type, status, verified_at, is_primary")
+        .eq("tenant_id",tenant!.id)
+        .eq("type","custom");
+      if(error)throw error;
+      return pickVerifiedSiteDomain(data??[]);
+    },
+  });
+  const verifiedSiteDomain=siteDomainQuery.data??null;
   const [params]=useSearchParams();
   const {designSystem}=useDesignSystem();
   const {hasPermission,isLoading:rolesLoading}=useUserRole();
@@ -216,7 +235,13 @@ function ContentWorkspace() {
             <CheckCircle2 size={17} color="var(--joy-palette-success-700)" aria-hidden="true"/>
             <Stack spacing={0.25}>
               <Typography level="title-sm">{site.site_name}</Typography>
-              <Typography level="body-xs" color="neutral">{site.site_origin}</Typography>
+              {verifiedSiteDomain ? (
+                <Typography level="body-xs" color="neutral">
+                  {verifiedSiteDomain} · <Box component="span" sx={{ color: "text.tertiary" }}>{site.site_origin}</Box>
+                </Typography>
+              ) : (
+                <Typography level="body-xs" color="neutral">{site.site_origin}</Typography>
+              )}
             </Stack>
             {canManage?<JoyButton size="sm" variant="plain" color="neutral"
               aria-label={`Disconnect ${site.site_name}`}
