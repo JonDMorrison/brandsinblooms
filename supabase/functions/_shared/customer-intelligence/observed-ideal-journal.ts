@@ -5,10 +5,11 @@ import { readAllPages } from './query-pages.ts';
 
 type Window = {start:string;end:string};
 export type JournalSource = {id:string;tenant_id:string;source:string;report_type:string;status:string;source_period_start:string|null;source_period_end:string|null;source_filename:string|null;source_sha256:string;created_at:string;completed_at:string|null;reconciliation:unknown};
-export type JournalLine = {id:string;tenant_id:string;import_id:string;source:string;customer_id:string|null;external_customer_code:string;external_transaction_id:string;external_line_id:string;purchased_at:string;created_at:string;currency:string|null;net_amount:number|string|null};
+export type JournalLine = {id:string;tenant_id:string;import_id:string;source:string;customer_id:string|null;external_customer_code:string;external_transaction_id:string;external_line_id:string;purchased_at:string;created_at:string;currency:string|null;net_amount:number|string|null;product_code?:string|null;quantity?:number|string|null;raw_data?:unknown};
 export type JournalCustomer = {id:string;tenant_id:string;external_id:string|null;first_name:string|null;last_name:string|null};
-type CustomerActivity={id:string;name:string;netMinor:number;positiveReceipts:number;validReceipts:number;invalidReceipts:number};
-export type ObservedJournalPeriod={tenantId:string;window:Window;currency:string;timezone:string;cutoff:string;source:JournalSource;customers:CustomerActivity[];validReceipts:number;positiveReceipts:number;zeroReceipts:number;negativeReceipts:number;excludedReceipts:number};
+type CustomerActivity={id:string;name:string;netMinor:number;positiveReceipts:number;positivePurchaseDays:number;validReceipts:number;invalidReceipts:number};
+export type JournalReceiptEvidence={id:string;customerId:string;timestamp:string;day:string;netMinor:number;featuredNetQuantityMilli:number|null;paidFeaturedPurchase:boolean};
+export type ObservedJournalPeriod={tenantId:string;window:Window;currency:string;timezone:string;cutoff:string;source:JournalSource;customers:CustomerActivity[];validReceipts:number;positiveReceipts:number;zeroReceipts:number;negativeReceipts:number;excludedReceipts:number;receiptEvidence?:JournalReceiptEvidence[]};
 const validStamp=(s:unknown):s is string=>typeof s==='string'&&Number.isFinite(Date.parse(s));
 const record=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
 function dateWindow(window:Window,cutoff:string,timezone:string) {
@@ -33,8 +34,30 @@ export function selectObservedJournalSource(sources:JournalSource[],tenantId:str
   return matching[0];
 }
 const add=(a:number,b:number)=>{const n=a+b;if(!Number.isSafeInteger(n))throw Error('Journal amount exceeds exact currency range.');return n;};
+function quantityMilli(value:unknown):number|null {
+  if(typeof value!=='number'&&typeof value!=='string')return null;
+  const m=/^(-?)(\d+)(?:\.(\d{1,3}))?$/.exec(String(value));
+  if(!m)return null;
+  const result=Number(m[2])*1000+Number((m[3]??'').padEnd(3,'0'));
+  return Number.isSafeInteger(result)?(m[1]?-result:result):null;
+}
+function featuredEvidence(group:JournalLine[],productCode:string|null,net:number){
+  if(!productCode)return {featuredNetQuantityMilli:null,paidFeaturedPurchase:false};
+  let quantity=0,positivePricedItem=false;
+  for(const line of group){
+    const kind=record(line.raw_data).kind;
+    if(kind==='discount')continue;
+    if(!['item','refund'].includes(String(kind))||!line.product_code)return {featuredNetQuantityMilli:null,paidFeaturedPurchase:false};
+    if(line.product_code!==productCode)continue;
+    const qty=quantityMilli(line.quantity),cents=moneyMinorUnits(line.net_amount);
+    if(qty===null||cents===null||(kind==='item'&&qty<=0)||(kind==='refund'&&qty>=0))return {featuredNetQuantityMilli:null,paidFeaturedPurchase:false};
+    quantity=add(quantity,qty);
+    if(kind==='item'&&cents>0)positivePricedItem=true;
+  }
+  return {featuredNetQuantityMilli:quantity,paidFeaturedPurchase:net>0&&quantity>0&&positivePricedItem};
+}
 /** Read-only observed financial lines. Never certify coverage, fabricate POS orders, or classify absence as a lost customer. */
-export function summarizeObservedJournal(lines:JournalLine[],customers:JournalCustomer[],source:JournalSource,tenantId:string,window:Window,currency:string,timezone:string,cutoff:string):ObservedJournalPeriod {
+export function summarizeObservedJournal(lines:JournalLine[],customers:JournalCustomer[],source:JournalSource,tenantId:string,window:Window,currency:string,timezone:string,cutoff:string,capture?:{productCode:string|null}):ObservedJournalPeriod {
   dateWindow(window,cutoff,timezone);
   if(!usableSource(source,tenantId,timezone,cutoff)||source.source_period_start!>window.start||source.source_period_end!<window.end)throw Error('The journal source does not support this window.');
   if(!/^[A-Z]{3}$/.test(currency))throw Error('Choose a single currency.');
@@ -46,7 +69,9 @@ export function summarizeObservedJournal(lines:JournalLine[],customers:JournalCu
     seen.add(line.id);const list=groups.get(line.external_transaction_id)??[];list.push(line);groups.set(line.external_transaction_id,list);
   }
   const activity=new Map<string,CustomerActivity>();
-  const get=(c:JournalCustomer)=>{let item=activity.get(c.id);if(!item){item={id:c.id,name:[c.first_name,c.last_name].filter(Boolean).join(' ').trim()||'Unnamed customer',netMinor:0,positiveReceipts:0,validReceipts:0,invalidReceipts:0};activity.set(c.id,item);}return item;};
+  const purchaseDays=new Map<string,Set<string>>();
+  const receiptEvidence:JournalReceiptEvidence[]=[];
+  const get=(c:JournalCustomer)=>{let item=activity.get(c.id);if(!item){item={id:c.id,name:[c.first_name,c.last_name].filter(Boolean).join(' ').trim()||'Unnamed customer',netMinor:0,positiveReceipts:0,positivePurchaseDays:0,validReceipts:0,invalidReceipts:0};activity.set(c.id,item);}return item;};
   let validReceipts=0,positiveReceipts=0,zeroReceipts=0,negativeReceipts=0,excludedReceipts=0;
   for(const group of groups.values()){
     const days=group.map(l=>validStamp(l.purchased_at)?localDate(l.purchased_at,timezone):null);
@@ -57,9 +82,16 @@ export function summarizeObservedJournal(lines:JournalLine[],customers:JournalCu
     if(!valid){excludedReceipts++;for(const id of ids){const linked=id?byId.get(id):undefined;if(linked)get(linked).invalidReceipts++;}continue;}
     const net=cents.reduce<number>((total,n)=>add(total,n!),0),row=get(customer!);
     row.netMinor=add(row.netMinor,net);row.validReceipts++;validReceipts++;
-    if(net>0){row.positiveReceipts++;positiveReceipts++;}else if(net===0)zeroReceipts++;else negativeReceipts++;
+    if(capture)receiptEvidence.push({id:source.id+':'+first.external_transaction_id,customerId:row.id,timestamp:first.purchased_at,day:days[0]!,netMinor:net,...featuredEvidence(group,capture.productCode,net)});
+    if(net>0){
+      row.positiveReceipts++;positiveReceipts++;
+      const day=days[0]!;
+      const recorded=purchaseDays.get(row.id)??new Set<string>();
+      recorded.add(day);purchaseDays.set(row.id,recorded);
+      row.positivePurchaseDays=recorded.size;
+    }else if(net===0)zeroReceipts++;else negativeReceipts++;
   }
-  return {tenantId,window,currency,timezone,cutoff,source,customers:[...activity.values()],validReceipts,positiveReceipts,zeroReceipts,negativeReceipts,excludedReceipts};
+  return {tenantId,window,currency,timezone,cutoff,source,customers:[...activity.values()],validReceipts,positiveReceipts,zeroReceipts,negativeReceipts,excludedReceipts,...(capture?{receiptEvidence}:{})};
 }
 export function compareObservedJournalPeriods(before:ObservedJournalPeriod,after:ObservedJournalPeriod,settings:GrowthSettings){
   const {baselineDays,currentDays}=validateGrowthSettings(settings);
@@ -70,8 +102,8 @@ export function compareObservedJournalPeriods(before:ObservedJournalPeriod,after
     const a=prior.get(id),b=current.get(id);
     const comparable=!!a&&!!b&&a.positiveReceipts>0&&b.positiveReceipts>0&&a.netMinor>0&&a.invalidReceipts===0&&b.invalidReceipts===0;
     const growth=(x:number,y:number)=>((y/(settings.per_day_rates?currentDays:1))/(x/(settings.per_day_rates?baselineDays:1))-1)*100;
-    const change=comparable?(growth(a!.netMinor,b!.netMinor)*settings.spend_weight+growth(a!.positiveReceipts,b!.positiveReceipts)*settings.visits_weight)/(settings.spend_weight+settings.visits_weight):null;
-    return {id,name:b?.name??a?.name??'Customer',baselineSpend:a?.validReceipts?a.netMinor:null,currentSpend:b?.validReceipts?b.netMinor:null,baselineReceipts:a?.validReceipts?a.positiveReceipts:null,currentReceipts:b?.validReceipts?b.positiveReceipts:null,observedGrowth:change===null?null:Math.round(change*100)/100};
+    const change=comparable?(growth(a!.netMinor,b!.netMinor)*settings.spend_weight+growth(a!.positivePurchaseDays,b!.positivePurchaseDays)*settings.visits_weight)/(settings.spend_weight+settings.visits_weight):null;
+    return {id,name:b?.name??a?.name??'Customer',baselineSpend:a?.validReceipts?a.netMinor:null,currentSpend:b?.validReceipts?b.netMinor:null,baselineReceipts:a?.validReceipts?a.positiveReceipts:null,currentReceipts:b?.validReceipts?b.positiveReceipts:null,baselinePurchaseDays:a?.validReceipts?a.positivePurchaseDays:null,currentPurchaseDays:b?.validReceipts?b.positivePurchaseDays:null,observedGrowth:change===null?null:Math.round(change*100)/100};
   }).sort((a,b)=>(a.observedGrowth??Infinity)-(b.observedGrowth??Infinity)||a.id.localeCompare(b.id));
   const comparable=rows.filter(r=>r.observedGrowth!==null);
   return {rows,comparable:comparable.length,unscored:rows.length-comparable.length,declining:comparable.filter(r=>r.observedGrowth!<0).length,baselineObservedBuyers:before.customers.filter(c=>c.positiveReceipts>0).length,currentObservedBuyers:after.customers.filter(c=>c.positiveReceipts>0).length};
@@ -84,7 +116,7 @@ export async function loadObservedJournalSources(client:PersistenceClient,tenant
   }
   return readAllPages<JournalSource>((from,to)=>client.from('customer_intelligence_imports').select(fields).eq('tenant_id',tenantId).eq('source','ideal').eq('report_type','journal').eq('status','completed').lte('created_at',cutoff).lte('completed_at',cutoff).order('id').range(from,to));
 }
-export async function loadObservedJournalPeriod(client:PersistenceClient,tenantId:string,window:Window,currency:string,timezone:string,cutoff:string):Promise<ObservedJournalPeriod>{
+export async function loadObservedJournalPeriod(client:PersistenceClient,tenantId:string,window:Window,currency:string,timezone:string,cutoff:string,capture?:{productCode:string|null}):Promise<ObservedJournalPeriod>{
   const sources=await loadObservedJournalSources(client,tenantId,cutoff),source=selectObservedJournalSource(sources,tenantId,window,timezone,cutoff);
   // Date query discovers receipt keys only. Fetch each entire receipt from the exact import,
   // so a timestamp conflict cannot silently split the financial total at a window boundary.
@@ -96,7 +128,7 @@ export async function loadObservedJournalPeriod(client:PersistenceClient,tenantI
   const lines:JournalLine[]=[];
   for(let i=0;i<keys.length;i+=100){
     const batch=keys.slice(i,i+100);
-    const items=await readAllPages<JournalLine>((from,to)=>client.from('customer_purchase_line_items').select('id,tenant_id,import_id,source,customer_id,external_customer_code,external_transaction_id,external_line_id,purchased_at,created_at,currency,net_amount').eq('tenant_id',tenantId).eq('import_id',source.id).eq('source','ideal').in('external_transaction_id',batch).lte('created_at',cutoff).order('id').range(from,to),100000);
+    const items=await readAllPages<JournalLine>((from,to)=>client.from('customer_purchase_line_items').select('id,tenant_id,import_id,source,customer_id,external_customer_code,external_transaction_id,external_line_id,purchased_at,created_at,currency,net_amount'+(capture?.productCode?',product_code,quantity,raw_data':'')).eq('tenant_id',tenantId).eq('import_id',source.id).eq('source','ideal').in('external_transaction_id',batch).lte('created_at',cutoff).order('id').range(from,to),100000);
     if(items.some(l=>!batch.includes(l.external_transaction_id))||new Set(items.map(l=>l.external_transaction_id)).size!==batch.length)throw Error('Journal receipt evidence changed during the read. No partial totals were returned.');
     if(lines.length+items.length>100000)throw Error('Journal period exceeds the 100,000-line review limit. Choose a narrower period.');
     lines.push(...items);
@@ -109,5 +141,5 @@ export async function loadObservedJournalPeriod(client:PersistenceClient,tenantI
   }
   const after=selectObservedJournalSource(await loadObservedJournalSources(client,tenantId,cutoff),tenantId,window,timezone,cutoff);
   if(JSON.stringify(after)!==JSON.stringify(source))throw Error('The journal source changed during the comparison. Retry.');
-  return summarizeObservedJournal(lines,customers,source,tenantId,window,currency,timezone,cutoff);
+  return summarizeObservedJournal(lines,customers,source,tenantId,window,currency,timezone,cutoff,capture);
 }

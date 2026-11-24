@@ -2,6 +2,8 @@ import {campaignEvidence,loadCampaignSupplement,type CampaignMessage} from "./pr
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
 import { readAllPages } from "../customer-intelligence/query-pages.ts";
 import type { GrowthOrder } from "../customer-intelligence/customer-growth.ts";
+import {loadObservedJournalPeriod} from "../customer-intelligence/observed-ideal-journal.ts";
+import {observedJournalCampaignOutcome,type JournalCampaignMessage} from "./journal-campaign-outcomes.ts";
 import {
   parseProgrammeDraft,
   type ProgrammeDraft,
@@ -215,6 +217,12 @@ async function orders(
       .order("id")
       .range(from, to),
   );
+}
+async function requireJournalCampaignRead(c:ProgrammeContext){
+  for(const permission of ["customer.read","reporting.read","campaign.read"]){
+    const {data,error}=await c.userClient.rpc("has_tenant_permission",{p_tenant_id:c.tenantId,p_permission:permission,p_location_id:null});
+    if(error||data!==true)throw new ProgrammeError(403,"Company-wide customer, reporting and campaign access is required.");
+  }
 }
 async function memberships(
   c: ProgrammeContext,
@@ -617,6 +625,32 @@ export async function executeProgrammeCommand(
           "Saved Bloom results could not be loaded.",
         );
       return { segments, bloomSets: sets.data, bloomSetLimit: 50 };
+    }
+    case "journal_campaign_choices": {
+      fields(p,[]);
+      await requireJournalCampaignRead(c);
+      const {data,error}=await c.userClient.from("crm_campaigns").select("id,name,sent_at").eq("tenant_id",c.tenantId).eq("status","sent").not("sent_at","is",null).order("sent_at",{ascending:false}).limit(100);
+      if(error)throw new ProgrammeError(503,"Sent campaigns could not be read.");
+      return {campaigns:data??[]};
+    }
+    case "journal_campaign_preview": {
+      fields(p,["baselineId","campaignId","window","productCode"]);
+      await requireJournalCampaignRead(c);
+      const b=await baseline(c,p.baselineId),campaignId=requiredUuid(p.campaignId,"campaign"),w=window(p.window);
+      if(measurementDays(w)>31)throw new ProgrammeError(400,"Choose a campaign measurement window of at most 31 days.");
+      const productCode=p.productCode===undefined||p.productCode===null||p.productCode===""?null:text(p.productCode,"Exact IdealPOS product code",64);
+      const {data:campaign,error:campaignError}=await c.userClient.from("crm_campaigns").select("id,name,sent_at,status").eq("tenant_id",c.tenantId).eq("id",campaignId).eq("status","sent").maybeSingle();
+      if(campaignError||!campaign||!campaign.sent_at)throw new ProgrammeError(404,"Completed sent campaign not accessible.");
+      // email_messages is service-only. Explicit company-wide permissions and
+      // the authenticated campaign read above must pass before this scoped read.
+      const messages=await readAllPages<JournalCampaignMessage>((a,z)=>c.serviceClient.from("email_messages").select("id,tenant_id,campaign_id,customer_id,sent_at,resend_id,delivery_reconciliation_required").eq("tenant_id",c.tenantId).eq("campaign_id",campaignId).not("sent_at","is",null).lte("created_at",cutoff).order("id").range(a,z),100000);
+      const cohort=b.snapshot.period.customers.map(row=>row.customerId),allowed=new Set(cohort);
+      if(!messages.some(m=>m.tenant_id===c.tenantId&&m.campaign_id===campaignId&&allowed.has(m.customer_id)&&m.sent_at&&m.resend_id&&!m.delivery_reconciliation_required))
+        throw new ProgrammeError(409,"No verified provider-accepted send records for this frozen audience. Campaign purchases cannot be established.");
+      const s=b.snapshot.period.settings;
+      const period=await loadObservedJournalPeriod(c.userClient,c.tenantId,w,s.currency,s.timezone,cutoff,{productCode});
+      const outcome=observedJournalCampaignOutcome(period,cohort,campaignId,messages,b.created_at,productCode);
+      return {baselineId:b.id,campaignName:campaign.name,outcome,note:"Read-only observed journal preview. No send, reward, segment or POS write was performed."};
     }
     case "preview_baseline": {
       fields(p, ["versionId", "audience", "window", "coverage", "weights"]);

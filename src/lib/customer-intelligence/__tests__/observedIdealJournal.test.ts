@@ -26,8 +26,16 @@ describe('observed IdealPOS journal evidence',()=>{
   const after=summarizeObservedJournal([line('2025','3','a',40),line('2025','4','a2',10)],customers,source('2025'),tenant,win('2025'),'CAD',timezone,cutoff);
   const result=compareObservedJournalPeriods(before,after,{baseline_start:win('2024').start,baseline_end:win('2024').end,current_start:win('2025').start,current_end:win('2025').end,currency:'CAD',timezone,data_cutoff:cutoff,spend_weight:50,visits_weight:50});
   expect(result).toMatchObject({comparable:1,unscored:1,baselineObservedBuyers:2,currentObservedBuyers:1});
-  expect(result.rows.find(r=>r.id==='a')?.observedGrowth).toBe(125);
+  expect(result.rows.find(r=>r.id==='a')).toMatchObject({baselineReceipts:1,currentReceipts:2,baselinePurchaseDays:1,currentPurchaseDays:1,observedGrowth:75});
   expect(result.rows.find(r=>r.id==='b')).toMatchObject({currentSpend:null,currentReceipts:null,observedGrowth:null});
+ });
+ it('counts each local date once, excludes free and refund-only days, and retains separate receipt totals',()=>{
+  const lines=[line('2025','1','r1',10),line('2025','2','r2',20),
+    {...line('2025','3','r3',30),purchased_at:'2025-10-11T18:00:00Z'},
+    {...line('2025','4','free',0),purchased_at:'2025-10-12T18:00:00Z'},
+    {...line('2025','5','refund',-5),purchased_at:'2025-10-13T18:00:00Z'}];
+  const result=summarizeObservedJournal(lines,customers,source('2025'),tenant,win('2025'),'CAD',timezone,cutoff);
+  expect(result.customers[0]).toMatchObject({positiveReceipts:3,positivePurchaseDays:2,netMinor:5500});
  });
  it('never accepts a cross-tenant line, mismatched receipt timestamp or unknown currency as valid activity',()=>{
   const other={...line('2025','a','r',20),tenant_id:'other'};
