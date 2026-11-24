@@ -125,7 +125,7 @@ function normalizeCampaignRow(row: CampaignRow): ActiveCampaignSnapshot {
   return {
     id: row.id,
     tenantId: row.tenant_id,
-    name: deriveCampaignDisplayName({ name: row.name, subjectLine: row.subject_line, date: row.created_at }),
+    name: deriveCampaignDisplayName({ name: row.name, subjectLine: row.subject_line, date: row.created_at, status: row.status, sentAt: row.sent_at, scheduledAt: row.scheduled_at }),
     subjectLine: row.subject_line || "",
     senderName:
       row.sender_display_name ||

@@ -106,6 +106,7 @@ export function cloneDerivedMetrics(metrics: DerivedMetrics): DerivedMetrics {
     totals: { ...metrics.totals },
     scores: { ...metrics.scores },
     rates: { ...metrics.rates },
+    estimated: metrics.estimated,
     diagnostics: { ...metrics.diagnostics },
     reconciliation: { ...metrics.reconciliation },
     links: metrics.links.map((link) => ({ ...link })),

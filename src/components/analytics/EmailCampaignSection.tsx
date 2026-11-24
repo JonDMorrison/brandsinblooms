@@ -22,6 +22,10 @@ import {
 } from "@/hooks/analytics/useCampaignDeliveryMetrics";
 import { CampaignDeliveryBreakdown } from "@/components/analytics/CampaignDeliveryBreakdown";
 import { formatPercent } from "@/components/analytics/analyticsUtils";
+import {
+  ESTIMATED_STATS_EXPLANATION,
+  ESTIMATED_STATS_LABEL,
+} from "@/lib/crm/campaignStats";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyCard,
@@ -48,10 +52,9 @@ const getCampaignStatus = (campaign: DeliveryMetrics) => {
     return { label: "Failed", tone: "danger" as const };
   }
 
-  if (
-    campaign.computedEnqueued >
-    campaign.computedDelivered + campaign.computedFailed
-  ) {
+  // Bounced and unconfirmed sends are finished, not in progress: only
+  // recipients still queued or sending mean the campaign is sending.
+  if (campaign.computedPending > 0) {
     return { label: "Sending", tone: "primary" as const };
   }
 
@@ -221,6 +224,13 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
       color: summary.totalSkipped > 0 ? ("warning" as const) : ("neutral" as const),
       label: `${summary.totalSkipped.toLocaleString()} skipped`,
     },
+    ...(summary.estimated
+      ? [{
+          key: "estimated",
+          color: "neutral" as const,
+          label: `${ESTIMATED_STATS_LABEL}: includes campaigns without send records`,
+        }]
+      : []),
   ];
 
   return (
@@ -413,6 +423,15 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
                           >
                             {campaign.campaignName}
                           </Typography>
+                          {campaign.estimated ? (
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "neutral.600" }}
+                              title={ESTIMATED_STATS_EXPLANATION}
+                            >
+                              {ESTIMATED_STATS_LABEL}
+                            </Typography>
+                          ) : null}
                           {campaign.isStale ? (
                             <Typography
                               level="body-xs"
@@ -424,7 +443,7 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
                         </Stack>
                       </JoyTableCell>
                       <JoyTableCell sx={{ textAlign: "right" }}>
-                        {campaign.cachedTotalSent.toLocaleString()}
+                        {campaign.recipients.toLocaleString()}
                       </JoyTableCell>
                       <JoyTableCell sx={{ textAlign: "right" }}>
                         <Stack spacing={0.2} alignItems="flex-end">

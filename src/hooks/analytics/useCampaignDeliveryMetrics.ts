@@ -4,6 +4,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { normalizeEmailCampaignReportingSnapshot } from "./useCampaignDerivedMetrics";
 import { DELIVERED_STATUSES } from "@/constants/campaignStatuses";
+import { resolveCampaignStats } from "@/lib/crm/campaignStats";
+import { deriveCampaignDisplayName } from "@/lib/crm/campaignDisplayName";
 
 export interface DeliveryMetrics {
   campaignId: string;
@@ -19,6 +21,8 @@ export interface DeliveryMetrics {
   computedDelivered: number;
   computedFailed: number;
   computedEnqueued: number;
+  /** Recipients still queued or sending (rollup totals.pending). */
+  computedPending: number;
   batchCount: number;
 
   // Skip breakdown from email_send_skips
@@ -30,7 +34,12 @@ export interface DeliveryMetrics {
     other: number;
   };
 
-  // Engagement (from tracking events or cached)
+  /** Recipients from the shared rollup (src/lib/crm/campaignStats.ts). */
+  recipients: number;
+  /** True when the rollup fell back to the stored estimate (no send records). */
+  estimated: boolean;
+
+  // Engagement (from the shared rollup)
   totalOpens: number;
   totalClicks: number;
   openRate: number;
@@ -58,6 +67,8 @@ interface UseCampaignDeliveryMetricsResult {
     totalFailed: number;
     avgOpenRate: number;
     avgClickRate: number;
+    /** True when any campaign in the summary uses the stored estimate. */
+    estimated: boolean;
   };
   recomputeAll: () => Promise<void>;
   recomputeCampaign: (campaignId: string) => Promise<void>;
@@ -119,7 +130,7 @@ export const useCampaignDeliveryMetrics = (
       const { data: campaignsData, error: campaignsError } = await supabase
         .from("crm_campaigns")
         .select(
-          "id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
+          "id, name, subject_line, status, created_at, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
         )
         .eq("tenant_id", tenantId)
         .in("status", deliveredStatuses)
@@ -227,6 +238,7 @@ export const useCampaignDeliveryMetrics = (
           batches: 0,
         };
         const report = snapshots.get(c.id)!;
+        const stats = resolveCampaignStats(report)!;
         const computedEnqueued = report.totals.recipients;
         const computedSent = report.totals.sent;
         const computedFailed = report.totals.failed;
@@ -248,14 +260,21 @@ export const useCampaignDeliveryMetrics = (
 
         return {
           campaignId: c.id,
-          campaignName: c.name,
+          campaignName: deriveCampaignDisplayName({
+            name: c.name,
+            subjectLine: c.subject_line,
+            date: c.created_at,
+            status: c.status,
+            sentAt: c.sent_at,
+          }),
           sentAt: c.sent_at,
           cachedTotalSent: cachedSent,
           cachedOpenRate: c.open_rate || 0,
           cachedClickRate: c.click_rate || 0,
-          computedDelivered: report.totals.delivered,
+          computedDelivered: stats.delivered,
           computedFailed: computedFailed,
           computedEnqueued: computedEnqueued,
+          computedPending: report.totals.pending,
           batchCount: jobs.batches,
           skipsTotal: report.totals.skipped,
           skipsByReason: {
@@ -264,10 +283,12 @@ export const useCampaignDeliveryMetrics = (
             invalid_email: report.totals.skipped > 0 ? skips.invalid_email : 0,
             other: report.totals.skipped > 0 ? skips.other : 0,
           },
-          totalOpens: report.totals.opens,
-          totalClicks: report.totals.clicks,
-          openRate: report.rates.open_reported,
-          clickRate: report.rates.click,
+          recipients: stats.recipients,
+          estimated: stats.estimated,
+          totalOpens: stats.opens,
+          totalClicks: stats.clicks,
+          openRate: stats.openRate,
+          clickRate: stats.clickRate,
           isStale: discrepancy > 5, // More than 5% difference
           metricsDiscrepancy: discrepancy,
         };
@@ -339,6 +360,7 @@ export const useCampaignDeliveryMetrics = (
       acc.totalDelivered += c.computedDelivered;
       acc.totalSkipped += c.skipsTotal;
       acc.totalFailed += c.computedFailed;
+      acc.estimated = acc.estimated || c.estimated;
       return acc;
     },
     {
@@ -348,6 +370,7 @@ export const useCampaignDeliveryMetrics = (
       totalFailed: 0,
       avgOpenRate: 0,
       avgClickRate: 0,
+      estimated: false,
     },
   );
 

@@ -1,4 +1,6 @@
 import * as React from "react";
+import Alert from "@mui/joy/Alert";
+import { useAdmin } from "@/contexts/AdminContext";
 import ButtonGroup from "@mui/joy/ButtonGroup";
 import Box from "@mui/joy/Box";
 import Divider from "@mui/joy/Divider";
@@ -34,6 +36,11 @@ import { CampaignDeliverySummary } from "@/components/crm/campaigns/CampaignDeli
 import { CampaignEngagementMetrics } from "@/components/crm/campaigns/CampaignEngagementMetrics";
 import { CampaignRevenueAttribution } from "@/components/crm/campaigns/CampaignRevenueAttribution";
 import { formatAttributedRevenue } from "@/lib/crm/campaignRevenueMetrics";
+import { deriveCampaignDisplayName } from "@/lib/crm/campaignDisplayName";
+import {
+  ESTIMATED_STATS_EXPLANATION,
+  ESTIMATED_STATS_LABEL,
+} from "@/lib/crm/campaignStats";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyCard,
@@ -385,6 +392,8 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+const TIMELINE_TICKS = Array.from({ length: 12 }, (_, index) => index * 6);
+
 function ChartCard({
   title,
   data,
@@ -430,6 +439,10 @@ function ChartCard({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fill: "var(--joy-palette-neutral-500)", fontSize: 12 }}
+                // 72 hourly points: label every 6 hours so labels never overlap.
+                ticks={TIMELINE_TICKS}
+                interval={0}
+                minTickGap={8}
                 tickFormatter={(value) => `${value}h`}
               />
               <YAxis
@@ -624,7 +637,8 @@ function renderEmailPreviewContent({
   isLoading: boolean;
   isError: boolean;
   errorMessage: string | null;
-  onRetry: () => void;
+  /** Omitted for sent campaigns (non-admins): the report shows the sent copy. */
+  onRetry?: () => void;
   viewport: PreviewViewport;
   fullSize?: boolean;
 }) {
@@ -653,16 +667,18 @@ function renderEmailPreviewContent({
               {errorMessage}
             </Typography>
           ) : null}
-          <Box>
-            <JoyButton
-              size="sm"
-              variant="soft"
-              color="danger"
-              onClick={onRetry}
-            >
-              Try Again
-            </JoyButton>
-          </Box>
+          {onRetry ? (
+            <Box>
+              <JoyButton
+                size="sm"
+                variant="soft"
+                color="danger"
+                onClick={onRetry}
+              >
+                Try Again
+              </JoyButton>
+            </Box>
+          ) : null}
         </Stack>
       </Sheet>
     );
@@ -675,16 +691,18 @@ function renderEmailPreviewContent({
           <Typography level="body-sm" color="neutral">
             No email content available for this campaign.
           </Typography>
-          <Box>
-            <JoyButton
-              size="sm"
-              variant="soft"
-              color="neutral"
-              onClick={onRetry}
-            >
-              Rebuild Preview
-            </JoyButton>
-          </Box>
+          {onRetry ? (
+            <Box>
+              <JoyButton
+                size="sm"
+                variant="soft"
+                color="neutral"
+                onClick={onRetry}
+              >
+                Rebuild Preview
+              </JoyButton>
+            </Box>
+          ) : null}
         </Stack>
       </Sheet>
     );
@@ -696,11 +714,13 @@ function renderEmailPreviewContent({
         <Typography level="body-sm" color="neutral">
           Email preview is unavailable right now.
         </Typography>
-        <Box>
-          <JoyButton size="sm" variant="soft" color="neutral" onClick={onRetry}>
-            Rebuild Preview
-          </JoyButton>
-        </Box>
+        {onRetry ? (
+          <Box>
+            <JoyButton size="sm" variant="soft" color="neutral" onClick={onRetry}>
+              Rebuild Preview
+            </JoyButton>
+          </Box>
+        ) : null}
       </Stack>
     </Sheet>
   );
@@ -788,6 +808,7 @@ export default function CRMCampaignReport() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { cloneCampaign, isCloning } = useCampaignCloning();
+  const { isMasterAdmin } = useAdmin();
   const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
   const lastStatusRef = React.useRef<string | null>(null);
   const [previewViewport, setPreviewViewport] =
@@ -1079,6 +1100,10 @@ export default function CRMCampaignReport() {
   const handleRebuildPreview = React.useCallback(() => {
     void rebuildPreviewMutation.mutateAsync();
   }, [rebuildPreviewMutation]);
+  // A sent campaign's report shows what was sent. Rebuilding renders the
+  // current content instead, so only admins (for diagnosis) can do it.
+  const isSentCampaign = isDeliveredCampaignStatus(report?.campaign.status);
+  const canRebuildPreview = !isSentCampaign || isMasterAdmin;
 
   React.useEffect(() => {
     lastStatusRef.current = report?.campaign.status ?? null;
@@ -1269,7 +1294,17 @@ export default function CRMCampaignReport() {
   const pending = metrics?.totals.pending ?? 0;
   const unconfirmed = metrics?.totals.unconfirmed ?? 0;
   const displayCampaignName = report
-    ? normalizeCampaignNameForDisplay(report.campaign.name)
+    ? normalizeCampaignNameForDisplay(
+        deriveCampaignDisplayName({
+          name: report.campaign.name,
+          subjectLine: report.campaign.subjectLine,
+          firstHeadline: report.campaign.firstHeadline,
+          date: report.campaign.createdAt,
+          status: report.campaign.status,
+          sentAt: report.campaign.sentAt ?? report.campaign.sendCompletedAt,
+          scheduledAt: report.campaign.scheduledAt,
+        }),
+      )
     : "";
   const channelLabel = report?.campaign.channel === "sms" ? "SMS" : "Email";
 
@@ -1413,6 +1448,21 @@ export default function CRMCampaignReport() {
           </Box>
         </Sheet>
 
+        {!reportQuery.isLoading && metrics?.estimated ? (
+          <Alert
+            color="neutral"
+            variant="soft"
+            size="sm"
+            data-testid="campaign-stats-estimated"
+            startDecorator={<Info size={16} />}
+          >
+            <Typography level="body-sm">
+              <strong>{ESTIMATED_STATS_LABEL}.</strong>{" "}
+              {ESTIMATED_STATS_EXPLANATION}
+            </Typography>
+          </Alert>
+        ) : null}
+
         {reportQuery.isLoading ? (
           <StatsStripSkeleton cells={6} />
         ) : (
@@ -1528,6 +1578,8 @@ export default function CRMCampaignReport() {
             unsubscribes={report?.unsubscribes ?? 0}
             complaints={report?.complaints ?? 0}
             totalDelivered={Math.max(delivered, 1)}
+            openRate={metrics?.rates.open_reported}
+            clickRate={metrics?.rates.click}
           />
         )}
 
@@ -1623,10 +1675,12 @@ export default function CRMCampaignReport() {
                     </JoyButton>
                   </ButtonGroup>
 
+                  {canRebuildPreview ? (
                   <JoyButton
                     variant="outlined"
                     color="neutral"
                     size="sm"
+                    data-testid="report-rebuild-preview"
                     loading={rebuildPreviewMutation.isPending}
                     loadingPosition="start"
                     startDecorator={
@@ -1638,8 +1692,11 @@ export default function CRMCampaignReport() {
                   >
                     {rebuildPreviewMutation.isPending
                       ? "Rebuilding..."
-                      : "Rebuild Preview"}
+                      : isSentCampaign
+                        ? "Rebuild Preview (admin)"
+                        : "Rebuild Preview"}
                   </JoyButton>
+                  ) : null}
                 </Stack>
               ) : null}
             </Stack>
@@ -1685,9 +1742,15 @@ export default function CRMCampaignReport() {
                       isLoading: previewLoading,
                       isError: previewError,
                       errorMessage: previewErrorMessage,
-                      onRetry: handleRebuildPreview,
+                      onRetry: canRebuildPreview ? handleRebuildPreview : undefined,
                       viewport: previewViewport,
                     })}
+                    {isSentCampaign && preview?.source === "rebuilt" ? (
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        The sent copy of this email was not stored, so this
+                        preview is built from the campaign's current content.
+                      </Typography>
+                    ) : null}
                   </Stack>
                 ) : null}
                 {report?.campaign.channel === "sms" ? (

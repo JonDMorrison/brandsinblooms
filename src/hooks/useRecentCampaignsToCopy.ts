@@ -69,6 +69,8 @@ export function selectCampaignsToCopy(rows: CampaignToCopyRow[]): CampaignToCopy
           subjectLine: row.subject_line,
           blocks,
           date: row.created_at,
+          status: row.status,
+          sentAt: row.sent_at,
         }),
         subjectLine: row.subject_line ?? "",
         status,

@@ -72,6 +72,12 @@ import {
   type CampaignStatus,
 } from "@/constants/campaignStatuses";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
+import { useEmailCampaignStats } from "@/hooks/analytics/useEmailCampaignStats";
+import {
+  ESTIMATED_STATS_EXPLANATION,
+  ESTIMATED_STATS_LABEL,
+  type CampaignStats,
+} from "@/lib/crm/campaignStats";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -167,6 +173,43 @@ function shouldShowLowRecipientWarning(campaign: CampaignCatalogItem) {
   return getRecipientCountForList(campaign) <= 1;
 }
 
+/**
+ * Sent email campaigns show the shared rollup (src/lib/crm/campaignStats.ts)
+ * instead of the stored crm_campaigns columns, so the list matches the
+ * report, the dashboard and Reports > Overview.
+ */
+function applyCampaignStats(
+  campaign: CampaignCatalogItem,
+  stats: CampaignStats | undefined,
+): CampaignCatalogItem {
+  if (!stats) return campaign;
+  return {
+    ...campaign,
+    totalRecipients: stats.recipients,
+    totalOpens: stats.opens,
+    totalClicks: stats.clicks,
+    openRate: stats.openRate,
+    clickRate: stats.clickRate,
+  };
+}
+
+/** The shared display name (drafts: "Draft, <date>"; others: "Campaign, <date>"). */
+function getCampaignListName(campaign: CampaignCatalogItem) {
+  return deriveCampaignDisplayName({
+    name: campaign.name,
+    subjectLine: campaign.subjectLine,
+    firstHeadline: campaign.firstHeadline,
+    date: campaign.createdAt,
+    status: campaign.status,
+    sentAt: campaign.sentAt ?? campaign.sendCompletedAt,
+    scheduledAt: campaign.scheduledAt,
+  });
+}
+
+function usesSharedStats(campaign: CampaignCatalogItem) {
+  return isDeliveredCampaignStatus(campaign.status) && campaign.channel !== "sms";
+}
+
 function getProcessedCount(campaign: CampaignCatalogItem) {
   return (
     Number(campaign.messagesSent || 0) +
@@ -231,16 +274,28 @@ function formatContextualDate(campaign: CampaignCatalogItem) {
   return { label: context.label, value: format(date, "MMM d, h:mm a") };
 }
 
-function getSortDate(campaign: CampaignCatalogItem) {
-  return new Date(
-    campaign.updatedAt ||
-      campaign.workerHeartbeatAt ||
-      campaign.sentAt ||
-      campaign.queuedAt ||
-      campaign.scheduledAt ||
-      campaign.createdAt ||
-      0,
-  ).getTime();
+/**
+ * The Date column sorts by the date it shows (getContextualDate: sent,
+ * scheduled, queued, started, failed or updated), so the order always
+ * matches what the reader sees on every status tab. Rows without a shown
+ * date ("-") have no sort date.
+ */
+function getSortDate(campaign: CampaignCatalogItem): number | null {
+  return parseDate(getContextualDate(campaign).value)?.getTime() ?? null;
+}
+
+/** Compares shown dates ascending; rows without a date always sort last. */
+export function compareShownDates(
+  left: CampaignCatalogItem,
+  right: CampaignCatalogItem,
+  direction: SortDirection,
+) {
+  const a = getSortDate(left);
+  const b = getSortDate(right);
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return direction === "asc" ? a - b : b - a;
 }
 
 export function normalizeFilter(value: string | null): StatusFilter {
@@ -469,11 +524,20 @@ function RateCell({
   value,
   count,
   active,
+  pending = false,
 }: {
   value: number;
   count: number;
   active: boolean;
+  pending?: boolean;
 }) {
+  if (active && pending) {
+    return (
+      <Stack spacing={0.75} alignItems="flex-end">
+        <Skeleton animation="wave" variant="text" width={40} />
+      </Stack>
+    );
+  }
   const hasValue = active && (value > 0 || count > 0);
   const display = hasValue ? `${value.toFixed(1)}%` : "-";
 
@@ -743,6 +807,17 @@ export function CRMCampaignsPage() {
     }
   }, [duplicateTarget]);
 
+  const sharedStatsIds = React.useMemo(
+    () => (campaignsQuery.data ?? []).filter(usesSharedStats).map((campaign) => campaign.id),
+    [campaignsQuery.data],
+  );
+  const campaignStats = useEmailCampaignStats(sharedStatsIds);
+  const catalog = React.useMemo(
+    () => (campaignsQuery.data ?? []).map((campaign) =>
+      applyCampaignStats(campaign, campaignStats.stats.get(campaign.id))),
+    [campaignsQuery.data, campaignStats.stats],
+  );
+
   const totalCount = campaignsQuery.data?.length ?? 0;
   // "Active sends": campaigns actually going out. A paused campaign is not
   // sending, so it is not counted (it still shows under the Sending filter).
@@ -756,7 +831,7 @@ export function CRMCampaignsPage() {
 
   const filteredCampaigns = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const filtered = (campaignsQuery.data ?? []).filter((campaign) => {
+    const filtered = catalog.filter((campaign) => {
       if (!matchesStatusFilter(campaign, statusFilter)) return false;
       if (groupFilter !== "all" && !organization.data?.memberships.some(m => m.campaign_id === campaign.id && m.group_id === groupFilter)) return false;
       if (!matchesChannelFilter(campaign.channel, channelFilter)) return false;
@@ -794,13 +869,14 @@ export function CRMCampaignsPage() {
           break;
         case "date":
         default:
-          result = getSortDate(left) - getSortDate(right);
+          // Already in the shown direction (and keeps undated rows last).
+          return compareShownDates(left, right, sortDirection);
       }
       return sortDirection === "asc" ? result : -result;
     });
 
     return filtered;
-  }, [campaignsQuery.data, query, sortColumn, sortDirection, statusFilter, channelFilter, groupFilter, organization.data]);
+  }, [catalog, query, sortColumn, sortDirection, statusFilter, channelFilter, groupFilter, organization.data]);
 
   const paginatedCampaigns = React.useMemo(() => {
     if (filteredCampaigns.length <= PAGE_SIZE) return filteredCampaigns;
@@ -1476,7 +1552,7 @@ export function CRMCampaignsPage() {
                                   level="body-sm"
                                   component="button"
                                   onClick={event=>{event.stopPropagation();editCell(campaign,"name");}}
-                                  title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                                  title={getCampaignListName(campaign)}
                                   sx={{
                                     background:"none",border:0,padding:0,cursor:"pointer",textAlign:"left",
                                     fontWeight: "lg",
@@ -1485,7 +1561,7 @@ export function CRMCampaignsPage() {
                                     whiteSpace: "normal",
                                   }}
                                 >
-                                  {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                                  {getCampaignListName(campaign)}
                                 </Typography>
                                 <Typography component="button" onClick={event=>{event.stopPropagation();editCell(campaign,"subject_line");}}
                                   level="body-xs"
@@ -1560,6 +1636,17 @@ export function CRMCampaignsPage() {
                                     processed
                                   </Typography>
                                 ) : null}
+                                {campaignStats.stats.get(campaign.id)?.estimated ? (
+                                  <Tooltip title={ESTIMATED_STATS_EXPLANATION}>
+                                    <Typography
+                                      level="body-xs"
+                                      data-testid="campaign-row-estimated"
+                                      sx={{ color: "neutral.500" }}
+                                    >
+                                      {ESTIMATED_STATS_LABEL}
+                                    </Typography>
+                                  </Tooltip>
+                                ) : null}
                               </Stack>
                             </JoyTableCell>
                             <JoyTableCell>
@@ -1586,6 +1673,7 @@ export function CRMCampaignsPage() {
                                 value={campaign.openRate}
                                 count={campaign.totalOpens}
                                 active={terminal}
+                                pending={campaignStats.pending.has(campaign.id)}
                               />
                             </JoyTableCell>
                             <JoyTableCell
@@ -1598,6 +1686,7 @@ export function CRMCampaignsPage() {
                                 value={campaign.clickRate}
                                 count={campaign.totalClicks}
                                 active={terminal}
+                                pending={campaignStats.pending.has(campaign.id)}
                               />
                             </JoyTableCell>
                             <JoyTableCell
@@ -1653,13 +1742,13 @@ export function CRMCampaignsPage() {
                           <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                             <Typography
                               level="title-sm"
-                              title={deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                              title={getCampaignListName(campaign)}
                               sx={{
                                 overflowWrap: "anywhere",
                                 whiteSpace: "normal",
                               }}
                             >
-                              {deriveCampaignDisplayName({ name: campaign.name, subjectLine: campaign.subjectLine, firstHeadline: campaign.firstHeadline, date: campaign.createdAt })}
+                              {getCampaignListName(campaign)}
                             </Typography>
                             <StatusChip
                               campaign={campaign}

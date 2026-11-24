@@ -16409,6 +16409,19 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: Json;
       };
+      get_sms_audience_estimate: {
+        Args: {
+          p_tenant_id: string;
+          p_segment_id?: string | null;
+          p_persona_ids?: string[] | null;
+          p_customer_ids?: string[] | null;
+        };
+        Returns: Json;
+      };
+      filter_sms_eligible_customer_ids: {
+        Args: { p_tenant_id: string; p_customer_ids: string[] };
+        Returns: string[];
+      };
       ensure_system_segments: {
         Args: { p_segments: Json; p_tenant_id: string };
         Returns: number;

@@ -22,6 +22,8 @@ import {
   createListResult,
   getQueryClient,
   isJunctionOperator,
+  loadSharedCampaignRollups,
+  type SharedCampaignRollup,
   isRecord,
   normalizeSortBy,
   paginationRange,
@@ -400,9 +402,11 @@ export function mapCampaign(
   row: CampaignRow,
   segmentNames: string[],
   draftReview: JsonObject | null,
+  rollup: SharedCampaignRollup | null = null,
 ): JsonObject {
   const status = String(row.status ?? "draft");
   const hasBeenSent = SENT_STATUSES.has(status);
+  const stats = hasBeenSent ? rollup?.stats ?? null : null;
   // Only sent campaigns have deliveries. A draft's audience size is not a
   // send count, so drafts never report a delivered number.
   const deliveredCount = hasBeenSent
@@ -414,11 +418,15 @@ export function mapCampaign(
 
   return {
     id: row.id,
-    // Shared display-name rule: name, then subject, then "Draft, <date>".
+    // Shared display-name rule: name, then subject, then "Draft, <date>"
+    // for drafts or "Campaign, <date>" otherwise; merge tags removed.
     name: deriveCampaignDisplayName({
       name: row.name,
       subjectLine: row.subject_line,
       date: row.created_at,
+      status,
+      sentAt: row.sent_at,
+      scheduledAt: row.scheduled_at,
     }),
     subject_line: row.subject_line,
     status,
@@ -426,7 +434,20 @@ export function mapCampaign(
     has_been_sent: hasBeenSent,
     scheduled_at: row.scheduled_at,
     sent_at: hasBeenSent ? row.sent_at : null,
-    metrics_summary: hasBeenSent
+    // Sent campaigns use the shared rollup (the numbers the campaign list,
+    // report and dashboard show). The stored columns are only a fallback
+    // when the rollup could not be loaded.
+    metrics_summary: stats
+      ? {
+          recipients: stats.recipients,
+          delivered_count: stats.delivered,
+          opens: stats.opens,
+          clicks: stats.clicks,
+          open_rate: stats.openRate,
+          click_rate: stats.clickRate,
+          estimated: stats.estimated,
+        }
+      : hasBeenSent
       ? {
           open_rate:
             toNumberOrNull(row.open_rate) ??
@@ -576,12 +597,17 @@ export const queryCampaigns: ToolImplementation = async (
     rows,
   );
   const draftReviews = await loadDraftReviews(client, context.tenantId, rows);
+  const rollups = await loadSharedCampaignRollups(
+    client,
+    rows.filter((row) => SENT_STATUSES.has(String(row.status))).map((row) => row.id),
+  );
   const items = rows.map(
     (row) =>
       mapCampaign(
         row,
         segmentNames.get(row.id) ?? [],
         draftReviews.get(row.id) ?? null,
+        rollups.get(row.id) ?? null,
       ) as JsonValue,
   );
 

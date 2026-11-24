@@ -49,6 +49,11 @@ export interface DerivedMetrics {
     complaint: number;
     click_to_open: number;
   };
+  /**
+   * True when no send records exist and the snapshot fell back to the stored
+   * crm_campaigns rollup (see src/lib/crm/campaignStats.ts).
+   */
+  estimated: boolean;
   diagnostics: {
     opens_without_delivery: number;
     clicks_without_delivery: number;
@@ -228,6 +233,8 @@ export const normalizeDerivedMetrics = (
         opens > 0 ? Number(((clicks / opens) * 100).toFixed(2)) : 0,
       ),
     },
+    estimated:
+      candidate.estimated === true || diagnosticsSource.estimated === true,
     diagnostics: {
       opens_without_delivery: toNumber(
         diagnosticsSource.opens_without_delivery,

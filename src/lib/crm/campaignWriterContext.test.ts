@@ -47,7 +47,7 @@ describe("SMS draft on email campaigns", () => {
   });
 });
 
-import { deriveCampaignDisplayName, isUnsetCampaignName } from './campaignDisplayName';
+import { deriveCampaignDisplayName, isUnsetCampaignName, stripMergeTags } from './campaignDisplayName';
 
 describe('campaign display name (#8)', () => {
   it('treats empty and legacy placeholder names as unset', () => {
@@ -73,6 +73,24 @@ describe('campaign display name (#8)', () => {
     expect(deriveCampaignDisplayName({ name: '', subjectLine: '', blocks: blank, emptyLabel: 'Untitled draft' })).toBe('Untitled draft');
     expect(deriveCampaignDisplayName({ name: '', subjectLine: '', firstHeadline: 'Celebrating Garden Successes' })).toBe('Celebrating Garden Successes');
     expect(deriveCampaignDisplayName({ name: '', subjectLine: 'Year-End Garden Review', emptyLabel: 'Untitled draft' })).toBe('Year-End Garden Review');
+  });
+  it('uses Draft, <date> only for drafts; sent and scheduled use Campaign, <date> (qa4 #2)', () => {
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', status: 'sent', sentAt: '2026-11-13T16:00:00Z', date: '2026-04-13T12:00:00Z' })).toMatch(/^Campaign, Nov 1[34], 2026$/);
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', status: 'scheduled', scheduledAt: '2026-12-02T16:00:00Z', date: '2026-04-13T12:00:00Z' })).toMatch(/^Campaign, Dec [23], 2026$/);
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', status: 'sent', emptyLabel: 'Untitled draft', sentAt: '2026-11-13T16:00:00Z' })).toMatch(/^Campaign, /);
+    expect(deriveCampaignDisplayName({ name: '', subjectLine: '', status: 'draft', date: '2026-04-13T12:00:00Z' })).toMatch(/^Draft, Apr 1[34], 2026$/);
+    expect(deriveCampaignDisplayName({ name: 'Untitled Campaign', subjectLine: 'Winter wreaths', status: 'sent' })).toBe('Winter wreaths');
+  });
+  it('strips merge tags from names (qa4 #2)', () => {
+    expect(stripMergeTags('Spring has arrived, {{ first_name }}')).toBe('Spring has arrived');
+    expect(stripMergeTags('Hi {{ first_name }}!')).toBe('Hi there!');
+    expect(stripMergeTags('Hello {{first_name|friend}}, spring is here')).toBe('Hello friend, spring is here');
+    expect(stripMergeTags('{{ first_name }}, your roses are in')).toBe('your roses are in');
+    expect(stripMergeTags('The Easiest Fundraiser You Will Run This Year {{ first_name }}')).toBe('The Easiest Fundraiser You Will Run This Year');
+    expect(stripMergeTags('Sale for *|FNAME|* {{ company_name }} today')).toBe('Sale for today');
+    expect(deriveCampaignDisplayName({ name: 'Untitled Campaign', subjectLine: 'Spring has arrived, {{ first_name }}', status: 'draft' })).toBe('Spring has arrived');
+    expect(deriveCampaignDisplayName({ name: 'Welcome {{ first_name }}', subjectLine: '' })).toBe('Welcome there');
+    expect(deriveCampaignDisplayName({ name: '{{ first_name }}', subjectLine: 'Fall bulbs', status: 'sent' })).toBe('Fall bulbs');
   });
 });
 
@@ -165,6 +183,26 @@ describe('new draft sender prefill (qa2 #2)', () => {
       tenantName: null,
     });
     expect(sender).toMatchObject({ senderEmail: 'mail@northfieldgardens.ca', senderName: 'Northfield Garden Center', source: 'verified_domain' });
+  });
+
+  it('a new blank draft takes the default domain set by assign_single_verified_default_sender (qa4 #5)', () => {
+    // Northfield after the migration: its one verified domain is the default,
+    // with default_from_name = company name and default_from_email = the
+    // company email (on that domain). The owner's own profile is not needed.
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: northfield.id,
+      domains: [{ ...northfield, default_from_name: 'Northfield Garden Center', default_from_email: 'mail@northfieldgardens.ca' }],
+      companyName: null,
+      companyEmail: null,
+      tenantName: 'Northfield Garden Center',
+    });
+    expect(sender).toEqual({
+      senderName: 'Northfield Garden Center',
+      senderEmail: 'mail@northfieldgardens.ca',
+      replyTo: 'mail@northfieldgardens.ca',
+      fromEmailDomainId: northfield.id,
+      source: 'tenant_default',
+    });
   });
 });
 
