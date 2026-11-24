@@ -595,7 +595,7 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "query_campaigns",
     description:
-      "Find and list campaigns, newsletters, emails, sends, scheduled blasts, drafts, failed sends, or marketing messages. Use for campaign grids, status checks, and performance-adjacent listing. Use get_campaign_analytics for deeper metrics.",
+      "Find and list campaigns, newsletters, emails, sends, scheduled blasts, drafts, failed sends, or marketing messages. Use for campaign grids, status checks, and performance-adjacent listing. Use get_campaign_analytics for deeper metrics. Each row has status_label and has_been_sent: describe a campaign as sent only when has_been_sent is true. Drafts, paused and scheduled campaigns include draft_review (subject line, the Review & Send content and sender checks, and a recommendation); to review drafts, filter status = draft and report each draft's subject, failed checks and recommendation.",
     parameters: queryParameters(
       "campaign",
       CAMPAIGN_FILTER_FIELDS,
