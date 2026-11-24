@@ -80,6 +80,34 @@ describe("SMS eligibility parity: estimate, enqueue and send use one rule (qa4 #
     }
   });
 
+  it("excludes suppressed customers everywhere and keeps email opt-out out of SMS (qa4 follow-up)", () => {
+    const followUp = readFileSync(
+      "supabase/migrations/20261124185955_sms_eligibility_suppressed_single_rule.sql",
+      "utf8",
+    );
+    const countFix = readFileSync(
+      "supabase/migrations/20261124190246_sms_campaign_count_frequent_buyers.sql",
+      "utf8",
+    );
+    const personaFix = readFileSync(
+      "supabase/migrations/20261124190213_sms_campaign_persona_text_ids.sql",
+      "utf8",
+    );
+    expect(followUp).toContain("and customer.suppressed is not true");
+    expect(followUp).toContain("IF v_customer.suppressed IS TRUE THEN");
+    for (const sql of [followUp, countFix, personaFix]) {
+      expect(sql).not.toContain("customer.opt_out");
+      expect(sql).not.toContain("SET search_path TO 'public'");
+    }
+    // Send Now's count and the persona page read the one set-based rule.
+    expect(countFix).toContain("FROM public.sms_eligible_customers(v_campaign.tenant_id) AS eligible");
+    expect(personaFix).toContain("FROM public.sms_eligible_customers(v_campaign.tenant_id) AS eligible");
+    // targeting_persona_ids is text[]; crm_customers has pos_order_count, not order_count.
+    expect(countFix).toContain("assignment.persona_id::text=ANY(v_campaign.targeting_persona_ids)");
+    expect(countFix).toContain("coalesce(customer.pos_order_count,0)>=3");
+    expect(countFix).not.toContain("coalesce(customer.order_count");
+  });
+
   it("the enqueue worker never queues a customer the rule rejects", () => {
     expect(worker).toContain('"filter_sms_eligible_customer_ids"');
     expect(worker.match(/\.is\("(crm_customers\.)?deleted_at", null\)/g)?.length).toBe(3);

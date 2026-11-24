@@ -140,6 +140,7 @@ export function CalendarNewsletterDialog({
         : [];
 
       await persistCampaignDraft({
+        tenantId: tenant.id,
         campaignId: existingRecord?.id ?? existingNewsletter?.id ?? null,
         campaignType: "email",
         status: "scheduled",

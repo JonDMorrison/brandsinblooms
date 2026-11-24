@@ -4,10 +4,12 @@ import { isUuidLike, resolveAudienceRecipientIds } from "@/lib/computeAudienceRe
 /**
  * The SMS wizard's audience estimate. Counts come from
  * get_sms_audience_estimate, which applies check_sms_send_eligibility's rules
- * (live, not merged customer; 10-digit phone; sms_opt_in with a date and a
- * consent source; latest SMS consent record opted in; not on the SMS
- * suppression list). The enqueue worker filters with the same rule, so the
- * estimate is what would actually be queued.
+ * (live, not merged, not suppressed customer; 10-digit phone; sms_opt_in with
+ * a date and a consent source; latest SMS consent record opted in; not on the
+ * SMS suppression list). crm_customers.opt_out is the email unsubscribe flag
+ * and does not affect SMS. The enqueue worker, Send Now's recipient count and
+ * the persona recipient page use the same rule, so the estimate is what would
+ * actually be queued.
  */
 export interface SmsAudienceEstimate {
   /** Live customers in the chosen audience (before SMS rules). */

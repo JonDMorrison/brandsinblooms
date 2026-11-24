@@ -152,6 +152,7 @@ function ContentWorkspace() {
         tenantId:tenant!.id,name:`Promote ${item.title}`.slice(0,180),
         message:sms.smsMessage,sources:[sms.source],
       }):await persistCampaignDraft({
+        tenantId:tenant?.id??null,
         campaignType:"email",status:"draft",
         name:`Promote ${item.title}`.slice(0,180),
         subjectLine:channel==="sms"?"":item.type==="event"?`Join us for ${item.title}`:`Discover ${item.title}`,

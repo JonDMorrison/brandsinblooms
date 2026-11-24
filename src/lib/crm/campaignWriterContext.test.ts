@@ -204,6 +204,30 @@ describe('new draft sender prefill (qa2 #2)', () => {
       source: 'tenant_default',
     });
   });
+
+  it('every new-draft entry point saves into the active company, so an admin working in it gets its sender (qa4 follow-up #2)', async () => {
+    // Without tenantId, getAuthenticatedWriterContext falls back to the
+    // signed-in user's own tenant: an admin viewing Northfield would create
+    // the draft (and load sender defaults) for their own company instead.
+    const { readFileSync } = await import('node:fs');
+    for (const file of [
+      'src/components/CalendarViewNext.tsx',
+      'src/components/calendar/CalendarNewsletterDialog.tsx',
+      'src/pages/crm/ConnectedContentPage.tsx',
+      'src/hooks/useStartBlankNewsletter.ts',
+      'src/hooks/useStartThemeNewsletter.ts',
+      'src/pages/crm/CampaignStudioPage.tsx',
+    ]) {
+      const source = readFileSync(file, 'utf8');
+      const calls = source.split('persistCampaignDraft({').slice(1);
+      expect(calls.length, file).toBeGreaterThan(0);
+      for (const call of calls) {
+        expect(call.slice(0, 400), file).toMatch(/tenantId:\s*tenant(\?|!)?\.id/);
+      }
+    }
+    const loader = readFileSync('src/lib/crm/draftSenderDefaults.ts', 'utf8');
+    expect(loader).toContain('.eq("tenant_id", params.tenantId)');
+  });
 });
 
 import { selectCampaignsToCopy } from '@/hooks/useRecentCampaignsToCopy';
