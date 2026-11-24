@@ -29,6 +29,9 @@ verify_jwt = true
 [functions.delete-user-hard]
 verify_jwt = true
 
+[functions.billing-payment-method]
+verify_jwt = true
+
 [functions.customer-portal]
 verify_jwt = true
 
