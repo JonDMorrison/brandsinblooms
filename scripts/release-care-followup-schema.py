@@ -10,6 +10,7 @@ REF = "udldmkqwnxhdeztyqcau"
 MIGRATIONS = (
     "20261124143000_care_followup_campaigns.sql",
     "20261124151000_website_care_followup_campaigns.sql",
+    "20261124152000_native_pos_care_order_location.sql",
 )
 if os.environ.get("PROJECT_ID") != REF:
     raise SystemExit("Care follow-up migration target is not the verified CRM production project")
