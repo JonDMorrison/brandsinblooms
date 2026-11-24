@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "supabase/functions/**"
+      - "supabase/migrations/*care_followup_editor_permission_names.sql"
+      - "scripts/release-care-followup-schema.py"
       # src/ modules (email HTML generator, design system, POS adapters) are
       # bundled into functions, so a change there must redeploy them too.
       - "src/lib/studio/**"
@@ -178,7 +180,7 @@ jobs:
       # the reviewed care follow-up migrations, preserving their file versions.
       # Never deploy the shared send guard before its database authority exists.
       - name: Release care follow-up schema before affected functions
-        if: steps.changed.outputs.deploy_all == 'true' || contains(steps.changed.outputs.functions, 'send-email-campaign') || contains(steps.changed.outputs.functions, 'process-email-send-queue') || contains(steps.changed.outputs.functions, 'care-followup-website')
+        if: github.ref == 'refs/heads/main'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
