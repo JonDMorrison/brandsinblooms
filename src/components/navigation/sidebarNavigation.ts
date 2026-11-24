@@ -10,6 +10,7 @@ import {
   FileBarChart2,
   FileInput,
   FlaskConical,
+  Flower2,
   HeartPulse,
   Home,
   Globe,
@@ -103,6 +104,7 @@ const TENANT_ITEM_PERMISSIONS: Partial<Record<string, CrmPermission>> = {
   "manage-domains": "integrations.manage",
   integrations: "integrations.manage",
   "connected-content": "campaigns.write",
+  "care-guides": "campaigns.write",
   settings: "access.manage",
 };
 
@@ -204,6 +206,13 @@ const legacyAutomationsItem = createLegacyItem(
   Zap,
   [{ path: "/crm/automations", end: false }],
 );
+const legacyCareGuidesItem = createLegacyItem(
+  "Care Guides",
+  "/crm/care-guides",
+  Flower2,
+  [{ path: "/crm/care-guides", end: false }],
+);
+const careGuideStudioEnabled = import.meta.env["VITE_CARE_GUIDE_STUDIO_ENABLED"] === "true";
 const legacySegmentsItem = createLegacyItem(
   "Segments",
   "/crm/segments",
@@ -510,6 +519,9 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
           createDashboardLinkItem("bloom", legacyBloomItem, {
             contentWidth: "full",
           }),
+          ...(careGuideStudioEnabled
+            ? [createDashboardLinkItem("care-guides", legacyCareGuidesItem, { contentWidth: "full" })]
+            : []),
         ],
       },
       {
@@ -650,6 +662,7 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   createRouteDescriptor("Calendar", legacyCalendarItem.patterns, "full"),
   createRouteDescriptor("Contacts", legacyCustomersItem.patterns, "full"),
   createRouteDescriptor("Customer Intelligence", legacyIntelligenceItem.patterns, "full"),
+  createRouteDescriptor("Care Guide Studio", legacyCareGuidesItem.patterns, "full"),
   createRouteDescriptor("Campaigns", legacyCampaignsItem.patterns, "full"),
   createRouteDescriptor("Automations", legacyAutomationsItem.patterns, "full"),
   createRouteDescriptor("Segments", legacySegmentsItem.patterns, "full"),

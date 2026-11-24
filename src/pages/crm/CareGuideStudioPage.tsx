@@ -50,6 +50,10 @@ export default function CareGuideStudioPage(){
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
   const [message,setMessage]=useState(''),[error,setError]=useState('');
   const [acknowledged,setAcknowledged]=useState(false);
+  const [device,setDevice]=useState<'desktop'|'phone'>('desktop');
+  const [myEmail,setMyEmail]=useState('');
+  const [testBusy,setTestBusy]=useState(false);
+  useEffect(()=>{let active=true;void supabase.auth.getUser().then(({data})=>{if(active)setMyEmail(data.user?.email??'');});return()=>{active=false;};},[]);
   useEffect(()=>{
     if(tenantLoading)return;
     if(!tenantId){setLoading(false);return;}
@@ -81,6 +85,16 @@ export default function CareGuideStudioPage(){
   const save=async()=>{if(!tenantId||busy)return;setBusy(true);setError('');setMessage('');
     try{const result=await db.rpc('save_care_guide_design_draft',{p_tenant_id:tenantId,p_draft:design});if(result.error)throw result.error;setMessage('Draft saved. Customers still receive the last published design.');}
     catch(e){setError(e instanceof Error?e.message:'Unable to save draft');}finally{setBusy(false);}
+  };
+  const sendTest=async()=>{if(!tenantId||busy||testBusy||'error' in preview)return;setTestBusy(true);setError('');setMessage('');
+    try{
+      const savedDraft=await db.rpc('save_care_guide_design_draft',{p_tenant_id:tenantId,p_draft:design});
+      if(savedDraft.error)throw savedDraft.error;
+      const {data,error:sendError}=await supabase.functions.invoke('care-guide-test-send',{body:{}});
+      if(sendError||!data?.sent)throw Error(typeof data?.error==='string'?data.error:'The test email could not be sent.');
+      setMessage('Draft saved and a test sent to '+data.to+'. It uses the sample plant shown here. Customers still receive the last published design.');
+    }catch(e){setError(e instanceof Error?e.message:'The test email could not be sent.');}
+    finally{setTestBusy(false);}
   };
   const syncConnectedSites=async()=>{
     const {data,error}=await supabase.functions.invoke('care-guide-sync',{body:{}});
@@ -145,10 +159,11 @@ export default function CareGuideStudioPage(){
           </div></div>}
         </section>
         <section aria-label="Care Guide email preview" className="rounded-2xl border border-[#dbe3df] bg-white p-4 shadow-sm sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-[Georgia] text-2xl">Live preview</h2><p className="mt-1 text-xs text-[#536475]">Illustrative Red Prayer Plant only. Real messages require an approved product match and care record.</p></div><span className="rounded-full bg-[#e7eddf] px-3 py-2 text-xs font-semibold">Preview only — no email sent</span></div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-[Georgia] text-2xl">Live preview</h2><p className="mt-1 text-xs text-[#536475]">Illustrative Red Prayer Plant only. Real messages require an approved product match and care record.</p></div><div className="flex flex-wrap items-center gap-2"><div role="group" aria-label="Preview size" className="inline-flex rounded-full border border-[#dbe3df] bg-[#f8f9f6] p-1 text-xs font-semibold">{(['desktop','phone'] as const).map(size=><button key={size} type="button" aria-pressed={device===size} onClick={()=>setDevice(size)} className={'rounded-full px-3 py-1.5 '+(device===size?'bg-white text-[#173f37] shadow-sm':'text-[#536475]')}>{size==='desktop'?'Desktop':'Phone'}</button>)}</div><button type="button" disabled={busy||testBusy||!myEmail||'error' in preview} onClick={()=>void sendTest()} className="rounded-full border border-[#a4b9af] bg-white px-4 py-2 text-xs font-bold disabled:opacity-50">{testBusy?'Sending…':'Send me a test'}</button></div></div>
+          <p className="-mt-2 mb-3 text-xs text-[#536475]">{myEmail?'Tests go only to '+myEmail+', using the sample plant shown. The draft is saved first.':'Sign in to send yourself a test.'}</p>
           {'error' in preview?<p role="alert" className="p-3 text-sm text-rose-900">{preview.error}</p>:
-            <iframe title="Store-branded care guide email preview" sandbox="" srcDoc={preview.html} className="h-[780px] w-full rounded-xl border border-[#dbe3df] bg-[#eeeae0]"/>}
-          <p className="mt-3 text-xs text-[#536475]">Before going live, send a staff test and check the design in Gmail, Apple Mail and Outlook, including with images blocked.</p>
+            <div className="flex justify-center rounded-xl bg-[#eeeae0]"><iframe title="Store-branded care guide email preview" sandbox="" srcDoc={preview.html} style={{width:device==='phone'?375:'100%',maxWidth:'100%'}} className={'h-[780px] border border-[#dbe3df] bg-[#eeeae0] '+(device==='phone'?'rounded-[28px]':'rounded-xl')}/></div>}
+          <p className="mt-3 text-xs text-[#536475]">Before going live, send yourself a test and check it in Gmail, Apple Mail and Outlook, including with images blocked.</p>
         </section>
       </div>}
       {tenantId&&import.meta.env.VITE_CARE_GUIDE_FOLLOWUPS_ENABLED==='true'&&<CareFollowupPanel key={tenantId} tenantId={tenantId}/>}

@@ -641,6 +641,9 @@ verify_jwt = true # authenticated campaign editor; signed purchase evidence; no 
 [functions.care-guide-sync]
 verify_jwt = true # signed-in CRM editor plus server-verified tenant linked sites; HMAC to CMS
 
+[functions.care-guide-test-send]
+verify_jwt = true # signed-in CRM editor; sends saved draft with a sample plant to their own address only
+
 
 [functions.send-support-emails]
 verify_jwt = false
