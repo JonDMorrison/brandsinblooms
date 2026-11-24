@@ -26,6 +26,7 @@ import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
 import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
 import { useStartBlankNewsletter } from "@/hooks/useStartBlankNewsletter";
+import { useStartThemeNewsletter } from "@/hooks/useStartThemeNewsletter";
 import { CopyPreviousEmailDialog } from "@/components/newsletter/CopyPreviousEmailDialog";
 import { YourTemplatesSection } from "@/components/newsletter/YourTemplatesSection";
 import {
@@ -411,20 +412,14 @@ export const NewsletterNewPage = () => {
 
   const showIdeaSkeletons = loading && orderedWeeklyIdeas.length === 0;
 
-  // "Start from this week's theme": the tenant's own weekly theme with its
-  // photos, seeded straight into the editor (no layout picker needed).
+  // "Start from this week's theme": create the draft and open Design Studio,
+  // which writes the newsletter with AI from the tenant's weekly theme.
   const weeklyThemeQuery = useThisWeeksTheme();
+  const themeNewsletter = useStartThemeNewsletter();
   const handleStartFromTheme = () => {
     const theme = weeklyThemeQuery.data;
     if (!theme) return;
-    const layout: LayoutKey = "block-builder";
-    const params = buildNewsletterIdeaEditorSearchParams(theme.idea, layout);
-    navigate(`/crm/campaigns/new?${params.toString()}`, {
-      state: {
-        newsletterIdea: theme.idea,
-        newsletterLayout: layout,
-      } satisfies NewsletterIdeaNavigationState,
-    });
+    void themeNewsletter.start(theme);
   };
 
   const handleOpenQuickAccessLayout = (idea: NewsletterIdea) => {
@@ -533,9 +528,9 @@ export const NewsletterNewPage = () => {
                         ? "Loading this week's theme and photos…"
                         : "No theme is set for this week yet."
                   }
-                  buttonLabel="Start from this week's theme"
+                  buttonLabel={themeNewsletter.starting ? "Opening Design Studio…" : "Start from this week's theme"}
                   icon={Sun}
-                  disabled={!weeklyThemeQuery.data}
+                  disabled={!weeklyThemeQuery.data || themeNewsletter.starting}
                   onClick={handleStartFromTheme}
                 />
 

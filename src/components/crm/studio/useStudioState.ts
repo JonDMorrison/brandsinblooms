@@ -397,6 +397,28 @@ export function useStudioState({
     [clearTransientCanvasState, designSystem, initialCampaignName],
   );
 
+  /**
+   * Replaces the whole newsletter (blocks, subject, preview) in one undoable
+   * step, e.g. with an AI-written version. Sender and name are kept.
+   */
+  const replaceContent = React.useCallback(
+    (content: { blocks: StudioBlock[]; subjectLine: string; previewText: string }) => {
+      clearTransientCanvasState();
+      setSelectedBlockId(null);
+      setSubjectLine(content.subjectLine);
+      setPreviewText(content.previewText);
+      setBlocks(
+        normalizeBlocks(
+          content.blocks.map((block, index) =>
+            normalizeLoadedBlock(block, index, designSystem),
+          ),
+          designSystem,
+        ),
+      );
+    },
+    [clearTransientCanvasState, designSystem, setBlocks],
+  );
+
   const pulseInsertedBlock = React.useCallback((blockId: string) => {
     setRecentlyAddedBlockId(blockId);
 
@@ -936,6 +958,7 @@ export function useStudioState({
     setSenderName,
     setSenderEmail,
     loadCampaign,
+    replaceContent,
     beginSidebarDrag,
     setActiveDropIndex,
     setIsDraggingOverCanvas,
