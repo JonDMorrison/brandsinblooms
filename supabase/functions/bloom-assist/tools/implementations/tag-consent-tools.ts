@@ -7,8 +7,10 @@ import type {
   ToolResult,
 } from "../types.ts";
 import {
+  type BloomQueryClient,
   createListResult,
   getQueryClient,
+  isRecord,
   paginationRange,
   parseListQueryParams,
   sanitizePostgrestSearch,
@@ -33,11 +35,6 @@ type CustomerRow = Pick<
   | "email_opt_in"
   | "sms_opt_in"
 >;
-type CustomerUpdate = Database["public"]["Tables"]["crm_customers"]["Update"];
-type EmailConsentInsert =
-  Database["public"]["Tables"]["crm_email_consent_events"]["Insert"];
-type SmsConsentInsert =
-  Database["public"]["Tables"]["crm_sms_consent_events"]["Insert"];
 type TagToolName =
   | "query_tags"
   | "create_tag"
@@ -106,22 +103,6 @@ function customerDisplayName(customer: CustomerRow): string {
     .trim();
 
   return name || customer.email || customer.phone || "Customer";
-}
-
-function calculatePreferredChannel(
-  emailOptIn: boolean,
-  smsOptIn: boolean,
-): "email" | "sms" | "both" | "none" {
-  if (emailOptIn && smsOptIn) {
-    return "both";
-  }
-  if (emailOptIn) {
-    return "email";
-  }
-  if (smsOptIn) {
-    return "sms";
-  }
-  return "none";
 }
 
 function createCompletedDataCardResult(args: {
@@ -427,11 +408,54 @@ async function bulkTagCustomers(
   });
 }
 
+/**
+ * Consent sources the atomic consent writer accepts. Bloom never invents a
+ * source of its own: the staff member says how the change was requested.
+ */
+const CONSENT_SOURCES = new Set([
+  "in_store",
+  "web_form",
+  "written_request",
+  "phone_request",
+  "customer_service",
+  "admin_correction",
+]);
+const DEFAULT_OPT_OUT_SOURCE = "admin_correction";
+const MIN_EVIDENCE_LENGTH = 10;
+const BLOOM_EVIDENCE_PREFIX = "Recorded via Bloom Assist";
+
+type ConsentRpcResult = {
+  statusChanged: boolean | null;
+  cancelledQueuedMessages: number;
+  recordedAt: string | null;
+};
+
+function readConsentRpcResult(value: unknown): ConsentRpcResult {
+  if (!isRecord(value)) {
+    return { statusChanged: null, cancelledQueuedMessages: 0, recordedAt: null };
+  }
+  return {
+    statusChanged:
+      typeof value.statusChanged === "boolean" ? value.statusChanged : null,
+    cancelledQueuedMessages:
+      typeof value.cancelledQueuedMessages === "number"
+        ? value.cancelledQueuedMessages
+        : 0,
+    recordedAt: typeof value.recordedAt === "string" ? value.recordedAt : null,
+  };
+}
+
+/**
+ * Changes one channel's consent through set_customer_marketing_consent_authorized,
+ * the same guarded, atomic writer the customer consent card uses. It runs as
+ * the signed-in user (role and store-location checks, actor recorded) and
+ * writes only the chosen channel: an SMS change never touches the email
+ * unsubscribe state (opt_out, email_opt_in, email_opt_out_at).
+ */
 async function manageConsent(
   params: JsonObject,
   context: ToolExecutionContext,
 ): Promise<ToolResult> {
-  const client = getQueryClient(context);
   const customerId = readString(params.customer_id);
   const channel = readString(params.channel);
   const action = readString(params.action);
@@ -450,6 +474,40 @@ async function manageConsent(
     );
   }
 
+  const optIn = action === "opt_in";
+  const source =
+    readString(params.source)?.toLowerCase() ??
+    (optIn ? null : DEFAULT_OPT_OUT_SOURCE);
+  if (!source || !CONSENT_SOURCES.has(source)) {
+    return errorResult(
+      "Say how this consent change was requested: in store, web form, written request, phone request, customer service, or an admin correction.",
+      "validation_error",
+    );
+  }
+
+  const consentBasis = readString(params.consent_basis)?.toLowerCase() ?? null;
+  const evidence = readString(params.evidence);
+  if (
+    optIn &&
+    ((consentBasis !== "express" && consentBasis !== "implied") ||
+      (evidence?.length ?? 0) < MIN_EVIDENCE_LENGTH)
+  ) {
+    return errorResult(
+      "Opting a customer in needs the consent basis (express or implied) and a short note of how the customer gave consent.",
+      "validation_error",
+    );
+  }
+
+  // The consent writer authorizes the signed-in user, so it must run on the
+  // user's own client. The service client has no user and is never used here.
+  if (!context.dataClient) {
+    return errorResult(
+      "Bloom could not confirm your access to change customer consent.",
+      "forbidden",
+    );
+  }
+  const client = context.dataClient as unknown as BloomQueryClient;
+
   const { data: customerRecord, error: customerError } = await client
     .from("crm_customers")
     .select(
@@ -457,6 +515,7 @@ async function manageConsent(
     )
     .eq("tenant_id", context.tenantId)
     .eq("id", customerId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (customerError) {
@@ -471,149 +530,72 @@ async function manageConsent(
   }
 
   const customer = customerRecord as CustomerRow;
-  const now = new Date().toISOString();
-  const optIn = action === "opt_in";
+  const email = readString(customer.email);
+  const phone = readString(customer.phone);
 
-  const nextEmailOptIn =
-    channel === "email" ? optIn : customer.email_opt_in === true;
-  const nextSmsOptIn = channel === "sms" ? optIn : customer.sms_opt_in === true;
-  const preferredChannel = calculatePreferredChannel(
-    nextEmailOptIn,
-    nextSmsOptIn,
-  );
-  const updateData: CustomerUpdate = {
-    updated_at: now,
-    preferred_channel: preferredChannel,
-  };
-
-  if (channel === "email") {
-    const email = readString(customer.email);
-    if (!email) {
-      return errorResult(
-        "This customer does not have an email address, so email consent cannot be updated.",
-        "missing_email",
-      );
-    }
-
-    updateData.email_opt_in = optIn;
-    updateData.email_consent_source = "bloom_assist";
-    if (optIn) {
-      updateData.email_opt_in_at = now;
-      updateData.email_opt_out_at = null;
-    } else {
-      updateData.email_opt_out_at = now;
-    }
-
-    const { error: updateError } = await client
-      .from("crm_customers")
-      .update(updateData)
-      .eq("tenant_id", context.tenantId)
-      .eq("id", customer.id);
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    const eventPayload: EmailConsentInsert = {
-      tenant_id: context.tenantId,
-      customer_id: customer.id,
-      email,
-      event_type: action,
-      source: "bloom_assist",
-      ip_address: null,
-      user_agent: null,
-    };
-
-    const { error: eventError } = await client
-      .from("crm_email_consent_events")
-      .insert(eventPayload);
-
-    if (eventError) {
-      throw eventError;
-    }
-
-    return createCompletedDataCardResult({
-      toolName: "manage_consent",
-      message: `Recorded ${action.replace("_", " ")} for ${customerDisplayName(customer)} on the email channel.`,
-      count: 1,
-      resultData: {
-        customer: {
-          id: customer.id,
-          name: customerDisplayName(customer),
-          email,
-          email_opt_in: optIn,
-          sms_opt_in: customer.sms_opt_in,
-          preferred_channel: preferredChannel,
-        },
-        channel,
-        action,
-        source: "bloom_assist",
-      },
-    });
+  if (channel === "email" && !email) {
+    return errorResult(
+      "This customer does not have an email address, so email consent cannot be updated.",
+      "missing_email",
+    );
   }
 
-  const phone = readString(customer.phone);
-  if (!phone) {
+  if (channel === "sms" && !phone) {
     return errorResult(
       "This customer does not have a phone number, so SMS consent cannot be updated.",
       "missing_phone",
     );
   }
 
-  updateData.sms_opt_in = optIn;
-  updateData.sms_consent_source = "bloom_assist";
-  updateData.opt_out = !optIn;
-  if (optIn) {
-    updateData.sms_opt_in_at = now;
-    updateData.sms_opt_out_at = null;
-  } else {
-    updateData.sms_opt_out_at = now;
+  const { data: rpcData, error: rpcError } = await client.rpc(
+    "set_customer_marketing_consent_authorized",
+    {
+      p_customer_id: customer.id,
+      p_channel: channel,
+      p_opt_in: optIn,
+      p_source: source,
+      p_consent_basis: optIn ? consentBasis : null,
+      p_evidence: evidence
+        ? `${BLOOM_EVIDENCE_PREFIX}: ${evidence}`
+        : BLOOM_EVIDENCE_PREFIX,
+      p_ip_address: null,
+      p_user_agent: null,
+    },
+  );
+
+  if (rpcError) {
+    return errorResult(
+      `Consent was not changed: ${rpcError.message}`,
+      rpcError.code === "42501" ? "forbidden" : "consent_not_changed",
+    );
   }
 
-  const { error: updateError } = await client
-    .from("crm_customers")
-    .update(updateData)
-    .eq("tenant_id", context.tenantId)
-    .eq("id", customer.id);
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  const eventPayload: SmsConsentInsert = {
-    tenant_id: context.tenantId,
-    customer_id: customer.id,
-    phone,
-    event_type: action,
-    source: "bloom_assist",
-    ip_address: null,
-    user_agent: null,
-  };
-
-  const { error: eventError } = await client
-    .from("crm_sms_consent_events")
-    .insert(eventPayload);
-
-  if (eventError) {
-    throw eventError;
-  }
+  const outcome = readConsentRpcResult(rpcData);
+  const channelLabel = channel === "sms" ? "SMS" : "email";
+  const cancelledNote =
+    outcome.cancelledQueuedMessages > 0
+      ? ` ${outcome.cancelledQueuedMessages} queued message${outcome.cancelledQueuedMessages === 1 ? " was" : "s were"} cancelled.`
+      : "";
 
   return createCompletedDataCardResult({
     toolName: "manage_consent",
-    message: `Recorded ${action.replace("_", " ")} for ${customerDisplayName(customer)} on the SMS channel.`,
+    message: `Recorded ${action.replace("_", " ")} for ${customerDisplayName(customer)} on the ${channelLabel} channel.${cancelledNote}`,
     count: 1,
     resultData: {
       customer: {
         id: customer.id,
         name: customerDisplayName(customer),
-        phone,
-        email_opt_in: customer.email_opt_in,
-        sms_opt_in: optIn,
-        preferred_channel: preferredChannel,
+        ...(channel === "sms" ? { phone } : { email }),
+        email_opt_in: channel === "email" ? optIn : customer.email_opt_in,
+        sms_opt_in: channel === "sms" ? optIn : customer.sms_opt_in,
       },
       channel,
       action,
-      source: "bloom_assist",
+      source,
+      consent_basis: optIn ? consentBasis : "revoked",
+      status_changed: outcome.statusChanged,
+      cancelled_queued_messages: outcome.cancelledQueuedMessages,
+      recorded_at: outcome.recordedAt,
     },
   });
 }

@@ -1069,7 +1069,7 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
   defineTool({
     name: "manage_consent",
     description:
-      "Manage customer communication consent, opt-in, opt-out, unsubscribe, SMS permission, or email permission. Use for compliance preference changes, not deletion. Bloom records the source as bloom_assist.",
+      "Manage customer communication consent, opt-in, opt-out, unsubscribe, SMS permission, or email permission, one channel at a time. Use for compliance preference changes, not deletion. Changing SMS consent never changes email consent or an email unsubscribe, and vice versa. For an opt-in, ask the user how the customer gave consent (source, express or implied basis, and a short note) before calling; never guess them.",
     parameters: objectSchema(
       {
         customer_id: uuidSchema("Customer ID."),
@@ -1077,6 +1077,27 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
         action: stringSchema("Consent action.", {
           enum: ["opt_in", "opt_out"],
         }),
+        source: stringSchema(
+          "How the customer asked for the change. Required for opt_in; an opt_out without one is recorded as admin_correction.",
+          {
+            enum: [
+              "in_store",
+              "web_form",
+              "written_request",
+              "phone_request",
+              "customer_service",
+              "admin_correction",
+            ],
+          },
+        ),
+        consent_basis: stringSchema(
+          "Required for opt_in: express (the customer explicitly agreed) or implied (an existing business relationship).",
+          { enum: ["express", "implied"] },
+        ),
+        evidence: stringSchema(
+          "Required for opt_in (at least 10 characters): how and when the customer gave consent, in the user's words. Optional note for opt_out.",
+          { maxLength: 500 },
+        ),
       },
       ["customer_id", "channel", "action"],
     ),
