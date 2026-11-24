@@ -3,6 +3,7 @@ import Chip from "@mui/joy/Chip";
 import Skeleton from "@mui/joy/Skeleton";
 import { useDomainStats, DomainStats } from "@/hooks/useDomainStats";
 import Stack from "@mui/joy/Stack";
+import Sheet from "@mui/joy/Sheet";
 import Typography from "@mui/joy/Typography";
 import {
   JoyCard,
