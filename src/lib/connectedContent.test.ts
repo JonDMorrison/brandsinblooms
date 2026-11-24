@@ -5,6 +5,17 @@ import { buildConnectedContentBlock, buildConnectedContentSms, reviewConnectedEv
 import * as React from "react";
 import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import ConnectedContentPage from "@/pages/crm/ConnectedContentPage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// The page reads the site's custom domain with React Query.
+const renderPage = () =>
+  render(
+    React.createElement(
+      QueryClientProvider,
+      { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+      React.createElement(ConnectedContentPage),
+    ),
+  );
 const mockInvoke = vi.hoisted(() => vi.fn());
 const persistenceMocks = vi.hoisted(() => ({row: {} as Record<string, unknown>, update: vi.fn(), remove: vi.fn()}));
 const pageMocks = vi.hoisted(() => ({save: vi.fn(), saveSms: vi.fn(), params: "", navigate: vi.fn()}));
@@ -174,7 +185,7 @@ describe("Promote channel choice", () => {
   });
   afterEach(cleanup);
   it("requires a channel choice then opens a text draft without selecting recipients", async () => {
-    render(React.createElement(ConnectedContentPage));
+    renderPage();
     fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
     expect(pageMocks.save).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", {name: "Create text message draft"}));
@@ -189,13 +200,13 @@ describe("Promote channel choice", () => {
   });
   it("opens the channel chooser from an exact CMS event deep link without creating anything", async () => {
     pageMocks.params=`promoteSite=${item.siteId}&promoteId=${item.id}`;
-    render(React.createElement(ConnectedContentPage));
+    renderPage();
     expect(await screen.findByRole("button", {name: "Create text message draft"})).toBeInTheDocument();
     expect(mockInvoke).toHaveBeenCalledWith("connected-content", {body: expect.objectContaining({itemId: item.id, siteId: item.siteId, type: "events"})});
     expect(pageMocks.save).not.toHaveBeenCalled(); expect(pageMocks.saveSms).not.toHaveBeenCalled();
   });
   it("keeps newsletter blocks and the existing Studio route", async () => {
-    render(React.createElement(ConnectedContentPage));
+    renderPage();
     fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
     fireEvent.click(screen.getByRole("button", {name: "Create email newsletter draft"}));
     await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/crm/campaigns/draft-123/studio"));
@@ -207,7 +218,7 @@ describe("Promote channel choice", () => {
   it("does not create another draft while the first save is pending", async () => {
     let finish!: (value: {id: string}) => void;
     pageMocks.saveSms.mockReturnValue(new Promise<{id: string}>(resolve => {finish = resolve;}));
-    render(React.createElement(ConnectedContentPage));
+    renderPage();
     fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
     const button = screen.getByRole("button", {name: "Create text message draft"});
     fireEvent.click(button); fireEvent.click(button);
@@ -217,7 +228,7 @@ describe("Promote channel choice", () => {
     await waitFor(() => expect(pageMocks.navigate).toHaveBeenCalledWith("/sms/new?draftId=draft-123"));
   });
   it("closing the channel choice creates nothing", async () => {
-    render(React.createElement(ConnectedContentPage));
+    renderPage();
     fireEvent.click(await screen.findByRole("button", {name: "Promote"}));
     fireEvent.click(screen.getByRole("button", {name: "Close dialog"}));
     expect(pageMocks.save).not.toHaveBeenCalled();
