@@ -95,3 +95,68 @@ describe('identity consistency (#15)', () => {
     expect(findIdentityMismatches({ senderName: 'Northfield', senderEmail: 'owner@gmail.com', footerBusinessName: '' })).toEqual([]);
   });
 });
+
+import { resolveDraftSenderDefaults, type SenderDomain } from './draftSenderDefaults';
+
+describe('new draft sender prefill (qa2 #2)', () => {
+  const northfield: SenderDomain = {
+    id: 'e80290a9-7f39-4564-8c8a-91798764dbdf',
+    domain: 'northfieldgardens.ca',
+    status: 'active',
+    default_from_email: null,
+    default_from_name: null,
+    default_reply_to: null,
+    created_at: '2026-11-22T12:05:58Z',
+  };
+
+  it('uses the tenant default sender first', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: northfield.id,
+      domains: [{ ...northfield, default_from_email: 'news@northfieldgardens.ca', default_from_name: 'Northfield News' }],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'mail@northfieldgardens.ca',
+      tenantName: 'Northfield',
+    });
+    expect(sender).toMatchObject({ senderName: 'Northfield News', senderEmail: 'news@northfieldgardens.ca', replyTo: 'news@northfieldgardens.ca', source: 'tenant_default' });
+  });
+
+  it('falls back to the company name and email when that domain is verified (Northfield today)', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: null,
+      domains: [northfield],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'mail@northfieldgardens.ca',
+      tenantName: 'Northfield',
+    });
+    expect(sender).toEqual({
+      senderName: 'Northfield Garden Center',
+      senderEmail: 'mail@northfieldgardens.ca',
+      replyTo: 'mail@northfieldgardens.ca',
+      fromEmailDomainId: northfield.id,
+      source: 'company_profile',
+    });
+  });
+
+  it('does not use a company email on an unverified domain', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: null,
+      domains: [{ ...northfield, status: 'pending_dns' }],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'mail@northfieldgardens.ca',
+      tenantName: null,
+    });
+    expect(sender.senderEmail).toBe('');
+    expect(sender.source).toBe('none');
+  });
+
+  it('uses the verified domain address when the company email is elsewhere', () => {
+    const sender = resolveDraftSenderDefaults({
+      tenantDefaultDomainId: null,
+      domains: [northfield],
+      companyName: 'Northfield Garden Center',
+      companyEmail: 'owner@gmail.com',
+      tenantName: null,
+    });
+    expect(sender).toMatchObject({ senderEmail: 'mail@northfieldgardens.ca', senderName: 'Northfield Garden Center', source: 'verified_domain' });
+  });
+});
