@@ -15,6 +15,7 @@ import { ConnectionsSettings } from "./ConnectionsSettings";
 import { AccountBillingSettings } from "./AccountBillingSettings";
 import { ComplianceSettings } from "./ComplianceSettings";
 import { DebugSettings } from "./DebugSettings";
+import { useAdmin } from "@/contexts/AdminContext";
 import { SupportSettings } from "./SupportSettings";
 import { OrganizationAccessSettings } from "./OrganizationAccessSettings";
 import { usePOSConnection } from "@/hooks/usePOSConnection";
@@ -185,6 +186,11 @@ export const SettingsHub = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTabId>("connections");
   const tabParam = searchParams.get("tab");
+  const { isMasterAdmin } = useAdmin();
+  const visibleTabs = useMemo(
+    () => SETTINGS_TABS.filter((tab) => tab.id !== "debug" || isMasterAdmin),
+    [isMasterAdmin],
+  );
 
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
   const { senderConfig, loading: senderLoading } = useSenderConfiguration();
@@ -254,9 +260,12 @@ export const SettingsHub = () => {
       return;
     }
 
-    const nextTab = normalizeTab(tabParam);
+    const requestedTab = normalizeTab(tabParam);
+    // The Debug tab is an internal diagnostic: admins only.
+    const nextTab =
+      requestedTab === "debug" && !isMasterAdmin ? "connections" : requestedTab;
     setActiveTab((currentTab) => (currentTab === nextTab ? currentTab : nextTab));
-  }, [searchParams, setSearchParams, tabParam]);
+  }, [isMasterAdmin, searchParams, setSearchParams, tabParam]);
 
   const handleTabChange = (newTab: SettingsTabId) => {
     setActiveTab(newTab);
@@ -361,7 +370,7 @@ export const SettingsHub = () => {
             },
           }}
         >
-          {SETTINGS_TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <Tab disableIndicator key={tab.id} value={tab.id}>
               {tab.label}
             </Tab>
@@ -384,9 +393,11 @@ export const SettingsHub = () => {
           <ComplianceSettings onUpdate={() => undefined} />
         </TabPanel>
 
-        <TabPanel value="debug" sx={{ p: 0, pt: 2.5 }}>
-          <DebugSettings />
-        </TabPanel>
+        {isMasterAdmin ? (
+          <TabPanel value="debug" sx={{ p: 0, pt: 2.5 }}>
+            <DebugSettings />
+          </TabPanel>
+        ) : null}
 
         <TabPanel value="support" sx={{ p: 0, pt: 2.5 }}>
           <SupportSettings />

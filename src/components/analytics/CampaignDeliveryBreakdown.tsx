@@ -96,7 +96,7 @@ export const CampaignDeliveryBreakdown: React.FC<
             <Typography level="title-sm">Delivery Details</Typography>
             {campaign.isStale ? (
               <JoyTooltip
-                title={`Displayed cached totals drift by ${campaign.metricsDiscrepancy.toFixed(0)}%. Recompute to refresh the rollup.`}
+                title={`The stored totals differ from the delivery records by ${campaign.metricsDiscrepancy.toFixed(0)}%. Recalculate to update them.`}
               >
                 <JoyChip
                   size="sm"
@@ -104,7 +104,7 @@ export const CampaignDeliveryBreakdown: React.FC<
                   color="warning"
                   startDecorator={<AlertTriangle size={12} />}
                 >
-                  Cached drift
+                  Totals out of date
                 </JoyChip>
               </JoyTooltip>
             ) : null}

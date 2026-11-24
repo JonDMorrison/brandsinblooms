@@ -31,7 +31,7 @@ export function AnalyticsKPIStrip({
   const revenueMessage = posData?.hasMixedCurrencies
     ? "Multiple currencies — see the breakdown below"
     : !posData?.revenueCurrency
-      ? "No single verified sales currency"
+      ? "Sales are in more than one currency or none is recorded, so no total is shown"
       : "Confirmed POS orders for this period";
 
   const metrics = [

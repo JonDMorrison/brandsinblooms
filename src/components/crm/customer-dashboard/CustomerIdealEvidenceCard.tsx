@@ -30,7 +30,7 @@ function EvidenceCard({tenantId,customerId}:{tenantId:string;customerId:string})
  const query=useCustomerIdealProjection(tenantId,customerId,source);
  const result=query.data?.tenant_id===tenantId&&query.data?.customer_id===customerId&&query.data?.source_import_id===source?.id?query.data:undefined;
  const money=(cents:number)=>formatCents(cents,result?.currency??'CAD');
- return <JoyCard><JoyCardHeader title="IdealPOS source-period evidence" description="Inspect one original report period for this customer. Separate reports are never added together."/><JoyCardContent><Stack spacing={1.5}>
+ return <JoyCard><JoyCardHeader title="Imported sales report (admin)" description="What one imported POS sales report says about this customer for its own date range. Reports are never added together."/><JoyCardContent><Stack spacing={1.5}>
   {sources.isLoading?<Skeleton height={60}/>:sources.isError?<><Typography color="danger">Report sources are unavailable or not permitted.</Typography><JoyButton variant="plain" onClick={()=>void sources.refetch()}>Retry sources</JoyButton></>:!sources.data?.length?<Typography>No accessible completed sales summaries are linked to this customer.</Typography>:<>
    <Typography level="body-sm">Reports belong to your company; a selected report may have no evidence for this customer. Missing evidence stays unknown.</Typography>
    <JoySelect label="Original report period" value={source?.id??null} placeholder="Choose a report" options={sources.data.map(row=>({value:row.id,label:`${row.source_period_start} to ${row.source_period_end} · ${row.source_filename??row.id}`}))} onValueChange={value=>setSelected(value?String(value):null)}/>
