@@ -159,8 +159,8 @@ describe("Customer growth dashboard safety and interaction", () => {
     fireEvent.click(screen.getByRole("button",{name:"Load customer growth dashboard"}));
     expect(await screen.findByText("Customer retention & growth")).toBeVisible();
     expect(screen.getByText("2026 active customers (observed)")).toBeVisible();
-    expect(within(screen.getByText("2026 active customers (observed)").parentElement!).getByRole("heading")).toHaveTextContent(/^3$/);
-    expect(within(screen.getByText("Customer retention rate").parentElement!).getByRole("heading")).toHaveTextContent("50.00%");
+    expect(within(screen.getByText("2026 active customers (observed)").parentElement!).getByRole("heading").firstElementChild).toHaveTextContent(/^3$/);
+    expect(within(screen.getByText("Customer retention rate").parentElement!).getByRole("heading").firstElementChild).toHaveTextContent("50.00%");
     expect(screen.getByText("Where our 2026 customers came from")).toBeVisible();
     expect(screen.getAllByText("1 · 33.3%")).toHaveLength(3);
     fireEvent.click(screen.getByText("Comparison dates and calculation details"));
@@ -238,19 +238,21 @@ describe("Customer growth dashboard safety and interaction", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "Reporting year" }), { target: { value: "2024" } });
     const load = () => fireEvent.click(screen.getByRole("button", { name: "Load customer growth dashboard" }));
     const metric = (label: string) => within(screen.getByText(label).parentElement!);
+    // Stat cards render the value first in the heading, followed by its muted detail line.
+    const statValue = (label: string) => metric(label).getByRole("heading").firstElementChild;
     load();
     expect(await screen.findByText(/Coverage is unverified\./)).toBeVisible();
-    expect(metric("New customers (first-ever)").getByRole("heading")).toHaveTextContent("Not established");
+    expect(statValue("New customers (first-ever)")).toHaveTextContent("Not established");
     fireEvent.click(screen.getByText("Source coverage review"));
     fireEvent.click(screen.getByRole("checkbox", { name: /I reviewed complete/ }));
     expect(screen.getByRole("button", { name: "Load customer growth dashboard" })).toBeDisabled();
     fireEvent.change(screen.getByRole("textbox", { name: "Period coverage evidence" }), { target: { value: "Synthetic annual ledger reconciled" } });
     load();
     expect(await screen.findByText(/first-ever new customers remain unclassified/)).toBeVisible();
-    expect(metric("Retained customers").getByRole("heading")).toHaveTextContent(/^1$/);
-    expect(metric("Recovered customers").getByRole("heading")).toHaveTextContent(/^1$/);
-    expect(metric("New customers (first-ever)").getByRole("heading")).toHaveTextContent("Not established");
-    expect(metric("Current customers needing earlier-history review").getByRole("heading")).toHaveTextContent(/^1$/);
+    expect(statValue("Retained customers")).toHaveTextContent(/^1$/);
+    expect(statValue("Recovered customers")).toHaveTextContent(/^1$/);
+    expect(statValue("New customers (first-ever)")).toHaveTextContent("Not established");
+    expect(statValue("Current customers needing earlier-history review")).toHaveTextContent(/^1$/);
     expect(screen.getByText(/It must not be labelled new/)).toBeVisible();
     fireEvent.click(screen.getByRole("checkbox", { name: /I also reviewed/ }));
     expect(screen.getByRole("button", { name: "Load customer growth dashboard" })).toBeDisabled();
@@ -258,7 +260,7 @@ describe("Customer growth dashboard safety and interaction", () => {
     load();
     expect(await screen.findByText(/Calculated using your documented coverage reviews/)).toBeVisible();
     for (const [label, count] of [["Previous-year active customers", "2"], ["New customers (first-ever)", "1"], ["Current active customers", "3"], ["Net customer growth", "1"], ["Current customers needing earlier-history review", "0"]]) {
-      expect(metric(label).getByRole("heading").textContent).toBe(count);
+      expect(statValue(label)?.textContent).toBe(count);
     }
     expect(metric("Net customer growth").getByText("50.00%")).toBeVisible();
     const sales = within(screen.getByRole("table", { name: "Sales per customer by growth cohort" }));

@@ -10,13 +10,14 @@ import {
   Chip,
   Sheet,
   Stack,
-  Tab,
-  TabList,
   TabPanel,
   Tabs,
   Typography,
 } from "@mui/joy";
 import { useSearchParams } from "react-router-dom";
+import { mergeSx } from "@/components/joy/mergeSx";
+import { JoyTabsList, JoyTabsTrigger } from "@/components/joy/JoyTabs";
+import { intelligenceCardPadding, intelligenceCardSx } from "./IntelligenceLayout";
 import { Gift, Plus, RefreshCw } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -159,42 +160,41 @@ export function ProgrammeWorkspaceBody({
     }
   }
   return (
-    <Sheet variant="outlined" sx={{ borderRadius: "xl" }}>
+    <Sheet variant="outlined" sx={mergeSx(intelligenceCardSx, { overflow: "hidden" })}>
       <AccordionGroup>
         <Accordion
           expanded={open}
           onChange={(_, expanded) => setOpen(expanded)}
         >
-          <AccordionSummary>
-            <Stack direction="row" gap={1} alignItems="center">
-              <Gift size={20} />
-              <Typography level="title-lg">
+          <AccordionSummary sx={{ px: intelligenceCardPadding.px, py: 2 }}>
+            <Stack direction="row" gap={1.5} alignItems="center">
+              <Gift size={18} />
+              <Typography level="title-md">
                 Loyalty programmes · Plan, rewards and results
               </Typography>
             </Stack>
           </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2} sx={{ py: 1 }}>
-              <Typography
-                level="h2"
-                sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }}
-              >
+          <AccordionDetails sx={{ px: intelligenceCardPadding.px, pb: 4 }}>
+            <Stack spacing={3} sx={{ py: 1 }}>
+              <Stack spacing={0.5}>
+              <Typography level="title-lg">
                 Give customers a reason to return—and see what changed.
               </Typography>
-              <Typography level="body-md">
+              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
                 Use a rewards-led template, save its exact terms, freeze a
                 reviewed customer group and compare their later behaviour.
                 Customer consent and existing points balances stay separate.
               </Typography>
+              </Stack>
               <Tabs
                 value={tab}
                 onChange={(_, value) => value !== null && setTab(value)}
                 sx={{ background: "transparent" }}
               >
-                <TabList variant="soft" sx={{ borderRadius: "lg" }}>
-                  <Tab value={0}>Plan a programme</Tab>
-                  <Tab value={1}>Saved programmes & results</Tab>
-                </TabList>
+                <JoyTabsList sx={{ width: "fit-content", maxWidth: "100%", overflowX: "auto", flexWrap: "nowrap" }}>
+                  <JoyTabsTrigger value={0} sx={{ flex: "none", whiteSpace: "nowrap", fontSize: "sm" }}>Plan a programme</JoyTabsTrigger>
+                  <JoyTabsTrigger value={1} sx={{ flex: "none", whiteSpace: "nowrap", fontSize: "sm" }}>Saved programmes & results</JoyTabsTrigger>
+                </JoyTabsList>
                 <TabPanel value={0} sx={{ px: 0 }}>
                   <Stack spacing={1}>
                     {editing && detail && (
@@ -221,8 +221,10 @@ export function ProgrammeWorkspaceBody({
                   <Stack spacing={2}>
                     <Stack direction="row" gap={1} flexWrap="wrap">
                       <Button
+                        size="sm"
                         variant="outlined"
-                        startDecorator={<Plus size={16} />}
+                        color="neutral"
+                        startDecorator={<Plus size={14} />}
                         onClick={() => {
                           setEditing(false);
                           setTab(0);
@@ -231,8 +233,10 @@ export function ProgrammeWorkspaceBody({
                         New programme
                       </Button>
                       <Button
+                        size="sm"
                         variant="plain"
-                        startDecorator={<RefreshCw size={16} />}
+                        color="neutral"
+                        startDecorator={<RefreshCw size={14} />}
                         disabled={busy}
                         onClick={() =>
                           void load(page).catch((e) => setError(e.message))
@@ -266,6 +270,7 @@ export function ProgrammeWorkspaceBody({
                       {programmes.map((p) => (
                         <Button
                           key={p.id}
+                          size="sm"
                           variant={
                             detail?.programme.id === p.id ? "soft" : "outlined"
                           }
@@ -288,7 +293,9 @@ export function ProgrammeWorkspaceBody({
                     {count > 50 && (
                       <Stack direction="row" gap={1}>
                         <Button
+                          size="sm"
                           variant="outlined"
+                          color="neutral"
                           disabled={page <= 1 || busy}
                           onClick={() =>
                             void load(page - 1).catch((e) =>
@@ -300,7 +307,9 @@ export function ProgrammeWorkspaceBody({
                         </Button>
                         <Typography>Page {page}</Typography>
                         <Button
+                          size="sm"
                           variant="outlined"
+                          color="neutral"
                           disabled={page * 50 >= count || busy}
                           onClick={() =>
                             void load(page + 1).catch((e) =>
@@ -320,7 +329,7 @@ export function ProgrammeWorkspaceBody({
                           gap={1}
                         >
                           <Stack>
-                            <Typography level="h3">
+                            <Typography level="title-lg">
                               {detail.programme.name}
                             </Typography>
                             <Typography level="body-sm">
@@ -330,7 +339,10 @@ export function ProgrammeWorkspaceBody({
                             </Typography>
                           </Stack>
                           <Button
+                            size="sm"
                             variant="outlined"
+                            color="neutral"
+                            sx={{ alignSelf: "flex-start" }}
                             onClick={() => {
                               setEditing(true);
                               setTab(0);

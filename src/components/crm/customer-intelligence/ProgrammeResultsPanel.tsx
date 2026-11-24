@@ -176,7 +176,7 @@ export function ProgrammeResultsPanel({
             {r.normalizeDaily ? "Daily rates." : "Equal-period totals."}
           </Typography>
         </Stack>
-        <Button
+        <Button sx={{ alignSelf: "flex-start" }}
           variant="outlined"
           startDecorator={<Download size={16} />}
           loading={busy}
@@ -334,7 +334,7 @@ export function ProgrammeResultsPanel({
           Next
         </Button>
       </Stack>
-      <Sheet variant="outlined" sx={{ p: 2.5, borderRadius: "lg" }}>
+      <Sheet variant="outlined" sx={{ p: 4, borderRadius: "lg", borderColor: "neutral.200" }}>
         <Stack spacing={1.5}>
           <Typography level="title-lg">
             Turn the result into an audience
@@ -368,7 +368,7 @@ export function ProgrammeResultsPanel({
               <FormLabel>Segment name</FormLabel>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </FormControl>
-            <Button
+            <Button sx={{ alignSelf: "flex-start" }}
               variant="outlined"
               disabled={busy}
               onClick={() => void previewSegment()}
@@ -392,7 +392,7 @@ export function ProgrammeResultsPanel({
                 checked={confirmed}
                 onChange={(e) => setConfirmed(e.target.checked)}
               />
-              <Button
+              <Button sx={{ alignSelf: "flex-start" }}
                 startDecorator={<Users size={16} />}
                 loading={busy}
                 disabled={!confirmed || !selection.length || !name.trim()}

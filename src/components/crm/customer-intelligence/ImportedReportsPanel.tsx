@@ -1,5 +1,6 @@
-import { Alert, Box, Button, Sheet, Stack, Typography } from '@mui/joy';
-import { Database, ArrowUpRight } from 'lucide-react';
+import { Alert, Button, Typography } from '@mui/joy';
+import { Database, ArrowUpRight, Receipt, ShoppingBasket, Users, Wallet } from 'lucide-react';
+import { IntelligenceActions, IntelligenceCard, IntelligenceStatRow } from './IntelligenceLayout';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,22 +63,15 @@ export function ImportedReportsPanel({tenantId}: {tenantId: string}) {
   ];
   const warnings = sourceQuery.data ?? [...new Set([master,sales,spending].flatMap(r=>(r?.reconciliation as Summary)?.warnings ?? []))];
   const ask = (question: string) => navigate(bloomIntelligenceUrl(question,'explore'));
-  return <Sheet variant="outlined" sx={{p:{xs:2,md:3},borderRadius:'lg'}}>
-    <Stack spacing={2}>
-      <Stack direction="row" gap={1} alignItems="center"><Database size={21}/><Typography level="title-lg">Your imported purchase reports</Typography></Stack>
-      <Typography level="body-sm">{sales?.source_period_start ?? spending?.source_period_start} through {sales?.source_period_end ?? spending?.source_period_end}. These are reported period totals, not lifetime spending or a reconstructed receipt history.</Typography>
-      <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr 1fr',lg:'repeat(4,1fr)'},gap:2}}>
-        {stats.map(s=><Stack key={s.label} spacing={0.5}><Typography level="body-sm">{s.label}</Typography><Typography level="h3" sx={{fontSize:{xs:'1.25rem',md:'1.55rem'}}}>{s.value ?? 'Not available'}</Typography></Stack>)}
-      </Box>
-      <Typography level="body-sm">Find buyers by product or department, then narrow the same audience with a follow-up question. A summary supports its complete report period; a shorter date window stays unknown until dated receipts are reconciled.</Typography>
-      <Stack direction={{xs:'column',sm:'row'}} gap={1} flexWrap="wrap">
-        <Button color="neutral" variant="outlined" endDecorator={<ArrowUpRight size={15}/>} onClick={()=>ask('Using the available imported product reports, show the most purchased products by distinct customer count, state the report period, and help me choose an audience. Do not infer individual transaction dates or lifetime spending.')}>Explore what customers bought</Button>
-        <Button color="neutral" variant="outlined" onClick={()=>ask('Use explore_customer_reported_spending to show customers with at least $1,000 in the latest reported period, state the period and source, then let me narrow that same group by products. Do not call this lifetime value or change anyone’s classification.')}>Explore higher spending customers</Button>
-        <Button color="neutral" variant="outlined" onClick={()=>ask('Use explore_customer_reported_spending to find customers with at least two reported transactions in the latest source period. Show exact included, excluded and unknown counts and help me explore what those same customers bought.')}>Explore repeat purchasers</Button>
-        <Button color="neutral" variant="outlined" onClick={()=>navigate('/crm/customers')}>Find a customer profile</Button>
-      </Stack>
-      {warnings.map(w=><Typography key={w} level="body-sm" color="neutral">{w}</Typography>)}
-      <Typography level="body-xs" color="neutral">Sources: {[sales?.source_filename,spending?.source_filename].filter(Boolean).join(' · ')}. Audience membership does not establish permission to email or text.</Typography>
-    </Stack>
-  </Sheet>;
+  return <IntelligenceCard icon={<Database/>} title="Your imported purchase reports" description={<>{sales?.source_period_start ?? spending?.source_period_start} through {sales?.source_period_end ?? spending?.source_period_end}. These are reported period totals, not lifetime spending or a reconstructed receipt history.</>}
+    notes={<>{warnings.map(w=><Typography key={w}>{w}</Typography>)}<Typography>Sources: {[sales?.source_filename,spending?.source_filename].filter(Boolean).join(' · ')}. Audience membership does not establish permission to email or text.</Typography></>}>
+      <IntelligenceStatRow items={stats.map((s,i)=>({label:s.label,value:s.value ?? 'Not available',icon:[<Users key="u"/>,<ShoppingBasket key="b"/>,<Wallet key="w"/>,<Receipt key="r"/>][i]}))}/>
+      <Typography level="body-sm" sx={{color:'neutral.600'}}>Find buyers by product or department, then narrow the same audience with a follow-up question. A summary supports its complete report period; a shorter date window stays unknown until dated receipts are reconciled.</Typography>
+      <IntelligenceActions justifyContent="flex-start">
+        <Button size="sm" color="neutral" variant="outlined" endDecorator={<ArrowUpRight size={15}/>} onClick={()=>ask('Using the available imported product reports, show the most purchased products by distinct customer count, state the report period, and help me choose an audience. Do not infer individual transaction dates or lifetime spending.')}>Explore what customers bought</Button>
+        <Button size="sm" color="neutral" variant="outlined" onClick={()=>ask('Use explore_customer_reported_spending to show customers with at least $1,000 in the latest reported period, state the period and source, then let me narrow that same group by products. Do not call this lifetime value or change anyone’s classification.')}>Explore higher spending customers</Button>
+        <Button size="sm" color="neutral" variant="outlined" onClick={()=>ask('Use explore_customer_reported_spending to find customers with at least two reported transactions in the latest source period. Show exact included, excluded and unknown counts and help me explore what those same customers bought.')}>Explore repeat purchasers</Button>
+        <Button size="sm" color="neutral" variant="outlined" onClick={()=>navigate('/crm/customers')}>Find a customer profile</Button>
+      </IntelligenceActions>
+  </IntelligenceCard>;
 }

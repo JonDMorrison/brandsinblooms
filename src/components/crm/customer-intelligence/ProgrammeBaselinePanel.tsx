@@ -246,7 +246,7 @@ export function ProgrammeBaselinePanel({
     <Stack spacing={2.5}>
       <Sheet
         variant="outlined"
-        sx={{ p: { xs: 2, md: 3 }, borderRadius: "lg" }}
+        sx={{ p: { xs: 4, md: 5 }, borderRadius: "var(--joy-radius-2xl)", borderColor: "neutral.200", boxShadow: "var(--joy-shadow-sm)" }}
       >
         <Stack spacing={2}>
           <Typography level="h3">1. Capture the starting point</Typography>
@@ -348,7 +348,7 @@ export function ProgrammeBaselinePanel({
               baseline is created. Bloom will not infer missing purchases.
             </Alert>
           )}
-          <Button loading={busy} onClick={() => void previewBaseline()}>
+          <Button sx={{ alignSelf: "flex-start" }} loading={busy} onClick={() => void previewBaseline()}>
             Review baseline and audience
           </Button>
           {preview && (
@@ -458,7 +458,7 @@ export function ProgrammeBaselinePanel({
                   disabled={busy}
                   label={`Save this exact ${preview.audience.customerCount}-customer baseline without issuing rewards.`}
                 />
-                <Button
+                <Button sx={{ alignSelf: "flex-start" }}
                   disabled={!confirmed || busy}
                   onClick={() => void saveBaseline()}
                 >
@@ -475,7 +475,7 @@ export function ProgrammeBaselinePanel({
       </Sheet>
       <Sheet
         variant="outlined"
-        sx={{ p: { xs: 2, md: 3 }, borderRadius: "lg" }}
+        sx={{ p: { xs: 4, md: 5 }, borderRadius: "var(--joy-radius-2xl)", borderColor: "neutral.200", boxShadow: "var(--joy-shadow-sm)" }}
       >
         <Stack spacing={2}>
           <Typography level="h3">
@@ -555,7 +555,7 @@ export function ProgrammeBaselinePanel({
               purchases. This is an observed outcome, not proof of cause.
             </Typography>
           </FormControl>
-          <Button
+          <Button sx={{ alignSelf: "flex-start" }}
             disabled={!baselineId}
             loading={busy}
             onClick={() => void compare()}
@@ -566,10 +566,10 @@ export function ProgrammeBaselinePanel({
             <Stack spacing={1.5}>
               <Typography level="title-lg">IdealPOS campaign outcomes</Typography>
               <Typography level="body-sm">Use this for imported IdealPOS journal receipts. It reads the original frozen audience, actual provider-accepted campaign sends and a source-backed comparison window of up to 31 days. No campaign is sent or changed.</Typography>
-              <Button size="sm" variant="outlined" disabled={busy} onClick={()=>void loadJournalCampaigns()}>Load sent campaigns</Button>
+              <Button sx={{ alignSelf: "flex-start" }} size="sm" variant="outlined" disabled={busy} onClick={()=>void loadJournalCampaigns()}>Load sent campaigns</Button>
               {journalCampaigns.length>0&&<FormControl><FormLabel>Completed sent campaign</FormLabel><Select value={campaignId||null} placeholder="Choose a campaign" disabled={busy} onChange={(_,v)=>setCampaignId(v??"")}>{journalCampaigns.map(c=><Option value={c.id} key={c.id}>{c.name} · {new Date(c.sent_at).toLocaleDateString()}</Option>)}</Select></FormControl>}
               <FormControl><FormLabel>Optional exact IdealPOS featured product code</FormLabel><Input value={featuredCode} disabled={busy} onChange={e=>setFeaturedCode(e.target.value)} placeholder="Leave blank to measure all purchases"/></FormControl>
-              <Button variant="outlined" disabled={!baselineId||!campaignId.trim()||busy} onClick={()=>void previewJournalCampaign()}>Preview observed journal campaign results</Button>
+              <Button sx={{ alignSelf: "flex-start" }} variant="outlined" disabled={!baselineId||!campaignId.trim()||busy} onClick={()=>void previewJournalCampaign()}>Preview observed journal campaign results</Button>
               {journalPreview&&(()=>{
                 const o=journalPreview.outcome,fmt=(n:number|null)=>n===null?"Unknown":new Intl.NumberFormat("en-CA",{style:"currency",currency:o.currency}).format(n/100);
                 return <Stack spacing={1}>
@@ -583,7 +583,7 @@ export function ProgrammeBaselinePanel({
                   {!o.baselineCapturedBeforeFirstSend&&<Alert color="neutral">This baseline was captured after at least one send. The result is a retrospective intersection, not proof of the original pre-campaign target.</Alert>}
                   {o.featured&&<Typography level="body-sm">Product {o.featured.productCode}: {o.featured.customersWithObservedPositivePricedItem} observed positive-priced buyers; signed recorded quantity {o.featured.observedSignedQuantityMilli===null?"Unknown":o.featured.observedSignedQuantityMilli/1000}; {o.featured.unknownFeaturedReceipts} receipts with unknown item evidence.</Typography>}
                   <Typography level="body-xs">{o.source.filename??"Imported journal"} · {o.window.start} through {o.window.end} · captured {o.cutoff}</Typography>
-                  <Button size="sm" variant="outlined" onClick={()=>downloadProgrammeData("idealpos-observed-campaign-preview.json",JSON.stringify(journalPreview,null,2))}>Download source-backed preview</Button>
+                  <Button sx={{ alignSelf: "flex-start" }} size="sm" variant="outlined" onClick={()=>downloadProgrammeData("idealpos-observed-campaign-preview.json",JSON.stringify(journalPreview,null,2))}>Download source-backed preview</Button>
                 </Stack>;
               })()}
             </Stack>

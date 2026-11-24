@@ -66,7 +66,7 @@ export function StorefrontLinkPanel() {
           <Input value={code} placeholder="Paste your short-lived code"
             onChange={(event) => setCode(event.target.value.trim().toUpperCase())} />
         </FormControl>
-        <Button disabled={!UUID.test(siteId) || !/^[A-F0-9]{24}$/.test(code) || busy}
+        <Button sx={{ alignSelf: "flex-start" }} disabled={!UUID.test(siteId) || !/^[A-F0-9]{24}$/.test(code) || busy}
           loading={busy} onClick={() => void connect()}>
           Verify and connect store
         </Button>

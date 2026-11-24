@@ -4,6 +4,8 @@ import {
   Alert, Box, Button, Checkbox, Sheet, Stack, Table, Typography,
 } from "@mui/joy";
 import { ClipboardCheck } from "lucide-react";
+import { mergeSx } from "@/components/joy/mergeSx";
+import { IntelligenceActions, IntelligenceNote, IntelligenceStatRow, intelligenceCardPadding, intelligenceCardSx } from "./IntelligenceLayout";
 import { supabase } from "@/integrations/supabase/client";
 import {
   decodeIdealCustomerBytes, parseIdealCustomerCsv, type IdealCustomerRow,
@@ -139,33 +141,33 @@ export function CustomerRefreshReviewPanel({ tenantId }: { tenantId: string }) {
     }
   }
 
-  return <Sheet variant="outlined" sx={{ borderRadius: "xl" }}>
+  return <Sheet variant="outlined" sx={mergeSx(intelligenceCardSx, { overflow: "hidden" })}>
     <AccordionGroup>
       <Accordion expanded={opened} onChange={(_, value) => setOpened(value)}>
-        <AccordionSummary>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <ClipboardCheck size={19}/>
-            <Typography level="title-lg">Review an updated IdealPOS customer file</Typography>
+        <AccordionSummary sx={{ px: intelligenceCardPadding.px, py: 2 }}>
+          <Stack direction="row" alignItems="center" gap={1.5}>
+            <ClipboardCheck size={18}/>
+            <Typography level="title-md">Review an updated IdealPOS customer file</Typography>
           </Stack>
         </AccordionSummary>
-        <AccordionDetails>
-          <Stack spacing={2} sx={{ pt: 1, pb: 2 }}>
-            <Typography level="body-sm">
+        <AccordionDetails sx={{ px: intelligenceCardPadding.px }}>
+          <Stack spacing={3} sx={{ pt: 1, pb: 4 }}>
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
               Compare the previous and refreshed Customer Details exports.
               Exact customer CODEs are preserved, including leading zeros.
               Comparing files stays in your browser and changes nothing.
             </Typography>
-            <Alert color="neutral" variant="soft">
+            <IntelligenceNote>
               For contact updates, review the differences, deliberately stage one batch,
               and separately approve that exact batch. Only selected changed fields
               are sent to BloomSuite for staging. The original CSV files stay on your device.
               Existing newer CRM values stop conflicting updates. No customer is created,
               merged or deleted, and email or SMS permission is never granted.
-            </Alert>
+            </IntelligenceNote>
             <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
               <Box sx={{ flex: 1 }}>
                 <Typography level="title-sm" sx={{ mb: 1 }}>1. Previous original Customer Details TXT or CSV</Typography>
-                <Button component="label" color="neutral" variant="outlined" disabled={busy}>
+                <Button size="sm" component="label" color="neutral" variant="outlined" disabled={busy}>
                   {previous ? previous.name : "Choose previous file"}
                   <input hidden type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(event) =>
                     selectFile("previous", event.target.files?.[0] ?? null)}/>
@@ -173,31 +175,25 @@ export function CustomerRefreshReviewPanel({ tenantId }: { tenantId: string }) {
               </Box>
               <Box sx={{ flex: 1 }}>
                 <Typography level="title-sm" sx={{ mb: 1 }}>2. Refreshed original Customer Details TXT or CSV</Typography>
-                <Button component="label" color="neutral" variant="outlined" disabled={busy}>
+                <Button size="sm" component="label" color="neutral" variant="outlined" disabled={busy}>
                   {current ? current.name : "Choose refreshed file"}
                   <input hidden type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(event) =>
                     selectFile("current", event.target.files?.[0] ?? null)}/>
                 </Button>
               </Box>
             </Stack>
-            <Button disabled={!previous || !current || busy} loading={busy}
-              color="neutral" onClick={() => void review()}>Compare customer files</Button>
+            <IntelligenceActions><Button size="sm" disabled={!previous || !current || busy} loading={busy}
+              onClick={() => void review()}>Compare customer files</Button></IntelligenceActions>
             {error && <Alert color="warning" role="alert">{error}</Alert>}
             {report && <>
               {report.errors.map((message) => <Alert color="warning" key={message}>{message}</Alert>)}
               {!report.errors.length && <>
-                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, gap: 1 }}>
-                  {([
+                <IntelligenceStatRow items={([
                     ["Unchanged records", report.unchanged],
                     ["Changed records", report.changed],
                     ["New customer codes", report.added],
                     ["Absent from new file", report.missingFromCurrent],
-                  ] as const).map(([title, count]) => <Sheet key={title} variant="soft" color="neutral"
-                    sx={{ p: 1.5, borderRadius: "lg" }}>
-                    <Typography level="h4">{count.toLocaleString()}</Typography>
-                    <Typography level="body-sm">{title}</Typography>
-                  </Sheet>)}
-                </Box>
+                  ] as const).map(([title, count]) => ({ label: title, value: count.toLocaleString(), icon: <ClipboardCheck /> }))} />
                 <Typography level="body-sm">
                   {report.contactChanges} records have an email or phone change; {report.nameChanges} have a name change;
                   {" "}{report.classificationChanges} have a TYPE or MAILOUT change;
@@ -216,7 +212,7 @@ export function CustomerRefreshReviewPanel({ tenantId }: { tenantId: string }) {
                     ))}</tbody>
                   </Table>
                 </Box>
-                <Sheet variant="soft" color="neutral" sx={{ p: 2, borderRadius: "lg" }}>
+                <Sheet variant="soft" color="neutral" sx={{ p: 3, borderRadius: "lg" }}>
                   <Stack spacing={1.5}>
                     <Typography level="title-md">Apply reviewed contact updates</Typography>
                     <Typography level="body-sm">
@@ -240,7 +236,7 @@ export function CustomerRefreshReviewPanel({ tenantId }: { tenantId: string }) {
                       {proposed.length > 0 && ` Batch ${Math.min(totalBatches, Math.floor(offset / BATCH_SIZE) + 1)} of ${totalBatches} (maximum 200 changes per approval).`}
                     </Typography>
                     {completed > 0 && <Alert color="neutral">{completed.toLocaleString()} fields applied in approved batches. The complete files remain unchanged.</Alert>}
-                    {!staged && currentBatch.length > 0 && <Button variant="outlined" color="neutral"
+                    {!staged && currentBatch.length > 0 && <Button size="sm" sx={{ alignSelf: "flex-start" }} variant="outlined" color="neutral"
                       disabled={busy} loading={busy} onClick={() => void stage()}>
                       Stage the next {currentBatch.length} changes for review
                     </Button>}
@@ -253,7 +249,7 @@ export function CustomerRefreshReviewPanel({ tenantId }: { tenantId: string }) {
                       <Checkbox checked={approved} disabled={busy}
                         onChange={(event) => setApproved(event.target.checked)}
                         label="I reviewed these exact source differences and approve these BloomSuite updates, without changing marketing consent or IdealPOS." />
-                      <Button disabled={!approved || busy} loading={busy} onClick={() => void apply()}>
+                      <Button size="sm" sx={{ alignSelf: "flex-end" }} disabled={!approved || busy} loading={busy} onClick={() => void apply()}>
                         Apply approved {staged.count} field changes
                       </Button>
                     </>}

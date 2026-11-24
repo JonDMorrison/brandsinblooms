@@ -4,6 +4,8 @@ import {
   Alert, Box, Button, Sheet, Stack, Table, Typography,
 } from "@mui/joy";
 import { FileSearch } from "lucide-react";
+import { mergeSx } from "@/components/joy/mergeSx";
+import { IntelligenceActions, IntelligenceNote, IntelligenceStatRow, intelligenceCardPadding, intelligenceCardSx } from "./IntelligenceLayout";
 import { decodeIdealCustomerBytes, parseIdealCustomerCsv } from "@/lib/customer-intelligence/idealCustomerTypeExport";
 import {
   parseNewsletterCsv, previewNewsletterMatches,
@@ -46,29 +48,29 @@ export function NewsletterMatchReviewPanel() {
     setBusy(false);
   }
   return (
-    <Sheet variant="outlined" sx={{ borderRadius: "xl" }}>
+    <Sheet variant="outlined" sx={mergeSx(intelligenceCardSx, { overflow: "hidden" })}>
       <AccordionGroup>
         <Accordion expanded={opened} onChange={(_, value) => setOpened(value)}>
-          <AccordionSummary>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <FileSearch size={19} />
-              <Typography level="title-lg">Review VIP and newsletter matches</Typography>
+          <AccordionSummary sx={{ px: intelligenceCardPadding.px, py: 2 }}>
+            <Stack direction="row" alignItems="center" gap={1.5}>
+              <FileSearch size={18} />
+              <Typography level="title-md">Review VIP and newsletter matches</Typography>
             </Stack>
           </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2} sx={{ pt: 1, pb: 2 }}>
-              <Typography level="body-sm">
+          <AccordionDetails sx={{ px: intelligenceCardPadding.px }}>
+            <Stack spacing={3} sx={{ pt: 1, pb: 4 }}>
+              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
                 Compare your original IdealPOS customer file with a Mailchimp newsletter CSV before importing anything.
                 Your files stay in this browser session. No customers, tags, or subscription settings are changed.
               </Typography>
-              <Alert color="neutral" variant="soft">
+              <IntelligenceNote>
                 Exact customer CODE is preferred. A unique email can identify an existing contact.
                 Name and phone matches are suggestions only. This does not grant permission to send email or automatically fill missing addresses.
-              </Alert>
+              </IntelligenceNote>
               <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
                 <Box sx={{ flex: 1 }}>
                   <Typography level="title-sm" sx={{ mb: 1 }}>1. Original IdealPOS Customer Details TXT or CSV</Typography>
-                  <Button component="label" variant="outlined" color="neutral" disabled={busy}>
+                  <Button size="sm" component="label" variant="outlined" color="neutral" disabled={busy}>
                     {master ? master.name : "Choose IdealPOS TXT or CSV"}
                     <input hidden type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(event) =>
                       changeFile("master", event.target.files?.[0] ?? null)} />
@@ -76,30 +78,23 @@ export function NewsletterMatchReviewPanel() {
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Typography level="title-sm" sx={{ mb: 1 }}>2. Mailchimp newsletter CSV</Typography>
-                  <Button component="label" variant="outlined" color="neutral" disabled={busy}>
+                  <Button size="sm" component="label" variant="outlined" color="neutral" disabled={busy}>
                     {newsletter ? newsletter.name : "Choose newsletter CSV"}
                     <input hidden type="file" accept=".csv,text/csv" onChange={(event) =>
                       changeFile("newsletter", event.target.files?.[0] ?? null)} />
                   </Button>
                 </Box>
               </Stack>
-              <Button color="neutral" disabled={!master || !newsletter || busy}
-                loading={busy} onClick={() => void inspect()}>Preview matches</Button>
+              <IntelligenceActions><Button size="sm" disabled={!master || !newsletter || busy}
+                loading={busy} onClick={() => void inspect()}>Preview matches</Button></IntelligenceActions>
               {error && <Alert role="alert" color="warning">{error}</Alert>}
               {review && <>
-                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, gap: 1 }}>
-                  {([
+                <IntelligenceStatRow items={([
                     ["CODE matches", review.exactCode],
                     ["Email matches", review.exactEmail],
                     ["Needs review", review.manualReview],
                     ["Unmatched", review.unmatched],
-                  ] as const).map(([title, count]) => (
-                    <Sheet key={title} variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 1.5 }}>
-                      <Typography level="h4">{count.toLocaleString()}</Typography>
-                      <Typography level="body-sm">{title}</Typography>
-                    </Sheet>
-                  ))}
-                </Box>
+                  ] as const).map(([title, count]) => ({ label: title, value: count.toLocaleString(), icon: <FileSearch /> }))} />
                 <Typography level="body-sm">
                   {review.total.toLocaleString()} newsletter rows checked.
                   {" "}{review.eligibleEmailCandidates.toLocaleString()} exact CODE matches have an email that is missing from the IdealPOS file.

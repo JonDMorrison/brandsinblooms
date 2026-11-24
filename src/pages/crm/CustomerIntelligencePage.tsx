@@ -3,8 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  Divider,
   IconButton,
   Sheet,
   Skeleton,
@@ -18,13 +16,10 @@ import {
   ArrowUpRight,
   CalendarDays,
   ChartNoAxesCombined,
-  CheckCircle2,
   ChevronRight,
-  Compass,
   Database,
   Gift,
   Layers3,
-  Leaf,
   MessageCircle,
   RefreshCw,
   Search,
@@ -36,6 +31,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTenant } from "@/hooks/useTenant";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { JoyPageHeaderBand } from "@/components/joy/JoyPageHeaderBand";
+import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import {
+  JoyTabs,
+  JoyTabsList,
+  JoyTabsTrigger,
+} from "@/components/joy/JoyTabs";
 import { ImportedReportsPanel } from "@/components/crm/customer-intelligence/ImportedReportsPanel";
 import { CustomerGrowthWorkspace } from "@/components/crm/customer-intelligence/CustomerGrowthWorkspace";
 import { LoyaltyProgrammeWorkspace } from "@/components/crm/customer-intelligence/LoyaltyProgrammeWorkspace";
@@ -43,6 +46,14 @@ import { IdealCustomerTypeExportPanel } from "@/components/crm/customer-intellig
 import { PushPilotPanel } from "@/components/crm/customer-intelligence/PushPilotPanel";
 import { PushReadinessPanel } from "@/components/crm/customer-intelligence/PushReadinessPanel";
 import { CampaignReadinessPanel } from "@/components/crm/customer-intelligence/CampaignReadinessPanel";
+import {
+  autosizeSx,
+  IntelligenceActions,
+  IntelligenceCard,
+  IntelligenceNote,
+  IntelligenceSectionHeader,
+  IntelligenceStatRow,
+} from "@/components/crm/customer-intelligence/IntelligenceLayout";
 import {
   loadIntelligenceHome,
   type IntelligenceRow,
@@ -54,8 +65,6 @@ import {
   type IntelligenceView,
 } from "@/lib/customer-intelligence/intelligenceExperience";
 
-const white = "rgba(255,255,255,0.92)";
-const mutedWhite = "rgba(255,255,255,0.72)";
 const num = (n: unknown): n is number =>
   typeof n === "number" && Number.isFinite(n);
 const person = (row: IntelligenceRow) =>
@@ -63,37 +72,12 @@ const person = (row: IntelligenceRow) =>
   row.email ||
   "Customer profile";
 
-const VIEWS = [
-  {
-    id: "overview" as const,
-    title: "Overview",
-    description: "Start here",
-    icon: Compass,
-  },
-  {
-    id: "explore" as const,
-    title: "Find customers",
-    description: "Ask & segment",
-    icon: Search,
-  },
-  {
-    id: "growth" as const,
-    title: "Growth",
-    description: "Compare history",
-    icon: ChartNoAxesCombined,
-  },
-  {
-    id: "rewards" as const,
-    title: "Rewards",
-    description: "Plan & measure",
-    icon: Gift,
-  },
-  {
-    id: "data" as const,
-    title: "Data & channels",
-    description: "Connect & validate",
-    icon: Database,
-  },
+const VIEWS: { id: IntelligenceView; title: string }[] = [
+  { id: "overview", title: "Overview" },
+  { id: "explore", title: "Find customers" },
+  { id: "growth", title: "Growth" },
+  { id: "rewards", title: "Rewards" },
+  { id: "data", title: "Data & channels" },
 ];
 
 const SECTION_CONTEXT: Record<
@@ -147,104 +131,53 @@ const SECTION_CONTEXT: Record<
   },
 };
 
-function BotanicalLines() {
-  return (
-    <Box
-      aria-hidden="true"
-      sx={{
-        position: "absolute",
-        right: { xs: -90, md: 6 },
-        top: { xs: 8, md: -10 },
-        width: { xs: 270, md: 405 },
-        opacity: 0.24,
-        pointerEvents: "none",
-      }}
-    >
-      <svg
-        viewBox="0 0 390 350"
-        width="100%"
-        fill="none"
-        stroke="#F3D6C7"
-        strokeWidth="1.5"
-      >
-        <circle cx="216" cy="160" r="139" strokeDasharray="2 11" />
-        <circle cx="216" cy="160" r="111" opacity=".55" />
-        <path d="M121 317C170 242 199 171 229 65" strokeWidth="2.8" />
-        <path d="M186 235C122 224 97 176 100 154C152 159 185 188 186 235Z" />
-        <path d="M205 184C263 169 294 131 297 99C254 112 225 144 205 184Z" />
-        <path d="M226 80C177 65 161 32 162 15C206 27 228 47 226 80Z" />
-        <path d="M151 285C120 282 95 254 88 223C130 228 145 254 151 285Z" />
-        <path d="M164 260C225 259 262 224 275 197C220 196 185 216 164 260Z" />
-        <path
-          d="M117 318C167 270 228 266 304 289"
-          strokeWidth="1"
-          strokeDasharray="5 8"
-        />
-        <circle cx="299" cy="289" r="4" fill="#F3D6C7" stroke="none" />
-      </svg>
-    </Box>
-  );
-}
+const SECTION_SUGGESTIONS: Record<
+  Exclude<IntelligenceView, "overview">,
+  { text: string; query: string }[]
+> = {
+  explore: [
+    { text: "Build an audience", query: INTELLIGENCE_QUESTIONS.discover },
+  ],
+  growth: [
+    { text: "Understand inactivity", query: INTELLIGENCE_QUESTIONS.gaps },
+  ],
+  rewards: [{ text: "Plan a win-back", query: INTELLIGENCE_QUESTIONS.rewards }],
+  data: [
+    { text: "Check source quality", query: INTELLIGENCE_QUESTIONS.sources },
+  ],
+};
 
-function SectionTitle({
-  eyebrow,
-  title,
-  description,
-  action,
+function SuggestionChip({
+  label,
+  onClick,
+  icon,
 }: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  icon?: React.ReactNode;
 }) {
   return (
-    <Stack
-      direction={{ xs: "column", md: "row" }}
-      alignItems={{ md: "flex-end" }}
-      justifyContent="space-between"
-      gap={2}
-      sx={{ mb: 2.5 }}
+    <JoyChip
+      size="sm"
+      variant="outlined"
+      color="neutral"
+      startDecorator={icon}
+      onClick={onClick}
+      slotProps={{ action: { "aria-label": label } }}
     >
-      <Stack spacing={0.75}>
-        <Typography
-          level="body-xs"
-          sx={{
-            fontWeight: 800,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "primary.600",
-          }}
-        >
-          {eyebrow}
-        </Typography>
-        <Typography
-          level="h2"
-          sx={{
-            fontSize: { xs: "1.6rem", md: "2rem" },
-            letterSpacing: "-0.035em",
-            lineHeight: 1.13,
-          }}
-        >
-          {title}
-        </Typography>
-        <Typography
-          level="body-md"
-          sx={{ color: "text.secondary", maxWidth: 700, lineHeight: 1.65 }}
-        >
-          {description}
-        </Typography>
-      </Stack>
-      {action}
-    </Stack>
+      {label}
+    </JoyChip>
   );
 }
 
 function BloomCompanion({
   view,
   onAsk,
+  inputRef,
 }: {
   view: IntelligenceView;
   onAsk: (question: string) => void;
+  inputRef: React.Ref<HTMLDivElement>;
 }) {
   const [question, setQuestion] = React.useState("");
   const [error, setError] = React.useState("");
@@ -267,177 +200,118 @@ function BloomCompanion({
       );
     }
   }
+  const suggestions =
+    view === "overview"
+      ? [
+          {
+            text: "Customers buying less",
+            query: INTELLIGENCE_QUESTIONS.slower,
+          },
+          {
+            text: "What customers care about",
+            query: INTELLIGENCE_QUESTIONS.categories,
+          },
+        ]
+      : SECTION_SUGGESTIONS[view];
   return (
-    <Sheet
-      variant="outlined"
-      sx={{
-        p: { xs: 2.25, md: 3 },
-        borderRadius: "22px",
-        borderColor: "neutral.outlinedBorder",
-        boxShadow: "sm",
-        background:
-          "linear-gradient(125deg,rgba(244,239,233,.68),rgba(255,255,255,.97) 58%,rgba(244,240,246,.65))",
-      }}
+    <IntelligenceCard
+      icon={<Sparkles />}
+      title="Ask Bloom"
+      description={context.caption}
+      headerActions={
+        <JoyChip size="sm" variant="soft" color="neutral">
+          Uses recorded evidence
+        </JoyChip>
+      }
     >
-      <Stack spacing={1.5}>
-        <Stack direction="row" gap={1.5} alignItems="center">
-          <Sheet
-            sx={{
-              width: 42,
-              height: 42,
-              flexShrink: 0,
-              bgcolor: "#242C3B",
-              color: "#fff",
-              borderRadius: "14px",
-              display: "grid",
-              placeItems: "center",
+      <Box component="form" onSubmit={submit} ref={inputRef}>
+        <Stack spacing={1.5}>
+          <Textarea
+            aria-label="Ask Bloom about your customers"
+            minRows={3}
+            maxRows={8}
+            value={question}
+            slotProps={{ textarea: { maxLength: 1400 } }}
+            placeholder="What would you like to understand about your customers?"
+            onChange={(event) => {
+              setQuestion(event.target.value);
+              setError("");
             }}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                if (question.trim()) onAsk(question);
+                else
+                  setError(
+                    "Write a question or select one of the suggestions.",
+                  );
+              }
+            }}
+            sx={{
+              bgcolor: "background.surface",
+              borderRadius: "12px",
+              borderColor: "neutral.200",
+              fontSize: "sm",
+              "--Textarea-focusedThickness": "1px",
+              ...autosizeSx,
+            }}
+          />
+          {error && (
+            <Typography role="alert" level="body-sm" color="danger">
+              {error}
+            </Typography>
+          )}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            gap={1.5}
           >
-            <Sparkles size={20} />
-          </Sheet>
-          <Box sx={{ flex: 1 }}>
-            <Typography level="title-lg" sx={{ fontWeight: 750 }}>
-              Ask Bloom
+            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+              Opens Bloom with your question ready to review. Nothing is sent
+              automatically.
             </Typography>
-            <Typography level="body-sm" color="neutral">
-              {context.caption}
-            </Typography>
-          </Box>
-          <Chip size="sm" variant="soft" color="neutral">
-            Uses recorded evidence
-          </Chip>
-        </Stack>
-        <Box component="form" onSubmit={submit}>
-          <Stack spacing={1}>
-            <Textarea
-              aria-label="Ask Bloom about your customers"
-              minRows={2}
-              maxRows={5}
-              value={question}
-              slotProps={{ textarea: { maxLength: 1400 } }}
-              placeholder="What would you like to understand about your customers?"
-              onChange={(event) => {
-                setQuestion(event.target.value);
-                setError("");
-              }}
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing
-                ) {
-                  event.preventDefault();
-                  if (question.trim()) onAsk(question);
-                  else
-                    setError(
-                      "Write a question or select one of the suggestions.",
-                    );
-                }
-              }}
-              sx={{
-                bgcolor: "background.surface",
-                borderRadius: "lg",
-                "--Textarea-focusedThickness": "1px",
-              }}
-            />
-            {error && (
-              <Typography role="alert" level="body-sm" color="danger">
-                {error}
-              </Typography>
-            )}
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              flexWrap="wrap"
-              gap={1}
-            >
-              <Typography level="body-xs" color="neutral">
-                Opens Bloom with your question ready to review. Nothing is sent
-                automatically.
-              </Typography>
+            <IntelligenceActions sx={{ width: { xs: "100%", sm: "auto" } }}>
               <Button
                 type="submit"
-                startDecorator={<Sparkles size={16} />}
-                sx={{ borderRadius: "lg" }}
+                size="sm"
+                startDecorator={<Sparkles size={14} />}
+                endDecorator={<ArrowRight size={14} />}
               >
-                Continue in Bloom <ArrowRight size={15} />
+                Continue in Bloom
               </Button>
-            </Stack>
+            </IntelligenceActions>
           </Stack>
-        </Box>
-        <Divider />
-        <Typography
-          level="body-xs"
-          sx={{ fontWeight: 700, color: "text.tertiary" }}
-        >
+        </Stack>
+      </Box>
+      <Stack spacing={1}>
+        <Typography level="body-xs" sx={{ fontWeight: 600, color: "neutral.500" }}>
           Not sure where to start?
         </Typography>
-        <Stack direction="row" flexWrap="wrap" gap={0.75}>
-          <Button
-            size="sm"
-            variant="outlined"
-            color="neutral"
+        <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.75}>
+          <SuggestionChip
+            icon={<Sparkles size={12} />}
+            label={
+              view === "overview"
+                ? "Find my best opportunities"
+                : "Guide me through this"
+            }
             onClick={() => onAsk(context.question)}
-          >
-            <Sparkles size={13} />{" "}
-            {view === "overview"
-              ? "Find my best opportunities"
-              : "Guide me through this"}
-          </Button>
-          {(view === "overview"
-            ? [
-                {
-                  text: "Customers buying less",
-                  query: INTELLIGENCE_QUESTIONS.slower,
-                },
-                {
-                  text: "What customers care about",
-                  query: INTELLIGENCE_QUESTIONS.categories,
-                },
-              ]
-            : view === "explore"
-              ? [
-                  {
-                    text: "Build an audience",
-                    query: INTELLIGENCE_QUESTIONS.discover,
-                  },
-                ]
-              : view === "growth"
-                ? [
-                    {
-                      text: "Understand inactivity",
-                      query: INTELLIGENCE_QUESTIONS.gaps,
-                    },
-                  ]
-                : view === "rewards"
-                  ? [
-                      {
-                        text: "Plan a win-back",
-                        query: INTELLIGENCE_QUESTIONS.rewards,
-                      },
-                    ]
-                  : [
-                      {
-                        text: "Check source quality",
-                        query: INTELLIGENCE_QUESTIONS.sources,
-                      },
-                    ]
-          ).map((item) => (
-            <Button
+          />
+          {suggestions.map((item) => (
+            <SuggestionChip
               key={item.text}
-              size="sm"
-              variant="plain"
-              color="neutral"
+              label={item.text}
               onClick={() => onAsk(item.query)}
-            >
-              {item.text}
-              <ArrowUpRight size={12} />
-            </Button>
+            />
           ))}
         </Stack>
       </Stack>
-    </Sheet>
+    </IntelligenceCard>
   );
 }
 
@@ -457,140 +331,51 @@ function TaskCard({
   action: string;
 }) {
   return (
-    <Button
+    <JoyCard
+      interactive
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      variant="outlined"
-      color="neutral"
-      sx={{
-        width: "100%",
-        minHeight: 191,
-        alignItems: "stretch",
-        justifyContent: "space-between",
-        flexDirection: "column",
-        textAlign: "left",
-        p: 2.5,
-        borderRadius: "20px",
-        bgcolor: "background.surface",
-        borderColor: "neutral.outlinedBorder",
-        transition:
-          "box-shadow .16s ease,transform .16s ease,border-color .16s ease",
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow: "md",
-          borderColor: "primary.300",
-          bgcolor: "background.surface",
-        },
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
       }}
     >
-      <Stack
-        direction="row"
-        sx={{ width: "100%" }}
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Sheet
-          variant="soft"
-          color="neutral"
-          sx={{
-            width: 46,
-            height: 46,
-            borderRadius: "14px",
-            display: "grid",
-            placeItems: "center",
-          }}
-        >
-          <Icon size={22} strokeWidth={1.8} />
-        </Sheet>
-        <Typography
-          level="body-xs"
-          sx={{
-            fontWeight: 800,
-            color: "text.tertiary",
-            letterSpacing: ".11em",
-          }}
-        >
-          {step}
-        </Typography>
-      </Stack>
-      <Stack spacing={0.6} sx={{ width: "100%", mt: 2 }}>
-        <Typography level="title-lg" sx={{ fontSize: "1.15rem" }}>
-          {title}
-        </Typography>
+      <JoyCardContent sx={{ py: 4, display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Sheet
+            variant="soft"
+            color="primary"
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: "999px",
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <Icon size={18} strokeWidth={1.8} />
+          </Sheet>
+          <JoyChip size="sm" variant="soft" color="neutral">
+            {step}
+          </JoyChip>
+        </Stack>
+        <Stack spacing={0.5}>
+          <Typography level="title-md">{title}</Typography>
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            {description}
+          </Typography>
+        </Stack>
         <Typography
           level="body-sm"
-          sx={{
-            color: "text.secondary",
-            fontWeight: 450,
-            whiteSpace: "normal",
-            lineHeight: 1.6,
-          }}
-        >
-          {description}
-        </Typography>
-        <Typography
-          level="body-sm"
-          sx={{ fontWeight: 750, color: "primary.600", mt: 1 }}
+          sx={{ fontWeight: 600, color: "primary.600", mt: "auto" }}
         >
           {action} <ArrowRight size={14} style={{ verticalAlign: "middle" }} />
         </Typography>
-      </Stack>
-    </Button>
-  );
-}
-
-function SummaryMetric({
-  title,
-  value,
-  explanation,
-  icon: Icon,
-}: {
-  title: string;
-  value: string;
-  explanation: string;
-  icon: typeof Search;
-}) {
-  return (
-    <Sheet
-      variant="outlined"
-      sx={{
-        p: 2,
-        borderRadius: "18px",
-        borderColor: "neutral.outlinedBorder",
-        bgcolor: "background.surface",
-        minHeight: 143,
-        display: "flex",
-        flexDirection: "column",
-        gap: 0.8,
-      }}
-    >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        gap={1}
-      >
-        <Typography level="body-sm" color="neutral" sx={{ fontWeight: 600 }}>
-          {title}
-        </Typography>
-        <Icon size={18} strokeWidth={1.7} color="#777583" />
-      </Stack>
-      <Typography
-        sx={{
-          fontSize: { xs: "1.8rem", md: "2rem" },
-          fontWeight: 780,
-          letterSpacing: "-0.035em",
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </Typography>
-      <Typography
-        level="body-xs"
-        sx={{ color: "text.tertiary", lineHeight: 1.5 }}
-      >
-        {explanation}
-      </Typography>
-    </Sheet>
+      </JoyCardContent>
+    </JoyCard>
   );
 }
 
@@ -636,48 +421,39 @@ function OverviewInsights({
     .slice(0, 5);
 
   return (
-    <Stack spacing={2.25}>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ md: "center" }}
-        gap={1}
-      >
-        <Stack spacing={0.35}>
-          <Typography
-            level="h3"
-            sx={{ fontSize: "1.35rem", letterSpacing: "-0.02em" }}
-          >
-            A snapshot of your customer records
-          </Typography>
-          <Typography level="body-sm" color="neutral">
-            Useful starting signals, not automatic lifecycle labels or a
-            prediction of lost sales.
-          </Typography>
-        </Stack>
-        {refreshedAt > 0 && !error && (
-          <Typography level="body-xs" color="neutral">
-            Last loaded{" "}
-            {new Date(refreshedAt).toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}
-          </Typography>
-        )}
-      </Stack>
+    <Stack spacing={3}>
+      <IntelligenceSectionHeader
+        title="A snapshot of your customer records"
+        description="Useful starting signals, not automatic lifecycle labels or a prediction of lost sales."
+        action={
+          refreshedAt > 0 && !error ? (
+            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+              Last loaded{" "}
+              {new Date(refreshedAt).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </Typography>
+          ) : undefined
+        }
+      />
       {loading && (
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr 1fr", lg: "repeat(4,1fr)" },
-            gap: 1.5,
+            gridTemplateColumns: {
+              xs: "minmax(0,1fr)",
+              md: "repeat(2,minmax(0,1fr))",
+              lg: "repeat(4,minmax(0,1fr))",
+            },
+            gap: 3,
           }}
         >
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton
               key={i}
               variant="rectangular"
-              sx={{ height: 145, borderRadius: "lg" }}
+              sx={{ height: 120, borderRadius: "var(--joy-radius-2xl)" }}
             />
           ))}
         </Box>
@@ -704,342 +480,305 @@ function OverviewInsights({
         </Alert>
       )}
       {!loading && !error && rows.length === 0 && (
-        <Sheet variant="soft" sx={{ borderRadius: "lg", p: 3 }}>
-          <Stack spacing={1.5} alignItems="flex-start">
-            <Typography level="title-lg">
-              Your customer story starts with a source.
-            </Typography>
-            <Typography level="body-md">
-              There are no accessible customer-intelligence records to summarize
-              yet. Connect a source or review your existing imports first.
-            </Typography>
+        <IntelligenceCard
+          title="Your customer story starts with a source."
+          description="There are no accessible customer-intelligence records to summarize yet. Connect a source or review your existing imports first."
+          headerActions={
             <Button
+              size="sm"
               variant="outlined"
               color="neutral"
+              endDecorator={<ArrowRight size={14} />}
               onClick={() => onView("data")}
             >
-              Review data & connections <ArrowRight size={14} />
+              Review data & connections
             </Button>
-          </Stack>
-        </Sheet>
+          }
+        />
       )}
       {!loading && !error && rows.length > 0 && (
         <>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr 1fr", lg: "repeat(4,1fr)" },
-              gap: 1.5,
-            }}
-          >
-            <SummaryMetric
-              icon={UsersRound}
-              title="Profiles with lifetime spending"
-              value={rows.some(r => num(r.lifetime_value)) ? withHistory.length.toLocaleString() : "Not measured"}
-              explanation={
-                "Out of " +
-                rows.length.toLocaleString() +
-                " accessible customer records"
-              }
-            />
-            <SummaryMetric
-              icon={Activity}
-              title="Negative momentum signals"
-              value={rows.some(r => num(r.purchase_velocity)) ? slowing.length.toLocaleString() : "Not measured"}
-              explanation="Recorded purchase-velocity signals; verify seasons before targeting"
-            />
-            <SummaryMetric
-              icon={CalendarDays}
-              title="120+ day purchase gaps"
-              value={rows.some(r => num(r.days_since_last_purchase)) ? longGaps.length.toLocaleString() : "Not measured"}
-              explanation="A review prompt, not proof that these customers are lapsed"
-            />
-            <SummaryMetric
-              icon={Layers3}
-              title="Product affinities"
-              value={rows.some(r => Array.isArray(r.top_product_categories)) ? categories.size.toLocaleString() : "Not measured"}
-              explanation="Distinct categories appearing in the available customer data"
-            />
-          </Box>
-          <Alert
-            variant="soft"
-            color="neutral"
-            startDecorator={<ShieldCheck size={18} />}
-          >
+          <IntelligenceStatRow
+            items={[
+              {
+                icon: <UsersRound />,
+                label: "Profiles with lifetime spending",
+                value: rows.some((r) => num(r.lifetime_value))
+                  ? withHistory.length.toLocaleString()
+                  : "Not measured",
+                detail:
+                  "Out of " +
+                  rows.length.toLocaleString() +
+                  " accessible customer records",
+              },
+              {
+                icon: <Activity />,
+                label: "Negative momentum signals",
+                value: rows.some((r) => num(r.purchase_velocity))
+                  ? slowing.length.toLocaleString()
+                  : "Not measured",
+                detail:
+                  "Recorded purchase-velocity signals; verify seasons before targeting",
+              },
+              {
+                icon: <CalendarDays />,
+                label: "120+ day purchase gaps",
+                value: rows.some((r) => num(r.days_since_last_purchase))
+                  ? longGaps.length.toLocaleString()
+                  : "Not measured",
+                detail:
+                  "A review prompt, not proof that these customers are lapsed",
+              },
+              {
+                icon: <Layers3 />,
+                label: "Product affinities",
+                value: rows.some((r) => Array.isArray(r.top_product_categories))
+                  ? categories.size.toLocaleString()
+                  : "Not measured",
+                detail:
+                  "Distinct categories appearing in the available customer data",
+              },
+            ]}
+          />
+          <IntelligenceNote>
             {missingHistory} records do not show a positive lifetime spending value. Imported period reports may still contain useful purchase history. Missing data and zero purchases are not the same. Bloom
             can help check the underlying evidence.
-          </Alert>
+          </IntelligenceNote>
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: {
-                xs: "1fr",
+                xs: "minmax(0,1fr)",
                 lg: "minmax(0,1.22fr) minmax(0,0.78fr)",
               },
-              gap: 2,
+              gap: 3,
             }}
           >
-            <Sheet
-              variant="outlined"
-              sx={{ borderRadius: "20px", p: { xs: 2.25, md: 2.75 } }}
-            >
-              <Stack spacing={2}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  gap={1}
+            <IntelligenceCard
+              title="Opportunities worth your attention"
+              description="Start with evidence. Decide on a campaign later."
+              headerActions={
+                <IconButton
+                  size="sm"
+                  variant="plain"
+                  color="neutral"
+                  aria-label="Explore customer opportunities with Bloom"
+                  onClick={() => onAsk(INTELLIGENCE_QUESTIONS.opportunities)}
                 >
-                  <Stack spacing={0.2}>
-                    <Typography level="title-lg">
-                      Opportunities worth your attention
-                    </Typography>
-                    <Typography level="body-sm" color="neutral">
-                      Start with evidence. Decide on a campaign later.
-                    </Typography>
-                  </Stack>
-                  <IconButton
-                    variant="plain"
-                    color="neutral"
-                    aria-label="Explore customer opportunities with Bloom"
-                    onClick={() => onAsk(INTELLIGENCE_QUESTIONS.opportunities)}
+                  <Sparkles size={18} />
+                </IconButton>
+              }
+            >
+              {[
+                {
+                  icon: Activity,
+                  title: "Purchase momentum is changing",
+                  count: slowing.length,
+                  details:
+                    "These customers have a negative recorded purchase-velocity signal. Compare seasons and source coverage before classifying them.",
+                  prompt: INTELLIGENCE_QUESTIONS.slower,
+                },
+                {
+                  icon: CalendarDays,
+                  title: "Some customers haven't visited recently",
+                  count: longGaps.length,
+                  details:
+                    "120+ days since a last recorded purchase is a starting filter, not a lapsed customer definition.",
+                  prompt: INTELLIGENCE_QUESTIONS.gaps,
+                },
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <Stack
+                    key={item.title}
+                    direction="row"
+                    gap={2}
+                    alignItems="flex-start"
+                    sx={{
+                      pt: i ? 3 : 0,
+                      borderTop: i ? "1px solid" : 0,
+                      borderColor: "neutral.200",
+                    }}
                   >
-                    <Sparkles size={19} />
-                  </IconButton>
-                </Stack>
-                {[
-                  {
-                    icon: Activity,
-                    title: "Purchase momentum is changing",
-                    count: slowing.length,
-                    details:
-                      "These customers have a negative recorded purchase-velocity signal. Compare seasons and source coverage before classifying them.",
-                    prompt: INTELLIGENCE_QUESTIONS.slower,
-                  },
-                  {
-                    icon: CalendarDays,
-                    title: "Some customers haven't visited recently",
-                    count: longGaps.length,
-                    details:
-                      "120+ days since a last recorded purchase is a starting filter, not a lapsed customer definition.",
-                    prompt: INTELLIGENCE_QUESTIONS.gaps,
-                  },
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  return (
-                    <Stack
-                      key={item.title}
-                      direction="row"
-                      gap={1.5}
-                      alignItems="flex-start"
+                    <Sheet
+                      variant="soft"
+                      color="neutral"
                       sx={{
-                        pt: i ? 2 : 0,
-                        borderTop: i ? "1px solid" : 0,
-                        borderColor: "divider",
+                        width: 32,
+                        height: 32,
+                        borderRadius: "999px",
+                        flexShrink: 0,
+                        display: "grid",
+                        placeItems: "center",
                       }}
                     >
-                      <Sheet
-                        variant="soft"
-                        sx={{
-                          width: 39,
-                          height: 39,
-                          borderRadius: "lg",
-                          flexShrink: 0,
-                          display: "grid",
-                          placeItems: "center",
-                        }}
+                      <Icon size={16} />
+                    </Sheet>
+                    <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography level="title-sm">{item.title}</Typography>
+                      <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                        {item.details}
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        flexWrap="wrap"
+                        gap={1}
                       >
-                        <Icon size={18} />
-                      </Sheet>
-                      <Stack spacing={0.6} sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography level="title-md">{item.title}</Typography>
-                        <Typography
-                          level="body-sm"
-                          color="neutral"
-                          sx={{ lineHeight: 1.55 }}
+                        <JoyChip variant="soft" color="neutral" size="sm">
+                          {item.count.toLocaleString()} observed
+                        </JoyChip>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          endDecorator={<ArrowRight size={14} />}
+                          onClick={() => onAsk(item.prompt)}
                         >
-                          {item.details}
-                        </Typography>
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          flexWrap="wrap"
-                          gap={1}
-                        >
-                          <Chip variant="soft" color="neutral" size="sm">
-                            {item.count.toLocaleString()} observed
-                          </Chip>
-                          <Button
-                            size="sm"
-                            variant="plain"
-                            onClick={() => onAsk(item.prompt)}
-                          >
-                            Examine with Bloom <ArrowRight size={14} />
-                          </Button>
-                        </Stack>
+                          Examine with Bloom
+                        </Button>
                       </Stack>
                     </Stack>
-                  );
-                })}
-              </Stack>
-            </Sheet>
-            <Sheet
-              variant="outlined"
-              sx={{ borderRadius: "20px", p: { xs: 2.25, md: 2.75 } }}
-            >
-              <Stack spacing={1.75}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Stack spacing={0.2}>
-                    <Typography level="title-lg">
-                      What customers are buying
-                    </Typography>
-                    <Typography level="body-sm" color="neutral">
-                      Recorded category affinities
-                    </Typography>
                   </Stack>
-                  <Layers3 size={20} color="#777583" />
-                </Stack>
+                );
+              })}
+            </IntelligenceCard>
+            <IntelligenceCard
+              title="What customers are buying"
+              description="Recorded category affinities"
+              icon={<Layers3 />}
+            >
+              <Stack spacing={1.5}>
                 {topCategories.length ? (
                   topCategories.map(([category, count], index) => (
                     <Stack
                       key={category}
                       direction="row"
                       alignItems="center"
-                      gap={1.3}
+                      gap={1.5}
                     >
-                      <Sheet
-                        variant="soft"
-                        sx={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: "md",
-                          display: "grid",
-                          placeItems: "center",
-                        }}
-                      >
-                        <Typography level="body-xs" sx={{ fontWeight: 800 }}>
-                          {String(index + 1).padStart(2, "0")}
-                        </Typography>
-                      </Sheet>
+                      <JoyChip size="sm" variant="soft" color="neutral">
+                        {String(index + 1).padStart(2, "0")}
+                      </JoyChip>
                       <Typography
                         level="body-sm"
-                        sx={{ flex: 1, fontWeight: 600 }}
+                        sx={{ flex: 1, fontWeight: 600, minWidth: 0 }}
                       >
                         {category}
                       </Typography>
-                      <Typography level="body-sm" color="neutral">
+                      <Typography level="body-sm" sx={{ color: "neutral.500" }}>
                         {count} profiles
                       </Typography>
                     </Stack>
                   ))
                 ) : (
-                  <Typography level="body-sm" color="neutral">
+                  <Typography level="body-sm" sx={{ color: "neutral.500" }}>
                     Category history is not available for these profiles.
                   </Typography>
                 )}
+              </Stack>
+              <IntelligenceActions justifyContent="flex-start">
                 <Button
                   variant="plain"
                   size="sm"
-                  sx={{ alignSelf: "flex-start" }}
+                  endDecorator={<ArrowRight size={14} />}
                   onClick={() => onAsk(INTELLIGENCE_QUESTIONS.categories)}
                 >
-                  Explore products with Bloom <ArrowRight size={14} />
+                  Explore products with Bloom
                 </Button>
-              </Stack>
-            </Sheet>
+              </IntelligenceActions>
+            </IntelligenceCard>
           </Box>
           {slowing.length > 0 && (
-            <Sheet
-              variant="outlined"
-              sx={{ borderRadius: "20px", p: { xs: 2.25, md: 2.75 } }}
+            <IntelligenceCard
+              title="Customers to explore"
+              description="A small sample of records with reported slowing momentum."
+              headerActions={
+                <JoyChip size="sm" color="neutral" variant="soft">
+                  Sample · not a saved segment
+                </JoyChip>
+              }
+              notes="Explore and verify the customer history before saving an audience. Missing purchase dates or seasonal buying can change the interpretation."
             >
-              <Stack spacing={1.5}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  gap={1}
-                >
-                  <Stack>
-                    <Typography level="title-lg">
-                      Customers to explore
-                    </Typography>
-                    <Typography level="body-sm" color="neutral">
-                      A small sample of records with reported slowing momentum.
-                    </Typography>
-                  </Stack>
-                  <Chip size="sm" color="neutral" variant="soft">
-                    Sample · not a saved segment
-                  </Chip>
-                </Stack>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", md: "repeat(3,1fr)" },
-                    gap: 1.25,
-                  }}
-                >
-                  {slowing
-                    .slice()
-                    .sort(
-                      (a, b) =>
-                        Number(b.lifetime_value || 0) -
-                        Number(a.lifetime_value || 0),
-                    )
-                    .slice(0, 3)
-                    .map((row) => (
-                      <Button
-                        key={row.customer_id}
-                        variant="outlined"
-                        color="neutral"
-                        onClick={() => onCustomer(row.customer_id)}
-                        sx={{
-                          bgcolor: "background.surface",
-                          p: 1.75,
-                          borderRadius: "lg",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "flex-start",
-                          textAlign: "left",
-                          gap: 0.5,
-                        }}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "minmax(0,1fr)",
+                    md: "repeat(3,minmax(0,1fr))",
+                  },
+                  gap: 2,
+                }}
+              >
+                {slowing
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      Number(b.lifetime_value || 0) -
+                      Number(a.lifetime_value || 0),
+                  )
+                  .slice(0, 3)
+                  .map((row) => (
+                    <Button
+                      key={row.customer_id}
+                      variant="outlined"
+                      color="neutral"
+                      onClick={() => onCustomer(row.customer_id)}
+                      sx={{
+                        bgcolor: "background.surface",
+                        borderColor: "neutral.200",
+                        p: 2,
+                        borderRadius: "lg",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        textAlign: "left",
+                        gap: 0.5,
+                      }}
+                    >
+                      <Typography level="title-sm">{person(row)}</Typography>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        {num(row.purchase_velocity)
+                          ? "Recorded momentum " +
+                            row.purchase_velocity.toFixed(1)
+                          : "Momentum history requires review"}
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "primary.600", fontWeight: 600, mt: 0.5 }}
                       >
-                        <Typography level="title-sm">{person(row)}</Typography>
-                        <Typography level="body-xs" color="neutral">
-                          {num(row.purchase_velocity)
-                            ? "Recorded momentum " +
-                              row.purchase_velocity.toFixed(1)
-                            : "Momentum history requires review"}
-                        </Typography>
-                        <Typography
-                          level="body-xs"
-                          sx={{
-                            color: "primary.600",
-                            fontWeight: 700,
-                            mt: 0.5,
-                          }}
-                        >
-                          Open purchase history <ArrowRight size={12} />
-                        </Typography>
-                      </Button>
-                    ))}
-                </Box>
-                <Typography level="body-xs" color="neutral">
-                  Explore and verify the customer history before saving an
-                  audience. Missing purchase dates or seasonal buying can change
-                  the interpretation.
-                </Typography>
-              </Stack>
-            </Sheet>
+                        Open purchase history <ArrowRight size={12} />
+                      </Typography>
+                    </Button>
+                  ))}
+              </Box>
+            </IntelligenceCard>
           )}
         </>
       )}
     </Stack>
+  );
+}
+
+function TabPanelBox({
+  view,
+  active,
+  children,
+}: {
+  view: IntelligenceView;
+  active: IntelligenceView;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box
+      role="tabpanel"
+      id={"intelligence-panel-" + view}
+      aria-labelledby={"intelligence-tab-" + view}
+      hidden={active !== view}
+      sx={{ display: active === view ? "block" : "none" }}
+    >
+      <Stack spacing={3}>{children}</Stack>
+    </Box>
   );
 }
 
@@ -1059,6 +798,7 @@ export default function CustomerIntelligencePage() {
       : intelligenceView(params.get("view"));
   const [visited, setVisited] = React.useState<IntelligenceView[]>([active]);
   const [advanced, setAdvanced] = React.useState(false);
+  const askBox = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     setVisited((existing) =>
       existing.includes(active) ? existing : [...existing, active],
@@ -1088,311 +828,199 @@ export default function CustomerIntelligencePage() {
   };
   const askBloom = (question: string) =>
     navigate(bloomIntelligenceUrl(question, active));
+  const focusAskBloom = () => {
+    const input = askBox.current?.querySelector("textarea");
+    if (!input) return;
+    input.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    input.focus({ preventScroll: true });
+  };
 
   return (
-    <PageContainer sx={{ py: { xs: 2, md: 3 }, maxWidth: 1520 }}>
-      <Stack spacing={{ xs: 2.5, md: 3.5 }}>
-        <Sheet
-          sx={{
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: { xs: "23px", md: "30px" },
-            p: { xs: 3, md: 4.5 },
-            color: "#fff",
-            background:
-              "linear-gradient(112deg,#202938 0%,#263447 63%,#3A3040 100%)",
-            minHeight: { xs: 235, md: 255 },
-          }}
-        >
-          <BotanicalLines />
-          <Stack
-            spacing={2}
-            sx={{ position: "relative", zIndex: 1, maxWidth: 840 }}
-          >
-            <Stack direction="row" alignItems="center" gap={1}>
-              <Leaf size={16} color="#E8BEAD" />
-              <Typography
-                level="body-xs"
-                sx={{
-                  color: mutedWhite,
-                  letterSpacing: ".13em",
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                }}
+    <PageContainer>
+      <Stack spacing={3} sx={{ pb: 4 }}>
+        <JoyPageHeaderBand
+          title="Customer Intelligence"
+          description="Find the right customers, see how their shopping changes, and plan reasons to return."
+          metadata={
+            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+              Evidence before recommendations · No automatic messages or offers
+            </Typography>
+          }
+          actions={
+            <Stack direction="row">
+              <Button
+                size="sm"
+                startDecorator={<Sparkles size={16} />}
+                onClick={focusAskBloom}
               >
-                BloomSuite / Customer Intelligence
-              </Typography>
+                Ask Bloom
+              </Button>
             </Stack>
-            <Typography
-              level="h1"
+          }
+          sx={{
+            px: 0,
+            py: 0,
+            borderRadius: 0,
+            background: "transparent",
+          }}
+        />
+
+        <Box component="nav" aria-label="Intelligence sections" sx={{ minWidth: 0 }}>
+          <JoyTabs
+            value={active}
+            onValueChange={(value) => {
+              if (typeof value === "string" && value !== active)
+                changeView(intelligenceView(value));
+            }}
+            sx={{ bgcolor: "transparent" }}
+          >
+            <JoyTabsList
+              disableUnderline
               sx={{
-                color: white,
-                fontSize: { xs: "2rem", md: "2.7rem" },
-                letterSpacing: "-0.044em",
-                maxWidth: 800,
-                lineHeight: 1.1,
+                width: "fit-content",
+                maxWidth: "100%",
+                overflowX: "auto",
+                flexWrap: "nowrap",
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": { display: "none" },
               }}
             >
-              Know your customers.{" "}
-              <br />
-              Know what to do next.
-            </Typography>
-            <Typography
-              level="body-lg"
-              sx={{ color: mutedWhite, maxWidth: 670, lineHeight: 1.65 }}
-            >
-              Find the right customers, understand how their shopping is
-              changing, and build thoughtful reasons to come back. All in one
-              clear place.
-            </Typography>
-            <Stack direction="row" flexWrap="wrap" gap={1}>
-              <Chip
-                variant="soft"
-                size="sm"
-                color="neutral"
-                startDecorator={<CheckCircle2 size={13} />}
-              >
-                Evidence before recommendations
-              </Chip>
-              <Chip
-                variant="soft"
-                size="sm"
-                color="neutral"
-                startDecorator={<ShieldCheck size={13} />}
-              >
-                No automatic messages or offers
-              </Chip>
-            </Stack>
-          </Stack>
-        </Sheet>
-
-        <Box
-          component="nav"
-          aria-label="Intelligence sections"
-          sx={{
-            display: "flex",
-            width: "100%",
-            overflowX: "auto",
-            gap: 0.75,
-            borderBottom: "1px solid",
-            borderColor: "neutral.outlinedBorder",
-            pb: 1.25,
-            scrollbarWidth: "thin",
-          }}
-        >
-          {VIEWS.map((item) => {
-            const Icon = item.icon;
-            const selected = item.id === active;
-            return (
-              <Button
-                key={item.id}
-                color="neutral"
-                variant={selected ? "soft" : "plain"}
-                aria-current={selected ? "page" : undefined}
-                onClick={() => changeView(item.id)}
-                sx={{
-                  borderRadius: "13px",
-                  flexShrink: 0,
-                  py: 1.2,
-                  px: { xs: 1.45, md: 2.2 },
-                  minHeight: 48,
-                  display: "flex",
-                  gap: 1.1,
-                  alignItems: "center",
-                  bgcolor: selected ? "neutral.softBg" : "transparent",
-                  border: "1px solid",
-                  borderColor: selected
-                    ? "neutral.outlinedBorder"
-                    : "transparent",
-                  boxShadow: selected ? "sm" : "none",
-                  "&:hover": { bgcolor: "neutral.softHoverBg" },
-                }}
-              >
-                <Icon size={18} strokeWidth={selected ? 2.15 : 1.8} />
-                <Stack spacing={0} alignItems="flex-start">
-                  <Typography level="title-sm">{item.title}</Typography>
-                  <Typography
-                    level="body-xs"
-                    sx={{
-                      color: "text.tertiary",
-                      display: { xs: "none", lg: "block" },
-                    }}
-                  >
-                    {item.description}
-                  </Typography>
-                </Stack>
-              </Button>
-            );
-          })}
+              {VIEWS.map((item) => (
+                <JoyTabsTrigger
+                  key={item.id}
+                  value={item.id}
+                  id={"intelligence-tab-" + item.id}
+                  aria-controls={"intelligence-panel-" + item.id}
+                  sx={{ flex: "none", whiteSpace: "nowrap", fontSize: "sm" }}
+                >
+                  {item.title}
+                </JoyTabsTrigger>
+              ))}
+            </JoyTabsList>
+          </JoyTabs>
         </Box>
 
-        <BloomCompanion view={active} onAsk={askBloom} />
+        <BloomCompanion view={active} onAsk={askBloom} inputRef={askBox} />
 
         {visited.includes("overview") && (
-          <Box
-            hidden={active !== "overview"}
-            sx={{ display: active === "overview" ? "block" : "none" }}
-          >
-            <Stack spacing={3}>
-              <Box>
-                <SectionTitle
-                  eyebrow="Start with a goal"
-                  title="What would you like to do today?"
-                  description="Follow a simple flow. Every step connects to the same customer records; nothing gets lost behind another dashboard."
-                />
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      sm: "repeat(2,minmax(0,1fr))",
-                      lg: "repeat(3,minmax(0,1fr))",
-                    },
-                    gap: 1.5,
-                  }}
-                >
-                  <TaskCard
-                    step="01 / DISCOVER"
-                    icon={UsersRound}
-                    title="Find the right customers"
-                    description="Search purchase history, create an exact group, and understand why each person qualifies."
-                    action="Find an audience"
-                    onClick={() => changeView("explore")}
-                  />
-                  <TaskCard
-                    step="02 / UNDERSTAND"
-                    icon={ChartNoAxesCombined}
-                    title="See what is changing"
-                    description="Compare visits and spending against a meaningful historical period."
-                    action="Measure growth"
-                    onClick={() => changeView("growth")}
-                  />
-                  <TaskCard
-                    step="03 / ACT & LEARN"
-                    icon={Gift}
-                    title="Give them a reason to return"
-                    description="Plan a reward, review the exact people, and measure what happens afterward."
-                    action="Explore rewards"
-                    onClick={() => changeView("rewards")}
-                  />
-                </Box>
-              </Box>
-              {tenantId && <ImportedReportsPanel key={tenantId} tenantId={tenantId} />}
-              <OverviewInsights
-                rows={query.data ?? []}
-                loading={query.isPending && query.fetchStatus === "fetching"}
-                error={
-                  query.error instanceof Error
-                    ? query.error
-                    : query.error
-                      ? new Error("Customer intelligence unavailable.")
-                      : null
-                }
-                refreshedAt={query.dataUpdatedAt}
-                onRetry={() => {
-                  void query.refetch();
-                }}
-                onAsk={askBloom}
-                onView={changeView}
-                onCustomer={(id) =>
-                  navigate(
-                    "/crm/customers/" +
-                      encodeURIComponent(id) +
-                      "?tab=purchase",
-                  )
-                }
+          <TabPanelBox view="overview" active={active}>
+            <IntelligenceSectionHeader
+              title="What would you like to do today?"
+              description="Follow a simple flow. Every step connects to the same customer records; nothing gets lost behind another dashboard."
+            />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0,1fr)",
+                  md: "repeat(3,minmax(0,1fr))",
+                },
+                gap: 3,
+              }}
+            >
+              <TaskCard
+                step="01 · Discover"
+                icon={UsersRound}
+                title="Find the right customers"
+                description="Search purchase history, create an exact group, and understand why each person qualifies."
+                action="Find an audience"
+                onClick={() => changeView("explore")}
               />
-              <Sheet
-                variant="soft"
-                sx={{ borderRadius: "20px", p: { xs: 2.5, md: 3 } }}
-              >
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  alignItems={{ md: "center" }}
-                  justifyContent="space-between"
-                  gap={2}
+              <TaskCard
+                step="02 · Understand"
+                icon={ChartNoAxesCombined}
+                title="See what is changing"
+                description="Compare visits and spending against a meaningful historical period."
+                action="Measure growth"
+                onClick={() => changeView("growth")}
+              />
+              <TaskCard
+                step="03 · Act & learn"
+                icon={Gift}
+                title="Give them a reason to return"
+                description="Plan a reward, review the exact people, and measure what happens afterward."
+                action="Explore rewards"
+                onClick={() => changeView("rewards")}
+              />
+            </Box>
+            {tenantId && <ImportedReportsPanel key={tenantId} tenantId={tenantId} />}
+            <OverviewInsights
+              rows={query.data ?? []}
+              loading={query.isPending && query.fetchStatus === "fetching"}
+              error={
+                query.error instanceof Error
+                  ? query.error
+                  : query.error
+                    ? new Error("Customer intelligence unavailable.")
+                    : null
+              }
+              refreshedAt={query.dataUpdatedAt}
+              onRetry={() => {
+                void query.refetch();
+              }}
+              onAsk={askBloom}
+              onView={changeView}
+              onCustomer={(id) =>
+                navigate(
+                  "/crm/customers/" +
+                    encodeURIComponent(id) +
+                    "?tab=purchase",
+                )
+              }
+            />
+            <IntelligenceCard
+              icon={<Database />}
+              title="Are your records ready to trust?"
+              description="Keep original POS files, review missing transactions, and check import dates before relying on growth scores or starting outreach."
+              headerActions={
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  color="neutral"
+                  endDecorator={<ArrowRight size={14} />}
+                  onClick={() => changeView("data")}
                 >
-                  <Stack spacing={0.7}>
-                    <Stack direction="row" alignItems="center" gap={1}>
-                      <Database size={18} />
-                      <Typography level="title-lg">
-                        Are your records ready to trust?
-                      </Typography>
-                    </Stack>
-                    <Typography
-                      level="body-sm"
-                      color="neutral"
-                      sx={{ maxWidth: 700 }}
-                    >
-                      Keep original POS files, review missing transactions, and
-                      check import dates before relying on growth scores or
-                      starting outreach.
-                    </Typography>
-                  </Stack>
-                  <Button
-                    variant="outlined"
-                    color="neutral"
-                    onClick={() => changeView("data")}
-                  >
-                    Review sources & channels <ArrowRight size={15} />
-                  </Button>
-                </Stack>
-              </Sheet>
-            </Stack>
-          </Box>
+                  Review sources & channels
+                </Button>
+              }
+            />
+          </TabPanelBox>
         )}
 
         {visited.includes("explore") && (
-          <Box
-            hidden={active !== "explore"}
-            sx={{ display: active === "explore" ? "block" : "none" }}
-          >
-            <SectionTitle
-              eyebrow="Step 01 · Discover"
+          <TabPanelBox view="explore" active={active}>
+            <IntelligenceSectionHeader
+              step="Step 1"
               title="Find a group worth understanding"
               description="Ask Bloom a precise question about products or buying patterns, then inspect the matching, excluded, and unknown customers before saving your group."
               action={
                 <Button
+                  size="sm"
                   variant="outlined"
                   color="neutral"
+                  endDecorator={<ArrowUpRight size={14} />}
                   onClick={() => navigate("/crm/segments")}
                 >
-                  Open audience builder <ArrowUpRight size={14} />
+                  Open audience builder
                 </Button>
               }
             />
-            <Stack spacing={2}>
-              <CustomerGrowthWorkspace
-                key={String(tenantId) + "-explore"}
-                section="explore"
-              />
-              <Sheet variant="soft" sx={{ p: 2.5, borderRadius: "lg" }}>
-                <Stack direction="row" gap={1.5} alignItems="flex-start">
-                  <ShieldCheck size={21} strokeWidth={1.7} />
-                  <Stack spacing={0.5}>
-                    <Typography level="title-sm">
-                      Know exactly why someone matches.
-                    </Typography>
-                    <Typography level="body-sm" color="neutral">
-                      Bloom preserves follow-up customer sets. Check source
-                      evidence and missing data, then save a static group or
-                      build a dynamic segment. No one is contacted
-                      automatically.
-                    </Typography>
-                  </Stack>
-                </Stack>
-              </Sheet>
-            </Stack>
-          </Box>
+            <CustomerGrowthWorkspace
+              key={String(tenantId) + "-explore"}
+              section="explore"
+            />
+            <IntelligenceCard
+              icon={<ShieldCheck />}
+              title="Know exactly why someone matches."
+              notes="Bloom preserves follow-up customer sets. Check source evidence and missing data, then save a static group or build a dynamic segment. No one is contacted automatically."
+            />
+          </TabPanelBox>
         )}
 
         {visited.includes("growth") && (
-          <Box
-            hidden={active !== "growth"}
-            sx={{ display: active === "growth" ? "block" : "none" }}
-          >
-            <SectionTitle
-              eyebrow="Step 02 · Understand"
+          <TabPanelBox view="growth" active={active}>
+            <IntelligenceSectionHeader
+              step="Step 2"
               title="Make sense of changing customer habits"
               description="Compare each customer with their own historical spending and number of visits. Index 100 means no change; customers without a comparable baseline remain unscored."
             />
@@ -1400,16 +1028,13 @@ export default function CustomerIntelligencePage() {
               key={String(tenantId) + "-growth"}
               section="growth"
             />
-          </Box>
+          </TabPanelBox>
         )}
 
         {visited.includes("rewards") && (
-          <Box
-            hidden={active !== "rewards"}
-            sx={{ display: active === "rewards" ? "block" : "none" }}
-          >
-            <SectionTitle
-              eyebrow="Step 03 · Act & learn"
+          <TabPanelBox view="rewards" active={active}>
+            <IntelligenceSectionHeader
+              step="Step 3"
               title="Build relationships, not just points"
               description="Create welcome benefits, win-back offers, and experiences. Set explicit eligibility and budgets, review recipients, and track results without automatically sending anything."
             />
@@ -1424,140 +1049,96 @@ export default function CustomerIntelligencePage() {
                 Select a company to manage loyalty programmes.
               </Alert>
             )}
-            <Sheet variant="soft" sx={{ borderRadius: "lg", p: 2.5, mt: 2 }}>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                gap={1.5}
-                alignItems={{ sm: "center" }}
-                justifyContent="space-between"
-              >
-                <Stack spacing={0.4}>
-                  <Typography level="title-md">
-                    Need a little help designing a programme?
-                  </Typography>
-                  <Typography level="body-sm" color="neutral">
-                    Bloom can propose a budget-conscious campaign using reviewed
-                    customer groups.
-                  </Typography>
-                </Stack>
+            <IntelligenceCard
+              icon={<Sparkles />}
+              title="Need a little help designing a programme?"
+              description="Bloom can propose a budget-conscious campaign using reviewed customer groups."
+              headerActions={
                 <Button
+                  size="sm"
                   variant="outlined"
                   color="neutral"
+                  endDecorator={<Sparkles size={14} />}
                   onClick={() => askBloom(INTELLIGENCE_QUESTIONS.rewards)}
                 >
-                  Plan with Bloom <Sparkles size={15} />
+                  Plan with Bloom
                 </Button>
-              </Stack>
-            </Sheet>
-          </Box>
+              }
+            />
+          </TabPanelBox>
         )}
 
         {visited.includes("data") && (
-          <Box
-            hidden={active !== "data"}
-            sx={{ display: active === "data" ? "block" : "none" }}
-          >
-            <SectionTitle
-              eyebrow="Foundation"
+          <TabPanelBox view="data" active={active}>
+            <IntelligenceSectionHeader
               title="Make sure the information is dependable"
               description="Connect your point of sale, prepare reviewed exports, and see which communication channels are ready. Advanced pilot controls stay out of the everyday workflow."
               action={
                 <Button
+                  size="sm"
                   variant="outlined"
                   color="neutral"
+                  endDecorator={<ArrowUpRight size={14} />}
                   onClick={() => navigate("/crm/pos")}
                 >
-                  POS integrations <ArrowUpRight size={14} />
+                  POS integrations
                 </Button>
               }
             />
-            <Stack spacing={2}>
-              <Sheet
-                variant="outlined"
-                sx={{ p: { xs: 2.5, md: 3 }, borderRadius: "20px" }}
-              >
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  gap={1.5}
-                  alignItems={{ sm: "center" }}
+            <IntelligenceCard
+              icon={<Database />}
+              title="Your POS remains the source of purchase truth."
+              description="Grouped reports cannot establish visits. Review identity matches and source coverage before using your customer-growth results."
+              headerActions={
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  color="neutral"
+                  endDecorator={<ArrowRight size={14} />}
+                  onClick={() => askBloom(INTELLIGENCE_QUESTIONS.sources)}
                 >
-                  <Sheet
-                    variant="soft"
-                    sx={{
-                      width: 45,
-                      height: 45,
-                      borderRadius: "lg",
-                      display: "grid",
-                      placeItems: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Database size={22} />
-                  </Sheet>
-                  <Stack spacing={0.4} sx={{ flex: 1 }}>
-                    <Typography level="title-lg">
-                      Your POS remains the source of purchase truth.
-                    </Typography>
-                    <Typography level="body-sm" color="neutral">
-                      Grouped reports cannot establish visits. Review identity
-                      matches and source coverage before using your
-                      customer-growth results.
-                    </Typography>
-                  </Stack>
-                  <Button
-                    variant="soft"
-                    color="neutral"
-                    onClick={() => askBloom(INTELLIGENCE_QUESTIONS.sources)}
-                  >
-                    Ask Bloom about my sources <ArrowRight size={14} />
-                  </Button>
-                </Stack>
-              </Sheet>
-              {tenantId ? (
-                <IdealCustomerTypeExportPanel
-                  key={tenantId + "-ideal"}
-                  tenantId={tenantId}
+                  Ask Bloom about my sources
+                </Button>
+              }
+            />
+            {tenantId ? (
+              <IdealCustomerTypeExportPanel
+                key={tenantId + "-ideal"}
+                tenantId={tenantId}
+              />
+            ) : null}
+            <Stack direction="row" gap={1} alignItems="flex-start">
+              <Box sx={{ color: "primary.600", pt: 0.25 }}>
+                <MessageCircle size={18} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <IntelligenceSectionHeader
+                  title="Customer communication channels"
+                  description="Check readiness before deciding whether to send a campaign. Consent and delivery status are not inferred from a purchase."
                 />
-              ) : null}
-              <Sheet
-                variant="outlined"
-                sx={{ borderRadius: "20px", p: { xs: 2.5, md: 3 } }}
-              >
-                <Stack spacing={1.5}>
-                  <Stack direction="row" gap={1} alignItems="center">
-                    <MessageCircle size={19} />
-                    <Typography level="title-lg">
-                      Customer communication channels
-                    </Typography>
-                  </Stack>
-                  <Typography level="body-sm" color="neutral">
-                    Check readiness before deciding whether to send a campaign.
-                    Consent and delivery status are not inferred from a
-                    purchase.
-                  </Typography>
-                  {tenantId && <CampaignReadinessPanel key={tenantId + "-email-readiness"} tenantId={tenantId} />}
-                  <PushReadinessPanel />
-                  <Divider />
-                  <Button
-                    variant="plain"
-                    color="neutral"
-                    aria-expanded={advanced}
-                    aria-controls="intelligence-advanced-channels"
-                    sx={{ alignSelf: "flex-start" }}
-                    onClick={() => setAdvanced((value) => !value)}
-                  >
-                    {advanced
-                      ? "Hide advanced channel setup"
-                      : "Show advanced channel setup"}{" "}
-                    <ChevronRight size={16} />
-                  </Button>
-                  <Box id="intelligence-advanced-channels">
-                    {advanced && <PushPilotPanel />}
-                  </Box>
-                </Stack>
-              </Sheet>
+              </Box>
             </Stack>
-          </Box>
+            {tenantId && <CampaignReadinessPanel key={tenantId + "-email-readiness"} tenantId={tenantId} />}
+            <PushReadinessPanel />
+            <IntelligenceActions justifyContent="flex-start">
+              <Button
+                size="sm"
+                variant="plain"
+                color="neutral"
+                aria-expanded={advanced}
+                aria-controls="intelligence-advanced-channels"
+                endDecorator={<ChevronRight size={14} />}
+                onClick={() => setAdvanced((value) => !value)}
+              >
+                {advanced
+                  ? "Hide advanced channel setup"
+                  : "Show advanced channel setup"}
+              </Button>
+            </IntelligenceActions>
+            <Box id="intelligence-advanced-channels">
+              {advanced && <PushPilotPanel />}
+            </Box>
+          </TabPanelBox>
         )}
       </Stack>
     </PageContainer>

@@ -6,6 +6,8 @@ import type {PersistenceClient} from '../../../../supabase/functions/bloom-assis
 import {loadObservedJournalPeriod,compareObservedJournalPeriods,journalCoverage,observedDeclineReview,type ObservedJournalPeriod} from '../../../../supabase/functions/_shared/customer-intelligence/observed-ideal-journal';
 import {validateGrowthSettings,type GrowthSettings} from '../../../../supabase/functions/_shared/customer-intelligence/customer-growth';
 import {useAdmin} from '@/contexts/AdminContext';
+import {ReceiptText,Users} from 'lucide-react';
+import {IntelligenceActions,IntelligenceCard,IntelligenceNote,IntelligenceStatRow} from './IntelligenceLayout';
 import {programmeCommand} from '@/lib/loyalty/programmeApi';
 
 export function ObservedIdealJournalPanel({tenantId,settings}: {tenantId:string;settings:Omit<GrowthSettings,'data_cutoff'>}){
@@ -50,34 +52,30 @@ export function ObservedIdealJournalPanel({tenantId,settings}: {tenantId:string;
  }
  const money=(v:number|null)=>v===null?'Unknown':new Intl.NumberFormat('en-CA',{style:'currency',currency:settings.currency}).format(v/100);
  const number=(v:number|null)=>v===null?'Unknown':v.toLocaleString('en-CA');
- return <Sheet variant="outlined" sx={{p:{xs:2,md:3},borderRadius:'lg'}}>
-  <Stack spacing={1.5}>
-   <Typography level="title-lg">Imported IdealPOS journal activity</Typography>
-   <Typography level="body-sm">Compare recorded net spending and positive purchase days using the dates and weights above. Multiple paid receipts on the same local calendar day count as one observed purchase day. This is a separate evidence source from native POS orders. Receipt imports are not certified complete store-visit history.</Typography>
-   <Typography level="body-xs">{settings.baseline_start} – {settings.baseline_end} versus {settings.current_start} – {settings.current_end}. Use month or season windows (up to 94 days).</Typography>
-   <Button variant="outlined" loading={busy} disabled={busy||saving} onClick={()=>void compare()}>Compare imported journal activity</Button>
+ return <IntelligenceCard icon={<ReceiptText/>} title="Imported IdealPOS journal activity" notes={<Typography>Compare recorded net spending and positive purchase days using the dates and weights above. Multiple paid receipts on the same local calendar day count as one observed purchase day. This is a separate evidence source from native POS orders. Receipt imports are not certified complete store-visit history.</Typography>}>
+  <Stack spacing={3}>
+   <Typography level="body-sm" sx={{color:'neutral.600'}}>{settings.baseline_start} – {settings.baseline_end} versus {settings.current_start} – {settings.current_end}. Use month or season windows (up to 94 days).</Typography>
+   <IntelligenceActions><Button size="sm" variant="outlined" color="neutral" loading={busy} disabled={busy||saving} onClick={()=>void compare()}>Compare imported journal activity</Button></IntelligenceActions>
    {error&&<Alert color="neutral" role="alert">{error}</Alert>}
    {result&&<>
-    <Alert color="neutral" variant="soft">Observed journal evidence only. Zero-net and negative-net receipts never count as paid activity. Refunds reduce recorded net spending. Missing receipts remain unknown; this is not a certified retention, reactivation or campaign-lift report.</Alert>
-    <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr 1fr',md:'repeat(4,minmax(0,1fr))'},gap:1}}>
-     {([['Earlier observed buyers',result.comparison.baselineObservedBuyers],['Current observed buyers',result.comparison.currentObservedBuyers],['Comparable observed customers',result.comparison.comparable],['Observed decline',result.comparison.declining]] as const).map(([label,value])=><Sheet key={label} variant="soft" sx={{p:1.5,borderRadius:'lg'}}><Typography level="body-xs">{label}</Typography><Typography level="h3">{number(value)}</Typography></Sheet>)}
-    </Box>
+    <IntelligenceNote>Observed journal evidence only. Zero-net and negative-net receipts never count as paid activity. Refunds reduce recorded net spending. Missing receipts remain unknown; this is not a certified retention, reactivation or campaign-lift report.</IntelligenceNote>
+    <IntelligenceStatRow items={([['Earlier observed buyers',result.comparison.baselineObservedBuyers],['Current observed buyers',result.comparison.currentObservedBuyers],['Comparable observed customers',result.comparison.comparable],['Observed decline',result.comparison.declining]] as const).map(([label,value])=>({label,value:number(value),icon:<Users/>}))}/>
     <Typography level="body-sm">{number(result.comparison.unscored)} observed customers lack a comparable positive baseline or current paid activity. They are not labelled lost or inactive.</Typography>
     {[result.before,result.after].map(p=>{const coverage=journalCoverage(p.source);return <Box key={p.window.start}><Typography level="title-sm">{p.window.start} through {p.window.end}</Typography><Typography level="body-xs">{p.source.source_filename??'Journal source'} · {number(p.positiveReceipts)} positive receipts · {number(p.zeroReceipts)} zero · {number(p.negativeReceipts)} negative · {number(p.excludedReceipts)} excluded for identity or receipt conflicts.</Typography>{coverage.mode==='reconciled_customer_cohort'&&<Alert color="neutral" variant="soft">Partial source: {number(coverage.includedCustomers)} independently reconciled customers and {number(coverage.includedReceipts)} of {number(coverage.sourceReceipts)} receipts across the full imported period. {number(coverage.excludedReceipts)} receipts remain outside this source. The comparison is observed activity only, not a company-wide retention rate.</Alert>}</Box>})}
-    {result.comparison.declining>0&&<Sheet variant="soft" sx={{p:2,borderRadius:'lg'}}>
+    {result.comparison.declining>0&&<Sheet variant="soft" color="neutral" sx={{p:3,borderRadius:'lg'}}>
      <Stack spacing={1.5}>
       <Typography level="title-md">Create a recovery audience</Typography>
       <Typography level="body-sm">Review the {number(result.comparison.declining)} customers with observed decline (shown first in the table). Both periods contain observed positive activity for these customers. Unknown or missing activity is excluded. Saving does not grant consent or send a campaign.</Typography>
-      <FormControl><FormLabel>Segment name</FormLabel><Input value={segmentName} disabled={saving||busy} onChange={e=>{setSegmentName(e.target.value);setConfirmed(false);setSaved(null);}} slotProps={{input:{maxLength:120}}}/></FormControl>
+      <FormControl size="sm" sx={{width:'100%',maxWidth:360}}><FormLabel>Segment name</FormLabel><Input size="sm" value={segmentName} disabled={saving||busy} onChange={e=>{setSegmentName(e.target.value);setConfirmed(false);setSaved(null);}} slotProps={{input:{maxLength:120}}}/></FormControl>
       <Checkbox checked={confirmed} disabled={saving||busy} onChange={e=>setConfirmed(e.target.checked)} label="Save this exact observed decline group as a static segment. I understand the source coverage is incomplete."/>
-      <Button disabled={!confirmed||saving||busy||!segmentName.trim()} loading={saving} onClick={()=>void saveRecovery()}>Save {number(result.comparison.declining)} customers</Button>
+      <IntelligenceActions><Button size="sm" disabled={!confirmed||saving||busy||!segmentName.trim()} loading={saving} onClick={()=>void saveRecovery()}>Save {number(result.comparison.declining)} customers</Button></IntelligenceActions>
       {saved&&<Alert color="success" variant="soft"><Stack gap={0.5}><Typography level="body-sm">Saved {saved.customers} verified members in {saved.name}.</Typography><Button size="sm" variant="plain" component={RouterLink} to={'/crm/segments/'+encodeURIComponent(saved.segmentId)}>Open saved segment</Button></Stack></Alert>}
       <Button size="sm" variant="plain" component={RouterLink} to="/crm/intelligence?view=data">IdealPOS export tools</Button>
      </Stack>
     </Sheet>}
     <Box sx={{overflowX:'auto'}}><Table size="sm" aria-label="Observed journal customer comparison" sx={{minWidth:650}}><thead><tr><th>Customer</th><th>Prior spend</th><th>Current spend</th><th>Paid purchase days prior → current</th><th>Observed change</th></tr></thead><tbody>{result.comparison.rows.slice((page-1)*50,page*50).map(r=><tr key={r.id}><td><Button variant="plain" size="sm" component={RouterLink} to={'/crm/customers/'+encodeURIComponent(r.id)}>{r.name}</Button></td><td>{money(r.baselineSpend)}</td><td>{money(r.currentSpend)}</td><td>{number(r.baselinePurchaseDays)} → {number(r.currentPurchaseDays)}</td><td>{r.observedGrowth===null?'Unknown':r.observedGrowth.toFixed(1)+'%'}</td></tr>)}</tbody></Table></Box>
-    <Stack direction="row" gap={1} alignItems="center"><Button variant="plain" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Previous</Button><Typography level="body-xs">Page {page} of {Math.max(1,Math.ceil(result.comparison.rows.length/50))}</Typography><Button variant="plain" disabled={page*50>=result.comparison.rows.length} onClick={()=>setPage(p=>p+1)}>Next</Button></Stack>
+    <Stack direction="row" gap={1} alignItems="center" justifyContent="flex-end"><Button size="sm" variant="outlined" color="neutral" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Previous</Button><Typography level="body-xs">Page {page} of {Math.max(1,Math.ceil(result.comparison.rows.length/50))}</Typography><Button size="sm" variant="outlined" color="neutral" disabled={page*50>=result.comparison.rows.length} onClick={()=>setPage(p=>p+1)}>Next</Button></Stack>
    </>}
   </Stack>
- </Sheet>;
+ </IntelligenceCard>;
 }

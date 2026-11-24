@@ -9,7 +9,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { ArrowDown } from "lucide-react";
 import { AISessionDivider } from "../ai-session-divider";
-import { AIImageStudioMessage } from "./AIImageStudioMessage";
+import { AIImageStudioMessage as AIImageStudioMessageView } from "./AIImageStudioMessage";
 import { AIImageStudioWelcome } from "./AIImageStudioWelcome";
 import type { AIImageStudioVariationItem } from "./AIImageStudioImageResultCard";
 import type { AIImageStudioMessage } from "./types";
@@ -710,7 +710,7 @@ export function AIImageStudioConversation({
                 ) : null}
 
                 {item.kind === "message" ? (
-                  <AIImageStudioMessage
+                  <AIImageStudioMessageView
                     isHighlighted={highlightedMessageId === item.message.id}
                     isHistorical={isHistorical}
                     message={item.message}
@@ -765,7 +765,7 @@ export function AIImageStudioConversation({
                             (variationGroup?.length || 0) > 1;
 
                           return (
-                            <AIImageStudioMessage
+                            <AIImageStudioMessageView
                               key={groupMessage.id}
                               hideTimestamp
                               isHighlighted={
