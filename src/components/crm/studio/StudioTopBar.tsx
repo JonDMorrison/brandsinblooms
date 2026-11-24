@@ -893,8 +893,17 @@ export default function StudioTopBar({
                 size="sm"
                 aria-label="Review & Send"
                 onClick={onExit}
-                loading={saveStatus === "saving"}
-                endDecorator={<ArrowRight size={16} aria-hidden="true" />}
+                // Never disabled by a save: blurring an open block panel
+                // starts an autosave on mousedown, and a disabled button
+                // swallowed that first click. Review & Send waits for it.
+                aria-busy={saveStatus === "saving"}
+                endDecorator={
+                  saveStatus === "saving" ? (
+                    <CircularProgress size="sm" thickness={2} sx={{ "--CircularProgress-size": "14px", color: "inherit" }} />
+                  ) : (
+                    <ArrowRight size={16} aria-hidden="true" />
+                  )
+                }
                 sx={{
                   minHeight: 34,
                   flexShrink: 0,

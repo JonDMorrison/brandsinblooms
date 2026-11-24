@@ -1643,7 +1643,7 @@ function CampaignStudioPageContent() {
     finalizeAIChoreography();
   }, [finalizeAIChoreography]);
 
-  const handleExit = React.useCallback(async () => {
+  const handleExitAfterPanelClosed = React.useCallback(async () => {
     if (aiStudioOpen) {
       pendingExitAfterAICloseRef.current = true;
 
@@ -1664,6 +1664,28 @@ function CampaignStudioPageContent() {
     finalizeAIChoreography,
     isAIImageStudioDrawerOpen,
   ]);
+  const exitAfterPanelClosedRef = React.useRef(handleExitAfterPanelClosed);
+  React.useEffect(() => {
+    exitAfterPanelClosedRef.current = handleExitAfterPanelClosed;
+  }, [handleExitAfterPanelClosed]);
+
+  // Review & Send works on the first click while a block panel is open: close
+  // the panel (its last edit is committed on blur), let React commit that
+  // edit to the snapshot, then save and navigate. The button is never
+  // disabled by an autosave that the click itself started.
+  const exitInFlightRef = React.useRef(false);
+  const { selectedBlockId: exitSelectedBlockId, selectBlock: exitSelectBlock } = studio;
+  const handleExit = React.useCallback(async () => {
+    if (exitInFlightRef.current) return;
+    exitInFlightRef.current = true;
+    try {
+      if (exitSelectedBlockId) exitSelectBlock(null);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      await exitAfterPanelClosedRef.current();
+    } finally {
+      exitInFlightRef.current = false;
+    }
+  }, [exitSelectedBlockId, exitSelectBlock]);
 
   React.useEffect(() => {
     return () => {
