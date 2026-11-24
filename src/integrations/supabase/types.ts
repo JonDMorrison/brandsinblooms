@@ -15455,6 +15455,8 @@ export type Database = {
           waiting: number;
           stopped: number;
           unsendable: number;
+          asked_to_stop: number;
+          never_opted_in: number;
         }[];
       };
       begin_customer_csv_import: {

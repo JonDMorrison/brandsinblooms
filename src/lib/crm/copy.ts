@@ -29,6 +29,7 @@ export const CRM_COPY = {
   optedIn: "Said yes to email",
   optedOut: "Asked to stop",
   optedOutPlural: "Asked us to stop",
+  neverOptedIn: "Never opted in",
 
   // ───── suppression + bounces ─────
   suppressionList: "People we can't send to",

@@ -8,6 +8,7 @@ import {
   originForNewsletterIdea,
 } from "@/lib/studio/newsletterIdeaSeed";
 import { EmptyBlocksNotice } from "@/components/crm/campaign-editor/EmptyBlocksNotice";
+import { CRM_COPY } from "@/lib/crm/copy";
 import { findIdentityMismatches } from "@/lib/crm/identityConsistency";
 import { hasContentBlocks } from "@/lib/studio/emailHtmlGenerator";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
@@ -1940,7 +1941,7 @@ function CampaignEditorScreen() {
                     display: "grid",
                     gridTemplateColumns: {
                       xs: "repeat(2, minmax(0, 1fr))",
-                      sm: "repeat(4, minmax(0, 1fr))",
+                      sm: "repeat(5, minmax(0, 1fr))",
                     },
                     gap: 1.25,
                   }}
@@ -1990,7 +1991,21 @@ function CampaignEditorScreen() {
                       level="body-xs"
                       sx={{ color: "neutral.600", mt: 0.5 }}
                     >
-                      Asked us to stop
+                      {CRM_COPY.optedOutPlural}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      level="title-md"
+                      sx={{ color: "neutral.700", lineHeight: 1 }}
+                    >
+                      {audienceHealthQuery.data.neverOptedIn.toLocaleString()}
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "neutral.600", mt: 0.5 }}
+                    >
+                      {CRM_COPY.neverOptedIn}
                     </Typography>
                   </Box>
                   <Box>

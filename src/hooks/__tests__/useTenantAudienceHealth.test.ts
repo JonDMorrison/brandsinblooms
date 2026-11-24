@@ -18,16 +18,40 @@ import {
   fetchTenantAudienceHealth,
   toAudienceHealth,
 } from "@/hooks/useTenantAudienceHealth";
+import { CRM_COPY } from "@/lib/crm/copy";
 
-const row = (total: number, reachable: number, waiting: number, stopped: number, unsendable: number) => ({
-  total, reachable, waiting, stopped, unsendable,
+const row = (
+  total: number,
+  reachable: number,
+  waiting: number,
+  askedToStop: number,
+  unsendable: number,
+  neverOptedIn = 0,
+) => ({
+  total, reachable, waiting, stopped: askedToStop + neverOptedIn, unsendable,
+  asked_to_stop: askedToStop, never_opted_in: neverOptedIn,
 });
 
 describe("email reachability bucket math", () => {
   it("maps the four exclusive buckets and they add up to the total", () => {
     const health = toAudienceHealth([row(270, 244, 1, 21, 4)]);
-    expect(health).toEqual({ total: 270, confirmed: 244, eligible: 244, pending: 1, optedOut: 21, suppressed: 4 });
-    expect(health.confirmed + health.pending + health.optedOut + health.suppressed).toBe(health.total);
+    expect(health).toEqual({ total: 270, confirmed: 244, eligible: 244, pending: 1, optedOut: 21, neverOptedIn: 0, suppressed: 4 });
+    expect(health.confirmed + health.pending + health.optedOut + health.neverOptedIn + health.suppressed).toBe(health.total);
+  });
+
+  it("puts email_opt_in = false without an opt-out under Never opted in (Northfield, qa2 #3)", () => {
+    // SQL for Northfield on 2026-11-24: 9,500 = 0 + 0 + 0 asked + 1,900 never + 7,600.
+    const health = toAudienceHealth([row(9500, 0, 0, 0, 7600, 1900)]);
+    expect(health).toMatchObject({ total: 9500, confirmed: 0, optedOut: 0, neverOptedIn: 1900, suppressed: 7600 });
+  });
+
+  it("labels the buckets in plain words", () => {
+    expect(CRM_COPY.optedOutPlural).toBe("Asked us to stop");
+    expect(CRM_COPY.neverOptedIn).toBe("Never opted in");
+  });
+
+  it("rejects a stopped total that does not match its parts", () => {
+    expect(() => toAudienceHealth([{ ...row(10, 0, 0, 1, 8, 1), stopped: 1 }])).toThrow(/add up/);
   });
 
   it("reports a fully suppressed tenant as 0 reachable, not 7,600 said yes", () => {
@@ -36,7 +60,7 @@ describe("email reachability bucket math", () => {
   });
 
   it("sums batches and accepts bigint counts returned as strings", () => {
-    expect(toAudienceHealth([row(3, 1, 1, 1, 0), { total: "2", reachable: "2", waiting: "0", stopped: "0", unsendable: "0" }]))
+    expect(toAudienceHealth([row(3, 1, 1, 1, 0), { total: "2", reachable: "2", waiting: "0", stopped: "0", unsendable: "0", asked_to_stop: "0", never_opted_in: "0" }]))
       .toMatchObject({ total: 5, confirmed: 3 });
   });
 
@@ -62,7 +86,7 @@ describe("campaign-scoped consent health", () => {
   it("counts only the resolved customers with the shared definition", async () => {
     resolveIds.mockResolvedValue(["a", "b", "c", "d"]);
     expect(await fetchCampaignAudienceHealth(options)).toEqual({
-      total: 4, confirmed: 1, eligible: 1, pending: 1, optedOut: 1, suppressed: 1,
+      total: 4, confirmed: 1, eligible: 1, pending: 1, optedOut: 1, neverOptedIn: 0, suppressed: 1,
     });
     expect(resolveIds).toHaveBeenCalledWith({ ...options, fallbackToAllCustomers: false });
     expect(rpc).toHaveBeenCalledWith("email_reachability_summary", {
