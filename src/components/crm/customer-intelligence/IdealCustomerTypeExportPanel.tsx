@@ -21,10 +21,12 @@ import { Download, FileSpreadsheet } from "lucide-react";
 import { NewsletterMatchReviewPanel } from "./NewsletterMatchReviewPanel";
 import { CustomerRefreshReviewPanel } from "./CustomerRefreshReviewPanel";
 import { useUserRole } from "@/hooks/useUserRole";
+import { fetchEmailReachability, type TenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { supabase } from "@/integrations/supabase/client";
 import { readAllPages } from "../../../../supabase/functions/_shared/customer-intelligence/query-pages";
 import {
   draftIdealCustomerTypeCsv,
+  idealAudienceReviewKey,
   decodeIdealCustomerBytes,
   parseIdealCustomerCsv,
   reviewIdealCustomerTypeExport,
@@ -37,9 +39,10 @@ type Segment = { id: string; name: string };
 const unique = (values: string[]) => [...new Set(values)];
 
 export function IdealCustomerTypeExportPanel({
-  tenantId,
+  tenantId, requestedSegmentId,
 }: {
   tenantId: string;
+  requestedSegmentId?: string | null;
 }) {
   const { role, hasPermission, tenantId: activeTenantId } = useUserRole();
   if (
@@ -52,18 +55,20 @@ export function IdealCustomerTypeExportPanel({
     <Stack spacing={2}>
       <NewsletterMatchReviewPanel key={tenantId + "-newsletter-match"} />
       <CustomerRefreshReviewPanel key={tenantId + "-customer-refresh"} tenantId={tenantId} />
-      <IdealCustomerTypeExportWorksheet key={tenantId} tenantId={tenantId} />
+      <IdealCustomerTypeExportWorksheet key={tenantId+":"+(requestedSegmentId??"")} tenantId={tenantId} requestedSegmentId={requestedSegmentId} />
     </Stack>
   );
 }
 
 /** Preview is browser-local. No PII from the full Ideal customer file is uploaded or persisted. */
 export function IdealCustomerTypeExportWorksheet({
-  tenantId,
+  tenantId, requestedSegmentId,
 }: {
   tenantId: string;
+  requestedSegmentId?: string | null;
 }) {
-  const [opened, setOpened] = React.useState(false);
+  const requested = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(requestedSegmentId??"") ? requestedSegmentId! : null;
+  const [opened, setOpened] = React.useState(Boolean(requested));
   const [segments, setSegments] = React.useState<Segment[]>([]);
   const [segmentId, setSegmentId] = React.useState("");
   const [sourceFileName, setSourceFileName] = React.useState("");
@@ -71,6 +76,10 @@ export function IdealCustomerTypeExportWorksheet({
   const [newType, setNewType] = React.useState("");
   const [preview, setPreview] = React.useState<IdealExportPreview | null>(null);
   const [confirmed, setConfirmed] = React.useState(false);
+  const [reviewKey,setReviewKey]=React.useState<string|null>(null);
+  const [health,setHealth]=React.useState<TenantAudienceHealth|null>(null);
+  const [healthError,setHealthError]=React.useState("");
+  const initialSelection=React.useRef(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const mounted = React.useRef(true);
@@ -83,6 +92,9 @@ export function IdealCustomerTypeExportWorksheet({
   React.useEffect(() => {
     setPreview(null);
     setConfirmed(false);
+    setReviewKey(null);
+    setHealth(null);
+    setHealthError("");
   }, [newType, sourceRows, segmentId]);
 
   React.useEffect(() => {
@@ -99,7 +111,14 @@ export function IdealCustomerTypeExportWorksheet({
         .range(from, to),
     )
       .then((items) => {
-        if (valid) setSegments(items);
+        if (valid) {
+          setSegments(items);
+          if(requested&&!initialSelection.current){
+            initialSelection.current=true;
+            if(items.some(s=>s.id===requested))setSegmentId(requested);
+            else setError("The requested audience is not available in this company. Choose an active saved audience.");
+          }
+        }
       })
       .catch((e) => {
         if (valid)
@@ -112,10 +131,11 @@ export function IdealCustomerTypeExportWorksheet({
     return () => {
       valid = false;
     };
-  }, [tenantId, opened]);
+  }, [tenantId, opened, requested]);
 
   async function readSource(file: File) {
     if (!/\.(csv|txt)$/i.test(file.name) || file.size > 25_000_000) {
+      setPreview(null);setConfirmed(false);setReviewKey(null);setSourceRows([]);setSourceFileName("");
       setError(
         "Choose the original IdealPOS TXT/CSV or nine-column review CSV (maximum 25 MB). Do not open and re-save it in Excel.",
       );
@@ -144,18 +164,14 @@ export function IdealCustomerTypeExportWorksheet({
       if (mounted.current) setBusy(false);
     }
   }
-  async function review(excludedMissingSourceCodes?: readonly string[]) {
-    if (!segmentId || !sourceRows.length || !newType) return;
-    setBusy(true);
-    setError("");
-    setPreview(null);
-    setConfirmed(false);
-    try {
+  async function readAudience(selectedId:string){
+      const {data:segment,error:segmentError}=await supabase.from("crm_segments").select("id,customer_count").eq("tenant_id",tenantId).eq("id",selectedId).eq("status","active").is("deleted_at",null).maybeSingle();
+      if(segmentError||!segment)throw Error("The selected audience is no longer available in this company.");
       const members = await readAllPages<{ customer_id: string }>((from, to) =>
         supabase
           .from("customer_segments")
           .select("customer_id")
-          .eq("segment_id", segmentId)
+          .eq("segment_id", selectedId)
           .order("customer_id")
           .range(from, to),
       );
@@ -170,7 +186,7 @@ export function IdealCustomerTypeExportWorksheet({
         );
       const links: IdealIdentityLink[] = [];
       for (let i = 0; i < ids.length; i += 200) {
-        if (!mounted.current) return;
+        if (!mounted.current) throw Error('Workspace changed.');
         const chunk = ids.slice(i, i + 200);
         const [customers, idealLinks] = await Promise.all([
           supabase
@@ -200,6 +216,19 @@ export function IdealCustomerTypeExportWorksheet({
         }
         links.push(...idealLinks);
       }
+      if(segment.customer_count!==ids.length)throw Error("The saved audience count needs reconciliation. Refresh the segment before exporting.");
+      return {ids,links,key:idealAudienceReviewKey(selectedId,ids,links)};
+  }
+  async function review(excludedMissingSourceCodes?: readonly string[]) {
+    if (!segmentId || !sourceRows.length || !newType || busy) return;
+    setBusy(true);
+    setError("");
+    setPreview(null);
+    setConfirmed(false);
+    setReviewKey(null);
+    setHealth(null);setHealthError("");
+    try {
+      const {ids,links,key}=await readAudience(segmentId);
       const result = reviewIdealCustomerTypeExport({
         originalRows: sourceRows,
         audienceCustomerIds: ids,
@@ -210,7 +239,14 @@ export function IdealCustomerTypeExportWorksheet({
           sourceRows.map((r) => r.TYPE).filter(Boolean),
         ),
       });
-      if (mounted.current) setPreview(result);
+      if (mounted.current) {setPreview(result);setReviewKey(key);}
+      try{
+        const counts=await fetchEmailReachability(tenantId,ids);
+        if(counts.total!==ids.length)throw Error("Reachability did not cover the exact selected audience.");
+        if(mounted.current)setHealth(counts);
+      }catch{
+        if(mounted.current)setHealthError("Email readiness is unavailable. Do not assume these customers can receive a campaign.");
+      }
     } catch (e) {
       if (mounted.current)
         setError(
@@ -222,10 +258,14 @@ export function IdealCustomerTypeExportWorksheet({
       if (mounted.current) setBusy(false);
     }
   }
-  function exportReview() {
-    if (!confirmed || preview?.state !== "ready_to_review" || !mounted.current)
+  async function exportReview() {
+    if (!confirmed || preview?.state !== "ready_to_review" || !mounted.current || !reviewKey || busy)
       return;
+    setBusy(true);setError("");
     try {
+      const current=await readAudience(segmentId);
+      if(!mounted.current)return;
+      if(current.key!==reviewKey)throw Error("The audience or its IdealPOS codes changed after review. Review the exact audience again before downloading.");
       const csv = draftIdealCustomerTypeCsv(preview);
       const blob = new Blob(["\uFEFF", csv], {
         type: "text/csv;charset=utf-8",
@@ -237,12 +277,11 @@ export function IdealCustomerTypeExportWorksheet({
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Review-only file could not be created.",
-      );
-    }
+      if(mounted.current){
+        setConfirmed(false);setPreview(null);setReviewKey(null);setHealth(null);
+        setError(e instanceof Error?e.message:"Review-only file could not be created.");
+      }
+    } finally {if(mounted.current)setBusy(false);}
   }
   const knownTypes = unique(sourceRows.map((row) => row.TYPE).filter(Boolean));
   return (
@@ -370,6 +409,12 @@ export function IdealCustomerTypeExportWorksheet({
                       </Sheet>
                     ))}
                   </Box>
+                  {health&&<Sheet variant="soft" sx={{p:1.5,borderRadius:"lg"}}><Stack spacing={0.5}>
+                    <Typography level="title-sm">Email readiness for this exact audience</Typography>
+                    <Typography level="body-sm">{health.confirmed.toLocaleString()} reachable · {health.pending.toLocaleString()} waiting for permission · {health.optedOut.toLocaleString()} opted out · {health.suppressed.toLocaleString()} unsendable</Typography>
+                    <Typography level="body-xs">This is the CRM email readiness count, not a send approval. The POS audience and marketing audience remain separate. Final campaign checks still apply.</Typography>
+                  </Stack></Sheet>}
+                  {healthError&&<Alert color="neutral">{healthError}</Alert>}
                   {preview.errors.map((msg) => (
                     <Alert key={msg} color="danger">
                       {msg}
@@ -463,7 +508,7 @@ export function IdealCustomerTypeExportWorksheet({
                       !preview.rowsChanged ||
                       busy
                     }
-                    onClick={exportReview}
+                    onClick={()=>void exportReview()}
                   >
                     Download review-only customer CSV
                   </Button>

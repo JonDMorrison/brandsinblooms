@@ -1517,6 +1517,7 @@ export default function CustomerIntelligencePage() {
                 <IdealCustomerTypeExportPanel
                   key={tenantId + "-ideal"}
                   tenantId={tenantId}
+                  requestedSegmentId={params.get("segment")}
                 />
               ) : null}
               <Sheet
