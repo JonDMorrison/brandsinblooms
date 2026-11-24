@@ -1139,6 +1139,18 @@ describe("untouched default brand colours count as not set (#14)", () => {
     expect(readableColorPair("#22c55e").text).toBe("#111827");
   });
 
+  it("left-aligns the stacked footer address on phones for drafts only (qa2 #13)", () => {
+    const footer = createStudioBlock("footer");
+    const sentFooter = { ...footer, newsletterSettings: { version: 1 as const } };
+    const draftFooter = { ...footer, newsletterSettings: { version: 1 as const, mobileFooterAlign: "left" as const } };
+    const sent = generateEmailHtml({ blocks: [sentFooter], subject: "x", previewText: "", footer: sentFooter });
+    const draft = generateEmailHtml({ blocks: [draftFooter], subject: "x", previewText: "", footer: draftFooter });
+    expect(sent).not.toContain("footer-contact-column");
+    expect(draft).toContain(".footer-contact-column { text-align:left !important; }");
+    expect(draft).toContain('class="responsive-column footer-contact-column"');
+    expect(createStudioBlock("footer").newsletterSettings?.mobileFooterAlign).toBe("left");
+  });
+
   it("guards draft renders only: a footer with contrastGuard switches unreadable text", () => {
     const green = { ...createStudioBlock("footer"), backgroundColor: "#22c55e", textColor: "#ffffff", linkColor: "#ffffff" };
     const sent = renderFooterBlockToEmailHtml({ ...green, newsletterSettings: { version: 1 } });

@@ -322,6 +322,7 @@ export function ensureFooterBlockCompliance(
       version: 1,
       emptyBlocks: "skip",
       contrastGuard: true,
+      mobileFooterAlign: "left",
       // A footer created here belongs to a new draft: phone photos show at
       // natural height. Existing footers keep whatever they had (240px).
       ...(existingFooter ? {} : { mobileImageHeight: "natural" as const }),

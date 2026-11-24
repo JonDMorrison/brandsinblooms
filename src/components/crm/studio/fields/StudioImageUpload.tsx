@@ -97,6 +97,8 @@ type StudioImageUploadProps = {
   defaultFilled?: boolean;
   emptyText?: string;
   height?: number | string;
+  /** Caps the filled preview (e.g. 120 for logos) and shows the whole image. */
+  maxPreviewHeight?: number;
   imageSourceRecord?: CampaignImageFieldSourceRecord | null;
   label: string;
   onApplyImage?: (event: StudioImageApplyEvent) => void;
@@ -459,6 +461,7 @@ export default function StudioImageUpload({
   defaultFilled = false,
   emptyText = "Upload image",
   height,
+  maxPreviewHeight,
   imageSourceRecord,
   label,
   onApplyImage,
@@ -1106,7 +1109,13 @@ export default function StudioImageUpload({
           />
 
           {hasPreview ? (
-            <Box sx={{ position: "relative", aspectRatio: previewAspectRatio }}>
+            <Box
+              sx={{
+                position: "relative",
+                aspectRatio: previewAspectRatio,
+                ...(maxPreviewHeight ? { maxHeight: maxPreviewHeight, bgcolor: "background.level1" } : {}),
+              }}
+            >
               {resolvedUrl === "preview" ? (
                 <Box
                   sx={{
@@ -1124,8 +1133,9 @@ export default function StudioImageUpload({
                   sx={{
                     width: "100%",
                     height: "100%",
+                    maxHeight: maxPreviewHeight,
                     display: "block",
-                    objectFit: "cover",
+                    objectFit: maxPreviewHeight ? "contain" : "cover",
                     borderRadius: 0,
                   }}
                 />

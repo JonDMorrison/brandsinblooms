@@ -15660,6 +15660,8 @@ export type Database = {
           primary_contact_last_login: string;
           primary_contact_name: string;
           region: string;
+          site_domain: string | null;
+          site_domain_status: string | null;
           subscription_status: string;
           tenant_created_at: string;
           tenant_id: string;

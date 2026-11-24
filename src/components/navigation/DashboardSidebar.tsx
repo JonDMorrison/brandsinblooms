@@ -15,6 +15,7 @@ import ListItemButton from "@mui/joy/ListItemButton";
 import ListItemContent from "@mui/joy/ListItemContent";
 import ListItemDecorator from "@mui/joy/ListItemDecorator";
 import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
@@ -364,7 +365,10 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { tenant, loading: tenantLoading } = useTenant();
+  // Until the tenant is known, a super admin would see only the admin links
+  // (tenant links wait on the tenant role). Show neutral placeholders instead.
+  const showNavigationSkeleton = mode === "tenant" && tenantLoading;
   const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } =
     useIsSuperAdmin();
   const {
@@ -912,7 +916,29 @@ export function DashboardSidebar({
           },
         }}
       >
-        {navigationGroups.map((group, index) => (
+        {showNavigationSkeleton ? (
+          <Stack
+            spacing={1.25}
+            data-testid="dashboard-sidebar-skeleton"
+            aria-label="Loading navigation"
+            sx={{ px: collapsed ? 1 : 1.5, pt: 1 }}
+          >
+            {Array.from({ length: 7 }, (_, index) => (
+              <Skeleton
+                key={index}
+                variant="rectangular"
+                animation="wave"
+                sx={{
+                  height: 28,
+                  width: collapsed ? 28 : `${88 - (index % 3) * 14}%`,
+                  borderRadius: "sm",
+                  bgcolor: "rgba(255, 255, 255, 0.08)",
+                }}
+              />
+            ))}
+          </Stack>
+        ) : null}
+        {(showNavigationSkeleton ? [] : navigationGroups).map((group, index) => (
           <Stack
             key={group.id}
             spacing={SIDEBAR_ITEM_GAP}

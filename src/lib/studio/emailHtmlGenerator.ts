@@ -2148,7 +2148,7 @@ export function renderFooterBlockToEmailHtml(
     return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};text-align:center;">${logoRow}<div style="font-family:${getFontStack(designSystem, "headline")};font-size:16px;line-height:1.35;font-weight:800;color:${textColor};margin-bottom:4px;">${escapeHtml(businessName)}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactStack}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="height:1px;background-color:${dividerColor};margin:0 auto 12px;max-width:520px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:12px;">${complianceHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
   }
 
-  return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};">${logoRow}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:16px;"><div style="font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</div></td><td class="responsive-column" width="50%" valign="top" align="right" style="width:50%;vertical-align:top;text-align:right;font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};">${contactStack}</td></tr></table><div style="height:1px;background-color:${dividerColor};margin:16px 0 12px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 12}px;">${complianceHtml}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
+  return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};">${logoRow}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:16px;"><div style="font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</div></td><td class="responsive-column${block.newsletterSettings?.mobileFooterAlign === "left" ? " footer-contact-column" : ""}" width="50%" valign="top" align="right" style="width:50%;vertical-align:top;text-align:right;font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};">${contactStack}</td></tr></table><div style="height:1px;background-color:${dividerColor};margin:16px 0 12px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 12}px;">${complianceHtml}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
 }
 
 export function createFooterBlockFromDesignSystem(
@@ -2598,6 +2598,13 @@ export function generateEmailHtml({
   // without the flag render exactly as before.
   const mobileCropHeight =
     settings.mobileImageHeight === "natural" ? "auto" : `${SENT_MOBILE_CROP_HEIGHT}px`;
+  // Drafts with mobileFooterAlign "left": the footer address column is
+  // left-aligned once the columns stack on phones. Without the flag (every
+  // sent campaign) the stylesheet is unchanged.
+  const mobileFooterLeftCss =
+    settings.mobileFooterAlign === "left"
+      ? "\n      .footer-contact-column { text-align:left !important; }"
+      : "";
   const visibleBlocks = blocks.filter((block) => block.visible !== false);
   const footerBlock =
     footer ||
@@ -2647,7 +2654,7 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .responsive-column { display:block !important; width:100% !important; max-width:100% !important; box-sizing:border-box !important; padding-left:0 !important; padding-right:0 !important; }
       .responsive-column + .responsive-column { padding-top:16px !important; }
       .responsive-image { width:100% !important; max-width:100% !important; height:auto !important; }
-      .responsive-crop-image { height:${mobileCropHeight} !important; }
+      .responsive-crop-image { height:${mobileCropHeight} !important; }${mobileFooterLeftCss}
       .mobile-padding:not(.newsletter-padding-override) { padding:16px !important; }
       .gallery-grid,
       .product-grid,

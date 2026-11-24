@@ -545,7 +545,7 @@ export function createStudioBlock(
         // New drafts show phone photos at natural height (see
         // NewsletterSettings.mobileImageHeight) and keep text readable
         // (contrastGuard); existing footers lack these.
-        newsletterSettings: { version: 1, mobileImageHeight: "natural", contrastGuard: true },
+        newsletterSettings: { version: 1, mobileImageHeight: "natural", contrastGuard: true, mobileFooterAlign: "left" },
         businessName,
         address: address || "123 Main St\nCity, State",
         copyright: getDefaultCopyrightText(businessName),

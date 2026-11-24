@@ -73,6 +73,12 @@ export interface NewsletterSettings {
    * so they re-render unchanged.
    */
   contrastGuard?: true;
+  /**
+   * "left": on phones, where the footer's two columns stack, the address
+   * column is left-aligned instead of hugging the right edge. Stamped on
+   * drafts like contrastGuard; sent campaigns lack it and render unchanged.
+   */
+  mobileFooterAlign?: "left";
 }
 export interface NewsletterLink {
   id: string;

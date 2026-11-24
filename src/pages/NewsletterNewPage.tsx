@@ -63,7 +63,9 @@ function CreationPathCard({
   onClick,
   disabled = false,
 }: CreationPathCardProps) {
-  const isAi = variant === "ai";
+  // One filled primary action on the page (this week's theme); the other
+  // ways to start are outlined.
+  const isPrimary = variant === "theme";
 
   return (
     <Card
@@ -130,9 +132,9 @@ function CreationPathCard({
           sx={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 1,
             minHeight: 44, px: 2, borderRadius: "sm", fontWeight: 600,
-            border: "1px solid", borderColor: !isAi ? "transparent" : "neutral.300",
-            bgcolor: !isAi ? "var(--hp-green-700, #1F4341)" : "background.surface",
-            color: !isAi ? "#fff" : "text.primary",
+            border: "1px solid", borderColor: isPrimary ? "transparent" : "neutral.300",
+            bgcolor: isPrimary ? "var(--hp-green-700, #1F4341)" : "background.surface",
+            color: isPrimary ? "#fff" : "text.primary",
           }}
         >
           {buttonLabel} <ArrowRight size={18} aria-hidden="true" />
@@ -614,7 +616,9 @@ export const NewsletterNewPage = () => {
                   </>
                 ) : (
                   <>
-                    {currentWeekIdea ? (
+                    {/* The theme card above already offers this week. */}
+                    {currentWeekIdea &&
+                    currentWeekIdea.weekNumber !== weeklyThemeQuery.data?.source.weekNumber ? (
                       <IdeaQuickAccessCard
                         isCurrentWeek
                         idea={currentWeekIdea}
