@@ -440,6 +440,8 @@ function SavedTemplateCard({
         >
           {template.name}
         </Typography>
+        {/* Teammates' templates can be used but not renamed or archived. */}
+        {template.isOwn ? (
         <IconButton
           variant="plain"
           color="neutral"
@@ -453,6 +455,7 @@ function SavedTemplateCard({
         >
           <MoreHorizontal size={16} />
         </IconButton>
+        ) : null}
       </Stack>
       <Typography
         level="body-xs"
@@ -464,7 +467,7 @@ function SavedTemplateCard({
         level="body-xs"
         sx={{ fontSize: "11px", color: "neutral.500" }}
       >
-        {savedLabel}
+        {template.isOwn ? savedLabel : `${savedLabel} · From a teammate`}
       </Typography>
 
       <Menu

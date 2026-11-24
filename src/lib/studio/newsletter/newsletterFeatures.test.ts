@@ -1007,6 +1007,50 @@ describe("blank canvas brand defaults (#14)", () => {
   });
 });
 
+describe("untouched default brand colours count as not set (#14)", () => {
+  const untouched = buildStudioDesignSystem({
+    name: "Greenfield Garden Centre",
+    brandPrimaryColorRaw: "#22C55E",
+    brandSecondaryColorRaw: "#1e40af",
+    brandAccentColorRaw: "#f59e0b",
+    brandTextColorRaw: "#1f2937",
+  } as never);
+
+  it("flags a profile that still holds all four column defaults", () => {
+    expect(untouched.colors.brandColorsAreDefaults).toBe(true);
+    const chosen = buildStudioDesignSystem({
+      brandPrimaryColorRaw: "#22c55e",
+      brandSecondaryColorRaw: "#123456",
+      brandAccentColorRaw: "#f59e0b",
+      brandTextColorRaw: "#1f2937",
+    } as never);
+    expect(chosen.colors.brandColorsAreDefaults).toBe(false);
+  });
+
+  it("starts new blocks and new footers neutral, not in the stock green", async () => {
+    expect(createStudioBlock("call-to-action", untouched).buttonColor).toBe(createStudioBlock("call-to-action").buttonColor);
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const footer = ensureFooterBlockCompliance([createStudioBlock("plain-text", untouched)], { designSystem: untouched })
+      .find((block) => block.type === "footer")!;
+    expect(footer.backgroundColor).not.toBe("#22C55E");
+    expect(footer.backgroundColor).not.toBe("#22c55e");
+  });
+
+  it("does not offer the defaults as brand swatches", () => {
+    const swatches = [...untouched.colorPresets.core, ...untouched.colorPresets.expanded].map((c) => c.toLowerCase());
+    expect(swatches).not.toContain("#22c55e");
+    expect(swatches).not.toContain("#1e40af");
+  });
+
+  it("renders stored content exactly as before (rendering ignores the flag)", () => {
+    const stored = { ...createStudioBlock("call-to-action"), buttonText: "Shop", buttonUrl: "https://example.com", useBrandButtonColor: true };
+    const withFlag = renderNewsletterBlock(stored, untouched);
+    const withoutFlag = renderNewsletterBlock(stored, { ...untouched, colors: { ...untouched.colors, brandColorsAreDefaults: false } });
+    expect(withFlag).toBe(withoutFlag);
+    expect(withFlag.toLowerCase()).toContain("#22c55e");
+  });
+});
+
 describe("Pick a look keeps user-set values (#20)", () => {
   it("keeps a user-chosen logo size and alignment and fills the rest from the new look", async () => {
     const { mergeLookFields, newsletterHeaderPresets } = await import("../layoutPresets");
@@ -1199,5 +1243,33 @@ describe("theme newsletter with AI", () => {
         },
       ),
     ).toEqual([]);
+  });
+});
+
+describe("phone photo height (#25)", () => {
+  const photo = { ...createStudioBlock("full-width-image"), imageUrl: "https://example.com/p.jpg", imageFit: "cover" as const, maxHeight: 400 };
+  const legacyFooter = { ...createStudioBlock("footer"), newsletterSettings: undefined };
+
+  it("keeps the 240px phone crop for campaigns without the flag", () => {
+    const html = generateEmailHtml({ blocks: [photo, legacyFooter], subject: "S", previewText: "P" });
+    expect(html).toContain(".responsive-crop-image { height:240px !important; }");
+    expect(html).toContain(".image-text-image img.responsive-crop-image { height:240px !important; }");
+  });
+
+  it("shows natural height on phones for drafts that opted in", () => {
+    const footer = { ...legacyFooter, newsletterSettings: { version: 1 as const, mobileImageHeight: "natural" as const } };
+    const html = generateEmailHtml({ blocks: [photo, footer], subject: "S", previewText: "P" });
+    expect(html).toContain(".responsive-crop-image { height:auto !important; }");
+    expect(html).not.toContain("height:240px !important");
+  });
+
+  it("stamps the flag only on footers created for new drafts", async () => {
+    expect(createStudioBlock("footer").newsletterSettings?.mobileImageHeight).toBe("natural");
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const fresh = ensureFooterBlockCompliance([createStudioBlock("plain-text")]).find((b) => b.type === "footer")!;
+    expect(fresh.newsletterSettings?.mobileImageHeight).toBe("natural");
+    const existing = ensureFooterBlockCompliance([createStudioBlock("plain-text"), legacyFooter]).find((b) => b.type === "footer")!;
+    expect(existing.newsletterSettings?.mobileImageHeight).toBeUndefined();
+    expect(existing.newsletterSettings?.emptyBlocks).toBe("skip");
   });
 });

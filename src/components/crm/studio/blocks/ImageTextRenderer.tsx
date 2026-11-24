@@ -6,6 +6,7 @@ import { formatDraftRichText } from "@/lib/crm/htmlContent";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
 import { SENT_MOBILE_CROP_HEIGHT, STUDIO_MOBILE_QUERY } from "@/lib/studio/emailHtmlGenerator";
+import { useNewsletterDesign } from "../newsletter/NewsletterDesignContext";
 
 type ImageTextRendererProps = {
   block: StudioBlock;
@@ -110,6 +111,7 @@ function ImageFrame({
   aspectRatio?: string;
   compact?: boolean;
 }) {
+  const naturalOnPhones = useNewsletterDesign().settings?.mobileImageHeight === "natural";
   const minHeight = compact ? 132 : 200;
 
   if (!block.imageUrl) {
@@ -126,12 +128,19 @@ function ImageFrame({
     block.imageRatio === "9:16"
       ? {}
       : {
-          [STUDIO_MOBILE_QUERY]: {
-            aspectRatio: "auto",
-            height: `${SENT_MOBILE_CROP_HEIGHT}px`,
-            minHeight: 0,
-            "& img": { height: "100%", minHeight: 0 },
-          },
+          [STUDIO_MOBILE_QUERY]: naturalOnPhones
+            ? {
+                aspectRatio: "auto",
+                height: "auto",
+                minHeight: 0,
+                "& img": { height: "auto", minHeight: 0 },
+              }
+            : {
+                aspectRatio: "auto",
+                height: `${SENT_MOBILE_CROP_HEIGHT}px`,
+                minHeight: 0,
+                "& img": { height: "100%", minHeight: 0 },
+              },
         };
 
   return (

@@ -14,6 +14,8 @@ export interface SavedTemplate {
   layout_json: StudioBlock[];
   created_at: string;
   updated_at: string;
+  /** Saved by the signed-in user. Teammates' templates are read-only. */
+  isOwn: boolean;
 }
 
 export interface SaveTemplateInput {
@@ -34,8 +36,12 @@ function toBlockArray(value: unknown): StudioBlock[] {
   return Array.isArray(value) ? (value as StudioBlock[]) : [];
 }
 
-function toSavedTemplate(row: Record<string, unknown>): SavedTemplate {
+function toSavedTemplate(
+  row: Record<string, unknown>,
+  currentUserId: string | null,
+): SavedTemplate {
   return {
+    isOwn: Boolean(currentUserId) && String(row.user_id) === currentUserId,
     id: String(row.id),
     user_id: String(row.user_id),
     tenant_id:
@@ -81,15 +87,15 @@ export function useSavedTemplates() {
         .from("saved_campaign_templates")
         .select(
           "id, user_id, tenant_id, name, description, layout_json, created_at, updated_at",
-        )
-        .eq("user_id", userId);
-      // Only this business's designs (plus older ones saved without a
-      // business), so a template never carries another tenant's branding.
-      if (tenantId) {
-        templatesQuery = templatesQuery.or(
-          `tenant_id.eq.${tenantId},tenant_id.is.null`,
         );
-      }
+      // This business's designs, from anyone on the team (RLS: tenant members
+      // can read them), plus your own older ones saved without a business.
+      // Never another tenant's, so a template never carries their branding.
+      templatesQuery = tenantId
+        ? templatesQuery.or(
+            `tenant_id.eq.${tenantId},and(user_id.eq.${userId},tenant_id.is.null)`,
+          )
+        : templatesQuery.eq("user_id", userId);
       const { data, error } = await templatesQuery.order("created_at", {
         ascending: false,
       });
@@ -99,7 +105,7 @@ export function useSavedTemplates() {
       }
 
       return (data ?? []).map((row) =>
-        toSavedTemplate(row as Record<string, unknown>),
+        toSavedTemplate(row as Record<string, unknown>, userId),
       );
     },
   });
@@ -139,7 +145,7 @@ export function useSavedTemplates() {
         throw error;
       }
 
-      return toSavedTemplate(data as Record<string, unknown>);
+      return toSavedTemplate(data as Record<string, unknown>, userId);
     },
     onSuccess: () => {
       void invalidate();
@@ -175,7 +181,7 @@ export function useSavedTemplates() {
         throw error;
       }
 
-      return toSavedTemplate(data as Record<string, unknown>);
+      return toSavedTemplate(data as Record<string, unknown>, userId);
     },
     onSuccess: () => {
       void invalidate();
