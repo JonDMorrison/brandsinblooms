@@ -53,11 +53,26 @@ const ORIGIN_SEARCH_PARAM = "origin";
  * themes point at the tenant's own theme row when one is known, otherwise at
  * the shared master week.
  */
+const WEEKLY_THEME_IDEA_ID = /^weekly-theme-\d+$/;
+
+/** True for the idea buildWeeklyThemeIdea makes from the tenant's weekly theme. */
+export function isWeeklyThemeIdea(
+  idea: Pick<NewsletterIdea, "id" | "category"> &
+    Partial<Pick<NewsletterIdea, "themeCampaignId">>,
+): boolean {
+  return (
+    idea.category === "weekly" &&
+    (Boolean(idea.themeCampaignId) || WEEKLY_THEME_IDEA_ID.test(idea.id))
+  );
+}
+
 export function originForNewsletterIdea(
   idea: Pick<NewsletterIdea, "id" | "category"> &
     Partial<Pick<NewsletterIdea, "weekNumber" | "themeCampaignId">>,
 ): string {
-  if (idea.category === "weekly") {
+  // "Start from this week's theme" (buildWeeklyThemeIdea): the tenant's theme
+  // row, or the master week when the tenant has none.
+  if (isWeeklyThemeIdea(idea)) {
     if (idea.themeCampaignId) {
       return buildCampaignOrigin("weekly_theme", idea.themeCampaignId);
     }
@@ -70,7 +85,8 @@ export function originForNewsletterIdea(
   if (idea.category === "ai-generated") {
     return buildCampaignOrigin("ai", "newsletter_idea");
   }
-  return buildCampaignOrigin("starter_template", idea.id);
+  // Every other idea (Ideas for You, Browse all 52 weekly ideas, holidays...).
+  return buildCampaignOrigin("idea", idea.id);
 }
 
 const HEADER_LIKE_SOURCE_TYPES = new Set([

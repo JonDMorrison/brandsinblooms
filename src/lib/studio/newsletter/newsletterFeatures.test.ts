@@ -1,3 +1,4 @@
+import { buildCampaignOrigin, normalizeCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import { describe, it, expect } from "vitest";
 import { createStudioBlock } from "../blockFactory";
 import { buildStudioDesignSystem } from "../designSystem";
@@ -922,6 +923,24 @@ describe("weekly theme seed", () => {
       expect(block.source).toBe(block.type === "footer" ? undefined : "theme");
     }
     expect(seed.origin).toBe(`weekly_theme:${weeklyThemeTestSource.themeCampaignId}`);
+  });
+
+  it("records one origin per entry path (qa2 #4)", () => {
+    // This week's theme: the tenant row, else the master week.
+    expect(originForNewsletterIdea(buildWeeklyThemeIdea(weeklyThemeTestSource))).toMatch(/^weekly_theme:/);
+    // Ideas for You / Browse all 52 weekly ideas / holidays: idea:<id>.
+    expect(originForNewsletterIdea({ id: "master-week-12", category: "weekly", weekNumber: 12 })).toBe("idea:master-week-12");
+    expect(originForNewsletterIdea({ id: "mothers-day", category: "holiday" })).toBe("idea:mothers-day");
+    // AI ideas.
+    expect(originForNewsletterIdea({ id: "x", category: "ai-generated" })).toBe("ai:newsletter_idea");
+    // Blank editor, saved template, copy and website import use the shared builder.
+    expect(buildCampaignOrigin("blank")).toBe("blank");
+    expect(buildCampaignOrigin("saved_template", "4f1c")).toBe("saved_template:4f1c");
+    expect(buildCampaignOrigin("duplicate", "34187269-f02d-4081-8afb-afca79b81f14")).toBe("duplicate:34187269-f02d-4081-8afb-afca79b81f14");
+    expect(buildCampaignOrigin("website_import", "a1")).toBe("website_import:a1");
+    for (const origin of ["idea:master-week-12", "blank", "ai:newsletter_idea"]) {
+      expect(normalizeCampaignOrigin(origin)).toBe(origin);
+    }
   });
 
   it("falls back to the master week when there is no tenant theme row", () => {

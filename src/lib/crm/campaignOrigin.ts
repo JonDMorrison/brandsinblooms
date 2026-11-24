@@ -3,7 +3,8 @@
  * row is inserted (the database keeps it immutable afterwards).
  *
  * Format: `<kind>` or `<kind>:<reference>`, enforced by
- * crm_campaigns_origin_format_check (migration 20261123164736).
+ * crm_campaigns_origin_format_check (migrations 20261123164736,
+ * 20261124134554).
  */
 export const CAMPAIGN_ORIGIN_KINDS = [
   "blank",
@@ -18,6 +19,7 @@ export const CAMPAIGN_ORIGIN_KINDS = [
   "ai",
   "calendar",
   "automation",
+  "idea",
 ] as const;
 
 export type CampaignOriginKind = (typeof CAMPAIGN_ORIGIN_KINDS)[number];

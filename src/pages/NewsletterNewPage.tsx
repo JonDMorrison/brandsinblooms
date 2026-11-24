@@ -28,6 +28,7 @@ import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
 import { useStartBlankNewsletter } from "@/hooks/useStartBlankNewsletter";
 import { CopyPreviousEmailDialog } from "@/components/newsletter/CopyPreviousEmailDialog";
 import { YourTemplatesSection } from "@/components/newsletter/YourTemplatesSection";
+import { buildCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import {
   buildNewsletterIdeaEditorSearchParams,
   type NewsletterIdeaNavigationState,
@@ -573,6 +574,7 @@ export const NewsletterNewPage = () => {
               onUseTemplate={(template) =>
                 void blankNewsletter.start({
                   name: template.name,
+                  origin: buildCampaignOrigin("saved_template", template.id),
                   // Fresh block ids: the draft must not share ids with the template.
                   blocks: template.layout_json.map((block) => ({
                     ...block,
