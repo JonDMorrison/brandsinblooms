@@ -6,8 +6,8 @@ const read = (p: string) => fs.readFileSync(p, "utf8");
 describe("premium customer intelligence", () => {
   it("ships an opportunity-first Intelligence home", () => {
     const page = read("src/pages/crm/CustomerIntelligencePage.tsx");
-    expect(page).toContain("Know your customers.");
-    expect(page).toContain("Know what to do next.");
+    expect(page).toContain('title="Customer Intelligence"');
+    expect(page).toContain("JoyPageHeaderBand");
     expect(page).toContain("Opportunities worth your attention");
     expect(page).toContain("Ask Bloom");
     expect(page).toContain('section="explore"');

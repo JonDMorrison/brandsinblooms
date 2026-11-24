@@ -17,7 +17,9 @@ import {
   Table,
   Typography,
 } from "@mui/joy";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet, Users } from "lucide-react";
+import { mergeSx } from "@/components/joy/mergeSx";
+import { IntelligenceActions, IntelligenceStatRow, intelligenceCardPadding, intelligenceCardSx } from "./IntelligenceLayout";
 import { NewsletterMatchReviewPanel } from "./NewsletterMatchReviewPanel";
 import { CustomerRefreshReviewPanel } from "./CustomerRefreshReviewPanel";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -246,20 +248,20 @@ export function IdealCustomerTypeExportWorksheet({
   }
   const knownTypes = unique(sourceRows.map((row) => row.TYPE).filter(Boolean));
   return (
-    <Sheet variant="outlined" sx={{ borderRadius: "xl" }}>
+    <Sheet variant="outlined" sx={mergeSx(intelligenceCardSx, { overflow: "hidden" })}>
       <AccordionGroup>
         <Accordion expanded={opened} onChange={(_, value) => setOpened(value)}>
-          <AccordionSummary>
-            <Stack direction="row" gap={1} alignItems="center">
-              <FileSpreadsheet size={19} />
-              <Typography level="title-lg">
+          <AccordionSummary sx={{ px: intelligenceCardPadding.px, py: 2 }}>
+            <Stack direction="row" gap={1.5} alignItems="center">
+              <FileSpreadsheet size={18} />
+              <Typography level="title-md">
                 IdealPOS Customer Type bridge
               </Typography>
             </Stack>
           </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2} sx={{ pt: 1, pb: 2 }}>
-              <Typography level="body-md">
+          <AccordionDetails sx={{ px: intelligenceCardPadding.px }}>
+            <Stack spacing={3} sx={{ pt: 1, pb: 4 }}>
+              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
                 Select a saved BloomSuite audience, match it by the original
                 Ideal customer CODE, and preview a complete customer-file
                 update. No weekly sync will automatically reassign Ideal
@@ -271,9 +273,10 @@ export function IdealCustomerTypeExportWorksheet({
                 safely matches CODE, preserves other fields, and accepts this
                 exact CSV format.
               </Alert>
-              <FormControl>
+              <FormControl size="sm" sx={{ width: "100%", maxWidth: 360 }}>
                 <FormLabel>Saved audience</FormLabel>
                 <Select
+                  size="sm"
                   placeholder="Choose a reviewed static or dynamic segment"
                   value={segmentId || null}
                   onChange={(_, value) => setSegmentId(value ?? "")}
@@ -286,9 +289,9 @@ export function IdealCustomerTypeExportWorksheet({
                   ))}
                 </Select>
               </FormControl>
-              <FormControl>
+              <FormControl size="sm" sx={{ alignItems: "flex-start" }}>
                 <FormLabel>Original Ideal Customer Details export</FormLabel>
-                <Button variant="outlined" component="label" disabled={busy}>
+                <Button size="sm" variant="outlined" color="neutral" component="label" disabled={busy}>
                   Choose original TXT or CSV
                   <input
                     hidden
@@ -308,9 +311,10 @@ export function IdealCustomerTypeExportWorksheet({
                 )}
               </FormControl>
               {sourceRows.length > 0 && (
-                <FormControl>
+                <FormControl size="sm" sx={{ width: "100%", maxWidth: 360 }}>
                   <FormLabel>Existing Ideal Customer Type to assign</FormLabel>
                   <Select
+                    size="sm"
                     placeholder="Choose a TYPE already present in the source"
                     value={newType || null}
                     onChange={(_, value) => setNewType(value ?? "")}
@@ -328,13 +332,16 @@ export function IdealCustomerTypeExportWorksheet({
                   </Typography>
                 </FormControl>
               )}
-              <Button
-                loading={busy}
-                disabled={!segmentId || !sourceRows.length || !newType}
-                onClick={() => void review()}
-              >
-                Verify selected audience and preview
-              </Button>
+              <IntelligenceActions>
+                <Button
+                  size="sm"
+                  loading={busy}
+                  disabled={!segmentId || !sourceRows.length || !newType}
+                  onClick={() => void review()}
+                >
+                  Verify selected audience and preview
+                </Button>
+              </IntelligenceActions>
               {preview && (
                 <Stack spacing={1.5}>
                   <Typography level="title-lg">
@@ -342,34 +349,16 @@ export function IdealCustomerTypeExportWorksheet({
                       ? "Needs reconciliation before export"
                       : "Ready for manual review"}
                   </Typography>
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: {
-                        xs: "1fr 1fr",
-                        md: "repeat(4,1fr)",
-                      },
-                      gap: 1.5,
-                    }}
-                  >
-                    {(
+                  <IntelligenceStatRow
+                    items={(
                       [
                         ["Customers selected", preview.selectedCustomers],
                         ["Exact CODE matches", preview.matchedCustomers],
                         ["TYPE changes", preview.rowsChanged],
                         ["Already assigned", preview.rowsAlreadyAssigned],
                       ] as const
-                    ).map(([label, value]) => (
-                      <Sheet
-                        variant="soft"
-                        sx={{ p: 1.5, borderRadius: "lg" }}
-                        key={label}
-                      >
-                        <Typography level="body-xs">{label}</Typography>
-                        <Typography level="title-lg">{value}</Typography>
-                      </Sheet>
-                    ))}
-                  </Box>
+                    ).map(([label, value]) => ({ label, value, icon: <Users /> }))}
+                  />
                   {preview.errors.map((msg) => (
                     <Alert key={msg} color="danger">
                       {msg}
@@ -393,7 +382,7 @@ export function IdealCustomerTypeExportWorksheet({
                         <Typography level="body-sm">
                           The original file does not contain these codes. You can upload a newer master or review an export that excludes exactly these customers. Their BloomSuite segment membership stays unchanged.
                         </Typography>
-                        <Button variant="outlined" color="neutral" disabled={busy}
+                        <Button size="sm" variant="outlined" color="neutral" disabled={busy} sx={{ alignSelf: "flex-start" }}
                           onClick={() => void review(preview.unknownCustomerCodes)}>
                           Review export excluding {preview.unknownCustomerCodes.length} missing codes
                         </Button>
@@ -455,8 +444,11 @@ export function IdealCustomerTypeExportWorksheet({
                       : "I reviewed the complete audience and TYPE changes, and understand this is not an approved IdealPOS import."}
                   />
                   <Button
+                    size="sm"
                     variant="outlined"
-                    startDecorator={<Download size={16} />}
+                    color="neutral"
+                    sx={{ alignSelf: "flex-end" }}
+                    startDecorator={<Download size={14} />}
                     disabled={
                       !confirmed ||
                       preview.state !== "ready_to_review" ||

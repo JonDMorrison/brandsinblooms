@@ -1,5 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Button,Option,Select,Sheet,Stack,Typography} from '@mui/joy';
+import {Alert,Button,Option,Select,Stack,Typography} from '@mui/joy';
+import {FileText} from 'lucide-react';
+import {IntelligenceActions,IntelligenceCard,IntelligenceFieldGrid} from './IntelligenceLayout';
 import {supabase} from '@/integrations/supabase/client';
 import {useTenant} from '@/hooks/useTenant';
 import {useAdmin} from '@/contexts/AdminContext';
@@ -42,5 +44,22 @@ export function ReportedCompany({tenantId}:{tenantId:string}){
   else{const ranked=rows.filter((row):row is typeof row & {reported_spend:number;rank:number;reported_spend_cents:number}=>'reported_spend' in row&&row.reported_spend!==null&&row.rank!==null);lines.push(`Selected-period reported spend ${sum(ranked.map(r=>r.reported_spend_cents!))}.`);lines.push(...ranked.slice(0,20).map(row=>`Rank ${row.rank}: customer ${row.customer_id} · ${formatManualSyncAmount(row.reported_spend_cents!)}`));}
   if(version===generation.current)setResult(lines);
  }catch(e){if(version===generation.current)setError(e instanceof Error?e.message:'Reported evidence unavailable.');}finally{if(version===generation.current)setBusy(false);}}
- return <Sheet variant="outlined" sx={{p:2,borderRadius:'lg'}}><Stack spacing={2}><Typography level="h3">Source-backed reported spending</Typography><Typography>Exact report snapshots only. Product summaries do not establish dated visits, frequency, lifetime value or CGI. Totals below cover customers with supported evidence, not an inferred whole-business total.</Typography><Button disabled={busy} onClick={()=>{setCurrent('');setBaseline('');setLedger([]);void run(false,true);}}>Load completed report sources</Button>{ledger.length>0&&<><Select aria-label="Reported current source" value={current||null} onChange={(_,v)=>change(setCurrent,v??'')} placeholder="Choose current snapshot">{ledger.map(row=><Option key={row.id} value={row.id}>{row.source_period_start} through {row.source_period_end} · {row.source_filename??row.id}</Option>)}</Select><Select aria-label="Reported baseline source" value={baseline||null} onChange={(_,v)=>change(setBaseline,v??'')} placeholder="Choose baseline snapshot">{ledger.map(row=><Option key={row.id} value={row.id}>{row.source_period_start} through {row.source_period_end} · {row.source_filename??row.id}</Option>)}</Select><Button disabled={busy||!current} onClick={()=>void run(false)}>Show selected-period spending and ranking</Button><Button disabled={busy||!baseline} onClick={()=>void run(false,false,true)}>Show baseline-period spending separately</Button>{comparisonIssue&&<Alert color="neutral">{comparisonIssue} You can inspect each report separately; no growth percentage is available for this pair.</Alert>}<Button disabled={busy||!current||!baseline||Boolean(comparisonIssue)} onClick={()=>void run(true)}>Compare exact source periods</Button></>}{error&&<Alert color="warning">{error}</Alert>}{result.map((line,i)=><Typography key={i}>{line}</Typography>)}</Stack></Sheet>;
+ const selectSx={width:'100%',maxWidth:360};
+ return <IntelligenceCard icon={<FileText/>} title="Source-backed reported spending" description="Exact report snapshots only. Product summaries do not establish dated visits, frequency, lifetime value or CGI. Totals below cover customers with supported evidence, not an inferred whole-business total.">
+  <IntelligenceActions justifyContent="flex-start"><Button size="sm" variant="outlined" color="neutral" disabled={busy} onClick={()=>{setCurrent('');setBaseline('');setLedger([]);void run(false,true);}}>Load completed report sources</Button></IntelligenceActions>
+  {ledger.length>0&&<>
+   <IntelligenceFieldGrid columns={2}>
+    <Select size="sm" sx={selectSx} aria-label="Reported current source" value={current||null} onChange={(_,v)=>change(setCurrent,v??'')} placeholder="Choose current snapshot">{ledger.map(row=><Option key={row.id} value={row.id}>{row.source_period_start} through {row.source_period_end} · {row.source_filename??row.id}</Option>)}</Select>
+    <Select size="sm" sx={selectSx} aria-label="Reported baseline source" value={baseline||null} onChange={(_,v)=>change(setBaseline,v??'')} placeholder="Choose baseline snapshot">{ledger.map(row=><Option key={row.id} value={row.id}>{row.source_period_start} through {row.source_period_end} · {row.source_filename??row.id}</Option>)}</Select>
+   </IntelligenceFieldGrid>
+   {comparisonIssue&&<Alert color="neutral">{comparisonIssue} You can inspect each report separately; no growth percentage is available for this pair.</Alert>}
+   <IntelligenceActions>
+    <Button size="sm" variant="outlined" color="neutral" disabled={busy||!current} onClick={()=>void run(false)}>Show selected-period spending and ranking</Button>
+    <Button size="sm" variant="outlined" color="neutral" disabled={busy||!baseline} onClick={()=>void run(false,false,true)}>Show baseline-period spending separately</Button>
+    <Button size="sm" disabled={busy||!current||!baseline||Boolean(comparisonIssue)} onClick={()=>void run(true)}>Compare exact source periods</Button>
+   </IntelligenceActions>
+  </>}
+  {error&&<Alert color="warning">{error}</Alert>}
+  {result.length>0&&<Stack spacing={0.5}>{result.map((line,i)=><Typography key={i} level="body-sm">{line}</Typography>)}</Stack>}
+ </IntelligenceCard>;
 }

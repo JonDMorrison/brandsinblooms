@@ -10,7 +10,8 @@ import JoyBaseTabs, { type TabsProps as JoyBaseTabsProps } from "@mui/joy/Tabs";
 import type { SxProps } from "@mui/joy/styles/types";
 import { mergeSx } from "@/components/joy/mergeSx";
 
-export interface JoyTabsProps extends Omit<JoyBaseTabsProps, "onChange"> {
+// onChange stays available: the wrapper forwards it alongside onValueChange.
+export interface JoyTabsProps extends JoyBaseTabsProps {
   onValueChange?: (value: string | number | null) => void;
 }
 

@@ -7,9 +7,15 @@ test("the customer overview feels clear, uses real UI controls, and avoids overf
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   await page.goto("/e2e/intelligence/fixture.html");
   await expect(
-    page.getByRole("heading", {
-      name: "Know your customers. Know what to do next.",
-    }),
+    page.getByRole("heading", { name: "Customer Intelligence", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Evidence before recommendations · No automatic messages or offers",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Ask Bloom", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "What would you like to do today?" }),
@@ -17,9 +23,19 @@ test("the customer overview feels clear, uses real UI controls, and avoids overf
   await expect(
     page.getByRole("heading", { name: "A snapshot of your customer records" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Intelligence sections" }),
-  ).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Intelligence sections" });
+  await expect(nav).toBeVisible();
+  await expect(nav.getByRole("tab")).toHaveText([
+    "Overview",
+    "Find customers",
+    "Growth",
+    "Rewards",
+    "Data & channels",
+  ]);
+  await expect(nav.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
     path:
@@ -38,22 +54,22 @@ test("each key feature is reachable, and advanced setup is hidden by default", a
 }) => {
   await page.goto("/e2e/intelligence/fixture.html");
   const nav = page.getByRole("navigation", { name: "Intelligence sections" });
-  await nav.getByRole("button", { name: /Find customers/ }).click();
+  await nav.getByRole("tab", { name: "Find customers" }).click();
   await expect(
     page.getByRole("heading", { name: "Find a group worth understanding" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Customer purchase explorer" }),
   ).toBeVisible();
-  await nav.getByRole("button", { name: /Growth/ }).click();
+  await nav.getByRole("tab", { name: "Growth" }).click();
   await expect(
     page.getByRole("heading", { name: "Customer growth comparison" }),
   ).toBeVisible();
-  await nav.getByRole("button", { name: /Rewards/ }).click();
+  await nav.getByRole("tab", { name: "Rewards" }).click();
   await expect(
     page.getByRole("heading", { name: "Loyalty programmes and measurement" }),
   ).toBeVisible();
-  await nav.getByRole("button", { name: /Data & channels/ }).click();
+  await nav.getByRole("tab", { name: "Data & channels" }).click();
   await expect(
     page.getByRole("heading", { name: "Reviewed Ideal Customer Type export" }),
   ).toBeVisible();
@@ -74,7 +90,10 @@ test("Bloom receives the specific question, chosen view and a safe return trail"
 }) => {
   await page.goto("/e2e/intelligence/fixture.html");
   const nav = page.getByRole("navigation", { name: "Intelligence sections" });
-  await nav.getByRole("button", { name: /Find customers/ }).click();
+  await nav.getByRole("tab", { name: "Find customers" }).click();
+  await expect(
+    nav.getByRole("tab", { name: "Find customers" }),
+  ).toHaveAttribute("aria-selected", "true");
   await page
     .getByRole("textbox", { name: "Ask Bloom about your customers" })
     .fill("Which customers purchased hydrangeas?");

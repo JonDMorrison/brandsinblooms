@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Bell, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button, Sheet, Stack, Typography } from "@mui/joy";
+import { IntelligenceCard, IntelligenceStatRow } from "./IntelligenceLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 
@@ -63,25 +64,19 @@ export function PushReadinessPanel() {
 
   const configured=Boolean(health?.vapidConfigured && health?.pilotEnabled &&
     health?.deliveryEnabled);
-  return <Sheet variant="outlined" sx={{borderRadius:"xl",p:{xs:2,md:3}}}>
-    <Stack spacing={2}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2}>
-        <Stack direction="row" alignItems="center" gap={1}>
-          <Bell size={20} aria-hidden="true"/>
-          <Typography level="h3">Web Push readiness</Typography>
-        </Stack>
-        <Button size="sm" variant="outlined" color="neutral" loading={busy}
-          startDecorator={<RefreshCw size={16}/>} onClick={()=>void refresh()}>
+  return <IntelligenceCard
+    icon={<Bell aria-hidden="true"/>}
+    title="Web Push readiness"
+    description="Push is a separate, permission-based channel alongside email and SMS. See what is prepared before sending to a real customer."
+    headerActions={<Button size="sm" variant="outlined" color="neutral" loading={busy}
+          startDecorator={<RefreshCw size={14}/>} onClick={()=>void refresh()}>
           Refresh
-        </Button>
-      </Stack>
-      <Typography level="body-sm">
-        Push is a separate, permission-based channel alongside email and SMS.
-        See what is prepared before sending to a real customer.
-      </Typography>
+        </Button>}
+    notes={health?"Active subscriptions are not the same as installed apps. A push provider's acceptance does not guarantee device delivery. No fallback email or SMS is sent automatically.":undefined}
+  >
       {error&&<Typography role="alert" level="body-sm" color="danger">{error}</Typography>}
       {health&&<>
-        <Sheet variant="soft" color="neutral" sx={{p:2,borderRadius:"lg"}}>
+        <Sheet variant="soft" color="neutral" sx={{p:3,borderRadius:"lg"}}>
           <Stack direction="row" alignItems="center" gap={1}>
             <ShieldCheck size={18} aria-hidden="true"/>
             <Typography level="title-sm">
@@ -95,19 +90,7 @@ export function PushReadinessPanel() {
             {" "}Segment campaigns: {health.campaignsEnabled?"Enabled":"Disabled"}.
           </Typography>
         </Sheet>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10}}>
-          {stats.map(([label,value])=><div key={label}
-            style={{border:"1px solid var(--joy-palette-neutral-200)",borderRadius:12,padding:12}}>
-            <Typography level="h4">{value}</Typography>
-            <Typography level="body-xs" color="neutral">{label}</Typography>
-          </div>)}
-        </div>
-        <Typography level="body-xs" color="neutral">
-          Active subscriptions are not the same as installed apps. A push provider's
-          acceptance does not guarantee device delivery. No fallback email or SMS is
-          sent automatically.
-        </Typography>
+        <IntelligenceStatRow items={stats.map(([label,value])=>({label,value,icon:<Bell aria-hidden="true"/>}))}/>
       </>}
-    </Stack>
-  </Sheet>;
+  </IntelligenceCard>;
 }
