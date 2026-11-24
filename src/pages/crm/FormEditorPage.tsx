@@ -831,8 +831,12 @@ export default function FormEditorPage() {
                       </MenuItem>
                     </Menu>
                   </Dropdown>
+                  {/* The one Unpublish control: secondary, so it never
+                      reads as the page's main action. */}
                   <JoyButton
                     size="sm"
+                    variant={form.status === "published" ? "outlined" : "solid"}
+                    color={form.status === "published" ? "neutral" : "primary"}
                     onClick={() => void handlePublishToggle()}
                     disabled={isPublishing || isStatusUpdating}
                   >
