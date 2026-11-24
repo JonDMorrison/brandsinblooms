@@ -3,6 +3,8 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import type { POSAnalytics } from "@/hooks/usePOSAnalytics";
+import { useTenant } from "@/hooks/useTenant";
+import { useTenantCustomerSummary } from "@/hooks/useTenantCustomerSummary";
 import { POSDetailCards } from "@/components/analytics/POSDetailCards";
 import { RevenueChart, type RevenuePoint } from "@/components/analytics/RevenueChart";
 import {
@@ -27,6 +29,16 @@ export function RevenueSalesSection({
   posError,
 }: RevenueSalesSectionProps) {
   const currency = posData?.revenueCurrency;
+  const { tenant } = useTenant();
+  const customerSummary = useTenantCustomerSummary(tenant?.id);
+  const summary = customerSummary.data;
+  const customerSpend = summary
+    ? summary.total_revenue > 0
+      ? { total: summary.total_revenue, customers: summary.total_customers, basis: "recorded" as const }
+      : summary.lifetime_revenue > 0
+        ? { total: summary.lifetime_revenue, customers: summary.total_customers, basis: "imported" as const }
+        : null
+    : null;
   const dailyData: RevenuePoint[] = currency
     ? (posData?.dailySales ?? [])
         .filter((row) => row.currency === currency)
@@ -98,6 +110,7 @@ export function RevenueSalesSection({
               loading={posLoading}
               currency={currency ?? undefined}
               periodLabel={getAnalyticsPeriodLabel(period)}
+              customerSpend={customerSpend}
             />
           )}
         </Grid>

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { normalizeEmailCampaignReportingSnapshot } from "./useCampaignDerivedMetrics";
+import { DELIVERED_STATUSES } from "@/constants/campaignStatuses";
 
 export interface DeliveryMetrics {
   campaignId: string;
@@ -42,6 +43,11 @@ export interface DeliveryMetrics {
 
 interface UseCampaignDeliveryMetricsResult {
   unavailableCampaignCount: number;
+  /**
+   * Sent campaigns counted with the campaigns list's rule
+   * (isDeliveredCampaignStatus): in the selected period and all time.
+   */
+  sentCounts: { inPeriod: number; allTime: number } | null;
   campaigns: DeliveryMetrics[];
   loading: boolean;
   error: string | null;
@@ -67,6 +73,7 @@ export const useCampaignDeliveryMetrics = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unavailableCampaignCount, setUnavailableCampaignCount] = useState(0);
+  const [sentCounts, setSentCounts] = useState<{ inPeriod: number; allTime: number } | null>(null);
 
   const fetchMetrics = useCallback(async () => {
     if (!tenant?.id || options?.enabled === false) {
@@ -86,14 +93,36 @@ export const useCampaignDeliveryMetrics = (
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - dateRange);
 
-      // Fetch sent campaigns
+      // Sent campaigns use the campaigns list's rule (DELIVERED_STATUSES).
+      const deliveredStatuses = [...DELIVERED_STATUSES];
+      const [periodCount, allTimeCount] = await Promise.all([
+        supabase
+          .from("crm_campaigns")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .in("status", deliveredStatuses)
+          .gte("sent_at", startDate.toISOString()),
+        supabase
+          .from("crm_campaigns")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .in("status", deliveredStatuses),
+      ]);
+      if (periodCount.error) throw periodCount.error;
+      if (allTimeCount.error) throw allTimeCount.error;
+      setSentCounts({
+        inPeriod: periodCount.count ?? 0,
+        allTime: allTimeCount.count ?? 0,
+      });
+
+      // Fetch the ten most recent sent campaigns for the detail table
       const { data: campaignsData, error: campaignsError } = await supabase
         .from("crm_campaigns")
         .select(
           "id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
         )
         .eq("tenant_id", tenantId)
-        .in("status", ["sent", "sent_with_errors"])
+        .in("status", deliveredStatuses)
         .gte("sent_at", startDate.toISOString())
         .order("sent_at", { ascending: false })
         .limit(10);
@@ -335,6 +364,7 @@ export const useCampaignDeliveryMetrics = (
   return {
     campaigns,
     unavailableCampaignCount,
+    sentCounts,
     loading,
     error,
     summary,

@@ -14,6 +14,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import Alert from "@mui/joy/Alert";
+import { useAdmin } from "@/contexts/AdminContext";
 import {
   useCampaignDeliveryMetrics,
   type DeliveryMetrics,
@@ -66,7 +68,9 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
     recomputeCampaign,
     refresh,
     summary,
+    sentCounts,
   } = useCampaignDeliveryMetrics(dateRange);
+  const { isMasterAdmin } = useAdmin();
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(
     () => new Set(),
   );
@@ -163,7 +167,11 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
           <JoyEmptyState
             icon={<Mail />}
             title="No email campaigns in this period"
-            description="Launch a campaign to start tracking delivery, opens, clicks, and skip reasons here."
+            description={
+              sentCounts && sentCounts.allTime > 0
+                ? `No campaign was sent in the last ${dateRange} days. ${sentCounts.allTime.toLocaleString()} sent all time; widen the date range to see them.`
+                : "Launch a campaign to start tracking delivery, opens, clicks, and skip reasons here."
+            }
             primaryAction={{
               label: "Create campaign",
               onClick: () => navigate("/crm/campaigns/new"),
@@ -204,7 +212,9 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
     {
       key: "campaigns",
       color: "neutral" as const,
-      label: `${summary.totalCampaigns} recent campaigns`,
+      label: sentCounts
+        ? `${sentCounts.inPeriod.toLocaleString()} sent in this period · ${sentCounts.allTime.toLocaleString()} all time`
+        : `${summary.totalCampaigns} recent campaigns`,
     },
     {
       key: "skipped",
@@ -220,14 +230,15 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
         description="A clear view of clicks, opens, and delivery for up to 10 recent sent campaigns"
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
-            {campaigns.some((campaign) => campaign.isStale) ? (
+            {/* Cache reconciliation is an internal diagnostic: admins only. */}
+            {isMasterAdmin && campaigns.some((campaign) => campaign.isStale) ? (
               <JoyChip
                 size="sm"
                 variant="soft"
                 color="warning"
                 startDecorator={<AlertTriangle size={12} />}
               >
-                Cached drift detected
+                Stored totals out of date (admin)
               </JoyChip>
             ) : null}
             <JoyButton
@@ -243,6 +254,15 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
       />
       <JoyCardContent sx={{ pt: 3 }}>
         <Stack spacing={2}>
+          {!hasDeliveryData ? (
+            <Alert color="neutral" variant="soft" size="sm">
+              These campaigns have no recorded deliveries yet, so open rate,
+              click-through rate and delivered show “—”. This happens when
+              campaigns were imported or sent before delivery tracking was
+              connected, or while a send is still being recorded. It does not
+              mean nobody opened them.
+            </Alert>
+          ) : null}
           <Box
             sx={{
               display: "grid",
