@@ -47,12 +47,29 @@ type Props = {
   selectedBlockId?: string | null;
   /** This week's theme blocks (copy and photos) to insert one at a time. */
   weeklyTheme?: WeeklyThemeLibrary | null;
+  /** "Add all theme blocks": replaces the header, fills empty placeholders. */
+  onInsertThemeBlocks?: (blocks: StudioBlock[]) => void;
 };
 
 export interface WeeklyThemeLibrary {
   title: string;
   weekLabel: string;
   blocks: Array<{ name: string; block: StudioBlock }>;
+}
+
+const THEME_IMAGE_BLOCK_TYPES = new Set(["full-width-image", "image", "graphic-hero"]);
+
+/**
+ * Sidebar label for a theme block: its own title, never raw photo alt text
+ * ("a garden filled with lots of different types of flowers").
+ */
+export function themeBlockLabel(block: StudioBlock): string {
+  const headline = block.headline?.replace(/<[^>]*>/g, "").trim();
+  if (headline) return headline;
+  if (THEME_IMAGE_BLOCK_TYPES.has(block.type)) return "Theme photo";
+  const body = (block.body ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  if (body) return body.length > 60 ? `${body.slice(0, 57).trimEnd()}...` : body;
+  return STUDIO_BLOCK_LOOKUP[block.type]?.name ?? "Theme block";
 }
 
 function WeeklyThemeSection({
@@ -98,11 +115,14 @@ function WeeklyThemeSection({
                 style={{ objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
               />
             ) : null}
-            <span>
+            <span data-testid="weekly-theme-item-label">
               {name}
-              <span style={{ display: "block", fontSize: 11, color: "#526b72" }}>
-                {STUDIO_BLOCK_LOOKUP[block.type]?.name}
-              </span>
+              {STUDIO_BLOCK_LOOKUP[block.type]?.name ? (
+                <span style={{ color: "#526b72", fontSize: 11 }}>
+                  {" · "}
+                  {STUDIO_BLOCK_LOOKUP[block.type]?.name}
+                </span>
+              ) : null}
             </span>
           </button>
         ))}
@@ -213,6 +233,7 @@ export default function BlockLibrary({
   onMoveBlock,
   selectedBlockId,
   weeklyTheme = null,
+  onInsertThemeBlocks,
 }: Props) {
   const [tab, setTab] = React.useState<"blocks" | "outline" | "saved">(
     "blocks",
@@ -347,7 +368,7 @@ export default function BlockLibrary({
               <WeeklyThemeSection
                 theme={weeklyTheme}
                 onInsert={onInsertSavedBlock}
-                onInsertAll={onInsertImportedBlocks}
+                onInsertAll={onInsertThemeBlocks ?? onInsertImportedBlocks}
               />
             ) : null}
             {categories.map((category) => (

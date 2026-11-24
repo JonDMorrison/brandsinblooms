@@ -76,7 +76,10 @@ import { toContentBlockSource, type ContentBlock } from "@/types/emailBuilder";
 import { useStudioImageCrops } from "@/components/crm/studio/useStudioImageCrops";
 import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
 import { buildNewsletterIdeaContentBlocks } from "@/lib/studio/newsletterIdeaSeed";
-import type { WeeklyThemeLibrary } from "@/components/crm/studio/BlockLibrary";
+import {
+  themeBlockLabel,
+  type WeeklyThemeLibrary,
+} from "@/components/crm/studio/BlockLibrary";
 import type {
   GalleryImage,
   GalleryProduct,
@@ -753,15 +756,7 @@ function CampaignStudioPageContent() {
     return {
       title: theme.idea.title,
       weekLabel: `Week ${theme.source.weekNumber}`,
-      blocks: blocks.map((block) => ({
-        block,
-        name:
-          block.headline?.trim() ||
-          block.imageAlt?.trim() ||
-          (block.body ?? "").replace(/<[^>]*>/g, "").trim().slice(0, 60) ||
-          block.label ||
-          "Theme block",
-      })),
+      blocks: blocks.map((block) => ({ block, name: themeBlockLabel(block) })),
     };
   }, [designSystem, weeklyThemeQuery.data]);
 
@@ -2360,6 +2355,7 @@ function CampaignStudioPageContent() {
                   selectedBlockId={studio.selectedBlockId}
                   onSelectBlock={handleFocusBlock}
                   weeklyTheme={weeklyThemeLibrary}
+                  onInsertThemeBlocks={studio.insertThemeBlocks}
                 />
               </Sheet>
 

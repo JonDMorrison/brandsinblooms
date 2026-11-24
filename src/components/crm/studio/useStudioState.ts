@@ -234,6 +234,62 @@ export function placeInsertedBlocks(
   return { blocks: next, focusId: inserted[inserted.length - 1].id };
 }
 
+/**
+ * "Add all theme blocks": the theme's header replaces the newsletter header
+ * (keeping its logo and id) instead of adding a second one. The other theme
+ * blocks take the place of empty placeholder blocks when there are any,
+ * otherwise they go right after the header. Never after the footer.
+ */
+export function placeThemeBlocks(
+  current: StudioBlock[],
+  themeBlocks: StudioBlock[],
+): { blocks: StudioBlock[]; focusId: string | null } {
+  const themeHeader = themeBlocks.find((block) => block.type === "newsletter-header") ?? null;
+  const content = themeBlocks.filter(
+    (block) => block.type !== "newsletter-header" && block.type !== "footer",
+  );
+  let next = [...current];
+
+  const headerIndex = next.findIndex((block) => block.type === "newsletter-header");
+  if (themeHeader) {
+    if (headerIndex >= 0) {
+      const existing = next[headerIndex] as StudioBlock & Record<string, unknown>;
+      const logoFields = Object.fromEntries(
+        Object.entries(existing).filter(([key]) => key.startsWith("logo")),
+      );
+      next[headerIndex] = { ...themeHeader, ...logoFields, id: existing.id };
+    } else {
+      next.unshift(themeHeader);
+    }
+  }
+
+  const isPlaceholder = (block: StudioBlock) =>
+    block.type !== "footer" &&
+    block.type !== "newsletter-header" &&
+    isEmptyContentBlock(block);
+  const firstPlaceholder = next.findIndex(isPlaceholder);
+  let index: number;
+  if (firstPlaceholder >= 0) {
+    // Position among the blocks that stay.
+    index = next.slice(0, firstPlaceholder).filter((block) => !isPlaceholder(block)).length;
+    next = next.filter((block) => !isPlaceholder(block));
+  } else {
+    const header = next.findIndex((block) => block.type === "newsletter-header");
+    index = header >= 0 ? header + 1 : 0;
+  }
+  const footerIndex = next.findIndex((block) => block.type === "footer");
+  if (footerIndex >= 0 && index > footerIndex) index = footerIndex;
+  next.splice(index, 0, ...content);
+
+  const focus = content[0] ?? themeHeader;
+  const focusId = focus
+    ? (next.find((block) => block.id === focus.id)?.id ??
+      next.find((block) => block.type === "newsletter-header")?.id ??
+      null)
+    : null;
+  return { blocks: next, focusId };
+}
+
 export function useStudioState({
   initialCampaignName,
   designSystem,
@@ -518,6 +574,27 @@ export function useStudioState({
       pulseInsertedBlock(copies[0].id);
     },
     [designSystem, pulseInsertedBlock, setBlocks],
+  );
+  /** "Add all theme blocks": see placeThemeBlocks. */
+  const insertThemeBlocks = React.useCallback(
+    (themeBlocks: StudioBlock[]) => {
+      const copies = themeBlocks
+        .slice(0, 100)
+        .filter((block) => block.type !== "footer")
+        .map(cloneSavedBlock);
+      if (!copies.length) return;
+      setBlocks((current) =>
+        normalizeBlocks(reindexBlocks(placeThemeBlocks(current, copies).blocks), designSystem),
+      );
+      // A replaced header keeps the existing header's id.
+      const focusId =
+        copies.find((block) => block.type !== "newsletter-header")?.id ??
+        blocks.find((block) => block.type === "newsletter-header")?.id ??
+        copies[0].id;
+      setSelectedBlockId(focusId);
+      pulseInsertedBlock(focusId);
+    },
+    [blocks, designSystem, pulseInsertedBlock, setBlocks],
   );
   /** Append preconfigured connected-site blocks before the compliance footer. */
   const insertConnectedContentBlocks = React.useCallback((items: StudioBlock[]) => {
@@ -915,6 +992,7 @@ export function useStudioState({
     addBlock,
     insertSavedBlock,
     insertImportedBlocks,
+    insertThemeBlocks,
     insertConnectedContentBlocks,
     removeBlock,
     duplicateBlock,

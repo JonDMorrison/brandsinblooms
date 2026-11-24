@@ -51,72 +51,70 @@ export function buildWeeklyThemeImageQuery(source: Pick<WeeklyThemeSource, "them
   return [...words, "garden"].join(" ");
 }
 
-function firstSentence(text: string) {
-  const trimmed = text.replace(/\s+/g, " ").trim();
-  const match = trimmed.match(/^(.{20,200}?[.!?])\s/);
-  return match ? match[1] : trimmed.slice(0, 200);
-}
-
-/** Splits "idea one • idea two" (how weekly content ideas are stored) into items. */
-function splitIdeas(text: string) {
-  return text
-    .split(/\s*(?:•|\n|;)\s*/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
+/**
+ * Button URL placeholder in theme template blocks: the seed swaps it for the
+ * tenant's website, or drops the button when there is no website.
+ */
+export const WEEKLY_THEME_WEBSITE_URL = "{{website_url}}";
 
 /**
- * The newsletter idea a weekly theme seeds: a header, the theme photo, the
- * week's content ideas, and an image story for the seasonal focus. Blocks
- * without an image are left out rather than shown as empty placeholders.
+ * Customer-facing copy for a theme week. Built only from the week's title,
+ * theme and seasonal focus; the theme description / prompt / content ideas
+ * are notes for the store (e.g. "Encourage documenting successes...") and
+ * never reach the email.
  */
-export function buildWeeklyThemeIdea(source: WeeklyThemeSource): NewsletterIdea {
+export function buildWeeklyThemeCopy(source: Pick<WeeklyThemeSource, "title" | "theme" | "seasonalFocus" | "weekNumber">) {
   const title = sanitizeCampaignTitle(source.title || source.theme || `Week ${source.weekNumber}`);
-  const headline = sanitizeCampaignTitle(source.theme || source.title || title);
-  const ideas = splitIdeas(source.description);
-  const intro = ideas.length > 1
-    ? ideas.map((idea) => `• ${idea}`).join("\n")
-    : source.description || `Here's what's happening in the garden this week.`;
-  const [hero, story, extra] = source.images;
+  const heading = sanitizeCampaignTitle(source.theme || source.title || title);
+  const focus = source.seasonalFocus.replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+  const intro =
+    `This week in the garden: ${title}. ` +
+    "Here are our favourite ideas for the season, and the plants and supplies to go with them. " +
+    "Drop by the store and our team will gladly help you get started.";
+  const storyHeading = focus || "In the garden this week";
+  const storyBody = focus
+    ? `${focus} is on our minds this week. Bring your questions and your plans; we'll help you choose what fits your garden.`
+    : "Bring your questions and your plans; we'll help you choose what fits your garden.";
+  const preview = `${heading}: ideas and advice for your garden this week.`;
+  return { title, heading, intro, storyHeading, storyBody, preview };
+}
+
+export function buildWeeklyThemeIdea(source: WeeklyThemeSource): NewsletterIdea {
+  const copy = buildWeeklyThemeCopy(source);
+  const [hero, story] = source.images;
 
   const templateBlocks: NewsletterIdeaTemplateBlock[] = [
     {
       type: "newsletter-header",
-      title: headline,
-      tagline: source.seasonalFocus || firstSentence(source.description),
+      title: copy.heading,
+      tagline: source.seasonalFocus || "",
     },
   ];
   if (hero) {
     templateBlocks.push({
       type: "full-width-image",
       image_url: hero.url,
-      altText: hero.alt || headline,
+      altText: hero.alt || copy.heading,
     });
   }
-  templateBlocks.push({ type: "text", content: intro });
+  templateBlocks.push({ type: "text", title: copy.title, content: copy.intro });
   if (story) {
     templateBlocks.push({
       type: "image-text",
-      title: source.seasonalFocus ? "In the garden this week" : headline,
-      content: source.seasonalFocus || firstSentence(source.description),
+      title: copy.storyHeading,
+      content: copy.storyBody,
       image_url: story.url,
-      altText: story.alt || headline,
-    });
-  }
-  if (extra && ideas.length > 1) {
-    templateBlocks.push({
-      type: "image-text",
-      title: sanitizeCampaignTitle(ideas[1]).slice(0, 80),
-      content: ideas.slice(2).join(". ") || firstSentence(source.description),
-      image_url: extra.url,
-      altText: extra.alt || headline,
+      altText: story.alt || copy.heading,
+      ctaText: "Visit our website",
+      ctaUrl: WEEKLY_THEME_WEBSITE_URL,
     });
   }
 
   return {
     id: `weekly-theme-${source.weekNumber}`,
-    title,
-    description: source.description || source.seasonalFocus || title,
+    title: copy.title,
+    // Customer-facing: used as the draft's preview text.
+    description: copy.preview,
     category: "weekly",
     badge: `Week ${source.weekNumber}`,
     weekNumber: source.weekNumber,

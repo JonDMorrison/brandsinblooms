@@ -915,14 +915,56 @@ describe("weekly theme seed", () => {
     const seed = buildNewsletterIdeaDraftSeed(idea, "block-builder");
     const types = seed.contentBlocks.map((block) => block.type);
     expect(types).toContain("full-width-image");
-    expect(types.filter((type) => type === "image-text")).toHaveLength(2);
+    expect(types.filter((type) => type === "image-text")).toHaveLength(1);
     expect(types.at(-1)).toBe("footer");
     const imageUrls = seed.contentBlocks.map((block) => block.imageUrl).filter(Boolean);
-    expect(imageUrls).toEqual(weeklyThemeTestSource.images.map((image) => image.url));
+    expect(imageUrls).toEqual(weeklyThemeTestSource.images.slice(0, 2).map((image) => image.url));
     for (const block of seed.contentBlocks) {
       expect(block.source).toBe(block.type === "footer" ? undefined : "theme");
     }
     expect(seed.origin).toBe(`weekly_theme:${weeklyThemeTestSource.themeCampaignId}`);
+  });
+
+  it("never puts the internal theme description in the email (qa2 #6)", () => {
+    // Week 48 master row: content_ideas is a note for the store.
+    const week48 = {
+      weekNumber: 48,
+      themeCampaignId: null,
+      title: "Year-End Garden Review",
+      theme: "Celebrating Garden Successes",
+      description: "Encourage documenting successes, learning from challenges, and celebrating the completed growing season.",
+      seasonalFocus: "Annual garden evaluation",
+      images: weeklyThemeTestSource.images,
+    };
+    const idea = buildWeeklyThemeIdea(week48);
+    const seed = buildNewsletterIdeaDraftSeed(
+      idea,
+      "block-builder",
+      buildStudioDesignSystem({ name: "Northfield Garden Center" }),
+    );
+    const everything = JSON.stringify(seed);
+    expect(everything).not.toContain("Encourage documenting");
+    expect(everything).not.toContain("Continue shaping this newsletter");
+    expect(seed.preheaderText).not.toContain("Encourage");
+    const text = seed.contentBlocks.find((block) => block.type === "plain-text");
+    expect(text?.body).toContain("Year-End Garden Review");
+    // No website on file: the Image + Text block has its own copy and no button.
+    const story = seed.contentBlocks.find((block) => block.type === "image-text");
+    expect(story?.body).toBeTruthy();
+    expect(story?.body).not.toBe(text?.body);
+    expect(story?.buttonText).toBe("");
+    expect(story?.buttonUrl).toBe("");
+  });
+
+  it("points the Image + Text button at the website when there is one", () => {
+    const idea = buildWeeklyThemeIdea(weeklyThemeTestSource);
+    const designSystem = buildStudioDesignSystem({
+      name: "Northfield Garden Center",
+      websiteUrl: "https://northfieldgardens.ca",
+    });
+    const blocks = buildNewsletterIdeaContentBlocks(idea, designSystem);
+    const story = blocks.find((block) => block.type === "image-text");
+    expect(story).toMatchObject({ buttonText: "Visit our website", buttonUrl: "https://northfieldgardens.ca" });
   });
 
   it("records one origin per entry path (qa2 #4)", () => {
