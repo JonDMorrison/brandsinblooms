@@ -279,3 +279,33 @@ The `search_path = ''` pass on the 103 `function_search_path_mutable` functions 
 - The five OPEN HIGH user-id rows and `get_recipient_email_delivery_timeline` are now FIXED (see the table). `admin_delete_user` now also accepts service_role.
 - Verified on production over REST with a throwaway user: another user's id gives 403 (42501) for `spend_tokens`, `soft_delete_user_data`, `enable_crm_for_user` and `admin_delete_user`. The user's own id gives 200 for the three self-service RPCs. `spend_tokens` with a negative amount gives 400. `refill_tokens` and `restore_user_data` give 403 (permission denied). `get_recipient_email_delivery_timeline` gives 403 when signed in and 401 as anon. `delete-account` with another user's id returns 400 `Unauthorized`.
 - Still open: account deletion passes the guard but then fails on `users_created_by_user_id_fkey`. `public.users.created_by_user_id` references `auth.users` with NO ACTION, and every signup row references itself. `admin_delete_user` does not remove the `public.users` row, so the final `DELETE FROM auth.users` is rejected. `admin_delete_user` needs a follow-up change.
+
+## Part B (migrations `20261124183120_rpc_lockdown_b_search_path_alter`, `20261124183205_rpc_lockdown_b_search_path_qualify`)
+
+`search_path = ''` is now pinned on all 103 `public` functions that the advisor flagged `function_search_path_mutable`. After this, no SQL or PL/pgSQL function in `public` runs without a pinned `search_path`. The only `public` functions without one are the C and internal functions that the `pgvector` and `pg_trgm` extensions own, and the advisor does not flag those.
+
+- 88 functions already schema-qualified everything they use. They got `ALTER FUNCTION ... SET search_path = ''` only. This set includes the 57 one-line `NEW.updated_at = now()` triggers.
+- 15 functions used `public` tables without a schema. Each one was recreated from its live `pg_get_functiondef` with those tables written as `public.<table>`. Signature, return type, volatility, security mode, owner, grants and extension membership did not change; this was checked against `pg_proc` afterwards. The 15 are `admin_extend_trial`, `admin_toggle_tenant_active`, `auto_generate_session_title`, `copy_master_templates_to_campaigns`, `create_automation_from_draft`, `delete_customers_except`, `generate_campaign_slug`, `generate_ticket_number`, `has_support_role`, `is_super_admin`, `log_ticket_changes`, `recompute_customer_rollups`, `sync_email_domain_to_company_profile`, `update_session_image_count` and `update_session_on_message_insert`.
+- To find unqualified references, a lookbehind regex ran over each function body with comments and string literals removed, against every `public` relation, type and function name. It found only the tables above. The only other matches were the built-in `sum`/`avg` (these resolve to `pg_catalog`) and `ON CONFLICT ... DO UPDATE` target-table references.
+- Verification was a single `DO` block that ran against production and then raised an exception, which rolled everything back. Each called function ran without "does not exist" errors: `email_governance_default_config`, `get_tenant_customer_summary`, `get_token_balance`, `get_user_image_analytics`, `feature_enabled`, `find_images_by_tags`, `has_support_role`, `is_super_admin`, `check_email_exists`, `generate_campaign_slug`, `generate_ticket_number`, `recompute_customer_rollups`, `increment_image_usage`, `increment_template_usage`, `track_image_optimization`, `update_import_job_progress`, `log_import_batch_error`, `cleanup_expired_oauth_states`, `cleanup_old_oauth_codes`, `update_domain_warmup` and `record_email_usage`. The caller checks in `admin_extend_trial`, `admin_toggle_tenant_active`, `create_automation_from_draft` and `delete_customers_except` raised their own access errors, which happens only after their table lookups have run. These triggers also fired cleanly: updates on `tenants`, `email_domains` (status changed to active), `support_tickets` (priority change, which wrote a history row), `crm_customers`, `company_profiles` and `crm_campaigns`; inserts into `tenants`, `ai_assistant_messages` (sets the session title and message count) and `ai_assistant_generated_images` (sets the image count).
+- `check_trial_expiration_emails` was deliberately not called because it queues trial-reminder emails. Its body was already fully qualified. `copy_master_templates_to_campaigns` resolves its tables but then fails on the existing `campaigns_week_date_consistency` check constraint. That failure has nothing to do with `search_path`; the function was already broken before this change.
+
+### Security advisor counts for part B
+
+| Lint | Level | Before B | After B |
+|---|---|---|---|
+| rls_enabled_no_policy | INFO | 117 | 117 |
+| function_search_path_mutable | WARN | 103 | 0 |
+| extension_in_public | WARN | 3 | 3 |
+| anon_security_definer_function_executable | WARN | 2 | 2 |
+| authenticated_security_definer_function_executable | WARN | 246 | 246 |
+| auth_otp_long_expiry | WARN | 1 | 1 |
+| auth_leaked_password_protection | WARN | 1 | 1 |
+| Total | | 473 | 370 |
+
+The counts before part B are higher than the "after" column in part A (117/2/246 compared with 115/1/240). The extra findings come from objects that later merged migrations added; they were not caused by part B.
+
+### Dashboard-only steps (still flagged by the advisor)
+
+- Leaked-password protection (`auth_leaked_password_protection`): Authentication > Providers > Email (Password security) > enable "Prevent use of leaked passwords".
+- Email OTP expiry (`auth_otp_long_expiry`): Authentication > Providers > Email > "Email OTP Expiration" set to 3600 seconds or less.
