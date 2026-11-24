@@ -187,6 +187,8 @@ export const getRiskColor = (value?: number | null): ColorPaletteProp => {
 export const getLifecyclePresentation = (
   stage?: string | null,
   isVip = false,
+  /** First purchase (or creation, with no purchase) within 30 days. */
+  isNew = false,
 ): { label: string; color: ColorPaletteProp } => {
   if (isVip) {
     return { label: "VIP", color: "primary" };
@@ -211,7 +213,11 @@ export const getLifecyclePresentation = (
         color: "danger",
       };
     default:
-      return { label: "New", color: "info" };
+      // "New" only when the customer really is new; an unknown or stale
+      // "new" stage on an established customer is shown neutrally.
+      return isNew
+        ? { label: "New", color: "info" }
+        : { label: "Customer", color: "neutral" };
   }
 };
 

@@ -77,6 +77,11 @@ import {
 } from "@/lib/customerDashboardTransformers";
 import { logActivity } from "@/lib/activityLogger";
 import { buildCustomerFocus } from "@/utils/askBloomContextBuilders";
+import {
+  isNewCustomer,
+  resolveCustomerPurchaseSummary,
+} from "@/lib/crm/customerPurchaseSummary";
+import { useAdmin } from "@/contexts/AdminContext";
 import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 
 type DashboardTab =
@@ -210,6 +215,7 @@ const CustomerDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { role: crmRole, hasPermission } = useUserRole();
+  const { isMasterAdmin } = useAdmin();
   const canEditCustomer = hasPermission("customers.write");
   const canManageSegments = hasPermission("segments.manage");
   const canRegenerateInsights = hasPermission("content.design");
@@ -309,6 +315,13 @@ const CustomerDashboardPage: React.FC = () => {
     [],
   );
 
+  // One source of truth for lifetime value, orders and purchase dates: the
+  // crm_customers rollups, shared with the customer list and Bloom.
+  const purchaseSummary = React.useMemo(
+    () => resolveCustomerPurchaseSummary(displayCustomer),
+    [displayCustomer],
+  );
+
   const snapshotMetrics = React.useMemo(
     () =>
       transformToSnapshotMetrics(
@@ -357,8 +370,9 @@ const CustomerDashboardPage: React.FC = () => {
       transformToPurchaseMetrics(
         purchaseMetrics ?? null,
         postPurchaseMetrics ?? null,
+        purchaseSummary,
       ),
-    [postPurchaseMetrics, purchaseMetrics],
+    [postPurchaseMetrics, purchaseMetrics, purchaseSummary],
   );
   const loyaltyDisplayMetrics = React.useMemo(
     () =>
@@ -515,7 +529,10 @@ const CustomerDashboardPage: React.FC = () => {
 
   const fields=displayCustomer.custom_fields;
   const isIdealProfile=Boolean(fields&&typeof fields==='object'&&!Array.isArray(fields)&&'ideal_import_source' in fields);
-  const receiptMetricsUnavailable=!purchaseMetrics;
+  const receiptMetricsUnavailable =
+    !purchaseMetrics &&
+    purchaseSummary.lifetimeValue === null &&
+    purchaseSummary.orderCount === null;
 
   const activityFilters = {
     start: rangeStartDate,
@@ -535,6 +552,7 @@ const CustomerDashboardPage: React.FC = () => {
             smsOptIn={displayCustomer.sms_opt_in}
             lifecycleStage={lifecycleMetrics?.lifecycle_stage}
             createdAt={displayCustomer.created_at}
+            isNew={isNewCustomer(displayCustomer)}
             lastActiveAt={
               displayCustomer.last_seen_at || displayCustomer.updated_at
             }
@@ -571,12 +589,13 @@ const CustomerDashboardPage: React.FC = () => {
           ) : null}
 
           <ImportedCustomerSummary fields={displayCustomer.custom_fields} />
-          {displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
+          {/* Raw POS report reconciliation is an admin diagnostic, not customer-facing copy. */}
+          {isMasterAdmin&&displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
           <CustomerQuickStats
             healthScore={snapshotMetrics.engagementHealthScore}
             engagementScore={engagementMetrics.engagementScore}
-            lifetimeValue={purchaseMetrics?.lifetime_value ?? null}
-            totalOrders={purchaseMetrics?.total_purchases ?? null}
+            lifetimeValue={purchaseSummary.lifetimeValue}
+            totalOrders={purchaseSummary.orderCount}
             preferredChannel={snapshotMetrics.preferredChannel}
             accountAgeDays={snapshotMetrics.accountAgeDays}
           />
@@ -811,6 +830,7 @@ const CustomerDashboardPage: React.FC = () => {
             <Stack spacing={2}>
               {(!isIdealProfile||customerIntelligence?.last_line_item_purchase_at)&&<CustomerIntelligenceStory
                 intelligence={customerIntelligence}
+                lifetimeValue={purchaseSummary.lifetimeValue}
                 onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
               />
               }
