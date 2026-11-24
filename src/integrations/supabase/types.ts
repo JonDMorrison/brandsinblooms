@@ -16357,6 +16357,19 @@ export type Database = {
           worker_heartbeat_at: string | null;
         }[];
       };
+      copy_segment_members_batch: {
+        Args: {
+          p_after_customer_id?: string | null;
+          p_limit?: number;
+          p_source_segment_id: string;
+          p_target_segment_id: string;
+        };
+        Returns: Json;
+      };
+      segment_membership_summary: {
+        Args: { p_tenant_id: string };
+        Returns: Json;
+      };
       ensure_system_segments: {
         Args: { p_segments: Json; p_tenant_id: string };
         Returns: number;

@@ -43,10 +43,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCreateSegment } from "@/hooks/useCreateSegment";
 import { useDeleteSegment } from "@/hooks/useDeleteSegment";
 import { useEvaluateSegments } from "@/hooks/useSegmentEvaluation";
+import { fetchAllPaginated } from "@/hooks/useSegmentPreview";
 import { type SegmentListItem, useSegments } from "@/hooks/useSegments";
 import { useSystemSegmentDataAvailability } from "@/hooks/useSystemSegmentDataAvailability";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import { copySegmentMembers } from "@/lib/segmentMembership";
 import { BASE_SEGMENT_FIELDS } from "@/lib/segmentFields";
 import { segmentRuleToNaturalLanguage } from "@/lib/segmentRuleToNaturalLanguage";
 import { getMissingDataExplanation } from "@/lib/crm/systemSegmentDataAvailability";
@@ -417,31 +419,32 @@ export function CRMSegmentsPage() {
   const handleDuplicateSegment = React.useCallback(
     async (segment: SegmentListItem) => {
       try {
-        let memberIds: string[] | undefined;
-
-        if (segment.type === "static") {
-          const { data, error: membershipError } = await supabase
-            .from("customer_segments")
-            .select("customer_id")
-            .eq("segment_id", segment.id);
-
-          if (membershipError) {
-            throw membershipError;
-          }
-
-          memberIds = (data ?? []).map((membership) => membership.customer_id);
-        }
-
         const created = await createSegment.mutateAsync({
           name: getNextDuplicateSegmentName(segment.name, allSegments),
           description: segment.description,
           type: segment.type,
           status: segment.status,
           rules: segment.rules,
-          memberIds,
         });
 
-        toast.success("Segment duplicated");
+        if (segment.type === "static") {
+          // Copy members in the database (INSERT ... SELECT in batches), so
+          // segments above 1,000 members are copied in full.
+          try {
+            const copied = await copySegmentMembers(segment.id, created.id);
+            toast.success(
+              `Segment duplicated with ${copied.toLocaleString()} member${copied === 1 ? "" : "s"}`,
+            );
+          } catch (copyError) {
+            await deleteSegment.mutateAsync(created.id).catch(() => undefined);
+            throw copyError;
+          } finally {
+            void refetch();
+          }
+        } else {
+          toast.success("Segment duplicated");
+        }
+
         navigate(`/crm/segments/${created.id}`);
       } catch (duplicateError) {
         toast.error(
@@ -451,29 +454,44 @@ export function CRMSegmentsPage() {
         );
       }
     },
-    [allSegments, createSegment, navigate],
+    [allSegments, createSegment, deleteSegment, navigate, refetch],
   );
 
   const handleExportMembers = React.useCallback(
     async (segment: SegmentListItem) => {
       try {
-        const { data, error: exportError } = await supabase
-          .from("customer_segments")
-          .select(
-            `
-              assigned_at,
-              crm_customers!inner(first_name, last_name, email, phone, tenant_id)
-            `,
-          )
-          .eq("segment_id", segment.id)
-          .eq("crm_customers.tenant_id", tenantId);
+        if (!tenantId) {
+          throw new Error("Select a workspace before exporting.");
+        }
 
-        if (exportError) {
-          throw exportError;
+        // Paged: a single select stops at 1,000 rows. 1,000 pages covers
+        // the largest tenant (107k customers) with room to spare.
+        const { data, truncated } = await fetchAllPaginated((from, to) =>
+          supabase
+            .from("customer_segments")
+            .select(
+              `
+                id,
+                assigned_at,
+                crm_customers!inner(first_name, last_name, email, phone, tenant_id)
+              `,
+            )
+            .eq("segment_id", segment.id)
+            .eq("crm_customers.tenant_id", tenantId)
+            .order("id", { ascending: true })
+            .range(from, to),
+          1000,
+          1000,
+        );
+
+        if (truncated) {
+          throw new Error(
+            "This segment is too large to export from the browser. Contact support for a full export.",
+          );
         }
 
         const headers = ["Customer Name", "Email", "Phone", "Added At"];
-        const rows = (data ?? []).map((record) => {
+        const rows = data.map((record) => {
           const customer = record.crm_customers as {
             first_name?: string | null;
             last_name?: string | null;
@@ -499,7 +517,9 @@ export function CRMSegmentsPage() {
           `${sanitizeFileNamePart(segment.name)}-members.csv`,
           "text/csv;charset=utf-8",
         );
-        toast.success("Member CSV exported");
+        toast.success(
+          `Exported ${rows.length.toLocaleString()} member${rows.length === 1 ? "" : "s"}`,
+        );
       } catch (exportMembersError) {
         toast.error(
           exportMembersError instanceof Error

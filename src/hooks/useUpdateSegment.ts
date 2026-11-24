@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { fetchAllPaginated } from "@/hooks/useSegmentPreview";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/contexts/AdminContext";
 import type { SegmentRuleGroup } from "@/lib/segmentFields";
@@ -79,18 +80,26 @@ export function useUpdateSegment() {
 
       const targetMemberIds = new Set(input.memberIds ?? []);
 
-      const { data: currentMemberships, error: membershipsError } =
-        await supabase
-          .from("customer_segments")
-          .select("customer_id")
-          .eq("segment_id", input.segmentId);
+      // Paged: a single select stops at 1,000 rows, which would make the
+      // add/remove diff below wrong for larger static segments.
+      const { data: currentMemberships, truncated } = await fetchAllPaginated(
+        (from, to) =>
+          supabase
+            .from("customer_segments")
+            .select("customer_id")
+            .eq("segment_id", input.segmentId)
+            .order("customer_id", { ascending: true })
+            .range(from, to),
+        1000,
+        500,
+      );
 
-      if (membershipsError) {
-        throw membershipsError;
+      if (truncated) {
+        throw new Error("This segment is too large to edit member by member.");
       }
 
       const currentMemberIds = new Set(
-        (currentMemberships ?? []).map((row) => row.customer_id),
+        currentMemberships.map((row) => row.customer_id),
       );
 
       if (input.type === "dynamic") {

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/hooks/useSegmentPreview";
 import { getSegmentById, SYSTEM_SEGMENTS } from "@/config/segmentDefinitions";
 
 const UUID_LIKE_REGEX =
@@ -181,19 +182,21 @@ export async function resolveAudienceRecipientIds({
   }
 
   if (!resolvedCustomerIds && systemSegmentIds.length > 0) {
-    const { data: customers, error: customersError } = await supabase
-      .from("crm_customers")
-      .select(
-        "id, tags, total_spent, created_at, last_purchase_date, order_history",
-      )
-      .eq("tenant_id", tenantId);
-
-    if (customersError) {
-      throw customersError;
-    }
+    // Paged: a single select stops at 1,000 customers and undercounts.
+    const { data: customerRows } = await fetchAllPaginated((from, to) =>
+      supabase
+        .from("crm_customers")
+        .select(
+          "id, tags, total_spent, created_at, last_purchase_date, order_history",
+        )
+        .eq("tenant_id", tenantId)
+        .order("id", { ascending: true })
+        .range(from, to),
+      PAGE_SIZE,
+      500,
+    );
 
     const systemSegmentCustomerIds = new Set<string>();
-    const customerRows = customers ?? [];
     const customerIds = customerRows.map((customer) => String(customer.id));
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
