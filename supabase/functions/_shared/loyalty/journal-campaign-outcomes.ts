@@ -1,5 +1,4 @@
-import type {ObservedJournalPeriod} from '../customer-intelligence/observed-ideal-journal.ts';
-import {localDate} from '../customer-intelligence/purchase-exploration.ts';
+import {journalBusinessDay,journalCoverage,type ObservedJournalPeriod} from '../customer-intelligence/observed-ideal-journal.ts';
 
 export type JournalCampaignMessage={id:string;tenant_id:string;campaign_id:string;customer_id:string;sent_at:string|null;resend_id:string|null;delivery_reconciliation_required:boolean};
 const stamp=(s:unknown):s is string=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(s)&&Number.isFinite(Date.parse(s));
@@ -15,7 +14,7 @@ export function observedJournalCampaignOutcome(period:ObservedJournalPeriod,coho
   if(m.tenant_id!==period.tenantId||m.campaign_id!==campaignId)throw Error('Cross-company or cross-campaign message rejected.');
   const serial=JSON.stringify(m);if(seen.has(m.id)){if(seen.get(m.id)!==serial)throw Error('Conflicting message evidence.');continue;}seen.set(m.id,serial);
   if(!stamp(m.sent_at)||!m.resend_id||m.delivery_reconciliation_required){unverifiedSendRecords++;if(allowed.has(m.customer_id))unknown.add(m.customer_id);continue;}
-  const sent=Date.parse(m.sent_at),day=localDate(m.sent_at,period.timezone);
+  const sent=Date.parse(m.sent_at),day=journalBusinessDay(m.sent_at,period.source,period.timezone);
   if(sent>cutoff||!day||day>period.window.end)continue;
   const meaning=JSON.stringify([m.customer_id,sent]);
   if(providers.has(m.resend_id)){if(providers.get(m.resend_id)!==meaning)throw Error('Conflicting provider message identity.');continue;}providers.set(m.resend_id,meaning);
@@ -27,7 +26,7 @@ export function observedJournalCampaignOutcome(period:ObservedJournalPeriod,coho
  const receipts=new Set<string>(),buyers=new Set<string>(),paidDays=new Set<string>(),featuredBuyers=new Set<string>();
  let netMinor=0,positiveReceipts=0,featuredQuantityMilli=0,unknownFeaturedReceipts=0,observedReceipts=0;
  for(const r of period.receiptEvidence){
-  if(!r.id.startsWith(period.source.id+':')||receipts.has(r.id)||!stamp(r.timestamp)||r.day!==localDate(r.timestamp,period.timezone)||r.day<period.window.start||r.day>period.window.end||Date.parse(r.timestamp)>cutoff||!Number.isSafeInteger(r.netMinor))throw Error('Journal receipt evidence is inconsistent.');
+  if(!r.id.startsWith(period.source.id+':')||receipts.has(r.id)||!stamp(r.timestamp)||r.day!==journalBusinessDay(r.timestamp,period.source,period.timezone)||r.day<period.window.start||r.day>period.window.end||Date.parse(r.timestamp)>cutoff||!Number.isSafeInteger(r.netMinor))throw Error('Journal receipt evidence is inconsistent.');
   receipts.add(r.id);
   const sent=firstSent.get(r.customerId);if(sent===undefined||Date.parse(r.timestamp)<=sent)continue;
   observedReceipts++;netMinor=add(netMinor,r.netMinor);
@@ -38,6 +37,7 @@ export function observedJournalCampaignOutcome(period:ObservedJournalPeriod,coho
   }
  }
  return {version:1 as const,mode:'observed_journal_campaign_preview' as const,campaignId,window:period.window,currency:period.currency,timezone:period.timezone,cutoff:period.cutoff,source:{id:period.source.id,filename:period.source.source_filename,sha256:period.source.source_sha256},
+  coverage:journalCoverage(period.source),
   frozenCustomers:cohort.length,verifiedSentCustomers:firstSent.size,acceptedSendRecords,outsideFrozenAudienceSentCustomers:outside.size,unverifiedSendRecords,customersWithUnverifiedSend:unknown.size,
   baselineCapturedBeforeFirstSend:[...firstSent.values()].every(sent=>Date.parse(baselineCapturedAt)<=sent),
   customersWithObservedPositivePurchase:buyers.size,positiveReceipts,observedPositivePurchaseDays:paidDays.size,observedReceipts,observedNetSpendMinor:observedReceipts?netMinor:null,

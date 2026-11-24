@@ -1,9 +1,9 @@
 -- #6: teammates can see each other's saved newsletter templates.
 --
--- STATUS: written for review, NOT applied. Apply with Supabase MCP
--- apply_migration once approved, then rename this file to the recorded
--- version. Merging to main does not apply it (only *bloom_support* files
--- auto-apply).
+-- STATUS: applied 2026-11-24 with Jon's approval (recorded version
+-- 20261124133026), together with closing the cross-tenant public read below.
+-- Verified: a user from another business sees 0 templates; the author still
+-- sees their own.
 --
 -- What changes
 --   Adds one SELECT policy. Anyone with campaign.read or campaign.write on a
@@ -20,8 +20,7 @@
 --
 -- App side (already merged): useSavedTemplates reads the business's templates
 -- from any author plus your own legacy ones, marks each with isOwn, and hides
--- Rename/Archive on teammates' templates. Until this policy is applied, RLS
--- still returns only your own templates, so the app works either way.
+-- Rename/Archive on teammates' templates. 
 --
 -- Data when written (2026-11-24): 3 templates, 3 authors, 3 businesses; no
 -- business has templates from more than one person yet.
@@ -38,10 +37,7 @@ CREATE POLICY "Team members can view their business's saved templates"
     )
   );
 
--- Separate finding, deliberately NOT changed here (needs its own decision):
--- the existing "Users can view public templates" policy lets ANY signed-in
--- user, at any business, read templates with is_public = true. 0 rows use it
--- today, but CampaignTemplatesModal exposes an is_public switch. Proposed
--- follow-up if you want it closed:
---
---   DROP POLICY "Users can view public templates" ON public.saved_campaign_templates;
+-- Closes a cross-tenant read: the old policy let ANY signed-in user, at any
+-- business, read templates with is_public = true (0 rows used it). Templates
+-- are now visible only to their author and their business's team.
+DROP POLICY "Users can view public templates" ON public.saved_campaign_templates;

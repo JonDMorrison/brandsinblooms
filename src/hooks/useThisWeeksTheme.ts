@@ -13,6 +13,77 @@ import {
 import type { NewsletterIdea } from "@/types/newsletter";
 import type { Json } from "@/integrations/supabase/types";
 
+/** Monday (yyyy-mm-dd, local) of the ISO week containing `date`. */
+export function isoWeekStartDate(date: Date) {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const day = String(monday.getDate()).padStart(2, "0");
+  return `${monday.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * The tenant's own weekly theme row (public.campaigns) for this week,
+ * created from the master week when the tenant has none yet, so everyone on
+ * the team shares one theme and one set of photos. Only ever writes a row
+ * for `tenantId`, as the signed-in user (RLS: user_id = auth.uid()).
+ */
+export async function ensureTenantWeeklyTheme(input: {
+  tenantId: string;
+  userId: string;
+  source: WeeklyThemeSource;
+}): Promise<{ id: string; images: WeeklyThemeImage[] }> {
+  const { tenantId, userId, source } = input;
+  if (source.themeCampaignId) {
+    return { id: source.themeCampaignId, images: source.images };
+  }
+  const existing = await supabase
+    .from("campaigns")
+    .select("id, theme_images")
+    .eq("tenant_id", tenantId)
+    .eq("week_number", source.weekNumber)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (existing.error) throw existing.error;
+  let row = existing.data?.[0] ?? null;
+  if (!row) {
+    // Only the master week's title and theme are copied; its content ideas
+    // stay an internal brief, read from the master row when needed.
+    const inserted = await supabase
+      .from("campaigns")
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        created_by_user_id: userId,
+        week_number: source.weekNumber,
+        start_date: isoWeekStartDate(new Date()),
+        title: source.title || source.theme || `Week ${source.weekNumber}`,
+        theme: source.theme || source.title || null,
+        source: "master_templates",
+      })
+      .select("id, theme_images")
+      .single();
+    if (inserted.error) throw inserted.error;
+    row = inserted.data;
+  }
+  let images = toWeeklyThemeImages(row.theme_images);
+  if (images.length === 0 && source.images.length > 0) {
+    const { data: stored, error } = await supabase.rpc("set_weekly_theme_images", {
+      p_campaign_id: row.id,
+      p_images: source.images as unknown as Json,
+    });
+    if (error) {
+      console.warn("Could not save weekly theme images", error);
+      images = source.images;
+    } else {
+      const shared = toWeeklyThemeImages(stored);
+      images = shared.length > 0 ? shared : source.images;
+    }
+  }
+  return { id: row.id, images };
+}
+
 export interface ThisWeeksTheme {
   source: WeeklyThemeSource;
   idea: NewsletterIdea;

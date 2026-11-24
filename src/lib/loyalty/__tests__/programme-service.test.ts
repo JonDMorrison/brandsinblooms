@@ -196,6 +196,15 @@ describe("authenticated programme HTTP boundary", () => {
     expect(x.service.from).not.toHaveBeenCalled();
     expect(x.service.rpc).not.toHaveBeenCalled();
   });
+  it("rejects journal audience save before privileged writes without confirmation or permission",async()=>{
+    for(const confirmed of [false,true]){
+      const x=setup();
+      const out=await x.handler(x.request({action:"save_journal_decline_segment",expectedTenantId:tenantId,confirmed,name:"Recovery",expectedCount:1,reviewDigest:"a".repeat(64),settings:{}}));
+      expect(out.status).toBe(confirmed?403:400);
+      expect(x.service.rpc).not.toHaveBeenCalled();
+      expect(x.service.from).not.toHaveBeenCalled();
+    }
+  });
   it("requires explicit confirmation before a baseline commit", async () => {
     const x = setup();
     const out = await x.handler(
