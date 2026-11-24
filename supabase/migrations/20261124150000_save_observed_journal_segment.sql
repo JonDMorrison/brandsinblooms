@@ -21,7 +21,7 @@ BEGIN
  (i.id::text=p_provenance->'baselineSource'->>'id' AND i.source_sha256=p_provenance->'baselineSource'->>'sha256') OR
  (i.id::text=p_provenance->'currentSource'->>'id' AND i.source_sha256=p_provenance->'currentSource'->>'sha256'))
  AND ((i.report_type='journal' AND i.status='completed') OR (i.report_type='journal_partial' AND i.status='completed_with_errors' AND i.reconciliation->'applied'->'coverage_complete'='false'::jsonb))) <> 
- CASE WHEN p_provenance->'baselineSource'->>'id'=p_provenance->'currentSource'->>'id' THEN 1 ELSE 2 END
+ (CASE WHEN p_provenance->'baselineSource'->>'id'=p_provenance->'currentSource'->>'id' THEN 1 ELSE 2 END)
  THEN RAISE EXCEPTION 'Journal source changed; review again'; END IF;
  key:='review:'||p_digest;
  PERFORM pg_advisory_xact_lock(hashtextextended('journal-segment:'||p_tenant_id::text,0));

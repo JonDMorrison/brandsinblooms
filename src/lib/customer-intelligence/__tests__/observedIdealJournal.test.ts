@@ -1,4 +1,7 @@
-import {describe,expect,it} from 'vitest';
+import {afterAll,beforeAll,describe,expect,it,vi} from 'vitest';
+import {webcrypto} from 'node:crypto';
+beforeAll(()=>vi.stubGlobal('crypto',webcrypto));
+afterAll(()=>vi.unstubAllGlobals());
 import {selectObservedJournalSource,summarizeObservedJournal,compareObservedJournalPeriods,journalCoverage,journalBusinessDay,observedDeclineReview,type JournalSource,type JournalLine,type JournalCustomer} from '../../../../supabase/functions/_shared/customer-intelligence/observed-ideal-journal';
 const tenant='synthetic-tenant',timezone='America/Vancouver',cutoff='2026-11-23T20:00:00Z',sha='a'.repeat(64);
 const source=(year:string):JournalSource=>({id:'journal-'+year,tenant_id:tenant,source:'ideal',report_type:'journal',status:'completed',source_period_start:year+'-01-01',source_period_end:year+'-12-31',source_filename:'Synthetic journal',source_sha256:sha,created_at:'2026-11-01T00:00:00Z',completed_at:'2026-11-01T01:00:00Z',reconciliation:{timezone,applied:{lines:20,net_cents:1000},expected:{lines:20,net_cents:1000,sha256:sha}}});
