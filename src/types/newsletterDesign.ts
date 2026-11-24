@@ -58,6 +58,13 @@ export interface NewsletterSettings {
    * absent on campaigns sent before this flag, so they re-render unchanged.
    */
   emptyBlocks?: "skip";
+  /**
+   * "natural": on phones (<600px) cropped photos show at their natural height
+   * instead of being forced to 240px. Stamped only on footers created for new
+   * drafts (blockFactory and ensureFooterBlockCompliance), so existing drafts
+   * and sent campaigns keep the 240px rule and re-render unchanged.
+   */
+  mobileImageHeight?: "natural";
 }
 export interface NewsletterLink {
   id: string;

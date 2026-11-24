@@ -1089,3 +1089,31 @@ describe("Pick a look keeps user-set values (#20)", () => {
     expect(fields).not.toHaveProperty("backgroundColor");
   });
 });
+
+describe("phone photo height (#25)", () => {
+  const photo = { ...createStudioBlock("full-width-image"), imageUrl: "https://example.com/p.jpg", imageFit: "cover" as const, maxHeight: 400 };
+  const legacyFooter = { ...createStudioBlock("footer"), newsletterSettings: undefined };
+
+  it("keeps the 240px phone crop for campaigns without the flag", () => {
+    const html = generateEmailHtml({ blocks: [photo, legacyFooter], subject: "S", previewText: "P" });
+    expect(html).toContain(".responsive-crop-image { height:240px !important; }");
+    expect(html).toContain(".image-text-image img.responsive-crop-image { height:240px !important; }");
+  });
+
+  it("shows natural height on phones for drafts that opted in", () => {
+    const footer = { ...legacyFooter, newsletterSettings: { version: 1 as const, mobileImageHeight: "natural" as const } };
+    const html = generateEmailHtml({ blocks: [photo, footer], subject: "S", previewText: "P" });
+    expect(html).toContain(".responsive-crop-image { height:auto !important; }");
+    expect(html).not.toContain("height:240px !important");
+  });
+
+  it("stamps the flag only on footers created for new drafts", async () => {
+    expect(createStudioBlock("footer").newsletterSettings?.mobileImageHeight).toBe("natural");
+    const { ensureFooterBlockCompliance } = await import("../footerCompliance");
+    const fresh = ensureFooterBlockCompliance([createStudioBlock("plain-text")]).find((b) => b.type === "footer")!;
+    expect(fresh.newsletterSettings?.mobileImageHeight).toBe("natural");
+    const existing = ensureFooterBlockCompliance([createStudioBlock("plain-text"), legacyFooter]).find((b) => b.type === "footer")!;
+    expect(existing.newsletterSettings?.mobileImageHeight).toBeUndefined();
+    expect(existing.newsletterSettings?.emptyBlocks).toBe("skip");
+  });
+});

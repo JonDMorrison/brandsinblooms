@@ -536,6 +536,9 @@ export function createStudioBlock(
     case "footer":
       return {
         ...base,
+        // New drafts show phone photos at natural height (see
+        // NewsletterSettings.mobileImageHeight); existing footers lack this.
+        newsletterSettings: { version: 1, mobileImageHeight: "natural" },
         businessName,
         address: address || "123 Main St\nCity, State",
         copyright: getDefaultCopyrightText(businessName),

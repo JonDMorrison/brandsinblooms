@@ -286,6 +286,9 @@ export function ensureFooterBlockCompliance(
       ...(footerBlock.newsletterSettings ?? { version: 1 }),
       version: 1,
       emptyBlocks: "skip",
+      // A footer created here belongs to a new draft: phone photos show at
+      // natural height. Existing footers keep whatever they had (240px).
+      ...(existingFooter ? {} : { mobileImageHeight: "natural" as const }),
     },
   };
 

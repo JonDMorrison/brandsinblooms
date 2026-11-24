@@ -5,6 +5,7 @@ import { ImagePlus } from "lucide-react";
 import type { StudioBlock } from "@/types/studioBlocks";
 import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
 import { SENT_MOBILE_CROP_HEIGHT, STUDIO_MOBILE_QUERY } from "@/lib/studio/emailHtmlGenerator";
+import { useNewsletterDesign } from "../newsletter/NewsletterDesignContext";
 
 type FullWidthImageRendererProps = {
   block: StudioBlock;
@@ -13,6 +14,9 @@ type FullWidthImageRendererProps = {
 export default function FullWidthImageRenderer({
   block,
 }: FullWidthImageRendererProps) {
+  // Same phone rule as the sent email: 240px, or natural height for drafts
+  // that opted in (NewsletterSettings.mobileImageHeight).
+  const naturalOnPhones = useNewsletterDesign().settings?.mobileImageHeight === "natural";
   const backgroundColor = block.backgroundColor || "#ffffff";
   const borderRadius = block.borderRadius ?? 0;
   const maxHeight = block.maxHeight ?? 400;
@@ -79,10 +83,12 @@ export default function FullWidthImageRenderer({
         ...(block.imageFit === "contain"
           ? {}
           : {
-              [STUDIO_MOBILE_QUERY]: {
-                height: `${SENT_MOBILE_CROP_HEIGHT}px`,
-                maxHeight: `${SENT_MOBILE_CROP_HEIGHT}px`,
-              },
+              [STUDIO_MOBILE_QUERY]: naturalOnPhones
+                ? { height: "auto", maxHeight: "none" }
+                : {
+                    height: `${SENT_MOBILE_CROP_HEIGHT}px`,
+                    maxHeight: `${SENT_MOBILE_CROP_HEIGHT}px`,
+                  },
             }),
       }}
     />
