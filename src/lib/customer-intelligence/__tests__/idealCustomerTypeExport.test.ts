@@ -72,6 +72,28 @@ describe("Ideal Customer Types export safety", () => {
     expect(v.unknownCustomerCodes).toEqual(["023069"]);
     expect(() => draftIdealCustomerTypeCsv(v)).toThrow("Fix unmatched");
   });
+  it("only permits an explicit exact reviewed exclusion of missing source codes", () => {
+    const input = {
+      originalRows: [make("023069"), make("100232")],
+      audienceCustomerIds: ["crm1", "crm2"],
+      identityLinks: [
+        { crm_customer_id: "crm1", external_id: "023069", provider: "ideal" },
+        { crm_customer_id: "crm2", external_id: "999999", provider: "ideal" },
+      ],
+      newType: "VIP",
+      confirmedExistingTypes: ["REGULAR", "VIP"],
+    };
+    expect(reviewIdealCustomerTypeExport(input).state).toBe("blocked");
+    const reviewed = reviewIdealCustomerTypeExport({ ...input, excludedMissingSourceCodes: ["999999"] });
+    expect(reviewed).toMatchObject({state:"ready_to_review",selectedCustomers:2,matchedCustomers:1,excludedMissingSourceCodes:["999999"],rowsChanged:1});
+    expect(parseIdealCustomerCsv(draftIdealCustomerTypeCsv(reviewed))).toEqual([make("023069","VIP"),make("100232")]);
+    for (const exclusions of [["100232"], ["999999","999999"], ["999999","100232"]])
+      expect(reviewIdealCustomerTypeExport({...input,excludedMissingSourceCodes:exclusions}).state).toBe("blocked");
+    const changed = {...input, originalRows:[...input.originalRows,make("999999")]};
+    expect(reviewIdealCustomerTypeExport({...changed,excludedMissingSourceCodes:["999999"]}).state).toBe("blocked");
+    const conflict = {...input,identityLinks:[...input.identityLinks,{crm_customer_id:"crm1",external_id:"100232",provider:"ideal"}]};
+    expect(reviewIdealCustomerTypeExport({...conflict,excludedMissingSourceCodes:["999999"]}).state).toBe("blocked");
+  });
   it("does not turn names/emails into matching identifiers", () => {
     const v = mk(
       [make("99")],

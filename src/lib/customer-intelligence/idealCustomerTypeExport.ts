@@ -31,6 +31,7 @@ export type IdealExportPreview = {
   rowsAlreadyAssigned: number;
   errors: string[];
   unknownCustomerCodes: string[];
+  excludedMissingSourceCodes: string[];
   oldTypeCounts: Record<string, number>;
   newType: string;
   changedCodes: string[];
@@ -137,6 +138,8 @@ export function reviewIdealCustomerTypeExport(input: {
   identityLinks: IdealIdentityLink[];
   newType: string;
   confirmedExistingTypes?: string[];
+  /** Explicitly reviewed missing source codes only; never excludes identity conflicts. */
+  excludedMissingSourceCodes?: readonly string[];
 }): IdealExportPreview {
   const { originalRows, audienceCustomerIds, identityLinks } = input;
   const errors: string[] = [];
@@ -187,6 +190,7 @@ export function reviewIdealCustomerTypeExport(input: {
   }
   const selected = new Set(audienceCustomerIds);
   const mapped = new Map<string, string>();
+  const codesByCustomer = new Map<string, Set<string>>();
   for (const link of identityLinks) {
     if (link.provider !== "ideal" || !selected.has(link.crm_customer_id))
       continue;
@@ -202,7 +206,12 @@ export function reviewIdealCustomerTypeExport(input: {
         `Ideal customer CODE ${link.external_id} maps to multiple CRM identities.`,
       );
     mapped.set(link.external_id, link.crm_customer_id);
+    const customerCodes = codesByCustomer.get(link.crm_customer_id) ?? new Set<string>();
+    customerCodes.add(link.external_id);
+    codesByCustomer.set(link.crm_customer_id, customerCodes);
   }
+  if ([...codesByCustomer.values()].some(codes => codes.size !== 1))
+    errors.push("At least one selected customer has multiple Ideal codes. Resolve the identity conflict before exporting.");
   const mappedCrmIds = new Set(mapped.values());
   const missingIdentityLinks = [...selected].filter(
     (id) => !mappedCrmIds.has(id),
@@ -211,8 +220,16 @@ export function reviewIdealCustomerTypeExport(input: {
     errors.push(
       `${missingIdentityLinks.length} selected CRM customers have no verified Ideal customer code.`,
     );
-  const missingSourceCodes = [...mapped.keys()].filter((id) => !byCode.has(id));
-  if (missingSourceCodes.length)
+  const missingSourceCodes = [...mapped.keys()].filter((id) => !byCode.has(id)).sort();
+  const requestedExclusions = [...(input.excludedMissingSourceCodes ?? [])].sort();
+  const exactExclusions = requestedExclusions.length > 0 &&
+    new Set(requestedExclusions).size === requestedExclusions.length &&
+    requestedExclusions.length === missingSourceCodes.length &&
+    requestedExclusions.every((code, index) => code === missingSourceCodes[index]);
+  const excludedMissingSourceCodes = exactExclusions ? missingSourceCodes : [];
+  if (requestedExclusions.length && !exactExclusions)
+    errors.push("The missing-code review changed. Review the exact missing codes again before excluding any.");
+  if (missingSourceCodes.length && !exactExclusions)
     errors.push(
       `${missingSourceCodes.length} selected Ideal codes were not found in the original customer file.`,
     );
@@ -232,7 +249,7 @@ export function reviewIdealCustomerTypeExport(input: {
   const matchedCustomers = [...mapped.keys()].filter((id) =>
     byCode.has(id),
   ).length;
-  if (matchedCustomers !== selected.size)
+  if (!matchedCustomers || matchedCustomers !== selected.size - excludedMissingSourceCodes.length)
     errors.push(
       `Source file match: ${matchedCustomers} of ${selected.size} unique selected CRM customers; investigate before exporting.`,
     );
@@ -245,6 +262,7 @@ export function reviewIdealCustomerTypeExport(input: {
     rowsAlreadyAssigned,
     errors: [...new Set(errors)],
     unknownCustomerCodes: missingSourceCodes,
+    excludedMissingSourceCodes,
     oldTypeCounts,
     newType: input.newType,
     changedCodes,
