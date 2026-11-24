@@ -1,5 +1,4 @@
--- NOT YET APPLIED: apply_migration timed out waiting for a confirmation on
--- 2026-11-24 and was not retried (see the QA pass 4 PR, "Needs Jon").
+-- Applied to udldmkqwnxhdeztyqcau on 2026-11-24 (recorded version in filename).
 
 -- QA pass 4 #5: default sender for a tenant with one verified domain.
 --
