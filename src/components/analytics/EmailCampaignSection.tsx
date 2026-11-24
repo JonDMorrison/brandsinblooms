@@ -52,10 +52,9 @@ const getCampaignStatus = (campaign: DeliveryMetrics) => {
     return { label: "Failed", tone: "danger" as const };
   }
 
-  if (
-    campaign.computedEnqueued >
-    campaign.computedDelivered + campaign.computedFailed
-  ) {
+  // Bounced and unconfirmed sends are finished, not in progress: only
+  // recipients still queued or sending mean the campaign is sending.
+  if (campaign.computedPending > 0) {
     return { label: "Sending", tone: "primary" as const };
   }
 

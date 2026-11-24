@@ -21,6 +21,8 @@ export interface DeliveryMetrics {
   computedDelivered: number;
   computedFailed: number;
   computedEnqueued: number;
+  /** Recipients still queued or sending (rollup totals.pending). */
+  computedPending: number;
   batchCount: number;
 
   // Skip breakdown from email_send_skips
@@ -272,6 +274,7 @@ export const useCampaignDeliveryMetrics = (
           computedDelivered: stats.delivered,
           computedFailed: computedFailed,
           computedEnqueued: computedEnqueued,
+          computedPending: report.totals.pending,
           batchCount: jobs.batches,
           skipsTotal: report.totals.skipped,
           skipsByReason: {
