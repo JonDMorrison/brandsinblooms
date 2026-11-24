@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { readAllPages } from "../../../../supabase/functions/_shared/customer-intelligence/query-pages";
 import {
   draftIdealCustomerTypeCsv,
+  decodeIdealCustomerBytes,
   parseIdealCustomerCsv,
   reviewIdealCustomerTypeExport,
   type IdealCustomerRow,
@@ -114,9 +115,9 @@ export function IdealCustomerTypeExportWorksheet({
   }, [tenantId, opened]);
 
   async function readSource(file: File) {
-    if (!/\.csv$/i.test(file.name) || file.size > 25_000_000) {
+    if (!/\.(csv|txt)$/i.test(file.name) || file.size > 25_000_000) {
       setError(
-        "Choose the original nine-column Ideal customer CSV (maximum 25 MB). Do not open and re-save it in Excel.",
+        "Choose the original IdealPOS TXT/CSV or nine-column review CSV (maximum 25 MB). Do not open and re-save it in Excel.",
       );
       return;
     }
@@ -125,7 +126,7 @@ export function IdealCustomerTypeExportWorksheet({
     setPreview(null);
     setConfirmed(false);
     try {
-      const rows = parseIdealCustomerCsv(await file.text());
+      const rows = parseIdealCustomerCsv(decodeIdealCustomerBytes(await file.arrayBuffer()));
       if (mounted.current) {
         setSourceRows(rows);
         setSourceFileName(file.name);
@@ -285,13 +286,13 @@ export function IdealCustomerTypeExportWorksheet({
                 </Select>
               </FormControl>
               <FormControl>
-                <FormLabel>Original Ideal Customer Details CSV</FormLabel>
+                <FormLabel>Original Ideal Customer Details export</FormLabel>
                 <Button variant="outlined" component="label" disabled={busy}>
-                  Choose nine-column source file
+                  Choose original TXT or CSV
                   <input
                     hidden
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".csv,.txt,text/csv,text/plain"
                     onChange={(event) => {
                       const f = event.target.files?.[0];
                       if (f) void readSource(f);

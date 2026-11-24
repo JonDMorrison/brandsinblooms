@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   IDEAL_CUSTOMER_COLUMNS,
+  IDEAL_FULL_CUSTOMER_COLUMNS,
+  decodeIdealCustomerBytes,
   parseIdealCustomerCsv,
   reviewIdealCustomerTypeExport,
   draftIdealCustomerTypeCsv,
@@ -156,5 +158,38 @@ describe("Ideal Customer Types export safety", () => {
     expect(() => parseIdealCustomerCsv("x".repeat(25_000_001))).toThrow(
       "25 MB",
     );
+  });
+});
+
+describe("Original IdealPOS master compatibility", () => {
+  const original = (rows: Record<string,string>[]) => [
+    IDEAL_FULL_CUSTOMER_COLUMNS.join(","),
+    ...rows.map(row => IDEAL_FULL_CUSTOMER_COLUMNS.map(k => '"' + (row[k] ?? "").replaceAll('"','""') + '"').join(",")),
+  ].join("\r\n");
+  it("projects exactly the nine reviewed columns, preserving legacy codes and ignoring private fields", () => {
+    const sample = original([
+      { ...make("000123","12"), PASSWORD:"synthetic-secret", CREDITLIMIT:"9999", COMMENTS1:"ignore" },
+      { ...make("AB 123","13") },
+      { ...make("\\ABC123","13") },
+      { ...make("\x60ABC123","13") },
+    ]);
+    const rows = parseIdealCustomerCsv(sample);
+    expect(rows.map(r=>r.CODE)).toEqual(["000123","AB 123","\\ABC123","\x60ABC123"]);
+    expect(Object.keys(rows[0])).toEqual([...IDEAL_CUSTOMER_COLUMNS]);
+    expect(JSON.stringify(rows)).not.toContain("synthetic-secret");
+    expect(JSON.stringify(rows)).not.toContain("9999");
+    const reviewed=mk(rows,["crm1"],[{crm_customer_id:"crm1",external_id:"000123",provider:"ideal"}],"13",["12","13"]);
+    expect(reviewed.state).toBe("ready_to_review");
+    expect(parseIdealCustomerCsv(draftIdealCustomerTypeCsv(reviewed))).toEqual(reviewed.rows);
+  });
+  it("decodes known Windows-1252 source without replacing accented names", () => {
+    const source=original([{...make("000123"),FIRSTNAME:"Jos\u00e9"}]);
+    const bytes=Uint8Array.from(source, c=>c.charCodeAt(0));
+    expect(parseIdealCustomerCsv(decodeIdealCustomerBytes(bytes.buffer))[0].FIRSTNAME).toBe("Jos\u00e9");
+  });
+  it("rejects unexpected extra columns, missing fields and formula codes", () => {
+    expect(()=>parseIdealCustomerCsv(original([{...make("000123")}]).replace(",PASSWORD,",",UNVERIFIED,"))).toThrow();
+    expect(()=>parseIdealCustomerCsv(original([{...make("=123")}]))).toThrow("invalid CODE");
+    expect(()=>parseIdealCustomerCsv(original([{...make("000123")}])+"\r\nbad")).toThrow();
   });
 });

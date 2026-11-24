@@ -6,7 +6,7 @@ import {
 import { ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  parseIdealCustomerCsv, type IdealCustomerRow,
+  decodeIdealCustomerBytes, parseIdealCustomerCsv, type IdealCustomerRow,
 } from "@/lib/customer-intelligence/idealCustomerTypeExport";
 import {
   reviewIdealCustomerRefresh, type CustomerRefreshReview,
@@ -73,9 +73,9 @@ export function CustomerRefreshReviewPanel({ tenantId }: { tenantId: string }) {
     try {
       if (previous.size > 25_000_000 || current.size > 25_000_000)
         throw Error("Each customer file must be smaller than 25 MB.");
-      const [before, after] = await Promise.all([previous.text(), current.text()]);
-      const original = parseIdealCustomerCsv(before);
-      const refreshed = parseIdealCustomerCsv(after);
+      const [before, after] = await Promise.all([previous.arrayBuffer(), current.arrayBuffer()]);
+      const original = parseIdealCustomerCsv(decodeIdealCustomerBytes(before));
+      const refreshed = parseIdealCustomerCsv(decodeIdealCustomerBytes(after));
       const compared = reviewIdealCustomerRefresh(original, refreshed);
       if (run === requestId.current) {
         setRows({ old: original, next: refreshed });
@@ -164,18 +164,18 @@ export function CustomerRefreshReviewPanel({ tenantId }: { tenantId: string }) {
             </Alert>
             <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
               <Box sx={{ flex: 1 }}>
-                <Typography level="title-sm" sx={{ mb: 1 }}>1. Previous original Customer Details CSV</Typography>
+                <Typography level="title-sm" sx={{ mb: 1 }}>1. Previous original Customer Details TXT or CSV</Typography>
                 <Button component="label" color="neutral" variant="outlined" disabled={busy}>
                   {previous ? previous.name : "Choose previous file"}
-                  <input hidden type="file" accept=".csv,text/csv" onChange={(event) =>
+                  <input hidden type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(event) =>
                     selectFile("previous", event.target.files?.[0] ?? null)}/>
                 </Button>
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography level="title-sm" sx={{ mb: 1 }}>2. Refreshed original Customer Details CSV</Typography>
+                <Typography level="title-sm" sx={{ mb: 1 }}>2. Refreshed original Customer Details TXT or CSV</Typography>
                 <Button component="label" color="neutral" variant="outlined" disabled={busy}>
                   {current ? current.name : "Choose refreshed file"}
-                  <input hidden type="file" accept=".csv,text/csv" onChange={(event) =>
+                  <input hidden type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(event) =>
                     selectFile("current", event.target.files?.[0] ?? null)}/>
                 </Button>
               </Box>
