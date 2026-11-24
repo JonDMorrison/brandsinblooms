@@ -11,6 +11,7 @@ import {
   getUniqueUrls,
   hasPII,
 } from "../_shared/linkRewriter.ts";
+import {careFollowupAllowed} from '../_shared/care-followup-guard.ts';
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
 import {
@@ -1767,6 +1768,21 @@ serve((req: Request) => {
                 lifecycleRemaining.push(...rows.filter((m: any) => active.has(m.customer_id)));
               }
               claimedForSend = lifecycleRemaining;
+              // Retire revoked consent, refunded purchases and out-of-scope recipients
+              // even if a campaign force-send override is enabled.
+              const careCampaignId=String(job.campaign_id||claimedForSend[0]?.campaign_id||"");
+              if(careCampaignId&&claimedForSend.length){
+                const allowed=await careFollowupAllowed(supabase,careCampaignId,claimedForSend.map((m:any)=>({customerId:m.customer_id,email:m.email})));
+                if(allowed!==null){
+                  const rejected=claimedForSend.filter((m:any)=>!allowed.has(m.customer_id));
+                  if(rejected.length){
+                    const {error}=await supabase.from("email_messages").update({status:"skipped",error_message:"care_followup_not_eligible",claim_token:null,claimed_at:null,claimed_by:null,updated_at:new Date().toISOString()}).in("id",rejected.map((m:any)=>m.id)).eq("claim_token",claimToken).is("resend_id",null);
+                    if(error)throw Error("Could not retire ineligible care follow-ups");
+                    await recordCampaignProgress(campaignIdForJob,0,0,rejected.length);
+                  }
+                  claimedForSend=claimedForSend.filter((m:any)=>allowed.has(m.customer_id));
+                }
+              }
 
               const needsPayloadBuild = claimedForSend.some((m: any) => {
                 const payload = m?.payload;
@@ -2254,6 +2270,11 @@ serve((req: Request) => {
                       }
                       const freshness = await checkConnectedContentFreshness(supabase as unknown as Parameters<typeof checkConnectedContentFreshness>[0], String(identities[0]?.tenant_id || ""), uniqueContentSources(sources));
                       if (freshness.decision !== "fresh") throw new ContentFreshnessHold(freshness.decision, freshness.reason || "Website content requires review.");
+                      const allowed=await careFollowupAllowed(supabase,campaignId,identities.map(identity=>{
+                        const message=claimedForSend.find(entry=>entry.id===identity.id);
+                        return {customerId:identity.customer_id,email:message?.email||""};
+                      }));
+                      if(allowed!==null&&identities.some(identity=>!allowed.has(identity.customer_id)))throw new ContentFreshnessHold("retry","Care follow-up consent or purchase eligibility changed.");
                       await prepareCustomerDelivery(supabase, identities, claimToken);
                     },
                   );
