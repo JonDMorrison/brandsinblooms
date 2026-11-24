@@ -632,6 +632,9 @@ verify_jwt = false
 [functions.connected-content]
 verify_jwt = true
 
+[functions.care-followup-website]
+verify_jwt = true # authenticated campaign editor; signed purchase evidence; no send actions
+
 [functions.care-guide-sync]
 verify_jwt = true # signed-in CRM editor plus server-verified tenant linked sites; HMAC to CMS
 

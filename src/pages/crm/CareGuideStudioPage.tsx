@@ -3,6 +3,7 @@ import {Link} from 'react-router-dom';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {useTenant} from '@/hooks/useTenant';
 import {supabase} from '@/integrations/supabase/client';
+import {WebsiteCareFollowupPanel} from '@/components/crm/WebsiteCareFollowupPanel';
 import {CareFollowupPanel} from '@/components/crm/CareFollowupPanel';
 import {renderCareGuideEmail,type CareGuideBrand,type ReviewedCareGuidePlant} from '@/lib/email/careGuideEmail';
 
@@ -151,6 +152,7 @@ export default function CareGuideStudioPage(){
         </section>
       </div>}
       {tenantId&&import.meta.env.VITE_CARE_GUIDE_FOLLOWUPS_ENABLED==='true'&&<CareFollowupPanel key={tenantId} tenantId={tenantId}/>}
+      {tenantId&&import.meta.env.VITE_CARE_GUIDE_WEBSITE_FOLLOWUP_ENABLED==='true'&&<WebsiteCareFollowupPanel key={tenantId+':web'} tenantId={tenantId}/>}
     </div>
   </main>;
 }
