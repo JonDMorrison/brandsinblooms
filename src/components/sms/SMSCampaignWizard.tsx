@@ -58,6 +58,7 @@ import { useSegments } from "@/hooks/useSegments";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchSmsAudienceEstimate } from "@/lib/sms/smsAudienceEstimate";
+import { usePersonaTargetingAvailable } from "@/hooks/usePersonaTargetingAvailable";
 import {
   MERGE_TAG_DEFINITIONS,
   formatTagWithDefault,
@@ -507,6 +508,8 @@ export function SMSCampaignWizard() {
   const { tenant, loading: tenantLoading } = useTenant();
   const { allSegments, isLoading: segmentsLoading } = useSegments();
   const { personas, loading: personasLoading } = useAllPersonas();
+  // Persona targeting is offered only when some customer has a persona.
+  const personaTargeting = usePersonaTargetingAvailable(tenant?.id);
   const [currentStep, setCurrentStep] =
     React.useState<WizardStepKey>("details");
   const [campaignName, setCampaignName] = React.useState("");
@@ -1471,7 +1474,12 @@ export function SMSCampaignWizard() {
                         gap: 1.5,
                       }}
                     >
-                      {AUDIENCE_OPTIONS.map((option) => {
+                      {AUDIENCE_OPTIONS.filter(
+                        (option) =>
+                          option.value !== "persona" ||
+                          personaTargeting.available ||
+                          audienceMode === "persona",
+                      ).map((option) => {
                         const Icon = option.icon;
                         return (
                           <SelectionCard

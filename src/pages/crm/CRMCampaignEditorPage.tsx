@@ -113,6 +113,7 @@ import {
   isQueuedCampaignStatus,
 } from "@/constants/campaignStatuses";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
+import { usePersonaTargetingAvailable } from "@/hooks/usePersonaTargetingAvailable";
 import {
   DesignSystemProvider,
   useDesignSystem,
@@ -742,6 +743,9 @@ function CampaignEditorScreen() {
     },
   });
 
+  // "Also target by persona" only when some customer belongs to a persona
+  // (no persona-assignment job runs today, so system personas are empty).
+  const personaTargeting = usePersonaTargetingAvailable(tenant?.id);
   const personasQuery = useQuery({
     queryKey: ["crm-campaign-editor-personas", tenant?.id],
     enabled: Boolean(tenant?.id),
@@ -2074,7 +2078,7 @@ function CampaignEditorScreen() {
                 })
               }
             />
-          ) : (
+          ) : !personaTargeting.available && selectedPersonas.length === 0 ? null : (
             <JoyButton
               variant="outlined"
               color="neutral"
