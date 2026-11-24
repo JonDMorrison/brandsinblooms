@@ -289,3 +289,9 @@ export function draftIdealCustomerTypeCsv(preview: IdealExportPreview): string {
     ].join("\r\n") + "\r\n"
   );
 }
+
+/** Exact identity snapshot for stale export review detection, independent of read order.
+ * Browser-local; never sent to a marketing service. */
+export function idealAudienceReviewKey(segmentId:string,ids:readonly string[],links:readonly IdealIdentityLink[]):string {
+  return JSON.stringify([segmentId,[...ids].sort(),links.map(l=>JSON.stringify([l.crm_customer_id,l.provider,l.external_id])).sort()]);
+}

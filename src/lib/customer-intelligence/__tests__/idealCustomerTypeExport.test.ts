@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   IDEAL_CUSTOMER_COLUMNS,
+  idealAudienceReviewKey,
   IDEAL_FULL_CUSTOMER_COLUMNS,
   decodeIdealCustomerBytes,
   parseIdealCustomerCsv,
@@ -36,6 +37,14 @@ const mk = (
     confirmedExistingTypes,
   });
 describe("Ideal Customer Types export safety", () => {
+  it("detects equal-count audience or literal CODE changes after review",()=>{
+    const links=[{crm_customer_id:"a",provider:"ideal",external_id:"001"},{crm_customer_id:"b",provider:"ideal",external_id:"002"}];
+    const key=idealAudienceReviewKey("segment",["a","b"],links);
+    expect(idealAudienceReviewKey("segment",["b","a"],[...links].reverse())).toBe(key);
+    expect(idealAudienceReviewKey("other",["a","b"],links)).not.toBe(key);
+    expect(idealAudienceReviewKey("segment",["a","c"],links)).not.toBe(key);
+    expect(idealAudienceReviewKey("segment",["a","b"],[{...links[0],external_id:"1"},links[1]])).not.toBe(key);
+  });
   it("preserves leading zeros and untouched source fields", () => {
     const v = mk([make("023069"), make("100232")]);
     expect(v.state).toBe("ready_to_review");
