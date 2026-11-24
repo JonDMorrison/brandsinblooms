@@ -1,3 +1,4 @@
+import { isDeliveredCampaignStatus } from "@/constants/campaignStatuses";
 import { useState, useMemo, useCallback } from "react";
 import { useGlobalCalendarData } from "@/hooks/useGlobalCalendarData";
 import { useNewsletterCalendar } from "@/hooks/useNewsletterCalendar";
@@ -103,13 +104,18 @@ export const useUnifiedCalendarData = () => {
     });
 
     newsletters.forEach((newsletter) => {
-      if (newsletter.scheduled_at) {
+      // Sent campaigns sit on the day they went out; others on their schedule.
+      const calendarDate = isDeliveredCampaignStatus(newsletter.status)
+        ? (newsletter.sent_at ?? newsletter.scheduled_at)
+        : (newsletter.scheduled_at ?? newsletter.sent_at);
+      if (calendarDate) {
         events.push({
           id: newsletter.id,
           type: "newsletter",
-          title: newsletter.subject_line || newsletter.name,
-          date: new Date(newsletter.scheduled_at),
-          status: newsletter.status,
+          title: newsletter.subject_line || newsletter.name || "Untitled campaign",
+          date: new Date(calendarDate),
+          status: isDeliveredCampaignStatus(newsletter.status) ? "sent" : newsletter.status,
+          platform: "newsletter",
           meta: newsletter,
         });
       }
@@ -122,6 +128,7 @@ export const useUnifiedCalendarData = () => {
           type: "event",
           title: campaign.title,
           date: new Date(campaign.start_date),
+          status: "planned",
           campaign_id: campaign.id,
           meta: campaign,
         });
@@ -259,6 +266,10 @@ export const useUnifiedCalendarData = () => {
       if (event.platform) platforms.add(event.platform);
       if (event.status) statuses.add(event.status);
     });
+
+    // Always offer every event type the calendar can show, so the group is
+    // never empty; platforms only list what is actually on the calendar.
+    DEFAULT_FILTERS.types.forEach((type) => types.add(type));
 
     return {
       types: Array.from(types).sort(),

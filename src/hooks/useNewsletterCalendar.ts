@@ -10,7 +10,8 @@ interface Newsletter {
   name: string;
   subject_line: string;
   preheader_text?: string;
-  status: "draft" | "scheduled" | "sent";
+  /** crm_campaigns.status (draft, scheduled, queued, sending, sent, ...). */
+  status: string;
   scheduled_at: string | null;
   sent_at: string | null;
   created_at: string;
@@ -77,12 +78,15 @@ export const useNewsletterCalendar = () => {
           created_at,
           segment_id,
           metrics,
-          crm_segments!inner(name)
+          crm_segments(name)
         `,
         )
         .eq("tenant_id", tenant.id)
-        .not("scheduled_at", "is", null)
-        .order("scheduled_at", { ascending: true });
+        // Every campaign with a date: scheduled (incl. dated drafts) or sent.
+        // The segment join is optional; an inner join hid campaigns sent to
+        // all customers or to personas.
+        .or("scheduled_at.not.is.null,sent_at.not.is.null")
+        .order("scheduled_at", { ascending: true, nullsFirst: false });
 
       if (error) {
         console.error("Error loading newsletters:", error);
@@ -96,7 +100,7 @@ export const useNewsletterCalendar = () => {
         name: item.name,
         subject_line: item.subject_line,
         preheader_text: item.preheader_text,
-        status: item.status as "draft" | "scheduled" | "sent",
+        status: String(item.status ?? "draft"),
         scheduled_at: item.scheduled_at,
         sent_at: item.sent_at,
         created_at: item.created_at,
