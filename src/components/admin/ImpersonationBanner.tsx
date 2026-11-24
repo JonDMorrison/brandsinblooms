@@ -1,14 +1,27 @@
+import * as React from "react";
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { TriangleAlert } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { IMPERSONATION_BANNER_HEIGHT_VAR } from "@/lib/layout/appViewport";
 
 const BANNER_HEIGHT = 40;
 
 export const ImpersonationBanner = () => {
   const { endImpersonation, isImpersonating, targetEmail } = useImpersonation();
+
+  // Shells size themselves to the space below the banner (APP_VIEWPORT_HEIGHT)
+  // and modals start below it (index.css), so the document never scrolls.
+  React.useLayoutEffect(() => {
+    if (!isImpersonating) return;
+    const root = document.documentElement;
+    root.style.setProperty(IMPERSONATION_BANNER_HEIGHT_VAR, `${BANNER_HEIGHT}px`);
+    return () => {
+      root.style.removeProperty(IMPERSONATION_BANNER_HEIGHT_VAR);
+    };
+  }, [isImpersonating]);
 
   if (!isImpersonating) {
     return null;

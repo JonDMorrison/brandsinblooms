@@ -1,4 +1,5 @@
 import { NewsletterDesignContext } from "@/components/crm/studio/newsletter/NewsletterDesignContext";
+import { APP_VIEWPORT_HEIGHT } from "@/lib/layout/appViewport";
 import DataImportDialog from "@/components/crm/studio/newsletter/DataImportDialog";
 import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campaignDisplayName";
 import * as React from "react";
@@ -87,6 +88,7 @@ import type { WeeklyThemeImage } from "@/lib/studio/weeklyThemeSeed";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { buildNewsletterIdeaContentBlocks } from "@/lib/studio/newsletterIdeaSeed";
 import type { WeeklyThemeLibrary } from "@/components/crm/studio/BlockLibrary";
+import { themeBlockLabel } from "@/components/crm/studio/themeBlockLabel";
 import type {
   GalleryImage,
   GalleryProduct,
@@ -447,7 +449,7 @@ function StudioShellSkeleton() {
       component="main"
       sx={{
         width: "100vw",
-        height: "100vh",
+        height: APP_VIEWPORT_HEIGHT,
         overflow: "hidden",
         bgcolor: "background.surface",
         display: "grid",
@@ -764,15 +766,7 @@ function CampaignStudioPageContent() {
     return {
       title: theme.idea.title,
       weekLabel: `Week ${theme.source.weekNumber}`,
-      blocks: blocks.map((block) => ({
-        block,
-        name:
-          block.headline?.trim() ||
-          block.imageAlt?.trim() ||
-          (block.body ?? "").replace(/<[^>]*>/g, "").trim().slice(0, 60) ||
-          block.label ||
-          "Theme block",
-      })),
+      blocks: blocks.map((block) => ({ block, name: themeBlockLabel(block) })),
     };
   }, [designSystem, weeklyThemeQuery.data]);
 
@@ -1659,7 +1653,7 @@ function CampaignStudioPageContent() {
     finalizeAIChoreography();
   }, [finalizeAIChoreography]);
 
-  const handleExit = React.useCallback(async () => {
+  const handleExitAfterPanelClosed = React.useCallback(async () => {
     if (aiStudioOpen) {
       pendingExitAfterAICloseRef.current = true;
 
@@ -1680,6 +1674,28 @@ function CampaignStudioPageContent() {
     finalizeAIChoreography,
     isAIImageStudioDrawerOpen,
   ]);
+  const exitAfterPanelClosedRef = React.useRef(handleExitAfterPanelClosed);
+  React.useEffect(() => {
+    exitAfterPanelClosedRef.current = handleExitAfterPanelClosed;
+  }, [handleExitAfterPanelClosed]);
+
+  // Review & Send works on the first click while a block panel is open: close
+  // the panel (its last edit is committed on blur), let React commit that
+  // edit to the snapshot, then save and navigate. The button is never
+  // disabled by an autosave that the click itself started.
+  const exitInFlightRef = React.useRef(false);
+  const { selectedBlockId: exitSelectedBlockId, selectBlock: exitSelectBlock } = studio;
+  const handleExit = React.useCallback(async () => {
+    if (exitInFlightRef.current) return;
+    exitInFlightRef.current = true;
+    try {
+      if (exitSelectedBlockId) exitSelectBlock(null);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      await exitAfterPanelClosedRef.current();
+    } finally {
+      exitInFlightRef.current = false;
+    }
+  }, [exitSelectedBlockId, exitSelectBlock]);
 
   React.useEffect(() => {
     return () => {
@@ -2248,7 +2264,7 @@ function CampaignStudioPageContent() {
         component="main"
         sx={{
           width: "100vw",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           display: "grid",
           placeItems: "center",
           bgcolor: "background.surface",
@@ -2274,7 +2290,7 @@ function CampaignStudioPageContent() {
         component="main"
         sx={{
           width: "100vw",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           display: "grid",
           placeItems: "center",
           bgcolor: "background.surface",
@@ -2338,7 +2354,7 @@ function CampaignStudioPageContent() {
         onKeyDownCapture={handleStudioTreeKeyDown}
         sx={{
           width: "100vw",
-          height: "100vh",
+          height: APP_VIEWPORT_HEIGHT,
           overflow: "hidden",
           bgcolor: "background.surface",
           display: "grid",
@@ -2457,6 +2473,7 @@ function CampaignStudioPageContent() {
                   selectedBlockId={studio.selectedBlockId}
                   onSelectBlock={handleFocusBlock}
                   weeklyTheme={weeklyThemeLibrary}
+                  onInsertThemeBlocks={studio.insertThemeBlocks}
                 />
               </Sheet>
 

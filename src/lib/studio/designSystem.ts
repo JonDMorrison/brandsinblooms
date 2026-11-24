@@ -56,6 +56,12 @@ export type StudioDesignSystemColors = {
    * render exactly as before.
    */
   brandColorsAreDefaults?: boolean;
+  /**
+   * brand_primary_color is empty or still the stock #22c55e. New footers and
+   * buttons then use the neutral dark preset; drafts carrying
+   * NewsletterSettings.contrastGuard render brand buttons neutral too.
+   */
+  primaryIsUnset?: boolean;
   primary?: string;
   secondary?: string;
   accent?: string;
@@ -253,6 +259,78 @@ export function getContrastingTextColor(
   return luminance > 0.42 ? dark : light;
 }
 
+function relativeLuminance(color: string): number | null {
+  const channels = parseColorChannels(color);
+  if (!channels) return null;
+  const [red, green, blue] = channels.map((channel) => {
+    const value = Math.max(0, Math.min(255, channel)) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+/** WCAG 2 contrast ratio between two colours, or null if either is unreadable. */
+export function contrastRatio(foreground: string, background: string): number | null {
+  const a = relativeLuminance(foreground);
+  const b = relativeLuminance(background);
+  if (a === null || b === null) return null;
+  const [light, dark] = a > b ? [a, b] : [b, a];
+  return (light + 0.05) / (dark + 0.05);
+}
+
+/** WCAG AA for body text. */
+export const MIN_TEXT_CONTRAST = 4.5;
+
+/** The neutral dark preset used when no brand colour is set. */
+export const NEUTRAL_DARK_SURFACE = {
+  background: "#1e293b",
+  text: "#ffffff",
+  link: "#cbd5e1",
+  button: "#1f4341",
+  buttonText: "#ffffff",
+} as const;
+
+function darken(color: string, amount: number) {
+  const channels = parseColorChannels(color);
+  if (!channels) return color;
+  return `#${channels
+    .map((channel) => Math.round(channel * (1 - amount)).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+/**
+ * A background + text pair that reads at 4.5:1 or better. White text stays
+ * when it passes; otherwise dark text when that passes; otherwise the
+ * background is darkened until white text passes.
+ */
+export function readableColorPair(
+  background: string,
+  preferredText = "#ffffff",
+  darkText = "#111827",
+): { background: string; text: string } {
+  if ((contrastRatio(preferredText, background) ?? 0) >= MIN_TEXT_CONTRAST) {
+    return { background, text: preferredText };
+  }
+  if ((contrastRatio(darkText, background) ?? 0) >= MIN_TEXT_CONTRAST) {
+    return { background, text: darkText };
+  }
+  for (let step = 1; step <= 20; step += 1) {
+    const darker = darken(background, step * 0.05);
+    if ((contrastRatio("#ffffff", darker) ?? 0) >= MIN_TEXT_CONTRAST) {
+      return { background: darker, text: "#ffffff" };
+    }
+  }
+  return { background: NEUTRAL_DARK_SURFACE.background, text: NEUTRAL_DARK_SURFACE.text };
+}
+
+/** The stock signup green counts as "no brand colour chosen". */
+export const UNTOUCHED_PRIMARY_COLOR = "#22c55e";
+
+export function isPrimaryColorUnset(primary: string | null | undefined): boolean {
+  const value = stringValue(primary ?? undefined).toLowerCase();
+  return !value || value === UNTOUCHED_PRIMARY_COLOR;
+}
+
 function createSocialLinks(companyInfo: CompanyInfo): SocialLink[] {
   const platformUrls: Partial<Record<StudioSocialPlatform, string>> = {
     facebook: stringValue(companyInfo.facebookUrl),
@@ -371,6 +449,7 @@ export function buildStudioDesignSystem(companyInfo: CompanyInfo) {
     },
     colors: {
       brandColorsAreDefaults,
+      primaryIsUnset: isPrimaryColorUnset(primaryColor),
       primary: primaryColor,
       secondary: stringValue(companyInfo.brandSecondaryColorRaw) || undefined,
       accent: stringValue(companyInfo.brandAccentColorRaw) || undefined,

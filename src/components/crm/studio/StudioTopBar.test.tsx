@@ -83,6 +83,16 @@ describe("StudioTopBar", () => {
     ).toBeInTheDocument();
   });
 
+  it("stays clickable while an autosave runs (qa2 #7: first click with a panel open)", async () => {
+    const user = userEvent.setup();
+    const onExit = vi.fn();
+    renderTopBar({ onExit, saveStatus: "saving", hasUnsavedChanges: true });
+    const button = screen.getByRole("button", { name: "Review & Send" });
+    expect(button).not.toBeDisabled();
+    await user.click(button);
+    expect(onExit).toHaveBeenCalledOnce();
+  });
+
   it("does not offer sending for an already sent campaign", () => {
     renderTopBar({ campaignStatus: "Sent" });
     expect(

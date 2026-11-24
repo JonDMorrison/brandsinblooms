@@ -70,11 +70,13 @@ function CampaignRow({
       </Box>
       <Stack spacing={0.25} sx={{ minWidth: 0 }}>
         <Typography level="title-sm" noWrap>
-          {campaign.subjectLine || campaign.name}
+          {campaign.displayName}
         </Typography>
-        <Typography level="body-xs" noWrap sx={{ color: "neutral.500" }}>
-          {campaign.name}
-        </Typography>
+        {campaign.subjectLine && campaign.subjectLine !== campaign.displayName ? (
+          <Typography level="body-xs" noWrap sx={{ color: "neutral.500" }}>
+            {campaign.subjectLine}
+          </Typography>
+        ) : null}
       </Stack>
       <Stack spacing={0.25} alignItems="flex-end">
         <Typography level="body-xs" sx={{ color: campaign.status === "sent" ? "success.700" : "neutral.600", fontWeight: 600 }}>
@@ -106,7 +108,7 @@ export function CopyPreviousEmailDialog({
 
   const handleCopy = async (campaign: CampaignToCopy) => {
     const newId = await cloneCampaign(campaign.id, {
-      newName: `Copy of ${campaign.name}`,
+      newName: `Copy of ${campaign.displayName}`,
       clearScheduling: true,
     });
     if (newId) {

@@ -9,6 +9,7 @@ import {
   serializeSupabaseError,
   isUuidLike,
 } from "../_shared/campaignHelpers.ts";
+import {careFollowupAllowed} from '../_shared/care-followup-guard.ts';
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import {
   analyzeCampaignListHygiene,
@@ -1391,6 +1392,15 @@ serve(async (req: Request) => {
       customers = [];
     }
 
+    // A reviewed care follow-up can never be expanded to unconsented or unrelated recipients.
+    // Guard is authoritative and independent of editable campaign metadata.
+    const guardedCustomers:any[]=[];
+    for(let start=0;start<(customers||[]).length;start+=500){
+      const batch=(customers||[]).slice(start,start+500);
+      const allowed=await careFollowupAllowed(supabase,campaignId,batch.map((c:any)=>({customerId:c.id,email:c.email})));
+      guardedCustomers.push(...(allowed===null?batch:batch.filter((c:any)=>allowed.has(c.id))));
+    }
+    customers=guardedCustomers;
     const hygieneAnalysis = await analyzeCampaignListHygiene(supabase, {
       tenantId: campaignTenantId,
       domainId: campaign.from_email_domain_id || null,

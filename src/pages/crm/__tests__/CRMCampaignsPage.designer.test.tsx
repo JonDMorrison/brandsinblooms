@@ -35,6 +35,10 @@ function openList(record: CampaignCatalogItem, cached?: CampaignCatalogItem) {
   </Routes></MemoryRouter></QueryClientProvider>);
 }
 describe("campaign list designer access and names", () => {
+  it("does not count a paused campaign as an active send (qa2 #12)", async () => {
+    openList(campaign({ status: "paused" }));
+    expect(await screen.findByText(/0 active sends/)).toBeInTheDocument();
+  });
   it("refreshes a cached campaign name and opens its designer without settings", async () => {
     const record = campaign({ name: "Renamed winter newsletter" });
     openList(record, campaign({ name: "Old name" }));

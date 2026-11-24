@@ -47,6 +47,8 @@ type Props = {
   selectedBlockId?: string | null;
   /** This week's theme blocks (copy and photos) to insert one at a time. */
   weeklyTheme?: WeeklyThemeLibrary | null;
+  /** "Add all theme blocks": replaces the header, fills empty placeholders. */
+  onInsertThemeBlocks?: (blocks: StudioBlock[]) => void;
 };
 
 export interface WeeklyThemeLibrary {
@@ -98,11 +100,14 @@ function WeeklyThemeSection({
                 style={{ objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
               />
             ) : null}
-            <span>
+            <span data-testid="weekly-theme-item-label">
               {name}
-              <span style={{ display: "block", fontSize: 11, color: "#526b72" }}>
-                {STUDIO_BLOCK_LOOKUP[block.type]?.name}
-              </span>
+              {STUDIO_BLOCK_LOOKUP[block.type]?.name ? (
+                <span style={{ color: "#526b72", fontSize: 11 }}>
+                  {" · "}
+                  {STUDIO_BLOCK_LOOKUP[block.type]?.name}
+                </span>
+              ) : null}
             </span>
           </button>
         ))}
@@ -213,6 +218,7 @@ export default function BlockLibrary({
   onMoveBlock,
   selectedBlockId,
   weeklyTheme = null,
+  onInsertThemeBlocks,
 }: Props) {
   const [tab, setTab] = React.useState<"blocks" | "outline" | "saved">(
     "blocks",
@@ -347,7 +353,7 @@ export default function BlockLibrary({
               <WeeklyThemeSection
                 theme={weeklyTheme}
                 onInsert={onInsertSavedBlock}
-                onInsertAll={onInsertImportedBlocks}
+                onInsertAll={onInsertThemeBlocks ?? onInsertImportedBlocks}
               />
             ) : null}
             {categories.map((category) => (

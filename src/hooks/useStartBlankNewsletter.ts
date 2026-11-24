@@ -6,13 +6,15 @@ import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import { createStudioBlock } from "@/lib/studio/blockFactory";
 import { buildStudioDesignSystem } from "@/lib/studio/designSystem";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { buildCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import type { StudioBlock } from "@/types/studioBlocks";
 
 /**
  * "Open blank editor": create a draft with a blank canvas (a header and an
  * empty paragraph; the footer is added on save) and open it straight in
  * Design Studio. No setup form or layout picker on this path. Pass `blocks`
- * to start from a saved template instead.
+ * (and `origin`, e.g. saved_template:<id>) to start from a saved template.
+ * The origin is recorded once at insert; it defaults to "blank".
  */
 export function useStartBlankNewsletter() {
   const navigate = useNavigate();
@@ -30,6 +32,7 @@ export function useStartBlankNewsletter() {
   const start = React.useCallback(async (options: {
     blocks?: StudioBlock[];
     name?: string;
+    origin?: string;
   } = {}) => {
     if (startingRef.current) return;
     startingRef.current = true;
@@ -55,6 +58,7 @@ export function useStartBlankNewsletter() {
         sendImmediately: false,
         segments: [],
         personas: [],
+        origin: options.origin ?? buildCampaignOrigin("blank"),
       });
       navigate(`/crm/campaigns/${saved.id}/studio`);
     } catch (error) {

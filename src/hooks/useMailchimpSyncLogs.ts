@@ -395,6 +395,7 @@ function buildTimeline(
   },
 ) {
   const status = normalizeJobStatus(row.status);
+  const batchStats = asObject(row.batch_stats);
   const timeline: MailchimpSyncLogTimelineEntry[] = [
     {
       id: `${row.id}-requested`,

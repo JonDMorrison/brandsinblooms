@@ -21,7 +21,7 @@ Verdict key: FIXED = changed in this PR; OK = caller check present; STOPPED = te
 | `admin_clear_tenant_suppression_history` | p_tenant_id uuid, p_reason text | no | yes | is_master_admin, auth.uid() | OK: admin check |
 | `admin_clear_tenant_suppression_list` | p_tenant_id uuid, p_reason text | no | yes | is_master_admin, auth.uid() | OK: admin check |
 | `admin_clear_tenant_temporary_boost` | p_tenant_id uuid, p_reason text | no | yes | is_master_admin, auth.uid() | OK: admin check |
-| `admin_delete_user` | target_user_id uuid | no | yes | auth.uid() | FIXED: master-admin guard (this PR) |
+| `admin_delete_user` | target_user_id uuid | no | yes | auth.uid() | FIXED: master-admin guard (part A); A2 also allows service_role / non-API sessions for the delete-account and delete-user-hard edge functions, which authenticate the requester themselves |
 | `admin_disable_tenant_reputation_penalties` | p_tenant_id uuid, p_until timestamp with time zone, p_reason text | no | yes | is_master_admin, auth.uid() | OK: admin check |
 | `admin_enable_tenant_reputation_penalties` | p_tenant_id uuid, p_reason text | no | yes | is_master_admin, auth.uid() | OK: admin check |
 | `admin_extend_trial` | p_tenant_id uuid, p_days integer | no | yes | app_admin_emails, auth.role()/service_role | OK: admin check |
@@ -104,7 +104,7 @@ Verdict key: FIXED = changed in this PR; OK = caller check present; STOPPED = te
 | `email_gov_cfg_value` | p_path text[] | no | yes | none | OPEN: no caller check detected (not tenant_id-taking; out of part-A scope) |
 | `email_reachability_summary` | p_tenant_id uuid, p_customer_ids uuid[] | no | yes | tenant helper | STOPPED: owned by concurrent newsletter work (has a tenant check already) |
 | `email_reputation_enforcement_enabled` |  | no | yes | none | OPEN: no caller check detected (not tenant_id-taking; out of part-A scope) |
-| `enable_crm_for_user` | target_user_id uuid | no | yes | none | OPEN HIGH: flips feature flag for any user |
+| `enable_crm_for_user` | target_user_id uuid | no | yes | none | FIXED (A2): assert_user_access (self, master admin, service). No caller in repo; new profiles already get crm_enabled |
 | `enqueue_pos_sync_job` | p_tenant_id uuid, p_provider pos_provider, p_sync_type pos_sync_type, p_estimated_rows integer, p_triggered... | no | yes | is_master_admin, auth.uid() | FIXED: assert_tenant_access guard (this PR) |
 | `ensure_jobs_for_queued_email_messages` | p_campaign_id uuid, p_batch_size integer | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
 | `ensure_jobs_for_queued_email_messages` | p_campaign_id uuid, p_batch_size integer, p_jobs_per_minute integer, p_immediate_job_count integer, p_activ... | no | yes | auth.uid(), auth.role()/service_role | OK: tenant/role check |
@@ -157,7 +157,7 @@ Verdict key: FIXED = changed in this PR; OK = caller check present; STOPPED = te
 | `get_my_overdue_campaigns` |  | no | yes | tenant helper, auth.uid() | OK: tenant/role check |
 | `get_next_message_sequence` | p_session_id uuid | no | yes | none | OPEN: no caller check detected (not tenant_id-taking; out of part-A scope) |
 | `get_overdue_campaigns` | p_tenant_id uuid | no | yes | none | STOPPED: campaign function (concurrent work); no caller found |
-| `get_recipient_email_delivery_timeline` | p_tenant_id uuid, p_email text, p_customer_id uuid, p_limit integer | no | yes | none | STOPPED: email/campaign, no caller in repo (possibly in-flight work). Exposes recipient PII cross-tenant: HIGH priority follow-up |
+| `get_recipient_email_delivery_timeline` | p_tenant_id uuid, p_email text, p_customer_id uuid, p_limit integer | no | no | none | FIXED (A2): EXECUTE revoked from authenticated/anon/PUBLIC, service_role only. No caller in repo |
 | `get_remaining_budget` | p_tenant_id uuid | no | yes | none | FIXED: assert_tenant_access guard (this PR) |
 | `get_resource_insights` | p_tenant_id uuid, p_resource_type text, p_resource_id uuid | no | yes | auth.uid() | OK: returns empty unless caller's users.tenant_id = p_tenant_id (verified by hand) |
 | `get_sms_dashboard_stats` |  | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
@@ -210,7 +210,7 @@ Verdict key: FIXED = changed in this PR; OK = caller check present; STOPPED = te
 | `reconcile_customer_email_rollups` | p_tenant_id uuid, p_customer_id uuid | no | yes | none | STOPPED: email rollup (concurrent work); no caller found |
 | `record_contact_import_event` | p_tenant_id uuid, p_source text, p_contact_count integer, p_metadata jsonb | no | yes | none | FIXED: assert_tenant_access guard (this PR) |
 | `record_sms_link_click` | p_tracking_code text, p_user_agent text | no | yes | none | OPEN: no caller check detected (not tenant_id-taking; out of part-A scope) |
-| `refill_tokens` | p_user_id uuid, p_tokens integer | no | yes | none | OPEN HIGH: sets any user's token balance (p_user_id) |
+| `refill_tokens` | p_user_id uuid, p_tokens integer | no | no | none | FIXED (A2): master admin (API) or service only; EXECUTE revoked from authenticated. No caller in repo |
 | `refresh_all_content_intent_metrics` | p_tenant_id uuid | no | yes | none | FIXED: assert_tenant_access guard (this PR) |
 | `refresh_all_cross_channel_metrics` | p_tenant_id uuid | no | yes | none | FIXED: assert_tenant_access guard (this PR) |
 | `refresh_all_lifecycle_metrics` | p_tenant_id uuid | no | yes | none | FIXED: assert_tenant_access guard (this PR) |
@@ -223,7 +223,7 @@ Verdict key: FIXED = changed in this PR; OK = caller check present; STOPPED = te
 | `reset_master_admin_account` | target_user_id uuid | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
 | `resolve_customer_merge_review` | p_suggestion_id uuid, p_survivor_customer_id uuid, p_duplicate_customer_id uuid, p_action text, p_reason text | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
 | `resolve_effective_subscription_tier` | p_tenant_id uuid | no | yes | none | STOPPED: internal helper (sync_subscription_to_org_budget); recommend REVOKE from authenticated |
-| `restore_user_data` | target_user_id uuid | no | yes | none | OPEN HIGH: restores any user's data (target_user_id) |
+| `restore_user_data` | target_user_id uuid | no | no | none | FIXED (A2): master admin (API) or service only; EXECUTE revoked from authenticated. No caller in repo |
 | `resume_email_campaign_sending` | p_campaign_id uuid | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
 | `retry_campaign_recipient_message` | p_campaign_id uuid, p_recipient_id uuid | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
 | `retry_failed_email_messages` | p_campaign_id uuid | no | yes | none | OPEN: no caller check detected (not tenant_id-taking; out of part-A scope) |
@@ -240,8 +240,8 @@ Verdict key: FIXED = changed in this PR; OK = caller check present; STOPPED = te
 | `set_tenant_default_from_email_domain` | p_domain_id uuid | no | yes | tenant helper, auth.uid() | OK: tenant/role check |
 | `set_tenant_user_crm_access` | p_user_id uuid, p_role text, p_location_ids uuid[] | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
 | `set_weekly_theme_images` | p_campaign_id uuid, p_images jsonb | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
-| `soft_delete_user_data` | target_user_id uuid | no | yes | none | OPEN HIGH: soft-deletes any user's data (target_user_id) |
-| `spend_tokens` | p_user_id uuid, p_tokens integer, p_action_type text, p_content_type text, p_campaign_id uuid | no | yes | none | OPEN HIGH: debits any user's tokens (p_user_id) |
+| `soft_delete_user_data` | target_user_id uuid | no | yes | none | FIXED (A2): assert_user_access (self, master admin, service). No caller in repo |
+| `spend_tokens` | p_user_id uuid, p_tokens integer, p_action_type text, p_content_type text, p_campaign_id uuid | no | yes | none | FIXED (A2): assert_user_access (self, master admin, service); negative amounts rejected for non-admin API callers. Callers: useTokens, ParallelContentGenerator (own user id) |
 | `stage_ideal_journal_chunk` | p_tenant_id uuid, p_batch_id text, p_seq integer, p_payload text, p_sha256 text | no | yes | is_master_admin, auth.uid() | OK: admin check |
 | `stop_email_campaign_sending` | p_campaign_id uuid, p_reason text | no | yes | auth.uid() | Likely OK: scoped via auth.uid() (not individually verified) |
 | `track_content_interaction` | p_tenant_id uuid, p_customer_id uuid, p_session_id text, p_channel text, p_content_type text, p_interaction... | no | yes | none | STOPPED: tracking write, no caller in repo; unclear whether a public/anon pipeline is intended |
@@ -272,3 +272,10 @@ The `search_path = ''` pass on the 103 `function_search_path_mutable` functions 
 - The OPEN HIGH rows (`refill_tokens`, `spend_tokens`, `soft_delete_user_data`, `restore_user_data`, `enable_crm_for_user`) take a user id with no caller check. Any signed-in user can call them for any other user.
 - The STOPPED rows each give a reason. `get_recipient_email_delivery_timeline` is the most urgent of them because it exposes recipient PII across tenants.
 - `admin_delete_user` is called by the `delete-account` and `delete-user-hard` edge functions with a service-role client, so `auth.uid()` is NULL there. Both the old email allowlist and the new master-admin check reject those calls. Those flows were already failing before this change and still fail after it.
+
+## Part A2 (migration `20261124142456_user_rpc_lockdown`)
+
+- New guard `public.assert_user_access(uuid)`: API callers (JWT role anon/authenticated) must be that user or a master admin; service_role and non-API sessions pass.
+- The five OPEN HIGH user-id rows and `get_recipient_email_delivery_timeline` are now FIXED (see the table). `admin_delete_user` now also accepts service_role.
+- Verified on production over REST with a throwaway user: another user's id gives 403 (42501) for `spend_tokens`, `soft_delete_user_data`, `enable_crm_for_user` and `admin_delete_user`. The user's own id gives 200 for the three self-service RPCs. `spend_tokens` with a negative amount gives 400. `refill_tokens` and `restore_user_data` give 403 (permission denied). `get_recipient_email_delivery_timeline` gives 403 when signed in and 401 as anon. `delete-account` with another user's id returns 400 `Unauthorized`.
+- Still open: account deletion passes the guard but then fails on `users_created_by_user_id_fkey`. `public.users.created_by_user_id` references `auth.users` with NO ACTION, and every signup row references itself. `admin_delete_user` does not remove the `public.users` row, so the final `DELETE FROM auth.users` is rejected. `admin_delete_user` needs a follow-up change.

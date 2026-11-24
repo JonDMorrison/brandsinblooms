@@ -15455,6 +15455,8 @@ export type Database = {
           waiting: number;
           stopped: number;
           unsendable: number;
+          asked_to_stop: number;
+          never_opted_in: number;
         }[];
       };
       begin_customer_csv_import: {
@@ -15658,6 +15660,8 @@ export type Database = {
           primary_contact_last_login: string;
           primary_contact_name: string;
           region: string;
+          site_domain: string | null;
+          site_domain_status: string | null;
           subscription_status: string;
           tenant_created_at: string;
           tenant_id: string;

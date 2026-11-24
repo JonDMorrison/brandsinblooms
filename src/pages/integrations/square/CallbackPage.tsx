@@ -34,6 +34,7 @@ const CallbackPage = () => {
         const code = searchParams.get("code");
         const state = searchParams.get("state");
         const error = searchParams.get("error");
+        const errorDescription = searchParams.get("error_description");
 
         if (error) {
           clearTimeout(timeoutId);

@@ -174,6 +174,16 @@ jobs:
           tomllib.loads(Path("supabase/config.toml").read_text())
           PY
 
+      # Use the existing production Management API credentials to apply only
+      # the reviewed care follow-up migrations, preserving their file versions.
+      # Never deploy the shared send guard before its database authority exists.
+      - name: Release care follow-up schema before affected functions
+        if: steps.changed.outputs.deploy_all == 'true' || contains(steps.changed.outputs.functions, 'send-email-campaign') || contains(steps.changed.outputs.functions, 'process-email-send-queue') || contains(steps.changed.outputs.functions, 'care-followup-website')
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: python3 scripts/release-care-followup-schema.py
+
       - name: Deploy changed functions
         id: deploy
         env:

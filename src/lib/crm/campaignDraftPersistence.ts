@@ -3,6 +3,7 @@ import { deriveCampaignDisplayName, isUnsetCampaignName } from "@/lib/crm/campai
 import type { Database } from "@/integrations/supabase/types";
 import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount";
 import type { ContentBlock } from "@/types/emailBuilder";
+import { loadDraftSenderDefaults } from "@/lib/crm/draftSenderDefaults";
 import { normalizeCampaignOrigin } from "@/lib/crm/campaignOrigin";
 import { generateEmailHtml } from "@/lib/studio/emailHtmlGenerator";
 import {
@@ -850,6 +851,19 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
       throw new CampaignDraftConflictError(currentRow?.updated_at ?? null);
     }
   } else {
+    // Every new email draft starts with the tenant's sender (blank editor,
+    // templates, this week's theme, ideas): see resolveDraftSenderDefaults.
+    const senderDefaults =
+      input.campaignType === "email" && !input.senderEmail?.trim()
+        ? await loadDraftSenderDefaults({ tenantId, userId })
+        : null;
+    const senderName = senderDefaults?.senderEmail
+      ? input.senderName?.trim() || senderDefaults.senderName
+      : basePayload.sender_name;
+    const senderEmail = senderDefaults?.senderEmail || basePayload.sender_email;
+    const replyTo = senderDefaults?.senderEmail
+      ? input.replyTo?.trim() || senderDefaults.replyTo
+      : input.replyTo;
     const insertPayload: Database["public"]["Tables"]["crm_campaigns"]["Insert"] =
       {
         tenant_id: tenantId,
@@ -858,11 +872,14 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
         subject_line: basePayload.subject_line,
         preheader_text: basePayload.preheader_text,
         preheader: basePayload.preheader,
-        sender_name: basePayload.sender_name,
-        sender_display_name: basePayload.sender_display_name,
-        sender_email: basePayload.sender_email,
-        actual_sender_email: basePayload.actual_sender_email,
-        from_email_domain_id: basePayload.from_email_domain_id,
+        sender_name: senderName,
+        sender_display_name: senderName,
+        sender_email: senderEmail,
+        actual_sender_email: senderEmail,
+        from_email_domain_id:
+          basePayload.from_email_domain_id ??
+          senderDefaults?.fromEmailDomainId ??
+          null,
         content: basePayload.content,
         status: basePayload.status,
         scheduled_at: basePayload.scheduled_at,
@@ -873,7 +890,7 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
         segment_id: basePayload.segment_id,
         persona_ids: basePayload.persona_ids,
         origin: normalizeCampaignOrigin(input.origin),
-        metadata: buildCampaignMetadata({}, { ...input, contentBlocks }),
+        metadata: buildCampaignMetadata({}, { ...input, replyTo, contentBlocks }),
         metrics: {
           sent: 0,
           delivered: 0,

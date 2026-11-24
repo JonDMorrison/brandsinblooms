@@ -61,10 +61,10 @@ Deno.serve(async request=>{
       'x-care-guide-signature':'sha256='+signature},body});
     const result=await upstream.json().catch(()=>({}));
     return {siteId,ok:upstream.ok&&result.siteId===siteId&&['created','updated','already_current','stale'].includes(result.status),
-      status:upstream.ok?result.status:'rejected'};
+      status:upstream.ok?result.status:'rejected',posTheme:upstream.ok?result.posTheme:undefined};
    }catch{return {siteId,ok:false,status:'unavailable'};}
   }));
   return response({version,synced:outcomes.filter(x=>x.ok).map(x=>x.siteId),
-   failed:outcomes.filter(x=>!x.ok).map(x=>({siteId:x.siteId,status:x.status}))},200);
+   failed:outcomes.filter(x=>!x.ok).map(x=>({siteId:x.siteId,status:x.status})),posUpdated:outcomes.filter(x=>x.ok&&x.posTheme==='updated').length,posPending:outcomes.filter(x=>x.ok&&x.posTheme==='pending').length},200);
  }catch{return response({error:'care_guide_theme_sync_failed'},503);}
 });

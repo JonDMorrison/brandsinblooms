@@ -65,6 +65,20 @@ export interface NewsletterSettings {
    * and sent campaigns keep the 240px rule and re-render unchanged.
    */
   mobileImageHeight?: "natural";
+  /**
+   * true: text that would read below 4.5:1 is switched to a readable colour
+   * (footer text and links, brand-coloured buttons), and brand buttons use the
+   * neutral dark preset when no brand colour is set. Stamped on drafts by
+   * ensureFooterBlockCompliance and on new footers; absent on sent campaigns,
+   * so they re-render unchanged.
+   */
+  contrastGuard?: true;
+  /**
+   * "left": on phones, where the footer's two columns stack, the address
+   * column is left-aligned instead of hugging the right edge. Stamped on
+   * drafts like contrastGuard; sent campaigns lack it and render unchanged.
+   */
+  mobileFooterAlign?: "left";
 }
 export interface NewsletterLink {
   id: string;

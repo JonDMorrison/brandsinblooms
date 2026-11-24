@@ -6,6 +6,7 @@ import type {
   NewsletterTemplate,
 } from "@/types/newsletter";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { WEEKLY_THEME_WEBSITE_URL } from "@/lib/studio/weeklyThemeSeed";
 import {
   buildCampaignOrigin,
   normalizeCampaignOrigin,
@@ -53,11 +54,26 @@ const ORIGIN_SEARCH_PARAM = "origin";
  * themes point at the tenant's own theme row when one is known, otherwise at
  * the shared master week.
  */
+const WEEKLY_THEME_IDEA_ID = /^weekly-theme-\d+$/;
+
+/** True for the idea buildWeeklyThemeIdea makes from the tenant's weekly theme. */
+export function isWeeklyThemeIdea(
+  idea: Pick<NewsletterIdea, "id" | "category"> &
+    Partial<Pick<NewsletterIdea, "themeCampaignId">>,
+): boolean {
+  return (
+    idea.category === "weekly" &&
+    (Boolean(idea.themeCampaignId) || WEEKLY_THEME_IDEA_ID.test(idea.id))
+  );
+}
+
 export function originForNewsletterIdea(
   idea: Pick<NewsletterIdea, "id" | "category"> &
     Partial<Pick<NewsletterIdea, "weekNumber" | "themeCampaignId">>,
 ): string {
-  if (idea.category === "weekly") {
+  // "Start from this week's theme" (buildWeeklyThemeIdea): the tenant's theme
+  // row, or the master week when the tenant has none.
+  if (isWeeklyThemeIdea(idea)) {
     if (idea.themeCampaignId) {
       return buildCampaignOrigin("weekly_theme", idea.themeCampaignId);
     }
@@ -70,7 +86,8 @@ export function originForNewsletterIdea(
   if (idea.category === "ai-generated") {
     return buildCampaignOrigin("ai", "newsletter_idea");
   }
-  return buildCampaignOrigin("starter_template", idea.id);
+  // Every other idea (Ideas for You, Browse all 52 weekly ideas, holidays...).
+  return buildCampaignOrigin("idea", idea.id);
 }
 
 const HEADER_LIKE_SOURCE_TYPES = new Set([
@@ -80,7 +97,6 @@ const HEADER_LIKE_SOURCE_TYPES = new Set([
   "graphic-hero",
   "newsletter-header",
 ]);
-const CTA_LIKE_SOURCE_TYPES = new Set(["button", "cta", "call-to-action"]);
 const FOOTER_LIKE_SOURCE_TYPES = new Set(["footer"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -361,6 +377,17 @@ function getTemplateBlockButtonUrl(templateBlock: NewsletterIdeaTemplateBlock) {
   );
 }
 
+/** Theme blocks ask for "the website" with a placeholder URL. */
+function resolveTemplateButtonUrl(
+  url: string,
+  designSystem?: StudioDesignSystem | null,
+) {
+  if (url === WEEKLY_THEME_WEBSITE_URL) {
+    return trimString(designSystem?.company.websiteUrl);
+  }
+  return url;
+}
+
 function getTemplateBlockImageUrl(templateBlock: NewsletterIdeaTemplateBlock) {
   return trimString(templateBlock.imageUrl ?? templateBlock.image_url);
 }
@@ -465,23 +492,6 @@ function buildAngleTextBlock(
   } satisfies StudioBlock;
 }
 
-function buildCtaBlock(
-  idea: NewsletterIdeaSeedSource,
-  designSystem?: StudioDesignSystem | null,
-) {
-  const block = createStudioBlock("call-to-action", designSystem);
-
-  return {
-    ...block,
-    layout: "centered-hero",
-    layoutPreset: "cta-centered-hero",
-    headline: "Continue shaping this newsletter",
-    body: `Review the seeded draft for ${idea.title}, refine the copy, and add any final links or visuals before you send.`,
-    buttonText: "Review the draft",
-    buttonUrl: trimString(designSystem?.company.websiteUrl) || DEFAULT_CTA_URL,
-  } satisfies StudioBlock;
-}
-
 function buildFooterBlock(designSystem?: StudioDesignSystem | null) {
   return createStudioBlock("footer", designSystem);
 }
@@ -574,6 +584,8 @@ function mapTemplateBlockToStudioBlock(
       }
 
       const block = createStudioBlock("image-text", designSystem);
+      const resolvedButtonUrl = resolveTemplateButtonUrl(buttonUrl, designSystem);
+      const keepButton = Boolean(buttonText && resolvedButtonUrl);
       return {
         ...block,
         headline: title,
@@ -581,8 +593,8 @@ function mapTemplateBlockToStudioBlock(
         body,
         imageUrl,
         imageAlt,
-        buttonText,
-        buttonUrl: buttonText ? buttonUrl : "",
+        buttonText: keepButton ? buttonText : "",
+        buttonUrl: keepButton ? resolvedButtonUrl : "",
       } satisfies StudioBlock;
     }
     case "button":
@@ -766,8 +778,8 @@ function buildSeedBlocks(
   // Mapping rules:
   // - Preserve every source template block in source order. Never truncate.
   // - Layout changes how a source block maps, not how many blocks survive.
-  // - Only inject synthetic header, hero, CTA, or footer blocks when the
-  //   source omits that structure entirely.
+  // - Only inject synthetic header, hero, or footer blocks when the source
+  //   omits that structure entirely.
   // - Let footer compliance keep the single footer at the end instead of
   //   creating duplicate structural blocks in the seed path.
   const sourceTemplateBlocks = toTemplateBlocks(idea.templateBlocks);
@@ -781,10 +793,6 @@ function buildSeedBlocks(
   const hasSourceHeaderLikeBlock = hasSourceBlockType(
     sourceTemplateBlocks,
     HEADER_LIKE_SOURCE_TYPES,
-  );
-  const hasSourceCtaBlock = hasSourceBlockType(
-    sourceTemplateBlocks,
-    CTA_LIKE_SOURCE_TYPES,
   );
   const hasSourceFooterBlock = hasSourceBlockType(
     sourceTemplateBlocks,
@@ -805,12 +813,8 @@ function buildSeedBlocks(
     blocks.push(...buildFallbackBlocks(idea, designSystem));
   }
 
-  if (
-    !hasSourceCtaBlock &&
-    !blocks.some((block) => block.type === "call-to-action")
-  ) {
-    blocks.push(buildCtaBlock(idea, designSystem));
-  }
+  // No synthetic call to action: its placeholder copy ("Continue shaping
+  // this newsletter") read as an internal note in sent emails.
 
   if (
     !hasSourceFooterBlock &&
