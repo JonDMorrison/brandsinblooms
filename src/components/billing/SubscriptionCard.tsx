@@ -11,6 +11,7 @@ import Typography from "@mui/joy/Typography";
 import { Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerPortalButton } from "@/components/subscription/CustomerPortalButton";
+import { getPlanDateDisplay } from "@/lib/billing/billingDates";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -165,6 +166,14 @@ export const SubscriptionCard = () => {
   const effectivePlan = subscription.tier ?? subscription.plan;
   const isExpiredState = effectivePlan === "expired" || isTrialExpired;
   const isTrialPlan = effectivePlan === "free_trial" && !isExpiredState;
+  // Monthly plans show their next renewal; the stored end_date is a far-off
+  // bound for many accounts, not the next billing date.
+  const planDate = getPlanDateDisplay({
+    startDate: subscription?.start_date,
+    endDate: subscription?.end_date,
+    billingInterval: subscription?.billing_interval,
+    isTrial: isTrialPlan,
+  });
   const isPaidPlan = !isTrialPlan && !isExpiredState;
   const statusColor = isExpiredState
     ? "danger"
@@ -260,14 +269,20 @@ export const SubscriptionCard = () => {
           </Stack>
           <Stack spacing={0.5}>
             <Typography level="body-xs" textColor="text.tertiary">
-              End Date
+              {planDate.label}
             </Typography>
             <Typography
               level="body-md"
               fontWeight={600}
               startDecorator={<Calendar size={16} />}
             >
-              {formatDate(subscription.end_date)}
+              {planDate.date
+                ? new Intl.DateTimeFormat("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  }).format(planDate.date)
+                : "-"}
             </Typography>
           </Stack>
         </Box>

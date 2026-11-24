@@ -1140,17 +1140,6 @@ export function FormPublishTab({
                 {publicUrl}
               </Link>
             </Stack>
-            <Button
-              size="sm"
-              variant="plain"
-              color="success"
-              loading={isStatusUpdating}
-              onClick={() => {
-                void onUnpublish?.();
-              }}
-            >
-              Unpublish
-            </Button>
           </Stack>
         </Sheet>
       ) : publishValidationIssues.length > 0 ? (

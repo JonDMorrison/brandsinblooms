@@ -3,6 +3,7 @@ import {
   formatReportedCurrency,
   readReportedPeriodSpending,
 } from "@/lib/crm/reportedPeriodSpending";
+import { resolveCustomerPurchaseSummary } from "@/lib/crm/customerPurchaseSummary";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -428,8 +429,17 @@ export function buildCustomerFocus(
       .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
     return numbers.find((value) => value > 0) ?? (numbers.length ? 0 : null);
   };
-  const recordedValue = firstPositive(customer.lifetime_value, customer.total_spent);
-  const recordedOrders = firstPositive(customer.order_count, customer.pos_order_count);
+  // One source of truth with the customer list, record header and Purchases tab.
+  const purchaseSummary = resolveCustomerPurchaseSummary({
+    total_spent: customer.total_spent,
+    lifetime_value: customer.lifetime_value,
+    pos_order_count: customer.pos_order_count,
+    last_purchase_date: readString(customer.last_purchase_date),
+    first_purchase_date: readString(customer.first_purchase_date),
+  });
+  const recordedValue = purchaseSummary.lifetimeValue;
+  const recordedOrders =
+    purchaseSummary.orderCount ?? firstPositive(customer.order_count, customer.pos_order_count);
   const lifetimeValue =
     recordedValue !== null && recordedValue > 0
       ? formatMoney(recordedValue)
@@ -488,6 +498,7 @@ export function buildCustomerFocus(
     `Departments Shopped: ${readNumber(customer.departments_shopped) ?? "Not available"}`,
     `Category Spend: ${stringifyGenericValue(customer.category_spend) || "Not available"}`,
     `Department Spend: ${stringifyGenericValue(customer.department_spend) || "Not available"}`,
+    `Last Purchase: ${purchaseSummary.lastPurchaseDate ? formatDate(purchaseSummary.lastPurchaseDate) : "Not available"}`,
     `Last Order: ${lastOrderDate}`,
     ...maybeSection("Recent Orders (last 5):", ordersSection),
     ...maybeSection("Campaign Engagement (last 5):", campaignSection),

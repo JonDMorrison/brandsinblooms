@@ -1,3 +1,4 @@
+import { isDeliveredCampaignStatus } from "@/constants/campaignStatuses";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/joy/Box";
 import Dropdown from "@mui/joy/Dropdown";
@@ -670,40 +671,68 @@ export const CalendarView = React.memo(function CalendarView({
     viewMode,
   ]);
 
+  // Email campaigns (crm_campaigns with a date) count alongside weekly themes.
+  const emailCampaignOverview = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let scheduled = 0;
+    let completed = 0;
+    let active = 0;
+    for (const newsletter of rawData.newsletters) {
+      if (isDeliveredCampaignStatus(newsletter.status)) {
+        completed += 1;
+      } else if (newsletter.scheduled_at && new Date(newsletter.scheduled_at) >= today) {
+        scheduled += 1;
+      } else {
+        active += 1;
+      }
+    }
+    return { total: rawData.newsletters.length, scheduled, completed, active };
+  }, [rawData.newsletters]);
+
+  const totalCampaigns =
+    campaignOverview.totalCampaigns + emailCampaignOverview.total;
+
   const calendarStats = useMemo(
     () => [
       {
         label: "Total Campaigns",
-        value: campaignOverview.totalCampaigns.toLocaleString(),
+        value: totalCampaigns.toLocaleString(),
         icon: <Megaphone size={18} />,
         iconColor: "neutral" as const,
       },
       {
         label: "Active",
-        value: campaignOverview.activeCampaigns.toLocaleString(),
+        value: (
+          campaignOverview.activeCampaigns + emailCampaignOverview.active
+        ).toLocaleString(),
         icon: <Play size={18} />,
         iconColor: "neutral" as const,
       },
       {
         label: "Scheduled",
-        value: campaignOverview.scheduledCampaigns.toLocaleString(),
+        value: (
+          campaignOverview.scheduledCampaigns + emailCampaignOverview.scheduled
+        ).toLocaleString(),
         icon: <Clock3 size={18} />,
         iconColor: "neutral" as const,
       },
       {
         label: "Completed",
-        value: campaignOverview.completedCampaigns.toLocaleString(),
+        value: (
+          campaignOverview.completedCampaigns + emailCampaignOverview.completed
+        ).toLocaleString(),
         icon: <CheckCircle2 size={18} />,
         iconColor: "neutral" as const,
       },
     ],
-    [campaignOverview],
+    [campaignOverview, emailCampaignOverview, totalCampaigns],
   );
 
   const metadataLabel = useMemo(() => {
     const segments = [
       "Marketing planning",
-      `${campaignOverview.totalCampaigns.toLocaleString()} campaigns`,
+      `${totalCampaigns.toLocaleString()} campaigns`,
     ];
 
     if (campaignOverview.activeGenerationJobs > 0) {
@@ -713,7 +742,7 @@ export const CalendarView = React.memo(function CalendarView({
     }
 
     return segments.join(" · ");
-  }, [campaignOverview]);
+  }, [campaignOverview, totalCampaigns]);
 
   return (
     <Stack spacing={3} sx={{ minWidth: 0, width: "100%" }}>

@@ -5,14 +5,14 @@ import { Calendar, DollarSign } from "lucide-react";
 import {
   formatReportedCurrency,
   formatReportedPeriod,
-  readReportedPeriodSpending,
 } from "@/lib/crm/reportedPeriodSpending";
+import {
+  formatCustomerCurrency,
+  resolveCustomerPurchaseSummary,
+  type CustomerPurchaseSource,
+} from "@/lib/crm/customerPurchaseSummary";
 
-interface PurchaseCellCustomer {
-  total_spent?: number | string | null;
-  last_purchase_date?: string | null;
-  custom_fields?: unknown;
-}
+type PurchaseCellCustomer = CustomerPurchaseSource;
 
 const amountSx = {
   fontFamily: "var(--joy-fontFamily-display)",
@@ -23,21 +23,24 @@ const amountSx = {
 const captionSx = { fontSize: "11px", color: "neutral.500", whiteSpace: "nowrap" } as const;
 const mutedSx = { fontSize: "13px", color: "neutral.500" } as const;
 
-function recordedSpend(value: PurchaseCellCustomer["total_spent"]): number | null {
-  if (typeof value === "string" && !value.trim()) return null;
-  const amount = typeof value === "string" ? Number(value) : value;
-  return typeof amount === "number" && Number.isFinite(amount) ? amount : null;
-}
-
 /**
- * Recorded spending comes from dated receipts. When there is none but a POS
- * spending report exists, show the report total with its period instead of $0.
+ * Lifetime value from the shared customer purchase summary (the same number
+ * the customer record, Purchases tab and Bloom show). When none is recorded
+ * but a POS spending report exists, show the report total with its period.
  */
-export function CustomerListSpendCell({ customer }: { customer: PurchaseCellCustomer }) {
-  const recorded = recordedSpend(customer.total_spent);
-  const reported = readReportedPeriodSpending(customer.custom_fields);
+export function CustomerListSpendCell({
+  customer,
+  currency = "USD",
+}: {
+  customer: PurchaseCellCustomer;
+  /** Tenant currency (resolveTenantCurrency), e.g. "USD" -> $3,700.91. */
+  currency?: string;
+}) {
+  const summary = resolveCustomerPurchaseSummary(customer);
+  const recorded = summary.lifetimeValue;
+  const reported = summary.reportedPeriod;
 
-  if ((recorded === null || recorded === 0) && reported) {
+  if (reported) {
     return (
       <Stack alignItems="flex-end" spacing={0.25}>
         <Stack direction="row" spacing={0.5} alignItems="center">
@@ -55,26 +58,26 @@ export function CustomerListSpendCell({ customer }: { customer: PurchaseCellCust
 
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-      <DollarSign size={12} strokeWidth={1.9} color="var(--joy-palette-neutral-400)" />
-      <Typography sx={amountSx}>{recorded.toFixed(2)}</Typography>
+      <Typography sx={amountSx}>{formatCustomerCurrency(recorded, currency, "en-US")}</Typography>
     </Stack>
   );
 }
 
 /** A missing purchase date means no dated receipt is on file. It never proves the customer bought nothing. */
 export function CustomerListLastPurchaseCell({ customer }: { customer: PurchaseCellCustomer }) {
-  if (customer.last_purchase_date) {
+  const summary = resolveCustomerPurchaseSummary(customer);
+  if (summary.lastPurchaseDate) {
     return (
       <Stack direction="row" spacing={0.5} alignItems="center">
         <Calendar size={12} strokeWidth={1.9} color="var(--joy-palette-neutral-400)" />
         <Typography sx={mutedSx}>
-          {format(new Date(customer.last_purchase_date), "MMM d, yyyy")}
+          {format(new Date(summary.lastPurchaseDate), "MMM d, yyyy")}
         </Typography>
       </Stack>
     );
   }
 
-  const reported = readReportedPeriodSpending(customer.custom_fields);
+  const reported = summary.reportedPeriod;
   if (reported) {
     return (
       <Stack spacing={0.25}>

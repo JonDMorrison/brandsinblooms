@@ -175,20 +175,27 @@ function getSubmissionSummary(form: FormWithStats): {
     };
   }
 
-  const recentTotal = form.recent_accepted + form.recent_rejected;
+  const total = `${form.total_submissions.toLocaleString()} ${plural(form.total_submissions, "submission")}`;
 
-  if (recentTotal > 0) {
-    const acceptedRate = Math.round((form.recent_accepted / recentTotal) * 100);
-
+  if (form.recent_submissions > 0 || form.recent_rejected > 0) {
+    const blocked =
+      form.recent_rejected > 0
+        ? ` · ${form.recent_rejected.toLocaleString()} blocked as spam or invalid`
+        : "";
     return {
-      primary: `${form.total_submissions.toLocaleString()} submissions · ${acceptedRate}% accepted recently`,
-      secondary: `${form.recent_submissions.toLocaleString()} in the last 7 days`,
+      primary: total,
+      secondary: `${form.recent_submissions.toLocaleString()} in the last 7 days${blocked}`,
     };
   }
 
   return {
-    primary: `${form.total_submissions.toLocaleString()} submissions · No recent activity`,
+    primary: `${total} · None in the last 7 days`,
   };
+}
+
+/** "1 step", "3 steps". */
+function plural(count: number, noun: string) {
+  return count === 1 ? noun : `${noun}s`;
 }
 
 function getModifiedLabel(updatedAt: string): string {
@@ -706,13 +713,15 @@ function FormsGridCard({
           <CompactMeta
             icon={<FileText size={14} />}
             label={
-              hasNoFields ? "Draft — no fields yet" : `${fieldCount} fields`
+              hasNoFields
+                ? "Draft — no fields yet"
+                : `${fieldCount} ${plural(fieldCount, "field")}`
             }
           />
           {hasNoFields ? null : (
             <CompactMeta
               icon={<List size={14} />}
-              label={`${stepCount} steps`}
+              label={`${stepCount} ${plural(stepCount, "step")}`}
             />
           )}
         </Stack>
@@ -846,7 +855,7 @@ function FormsListRow({
   const fieldStepLabel =
     fieldCount === 0
       ? "Draft — no fields yet"
-      : `${fieldCount} fields · ${stepCount} steps`;
+      : `${fieldCount} ${plural(fieldCount, "field")} · ${stepCount} ${plural(stepCount, "step")}`;
 
   return (
     <Box

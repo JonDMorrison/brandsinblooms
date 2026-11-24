@@ -6,6 +6,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { SYSTEM_SEGMENT_NAMES } from "@/config/segmentDefinitions";
 import { normalizeName } from "@/utils/segmentResolution";
+import { fetchSegmentMembershipSummary } from "@/lib/segmentMembership";
 
 interface CRMSegment {
   id: string;
@@ -46,20 +47,12 @@ export const useCRMSegments = () => {
       const countMap: Record<string, number> = {};
 
       if (segmentIds.length > 0) {
-        const { data: allCustomerSegments, error: csError } = await supabase
-          .from("customer_segments")
-          .select("segment_id")
-          .in("segment_id", segmentIds);
-
-        if (csError) {
-          console.error(
-            "❌ Error fetching customer_segments for counts:",
-            csError,
-          );
-        } else if (allCustomerSegments) {
-          for (const cs of allCustomerSegments) {
-            countMap[cs.segment_id] = (countMap[cs.segment_id] || 0) + 1;
-          }
+        // Counted in the database; selecting membership rows stops at 1,000.
+        try {
+          const summary = await fetchSegmentMembershipSummary(tenant.id);
+          Object.assign(countMap, summary.segmentCounts);
+        } catch (countError) {
+          console.error("Error fetching segment member counts:", countError);
         }
       }
 

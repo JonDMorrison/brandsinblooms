@@ -8,6 +8,7 @@ import {
   type SegmentRuleGroup,
 } from "@/lib/segmentFields";
 import type { Database } from "@/integrations/supabase/types";
+import { fetchSegmentMembershipSummary } from "@/lib/segmentMembership";
 
 type SegmentRow = Database["public"]["Tables"]["crm_segments"]["Row"];
 
@@ -155,29 +156,27 @@ export function useSegments(filters: SegmentListFilters = {}) {
       const segmentIds = mappedSegments.map((segment) => segment.id);
 
       let totalSegmentedCustomers = 0;
+      let segmentsWithCounts = mappedSegments;
       if (segmentIds.length) {
-        const { data: memberships, error: membershipError } = await supabase
-          .from("customer_segments")
-          .select("customer_id, segment_id")
-          .in("segment_id", segmentIds);
-
-        if (membershipError) {
-          throw membershipError;
-        }
-
-        totalSegmentedCustomers = new Set(
-          (memberships ?? []).map((membership) => membership.customer_id),
-        ).size;
+        // Counted in the database: reading customer_segments rows here stops
+        // at 1,000 and undercounts large tenants.
+        const summary = await fetchSegmentMembershipSummary(tenantId);
+        totalSegmentedCustomers = summary.distinctCustomers;
+        segmentsWithCounts = mappedSegments.map((segment) =>
+          segment.id in summary.segmentCounts
+            ? { ...segment, memberCount: summary.segmentCounts[segment.id] }
+            : segment,
+        );
       }
 
       return {
-        segments: mappedSegments,
+        segments: segmentsWithCounts,
         stats: {
-          totalSegments: mappedSegments.length,
-          dynamicSegments: mappedSegments.filter(
+          totalSegments: segmentsWithCounts.length,
+          dynamicSegments: segmentsWithCounts.filter(
             (segment) => segment.type === "dynamic",
           ).length,
-          staticSegments: mappedSegments.filter(
+          staticSegments: segmentsWithCounts.filter(
             (segment) => segment.type === "static",
           ).length,
           totalSegmentedCustomers,

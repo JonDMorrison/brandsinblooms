@@ -1,4 +1,14 @@
 import type { Database } from "../../../../../src/integrations/supabase/types.ts";
+import { deriveCampaignDisplayName } from "../../../../../src/lib/crm/campaignDisplayName.ts";
+import {
+  reviewCampaignContent,
+  type ReviewableBlock,
+} from "../../../../../src/lib/crm/campaignContentReview.ts";
+import {
+  classifySender,
+  type SenderDomainLike,
+  type SenderDomainStatus,
+} from "../../../../../src/lib/crm/senderSeverity.ts";
 import type { JsonObject, JsonValue } from "../../types.ts";
 import { applyFilters } from "../filter-engine.ts";
 import type {
@@ -38,6 +48,8 @@ type CampaignRow = Pick<
   | "total_sent"
   | "total_recipients"
   | "messages_sent"
+  | "sender_email"
+  | "sender_name"
 >;
 
 type CampaignSegmentRow = Pick<
@@ -59,7 +71,9 @@ const CAMPAIGN_SELECT = `
   click_rate,
   total_sent,
   total_recipients,
-  messages_sent
+  messages_sent,
+  sender_email,
+  sender_name
 `;
 
 const CAMPAIGN_SORT_FIELDS = [
@@ -306,33 +320,206 @@ async function loadCampaignSegmentNames(
   return segmentNamesByCampaign;
 }
 
-function mapCampaign(row: CampaignRow, segmentNames: string[]): JsonObject {
-  const deliveredCount =
-    readMetric(row.metrics, ["delivered_count", "delivered", "sent"]) ??
-    toNumberOrNull(row.total_sent) ??
-    toNumberOrNull(row.messages_sent) ??
-    toNumberOrNull(row.total_recipients) ??
-    0;
+const SENT_STATUSES = new Set(["sent", "sent_with_errors"]);
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft (not sent)",
+  scheduled: "Scheduled (not sent yet)",
+  queued: "Queued to send",
+  partially_queued: "Queued to send",
+  sending: "Sending now",
+  paused: "Paused (not sent)",
+  sent: "Sent",
+  sent_with_errors: "Sent, with some failures",
+  failed: "Failed (not sent)",
+};
+
+export interface DraftReviewInput {
+  subjectLine: string | null;
+  senderEmail: string | null;
+  senderName: string | null;
+  blocks: ReviewableBlock[];
+  emailDomains: SenderDomainLike[];
+}
+
+/**
+ * The Review & Send checks for one draft: subject line, the content review
+ * (empty image blocks, buttons without links, sample links) and the sender
+ * check, plus one short recommendation.
+ */
+export function reviewDraft(input: DraftReviewInput): JsonObject {
+  const subject = (input.subjectLine ?? "").trim();
+  const visibleBlocks = input.blocks.filter((block) => block.visible !== false);
+  const contentIssues = reviewCampaignContent(visibleBlocks).map((issue) => issue.message);
+  const sender = classifySender({
+    senderEmail: input.senderEmail ?? "",
+    senderName: input.senderName ?? "",
+    emailDomains: input.emailDomains,
+    campaignType: "email",
+  });
+
+  const checks: JsonObject[] = [
+    {
+      check: "Subject line",
+      ok: subject.length > 0,
+      detail: subject ? subject : "No subject line yet.",
+    },
+    {
+      check: "Content",
+      ok: visibleBlocks.length > 0 && contentIssues.length === 0,
+      detail:
+        visibleBlocks.length === 0
+          ? "The email has no content blocks."
+          : contentIssues.length
+            ? contentIssues.join(" ")
+            : "No empty image blocks or unfinished links.",
+    },
+    {
+      check: "Sender",
+      ok: sender.status === "ready",
+      detail: sender.status === "ready" ? "Sender is set up." : sender.message,
+    },
+  ];
+
+  const issueCount = contentIssues.length;
+  const recommendation = !subject
+    ? "Add a subject line, then review the content before sending."
+    : visibleBlocks.length === 0
+      ? "Add content to this draft before sending."
+      : issueCount
+        ? "Fix " + issueCount + " content issue" + (issueCount === 1 ? "" : "s") + " first (" + contentIssues[0] + ")."
+        : sender.status === "blocked"
+          ? "Set up the sender in Settings before this can be sent."
+          : sender.status === "warning"
+            ? "Ready to send once you are happy with the sender warning."
+            : "Looks ready: open it, preview, and send or schedule.";
+
+  return { subject_line: subject || null, checks, recommendation };
+}
+
+export function mapCampaign(
+  row: CampaignRow,
+  segmentNames: string[],
+  draftReview: JsonObject | null,
+): JsonObject {
+  const status = String(row.status ?? "draft");
+  const hasBeenSent = SENT_STATUSES.has(status);
+  // Only sent campaigns have deliveries. A draft's audience size is not a
+  // send count, so drafts never report a delivered number.
+  const deliveredCount = hasBeenSent
+    ? readMetric(row.metrics, ["delivered_count", "delivered", "sent"]) ??
+      toNumberOrNull(row.total_sent) ??
+      toNumberOrNull(row.messages_sent) ??
+      null
+    : null;
 
   return {
     id: row.id,
-    name: row.name,
+    // Shared display-name rule: name, then subject, then "Draft, <date>".
+    name: deriveCampaignDisplayName({
+      name: row.name,
+      subjectLine: row.subject_line,
+      date: row.created_at,
+    }),
     subject_line: row.subject_line,
-    status: row.status,
+    status,
+    status_label: STATUS_LABELS[status] ?? status,
+    has_been_sent: hasBeenSent,
     scheduled_at: row.scheduled_at,
-    sent_at: row.sent_at,
-    metrics_summary: {
-      open_rate:
-        toNumberOrNull(row.open_rate) ??
-        readMetric(row.metrics, ["open_rate", "opened_rate"]),
-      click_rate:
-        toNumberOrNull(row.click_rate) ??
-        readMetric(row.metrics, ["click_rate", "clicked_rate"]),
-      delivered_count: deliveredCount,
-    },
+    sent_at: hasBeenSent ? row.sent_at : null,
+    metrics_summary: hasBeenSent
+      ? {
+          open_rate:
+            toNumberOrNull(row.open_rate) ??
+            readMetric(row.metrics, ["open_rate", "opened_rate"]),
+          click_rate:
+            toNumberOrNull(row.click_rate) ??
+            readMetric(row.metrics, ["click_rate", "clicked_rate"]),
+          delivered_count: deliveredCount,
+        }
+      : null,
+    ...(draftReview ? { draft_review: draftReview } : {}),
     segment_names: segmentNames,
     created_at: row.created_at,
   };
+}
+
+const REVIEWABLE_STATUSES = new Set(["draft", "paused", "scheduled"]);
+
+type CampaignBlockRow = {
+  campaign_id: string;
+  order_index: number;
+  block_type: string;
+  content: unknown;
+  image_url: string | null;
+};
+
+export function toReviewableBlock(block: CampaignBlockRow): ReviewableBlock {
+  const content = isRecord(block.content) ? block.content : {};
+  return {
+    ...content,
+    id: typeof content.id === "string" ? content.id : block.campaign_id + ":" + block.order_index,
+    type: typeof content.type === "string" ? content.type : block.block_type,
+    visible: content.visible === false ? false : undefined,
+    imageUrl:
+      typeof content.imageUrl === "string" ? content.imageUrl : (block.image_url ?? undefined),
+  };
+}
+
+async function loadDraftReviews(
+  client: BloomQueryClient,
+  tenantId: string,
+  rows: CampaignRow[],
+): Promise<Map<string, JsonObject>> {
+  const drafts = rows.filter((row) => REVIEWABLE_STATUSES.has(String(row.status)));
+  const reviews = new Map<string, JsonObject>();
+  if (drafts.length === 0) return reviews;
+
+  const [blocksResult, domainsResult] = await Promise.all([
+    client
+      .from("campaign_blocks")
+      .select("campaign_id, order_index, block_type, content, image_url")
+      .in("campaign_id", drafts.map((row) => row.id))
+      .order("order_index", { ascending: true }),
+    client
+      .from("email_domains")
+      .select("domain, default_from_email, status")
+      .eq("tenant_id", tenantId),
+  ]);
+  if (blocksResult.error) throw blocksResult.error;
+  if (domainsResult.error) throw domainsResult.error;
+
+  const blocksByCampaign = new Map<string, ReviewableBlock[]>();
+  for (const block of (blocksResult.data ?? []) as CampaignBlockRow[]) {
+    const list = blocksByCampaign.get(block.campaign_id) ?? [];
+    list.push(toReviewableBlock(block));
+    blocksByCampaign.set(block.campaign_id, list);
+  }
+
+  const emailDomains: SenderDomainLike[] = (
+    (domainsResult.data ?? []) as Array<{
+      domain: string;
+      default_from_email: string | null;
+      status: string;
+    }>
+  ).map((domain) => ({
+    domain: domain.domain,
+    default_from_email: domain.default_from_email,
+    status: domain.status as SenderDomainStatus,
+  }));
+
+  for (const row of drafts) {
+    reviews.set(
+      row.id,
+      reviewDraft({
+        subjectLine: row.subject_line,
+        senderEmail: row.sender_email,
+        senderName: row.sender_name,
+        blocks: blocksByCampaign.get(row.id) ?? [],
+        emailDomains,
+      }),
+    );
+  }
+  return reviews;
 }
 
 export const queryCampaigns: ToolImplementation = async (
@@ -388,8 +575,14 @@ export const queryCampaigns: ToolImplementation = async (
     context.tenantId,
     rows,
   );
+  const draftReviews = await loadDraftReviews(client, context.tenantId, rows);
   const items = rows.map(
-    (row) => mapCampaign(row, segmentNames.get(row.id) ?? []) as JsonValue,
+    (row) =>
+      mapCampaign(
+        row,
+        segmentNames.get(row.id) ?? [],
+        draftReviews.get(row.id) ?? null,
+      ) as JsonValue,
   );
 
   return createListResult({ entityLabel: "campaign", items, count });

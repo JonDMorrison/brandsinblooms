@@ -413,6 +413,29 @@ export function useIntegrationsHubData() {
         });
       }
 
+      // BloomSites: connected when the tenant has an active connected website.
+      if (tenant?.id) {
+        const websiteResult = await supabase
+          .from("crm_connected_websites")
+          .select("site_name, site_origin, status, linked_at")
+          .eq("tenant_id", tenant.id)
+          .eq("status", "active")
+          .order("linked_at", { ascending: false })
+          .limit(1);
+        if (websiteResult.error && !isMissingRelationError(websiteResult.error)) {
+          throw websiteResult.error;
+        }
+        const website = websiteResult.data?.[0] ?? null;
+        if (website) {
+          items = withPatchedItem(items, "bloomsites", {
+            status: "connected",
+            connectedSince: website.linked_at,
+            metaLabel: website.site_origin ?? website.site_name ?? "Connected website",
+            actionLabel: "Open connected website",
+          });
+        }
+      }
+
       const managedDomain = emailDomains.find((domain) =>
         ["active", "warming_up"].includes(domain.status),
       );

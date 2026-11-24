@@ -34,8 +34,8 @@ export const CalendarPlanningFilters = ({
   const typeLabels: Record<string, string> = {
     task: "Content Tasks",
     scheduled_post: "Scheduled Posts",
-    newsletter: "Newsletters",
-    event: "Events",
+    newsletter: "Email campaigns",
+    event: "Weekly themes",
     holiday: "Holidays",
   };
 
@@ -57,6 +57,10 @@ export const CalendarPlanningFilters = ({
     PUBLISHED: "Published",
     draft: "Draft",
     sent: "Sent",
+    paused: "Paused",
+    queued: "Queued",
+    sending: "Sending",
+    failed: "Failed",
   };
 
   const handleTypeToggle = (type: string) => {
@@ -169,6 +173,7 @@ export const CalendarPlanningFilters = ({
           </Stack>
         </Stack>
 
+        {filterOptions.platforms.length > 0 ? (
         <Stack spacing={1}>
           <Typography
             level="body-xs"
@@ -196,6 +201,7 @@ export const CalendarPlanningFilters = ({
             })}
           </Stack>
         </Stack>
+        ) : null}
 
         <Stack spacing={1}>
           <Typography

@@ -1,3 +1,4 @@
+import { resolveTenantTimezone } from "@/lib/tenantTimezone";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
@@ -90,6 +91,8 @@ export const OrganizationAccessSettings = () => {
   const [locationName, setLocationName] = useState("");
   const [locationCode, setLocationCode] = useState("");
   const [locationTimezone, setLocationTimezone] = useState("America/Toronto");
+  // True once the person picks a zone, so the tenant default never overrides it.
+  const [locationTimezoneTouched, setLocationTimezoneTouched] = useState(false);
 
   const loadOverview = useCallback(async () => {
     if (!tenant?.id) {
@@ -143,6 +146,25 @@ export const OrganizationAccessSettings = () => {
     [overview?.locations],
   );
 
+  // A new location starts in the tenant's time zone.
+  const tenantTimezone = useMemo(
+    () =>
+      resolveTenantTimezone({
+        tenantSettings: tenant?.settings,
+        locationTimezones: activeLocations.map((location) => location.timezone),
+      }),
+    [activeLocations, tenant?.settings],
+  );
+  useEffect(() => {
+    if (!locationTimezoneTouched) {
+      setLocationTimezone(tenantTimezone);
+    }
+  }, [locationTimezoneTouched, tenantTimezone]);
+  const timezoneOptions = useMemo(
+    () => (timezones.includes(tenantTimezone) ? timezones : [tenantTimezone, ...timezones]),
+    [tenantTimezone],
+  );
+
   const saveLocation = async (
     location?: AccessLocation,
     activeOverride?: boolean,
@@ -166,6 +188,7 @@ export const OrganizationAccessSettings = () => {
     if (!location) {
       setLocationName("");
       setLocationCode("");
+      setLocationTimezoneTouched(false);
     }
     toast.success(location ? "Location updated" : "Location added");
     await loadOverview();
@@ -259,9 +282,14 @@ export const OrganizationAccessSettings = () => {
                 <FormLabel>Timezone</FormLabel>
                 <Select
                   value={locationTimezone}
-                  onChange={(_, value) => value && setLocationTimezone(value)}
+                  onChange={(_, value) => {
+                    if (value) {
+                      setLocationTimezone(value);
+                      setLocationTimezoneTouched(true);
+                    }
+                  }}
                 >
-                  {timezones.map((timezone) => (
+                  {timezoneOptions.map((timezone) => (
                     <Option key={timezone} value={timezone}>{timezone}</Option>
                   ))}
                 </Select>

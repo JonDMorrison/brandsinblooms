@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
+import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
+import Link from "@mui/joy/Link";
 import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal, Package, Pencil, Plus, Trash2 } from "lucide-react";
+import { Info, MoreHorizontal, Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
@@ -294,6 +296,31 @@ export default function ProductsPage() {
             >
               Manage your product catalog, inventory, and pricing.
             </Typography>
+            <Alert
+              size="sm"
+              variant="soft"
+              color="neutral"
+              startDecorator={<Info size={16} />}
+              sx={{ maxWidth: 640, alignItems: "flex-start" }}
+            >
+              <Stack spacing={0.5}>
+                <Typography level="body-sm">
+                  This is your BloomSuite catalogue: products synced from your
+                  POS or added here, used for reports, segments and Bloom.
+                  Your website (BloomSites) keeps its own product list, which
+                  campaigns can link to. Changes here do not change your
+                  website, and website edits do not change this list.
+                </Typography>
+                <Link
+                  level="body-sm"
+                  component="button"
+                  onClick={() => navigate("/crm/connected-content")}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  See your website products
+                </Link>
+              </Stack>
+            </Alert>
             {showSkeleton ? (
               <Skeleton
                 variant="rectangular"

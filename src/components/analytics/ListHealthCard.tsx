@@ -10,6 +10,8 @@ import { ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useListHealth } from "@/hooks/analytics/useListHealth";
+import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
+import { scoreListHealth } from "@/lib/analytics/listHealthData";
 import {
   JoyCard,
   JoyCardContent,
@@ -46,6 +48,7 @@ const classifySuppressionReason = (
 export const ListHealthCard: React.FC = () => {
   const health = useListHealth();
   const { tenant } = useTenant();
+  const reachability = useTenantAudienceHealth(tenant?.id);
 
   const {
     data: suppressionBreakdown,
@@ -104,16 +107,24 @@ export const ListHealthCard: React.FC = () => {
     );
   }
 
-  // Calculate health score (inverse of problem rates)
-  const healthScore = clampPercentage(
-    100 - health.bounceRate * 10 - health.complaintRate * 100,
-  );
+  // Reachability caps the score: 0 reachable contacts is never "Healthy".
+  const reachabilityKnown = reachability.isSuccess && !reachability.isPlaceholderData;
+  const listScore = scoreListHealth({
+    bounceRate: health.bounceRate,
+    complaintRate: health.complaintRate,
+    healthStatus: health.healthStatus,
+    reachable: reachabilityKnown ? (reachability.data?.eligible ?? 0) : null,
+    total: reachabilityKnown ? (reachability.data?.total ?? 0) : null,
+  });
+  const healthScore = clampPercentage(listScore.score);
   const tone =
-    health.healthStatus === "healthy"
+    listScore.status === "healthy"
       ? "success"
-      : health.healthStatus === "warning"
+      : listScore.status === "warning"
         ? "warning"
-        : "danger";
+        : listScore.status === "critical"
+          ? "danger"
+          : "neutral";
 
   if (error || health.error) {
     return (
@@ -148,19 +159,13 @@ export const ListHealthCard: React.FC = () => {
     <JoyCard variant="outlined">
       <JoyCardHeader
         title="List Health"
-        description="Bounce risk, complaint pressure, and suppression drift across the last 30 days"
+        description="Who can receive email, plus bounces and complaints over the last 30 days"
         actions={
           <JoyStatusChip
             size="sm"
-            status={health.healthStatus}
+            status={listScore.status}
             tone={tone}
-            label={
-              health.healthStatus === "healthy"
-                ? "Healthy"
-                : health.healthStatus === "warning"
-                  ? "Warning"
-                  : "Critical"
-            }
+            label={listScore.label}
           />
         }
         startDecorator={<ShieldAlert size={18} />}
@@ -191,9 +196,14 @@ export const ListHealthCard: React.FC = () => {
                 Health Score
               </Typography>
               <Typography level="body-sm" sx={{ color: "neutral.700" }}>
-                Bounce rate and complaint rate are normalized against
-                deliverability thresholds to estimate overall list quality.
+                {listScore.explanation}
               </Typography>
+              {reachabilityKnown && reachability.data ? (
+                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  {reachability.data.eligible.toLocaleString()} of{" "}
+                  {reachability.data.total.toLocaleString()} contacts reachable
+                </Typography>
+              ) : null}
             </Stack>
           </Stack>
 

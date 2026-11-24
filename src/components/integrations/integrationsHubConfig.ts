@@ -328,6 +328,25 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
       "Custom webhooks are planned for future outbound callbacks and inbound workflow automation.",
   },
   {
+    slug: "bloomsites",
+    name: "BloomSites",
+    description:
+      "Your BloomSuite website. Connected sites share events, products and sign-up forms with campaigns.",
+    category: "infrastructure",
+    categoryLabel: "Infrastructure",
+    defaultStatus: "available",
+    icon: Globe,
+    keywords: ["bloomsites", "website", "site", "cms", "events", "connected content"],
+    syncScopeLabel: "Events + Products + Forms",
+    canDisconnect: false,
+    isManagedInfrastructure: true,
+    targetPath: "/crm/connected-content",
+    actionLabel: "Open connected website",
+    detailActionLabel: "Open connected website",
+    detailSummary:
+      "BloomSites is the BloomSuite website builder. When a site is connected, campaigns can link its events, products and forms.",
+  },
+  {
     slug: "email-infrastructure",
     name: "Email Infrastructure",
     description:

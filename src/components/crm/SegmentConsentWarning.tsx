@@ -28,30 +28,29 @@ export function SegmentConsentWarning({ segmentId, onSendOptInRequest }: Segment
       try {
         setLoading(true);
         
-        // Get customers in the segment with their consent status
-        const { data: segmentCustomers, error } = await supabase
-          .from('customer_segments')
-          .select(`
-            crm_customers (
-              id,
-              email,
-              email_opt_in
-            )
-          `)
-          .eq('segment_id', segmentId);
+        // Count in the database: selecting member rows stops at 1,000.
+        const membersWithEmail = () =>
+          supabase
+            .from('customer_segments')
+            .select('id, crm_customers!inner(id)', { count: 'exact', head: true })
+            .eq('segment_id', segmentId)
+            .not('crm_customers.email', 'is', null)
+            .neq('crm_customers.email', '');
 
+        const [totalResult, optedInResult] = await Promise.all([
+          membersWithEmail(),
+          membersWithEmail().eq('crm_customers.email_opt_in', true),
+        ]);
+
+        const error = totalResult.error ?? optedInResult.error;
         if (error) {
           console.error('Error fetching segment consent stats:', error);
           setLoading(false);
           return;
         }
 
-        const customers = segmentCustomers
-          ?.map(sc => sc.crm_customers)
-          .filter(c => c && c.email && c.email.trim() !== '') || [];
-
-        const total = customers.length;
-        const optedIn = customers.filter(c => c.email_opt_in === true).length;
+        const total = totalResult.count ?? 0;
+        const optedIn = optedInResult.count ?? 0;
         const excluded = total - optedIn;
 
         setStats({ total, optedIn, excluded });

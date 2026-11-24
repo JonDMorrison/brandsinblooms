@@ -5,11 +5,24 @@ import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { CheckCircle2, CreditCard, Lock, Plus } from "lucide-react";
+import Alert from "@mui/joy/Alert";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle2, CreditCard, Lock, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerPortalButton } from "@/components/subscription/CustomerPortalButton";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { supabase } from "@/integrations/supabase/client";
+import { isCardExpired } from "@/lib/billing/billingDates";
+
+interface CardOnFile {
+  brand: string;
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+}
+
+const formatBrand = (brand: string) =>
+  brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : "Card";
 
 const surfaceStyles = {
   borderRadius: "24px",
@@ -19,9 +32,29 @@ const surfaceStyles = {
   p: { xs: 2.5, sm: 3 },
 };
 
+function isTrialOrExpiredPlan(
+  subscription: { tier?: string | null; plan?: string | null } | null | undefined,
+) {
+  const plan = subscription?.tier ?? subscription?.plan;
+  return !subscription || plan === "free_trial" || plan === "expired";
+}
+
 export const PaymentMethods = () => {
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const [loading, setLoading] = useState(false);
+  // The real default card from Stripe (read-only edge function).
+  const cardQuery = useQuery({
+    queryKey: ["billing-payment-method"],
+    enabled: !subscriptionLoading && !isTrialOrExpiredPlan(subscription),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("billing-payment-method");
+      if (error) throw error;
+      return data as { card: CardOnFile | null; is_default?: boolean };
+    },
+  });
+  const card = cardQuery.data?.card ?? null;
+  const cardExpired = card ? isCardExpired(card.exp_month, card.exp_year) : false;
 
   const effectivePlan = subscription?.tier ?? subscription?.plan;
   const isTrialOrExpired =
@@ -99,61 +132,72 @@ export const PaymentMethods = () => {
             </Button>
           </Stack>
         ) : (
-          <Sheet
-            variant="soft"
-            sx={{
-              borderRadius: "18px",
-              p: 2,
-            }}
-          >
-            <Stack
-              direction="row"
-              spacing={1.5}
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <Sheet
-                  color="neutral"
-                  variant="solid"
-                  sx={{
-                    borderRadius: "12px",
-                    px: 1.25,
-                    py: 0.75,
-                  }}
+          <Stack spacing={1.25}>
+            {cardQuery.isLoading ? (
+              <Skeleton variant="rectangular" height={72} sx={{ borderRadius: "18px" }} />
+            ) : card ? (
+              <Sheet variant="soft" sx={{ borderRadius: "18px", p: 2 }}>
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  justifyContent="space-between"
+                  alignItems="center"
                 >
-                  <Typography
-                    level="body-xs"
-                    fontWeight={700}
-                    textColor="common.white"
-                  >
-                    VISA
-                  </Typography>
-                </Sheet>
-                <Stack spacing={0.5}>
-                  <Typography level="body-md" fontWeight={600}>
-                    Visa ending in 4242
-                  </Typography>
-                  <Typography level="body-sm" textColor="text.secondary">
-                    Expires 12/25
-                  </Typography>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Sheet
+                      color="neutral"
+                      variant="solid"
+                      sx={{ borderRadius: "12px", px: 1.25, py: 0.75 }}
+                    >
+                      <Typography level="body-xs" fontWeight={700} textColor="common.white">
+                        {card.brand.toUpperCase()}
+                      </Typography>
+                    </Sheet>
+                    <Stack spacing={0.5}>
+                      <Typography level="body-md" fontWeight={600}>
+                        {formatBrand(card.brand)} ending in {card.last4}
+                      </Typography>
+                      <Typography
+                        level="body-sm"
+                        textColor={cardExpired ? "danger.600" : "text.secondary"}
+                      >
+                        {cardExpired ? "Expired" : "Expires"}{" "}
+                        {String(card.exp_month).padStart(2, "0")}/{String(card.exp_year).slice(-2)}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                  <Stack direction="row" spacing={1.25} alignItems="center">
+                    {cardQuery.data?.is_default ? (
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <CheckCircle2 size={16} color="var(--joy-palette-success-500)" />
+                        <Typography level="body-sm" textColor="text.secondary">
+                          Default
+                        </Typography>
+                      </Stack>
+                    ) : null}
+                    <CustomerPortalButton size="sm" variant="ghost" />
+                  </Stack>
                 </Stack>
-              </Stack>
-
-              <Stack direction="row" spacing={1.25} alignItems="center">
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <CheckCircle2
-                    size={16}
-                    color="var(--joy-palette-success-500)"
-                  />
+              </Sheet>
+            ) : (
+              <Sheet variant="soft" sx={{ borderRadius: "18px", p: 2 }}>
+                <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center">
                   <Typography level="body-sm" textColor="text.secondary">
-                    Default
+                    {cardQuery.isError
+                      ? "The card on file could not be loaded. Open the billing portal to see it."
+                      : "No card on file yet."}
                   </Typography>
+                  <CustomerPortalButton size="sm" variant="ghost" />
                 </Stack>
-                <CustomerPortalButton size="sm" variant="ghost" />
-              </Stack>
-            </Stack>
-          </Sheet>
+              </Sheet>
+            )}
+            {cardExpired ? (
+              <Alert color="danger" variant="soft" startDecorator={<AlertTriangle size={16} />}>
+                Your default card has expired, so the next renewal will fail.
+                Update it in the billing portal.
+              </Alert>
+            ) : null}
+          </Stack>
         )}
 
         <Divider />

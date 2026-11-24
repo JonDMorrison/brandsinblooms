@@ -52,6 +52,8 @@ export interface CustomerProfileHeaderProps {
   smsOptIn?: boolean | null;
   lifecycleStage?: string | null;
   createdAt?: string | null;
+  /** First purchase (or creation, with no purchase) within 30 days. */
+  isNew?: boolean;
   lastActiveAt?: string | null;
   primaryPersona?: string | null;
   segmentLabels?: string[];
@@ -89,6 +91,7 @@ export function CustomerProfileHeader({
   smsOptIn,
   lifecycleStage,
   createdAt,
+  isNew = false,
   lastActiveAt,
   primaryPersona,
   segmentLabels = [],
@@ -111,7 +114,7 @@ export function CustomerProfileHeader({
   const [noteValue, setNoteValue] = React.useState("");
   const [noteSaving, setNoteSaving] = React.useState(false);
 
-  const lifecycle = getLifecyclePresentation(lifecycleStage, isVip);
+  const lifecycle = getLifecyclePresentation(lifecycleStage, isVip, isNew);
   const visibleSegments = segmentLabels.slice(0, 3);
   const hiddenSegmentCount = Math.max(
     segmentLabels.length - visibleSegments.length,

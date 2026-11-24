@@ -16,12 +16,10 @@ import { JoyDialog, JoyDialogActions, JoyDialogContent } from "@/components/joy/
 import { useToast } from "@/hooks/use-toast";
 import { SettingsEmptyState, SettingsInlineError, SettingsSectionCard } from "./SettingsSurface";
 import {
-  comingSoonIntegrations,
   getConnectionInsight,
   getConnectionsOverview,
   getLightspeedInsight,
   getPlatformEntry,
-  hubIntegrations,
   type OverviewIssue,
   wizardPlatforms,
 } from "./connections/connectionsModel";
@@ -34,7 +32,11 @@ import {
   ConnectionsHealthOverviewSkeleton,
 } from "./connections/ConnectionsHealthOverview";
 import { HubConnectionCard } from "./connections/HubConnectionCard";
-import { IntegrationCatalog } from "./connections/IntegrationCatalog";
+import Box from "@mui/joy/Box";
+import { IntegrationCard } from "@/components/integrations/IntegrationCard";
+import { IntegrationsHeaderActions } from "@/components/integrations/IntegrationsHeaderActions";
+import { INTEGRATION_STATUS_ORDER } from "@/components/integrations/integrationsHubConfig";
+import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 import { softPressSx } from "./connections/connectionsStyles";
 import { SyncHistoryDialog } from "./connections/SyncHistoryDialog";
 
@@ -84,16 +86,17 @@ export const ConnectionsSettings = () => {
     () => new Set(insights.map((insight) => insight.connection.platform)),
     [insights],
   );
-  const availableCatalog = useMemo(
+  // One catalogue (and one status) shared with /integrations.
+  const hubCatalog = useIntegrationsHubData();
+  const sortedHubItems = useMemo(
     () =>
-      [
-        ...wizardPlatforms.filter((platform) => !connectedPlatformIds.has(platform.id)),
-        ...hubIntegrations.filter((entry) => !(entry.id === "lightspeed" && lightspeedConnection)),
-      ].sort(
-        // Point-of-sale systems first; otherwise keep the declared order.
-        (left, right) => Number(right.category === "Point of sale") - Number(left.category === "Point of sale"),
+      [...hubCatalog.items].sort(
+        (left, right) =>
+          INTEGRATION_STATUS_ORDER.indexOf(left.status) -
+            INTEGRATION_STATUS_ORDER.indexOf(right.status) ||
+          left.name.localeCompare(right.name),
       ),
-    [connectedPlatformIds, lightspeedConnection],
+    [hubCatalog.items],
   );
 
   const historyInsight = insights.find((insight) => insight.connection.id === historyConnectionId) ?? null;
@@ -221,16 +224,44 @@ export const ConnectionsSettings = () => {
       </SettingsSectionCard>
 
       <SettingsSectionCard
-        description="Bring more of your business into BloomSuite. Each connection takes a few minutes."
+        headerActions={<IntegrationsHeaderActions items={hubCatalog.items} />}
+        description="Every integration BloomSuite offers, with the same status you see on the Integrations page."
         startDecorator={<LayoutGrid size={18} />}
-        title="Add an integration"
+        title="All integrations"
       >
-        <IntegrationCatalog
-          available={availableCatalog}
-          comingSoon={comingSoonIntegrations}
-          onConnect={handleConnect}
-          onOpenGuide={setHelpPlatform}
-        />
+        {hubCatalog.isLoading ? (
+          <Stack spacing={1.5}>
+            <ConnectedIntegrationCardSkeleton />
+            <ConnectedIntegrationCardSkeleton />
+          </Stack>
+        ) : (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                xl: "repeat(3, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            {sortedHubItems.map((item) => (
+              <IntegrationCard
+                key={item.slug}
+                item={item}
+                onActivate={() => navigate(`/integrations/${item.slug}`)}
+                {...(hubCatalog.statusUnavailable && item.status !== "coming-soon"
+                  ? {
+                      statusTone: "error" as const,
+                      statusLabel: "Status unavailable",
+                      activityLabel: "Connection data unavailable",
+                    }
+                  : {})}
+              />
+            ))}
+          </Box>
+        )}
       </SettingsSectionCard>
 
       <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ px: { xs: 0.5, md: 1 }, color: "text.tertiary" }}>

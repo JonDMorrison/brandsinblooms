@@ -3,6 +3,7 @@ import { FormField, FormSettings } from "@/types/formBuilder";
 
 export type PublishValidationTarget =
   | "header:name"
+  | "build:title"
   | "build:fields"
   | "build:email-field"
   | "build:sms-phone-pair"
@@ -11,6 +12,7 @@ export type PublishValidationTarget =
 export interface PublishValidationIssue {
   id:
     | "missing-name"
+    | "missing-title"
     | "missing-fields"
     | "missing-email-field"
     | "sms-consent-missing-phone"
@@ -41,6 +43,17 @@ export function validateFormForPublish({
       fixHint: "Add a clear form name in the editor header.",
       target: "header:name",
       targetTab: "header",
+    });
+  }
+
+  // Visitors see form_title above the form; a published form needs one.
+  if (!settings.form_title?.trim()) {
+    issues.push({
+      id: "missing-title",
+      description: "Add a title before publishing. Visitors see it above the form.",
+      fixHint: "Open the Build tab and type a title at the top of the form.",
+      target: "build:title",
+      targetTab: "build",
     });
   }
 

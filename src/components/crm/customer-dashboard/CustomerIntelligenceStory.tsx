@@ -11,14 +11,19 @@ import type { CustomerIntelligenceDetail } from "@/hooks/useCustomerIntelligence
 const cad=(v:number)=>new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD",maximumFractionDigits:0}).format(v);
 const top=(v:Record<string,number>|null|undefined)=>Object.entries(v??{}).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,5);
 
-export function CustomerIntelligenceStory({intelligence,onAskBloom}:{intelligence:CustomerIntelligenceDetail|null|undefined;onAskBloom:()=>void}){
+/**
+ * `lifetimeValue` is the shared crm_customers rollup (customerPurchaseSummary).
+ * When passed it replaces the line-item figure so this card agrees with the
+ * header, list and Bloom. Category amounts come from itemised receipts only.
+ */
+export function CustomerIntelligenceStory({intelligence,onAskBloom,lifetimeValue:sharedLifetimeValue}:{intelligence:CustomerIntelligenceDetail|null|undefined;onAskBloom:()=>void;lifetimeValue?:number|null}){
  if(!intelligence) return null;
  const velocity=Number(intelligence.purchase_velocity??0);
  const category=top(intelligence.category_spend);
  const department=top(intelligence.department_spend);
  const isDeclining=velocity<=-20;
  const tier=String(intelligence.customer_tier??"customer");
- const lifetimeValue=intelligence.lifetime_value;
+ const lifetimeValue=sharedLifetimeValue!==undefined?sharedLifetimeValue:intelligence.lifetime_value;
  const story=[
   lifetimeValue == null ? "Recorded lifetime value is not available." : tier==="vip"||tier==="loyal"?`A ${tier} customer with ${cad(Number(lifetimeValue))} in recorded lifetime value.`:`${cad(Number(lifetimeValue))} in recorded lifetime value across their purchase history.`,
   category[0]?`Their strongest category is ${category[0][0]} (${cad(Number(category[0][1]))}).`:"",
@@ -40,7 +45,7 @@ export function CustomerIntelligenceStory({intelligence,onAskBloom}:{intelligenc
     <Sheet variant="soft" color="neutral" sx={{borderRadius:"xl",p:2}}><Typography level="body-xs" color="neutral">Departments shopped</Typography><Typography level="title-lg">{intelligence.departments_shopped??0}</Typography></Sheet>
     <Sheet variant="soft" color="neutral" sx={{borderRadius:"xl",p:2}}><Typography level="body-xs" color="neutral">Quantity purchased</Typography><Typography level="title-lg">{Math.round(Number(intelligence.total_quantity??0))}</Typography></Sheet>
    </Box>
-   {category.length?<Stack spacing={1}><Typography level="title-sm">Category affinity</Typography><Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">{category.map(([label,value])=><JoyChip key={label} variant="soft" color="primary">{label} · {cad(Number(value))}</JoyChip>)}</Stack></Stack>:null}
+   {category.length?<Stack spacing={1}><Typography level="title-sm">Category affinity</Typography><Typography level="body-xs" color="neutral">Spend on itemised receipts only, so it can be less than lifetime value.</Typography><Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">{category.map(([label,value])=><JoyChip key={label} variant="soft" color="primary">{label} · {cad(Number(value))}</JoyChip>)}</Stack></Stack>:null}
   </Stack></JoyCardContent>
  </JoyCard>;
 }

@@ -1,9 +1,17 @@
-import type { StudioBlock } from "@/types/studioBlocks";
+// No app-alias imports: the Bloom edge function imports this file directly so
+// Bloom's draft review applies the same content check as Review & Send.
+/** The fields of a Studio block this review reads; StudioBlock satisfies it. */
+export interface ReviewableBlock {
+  id: string;
+  type: string;
+  visible?: boolean;
+  imageUrl?: string;
+}
 export type ContentReviewIssue = { blockId: string; message: string };
 const unfinished =
   /^(?:#|https?:\/\/(?:www\.)?example\.com\/?|https?:\/\/|your[- ]?(?:url|link))$/i;
 export function reviewCampaignContent(
-  blocks: StudioBlock[],
+  blocks: ReadonlyArray<ReviewableBlock>,
 ): ContentReviewIssue[] {
   const issues: ContentReviewIssue[] = [];
   for (const [index, block] of blocks.entries()) {

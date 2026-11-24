@@ -1,3 +1,7 @@
+import {
+  AUTOMATION_NEEDS_TRIGGER_MESSAGE,
+  flowHasTrigger,
+} from "@/lib/automation/activationReadiness";
 import * as React from "react";
 import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
@@ -78,7 +82,13 @@ type AutomationRunRow = Pick<
 
 type ViewMode = "grid" | "table";
 type SortOption = "newest" | "oldest" | "alphabetical" | "last_modified";
-type AutomationStatus = "active" | "draft" | "paused" | "completed" | "failed";
+type AutomationStatus =
+  | "active"
+  | "draft"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "needs_setup";
 
 type AutomationCatalogItem = {
   id: string;
@@ -95,6 +105,8 @@ type AutomationCatalogItem = {
   lastTriggeredAt: string | null;
   lastRunStatus: string | null;
   stepCount: number;
+  /** False when the flow has no trigger node; it cannot be turned on. */
+  hasTrigger: boolean;
 };
 
 const GRID_COLUMNS = {
@@ -109,6 +121,7 @@ const STATUS_OPTIONS: FilterOption[] = [
   { id: "paused", label: "Paused", dotColor: "warning.500" },
   { id: "completed", label: "Completed", dotColor: "primary.500" },
   { id: "failed", label: "Failed", dotColor: "danger.500" },
+  { id: "needs_setup", label: "Needs setup", dotColor: "warning.500" },
 ];
 
 const AUTOMATION_STATUS_META: Record<
@@ -128,6 +141,11 @@ const AUTOMATION_STATUS_META: Record<
   draft: { chipColor: "neutral", dotColor: "neutral.400", label: "Draft" },
   failed: { chipColor: "danger", dotColor: "danger.500", label: "Failed" },
   paused: { chipColor: "warning", dotColor: "warning.500", label: "Paused" },
+  needs_setup: {
+    chipColor: "warning",
+    dotColor: "warning.500",
+    label: "Needs setup",
+  },
 };
 
 const SORT_OPTIONS: SortChipOption[] = [
@@ -920,6 +938,7 @@ export default function CRMAutomations() {
         const successRate =
           executionCount > 0 ? (completedCount / executionCount) * 100 : null;
         const isActive = Boolean(row.is_active);
+        const hasTrigger = flowHasTrigger(row.flow_state);
 
         return {
           id: row.id,
@@ -928,11 +947,13 @@ export default function CRMAutomations() {
           triggerType: row.trigger_type,
           triggerLabel: getTriggerLabel(row.trigger_type),
           isActive,
-          status: deriveAutomationStatus(
-            isActive,
-            executionCount,
-            summary?.lastRunStatus ?? null,
-          ),
+          status: hasTrigger
+            ? deriveAutomationStatus(
+                isActive,
+                executionCount,
+                summary?.lastRunStatus ?? null,
+              )
+            : "needs_setup",
           createdAt: row.created_at,
           updatedAt: row.updated_at,
           executionCount,
@@ -940,6 +961,7 @@ export default function CRMAutomations() {
           lastTriggeredAt: summary?.lastTriggeredAt ?? null,
           lastRunStatus: summary?.lastRunStatus ?? null,
           stepCount: getStepCount(row),
+          hasTrigger,
         } satisfies AutomationCatalogItem;
       });
     },
@@ -1208,6 +1230,10 @@ export default function CRMAutomations() {
   const handleToggleStatus = React.useCallback(
     async (automation: AutomationCatalogItem) => {
       const nextIsActive = !automation.isActive;
+      if (nextIsActive && !automation.hasTrigger) {
+        toast.error(AUTOMATION_NEEDS_TRIGGER_MESSAGE);
+        return;
+      }
       const { error } = await supabase
         .from("crm_automations")
         .update({ is_active: nextIsActive })

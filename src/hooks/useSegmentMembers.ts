@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { fetchAllPaginated } from "@/hooks/useSegmentPreview";
 import {
   buildCustomerName,
   getCustomerLifecycleStage,
@@ -50,25 +51,35 @@ export function useSegmentMembers(
         return [] as SegmentMemberRecord[];
       }
 
-      const { data, error } = await supabase
-        .from("customer_segments")
-        .select(
-          `
-            id,
-            assigned_at,
-            assigned_by_user_id,
-            crm_customers!inner(*)
-          `,
-        )
-        .eq("segment_id", segmentId)
-        .eq("crm_customers.tenant_id", tenantId)
-        .order("assigned_at", { ascending: false });
+      // Paged: a single select stops at 1,000 rows, and the static segment
+      // editor saves this list back, so a capped read would drop members.
+      const { data, truncated } = await fetchAllPaginated((from, to) =>
+        supabase
+          .from("customer_segments")
+          .select(
+            `
+              id,
+              assigned_at,
+              assigned_by_user_id,
+              crm_customers!inner(*)
+            `,
+          )
+          .eq("segment_id", segmentId)
+          .eq("crm_customers.tenant_id", tenantId)
+          .order("assigned_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to),
+        1000,
+        500,
+      );
 
-      if (error) {
-        throw error;
+      if (truncated) {
+        throw new Error(
+          "This segment has more than 500,000 members and cannot be listed here.",
+        );
       }
 
-      return (data ?? []).map((row) => {
+      return data.map((row) => {
         const customer = row.crm_customers as unknown as CustomerRow;
         const lastActivityAt =
           customer.last_purchase_date ??

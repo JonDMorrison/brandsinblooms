@@ -32,3 +32,42 @@ export async function fetchListHealth(client:SupabaseClient,tenantId:string,now=
   if(suppressions.count===null)throw new Error('Suppression count was not returned.');
   return summarizeListHealth(events,suppressions.count);
 }
+
+export interface ListHealthScoreInput {
+  bounceRate:number;complaintRate:number;healthStatus:'healthy'|'warning'|'critical';
+  /** Contacts that can receive email (email_reachability_summary.reachable). */
+  reachable:number|null;
+  /** All contacts in scope (email_reachability_summary.total). */
+  total:number|null;
+}
+export interface ListHealthScore {
+  score:number;status:'healthy'|'warning'|'critical'|'unknown';label:string;
+  reachablePercent:number|null;explanation:string;
+}
+/**
+ * One list health score that factors in reachability. Bounce and complaint
+ * rates alone read 100% on a list nobody can be emailed, so the score is
+ * capped by the share of reachable contacts, and 0 reachable is critical.
+ */
+export function scoreListHealth(input:ListHealthScoreInput):ListHealthScore {
+  const deliverability=Math.max(0,Math.min(100,100-input.bounceRate*10-input.complaintRate*100));
+  if(input.total===null||input.reachable===null){
+    return {score:Math.round(deliverability),status:'unknown',label:'Reachability unknown',reachablePercent:null,
+      explanation:'Reachability could not be loaded, so this score only reflects bounces and complaints.'};
+  }
+  if(input.total===0){
+    return {score:0,status:'unknown',label:'No contacts yet',reachablePercent:null,
+      explanation:'There are no contacts to measure yet.'};
+  }
+  const reachablePercent=Math.round(input.reachable/input.total*1000)/10;
+  if(input.reachable===0){
+    return {score:0,status:'critical',label:'No reachable contacts',reachablePercent:0,
+      explanation:'No contact can receive email yet: nobody has given email permission, or every address is suppressed.'};
+  }
+  const score=Math.round(Math.min(deliverability,reachablePercent));
+  const reachStatus:'healthy'|'warning'|'critical'=reachablePercent<20?'critical':reachablePercent<50?'warning':'healthy';
+  const rank={healthy:0,warning:1,critical:2} as const;
+  const status=rank[reachStatus]>rank[input.healthStatus]?reachStatus:input.healthStatus;
+  return {score,status,label:status==='healthy'?'Healthy':status==='warning'?'Needs attention':'Critical',reachablePercent,
+    explanation:`${reachablePercent}% of contacts can receive email. The score is the lower of reachability and bounce/complaint health.`};
+}

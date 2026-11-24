@@ -38,6 +38,12 @@ type RevenueChartProps = {
   onRetry?: () => void;
   periodLabel: string;
   currency?: string;
+  /**
+   * Spending stored on customer records (crm_customers totals). Shown when
+   * there are no POS orders so the empty state says where numbers come from
+   * instead of claiming there is no revenue data.
+   */
+  customerSpend?: { total: number; customers: number; basis: "recorded" | "imported" } | null;
 };
 
 function RevenueTooltip({
@@ -89,6 +95,7 @@ export function RevenueChart({
   onRetry,
   periodLabel,
   currency,
+  customerSpend,
 }: RevenueChartProps) {
   if (loading) {
     return (
@@ -143,11 +150,21 @@ export function RevenueChart({
           actions={<JoyChip size="sm">{periodLabel}</JoyChip>}
         />
         <JoyCardContent sx={{ pt: 3 }}>
-          <JoyEmptyState
-            icon={<BarChart3 />}
-            title="No revenue data yet"
-            description="Connect a POS source or sync order history to unlock the revenue trend view."
-          />
+          {customerSpend && customerSpend.total > 0 ? (
+            <JoyEmptyState
+              icon={<BarChart3 />}
+              title="No dated POS orders for a daily trend"
+              description={`Your customer records hold ${formatCurrency(customerSpend.total, { currency })} of ${
+                customerSpend.basis === "recorded" ? "recorded spending" : "imported lifetime value"
+              } across ${customerSpend.customers.toLocaleString()} customers. Those are per-customer totals from your imports, not dated orders, so they can't be charted by day. Connect a POS or sync order history to see the trend.`}
+            />
+          ) : (
+            <JoyEmptyState
+              icon={<BarChart3 />}
+              title="No revenue data yet"
+              description="Connect a POS source or sync order history to unlock the revenue trend view."
+            />
+          )}
         </JoyCardContent>
       </JoyCard>
     );

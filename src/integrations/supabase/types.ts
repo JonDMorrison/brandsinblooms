@@ -3519,6 +3519,45 @@ export type Database = {
           },
         ];
       };
+      crm_connected_websites: {
+        Row: {
+          cms_site_id: string;
+          disconnected_at: string | null;
+          id: string;
+          last_connected_at: string;
+          linked_at: string;
+          linked_by: string;
+          site_name: string;
+          site_origin: string;
+          status: string;
+          tenant_id: string;
+        };
+        Insert: {
+          cms_site_id: string;
+          disconnected_at?: string | null;
+          id?: string;
+          last_connected_at?: string;
+          linked_at?: string;
+          linked_by: string;
+          site_name: string;
+          site_origin: string;
+          status?: string;
+          tenant_id: string;
+        };
+        Update: {
+          cms_site_id?: string;
+          disconnected_at?: string | null;
+          id?: string;
+          last_connected_at?: string;
+          linked_at?: string;
+          linked_by?: string;
+          site_name?: string;
+          site_origin?: string;
+          status?: string;
+          tenant_id?: string;
+        };
+        Relationships: [];
+      };
       crm_customers: {
         Row: {
           avg_time_to_click_minutes: number | null;
@@ -14394,6 +14433,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      tenant_compliance_settings: {
+        Row: {
+          created_at: string;
+          settings: Json;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          settings?: Json;
+          tenant_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          settings?: Json;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_compliance_settings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: true;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tenant_email_governance_overrides: {
         Row: {
           created_at: string;
@@ -16324,6 +16395,19 @@ export type Database = {
           total_recipients: number | null;
           worker_heartbeat_at: string | null;
         }[];
+      };
+      copy_segment_members_batch: {
+        Args: {
+          p_after_customer_id?: string | null;
+          p_limit?: number;
+          p_source_segment_id: string;
+          p_target_segment_id: string;
+        };
+        Returns: Json;
+      };
+      segment_membership_summary: {
+        Args: { p_tenant_id: string };
+        Returns: Json;
       };
       ensure_system_segments: {
         Args: { p_segments: Json; p_tenant_id: string };

@@ -212,19 +212,6 @@ export function FormListToolbar({
                   <CloseRounded sx={{ fontSize: 16 }} />
                 </IconButton>
               </JoyTooltip>
-            ) : showSearchHint ? (
-              <JoyChip
-                size="sm"
-                variant="plain"
-                color="neutral"
-                sx={{
-                  fontSize: "0.75rem",
-                  fontWeight: 500,
-                  pointerEvents: "none",
-                }}
-              >
-                /
-              </JoyChip>
             ) : null
           }
           variant="plain"
@@ -620,11 +607,7 @@ export function FormListToolbar({
             Clear all
           </Button>
         </Stack>
-      ) : (
-        <Typography level="body-xs" color="neutral">
-          {resultText}
-        </Typography>
-      )}
+      ) : null}
     </Stack>
   );
 }

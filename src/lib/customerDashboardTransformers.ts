@@ -3,6 +3,7 @@
  * Pure functions that transform raw hook data into component-ready props
  */
 
+import type { CustomerPurchaseSummary } from "@/lib/crm/customerPurchaseSummary";
 import type { CustomerData } from "@/hooks/useCustomerDashboard";
 import type {
   CustomerLoyaltyAccount,
@@ -295,16 +296,23 @@ export interface PurchaseDisplayMetrics {
 export const transformToPurchaseMetrics = (
   purchase: CustomerPurchaseMetrics | null,
   postPurchase: CustomerPostPurchaseMetrics | null,
+  /**
+   * The crm_customers rollups. When given, lifetime value, order count, AOV
+   * and purchase dates come from here so the Purchases tab matches the list,
+   * header and Bloom; customer_purchase_metrics only adds behaviour detail.
+   */
+  summary?: CustomerPurchaseSummary,
 ): PurchaseDisplayMetrics => {
-  const totalPurchases = purchase?.total_purchases ?? 0;
+  const totalPurchases =
+    summary?.orderCount ?? purchase?.total_purchases ?? 0;
   const discountedPurchases = purchase?.total_discounted_purchases ?? 0;
   const fullPricePurchases = purchase?.total_full_price_purchases ?? 0;
 
   return {
     totalPurchases,
-    totalRevenue: purchase?.lifetime_value ?? 0,
-    ltv: purchase?.lifetime_value ?? 0,
-    aov: purchase?.average_order_value ?? 0,
+    totalRevenue: summary ? (summary.lifetimeValue ?? 0) : (purchase?.lifetime_value ?? 0),
+    ltv: summary ? (summary.lifetimeValue ?? 0) : (purchase?.lifetime_value ?? 0),
+    aov: summary ? (summary.averageOrderValue ?? 0) : (purchase?.average_order_value ?? 0),
     purchaseFrequency: purchase?.purchase_frequency ?? 0,
     avgDaysBetweenPurchases: purchase?.avg_days_between_purchases ?? null,
     repeatPurchaseRate: Math.round((purchase?.repeat_purchase_rate ?? 0) * 100),
@@ -317,8 +325,12 @@ export const transformToPurchaseMetrics = (
         ? Math.round((discountedPurchases / totalPurchases) * 100)
         : 0,
     consecutiveDiscountPurchases: null,
-    firstPurchaseDate: purchase?.first_purchase_date ?? null,
-    lastPurchaseDate: purchase?.last_purchase_date ?? null,
+    firstPurchaseDate: summary
+      ? summary.firstPurchaseDate
+      : (purchase?.first_purchase_date ?? null),
+    lastPurchaseDate: summary
+      ? summary.lastPurchaseDate
+      : (purchase?.last_purchase_date ?? null),
     totalDiscountAmount: purchase?.total_discount_amount ?? 0,
     categoryAffinity: purchase?.product_category_affinity ?? {},
   };

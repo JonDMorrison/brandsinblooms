@@ -131,6 +131,14 @@ export interface CustomerData {
   custom_fields?: unknown;
   persona?: string | null;
   is_vip?: boolean;
+
+  // crm_customers purchase rollups: the single source of truth for lifetime
+  // value, order count and purchase dates (see customerPurchaseSummary).
+  total_spent?: number | string | null;
+  lifetime_value?: number | string | null;
+  pos_order_count?: number | null;
+  last_purchase_date?: string | null;
+  first_purchase_date?: string | null;
 }
 
 /**
@@ -154,7 +162,7 @@ export const useCustomer360 = (customerId: string | undefined) => {
         const { data: baseCustomer } = await supabase
           .from("crm_customers")
           .select(
-            "email_opt_in, sms_opt_in, email_consent, sms_consent, email_opt_in_at, email_opt_out_at, sms_opt_in_at, sms_opt_out_at, email_consent_source, email_consent_method, email_consent_details, sms_consent_source, sms_consent_method, sms_consent_details, tags, product_tags, custom_fields, persona, is_vip",
+            "email_opt_in, sms_opt_in, email_consent, sms_consent, email_opt_in_at, email_opt_out_at, sms_opt_in_at, sms_opt_out_at, email_consent_source, email_consent_method, email_consent_details, sms_consent_source, sms_consent_method, sms_consent_details, tags, product_tags, custom_fields, persona, is_vip, total_spent, lifetime_value, pos_order_count, last_purchase_date, first_purchase_date",
           )
           .eq("id", customerId)
           .maybeSingle();

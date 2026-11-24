@@ -122,12 +122,12 @@ function ComplianceSkeleton() {
   );
 }
 
-function UIOnlyChip() {
+function NotAvailableChip() {
   return (
-    <Tooltip title="This setting is saved but may not yet be fully enforced at runtime. It will be activated in a future release.">
+    <Tooltip title="Published forms do not act on this setting yet, so it stays off.">
       <Box component="span">
         <JoyChip size="sm" variant="outlined" color="neutral">
-          UI only
+          Not available yet
         </JoyChip>
       </Box>
     </Tooltip>
@@ -334,8 +334,10 @@ export function FormComplianceTab({
           <ComplianceToggleRow
             title="Double opt-in"
             description="Send a confirmation email requiring visitors to verify their consent before it becomes active."
-            checked={resolvedCompliance.double_opt_in}
-            badge={<UIOnlyChip />}
+            checked={false}
+            disabled
+            note="Not available yet: form submissions do not send a confirmation email today."
+            badge={<NotAvailableChip />}
             onChange={(double_opt_in) =>
               onComplianceChange({
                 ...resolvedCompliance,
@@ -347,8 +349,10 @@ export function FormComplianceTab({
           <ComplianceToggleRow
             title="GDPR compliant mode"
             description="Enable strict data handling mode for EU visitors (data minimization, explicit consent, right to erasure)."
-            checked={resolvedCompliance.gdpr_compliant}
-            badge={<UIOnlyChip />}
+            checked={false}
+            disabled
+            note="Not available yet: form submissions are handled the same way whether or not this is set."
+            badge={<NotAvailableChip />}
             onChange={(gdpr_compliant) =>
               onComplianceChange({
                 ...resolvedCompliance,

@@ -1,4 +1,22 @@
-import type { EmailDomain } from "@/hooks/useEmailDomains";
+// No app-alias imports: the Bloom edge function imports this file directly so
+// Bloom's draft review applies the same sender check as Review & Send.
+export type SenderDomainStatus =
+  | "pending"
+  | "pending_dns"
+  | "verifying"
+  | "warming_up"
+  | "active"
+  | "paused"
+  | "blocked"
+  | "failed"
+  | "error";
+
+/** The fields of an email_domains row the sender check reads. */
+export interface SenderDomainLike {
+  domain: string;
+  default_from_email?: string | null;
+  status: SenderDomainStatus;
+}
 
 export type SenderSeverity = "ready" | "warning" | "blocked";
 
@@ -59,7 +77,7 @@ const MESSAGES: {
 export interface ClassifySenderInput {
   senderEmail: string;
   senderName: string;
-  emailDomains: EmailDomain[];
+  emailDomains: SenderDomainLike[];
   campaignType: "email" | "sms";
 }
 

@@ -12,7 +12,7 @@ import LinearProgress from "@mui/joy/LinearProgress";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { ChevronLeft, Download, MailPlus, Search, X } from "lucide-react";
+import { ChevronLeft, Search, X } from "lucide-react";
 import { FeaturedCard } from "@/components/integrations/FeaturedCard";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { IntegrationSection } from "@/components/integrations/IntegrationSection";
@@ -27,10 +27,7 @@ import {
 } from "@/components/integrations/integrationsHubConfig";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
-import { SUPPORT_EMAIL } from "@/lib/bloomSupport/constants";
-
-const REQUEST_INTEGRATION_MAILTO =
-  `mailto:${SUPPORT_EMAIL}?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A`;
+import { IntegrationsHeaderActions } from "@/components/integrations/IntegrationsHeaderActions";
 
 const FILTER_OPTIONS: Array<{
   value: IntegrationTabValue;
@@ -95,32 +92,6 @@ type IntegrationsHubIndexProps = {
   title?: string;
   description?: string;
 };
-
-function exportIntegrationStatuses(items: IntegrationDefinition[]) {
-  const rows = [
-    ["Name", "Category", "Status", "Detail Path"],
-    ...items.map((item) => [
-      item.name,
-      item.categoryLabel,
-      item.status,
-      `/integrations/${item.slug}`,
-    ]),
-  ];
-
-  const csv = rows
-    .map((row) =>
-      row.map((value) => `"${String(value).split('"').join('""')}"`).join(","),
-    )
-    .join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "integrations-status.csv";
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 function resolveCategoryFromQuery(
   value: string | null,
@@ -354,31 +325,7 @@ export function IntegrationsHubIndex({
               </Stack>
 
               {canUseActions ? (
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  alignItems={{ xs: "stretch", sm: "center" }}
-                >
-                  <Button
-                    color="neutral"
-                    size="sm"
-                    startDecorator={<Download size={16} />}
-                    variant="outlined"
-                    onClick={() => exportIntegrationStatuses(sortedItems)}
-                  >
-                    Export status
-                  </Button>
-                  <Button
-                    color="neutral"
-                    component="a"
-                    href={REQUEST_INTEGRATION_MAILTO}
-                    size="sm"
-                    startDecorator={<MailPlus size={16} />}
-                    variant="solid"
-                  >
-                    Request integration
-                  </Button>
-                </Stack>
+                <IntegrationsHeaderActions items={sortedItems} />
               ) : null}
             </Stack>
           </Stack>
