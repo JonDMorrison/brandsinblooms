@@ -229,7 +229,7 @@ function brandFooterColors(
   designSystem: ReturnType<typeof resolveDesignSystem>,
 ): Partial<StudioBlock> {
   const colors = designSystem?.colors;
-  if (!colors?.primary || colors.footerBackground) return {};
+  if (!colors?.primary || colors.footerBackground || colors.brandColorsAreDefaults) return {};
   const text = colors.primaryContrastText || "#ffffff";
   return {
     backgroundColor: colors.primary,
@@ -286,6 +286,9 @@ export function ensureFooterBlockCompliance(
       ...(footerBlock.newsletterSettings ?? { version: 1 }),
       version: 1,
       emptyBlocks: "skip",
+      // A footer created here belongs to a new draft: phone photos show at
+      // natural height. Existing footers keep whatever they had (240px).
+      ...(existingFooter ? {} : { mobileImageHeight: "natural" as const }),
     },
   };
 

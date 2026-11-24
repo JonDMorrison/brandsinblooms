@@ -95,6 +95,7 @@ export function normalizeNewsletterSettings(
     contentBackgroundColor: emailColor(raw.contentBackgroundColor, "#fbfaf6"),
     blockGap: clampNumber(raw.blockGap, 12, 0, 96),
     emptyBlocks: raw.emptyBlocks === "skip" ? "skip" : undefined,
+    mobileImageHeight: raw.mobileImageHeight === "natural" ? "natural" : undefined,
     fontFamily: raw.fontFamily ? emailFont(raw.fontFamily) : undefined,
     allowedFonts: Array.isArray(raw.allowedFonts)
       ? raw.allowedFonts

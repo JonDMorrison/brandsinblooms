@@ -26,7 +26,9 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Skeleton from "@mui/joy/Skeleton";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import Modal from "@mui/joy/Modal";
+import ModalDialog from "@mui/joy/ModalDialog";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type {
   AIImageStudioAspectRatio,
@@ -75,6 +77,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toContentBlockSource, type ContentBlock } from "@/types/emailBuilder";
 import { useStudioImageCrops } from "@/components/crm/studio/useStudioImageCrops";
 import { useThisWeeksTheme } from "@/hooks/useThisWeeksTheme";
+import { readThemeGenerationState } from "@/hooks/useStartThemeNewsletter";
+import { useThemeNewsletterGeneration } from "@/hooks/useThemeNewsletterGeneration";
+import {
+  ThemeGenerationFailedNotice,
+  ThemeGenerationOverlay,
+} from "@/components/crm/studio/ThemeGenerationOverlay";
+import type { WeeklyThemeImage } from "@/lib/studio/weeklyThemeSeed";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { buildNewsletterIdeaContentBlocks } from "@/lib/studio/newsletterIdeaSeed";
 import type { WeeklyThemeLibrary } from "@/components/crm/studio/BlockLibrary";
 import type {
@@ -638,6 +648,7 @@ function CampaignStudioPageContent() {
   const { tenant } = useTenant();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [reviewParams] = useSearchParams();
   const reviewBlock = reviewParams.get("block");
   const focusedReviewBlock = React.useRef<string | null>(null);
@@ -1788,6 +1799,88 @@ function CampaignStudioPageContent() {
     };
   }, [hasUnsavedChanges, saveStatus]);
 
+  // "Start from this week's theme" and "Rewrite with AI": the newsletter is
+  // written by generate-theme-newsletter and replaces the draft in one
+  // undoable step (autosave then persists it). The draft already holds the
+  // clean deterministic seed, which is what stays if generation fails.
+  const [generationImages, setGenerationImages] = React.useState<WeeklyThemeImage[]>([]);
+  const [rewriteConfirmOpen, setRewriteConfirmOpen] = React.useState(false);
+  const generatedFingerprintRef = React.useRef<string | null>(null);
+  const awaitingGeneratedFingerprintRef = React.useRef(false);
+  const themeGenerationStartedRef = React.useRef(false);
+  const replaceStudioContent = studio.replaceContent;
+  const themeGeneration = useThemeNewsletterGeneration({
+    tenantId: tenant?.id ?? null,
+    campaignId,
+    designSystem,
+    onApply: (content) => {
+      awaitingGeneratedFingerprintRef.current = true;
+      replaceStudioContent(content);
+      toast.success("This week's newsletter is ready to review.");
+    },
+  });
+  const { generate: generateThemeNewsletter } = themeGeneration;
+  React.useEffect(() => {
+    if (awaitingGeneratedFingerprintRef.current) {
+      awaitingGeneratedFingerprintRef.current = false;
+      generatedFingerprintRef.current = currentFingerprint;
+    }
+  }, [currentFingerprint]);
+
+  const themeGenerationRequest = React.useMemo(
+    () => readThemeGenerationState(location.state),
+    [location.state],
+  );
+  React.useEffect(() => {
+    if (
+      !themeGenerationRequest ||
+      themeGenerationStartedRef.current ||
+      isLoading ||
+      loadError ||
+      !campaignRecordRef.current
+    ) {
+      return;
+    }
+    themeGenerationStartedRef.current = true;
+    // The untouched seed counts as unedited for "Rewrite with AI".
+    generatedFingerprintRef.current = savedFingerprintRef.current;
+    setGenerationImages(themeGenerationRequest.themeImages);
+    void generateThemeNewsletter({
+      weekNumber: themeGenerationRequest.weekNumber,
+      themeImages: themeGenerationRequest.themeImages,
+    });
+    // A reload of this page must not write the newsletter again.
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [
+    generateThemeNewsletter,
+    isLoading,
+    loadError,
+    location.pathname,
+    location.search,
+    navigate,
+    themeGenerationRequest,
+  ]);
+
+  const runRewriteWithAI = React.useCallback(() => {
+    setRewriteConfirmOpen(false);
+    const images = weeklyThemeQuery.data?.source.images ?? [];
+    setGenerationImages(images);
+    void generateThemeNewsletter({
+      fallbackWeekNumber: getCurrentWeekNumber(),
+      themeImages: images,
+    });
+  }, [generateThemeNewsletter, weeklyThemeQuery.data]);
+
+  const handleRewriteWithAI = React.useCallback(() => {
+    if (themeGeneration.status === "generating") return;
+    // Ask before overwriting anything that isn't the last AI version.
+    if (generatedFingerprintRef.current !== currentFingerprint) {
+      setRewriteConfirmOpen(true);
+      return;
+    }
+    runRewriteWithAI();
+  }, [currentFingerprint, runRewriteWithAI, themeGeneration.status]);
+
   React.useEffect(() => {
     if (!campaignId) {
       return;
@@ -2316,6 +2409,10 @@ function CampaignStudioPageContent() {
               canUndo={studio.canUndo}
               canRedo={studio.canRedo}
               lastSavedAt={lastSavedAt}
+              onRewriteWithAI={
+                studio.campaignStatus === "Draft" ? handleRewriteWithAI : undefined
+              }
+              rewritingWithAI={themeGeneration.status === "generating"}
             />
           </Box>
 
@@ -2367,9 +2464,22 @@ function CampaignStudioPageContent() {
                 sx={{
                   minWidth: 0,
                   minHeight: 0,
+                  position: "relative",
                   pointerEvents: aiStudioOpen ? "none" : "auto",
                 }}
               >
+                {themeGeneration.status === "generating" ? (
+                  <ThemeGenerationOverlay
+                    images={generationImages}
+                    canvasWidth={studio.canvasWidth}
+                  />
+                ) : null}
+                {themeGeneration.status === "failed" ? (
+                  <ThemeGenerationFailedNotice
+                    onRetry={themeGeneration.retry}
+                    onDismiss={themeGeneration.dismiss}
+                  />
+                ) : null}
                 <StudioCanvas
                   blocks={studio.blocks}
                   selectedBlockId={studio.selectedBlockId}
@@ -2460,6 +2570,24 @@ function CampaignStudioPageContent() {
             setSaveTemplateOpen(false);
           }}
         />
+        <Modal open={rewriteConfirmOpen} onClose={() => setRewriteConfirmOpen(false)}>
+          <ModalDialog role="alertdialog" aria-labelledby="rewrite-ai-title" sx={{ maxWidth: 440 }}>
+            <Typography id="rewrite-ai-title" level="title-lg">
+              Rewrite this newsletter with AI?
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              This replaces the blocks, subject line and preview text with a new
+              version written from this week's theme. Use Undo to get your
+              blocks back.
+            </Typography>
+            <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 1 }}>
+              <Button variant="plain" color="neutral" onClick={() => setRewriteConfirmOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={runRewriteWithAI}>Rewrite</Button>
+            </Stack>
+          </ModalDialog>
+        </Modal>
       </Sheet>
       <ConnectedContentPicker open={websitePickerOpen} onClose={() => setWebsitePickerOpen(false)} onInsert={importConnectedContent} initialSiteId={promoteSite || undefined} initialItemId={promoteId || undefined} />
     </NewsletterDesignContext.Provider>
