@@ -15,7 +15,7 @@ import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { Building2, MapPin, Plus, Save, ShieldCheck, Users } from "lucide-react";
+import { Building2, MapPin, Plus, Save, ShieldCheck, UserMinus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -27,6 +27,9 @@ import {
   normalizeCrmRole,
   type CrmRole,
 } from "@/lib/auth/crmAccess";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import { TeamInvitationsPanel } from "@/components/settings/TeamInvitationsPanel";
+import { removeTeamMember, TeamInvitationError } from "@/lib/team/teamInvitations";
 
 type AccessLocation = {
   id: string;
@@ -93,6 +96,8 @@ export const OrganizationAccessSettings = () => {
   const [locationTimezone, setLocationTimezone] = useState("America/Toronto");
   // True once the person picks a zone, so the tenant default never overrides it.
   const [locationTimezoneTouched, setLocationTimezoneTouched] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<AccessMember | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const loadOverview = useCallback(async () => {
     if (!tenant?.id) {
@@ -219,6 +224,25 @@ export const OrganizationAccessSettings = () => {
 
     toast.success(`Access updated for ${member.name}`);
     await loadOverview();
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    setRemoving(true);
+    try {
+      await removeTeamMember(memberToRemove.id);
+      toast.success(`${memberToRemove.name} was removed from the team`);
+      setMemberToRemove(null);
+      await loadOverview();
+    } catch (removeError) {
+      toast.error(
+        removeError instanceof TeamInvitationError
+          ? removeError.message
+          : "Could not remove the team member. Try again.",
+      );
+    } finally {
+      setRemoving(false);
+    }
   };
 
   if (tenantLoading || loading) {
@@ -364,6 +388,13 @@ export const OrganizationAccessSettings = () => {
             </Alert>
           ) : null}
 
+          {overview.can_manage ? (
+            <TeamInvitationsPanel
+              tenantId={overview.tenant_id}
+              activeLocations={activeLocations}
+            />
+          ) : null}
+
           <Stack spacing={1.5}>
             {overview.members.map((member) => {
               const draft = drafts[member.id] ?? {
@@ -449,17 +480,28 @@ export const OrganizationAccessSettings = () => {
                     ) : null}
 
                     {overview.can_manage && !isCurrentUser ? (
-                      <Button
-                        size="sm"
-                        variant="solid"
-                        startDecorator={<Save size={15} />}
-                        loading={savingKey === member.id}
-                        disabled={scoped && draft.locationIds.length === 0}
-                        onClick={() => void saveMember(member)}
-                        sx={{ alignSelf: "flex-end" }}
-                      >
-                        Save access
-                      </Button>
+                      <Stack direction="row" spacing={1} sx={{ alignSelf: "flex-end" }}>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          color="danger"
+                          startDecorator={<UserMinus size={15} />}
+                          disabled={savingKey === member.id}
+                          onClick={() => setMemberToRemove(member)}
+                        >
+                          Remove
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="solid"
+                          startDecorator={<Save size={15} />}
+                          loading={savingKey === member.id}
+                          disabled={scoped && draft.locationIds.length === 0}
+                          onClick={() => void saveMember(member)}
+                        >
+                          Save access
+                        </Button>
+                      </Stack>
                     ) : isCurrentUser ? (
                       <Typography level="body-xs" sx={{ color: "text.secondary" }}>
                         Another owner or admin must change your access.
@@ -472,6 +514,23 @@ export const OrganizationAccessSettings = () => {
           </Stack>
         </Stack>
       </Sheet>
+
+      <JoyAlertDialog
+        open={memberToRemove !== null}
+        onClose={() => {
+          if (!removing) setMemberToRemove(null);
+        }}
+        onConfirm={confirmRemoveMember}
+        variant="danger"
+        loading={removing}
+        title={memberToRemove ? `Remove ${memberToRemove.name}?` : "Remove team member?"}
+        description={
+          memberToRemove
+            ? `${memberToRemove.email} will lose access to this business right away. Campaigns and contacts they worked on stay. You can invite them again later.`
+            : undefined
+        }
+        confirmLabel="Remove from team"
+      />
     </Stack>
   );
 };
