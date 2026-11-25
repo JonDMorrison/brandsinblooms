@@ -251,8 +251,6 @@ function getFooterContactLines(
     .map((line) => stripEmailFragmentsFromAddressLine(stringValue(line)))
     .filter(Boolean);
 
-  lines.push(...stringValue(block.hoursOfOperation).split(/\n+/).map((line) => line.trim()).filter(Boolean));
-
   if (stringValue(designSystem?.company.phone)) {
     lines.push(stringValue(designSystem?.company.phone));
   }
@@ -270,14 +268,25 @@ function renderFooterContactContent(
   inline = false,
 ) {
   const lines = getFooterContactLines(block, designSystem);
+  // Hours sit on their own line(s), even in the one-line footer layouts:
+  // seasonal hours get long and read badly run into the address.
+  const hours = stringValue(block.hoursOfOperation)
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
-  if (lines.length === 0) {
+  if (lines.length === 0 && hours.length === 0) {
     return "";
   }
 
-  return lines
+  const contact = lines
     .map((line) => escapeHtml(line))
     .join(inline ? " &middot; " : "<br>");
+  const hoursHtml = hours.length
+    ? `<span data-footer-hours="true" style="display:block;">${hours.map((line) => escapeHtml(line)).join("<br>")}</span>`
+    : "";
+  // The hours span is display:block, so it starts its own line in both modes.
+  return `${contact}${hoursHtml}`;
 }
 
 function getDividerLineColor(
