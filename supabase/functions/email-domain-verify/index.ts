@@ -574,6 +574,7 @@ function computeReadinessStatus(params: {
 const FAST_VERIFY_ATTEMPTS = 10;
 const MAX_VERIFY_ATTEMPTS = 66;
 const SLOW_VERIFY_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const PROVIDER_RECHECK_MS = 5 * 60 * 1000;
 
 function getNextVerifyInterval(attempts: number): number {
   if (attempts <= 3) return 2 * 60 * 1000;
@@ -1306,11 +1307,19 @@ const handler = async (req: Request): Promise<Response> => {
         : buildVerificationError(checks, resendRecords, dnsConflictDetected);
     // An active domain without DMARC can send transactional mail but stays
     // blocked for campaigns, so keep checking until DMARC shows up.
+    // Records are live but Resend has not confirmed yet. Resend verifies in the
+    // background after our trigger, so look again in a few minutes rather than
+    // waiting for the slow 6-hour schedule.
+    const providerCatchingUp =
+      !treatedAsActive && dnsVerifiedButResendPending &&
+      newAttempts < MAX_VERIFY_ATTEMPTS;
     const nextVerifyAt = treatedAsActive
       ? dmarcOk
         ? null
         : calculateNextVerifyAt(newAttempts, false)
-      : calculateNextVerifyAt(newAttempts, allPassed);
+      : providerCatchingUp
+        ? new Date(Date.now() + PROVIDER_RECHECK_MS)
+        : calculateNextVerifyAt(newAttempts, allPassed);
 
     console.log(
       `📊 Status update: ${emailDomain.status} -> ${newStatus}, phase: ${verificationPhase}, attempts: ${newAttempts}, next_verify: ${nextVerifyAt?.toISOString() || "none"}`,
