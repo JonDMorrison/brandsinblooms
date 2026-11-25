@@ -209,15 +209,15 @@ export const HomepagePricingCtaFooterSection = ({
             </div>
           </div>
 
-          <p className="hp-pricing-cta__seed-footnote">
-            {SEED_FOOTNOTE.text}{" "}
+          <div className="hp-pricing-cta__seed-footnote" style={{border:"1px solid #d7e5db",borderRadius:"18px",padding:"22px",maxWidth:"980px",margin:"24px auto 0",background:"#f4f7f4"}}>
+            <strong style={{display:"block",fontSize:"1.75rem",color:"#173e34",marginBottom:"8px"}}>Complete BloomSuite · $250/month</strong>{SEED_FOOTNOTE.text}{" "}
             <a
               className="hp-pricing-cta__seed-footnote-link"
               href={SEED_FOOTNOTE.linkHref}
             >
               {SEED_FOOTNOTE.linkLabel}
             </a>
-          </p>
+          </div>
         </div>
       </section>
 

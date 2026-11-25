@@ -88,7 +88,7 @@ describe("HomepagePricingCtaFooterSection", () => {
       .closest<HTMLElement>(".hp-pricing-card");
 
     expect(featuredCard).toHaveAttribute("data-featured", "true");
-    expect(screen.getByText("Most Popular")).toHaveClass(
+    expect(screen.getByText("Built for garden retail")).toHaveClass(
       "hp-pricing-card__badge",
     );
     expect(

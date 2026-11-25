@@ -3,16 +3,37 @@
     {
       "source": "/support/track/:path*",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
-        { "key": "Referrer-Policy", "value": "no-referrer" },
-        { "key": "Cache-Control", "value": "private, no-store" }
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
       ]
     }
   ],
   "redirects": [
-    {"source": "/home1", "destination": "/", "permanent": true},
-    {"source": "/website", "destination": "/website/features", "permanent": true},
-    {"source": "/website/waitlist", "destination": "/website/features", "permanent": true},
+    {
+      "source": "/home1",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/website",
+      "destination": "/website/features",
+      "permanent": true
+    },
+    {
+      "source": "/website/waitlist",
+      "destination": "/website/features",
+      "permanent": true
+    },
     {
       "source": "/(.*)",
       "has": [
@@ -2508,6 +2529,14 @@
       "destination": "/api/pos-feature-not-found"
     },
     {
+      "source": "/pricing",
+      "destination": "/pricing-marketing.html"
+    },
+    {
+      "source": "/pricing/",
+      "destination": "/pricing-marketing.html"
+    },
+    {
       "source": "/build-your-suite",
       "destination": "/suite-builder.html"
     },
@@ -2519,10 +2548,22 @@
       "source": "/suite",
       "destination": "/suite-portal.html"
     },
-    {"source": "/plant-intelligence", "destination": "/plant-intelligence.html"},
-    {"source": "/plant-intelligence/", "destination": "/plant-intelligence.html"},
-    {"source": "/care-guides", "destination": "/care-guides-marketing.html"},
-    {"source": "/care-guides/", "destination": "/care-guides-marketing.html"},
+    {
+      "source": "/plant-intelligence",
+      "destination": "/plant-intelligence.html"
+    },
+    {
+      "source": "/plant-intelligence/",
+      "destination": "/plant-intelligence.html"
+    },
+    {
+      "source": "/care-guides",
+      "destination": "/care-guides-marketing.html"
+    },
+    {
+      "source": "/care-guides/",
+      "destination": "/care-guides-marketing.html"
+    },
     {
       "source": "/images/:path*",
       "destination": "/api/static-asset-not-found"

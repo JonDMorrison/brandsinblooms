@@ -61,16 +61,16 @@ const FAQPage = () => {
     },
     questions: [{
       question: "How much does BloomSuite cost?",
-      answer: "BloomSuite offers four plans starting at $199/month: Seed ($199) for CRM and messaging, Sprout ($349) adds a website, Bloom ($699) includes higher volumes for growing centers, and Thrive ($1,199) offers unlimited emails for multi-location retailers. All plans include the full platform — no hidden fees."
+      answer: "Our new pricing preview is $99 USD per month for each of BloomSites, BloomSuite POS and BloomSuite CRM, or $250 for all three. Use the calculator to estimate usage and expansion costs, and confirm your quote before purchase. Existing plans are unchanged."
     }, {
       question: "Will my price go up later?",
-      answer: "Founding customers who join during the Launch Program lock in introductory pricing for life, as long as their subscription remains active. Future customers will pay standard rates."
+      answer: "Existing contractual pricing commitments remain in place. New pricing and future terms will be confirmed in your individual quote."
     }, {
       question: "Are there any extra fees?",
-      answer: "Each plan includes generous email and SMS volumes. If you exceed your limits, overage rates are transparent: $0.002/email and $0.05/SMS. You'll see usage in your dashboard and get alerts at 80% and 100%."
+      answer: "The proposed CRM price includes 20,000 emails monthly. Estimate additional emails at $3 per 1,000 and standard SMS at 4.5 cents per segment. Actual regional rates, sender costs and high-volume options require confirmation."
     }, {
       question: "Can I switch plans as my garden centre grows?",
-      answer: "Absolutely! You can upgrade or downgrade at any time. Upgrades take effect immediately with access to higher limits. Downgrades apply at your next billing cycle."
+      answer: "You can discuss adding or removing products as your needs change. Existing billing agreements and effective dates apply until a new agreement is confirmed."
     }]
   }, {
     id: "ecommerce",
@@ -83,16 +83,16 @@ const FAQPage = () => {
     },
     questions: [{
       question: "What is BloomSuite E-Commerce?",
-      answer: "BloomSuite E-Commerce is a ship-on-demand model where you sell plants online through your own branded storefront, while our network of approved nursery partners handles fulfillment. You get all the benefits of online sales without managing inventory, packing, or shipping."
+      answer: "BloomSites supports online selling through your branded storefront. Eligible supplier programs may also support expanded assortment and partner fulfillment once approved and configured."
     }, {
       question: "What does 'seller of record' mean?",
       answer: "You remain the seller of record — customers buy from your garden center's brand, not BloomSuite. You control pricing, maintain customer relationships, and keep all customer data. We simply provide the platform and fulfillment network."
     }, {
       question: "Do I need to manage inventory?",
-      answer: "No. Orders are automatically routed to approved nursery partners who ship directly to your customers. You never touch the product — just focus on marketing and customer service."
+      answer: "Store-stock orders follow your configured fulfilment process. Eligible supplier orders may follow a separate approved fulfillment path."
     }, {
       question: "How does pricing work with E-Commerce?",
-      answer: "Nurseries set wholesale prices, and you set your own retail markup and margins. BloomSuite charges a simple 5% platform fee on product subtotals only — not on shipping or taxes. You keep the rest."
+      answer: "Nurseries set wholesale prices, and you set your own retail markup and margins. Supplier marketplace terms and ordinary online commerce fees are distinct. Review the applicable vendor, platform and processing fees in your individual agreement before activation."
     }]
   }, {
     id: "features",
