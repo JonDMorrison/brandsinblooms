@@ -173,6 +173,8 @@ export interface StudioBlock {
   couponPrice?: string;
   couponConditions?: string;
   couponImageSide?: "left" | "right" | "top";
+  /** Photo / offer column widths beside each other. Unset = 38/62. */
+  couponColumnSplit?: "25/75" | "33/67" | "50/50";
   couponBorder?: boolean;
   couponScissors?: boolean;
   headline?: string;

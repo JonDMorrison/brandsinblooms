@@ -459,6 +459,24 @@ function CouponFields({
           update("couponImageSide", value as StudioBlock["couponImageSide"])
         }
       />
+      {(block.couponImageSide || "left") !== "top" && (
+        <Choice
+          label="Column widths (photo / offer)"
+          value={block.couponColumnSplit || ""}
+          options={[
+            { value: "", label: "Standard (38 / 62)" },
+            { value: "25/75", label: "25 / 75" },
+            { value: "33/67", label: "33 / 67" },
+            { value: "50/50", label: "50 / 50" },
+          ]}
+          onChange={(value) =>
+            update(
+              "couponColumnSplit",
+              (value || undefined) as StudioBlock["couponColumnSplit"],
+            )
+          }
+        />
+      )}
       <ImageSpacingFields value={block.appearance} onChange={(appearance) => update("appearance", appearance)} />
       {!block.appearance?.border?.style && (
         <StudioSwitchField

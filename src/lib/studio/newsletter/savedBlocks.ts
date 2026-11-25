@@ -45,6 +45,7 @@ export function readSavedBlock(value: unknown): StudioBlock | null {
         "couponPrice",
         "couponConditions",
         "couponImageSide",
+        "couponColumnSplit",
         "headline",
         "subheading",
         "body",
